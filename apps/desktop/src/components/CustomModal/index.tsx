@@ -23,7 +23,6 @@ export interface CustomModalProps {
   className?: string;
   overlayClassName?: string;
   bodyClassName?: string;
-  bodyScrollable?: boolean;
   contentClassName?: string;
   overlayStyle?: CSSProperties;
   contentStyle?: CSSProperties;
@@ -57,7 +56,6 @@ const CustomModal: React.FC<CustomModalProps> = ({
   className = "",
   overlayClassName = "",
   bodyClassName = "",
-  bodyScrollable = true,
   contentClassName = "",
   overlayStyle: overlayStyleProp,
   contentStyle,
@@ -337,7 +335,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
       >
         <div
           className={classNames(
-            "rounded-2xl p-6 shadow-2xl bg-white/95 dark:bg-slate-900/95 border backdrop-blur flex flex-col max-h-[calc(100vh-200px)] overflow-hidden",
+            "rounded-2xl p-6 shadow-2xl bg-white/95 dark:bg-zinc-900/95 border backdrop-blur flex flex-col max-h-[calc(100vh-200px)] overflow-hidden",
             themeColors.cardBorderClass,
             contentClassName,
           )}
@@ -418,8 +416,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
 
           <div
             className={classNames(
-              "custom-modal-body flex-1 min-h-0",
-              bodyScrollable ? "overflow-y-auto" : "overflow-hidden",
+              "custom-modal-body flex-1 min-h-0 overflow-y-auto",
               bodyClassName,
             )}
           >

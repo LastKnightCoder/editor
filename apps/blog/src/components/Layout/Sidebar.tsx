@@ -8,18 +8,11 @@ import {
 } from "@blog/types";
 import { joinPath, formatDate } from "@blog/utils";
 
-const categoryLabels = {
+const categoryLabels: Record<string, string> = {
   temporary: "闪念",
   permanent: "永久",
   theme: "主题",
   literature: "文献",
-};
-
-const categoryColors = {
-  temporary: "bg-amber-500",
-  permanent: "bg-sky-500",
-  theme: "bg-violet-500",
-  literature: "bg-emerald-500",
 };
 
 // ==================== 文档模式侧边栏 ====================
@@ -39,10 +32,11 @@ const DocSidebarItem = memo(
     return (
       <div className="w-full">
         <div
+          data-doc-sidebar-active={isActive ? "true" : undefined}
           className={classNames(
-            "flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-all duration-200",
+            "flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-all duration-150",
             {
-              "bg-[var(--color-primary-subtle)] text-[var(--color-primary)] font-medium":
+              "bg-[var(--color-primary-subtle)] text-[var(--color-text-primary)] font-medium":
                 isActive,
               "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)]":
                 !isActive,
@@ -66,7 +60,7 @@ const DocSidebarItem = memo(
           {hasChildren && (
             <svg
               className={classNames(
-                "h-4 w-4 shrink-0 text-[var(--color-text-quaternary)] transition-transform duration-200",
+                "h-4 w-4 shrink-0 text-[var(--color-text-tertiary)] transition-transform duration-150",
                 { "rotate-90": !collapsed },
               )}
               fill="none"
@@ -86,11 +80,11 @@ const DocSidebarItem = memo(
         {hasChildren && (
           <div
             className={classNames(
-              "overflow-hidden transition-all duration-200",
+              "overflow-hidden transition-all duration-150",
               collapsed ? "max-h-0 opacity-0" : "max-h-[1000px] opacity-100",
             )}
           >
-            <div className="mt-1">
+            <div className="mt-0.5">
               {item.children!.map((child, index) => (
                 <DocSidebarItem
                   key={child.href || index}
@@ -120,23 +114,21 @@ interface DocSidebarProps {
 export const DocSidebar = memo(
   ({ items, basePath, currentPath, title = "文档导航" }: DocSidebarProps) => {
     return (
-      <aside className="w-64 shrink-0 overflow-y-auto">
-        <div className="sidebar-container">
-          <h3 className="mb-4 flex items-center gap-2 font-semibold text-[var(--color-text-primary)]">
-            <span className="h-4 w-1 rounded-full bg-gradient-to-b from-[var(--color-primary)] to-cyan-400" />
-            {title}
-          </h3>
-          <nav className="space-y-0.5">
-            {items.map((item, index) => (
-              <DocSidebarItem
-                key={item.href || index}
-                item={item}
-                basePath={basePath}
-                currentPath={currentPath}
-              />
-            ))}
-          </nav>
-        </div>
+      <aside className="w-full shrink-0">
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
+          <span className="h-4 w-0.5 rounded-full bg-[var(--color-text-primary)]" />
+          <span className="min-w-0 flex-1 break-words">{title}</span>
+        </h3>
+        <nav className="space-y-0.5 pr-2">
+          {items.map((item, index) => (
+            <DocSidebarItem
+              key={item.href || index}
+              item={item}
+              basePath={basePath}
+              currentPath={currentPath}
+            />
+          ))}
+        </nav>
       </aside>
     );
   },
@@ -144,7 +136,7 @@ export const DocSidebar = memo(
 
 DocSidebar.displayName = "DocSidebar";
 
-// ==================== 博客模式侧边栏（文章列表） ====================
+// ==================== 文章列表侧边栏 ====================
 interface ArticleSidebarProps {
   articles: ArticleListItem[];
   basePath: string;
@@ -160,47 +152,39 @@ export const ArticleSidebar = memo(
     title = "最新文章",
   }: ArticleSidebarProps) => {
     return (
-      <aside className="w-64 shrink-0 overflow-y-auto">
-        <div className="sidebar-container">
-          <h3 className="mb-4 flex items-center gap-2 font-semibold text-[var(--color-text-primary)]">
-            <span className="h-4 w-1 rounded-full bg-gradient-to-b from-[var(--color-primary)] to-cyan-400" />
-            {title}
-          </h3>
-          <nav className="space-y-1">
-            {articles.map((article) => (
-              <a
-                key={article.id}
-                href={joinPath(basePath, article.href)}
-                className={classNames(
-                  "block rounded-lg px-3 py-2.5 transition-all duration-200",
-                  {
-                    "bg-[var(--color-primary-subtle)] border-l-2 border-[var(--color-primary)]":
-                      currentId === article.id,
-                    "hover:bg-[var(--color-bg-canvas)]":
-                      currentId !== article.id,
-                  },
-                )}
+      <aside className="w-full shrink-0">
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
+          <span className="h-4 w-0.5 rounded-full bg-[var(--color-text-primary)]" />
+          <span className="min-w-0 flex-1 break-words">{title}</span>
+        </h3>
+        <nav className="space-y-1">
+          {articles.map((article) => (
+            <a
+              key={article.id}
+              href={joinPath(basePath, article.href)}
+              className={classNames(
+                "block rounded-lg px-3 py-2.5 transition-all duration-150",
+                currentId === article.id
+                  ? "bg-[var(--color-primary-subtle)] border-l-2 border-[var(--color-text-primary)]"
+                  : "hover:bg-[var(--color-bg-canvas)]",
+              )}
+            >
+              <div
+                className={classNames("line-clamp-2 text-sm leading-relaxed", {
+                  "text-[var(--color-text-primary)] font-medium":
+                    currentId === article.id,
+                  "text-[var(--color-text-secondary)]":
+                    currentId !== article.id,
+                })}
               >
-                <div
-                  className={classNames(
-                    "line-clamp-2 text-sm leading-relaxed",
-                    {
-                      "text-[var(--color-primary)] font-medium":
-                        currentId === article.id,
-                      "text-[var(--color-text-secondary)]":
-                        currentId !== article.id,
-                    },
-                  )}
-                >
-                  {article.title}
-                </div>
-                <div className="mt-1.5 text-xs text-[var(--color-text-quaternary)]">
-                  {formatDate(article.createTime)}
-                </div>
-              </a>
-            ))}
-          </nav>
-        </div>
+                {article.title}
+              </div>
+              <div className="mt-1 text-xs text-[var(--color-text-tertiary)]">
+                {formatDate(article.createTime)}
+              </div>
+            </a>
+          ))}
+        </nav>
       </aside>
     );
   },
@@ -208,7 +192,7 @@ export const ArticleSidebar = memo(
 
 ArticleSidebar.displayName = "ArticleSidebar";
 
-// ==================== 卡片模式侧边栏（卡片列表） ====================
+// ==================== 卡片列表侧边栏 ====================
 interface CardSidebarProps {
   cards: CardListItem[];
   basePath: string;
@@ -219,55 +203,41 @@ interface CardSidebarProps {
 export const CardSidebar = memo(
   ({ cards, basePath, currentId, title = "全部卡片" }: CardSidebarProps) => {
     return (
-      <aside className="w-64 shrink-0 overflow-y-auto">
-        <div className="sidebar-container">
-          <h3 className="mb-4 flex items-center gap-2 font-semibold text-[var(--color-text-primary)]">
-            <span className="h-4 w-1 rounded-full bg-gradient-to-b from-[var(--color-primary)] to-cyan-400" />
-            {title}
-          </h3>
-          <nav className="space-y-2">
-            {cards.map((card) => (
-              <a
-                key={card.id}
-                href={joinPath(basePath, card.href)}
-                className={classNames(
-                  "block rounded-lg px-3 py-2.5 transition-all duration-200",
-                  {
-                    "bg-[var(--color-primary-subtle)] border border-[var(--color-primary)]/30":
-                      currentId === card.id,
-                    "hover:bg-[var(--color-bg-canvas)]": currentId !== card.id,
-                  },
-                )}
+      <aside className="w-full shrink-0">
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
+          <span className="h-4 w-0.5 rounded-full bg-[var(--color-text-primary)]" />
+          <span className="min-w-0 flex-1 break-words">{title}</span>
+        </h3>
+        <nav className="space-y-1">
+          {cards.map((card) => (
+            <a
+              key={card.id}
+              href={joinPath(basePath, card.href)}
+              className={classNames(
+                "block rounded-lg px-3 py-2.5 transition-all duration-150",
+                currentId === card.id
+                  ? "bg-[var(--color-primary-subtle)]"
+                  : "hover:bg-[var(--color-bg-canvas)]",
+              )}
+            >
+              <div className="mb-1 text-xs text-[var(--color-text-tertiary)]">
+                {categoryLabels[card.category] || card.category}
+              </div>
+              <div
+                className={classNames("line-clamp-2 text-sm leading-relaxed", {
+                  "text-[var(--color-text-primary)] font-medium":
+                    currentId === card.id,
+                  "text-[var(--color-text-secondary)]": currentId !== card.id,
+                })}
               >
-                <div className="mb-1.5 flex items-center gap-2">
-                  <span
-                    className={`${categoryColors[card.category]} h-2 w-2 rounded-full`}
-                    title={categoryLabels[card.category]}
-                  />
-                  <span className="text-xs text-[var(--color-text-quaternary)]">
-                    {categoryLabels[card.category]}
-                  </span>
-                </div>
-                <div
-                  className={classNames(
-                    "line-clamp-2 text-sm leading-relaxed",
-                    {
-                      "text-[var(--color-primary)] font-medium":
-                        currentId === card.id,
-                      "text-[var(--color-text-secondary)]":
-                        currentId !== card.id,
-                    },
-                  )}
-                >
-                  {card.summary}
-                </div>
-                <div className="mt-1.5 text-xs text-[var(--color-text-quaternary)]">
-                  {formatDate(card.createTime)}
-                </div>
-              </a>
-            ))}
-          </nav>
-        </div>
+                {card.summary}
+              </div>
+              <div className="mt-1 text-xs text-[var(--color-text-tertiary)]">
+                {formatDate(card.createTime)}
+              </div>
+            </a>
+          ))}
+        </nav>
       </aside>
     );
   },
@@ -275,9 +245,7 @@ export const CardSidebar = memo(
 
 CardSidebar.displayName = "CardSidebar";
 
-// ==================== 卡片标签面板（用于标签筛选） ====================
-
-// 标签下的卡片项
+// ==================== 卡片标签面板 ====================
 const TagCardItem = memo(
   ({
     card,
@@ -290,7 +258,6 @@ const TagCardItem = memo(
     isActive: boolean;
     tagHint?: string;
   }) => {
-    // 构建带 tagHint 参数的链接
     const href = tagHint
       ? `${joinPath(basePath, card.href)}?tagHint=${encodeURIComponent(tagHint)}`
       : joinPath(basePath, card.href);
@@ -299,21 +266,13 @@ const TagCardItem = memo(
       <a
         href={href}
         className={classNames(
-          "block rounded-lg px-3 py-2 text-sm transition-all duration-200",
-          {
-            "bg-[var(--color-primary-subtle)] text-[var(--color-primary)]":
-              isActive,
-            "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)]":
-              !isActive,
-          },
+          "block rounded-lg px-3 py-2 text-sm transition-all duration-150",
+          isActive
+            ? "bg-[var(--color-primary-subtle)] text-[var(--color-text-primary)]"
+            : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)]",
         )}
       >
-        <div className="flex items-center gap-2">
-          <span
-            className={`${categoryColors[card.category]} h-1.5 w-1.5 shrink-0 rounded-full`}
-          />
-          <span className="line-clamp-2">{card.summary}</span>
-        </div>
+        <span className="line-clamp-2">{card.summary}</span>
       </a>
     );
   },
@@ -349,47 +308,22 @@ const TagItem = memo(
       <div className="w-full">
         <div
           className={classNames(
-            "flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-all duration-200 cursor-pointer",
-            {
-              "bg-[var(--color-primary-subtle)] text-[var(--color-primary)] font-medium":
-                isActive,
-              "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)]":
-                !isActive,
-            },
+            "flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm transition-all duration-150",
+            isActive
+              ? "bg-[var(--color-primary-subtle)] text-[var(--color-text-primary)] font-medium"
+              : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)]",
           )}
           onClick={() => canExpand && setOpen(!open)}
         >
-          <div className="flex flex-1 items-center gap-2">
-            <svg
-              className="h-4 w-4 shrink-0"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"
-              />
-            </svg>
-            <span className="truncate">{item.tag}</span>
-          </div>
+          <span className="truncate">{item.tag}</span>
           <div className="flex items-center gap-1.5">
-            <span
-              className={classNames(
-                "rounded-full px-2 py-0.5 text-xs font-medium",
-                isActive
-                  ? "bg-[var(--color-primary)]/20 text-[var(--color-primary)]"
-                  : "bg-[var(--color-bg-canvas)] text-[var(--color-text-quaternary)]",
-              )}
-            >
+            <span className="text-xs text-[var(--color-text-tertiary)]">
               {item.count}
             </span>
             {canExpand && (
               <svg
                 className={classNames(
-                  "h-4 w-4 transition-transform duration-200 text-[var(--color-text-quaternary)]",
+                  "h-3.5 w-3.5 text-[var(--color-text-tertiary)] transition-transform duration-150",
                   { "rotate-90": open },
                 )}
                 fill="none"
@@ -409,12 +343,11 @@ const TagItem = memo(
 
         <div
           className={classNames(
-            "overflow-hidden transition-all duration-200",
+            "overflow-hidden transition-all duration-150",
             open ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0",
           )}
         >
-          <div className="ml-4 mt-1 border-l-2 border-[var(--color-border-secondary)] pl-2">
-            {/* 完全匹配该标签的卡片 */}
+          <div className="ml-3 mt-0.5 border-l border-[var(--color-border-ring)] pl-2">
             {hasCards &&
               item.cards.map((card) => (
                 <TagCardItem
@@ -425,8 +358,6 @@ const TagItem = memo(
                   tagHint={fullTag}
                 />
               ))}
-
-            {/* 子标签 */}
             {hasChildren &&
               item.children.map((child) => (
                 <TagItem
@@ -463,13 +394,12 @@ export const CardTagPanel = memo(
     activeCardId,
     title = "标签",
   }: CardTagPanelProps) => {
-    // 按数量排序
     const sortedTagTree = [...tagTree].sort((a, b) => b.count - a.count);
 
     return (
-      <div className="sidebar-container">
-        <h3 className="mb-4 flex items-center gap-2 font-semibold text-[var(--color-text-primary)]">
-          <span className="h-4 w-1 rounded-full bg-gradient-to-b from-[var(--color-primary)] to-cyan-400" />
+      <div>
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
+          <span className="h-4 w-0.5 rounded-full bg-[var(--color-text-primary)]" />
           {title}
         </h3>
         <nav className="space-y-0.5">
@@ -490,7 +420,191 @@ export const CardTagPanel = memo(
 
 CardTagPanel.displayName = "CardTagPanel";
 
-// ==================== 通用 Sidebar（兼容旧接口） ====================
+interface CardTagFilterPanelProps {
+  tagTree: CardTagTree[];
+  basePath: string;
+  activeTag?: string;
+  title?: string;
+  allLabel?: string;
+  onSelectTag?: (tag: string) => void;
+}
+
+function buildCardTagFilterHref(basePath: string, tag?: string): string {
+  const listHref = joinPath(basePath, "/cards");
+
+  if (!tag) {
+    return listHref;
+  }
+
+  const [pathname, search = ""] = listHref.split("?");
+  const params = new URLSearchParams(search);
+  params.set("tag", tag);
+  const query = params.toString();
+
+  return `${pathname}${query ? `?${query}` : ""}`;
+}
+
+interface CardTagFilterItemProps {
+  item: CardTagTree;
+  basePath: string;
+  activeTag: string;
+  parentTag?: string;
+  level?: number;
+  onSelectTag?: (tag: string) => void;
+}
+
+const CardTagFilterItem = memo(
+  ({
+    item,
+    basePath,
+    activeTag,
+    parentTag = "",
+    level = 0,
+    onSelectTag,
+  }: CardTagFilterItemProps) => {
+    const fullTag = parentTag ? `${parentTag}/${item.tag}` : item.tag;
+    const hasChildren = item.children.length > 0;
+    const isActiveBranch =
+      activeTag === fullTag || activeTag.startsWith(`${fullTag}/`);
+    const [open, setOpen] = useState(() => level === 0 || isActiveBranch);
+
+    return (
+      <div className="w-full">
+        <div
+          className={classNames(
+            "flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors",
+            isActiveBranch
+              ? "bg-[var(--color-primary-subtle)]"
+              : "hover:bg-[var(--color-bg-canvas)]",
+          )}
+        >
+          <a
+            href={buildCardTagFilterHref(basePath, fullTag)}
+            onClick={(event) => {
+              if (!onSelectTag) {
+                return;
+              }
+              event.preventDefault();
+              onSelectTag(fullTag);
+            }}
+            className={classNames(
+              "flex min-w-0 flex-1 items-center justify-between gap-3 rounded-md px-2 py-1 text-sm transition-colors",
+              activeTag === fullTag
+                ? "text-[var(--color-text-primary)] font-medium"
+                : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]",
+            )}
+          >
+            <span className="truncate">{item.tag}</span>
+            <span className="shrink-0 text-xs tabular-nums text-[var(--color-text-tertiary)]">
+              {item.count}
+            </span>
+          </a>
+
+          {hasChildren && (
+            <button
+              type="button"
+              aria-label={`${open ? "收起" : "展开"} ${fullTag}`}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-bg-container)] hover:text-[var(--color-text-primary)]"
+              onClick={() => setOpen((prev) => !prev)}
+            >
+              <svg
+                className={classNames(
+                  "h-3.5 w-3.5 transition-transform duration-150",
+                  { "rotate-90": open },
+                )}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {hasChildren && open && (
+          <div className="mt-1 space-y-1 border-l border-[var(--color-border-ring)] pl-3">
+            {item.children.map((child) => (
+              <CardTagFilterItem
+                key={child.tag}
+                item={child}
+                basePath={basePath}
+                activeTag={activeTag}
+                parentTag={fullTag}
+                level={level + 1}
+                onSelectTag={onSelectTag}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  },
+);
+
+CardTagFilterItem.displayName = "CardTagFilterItem";
+
+export const CardTagFilterPanel = memo(
+  ({
+    tagTree,
+    basePath,
+    activeTag = "",
+    title = "标签树",
+    allLabel = "全部卡片",
+    onSelectTag,
+  }: CardTagFilterPanelProps) => {
+    const sortedTagTree = [...tagTree].sort((a, b) => b.count - a.count);
+
+    return (
+      <aside className="w-full shrink-0">
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
+          <span className="h-4 w-0.5 rounded-full bg-[var(--color-text-primary)]" />
+          <span className="min-w-0 flex-1 break-words">{title}</span>
+        </h3>
+
+        <nav className="space-y-1 pr-2">
+          <a
+            href={buildCardTagFilterHref(basePath)}
+            onClick={(event) => {
+              if (!onSelectTag) {
+                return;
+              }
+              event.preventDefault();
+              onSelectTag("");
+            }}
+            className={classNames(
+              "flex items-center justify-between rounded-lg px-4 py-2.5 text-sm transition-colors",
+              activeTag
+                ? "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)]"
+                : "bg-[var(--color-primary-subtle)] text-[var(--color-text-primary)] font-medium",
+            )}
+          >
+            <span>{allLabel}</span>
+          </a>
+
+          {sortedTagTree.map((item) => (
+            <CardTagFilterItem
+              key={item.tag}
+              item={item}
+              basePath={basePath}
+              activeTag={activeTag}
+              onSelectTag={onSelectTag}
+            />
+          ))}
+        </nav>
+      </aside>
+    );
+  },
+);
+
+CardTagFilterPanel.displayName = "CardTagFilterPanel";
+
+// ==================== 通用 Sidebar ====================
 interface SidebarProps {
   items: SidebarItem[];
   basePath: string;

@@ -177,9 +177,9 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
         key={chat.id}
         className={classnames(
           "cursor-pointer rounded-lg p-3 mb-2 border border-gray-200 dark:border-gray-700 transition-all duration-200 ease-in-out group",
-          "hover:bg-slate-100 dark:hover:bg-slate-700",
+          "hover:bg-slate-100 dark:hover:bg-zinc-700",
           {
-            "bg-slate-200 dark:bg-slate-900": isSelected,
+            "bg-slate-200 dark:bg-zinc-900": isSelected,
             "bg-white dark:bg-stone-900": !isSelected,
           },
         )}
@@ -261,7 +261,7 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
             <Button
               size="small"
               icon={<MenuFoldOutlined />}
-              className="border-none! bg-transparent! hover:bg-gray-100! dark:hover:bg-gray-700! hover:text-black! dark:hover:text-white!"
+              className="border-none! bg-transparent! hover:bg-gray-100! dark:hover:bg-zinc-700! hover:text-black! dark:hover:text-white!"
               onClick={onClose}
             />
             <Tooltip title="新建对话">
@@ -269,7 +269,7 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
                 size="small"
                 icon={<PlusOutlined />}
                 onClick={onCreateChat}
-                className="border-none! bg-transparent! hover:bg-gray-100! dark:hover:bg-gray-700! hover:text-black! dark:hover:text-white!"
+                className="border-none! bg-transparent! hover:bg-gray-100! dark:hover:bg-zinc-700! hover:text-black! dark:hover:text-white!"
               />
             </Tooltip>
           </div>

@@ -81,6 +81,54 @@ const createPayload = (): ContentEditRendererPayload => ({
   proposedMarkdown: "# 标题\n\nhello tau",
 });
 
+const createLongPayload = (): ContentEditRendererPayload => ({
+  ...createPayload(),
+  beforeMarkdown: ["第一段", "第二段", "第三段", "第四段", "第五段"].join(
+    "\n\n",
+  ),
+  proposedMarkdown: [
+    "第一段",
+    "第二段",
+    "第三段（已改）",
+    "第四段",
+    "第五段",
+  ].join("\n\n"),
+  diffSummary: {
+    patchCount: 1,
+    insertedChars: 3,
+    deletedChars: 0,
+    changePreviews: [
+      {
+        operationId: "rewrite-middle",
+        op: "replace",
+        beforeTextPreview: "第三段",
+        afterTextPreview: "第三段（已改）",
+        charDelta: 3,
+      },
+    ],
+  },
+  patches: [
+    {
+      operationId: "rewrite-middle",
+      op: "replace",
+      start: 0,
+      end: ["第一段", "第二段", "第三段", "第四段", "第五段"].join("\n\n")
+        .length,
+      beforeText: ["第一段", "第二段", "第三段", "第四段", "第五段"].join(
+        "\n\n",
+      ),
+      afterText: [
+        "第一段",
+        "第二段",
+        "第三段（已改）",
+        "第四段",
+        "第五段",
+      ].join("\n\n"),
+      charDelta: 3,
+    },
+  ],
+});
+
 const createProposalRecord = (): ContentEditProposalRecord => ({
   proposalId: "proposal-1",
   conversationKey: "main-chat:1",
@@ -397,6 +445,53 @@ describe("ContentEditProposalRenderer", () => {
     ) as HTMLElement;
     expect(preview.textContent).toContain("world");
     expect(preview.textContent).toContain("tau");
+
+    await unmount(root, container);
+  });
+
+  it("改动高亮应默认折叠未改动长文，只保留改动附近上下文", async () => {
+    const payload = createLongPayload();
+    const proposal = {
+      ...createProposalRecord(),
+      beforeMarkdown: payload.beforeMarkdown,
+      diffSummary: payload.diffSummary,
+      patches: payload.patches,
+    };
+    useContentEditReviewStore.setState({
+      proposals: {
+        [proposal.proposalId]: proposal,
+      },
+      permissions: {
+        [proposal.conversationKey]: "review_required",
+      },
+    });
+    useContentEditReviewSessionStore.getState().createPending({
+      toolCallId: "content-edit-call-1",
+      toolName: "replace_content_by_text",
+      conversationKey: proposal.conversationKey,
+      rawInput:
+        '{"toolName":"replace_content_by_text","proposalId":"proposal-1"}',
+      proposalId: proposal.proposalId,
+      payload,
+    });
+
+    const { root, container } = await mount(
+      <ContentEditProposalRenderer
+        execution={createExecution()}
+        isDark={false}
+        parsedInput={null}
+        renderDefault={() => <div>fallback</div>}
+      />,
+    );
+
+    const preview = container.querySelector(
+      '[data-testid="editor-preview"]',
+    ) as HTMLElement;
+    expect(preview.textContent).toContain("第二段");
+    expect(preview.textContent).toContain("第四段");
+    expect(preview.textContent).toContain("已折叠未改动内容");
+    expect(preview.textContent).not.toContain("第一段");
+    expect(preview.textContent).not.toContain("第五段");
 
     await unmount(root, container);
   });

@@ -15,6 +15,7 @@ export const imageActionsMap = new WeakMap<
     showOverview: () => void;
     deleteImage: () => void;
     startCrop: () => void;
+    startAIEdit: () => void;
     showDescEditor: () => void;
     getImageBlob: () => Promise<Blob | null>;
   }

@@ -114,7 +114,7 @@ export function createVibeLearningAdapter(): SearchAdapter<
         };
         return {
           key: `resource:${result.resourceId}:chunk:${result.chunkIndex}:vec`,
-          dedupeKey: `resource:${result.resourceId}`,
+          dedupeKey: `resource:${result.resourceId}:chunk:${result.chunkIndex}`,
           source: "vec",
           payload,
           text: result.content,
@@ -188,7 +188,7 @@ function mapFTSRowToCandidate(
   };
   return {
     key: `resource:${result.resourceId}:chunk:${result.chunkIndex}:fts`,
-    dedupeKey: `resource:${result.resourceId}`,
+    dedupeKey: `resource:${result.resourceId}:chunk:${result.chunkIndex}`,
     source: "fts",
     payload,
     text: result.content,

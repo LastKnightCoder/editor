@@ -351,7 +351,7 @@ const TranscriptionSetting = () => {
                   className={`flex items-center justify-between p-3 rounded-lg border ${
                     program.downloaded
                       ? "bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700"
-                      : "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700"
+                      : "bg-gray-50 dark:bg-zinc-800/50 border-gray-200 dark:border-gray-700"
                   }`}
                 >
                   <div className="flex-1">
@@ -363,7 +363,7 @@ const TranscriptionSetting = () => {
                         className={`text-xs px-2 py-0.5 rounded ${
                           program.type === "GPU"
                             ? "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
-                            : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                            : "bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-gray-400"
                         }`}
                       >
                         {program.type}
@@ -495,7 +495,7 @@ const TranscriptionSetting = () => {
           <span className="text-sm text-gray-500 dark:text-gray-400">
             模型目录:
           </span>
-          <code className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+          <code className="text-xs bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded">
             {modelsDir}
           </code>
           <Tooltip title="打开模型目录">
@@ -527,7 +527,7 @@ const TranscriptionSetting = () => {
                 className={`flex items-center justify-between p-4 rounded-lg border ${
                   isCurrentModel
                     ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700"
-                    : "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700"
+                    : "bg-gray-50 dark:bg-zinc-800/50 border-gray-200 dark:border-gray-700"
                 }`}
               >
                 <div className="flex-1">

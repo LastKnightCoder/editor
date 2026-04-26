@@ -63,7 +63,7 @@ export const VoiceClonePanel = ({
 
       return "";
     },
-    [voices]
+    [voices],
   );
 
   const handleAddCloneFiles = useCallback(
@@ -71,7 +71,12 @@ export const VoiceClonePanel = ({
       if (!files || files.length === 0) return;
 
       const maxSize = 20 * 1024 * 1024;
-      const allowedTypes = ["audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/wav"];
+      const allowedTypes = [
+        "audio/mpeg",
+        "audio/mp4",
+        "audio/x-m4a",
+        "audio/wav",
+      ];
 
       setCloneItems((prev) =>
         prev.map((item) => {
@@ -99,10 +104,10 @@ export const VoiceClonePanel = ({
             });
           }
           return { ...item, audioFiles: next };
-        })
+        }),
       );
     },
-    [notify, setCloneItems]
+    [notify, setCloneItems],
   );
 
   const handleRemoveCloneFile = useCallback(
@@ -114,11 +119,11 @@ export const VoiceClonePanel = ({
                 ...item,
                 audioFiles: item.audioFiles.filter((f) => f.id !== fileId),
               }
-            : item
-        )
+            : item,
+        ),
       );
     },
-    [setCloneItems]
+    [setCloneItems],
   );
 
   const addCloneItem = useCallback(() => {
@@ -145,7 +150,7 @@ export const VoiceClonePanel = ({
       }
       setCloneItems(cloneItems.filter((item) => item.id !== id));
     },
-    [cloneItems, notify, setCloneItems]
+    [cloneItems, notify, setCloneItems],
   );
 
   const updateCloneItemVoiceId = useCallback(
@@ -157,10 +162,10 @@ export const VoiceClonePanel = ({
             return { ...item, voiceId, voiceIdError: error };
           }
           return item;
-        })
+        }),
       );
     },
-    [validateVoiceId, setCloneItems]
+    [validateVoiceId, setCloneItems],
   );
 
   const handleCloneVoice = useCallback(async () => {
@@ -207,7 +212,10 @@ export const VoiceClonePanel = ({
         const voiceId = item.voiceId.trim();
 
         try {
-          notify("info", `[${voiceNum}/${totalVoices}] 开始处理音色: ${voiceId}`);
+          notify(
+            "info",
+            `[${voiceNum}/${totalVoices}] 开始处理音色: ${voiceId}`,
+          );
 
           for (let j = 0; j < item.audioFiles.length; j++) {
             const fileItem = item.audioFiles[j];
@@ -215,10 +223,13 @@ export const VoiceClonePanel = ({
 
             notify(
               "info",
-              `[${voiceNum}/${totalVoices}] 正在上传音频 ${fileNum}/${item.audioFiles.length}: ${fileItem.name}`
+              `[${voiceNum}/${totalVoices}] 正在上传音频 ${fileNum}/${item.audioFiles.length}: ${fileItem.name}`,
             );
 
-            const fileId = await uploadReferenceAudio(fileItem.file, minimaxApiKey);
+            const fileId = await uploadReferenceAudio(
+              fileItem.file,
+              minimaxApiKey,
+            );
 
             await cloneVoice(fileId, voiceId, minimaxApiKey);
           }
@@ -226,12 +237,15 @@ export const VoiceClonePanel = ({
           addVoiceToList(voiceId, voiceId);
 
           successCount++;
-          notify("success", `[${voiceNum}/${totalVoices}] 音色 ${voiceId} 克隆成功`);
+          notify(
+            "success",
+            `[${voiceNum}/${totalVoices}] 音色 ${voiceId} 克隆成功`,
+          );
         } catch (error) {
           console.error(`处理音色 ${voiceId} 失败:`, error);
           notify(
             "error",
-            `[${voiceNum}/${totalVoices}] 音色 ${voiceId} 克隆失败: ${(error as Error).message}`
+            `[${voiceNum}/${totalVoices}] 音色 ${voiceId} 克隆失败: ${(error as Error).message}`,
           );
         }
       }
@@ -243,7 +257,10 @@ export const VoiceClonePanel = ({
       if (successCount === totalVoices) {
         notify("success", `成功克隆 ${successCount} 个音色！`);
       } else {
-        notify("warning", `部分成功：成功克隆 ${successCount}/${totalVoices} 个音色`);
+        notify(
+          "warning",
+          `部分成功：成功克隆 ${successCount}/${totalVoices} 个音色`,
+        );
       }
 
       setShowCloneForm(false);
@@ -282,14 +299,14 @@ export const VoiceClonePanel = ({
       </Button>
 
       {showCloneForm && (
-        <div className="mt-4 p-4 bg-gray-50 dark:bg-slate-800/50 rounded space-y-4">
+        <div className="mt-4 p-4 bg-gray-50 dark:bg-zinc-800/50 rounded space-y-4">
           <TextStrong className="block mb-2">音色克隆列表</TextStrong>
 
           <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1">
             {cloneItems.map((item, index) => (
               <div
                 key={item.id}
-                className="p-4 bg-white dark:bg-slate-900 rounded border border-gray-200 dark:border-slate-700 space-y-3"
+                className="p-4 bg-white dark:bg-zinc-900 rounded border border-gray-200 dark:border-slate-700 space-y-3"
               >
                 <div className="flex items-center justify-between">
                   <TextStrong>音色 {index + 1}</TextStrong>
@@ -323,11 +340,13 @@ export const VoiceClonePanel = ({
                       {item.voiceIdError}
                     </div>
                   )}
-                  {item.voiceId && !item.voiceIdError && item.voiceId.length >= 8 && (
-                    <div className="text-xs text-green-600 dark:text-green-400 mt-1">
-                      ✓ Voice ID 格式正确
-                    </div>
-                  )}
+                  {item.voiceId &&
+                    !item.voiceIdError &&
+                    item.voiceId.length >= 8 && (
+                      <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+                        ✓ Voice ID 格式正确
+                      </div>
+                    )}
                 </div>
 
                 <div>
@@ -355,7 +374,9 @@ export const VoiceClonePanel = ({
                       size="small"
                       onClick={() => openFilePicker(item.id)}
                     >
-                      选择音频 {item.audioFiles.length > 0 && `(${item.audioFiles.length}/5)`}
+                      选择音频{" "}
+                      {item.audioFiles.length > 0 &&
+                        `(${item.audioFiles.length}/5)`}
                     </Button>
                   </div>
 
@@ -364,7 +385,7 @@ export const VoiceClonePanel = ({
                       {item.audioFiles.map((file) => (
                         <div
                           key={file.id}
-                          className="flex items-center justify-between gap-2 text-xs bg-gray-50 dark:bg-slate-800/60 px-2 py-1 rounded"
+                          className="flex items-center justify-between gap-2 text-xs bg-gray-50 dark:bg-zinc-800/60 px-2 py-1 rounded"
                         >
                           <span className="truncate flex-1">{file.name}</span>
                           <Button
@@ -372,7 +393,9 @@ export const VoiceClonePanel = ({
                             variant="text"
                             icon={<Trash2 size={12} />}
                             className="w-6 h-6 px-0 rounded-md"
-                            onClick={() => handleRemoveCloneFile(item.id, file.id)}
+                            onClick={() =>
+                              handleRemoveCloneFile(item.id, file.id)
+                            }
                           />
                         </div>
                       ))}
@@ -384,7 +407,12 @@ export const VoiceClonePanel = ({
           </div>
 
           {cloneItems.length < 5 && (
-            <Button icon={<Plus size={14} />} onClick={addCloneItem} block variant="dashed">
+            <Button
+              icon={<Plus size={14} />}
+              onClick={addCloneItem}
+              block
+              variant="dashed"
+            >
               添加音色克隆项 ({cloneItems.length}/5)
             </Button>
           )}
@@ -407,7 +435,7 @@ export const VoiceClonePanel = ({
                 !item.voiceId.trim() ||
                 item.audioFiles.length === 0 ||
                 !!item.voiceIdError ||
-                item.voiceId.length < 8
+                item.voiceId.length < 8,
             )}
             block
           >

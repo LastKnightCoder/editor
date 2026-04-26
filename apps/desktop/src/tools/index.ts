@@ -3,13 +3,21 @@ import { MCP_PROVIDERS } from "@/mcp/providers";
 import toolRegistry, { ToolRegistry } from "./toolRegistry";
 import { registerBuiltinTools } from "./builtinTools";
 import { fetchToolsFromServer } from "./customMCP";
+import useSettingStore from "@/stores/useSettingStore";
 
 let initialized = false;
 let knownCustomServerIds = new Set<string>();
 
+const isProviderAvailable = (provider: (typeof MCP_PROVIDERS)[number]) =>
+  provider.isAvailable?.() ?? true;
+
 const registerBuiltinProviders = (registry: ToolRegistry) => {
   const store = useMCPStore.getState();
   MCP_PROVIDERS.forEach((provider) => {
+    registry.unregisterSource(provider.id);
+    if (!isProviderAvailable(provider)) {
+      return;
+    }
     const enabled = store.isProviderEnabled(provider.id);
     registry.registerTools(provider.id, provider.tools(), enabled);
   });
@@ -58,6 +66,21 @@ export const initializeTooling = () => {
   useMCPStore.subscribe((state, prevState) => {
     if (!prevState || state.providerStates !== prevState.providerStates) {
       MCP_PROVIDERS.forEach((provider) => {
+        if (!isProviderAvailable(provider)) {
+          toolRegistry.unregisterSource(provider.id);
+          return;
+        }
+        const hasRegisteredTools = toolRegistry.hasSource(provider.id);
+        if (!hasRegisteredTools) {
+          toolRegistry.registerTools(
+            provider.id,
+            provider.tools(),
+            state.providerStates[provider.id]?.enabled ??
+              provider.defaultEnabled ??
+              false,
+          );
+          return;
+        }
         const enabled =
           state.providerStates[provider.id]?.enabled ??
           provider.defaultEnabled ??
@@ -68,6 +91,12 @@ export const initializeTooling = () => {
 
     if (!prevState || state.customServers !== prevState.customServers) {
       syncCustomServers(state.customServers);
+    }
+  });
+
+  useSettingStore.subscribe((state, prevState) => {
+    if (state.setting.imageGeneration !== prevState.setting.imageGeneration) {
+      registerBuiltinProviders(toolRegistry);
     }
   });
 };

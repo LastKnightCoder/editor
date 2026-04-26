@@ -42,6 +42,8 @@ import videoNoteIndexQueue from "../modules/video-note-index-queue";
 import mainContentFtsIndexQueue from "../modules/main-content-fts-index-queue";
 import mainContentVecIndexQueue from "../modules/main-content-vec-index-queue";
 import embeddingIndexOrchestrator from "../modules/embedding-index-orchestrator";
+import pdfIndexQueue from "../modules/pdf-index-queue";
+import pdfIndexOrchestrator from "../modules/pdf-index-orchestrator";
 
 /**
  * 所有模块配置
@@ -352,6 +354,13 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     init: () => mainContentVecIndexQueue.init(),
   },
   {
+    name: "pdf-index-queue",
+    group: ModuleGroup.FEATURE,
+    layer: InitLayer.ON_DEMAND,
+    dependencies: ["logger", "database"],
+    init: () => pdfIndexQueue.init(),
+  },
+  {
     name: "embedding-index-orchestrator",
     group: ModuleGroup.FEATURE,
     layer: InitLayer.ON_DEMAND,
@@ -363,6 +372,13 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
       "video-note-index-queue",
     ],
     init: () => embeddingIndexOrchestrator.init(),
+  },
+  {
+    name: "pdf-index-orchestrator",
+    group: ModuleGroup.FEATURE,
+    layer: InitLayer.ON_DEMAND,
+    dependencies: ["logger", "database", "pdf-index-queue"],
+    init: () => pdfIndexOrchestrator.init(),
   },
 ];
 

@@ -44,7 +44,7 @@ export const updateDiaryEntry = async (
 };
 
 export const deleteDiaryEntry = async (id: number): Promise<number> => {
-  return await invoke("delete-diary-entry", id);
+  return invoke("delete-diary-entry", id);
 };
 
 export const getDiaryEntryById = async (id: number): Promise<DiaryEntry> => {

@@ -188,7 +188,7 @@ export function IntegrationGithubSection(props: IntegrationCommonProps) {
           只需输入 Token，点击“验证并连接”后会自动获取用户名与邮箱。
         </p>
         {isConnected && (
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 dark:border-gray-700 dark:bg-zinc-800 dark:text-gray-200">
             <div>已连接账号：{connectedName}</div>
             {connectedEmail ? <div>邮箱：{connectedEmail}</div> : null}
           </div>
@@ -198,7 +198,7 @@ export function IntegrationGithubSection(props: IntegrationCommonProps) {
           type="button"
           onClick={() => void handleVerifyAndSave()}
           disabled={!tokenValue.trim() || isVerifying || props.isSavingSetting}
-          className="w-full rounded-lg bg-gray-900 py-3 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900"
+          className="w-full rounded-lg bg-zinc-900 py-3 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900"
         >
           {isVerifying
             ? "验证中..."
@@ -389,7 +389,7 @@ export function IntegrationS3Section(props: IntegrationCommonProps) {
           type="button"
           onClick={() => void handleVerifyAndSave()}
           disabled={isVerifying || props.isSavingSetting}
-          className="w-full rounded-lg bg-gray-900 py-3 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900"
+          className="w-full rounded-lg bg-zinc-900 py-3 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900"
         >
           {isVerifying
             ? "验证中..."
@@ -517,7 +517,7 @@ export function IntegrationWebDavSection(props: IntegrationCommonProps) {
           type="button"
           onClick={() => void handleVerifyAndSave()}
           disabled={isVerifying || props.isSavingSetting}
-          className="w-full rounded-lg bg-gray-900 py-3 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900"
+          className="w-full rounded-lg bg-zinc-900 py-3 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900"
         >
           {isVerifying
             ? "验证中..."
@@ -646,7 +646,7 @@ export function IntegrationAliOssSection(props: IntegrationCommonProps) {
           type="button"
           onClick={() => void handleVerifyAndSave()}
           disabled={isVerifying || props.isSavingSetting}
-          className="w-full rounded-lg bg-gray-900 py-3 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900"
+          className="w-full rounded-lg bg-zinc-900 py-3 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900"
         >
           {isVerifying
             ? "验证中..."

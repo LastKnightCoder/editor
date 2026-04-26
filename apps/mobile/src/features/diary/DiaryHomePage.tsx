@@ -232,7 +232,7 @@ export function DiaryHomePage({
               onClick={() => setBrowseMode("daily")}
               className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 browseMode === "daily"
-                  ? "bg-gray-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
+                  ? "bg-zinc-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
                   : "bg-gray-50 text-gray-600 active:bg-gray-100 dark:bg-neutral-800 dark:text-neutral-300 dark:active:bg-neutral-700"
               }`}
             >
@@ -243,7 +243,7 @@ export function DiaryHomePage({
               onClick={() => setBrowseMode("weekly")}
               className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 browseMode === "weekly"
-                  ? "bg-gray-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
+                  ? "bg-zinc-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
                   : "bg-gray-50 text-gray-600 active:bg-gray-100 dark:bg-neutral-800 dark:text-neutral-300 dark:active:bg-neutral-700"
               }`}
             >
@@ -254,7 +254,7 @@ export function DiaryHomePage({
               onClick={() => setBrowseMode("monthly")}
               className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 browseMode === "monthly"
-                  ? "bg-gray-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
+                  ? "bg-zinc-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
                   : "bg-gray-50 text-gray-600 active:bg-gray-100 dark:bg-neutral-800 dark:text-neutral-300 dark:active:bg-neutral-700"
               }`}
             >
@@ -315,7 +315,7 @@ export function DiaryHomePage({
                     !cell.inMonth
                       ? "cursor-default opacity-0"
                       : cell.isToday
-                        ? "bg-gray-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
+                        ? "bg-zinc-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
                         : "bg-gray-50 text-gray-700 active:bg-gray-100 dark:bg-neutral-800 dark:text-neutral-200 dark:active:bg-neutral-700"
                   }`}
                 >

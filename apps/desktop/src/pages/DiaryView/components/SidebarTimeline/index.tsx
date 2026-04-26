@@ -130,12 +130,12 @@ const SidebarTimeline = memo(
                   </div>
                 )}
                 {entry.type === "weekly" && (
-                  <div className="text-[9px] text-gray-500 dark:text-gray-300 mt-[2px] px-[5px] py-[2px] bg-gray-100 dark:bg-gray-800 rounded-[3px] font-medium">
+                  <div className="text-[9px] text-gray-500 dark:text-gray-300 mt-[2px] px-[5px] py-[2px] bg-gray-100 dark:bg-zinc-800 rounded-[3px] font-medium">
                     周记
                   </div>
                 )}
                 {entry.type === "monthly" && (
-                  <div className="text-[9px] text-gray-500 dark:text-gray-300 mt-[2px] px-[5px] py-[2px] bg-gray-100 dark:bg-gray-800 rounded-[3px] font-medium">
+                  <div className="text-[9px] text-gray-500 dark:text-gray-300 mt-[2px] px-[5px] py-[2px] bg-gray-100 dark:bg-zinc-800 rounded-[3px] font-medium">
                     月记
                   </div>
                 )}
@@ -143,7 +143,7 @@ const SidebarTimeline = memo(
 
               <div className="flex justify-center pt-[10px] relative z-1">
                 <div
-                  className="w-[6px] h-[6px] rounded-full dark:bg-gray-800"
+                  className="w-[6px] h-[6px] rounded-full dark:bg-zinc-800"
                   style={{
                     backgroundColor: moodColor,
                     boxShadow: `0 0 0 2px ${circleRingColor}, 0 0 0 3px ${hexToRgba(moodColor, circleGlowOpacity)}`,

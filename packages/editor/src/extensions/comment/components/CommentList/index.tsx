@@ -30,7 +30,7 @@ const CommentList: React.FC<CommentListProps> = ({
     }
 
     return new Date(value).toLocaleString();
-  }
+  };
 
   const normalizedComments = useMemo(() => comments ?? [], [comments]);
 
@@ -42,7 +42,7 @@ const CommentList: React.FC<CommentListProps> = ({
     return (
       <div
         key={comment.id}
-        className="rounded-xl border border-gray-100 dark:border-slate-800/70 bg-white/80 dark:bg-slate-900/40 p-3"
+        className="rounded-xl border border-gray-100 dark:border-slate-800/70 bg-white/80 dark:bg-zinc-900/40 p-3"
       >
         {isEditing ? (
           <CommentInput

@@ -23,6 +23,10 @@ import {
   ChatMessage,
   type ChatMessageType,
 } from "../components/ChatComponents";
+import {
+  DEFAULT_CHAT_INPUT_PLACEHOLDER,
+  resolveChatInputPlaceholder,
+} from "../utils/chat-input-placeholder";
 
 export interface ChatContainerCoreMessageRendererParams {
   message: ChatMessageType;
@@ -112,7 +116,7 @@ export function ChatContainerCore({
   currentModelName = "未选择模型",
   isSupportImage = false,
   isSupportFile = false,
-  placeholder = "输入消息，Shift+Enter 换行",
+  placeholder = DEFAULT_CHAT_INPUT_PLACEHOLDER,
   showConnectingDelayMs = 800,
   currentPageUrl,
   hideInput = false,
@@ -155,6 +159,10 @@ export function ChatContainerCore({
     messagesContainerRef || internalMessagesContainerRef;
   const resolvedChatInputRef = inputRef || internalChatInputRef;
   const isAutoScrollEnabledRef = useRef(true);
+  const resolvedPlaceholder = useMemo(
+    () => resolveChatInputPlaceholder(placeholder),
+    [placeholder],
+  );
 
   useEffect(() => {
     if (!isConnected) {
@@ -257,7 +265,7 @@ export function ChatContainerCore({
         <button
           type="button"
           onClick={onClearMessages}
-          className="rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+          className="rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-zinc-800"
         >
           <Trash2 className="h-4 w-4" />
         </button>
@@ -271,7 +279,7 @@ export function ChatContainerCore({
     services?: ChatInputAreaServices;
   } = {
     className: chatInputClassName,
-    placeholder,
+    placeholder: resolvedPlaceholder,
     contentEditable: !isLoading,
     sendLoading: isLoading,
     createMessageLoading,
@@ -333,7 +341,7 @@ export function ChatContainerCore({
           className={classNames(
             "shrink-0 border-b p-3",
             isDark
-              ? "border-gray-800 bg-gray-900/50"
+              ? "border-gray-800 bg-zinc-900/50"
               : "border-gray-200 bg-white",
           )}
         >
@@ -426,7 +434,7 @@ export function ChatContainerCore({
             className={classNames(
               "shrink-0 mx-3 mb-3 mt-2 px-3 py-3 rounded-3xl shadow-sm border box-border",
               isDark
-                ? "bg-gray-950 border-gray-800"
+                ? "bg-zinc-950 border-gray-800"
                 : "bg-white border-gray-200",
               inputWrapperClassName,
             )}

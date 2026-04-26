@@ -14,12 +14,12 @@ const useViewPortControls = (board: Board, zoom: number) => {
 
   // 放大视图
   const handleZoomIn = useMemoizedFn(() => {
-    ViewPortTransforms.updateZoom(board, Math.max(zoom / 1.1, MIN_ZOOM));
+    ViewPortTransforms.updateZoom(board, Math.min(zoom * 1.1, MAX_ZOOM));
   });
 
   // 缩小视图
   const handleZoomOut = useMemoizedFn(() => {
-    ViewPortTransforms.updateZoom(board, Math.min(zoom * 1.1, MAX_ZOOM));
+    ViewPortTransforms.updateZoom(board, Math.max(zoom / 1.1, MIN_ZOOM));
   });
 
   // 调整视图到指定缩放比例

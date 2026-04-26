@@ -25,6 +25,7 @@
       "@tau/editor": ["../../packages/editor/src"],
       "@tau/db-schema/*": ["../../packages/db-schema/*"],
       "@tau/shared": ["../../packages/shared/src"],
+      "@tau/shared/*": ["../../packages/shared/*"],
       "@tau/themes": ["../../packages/themes/src"]
     }
   },

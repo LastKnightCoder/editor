@@ -26,7 +26,7 @@ export const MetadataCard: React.FC<RenderElementProps> = memo((props) => {
           "rounded-lg p-6 border",
           isGradient
             ? "bg-white/50 dark:bg-black/30 backdrop-blur-xl backdrop-saturate-150 border-white/40 dark:border-white/10 shadow-sm"
-            : "bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800",
+            : "bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-gray-800",
         )}
       >
         {/* 标题和作者 */}

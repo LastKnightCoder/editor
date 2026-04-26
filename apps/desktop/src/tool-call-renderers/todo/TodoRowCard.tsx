@@ -11,7 +11,7 @@ const TodoRowCard = ({ item, isDark, onToggleComplete }: TodoRowCardProps) => {
     <div
       className={`rounded-lg border p-3 transition-colors ${
         isDark
-          ? "border-white/10 bg-slate-950/30 hover:bg-slate-950/50"
+          ? "border-white/10 bg-zinc-950/30 hover:bg-zinc-950/50"
           : "border-slate-200 bg-slate-50 hover:bg-slate-100"
       }`}
     >

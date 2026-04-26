@@ -345,10 +345,10 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
       contentClassName="p-0 bg-transparent shadow-none border-none !max-h-[80vh] h-[80vh]"
       overlayClassName="bg-black/60"
     >
-      <div className="flex h-full bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden shadow-2xl">
+      <div className="flex h-full bg-gray-50 dark:bg-zinc-900 rounded-xl overflow-hidden shadow-2xl">
         <div
           className={classNames(
-            "flex-1 p-6 flex items-center justify-center bg-gray-100 dark:bg-gray-800",
+            "flex-1 p-6 flex items-center justify-center bg-gray-100 dark:bg-zinc-800",
             styles.previewArea,
           )}
         >
@@ -386,7 +386,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
 
         <div
           className={classNames(
-            "w-80 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden",
+            "w-80 bg-white dark:bg-zinc-900 border-l border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden",
             styles.configPanel,
           )}
         >
@@ -396,7 +396,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
             </h3>
             <button
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-all duration-200 hover:scale-110"
+              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-500 dark:text-gray-400 transition-all duration-200 hover:scale-110"
             >
               <IoClose size={18} />
             </button>

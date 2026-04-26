@@ -677,7 +677,7 @@ const Project = () => {
               <div className="flex-1 overflow-hidden">
                 <div
                   ref={triggerRef}
-                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-all rounded-md px-2 py-1 flex items-center gap-2 group"
+                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 transition-all rounded-md px-2 py-1 flex items-center gap-2 group"
                   onClick={handleToggleProjectDropdown}
                 >
                   <span className="truncate">{project.title}</span>

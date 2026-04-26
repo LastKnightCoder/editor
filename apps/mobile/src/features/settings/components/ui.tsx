@@ -200,7 +200,7 @@ export function SwitchButton(props: {
       onClick={props.onChange}
       className={`relative h-7 w-12 rounded-full transition-colors ${
         props.checked
-          ? "bg-gray-900 dark:bg-neutral-200"
+          ? "bg-zinc-900 dark:bg-neutral-200"
           : "bg-gray-200 dark:bg-neutral-700"
       }`}
     >
@@ -223,7 +223,7 @@ export function SaveButton(props: {
       type="button"
       onClick={() => void props.onClick()}
       disabled={props.isSaving}
-      className="mt-4 w-full rounded-lg bg-gray-900 py-3 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+      className="mt-4 w-full rounded-lg bg-zinc-900 py-3 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
     >
       {props.isSaving ? "保存中..." : (props.label ?? "保存配置")}
     </button>

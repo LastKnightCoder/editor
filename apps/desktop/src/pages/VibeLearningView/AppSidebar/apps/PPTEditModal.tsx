@@ -14,19 +14,17 @@ import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 
 import CustomModal from "@/components/CustomModal";
-import { chatLLMStream } from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useVLResourceSelection from "@/hooks/useVLResourceSelection";
 import useVLTools from "@/hooks/useVLTools";
 import { updateVLNote } from "@/commands/vibe-learning";
 import { getContentById, updateContent } from "@/commands/content";
-import { RequestMessage, ToolCallExecutionState } from "@/types";
+import { ToolCallExecutionState } from "@/types";
 import { VLNote } from "@/types/vibe-learning";
-import { Role } from "@/constants";
 import { importFromMarkdown, getMarkdown } from "@/utils";
-import { getPPTEditPrompt } from "@/constants/prompts/ppt-edit";
 import { cleanPPTHtmlContent } from "@/constants/prompts/ppt-generation";
 import { GenerationConfigStep, GeneratingProgress } from "../components";
+import { runGenerationTask } from "@/services/generation-orchestrator";
 
 interface PPTEditModalProps {
   open: boolean;
@@ -194,61 +192,52 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
     setCleanedHtml("");
     setToolExecutions([]);
 
-    // 构建 User Prompt（包含资源信息）
     const selectedResourceNames = getSelectedResourceNames();
-    let userMessage = `请根据以下要求编辑 PPT：\n\n${userPrompt}`;
-
-    if (selectedResourceNames.length > 0) {
-      userMessage += `\n\n## 参考资源\n请优先参考以下资源：\n${selectedResourceNames.map((name) => `- ${name}`).join("\n")}`;
-    } else {
-      userMessage += `\n\n## 参考资源\n用户未指定参考资源，你可以根据需要使用工具搜索项目中的相关资料。`;
-    }
-
-    const messages: RequestMessage[] = [
+    runGenerationTask(
+      providerConfig,
+      modelConfig,
       {
-        role: Role.System,
-        content: [{ type: "text", text: getPPTEditPrompt(currentHtml) }],
+        taskType: "ppt_edit",
+        sourceType: "vibe_learning",
+        taskPayload: {
+          currentHtml,
+        },
+        sourcePayload: {
+          projectId,
+          mainDbName,
+          resourceNames: selectedResourceNames,
+          userPrompt,
+        },
       },
       {
-        role: Role.User,
-        content: [
-          {
-            type: "text",
-            text: userMessage,
-          },
-        ],
-      },
-    ];
-
-    chatLLMStream(providerConfig, modelConfig, messages, {
-      enableTools: true,
-      onUpdate: (responseText) => {
-        setGeneratedHtml(responseText);
-      },
-      onFinish: (content) => {
-        setIsGenerating(false);
-        setGeneratedHtml(content);
-        processGeneratedHtml(content);
-        setStep("preview");
-      },
-      onError: (e) => {
-        setIsGenerating(false);
-        console.error("Edit PPT error:", e);
-        message.error(e.message || "编辑 PPT 失败");
-        if (!generatedHtml) {
-          setStep("config");
-        } else {
-          processGeneratedHtml(generatedHtml);
+        onUpdate: (responseText) => {
+          setGeneratedHtml(responseText);
+        },
+        onFinish: (content) => {
+          setIsGenerating(false);
+          setGeneratedHtml(content);
+          processGeneratedHtml(content);
           setStep("preview");
-        }
+        },
+        onError: (e) => {
+          setIsGenerating(false);
+          console.error("Edit PPT error:", e);
+          message.error(e.message || "编辑 PPT 失败");
+          if (!generatedHtml) {
+            setStep("config");
+          } else {
+            processGeneratedHtml(generatedHtml);
+            setStep("preview");
+          }
+        },
+        onController: (controller) => {
+          abortControllerRef.current = controller;
+        },
+        onToolCallsUpdate: (executions) => {
+          setToolExecutions(executions);
+        },
       },
-      onController: (controller) => {
-        abortControllerRef.current = controller;
-      },
-      onToolCallsUpdate: (executions) => {
-        setToolExecutions(executions);
-      },
-    });
+    );
   });
 
   // 停止生成
@@ -354,6 +343,11 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
         list_project_resources: "获取资源列表",
         read_resource_content: "读取资源内容",
         read_resource_range: "分段读取内容",
+        list_resource_chapters: "查看章节结构",
+        read_resource_chapter: "读取章节正文",
+        read_resource_chapter_range: "分段读取章节",
+        read_search_hit_context: "补读命中上下文",
+        deep_read_resource: "深度阅读资料",
         search_project_knowledge: "搜索知识库",
       };
       return toolNameMap[executingTool.toolName] || "执行工具调用";
@@ -385,7 +379,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
       <div className="flex items-center justify-end gap-3 pt-2">
         <button
           onClick={handleClose}
-          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
         >
           取消
         </button>
@@ -397,7 +391,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
             "flex items-center gap-2",
             userPrompt.trim()
               ? "bg-blue-600 hover:bg-blue-700 text-white"
-              : "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed",
+              : "bg-gray-300 dark:bg-zinc-700 text-gray-500 dark:text-gray-400 cursor-not-allowed",
           )}
         >
           <Sparkles className="w-4 h-4" />
@@ -431,7 +425,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
               "px-3 py-1.5 text-sm font-medium rounded-lg transition-colors flex items-center gap-2",
               viewMode === "preview"
                 ? "bg-blue-600 text-white"
-                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800",
+                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800",
             )}
           >
             <Eye className="w-4 h-4" />
@@ -443,7 +437,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
               "px-3 py-1.5 text-sm font-medium rounded-lg transition-colors flex items-center gap-2",
               viewMode === "source"
                 ? "bg-blue-600 text-white"
-                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800",
+                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800",
             )}
           >
             <Code className="w-4 h-4" />
@@ -453,7 +447,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
 
         <button
           onClick={() => setShowPreview(!showPreview)}
-          className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+          className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
         >
           {showPreview ? "隐藏预览" : "显示预览"}
         </button>
@@ -461,7 +455,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
 
       {/* 预览区域 */}
       {showPreview && (
-        <div className="relative w-full bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+        <div className="relative w-full bg-gray-100 dark:bg-zinc-900 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
           <div className="aspect-video w-full">
             {viewMode === "preview" ? (
               htmlPreviewUrl ? (
@@ -503,7 +497,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
       <div className="flex items-center justify-between pt-2">
         <button
           onClick={handleReEdit}
-          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-2"
+          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors flex items-center gap-2"
         >
           <RefreshCw className="w-4 h-4" />
           重新编辑
@@ -513,7 +507,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
           {cleanedHtml && (
             <button
               onClick={handleDiscard}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
             >
               放弃修改
             </button>
@@ -524,7 +518,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
             className={classNames(
               "px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center gap-2",
               saving
-                ? "bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed"
+                ? "bg-gray-300 dark:bg-zinc-700 text-gray-500 cursor-not-allowed"
                 : "bg-green-600 hover:bg-green-700 text-white",
             )}
           >

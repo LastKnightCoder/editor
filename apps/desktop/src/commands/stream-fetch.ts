@@ -76,6 +76,17 @@ type ToolCallDelta = {
   };
 };
 
+type ResponsesFunctionCallState = {
+  id?: string;
+  callId?: string;
+  name?: string;
+  arguments: string;
+};
+
+type ResponsesToolCallDelta = ToolCallPayload & {
+  index: number;
+};
+
 interface PartialToolCall {
   id?: string;
   type?: string;
@@ -100,6 +111,144 @@ const buildToolCallList = (
     }));
 };
 
+const buildResponsesToolCallList = (
+  buffer: Map<number, ResponsesFunctionCallState>,
+): ResponsesToolCallDelta[] =>
+  Array.from(buffer.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([outputIndex, call]) => ({
+      id: call.callId ?? call.id ?? `call_${outputIndex}`,
+      index: outputIndex,
+      type: "function",
+      function: {
+        name: call.name ?? "",
+        arguments: call.arguments,
+      },
+    }))
+    .filter((call) => call.function.name);
+
+export const createResponsesStreamParser = () => {
+  const functionCalls = new Map<number, ResponsesFunctionCallState>();
+  const upsertFunctionCall = (
+    outputIndex: number,
+    patch: Partial<ResponsesFunctionCallState>,
+  ) => {
+    const existing = functionCalls.get(outputIndex) ?? { arguments: "" };
+    functionCalls.set(outputIndex, { ...existing, ...patch });
+  };
+
+  const toolCallsDelta = (argumentDeltas?: Map<number, string>) => {
+    const toolCalls = buildResponsesToolCallList(functionCalls);
+    return toolCalls.length > 0
+      ? {
+          delta: {
+            tool_calls: toolCalls.map((call) => ({
+              ...call,
+              function: {
+                ...call.function,
+                arguments: argumentDeltas?.get(call.index) ?? "",
+              },
+            })),
+          },
+          finish_reason: "tool_calls" as const,
+        }
+      : undefined;
+  };
+
+  return {
+    parse: (text: string) => {
+      const event = JSON.parse(text);
+      switch (event.type) {
+        case "response.output_text.delta":
+          return { delta: { content: event.delta as string } };
+        case "response.reasoning_summary_text.delta":
+        case "response.reasoning_summary.delta":
+        case "response.reasoning.delta":
+          return { delta: { reasoning_content: event.delta as string } };
+        case "response.output_item.added":
+        case "response.output_item.done": {
+          const item = event.item;
+          if (item?.type !== "function_call") {
+            return undefined;
+          }
+          upsertFunctionCall(event.output_index ?? 0, {
+            id: item.id,
+            callId: item.call_id,
+            name: item.name,
+            arguments: item.arguments ?? "",
+          });
+          return toolCallsDelta();
+        }
+        case "response.function_call_arguments.delta": {
+          const outputIndex = event.output_index ?? 0;
+          const existing = functionCalls.get(outputIndex) ?? { arguments: "" };
+          const argumentDelta = event.delta ?? "";
+          upsertFunctionCall(outputIndex, {
+            id: event.item_id,
+            arguments: `${existing.arguments}${argumentDelta}`,
+          });
+          return toolCallsDelta(new Map([[outputIndex, argumentDelta]]));
+        }
+        case "response.function_call_arguments.done": {
+          const outputIndex = event.output_index ?? 0;
+          const existing = functionCalls.get(outputIndex) ?? { arguments: "" };
+          const finalArguments = event.arguments ?? "";
+          const missingArguments = finalArguments.startsWith(existing.arguments)
+            ? finalArguments.slice(existing.arguments.length)
+            : finalArguments;
+          upsertFunctionCall(event.output_index ?? 0, {
+            id: event.item_id,
+            arguments: finalArguments,
+          });
+          return missingArguments
+            ? toolCallsDelta(new Map([[outputIndex, missingArguments]]))
+            : { finish_reason: "tool_calls" as const };
+        }
+        case "response.completed": {
+          let addedFromCompleted = false;
+          for (const [index, item] of (
+            event.response?.output ?? []
+          ).entries()) {
+            if (item?.type === "function_call") {
+              const existing = functionCalls.get(index);
+              addedFromCompleted = !existing;
+              upsertFunctionCall(index, {
+                id: item.id,
+                callId: item.call_id,
+                name: item.name,
+                arguments: existing?.arguments || item.arguments || "",
+              });
+            }
+          }
+          if (addedFromCompleted) {
+            return toolCallsDelta(
+              new Map(
+                Array.from(functionCalls.entries()).map(([index, call]) => [
+                  index,
+                  call.arguments,
+                ]),
+              ),
+            );
+          }
+          return functionCalls.size > 0
+            ? { finish_reason: "tool_calls" as const }
+            : { finish_reason: "stop" as const };
+        }
+        case "response.failed":
+        case "response.incomplete":
+        case "error":
+          throw new Error(
+            event.error?.message ??
+              event.response?.error?.message ??
+              "Responses API 请求失败",
+          );
+        default:
+          return undefined;
+      }
+    },
+  };
+};
+
 export type StreamLifecycleResult =
   | {
       type: "response";
@@ -109,6 +258,8 @@ export type StreamLifecycleResult =
       type: "tool_calls";
       finishReason: "tool_calls";
       toolCalls: ToolCallPayload[];
+      content: string;
+      reasoning_content: string;
     };
 
 export const streamFetch = async (
@@ -209,9 +360,12 @@ export function stream(
   requestPayload: object,
   headers: Record<string, string>,
   controller: AbortController,
-  parseSSE: (
-    text: string,
-  ) => { delta?: any; finish_reason?: string | null } | undefined,
+  parseSSE: {
+    parse: (
+      text: string,
+    ) => { delta?: any; finish_reason?: string | null } | undefined;
+    flush?: () => { delta?: any; finish_reason?: string | null } | undefined;
+  },
   options: StreamCallbacks,
 ): Promise<StreamLifecycleResult> {
   return new Promise((resolve, reject) => {
@@ -223,6 +377,7 @@ export function stream(
     let responseRes: Response;
     let finishReason: string | null = null;
     const toolCallBuffer = new Map<number, PartialToolCall>();
+    let parserFlushed = false;
     const streamDebugState = {
       sawFirstContent: false,
       sawFirstReasoning: false,
@@ -270,6 +425,120 @@ export function stream(
       reasoningRemainText = "";
     };
 
+    const applyParsedChunk = (
+      parsed: { delta?: any; finish_reason?: string | null } | undefined,
+    ) => {
+      const delta =
+        parsed && "delta" in parsed ? parsed.delta : (parsed as any);
+      if (parsed?.finish_reason) {
+        finishReason = parsed.finish_reason;
+        recordFinishReason(parsed.finish_reason);
+      }
+      if (!delta) {
+        return;
+      }
+
+      const { content, reasoning_content, tool_calls } = delta;
+      if (options.disableAnimation) {
+        if (content) {
+          streamDebugState.contentChunkCount += 1;
+          recordEvent("content");
+          if (!streamDebugState.sawFirstContent) {
+            streamDebugState.sawFirstContent = true;
+            emitDebugLog("ChatAPI.first_content_delta", {
+              finishReason,
+              chunk: summarizeText(content),
+            });
+          }
+          responseText += content;
+          if (!options.deferAssistantTextUntilFinish) {
+            options.onUpdate?.(responseText, content, reasoningText);
+          }
+        }
+        if (reasoning_content) {
+          streamDebugState.reasoningChunkCount += 1;
+          recordEvent("reasoning");
+          if (!streamDebugState.sawFirstReasoning) {
+            streamDebugState.sawFirstReasoning = true;
+            emitDebugLog("ChatAPI.first_reasoning_delta", {
+              finishReason,
+              chunk: summarizeText(reasoning_content),
+            });
+          }
+          reasoningText += reasoning_content;
+          options.onReasoning?.(reasoningText, reasoning_content);
+        }
+      } else {
+        if (content) {
+          streamDebugState.contentChunkCount += 1;
+          recordEvent("content");
+          if (!streamDebugState.sawFirstContent) {
+            streamDebugState.sawFirstContent = true;
+            emitDebugLog("ChatAPI.first_content_delta", {
+              finishReason,
+              chunk: summarizeText(content),
+            });
+          }
+          remainText += content;
+        }
+        if (reasoning_content) {
+          streamDebugState.reasoningChunkCount += 1;
+          recordEvent("reasoning");
+          if (!streamDebugState.sawFirstReasoning) {
+            streamDebugState.sawFirstReasoning = true;
+            emitDebugLog("ChatAPI.first_reasoning_delta", {
+              finishReason,
+              chunk: summarizeText(reasoning_content),
+            });
+          }
+          reasoningRemainText += reasoning_content;
+        }
+      }
+      if (Array.isArray(tool_calls)) {
+        streamDebugState.toolCallDeltaCount += tool_calls.length;
+        recordEvent("tool_calls");
+        for (const partial of tool_calls as ToolCallDelta[]) {
+          const existing = toolCallBuffer.get(partial.index) ?? {
+            function: { arguments: "" },
+          };
+          if (partial.id) {
+            existing.id = partial.id;
+          }
+          if (partial.type) {
+            existing.type = partial.type;
+          }
+          if (partial.function?.name) {
+            existing.function.name = partial.function.name;
+          }
+          if (partial.function?.arguments) {
+            existing.function.arguments += partial.function.arguments;
+          }
+          toolCallBuffer.set(partial.index, existing);
+        }
+        const toolCallList = buildToolCallList(toolCallBuffer);
+        if (!streamDebugState.sawFirstToolCalls) {
+          streamDebugState.sawFirstToolCalls = true;
+          emitDebugLog("ChatAPI.first_tool_calls_delta", {
+            finishReason,
+            toolCalls: toolCallList.map((call) => ({
+              id: call.id,
+              name: call.function.name,
+              argumentLength: call.function.arguments?.length ?? 0,
+            })),
+          });
+        }
+        options.onToolCallsDelta?.(toolCallList);
+      }
+    };
+
+    const flushParser = () => {
+      if (parserFlushed) {
+        return;
+      }
+      parserFlushed = true;
+      applyParsedChunk(parseSSE.flush?.());
+    };
+
     function animateResponseText() {
       if (finished || controller.signal.aborted) {
         flushReasoningText();
@@ -311,6 +580,7 @@ export function stream(
       if (finished) {
         return;
       }
+      flushParser();
       finished = true;
       finishReason = reason ?? finishReason;
       flushReasoningText();
@@ -346,6 +616,8 @@ export function stream(
           type: "tool_calls",
           finishReason: "tool_calls",
           toolCalls: pendingToolCalls,
+          content: responseText + remainText,
+          reasoning_content: reasoningText + reasoningRemainText,
         });
         return;
       }
@@ -446,108 +718,7 @@ export function stream(
           }
           const text = msg.data;
           try {
-            const parsed = parseSSE(msg.data);
-            const delta =
-              parsed && "delta" in parsed ? parsed.delta : (parsed as any);
-            if (parsed?.finish_reason) {
-              finishReason = parsed.finish_reason;
-              recordFinishReason(parsed.finish_reason);
-            }
-            if (delta) {
-              const { content, reasoning_content, tool_calls } = delta;
-              if (options.disableAnimation) {
-                // 直接透传，不经过 requestAnimationFrame 动画缓冲
-                if (content) {
-                  streamDebugState.contentChunkCount += 1;
-                  recordEvent("content");
-                  if (!streamDebugState.sawFirstContent) {
-                    streamDebugState.sawFirstContent = true;
-                    emitDebugLog("ChatAPI.first_content_delta", {
-                      finishReason,
-                      chunk: summarizeText(content),
-                    });
-                  }
-                  responseText += content;
-                  if (!options.deferAssistantTextUntilFinish) {
-                    options.onUpdate?.(responseText, content, reasoningText);
-                  }
-                }
-                if (reasoning_content) {
-                  streamDebugState.reasoningChunkCount += 1;
-                  recordEvent("reasoning");
-                  if (!streamDebugState.sawFirstReasoning) {
-                    streamDebugState.sawFirstReasoning = true;
-                    emitDebugLog("ChatAPI.first_reasoning_delta", {
-                      finishReason,
-                      chunk: summarizeText(reasoning_content),
-                    });
-                  }
-                  reasoningText += reasoning_content;
-                  options.onReasoning?.(reasoningText, reasoning_content);
-                }
-              } else {
-                // 累积到缓冲区，由 requestAnimationFrame 动画逐步释放
-                if (content) {
-                  streamDebugState.contentChunkCount += 1;
-                  recordEvent("content");
-                  if (!streamDebugState.sawFirstContent) {
-                    streamDebugState.sawFirstContent = true;
-                    emitDebugLog("ChatAPI.first_content_delta", {
-                      finishReason,
-                      chunk: summarizeText(content),
-                    });
-                  }
-                  remainText += content;
-                }
-                if (reasoning_content) {
-                  streamDebugState.reasoningChunkCount += 1;
-                  recordEvent("reasoning");
-                  if (!streamDebugState.sawFirstReasoning) {
-                    streamDebugState.sawFirstReasoning = true;
-                    emitDebugLog("ChatAPI.first_reasoning_delta", {
-                      finishReason,
-                      chunk: summarizeText(reasoning_content),
-                    });
-                  }
-                  reasoningRemainText += reasoning_content;
-                }
-              }
-              if (Array.isArray(tool_calls)) {
-                streamDebugState.toolCallDeltaCount += tool_calls.length;
-                recordEvent("tool_calls");
-                for (const partial of tool_calls as ToolCallDelta[]) {
-                  const existing = toolCallBuffer.get(partial.index) ?? {
-                    function: { arguments: "" },
-                  };
-                  if (partial.id) {
-                    existing.id = partial.id;
-                  }
-                  if (partial.type) {
-                    existing.type = partial.type;
-                  }
-                  if (partial.function?.name) {
-                    existing.function.name = partial.function.name;
-                  }
-                  if (partial.function?.arguments) {
-                    existing.function.arguments += partial.function.arguments;
-                  }
-                  toolCallBuffer.set(partial.index, existing);
-                }
-                const toolCallList = buildToolCallList(toolCallBuffer);
-                if (!streamDebugState.sawFirstToolCalls) {
-                  streamDebugState.sawFirstToolCalls = true;
-                  emitDebugLog("ChatAPI.first_tool_calls_delta", {
-                    finishReason,
-                    toolCalls: toolCallList.map((call) => ({
-                      id: call.id,
-                      name: call.function.name,
-                      argumentLength: call.function.arguments?.length ?? 0,
-                    })),
-                  });
-                }
-                options.onToolCallsDelta?.(toolCallList);
-              }
-            }
+            applyParsedChunk(parseSSE.parse(msg.data));
           } catch (error) {
             console.error("[Request] parse error", text, msg, error);
           }

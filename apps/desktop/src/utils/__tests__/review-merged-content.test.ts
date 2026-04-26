@@ -211,4 +211,185 @@ describe("buildMergedReviewContent", () => {
       true,
     );
   });
+
+  it("callout 内部改写时应递归保留未变子块", () => {
+    const beforeMarkdown = [
+      ':::note{title="提示"}',
+      "第一段原文",
+      "",
+      "- 保留项",
+      "- 旧表述",
+      ":::",
+    ].join("\n");
+    const afterMarkdown = [
+      ':::note{title="提示"}',
+      "第一段原文",
+      "",
+      "- 保留项",
+      "- 新表述",
+      ":::",
+    ].join("\n");
+
+    const content = buildMergedReviewContent({
+      beforeMarkdown,
+      afterMarkdown,
+      patches: [
+        {
+          operationId: "rewrite-callout",
+          op: "replace",
+          start: 0,
+          end: beforeMarkdown.length,
+          beforeText: beforeMarkdown,
+          afterText: afterMarkdown,
+          charDelta: afterMarkdown.length - beforeMarkdown.length,
+        },
+      ],
+    }).content;
+
+    const callout = content[0] as any;
+    expect(callout.type).toBe("callout");
+    const leaves = collectTextLeaves([callout]);
+    expect(leaves.some((leaf) => leaf.text.includes("第一段原文"))).toBe(true);
+    expect(
+      leaves.some(
+        (leaf) => leaf.diffType === "delete" && leaf.text.includes("旧"),
+      ),
+    ).toBe(true);
+    expect(
+      leaves.some(
+        (leaf) => leaf.diffType === "replace" && leaf.text.includes("新"),
+      ),
+    ).toBe(true);
+  });
+
+  it("highlight-block 颜色变化时应保留正文并展示属性变更", () => {
+    const beforeMarkdown = [
+      ":::highlight-block{color=yellow}",
+      "高亮内容",
+      ":::",
+    ].join("\n");
+    const afterMarkdown = [
+      ":::highlight-block{color=blue}",
+      "高亮内容",
+      ":::",
+    ].join("\n");
+
+    const content = buildMergedReviewContent({
+      beforeMarkdown,
+      afterMarkdown,
+      patches: [
+        {
+          operationId: "change-highlight-color",
+          op: "replace",
+          start: 0,
+          end: beforeMarkdown.length,
+          beforeText: beforeMarkdown,
+          afterText: afterMarkdown,
+          charDelta: afterMarkdown.length - beforeMarkdown.length,
+        },
+      ],
+    }).content;
+
+    const highlightBlock = content[0] as any;
+    expect(highlightBlock.type).toBe("highlight-block");
+    const leaves = collectTextLeaves([highlightBlock]);
+    expect(leaves.some((leaf) => leaf.text.includes("高亮块颜色已修改"))).toBe(
+      true,
+    );
+    expect(leaves.some((leaf) => leaf.text.includes("高亮内容"))).toBe(true);
+  });
+
+  it("code-block 应按代码行展示变更，而不是整块替换", () => {
+    const beforeMarkdown = [
+      "```ts",
+      "const value = 1;",
+      "console.log(value);",
+      "```",
+    ].join("\n");
+    const afterMarkdown = [
+      "```ts",
+      "const value = 2;",
+      "console.log(value);",
+      "```",
+    ].join("\n");
+
+    const content = buildMergedReviewContent({
+      beforeMarkdown,
+      afterMarkdown,
+      patches: [
+        {
+          operationId: "rewrite-code",
+          op: "replace",
+          start: 0,
+          end: beforeMarkdown.length,
+          beforeText: beforeMarkdown,
+          afterText: afterMarkdown,
+          charDelta: afterMarkdown.length - beforeMarkdown.length,
+        },
+      ],
+    }).content;
+
+    const leaves = collectTextLeaves(content);
+    const paragraphs = content.map((node) => getTextContent(node as any));
+    expect(paragraphs.some((text) => text.includes("- const value = 1;"))).toBe(
+      true,
+    );
+    expect(paragraphs.some((text) => text.includes("+ const value ="))).toBe(
+      true,
+    );
+    expect(
+      leaves.some((leaf) => leaf.diffType && leaf.text.includes("2")),
+    ).toBe(true);
+    expect(
+      leaves.some(
+        (leaf) =>
+          leaf.diffType === undefined && leaf.text.includes("console.log"),
+      ),
+    ).toBe(true);
+  });
+
+  it("长文仅显示变更块及上下文窗口", () => {
+    const beforeMarkdown = [
+      "第一段",
+      "第二段",
+      "第三段",
+      "第四段",
+      "第五段",
+    ].join("\n\n");
+    const afterMarkdown = [
+      "第一段",
+      "第二段",
+      "第三段（已改）",
+      "第四段",
+      "第五段",
+    ].join("\n\n");
+
+    const content = buildMergedReviewContent({
+      beforeMarkdown,
+      afterMarkdown,
+      patches: [
+        {
+          operationId: "rewrite-middle-paragraph",
+          op: "replace",
+          start: 0,
+          end: beforeMarkdown.length,
+          beforeText: beforeMarkdown,
+          afterText: afterMarkdown,
+          charDelta: afterMarkdown.length - beforeMarkdown.length,
+        },
+      ],
+      options: {
+        collapseUnchanged: true,
+        contextRadius: 1,
+      },
+    }).content;
+
+    const text = content.map((node) => getTextContent(node as any));
+    expect(text).not.toContain("第一段");
+    expect(text).toContain("第二段");
+    expect(text).toContain("第四段");
+    expect(text.some((value) => value.includes("…… 已折叠未改动内容 ……"))).toBe(
+      true,
+    );
+  });
 });

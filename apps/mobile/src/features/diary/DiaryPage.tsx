@@ -232,7 +232,7 @@ export function DiaryPage({
                 }}
                 className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   mode === option.value
-                    ? "bg-gray-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
+                    ? "bg-zinc-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
                     : "bg-gray-50 text-gray-600 active:bg-gray-100 dark:bg-neutral-800 dark:text-neutral-300 dark:active:bg-neutral-700"
                 }`}
               >

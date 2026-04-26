@@ -4,6 +4,10 @@
  */
 
 import type { EditorServices } from "@tau/editor/src";
+import {
+  importFromMarkdown as sharedImportFromMarkdown,
+  isMarkdownLikeText,
+} from "@tau/editor/src";
 import type {
   ChatMessage as EditorChatMessage,
   ChatStreamOptions as EditorChatStreamOptions,
@@ -58,6 +62,14 @@ import { getGithubCdnUrl } from "@/hooks/useGithubCdnUrl";
 
 import { uploadResource as uploadResourceCommand } from "@/hooks/useUploadResource";
 import { compileCustomBlockTailwind } from "@/services/tailwindRuntime";
+import {
+  createImageFileFromBase64,
+  editOpenAIImages,
+  generateOpenAIImages,
+  isImageGenerationConfigValid,
+  resolveImageInputFile,
+  type OpenAIImageResult,
+} from "@/utils/openai-image-service";
 
 import { nodeFetch } from "@/commands/extra";
 
@@ -87,8 +99,8 @@ type ThemePreset = {
 };
 
 const SOLID_THEME: ThemeClassConfig = {
-  hoverClass: "hover:bg-gray-100 dark:hover:bg-gray-800",
-  activeClass: "bg-[#eee] text-gray-900 dark:bg-gray-800 dark:text-gray-100",
+  hoverClass: "hover:bg-gray-100 dark:hover:bg-zinc-800",
+  activeClass: "bg-[#eee] text-gray-900 dark:bg-zinc-800 dark:text-gray-100",
   hoverTextClass: "hover:text-gray-900 dark:hover:text-gray-100",
   borderClass: "border-[#f0f0f0] dark:border-[#2a2a2a]",
   hoverBorderClass: "hover:border-[#eaeaea] dark:hover:border-[#3a3a3a]",
@@ -97,7 +109,7 @@ const SOLID_THEME: ThemeClassConfig = {
   secondaryTextClass: "text-gray-400 dark:text-gray-500",
   activeTextClass: "text-gray-900 dark:text-gray-100",
   cardBorderClass: "border-gray-200 dark:border-gray-800",
-  cardBgClass: "bg-gray-50/80 dark:bg-gray-900/50",
+  cardBgClass: "bg-gray-50/80 dark:bg-zinc-900/50",
 };
 
 const GRADIENT_THEME_CLASS_MAP: Record<string, ThemeClassConfig> = {
@@ -186,7 +198,7 @@ const GRADIENT_THEME_CLASS_MAP: Record<string, ThemeClassConfig> = {
     secondaryTextClass: "text-gray-400 dark:text-gray-500",
     activeTextClass: "text-gray-700 dark:text-gray-200",
     cardBorderClass: "border-gray-200/30 dark:border-gray-400/20",
-    cardBgClass: "bg-gray-50 dark:bg-gray-800/60",
+    cardBgClass: "bg-gray-50 dark:bg-zinc-800/60",
   },
   gradient7: {
     hoverClass: "hover:bg-cyan-500/10 dark:hover:bg-cyan-400/15",
@@ -520,6 +532,44 @@ const createUploadResult = (url: string, file?: File) => ({
   path: url,
 });
 
+const uploadGeneratedImageResult = async (
+  result: OpenAIImageResult,
+  index = 0,
+) => {
+  const file = result.b64Json
+    ? createImageFileFromBase64(
+        result.b64Json,
+        result.mimeType ?? "image/png",
+        `editor-ai-image-${index + 1}`,
+      )
+    : result.url
+      ? await resolveImageInputFile(result.url)
+      : null;
+
+  if (!file) {
+    throw new Error("图片生成服务未返回可用图片");
+  }
+
+  const url = await uploadResourceCommand(file);
+  if (!url) {
+    throw new Error("图片已生成，但上传资源失败");
+  }
+
+  return {
+    url,
+    fileName: file.name,
+    mimeType: file.type,
+    revisedPrompt: result.revisedPrompt,
+  };
+};
+
+const uploadFirstGeneratedImage = async (results: OpenAIImageResult[]) => {
+  if (!results.length) {
+    throw new Error("图片生成服务未返回图片");
+  }
+  return uploadGeneratedImageResult(results[0], 0);
+};
+
 export function createEditorServices(): EditorServices {
   return {
     resource: {
@@ -759,6 +809,41 @@ export function createEditorServices(): EditorServices {
       },
     },
 
+    imageGeneration: {
+      isAvailable: () => {
+        return isImageGenerationConfigValid(
+          useSettingStore.getState().setting.imageGeneration,
+        );
+      },
+
+      generateImage: async ({ prompt }) => {
+        const config = useSettingStore.getState().setting.imageGeneration;
+        if (!isImageGenerationConfigValid(config)) {
+          throw new Error(
+            "图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称",
+          );
+        }
+        const results = await generateOpenAIImages({ config, prompt });
+        return uploadFirstGeneratedImage(results);
+      },
+
+      editImage: async ({ prompt, imageUrl }) => {
+        const config = useSettingStore.getState().setting.imageGeneration;
+        if (!isImageGenerationConfigValid(config)) {
+          throw new Error(
+            "图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称",
+          );
+        }
+        const imageFile = await resolveImageInputFile(imageUrl);
+        const results = await editOpenAIImages({
+          config,
+          prompt,
+          imageFiles: [imageFile],
+        });
+        return uploadFirstGeneratedImage(results);
+      },
+    },
+
     compiler: {
       typst: async (code: string) => {
         return await compileTypst(code);
@@ -791,6 +876,8 @@ export function createEditorServices(): EditorServices {
       },
 
       getMarkdown,
+      importFromMarkdown: sharedImportFromMarkdown,
+      isMarkdownLikeText,
       nodeFetch,
     },
 

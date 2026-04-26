@@ -136,6 +136,19 @@ export default class ChatMessageTable {
     return this.parseChatMessage(stmt.get(id) as any);
   }
 
+  static getChatMessageByIdOrNull(
+    db: Database.Database,
+    id: number | bigint,
+  ): ChatMessage | null {
+    const stmt = db.prepare("SELECT * FROM chat_message WHERE id = ?");
+    const row = stmt.get(id);
+    if (!row) {
+      return null;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return this.parseChatMessage(row as any);
+  }
+
   static updateChatMessage(
     db: Database.Database,
     chatMessage: Omit<ChatMessage, "updateTime">,

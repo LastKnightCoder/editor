@@ -109,6 +109,7 @@ export const listPomodoroSessions = async (params: {
   start?: number;
   end?: number;
   limit?: number;
+  offset?: number;
   status?: PomodoroSession["status"];
 }): Promise<PomodoroSession[]> => {
   return invoke("pomodoro:list-sessions", params);

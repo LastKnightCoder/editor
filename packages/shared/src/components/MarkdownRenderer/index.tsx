@@ -346,7 +346,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
         "[&_th]:border [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold",
         "[&_td]:border [&_td]:px-3 [&_td]:py-2",
         isDark
-          ? "[&_th]:border-gray-600 [&_th]:bg-gray-800 [&_td]:border-gray-600"
+          ? "[&_th]:border-gray-600 [&_th]:bg-zinc-800 [&_td]:border-gray-600"
           : "[&_th]:border-gray-300 [&_th]:bg-gray-100 [&_td]:border-gray-300",
         // 分隔线
         "[&_hr]:my-4 [&_hr]:border-t",

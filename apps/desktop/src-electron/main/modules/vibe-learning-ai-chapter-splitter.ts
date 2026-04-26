@@ -698,6 +698,20 @@ export function generateSummaryIndex(
 
   lines.push("");
   lines.push("> 使用 `read_resource_chapter` 工具读取具体章节内容。");
+  lines.push("");
+  lines.push("## 章节索引详情");
+  lines.push("");
+
+  for (const ch of chapters) {
+    const chapterFile = buildChapterFileName(ch.index, ch.title);
+    const sizeStr = ch.content.length.toLocaleString();
+    lines.push(`### 章节 ${ch.index + 1}`);
+    lines.push(`- 标题：${ch.title}`);
+    lines.push(`- 摘要：${ch.description || "无"}`);
+    lines.push(`- 文件：${chapterFile}`);
+    lines.push(`- 字数：${sizeStr} 字符`);
+    lines.push("");
+  }
 
   return lines.join("\n");
 }

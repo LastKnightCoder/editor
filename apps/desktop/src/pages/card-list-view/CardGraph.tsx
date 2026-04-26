@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { useMemoizedFn, useTheme } from "ahooks";
+import { useMemoizedFn } from "ahooks";
 import LinkGraph from "@/components/LinkGraph";
 
 import { ICard } from "@/types";
@@ -15,6 +15,7 @@ interface CardGraphProps {
   fitView?: boolean;
   fitViewPadding?: number[];
   currentCardIds?: number[];
+  enableHoverPreview?: boolean;
 }
 
 const CardGraph = memo((props: CardGraphProps) => {
@@ -26,6 +27,7 @@ const CardGraph = memo((props: CardGraphProps) => {
     fitView,
     fitViewPadding,
     currentCardIds = defaultCurrentCardIds,
+    enableHoverPreview = true,
   } = props;
 
   const getCardLinks = useMemoizedFn((card: ICard) => {
@@ -33,16 +35,14 @@ const CardGraph = memo((props: CardGraphProps) => {
     return [...new Set([...links, ...card.links])];
   });
 
-  const { theme } = useTheme();
-
   return (
     <LinkGraph
-      key={theme}
       className={className}
       initCards={initCards}
       style={style}
       getCardLinks={getCardLinks}
       onClickCard={onClickCard}
+      enableHoverPreview={enableHoverPreview}
       currentCardIds={currentCardIds}
       fitView={fitView}
       fitViewPadding={fitViewPadding}

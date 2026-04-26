@@ -12,6 +12,8 @@ import ContentEditProposalRenderer from "./ContentEditProposalRenderer";
 import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
 import GenerativeWidgetRenderer from "./GenerativeWidgetRenderer";
 import { SHOW_WIDGET_TOOL_NAME } from "@/generative-ui/constants";
+import OpenAIImageResultRenderer from "./OpenAIImageResultRenderer";
+import { OPENAI_IMAGE_RENDERER_KEY } from "@/tools/openaiImageTools";
 
 export function initToolCallRenderers(): void {
   registerToolCallRenderers([
@@ -22,6 +24,10 @@ export function initToolCallRenderers(): void {
     {
       toolName: SHOW_WIDGET_TOOL_NAME,
       renderer: GenerativeWidgetRenderer,
+    },
+    {
+      toolName: OPENAI_IMAGE_RENDERER_KEY,
+      renderer: OpenAIImageResultRenderer,
     },
     {
       toolName: "query_todos",

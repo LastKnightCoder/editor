@@ -21,8 +21,38 @@ import CardTable from "./card";
 import ArticleTable from "./article";
 
 export default class DocumentTable {
-  static upgradeTable(_db: Database.Database) {
-    // 当前无结构迁移逻辑，主内容 FTS 补索引由后台队列处理
+  static upgradeTable(db: Database.Database) {
+    const tableInfo = db.prepare(`PRAGMA table_info(document_items)`).all() as {
+      name: string;
+    }[];
+    const hasRefType = tableInfo.some((column) => column.name === "ref_type");
+    const hasRefId = tableInfo.some((column) => column.name === "ref_id");
+
+    if (!hasRefType) {
+      db.exec(`ALTER TABLE document_items ADD COLUMN ref_type TEXT DEFAULT ''`);
+    }
+
+    if (!hasRefId) {
+      db.exec(`ALTER TABLE document_items ADD COLUMN ref_id INTEGER DEFAULT 0`);
+    }
+
+    if (!hasRefType || !hasRefId) {
+      db.exec(`
+        UPDATE document_items
+        SET
+          ref_type = CASE
+            WHEN is_card = 1 AND card_id > 0 THEN 'card'
+            WHEN is_article = 1 AND article_id > 0 THEN 'article'
+            ELSE COALESCE(ref_type, '')
+          END,
+          ref_id = CASE
+            WHEN is_card = 1 AND card_id > 0 THEN card_id
+            WHEN is_article = 1 AND article_id > 0 THEN article_id
+            ELSE COALESCE(ref_id, 0)
+          END
+        WHERE COALESCE(ref_type, '') = '' OR COALESCE(ref_id, 0) = 0
+      `);
+    }
   }
 
   static initAllDocumentItemsDocuments(db: Database.Database): void {
@@ -139,6 +169,8 @@ export default class DocumentTable {
       "get-document-items-by-ids": this.getDocumentItemsByIds.bind(this),
       "get-document-items-by-document-id":
         this.getDocumentItemsByDocumentId.bind(this),
+      "get-document-items-by-content-id":
+        this.getDocumentItemsByContentId.bind(this),
       "get-all-document-items": this.getAllDocumentItems.bind(this),
       "is-document-item-child-of": this.isDocumentItemChildOf.bind(this),
       "init-document-item-parents": this.initAllDocumentItemParents.bind(this),
@@ -198,6 +230,8 @@ export default class DocumentTable {
       isCard: item.is_card,
       articleId: item.article_id,
       cardId: item.card_id,
+      refType: (item.ref_type || "") as IDocumentItem["refType"],
+      refId: item.ref_id || 0,
       count: count,
       contentId: contentId,
     };
@@ -218,7 +252,16 @@ export default class DocumentTable {
     documentItem: ICreateDocumentItem,
   ): number {
     let contentId = 0;
-    if (documentItem.isCard && documentItem.cardId) {
+    if (documentItem.contentId) {
+      contentId = documentItem.contentId;
+      ContentTable.incrementRefCount(db, contentId);
+    } else if (documentItem.refType === "content" && documentItem.refId) {
+      const content = ContentTable.getContentById(db, documentItem.refId);
+      if (content) {
+        contentId = content.id;
+        ContentTable.incrementRefCount(db, contentId);
+      }
+    } else if (documentItem.isCard && documentItem.cardId) {
       const card = CardTable.getCardById(db, documentItem.cardId);
       if (card) {
         contentId = card.contentId;
@@ -248,8 +291,8 @@ export default class DocumentTable {
     documentItem: ICreateDocumentItem,
   ): [IDocument, IDocumentItem | null] {
     const stmt = db.prepare(`
-      INSERT INTO document_items (create_time, update_time, title, tags, children, is_article, article_id, is_card, card_id, content_id, parents, documents)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO document_items (create_time, update_time, title, tags, children, is_article, article_id, is_card, card_id, ref_type, ref_id, content_id, parents, documents)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const contentId = this.getContentId(db, documentItem);
@@ -265,6 +308,8 @@ export default class DocumentTable {
       documentItem.articleId,
       Number(documentItem.isCard),
       documentItem.cardId,
+      documentItem.refType || "",
+      documentItem.refId || 0,
       contentId,
       JSON.stringify(documentItem.parents),
       JSON.stringify([documentId]),
@@ -302,8 +347,8 @@ export default class DocumentTable {
     const currentDocuments = new Set(parentDocumentItem.documents || []);
 
     const stmt = db.prepare(`
-      INSERT INTO document_items (create_time, update_time, title, tags, children, is_article, article_id, is_card, card_id, content_id, parents, documents)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO document_items (create_time, update_time, title, tags, children, is_article, article_id, is_card, card_id, ref_type, ref_id, content_id, parents, documents)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const res = stmt.run(
@@ -316,6 +361,8 @@ export default class DocumentTable {
       documentItem.articleId,
       Number(documentItem.isCard),
       documentItem.cardId,
+      documentItem.refType || "",
+      documentItem.refId || 0,
       contentId,
       JSON.stringify([parentDocumentItemId]),
       JSON.stringify(Array.from(currentDocuments)),
@@ -603,6 +650,8 @@ export default class DocumentTable {
         article_id = ?,
         is_card = ?,
         card_id = ?,
+        ref_type = ?,
+        ref_id = ?,
         content_id = ?,
         parents = ?,
         documents = ?
@@ -618,6 +667,8 @@ export default class DocumentTable {
       item.articleId,
       Number(item.isCard),
       item.cardId,
+      item.refType || "",
+      item.refId || 0,
       item.contentId,
       JSON.stringify(item.parents),
       JSON.stringify(item.documents),
@@ -728,6 +779,21 @@ export default class DocumentTable {
       LEFT JOIN contents c ON di.content_id = c.id
     `);
     const items = stmt.all();
+    return items.map((item) => this.parseDocumentItem(item));
+  }
+
+  static getDocumentItemsByContentId(
+    db: Database.Database,
+    contentId: number,
+  ): IDocumentItem[] {
+    const stmt = db.prepare(`
+      SELECT di.*, c.content, c.count, c.update_time as content_update_time
+      FROM document_items di
+      LEFT JOIN contents c ON di.content_id = c.id
+      WHERE di.content_id = ?
+      ORDER BY di.update_time DESC, di.id DESC
+    `);
+    const items = stmt.all(contentId);
     return items.map((item) => this.parseDocumentItem(item));
   }
 

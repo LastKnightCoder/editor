@@ -40,7 +40,7 @@ const PdfEmbedThumbnails = ({ themeColors }: PdfEmbedThumbnailsProps) => {
               {/* 图片容器 - 75% 宽度，完整高度 */}
               <div
                 className={classNames(
-                  "relative bg-white dark:bg-gray-800 rounded-lg overflow-hidden transition-all duration-200 shrink-0",
+                  "relative bg-white dark:bg-zinc-800 rounded-lg overflow-hidden transition-all duration-200 shrink-0",
                   "shadow-sm",
                   isActive
                     ? themeColors.focusBorderClass.replace(

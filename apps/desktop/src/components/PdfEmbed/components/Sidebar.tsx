@@ -13,14 +13,25 @@ import {
   ImagesIcon,
   MoreHorizontalIcon,
   ChevronRightIcon,
+  SearchIcon,
 } from "lucide-react";
 import { Editor } from "@tau/editor/src";
 import useThemeColors from "@/hooks/useThemeColors";
 import { formatAnnotationSnippet } from "../utils/annotation";
-import type { PdfAnnotation, PdfBookmark } from "@/types";
+import type {
+  PdfAnnotation,
+  PdfBookmark,
+  PdfIndexStatus,
+  PdfSearchResult,
+} from "@/types";
 import PdfEmbedThumbnails from "./Thumbnails";
 
-export type SidebarTabKey = "outline" | "thumbnails" | "bookmarks" | "notes";
+export type SidebarTabKey =
+  | "outline"
+  | "search"
+  | "thumbnails"
+  | "bookmarks"
+  | "notes";
 
 const SIDEBAR_TABS: Array<{
   key: SidebarTabKey;
@@ -28,6 +39,7 @@ const SIDEBAR_TABS: Array<{
   icon: LucideIcon;
 }> = [
   { key: "outline", label: "目录", icon: ListTreeIcon },
+  { key: "search", label: "搜索", icon: SearchIcon },
   { key: "thumbnails", label: "缩略图", icon: ImagesIcon },
   { key: "bookmarks", label: "书签", icon: BookmarkIcon },
   { key: "notes", label: "笔记", icon: StickyNoteIcon },
@@ -45,6 +57,15 @@ interface PdfEmbedSidebarProps {
   onAnnotationDelete?: (annotation: PdfAnnotation) => void;
   onAnnotationClick?: (annotation: PdfAnnotation) => void;
   onAnnotationEdit?: (annotation: PdfAnnotation) => void;
+  searchQuery: string;
+  lastSearchQuery?: string;
+  onSearchQueryChange: (query: string) => void;
+  onSearchSubmit: () => void;
+  searchResults: PdfSearchResult[];
+  selectedSearchResultKey?: string | null;
+  onSearchResultSelect: (result: PdfSearchResult) => void;
+  searchLoading?: boolean;
+  indexStatus?: PdfIndexStatus | null;
 }
 
 const getDestinationPage = (bookmark: PdfBookmarkObject): number | null => {
@@ -162,7 +183,7 @@ const OutlineItem = memo(
               isExpanded ? "max-h-[9999px] opacity-100" : "max-h-0 opacity-0",
             )}
           >
-            {item.children!.map((child, index) => (
+            {(item.children || []).map((child, index) => (
               <OutlineItem
                 key={`${itemKey}-${index}`}
                 item={child}
@@ -454,7 +475,7 @@ const NotesTab = ({
               )}
             >
               {isAreaAnnotation && annotation.areaData?.captureUrl ? (
-                <div className="bg-white dark:bg-gray-900 rounded p-1">
+                <div className="bg-white dark:bg-zinc-900 rounded p-1">
                   <img
                     src={annotation.areaData.captureUrl}
                     alt="区域截图"
@@ -510,6 +531,190 @@ const NotesTab = ({
   );
 };
 
+const SearchTab = ({
+  query,
+  lastSearchQuery,
+  onQueryChange,
+  onSearch,
+  results,
+  selectedResultKey,
+  onResultSelect,
+  loading,
+  indexStatus,
+  themeColors,
+}: {
+  query: string;
+  lastSearchQuery?: string;
+  onQueryChange: (query: string) => void;
+  onSearch: () => void;
+  results: PdfSearchResult[];
+  selectedResultKey?: string | null;
+  onResultSelect: (result: PdfSearchResult) => void;
+  loading?: boolean;
+  indexStatus?: PdfIndexStatus | null;
+  themeColors: ReturnType<typeof useThemeColors>;
+}) => {
+  const statusText = useMemo(() => {
+    if (!indexStatus) {
+      return "等待索引状态...";
+    }
+    switch (indexStatus.state) {
+      case "building":
+        return indexStatus.progressLabel || "索引构建中";
+      case "ready":
+        return `索引已就绪，共 ${indexStatus.pageCount} 页`;
+      case "failed":
+        return indexStatus.error || "索引构建失败";
+      default:
+        return "索引尚未构建";
+    }
+  }, [indexStatus]);
+
+  const emptyDescription = useMemo(() => {
+    if (!lastSearchQuery?.trim()) {
+      return "输入关键词开始搜索";
+    }
+    if (indexStatus?.state === "failed") {
+      return "索引构建失败，请先检查 PDF 索引状态";
+    }
+    return `未找到“${lastSearchQuery.trim()}”相关内容，可尝试更短关键词；如果是扫描版 PDF，当前可能没有可检索文本`;
+  }, [indexStatus?.state, lastSearchQuery]);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="space-y-3">
+        <div>
+          <div className="text-xs font-medium mb-1">索引状态</div>
+          <div
+            className={classNames(
+              "text-xs leading-relaxed",
+              themeColors.secondaryTextClass,
+            )}
+          >
+            {statusText}
+          </div>
+          {indexStatus?.state === "building" &&
+          typeof indexStatus.progressCurrent === "number" &&
+          typeof indexStatus.progressTotal === "number" &&
+          indexStatus.progressTotal > 0 ? (
+            <div className="mt-2">
+              <div
+                className={classNames(
+                  "flex items-center justify-between text-[11px] mb-1",
+                  themeColors.secondaryTextClass,
+                )}
+              >
+                <span>{indexStatus.currentStage || "building"}</span>
+                <span>
+                  {indexStatus.progressCurrent}/{indexStatus.progressTotal}
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full bg-black/8 dark:bg-white/10 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-sky-500 transition-[width] duration-200"
+                  style={{
+                    width: `${Math.max(
+                      4,
+                      Math.min(
+                        100,
+                        (indexStatus.progressCurrent /
+                          indexStatus.progressTotal) *
+                          100,
+                      ),
+                    )}%`,
+                  }}
+                />
+              </div>
+            </div>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                onSearch();
+              }
+            }}
+            placeholder="搜索关键字或问题"
+            className={classNames(
+              "flex-1 rounded-lg border px-3 py-2 text-sm outline-none transition-all",
+              themeColors.inputBgClass,
+              themeColors.borderClass,
+              themeColors.activeTextClass,
+            )}
+          />
+          <Button type="primary" loading={loading} onClick={onSearch}>
+            搜索
+          </Button>
+        </div>
+      </div>
+
+      {results.length === 0 ? (
+        <div className="pdf-embed-sidebar-placeholder py-8">
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={emptyDescription}
+          />
+        </div>
+      ) : (
+        <div className={classNames("border-t pt-2", themeColors.borderClass)}>
+          <div
+            className={classNames(
+              "px-1 pb-2 text-xs",
+              themeColors.secondaryTextClass,
+            )}
+          >
+            找到 {results.length} 条结果
+          </div>
+          {results.map((result) => {
+            const resultKey = `${result.pageNumber}-${result.chunkIndex}-${result.source}`;
+            return (
+              <button
+                key={resultKey}
+                type="button"
+                className={classNames(
+                  "w-full text-left px-1 py-3 border-b transition-colors",
+                  themeColors.borderClass,
+                  selectedResultKey === resultKey
+                    ? classNames(themeColors.activeTextClass, "bg-transparent")
+                    : classNames(themeColors.textClass, themeColors.hoverClass),
+                )}
+                onClick={() => onResultSelect(result)}
+              >
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <span className="text-xs font-medium">
+                    第 {result.pageNumber} 页
+                  </span>
+                  {result.sectionTitle ? (
+                    <span
+                      className={classNames(
+                        "text-[11px] truncate",
+                        themeColors.secondaryTextClass,
+                      )}
+                      title={
+                        result.sectionPath?.length
+                          ? result.sectionPath.join(" / ")
+                          : result.sectionTitle
+                      }
+                    >
+                      {result.sectionTitle}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="text-sm leading-6 line-clamp-3">
+                  {result.snippet}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const PdfEmbedSidebar = ({
   activeTab,
   onTabChange,
@@ -522,6 +727,15 @@ const PdfEmbedSidebar = ({
   onAnnotationDelete,
   onAnnotationClick,
   onAnnotationEdit,
+  searchQuery,
+  lastSearchQuery,
+  onSearchQueryChange,
+  onSearchSubmit,
+  searchResults,
+  selectedSearchResultKey,
+  onSearchResultSelect,
+  searchLoading,
+  indexStatus,
 }: PdfEmbedSidebarProps) => {
   const themeColors = useThemeColors();
   const bookmarksCount = bookmarks.length;
@@ -543,6 +757,21 @@ const PdfEmbedSidebar = ({
             bookmarks={bookmarks}
             onSelect={onBookmarkSelect}
             onDelete={onBookmarkDelete}
+            themeColors={themeColors}
+          />
+        );
+      case "search":
+        return (
+          <SearchTab
+            query={searchQuery}
+            lastSearchQuery={lastSearchQuery}
+            onQueryChange={onSearchQueryChange}
+            onSearch={onSearchSubmit}
+            results={searchResults}
+            selectedResultKey={selectedSearchResultKey}
+            onResultSelect={onSearchResultSelect}
+            loading={searchLoading}
+            indexStatus={indexStatus}
             themeColors={themeColors}
           />
         );
@@ -576,7 +805,7 @@ const PdfEmbedSidebar = ({
     >
       <div
         className={classNames(
-          "grid grid-cols-4 gap-2 px-3 py-3 border-b",
+          "grid grid-cols-5 gap-2 px-3 py-3 border-b",
           themeColors.borderClass,
         )}
       >

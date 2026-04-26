@@ -11,7 +11,7 @@ import useLLMConfig from "@/hooks/useLLMConfig";
 import useVLResourceSelection from "@/hooks/useVLResourceSelection";
 import useVLTools from "@/hooks/useVLTools";
 import useSettingStore from "@/stores/useSettingStore";
-import { createVLNote, readVLResourceContent } from "@/commands/vibe-learning";
+import { createVLNote } from "@/commands/vibe-learning";
 import { createContent } from "@/commands";
 import { createPodcast } from "@/commands/podcast";
 import { VLNote } from "@/types/vibe-learning";
@@ -208,25 +208,6 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
     }
   }, [status, audioUrl]);
 
-  // 读取选中资源的内容
-  const fetchResourcesContent = useMemoizedFn(async (): Promise<string> => {
-    const resourceNames = getSelectedResourceNames();
-    const contents: string[] = [];
-
-    for (const name of resourceNames) {
-      try {
-        const result = await readVLResourceContent(projectId, name, mainDbName);
-        if (result.success && result.content) {
-          contents.push(`## ${name}\n\n${result.content}`);
-        }
-      } catch (error) {
-        console.error(`读取资源 ${name} 失败:`, error);
-      }
-    }
-
-    return contents.join("\n\n---\n\n");
-  });
-
   // 开始生成播客
   const handleStartGenerate = useMemoizedFn(async () => {
     if (selectedResourceIds.length === 0) {
@@ -251,30 +232,27 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
 
     setStep("generating");
 
-    // 获取资源内容
-    const content = await fetchResourcesContent();
-    if (!content.trim()) {
-      message.error("无法读取资源内容");
-      setStep("select-resources");
-      return;
-    }
-
-    // 如果有用户提示，添加到内容前面
-    const finalContent = userPrompt.trim()
-      ? `用户要求：${userPrompt.trim()}\n\n---\n\n${content}`
-      : content;
+    const resourceNames = getSelectedResourceNames();
 
     // 设置自动继续标志
     shouldAutoContinueRef.current = true;
 
-    // 开始生成（脚本生成完成后会自动继续 TTS）
-    await generatePodcast({
-      content: finalContent,
-      speakers,
-      generateMusic: false,
-      durationMin: durationRange[0],
-      durationMax: durationRange[1],
-    });
+    try {
+      // 开始生成（脚本生成完成后会自动继续 TTS）
+      await generatePodcast({
+        resourceNames,
+        userPrompt: userPrompt || undefined,
+        enableTools: true,
+        speakers,
+        generateMusic: false,
+        durationMin: durationRange[0],
+        durationMax: durationRange[1],
+      });
+    } catch (error) {
+      console.error("播客生成失败:", error);
+      shouldAutoContinueRef.current = false;
+      setStep("select-resources");
+    }
   });
 
   // 重新生成
@@ -528,13 +506,13 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
     "bg-blue-500 text-white",
     "hover:bg-blue-600",
-    "disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed",
+    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed",
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-    "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300",
-    "hover:bg-gray-200 dark:hover:bg-gray-700",
+    "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
+    "hover:bg-gray-200 dark:hover:bg-zinc-700",
     "border border-gray-200 dark:border-gray-700",
   );
 
@@ -658,8 +636,7 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
       iconBgColor="bg-purple-50 dark:bg-purple-500/20 border-purple-200 dark:border-purple-500/30"
       footer={renderFooter()}
       showCloseButton={step !== "generating"}
-      bodyScrollable={true}
-      bodyClassName="pt-3"
+      bodyClassName="overflow-y-auto pt-3"
     >
       <AnimatePresence mode="wait">
         <motion.div

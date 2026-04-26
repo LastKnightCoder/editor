@@ -19,9 +19,25 @@ interface UseNotesReturn {
     noteId: string,
     dbName: string,
     contentId: number,
+    options?: {
+      syncedContentUpdateTime?: number;
+      contentUpdatedAt?: number;
+    },
   ) => Promise<void>;
   /** 获取当前活动笔记在指定数据库下的 contentId */
   getContentId: (dbName: string) => number | null;
+  /** 获取当前活动笔记在指定数据库下的最近一次同步远端更新时间 */
+  getSyncedContentUpdateTime: (dbName: string) => number | null;
+  /** 用远端内容覆盖当前活动笔记，并同步落盘相关元数据 */
+  replaceActiveNoteContent: (
+    content: Descendant[],
+    options?: {
+      dbName?: string;
+      contentId?: number;
+      syncedContentUpdateTime?: number;
+      contentUpdatedAt?: number;
+    },
+  ) => Promise<void>;
 }
 
 const STORAGE_PREFIX_META = "tau-notes-meta:";
@@ -36,8 +52,20 @@ export function useNotes(url: string | null): UseNotesReturn {
   const [content, setContent] = useState<Descendant[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const notesRef = useRef<NoteMetadata[]>([]);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentUrlRef = useRef(url);
+
+  useEffect(() => {
+    notesRef.current = notes;
+  }, [notes]);
+
+  const clearSaveTimer = useCallback(() => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+  }, []);
 
   // 加载笔记列表元数据
   const loadNotesMeta = useCallback(async (url: string) => {
@@ -46,7 +74,12 @@ export function useNotes(url: string | null): UseNotesReturn {
       const result = await chrome.storage.local.get(key);
       const notesMeta = result[key] as NoteMetadata[] | undefined;
 
-      return notesMeta && notesMeta.length > 0 ? notesMeta : [];
+      return notesMeta && notesMeta.length > 0
+        ? notesMeta.map((note) => ({
+            ...note,
+            contentUpdatedAt: note.contentUpdatedAt ?? note.updatedAt,
+          }))
+        : [];
     } catch (error) {
       console.error("Failed to load notes meta:", error);
       return [];
@@ -84,11 +117,22 @@ export function useNotes(url: string | null): UseNotesReturn {
   const saveNoteContent = useCallback(
     (newContent: Descendant[]) => {
       if (!activeNoteId || !currentUrlRef.current) return;
+      const editedAt = Date.now();
 
-      // 清除之前的定时器
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-      }
+      clearSaveTimer();
+
+      const optimisticNotes = notesRef.current.map((note) =>
+        note.id === activeNoteId
+          ? {
+              ...note,
+              updatedAt: editedAt,
+              contentUpdatedAt: editedAt,
+            }
+          : note,
+      );
+      notesRef.current = optimisticNotes;
+      setNotes(optimisticNotes);
+      setContent(newContent);
 
       // 设置新的定时器（1s debounce）
       saveTimerRef.current = setTimeout(async () => {
@@ -103,36 +147,41 @@ export function useNotes(url: string | null): UseNotesReturn {
 
           const updatedMeta = notesMeta.map((note) =>
             note.id === activeNoteId
-              ? { ...note, updatedAt: Date.now() }
+              ? {
+                  ...note,
+                  updatedAt: editedAt,
+                  contentUpdatedAt: editedAt,
+                }
               : note,
           );
 
           await chrome.storage.local.set({ [metaKey]: updatedMeta });
+          notesRef.current = updatedMeta;
           setNotes(updatedMeta);
         } catch (error) {
           console.error("Failed to save note content:", error);
         }
       }, 1000);
-
-      // 立即更新本地 content 以保持 UI 响应
-      setContent(newContent);
     },
-    [activeNoteId],
+    [activeNoteId, clearSaveTimer],
   );
 
   // 新建笔记
   const createNote = useCallback(async () => {
     if (!currentUrlRef.current) return;
+    const now = Date.now();
 
-    const nextIndex = notes.length + 1;
+    const nextIndex = notesRef.current.length + 1;
     const newNote: NoteMetadata = {
       id: uuidv4(),
       title: `笔记 ${nextIndex}`,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      createdAt: now,
+      updatedAt: now,
+      contentUpdatedAt: now,
     };
 
-    const updatedNotes = [...notes, newNote];
+    const updatedNotes = [...notesRef.current, newNote];
+    notesRef.current = updatedNotes;
     setNotes(updatedNotes);
     await saveNotesMeta(currentUrlRef.current, updatedNotes);
 
@@ -143,7 +192,7 @@ export function useNotes(url: string | null): UseNotesReturn {
     // 立即保存默认内容
     const contentKey = `${STORAGE_PREFIX_CONTENT}${newNote.id}`;
     await chrome.storage.local.set({ [contentKey]: DEFAULT_CARD_CONTENT });
-  }, [notes, saveNotesMeta]);
+  }, [saveNotesMeta]);
 
   // 删除笔记
   const deleteNote = useCallback(
@@ -155,7 +204,10 @@ export function useNotes(url: string | null): UseNotesReturn {
       await chrome.storage.local.remove(contentKey);
 
       // 更新元数据列表
-      const updatedNotes = notes.filter((note) => note.id !== noteId);
+      const updatedNotes = notesRef.current.filter(
+        (note) => note.id !== noteId,
+      );
+      notesRef.current = updatedNotes;
       setNotes(updatedNotes);
       await saveNotesMeta(currentUrlRef.current, updatedNotes);
 
@@ -172,7 +224,7 @@ export function useNotes(url: string | null): UseNotesReturn {
         }
       }
     },
-    [notes, activeNoteId, loadNoteContent, saveNotesMeta],
+    [activeNoteId, loadNoteContent, saveNotesMeta],
   );
 
   // 重命名笔记
@@ -180,16 +232,17 @@ export function useNotes(url: string | null): UseNotesReturn {
     async (noteId: string, newTitle: string) => {
       if (!currentUrlRef.current) return;
 
-      const updatedNotes = notes.map((note) =>
+      const updatedNotes = notesRef.current.map((note) =>
         note.id === noteId
           ? { ...note, title: newTitle, updatedAt: Date.now() }
           : note,
       );
 
+      notesRef.current = updatedNotes;
       setNotes(updatedNotes);
       await saveNotesMeta(currentUrlRef.current, updatedNotes);
     },
-    [notes, saveNotesMeta],
+    [saveNotesMeta],
   );
 
   // 切换活动笔记
@@ -209,37 +262,122 @@ export function useNotes(url: string | null): UseNotesReturn {
 
   // 更新指定笔记在指定数据库下的 contentId
   const updateNoteContentId = useCallback(
-    async (noteId: string, dbName: string, contentId: number) => {
+    async (
+      noteId: string,
+      dbName: string,
+      contentId: number,
+      options?: {
+        syncedContentUpdateTime?: number;
+        contentUpdatedAt?: number;
+      },
+    ) => {
       if (!currentUrlRef.current) return;
+      const nextUpdatedAt = options?.contentUpdatedAt ?? Date.now();
 
-      const updatedNotes = notes.map((note) => {
+      const updatedNotes = notesRef.current.map((note) => {
         if (note.id !== noteId) return note;
         const contentIdMap = {
           ...(note.contentIdMap || {}),
           [dbName]: contentId,
         };
-        return { ...note, contentIdMap, updatedAt: Date.now() };
+        const syncedContentUpdateTimeMap =
+          typeof options?.syncedContentUpdateTime === "number"
+            ? {
+                ...(note.syncedContentUpdateTimeMap || {}),
+                [dbName]: options.syncedContentUpdateTime,
+              }
+            : note.syncedContentUpdateTimeMap;
+        return {
+          ...note,
+          contentIdMap,
+          syncedContentUpdateTimeMap,
+          updatedAt: nextUpdatedAt,
+          contentUpdatedAt: options?.contentUpdatedAt ?? note.contentUpdatedAt,
+        };
       });
 
+      notesRef.current = updatedNotes;
       setNotes(updatedNotes);
       await saveNotesMeta(currentUrlRef.current, updatedNotes);
     },
-    [notes, saveNotesMeta],
+    [saveNotesMeta],
   );
 
   // 获取当前活动笔记在指定数据库下的 contentId
   const getContentId = useCallback(
     (dbName: string): number | null => {
       if (!activeNoteId) return null;
-      const note = notes.find((n) => n.id === activeNoteId);
+      const note = notesRef.current.find((n) => n.id === activeNoteId);
       return note?.contentIdMap?.[dbName] ?? null;
     },
-    [activeNoteId, notes],
+    [activeNoteId],
+  );
+
+  const getSyncedContentUpdateTime = useCallback(
+    (dbName: string): number | null => {
+      if (!activeNoteId) return null;
+      const note = notesRef.current.find((n) => n.id === activeNoteId);
+      return note?.syncedContentUpdateTimeMap?.[dbName] ?? null;
+    },
+    [activeNoteId],
+  );
+
+  const replaceActiveNoteContent = useCallback(
+    async (
+      newContent: Descendant[],
+      options?: {
+        dbName?: string;
+        contentId?: number;
+        syncedContentUpdateTime?: number;
+        contentUpdatedAt?: number;
+      },
+    ) => {
+      if (!activeNoteId || !currentUrlRef.current) return;
+
+      clearSaveTimer();
+
+      const nextUpdatedAt = options?.contentUpdatedAt ?? Date.now();
+      const updatedNotes = notesRef.current.map((note) => {
+        if (note.id !== activeNoteId) return note;
+
+        const contentIdMap =
+          options?.dbName && typeof options.contentId === "number"
+            ? {
+                ...(note.contentIdMap || {}),
+                [options.dbName]: options.contentId,
+              }
+            : note.contentIdMap;
+        const syncedContentUpdateTimeMap =
+          options?.dbName && typeof options.syncedContentUpdateTime === "number"
+            ? {
+                ...(note.syncedContentUpdateTimeMap || {}),
+                [options.dbName]: options.syncedContentUpdateTime,
+              }
+            : note.syncedContentUpdateTimeMap;
+
+        return {
+          ...note,
+          contentIdMap,
+          syncedContentUpdateTimeMap,
+          updatedAt: nextUpdatedAt,
+          contentUpdatedAt: nextUpdatedAt,
+        };
+      });
+
+      const contentKey = `${STORAGE_PREFIX_CONTENT}${activeNoteId}`;
+      await chrome.storage.local.set({ [contentKey]: newContent });
+      notesRef.current = updatedNotes;
+      setNotes(updatedNotes);
+      setContent(newContent);
+      await saveNotesMeta(currentUrlRef.current, updatedNotes);
+    },
+    [activeNoteId, clearSaveTimer, saveNotesMeta],
   );
 
   // URL 变化时重新加载笔记列表
   useEffect(() => {
     if (!url) {
+      notesRef.current = [];
       setNotes([]);
       setActiveNoteId(null);
       setContent(null);
@@ -252,6 +390,7 @@ export function useNotes(url: string | null): UseNotesReturn {
 
     (async () => {
       const notesMeta = await loadNotesMeta(url);
+      notesRef.current = notesMeta;
       setNotes(notesMeta);
 
       if (notesMeta.length > 0) {
@@ -270,11 +409,9 @@ export function useNotes(url: string | null): UseNotesReturn {
 
     // 清理定时器
     return () => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-      }
+      clearSaveTimer();
     };
-  }, [url, loadNotesMeta, loadNoteContent]);
+  }, [url, loadNotesMeta, loadNoteContent, clearSaveTimer]);
 
   return {
     notes,
@@ -288,5 +425,7 @@ export function useNotes(url: string | null): UseNotesReturn {
     saveNoteContent,
     updateNoteContentId,
     getContentId,
+    getSyncedContentUpdateTime,
+    replaceActiveNoteContent,
   };
 }

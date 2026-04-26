@@ -25,7 +25,6 @@ interface UseTopicHighlightsResult {
   generateTopicHighlights: (
     topicName: string,
     transcriptSegments: TranscriptSegment[],
-    transcript: string | undefined,
     currentInsights?: VideoNoteInsights,
   ) => Promise<VideoNoteInsights>;
 }
@@ -41,7 +40,6 @@ export const useTopicHighlights = (
     async (
       topicName: string,
       transcriptSegments: TranscriptSegment[],
-      transcript: string | undefined,
       currentInsights?: VideoNoteInsights,
     ): Promise<VideoNoteInsights> => {
       if (!providerConfig || !modelConfig) {
@@ -80,10 +78,7 @@ export const useTopicHighlights = (
         ];
 
         const response = await chatLLM(providerConfig, modelConfig, messages);
-        const transcriptHash = computeTranscriptHash(
-          transcript,
-          transcriptSegments,
-        );
+        const transcriptHash = computeTranscriptHash("", transcriptSegments);
         const parsed = parseVideoInsightsResponse(response || "", {
           mode: "topic",
           customTopicName: topicName,

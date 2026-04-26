@@ -4,6 +4,7 @@ import { persist } from "zustand/middleware";
 import { PomodoroPreset, PomodoroSession } from "@/types";
 import { useBackendWebsocketStore } from "./useBackendWebsocketStore";
 import {
+  getActivePomodoroSession,
   listPomodoroSessions,
   listPomodoroPresets,
   setBackgroundSound as setBackgroundSoundCommand,
@@ -22,10 +23,14 @@ export type BackgroundSoundType =
   | "bonfire"
   | "rain";
 
+const SESSION_PAGE_SIZE = 100;
+
 interface PomodoroState {
   inited: boolean;
   presets: PomodoroPreset[];
-  sessions: PomodoroSession[]; // 专注记录（近30天）
+  sessions: PomodoroSession[]; // 当前已加载的专注记录
+  hasMoreSessions: boolean;
+  loadingMoreSessions: boolean;
   selectedPreset: PomodoroPreset | null;
   activeSession: PomodoroSession | null;
   elapsedMs: number; // 当前已专注时长
@@ -48,6 +53,7 @@ interface PomodoroActions {
     elapsedMs: number;
     remainMs?: number;
   }) => void;
+  loadMoreSessions: () => Promise<void>;
   refreshSessions: () => Promise<void>;
   refreshPresets: () => Promise<void>;
   refreshSummary: () => Promise<void>;
@@ -59,6 +65,8 @@ const initialState: PomodoroState = {
   inited: false,
   presets: [],
   sessions: [],
+  hasMoreSessions: false,
+  loadingMoreSessions: false,
   selectedPreset: null,
   activeSession: null,
   elapsedMs: 0,
@@ -68,6 +76,33 @@ const initialState: PomodoroState = {
   backgroundVolume: 50,
   today: { count: 0, focusMs: 0 },
   total: { count: 0, focusMs: 0 },
+};
+
+const getSessionTiming = (session: PomodoroSession | null) => {
+  if (!session) {
+    return {
+      elapsedMs: 0,
+      remainMs: undefined as number | undefined,
+    };
+  }
+
+  const now = Date.now();
+  let pauseTotalMs = session.pauseTotalMs;
+
+  if (session.status === "paused") {
+    const lastPause = session.pauses[session.pauses.length - 1];
+    if (lastPause && lastPause.end === undefined) {
+      pauseTotalMs += now - lastPause.start;
+    }
+  }
+
+  const elapsedMs = Math.max(0, now - session.startTime - pauseTotalMs);
+  const remainMs =
+    session.expectedMs !== undefined
+      ? Math.max(0, session.expectedMs - elapsedMs)
+      : undefined;
+
+  return { elapsedMs, remainMs };
 };
 
 export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
@@ -132,31 +167,27 @@ export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
 
         // 获取初始数据
         try {
-          const selectedPreset = (await client.sendRequest(
-            "pomodoro:get-selected-preset",
-            null,
-          )) as PomodoroPreset | null;
+          const [selectedPreset, activeSession, presets, sessions] =
+            await Promise.all([
+              client.sendRequest(
+                "pomodoro:get-selected-preset",
+                null,
+              ) as Promise<PomodoroPreset | null>,
+              getActivePomodoroSession(),
+              listPomodoroPresets(),
+              listPomodoroSessions({ limit: SESSION_PAGE_SIZE }),
+            ]);
+          const timing = getSessionTiming(activeSession);
 
-          // 获取预设列表
-          const presets = await listPomodoroPresets();
-
-          // 获取专注记录（近30天）
-          const end = Date.now();
-          const start = end - 30 * 24 * 60 * 60 * 1000;
-          const sessions = await listPomodoroSessions({
-            start,
-            end,
-            limit: 1000,
-          });
-
-          // 启动时不会有 active session（软件关闭时会话数据丢失）
           set({
             selectedPreset,
             presets,
             sessions,
-            activeSession: null,
-            elapsedMs: 0,
-            remainMs: undefined,
+            hasMoreSessions: sessions.length >= SESSION_PAGE_SIZE,
+            loadingMoreSessions: false,
+            activeSession,
+            elapsedMs: timing.elapsedMs,
+            remainMs: timing.remainMs,
             inited: true,
           });
 
@@ -218,15 +249,57 @@ export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
           }),
         ),
 
+      loadMoreSessions: async () => {
+        const { loadingMoreSessions, hasMoreSessions, sessions } = get();
+        if (loadingMoreSessions || !hasMoreSessions) {
+          return;
+        }
+
+        set(
+          produce((draft: PomodoroState) => {
+            draft.loadingMoreSessions = true;
+          }),
+        );
+
+        try {
+          const nextSessions = await listPomodoroSessions({
+            limit: SESSION_PAGE_SIZE,
+            offset: sessions.length,
+          });
+          const existingIds = new Set(sessions.map((session) => session.id));
+          const mergedSessions = [
+            ...sessions,
+            ...nextSessions.filter((session) => !existingIds.has(session.id)),
+          ];
+
+          set(
+            produce((draft: PomodoroState) => {
+              draft.sessions = mergedSessions;
+              draft.hasMoreSessions = nextSessions.length >= SESSION_PAGE_SIZE;
+              draft.loadingMoreSessions = false;
+            }),
+          );
+        } catch (error) {
+          set(
+            produce((draft: PomodoroState) => {
+              draft.loadingMoreSessions = false;
+            }),
+          );
+          throw error;
+        }
+      },
+
       refreshSessions: async () => {
-        const end = Date.now();
-        const start = end - 30 * 24 * 60 * 60 * 1000;
+        const loadedCount = Math.max(get().sessions.length, SESSION_PAGE_SIZE);
         const sessions = await listPomodoroSessions({
-          start,
-          end,
-          limit: 1000,
+          limit: loadedCount,
         });
-        get().setSessions(sessions);
+        set(
+          produce((draft: PomodoroState) => {
+            draft.sessions = sessions;
+            draft.hasMoreSessions = sessions.length >= loadedCount;
+          }),
+        );
       },
 
       refreshPresets: async () => {

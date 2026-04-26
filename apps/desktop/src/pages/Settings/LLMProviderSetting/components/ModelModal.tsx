@@ -35,12 +35,20 @@ const ModelModal = ({
   const [modelName, setModelName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+  const [messageFormat, setMessageFormat] = useState<"openai" | "claude">(
+    "openai",
+  );
+  const [apiProtocol, setApiProtocol] = useState<
+    "chat-completions" | "responses"
+  >("chat-completions");
   const themeColors = useThemeColors();
 
   useEffect(() => {
     if (initialData && open) {
       setModelName(initialData.name);
       setDescription(initialData.description);
+      setMessageFormat(initialData.messageFormat ?? "openai");
+      setApiProtocol(initialData.apiProtocol ?? "chat-completions");
       const normalizedFeatures = {
         online: initialData.features?.online ?? false,
         thinking: initialData.features?.thinking ?? false,
@@ -58,6 +66,8 @@ const ModelModal = ({
       setSelectedFeatures(initialFeatures);
     } else if (!open) {
       setSelectedFeatures([]);
+      setMessageFormat("openai");
+      setApiProtocol("chat-completions");
     }
   }, [initialData, open]);
 
@@ -74,10 +84,15 @@ const ModelModal = ({
       name: modelName,
       description,
       features,
+      messageFormat,
+      apiProtocol:
+        messageFormat === "openai" ? apiProtocol : "chat-completions",
     });
     setModelName("");
     setDescription("");
     setSelectedFeatures([]);
+    setMessageFormat("openai");
+    setApiProtocol("chat-completions");
   };
 
   const handleCancel = () => {
@@ -85,6 +100,8 @@ const ModelModal = ({
     setModelName("");
     setDescription("");
     setSelectedFeatures([]);
+    setMessageFormat("openai");
+    setApiProtocol("chat-completions");
   };
 
   const toggleFeature = (value: string) => {
@@ -156,6 +173,85 @@ const ModelModal = ({
           ))}
         </div>
       </div>
+      <div>
+        <label
+          className={classNames(
+            "block text-sm font-medium mb-2",
+            themeColors.textClass,
+          )}
+        >
+          消息格式
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              { label: "OpenAI", value: "openai" },
+              { label: "Claude", value: "claude" },
+            ] as const
+          ).map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                setMessageFormat(option.value);
+                if (option.value === "claude") {
+                  setApiProtocol("chat-completions");
+                }
+              }}
+              className={classNames(
+                "px-3 py-1.5 text-sm rounded-lg transition-colors",
+                messageFormat === option.value
+                  ? [themeColors.activeBgClass, themeColors.activeTextClass]
+                  : [
+                      themeColors.cardBgClass,
+                      themeColors.textClass,
+                      themeColors.hoverClass,
+                    ],
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {messageFormat === "openai" && (
+        <div>
+          <label
+            className={classNames(
+              "block text-sm font-medium mb-2",
+              themeColors.textClass,
+            )}
+          >
+            API 类型
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                { label: "Chat Completions", value: "chat-completions" },
+                { label: "Responses", value: "responses" },
+              ] as const
+            ).map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setApiProtocol(option.value)}
+                className={classNames(
+                  "px-3 py-1.5 text-sm rounded-lg transition-colors",
+                  apiProtocol === option.value
+                    ? [themeColors.activeBgClass, themeColors.activeTextClass]
+                    : [
+                        themeColors.cardBgClass,
+                        themeColors.textClass,
+                        themeColors.hoverClass,
+                      ],
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </SettingModalShell>
   );
 };

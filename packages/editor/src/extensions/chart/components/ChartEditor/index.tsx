@@ -88,12 +88,12 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
   const headerContent = (
     <div className="flex items-center gap-3">
       <ChartTypeSelector value={config.type} onChange={handleTypeChange} />
-      <div className="flex rounded-lg bg-gray-100 dark:bg-slate-800 p-0.5">
+      <div className="flex rounded-lg bg-gray-100 dark:bg-zinc-800 p-0.5">
         <button
           onClick={() => setMode("table")}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-all ${
             mode === "table"
-              ? "bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm"
+              ? "bg-white dark:bg-zinc-700 text-gray-900 dark:text-white shadow-sm"
               : "text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300"
           }`}
         >
@@ -104,7 +104,7 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
           onClick={() => setMode("json")}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-all ${
             mode === "json"
-              ? "bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm"
+              ? "bg-white dark:bg-zinc-700 text-gray-900 dark:text-white shadow-sm"
               : "text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300"
           }`}
         >
@@ -114,7 +114,7 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
       </div>
       <button
         onClick={() => setShowCsvImporter(true)}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
       >
         <Upload size={14} />
         导入 CSV
@@ -181,7 +181,7 @@ const ChartEditor: React.FC<ChartEditorProps> = ({
               <button
                 ref={pieStyleTriggerRef}
                 onClick={() => setShowPieStyleDropdown(!showPieStyleDropdown)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
               >
                 {config.pieStyle === "donut"
                   ? "环形图"

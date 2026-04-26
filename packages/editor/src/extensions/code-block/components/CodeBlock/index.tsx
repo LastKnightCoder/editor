@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Transforms, Editor as SlateEditor } from "slate";
+import { Transforms } from "slate";
 import {
   ReactEditor,
   RenderElementProps,
@@ -54,6 +54,7 @@ import {
   normalizeMagicMove,
   removeMagicMoveStep,
 } from "../../utils/magicMoveOps";
+import { deleteCodeBlock } from "../../utils/deleteCodeBlock";
 import {
   hasHighlightedLineInRange,
   mergeHighlightRange,
@@ -726,26 +727,8 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
         if (readOnly) return;
         cancelPendingPersist();
         const path = ReactEditor.findPath(slateEditor, element);
-        SlateEditor.withoutNormalizing(slateEditor, () => {
-          Transforms.delete(slateEditor, { at: path });
-          Transforms.insertNodes(
-            slateEditor,
-            {
-              type: "paragraph",
-              children: [
-                {
-                  type: "formatted",
-                  text: "",
-                },
-              ],
-            },
-            {
-              at: path,
-              select: true,
-            },
-          );
-        });
         codeBlockMap.delete(uuid);
+        deleteCodeBlock(slateEditor, path);
         return;
       }
 
@@ -853,6 +836,28 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
         !keyboardEvent.metaKey &&
         !keyboardEvent.altKey
       ) {
+        const cursor = helpers.getCursor();
+        const lastLine = helpers.lastLine();
+        const currentLine = helpers.getLine(cursor.line);
+        if (
+          isCollapsed &&
+          cursor.line === lastLine &&
+          cursor.ch === currentLine.length &&
+          currentLine.trim() === "" &&
+          lastLine >= 2 &&
+          helpers.getLine(cursor.line - 1).trim() === ""
+        ) {
+          event.preventDefault();
+          const lines = value.split("\n");
+          const nextValue = lines.slice(0, -2).join("\n");
+          cancelPendingPersist();
+          pendingLocalCodeRef.current = nextValue;
+          setCode(nextValue);
+          setNodeCode(nextValue);
+          addParagraphRef.current?.addParagraph();
+          return;
+        }
+
         event.preventDefault();
         const beforeCursor = value.slice(0, selection.start);
         const lineStart = beforeCursor.lastIndexOf("\n") + 1;

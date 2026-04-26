@@ -8,6 +8,7 @@ export type SettingsTabKey =
   | "sync"
   | "publish"
   | "llm"
+  | "imageGeneration"
   | "embedding"
   | "textToSpeech"
   | "transcription"

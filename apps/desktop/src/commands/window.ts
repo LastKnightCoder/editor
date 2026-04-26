@@ -41,6 +41,10 @@ export const openPomodoroMiniWindow = async () => {
   return invoke("open-pomodoro-mini-window");
 };
 
+export const hidePomodoroMiniWindow = async () => {
+  return invoke("hide-pomodoro-mini-window");
+};
+
 export const openPomodoroImmersiveWindow = async () => {
   return invoke("open-pomodoro-immersive-window");
 };

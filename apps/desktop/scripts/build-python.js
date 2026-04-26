@@ -190,7 +190,7 @@ function buildExecutable() {
     // 打包统一的 Python 服务器（包含转录和模型下载功能）
     log("Building python-server...");
     execSync(
-      `${uvRun} pyinstaller --onefile --name python-server --collect-data faster_whisper --collect-data magika --collect-all FlagEmbedding --collect-all transformers --collect-all tokenizers --collect-submodules torch --collect-data torch --collect-binaries torch --distpath "${DIST_DIR}" main.py`,
+      `${uvRun} pyinstaller --onefile --name python-server --collect-data faster_whisper --collect-data magika --collect-all FlagEmbedding --collect-all transformers --collect-all tokenizers --collect-all torch --collect-all mempalace --collect-submodules torch --collect-data torch --collect-binaries torch --distpath "${DIST_DIR}" main.py`,
       { cwd: SCRIPTS_DIR, stdio: "inherit" },
     );
 

@@ -7,7 +7,15 @@ import React, {
   useMemo,
 } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Button, Upload, message, Dropdown, Tooltip, Input } from "antd";
+import {
+  Button,
+  Upload,
+  message,
+  Dropdown,
+  Tooltip,
+  Input,
+  Popover,
+} from "antd";
 import type { TextAreaRef } from "antd/es/input/TextArea";
 import {
   PictureOutlined,
@@ -24,12 +32,23 @@ import classnames from "classnames";
 import { v4 as uuid } from "uuid";
 import { LuBrain } from "react-icons/lu";
 import PortalToBody from "../PortalToBody";
+import {
+  extractMentionRefsFromText,
+  findActiveMentionQuery,
+  serializeMentionRef,
+} from "../../utils/chat-mentions";
+import {
+  DEFAULT_CHAT_INPUT_PLACEHOLDER,
+  resolveChatInputPlaceholder,
+} from "../../utils/chat-input-placeholder";
+import "./index.less";
 import type {
   ChatInputAreaHandle,
   ChatInputAreaProps,
   ReasoningEffort,
   IResource,
   MessageContentItem,
+  MentionRef,
 } from "./types";
 
 export type {
@@ -41,6 +60,8 @@ export type {
   IResourceSource,
   CreateResourceParams,
   MessageContentItem,
+  MentionEntityType,
+  MentionRef,
 } from "./types";
 
 const { TextArea } = Input;
@@ -89,6 +110,43 @@ interface ChatFileItem {
   resourceId: number;
 }
 
+interface NewChatTooltipStateOptions {
+  createMessageLoading: boolean;
+  sendLoading: boolean;
+  contentEditable: boolean;
+}
+
+interface NewChatTooltipOpenOptions extends NewChatTooltipStateOptions {
+  requestedOpen: boolean;
+  reopenLocked: boolean;
+}
+
+interface MentionQueryState {
+  query: string;
+  start: number;
+  end: number;
+}
+
+export const resolveNewChatTooltipOpen = ({
+  requestedOpen,
+  createMessageLoading,
+  sendLoading,
+  contentEditable,
+  reopenLocked,
+}: NewChatTooltipOpenOptions) =>
+  requestedOpen &&
+  !createMessageLoading &&
+  !sendLoading &&
+  contentEditable &&
+  !reopenLocked;
+
+export const shouldCloseNewChatTooltip = ({
+  createMessageLoading,
+  sendLoading,
+  contentEditable,
+}: NewChatTooltipStateOptions) =>
+  createMessageLoading || sendLoading || !contentEditable;
+
 const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
   (
     {
@@ -97,7 +155,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       contentEditable = true,
       onPressEnter,
       onStop,
-      placeholder = "输入消息...",
+      placeholder = DEFAULT_CHAT_INPUT_PLACEHOLDER,
       sendLoading = false,
       createMessageLoading = false,
       onCreateNewMessage,
@@ -115,6 +173,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     },
     ref,
   ) => {
+    const resolvedPlaceholder = useMemo(
+      () => resolveChatInputPlaceholder(placeholder),
+      [placeholder],
+    );
     const {
       uploadFile,
       convertFileSrc,
@@ -130,8 +192,24 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [uploadingPdf, setUploadingPdf] = useState(false);
+    const [mentionCandidates, setMentionCandidates] = useState<MentionRef[]>(
+      [],
+    );
+    const [mentionPanelOpen, setMentionPanelOpen] = useState(false);
+    const [mentionPanelLoading, setMentionPanelLoading] = useState(false);
+    const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
+    const [mentionQueryState, setMentionQueryState] =
+      useState<MentionQueryState | null>(null);
+    const [isNewChatTooltipOpen, setIsNewChatTooltipOpen] = useState(false);
+    const [isNewChatTooltipReopenLocked, setIsNewChatTooltipReopenLocked] =
+      useState(false);
     const imagesRef = useRef<ChatImageItem[]>([]);
     const filesRef = useRef<ChatFileItem[]>([]);
+    const mentionRequestSeqRef = useRef(0);
+    const composerMentions = useMemo(
+      () => extractMentionRefsFromText(textContent),
+      [textContent],
+    );
     const showReasoningEffortControl =
       typeof reasoningEffort !== "undefined" &&
       typeof onReasoningEffortChange === "function";
@@ -195,6 +273,18 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     }, [files]);
 
     useEffect(() => {
+      if (
+        shouldCloseNewChatTooltip({
+          createMessageLoading,
+          sendLoading,
+          contentEditable,
+        })
+      ) {
+        setIsNewChatTooltipOpen(false);
+      }
+    }, [contentEditable, createMessageLoading, sendLoading]);
+
+    useEffect(() => {
       return () => {
         if (imagesRef.current.length > 0) {
           releaseResources(imagesRef.current);
@@ -204,6 +294,49 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         }
       };
     }, [releaseResources]);
+
+    useEffect(() => {
+      if (
+        !contentEditable ||
+        !services.searchMentionRefs ||
+        !mentionQueryState
+      ) {
+        setMentionPanelOpen(false);
+        setMentionPanelLoading(false);
+        setMentionCandidates([]);
+        return;
+      }
+
+      const requestSeq = ++mentionRequestSeqRef.current;
+      const timer = window.setTimeout(async () => {
+        setMentionPanelLoading(true);
+        try {
+          const results = await services.searchMentionRefs!(
+            mentionQueryState.query,
+          );
+          if (mentionRequestSeqRef.current !== requestSeq) {
+            return;
+          }
+          setMentionCandidates(results);
+          setMentionActiveIndex(0);
+          setMentionPanelOpen(true);
+        } catch (error) {
+          console.error("搜索 mention 失败:", error);
+          if (mentionRequestSeqRef.current === requestSeq) {
+            setMentionCandidates([]);
+            setMentionPanelOpen(true);
+          }
+        } finally {
+          if (mentionRequestSeqRef.current === requestSeq) {
+            setMentionPanelLoading(false);
+          }
+        }
+      }, 150);
+
+      return () => {
+        window.clearTimeout(timer);
+      };
+    }, [contentEditable, mentionQueryState, services]);
 
     const resolveAbsolutePath = useMemoizedFn(async (path: string) => {
       if (path.startsWith("~")) {
@@ -250,6 +383,76 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     });
 
     const textAreaRef = useRef<TextAreaRef>(null);
+    const closeMentionPanel = useMemoizedFn(() => {
+      setMentionPanelOpen(false);
+      setMentionPanelLoading(false);
+      setMentionCandidates([]);
+      setMentionActiveIndex(0);
+      setMentionQueryState(null);
+    });
+
+    const syncMentionStateFromText = useMemoizedFn(
+      (nextText: string, selectionStart: number | null | undefined) => {
+        if (
+          !contentEditable ||
+          !services.searchMentionRefs ||
+          typeof selectionStart !== "number"
+        ) {
+          closeMentionPanel();
+          return;
+        }
+
+        const nextMentionQueryState = findActiveMentionQuery(
+          nextText,
+          selectionStart,
+        );
+        if (!nextMentionQueryState) {
+          closeMentionPanel();
+          return;
+        }
+
+        setMentionQueryState(nextMentionQueryState);
+      },
+    );
+
+    const insertMentionAtCursor = useMemoizedFn((mention: MentionRef) => {
+      if (!mentionQueryState) {
+        return;
+      }
+      const markup = serializeMentionRef(mention);
+      const nextText = `${textContent.slice(0, mentionQueryState.start)}${markup} ${textContent.slice(mentionQueryState.end)}`;
+      const nextCursor = mentionQueryState.start + markup.length + 1;
+
+      setTextContent(nextText);
+      closeMentionPanel();
+
+      setTimeout(() => {
+        const textArea = textAreaRef.current?.resizableTextArea?.textArea as
+          | HTMLTextAreaElement
+          | undefined;
+        if (!textArea) {
+          return;
+        }
+        textArea.focus();
+        textArea.setSelectionRange(nextCursor, nextCursor);
+      }, 0);
+    });
+
+    const removeMentionMarkup = useMemoizedFn((mention: MentionRef) => {
+      const markup = serializeMentionRef(mention);
+      setTextContent((prev) => {
+        const index = prev.indexOf(markup);
+        if (index < 0) {
+          return prev;
+        }
+
+        const nextText =
+          `${prev.slice(0, index)}${prev.slice(index + markup.length)}`
+            .replace(/[ \t]{2,}/g, " ")
+            .replace(/\n{3,}/g, "\n\n");
+        return nextText.trimStart();
+      });
+    });
 
     useImperativeHandle(ref, () => ({
       getValue: (): MessageContentItem[] => {
@@ -273,7 +476,11 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         });
 
         if (textContent.trim()) {
-          content.push({ type: "text", text: textContent.trim() });
+          content.push({
+            type: "text",
+            text: textContent.trim(),
+            mentions: extractMentionRefsFromText(textContent),
+          });
         }
 
         return content;
@@ -290,9 +497,11 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         setTextContent("");
         setImages([]);
         setFiles([]);
+        closeMentionPanel();
       },
       setValue: (content: string) => {
         setTextContent(content);
+        closeMentionPanel();
       },
       focusEnd: () => {
         if (textAreaRef.current?.resizableTextArea?.textArea) {
@@ -425,10 +634,56 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     });
 
     const handleKeyDown = useMemoizedFn((e: React.KeyboardEvent) => {
+      if (mentionPanelOpen) {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setMentionActiveIndex((prev) =>
+            mentionCandidates.length === 0
+              ? 0
+              : (prev + 1) % mentionCandidates.length,
+          );
+          return;
+        }
+
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setMentionActiveIndex((prev) =>
+            mentionCandidates.length === 0
+              ? 0
+              : (prev + mentionCandidates.length - 1) %
+                mentionCandidates.length,
+          );
+          return;
+        }
+
+        if (e.key === "Escape") {
+          e.preventDefault();
+          closeMentionPanel();
+          return;
+        }
+
+        if (e.key === "Enter" && !e.shiftKey && mentionCandidates.length > 0) {
+          e.preventDefault();
+          insertMentionAtCursor(mentionCandidates[mentionActiveIndex]!);
+          return;
+        }
+      }
+
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         onPressEnter?.();
       }
+    });
+
+    const handleCreateNewMessageClick = useMemoizedFn(() => {
+      setIsNewChatTooltipOpen(false);
+      setIsNewChatTooltipReopenLocked(true);
+      onCreateNewMessage?.();
+    });
+
+    const handleNewChatTooltipMouseLeave = useMemoizedFn(() => {
+      setIsNewChatTooltipOpen(false);
+      setIsNewChatTooltipReopenLocked(false);
     });
 
     return (
@@ -457,7 +712,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             {files.map((file) => (
               <div
                 key={file.id}
-                className="flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800"
+                className="flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-zinc-800"
               >
                 <div className="flex items-center gap-2 overflow-hidden">
                   <FilePdfOutlined className="text-red-500 shrink-0" />
@@ -474,30 +729,147 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           </div>
         )}
 
+        {composerMentions.length > 0 && (
+          <div className="mb-2 flex flex-col gap-2">
+            {composerMentions.map((mention, index) => (
+              <Popover
+                key={`${mention.entityType}-${mention.entityId}-${mention.contentId}-${index}`}
+                trigger={["hover", "click"]}
+                placement="topLeft"
+                content={
+                  <div className="max-w-[320px] text-sm leading-6">
+                    <div className="font-medium text-gray-900">
+                      {mention.title}
+                    </div>
+                    <div className="mt-1 whitespace-pre-wrap text-gray-600">
+                      {mention.previewText || "暂无摘要"}
+                    </div>
+                  </div>
+                }
+              >
+                <div className="group flex items-start justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-left dark:border-blue-500/20 dark:bg-blue-500/10">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-blue-700 dark:text-blue-200">
+                      @{mention.title}
+                    </div>
+                    <div className="truncate text-xs text-blue-600/80 dark:text-blue-200/70">
+                      {mention.previewText || "暂无摘要"}
+                    </div>
+                  </div>
+                  <CloseOutlined
+                    className="mt-0.5 text-xs text-blue-500/70 opacity-0 transition-opacity group-hover:opacity-100 dark:text-blue-200/70"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      removeMentionMarkup(mention);
+                    }}
+                  />
+                </div>
+              </Popover>
+            ))}
+          </div>
+        )}
+
         <div className="mb-2">
           <TextArea
             ref={textAreaRef}
             value={textContent}
-            onChange={(e) => setTextContent(e.target.value)}
+            onChange={(e) => {
+              setTextContent(e.target.value);
+              syncMentionStateFromText(
+                e.target.value,
+                e.target.selectionStart ?? e.target.value.length,
+              );
+            }}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
-            placeholder={placeholder}
+            onBlur={() => {
+              window.setTimeout(() => {
+                closeMentionPanel();
+              }, 120);
+            }}
+            placeholder={resolvedPlaceholder}
             autoSize={{ minRows: 1, maxRows: 6 }}
             disabled={!contentEditable}
             className="w-full resize-none border-none focus:ring-0 focus:border-blue-400 bg-transparent text-base px-0! dark:text-[#e6edf3]!"
+            classNames={{
+              textarea: "shared-chat-input-textarea",
+            }}
             variant="borderless"
           />
+          {mentionPanelOpen && (
+            <div className="mt-2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-zinc-900">
+              {mentionPanelLoading ? (
+                <div className="px-3 py-3 text-sm text-gray-500 dark:text-gray-400">
+                  正在搜索引用...
+                </div>
+              ) : mentionCandidates.length > 0 ? (
+                mentionCandidates.map((mention, index) => (
+                  <button
+                    key={`${mention.entityType}-${mention.entityId}-${mention.contentId}`}
+                    type="button"
+                    className={classnames(
+                      "flex w-full items-start justify-between gap-3 px-3 py-2.5 text-left transition-colors",
+                      index === mentionActiveIndex
+                        ? "bg-blue-50 dark:bg-blue-500/10"
+                        : "hover:bg-gray-50 dark:hover:bg-white/5",
+                    )}
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      insertMentionAtCursor(mention);
+                    }}
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {mention.title}
+                      </div>
+                      <div className="truncate text-xs text-gray-500 dark:text-gray-400">
+                        {mention.previewText || "暂无摘要"}
+                      </div>
+                    </div>
+                    <span className="shrink-0 rounded-md bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500 dark:bg-white/5 dark:text-gray-400">
+                      {mention.entityType}
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <div className="px-3 py-3 text-sm text-gray-500 dark:text-gray-400">
+                  没有找到相关内容
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between mt-1">
           <div className="flex items-center gap-1.5">
             {onCreateNewMessage && (
-              <Tooltip title="新建对话">
+              <Tooltip
+                title="新建对话"
+                trigger={["hover"]}
+                open={isNewChatTooltipOpen}
+                destroyOnHidden
+                onOpenChange={(open) => {
+                  setIsNewChatTooltipOpen(
+                    resolveNewChatTooltipOpen({
+                      requestedOpen: open,
+                      createMessageLoading,
+                      sendLoading,
+                      contentEditable,
+                      reopenLocked: isNewChatTooltipReopenLocked,
+                    }),
+                  );
+                }}
+              >
                 <Button
                   type="text"
                   size="small"
                   icon={<WechatWorkOutlined />}
-                  onClick={onCreateNewMessage}
+                  onMouseDown={() => {
+                    setIsNewChatTooltipOpen(false);
+                    setIsNewChatTooltipReopenLocked(true);
+                  }}
+                  onMouseLeave={handleNewChatTooltipMouseLeave}
+                  onClick={handleCreateNewMessageClick}
                   loading={createMessageLoading}
                   disabled={sendLoading}
                   className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400!"

@@ -1,7 +1,7 @@
 {
   "name": "desktop",
   "private": true,
-  "version": "0.40.0",
+  "version": "0.43.0",
   "author": {
     "name": "LastKnightCoder"
   },
@@ -11,7 +11,7 @@
     "predev": "pnpm -w db:schema:prepare",
     "dev": "vite",
     "prebuild": "pnpm -w db:schema:prepare",
-    "build": "cross-env NODE_OPTIONS='--max-old-space-size=8092' tsc && vite build && electron-builder",
+    "build": "cross-env-shell NODE_OPTIONS='--max-old-space-size=8092' \"tsc && vite build && electron-builder\"",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "postinstall": "node scripts/build-python.js install || true",
     "python:check": "node scripts/build-python.js check",

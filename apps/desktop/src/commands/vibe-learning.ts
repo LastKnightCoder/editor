@@ -11,6 +11,7 @@ import type {
   VLNote,
   CreateVLNote,
   UpdateVLNote,
+  VLNoteType,
 } from "@/types/vibe-learning";
 
 export type VLAddTaskResult =
@@ -25,6 +26,37 @@ export const createVLResource = async (
   params: CreateVLResource,
 ): Promise<VLResource> => {
   return await invoke("vl-create-resource", params);
+};
+
+export const ensureVLNoteResource = async (params: {
+  projectId: number;
+  mainDbName: string;
+  contentId: number;
+  title: string;
+  noteType: VLNoteType | string;
+  originalId: number;
+  enqueueIndex?: boolean;
+}): Promise<{ resource: VLResource; created: boolean }> => {
+  const result = await invoke("vl-ensure-note-resource", {
+    projectId: params.projectId,
+    contentId: params.contentId,
+    title: params.title,
+    noteType: params.noteType,
+    originalId: params.originalId,
+  });
+
+  if (result.created && params.enqueueIndex !== false) {
+    await addVLIndexTask({
+      resourceId: result.resource.id,
+      projectId: params.projectId,
+      mainDbName: params.mainDbName,
+      originalPath: result.resource.originalPath,
+      resourceName: result.resource.name,
+      type: "full",
+    });
+  }
+
+  return result;
 };
 
 export const updateVLResource = async (
@@ -69,6 +101,13 @@ export const getVLResourcesByProjectId = async (
   projectId: number,
 ): Promise<VLResource[]> => {
   return await invoke("vl-get-resources-by-project", projectId);
+};
+
+export const reorderVLResources = async (
+  projectId: number,
+  orderedIds: number[],
+): Promise<number> => {
+  return await invoke("vl-reorder-resources", { projectId, orderedIds });
 };
 
 /**
@@ -162,6 +201,12 @@ export const searchVLContent = async (params: {
     resourceName: string;
     content: string;
     score: number;
+    hitType?: "summary" | "chapter";
+    chapterIndex?: number;
+    chapterTitle?: string;
+    chapterSummary?: string;
+    chunkIndex?: number;
+    chunkIndexInSection?: number;
     rrfScore?: number;
     rerankScore?: number;
   }>
@@ -341,6 +386,37 @@ export const readVLChapterContent = async (
 };
 
 /**
+ * 读取资源命中片段附近的上下文
+ */
+export const readVLSearchHitContext = async (
+  projectId: number,
+  resourceName: string,
+  mainDbName: string,
+  chunkIndex: number,
+  radius?: number,
+): Promise<{
+  success: boolean;
+  resourceName?: string;
+  hitType?: "summary" | "chapter";
+  chapterIndex?: number;
+  chapterTitle?: string;
+  chunkIndex?: number;
+  chunkIndexInSection?: number;
+  startChunkIndex?: number;
+  endChunkIndex?: number;
+  content?: string;
+  error?: string;
+}> => {
+  return await invoke("vl-read-search-hit-context", {
+    projectId,
+    resourceName,
+    mainDbName,
+    chunkIndex,
+    radius,
+  });
+};
+
+/**
  * 列出资源的所有章节
  */
 export const listVLChapters = async (
@@ -353,6 +429,7 @@ export const listVLChapters = async (
     index: number;
     title: string;
     charCount: number;
+    summary?: string;
   }>;
   resourceName?: string;
   error?: string;
@@ -410,6 +487,37 @@ export const readVLResourceContentRange = async (
     projectId,
     resourceName,
     mainDbName,
+    startLine,
+    endLine,
+  });
+};
+
+/**
+ * 按行范围读取章节内容
+ */
+export const readVLChapterContentRange = async (
+  projectId: number,
+  resourceName: string,
+  mainDbName: string,
+  chapterIndex: number,
+  startLine: number,
+  endLine: number,
+): Promise<{
+  success: boolean;
+  resourceName?: string;
+  chapterTitle?: string;
+  chapterIndex?: number;
+  startLine?: number;
+  endLine?: number;
+  totalLines?: number;
+  content?: string;
+  error?: string;
+}> => {
+  return await invoke("vl-read-chapter-range", {
+    projectId,
+    resourceName,
+    mainDbName,
+    chapterIndex,
     startLine,
     endLine,
   });

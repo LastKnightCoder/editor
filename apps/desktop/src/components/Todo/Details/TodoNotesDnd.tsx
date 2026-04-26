@@ -144,7 +144,7 @@ const TodoNotesDnd = ({ todoId }: { todoId: number }) => {
       <div className="flex items-center justify-between">
         <div className="text-xs opacity-60">关联笔记</div>
         <Dropdown menu={{ items }} trigger={["click"]}>
-          <div className="px-1 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
+          <div className="px-1 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800">
             <MdAdd />
           </div>
         </Dropdown>

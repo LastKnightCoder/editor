@@ -51,7 +51,6 @@ const LLM_FEATURE_LABELS: Record<LlmFeatureKey, string> = {
   contentPolish: "内容润色",
   flashcardGeneration: "闪卡生成",
   aiJudgement: "答案评判",
-  autoTagging: "自动打标签",
   transcriptionOptimization: "转录断句优化",
   videoSummary: "视频总结",
   vibeLearningImageDescription: "Vibe Learning 图片理解",
@@ -71,7 +70,7 @@ const LLM_USAGE_GROUPS: Array<{
   {
     key: "content",
     label: "内容处理",
-    features: ["titleSummary", "webClip", "autoTagging"],
+    features: ["titleSummary", "webClip"],
   },
   {
     key: "media",
@@ -272,7 +271,7 @@ function LlmModelEditor(props: LlmModelEditorProps) {
                   onClick={() => props.onToggleFeature(feature.key)}
                   className={`rounded-lg px-3 py-1.5 text-xs transition-colors ${
                     checked
-                      ? "bg-gray-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
+                      ? "bg-zinc-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
                       : "bg-gray-100 text-gray-600 dark:bg-neutral-800 dark:text-neutral-300"
                   }`}
                 >
@@ -386,7 +385,7 @@ function EmbeddingModelEditor(props: EmbeddingModelEditorProps) {
             onClick={props.onToggleMultimodal}
             className={`rounded-lg px-3 py-1.5 text-xs transition-colors ${
               props.model.features.multimodal
-                ? "bg-gray-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
+                ? "bg-zinc-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
                 : "bg-gray-100 text-gray-600 dark:bg-neutral-800 dark:text-neutral-300"
             }`}
           >
@@ -630,7 +629,7 @@ export function AILlmConfigsSection(props: AICommonProps) {
           <button
             type="button"
             onClick={handleAddConfig}
-            className="rounded-xl bg-gray-900 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-transform active:scale-[0.98] dark:bg-neutral-100 dark:text-neutral-900"
+            className="rounded-xl bg-zinc-900 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-transform active:scale-[0.98] dark:bg-neutral-100 dark:text-neutral-900"
           >
             + 新增 Provider
           </button>
@@ -644,7 +643,7 @@ export function AILlmConfigsSection(props: AICommonProps) {
                 key={config.id}
                 className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-colors ${
                   isActive
-                    ? "border-gray-900/60 bg-gray-900/5 dark:border-neutral-200/70 dark:bg-neutral-200/10"
+                    ? "border-gray-900/60 bg-zinc-900/5 dark:border-neutral-200/70 dark:bg-neutral-200/10"
                     : "border-gray-200 bg-white dark:border-neutral-700 dark:bg-neutral-900/60"
                 }`}
               >
@@ -729,7 +728,7 @@ export function AILlmConfigsSection(props: AICommonProps) {
                 type="button"
                 onClick={addModel}
                 disabled={!canAddLlmModel}
-                className="rounded-xl bg-gray-900 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 dark:bg-neutral-100 dark:text-neutral-900"
+                className="rounded-xl bg-zinc-900 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 dark:bg-neutral-100 dark:text-neutral-900"
               >
                 + 新增模型
               </button>
@@ -1192,7 +1191,7 @@ export function AIEmbeddingApiSection(props: AICommonProps) {
           <button
             type="button"
             onClick={addConfig}
-            className="rounded-xl bg-gray-900 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-transform active:scale-[0.98] dark:bg-neutral-100 dark:text-neutral-900"
+            className="rounded-xl bg-zinc-900 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-transform active:scale-[0.98] dark:bg-neutral-100 dark:text-neutral-900"
           >
             + 新增 Provider
           </button>
@@ -1205,7 +1204,7 @@ export function AIEmbeddingApiSection(props: AICommonProps) {
                 key={config.id}
                 className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left transition-colors ${
                   isActive
-                    ? "border-gray-900 bg-gray-900/5 dark:border-neutral-200 dark:bg-neutral-200/10"
+                    ? "border-gray-900 bg-zinc-900/5 dark:border-neutral-200 dark:bg-neutral-200/10"
                     : "border-gray-200 dark:border-neutral-700"
                 }`}
               >
@@ -1305,7 +1304,7 @@ export function AIEmbeddingApiSection(props: AICommonProps) {
                 type="button"
                 onClick={addEmbeddingModel}
                 disabled={!canAddEmbeddingModel}
-                className="rounded-xl bg-gray-900 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 dark:bg-neutral-100 dark:text-neutral-900"
+                className="rounded-xl bg-zinc-900 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 dark:bg-neutral-100 dark:text-neutral-900"
               >
                 + 新增模型
               </button>

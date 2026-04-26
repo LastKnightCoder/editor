@@ -38,7 +38,7 @@ const BackgroundSoundPanel: React.FC<BackgroundSoundPanelProps> = ({
                 {
                   "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400":
                     backgroundSound === option.value,
-                  "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400":
+                  "hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-600 dark:text-gray-400":
                     backgroundSound !== option.value,
                 },
               )}

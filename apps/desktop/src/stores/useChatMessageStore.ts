@@ -136,7 +136,7 @@ const useChatMessageStore = create<IState & IAction>()(
       },
       deleteChatMessage: async (id) => {
         const { chats } = get();
-        const res = await deleteChatMessage(id);
+        const deletedCount = await deleteChatMessage(id);
 
         // 获取所有需要删除的对话 ID（包括子分支）
         const chatToDelete = chats.find((c) => c.id === id);
@@ -166,7 +166,7 @@ const useChatMessageStore = create<IState & IAction>()(
           : currentChatId;
 
         set({ chats: newChats, currentChatId: newCurrentChatId });
-        return res;
+        return deletedCount;
       },
       archiveChatMessage: async (id, archived) => {
         const { chats } = get();

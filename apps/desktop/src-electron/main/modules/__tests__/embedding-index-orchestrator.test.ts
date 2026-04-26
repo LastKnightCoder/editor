@@ -32,9 +32,16 @@ const mockContext = vi.hoisted(() => {
     fakeIndexDb,
     databaseModuleMock: {
       onDatabaseConnected: vi.fn(),
+      ensureIndexDatabaseReady: vi.fn(async () => ({
+        migrationState: "done",
+        rebuildState: "ready",
+      })),
       getDatabase: vi.fn(() => ({ name: "data.db" })),
       getIndexDatabase: vi.fn(() => fakeIndexDb),
       getCurrentDatabaseName: vi.fn(() => "data.db"),
+      getIndexRebuildState: vi.fn(
+        (_dbName: string, _target?: string) => "ready",
+      ),
     },
     userSettingModuleMock: {
       onSettingChanged: vi.fn(),
@@ -106,6 +113,11 @@ describe("EmbeddingIndexOrchestrator(video-note)", () => {
     mockContext.mainContentQueueMock.reconcileByPolicy.mockClear();
     mockContext.vibeLearningQueueMock.handleEmbeddingSwitchByPolicy.mockClear();
     mockContext.videoNoteQueueMock.handleEmbeddingSwitchByPolicy.mockClear();
+    mockContext.databaseModuleMock.ensureIndexDatabaseReady.mockClear();
+    mockContext.databaseModuleMock.getIndexRebuildState.mockReset();
+    mockContext.databaseModuleMock.getIndexRebuildState.mockReturnValue(
+      "ready",
+    );
     mockContext.resolveEmbeddingConfig.mockReset();
     mockContext.resolveEmbeddingConfig.mockReturnValue({
       configId: "embedding-config-a",
@@ -115,6 +127,7 @@ describe("EmbeddingIndexOrchestrator(video-note)", () => {
       distance: 0.6,
       fingerprint: "fp-a",
       batchSize: 8,
+      model: "model-a",
     });
   });
 
@@ -159,6 +172,99 @@ describe("EmbeddingIndexOrchestrator(video-note)", () => {
         dimensions: 1024,
         fingerprintChanged: false,
         reason: "model_switch",
+      }),
+    );
+  });
+
+  it("上传重连且索引已 ready、指纹未变化时，应跳过所有 reconcile", async () => {
+    mockContext.metaStore.set("main_content_embedding_fingerprint", "fp-a");
+    mockContext.databaseModuleMock.getIndexRebuildState.mockReturnValue(
+      "ready",
+    );
+
+    await (embeddingIndexOrchestrator as any).reconcileForCurrentDb(
+      "data.db",
+      {},
+      "sync_upload_reconnect",
+    );
+
+    expect(
+      mockContext.mainContentQueueMock.reconcileByPolicy,
+    ).not.toHaveBeenCalled();
+    expect(
+      mockContext.vibeLearningQueueMock.handleEmbeddingSwitchByPolicy,
+    ).not.toHaveBeenCalled();
+    expect(
+      mockContext.videoNoteQueueMock.handleEmbeddingSwitchByPolicy,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("下载重连即使指纹未变化也应继续 reconcile", async () => {
+    mockContext.metaStore.set("main_content_embedding_fingerprint", "fp-a");
+    mockContext.databaseModuleMock.getIndexRebuildState.mockReturnValue(
+      "ready",
+    );
+
+    await (embeddingIndexOrchestrator as any).reconcileForCurrentDb(
+      "data.db",
+      {},
+      "sync_download_reconnect",
+    );
+
+    expect(
+      mockContext.mainContentQueueMock.reconcileByPolicy,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mainDbName: "data.db",
+        fingerprintChanged: false,
+        reason: "sync_download_reconnect",
+      }),
+    );
+  });
+
+  it("上传重连时若索引状态不是 ready，则仍应执行 reconcile", async () => {
+    mockContext.metaStore.set("main_content_embedding_fingerprint", "fp-a");
+    mockContext.databaseModuleMock.getIndexRebuildState.mockReturnValue(
+      "pending",
+    );
+
+    await (embeddingIndexOrchestrator as any).reconcileForCurrentDb(
+      "data.db",
+      {},
+      "sync_upload_reconnect",
+    );
+
+    expect(
+      mockContext.mainContentQueueMock.reconcileByPolicy,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mainDbName: "data.db",
+        fingerprintChanged: false,
+        reason: "sync_upload_reconnect",
+      }),
+    );
+  });
+
+  it("上传重连时应只依据向量索引状态决定是否跳过", async () => {
+    mockContext.metaStore.set("main_content_embedding_fingerprint", "fp-a");
+    mockContext.databaseModuleMock.getIndexRebuildState.mockImplementation(
+      (_dbName: string, target?: string) =>
+        target === "vec" ? "pending" : "ready",
+    );
+
+    await (embeddingIndexOrchestrator as any).reconcileForCurrentDb(
+      "data.db",
+      {},
+      "sync_upload_reconnect",
+    );
+
+    expect(
+      mockContext.mainContentQueueMock.reconcileByPolicy,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mainDbName: "data.db",
+        fingerprintChanged: false,
+        reason: "sync_upload_reconnect",
       }),
     );
   });

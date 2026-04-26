@@ -196,7 +196,7 @@ const ChatSidebar = memo(() => {
         key: chat.id.toString(),
         label: prefix + chat.title,
         disabled: chat.id === currentChat.id,
-        onClick: () => {
+        onClick: async () => {
           useChatMessageStore.setState({ currentChatId: chat.id });
         },
       };
@@ -241,7 +241,7 @@ const ChatSidebar = memo(() => {
   });
 
   // 处理对话选择
-  const handleChatSelect = useMemoizedFn((chatId: number) => {
+  const handleChatSelect = useMemoizedFn(async (chatId: number) => {
     chatContainerRef.current?.scrollToTop();
     useChatMessageStore.setState({ currentChatId: chatId });
     setModelSidebarVisible(false);
@@ -375,6 +375,17 @@ const ChatSidebar = memo(() => {
         Object.assign(blockData.metadata, renderer.extractMetadata(code));
       }
 
+      if (renderer?.renderInline && renderer.inlineMode === "expanded") {
+        return (
+          <div className="my-3">
+            {renderer.renderInline({
+              block: blockData,
+              onPreview: () => handleOpenInTab(blockData),
+            })}
+          </div>
+        );
+      }
+
       return <BlockCard block={blockData} onPreview={handleOpenInTab} />;
     }
 
@@ -464,7 +475,7 @@ const ChatSidebar = memo(() => {
                   menu={{ items: branchMenuItems }}
                   placement="bottomRight"
                 >
-                  <div className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer text-sm text-text-secondary transition-colors hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <div className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer text-sm text-text-secondary transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700">
                     <GitBranch size={14} />
                     <span>
                       {currentBranchIndex === 0 && !currentChat?.parentChatId

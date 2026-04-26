@@ -225,7 +225,7 @@ const GithubPublishSetting = () => {
         </div>
       )}
 
-      <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+      <div className="p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-slate-700 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
         <p className="font-semibold text-slate-800 dark:text-white mb-1">
           Git 环境准备
         </p>

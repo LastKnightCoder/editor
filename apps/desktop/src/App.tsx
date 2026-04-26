@@ -481,51 +481,51 @@ const Application = () => {
           },
           Dropdown: {
             colorBgElevated: isDark
-              ? "rgba(10, 15, 28, 0.85)"
+              ? "rgba(24, 24, 27, 0.92)"
               : "rgba(248, 250, 255, 0.92)",
             colorBorder: isDark
-              ? "rgba(255, 255, 255, 0.12)"
+              ? "rgba(255, 255, 255, 0.10)"
               : "rgba(255, 255, 255, 0.45)",
             colorSplit: isDark
-              ? "rgba(255, 255, 255, 0.12)"
+              ? "rgba(255, 255, 255, 0.10)"
               : "rgba(255, 255, 255, 0.45)",
             colorText: isDark
-              ? "rgba(241, 245, 249, 0.95)"
+              ? "rgba(244, 244, 245, 0.95)"
               : "rgba(15, 23, 42, 0.95)",
             colorTextDescription: isDark
-              ? "rgba(148, 163, 184, 0.7)"
+              ? "rgba(161, 161, 170, 0.7)"
               : "rgba(100, 116, 139, 0.7)",
             boxShadowSecondary: isDark
-              ? "0 22px 60px rgba(2, 6, 23, 0.7)"
+              ? "0 22px 60px rgba(0, 0, 0, 0.65)"
               : "0 18px 45px rgba(15, 23, 42, 0.25)",
             controlItemBgHover: isDark
-              ? "rgba(148, 163, 184, 0.15)"
+              ? "rgba(255, 255, 255, 0.08)"
               : "rgba(255, 255, 255, 0.6)",
             controlItemBgActive: isDark
-              ? "rgba(148, 163, 184, 0.15)"
+              ? "rgba(255, 255, 255, 0.12)"
               : "rgba(255, 255, 255, 0.6)",
             controlItemBgActiveHover: isDark
-              ? "rgba(148, 163, 184, 0.15)"
+              ? "rgba(255, 255, 255, 0.12)"
               : "rgba(255, 255, 255, 0.6)",
           },
           Popover: {
             colorBgElevated: isDark
-              ? "rgba(10, 15, 28, 0.85)"
+              ? "rgba(24, 24, 27, 0.92)"
               : "rgba(248, 250, 255, 0.92)",
             colorText: isDark
-              ? "rgba(241, 245, 249, 0.95)"
+              ? "rgba(244, 244, 245, 0.95)"
               : "rgba(15, 23, 42, 0.95)",
             colorTextDescription: isDark
-              ? "rgba(148, 163, 184, 0.7)"
+              ? "rgba(161, 161, 170, 0.7)"
               : "rgba(100, 116, 139, 0.7)",
             colorTextHeading: isDark
-              ? "rgba(241, 245, 249, 0.95)"
+              ? "rgba(244, 244, 245, 0.95)"
               : "rgba(15, 23, 42, 0.95)",
             colorSplit: isDark
-              ? "rgba(255, 255, 255, 0.12)"
+              ? "rgba(255, 255, 255, 0.10)"
               : "rgba(255, 255, 255, 0.45)",
             boxShadowSecondary: isDark
-              ? "0 22px 60px rgba(2, 6, 23, 0.7)"
+              ? "0 22px 60px rgba(0, 0, 0, 0.65)"
               : "0 18px 45px rgba(15, 23, 42, 0.25)",
           },
           Tooltip: {

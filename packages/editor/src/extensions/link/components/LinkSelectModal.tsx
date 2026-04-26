@@ -76,7 +76,7 @@ const LinkSelectModal: React.FC<LinkSelectModalProps> = ({
         className="w-full max-w-[460px] m-4 animate-[yt-scale-in_0.2s_ease-out]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800">
+        <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800">
           {/* Header */}
           <div className="flex items-start gap-3 mb-5">
             <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-blue-50 dark:bg-blue-500/20 border border-blue-200 dark:border-blue-500/30">
@@ -100,7 +100,7 @@ const LinkSelectModal: React.FC<LinkSelectModalProps> = ({
               </p>
             </div>
             <button
-              className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+              className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
               onClick={onCancel}
             >
               <svg
@@ -144,7 +144,7 @@ const LinkSelectModal: React.FC<LinkSelectModalProps> = ({
                     setError(null);
                   }}
                   placeholder="https://example.com"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-sm focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.1)]"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-sm focus:border-blue-500 focus:bg-white dark:focus:bg-zinc-900 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.1)]"
                 />
               </div>
             </div>

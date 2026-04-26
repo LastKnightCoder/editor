@@ -1,12 +1,13 @@
 import { useMemo, memo } from "react";
 import { IQuestion } from "@/types/question";
 import QuestionItem, { type QuestionItemHandlers } from "./QuestionItem";
+import type { AnswerContentStatus } from "@/utils/answer-content";
 
 interface QuestionListProps extends QuestionItemHandlers {
   questions: IQuestion[];
   groups: { id: number; title: string }[];
   answerTitles: Record<number, string>;
-  answerTypes: Record<number, string>;
+  answerStatuses: Record<number, AnswerContentStatus>;
 }
 
 const QuestionList = memo(
@@ -14,7 +15,7 @@ const QuestionList = memo(
     questions,
     groups,
     answerTitles,
-    answerTypes,
+    answerStatuses,
     onUpdateTitle,
     onOpenNewAnswer,
     onOpenSelectAnswer,
@@ -41,7 +42,7 @@ const QuestionList = memo(
             groups={groups}
             allQuestionIds={allQuestionIds}
             answerTitles={answerTitles}
-            answerTypes={answerTypes}
+            answerStatuses={answerStatuses}
             onUpdateTitle={onUpdateTitle}
             onOpenNewAnswer={onOpenNewAnswer}
             onOpenSelectAnswer={onOpenSelectAnswer}

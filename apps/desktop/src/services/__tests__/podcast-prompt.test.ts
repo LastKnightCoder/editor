@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildPodcastPrompt } from "@/services/podcast";
+import {
+  buildPodcastPrompt,
+  buildPodcastToolsSystemPrompt,
+  buildPodcastToolsUserPrompt,
+} from "@/services/podcast";
 import { SpeakerRole } from "@/types/podcast";
 import { ETTSProvider } from "@/types/tts";
 
@@ -46,5 +50,32 @@ describe("services/podcast buildPodcastPrompt", () => {
 
     expect(prompt).toContain("Pause tags are allowed");
     expect(prompt).toContain("Do not output any parenthesized emotion tags.");
+    expect(prompt).toContain("严格基于已提供内容");
+    expect(prompt).toContain("不要自行脑补该细节");
+  });
+
+  it("工具模式应强调先探索再生成", () => {
+    const systemPrompt = buildPodcastToolsSystemPrompt(
+      speakers,
+      {
+        provider: ETTSProvider.Minimax,
+        minimaxModel: "speech-2.8-hd",
+      },
+      4,
+      6,
+    );
+    const userPrompt = buildPodcastToolsUserPrompt(
+      ["资料 A", "资料 B"],
+      "重点讲案例",
+      4,
+      6,
+    );
+
+    expect(systemPrompt).toContain("资料探索规则");
+    expect(systemPrompt).toContain("先主动探索资料");
+    expect(systemPrompt).toContain("不要只围绕零散片段生成");
+    expect(userPrompt).toContain("资料 A");
+    expect(userPrompt).toContain("重点讲案例");
+    expect(userPrompt).toContain("直接输出纯对话文本");
   });
 });

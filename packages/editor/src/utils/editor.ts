@@ -261,7 +261,8 @@ export const updateNodeRecursively = (
         oldNodeProperties.text !== nodeProperties.text
       ) {
         const text = oldNodeProperties.text;
-        Transforms.select(editor, {
+        const nextText = String(nodeProperties.text ?? "");
+        const replaceRange = {
           anchor: {
             path,
             offset: 0,
@@ -270,8 +271,15 @@ export const updateNodeRecursively = (
             path,
             offset: text.length,
           },
-        });
-        editor.insertText(nodeProperties.text as string);
+        };
+        if (nextText.length === 0) {
+          Transforms.delete(editor, {
+            at: replaceRange,
+          });
+        } else {
+          Transforms.select(editor, replaceRange);
+          editor.insertText(nextText);
+        }
         delete oldNodeProperties.text;
         delete nodeProperties.text;
       }

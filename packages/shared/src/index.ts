@@ -31,6 +31,23 @@ export {
 // Remark 插件
 export { default as remarkDocumentReference } from "./utils/remark-document-reference";
 export {
+  extractMentionRefsFromText,
+  findActiveMentionQuery,
+  parseContentLinkAttributes,
+  serializeMentionRef,
+  type MentionQueryMatch,
+} from "./utils/chat-mentions";
+export {
+  DEFAULT_CHAT_INPUT_PLACEHOLDER,
+  resolveChatInputModifierLabel,
+  resolveChatInputPlaceholder,
+} from "./utils/chat-input-placeholder";
+export {
+  CODE_BLOCK_LANGUAGE_OPTIONS,
+  normalizeCodeBlockLanguageDisplayName,
+  type CodeBlockLanguageOption,
+} from "./utils/code-block-language";
+export {
   MERMAID_THEME_NAMES,
   detectMermaidDiagramType,
   renderMermaidWithFallback,
@@ -54,6 +71,10 @@ export {
   type IResourceSource as ChatInputResourceSource,
   type CreateResourceParams as ChatInputCreateResourceParams,
   type MessageContentItem,
+  type MentionEntityType,
+  type MentionRef,
+  resolveNewChatTooltipOpen,
+  shouldCloseNewChatTooltip,
 } from "./components/ChatInputArea";
 
 // 聊天组件
@@ -67,6 +88,8 @@ export {
   registerToolCallRenderers,
   unregisterToolCallRenderer,
   getToolCallRenderer,
+  buildLegacyAssistantDisplayBlocks,
+  getDisplayTextFromBlocks,
   type StatusBadgeProps,
   type ToolCallDisplayProps,
   type ToolCallDefaultItemRenderParams,

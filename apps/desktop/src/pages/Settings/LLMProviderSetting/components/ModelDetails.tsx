@@ -126,7 +126,7 @@ const ModelDetails = ({
 
     if (tags.length === 0) {
       return (
-        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-gray-400">
           无特殊功能
         </span>
       );
@@ -258,6 +258,16 @@ const ModelDetails = ({
                       </div>
                       <div className="flex flex-wrap gap-2 mt-3">
                         {renderFeatureTags(model.features)}
+                        {model.messageFormat === "claude" && (
+                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">
+                            Claude 格式
+                          </span>
+                        )}
+                        {model.apiProtocol === "responses" && (
+                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
+                            Responses API
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 ml-3">

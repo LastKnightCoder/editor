@@ -1,10 +1,45 @@
 .editArticleContainer {
   width: 100%;
   height: 100%;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   container-name: articleContainer;
   container-type: inline-size;
   box-sizing: border-box;
+}
+
+.progressBar {
+  flex-shrink: 0;
+  height: 2px;
+  background-color: rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+
+  [data-theme="dark"] & {
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+}
+
+.progressBarFill {
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, #3b82f6 0%, #22c55e 100%);
+  transition: transform 0.08s linear;
+}
+
+.mainContent {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
 
   .cover {
     width: 100%;
@@ -84,6 +119,7 @@
     .editor {
       max-width: 720px;
       flex: auto;
+      min-width: 0;
     }
 
     .outline {
@@ -91,7 +127,7 @@
       width: fit-content;
       flex: none;
       overflow: hidden;
-      max-height: calc(100vh - 80px - var(--title-bar-height));
+      max-height: calc(100vh - 80px - var(--title-bar-height) - 32px);
       overflow-y: auto;
       position: sticky;
       top: 40px;
@@ -102,12 +138,6 @@
       }
     }
   }
-}
-
-.statusBar {
-  position: absolute;
-  bottom: 30px;
-  right: 35px;
 }
 
 .empty {

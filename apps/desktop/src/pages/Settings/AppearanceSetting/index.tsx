@@ -1,6 +1,7 @@
 import { useMemoizedFn, useAsyncEffect } from "ahooks";
 import { produce } from "immer";
 import { useState } from "react";
+import type { ImageBorderRadiusPreset, ImageShadowPreset } from "@tau/editor";
 import useSettingStore from "@/stores/useSettingStore";
 import useThemeColors from "@/hooks/useThemeColors";
 import { getAllFonts } from "@/commands";
@@ -48,6 +49,26 @@ const backgroundOptions: BackgroundOption[] = [
   { key: "gradient9", label: "红色晕染", description: "热情红调流动" },
 ];
 
+const imageBorderRadiusOptions: Array<{
+  label: string;
+  value: ImageBorderRadiusPreset;
+}> = [
+  { label: "无圆角", value: "none" },
+  { label: "小圆角", value: "sm" },
+  { label: "中圆角", value: "md" },
+  { label: "大圆角", value: "lg" },
+];
+
+const imageShadowOptions: Array<{
+  label: string;
+  value: ImageShadowPreset;
+}> = [
+  { label: "无阴影", value: "none" },
+  { label: "小阴影", value: "sm" },
+  { label: "中阴影", value: "md" },
+  { label: "大阴影", value: "lg" },
+];
+
 const AppearanceSetting = () => {
   const {
     setting,
@@ -69,6 +90,17 @@ const AppearanceSetting = () => {
   const themeColors = useThemeColors();
 
   const currentBackground = setting.appearance?.backgroundType || "solid";
+  const imageAppearanceSetting = setting.appearance?.image || {
+    borderRadius: "none" as ImageBorderRadiusPreset,
+    shadow: "none" as ImageShadowPreset,
+  };
+  const normalizedImageShadow =
+    imageAppearanceSetting.shadow === true
+      ? "md"
+      : imageAppearanceSetting.shadow === false ||
+          !imageAppearanceSetting.shadow
+        ? "none"
+        : imageAppearanceSetting.shadow;
   const fontSetting = setting.fontSetting;
   const mermaidSetting = setting.misc.mermaid || {
     style: "svg",
@@ -169,6 +201,38 @@ const AppearanceSetting = () => {
 
   const isAnimationEnabled = setting.appearance?.backgroundAnimation ?? false;
 
+  const handleImageBorderRadiusChange = useMemoizedFn((value: string) => {
+    const newSetting = produce(setting, (draft) => {
+      if (!draft.appearance) {
+        draft.appearance = { backgroundType: "solid" };
+      }
+      if (!draft.appearance.image) {
+        draft.appearance.image = {
+          borderRadius: "none",
+          shadow: false,
+        };
+      }
+      draft.appearance.image.borderRadius = value as ImageBorderRadiusPreset;
+    });
+    useSettingStore.setState({ setting: newSetting });
+  });
+
+  const handleImageShadowChange = useMemoizedFn((value: string) => {
+    const newSetting = produce(setting, (draft) => {
+      if (!draft.appearance) {
+        draft.appearance = { backgroundType: "solid" };
+      }
+      if (!draft.appearance.image) {
+        draft.appearance.image = {
+          borderRadius: "none",
+          shadow: "none",
+        };
+      }
+      draft.appearance.image.shadow = value as ImageShadowPreset;
+    });
+    useSettingStore.setState({ setting: newSetting });
+  });
+
   const handleMermaidStyleChange = useMemoizedFn((style: string) => {
     setMermaidStyle(style as MermaidRenderStyle);
   });
@@ -210,14 +274,14 @@ const AppearanceSetting = () => {
             <div className="h-32 bg-linear-to-br from-gray-50 via-white to-gray-100 relative overflow-hidden">
               {/* 模拟浅色界面元素 */}
               <div className="absolute inset-0 flex flex-col gap-2 p-4">
-                <div className="h-3 w-3/4 bg-gray-800 rounded" />
+                <div className="h-3 w-3/4 bg-zinc-800 rounded" />
                 <div className="h-2 w-1/2 bg-gray-400 rounded" />
                 <div className="mt-auto h-8 bg-white border border-gray-200 rounded-lg shadow-sm" />
               </div>
             </div>
 
             {/* 信息区域 */}
-            <div className="p-4 bg-gray-50 dark:bg-gray-800/50">
+            <div className="p-4 bg-gray-50 dark:bg-zinc-800/50">
               <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">
                 浅色主题
               </h3>
@@ -274,12 +338,12 @@ const AppearanceSetting = () => {
               <div className="absolute inset-0 flex flex-col gap-2 p-4">
                 <div className="h-3 w-3/4 bg-gray-100 rounded" />
                 <div className="h-2 w-1/2 bg-gray-400 rounded" />
-                <div className="mt-auto h-8 bg-gray-800 border border-gray-700 rounded-lg shadow-sm" />
+                <div className="mt-auto h-8 bg-zinc-800 border border-gray-700 rounded-lg shadow-sm" />
               </div>
             </div>
 
             {/* 信息区域 */}
-            <div className="p-4 bg-gray-50 dark:bg-gray-800/50">
+            <div className="p-4 bg-gray-50 dark:bg-zinc-800/50">
               <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">
                 深色主题
               </h3>
@@ -357,7 +421,7 @@ const AppearanceSetting = () => {
                 <div
                   className={`
                     h-32 relative overflow-hidden
-                    ${option.key === "solid" ? "bg-white dark:bg-gray-900" : ""}
+                    ${option.key === "solid" ? "bg-white dark:bg-zinc-900" : ""}
                   `}
                 >
                   {option.key === "gradient1" && (
@@ -397,7 +461,7 @@ const AppearanceSetting = () => {
                 </div>
 
                 {/* 信息区域 */}
-                <div className="p-4 bg-gray-50 dark:bg-gray-800/50">
+                <div className="p-4 bg-gray-50 dark:bg-zinc-800/50">
                   <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">
                     {option.label}
                   </h3>
@@ -467,6 +531,32 @@ const AppearanceSetting = () => {
             placeholder="选择深色主题"
             disabled={!mermaidSetting.useBeautifulMermaid}
           />
+        </div>
+      </SettingSection>
+
+      <SettingSection
+        title="图片外观"
+        description="设置单图与图库在未单独指定时使用的默认外观"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <SettingDropdown
+            label="默认圆角"
+            value={imageAppearanceSetting.borderRadius || "none"}
+            onChange={handleImageBorderRadiusChange}
+            options={imageBorderRadiusOptions}
+            placeholder="选择默认圆角"
+          />
+          <div className="flex items-end">
+            <div className="w-full">
+              <SettingDropdown
+                label="默认阴影"
+                value={normalizedImageShadow}
+                onChange={handleImageShadowChange}
+                options={imageShadowOptions}
+                placeholder="选择默认阴影"
+              />
+            </div>
+          </div>
         </div>
       </SettingSection>
 

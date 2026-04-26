@@ -127,7 +127,7 @@ const ToolCallItem: React.FC<{
       className={classNames(
         "rounded-lg border p-3",
         isDark
-          ? "bg-gray-800/50 border-gray-700"
+          ? "bg-zinc-800/50 border-gray-700"
           : "bg-gray-50 border-gray-200",
       )}
     >
@@ -165,7 +165,7 @@ const ToolCallItem: React.FC<{
               <pre
                 className={classNames(
                   "mt-1 p-2 rounded overflow-auto max-h-32 font-mono text-xs",
-                  isDark ? "bg-gray-900" : "bg-gray-100",
+                  isDark ? "bg-zinc-900" : "bg-gray-100",
                 )}
               >
                 {formatJson(execution.input)}
@@ -179,7 +179,7 @@ const ToolCallItem: React.FC<{
               <pre
                 className={classNames(
                   "mt-1 p-2 rounded overflow-auto font-mono text-xs max-h-[200px] overflow-y-auto",
-                  isDark ? "bg-gray-900" : "bg-gray-100",
+                  isDark ? "bg-zinc-900" : "bg-gray-100",
                 )}
               >
                 {execution.output}

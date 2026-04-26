@@ -115,6 +115,8 @@ const LLMProviderSetting = () => {
               name: data.name,
               description: data.description,
               features: data.features,
+              messageFormat: data.messageFormat,
+              apiProtocol: data.apiProtocol,
             });
           } else {
             const modelIndex = config.models.findIndex(
@@ -125,6 +127,8 @@ const LLMProviderSetting = () => {
                 name: data.name,
                 description: data.description,
                 features: data.features,
+                messageFormat: data.messageFormat,
+                apiProtocol: data.apiProtocol,
               };
             }
           }

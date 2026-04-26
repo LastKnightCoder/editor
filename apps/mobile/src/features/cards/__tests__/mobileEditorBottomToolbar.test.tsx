@@ -194,7 +194,7 @@ describe("MobileEditorBottomToolbar", () => {
     expect(colorButton.disabled).toBe(true);
     expect(colorButton.getAttribute("aria-disabled")).toBe("true");
     expect(colorButton.className.includes("cursor-not-allowed")).toBe(true);
-    expect(colorButton.className.includes("bg-gray-900")).toBe(false);
+    expect(colorButton.className.includes("bg-zinc-900")).toBe(false);
 
     act(() => {
       dispatchPointerDown(colorButton);

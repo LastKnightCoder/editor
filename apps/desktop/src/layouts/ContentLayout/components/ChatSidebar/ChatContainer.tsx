@@ -61,10 +61,27 @@ import {
   buildAssistantHistoryMessages,
   createAssistantMessage,
   finalizeAssistantTurn,
+  limitHistoryMessageGroups,
   syncAssistantLegacyFields,
 } from "@/services/assistantMessageBlocks";
+import {
+  buildResetBaseChat,
+  formatGeneratedChatTitle,
+  getLastUserMessageIndex,
+  getRequestMessageText,
+} from "./editingUtils";
 
 const ENABLE_TITLE_SUMMARY = true;
+
+interface EditingDraftState {
+  messageIndex: number;
+}
+
+interface HiddenPromptContextState {
+  text: string;
+  label?: string;
+}
+
 interface ChatContainerProps {
   currentChat: ChatMessage;
   isDark: boolean;
@@ -89,10 +106,16 @@ interface ChatContainerProps {
     parentChatId: number,
     messages: ChatMessage["messages"],
   ) => Promise<ChatMessage>;
+  beforeSendUserMessage?: (
+    content: MessageContentItem[],
+  ) => Promise<boolean | void>;
 }
 
 export type ChatContainerHandle = {
   scrollToTop: () => void;
+  focusInput: () => void;
+  setInputValue: (value: string) => void;
+  sendUserMessage: (content: MessageContentItem[]) => Promise<boolean>;
 };
 
 const normalizeAskQuestionExecutionInput = (input: string) => {
@@ -297,6 +320,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       customSystemPrompt,
       onCreateChat,
       onCreateBranch,
+      beforeSendUserMessage,
     },
     ref,
   ) => {
@@ -335,6 +359,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const editTextRef = useRef<ChatInputAreaHandle>(null);
     const messagesRef = useRef<HTMLDivElement>(null);
     const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
+    const [editingDraft, setEditingDraft] = useState<EditingDraftState | null>(
+      null,
+    );
+    const [hiddenPromptContext, setHiddenPromptContext] =
+      useState<HiddenPromptContextState | null>(null);
 
     // 跟踪实际使用的聊天对象，解决新建对话时的状态同步问题
     const actualChatRef = useRef<ChatMessage>(currentChat);
@@ -368,6 +397,12 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }
     }, [currentChat]);
 
+    useEffect(() => {
+      if (hideInput) {
+        setEditingDraft(null);
+      }
+    }, [hideInput]);
+
     const getConversationKey = useMemoizedFn((chatId: number) => {
       return `${chatScope}:${chatId}`;
     });
@@ -398,7 +433,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           limit?: number;
         },
       ) => {
-        const source = chat.messages
+        const groups = chat.messages
           .slice(1)
           .map((message, index) => ({
             message,
@@ -407,7 +442,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           .filter(
             ({ originIndex }) => originIndex !== options?.excludeMessageIndex,
           )
-          .flatMap(({ message }): RequestMessage[] => {
+          .map(({ message }): RequestMessage[] => {
             if (message.role === Role.User || message.role === Role.Tool) {
               return [message as RequestMessage];
             }
@@ -416,7 +451,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             return buildAssistantHistoryMessages(responseMsg);
           });
 
-        return source.slice(-(options?.limit ?? 20));
+        const limited = limitHistoryMessageGroups(groups, options?.limit ?? 20);
+
+        return limited;
       },
     );
 
@@ -429,6 +466,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           shouldCreateNewChat?: boolean;
           persistRequestMessage?: boolean;
           extraHistoryMessages?: RequestMessage[];
+          persistedRequestMessage?: RequestMessage;
+          baseChatOverride?: ChatMessage;
           toolContext?: {
             flags?: {
               forceReview?: boolean;
@@ -440,6 +479,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         const shouldClearInput = options?.shouldClearInput ?? true;
         const shouldCreateNewChat = options?.shouldCreateNewChat ?? true;
         const persistRequestMessage = options?.persistRequestMessage ?? true;
+        const persistedRequestMessage =
+          options?.persistedRequestMessage ?? requestMessage;
         const extraHistoryMessages = options?.extraHistoryMessages || [];
         const perf = measurePerformance("sendMessage");
         setSendLoading(true);
@@ -449,7 +490,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         const responseMessage = createAssistantMessage();
 
         // 如果当前没有真实的对话（id为0），则先创建一个新对话
-        let actualCurrentChat = actualChatRef.current;
+        let actualCurrentChat =
+          options?.baseChatOverride || actualChatRef.current;
         if (shouldCreateNewChat && actualCurrentChat.id === 0) {
           try {
             const defaultSystemPrompt =
@@ -501,7 +543,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           ...actualCurrentChat,
           messages: [
             ...actualCurrentChat.messages,
-            ...(persistRequestMessage ? [requestMessage] : []),
+            ...(persistRequestMessage ? [persistedRequestMessage] : []),
             responseMessage,
           ],
         };
@@ -703,18 +745,21 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     ],
                     {
                       onFinish: async (content) => {
-                        if (content) {
+                        const nextTitle = content
+                          ? formatGeneratedChatTitle(content)
+                          : "";
+                        if (nextTitle) {
                           const updateChat = produce(
                             updatedChatMessage,
                             (draft) => {
-                              draft.title = content.slice(0, 20);
+                              draft.title = nextTitle;
                             },
                           );
                           const saved = await updateChatMessage(updateChat);
                           actualChatRef.current = saved;
                           setUpdateCounter((prev) => prev + 1);
                           updateCurrentChat(saved);
-                          titleRef.current?.setValue(content.slice(0, 20));
+                          titleRef.current?.setValue(nextTitle);
                         }
                       },
                     },
@@ -1000,6 +1045,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       const bridgeAssistantToolCallMessage: RequestMessage = {
         role: Role.Assistant,
         content: "",
+        reasoning_content: "",
         tool_calls: [
           {
             id: pendingSession.toolCallId,
@@ -1040,6 +1086,20 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             messagesRef.current.scrollTo({ top: 0, behavior: "smooth" });
           }
         }
+      },
+      focusInput: () => {
+        editTextRef.current?.focusEnd();
+      },
+      setInputValue: (value: string) => {
+        editTextRef.current?.setValue(value);
+      },
+      sendUserMessage: async (content: MessageContentItem[]) => {
+        if (sendLoading) {
+          message.warning("当前已有生成任务，请稍后再试");
+          return false;
+        }
+        await sendMessageContent(content);
+        return true;
       },
     }));
 
@@ -1099,6 +1159,26 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         (message) => message.role !== Role.System,
       );
     }, [updateCounter]);
+
+    const lastUserMessageIndex = useMemo(
+      () => getLastUserMessageIndex(visibleMessages),
+      [visibleMessages],
+    );
+
+    useEffect(() => {
+      if (!editingDraft) {
+        return;
+      }
+
+      const targetMessage = visibleMessages[editingDraft.messageIndex];
+      const isEditingTargetStillValid =
+        editingDraft.messageIndex === lastUserMessageIndex &&
+        targetMessage?.role === Role.User;
+
+      if (!isEditingTargetStillValid) {
+        setEditingDraft(null);
+      }
+    }, [editingDraft, lastUserMessageIndex, visibleMessages]);
 
     // 检查是否滚动到底部
     const isScrolledToBottom = useCallback(() => {
@@ -1195,15 +1275,56 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           return;
         }
 
+        if (beforeSendUserMessage) {
+          const shouldContinue = await beforeSendUserMessage(userContent);
+          if (shouldContinue === false) {
+            return;
+          }
+        }
+
         const newMessage: RequestMessage = {
           role: Role.User,
           content: userContent as RequestMessage["content"],
         };
+        const requestMessageForModel: RequestMessage = hiddenPromptContext
+          ? {
+              ...newMessage,
+              content: Array.isArray(newMessage.content)
+                ? [
+                    ...newMessage.content.map((item) =>
+                      item.type === "text"
+                        ? {
+                            ...item,
+                            text: `${hiddenPromptContext.text}\n\n用户编辑要求：${item.text}`,
+                          }
+                        : item,
+                    ),
+                  ]
+                : `${hiddenPromptContext.text}\n\n用户编辑要求：${newMessage.content}`,
+            }
+          : newMessage;
 
-        await processMessageSending(newMessage, {
+        const resetBaseChat = editingDraft
+          ? buildResetBaseChat(actualChatRef.current, editingDraft.messageIndex)
+          : null;
+
+        if (editingDraft && !resetBaseChat) {
+          setEditingDraft(null);
+          message.warning("只能编辑最后一条用户消息");
+          return;
+        }
+
+        const sent = await processMessageSending(requestMessageForModel, {
           shouldClearInput: true,
           shouldCreateNewChat: true,
+          persistedRequestMessage: newMessage,
+          baseChatOverride: resetBaseChat || undefined,
         });
+
+        if (sent) {
+          setEditingDraft(null);
+          setHiddenPromptContext(null);
+        }
       },
     );
 
@@ -1254,6 +1375,33 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           shouldClearInput: false,
           shouldCreateNewChat: false,
         });
+      },
+    );
+
+    const handleEditMessage = useMemoizedFn(
+      (messageIndex: number, content: string) => {
+        if (hideInput || sendLoading) {
+          return;
+        }
+
+        if (messageIndex !== lastUserMessageIndex) {
+          message.warning("只能编辑最后一条用户消息");
+          return;
+        }
+
+        const targetMessage = visibleMessages[messageIndex];
+        if (!targetMessage || targetMessage.role !== Role.User) {
+          message.warning("只能编辑用户消息");
+          return;
+        }
+
+        setEditingDraft({
+          messageIndex,
+        });
+        editTextRef.current?.setValue(content);
+        setTimeout(() => {
+          editTextRef.current?.focusEnd();
+        }, 0);
       },
     );
 
@@ -1339,6 +1487,13 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       <ChatWidgetInteractionProvider
         value={{
           sendPrompt: handleWidgetPrompt,
+          setInputValue: (text) => {
+            editTextRef.current?.setValue(text);
+            editTextRef.current?.focusEnd();
+          },
+          setHiddenPromptContext: (payload) => {
+            setHiddenPromptContext(payload);
+          },
         }}
       >
         <ChatContainerCore
@@ -1384,6 +1539,44 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                 chatInputBg,
               )}
             >
+              {editingDraft ? (
+                <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/8 px-4 py-3 text-sm text-amber-700 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200">
+                  <div className="min-w-0">
+                    <div className="font-medium">正在编辑最后一条用户消息</div>
+                    <div className="truncate text-xs opacity-80">
+                      发送后将替换这条消息及其后的回复
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="shrink-0 rounded-lg px-2.5 py-1 text-xs text-amber-700 transition-colors hover:bg-amber-500/10 dark:text-amber-200 dark:hover:bg-amber-400/10"
+                    onClick={() => {
+                      setEditingDraft(null);
+                    }}
+                  >
+                    取消编辑
+                  </button>
+                </div>
+              ) : null}
+              {!editingDraft && hiddenPromptContext ? (
+                <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-blue-500/20 bg-blue-500/8 px-4 py-3 text-sm text-blue-700 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200">
+                  <div className="min-w-0">
+                    <div className="font-medium">正在编辑生成图片</div>
+                    <div className="truncate text-xs opacity-80">
+                      输入本次图片调整要求，发送后会基于选中的图片调用编辑工具
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="shrink-0 rounded-lg px-2.5 py-1 text-xs text-blue-700 transition-colors hover:bg-blue-500/10 dark:text-blue-200 dark:hover:bg-blue-400/10"
+                    onClick={() => {
+                      setHiddenPromptContext(null);
+                    }}
+                  >
+                    退出编辑
+                  </button>
+                </div>
+              ) : null}
               {inputNode}
             </div>
           )}
@@ -1401,6 +1594,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     ref={chatInputRef}
                     className="flex-1 min-w-0"
                     {...desktopInputProps}
+                    placeholder={
+                      hiddenPromptContext?.label ||
+                      desktopInputProps.placeholder
+                    }
                   />
                 </div>
               </div>
@@ -1431,6 +1628,16 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   messageIndex={messageIndex}
                   onDeleteMessage={handleDeleteMessage}
                   onRegenerateMessage={handleRegenerateMessage}
+                  onEditMessage={
+                    !hideInput &&
+                    !sendLoading &&
+                    item.role === Role.User &&
+                    messageIndex === lastUserMessageIndex &&
+                    getRequestMessageText(item as RequestMessage).trim()
+                      .length > 0
+                      ? handleEditMessage
+                      : undefined
+                  }
                   onCreateBranch={handleCreateBranch}
                   messageMeta={{
                     chatId: actualChatRef.current.id,

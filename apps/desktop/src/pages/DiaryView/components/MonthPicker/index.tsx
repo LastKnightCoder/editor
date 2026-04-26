@@ -79,7 +79,7 @@ const MonthPicker = memo(({ value, onChange }: MonthPickerProps) => {
     <div className="relative flex-1 text-center">
       <button
         ref={triggerRef}
-        className="border-none bg-transparent text-[15px] font-semibold text-gray-900 dark:text-gray-50 cursor-pointer p-1 px-2 rounded-md transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+        className="border-none bg-transparent text-[15px] font-semibold text-gray-900 dark:text-gray-50 cursor-pointer p-1 px-2 rounded-md transition-all duration-200 hover:bg-gray-100 dark:hover:bg-zinc-700"
         onClick={() => setIsOpen(!isOpen)}
       >
         {value.format("YYYY年MM月")}
@@ -102,7 +102,7 @@ const MonthPicker = memo(({ value, onChange }: MonthPickerProps) => {
             >
               <div className="flex items-center justify-between mb-4 px-1">
                 <button
-                  className="w-8 h-8 flex items-center justify-center border-none bg-transparent rounded-md cursor-pointer text-xl text-gray-500 dark:text-gray-400 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-50"
+                  className="w-8 h-8 flex items-center justify-center border-none bg-transparent rounded-md cursor-pointer text-xl text-gray-500 dark:text-gray-400 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-900 dark:hover:text-gray-50"
                   onClick={() => handleYearChange(-1)}
                 >
                   ‹
@@ -111,7 +111,7 @@ const MonthPicker = memo(({ value, onChange }: MonthPickerProps) => {
                   {selectedYear}年
                 </span>
                 <button
-                  className="w-8 h-8 flex items-center justify-center border-none bg-transparent rounded-md cursor-pointer text-xl text-gray-500 dark:text-gray-400 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-50"
+                  className="w-8 h-8 flex items-center justify-center border-none bg-transparent rounded-md cursor-pointer text-xl text-gray-500 dark:text-gray-400 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-900 dark:hover:text-gray-50"
                   onClick={() => handleYearChange(1)}
                 >
                   ›
@@ -128,7 +128,7 @@ const MonthPicker = memo(({ value, onChange }: MonthPickerProps) => {
                   return (
                     <button
                       key={month}
-                      className={`relative h-10 border-none bg-transparent rounded-lg cursor-pointer transition-all duration-200 text-[13px] font-medium hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                      className={`relative h-10 border-none bg-transparent rounded-lg cursor-pointer transition-all duration-200 text-[13px] font-medium hover:bg-gray-100 dark:hover:bg-zinc-700 ${
                         isCurrentMonth
                           ? "text-indigo-500 dark:text-indigo-200 font-semibold"
                           : "text-gray-600 dark:text-gray-300"

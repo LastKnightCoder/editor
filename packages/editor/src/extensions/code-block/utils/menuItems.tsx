@@ -7,6 +7,10 @@ import {
   Plus,
   X,
 } from "lucide-react";
+import {
+  CODE_BLOCK_LANGUAGE_OPTIONS,
+  normalizeCodeBlockLanguageDisplayName,
+} from "@tau/shared";
 import { Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import { App } from "antd";
@@ -15,9 +19,9 @@ import {
   ContextMenuItem,
   BuildMenuParams,
 } from "../../../components/EditorContextMenu/types";
-import { deleteNode } from "../../../utils/nodeOperations";
 import type { CodeBlockElement } from "../../../types";
 import { codeBlockMap, codeBlockActionsMap } from "../index";
+import { deleteCodeBlock } from "./deleteCodeBlock";
 import {
   createInitialMagicMove,
   getActiveStepCode,
@@ -26,31 +30,6 @@ import {
   normalizeMagicMove,
   removeMagicMoveStep,
 } from "./magicMoveOps";
-
-// 常用编程语言列表
-const COMMON_LANGUAGES = [
-  { name: "JavaScript", value: "javascript" },
-  { name: "TypeScript", value: "typescript" },
-  { name: "Python", value: "python" },
-  { name: "Java", value: "java" },
-  { name: "C++", value: "C++" },
-  { name: "C#", value: "csharp" },
-  { name: "Go", value: "go" },
-  { name: "Rust", value: "rust" },
-  { name: "PHP", value: "php" },
-  { name: "Ruby", value: "ruby" },
-  { name: "Swift", value: "swift" },
-  { name: "Kotlin", value: "kotlin" },
-  { name: "HTML", value: "html" },
-  { name: "CSS", value: "css" },
-  { name: "SQL", value: "sql" },
-  { name: "Bash", value: "bash" },
-  { name: "JSON", value: "json" },
-  { name: "Markdown", value: "markdown" },
-  { name: "YAML", value: "yaml" },
-  { name: "Dockerfile", value: "dockerfile" },
-  { name: "Plain Text", value: "text" },
-];
 
 /**
  * 构建代码块菜单项
@@ -236,10 +215,12 @@ export function buildCodeBlockMenuItems(
       key: "change-language",
       label: "修改语言",
       icon: <Code2 size={16} />,
-      children: COMMON_LANGUAGES.map((lang) => ({
+      children: CODE_BLOCK_LANGUAGE_OPTIONS.map((lang) => ({
         key: `lang-${lang.value}`,
-        label: lang.name,
-        disabled: element.language?.toLowerCase() === lang.value.toLowerCase(),
+        label: lang.label,
+        disabled:
+          normalizeCodeBlockLanguageDisplayName(element.language) ===
+          lang.value,
         onSelect: () => {
           const elementPath = ReactEditor.findPath(editor, element);
           Transforms.setNodes(
@@ -256,7 +237,7 @@ export function buildCodeBlockMenuItems(
       label: "删除",
       icon: <Trash2 size={16} />,
       danger: true,
-      onSelect: () => deleteNode(editor, path),
+      onSelect: () => deleteCodeBlock(editor, path),
     },
   );
 

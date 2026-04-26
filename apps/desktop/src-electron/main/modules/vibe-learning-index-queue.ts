@@ -56,19 +56,35 @@ import pythonService from "./python-service";
 import { getFriendlyPythonRuntimeErrorMessage } from "../utils/python-runtime-error-message";
 import { smartChunk } from "../utils/smart-chunk";
 import { readSearchModelProviderConfig } from "../utils/search-model-config";
-import YtDlpService, {
-  type YoutubeSubtitleManifest,
-  type YoutubeSubtitleTrack,
-} from "../utils/YtDlpService";
+import YtDlpService from "../utils/YtDlpService";
 import { runSearchPipeline } from "./search-core/pipeline";
 import { createVibeLearningAdapter } from "./search-core/vibe-learning-adapter";
 import { LocalQueryExpander, NoopExpander } from "./search-core/expander";
 import { LocalReranker, NoopReranker } from "./search-core/reranker";
+import { calculateLexicalScore } from "./search-core/retriever";
 import {
   buildVLTranscriptionOptions,
   resolveVLOptimizationLanguage,
   type VLTranscriptionModelSize,
 } from "./vibe-learning-transcription";
+import { yieldEvery, yieldToEventLoop } from "../utils/event-loop-yield";
+
+const CHAPTER_CHUNK_OFFSET = 10_000;
+const MAX_HIT_CONTEXT_RADIUS = 3;
+
+interface ChapterOutline {
+  index: number;
+  title: string;
+  summary?: string;
+  fileName?: string;
+  charCount?: number;
+}
+
+interface DecodedChunkLocation {
+  hitType: "summary" | "chapter";
+  chapterIndex?: number;
+  chunkIndexInSection: number;
+}
 
 interface EmbeddingSettingConfig {
   id: string;
@@ -159,25 +175,12 @@ interface BilibiliCredentialsConfig {
   DedeUserID?: string;
 }
 
-interface BilibiliSubtitleTrack {
-  lang?: string;
-  title: string;
-  url: string;
-}
-
-interface BilibiliSubtitleItem {
-  from?: number;
-  to?: number;
-  content?: string;
-}
-
 const jieba = Jieba.withDict(dict);
 
 type TaskType = "full" | "convert_only" | "index_only" | "embedding_only";
 type TaskStatus =
   | "pending"
   | "downloading" // 正在下载远程视频
-  | "fetching_subtitle" // 正在获取平台字幕
   | "transcribing" // 正在转录音视频
   | "converting"
   | "optimizing_transcript" // 正在进行转录断句优化
@@ -191,7 +194,9 @@ type EmbeddingSwitchReason =
   | "config_switch"
   | "model_switch"
   | "db_switch"
-  | "startup_reconcile";
+  | "startup_reconcile"
+  | "sync_upload_reconnect"
+  | "sync_download_reconnect";
 
 const VL_TASK_STALE_ERROR_CODE = "VL_TASK_STALE";
 
@@ -299,6 +304,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
   // 缓存文档摘要配置
   private cachedDocSummaryConfig: DocSummaryConfig | null | undefined =
     undefined;
+  private static readonly RECOVER_YIELD_EVERY = 10;
 
   constructor() {
     super();
@@ -764,6 +770,39 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         },
       ) => {
         return this.readChapterContent(params);
+      },
+    );
+
+    ipcMain.handle(
+      "vl-read-search-hit-context",
+      async (
+        _event,
+        params: {
+          projectId: number;
+          resourceName: string;
+          mainDbName: string;
+          chunkIndex: number;
+          radius?: number;
+        },
+      ) => {
+        return this.readSearchHitContext(params);
+      },
+    );
+
+    ipcMain.handle(
+      "vl-read-chapter-range",
+      async (
+        _event,
+        params: {
+          projectId: number;
+          resourceName: string;
+          mainDbName: string;
+          chapterIndex: number;
+          startLine: number;
+          endLine: number;
+        },
+      ) => {
+        return this.readChapterRange(params);
       },
     );
 
@@ -1649,22 +1688,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     );
     const credentials = await this.getBilibiliCredentials();
 
-    const subtitleMarkdown = await this.tryProcessBilibiliSubtitle(
-      resourceId,
-      bvid,
-      cid,
-      title || resourceName,
-      mainDbName,
-      credentials,
-      `https://www.bilibili.com/video/${bvid}`,
-    );
-    if (subtitleMarkdown) {
-      log.info(
-        `[VibeLearningIndexQueue] Using Bilibili subtitle directly for resource ${resourceId}`,
-      );
-      return subtitleMarkdown;
-    }
-
     // 1. 获取本地视频文件路径（检查缓存或下载）
     let localVideoPath: string | null = null;
     const cacheStatus = await getBilibiliCacheStatus(bvid, cid, quality);
@@ -1741,19 +1764,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
 
     log.info(`[VibeLearningIndexQueue] Processing YouTube video: ${sourceUrl}`);
     const proxy = await this.getYoutubeProxy();
-    const subtitleMarkdown = await this.tryProcessYoutubeSubtitle(
-      resourceId,
-      sourceUrl,
-      meta.title || resourceName,
-      mainDbName,
-      proxy,
-    );
-    if (subtitleMarkdown) {
-      log.info(
-        `[VibeLearningIndexQueue] Using YouTube subtitle directly for resource ${resourceId}`,
-      );
-      return subtitleMarkdown;
-    }
 
     let localVideoPath: string | null = null;
     const cacheStatus = await getYoutubeCacheStatus(sourceUrl);
@@ -1823,469 +1833,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       );
       return {};
     }
-  }
-
-  private buildBilibiliHeaders(
-    bvid: string,
-    credentials?: BilibiliCredentialsConfig,
-  ): Record<string, string> {
-    const headers: Record<string, string> = {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      Referer: `https://www.bilibili.com/video/${bvid}`,
-      Origin: "https://www.bilibili.com",
-    };
-
-    if (credentials?.SESSDATA) {
-      headers.Cookie = `SESSDATA=${credentials.SESSDATA}`;
-      if (credentials.bili_jct) {
-        headers.Cookie += `; bili_jct=${credentials.bili_jct}`;
-      }
-      if (credentials.DedeUserID) {
-        headers.Cookie += `; DedeUserID=${credentials.DedeUserID}`;
-      }
-    }
-
-    return headers;
-  }
-
-  private reportSubtitleProgress(
-    resourceId: number,
-    completed: number,
-    inProgress: number,
-  ): void {
-    this.sendStatusWithProgress(resourceId, "fetching_subtitle", {
-      total: 3,
-      completed,
-      failed: 0,
-      inProgress,
-    });
-  }
-
-  private async tryProcessBilibiliSubtitle(
-    resourceId: number,
-    bvid: string,
-    cid: string,
-    resourceName: string,
-    mainDbName: string,
-    credentials: BilibiliCredentialsConfig,
-    videoUrl: string,
-  ): Promise<string | null> {
-    this.processingStatus.set(resourceId, "fetching_subtitle");
-    this.emit("status-change", resourceId, "fetching_subtitle");
-    this.reportSubtitleProgress(resourceId, 0, 1);
-
-    try {
-      const tracks = await this.fetchBilibiliSubtitleTracks(
-        bvid,
-        cid,
-        credentials,
-      );
-      this.reportSubtitleProgress(resourceId, 1, 1);
-      if (tracks.length === 0) {
-        log.info(
-          `[VibeLearningIndexQueue] No Bilibili subtitle tracks for resource ${resourceId}`,
-        );
-        return null;
-      }
-
-      const selectedTrack = tracks[0];
-      log.info(
-        `[VibeLearningIndexQueue] Selected Bilibili subtitle track for resource ${resourceId}: lang=${selectedTrack.lang || "unknown"}, title=${selectedTrack.title}`,
-      );
-
-      const subtitleItems = await this.downloadAndParseBilibiliSubtitle(
-        selectedTrack.url,
-        bvid,
-        credentials,
-      );
-      this.reportSubtitleProgress(resourceId, 2, 1);
-
-      const segments = this.buildSegmentsFromSubtitleItems(subtitleItems);
-      this.reportSubtitleProgress(resourceId, 3, 0);
-      if (segments.length === 0) {
-        log.warn(
-          `[VibeLearningIndexQueue] Parsed empty Bilibili subtitle for resource ${resourceId}`,
-        );
-        return null;
-      }
-
-      const db = databaseModule.getDatabase(mainDbName);
-      if (db) {
-        VibeLearningResourceTable.updateTranscriptSegments(
-          db,
-          resourceId,
-          segments,
-        );
-      }
-
-      log.info(
-        `[VibeLearningIndexQueue] Bilibili subtitle applied for resource ${resourceId}, segments=${segments.length}`,
-      );
-      return this.formatSegmentsToMarkdown(resourceName, segments, videoUrl);
-    } catch (error) {
-      log.warn(
-        `[VibeLearningIndexQueue] Failed to use Bilibili subtitle for resource ${resourceId}, fallback to transcription: ${error}`,
-      );
-      return null;
-    }
-  }
-
-  private async fetchBilibiliSubtitleTracks(
-    bvid: string,
-    cid: string,
-    credentials: BilibiliCredentialsConfig,
-  ): Promise<BilibiliSubtitleTrack[]> {
-    const response = await fetch(
-      `https://api.bilibili.com/x/player/v2?cid=${cid}&bvid=${bvid}`,
-      {
-        headers: this.buildBilibiliHeaders(bvid, credentials),
-      },
-    );
-    const data = (await response.json()) as {
-      code: number;
-      data?: {
-        subtitle?: {
-          subtitles?: Array<{
-            lan?: string;
-            lan_doc?: string;
-            subtitle_url?: string;
-          }>;
-        };
-      };
-      message?: string;
-    };
-
-    if (data.code !== 0) {
-      log.warn(
-        `[VibeLearningIndexQueue] Bilibili subtitle API returned code=${data.code}, message=${data.message || ""}`,
-      );
-      return [];
-    }
-
-    const subtitles = data.data?.subtitle?.subtitles || [];
-    const tracks = subtitles
-      .map((item) => {
-        const url = item.subtitle_url?.startsWith("//")
-          ? `https:${item.subtitle_url}`
-          : item.subtitle_url || "";
-        return {
-          lang: item.lan,
-          title: item.lan_doc || item.lan || "unknown",
-          url,
-        };
-      })
-      .filter((item) => item.url.length > 0);
-
-    const langRank = (track: BilibiliSubtitleTrack): number => {
-      const lang = this.normalizeLanguageTag(track.lang || track.title);
-      if (lang.startsWith("zh")) return 0;
-      if (lang.startsWith("en")) return 1;
-      return 2;
-    };
-
-    tracks.sort((a, b) => langRank(a) - langRank(b));
-    log.info(
-      `[VibeLearningIndexQueue] Bilibili subtitle tracks found: ${tracks.length}`,
-    );
-    return tracks;
-  }
-
-  private async downloadAndParseBilibiliSubtitle(
-    subtitleUrl: string,
-    bvid: string,
-    credentials: BilibiliCredentialsConfig,
-  ): Promise<BilibiliSubtitleItem[]> {
-    const response = await fetch(subtitleUrl, {
-      headers: this.buildBilibiliHeaders(bvid, credentials),
-    });
-    const data = (await response.json()) as {
-      body?: BilibiliSubtitleItem[];
-    };
-    return data.body || [];
-  }
-
-  private async tryProcessYoutubeSubtitle(
-    resourceId: number,
-    sourceUrl: string,
-    resourceName: string,
-    mainDbName: string,
-    proxy?: string,
-  ): Promise<string | null> {
-    this.processingStatus.set(resourceId, "fetching_subtitle");
-    this.emit("status-change", resourceId, "fetching_subtitle");
-    this.reportSubtitleProgress(resourceId, 0, 1);
-
-    try {
-      const manifest = await YtDlpService.fetchSubtitleManifest(
-        sourceUrl,
-        proxy,
-      );
-      this.reportSubtitleProgress(resourceId, 1, 1);
-      if (!manifest.tracks.length) {
-        log.info(
-          `[VibeLearningIndexQueue] No YouTube subtitle tracks for resource ${resourceId}`,
-        );
-        return null;
-      }
-
-      const selectedTrack = this.selectYoutubeSubtitleTrack(manifest);
-      if (!selectedTrack) {
-        return null;
-      }
-
-      log.info(
-        `[VibeLearningIndexQueue] Selected YouTube subtitle track for resource ${resourceId}: lang=${selectedTrack.lang}, isAuto=${selectedTrack.isAuto}, ext=${selectedTrack.ext}`,
-      );
-
-      const subtitleRaw = await YtDlpService.downloadSubtitleTrack(
-        selectedTrack,
-        proxy,
-      );
-      this.reportSubtitleProgress(resourceId, 2, 1);
-
-      const segments = this.parseYoutubeSubtitle(
-        selectedTrack.ext,
-        subtitleRaw,
-      );
-      this.reportSubtitleProgress(resourceId, 3, 0);
-      if (segments.length === 0) {
-        log.warn(
-          `[VibeLearningIndexQueue] Parsed empty YouTube subtitle for resource ${resourceId}`,
-        );
-        return null;
-      }
-
-      const db = databaseModule.getDatabase(mainDbName);
-      if (db) {
-        VibeLearningResourceTable.updateTranscriptSegments(
-          db,
-          resourceId,
-          segments,
-        );
-      }
-
-      log.info(
-        `[VibeLearningIndexQueue] YouTube subtitle applied for resource ${resourceId}, segments=${segments.length}`,
-      );
-      return this.formatSegmentsToMarkdown(resourceName, segments, sourceUrl);
-    } catch (error) {
-      log.warn(
-        `[VibeLearningIndexQueue] Failed to use YouTube subtitle for resource ${resourceId}, fallback to transcription: ${error}`,
-      );
-      return null;
-    }
-  }
-
-  private selectYoutubeSubtitleTrack(
-    manifest: YoutubeSubtitleManifest,
-  ): YoutubeSubtitleTrack | null {
-    if (!manifest.tracks.length) {
-      return null;
-    }
-
-    const normalizedSourceLang = this.normalizeLanguageTag(
-      manifest.sourceLanguage || "",
-    );
-    const sourceBase = normalizedSourceLang.split("-")[0];
-    const formatPriority: Record<string, number> = {
-      json3: 0,
-      vtt: 1,
-      srv3: 2,
-      ttml: 3,
-    };
-
-    const languageRank = (langRaw: string): number => {
-      const lang = this.normalizeLanguageTag(langRaw);
-      const base = lang.split("-")[0];
-      if (normalizedSourceLang && lang === normalizedSourceLang) return 0;
-      if (sourceBase && base === sourceBase) return 1;
-      if (base === "zh") return 2;
-      if (base === "en") return 3;
-      return 4;
-    };
-
-    const sorted = [...manifest.tracks].sort((a, b) => {
-      if (a.isAuto !== b.isAuto) {
-        return a.isAuto ? 1 : -1;
-      }
-
-      const langDiff = languageRank(a.lang) - languageRank(b.lang);
-      if (langDiff !== 0) return langDiff;
-
-      const formatDiff =
-        (formatPriority[a.ext] ?? 99) - (formatPriority[b.ext] ?? 99);
-      if (formatDiff !== 0) return formatDiff;
-
-      return a.lang.localeCompare(b.lang);
-    });
-
-    return sorted[0] || null;
-  }
-
-  private parseYoutubeSubtitle(
-    ext: string,
-    content: string,
-  ): Array<{ text: string; start: number; end: number }> {
-    const normalizedExt = ext.trim().toLowerCase();
-    if (normalizedExt === "json3") {
-      return this.parseYoutubeJson3Subtitle(content);
-    }
-    if (normalizedExt === "vtt") {
-      return this.parseYoutubeVttSubtitle(content);
-    }
-    throw new Error(`Unsupported subtitle extension: ${normalizedExt}`);
-  }
-
-  private parseYoutubeJson3Subtitle(
-    content: string,
-  ): Array<{ text: string; start: number; end: number }> {
-    const payload = JSON.parse(content) as {
-      events?: Array<{
-        tStartMs?: number;
-        dDurationMs?: number;
-        segs?: Array<{ utf8?: string }>;
-      }>;
-    };
-
-    const segments =
-      payload.events?.map((event) => {
-        const text = (event.segs || [])
-          .map((seg) => seg.utf8 || "")
-          .join("")
-          .replace(/\s+/g, " ")
-          .trim();
-        if (!text) return null;
-
-        const start = Number(event.tStartMs ?? 0);
-        const duration = Number(event.dDurationMs ?? 0);
-        return {
-          text,
-          start,
-          end: start + duration,
-        };
-      }) || [];
-
-    return this.normalizeSubtitleSegments(
-      segments.filter(
-        (segment): segment is { text: string; start: number; end: number } =>
-          segment !== null,
-      ),
-    );
-  }
-
-  private parseYoutubeVttSubtitle(
-    content: string,
-  ): Array<{ text: string; start: number; end: number }> {
-    const lines = content.replace(/\r/g, "").split("\n");
-    const segments: Array<{ text: string; start: number; end: number }> = [];
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line || !line.includes("-->")) {
-        continue;
-      }
-
-      const [startRaw, endRaw] = line.split(/\s+-->\s+/);
-      const start = this.parseVttTimestampToMs(startRaw);
-      const end = this.parseVttTimestampToMs(endRaw?.split(" ")[0] || "");
-      if (start === null || end === null) {
-        continue;
-      }
-
-      const textLines: string[] = [];
-      let j = i + 1;
-      while (j < lines.length && lines[j].trim().length > 0) {
-        textLines.push(lines[j].trim());
-        j++;
-      }
-      i = j;
-
-      const text = textLines
-        .join(" ")
-        .replace(/<[^>]+>/g, "")
-        .replace(/\s+/g, " ")
-        .trim();
-      if (!text) {
-        continue;
-      }
-
-      segments.push({ text, start, end });
-    }
-
-    return this.normalizeSubtitleSegments(segments);
-  }
-
-  private parseVttTimestampToMs(value: string): number | null {
-    const raw = value.trim().replace(",", ".");
-    const match = raw.match(/^(?:(\d+):)?(\d{2}):(\d{2})\.(\d{3})$/);
-    if (!match) return null;
-    const hours = parseInt(match[1] || "0", 10);
-    const minutes = parseInt(match[2], 10);
-    const seconds = parseInt(match[3], 10);
-    const milliseconds = parseInt(match[4], 10);
-    return (
-      hours * 60 * 60 * 1000 +
-      minutes * 60 * 1000 +
-      seconds * 1000 +
-      milliseconds
-    );
-  }
-
-  private buildSegmentsFromSubtitleItems(
-    items: BilibiliSubtitleItem[],
-  ): Array<{ text: string; start: number; end: number }> {
-    const segments = items
-      .map((item) => {
-        const text = (item.content || "").replace(/\s+/g, " ").trim();
-        if (!text) return null;
-        const from = Number(item.from ?? 0);
-        const to = Number(item.to ?? item.from ?? 0);
-        return {
-          text,
-          start: Math.floor(from * 1000),
-          end: Math.floor(to * 1000),
-        };
-      })
-      .filter(
-        (segment): segment is { text: string; start: number; end: number } =>
-          segment !== null,
-      );
-
-    return this.normalizeSubtitleSegments(segments);
-  }
-
-  private normalizeSubtitleSegments(
-    segments: Array<{ text: string; start: number; end: number }>,
-  ): Array<{ text: string; start: number; end: number }> {
-    const sorted = [...segments]
-      .map((segment) => ({
-        text: segment.text.trim(),
-        start: Math.max(0, Math.floor(segment.start)),
-        end: Math.max(0, Math.floor(segment.end)),
-      }))
-      .filter((segment) => segment.text.length > 0)
-      .sort((a, b) => a.start - b.start || a.end - b.end);
-
-    for (let i = 0; i < sorted.length; i++) {
-      const current = sorted[i];
-      current.end = Math.max(current.end, current.start + 1);
-      if (i < sorted.length - 1) {
-        const nextStart = sorted[i + 1].start;
-        if (nextStart > current.start) {
-          current.end = Math.max(
-            current.start + 1,
-            Math.min(current.end, nextStart - 1),
-          );
-        }
-      }
-    }
-
-    return sorted;
-  }
-
-  private normalizeLanguageTag(input: string): string {
-    return input.trim().toLowerCase().replace(/_/g, "-");
   }
 
   private selectYoutubeVideoStream(
@@ -3622,6 +3169,277 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     return null;
   }
 
+  private decodeChunkLocation(chunkIndex: number): DecodedChunkLocation {
+    if (chunkIndex >= CHAPTER_CHUNK_OFFSET) {
+      return {
+        hitType: "chapter",
+        chapterIndex: Math.floor(chunkIndex / CHAPTER_CHUNK_OFFSET) - 1,
+        chunkIndexInSection: chunkIndex % CHAPTER_CHUNK_OFFSET,
+      };
+    }
+
+    return {
+      hitType: "summary",
+      chunkIndexInSection: chunkIndex,
+    };
+  }
+
+  private buildLexicalQuery(question: string) {
+    const normalized = question.trim();
+    const regexTokens = normalized
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}\u4e00-\u9fff]+/u)
+      .map((token) => token.trim())
+      .filter(Boolean);
+    const jiebaTokens = jieba
+      .cutForSearch(normalized, true)
+      .map((token) => token.trim().toLowerCase())
+      .filter((token) => /[\p{L}\p{N}\u4e00-\u9fff]/u.test(token));
+    const cjkText = normalized.replace(/[^\u4e00-\u9fff]/g, "");
+    const cjkBigrams: string[] = [];
+    for (let i = 0; i < cjkText.length - 1; i++) {
+      cjkBigrams.push(cjkText.slice(i, i + 2));
+    }
+
+    const tokens = Array.from(
+      new Set([...regexTokens, ...jiebaTokens, ...cjkBigrams]),
+    );
+
+    return {
+      raw: question,
+      normalized,
+      tokens,
+      isEmpty: !normalized,
+    };
+  }
+
+  private parseSummaryIndexContent(summaryContent: string): ChapterOutline[] {
+    const legacyOutlines: ChapterOutline[] = [];
+    const structuredOutlines: ChapterOutline[] = [];
+    const lines = summaryContent.split("\n");
+    const legacyPattern =
+      /^(\d+)\.\s+(.+?)\s+\((.+),\s*([\d,]+)\s*字符\)(?:\s*-\s*(.+))?$/;
+    const structuredHeadingPattern = /^###\s+章节\s+(\d+)\s*$/;
+    const fieldPatterns = {
+      title: /^- 标题：\s*(.+)$/,
+      summary: /^- 摘要：\s*(.+)$/,
+      fileName: /^- 文件：\s*(.+)$/,
+      charCount: /^- 字数：\s*([\d,]+)\s*字符$/,
+    };
+
+    for (const line of lines) {
+      const matched = legacyPattern.exec(line.trim());
+      if (!matched) {
+        continue;
+      }
+
+      legacyOutlines.push({
+        index: Math.max(0, Number.parseInt(matched[1], 10) - 1),
+        title: matched[2].trim(),
+        fileName: matched[3].trim(),
+        charCount: Number.parseInt(matched[4].replace(/,/g, ""), 10) || 0,
+        summary: matched[5]?.trim(),
+      });
+    }
+
+    let current: Partial<ChapterOutline> | null = null;
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const headingMatch = structuredHeadingPattern.exec(trimmed);
+      if (headingMatch) {
+        if (current?.index != null && current.title) {
+          structuredOutlines.push(current as ChapterOutline);
+        }
+        current = {
+          index: Math.max(0, Number.parseInt(headingMatch[1], 10) - 1),
+        };
+        continue;
+      }
+
+      if (!current) {
+        continue;
+      }
+
+      const titleMatch = fieldPatterns.title.exec(trimmed);
+      if (titleMatch) {
+        current.title = titleMatch[1].trim();
+        continue;
+      }
+
+      const summaryMatch = fieldPatterns.summary.exec(trimmed);
+      if (summaryMatch) {
+        current.summary = summaryMatch[1].trim();
+        continue;
+      }
+
+      const fileNameMatch = fieldPatterns.fileName.exec(trimmed);
+      if (fileNameMatch) {
+        current.fileName = fileNameMatch[1].trim();
+        continue;
+      }
+
+      const charCountMatch = fieldPatterns.charCount.exec(trimmed);
+      if (charCountMatch) {
+        current.charCount =
+          Number.parseInt(charCountMatch[1].replace(/,/g, ""), 10) || 0;
+      }
+    }
+
+    if (current?.index != null && current.title) {
+      structuredOutlines.push(current as ChapterOutline);
+    }
+
+    const merged = new Map<number, ChapterOutline>();
+    for (const outline of [...legacyOutlines, ...structuredOutlines]) {
+      const existing = merged.get(outline.index);
+      merged.set(outline.index, {
+        index: outline.index,
+        title:
+          outline.title || existing?.title || `第 ${outline.index + 1} 部分`,
+        summary: outline.summary ?? existing?.summary,
+        fileName: outline.fileName ?? existing?.fileName,
+        charCount: outline.charCount ?? existing?.charCount,
+      });
+    }
+
+    return Array.from(merged.values()).sort(
+      (left, right) => left.index - right.index,
+    );
+  }
+
+  private async getChapterOutlines(
+    markdownPath: string,
+  ): Promise<ChapterOutline[]> {
+    const summaryPath = this.getAbsoluteMarkdownPath(markdownPath);
+    const summaryContent = await fs.readFile(summaryPath, "utf-8");
+    return this.parseSummaryIndexContent(summaryContent);
+  }
+
+  private async getChunkedResourceContent(
+    markdownPath: string,
+    chunkLocation: DecodedChunkLocation,
+  ): Promise<{
+    content: string;
+    chapterTitle?: string;
+  }> {
+    if (chunkLocation.hitType === "summary") {
+      const summaryPath = this.getAbsoluteMarkdownPath(markdownPath);
+      return {
+        content: await fs.readFile(summaryPath, "utf-8"),
+      };
+    }
+
+    const chapterIndex = chunkLocation.chapterIndex;
+    if (chapterIndex == null || chapterIndex < 0) {
+      throw new Error("无法解析章节索引");
+    }
+
+    const chaptersDir = this.getChaptersDirFromMarkdownPath(markdownPath);
+    const absoluteChaptersDir = this.getAbsoluteMarkdownPath(chaptersDir);
+    const sortedFiles = await listChapterFilesSorted(absoluteChaptersDir);
+    const chapterFileName = sortedFiles[chapterIndex];
+
+    if (!chapterFileName) {
+      throw new Error(`未找到章节 ${chapterIndex} 的文件`);
+    }
+
+    const chapterPath = join(absoluteChaptersDir, chapterFileName);
+    const content = await fs.readFile(chapterPath, "utf-8");
+    const firstLine = content.split("\n")[0] || "";
+    const titleMatch = /^#+\s+(.+)$/.exec(firstLine);
+
+    return {
+      content,
+      chapterTitle: titleMatch?.[1]?.trim(),
+    };
+  }
+
+  private async buildHitContext(params: {
+    markdownPath: string;
+    chunkIndex: number;
+    radius: number;
+  }): Promise<{
+    hitType: "summary" | "chapter";
+    chapterIndex?: number;
+    chapterTitle?: string;
+    chunkIndexInSection: number;
+    startChunkIndex: number;
+    endChunkIndex: number;
+    content: string;
+  }> {
+    const chunkLocation = this.decodeChunkLocation(params.chunkIndex);
+    const { content, chapterTitle } = await this.getChunkedResourceContent(
+      params.markdownPath,
+      chunkLocation,
+    );
+
+    const chunks = smartChunk(content, {
+      minLength: 1000,
+      maxLength: 2000,
+      overlap: 0,
+      splitter: "sentence",
+    });
+
+    const targetIndex = Math.min(
+      Math.max(chunkLocation.chunkIndexInSection, 0),
+      Math.max(0, chunks.length - 1),
+    );
+    const startChunkIndex = Math.max(0, targetIndex - params.radius);
+    const endChunkIndex = Math.min(
+      chunks.length - 1,
+      targetIndex + params.radius,
+    );
+
+    return {
+      hitType: chunkLocation.hitType,
+      chapterIndex: chunkLocation.chapterIndex,
+      chapterTitle,
+      chunkIndexInSection: targetIndex,
+      startChunkIndex,
+      endChunkIndex,
+      content: chunks
+        .slice(startChunkIndex, endChunkIndex + 1)
+        .join("\n\n---\n\n"),
+    };
+  }
+
+  private selectRelevantChapterSegments(
+    question: string,
+    chapterContent: string,
+    maxSegments = 3,
+  ): string {
+    if (chapterContent.length <= 12_000) {
+      return chapterContent;
+    }
+
+    const chunks = smartChunk(chapterContent, {
+      minLength: 2500,
+      maxLength: 6000,
+      overlap: 200,
+      splitter: "sentence",
+    });
+    const lexicalQuery = this.buildLexicalQuery(question);
+    const rankedChunks = chunks
+      .map((chunk, index) => ({
+        index,
+        chunk,
+        score: calculateLexicalScore(lexicalQuery, chunk),
+      }))
+      .sort(
+        (left, right) => right.score - left.score || left.index - right.index,
+      );
+
+    const selected = rankedChunks
+      .slice(0, Math.max(1, maxSegments))
+      .sort((left, right) => left.index - right.index)
+      .map(
+        (item) =>
+          `#### 片段 ${item.index + 1}（相关度 ${item.score.toFixed(2)}）\n${item.chunk}`,
+      );
+
+    return selected.join("\n\n---\n\n");
+  }
+
   async readMarkdownContent(params: {
     projectId: number;
     resourceName: string;
@@ -3895,6 +3713,202 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     }
   }
 
+  async readSearchHitContext(params: {
+    projectId: number;
+    resourceName: string;
+    mainDbName: string;
+    chunkIndex: number;
+    radius?: number;
+  }): Promise<{
+    success: boolean;
+    resourceName?: string;
+    hitType?: "summary" | "chapter";
+    chapterIndex?: number;
+    chapterTitle?: string;
+    chunkIndex?: number;
+    chunkIndexInSection?: number;
+    startChunkIndex?: number;
+    endChunkIndex?: number;
+    content?: string;
+    error?: string;
+  }> {
+    const { projectId, resourceName, mainDbName, chunkIndex } = params;
+    const radius = Math.min(
+      MAX_HIT_CONTEXT_RADIUS,
+      Math.max(1, Math.floor(params.radius || 1)),
+    );
+
+    try {
+      const resource = await this.findResourceByName(
+        mainDbName,
+        projectId,
+        resourceName,
+      );
+
+      if (!resource) {
+        return {
+          success: false,
+          error: `未找到名为 "${resourceName}" 的资源`,
+        };
+      }
+
+      if (!resource.markdownPath) {
+        return {
+          success: false,
+          error: `资源 "${resource.name}" 尚未转换为 Markdown`,
+        };
+      }
+
+      const db = databaseModule.getDatabase(mainDbName);
+      const fullResource = db
+        ? VibeLearningResourceTable.getResourceById(db, resource.id)
+        : null;
+
+      if (!fullResource) {
+        return {
+          success: false,
+          error: `未找到资源 "${resource.name}" 的完整元信息`,
+        };
+      }
+
+      if (!fullResource.markdownPath) {
+        return {
+          success: false,
+          error: `资源 "${resource.name}" 尚未生成 Markdown`,
+        };
+      }
+
+      if (!fullResource.isChunked) {
+        const absolutePath = this.getAbsoluteMarkdownPath(
+          fullResource.markdownPath,
+        );
+        const content = await fs.readFile(absolutePath, "utf-8");
+        const chunks = smartChunk(content, {
+          minLength: 1000,
+          maxLength: 2000,
+          overlap: 0,
+          splitter: "sentence",
+        });
+        const targetIndex = Math.min(
+          Math.max(chunkIndex, 0),
+          Math.max(0, chunks.length - 1),
+        );
+        const startChunkIndex = Math.max(0, targetIndex - radius);
+        const endChunkIndex = Math.min(chunks.length - 1, targetIndex + radius);
+
+        return {
+          success: true,
+          resourceName: resource.name,
+          chunkIndex,
+          chunkIndexInSection: targetIndex,
+          startChunkIndex,
+          endChunkIndex,
+          content: chunks
+            .slice(startChunkIndex, endChunkIndex + 1)
+            .join("\n\n---\n\n"),
+        };
+      }
+
+      const context = await this.buildHitContext({
+        markdownPath: fullResource.markdownPath!,
+        chunkIndex,
+        radius,
+      });
+
+      return {
+        success: true,
+        resourceName: resource.name,
+        hitType: context.hitType,
+        chapterIndex: context.chapterIndex,
+        chapterTitle: context.chapterTitle,
+        chunkIndex,
+        chunkIndexInSection: context.chunkIndexInSection,
+        startChunkIndex: context.startChunkIndex,
+        endChunkIndex: context.endChunkIndex,
+        content: context.content,
+      };
+    } catch (error) {
+      log.error(
+        `[VibeLearningIndexQueue] Error reading search hit context: ${error}`,
+      );
+      return {
+        success: false,
+        error: `读取命中上下文失败: ${(error as Error).message}`,
+      };
+    }
+  }
+
+  async readChapterRange(params: {
+    projectId: number;
+    resourceName: string;
+    mainDbName: string;
+    chapterIndex: number;
+    startLine: number;
+    endLine: number;
+  }): Promise<{
+    success: boolean;
+    content?: string;
+    chapterTitle?: string;
+    chapterIndex?: number;
+    startLine?: number;
+    endLine?: number;
+    totalLines?: number;
+    resourceName?: string;
+    error?: string;
+  }> {
+    const {
+      projectId,
+      resourceName,
+      mainDbName,
+      chapterIndex,
+      startLine,
+      endLine,
+    } = params;
+
+    try {
+      const chapterResult = await this.readChapterContent({
+        projectId,
+        resourceName,
+        mainDbName,
+        chapterIndex,
+      });
+
+      if (!chapterResult.success || !chapterResult.content) {
+        return {
+          success: false,
+          error: chapterResult.error,
+        };
+      }
+
+      const lines = chapterResult.content.split("\n");
+      const totalLines = lines.length;
+      const validStartLine = Math.max(1, Math.min(startLine, totalLines));
+      const validEndLine = Math.max(
+        validStartLine,
+        Math.min(endLine, totalLines),
+      );
+
+      return {
+        success: true,
+        resourceName: chapterResult.resourceName,
+        chapterTitle: chapterResult.chapterTitle,
+        chapterIndex,
+        startLine: validStartLine,
+        endLine: validEndLine,
+        totalLines,
+        content: lines.slice(validStartLine - 1, validEndLine).join("\n"),
+      };
+    } catch (error) {
+      log.error(
+        `[VibeLearningIndexQueue] Error reading chapter range: ${error}`,
+      );
+      return {
+        success: false,
+        error: `读取章节片段失败: ${(error as Error).message}`,
+      };
+    }
+  }
+
   /**
    * 列出资源的所有章节
    */
@@ -3908,6 +3922,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       index: number;
       title: string;
       charCount: number;
+      summary?: string;
     }>;
     resourceName?: string;
     error?: string;
@@ -3950,24 +3965,31 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         index: number;
         title: string;
         charCount: number;
+        summary?: string;
       }> = [];
+      const outlines = await this.getChapterOutlines(fullResource.markdownPath);
 
       for (let i = 0; i < sortedFiles.length; i++) {
         const chapterFile = join(absoluteChaptersDir, sortedFiles[i]);
+        const outline = outlines.find((item) => item.index === i);
         try {
           const content = await fs.readFile(chapterFile, "utf-8");
           const firstLine = content.split("\n")[0] || "";
           const titleMatch = /^#+\s+(.+)$/.exec(firstLine);
           chapters.push({
             index: i,
-            title: titleMatch ? titleMatch[1] : `第 ${i + 1} 部分`,
+            title:
+              outline?.title ||
+              (titleMatch ? titleMatch[1] : `第 ${i + 1} 部分`),
             charCount: content.length,
+            summary: outline?.summary,
           });
         } catch {
           chapters.push({
             index: i,
-            title: `第 ${i + 1} 部分`,
-            charCount: 0,
+            title: outline?.title || `第 ${i + 1} 部分`,
+            charCount: outline?.charCount || 0,
+            summary: outline?.summary,
           });
         }
       }
@@ -4049,6 +4071,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         fullResource.markdownPath,
       );
       const summaryContent = await fs.readFile(summaryPath, "utf-8");
+      const chapterOutlines = this.parseSummaryIndexContent(summaryContent);
 
       // 2. 确定要分析的章节
       let chaptersToAnalyze: number[];
@@ -4057,18 +4080,42 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
           (i) => i >= 0 && i < fullResource.chapterCount,
         );
       } else {
-        // 让 LLM 根据问题和摘要选择相关章节
+        const searchHints = await this.searchContent({
+          projectId,
+          mainDbName,
+          query: question,
+          limit: 8,
+        });
+        const hintedChapterIndexes = searchHints
+          .filter(
+            (item) =>
+              item.resourceId === resource.id &&
+              item.hitType === "chapter" &&
+              typeof item.chapterIndex === "number",
+          )
+          .map((item) => item.chapterIndex as number);
+
+        // 让 LLM 根据问题、摘要和检索命中选择相关章节
         const selectionResponse = await client.chat.completions.create({
           model: docSummaryConfig.llmModel,
           messages: [
             {
               role: "system",
               content:
-                "你是一个文档分析助手。根据用户的问题和文档摘要，选择最相关的章节索引。只返回 JSON 数组格式的章节索引，如 [0, 2, 5]。最多选择 5 个最相关的章节。",
+                "你是一个文档分析助手。根据用户问题、文档结构索引和检索命中，选择最相关的章节索引。优先保留与问题直接相关、能够提供正文证据的章节。只返回 JSON 数组格式的章节索引，如 [0, 2, 5]。最多选择 5 个最相关的章节。",
             },
             {
               role: "user",
-              content: `问题：${question}\n\n文档摘要：\n${summaryContent}\n\n请返回最相关的章节索引（0-based）：`,
+              content: `问题：${question}\n\n文档结构索引：\n${summaryContent}\n\n检索命中章节线索：\n${JSON.stringify(
+                searchHints.map((item) => ({
+                  hitType: item.hitType,
+                  chapterIndex: item.chapterIndex,
+                  chapterTitle: item.chapterTitle,
+                  chapterSummary: item.chapterSummary,
+                })),
+                null,
+                2,
+              )}\n\n请返回最相关的章节索引（0-based）：`,
             },
           ],
           temperature: 0.1,
@@ -4081,13 +4128,22 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
           const parsed = JSON.parse(
             selectionText.replace(/```json?\n?/g, "").replace(/```/g, ""),
           );
-          chaptersToAnalyze = Array.isArray(parsed)
+          const llmChapters = Array.isArray(parsed)
             ? parsed.filter(
                 (i: number) => i >= 0 && i < fullResource.chapterCount,
               )
             : [];
+          chaptersToAnalyze = Array.from(
+            new Set([...hintedChapterIndexes, ...llmChapters]),
+          ).slice(0, 5);
         } catch {
-          // 如果解析失败，分析所有章节（最多5个）
+          chaptersToAnalyze = Array.from(new Set(hintedChapterIndexes)).slice(
+            0,
+            5,
+          );
+        }
+
+        if (chaptersToAnalyze.length === 0) {
           chaptersToAnalyze = Array.from(
             { length: Math.min(5, fullResource.chapterCount) },
             (_, i) => i,
@@ -4114,14 +4170,16 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         const chapterFileName = sortedFiles[chapterIdx];
         if (!chapterFileName) continue;
         const chapterFile = join(absoluteChaptersDir, chapterFileName);
+        const outline = chapterOutlines.find(
+          (item) => item.index === chapterIdx,
+        );
 
         try {
-          let chapterContent = await fs.readFile(chapterFile, "utf-8");
-          // 截取前 80K 字符
-          if (chapterContent.length > 80000) {
-            chapterContent =
-              chapterContent.slice(0, 80000) + "\n\n...(内容已截断)";
-          }
+          const chapterContent = await fs.readFile(chapterFile, "utf-8");
+          const relevantContent = this.selectRelevantChapterSegments(
+            question,
+            chapterContent,
+          );
 
           const extractResponse = await client.chat.completions.create({
             model: docSummaryConfig.llmModel,
@@ -4129,11 +4187,11 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
               {
                 role: "system",
                 content:
-                  "你是一个文档分析助手。从给定的章节内容中提取与用户问题相关的所有信息。包括关键论点、数据、引用和相关细节。如果章节与问题无关，简短说明即可。",
+                  "你是一个文档分析助手。从给定的章节正文片段中提取与用户问题相关的所有信息。优先提取关键论点、数据、引用、前提条件、步骤和限制。如果信息来自局部片段而非整章全文，请在提取中标注“基于片段”。如果章节与问题无关，简短说明即可。",
               },
               {
                 role: "user",
-                content: `问题：${question}\n\n章节内容：\n${chapterContent}`,
+                content: `问题：${question}\n\n章节信息：\n- 索引：${chapterIdx}\n- 标题：${outline?.title || `第 ${chapterIdx + 1} 章`}\n- 摘要：${outline?.summary || "无"}\n\n章节正文片段：\n${relevantContent}`,
               },
             ],
             temperature: 0.3,
@@ -4142,7 +4200,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
 
           const extract = extractResponse.choices[0]?.message?.content || "";
           chapterExtracts.push(
-            `### 章节 ${chapterIdx} 的相关信息：\n${extract}`,
+            `### 章节 ${chapterIdx}（${outline?.title || `第 ${chapterIdx + 1} 章`}）的相关信息：\n${extract}`,
           );
         } catch (error) {
           log.warn(
@@ -4286,7 +4344,58 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         `[VibeLearningIndexQueue] Hybrid search completed: found ${results.length} results (FTS: ${pipelineLog.ftsCount}, Vec: ${pipelineLog.vecCount})`,
       );
 
-      return results;
+      const db = databaseModule.getDatabase(mainDbName);
+      const resourceCache = new Map<
+        number,
+        ReturnType<typeof VibeLearningResourceTable.getResourceById> | null
+      >();
+      const outlineCache = new Map<number, ChapterOutline[]>();
+
+      const enrichedResults = await Promise.all(
+        results.map(async (result) => {
+          if (!db || typeof result.chunkIndex !== "number") {
+            return result;
+          }
+
+          let fullResource = resourceCache.get(result.resourceId);
+          if (fullResource === undefined) {
+            fullResource = VibeLearningResourceTable.getResourceById(
+              db,
+              result.resourceId,
+            );
+            resourceCache.set(result.resourceId, fullResource);
+          }
+
+          if (!fullResource?.isChunked || !fullResource.markdownPath) {
+            return result;
+          }
+
+          let outlines = outlineCache.get(result.resourceId);
+          if (!outlines) {
+            outlines = await this.getChapterOutlines(fullResource.markdownPath);
+            outlineCache.set(result.resourceId, outlines);
+          }
+
+          const chunkLocation = this.decodeChunkLocation(result.chunkIndex);
+          const matchedChapter =
+            chunkLocation.chapterIndex != null
+              ? outlines.find(
+                  (item) => item.index === chunkLocation.chapterIndex,
+                )
+              : undefined;
+
+          return {
+            ...result,
+            hitType: chunkLocation.hitType,
+            chapterIndex: chunkLocation.chapterIndex,
+            chapterTitle: matchedChapter?.title,
+            chapterSummary: matchedChapter?.summary,
+            chunkIndexInSection: chunkLocation.chunkIndexInSection,
+          };
+        }),
+      );
+
+      return enrichedResults;
     } catch (error) {
       log.error(`[VibeLearningIndexQueue] Search failed: ${error}`);
       return [];
@@ -4331,6 +4440,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       );
 
       const forceEmbedding = options.forceEmbedding === true;
+      let processed = 0;
 
       for (const resource of allResources) {
         // 检查状态
@@ -4402,7 +4512,10 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
             );
           }
         }
+        processed += 1;
+        await yieldEvery(processed, VibeLearningIndexQueue.RECOVER_YIELD_EVERY);
       }
+      await yieldToEventLoop();
     } catch (error) {
       log.error(`[VibeLearningIndexQueue] Error checking resources: ${error}`);
     }
@@ -4552,13 +4665,17 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         .all() as Array<{ id: number }>;
 
       // 为每个项目重建向量表
+      let processed = 0;
       for (const project of projects) {
         vibeLearningDBManager.reinitVecTable(
           targetDbName,
           project.id,
           dimensions,
         );
+        processed += 1;
+        await yieldEvery(processed, VibeLearningIndexQueue.RECOVER_YIELD_EVERY);
       }
+      await yieldToEventLoop();
 
       log.info(
         `[VibeLearningIndexQueue] Reinit vec tables for ${projects.length} projects`,

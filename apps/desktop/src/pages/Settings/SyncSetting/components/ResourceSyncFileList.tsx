@@ -33,7 +33,7 @@ const statusBadge = (status: ResourceSyncStatus) => {
     case ResourceSyncStatus.Error:
       return "text-red-600 bg-red-50 border-red-200 dark:text-red-200 dark:bg-red-900/30 dark:border-red-900/50";
     default:
-      return "text-gray-600 bg-gray-50 border-gray-200 dark:text-gray-200 dark:bg-slate-900/40 dark:border-slate-800";
+      return "text-gray-600 bg-gray-50 border-gray-200 dark:text-gray-200 dark:bg-zinc-900/40 dark:border-slate-800";
   }
 };
 
@@ -205,7 +205,7 @@ const ResourceSyncFileList = ({
                     onAudioClick={handlePreview}
                   />
                 ) : (
-                  <div className="w-11 h-11 rounded-lg bg-gray-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                  <div className="w-11 h-11 rounded-lg bg-gray-100 dark:bg-zinc-800 flex items-center justify-center shrink-0">
                     <Paperclip className="w-5 h-5 text-gray-400" />
                   </div>
                 )}
@@ -306,7 +306,7 @@ const ResourceSyncFileList = ({
             {blacklist.map((item) => (
               <button
                 key={item.id}
-                className="text-xs px-2 py-1 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/20 hover:border-red-200 hover:text-red-500 transition"
+                className="text-xs px-2 py-1 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-zinc-900/20 hover:border-red-200 hover:text-red-500 transition"
                 onClick={() => onRemoveBlacklistItem(item.fileName)}
                 title="点击移出黑名单"
               >

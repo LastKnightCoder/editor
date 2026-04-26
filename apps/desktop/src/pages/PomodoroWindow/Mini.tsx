@@ -4,7 +4,7 @@ import {
   resumePomodoroSession,
   stopPomodoroSession,
 } from "@/commands";
-import { closeWindow } from "@/commands/window";
+import { hidePomodoroMiniWindow } from "@/commands/window";
 import { usePomodoroStore } from "@/stores/usePomodoroStore";
 import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 import useInitDatabase from "@/hooks/useInitDatabase";
@@ -86,7 +86,7 @@ const Mini: React.FC = () => {
     const handler = (session: unknown) => {
       // 当 activeSession 从有变为 null 时，说明番茄钟结束
       if (!session) {
-        closeWindow();
+        hidePomodoroMiniWindow();
       }
     };
 
@@ -190,7 +190,7 @@ const Mini: React.FC = () => {
                 )}
                 onClick={() => {
                   stopPomodoroSession(true);
-                  closeWindow();
+                  hidePomodoroMiniWindow();
                 }}
                 title="停止"
               >
@@ -228,7 +228,7 @@ const Mini: React.FC = () => {
           themeColors.textClass,
           themeColors.hoverTextClass,
         )}
-        onClick={() => closeWindow()}
+        onClick={() => hidePomodoroMiniWindow()}
         title="关闭窗口"
       >
         <AiOutlineClose className="text-base" />

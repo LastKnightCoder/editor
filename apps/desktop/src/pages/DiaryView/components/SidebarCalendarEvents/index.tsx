@@ -138,12 +138,12 @@ const SidebarCalendarEvents = memo(({ date }: SidebarCalendarEventsProps) => {
           <div
             key={event.id}
             onClick={() => setEditingEvent(event)}
-            className="group flex cursor-pointer gap-3 px-4 py-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
+            className="group flex cursor-pointer gap-3 px-4 py-3 transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800/50"
           >
             {/* 时间轴 */}
             <div className="flex shrink-0 flex-col items-center pt-1">
               <div
-                className="h-2.5 w-2.5 rounded-full border-2 bg-white dark:bg-gray-900"
+                className="h-2.5 w-2.5 rounded-full border-2 bg-white dark:bg-zinc-900"
                 style={{ borderColor: colorValue }}
               />
               <div className="mt-1 whitespace-nowrap text-[10px] text-gray-500 dark:text-gray-400">

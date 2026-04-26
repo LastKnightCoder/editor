@@ -35,7 +35,7 @@ const WhiteBoardItem = memo((props: WhiteBoardItemProps) => {
       className={classnames(
         "relative flex flex-col rounded-2xl cursor-pointer transition-all overflow-hidden",
         "h-[340px]", // 固定卡片高度
-        "bg-white dark:bg-gray-800",
+        "bg-white dark:bg-zinc-800",
         "shadow-[0_1.5px_3px_0_rgba(0,0,0,0.15)] hover:shadow-[0_3px_6px_0_rgba(0,0,0,0.15)]",
         {
           "bg-gradient-to-br from-blue-50/50 to-transparent dark:from-blue-900/20":
@@ -58,14 +58,14 @@ const WhiteBoardItem = memo((props: WhiteBoardItemProps) => {
             e.stopPropagation();
             onDelete && onDelete(e);
           }}
-          className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100/90 dark:bg-gray-700/90 text-gray-500 dark:text-gray-400 cursor-pointer transition-all hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-200 z-10"
+          className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100/90 dark:bg-zinc-700/90 text-gray-500 dark:text-gray-400 cursor-pointer transition-all hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-200 z-10"
         >
           <CloseOutlined />
         </div>
       </If>
 
       {/* 封面图 - 固定高度 */}
-      <div className="w-full h-[180px] shrink-0 overflow-hidden bg-gray-50 dark:bg-gray-900">
+      <div className="w-full h-[180px] shrink-0 overflow-hidden bg-gray-50 dark:bg-zinc-900">
         <LocalImage url={snapshot || defaultSnapshot} />
       </div>
 

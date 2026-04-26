@@ -5,6 +5,7 @@ import ResourceUploadSetting from "@/pages/Settings/ResourceUploadSetting";
 import SyncSetting from "@/pages/Settings/SyncSetting";
 import PublishSetting from "@/pages/Settings/PublishSetting";
 import LLMProviderSetting from "@/pages/Settings/LLMProviderSetting";
+import ImageGenerationSetting from "@/pages/Settings/ImageGenerationSetting";
 import EmbeddingProviderSetting from "@/pages/Settings/EmbeddingProviderSetting";
 import TextToSpeechSetting from "@/pages/Settings/TextToSpeechSetting";
 import TranscriptionSetting from "@/pages/Settings/TranscriptionSetting";
@@ -75,6 +76,11 @@ const SettingModal = () => {
       children: <LLMProviderSetting />,
     },
     {
+      key: "imageGeneration",
+      label: "图片生成",
+      children: <ImageGenerationSetting />,
+    },
+    {
       key: "embedding",
       label: "嵌入模型",
       children: <EmbeddingProviderSetting />,
@@ -129,7 +135,7 @@ const SettingModal = () => {
       contentStyle={{ height: "min(75vh, 800px)" }}
       closeOnOverlay={false}
       showCloseButton={false}
-      bodyScrollable={false}
+      bodyClassName="overflow-hidden"
       footer={null}
     >
       <div className="flex h-full min-h-0 flex-col gap-4">
@@ -200,7 +206,7 @@ const SettingModal = () => {
                       "w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
                       isActive
                         ? [themeColors.activeClass]
-                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/50",
+                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-zinc-800/50",
                     )}
                   >
                     {item.label}

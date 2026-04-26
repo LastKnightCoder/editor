@@ -2,19 +2,27 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ImageGallery } from "@tau/shared";
 import { useSlateStatic } from "slate-react";
 import useTheme from "../../../../hooks/useTheme";
-import type { ImageGalleryItem, LastRowMode } from "../../../../types/element/gallery";
+import type {
+  ImageBorderRadiusPreset,
+  ImageGalleryItem,
+  LastRowMode,
+  ImageShadowPreset,
+} from "../../../../types";
 import {
   calculateLayout,
   toImageDimension,
   DEFAULT_CONFIG,
   type ImageDimension,
 } from "./layoutCalculator";
+import { getImageAppearanceStyle } from "../../../image/utils/appearance";
 
 interface IHorizontalImageGalleryProps {
   items: ImageGalleryItem[];
   height?: number;
   margins?: number;
   lastRow?: LastRowMode;
+  borderRadius?: ImageBorderRadiusPreset;
+  shadow?: ImageShadowPreset | boolean;
   onUpdateDimensions?: (items: ImageGalleryItem[]) => void;
 }
 
@@ -24,6 +32,8 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
     height = DEFAULT_CONFIG.rowHeight,
     margins = DEFAULT_CONFIG.margins,
     lastRow = DEFAULT_CONFIG.lastRow,
+    borderRadius = "none",
+    shadow = false,
     onUpdateDimensions,
   } = props;
 
@@ -31,7 +41,9 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
   const [containerWidth, setContainerWidth] = useState(0);
   const [showGallery, setShowGallery] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
-  const [dimensions, setDimensions] = useState<Map<string, ImageDimension>>(new Map());
+  const [dimensions, setDimensions] = useState<Map<string, ImageDimension>>(
+    new Map(),
+  );
 
   const { theme } = useTheme();
   const editor = useSlateStatic();
@@ -161,12 +173,16 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
 
   // 检查是否所有图片都已加载
   const allLoaded = dimensionsArray.every((d) => d.loaded);
+  const itemAppearanceStyle = useMemo(
+    () => getImageAppearanceStyle({ borderRadius, shadow }),
+    [borderRadius, shadow],
+  );
 
   return (
     <div
       ref={containerRef}
       className="relative w-full"
-      style={{ height: layout.totalHeight > 0 ? layout.totalHeight : 'auto' }}
+      style={{ height: layout.totalHeight > 0 ? layout.totalHeight : "auto" }}
     >
       {layout.items.map((item, index) => (
         <div
@@ -177,6 +193,7 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
             height: item.height,
             top: item.top,
             left: item.left,
+            ...itemAppearanceStyle,
           }}
           onClick={() => handleImageClick(index)}
         >
@@ -185,10 +202,10 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
               url={item.url}
               alt={item.desc || ""}
               style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                objectPosition: 'center',
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                objectPosition: "center",
               }}
             />
           ) : (

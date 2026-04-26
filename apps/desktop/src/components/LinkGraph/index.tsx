@@ -235,10 +235,25 @@ interface ILinkGraphProps {
   fitView?: boolean;
   fitViewPadding?: number[];
   onClickCard?: (card: ICard) => void;
+  enableHoverPreview?: boolean;
 }
 
 const defaultFitViewPadding = [40];
 const defaultGetCardLinks = (card: ICard) => card.links;
+
+const scheduleGraphInitialization = (task: () => void) => {
+  let firstFrame = 0;
+  let secondFrame = 0;
+
+  firstFrame = window.requestAnimationFrame(() => {
+    secondFrame = window.requestAnimationFrame(task);
+  });
+
+  return () => {
+    if (firstFrame) window.cancelAnimationFrame(firstFrame);
+    if (secondFrame) window.cancelAnimationFrame(secondFrame);
+  };
+};
 
 const LinkGraph = memo((props: ILinkGraphProps) => {
   const {
@@ -253,6 +268,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     fitView = true,
     fitViewPadding = defaultFitViewPadding,
     onClickCard,
+    enableHoverPreview = true,
   } = props;
   const dynamicExtensions = useDynamicExtensionsStore(
     (state) => state.extensions,
@@ -290,8 +306,43 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     graphNodeCurrentStroke,
   } = useThemeColors();
 
+  const applyThemeToGraph = useMemoizedFn(async () => {
+    if (!graph.current) return;
+
+    graph.current.setNode({
+      type: "circle",
+      style: {
+        fill: isDark ? graphNodeFillDark : graphNodeFill,
+        stroke: isDark ? graphNodeStrokeDark : graphNodeStroke,
+        lineWidth: 6,
+      },
+      state: {
+        selected: {
+          fill: graphNodeSelectedFill,
+          stroke: graphNodeSelectedStroke,
+          lineWidth: 8,
+        },
+        current: {
+          fill: graphNodeCurrentFill,
+          stroke: graphNodeCurrentStroke,
+          lineWidth: 8,
+        },
+      },
+    });
+
+    graph.current.setEdge({
+      type: "line",
+      style: {
+        stroke: isDark ? graphEdgeStrokeDark : graphEdgeStroke,
+        lineWidth: 8,
+      },
+    });
+
+    await graph.current.draw();
+  });
+
   const handleNodeMouseEnter = useMemoizedFn((evt: IElementEvent) => {
-    if (!graph.current || !isAfterLayout) return;
+    if (!graph.current || !isAfterLayout || !enableHoverPreview) return;
 
     const target = evt.target;
     if (!target || !target.id) return;
@@ -351,6 +402,23 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     mouseEnterId.current = null;
   });
 
+  const clearSelectedNodeStates = useMemoizedFn(() => {
+    if (!graph.current) return;
+
+    const allNodes = graph.current.getNodeData();
+    const stateUpdates: Record<string, string[]> = {};
+    allNodes.forEach((node: NodeData) => {
+      const currentStates = graph.current!.getElementState(node.id);
+      stateUpdates[node.id] = currentStates.filter(
+        (s: string) => s !== "selected",
+      );
+    });
+
+    if (Object.keys(stateUpdates).length > 0) {
+      graph.current.setElementState(stateUpdates);
+    }
+  });
+
   const handleNodeClick = useMemoizedFn((evt: IElementEvent) => {
     if (
       !ref.current ||
@@ -363,186 +431,160 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     const target = evt.target;
     if (!target || !target.id) return;
     const id = target.id as string;
+    mouseEnterId.current = null;
+    setShow(false);
+    setActiveId(-1);
+    clearSelectedNodeStates();
+
     if (onClickCard) {
       const card = initCardsRef.current.find((card) => card.id === Number(id));
       if (card) {
         onClickCard(card);
       }
     }
-    if (activeId === Number(id)) {
-      setActiveId(-1);
-      setShow(false);
-      const currentStates = graph.current.getElementState(id);
-      graph.current.setElementState(
-        id,
-        currentStates.filter((s: string) => s !== "selected"),
-      );
-    }
   });
 
   const handleCanvasClick = useMemoizedFn(() => {
     if (!graph.current || !isAfterLayout) return;
-    // 清除所有节点的选中状态
-    const allNodes = graph.current.getNodeData();
-    const stateUpdates: Record<string, string[]> = {};
-    allNodes.forEach((node: NodeData) => {
-      const currentStates = graph.current!.getElementState(node.id);
-      // 只清除 selected 状态，保留 current 状态
-      stateUpdates[node.id] = currentStates.filter(
-        (s: string) => s !== "selected",
-      );
-    });
-    if (Object.keys(stateUpdates).length > 0) {
-      graph.current.setElementState(stateUpdates);
-    }
+    clearSelectedNodeStates();
     setShow(false);
     setActiveId(-1);
   });
 
-  const handleInitialize = useMemoizedFn(
-    (
-      cards: ICard[],
-      isDark: boolean,
-      fitViewPadding: number[],
-      graphNodeFill: string,
-      graphNodeStroke: string,
-      graphEdgeStroke: string,
-      graphNodeFillDark: string,
-      graphNodeStrokeDark: string,
-      graphEdgeStrokeDark: string,
-      graphNodeSelectedFill: string,
-      graphNodeSelectedStroke: string,
-      graphNodeCurrentFill: string,
-      graphNodeCurrentStroke: string,
-    ) => {
-      if (!ref.current) return;
-      setIsAfterLayout(false);
-      const width = ref.current.clientWidth;
-      const height = ref.current.clientHeight;
-      if (graph.current) {
-        graph.current.destroy();
-      }
-      graph.current = new Graph({
-        container: ref.current,
-        width,
-        height,
-        autoFit: fitView ? "view" : undefined,
-        padding: fitViewPadding,
-        animation: false,
-        node: {
-          type: "circle",
-          style: {
+  const handleInitialize = useMemoizedFn((cards: ICard[]) => {
+    if (!ref.current) return;
+    setIsAfterLayout(false);
+    setShow(false);
+    setActiveId(-1);
+    const width = ref.current.clientWidth;
+    const height = ref.current.clientHeight;
+    if (graph.current) {
+      graph.current.destroy();
+    }
+    const nodeIdSet = new Set(cards.map((card) => String(card.id)));
+    const cardLinksMap = new Map<number, number[]>();
+    const cardLinkCountMap = new Map<string, number>();
+
+    cards.forEach((card) => {
+      const links = getCardLinks(card).filter((link) =>
+        nodeIdSet.has(String(link)),
+      );
+      cardLinksMap.set(card.id, links);
+      cardLinkCountMap.set(String(card.id), links.length);
+    });
+
+    graph.current = new Graph({
+      container: ref.current,
+      width,
+      height,
+      autoFit: fitView ? "view" : undefined,
+      padding: fitViewPadding,
+      animation: false,
+      node: {
+        type: "circle",
+        style: {
+          fill: isDark ? graphNodeFillDark : graphNodeFill,
+          stroke: isDark ? graphNodeStrokeDark : graphNodeStroke,
+          lineWidth: 6,
+        },
+        state: {
+          selected: {
+            fill: graphNodeSelectedFill,
+            stroke: graphNodeSelectedStroke,
+            lineWidth: 8,
+          },
+          current: {
             fill: graphNodeCurrentFill,
             stroke: graphNodeCurrentStroke,
-            lineWidth: 6,
-          },
-          state: {
-            selected: {
-              fill: graphNodeSelectedFill,
-              stroke: graphNodeSelectedStroke,
-              lineWidth: 8,
-            },
-            current: {
-              fill: isDark ? graphNodeFillDark : graphNodeFill,
-              stroke: isDark ? graphNodeStrokeDark : graphNodeStroke,
-              lineWidth: 8,
-            },
-          },
-        },
-        edge: {
-          type: "line",
-          style: {
-            stroke: isDark ? graphEdgeStrokeDark : graphEdgeStroke,
             lineWidth: 8,
           },
         },
-        layout: {
-          type: "d3-force",
-          link: {
-            distance: 100,
-            strength: 0.6,
-          },
-          manyBody: {
-            strength: -300, // 增强排斥力，确保节点之间保持距离
-            distanceMax: 650, // 增加排斥力作用距离，影响更远的节点
-          },
-          collide: {
-            radius: (node: NodeData) => {
-              const card = cards.find((c) => String(c.id) === node.id);
-              const size = card
-                ? Math.min(getCardLinks(card).length * 10 + 30, 80)
-                : 30;
-              return size / 2 + 25; // 增加安全边距，防止节点过于接近
-            },
-            strength: 1,
-            iterations: 4, // 增加碰撞检测迭代次数，更好地解决重叠
-          },
-          center: {
-            strength: 0.005, // 降低中心吸引力，让簇更自然地分布
-          },
+      },
+      edge: {
+        type: "line",
+        style: {
+          stroke: isDark ? graphEdgeStrokeDark : graphEdgeStroke,
+          lineWidth: 8,
         },
-        behaviors: ["drag-canvas", "zoom-canvas"],
-      });
-      // 创建节点 ID 集合，用于过滤无效边
-      const nodeIdSet = new Set(cards.map((card) => String(card.id)));
-
-      // 先创建基础节点数据（用于连通分量检测）
-      const basicNodes = cards.map((card) => ({
-        id: String(card.id),
-      }));
-
-      // 过滤掉 target 节点不存在的边
-      const edges = cards
-        .map((card) =>
-          getCardLinks(card)
-            .filter((link) => nodeIdSet.has(String(link)))
-            .map((link) => ({
-              source: String(card.id),
-              target: String(link),
-            })),
-        )
-        .flat();
-
-      // 检测连通分量并分配初始位置
-      const components = findConnectedComponents(basicNodes, edges);
-      const initialPositions = assignInitialPositions(
-        components,
-        width,
-        height,
-      );
-
-      // 为节点添加初始位置
-      const nodes = cards.map((card) => {
-        const nodeId = String(card.id);
-        const pos = initialPositions.get(nodeId);
-        return {
-          id: nodeId,
-          style: {
-            size: Math.min(getCardLinks(card).length * 10 + 30, 80),
-            x: pos?.x,
-            y: pos?.y,
+      },
+      layout: {
+        type: "d3-force",
+        link: {
+          distance: 100,
+          strength: 0.6,
+        },
+        manyBody: {
+          strength: -300, // 增强排斥力，确保节点之间保持距离
+          distanceMax: 650, // 增加排斥力作用距离，影响更远的节点
+        },
+        collide: {
+          radius: (node: NodeData) => {
+            const linkCount = cardLinkCountMap.get(node.id) ?? 0;
+            const size = Math.min(linkCount * 10 + 30, 80);
+            return size / 2 + 25; // 增加安全边距，防止节点过于接近
           },
-        };
-      });
+          strength: 1,
+          iterations: 4, // 增加碰撞检测迭代次数，更好地解决重叠
+        },
+        center: {
+          strength: 0.005, // 降低中心吸引力，让簇更自然地分布
+        },
+      },
+      behaviors: ["drag-canvas", "zoom-canvas"],
+    });
 
-      graph.current.setData({
-        nodes,
-        edges,
-      });
+    // 先创建基础节点数据（用于连通分量检测）
+    const basicNodes = cards.map((card) => ({
+      id: String(card.id),
+    }));
 
-      graph.current.render();
+    const edges = cards
+      .map((card) =>
+        (cardLinksMap.get(card.id) || []).map((link) => ({
+          source: String(card.id),
+          target: String(link),
+        })),
+      )
+      .flat();
 
-      graph.current.once("afterrender", () => {
-        setIsAfterLayout(true);
-      });
+    // 检测连通分量并分配初始位置
+    const components = findConnectedComponents(basicNodes, edges);
+    const initialPositions = assignInitialPositions(components, width, height);
 
-      graph.current.on(NodeEvent.POINTER_ENTER, handleNodeMouseEnter);
-      graph.current.on(NodeEvent.POINTER_LEAVE, handleNodeMouseLeave);
+    // 为节点添加初始位置
+    const nodes = cards.map((card) => {
+      const nodeId = String(card.id);
+      const pos = initialPositions.get(nodeId);
+      return {
+        id: nodeId,
+        style: {
+          size: Math.min(
+            (cardLinksMap.get(card.id)?.length ?? 0) * 10 + 30,
+            80,
+          ),
+          x: pos?.x,
+          y: pos?.y,
+        },
+      };
+    });
 
-      graph.current.on(NodeEvent.CLICK, handleNodeClick);
-      graph.current.on(CanvasEvent.CLICK, handleCanvasClick);
-    },
-  );
+    graph.current.setData({
+      nodes,
+      edges,
+    });
+
+    graph.current.render();
+
+    graph.current.once("afterrender", () => {
+      setIsAfterLayout(true);
+    });
+
+    graph.current.on(NodeEvent.POINTER_ENTER, handleNodeMouseEnter);
+    graph.current.on(NodeEvent.POINTER_LEAVE, handleNodeMouseLeave);
+
+    graph.current.on(NodeEvent.CLICK, handleNodeClick);
+    graph.current.on(CanvasEvent.CLICK, handleCanvasClick);
+  });
 
   const handleCurrentCardIdsChange = useMemoizedFn(
     (currentCardIds: number[] | undefined, isAfterLayout?: boolean) => {
@@ -595,30 +637,26 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   );
 
   useEffect(() => {
-    handleInitialize(
-      initCardsRef.current,
-      isDark,
-      fitViewPadding,
-      graphNodeFill,
-      graphNodeStroke,
-      graphEdgeStroke,
-      graphNodeFillDark,
-      graphNodeStrokeDark,
-      graphEdgeStrokeDark,
-      graphNodeSelectedFill,
-      graphNodeSelectedStroke,
-      graphNodeCurrentFill,
-      graphNodeCurrentStroke,
-    );
+    initCardsRef.current = initCards;
+  }, [initCards]);
+
+  useEffect(() => {
+    const cancelInitialization = scheduleGraphInitialization(() => {
+      handleInitialize(initCards);
+    });
 
     return () => {
+      cancelInitialization();
       if (graph.current) graph.current.destroy();
       graph.current = null;
     };
+  }, [handleInitialize, initCards, fitViewPadding]);
+
+  useEffect(() => {
+    void applyThemeToGraph();
   }, [
-    handleInitialize,
+    applyThemeToGraph,
     isDark,
-    fitViewPadding,
     graphNodeFill,
     graphNodeStroke,
     graphEdgeStroke,
@@ -630,6 +668,14 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     graphNodeCurrentFill,
     graphNodeCurrentStroke,
   ]);
+
+  useEffect(() => {
+    if (enableHoverPreview) return;
+    mouseEnterId.current = null;
+    setShow(false);
+    setActiveId(-1);
+    clearSelectedNodeStates();
+  }, [clearSelectedNodeStates, enableHoverPreview]);
 
   useEffect(() => {
     handleCurrentCardIdsChange(currentCardIds, isAfterLayout);
@@ -712,7 +758,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
       )}
       {show && (
         <div
-          className="absolute rounded-[18px] bg-[rgba(248,250,255,0.9)] dark:bg-[rgba(10,15,28,0.85)] border border-[rgba(255,255,255,0.45)] dark:border-[rgba(255,255,255,0.12)] shadow-[0_18px_45px_rgba(15,23,42,0.25)] dark:shadow-[0_22px_60px_rgba(2,6,23,0.7)] backdrop-blur-[18px] backdrop-saturate-180 text-[rgba(15,23,42,0.95)] dark:text-[rgba(241,245,249,0.95)] animate-fadeIn"
+          className="absolute z-20 pointer-events-auto rounded-[18px] bg-[rgba(248,250,255,0.9)] dark:bg-[rgba(10,15,28,0.85)] border border-[rgba(255,255,255,0.45)] dark:border-[rgba(255,255,255,0.12)] shadow-[0_18px_45px_rgba(15,23,42,0.25)] dark:shadow-[0_22px_60px_rgba(2,6,23,0.7)] backdrop-blur-[18px] backdrop-saturate-180 text-[rgba(15,23,42,0.95)] dark:text-[rgba(241,245,249,0.95)] animate-fadeIn"
           style={{
             left: position.x,
             top: position.y,
@@ -720,6 +766,11 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
             maxHeight: cardMaxHeight,
             fontSize: cardFontSize,
           }}
+          onClickCapture={(e) => e.stopPropagation()}
+          onMouseDownCapture={(e) => e.stopPropagation()}
+          onPointerDownCapture={(e) => e.stopPropagation()}
+          onPointerMoveCapture={(e) => e.stopPropagation()}
+          onWheelCapture={(e) => e.stopPropagation()}
         >
           <div
             className="border-l-20 border-r-8 border-y-20 px-2-5 border-transparent overflow-y-auto w-[420px] max-h-[360px]"

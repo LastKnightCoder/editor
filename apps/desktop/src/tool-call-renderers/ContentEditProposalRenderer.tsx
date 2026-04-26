@@ -162,7 +162,7 @@ const SectionShell = ({
   <div
     className={`rounded-2xl border ${
       isDark
-        ? "border-white/10 bg-slate-950/40"
+        ? "border-white/10 bg-zinc-950/40"
         : "border-slate-200 bg-slate-50/80"
     }`}
   >
@@ -284,6 +284,10 @@ const ContentEditProposalRenderer = ({
         beforeMarkdown,
         afterMarkdown: proposal.proposedMarkdown,
         patches: proposal.patches,
+        options: {
+          collapseUnchanged: true,
+          contextRadius: 1,
+        },
       }).content;
     } catch (error) {
       console.warn("构建审阅 merged 内容失败:", error);
@@ -562,7 +566,7 @@ const ContentEditProposalRenderer = ({
             <div
               className={`max-h-[420px] overflow-y-auto rounded-2xl border p-3 ${
                 isDark
-                  ? "border-white/10 bg-slate-950/70"
+                  ? "border-white/10 bg-zinc-950/70"
                   : "border-slate-200 bg-white"
               }`}
             >
@@ -603,7 +607,7 @@ const ContentEditProposalRenderer = ({
                 rows={4}
                 className={`w-full resize-y rounded-2xl border px-4 py-3 text-sm outline-none transition ${
                   isDark
-                    ? "border-white/10 bg-slate-950/70 text-slate-100 placeholder:text-slate-500 focus:border-sky-400/60"
+                    ? "border-white/10 bg-zinc-950/70 text-slate-100 placeholder:text-slate-500 focus:border-sky-400/60"
                     : "border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:border-sky-500"
                 }`}
               />

@@ -6,6 +6,8 @@ import {
   createReadResourceContentTool,
   createReadResourceRangeTool,
   createReadResourceChapterTool,
+  createReadSearchHitContextTool,
+  createReadResourceChapterRangeTool,
   createListResourceChaptersTool,
   createDeepReadResourceTool,
 } from "@/tools/vibeLearningSearchTool";
@@ -21,6 +23,8 @@ export const useVibeLearningChat = (projectId: number, mainDbName: string) => {
       createReadResourceContentTool(projectId, mainDbName),
       createReadResourceRangeTool(projectId, mainDbName),
       createReadResourceChapterTool(projectId, mainDbName),
+      createReadSearchHitContextTool(projectId, mainDbName),
+      createReadResourceChapterRangeTool(projectId, mainDbName),
       createListResourceChaptersTool(projectId, mainDbName),
       createDeepReadResourceTool(projectId, mainDbName),
     ];

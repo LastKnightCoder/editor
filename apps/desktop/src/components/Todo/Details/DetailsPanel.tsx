@@ -49,7 +49,7 @@ const statusColorMap: Record<HeatmapStatus, string> = {
   completed: "bg-emerald-500",
   missed: "bg-rose-400",
   skipped: "bg-amber-400",
-  upcoming: "bg-slate-300 dark:bg-slate-700",
+  upcoming: "bg-slate-300 dark:bg-zinc-700",
 };
 
 const statusLabelMap: Record<HeatmapStatus, string> = {
@@ -141,7 +141,7 @@ const InfoItem = ({
   label: string;
   value: React.ReactNode;
 }) => (
-  <div className="rounded-lg border border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-slate-800/40 px-3 py-2">
+  <div className="rounded-lg border border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-zinc-800/40 px-3 py-2">
     <div className="text-[11px] text-gray-500 dark:text-slate-400">{label}</div>
     <div className="text-sm text-gray-900 dark:text-gray-50 mt-0.5 break-all">
       {value}
@@ -667,7 +667,7 @@ const DetailsPanel = () => {
           )}
 
           {current.type === "recurring" && (
-            <div className="rounded-xl border border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-slate-900/40 px-4 py-3 flex flex-col gap-3">
+            <div className="rounded-xl border border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-zinc-900/40 px-4 py-3 flex flex-col gap-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex flex-col">
                   <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">

@@ -366,6 +366,10 @@ if (!gotTheLock) {
     // 注销所有全局快捷键
     globalShortcut.unregisterAll();
 
+    if (windowManager) {
+      windowManager.destroySingletonWindows();
+    }
+
     if (trayManager) {
       trayManager.destroyTray();
     }

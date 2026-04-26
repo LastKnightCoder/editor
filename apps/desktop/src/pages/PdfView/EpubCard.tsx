@@ -191,7 +191,7 @@ const EpubCard = (props: EpubCardProps) => {
               <div className="flex gap-2.5 flex-col">
                 {epub.isLocal && (
                   <div
-                    className="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+                    className="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 cursor-pointer"
                     onClick={() => {
                       setSettingOpen(false);
                       onUploadEpub();
@@ -201,7 +201,7 @@ const EpubCard = (props: EpubCardProps) => {
                   </div>
                 )}
                 <div
-                  className="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+                  className="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 cursor-pointer"
                   onClick={onRemoveEpub}
                 >
                   删除EPUB

@@ -21,6 +21,7 @@ export class SettingsProvider extends BaseTabContentProvider<TabType.Settings> {
         { key: "sync", label: "同步" },
         { key: "publish", label: "发布" },
         { key: "llm", label: "大语言模型" },
+        { key: "imageGeneration", label: "图片生成" },
         { key: "embedding", label: "嵌入模型" },
         { key: "textToSpeech", label: "文字转语音" },
         { key: "transcription", label: "语音转录" },

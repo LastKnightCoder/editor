@@ -90,7 +90,7 @@ const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
+      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-zinc-800">
         {/* 头部 */}
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -98,7 +98,7 @@ const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
           </h3>
           <button
             onClick={onClose}
-            className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+            className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-zinc-700 dark:hover:text-gray-300"
           >
             <MdClose className="h-5 w-5" />
           </button>
@@ -117,7 +117,7 @@ const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
               onChange={(e) => setTitle(e.target.value)}
               placeholder="输入日历名称"
               disabled={calendar?.isInSystemGroup}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-blue-400"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-zinc-700 dark:text-gray-100 dark:focus:border-blue-400"
               autoFocus={!calendar?.isInSystemGroup}
             />
             {calendar?.isInSystemGroup && (
@@ -192,7 +192,7 @@ const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-zinc-700 dark:text-gray-300 dark:hover:bg-gray-600"
             >
               取消
             </button>

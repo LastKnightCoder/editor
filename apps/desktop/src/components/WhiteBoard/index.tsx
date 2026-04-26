@@ -15,6 +15,7 @@ import {
   useLocalStorageState,
 } from "ahooks";
 import classnames from "classnames";
+import { App } from "antd";
 
 import Board from "./Board";
 import {
@@ -81,7 +82,7 @@ import ContextMenuLayer, {
   type BuildMenuItemsParams,
 } from "./components/ContextMenuLayer";
 import { ViewPortTransforms } from "./transforms";
-import { PointUtil } from "./utils";
+import { BoardUtil, PathUtil, PointUtil } from "./utils";
 
 import SidebarToggleButton from "@/components/SidebarToggleButton";
 
@@ -96,6 +97,15 @@ import VideoSelectorModal from "./components/VideoSelectorModal";
 import AudioSelectorModal from "./components/AudioSelectorModal";
 import ExportImageModal from "./components/ExportImageModal";
 import ImagePreviewModal from "./components/ImagePreviewModal";
+import EditTitleModal from "@/components/EditTitleModal";
+import InsertNoteToTreeModal from "@/pages/VibeLearningView/AppSidebar/components/InsertNoteToTreeModal";
+import { createContent, updateContent } from "@/commands/content";
+import { buildCardFromContent, getCardByContentId } from "@/commands/card";
+import {
+  buildArticleFromContent,
+  getArticleByContentId,
+} from "@/commands/article";
+import { getContentLength } from "@/utils";
 
 const simplifiedRenderZoomThreshold = 0.3;
 
@@ -114,6 +124,10 @@ interface WhiteBoardProps {
     presentationSequences?: PresentationSequence[];
   }) => void;
   whiteboardContentId?: number;
+  showSidebar?: boolean;
+  showToolbar?: boolean;
+  showAttributeSetter?: boolean;
+  showStatusBar?: boolean;
 }
 
 const DEFAULT_PRESENTATION_SEQUENCES: PresentationSequence[] = [];
@@ -132,6 +146,9 @@ const DEFAULT_SELECTION: Selection = {
 export interface WhiteBoardRef {
   fitAllElements: (padding?: number, animate?: boolean) => void;
   getElements: () => BoardElement[];
+  zoomIn: () => void;
+  zoomOut: () => void;
+  zoomTo: (zoom: number) => void;
 }
 
 const WhiteBoard = memo(
@@ -146,7 +163,14 @@ const WhiteBoard = memo(
       readonly,
       onChange,
       whiteboardContentId,
+      showSidebar = true,
+      showToolbar,
+      showAttributeSetter,
+      showStatusBar = true,
     } = props;
+
+    const toolbarVisible = showToolbar ?? !readonly;
+    const attributeSetterVisible = showAttributeSetter ?? !readonly;
 
     const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
       "whiteboard-sidebar-width",
@@ -258,6 +282,30 @@ const WhiteBoard = memo(
     // 右键菜单触发的弹窗状态
     const [contextMenuModal, setContextMenuModal] =
       useState<ContextMenuModalPayload | null>(null);
+    const [pendingRichTextCreateTarget, setPendingRichTextCreateTarget] =
+      useState<{
+        elementId: string;
+        mode: "project" | "document";
+        contentId: number;
+        title: string;
+      } | null>(null);
+    const [pendingRichTextTitlePrompt, setPendingRichTextTitlePrompt] =
+      useState<{
+        elementId: string;
+        mode: "project" | "document";
+        contentId: number;
+      } | null>(null);
+    const richTextLinkCheckRef = useRef(
+      new Map<
+        string,
+        {
+          contentId: number;
+          cardChecked: boolean;
+          articleChecked: boolean;
+        }
+      >(),
+    );
+    const { message } = App.useApp();
 
     // 监听右键菜单弹窗事件
     useEffect(() => {
@@ -269,6 +317,138 @@ const WhiteBoard = memo(
         board.off("context-menu:open-modal", handleOpenModal);
       };
     }, [board]);
+
+    const ensureRichTextContentId = useMemoizedFn(async (elementId: string) => {
+      const latestElement = BoardUtil.getElementById(board, elementId) as
+        | (BoardElement & {
+            content?: any[];
+            contentId?: number;
+          })
+        | null;
+
+      if (!latestElement || latestElement.type !== "richtext") {
+        throw new Error("未找到富文本元素");
+      }
+
+      if (latestElement.contentId) {
+        return {
+          contentId: latestElement.contentId,
+          content: latestElement.content || [],
+        };
+      }
+
+      const currentContent = latestElement.content || [];
+      const newContentId = await createContent(
+        currentContent,
+        getContentLength(currentContent),
+      );
+      if (!newContentId) {
+        throw new Error("创建共享内容失败");
+      }
+
+      await updateContent(newContentId, currentContent);
+
+      const path = PathUtil.getPathByElement(board, latestElement);
+      if (path) {
+        const newElement = {
+          ...latestElement,
+          contentId: newContentId,
+          content: currentContent,
+        };
+        const ops = BoardUtil.diffNodePatchOnly(
+          latestElement,
+          newElement,
+          path,
+        );
+        if (ops.length > 0) {
+          board.apply(ops);
+        }
+      }
+
+      return {
+        contentId: newContentId,
+        content: currentContent,
+      };
+    });
+
+    useEffect(() => {
+      const handleRichTextCreateAs = async (payload: {
+        elementId: string;
+        mode: "card" | "article" | "project" | "document";
+      }) => {
+        try {
+          const { contentId } = await ensureRichTextContentId(
+            payload.elementId,
+          );
+          const latestElement = BoardUtil.getElementById(
+            board,
+            payload.elementId,
+          ) as
+            | (BoardElement & {
+                linkedCardId?: number;
+                linkedArticleId?: number;
+              })
+            | null;
+          if (payload.mode === "card") {
+            const card = await buildCardFromContent(contentId);
+            if (latestElement) {
+              const path = PathUtil.getPathByElement(board, latestElement);
+              if (path) {
+                const newElement = {
+                  ...latestElement,
+                  linkedCardId: card.id,
+                };
+                const ops = BoardUtil.diffNodePatchOnly(
+                  latestElement,
+                  newElement,
+                  path,
+                );
+                if (ops.length > 0) {
+                  board.apply(ops);
+                }
+              }
+            }
+            message.success("创建卡片成功");
+            return;
+          }
+          if (payload.mode === "article") {
+            const article = await buildArticleFromContent(contentId);
+            if (latestElement) {
+              const path = PathUtil.getPathByElement(board, latestElement);
+              if (path) {
+                const newElement = {
+                  ...latestElement,
+                  linkedArticleId: article.id,
+                };
+                const ops = BoardUtil.diffNodePatchOnly(
+                  latestElement,
+                  newElement,
+                  path,
+                );
+                if (ops.length > 0) {
+                  board.apply(ops);
+                }
+              }
+            }
+            message.success("创建文章成功");
+            return;
+          }
+          setPendingRichTextTitlePrompt({
+            elementId: payload.elementId,
+            mode: payload.mode,
+            contentId,
+          });
+        } catch (error) {
+          console.error("Failed to create content from rich text:", error);
+          message.error("创建失败");
+        }
+      };
+
+      board.on("richtext:create-as", handleRichTextCreateAs);
+      return () => {
+        board.off("richtext:create-as", handleRichTextCreateAs);
+      };
+    }, [board, ensureRichTextContentId, message]);
 
     const buildContextMenuItems = useMemoizedFn(
       ({
@@ -303,6 +483,128 @@ const WhiteBoard = memo(
       board.getSnapshot,
     );
     const { zoom } = viewPort;
+
+    useEffect(() => {
+      const currentElementIds = new Set(children.map((child) => child.id));
+      for (const elementId of richTextLinkCheckRef.current.keys()) {
+        if (!currentElementIds.has(elementId)) {
+          richTextLinkCheckRef.current.delete(elementId);
+        }
+      }
+
+      children.forEach((child) => {
+        if (child.type !== "richtext" || !child.contentId) {
+          return;
+        }
+
+        const cached = richTextLinkCheckRef.current.get(child.id);
+        const record =
+          cached && cached.contentId === child.contentId
+            ? cached
+            : {
+                contentId: child.contentId,
+                cardChecked: false,
+                articleChecked: false,
+              };
+
+        if (record !== cached) {
+          richTextLinkCheckRef.current.set(child.id, record);
+        }
+
+        if (child.linkedCardId) {
+          record.cardChecked = true;
+        }
+        if (child.linkedArticleId) {
+          record.articleChecked = true;
+        }
+
+        if (!child.linkedCardId && !record.cardChecked) {
+          record.cardChecked = true;
+          getCardByContentId(child.contentId)
+            .then((card) => {
+              if (!card) return;
+              const latestElement = BoardUtil.getElementById(
+                board,
+                child.id,
+              ) as
+                | (BoardElement & {
+                    contentId?: number;
+                    linkedCardId?: number;
+                  })
+                | null;
+              if (
+                !latestElement ||
+                latestElement.type !== "richtext" ||
+                latestElement.contentId !== child.contentId ||
+                latestElement.linkedCardId
+              ) {
+                return;
+              }
+
+              const path = PathUtil.getPathByElement(board, latestElement);
+              if (!path) return;
+              const newElement = {
+                ...latestElement,
+                linkedCardId: card.id,
+              };
+              const ops = BoardUtil.diffNodePatchOnly(
+                latestElement,
+                newElement,
+                path,
+              );
+              if (ops.length > 0) {
+                board.apply(ops);
+              }
+            })
+            .catch((error) => {
+              console.error("Failed to hydrate rich text card link:", error);
+            });
+        }
+
+        if (!child.linkedArticleId && !record.articleChecked) {
+          record.articleChecked = true;
+          getArticleByContentId(child.contentId)
+            .then((article) => {
+              if (!article) return;
+              const latestElement = BoardUtil.getElementById(
+                board,
+                child.id,
+              ) as
+                | (BoardElement & {
+                    contentId?: number;
+                    linkedArticleId?: number;
+                  })
+                | null;
+              if (
+                !latestElement ||
+                latestElement.type !== "richtext" ||
+                latestElement.contentId !== child.contentId ||
+                latestElement.linkedArticleId
+              ) {
+                return;
+              }
+
+              const path = PathUtil.getPathByElement(board, latestElement);
+              if (!path) return;
+              const newElement = {
+                ...latestElement,
+                linkedArticleId: article.id,
+              };
+              const ops = BoardUtil.diffNodePatchOnly(
+                latestElement,
+                newElement,
+                path,
+              );
+              if (ops.length > 0) {
+                board.apply(ops);
+              }
+            })
+            .catch((error) => {
+              console.error("Failed to hydrate rich text article link:", error);
+            });
+        }
+      });
+    }, [board, children]);
 
     // 获取演示模式状态（直接从 board.presentationManager 订阅）
     const isPresentationMode = useSyncExternalStore(
@@ -409,8 +711,11 @@ const WhiteBoard = memo(
           ViewPortTransforms.fitAllElements(board, padding, animate);
         },
         getElements: () => board.children,
+        zoomIn: () => handleZoomIn(),
+        zoomOut: () => handleZoomOut(),
+        zoomTo: (zoomValue: number) => handleZoomTo(zoomValue),
       }),
-      [board],
+      [board, handleZoomIn, handleZoomOut, handleZoomTo],
     );
 
     // 事件处理
@@ -461,19 +766,7 @@ const WhiteBoard = memo(
         pointerViewportStore.setPoint(point ?? null);
       },
     );
-    const {
-      run: handlePointerViewportMove,
-      cancel: cancelPointerViewportMove,
-    } = useThrottleFn(
-      (event: React.PointerEvent<HTMLDivElement>) => {
-        setPointerViewport(event);
-      },
-      {
-        wait: 16,
-      },
-    );
     const clearPointerViewport = useMemoizedFn(() => {
-      cancelPointerViewportMove();
       pointerViewportStore.setPoint(null);
     });
 
@@ -486,7 +779,7 @@ const WhiteBoard = memo(
 
     const handleContainerPointerMove = useMemoizedFn(
       (event: React.PointerEvent<HTMLDivElement>) => {
-        handlePointerViewportMove(event);
+        setPointerViewport(event);
         handleOnPointerMove(event);
       },
     );
@@ -530,12 +823,6 @@ const WhiteBoard = memo(
         window.removeEventListener("blur", handleWindowBlur);
       };
     }, [clearPointerViewport]);
-
-    useEffect(() => {
-      return () => {
-        cancelPointerViewportMove();
-      };
-    }, [cancelPointerViewportMove]);
 
     useEffect(() => {
       if (whiteboardContentId != null) {
@@ -707,22 +994,26 @@ const WhiteBoard = memo(
                     value={pointerViewportStore}
                   >
                     <div className="flex h-full relative">
-                      <ResizeableAndHideableSidebar
-                        className="relative shrink-0 h-full flex-none overflow-hidden border-r border-[#f0f0f0] dark:border-[#2a2a2a]"
-                        width={sidebarWidth ?? 300}
-                        onWidthChange={setSidebarWidth}
-                        open={!!sidebarOpen}
-                        onToggle={() => setSidebarOpen(!sidebarOpen)}
-                        sidebarPosition="left"
-                        disableResize={!sidebarOpen}
-                      >
-                        <Sidebar />
-                      </ResizeableAndHideableSidebar>
-                      <SidebarToggleButton.Expand
-                        isHidden={!sidebarOpen}
-                        onToggle={() => setSidebarOpen(!sidebarOpen)}
-                        side="left"
-                      />
+                      {showSidebar && (
+                        <>
+                          <ResizeableAndHideableSidebar
+                            className="relative shrink-0 h-full flex-none overflow-hidden border-r border-[#f0f0f0] dark:border-[#2a2a2a]"
+                            width={sidebarWidth ?? 300}
+                            onWidthChange={setSidebarWidth}
+                            open={!!sidebarOpen}
+                            onToggle={() => setSidebarOpen(!sidebarOpen)}
+                            sidebarPosition="left"
+                            disableResize={!sidebarOpen}
+                          >
+                            <Sidebar />
+                          </ResizeableAndHideableSidebar>
+                          <SidebarToggleButton.Expand
+                            isHidden={!sidebarOpen}
+                            onToggle={() => setSidebarOpen(!sidebarOpen)}
+                            side="left"
+                          />
+                        </>
+                      )}
                       <div
                         ref={containerRef}
                         className={classnames(
@@ -750,7 +1041,7 @@ const WhiteBoard = memo(
                         onDragLeave={handleOnDragLeave}
                       >
                         <div className="relative h-full w-full">
-                          {!readonly && <Toolbar />}
+                          {toolbarVisible && <Toolbar />}
 
                           <BoardContent
                             ref={svgRef}
@@ -769,29 +1060,31 @@ const WhiteBoard = memo(
                           />
 
                           <div className={styles.verticalBar}>
-                            {!readonly && <AttributeSetter />}
+                            {attributeSetterVisible && <AttributeSetter />}
                           </div>
                         </div>
 
                         <PresentationCreator />
                         <PresentationMode />
 
-                        <StatusBar
-                          ref={statusBarRef}
-                          gridVisible={gridVisible}
-                          gridSize={gridSize}
-                          zoom={zoom}
-                          sequences={board.presentationManager.sequences}
-                          onGridVisibleChange={handleGridVisibleChange}
-                          onGridSizeChange={handleGridSizeChange}
-                          onZoomIn={handleZoomIn}
-                          onZoomOut={handleZoomOut}
-                          onZoomTo={handleZoomTo}
-                          onFitElements={handleFitAll}
-                          onStartPresentation={handleStartPresentation}
-                          onEditSequence={handleEditSequence}
-                          onDeleteSequence={handleDeleteSequence}
-                        />
+                        {showStatusBar && (
+                          <StatusBar
+                            ref={statusBarRef}
+                            gridVisible={gridVisible}
+                            gridSize={gridSize}
+                            zoom={zoom}
+                            sequences={board.presentationManager.sequences}
+                            onGridVisibleChange={handleGridVisibleChange}
+                            onGridSizeChange={handleGridSizeChange}
+                            onZoomIn={handleZoomIn}
+                            onZoomOut={handleZoomOut}
+                            onZoomTo={handleZoomTo}
+                            onFitElements={handleFitAll}
+                            onStartPresentation={handleStartPresentation}
+                            onEditSequence={handleEditSequence}
+                            onDeleteSequence={handleDeleteSequence}
+                          />
+                        )}
 
                         <ContextMenuLayer
                           board={board}
@@ -862,6 +1155,52 @@ const WhiteBoard = memo(
                         src={imagePreview.src}
                         alt={imagePreview.alt}
                         onClose={handleCloseImagePreview}
+                      />
+                      <EditTitleModal
+                        open={pendingRichTextTitlePrompt !== null}
+                        onCancel={() => setPendingRichTextTitlePrompt(null)}
+                        onConfirm={({ title }) => {
+                          if (!pendingRichTextTitlePrompt) return;
+                          setPendingRichTextCreateTarget({
+                            ...pendingRichTextTitlePrompt,
+                            title,
+                          });
+                          setPendingRichTextTitlePrompt(null);
+                        }}
+                        initialTitle=""
+                        modalTitle={
+                          pendingRichTextTitlePrompt?.mode === "project"
+                            ? "创建项目文档"
+                            : "创建知识库文档"
+                        }
+                        modalDescription="请输入标题后再选择插入位置"
+                        placeholder="请输入标题"
+                      />
+                      <InsertNoteToTreeModal
+                        mode={pendingRichTextCreateTarget?.mode || "project"}
+                        open={pendingRichTextCreateTarget !== null}
+                        noteTitle={pendingRichTextCreateTarget?.title || ""}
+                        noteContent={
+                          pendingRichTextCreateTarget
+                            ? (
+                                BoardUtil.getElementById(
+                                  board,
+                                  pendingRichTextCreateTarget.elementId,
+                                ) as BoardElement & {
+                                  content?: any[];
+                                }
+                              )?.content || []
+                            : []
+                        }
+                        sourceContentId={
+                          pendingRichTextCreateTarget?.contentId || null
+                        }
+                        insertMode="shared-content"
+                        onCancel={() => setPendingRichTextCreateTarget(null)}
+                        onSuccess={() => {
+                          setPendingRichTextCreateTarget(null);
+                          message.success("创建成功");
+                        }}
                       />
                     </div>
                   </PointerViewportStoreContext.Provider>

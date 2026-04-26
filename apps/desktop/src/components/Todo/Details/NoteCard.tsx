@@ -104,7 +104,7 @@ const NoteCard = memo(
           className={classNames(
             "relative group overflow-visible cursor-pointer flex-none flex items-center gap-2 px-2 py-1 rounded border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all min-w-0",
             {
-              "border-gray-700 bg-gray-800 hover:border-gray-600 hover:bg-gray-700":
+              "border-gray-700 bg-zinc-800 hover:border-gray-600 hover:bg-zinc-700":
                 isDark,
             },
           )}

@@ -34,9 +34,29 @@ export const deleteBackward = (editor: Editor) => {
         return;
       }
 
-      // 如果当前节点没有 CheckList，并且段落是空的，直接删除
+      // 如果当前节点没有子 CheckList，并且段落是空的，按列表层级决定如何退化
       if (isParagraphAndEmpty(editor) && curListItem.children.length === 1) {
-        Transforms.removeNodes(editor, { at: curList[1] });
+        const checkListPath = curListWrapper[1];
+        const onlyItemInCheckList = curListWrapper[0].children.length === 1;
+        const checkListParent = Editor.parent(editor, checkListPath);
+        const isNestedCheckList = checkListParent[0].type === "check-list-item";
+
+        if (onlyItemInCheckList && !isNestedCheckList) {
+          editor.withoutNormalizing(() => {
+            Transforms.removeNodes(editor, { at: checkListPath });
+            Transforms.insertNodes(
+              editor,
+              {
+                type: "paragraph",
+                children: [{ type: "formatted", text: "" }],
+              },
+              { at: checkListPath },
+            );
+            Transforms.select(editor, Editor.start(editor, checkListPath));
+          });
+        } else {
+          Transforms.removeNodes(editor, { at: curList[1] });
+        }
         return;
       }
 

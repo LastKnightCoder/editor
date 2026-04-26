@@ -99,7 +99,7 @@ const ResultItemPreview = ({
     <div
       className={`rounded-xl border p-3 cursor-pointer transition-colors ${
         isDark
-          ? "border-white/10 bg-slate-950/40 hover:bg-slate-950/60"
+          ? "border-white/10 bg-zinc-950/40 hover:bg-zinc-950/60"
           : "border-slate-200 bg-slate-50/60 hover:bg-slate-100/80"
       }`}
       onClick={onClick}

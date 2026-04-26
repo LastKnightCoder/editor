@@ -39,7 +39,11 @@ import {
   decrementResourceRefCount,
 } from "@/commands/resource";
 import { uploadResource } from "@/hooks/useUploadResource";
-import { createContent, updateContent } from "@/commands/content";
+import {
+  createContent,
+  getContentById,
+  updateContent,
+} from "@/commands/content";
 import { buildCardFromContent, isContentIsCard } from "@/commands/card";
 import {
   buildArticleFromContent,
@@ -96,9 +100,52 @@ interface AiStreamNotificationData {
   error?: string;
 }
 
+interface ContentSubscriptionSetParams {
+  subscriberId: string;
+  contentIds: number[];
+}
+
+interface RemoteContentUpdatedNotificationData {
+  contentId: number;
+  updateTime: number;
+  sourceUuid: string;
+}
+
 let aiServer: WebSocketServer | null = null;
 let extToolClient: WebSocketClient | null = null;
 let isInitialized = false;
+let disposeContentRemoteUpdateForwarder: (() => void) | null = null;
+const contentSubscriptionRegistry = new Map<string, Set<number>>();
+
+const setSubscribedContentIds = ({
+  subscriberId,
+  contentIds,
+}: ContentSubscriptionSetParams) => {
+  const normalizedIds = Array.from(
+    new Set(
+      contentIds.filter(
+        (contentId): contentId is number =>
+          Number.isInteger(contentId) && contentId > 0,
+      ),
+    ),
+  );
+
+  if (!normalizedIds.length) {
+    contentSubscriptionRegistry.delete(subscriberId);
+    return;
+  }
+
+  contentSubscriptionRegistry.set(subscriberId, new Set(normalizedIds));
+};
+
+const hasAnySubscriberForContentId = (contentId: number) => {
+  for (const subscribedIds of contentSubscriptionRegistry.values()) {
+    if (subscribedIds.has(contentId)) {
+      return true;
+    }
+  }
+  return false;
+};
 
 const getLLMConfig = (feature: keyof ISetting["llmUsageSettings"] = "chat") => {
   const { llmConfigs, llmUsageSettings } = useSettingStore.getState().setting;
@@ -190,27 +237,27 @@ const handleAiChat = async (
     throw new Error("未配置 LLM，请在设置中配置聊天模型");
   }
 
-  // 准备消息
+  // 准备消息。部分 provider 在 stream + tools 场景下对多条 system message
+  // 兼容性较差，这里统一合并为一条 system message。
   let finalMessages = [...messages];
+  const systemSections: string[] = [];
 
-  // 如果有系统提示，添加到消息列表开头
   if (systemPrompt) {
-    finalMessages = [
-      { role: Role.System, content: systemPrompt },
-      ...finalMessages,
-    ];
+    systemSections.push(systemPrompt);
   }
 
-  // 如果有页面上下文，添加到系统提示中
   if (pageContext) {
-    const contextMessage = {
-      role: Role.System,
-      content: `当前网页信息：
+    systemSections.push(`当前网页信息：
 - URL: ${pageContext.url}
 - 标题: ${pageContext.title}
-${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}...` : ""}`,
-    };
-    finalMessages = [contextMessage, ...finalMessages];
+${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}...` : ""}`);
+  }
+
+  if (systemSections.length > 0) {
+    finalMessages = [
+      { role: Role.System, content: systemSections.join("\n\n") },
+      ...finalMessages,
+    ];
   }
 
   // 记录浏览器工具名称，用于路由
@@ -500,7 +547,10 @@ const handleContentCreate = async (request: RpcRequestMessage) => {
   };
   const count = params.count ?? getContentLength(params.content);
   const contentId = await createContent(params.content, count);
-  return { contentId };
+  return {
+    contentId,
+    content: contentId ? await getContentById(contentId) : null,
+  };
 };
 
 const handleContentUpdate = async (request: RpcRequestMessage) => {
@@ -517,6 +567,18 @@ const handleContentUpdate = async (request: RpcRequestMessage) => {
     });
   }
   return { success: !!result, content: result };
+};
+
+const handleContentGetById = async (request: RpcRequestMessage) => {
+  const params = request.params as unknown as { contentId: number };
+  const content = await getContentById(params.contentId);
+  return { content };
+};
+
+const handleContentSubscriptionSet = async (request: RpcRequestMessage) => {
+  const params = request.params as unknown as ContentSubscriptionSetParams;
+  setSubscribedContentIds(params);
+  return { success: true };
 };
 
 const handleCardBuildFromContent = async (request: RpcRequestMessage) => {
@@ -562,13 +624,17 @@ const handleArticleIsContentIsArticle = async (request: RpcRequestMessage) => {
 const handleNoteShowInsertModal = async (request: RpcRequestMessage) => {
   const params = request.params as unknown as {
     mode: "project" | "document";
-    contentId: number;
+    sourceContentId: number;
+    title?: string;
+    insertMode?: "copy" | "shared-content";
   };
   // 确保桌面端窗口可见并聚焦
   await showAndFocusWindow();
   useExtNoteInsertStore.getState().openModal({
     mode: params.mode,
-    contentId: params.contentId,
+    sourceContentId: params.sourceContentId,
+    title: params.title,
+    insertMode: params.insertMode,
   });
   return { success: true };
 };
@@ -761,6 +827,11 @@ export const initAiServer = () => {
     handleSettingsGetCurrentDatabase,
   );
   aiServer.addRequestHandler("content.create", handleContentCreate);
+  aiServer.addRequestHandler("content.getById", handleContentGetById);
+  aiServer.addRequestHandler(
+    "content.subscription.set",
+    handleContentSubscriptionSet,
+  );
   aiServer.addRequestHandler("content.update", handleContentUpdate);
   aiServer.addRequestHandler(
     "card.buildFromContent",
@@ -795,6 +866,24 @@ export const initAiServer = () => {
     }
   }, 1000);
 
+  disposeContentRemoteUpdateForwarder = defaultContentEventBus.subscribe(
+    "content:updated",
+    (data) => {
+      if (!aiServer) return;
+      if (data.sourceUuid === "browser-extension") return;
+      if (!hasAnySubscriberForContentId(data.content.id)) return;
+
+      aiServer.sendNotification<RemoteContentUpdatedNotificationData>(
+        "content.remoteUpdated",
+        {
+          contentId: data.content.id,
+          updateTime: data.content.updateTime,
+          sourceUuid: data.sourceUuid,
+        },
+      );
+    },
+  );
+
   isInitialized = true;
   console.log("[aiServer] AI 服务端初始化完成");
 };
@@ -803,6 +892,9 @@ export const initAiServer = () => {
  * 关闭 AI 服务端
  */
 export const closeAiServer = () => {
+  disposeContentRemoteUpdateForwarder?.();
+  disposeContentRemoteUpdateForwarder = null;
+  contentSubscriptionRegistry.clear();
   if (aiServer) {
     aiServer.close();
     aiServer = null;

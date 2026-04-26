@@ -11,7 +11,7 @@ const Tooltip = ({ content, children, isDark }: TooltipProps) => {
       <div className="pointer-events-none absolute bottom-full left-1/2 mb-2 hidden -translate-x-1/2 group-hover:block z-50">
         <div
           className={`whitespace-nowrap rounded px-2 py-1 text-xs ${
-            isDark ? "bg-slate-700 text-slate-100" : "bg-slate-900 text-white"
+            isDark ? "bg-zinc-700 text-slate-100" : "bg-zinc-900 text-white"
           }`}
         >
           {content}

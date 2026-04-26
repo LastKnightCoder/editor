@@ -226,7 +226,7 @@ const TagTreeNode = memo<{
           isActive
             ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium"
             : [
-                "hover:bg-gray-50 dark:hover:bg-gray-800/30",
+                "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
                 themeColors.textClass,
               ],
         )}
@@ -310,7 +310,7 @@ const CardList = memo<{
                   "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors h-full",
                   selected
                     ? "bg-blue-50 dark:bg-blue-500/10"
-                    : "hover:bg-gray-50 dark:hover:bg-gray-800/30",
+                    : "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
                 )}
               >
                 <SelectionCheckbox
@@ -345,7 +345,7 @@ const CardList = memo<{
                   onClick={() => onPreview(card)}
                   className={classNames(
                     "flex-shrink-0 p-1.5 rounded-lg transition-colors",
-                    "hover:bg-gray-200 dark:hover:bg-gray-700",
+                    "hover:bg-gray-200 dark:hover:bg-zinc-700",
                     themeColors.secondaryTextClass,
                   )}
                   title="预览"

@@ -130,6 +130,41 @@ function resolvePreviewContent(initData: InitData): Descendant[] {
   return rawContent as Descendant[];
 }
 
+async function resolveDevPreviewData(
+  href: string,
+  fallbackTitle: string,
+): Promise<ContentLinkPreviewData | null> {
+  // @ts-ignore - Vite injects import.meta.env
+  if (!import.meta.env.DEV) {
+    return null;
+  }
+
+  const normalizedHref = href.split("?")[0];
+  const mockModule = await import("@blog/mock/data");
+
+  let initData: InitData | null = null;
+
+  if (normalizedHref.endsWith("/src/templates/card/index.html")) {
+    initData = mockModule.mockCardPageData;
+  } else if (normalizedHref.endsWith("/src/templates/doc/index.html")) {
+    initData = mockModule.mockDocPageData;
+  } else if (normalizedHref.endsWith("/src/templates/article/index.html")) {
+    initData = mockModule.mockArticlePageData;
+  } else if (normalizedHref.endsWith("/src/templates/home/index.html")) {
+    initData = mockModule.mockHomePageData;
+  }
+
+  if (!initData) {
+    return null;
+  }
+
+  return {
+    href,
+    title: resolvePreviewTitle(initData, fallbackTitle),
+    content: resolvePreviewContent(initData),
+  };
+}
+
 export function buildContentLinkTargetKey(
   contentType: string,
   refId: number,
@@ -225,6 +260,14 @@ export function createContentLinkPreviewLoader(
       const html = await response.text();
       const initData = parseInitDataFromHtml(html);
       if (!initData) {
+        const devPreviewData = await resolveDevPreviewData(
+          trimmedHref,
+          fallbackTitle,
+        );
+        if (devPreviewData) {
+          resolvedCache.set(trimmedHref, devPreviewData);
+          return devPreviewData;
+        }
         throw new Error("PREVIEW_PARSE_FAILED");
       }
 

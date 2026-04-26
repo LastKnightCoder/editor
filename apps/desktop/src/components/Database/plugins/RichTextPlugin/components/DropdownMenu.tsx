@@ -33,7 +33,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = memo(
           "w-56 rounded-lg shadow-lg border overflow-hidden",
           {
             "bg-white border-gray-200": !isDark,
-            "bg-gray-800 border-gray-700": isDark,
+            "bg-zinc-800 border-gray-700": isDark,
           },
         )}
       >
@@ -44,7 +44,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = memo(
               "flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors",
               {
                 "hover:bg-gray-50 text-gray-700": !isDark,
-                "hover:bg-gray-700 text-gray-200": isDark,
+                "hover:bg-zinc-700 text-gray-200": isDark,
               },
             )}
             onClick={item.onClick}

@@ -115,6 +115,10 @@ CREATE INDEX IF NOT EXISTS idx_vn_chat_video_note_id
       ON video_note_chats(video_note_id);
 CREATE INDEX IF NOT EXISTS idx_vn_chat_parent_chat_id
       ON video_note_chats(parent_chat_id);
+CREATE INDEX IF NOT EXISTS idx_pdf_chat_pdf_id
+      ON pdf_chats(pdf_id);
+CREATE INDEX IF NOT EXISTS idx_pdf_chat_parent_chat_id
+      ON pdf_chats(parent_chat_id);
 CREATE INDEX IF NOT EXISTS idx_vl_note_project ON vl_note(project_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_set_project ON vl_quiz_set(project_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_item_set ON vl_quiz_item(quiz_set_id);

@@ -8,8 +8,12 @@ import React, {
 } from "react";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
+import { App } from "antd";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { Editor, EditorRef } from "@tau/editor/src";
+import useEditContent from "@/hooks/useEditContent";
+import { createContent, updateContent } from "@/commands/content";
+import { getContentLength } from "@/utils";
 import If from "@/components/If";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ResizeCircle from "../ResizeCircle";
@@ -62,6 +66,11 @@ interface RichTextProps {
     width: number,
     height: number,
   ) => void;
+  onElementChange?: (
+    board: Board,
+    element: RichTextNodeType,
+    patch: Partial<RichTextNodeType>,
+  ) => void;
   removeAutoFocus?: (board: Board, element: RichTextNodeType) => void;
   onResizeStart?: (element: CommonElement & any, startPoint: Point) => void;
   onResizeEnd?: (
@@ -98,6 +107,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
       onResize,
       onContentChange,
       onEditorSizeChange,
+      onElementChange,
       removeAutoFocus,
     } = props;
 
@@ -108,6 +118,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
       height,
       id: elementId,
       content,
+      contentId,
       maxWidth,
       maxHeight,
       resized,
@@ -122,6 +133,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
       resizable = true,
       autoHeight = false,
     } = element;
+    const { message } = App.useApp();
     const dynamicExtensions = useDynamicExtensionsStore(
       (state) => state.extensions,
     );
@@ -130,6 +142,8 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
     const containerRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<EditorRef>(null);
     const [initValue, setInitialState] = useState(content);
+    const latestContentRef = useRef(content);
+    const pendingContentIdPromiseRef = useRef<Promise<number> | null>(null);
     const [focus, setFocus] = useState(false);
     const board = useBoard();
     const isArrowMoving = useArrowMove();
@@ -149,6 +163,22 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
       isCreatingElement;
 
     useInertControl(containerRef, shouldInert);
+
+    const { throttleHandleEditorContentChange } = useEditContent(
+      contentId,
+      (nextContent) => {
+        if (!contentId) return;
+        latestContentRef.current = nextContent;
+        setInitialState(nextContent);
+        onElementChange?.(board, element, { content: nextContent });
+        editorRef.current?.setEditorValue(nextContent);
+      },
+    );
+
+    useEffect(() => {
+      latestContentRef.current = content;
+      setInitialState(content);
+    }, [content]);
 
     // 判断是否使用简化渲染
     const useSimplifiedRender = useMemo(() => {
@@ -186,6 +216,39 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
       };
     }, [height, paddingHeight, useSimplifiedRender]);
 
+    const ensureContentId = useMemoizedFn(async () => {
+      if (contentId) return contentId;
+      if (pendingContentIdPromiseRef.current) {
+        return pendingContentIdPromiseRef.current;
+      }
+
+      const pendingPromise = (async () => {
+        const currentContent = latestContentRef.current;
+        const newContentId = await createContent(
+          currentContent,
+          getContentLength(currentContent),
+        );
+
+        if (!newContentId) {
+          throw new Error("创建内容失败");
+        }
+
+        await updateContent(newContentId, latestContentRef.current);
+        onElementChange?.(board, element, {
+          contentId: newContentId,
+          content: latestContentRef.current,
+        });
+        return newContentId;
+      })();
+
+      pendingContentIdPromiseRef.current = pendingPromise;
+      try {
+        return await pendingPromise;
+      } finally {
+        pendingContentIdPromiseRef.current = null;
+      }
+    });
+
     useImperativeHandle(ref, () => ({
       setEditorValue: (value: Descendant[]) => {
         editorRef.current?.setEditorValue(value);
@@ -213,6 +276,10 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
     const handleFocus = useMemoizedFn(() => {
       if (readonly) return;
       setFocus(true);
+      void ensureContentId().catch((error) => {
+        console.error("Failed to ensure content id for rich text:", error);
+        message.error("初始化富文本内容失败");
+      });
       board.isEditingElements = [
         ...board.isEditingElements.filter((eid) => eid !== elementId),
         elementId,
@@ -234,8 +301,12 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
     });
 
     const handleOnContentChange = useMemoizedFn((value: Descendant[]) => {
+      latestContentRef.current = value;
       onContentChange(board, element, value);
       setInitialState(value);
+      if (contentId) {
+        throttleHandleEditorContentChange(value);
+      }
     });
 
     const handleOnEditorSizeChange = useMemoizedFn(
@@ -325,7 +396,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
 
       if (!container) return;
 
-      const editor = container.querySelector(":scope > [data-slate-editor]");
+      const editor = container.querySelector("[data-slate-editor]");
       if (!editor) return;
 
       const stopWheelPropagation = (e: WheelEvent) => {

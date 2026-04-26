@@ -1,5 +1,4 @@
 import React from "react";
-import useThemeColors from "@/hooks/useThemeColors";
 
 interface SettingSwitchProps {
   checked: boolean;
@@ -16,8 +15,6 @@ const SettingSwitch: React.FC<SettingSwitchProps> = ({
   description,
   disabled = false,
 }) => {
-  const themeColors = useThemeColors();
-
   return (
     <div
       className={`flex items-center justify-between gap-4 py-3 ${disabled ? "opacity-60" : ""}`}
@@ -42,16 +39,15 @@ const SettingSwitch: React.FC<SettingSwitchProps> = ({
         aria-checked={checked}
         disabled={disabled}
         onClick={() => !disabled && onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full
-          border-2 border-transparent transition-colors duration-200 ease-in-out
-          focus:outline-none ${themeColors.focusRingClass}
-          dark:focus:ring-offset-slate-900
+        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full p-0.5
+          transition-colors duration-200 ease-in-out
+          focus:outline-none focus:ring-2 focus:ring-zinc-400/30 dark:focus:ring-zinc-200/25
           disabled:cursor-not-allowed
-          ${checked ? themeColors.buttonBg : "bg-gray-200 dark:bg-slate-700"}`}
+          ${checked ? "bg-zinc-900 dark:bg-zinc-200" : "bg-gray-200 dark:bg-zinc-700"}`}
       >
         <span
           className={`pointer-events-none inline-block h-5 w-5 transform rounded-full
-            bg-white shadow ring-0 transition duration-200 ease-in-out
+            bg-white shadow-[0_2px_8px_rgba(0,0,0,0.18)] ring-1 ring-black/5 transition duration-200 ease-in-out
             ${checked ? "translate-x-5" : "translate-x-0"}`}
         />
       </button>

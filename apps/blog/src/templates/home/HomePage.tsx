@@ -1,143 +1,18 @@
 import { memo } from "react";
-import classNames from "classnames";
 import { Header } from "@blog/components/Layout";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
-import { getInitData, formatDate, joinPath } from "@blog/utils";
-import { HomeData, TimelineItem } from "@blog/types";
-// 导入主项目的主题样式
+import { getInitData, formatDate, joinPath, truncate } from "@blog/utils";
+import { HomeData } from "@blog/types";
 import "@tau/themes/light.less";
 import "@tau/themes/dark.less";
 
-// 类型图标映射
-const TypeIcon = ({ type }: { type: TimelineItem["type"] }) => {
-  const icons = {
-    card: (
-      <svg
-        className="h-3.5 w-3.5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"
-        />
-      </svg>
-    ),
-    article: (
-      <svg
-        className="h-3.5 w-3.5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
-        />
-      </svg>
-    ),
-    doc: (
-      <svg
-        className="h-3.5 w-3.5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-        />
-      </svg>
-    ),
-  };
-  return icons[type];
-};
-
-// 类型标签样式
-const typeStyles = {
-  card: "type-badge--card",
-  article: "type-badge--article",
-  doc: "type-badge--doc",
-};
-
-const typeLabels = {
+const typeLabels: Record<string, string> = {
   card: "卡片",
   article: "文章",
   doc: "文档",
 };
 
-// 时间线卡片组件
-const TimelineCard = memo(
-  ({
-    item,
-    basePath,
-    index,
-  }: {
-    item: TimelineItem;
-    basePath: string;
-    index: number;
-  }) => {
-    return (
-      <a
-        href={joinPath(basePath, item.href)}
-        className={classNames(
-          "timeline-card group fade-in-up",
-          `stagger-${Math.min(index + 1, 6)}`,
-        )}
-      >
-        {/* 类型标签 */}
-        <div className="mb-4 flex items-center justify-between">
-          <span className={classNames("type-badge", typeStyles[item.type])}>
-            <TypeIcon type={item.type} />
-            <span>{typeLabels[item.type]}</span>
-          </span>
-          <span className="text-xs text-[var(--color-text-quaternary)]">
-            {formatDate(item.publishTime, "relative")}
-          </span>
-        </div>
-
-        {/* 标题 */}
-        {item.title && (
-          <h3 className="mb-3 text-lg font-semibold leading-snug text-[var(--color-text-primary)] transition-colors group-hover:text-[var(--color-primary)]">
-            {item.title}
-          </h3>
-        )}
-
-        {/* 摘要 */}
-        <p className="line-clamp-3 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-          {item.summary}
-        </p>
-
-        {/* 底部指示器 */}
-        <div className="mt-4 flex items-center gap-2 text-xs font-medium text-[var(--color-primary)] opacity-0 transition-opacity group-hover:opacity-100">
-          <span>阅读全文</span>
-          <svg
-            className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M17 8l4 4m0 0l-4 4m4-4H3"
-            />
-          </svg>
-        </div>
-      </a>
-    );
-  },
-);
-
-TimelineCard.displayName = "TimelineCard";
+const HOME_RECENT_ITEM_MAX_LENGTH = 24;
 
 const HomePage = memo(() => {
   const initData = getInitData();
@@ -146,19 +21,16 @@ const HomePage = memo(() => {
   const docCollections = initData.docCollections || [];
 
   const docStats = content.docStats || { projects: 0, documents: 0 };
+  const articleCount =
+    content.stats?.articles ??
+    content.timeline.filter((i) => i.type === "article").length;
+  const cardCount =
+    content.stats?.cards ??
+    content.timeline.filter((i) => i.type === "card").length;
+
   const stats = [
-    {
-      label: "文章",
-      value:
-        content.stats?.articles ??
-        content.timeline.filter((i) => i.type === "article").length,
-    },
-    {
-      label: "卡片",
-      value:
-        content.stats?.cards ??
-        content.timeline.filter((i) => i.type === "card").length,
-    },
+    { label: "文章", value: articleCount },
+    { label: "卡片", value: cardCount },
     { label: "项目", value: docStats.projects },
     { label: "知识库", value: docStats.documents },
   ];
@@ -179,9 +51,17 @@ const HomePage = memo(() => {
         variant="mobile"
       />
     ) : undefined;
+  const docEntryLinks = docCollections
+    .filter((collection) => collection.items && collection.items.length > 0)
+    .map((collection) => ({
+      label: collection.label,
+      href: collection.items[0].href,
+    }));
+
+  const recentItems = content.timeline.slice(0, 5);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex h-[100dvh] flex-col overflow-y-auto lg:overflow-hidden">
       <Header
         title={site.title}
         basePath={site.basePath}
@@ -190,106 +70,110 @@ const HomePage = memo(() => {
         mobileCustomNav={mobileDocNav}
       />
 
-      <main className="flex-1">
-        {/* Hero 区域 */}
-        {content.hero && (
-          <section className="hero-section py-16 sm:py-20">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-              <div className="flex flex-col gap-10 lg:flex-row lg:items-center lg:justify-between">
-                {/* 左侧内容 */}
-                <div className="max-w-2xl space-y-6">
-                  {/* 装饰标签 */}
-                  <div className="fade-in-up stagger-1">
-                    <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary-subtle)] px-4 py-1.5 text-sm font-medium text-[var(--color-primary)]">
-                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-primary)]" />
-                      数字花园 · 知识库
+      <main className="flex flex-1 items-center px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex w-full max-w-[var(--content-max-width)] flex-col gap-12 py-10 lg:flex-row lg:items-center lg:gap-20 lg:py-0">
+          {/* 左栏：Hero + 统计 + 导航 */}
+          {content.hero && (
+            <div className="shrink-0 lg:w-[46%]">
+              <p className="fade-in-up stagger-1 mb-4 text-xs font-semibold tracking-[0.18em] text-[var(--color-text-tertiary)] uppercase">
+                Welcome to my digital garden
+              </p>
+
+              <h1 className="fade-in-up stagger-2 text-4xl font-bold leading-[1.08] tracking-tight text-[var(--color-text-primary)] sm:text-5xl lg:text-[3.25rem]">
+                {content.hero.title}
+              </h1>
+
+              <p className="fade-in-up stagger-3 mt-5 text-base leading-[1.8] text-[var(--color-text-secondary)]">
+                {content.hero.description}
+              </p>
+
+              {/* 统计行 */}
+              <div className="fade-in-up stagger-4 mt-8 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--color-text-tertiary)]">
+                {stats.map((stat, i) => (
+                  <span key={stat.label} className="flex items-center gap-x-4">
+                    <span>
+                      <span className="font-semibold tabular-nums text-[var(--color-text-primary)]">
+                        {stat.value}
+                      </span>{" "}
+                      {stat.label}
                     </span>
-                  </div>
-
-                  {/* 主标题 */}
-                  <h1 className="fade-in-up stagger-2 text-4xl font-bold leading-tight text-[var(--color-text-primary)] sm:text-5xl">
-                    {content.hero.title}
-                  </h1>
-
-                  {/* 描述 */}
-                  <p className="fade-in-up stagger-3 text-lg leading-relaxed text-[var(--color-text-secondary)]">
-                    {content.hero.description}
-                  </p>
-                </div>
-
-                {/* 右侧统计 - 简洁的分隔线设计 */}
-                <div
-                  className="fade-in-up flex items-center gap-8 lg:gap-10"
-                  style={{ animationDelay: "0.4s" }}
-                >
-                  {stats.map((stat, index) => (
-                    <div
-                      key={stat.label}
-                      className="flex items-center gap-8 lg:gap-10"
-                    >
-                      {index > 0 && (
-                        <div className="h-10 w-px bg-[var(--color-border-primary)]" />
-                      )}
-                      <div className="text-center">
-                        <span className="block text-2xl font-semibold text-[var(--color-text-primary)]">
-                          {stat.value}
-                        </span>
-                        <span className="text-sm text-[var(--color-text-tertiary)]">
-                          {stat.label}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* 内容区域 */}
-        <section className="py-16">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            {/* 区域标题 */}
-            <div className="mb-10 flex items-center gap-4">
-              <h2 className="text-2xl font-semibold text-[var(--color-text-primary)]">
-                最新内容
-              </h2>
-              <div className="h-px flex-1 bg-gradient-to-r from-[var(--color-border-primary)] to-transparent" />
-            </div>
-
-            {/* 内容网格 */}
-            {content.timeline.length > 0 ? (
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {content.timeline.map((item, index) => (
-                  <TimelineCard
-                    key={`${item.type}-${item.id}`}
-                    item={item}
-                    basePath={site.basePath}
-                    index={index}
-                  />
+                    {i < stats.length - 1 && (
+                      <span className="text-[var(--color-text-quaternary)]">
+                        ·
+                      </span>
+                    )}
+                  </span>
                 ))}
               </div>
-            ) : (
-              <div className="empty-state">
-                <svg
-                  className="mb-4 h-12 w-12 text-[var(--color-text-quaternary)]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
+
+              {/* 导航入口 */}
+              <div className="fade-in-up stagger-5 mt-5 flex flex-wrap gap-2.5">
+                <a
+                  href={joinPath(site.basePath, "/articles")}
+                  className="nav-entry nav-entry-ghost"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
-                  />
-                </svg>
-                <p className="text-base font-medium">暂无内容</p>
-                <p className="mt-1 text-sm">开始创作你的第一篇内容吧</p>
+                  文章
+                </a>
+                <a
+                  href={joinPath(site.basePath, "/cards")}
+                  className="nav-entry nav-entry-ghost"
+                >
+                  卡片
+                </a>
+                {docEntryLinks.length > 0
+                  ? docEntryLinks.map((entry) => (
+                      <a
+                        key={entry.label}
+                        href={joinPath(site.basePath, entry.href)}
+                        className="nav-entry nav-entry-ghost"
+                      >
+                        {entry.label}
+                      </a>
+                    ))
+                  : null}
+                {docCollections.length === 0 && (
+                  <a
+                    href={joinPath(site.basePath, "/docs")}
+                    className="nav-entry nav-entry-ghost"
+                  >
+                    文档
+                  </a>
+                )}
               </div>
-            )}
-          </div>
-        </section>
+            </div>
+          )}
+
+          {/* 右栏：最近动态列表 */}
+          {recentItems.length > 0 && (
+            <div className="flex-1">
+              <p className="fade-in-up stagger-2 mb-4 text-xs font-semibold tracking-[0.18em] text-[var(--color-text-tertiary)] uppercase">
+                最近更新
+              </p>
+              <div className="space-y-px">
+                {recentItems.map((item, i) => (
+                  <a
+                    key={`${item.type}-${item.id}`}
+                    href={joinPath(site.basePath, item.href)}
+                    className={`group grid grid-cols-[3rem_minmax(0,1fr)_5.5rem] items-center gap-4 rounded-lg px-4 py-3.5 transition-colors hover:bg-[var(--color-bg-canvas)] fade-in-up stagger-${Math.min(i + 3, 6)}`}
+                  >
+                    <span className="w-12 text-[0.6875rem] font-medium uppercase tracking-wider text-[var(--color-text-quaternary)]">
+                      {typeLabels[item.type]}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--color-text-primary)] transition-opacity group-hover:opacity-70">
+                      {truncate(
+                        item.title || item.summary,
+                        HOME_RECENT_ITEM_MAX_LENGTH,
+                      )}
+                    </span>
+                    <span className="w-[5.5rem] text-right text-xs tabular-nums text-[var(--color-text-tertiary)]">
+                      {formatDate(item.publishTime, "short")}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );

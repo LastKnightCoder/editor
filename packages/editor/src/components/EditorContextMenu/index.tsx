@@ -169,28 +169,29 @@ const EditorContextMenu = memo(
       onClose();
     };
 
-    const handleItemWrapperEnter = (key: string, hasChildren: boolean) => {
-      if (hasChildren) {
-        // 保留当前路径上的所有祖先键，添加新的键
-        setOpenKeys((prev) => {
-          // 如果已经包含，不需要重复添加
-          if (prev.includes(key)) return prev;
-          // 添加新的键到路径中
-          return [...prev, key];
-        });
-      }
+    const handleItemWrapperEnter = (
+      key: string,
+      hasChildren: boolean,
+      level: number,
+    ) => {
+      setOpenKeys((prev) => {
+        const nextPath = prev.slice(0, level);
+        if (hasChildren) {
+          nextPath[level] = key;
+        }
+        return nextPath;
+      });
     };
 
-    const handleItemWrapperLeave = (key: string, hasChildren: boolean) => {
-      if (hasChildren && openKeys.includes(key)) {
-        // 移除当前键及其所有后代键
-        setOpenKeys((prev) => {
-          const keyIndex = prev.indexOf(key);
-          if (keyIndex === -1) return prev;
-          // 只保留此键之前的祖先键
-          return prev.slice(0, keyIndex);
-        });
+    const handleItemWrapperLeave = (
+      key: string,
+      hasChildren: boolean,
+      level: number,
+    ) => {
+      if (!hasChildren || openKeys[level] !== key) {
+        return;
       }
+      setOpenKeys((prev) => prev.slice(0, level));
     };
 
     const renderMenu = (items: ContextMenuItem[], level = 0) => (
@@ -200,7 +201,7 @@ const EditorContextMenu = memo(
 
           const hasChildren =
             Array.isArray(item.children) && item.children.length > 0;
-          const isOpen = openKeys.includes(item.key);
+          const isOpen = openKeys[level] === item.key;
 
           const itemClass = classnames(styles.menuItem, {
             [styles.menuItemDanger]: item.danger,
@@ -211,8 +212,12 @@ const EditorContextMenu = memo(
             <div
               key={item.key}
               className={styles.menuItemWrapper}
-              onMouseEnter={() => handleItemWrapperEnter(item.key, hasChildren)}
-              onMouseLeave={() => handleItemWrapperLeave(item.key, hasChildren)}
+              onMouseEnter={() =>
+                handleItemWrapperEnter(item.key, hasChildren, level)
+              }
+              onMouseLeave={() =>
+                handleItemWrapperLeave(item.key, hasChildren, level)
+              }
             >
               <button
                 type="button"
@@ -249,7 +254,9 @@ const EditorContextMenu = memo(
                     data-submenu
                     data-submenu-key={item.key}
                   >
-                    {renderMenu(item.children!, level + 1)}
+                    <div className={styles.subMenuContent}>
+                      {renderMenu(item.children!, level + 1)}
+                    </div>
                   </div>
                 </>
               )}
@@ -262,6 +269,10 @@ const EditorContextMenu = memo(
     const stopAll = (event: React.SyntheticEvent) => {
       event.stopPropagation();
       event.preventDefault();
+    };
+
+    const stopPropagationOnly = (event: React.SyntheticEvent) => {
+      event.stopPropagation();
     };
 
     if (readonly) {
@@ -281,7 +292,7 @@ const EditorContextMenu = memo(
         onClick={stopAll}
         onDoubleClick={stopAll}
         onContextMenu={stopAll}
-        onWheel={stopAll}
+        onWheel={stopPropagationOnly}
       >
         {items.length > 0 ? (
           renderMenu(items)

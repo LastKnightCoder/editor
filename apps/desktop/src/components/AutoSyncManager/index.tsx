@@ -83,7 +83,7 @@ const ProgressModal = ({
             {Math.round(progress)}%
           </span>
         </div>
-        <div className="h-2 rounded-full bg-white/30 dark:bg-slate-800/70 overflow-hidden">
+        <div className="h-2 rounded-full bg-white/30 dark:bg-zinc-800/70 overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-300 ease-out shadow-lg"
             style={{
@@ -301,6 +301,7 @@ const AutoSyncManager = () => {
       let success = false;
       try {
         success = await download({
+          skipReconnectAfterSuccess: true,
           onProgress: ({ value, status }) => {
             if (canceled) return;
             setDownloadState({

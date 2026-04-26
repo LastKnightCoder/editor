@@ -43,8 +43,11 @@ export class WindowManager {
   private mainWindows = new Set<BrowserWindow>();
   // 沉浸窗口实例（单例，复用）
   private pomodoroImmersiveWindow: BrowserWindow | null = null;
+  // 番茄小窗实例（单例，复用）
+  private pomodoroMiniWindow: BrowserWindow | null = null;
   // 背景音播放窗口（隐藏的单例窗口）
   private backgroundAudioWindow: BrowserWindow | null = null;
+  private isAppQuitting = false;
 
   constructor(
     viteDevServerUrl: string,
@@ -71,6 +74,9 @@ export class WindowManager {
 
     // 提前创建沉浸窗口（隐藏状态）
     this.initPomodoroImmersiveWindow();
+
+    // 提前创建番茄小窗（隐藏状态）
+    this.initPomodoroMiniWindow();
 
     // 创建背景音播放窗口（隐藏状态）
     this.initBackgroundAudioWindow();
@@ -188,7 +194,7 @@ export class WindowManager {
     });
 
     ipcMain.handle("open-pomodoro-mini-window", () => {
-      this.createPomodoroMiniWindow();
+      this.showPomodoroMiniWindow();
     });
 
     ipcMain.handle("open-pomodoro-immersive-window", () => {
@@ -197,6 +203,10 @@ export class WindowManager {
 
     ipcMain.handle("hide-pomodoro-immersive-window", () => {
       this.hidePomodoroImmersiveWindow();
+    });
+
+    ipcMain.handle("hide-pomodoro-mini-window", () => {
+      this.hidePomodoroMiniWindow();
     });
 
     // 窗口控制命令
@@ -250,6 +260,15 @@ export class WindowManager {
         this.pomodoroImmersiveWindow &&
         win === this.pomodoroImmersiveWindow &&
         !this.pomodoroImmersiveWindow.isVisible()
+      ) {
+        return false;
+      }
+
+      // 排除隐藏的番茄小窗
+      if (
+        this.pomodoroMiniWindow &&
+        win === this.pomodoroMiniWindow &&
+        !this.pomodoroMiniWindow.isVisible()
       ) {
         return false;
       }
@@ -518,7 +537,10 @@ export class WindowManager {
     return win;
   }
 
-  public createPomodoroMiniWindow() {
+  // 初始化番茄小窗（仅在构造函数中调用一次）
+  private initPomodoroMiniWindow() {
+    log.info("初始化番茄小窗（隐藏状态）");
+
     const baseConfig = this.createBaseWindowConfig();
     baseConfig.width = 240;
     baseConfig.height = 100;
@@ -526,15 +548,50 @@ export class WindowManager {
     baseConfig.frame = false;
     baseConfig.resizable = false;
     baseConfig.movable = true;
+    baseConfig.show = false;
     const win = new BrowserWindow(baseConfig);
-    this.setupWindowEvents(win);
+    this.setupWindowEvents(win, false);
+
+    win.on("close", (event) => {
+      if (!this.isAppQuitting) {
+        event.preventDefault();
+        win.hide();
+      }
+    });
+
     if (VITE_DEV_SERVER_URL) {
       win.loadURL(`${VITE_DEV_SERVER_URL}#/pomodoro/mini`);
     } else {
       win.loadFile(indexHtml, { hash: `/pomodoro/mini` });
     }
     win.setAlwaysOnTop(true);
-    return win;
+
+    win.on("closed", () => {
+      log.debug("番茄小窗被销毁");
+      this.pomodoroMiniWindow = null;
+    });
+
+    this.pomodoroMiniWindow = win;
+  }
+
+  public showPomodoroMiniWindow() {
+    if (!this.pomodoroMiniWindow || this.pomodoroMiniWindow.isDestroyed()) {
+      log.warn("番茄小窗不存在，重新初始化");
+      this.initPomodoroMiniWindow();
+    }
+
+    if (this.pomodoroMiniWindow) {
+      this.pomodoroMiniWindow.show();
+      this.pomodoroMiniWindow.focus();
+    }
+
+    return this.pomodoroMiniWindow;
+  }
+
+  public hidePomodoroMiniWindow() {
+    if (this.pomodoroMiniWindow && !this.pomodoroMiniWindow.isDestroyed()) {
+      this.pomodoroMiniWindow.hide();
+    }
   }
 
   // 初始化沉浸窗口（仅在构造函数中调用一次）
@@ -670,6 +727,22 @@ export class WindowManager {
 
       this.pomodoroImmersiveWindow.hide();
     }
+  }
+
+  public destroySingletonWindows() {
+    this.isAppQuitting = true;
+
+    const singletonWindows = [
+      this.pomodoroMiniWindow,
+      this.pomodoroImmersiveWindow,
+      this.backgroundAudioWindow,
+    ];
+
+    singletonWindows.forEach((win) => {
+      if (win && !win.isDestroyed()) {
+        win.destroy();
+      }
+    });
   }
 
   public createTodoWindow() {

@@ -20,6 +20,7 @@ import {
   SelectTransforms,
   ViewPortTransforms,
 } from "@/components/WhiteBoard/transforms";
+import { incrementContentRefCount } from "@/commands/content";
 import { v4 as getUuid } from "uuid";
 import React from "react";
 import {
@@ -30,8 +31,8 @@ import {
   VerticalAlignBottomOutlined,
   VerticalAlignTopOutlined,
 } from "@ant-design/icons";
+import { importFromMarkdown, isMarkdownLikeText } from "@tau/editor/src";
 import { Descendant } from "slate";
-import { importFromMarkdown } from "@/utils/markdown";
 
 export class CopyPastePlugin implements IBoardPlugin {
   name = "copy-paste";
@@ -90,6 +91,36 @@ export class CopyPastePlugin implements IBoardPlugin {
     const filteredElements = elements.filter((el) => !allChildIds.has(el.id));
 
     return filteredElements;
+  }
+
+  private collectReferencedContentIds(
+    elements: BoardElement[],
+  ): Map<number, number> {
+    const counts = new Map<number, number>();
+
+    const visit = (element: BoardElement) => {
+      const contentId = (element as { contentId?: unknown }).contentId;
+      if (typeof contentId === "number" && contentId > 0) {
+        counts.set(contentId, (counts.get(contentId) || 0) + 1);
+      }
+      if (Array.isArray(element.children)) {
+        element.children.forEach(visit);
+      }
+    };
+
+    elements.forEach(visit);
+    return counts;
+  }
+
+  private syncPastedContentRefs(elements: BoardElement[]) {
+    const counts = this.collectReferencedContentIds(elements);
+    counts.forEach((count, contentId) => {
+      for (let index = 0; index < count; index += 1) {
+        void incrementContentRefCount(contentId).catch((error) => {
+          console.error("Failed to increment pasted content ref count:", error);
+        });
+      }
+    });
   }
 
   getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
@@ -358,6 +389,7 @@ export class CopyPastePlugin implements IBoardPlugin {
     });
 
     board.apply(ops);
+    this.syncPastedContentRefs(elements);
     ViewPortTransforms.centerElementsIfNotInViewPort(board, elements);
 
     e.preventDefault();
@@ -373,7 +405,7 @@ export class CopyPastePlugin implements IBoardPlugin {
     const text = e.clipboardData?.getData("text/plain");
     if (!text || text.trim().length === 0) return false;
 
-    const content = this.isMarkdownLikeText(text)
+    const content = isMarkdownLikeText(text)
       ? importFromMarkdown(text)
       : this.buildPlainTextContent(text);
 
@@ -459,27 +491,6 @@ export class CopyPastePlugin implements IBoardPlugin {
       element.closest("input") ||
       element.closest("textarea"),
     );
-  }
-
-  private isMarkdownLikeText(text: string): boolean {
-    const markdownPatterns = [
-      /^\s{0,3}#{1,6}\s+/m,
-      /^\s*[-*+]\s+/m,
-      /^\s*\d+\.\s+/m,
-      /^\s*>\s+/m,
-      /(^|\n)\s*(```|~~~)/,
-      /!\[[^\]]*\]\([^)]+\)/,
-      /\[[^\]]+\]\([^)]+\)/,
-    ];
-    if (markdownPatterns.some((pattern) => pattern.test(text))) {
-      return true;
-    }
-
-    const hasTableRow = /^\s*\|.*\|\s*$/m.test(text);
-    const hasTableDivider =
-      /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/m.test(text);
-
-    return hasTableRow && hasTableDivider;
   }
 
   private buildPlainTextContent(text: string): Descendant[] {

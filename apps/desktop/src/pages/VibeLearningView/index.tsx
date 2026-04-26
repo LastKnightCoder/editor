@@ -157,6 +157,7 @@ const VibeLearningViewContent = memo(() => {
           ref={appSidebarRef}
           projectId={projectId}
           mainDbName={mainDbName}
+          onResourcesChange={refreshResources}
         />
       </ResizeableAndHideableSidebar>
       <SidebarToggleButton.Expand

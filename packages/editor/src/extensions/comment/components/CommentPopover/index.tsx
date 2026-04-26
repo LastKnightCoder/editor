@@ -144,7 +144,7 @@ const CommentPopover: React.FC<CommentPopoverProps> = ({
           fixed z-[9999]
           w-[380px] max-h-[500px]
           rounded-2xl
-          bg-white dark:bg-slate-900/95
+          bg-white dark:bg-zinc-900/95
           border border-gray-200 dark:border-slate-800
           overflow-hidden
           animate-[comment-scale-in_0.2s_ease-out]

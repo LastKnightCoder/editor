@@ -35,3 +35,7 @@ export {
   unregisterToolCallRenderer,
   getToolCallRenderer,
 } from "./toolCallRendererRegistry";
+export {
+  buildLegacyAssistantDisplayBlocks,
+  getDisplayTextFromBlocks,
+} from "./assistantDisplayBlocks";
