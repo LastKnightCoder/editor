@@ -50,6 +50,7 @@ type InteractionMode = "keyboard" | "pointer";
 
 interface IState {
   blockPanelVisible: boolean;
+  ownerEditor: Editor | null;
   position: {
     x: number;
     y: number;
@@ -73,6 +74,7 @@ interface IActions {
 
 const initState: IState = {
   blockPanelVisible: false,
+  ownerEditor: null,
   position: {
     x: 0,
     y: 0,

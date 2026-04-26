@@ -1,6 +1,7 @@
 import { Box, Images } from "lucide-react";
 import { PortalToBody } from "@tau/shared";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { useSlateStatic } from "slate-react";
 import List from "./List";
 import IExtension from "../../extensions/types";
 import { IBlockPanelListItem } from "../../types";
@@ -14,6 +15,7 @@ interface IBlockPanelProps {
 
 const BlockPanel = memo((props: IBlockPanelProps) => {
   const { extensions } = props;
+  const editor = useSlateStatic();
   const blockPanelList = useMemo(() => {
     const list = extensions
       .map((extension) => extension.getBlockPanelItems())
@@ -81,26 +83,45 @@ const BlockPanel = memo((props: IBlockPanelProps) => {
     return groupedItems;
   }, [extensions]);
 
-  const { blockPanelVisible, position, inputValue, list, filterList, reset } =
-    useBlockPanelStore((state) => ({
-      blockPanelVisible: state.blockPanelVisible,
-      position: state.position,
-      list: state.list,
-      inputValue: state.inputValue,
-      filterList: state.filterList,
-      reset: state.reset,
-    }));
+  const {
+    blockPanelVisible,
+    ownerEditor,
+    position,
+    inputValue,
+    list,
+    filterList,
+    reset,
+  } = useBlockPanelStore((state) => ({
+    blockPanelVisible: state.blockPanelVisible,
+    ownerEditor: state.ownerEditor,
+    position: state.position,
+    list: state.list,
+    inputValue: state.inputValue,
+    filterList: state.filterList,
+    reset: state.reset,
+  }));
+  const isOwner = ownerEditor === editor;
 
   const panelRef = useRef<HTMLDivElement>(null);
   const [calculatedPosition, setCalculatedPosition] = useState(position);
 
   useEffect(() => {
+    if (!isOwner) return;
     filterList(inputValue, blockPanelList);
-  }, [inputValue, filterList, blockPanelList]);
+  }, [inputValue, filterList, blockPanelList, isOwner]);
+
+  useEffect(() => {
+    return () => {
+      const { ownerEditor, reset } = useBlockPanelStore.getState();
+      if (ownerEditor === editor) {
+        reset();
+      }
+    };
+  }, [editor]);
 
   // 直接监听文档级 Escape，避免依赖编辑器焦点位置
   useEffect(() => {
-    if (!blockPanelVisible) return;
+    if (!blockPanelVisible || !isOwner) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.isComposing || event.key !== "Escape") return;
@@ -113,11 +134,11 @@ const BlockPanel = memo((props: IBlockPanelProps) => {
     return () => {
       document.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [blockPanelVisible, reset]);
+  }, [blockPanelVisible, isOwner, reset]);
 
   // 点击外部关闭面板
   useEffect(() => {
-    if (!blockPanelVisible) return;
+    if (!blockPanelVisible || !isOwner) return;
 
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -132,11 +153,11 @@ const BlockPanel = memo((props: IBlockPanelProps) => {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [blockPanelVisible, reset]);
+  }, [blockPanelVisible, isOwner, reset]);
 
   // 视口边界检测
   useEffect(() => {
-    if (!blockPanelVisible) return;
+    if (!blockPanelVisible || !isOwner) return;
 
     const updatePosition = () => {
       if (!panelRef.current) return;
@@ -172,9 +193,9 @@ const BlockPanel = memo((props: IBlockPanelProps) => {
     return () => {
       window.removeEventListener("resize", updatePosition);
     };
-  }, [blockPanelVisible, position, list.length]);
+  }, [blockPanelVisible, isOwner, position, list.length]);
 
-  if (!blockPanelVisible || list.length === 0) return null;
+  if (!blockPanelVisible || !isOwner || list.length === 0) return null;
 
   return (
     <PortalToBody>

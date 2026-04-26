@@ -30,8 +30,8 @@ const createArrowHandler = (direction: BlockNavigationMeta["direction"]) => {
     if (event.defaultPrevented) {
       return;
     }
-    const { blockPanelVisible } = useBlockPanelStore.getState();
-    if (blockPanelVisible) {
+    const { blockPanelVisible, ownerEditor } = useBlockPanelStore.getState();
+    if (blockPanelVisible && ownerEditor === editor) {
       return;
     }
 
