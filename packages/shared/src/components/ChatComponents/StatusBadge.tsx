@@ -16,6 +16,7 @@ const defaultStatusText: Record<ToolCallStatus, string> = {
   success: "成功",
   failed: "失败",
   retrying: "重试",
+  cancelled: "已取消",
 };
 
 /** 状态颜色映射 */
@@ -25,6 +26,7 @@ const statusColors: Record<ToolCallStatus, string> = {
   success: "bg-green-500",
   failed: "bg-red-500",
   retrying: "bg-yellow-500",
+  cancelled: "bg-gray-500",
 };
 
 export const StatusBadge: React.FC<StatusBadgeProps> = memo(

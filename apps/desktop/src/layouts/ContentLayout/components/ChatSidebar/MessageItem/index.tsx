@@ -429,6 +429,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
                               key={execution.toolCallId || execIndex}
                               execution={execution}
                               isDark={isDark}
+                              markdownComponents={markdownComponents}
                             />
                           ))}
                         </div>

@@ -44,6 +44,14 @@ vi.mock("@/tools", () => ({
 vi.mock("@/tools/toolIntegrationRegistry", () => ({
   toolIntegrationRegistry: {
     upsertStreamingExecutions: vi.fn((executions) => executions),
+    resolveExecutionMetadata: vi.fn(
+      ({ currentMetadata, execution }) =>
+        execution?.metadata || currentMetadata,
+    ),
+    reconcileExecutionState: vi.fn((previous, next) => ({
+      ...next,
+      metadata: next.metadata || previous?.metadata,
+    })),
   },
 }));
 
@@ -52,7 +60,11 @@ vi.mock("@/tools/toolRuntimePolicy", () => ({
   shouldSkipToolTimeout: vi.fn(() => false),
 }));
 
-import { chatLLM, chatStreamCore } from "../useChatLLM";
+import {
+  chatLLM,
+  chatStreamCore,
+  shouldSkipDesktopToolTimeout,
+} from "../useChatLLM";
 
 describe("hooks/useChatLLM headers", () => {
   const providerConfig: ProviderConfig = {
@@ -85,6 +97,11 @@ describe("hooks/useChatLLM headers", () => {
       content: "ok",
       reasoning_content: "",
     });
+  });
+
+  it("SubAgent 工具应跳过父 Agent 通用工具超时", () => {
+    expect(shouldSkipDesktopToolTimeout("subagent_research")).toBe(true);
+    expect(shouldSkipDesktopToolTimeout("query_todos")).toBe(false);
   });
 
   it("kimi-for-coding 应注入 KimiCLI User-Agent", async () => {

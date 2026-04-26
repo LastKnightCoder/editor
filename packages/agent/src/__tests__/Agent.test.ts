@@ -282,6 +282,91 @@ describe("Agent", () => {
     expect(toolFinished?.execution.output).toBe("retried");
   });
 
+  it("工具返回取消结果时应输出 cancelled 执行状态", async () => {
+    let turnIndex = 0;
+    const toolCalls: AgentToolCall[] = [
+      {
+        id: "call_cancelled",
+        function: {
+          name: "slow_tool",
+          arguments: "{}",
+        },
+      },
+    ];
+
+    const model: AgentModelAdapter = {
+      async *streamTurn() {
+        if (turnIndex === 0) {
+          turnIndex += 1;
+          yield {
+            type: "turn-complete",
+            result: {
+              type: "tool_calls",
+              content: "",
+              reasoningContent: "",
+              finishReason: "tool_calls",
+              toolCalls,
+            },
+          };
+          return;
+        }
+
+        yield {
+          type: "turn-complete",
+          result: {
+            type: "response",
+            content: "cancelled",
+            reasoningContent: "",
+            finishReason: "stop",
+          },
+        };
+      },
+    };
+
+    const agent = new Agent({
+      model,
+      tools: [
+        {
+          name: "slow_tool",
+          description: "可取消工具",
+          source: "test-tools",
+          parameters: {
+            type: "object",
+            properties: {},
+            required: [],
+            additionalProperties: false,
+          },
+          async execute() {
+            return {
+              content: "工具执行已取消",
+              isCancelled: true,
+              metadata: {
+                reason: "user_abort",
+              },
+            };
+          },
+        },
+      ],
+    });
+
+    const events = await collectEvents(
+      agent.run({
+        messages: [createTextMessage("hello")],
+        enableTools: true,
+      }),
+    );
+
+    const toolFinished = events.find(
+      (event): event is Extract<AgentEvent, { type: "tool-call-finished" }> =>
+        event.type === "tool-call-finished",
+    );
+    expect(toolFinished?.execution.status).toBe("cancelled");
+    expect(toolFinished?.execution.error).toBe("工具执行已取消");
+    expect(toolFinished?.execution.metadata).toEqual({
+      reason: "user_abort",
+    });
+  });
+
   it("支持通过 tools 构造参数直接注册内联工具", async () => {
     const seenToolNames: string[][] = [];
     let turnIndex = 0;

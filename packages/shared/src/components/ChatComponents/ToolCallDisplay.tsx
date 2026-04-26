@@ -25,6 +25,7 @@ export interface ToolCallDisplayProps {
   renderDefaultItem?: (
     params: ToolCallDefaultItemRenderParams,
   ) => React.ReactNode;
+  rendererContext?: Record<string, unknown>;
   className?: string;
 }
 
@@ -35,6 +36,7 @@ const statusIconColors: Record<ToolCallStatus, string> = {
   success: "text-green-500",
   failed: "text-red-500",
   retrying: "text-yellow-500",
+  cancelled: "text-gray-500",
 };
 
 /** 默认工具图标 */
@@ -210,12 +212,14 @@ const ToolCallRendererItem: React.FC<{
   renderDefaultItem?: (
     params: ToolCallDefaultItemRenderParams,
   ) => React.ReactNode;
+  rendererContext?: Record<string, unknown>;
 }> = memo(function ToolCallRendererItem({
   execution,
   isDark,
   ToolIcon,
   renderToolName,
   renderDefaultItem,
+  rendererContext,
 }) {
   const renderDefault = () =>
     renderDefaultItem ? (
@@ -254,6 +258,7 @@ const ToolCallRendererItem: React.FC<{
         isDark={isDark}
         parsedInput={parsedInputResult.parsedInput}
         inputParseError={parsedInputResult.inputParseError}
+        rendererContext={rendererContext}
         renderDefault={renderDefault}
       />
     </ToolCallRendererErrorBoundary>
@@ -267,6 +272,7 @@ export const ToolCallDisplay: React.FC<ToolCallDisplayProps> = memo(
     ToolIcon = DefaultToolIcon,
     renderToolName,
     renderDefaultItem,
+    rendererContext,
     className,
   }) {
     if (!executions || executions.length === 0) return null;
@@ -281,6 +287,7 @@ export const ToolCallDisplay: React.FC<ToolCallDisplayProps> = memo(
             ToolIcon={ToolIcon}
             renderToolName={renderToolName}
             renderDefaultItem={renderDefaultItem}
+            rendererContext={rendererContext}
           />
         ))}
       </div>

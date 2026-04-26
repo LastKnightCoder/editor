@@ -191,7 +191,7 @@ const AskQuestionRenderer = ({
   return (
     <div
       className={classNames(
-        "my-3 overflow-hidden rounded-2xl border shadow-[0_14px_36px_rgba(15,23,42,0.12)] backdrop-blur-xl",
+        "my-3 overflow-hidden rounded-2xl border backdrop-blur-xl",
         isDark
           ? "border-white/10 bg-zinc-900/80"
           : "border-slate-200/80 bg-white/80",

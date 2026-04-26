@@ -33,6 +33,8 @@ export interface ToolExecutionResult {
   metadata?: Record<string, unknown>;
   /** 标记此结果是否为参数错误（由 toolRegistry 统一判定） */
   isParameterError?: boolean;
+  /** 标记此结果是否为用户或父级信号取消 */
+  isCancelled?: boolean;
 }
 
 export interface ToolExecutionFlags {

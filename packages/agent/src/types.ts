@@ -69,13 +69,20 @@ export interface AgentToolExecutionResult {
   reasoning?: string;
   metadata?: Record<string, unknown>;
   isParameterError?: boolean;
+  isCancelled?: boolean;
 }
 
 export interface AgentToolExecutionState {
   toolCallId: string;
   toolName: string;
   source: string;
-  status: "pending" | "executing" | "success" | "failed" | "retrying";
+  status:
+    | "pending"
+    | "executing"
+    | "success"
+    | "failed"
+    | "retrying"
+    | "cancelled";
   input: string;
   output?: string;
   error?: string;

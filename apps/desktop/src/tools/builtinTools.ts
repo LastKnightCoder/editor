@@ -7,6 +7,7 @@ import {
   createVisualizeReadMeTool,
 } from "./generativeUiTools";
 import { createKnowledgeSearchTool } from "./knowledgeSearchTool";
+import { createSubAgentResearchTool } from "./subagentTool";
 
 export const BUILTIN_SOURCE = "builtin";
 
@@ -16,6 +17,7 @@ export const registerBuiltinTools = (registry: ToolRegistry) => {
     [
       createAskQuestionTool(),
       createKnowledgeSearchTool(),
+      createSubAgentResearchTool(),
       createVisualizeReadMeTool(),
       createShowWidgetTool(),
       {

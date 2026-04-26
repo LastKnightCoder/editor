@@ -7,6 +7,10 @@ import {
   resolveToolExecutionMetadata as resolveGenerativeUiExecutionMetadata,
   upsertStreamingToolExecutions as upsertGenerativeUiStreamingExecutions,
 } from "@/generative-ui/streaming-tool-adapter";
+import {
+  resolveSubAgentExecutionMetadata,
+  upsertSubAgentStreamingExecutions,
+} from "@/agent/subagentStreamingAdapter";
 
 export interface ToolStreamingIntegration {
   upsertStreamingExecutions?: (
@@ -26,7 +30,31 @@ const integrations: ToolStreamingIntegration[] = [
     upsertStreamingExecutions: upsertGenerativeUiStreamingExecutions,
     resolveExecutionMetadata: resolveGenerativeUiExecutionMetadata,
   },
+  {
+    upsertStreamingExecutions: upsertSubAgentStreamingExecutions,
+    resolveExecutionMetadata: resolveSubAgentExecutionMetadata,
+  },
 ];
+
+const resolveExecutionMetadata = (params: {
+  toolName: string;
+  currentMetadata?: Record<string, unknown>;
+  execution?: ToolExecutionResult | null;
+}): Record<string, unknown> | undefined => {
+  let nextMetadata = params.currentMetadata;
+
+  for (const integration of integrations) {
+    if (!integration.resolveExecutionMetadata) {
+      continue;
+    }
+    nextMetadata = integration.resolveExecutionMetadata({
+      ...params,
+      currentMetadata: nextMetadata,
+    });
+  }
+
+  return nextMetadata;
+};
 
 export const toolIntegrationRegistry = {
   upsertStreamingExecutions(
@@ -51,18 +79,25 @@ export const toolIntegrationRegistry = {
     currentMetadata?: Record<string, unknown>;
     execution?: ToolExecutionResult | null;
   }): Record<string, unknown> | undefined {
-    let nextMetadata = params.currentMetadata;
+    return resolveExecutionMetadata(params);
+  },
 
-    for (const integration of integrations) {
-      if (!integration.resolveExecutionMetadata) {
-        continue;
-      }
-      nextMetadata = integration.resolveExecutionMetadata({
-        ...params,
-        currentMetadata: nextMetadata,
-      });
-    }
-
-    return nextMetadata;
+  reconcileExecutionState(
+    previous: ToolCallExecutionState | undefined,
+    next: ToolCallExecutionState,
+  ): ToolCallExecutionState {
+    return {
+      ...next,
+      metadata: resolveExecutionMetadata({
+        toolName: next.toolName,
+        currentMetadata: previous?.metadata,
+        execution: {
+          content: next.output || next.error || "",
+          metadata: next.metadata,
+          isParameterError: next.errorType === "parameter",
+          isCancelled: next.status === "cancelled",
+        },
+      }),
+    };
   },
 };

@@ -6,6 +6,7 @@ export interface ToolCallCustomRendererProps {
   isDark: boolean;
   parsedInput: unknown | null;
   inputParseError?: string;
+  rendererContext?: Record<string, unknown>;
   renderDefault: () => React.ReactNode;
 }
 
