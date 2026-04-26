@@ -17,6 +17,7 @@ import { DesktopModelTransport } from "@/agent/DesktopModelTransport";
 import { toAgentSkills } from "@/agent/desktopSkillAdapter";
 import { toExternalAgentTools } from "@/agent/externalAgentTools";
 import { getToolRegistryAgentTools } from "@/agent/toolRegistryAgentTools";
+import { SUBAGENT_RESEARCH_TOOL_NAME } from "@/agent/subagentResearch";
 
 ensureToolingReady();
 
@@ -146,6 +147,9 @@ const MAX_TOOL_CALL_LOOPS = 15; // 最大工具调用循环次数
 const MAX_EXECUTION_RETRY = 2; // 执行失败（瞬时故障）最多自动重试次数
 const TOOL_EXECUTION_TIMEOUT = 30000; // 单个工具执行超时时间 30 秒
 
+export const shouldSkipDesktopToolTimeout = (toolName: string): boolean =>
+  toolName === SUBAGENT_RESEARCH_TOOL_NAME;
+
 /**
  * 判断执行错误是否为可自动重试的瞬时故障（网络、超时等）。
  * 参数错误不在此判断——参数错误由 toolRegistry 返回 isParameterError，走反馈模型路径。
@@ -202,7 +206,15 @@ const mapAgentExecutionsToToolStates = (
     | { type: "tool-call-updated" }
     | { type: "tool-call-finished" }
   >["executions"],
-): ToolCallExecutionState[] => executions.map(mapAgentExecutionToToolState);
+  previousExecutions: ToolCallExecutionState[] = [],
+): ToolCallExecutionState[] =>
+  executions.map((execution) => {
+    const previous = previousExecutions.find(
+      (item) => item.toolCallId === execution.toolCallId,
+    );
+    const mapped = mapAgentExecutionToToolState(execution);
+    return toolIntegrationRegistry.reconcileExecutionState(previous, mapped);
+  });
 
 const createDesktopToolSource = (options?: {
   additionalTools?: ChatStreamCoreOptions["additionalTools"];
@@ -246,6 +258,7 @@ const createDesktopAgent = (options: {
       maxToolCallLoops: MAX_TOOL_CALL_LOOPS,
       maxToolRetries: MAX_EXECUTION_RETRY,
       defaultToolTimeoutMs: TOOL_EXECUTION_TIMEOUT,
+      shouldSkipToolTimeout: shouldSkipDesktopToolTimeout,
       isTransientToolError: isTransientError,
     },
   });
@@ -368,6 +381,14 @@ export const chatStreamCore = async (
     additionalTools,
     executeToolCall: customExecuteToolCall,
   });
+  const runtimeToolContext = {
+    ...(toolContext || {}),
+    agentRuntime: {
+      providerConfig,
+      modelConfig,
+      skills,
+    },
+  };
 
   try {
     let toolExecutions: ToolCallExecutionState[] = [];
@@ -389,7 +410,7 @@ export const chatStreamCore = async (
       messages,
       enableTools,
       conversationKey,
-      toolContext: toolContext as Record<string, unknown> | undefined,
+      toolContext: runtimeToolContext as Record<string, unknown>,
       reasoningEffort,
       deferAssistantTextUntilFinish,
       disableAnimation,
@@ -431,7 +452,10 @@ export const chatStreamCore = async (
         event.type === "tool-call-finished"
       ) {
         currentTurnToolCalls = event.toolCalls as ToolCallPayload[];
-        toolExecutions = mapAgentExecutionsToToolStates(event.executions);
+        toolExecutions = mapAgentExecutionsToToolStates(
+          event.executions,
+          toolExecutions,
+        );
         onToolCallsUpdate?.(
           getCurrentTurnExecutions(),
           event.turnId,

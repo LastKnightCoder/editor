@@ -748,9 +748,19 @@ export class Agent {
               index === execIndex
                 ? {
                     ...execution,
-                    status: toolResult?.isParameterError ? "failed" : "success",
-                    output: toolResult?.isParameterError ? undefined : content,
-                    error: toolResult?.isParameterError ? content : undefined,
+                    status: toolResult?.isCancelled
+                      ? "cancelled"
+                      : toolResult?.isParameterError
+                        ? "failed"
+                        : "success",
+                    output:
+                      toolResult?.isParameterError || toolResult?.isCancelled
+                        ? undefined
+                        : content,
+                    error:
+                      toolResult?.isParameterError || toolResult?.isCancelled
+                        ? content
+                        : undefined,
                     errorType: toolResult?.isParameterError
                       ? "parameter"
                       : undefined,

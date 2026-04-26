@@ -8,7 +8,8 @@ export type ToolCallStatus =
   | "executing"
   | "success"
   | "failed"
-  | "retrying";
+  | "retrying"
+  | "cancelled";
 
 /** 工具调用执行状态详情 */
 export interface ToolCallExecutionState {

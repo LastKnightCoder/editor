@@ -11,12 +11,14 @@ import {
   ClockCircleOutlined,
   ReloadOutlined,
   WarningOutlined,
+  StopOutlined,
 } from "@ant-design/icons";
 import styles from "./ToolCallDisplay.module.less";
 
 interface ToolCallDisplayProps {
   execution: ToolCallExecutionState;
   isDark: boolean;
+  markdownComponents?: any;
 }
 
 const DefaultToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
@@ -36,6 +38,8 @@ const DefaultToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
         return <LoadingOutlined className={styles.iconExecuting} spin />;
       case "retrying":
         return <ReloadOutlined className={styles.iconRetrying} spin />;
+      case "cancelled":
+        return <StopOutlined className={styles.iconPending} />;
       case "success":
         return <CheckCircleOutlined className={styles.iconSuccess} />;
       case "failed":
@@ -69,6 +73,8 @@ const DefaultToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
         return execution.retryCount
           ? `Failed after ${execution.retryCount} retries`
           : "Failed";
+      case "cancelled":
+        return "Cancelled";
     }
   };
 
@@ -138,6 +144,7 @@ const renderDesktopDefaultItem = ({
 const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
   execution,
   isDark,
+  markdownComponents,
 }) => {
   return (
     <SharedToolCallDisplay
@@ -145,6 +152,7 @@ const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
       isDark={isDark}
       className="my-0 space-y-0"
       renderDefaultItem={renderDesktopDefaultItem}
+      rendererContext={{ markdownComponents }}
     />
   );
 };

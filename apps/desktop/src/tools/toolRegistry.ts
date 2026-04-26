@@ -188,6 +188,7 @@ export class ToolRegistry {
             : safeStringify(result.content),
         reasoning: result.reasoning,
         metadata: result.metadata,
+        isCancelled: result.isCancelled,
       };
     } catch (error) {
       // 工具执行失败，根据错误类型区分处理

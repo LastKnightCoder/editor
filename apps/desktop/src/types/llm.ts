@@ -37,7 +37,13 @@ export interface RequestMessage {
 export interface ToolCallExecutionState {
   toolCallId: string;
   toolName: string;
-  status: "pending" | "executing" | "success" | "failed" | "retrying";
+  status:
+    | "pending"
+    | "executing"
+    | "success"
+    | "failed"
+    | "retrying"
+    | "cancelled";
   input: string;
   output?: string;
   error?: string;

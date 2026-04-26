@@ -98,6 +98,7 @@ export class ToolSnapshot {
       reasoning: result.reasoning,
       metadata: result.metadata,
       isParameterError: result.isParameterError,
+      isCancelled: result.isCancelled,
     };
   }
 }
