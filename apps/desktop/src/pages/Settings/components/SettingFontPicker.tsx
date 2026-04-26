@@ -363,7 +363,7 @@ const SettingFontPicker: React.FC<SettingFontPickerProps> = ({
         createPortal(
           <div
             ref={panelRef}
-            className="fixed z-[9999] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/96 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+            className="fixed z-[9999] overflow-hidden rounded-2xl border border-gray-200 bg-white/95 shadow-[0_24px_80px_rgba(0,0,0,0.18)] backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-900/96 dark:shadow-[0_24px_80px_rgba(0,0,0,0.45)]"
             style={{
               top: position.top,
               left: position.left,
@@ -371,16 +371,16 @@ const SettingFontPicker: React.FC<SettingFontPickerProps> = ({
               maxHeight: position.maxHeight,
             }}
           >
-            <div className="border-b border-zinc-800 px-3 py-3">
-              <div className="flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2.5">
-                <Search className="h-4 w-4 text-zinc-500" />
+            <div className="border-b border-gray-200 px-3 py-3 dark:border-zinc-800">
+              <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 dark:border-zinc-700 dark:bg-zinc-950">
+                <Search className="h-4 w-4 text-gray-400 dark:text-zinc-500" />
                 <input
                   ref={searchInputRef}
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   onKeyDown={handleSearchKeyDown}
                   placeholder={searchPlaceholder}
-                  className="w-full bg-transparent text-sm text-zinc-100 outline-none placeholder:text-zinc-500"
+                  className="w-full bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-zinc-100 dark:placeholder:text-zinc-500"
                 />
               </div>
             </div>
@@ -408,16 +408,16 @@ const SettingFontPicker: React.FC<SettingFontPickerProps> = ({
                       onClick={() => selectOption(font)}
                       className={`mb-1 flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-all last:mb-0 ${
                         isHighlighted || isSelected
-                          ? "border-zinc-600 bg-zinc-800/80"
-                          : "border-transparent bg-transparent hover:border-zinc-700 hover:bg-zinc-800/55"
+                          ? "border-gray-300 bg-gray-100 dark:border-zinc-600 dark:bg-zinc-800/80"
+                          : "border-transparent bg-transparent hover:border-gray-200 hover:bg-gray-50 dark:hover:border-zinc-700 dark:hover:bg-zinc-800/55"
                       }`}
                     >
                       <div className="min-w-0 flex-1">
                         <div
                           className={`truncate ${
                             kind === "code"
-                              ? "text-[13px] text-zinc-300"
-                              : "text-lg text-zinc-100"
+                              ? "text-[13px] text-gray-700 dark:text-zinc-300"
+                              : "text-lg text-gray-900 dark:text-zinc-100"
                           }`}
                           style={{
                             fontFamily: getPreviewFontFamily(font, kind),
@@ -427,18 +427,18 @@ const SettingFontPicker: React.FC<SettingFontPickerProps> = ({
                         </div>
                       </div>
                       <div className="flex items-center gap-2 pl-2">
-                        <span className="max-w-[150px] truncate text-sm font-medium text-zinc-300">
+                        <span className="max-w-[150px] truncate text-sm font-medium text-gray-700 dark:text-zinc-300">
                           {font}
                         </span>
                         {isSelected && (
-                          <Check className="h-4 w-4 text-zinc-100" />
+                          <Check className="h-4 w-4 text-gray-900 dark:text-zinc-100" />
                         )}
                       </div>
                     </button>
                   );
                 })
               ) : (
-                <div className="px-3 py-6 text-center text-sm text-zinc-500">
+                <div className="px-3 py-6 text-center text-sm text-gray-500 dark:text-zinc-500">
                   没有匹配的字体
                 </div>
               )}

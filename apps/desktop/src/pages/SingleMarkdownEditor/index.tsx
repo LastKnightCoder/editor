@@ -1460,17 +1460,15 @@ const SingleMarkdownEditor = () => {
           <Tooltip
             title={
               resolvedEditorViewMode === "wide"
-                ? "切换到标准视图"
-                : "切换到宽屏视图"
+                ? "当前为宽屏视图，点击切换到标准视图"
+                : "当前为标准视图，点击切换到宽屏视图"
             }
           >
             <Button
               type="text"
               icon={<ColumnWidthOutlined />}
               onClick={toggleEditorViewMode}
-            >
-              {resolvedEditorViewMode === "wide" ? "标准" : "宽屏"}
-            </Button>
+            />
           </Tooltip>
         </div>
 
@@ -1487,13 +1485,13 @@ const SingleMarkdownEditor = () => {
                 onClick: handleCopyMenuClick,
               }}
             >
-              <Button
-                type="text"
-                icon={<CopyOutlined />}
-                disabled={!currentFilePath}
-              >
-                复制
-              </Button>
+              <Tooltip title="复制">
+                <Button
+                  type="text"
+                  icon={<CopyOutlined />}
+                  disabled={!currentFilePath}
+                />
+              </Tooltip>
             </Dropdown>
             <Dropdown
               disabled={!currentFilePath}
@@ -1507,13 +1505,13 @@ const SingleMarkdownEditor = () => {
                 onClick: handleExportMenuClick,
               }}
             >
-              <Button
-                type="text"
-                icon={<ExportOutlined />}
-                disabled={!currentFilePath}
-              >
-                导出
-              </Button>
+              <Tooltip title="导出">
+                <Button
+                  type="text"
+                  icon={<ExportOutlined />}
+                  disabled={!currentFilePath}
+                />
+              </Tooltip>
             </Dropdown>
           </div>
           <span className={styles.wordCount}>{wordCount} 字</span>
