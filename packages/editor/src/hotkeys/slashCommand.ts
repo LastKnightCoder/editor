@@ -4,11 +4,11 @@ import useBlockPanelStore from "../stores/useBlockPanelStore";
 export const slashCommandConfig: IHotKeyConfig[] = [
   {
     hotKey: "backspace",
-    action: () => {
+    action: (editor) => {
       // 关闭 blockPanel
-      const { blockPanelVisible, inputValue, reset } =
+      const { blockPanelVisible, ownerEditor, inputValue, reset } =
         useBlockPanelStore.getState();
-      if (blockPanelVisible) {
+      if (blockPanelVisible && ownerEditor === editor) {
         if (inputValue.length <= 1) {
           reset();
           return;
@@ -32,11 +32,11 @@ export const slashCommandConfig: IHotKeyConfig[] = [
   },
   {
     hotKey: "down",
-    action: (_editor, event) => {
+    action: (editor, event) => {
       // 选择下一个
-      const { blockPanelVisible, setActiveIndex } =
+      const { blockPanelVisible, ownerEditor, setActiveIndex } =
         useBlockPanelStore.getState();
-      if (blockPanelVisible) {
+      if (blockPanelVisible && ownerEditor === editor) {
         setActiveIndex(true);
         event.preventDefault();
       }
@@ -44,11 +44,11 @@ export const slashCommandConfig: IHotKeyConfig[] = [
   },
   {
     hotKey: "up",
-    action: (_editor, event) => {
+    action: (editor, event) => {
       // 选择上一个
-      const { blockPanelVisible, setActiveIndex } =
+      const { blockPanelVisible, ownerEditor, setActiveIndex } =
         useBlockPanelStore.getState();
-      if (blockPanelVisible) {
+      if (blockPanelVisible && ownerEditor === editor) {
         setActiveIndex(false);
         event.preventDefault();
       }
@@ -57,9 +57,14 @@ export const slashCommandConfig: IHotKeyConfig[] = [
   {
     hotKey: "enter",
     action: (editor, event) => {
-      const { blockPanelVisible, selectItem, getActiveItem, enterSubmenu } =
-        useBlockPanelStore.getState();
-      if (blockPanelVisible) {
+      const {
+        blockPanelVisible,
+        ownerEditor,
+        selectItem,
+        getActiveItem,
+        enterSubmenu,
+      } = useBlockPanelStore.getState();
+      if (blockPanelVisible && ownerEditor === editor) {
         const currentItem = getActiveItem();
 
         // 如果当前项有子菜单且没有 onClick，进入子菜单
@@ -78,10 +83,10 @@ export const slashCommandConfig: IHotKeyConfig[] = [
   },
   {
     hotKey: "right",
-    action: (_editor, event) => {
-      const { blockPanelVisible, getActiveItem, enterSubmenu } =
+    action: (editor, event) => {
+      const { blockPanelVisible, ownerEditor, getActiveItem, enterSubmenu } =
         useBlockPanelStore.getState();
-      if (!blockPanelVisible) return;
+      if (!blockPanelVisible || ownerEditor !== editor) return;
 
       const currentItem = getActiveItem();
       if (currentItem?.children && currentItem.children.length > 0) {
@@ -92,10 +97,14 @@ export const slashCommandConfig: IHotKeyConfig[] = [
   },
   {
     hotKey: "left",
-    action: (_editor, event) => {
-      const { blockPanelVisible, activePath, exitSubmenu } =
+    action: (editor, event) => {
+      const { blockPanelVisible, ownerEditor, activePath, exitSubmenu } =
         useBlockPanelStore.getState();
-      if (blockPanelVisible && activePath.length > 1) {
+      if (
+        blockPanelVisible &&
+        ownerEditor === editor &&
+        activePath.length > 1
+      ) {
         exitSubmenu();
         event.preventDefault();
       }

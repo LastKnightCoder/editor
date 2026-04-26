@@ -21,22 +21,27 @@ export const withSlashCommands = (editor: Editor) => {
 
   editor.insertText = (text) => {
     const state = useBlockPanelStore.getState();
-    const { blockPanelVisible, inputValue, list, reset } = state;
+    const { blockPanelVisible, ownerEditor, inputValue, list, reset } = state;
+    const isOwner = ownerEditor === editor;
 
-    if (text === "/" && (!blockPanelVisible || list.length === 0)) {
+    if (text === "/" && (!blockPanelVisible || !isOwner || list.length === 0)) {
       const position = getSelectionPosition();
       if (position) {
         useBlockPanelStore.setState({
           blockPanelVisible: true,
+          ownerEditor: editor,
           position,
           inputValue: "/",
+          list: [],
+          activePath: [],
+          interactionMode: "keyboard",
         });
       }
       insertText(text);
       return;
     }
 
-    if (blockPanelVisible) {
+    if (blockPanelVisible && isOwner) {
       if (text === " ") {
         reset();
       } else {
