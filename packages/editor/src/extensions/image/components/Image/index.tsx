@@ -13,15 +13,18 @@ import {
   FullscreenOutlined,
   ScissorOutlined,
   FileTextOutlined,
+  LoadingOutlined,
+  PictureOutlined,
   AlignCenterOutlined,
   AlignLeftOutlined,
   AlignRightOutlined,
 } from "@ant-design/icons";
-import { ModernTabs, EditText } from "@tau/shared";
+import { CustomModal, ModernTabs, EditText, PortalToBody } from "@tau/shared";
 import type { EditTextHandle } from "@tau/shared";
 
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import { useUploadResource } from "../../../../hooks/useUploadResource";
+import { useImageGeneration } from "../../../../hooks/useImageGeneration";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 
@@ -31,6 +34,7 @@ import type { ImageElement } from "../../../types";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
 import { imageActionsMap } from "../../index";
 import { buildImageMenuItems } from "../../utils/menuItems";
+import { getImageAppearanceStyle } from "../../utils/appearance";
 
 import styles from "./index.module.less";
 import classnames from "classnames";
@@ -46,9 +50,28 @@ import { v4 as getUuid } from "uuid";
 import type { IResource } from "../../../types";
 import { LinkOutlined } from "@ant-design/icons";
 import useTheme from "../../../../hooks/useTheme";
+import useSettings from "../../../../hooks/useSettings";
 
 import { ImageCropper } from "@tau/shared";
 import type { CropperTransform } from "@tau/shared";
+
+type ImageAIAction = "generate" | "edit";
+
+type PendingAIImage = {
+  id: string;
+  url: string;
+  prompt: string;
+  label: string;
+  fileName?: string;
+  mimeType?: string;
+};
+
+type AIReferenceItem = {
+  id: string;
+  label: string;
+  url?: string;
+  kind: "empty" | "original" | "result";
+};
 
 interface IImageProps {
   attributes: RenderElementProps["attributes"];
@@ -82,10 +105,14 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     width,
     description,
     align = "center",
+    borderRadius,
+    shadow,
   } = element;
 
   const uploadResource = useUploadResource();
+  const imageGeneration = useImageGeneration();
   const { isDark } = useTheme();
+  const settings = useSettings();
   const { message: messageApi } = App.useApp();
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
@@ -105,12 +132,33 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
   const [networkImageUrl, setNetworkImageUrl] = useState("");
   const [linkSubmitting, setLinkSubmitting] = useState(false);
+  const [aiAction, setAiAction] = useState<ImageAIAction>("generate");
+  const [aiEditModalOpen, setAiEditModalOpen] = useState(false);
+  const [generatePrompt, setGeneratePrompt] = useState("");
+  const [editPrompt, setEditPrompt] = useState("");
+  const [aiSubmitting, setAiSubmitting] = useState(false);
+  const [generatedCandidates, setGeneratedCandidates] = useState<
+    PendingAIImage[]
+  >([]);
+  const [editedCandidates, setEditedCandidates] = useState<PendingAIImage[]>(
+    [],
+  );
+  const [selectedGenerateReference, setSelectedGenerateReference] =
+    useState("empty");
+  const [selectedEditReference, setSelectedEditReference] =
+    useState("original");
+  const [previewingReference, setPreviewingReference] =
+    useState<AIReferenceItem | null>(null);
   const uploadTabRef = useRef<HTMLDivElement>(null);
 
   const [isSelected, setIsSelected] = useState(false);
   const [showDescEditor, setShowDescEditor] = useState(false);
   const descRef = useRef<EditTextHandle | null>(null);
   const isLast = useIsLastElement(element);
+  const [settingVersion, setSettingVersion] = useState(0);
+  const imageGenerationAvailable = Boolean(
+    settingVersion >= 0 && imageGeneration?.isAvailable?.(),
+  );
 
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
     element,
@@ -124,6 +172,13 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
 
   const showOverView = useMemoizedFn(() => {
     showImageOverview(element, editor);
+  });
+
+  const showAIReferenceOverview = useMemoizedFn((item: AIReferenceItem) => {
+    if (!item.url) {
+      return;
+    }
+    setPreviewingReference(item);
   });
 
   const deleteImage = useMemoizedFn(() => {
@@ -221,6 +276,142 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     } finally {
       setLinkSubmitting(false);
     }
+  });
+
+  const openAIImagePanel = useMemoizedFn((action: ImageAIAction) => {
+    if (!imageGenerationAvailable || !imageGeneration) {
+      messageApi.warning(
+        "图片生成配置不可用，请先在设置中填写模型地址、API Key 和模型名称",
+      );
+      return;
+    }
+    if (action === "edit" && !url) {
+      messageApi.warning("请先插入一张图片后再编辑");
+      return;
+    }
+    setAiAction(action);
+    setAiEditModalOpen(true);
+    setEditPrompt("");
+    setEditedCandidates([]);
+    setSelectedEditReference("original");
+  });
+
+  const getAIReferenceItems = (action: ImageAIAction): AIReferenceItem[] => {
+    if (action === "generate") {
+      return [
+        { id: "empty", label: "无参考", kind: "empty" },
+        ...generatedCandidates.map((item) => ({
+          id: item.id,
+          label: item.label,
+          url: item.url,
+          kind: "result" as const,
+        })),
+      ];
+    }
+
+    return [
+      {
+        id: "original",
+        label: "原始图",
+        url: previewUrl || url,
+        kind: "original",
+      },
+      ...editedCandidates.map((item) => ({
+        id: item.id,
+        label: item.label,
+        url: item.url,
+        kind: "result" as const,
+      })),
+    ];
+  };
+
+  const getSelectedReference = (action: ImageAIAction) => {
+    const selectedId =
+      action === "generate" ? selectedGenerateReference : selectedEditReference;
+    return getAIReferenceItems(action).find((item) => item.id === selectedId);
+  };
+
+  const getSelectedResult = (action: ImageAIAction) => {
+    const selectedId =
+      action === "generate" ? selectedGenerateReference : selectedEditReference;
+    const candidates =
+      action === "generate" ? generatedCandidates : editedCandidates;
+    return candidates.find((item) => item.id === selectedId) ?? null;
+  };
+
+  const handleRunAIImage = useMemoizedFn(
+    async (action: ImageAIAction = aiAction) => {
+      const isGenerate = action === "generate";
+      const prompt = (isGenerate ? generatePrompt : editPrompt).trim();
+      if (!prompt) {
+        messageApi.warning("请输入图片要求");
+        return;
+      }
+      if (!imageGeneration) {
+        messageApi.warning("图片生成服务不可用");
+        return;
+      }
+
+      const selectedReference = getSelectedReference(action);
+      setAiSubmitting(true);
+      try {
+        setAiAction(action);
+        const result = selectedReference?.url
+          ? await imageGeneration.editImage({
+              prompt,
+              imageUrl: selectedReference.url,
+            })
+          : await imageGeneration.generateImage({ prompt });
+        const candidates = isGenerate ? generatedCandidates : editedCandidates;
+        const pendingImage: PendingAIImage = {
+          id: getUuid(),
+          url: result.url,
+          prompt,
+          label: `结果 ${candidates.length + 1}`,
+          fileName: result.fileName,
+          mimeType: result.mimeType,
+        };
+        if (isGenerate) {
+          setGeneratedCandidates((prev) => [...prev, pendingImage]);
+          setSelectedGenerateReference(pendingImage.id);
+        } else {
+          setEditedCandidates((prev) => [...prev, pendingImage]);
+          setSelectedEditReference(pendingImage.id);
+        }
+      } catch (error) {
+        console.error("AI 图片处理失败:", error);
+        messageApi.error((error as Error).message || "AI 图片处理失败");
+      } finally {
+        setAiSubmitting(false);
+      }
+    },
+  );
+
+  const handleConfirmAIImage = useMemoizedFn(() => {
+    const selectedResult = getSelectedResult(aiAction);
+    if (!selectedResult) {
+      messageApi.warning("请先生成一张候选图片");
+      return;
+    }
+    setLink(selectedResult.url);
+    const path = ReactEditor.findPath(editor, element);
+    Transforms.setNodes(
+      editor,
+      {
+        previewUrl: selectedResult.url,
+        pasteUploading: false,
+      },
+      { at: path },
+    );
+    if (aiAction === "generate") {
+      setGeneratePrompt("");
+    } else {
+      setAiEditModalOpen(false);
+      setEditedCandidates([]);
+      setSelectedEditReference("original");
+      setEditPrompt("");
+    }
+    messageApi.success(aiAction === "generate" ? "图片已插入" : "图片已替换");
   });
 
   const handlePasteImage = useMemoizedFn(async (e: ClipboardEvent) => {
@@ -326,13 +517,24 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       showOverview: showOverView,
       deleteImage,
       startCrop: () => setCropperOpen(true),
+      startAIEdit: () => openAIImagePanel("edit"),
       showDescEditor: () => setShowDescEditor(true),
       getImageBlob,
     });
     return () => {
       imageActionsMap.delete(element);
     };
-  }, [element, showOverView, deleteImage]);
+  }, [element, showOverView, deleteImage, openAIImagePanel]);
+
+  useEffect(() => {
+    if (!settings.subscribe) {
+      return;
+    }
+
+    return settings.subscribe(() => {
+      setSettingVersion((prev) => prev + 1);
+    });
+  }, [settings]);
 
   useEffect(() => {
     if (!previewUrl && url) {
@@ -529,6 +731,139 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     { direction: "sw", cursor: "nesw-resize" },
   ];
 
+  const renderAIReferencePicker = (action: ImageAIAction) => {
+    const isGenerate = action === "generate";
+    const items = getAIReferenceItems(action);
+    const selectedId = isGenerate
+      ? selectedGenerateReference
+      : selectedEditReference;
+    const setSelectedId = isGenerate
+      ? setSelectedGenerateReference
+      : setSelectedEditReference;
+
+    return (
+      <div className={styles.aiReferenceSection}>
+        <div className={styles.aiReferenceTitle}>参考图</div>
+        <div className={styles.aiReferenceList}>
+          {items.map((item) => {
+            const selected = item.id === selectedId;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={classnames(styles.aiReferenceCard, {
+                  [styles.selected]: selected,
+                })}
+                onClick={() => {
+                  if (selected && item.url) {
+                    showAIReferenceOverview(item);
+                    return;
+                  }
+                  setSelectedId(item.id);
+                }}
+                disabled={aiSubmitting}
+                title={selected && item.url ? "点击放大查看" : "选择为参考图"}
+              >
+                {item.url ? (
+                  <LocalImageComponent
+                    className={styles.aiReferenceImage}
+                    url={item.url}
+                    alt={item.label}
+                  />
+                ) : (
+                  <div className={styles.aiReferenceEmpty}>
+                    <PictureOutlined />
+                  </div>
+                )}
+                <span className={styles.aiReferenceLabel}>
+                  {selected && item.url ? "查看" : item.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderAIImagePanel = (
+    action: ImageAIAction,
+    options: { hideActions?: boolean } = {},
+  ) => {
+    const isGenerate = action === "generate";
+    const prompt = isGenerate ? generatePrompt : editPrompt;
+    const setPrompt = isGenerate ? setGeneratePrompt : setEditPrompt;
+    const selectedResult = getSelectedResult(action);
+    const selectedReference = getSelectedReference(action);
+    const actionText = selectedReference?.url
+      ? "基于所选图片生成"
+      : isGenerate
+        ? "生成预览"
+        : "编辑预览";
+
+    return (
+      <div className={styles.aiInlinePanel}>
+        {renderAIReferencePicker(action)}
+        <textarea
+          className={styles.aiPromptInput}
+          value={prompt}
+          onChange={(event) => setPrompt(event.target.value)}
+          placeholder={
+            isGenerate
+              ? "描述你想生成的图片，例如：一张白底的产品示意图，温暖手绘风格"
+              : "描述你想如何调整这张图片，例如：改成透明背景，并增强主体光影"
+          }
+          disabled={aiSubmitting}
+          rows={4}
+        />
+        <div className={styles.aiPreviewPanel}>
+          {aiSubmitting ? (
+            <div className={styles.aiPreviewEmpty}>
+              <LoadingOutlined />
+              <span>正在处理图片，请稍候...</span>
+            </div>
+          ) : selectedResult ? (
+            <>
+              <LocalImageComponent
+                className={styles.aiPreviewImage}
+                url={selectedResult.url}
+                alt={selectedResult.prompt}
+              />
+              <div className={styles.aiPreviewMeta}>
+                当前候选确认后才会{isGenerate ? "插入" : "替换"}。
+              </div>
+            </>
+          ) : (
+            <div className={styles.aiPreviewEmpty}>
+              <PictureOutlined />
+              <span>生成结果会先显示在这里，不会立即修改文档。</span>
+            </div>
+          )}
+        </div>
+        {!options.hideActions && (
+          <div className={styles.aiActions}>
+            <button
+              type="button"
+              className={styles.aiSecondaryButton}
+              disabled={!prompt.trim() || aiSubmitting}
+              onClick={() => handleRunAIImage(action)}
+            >
+              {aiSubmitting ? "处理中..." : actionText}
+            </button>
+            <button
+              type="button"
+              className={styles.aiPrimaryButton}
+              disabled={!selectedResult || aiSubmitting}
+              onClick={handleConfirmAIImage}
+            >
+              {isGenerate ? "确认插入" : "确认替换"}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderPlaceholder = () => {
     if (readOnly) return null;
     return (
@@ -544,6 +879,22 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
         <ModernTabs
           isDark={isDark}
           items={[
+            ...(imageGenerationAvailable
+              ? [
+                  {
+                    key: "ai",
+                    label: "AI 生成",
+                    children: (
+                      <div className={styles.tabCard}>
+                        <p className={styles.tabHint}>
+                          输入图片要求，先生成预览，确认后再插入文档。
+                        </p>
+                        {renderAIImagePanel("generate")}
+                      </div>
+                    ),
+                  },
+                ]
+              : []),
             {
               key: "upload",
               label: "本地上传",
@@ -618,6 +969,14 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
 
   const renderPreview = () => {
     const displayUrl = previewUrl || url;
+    const effectiveBorderRadius =
+      borderRadius ?? settings.get("appearance.image.borderRadius") ?? "none";
+    const effectiveShadow =
+      shadow ?? settings.get("appearance.image.shadow") ?? "none";
+    const imageAppearanceStyle = getImageAppearanceStyle({
+      borderRadius: effectiveBorderRadius,
+      shadow: effectiveShadow,
+    });
 
     return (
       <div
@@ -636,12 +995,15 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
               ? `${width}px`
               : "auto",
           maxWidth: "100%",
+          ["--image-border-radius" as string]:
+            imageAppearanceStyle.borderRadius,
         }}
       >
         <LocalImageComponent
           className={classnames(styles.image, {
-            [styles.zoomIn]: isSelected,
+            [styles.zoomIn]: readOnly || isSelected,
           })}
+          style={imageAppearanceStyle}
           url={displayUrl}
           alt={alt}
           ref={displayImgRef}
@@ -710,50 +1072,64 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
             )}
           </>
         )}
-        <div className={styles.actions}>
-          <div onClick={showOverView} className={styles.item}>
-            <FullscreenOutlined />
+        {!readOnly && (
+          <div className={styles.actions}>
+            <div onClick={showOverView} className={styles.item}>
+              <FullscreenOutlined />
+            </div>
+            <div className={styles.divider}></div>
+            <div
+              onClick={toggleAlign}
+              className={styles.item}
+              title={
+                align === "left"
+                  ? "居中对齐"
+                  : align === "center"
+                    ? "右对齐"
+                    : "左对齐"
+              }
+            >
+              {align === "left" && <AlignLeftOutlined />}
+              {align === "center" && <AlignCenterOutlined />}
+              {align === "right" && <AlignRightOutlined />}
+            </div>
+            <div className={styles.divider}></div>
+            {!description && !showDescEditor && (
+              <>
+                <div
+                  onClick={() => {
+                    if (readOnly) return;
+                    setShowDescEditor(true);
+                    setTimeout(() => descRef.current?.focusEnd(), 0);
+                  }}
+                  className={styles.item}
+                >
+                  <FileTextOutlined />
+                </div>
+                <div className={styles.divider}></div>
+              </>
+            )}
+            {imageGenerationAvailable && (
+              <>
+                <div
+                  onClick={() => openAIImagePanel("edit")}
+                  className={styles.item}
+                  title="AI 编辑图片"
+                >
+                  <PictureOutlined />
+                </div>
+                <div className={styles.divider}></div>
+              </>
+            )}
+            <div onClick={() => setCropperOpen(true)} className={styles.item}>
+              <ScissorOutlined />
+            </div>
+            <div className={styles.divider}></div>
+            <div onClick={deleteImage} className={styles.item}>
+              <DeleteOutlined />
+            </div>
           </div>
-          <div className={styles.divider}></div>
-          <div
-            onClick={toggleAlign}
-            className={styles.item}
-            title={
-              align === "left"
-                ? "居中对齐"
-                : align === "center"
-                  ? "右对齐"
-                  : "左对齐"
-            }
-          >
-            {align === "left" && <AlignLeftOutlined />}
-            {align === "center" && <AlignCenterOutlined />}
-            {align === "right" && <AlignRightOutlined />}
-          </div>
-          <div className={styles.divider}></div>
-          {!description && !showDescEditor && (
-            <>
-              <div
-                onClick={() => {
-                  if (readOnly) return;
-                  setShowDescEditor(true);
-                  setTimeout(() => descRef.current?.focusEnd(), 0);
-                }}
-                className={styles.item}
-              >
-                <FileTextOutlined />
-              </div>
-              <div className={styles.divider}></div>
-            </>
-          )}
-          <div onClick={() => setCropperOpen(true)} className={styles.item}>
-            <ScissorOutlined />
-          </div>
-          <div className={styles.divider}></div>
-          <div onClick={deleteImage} className={styles.item}>
-            <DeleteOutlined />
-          </div>
-        </div>
+        )}
       </div>
     );
   };
@@ -798,6 +1174,91 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
         {children}
         {!(readOnly && isLast) && <AddParagraph element={element} />}
       </div>
+      {previewingReference?.url && (
+        <PortalToBody>
+          <div
+            className={styles.aiReferencePreviewOverlay}
+            onClick={() => setPreviewingReference(null)}
+          >
+            <button
+              type="button"
+              className={styles.aiReferencePreviewClose}
+              onClick={() => setPreviewingReference(null)}
+              aria-label="关闭预览"
+            >
+              ×
+            </button>
+            <button
+              type="button"
+              className={styles.aiReferencePreviewImageWrap}
+              onClick={() => setPreviewingReference(null)}
+              aria-label="关闭预览"
+            >
+              <LocalImageComponent
+                className={styles.aiReferencePreviewImage}
+                url={previewingReference.url}
+                alt={previewingReference.label}
+              />
+            </button>
+          </div>
+        </PortalToBody>
+      )}
+      <CustomModal
+        open={aiEditModalOpen}
+        onCancel={() => {
+          if (aiSubmitting) return;
+          setAiEditModalOpen(false);
+          setEditedCandidates([]);
+          setSelectedEditReference("original");
+        }}
+        title="AI 编辑图片"
+        subtitle="输入调整要求，先生成预览，确认后再替换当前图片"
+        width={720}
+        destroyOnClose
+        className={classnames(styles.aiEditModal, { [styles.dark]: isDark })}
+        bodyClassName={styles.aiEditModalBody}
+        footer={
+          <div className={styles.aiActions}>
+            <button
+              type="button"
+              className={styles.aiSecondaryButton}
+              disabled={aiSubmitting}
+              onClick={() => {
+                setAiEditModalOpen(false);
+                setEditedCandidates([]);
+                setSelectedEditReference("original");
+                setEditPrompt("");
+              }}
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              className={styles.aiSecondaryButton}
+              disabled={!editPrompt.trim() || aiSubmitting}
+              onClick={() => handleRunAIImage("edit")}
+            >
+              {aiSubmitting
+                ? "处理中..."
+                : getSelectedReference("edit")?.url
+                  ? "基于所选图片生成"
+                  : "编辑预览"}
+            </button>
+            <button
+              type="button"
+              className={styles.aiPrimaryButton}
+              disabled={!getSelectedResult("edit") || aiSubmitting}
+              onClick={handleConfirmAIImage}
+            >
+              确认替换
+            </button>
+          </div>
+        }
+      >
+        <div className={styles.aiEditModalContent}>
+          {renderAIImagePanel("edit", { hideActions: true })}
+        </div>
+      </CustomModal>
       {ResourcePickerModal && (
         <ResourcePickerModal
           open={resourcePickerOpen}

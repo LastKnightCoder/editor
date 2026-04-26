@@ -54,6 +54,39 @@ export const addChildDocumentItem = async (
   );
 };
 
+export const createSharedDocumentItemFromContent = async (params: {
+  sourceContentId: number;
+  documentId: number;
+  parentDocumentItemId?: number | null;
+  title: string;
+}): Promise<IDocumentItem | null> => {
+  const payload: ICreateDocumentItem = {
+    title: params.title,
+    content: [],
+    children: [],
+    tags: [],
+    isArticle: false,
+    articleId: 0,
+    isCard: false,
+    cardId: 0,
+    refType: "content",
+    refId: params.sourceContentId,
+    parents: [],
+    count: 0,
+  };
+
+  if (params.parentDocumentItemId) {
+    const result = await addChildDocumentItem(
+      params.parentDocumentItemId,
+      payload,
+    );
+    return result?.[1] ?? null;
+  }
+
+  const result = await addRootDocumentItem(params.documentId, payload);
+  return result?.[1] ?? null;
+};
+
 export const addRefRootDocumentItem = async (
   documentId: number,
   documentItemId: number,
@@ -122,6 +155,12 @@ export const getDocumentItemsByIds = async (
   ids: number[],
 ): Promise<IDocumentItem[]> => {
   return await invoke("get-document-items-by-ids", ids);
+};
+
+export const getDocumentItemsByContentId = async (
+  contentId: number,
+): Promise<IDocumentItem[]> => {
+  return await invoke("get-document-items-by-content-id", contentId);
 };
 
 export const getAllDocumentItems = async (): Promise<IDocumentItem[]> => {

@@ -2,6 +2,10 @@ import { createContext, useContext } from "react";
 
 export interface ChatWidgetInteractionContextValue {
   sendPrompt: (text: string) => Promise<void>;
+  setInputValue?: (text: string) => void;
+  setHiddenPromptContext?: (
+    payload: { text: string; label?: string } | null,
+  ) => void;
 }
 
 export const ChatWidgetInteractionContext =

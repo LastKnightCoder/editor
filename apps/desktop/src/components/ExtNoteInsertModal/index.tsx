@@ -18,14 +18,22 @@ const DEFAULT_CONTENT: Descendant[] = [
  * 由浏览器扩展通过 WebSocket RPC 触发，使用 zustand store 管理状态
  */
 const ExtNoteInsertModal = memo(() => {
-  const { isOpen, mode, contentId, closeModal } = useExtNoteInsertStore();
+  const {
+    isOpen,
+    mode,
+    sourceContentId,
+    title,
+    insertMode,
+    onSuccess,
+    closeModal,
+  } = useExtNoteInsertStore();
 
   const [noteContent, setNoteContent] = useState<Descendant[]>(DEFAULT_CONTENT);
   const [noteTitle, setNoteTitle] = useState("");
 
   // 打开弹窗时加载内容
   useEffect(() => {
-    if (!isOpen || !contentId) {
+    if (!isOpen || !sourceContentId) {
       setNoteContent(DEFAULT_CONTENT);
       setNoteTitle("");
       return;
@@ -33,16 +41,18 @@ const ExtNoteInsertModal = memo(() => {
 
     (async () => {
       try {
-        const content = await getContentById(contentId);
+        const content = await getContentById(sourceContentId);
         if (content) {
           setNoteContent(content.content);
-          setNoteTitle(getEditorText(content.content, 20) || "浏览器笔记");
+          setNoteTitle(
+            title || getEditorText(content.content, 20) || "浏览器笔记",
+          );
         }
       } catch (error) {
         console.error("[ExtNoteInsertModal] 加载内容失败:", error);
       }
     })();
-  }, [isOpen, contentId]);
+  }, [isOpen, sourceContentId, title]);
 
   return (
     <InsertNoteToTreeModal
@@ -50,9 +60,13 @@ const ExtNoteInsertModal = memo(() => {
       open={isOpen}
       noteTitle={noteTitle}
       noteContent={noteContent}
-      noteContentId={contentId}
+      sourceContentId={sourceContentId}
+      insertMode={insertMode}
       onCancel={closeModal}
-      onSuccess={closeModal}
+      onSuccess={() => {
+        onSuccess?.();
+        closeModal();
+      }}
     />
   );
 });

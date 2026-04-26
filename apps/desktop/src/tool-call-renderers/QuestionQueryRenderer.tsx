@@ -64,10 +64,10 @@ const QueryRefreshButton = ({
     className={`rounded-lg px-2.5 py-1.5 text-xs transition-colors ${
       loading
         ? isDark
-          ? "cursor-not-allowed bg-slate-800 text-slate-500"
+          ? "cursor-not-allowed bg-zinc-800 text-slate-500"
           : "cursor-not-allowed bg-slate-100 text-slate-400"
         : isDark
-          ? "bg-slate-800 text-slate-200 hover:bg-slate-700"
+          ? "bg-zinc-800 text-slate-200 hover:bg-zinc-700"
           : "bg-slate-100 text-slate-700 hover:bg-slate-200"
     }`}
     disabled={loading}
@@ -314,7 +314,7 @@ const QuestionQueryRenderer = ({
       key={item.id}
       className={`rounded-xl border p-3 ${
         isDark
-          ? "border-white/10 bg-slate-950/40"
+          ? "border-white/10 bg-zinc-950/40"
           : "border-slate-200 bg-slate-50/60"
       }`}
     >
@@ -396,7 +396,7 @@ const QuestionQueryRenderer = ({
                 key={item.id}
                 className={`rounded-xl border p-3 ${
                   isDark
-                    ? "border-white/10 bg-slate-950/40"
+                    ? "border-white/10 bg-zinc-950/40"
                     : "border-slate-200 bg-slate-50/60"
                 }`}
               >

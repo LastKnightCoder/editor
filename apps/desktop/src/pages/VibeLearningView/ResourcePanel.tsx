@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Button, List, Tag, Tooltip, Popconfirm, message } from "antd";
+import { Button, Tag, Tooltip, Popconfirm, message } from "antd";
 import {
   FileOutlined,
   AudioOutlined,
@@ -20,6 +20,8 @@ import {
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 import { Descendant } from "slate";
+import { useDrag, useDrop } from "react-dnd";
+import { MdDragIndicator } from "react-icons/md";
 
 import type {
   VLResource,
@@ -35,6 +37,7 @@ import {
   updateVLResource,
   deleteVLResourceComplete,
   addVLIndexTask,
+  reorderVLResources,
 } from "@/commands/vibe-learning";
 import EditTitleModal, {
   type EditTitleResult,
@@ -51,12 +54,14 @@ import AddResourceModal from "./AddResourceModal";
 import ResourcePreviewPanel from "./ResourcePreview";
 
 type PanelView = "resource-list" | "resource-preview" | "note-preview";
+type ResourceDropPosition = "before" | "after";
+type DragVLResource = { type: "VL_RESOURCE"; id: number };
 
 interface ResourcePanelProps {
   projectId: number;
   mainDbName: string;
   resources: VLResource[];
-  onResourcesChange: () => void;
+  onResourcesChange: () => void | Promise<void>;
 }
 
 // 根据资源类型获取图标
@@ -110,6 +115,226 @@ const EXTERNAL_OPEN_TYPES: VLResourceType[] = [
   "other",
 ];
 
+const isSameResourceOrder = (left: number[], right: number[]) => {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((id, index) => id === right[index]);
+};
+
+const moveResourceInOrder = (
+  resources: VLResource[],
+  dragId: number,
+  hoverId: number,
+  place: ResourceDropPosition,
+) => {
+  const fromIndex = resources.findIndex((resource) => resource.id === dragId);
+  const toIndex = resources.findIndex((resource) => resource.id === hoverId);
+
+  if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) {
+    return resources;
+  }
+
+  const nextResources = [...resources];
+  const [movedResource] = nextResources.splice(fromIndex, 1);
+  const insertIndex = place === "before" ? toIndex : toIndex + 1;
+  nextResources.splice(
+    insertIndex > fromIndex ? insertIndex - 1 : insertIndex,
+    0,
+    movedResource,
+  );
+
+  const nextIds = nextResources.map((resource) => resource.id);
+  const currentIds = resources.map((resource) => resource.id);
+  return isSameResourceOrder(nextIds, currentIds) ? resources : nextResources;
+};
+
+interface ResourceListItemProps {
+  resource: VLResource;
+  status: VLResourceStatus;
+  tagText: string;
+  dimmed: boolean;
+  onMove: (
+    dragId: number,
+    hoverId: number,
+    place: ResourceDropPosition,
+  ) => void;
+  onCommitOrder: () => void;
+  onCancelOrder: () => void;
+  onClick: (resource: VLResource) => void;
+  onReprocess: (resource: VLResource) => void;
+  onReindex: (resource: VLResource) => void;
+  onStartEdit: (resource: VLResource) => void;
+  onDelete: (resource: VLResource) => void;
+}
+
+const ResourceListItem: React.FC<ResourceListItemProps> = ({
+  resource,
+  status,
+  tagText,
+  dimmed,
+  onMove,
+  onCommitOrder,
+  onCancelOrder,
+  onClick,
+  onReprocess,
+  onReindex,
+  onStartEdit,
+  onDelete,
+}) => {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const handleRef = useRef<HTMLButtonElement>(null);
+
+  const [{ isDragging }, drag] = useDrag(
+    () => ({
+      type: "VL_RESOURCE",
+      item: { id: resource.id } as DragVLResource,
+      end: (_item, monitor) => {
+        if (monitor.didDrop()) {
+          onCommitOrder();
+          return;
+        }
+        onCancelOrder();
+      },
+      collect: (monitor) => ({
+        isDragging: monitor.isDragging(),
+      }),
+    }),
+    [resource.id, onCancelOrder, onCommitOrder],
+  );
+
+  const [, drop] = useDrop<DragVLResource, { dropped: true }, unknown>({
+    accept: "VL_RESOURCE",
+    hover: (item, monitor) => {
+      if (item.id === resource.id || !rowRef.current) {
+        return;
+      }
+
+      const rect = rowRef.current.getBoundingClientRect();
+      const clientOffset = monitor.getClientOffset();
+      if (!clientOffset) {
+        return;
+      }
+
+      const middleY = (rect.bottom - rect.top) / 2;
+      const hoverY = clientOffset.y - rect.top;
+      const place = hoverY < middleY ? "before" : "after";
+      onMove(item.id, resource.id, place);
+    },
+    drop: () => ({ dropped: true }),
+  });
+
+  drag(handleRef);
+  drop(rowRef);
+
+  const config = statusConfig[status];
+
+  return (
+    <div
+      ref={rowRef}
+      className={classNames(
+        "group flex items-start gap-3 py-3 border-b border-gray-100 dark:border-gray-800 last:border-b-0 transition-colors",
+        "hover:bg-gray-50/70 dark:hover:bg-zinc-900/40 cursor-pointer rounded-lg px-2",
+        {
+          "opacity-70": dimmed,
+          "opacity-40": isDragging,
+        },
+      )}
+      onClick={() => onClick(resource)}
+    >
+      <button
+        ref={handleRef}
+        type="button"
+        className="mt-1 shrink-0 w-6 h-6 flex items-center justify-center rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-zinc-800 cursor-grab active:cursor-grabbing"
+        onClick={(event) => event.stopPropagation()}
+        aria-label={`拖动排序 ${resource.name}`}
+      >
+        <MdDragIndicator size={16} />
+      </button>
+
+      <span className="flex items-center justify-center w-8 h-8 text-base text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-zinc-800 rounded-md shrink-0">
+        {getResourceIcon(resource.resourceType)}
+      </span>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
+            {resource.name}
+          </span>
+        </div>
+        <div className="flex items-center mt-1">
+          <Tag
+            color={config.color}
+            icon={getStatusIcon(status)}
+            className="m-0! text-xs!"
+          >
+            {tagText}
+          </Tag>
+        </div>
+      </div>
+
+      <div className="shrink-0 flex items-center gap-1 ml-2">
+        {!config.spin && status !== "completed" && (
+          <Tooltip title="重新处理" key="reprocess">
+            <Button
+              type="text"
+              size="small"
+              icon={<ReloadOutlined />}
+              onClick={(event) => {
+                event.stopPropagation();
+                onReprocess(resource);
+              }}
+            />
+          </Tooltip>
+        )}
+        {status === "completed" && (
+          <Tooltip title="重新索引" key="reindex">
+            <Button
+              type="text"
+              size="small"
+              icon={<ReloadOutlined />}
+              onClick={(event) => {
+                event.stopPropagation();
+                onReindex(resource);
+              }}
+            />
+          </Tooltip>
+        )}
+        <Tooltip title="重命名" key="rename">
+          <Button
+            type="text"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={(event) => {
+              event.stopPropagation();
+              onStartEdit(resource);
+            }}
+          />
+        </Tooltip>
+        <Popconfirm
+          key="delete"
+          title="确定删除此资源？"
+          onConfirm={() => onDelete(resource)}
+          onPopupClick={(event) => event.stopPropagation()}
+          okText="删除"
+          cancelText="取消"
+        >
+          <Tooltip title="删除">
+            <Button
+              type="text"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={(event) => event.stopPropagation()}
+            />
+          </Tooltip>
+        </Popconfirm>
+      </div>
+    </div>
+  );
+};
+
 const ResourcePanel: React.FC<ResourcePanelProps> = ({
   projectId,
   mainDbName,
@@ -133,8 +358,25 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
   const [editingResource, setEditingResource] = useState<VLResource | null>(
     null,
   );
+  const [orderedResources, setOrderedResources] =
+    useState<VLResource[]>(resources);
+  const [savingOrder, setSavingOrder] = useState(false);
 
   const noteEditorRef = useRef<EditorRef>(null);
+  const sourceResourcesRef = useRef(resources);
+  const orderedResourcesRef = useRef(resources);
+  const lastPersistedOrderRef = useRef(
+    resources.map((resource) => resource.id),
+  );
+  const pendingOrderRef = useRef<number[] | null>(null);
+  const isPersistingOrderRef = useRef(false);
+
+  useEffect(() => {
+    sourceResourcesRef.current = resources;
+    orderedResourcesRef.current = resources;
+    lastPersistedOrderRef.current = resources.map((resource) => resource.id);
+    setOrderedResources(resources);
+  }, [resources]);
 
   // useEditContent 管理笔记内容保存和同步
   const handleNoteContentSync = useMemoizedFn((newContent: Descendant[]) => {
@@ -346,6 +588,77 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
     setAddResourceModalOpen(false);
   });
 
+  const flushResourceOrder = useMemoizedFn(async () => {
+    if (isPersistingOrderRef.current || !pendingOrderRef.current) {
+      return;
+    }
+
+    const nextOrder = pendingOrderRef.current;
+    pendingOrderRef.current = null;
+
+    if (isSameResourceOrder(nextOrder, lastPersistedOrderRef.current)) {
+      return;
+    }
+
+    isPersistingOrderRef.current = true;
+    setSavingOrder(true);
+
+    try {
+      await reorderVLResources(projectId, nextOrder);
+      lastPersistedOrderRef.current = nextOrder;
+      await Promise.resolve(onResourcesChange());
+    } catch (error) {
+      console.error("Failed to reorder resources:", error);
+      const fallbackResources = sourceResourcesRef.current;
+      orderedResourcesRef.current = fallbackResources;
+      setOrderedResources(fallbackResources);
+      message.error("保存资源顺序失败");
+    } finally {
+      isPersistingOrderRef.current = false;
+      setSavingOrder(false);
+
+      if (pendingOrderRef.current) {
+        void flushResourceOrder();
+      }
+    }
+  });
+
+  const handleMoveResource = useMemoizedFn(
+    (dragId: number, hoverId: number, place: ResourceDropPosition) => {
+      const nextResources = moveResourceInOrder(
+        orderedResourcesRef.current,
+        dragId,
+        hoverId,
+        place,
+      );
+
+      if (nextResources === orderedResourcesRef.current) {
+        return;
+      }
+
+      orderedResourcesRef.current = nextResources;
+      setOrderedResources(nextResources);
+    },
+  );
+
+  const handleCommitResourceOrder = useMemoizedFn(() => {
+    const nextOrder = orderedResourcesRef.current.map(
+      (resource) => resource.id,
+    );
+    if (isSameResourceOrder(nextOrder, lastPersistedOrderRef.current)) {
+      return;
+    }
+
+    pendingOrderRef.current = nextOrder;
+    void flushResourceOrder();
+  });
+
+  const handleCancelResourceOrder = useMemoizedFn(() => {
+    const fallbackResources = sourceResourcesRef.current;
+    orderedResourcesRef.current = fallbackResources;
+    setOrderedResources(fallbackResources);
+  });
+
   // 预览视图
   if (currentView === "resource-preview" && previewingResource) {
     return (
@@ -412,9 +725,14 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
       {/* 头部 */}
       <div className="flex items-center gap-2 mb-4">
         <h3 className="m-0 text-base font-semibold">资源</h3>
-        <span className="px-2 py-0.5 text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded-full">
-          {resources.length}
+        <span className="px-2 py-0.5 text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-zinc-800 rounded-full">
+          {orderedResources.length}
         </span>
+        {savingOrder && (
+          <span className="text-xs text-blue-500 dark:text-blue-400">
+            保存顺序中...
+          </span>
+        )}
       </div>
 
       {/* 添加资料按钮 */}
@@ -431,9 +749,12 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
 
       {/* 资源列表 */}
       <div className="flex-1 overflow-y-auto">
-        <List
-          dataSource={resources}
-          renderItem={(resource) => {
+        {orderedResources.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-sm text-gray-400 dark:text-gray-500">
+            暂无资源，请上传文件
+          </div>
+        ) : (
+          orderedResources.map((resource) => {
             const status = getStatus(resource.id);
             const config = statusConfig[status];
             const progress = getProgress(resource.id);
@@ -453,100 +774,24 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
             }
 
             return (
-              <List.Item
-                className={classNames(
-                  "py-2! border-b! border-gray-100! dark:border-gray-800! last:border-b-0! cursor-pointer",
-                  { "opacity-70": config.spin },
-                )}
-                onClick={() => handleResourceClick(resource)}
-                actions={[
-                  !config.spin && status !== "completed" && (
-                    <Tooltip title="重新处理" key="reprocess">
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={<ReloadOutlined />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleReprocess(resource);
-                        }}
-                      />
-                    </Tooltip>
-                  ),
-                  status === "completed" && (
-                    <Tooltip title="重新索引" key="reindex">
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={<ReloadOutlined />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleReindex(resource);
-                        }}
-                      />
-                    </Tooltip>
-                  ),
-                  <Tooltip title="重命名" key="rename">
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<EditOutlined />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStartEdit(resource);
-                      }}
-                    />
-                  </Tooltip>,
-                  <Popconfirm
-                    key="delete"
-                    title="确定删除此资源？"
-                    onConfirm={() => handleDelete(resource)}
-                    onPopupClick={(e) => e.stopPropagation()}
-                    okText="删除"
-                    cancelText="取消"
-                  >
-                    <Tooltip title="删除">
-                      <Button
-                        type="text"
-                        size="small"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </Tooltip>
-                  </Popconfirm>,
-                ].filter(Boolean)}
-              >
-                <List.Item.Meta
-                  avatar={
-                    <span className="flex items-center justify-center w-8 h-8 text-base text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded-md">
-                      {getResourceIcon(resource.resourceType)}
-                    </span>
-                  }
-                  title={
-                    <div className="flex items-center gap-2">
-                      <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
-                        {resource.name}
-                      </span>
-                    </div>
-                  }
-                  description={
-                    <div className="flex items-center mt-1">
-                      <Tag
-                        color={config.color}
-                        icon={getStatusIcon(status)}
-                        className="m-0! text-xs!"
-                      >
-                        {tagText}
-                      </Tag>
-                    </div>
-                  }
-                />
-              </List.Item>
+              <ResourceListItem
+                key={resource.id}
+                resource={resource}
+                status={status}
+                tagText={tagText}
+                dimmed={config.spin}
+                onMove={handleMoveResource}
+                onCommitOrder={handleCommitResourceOrder}
+                onCancelOrder={handleCancelResourceOrder}
+                onClick={handleResourceClick}
+                onReprocess={handleReprocess}
+                onReindex={handleReindex}
+                onStartEdit={handleStartEdit}
+                onDelete={handleDelete}
+              />
             );
-          }}
-          locale={{ emptyText: "暂无资源，请上传文件" }}
-        />
+          })
+        )}
       </div>
 
       {/* 图片全屏预览 */}

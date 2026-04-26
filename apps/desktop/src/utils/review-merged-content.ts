@@ -1,75 +1,34 @@
 import type { Descendant } from "slate";
-import { unified } from "unified";
-import remarkDirective from "remark-directive";
-import remarkFrontmatter from "remark-frontmatter";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-import remarkParse from "remark-parse";
 import type { FormattedText } from "@tau/editor/src/types";
 import type { AppliedPatch } from "@/services/content-editing/types";
 import { importFromMarkdown } from "@/utils/markdown";
 import { computeCharDiff } from "./char-diff";
 
 type ReviewDiffType = "insert" | "replace" | "delete";
+type ReviewSyntheticKind = "collapsed" | "meta" | "code";
+type ReviewNodeCapability =
+  | "container"
+  | "text-block"
+  | "code-block"
+  | "opaque";
+type SequenceDiffType = "equal" | "insert" | "delete";
 
 export interface ReviewLeaf extends FormattedText {
   diffType?: ReviewDiffType;
   diffId?: string;
   reviewSynthetic?: boolean;
+  reviewSyntheticKind?: ReviewSyntheticKind;
 }
 
-interface MarkdownAstPoint {
-  offset?: number;
+interface SequenceDiff<T> {
+  type: SequenceDiffType;
+  beforeItem?: T;
+  afterItem?: T;
 }
 
-interface MarkdownAstPosition {
-  start?: MarkdownAstPoint;
-  end?: MarkdownAstPoint;
-}
-
-interface MarkdownAstNode {
-  type: string;
-  ordered?: boolean;
-  depth?: number;
-  children?: MarkdownAstNode[];
-  position?: MarkdownAstPosition;
-}
-
-interface MarkdownAstRoot {
-  children: MarkdownAstNode[];
-}
-
-type ReviewUnitKind = "text-block" | "list-item" | "void-block";
-
-interface ReviewUnit {
-  id: string;
-  side: "before" | "after";
-  kind: ReviewUnitKind;
-  blockType: string;
-  start: number;
-  end: number;
-  markdown: string;
-  content: Descendant[];
-  inlineContainerPath: number[] | null;
-  plainText: string;
-}
-
-interface PatchSpan {
-  patch: AppliedPatch;
-  beforeStart: number;
-  beforeEnd: number;
-  afterStart: number;
-  afterEnd: number;
-}
-
-interface TextLeafRef {
-  text: string;
-  marks: Omit<ReviewLeaf, "text">;
-}
-
-interface UnitMatch {
-  beforeIndex: number;
-  afterIndex: number;
+interface BuildMergedReviewContentOptions {
+  collapseUnchanged?: boolean;
+  contextRadius?: number;
 }
 
 const DEFAULT_EMPTY_CONTENT: Descendant[] = [
@@ -84,6 +43,47 @@ const DEFAULT_EMPTY_CONTENT: Descendant[] = [
   },
 ];
 
+const CONTAINER_TYPES = new Set([
+  "root",
+  "bulleted-list",
+  "numbered-list",
+  "list-item",
+  "blockquote",
+  "callout",
+  "highlight-block",
+]);
+
+const TEXT_BLOCK_TYPES = new Set(["paragraph", "header"]);
+
+const OPAQUE_TYPES = new Set([
+  "image",
+  "inline-image",
+  "video",
+  "audio",
+  "file-attachment",
+  "chart",
+  "mermaid",
+  "abc",
+  "plantuml",
+  "tikz",
+  "typst",
+  "custom-block",
+  "html-block",
+  "block-math",
+  "inline-math",
+  "table",
+  "table-row",
+  "table-cell",
+  "detail",
+  "tabs",
+  "multi-column-container",
+  "multi-column-item",
+  "webview",
+  "image-gallery",
+  "divide-line",
+  "front-matter",
+]);
+
 const cloneValue = <T>(value: T): T => {
   if (typeof structuredClone === "function") {
     return structuredClone(value);
@@ -91,241 +91,87 @@ const cloneValue = <T>(value: T): T => {
   return JSON.parse(JSON.stringify(value)) as T;
 };
 
-const isTextNode = (node: Descendant): node is ReviewLeaf => {
-  return "text" in node;
-};
-
-const isElementNode = (
-  node: Descendant,
-): node is Descendant & { type: string; children: Descendant[] } => {
-  return "children" in node;
-};
-
 const createEmptyParagraph = (): Descendant[] =>
   cloneValue(DEFAULT_EMPTY_CONTENT);
 
-const parseMarkdownAst = (markdown: string): MarkdownAstRoot => {
-  return unified()
-    .use(remarkParse)
-    .use(remarkGfm)
-    .use(remarkMath)
-    .use(remarkDirective)
-    .use(remarkFrontmatter, ["yaml"])
-    .parse(markdown) as unknown as MarkdownAstRoot;
-};
+const isTextNode = (node: Descendant): node is ReviewLeaf => "text" in node;
 
-const getNodeOffsets = (
-  node: MarkdownAstNode,
-): { start: number; end: number } | null => {
-  const start = node.position?.start?.offset;
-  const end = node.position?.end?.offset;
-  if (typeof start !== "number" || typeof end !== "number") {
-    return null;
-  }
-  return { start, end };
-};
+const isElementNode = (
+  node: Descendant,
+): node is Descendant & { type: string; children: Descendant[] } =>
+  "children" in node;
+
+const getNodeType = (node: Descendant) =>
+  isElementNode(node) ? node.type : "formatted";
+
+const createLeaf = (
+  text: string,
+  options: Partial<ReviewLeaf> = {},
+): ReviewLeaf => ({
+  type: "formatted",
+  text,
+  ...options,
+});
+
+const createParagraph = (
+  children: ReviewLeaf[] | string,
+  options: Partial<ReviewLeaf> = {},
+): Descendant => ({
+  type: "paragraph",
+  children:
+    typeof children === "string"
+      ? [createLeaf(children, options)]
+      : children.length > 0
+        ? children
+        : [createLeaf("", options)],
+});
+
+const createSyntheticParagraph = (
+  text: string,
+  kind: ReviewSyntheticKind,
+  diffType?: ReviewDiffType,
+  diffId?: string,
+): Descendant =>
+  createParagraph(text, {
+    reviewSynthetic: true,
+    reviewSyntheticKind: kind,
+    ...(diffType ? { diffType } : {}),
+    ...(diffId ? { diffId } : {}),
+  });
 
 const importSnippetContent = (markdown: string): Descendant[] => {
   const content = importFromMarkdown(markdown);
   return content.length > 0 ? content : createEmptyParagraph();
 };
 
-const extractPlainText = (content: Descendant[]) => {
-  return flattenTextLeaves(content)
-    .map((leaf) => leaf.text)
-    .join("");
-};
-
-const resolveBlockType = (
-  node: MarkdownAstNode,
-  listType?: "bulleted-list" | "numbered-list",
-) => {
-  if (node.type === "heading") {
-    return `header-${node.depth || 1}`;
-  }
-  if (node.type === "listItem") {
-    return `${listType || "bulleted-list"}-item`;
-  }
-  return node.type;
-};
-
-const resolveUnitKind = (node: MarkdownAstNode): ReviewUnitKind => {
-  if (node.type === "paragraph" || node.type === "heading") {
-    return "text-block";
-  }
-  if (node.type === "listItem") {
-    return "list-item";
-  }
-  return "void-block";
-};
-
-const resolveInlineContainerPath = (content: Descendant[]): number[] | null => {
-  const root = content[0];
-  if (!root || !isElementNode(root)) {
-    return null;
-  }
-
-  const isSimpleFormattedChildren = (children: Descendant[]) =>
-    children.length > 0 && children.every((child) => isTextNode(child));
-
-  if (
-    (root.type === "paragraph" || root.type === "header") &&
-    isSimpleFormattedChildren(root.children)
-  ) {
-    return [0];
-  }
-
-  if (
-    (root.type === "bulleted-list" || root.type === "numbered-list") &&
-    root.children.length === 1
-  ) {
-    const listItem = root.children[0];
-    if (
-      isElementNode(listItem) &&
-      listItem.type === "list-item" &&
-      listItem.children.length === 1
-    ) {
-      const paragraph = listItem.children[0];
-      if (
-        isElementNode(paragraph) &&
-        paragraph.type === "paragraph" &&
-        isSimpleFormattedChildren(paragraph.children)
-      ) {
-        return [0, 0, 0];
-      }
-    }
-  }
-
-  return null;
-};
-
-const extractUnitsFromNodes = (payload: {
-  nodes: MarkdownAstNode[];
-  markdown: string;
-  side: ReviewUnit["side"];
-  units: ReviewUnit[];
-  prefix: string;
-}) => {
-  const { nodes, markdown, side, units, prefix } = payload;
-
-  nodes.forEach((node, index) => {
-    if (node.type === "list" && Array.isArray(node.children)) {
-      node.children.forEach((child, childIndex) => {
-        const offsets = getNodeOffsets(child);
-        if (!offsets) {
-          return;
-        }
-        const snippet = markdown.slice(offsets.start, offsets.end);
-        const content = importSnippetContent(snippet);
-        units.push({
-          id: `${prefix}-list-${index}-${childIndex}`,
-          side,
-          kind: resolveUnitKind(child),
-          blockType: resolveBlockType(
-            child,
-            node.ordered ? "numbered-list" : "bulleted-list",
-          ),
-          start: offsets.start,
-          end: offsets.end,
-          markdown: snippet,
-          inlineContainerPath: resolveInlineContainerPath(content),
-          content,
-          plainText: extractPlainText(content),
-        });
-      });
-      return;
-    }
-
-    const offsets = getNodeOffsets(node);
-    if (!offsets) {
-      return;
-    }
-    const snippet = markdown.slice(offsets.start, offsets.end);
-    const content = importSnippetContent(snippet);
-    units.push({
-      id: `${prefix}-${index}`,
-      side,
-      kind: resolveUnitKind(node),
-      blockType: resolveBlockType(node),
-      start: offsets.start,
-      end: offsets.end,
-      markdown: snippet,
-      inlineContainerPath: resolveInlineContainerPath(content),
-      content,
-      plainText: extractPlainText(content),
-    });
-  });
-};
-
-const extractReviewUnits = (
-  markdown: string,
-  side: ReviewUnit["side"],
-): ReviewUnit[] => {
-  const root = parseMarkdownAst(markdown);
-  const units: ReviewUnit[] = [];
-  extractUnitsFromNodes({
-    nodes: root.children || [],
-    markdown,
-    side,
-    units,
-    prefix: side,
-  });
-  return units.sort((a, b) => a.start - b.start);
-};
-
-const toPatchSpans = (patches: AppliedPatch[]): PatchSpan[] => {
-  const sorted = [...patches].sort((a, b) => a.start - b.start);
-  let cumulativeDelta = 0;
-  return sorted.map((patch) => {
-    const afterStart = patch.start + cumulativeDelta;
-    const span = {
-      patch,
-      beforeStart: patch.start,
-      beforeEnd: patch.end,
-      afterStart,
-      afterEnd: afterStart + patch.afterText.length,
-    };
-    cumulativeDelta += patch.charDelta;
-    return span;
-  });
-};
-
-const rangesOverlap = (
-  startA: number,
-  endA: number,
-  startB: number,
-  endB: number,
-) => {
-  return startA < endB && startB < endA;
-};
-
-const flattenTextLeaves = (nodes: Descendant[]): TextLeafRef[] => {
-  const leaves: TextLeafRef[] = [];
+const flattenTextLeaves = (nodes: Descendant[]): ReviewLeaf[] => {
+  const leaves: ReviewLeaf[] = [];
 
   const visit = (node: Descendant) => {
     if (isTextNode(node)) {
-      const { text, ...rest } = node;
-      leaves.push({
-        text,
-        marks: rest,
-      });
+      leaves.push(node);
       return;
     }
     if (!isElementNode(node)) {
       return;
     }
-    node.children.forEach((child) => visit(child));
+    node.children.forEach(visit);
   };
 
-  nodes.forEach((node) => visit(node));
+  nodes.forEach(visit);
   return leaves;
 };
 
-const normalizeForSimilarity = (text: string) => {
-  return text
+const extractPlainText = (nodes: Descendant[]) =>
+  flattenTextLeaves(nodes)
+    .map((leaf) => leaf.text)
+    .join("");
+
+const normalizeForSimilarity = (text: string) =>
+  text
     .replace(/[\s，。、“”"'‘’：:；;（）()【】[\]《》<>！!？?\-—+·,.]/g, "")
-    .trim();
-};
+    .trim()
+    .toLowerCase();
 
 const buildCharLcsTable = (left: string, right: string) => {
   const table = Array.from(
@@ -346,43 +192,287 @@ const buildCharLcsTable = (left: string, right: string) => {
   return table[left.length][right.length];
 };
 
-const areUnitsCompatible = (beforeUnit: ReviewUnit, afterUnit: ReviewUnit) => {
-  return (
-    beforeUnit.kind === afterUnit.kind &&
-    beforeUnit.blockType === afterUnit.blockType
-  );
-};
-
-const computeUnitSimilarity = (
-  beforeUnit: ReviewUnit,
-  afterUnit: ReviewUnit,
-) => {
-  if (!areUnitsCompatible(beforeUnit, afterUnit)) {
-    return Number.NEGATIVE_INFINITY;
-  }
-
-  const left = normalizeForSimilarity(beforeUnit.plainText);
-  const right = normalizeForSimilarity(afterUnit.plainText);
-  if (!left && !right) {
-    return 1;
-  }
-  if (!left || !right) {
-    return 0;
-  }
-  if (left === right) {
-    return 1;
-  }
-
+const computeTextSimilarity = (beforeText: string, afterText: string) => {
+  const left = normalizeForSimilarity(beforeText);
+  const right = normalizeForSimilarity(afterText);
+  if (!left && !right) return 1;
+  if (!left || !right) return 0;
+  if (left === right) return 1;
   const lcsLength = buildCharLcsTable(left, right);
   return lcsLength / Math.max(left.length, right.length);
 };
 
-const alignUnits = (beforeUnits: ReviewUnit[], afterUnits: ReviewUnit[]) => {
-  const rowCount = beforeUnits.length + 1;
-  const colCount = afterUnits.length + 1;
+const getNodeCapability = (node: Descendant): ReviewNodeCapability => {
+  if (!isElementNode(node)) {
+    return "text-block";
+  }
+
+  if (CONTAINER_TYPES.has(node.type)) {
+    return "container";
+  }
+
+  if (TEXT_BLOCK_TYPES.has(node.type)) {
+    return "text-block";
+  }
+
+  if (node.type === "code-block") {
+    return "code-block";
+  }
+
+  if (OPAQUE_TYPES.has(node.type)) {
+    return "opaque";
+  }
+
+  return "opaque";
+};
+
+const getRelevantChildren = (node: Descendant): Descendant[] => {
+  if (!isElementNode(node)) return [];
+  if (getNodeCapability(node) === "code-block") return [];
+  return Array.isArray(node.children) ? node.children : [];
+};
+
+const getNodeSummaryText = (node: Descendant): string => {
+  if (isTextNode(node)) return node.text;
+  if (!isElementNode(node)) return "";
+  if (node.type === "code-block") {
+    return String((node as { code?: string }).code || "");
+  }
+  return extractPlainText([node]);
+};
+
+const getNodeMetadata = (node: Descendant) => {
+  if (!isElementNode(node)) return {};
+
+  switch (node.type) {
+    case "header":
+      return { level: (node as { level?: number }).level || 1 };
+    case "callout":
+      return {
+        calloutType: (node as { calloutType?: string }).calloutType || "note",
+        title: (node as { title?: string }).title || "",
+      };
+    case "highlight-block":
+      return {
+        color: (node as { color?: string }).color || "yellow",
+      };
+    case "list-item":
+      return {
+        iconType: (node as { iconType?: string }).iconType || "",
+        icon: (node as { icon?: string }).icon || "",
+        iconUrl: (node as { iconUrl?: string }).iconUrl || "",
+      };
+    case "code-block":
+      return {
+        language: (node as { language?: string }).language || "",
+        highlightLines:
+          (node as { highlightLines?: string }).highlightLines || "",
+        magicMove:
+          (node as { magicMove?: unknown }).magicMove == null
+            ? null
+            : JSON.stringify((node as { magicMove?: unknown }).magicMove),
+      };
+    default:
+      return {};
+  }
+};
+
+const areMetadataEqual = (beforeNode: Descendant, afterNode: Descendant) =>
+  JSON.stringify(getNodeMetadata(beforeNode)) ===
+  JSON.stringify(getNodeMetadata(afterNode));
+
+const describeMetadataDiff = (
+  beforeNode: Descendant,
+  afterNode: Descendant,
+) => {
+  if (!isElementNode(beforeNode) || !isElementNode(afterNode)) {
+    return null;
+  }
+
+  switch (afterNode.type) {
+    case "callout": {
+      const beforeCallout = beforeNode as {
+        calloutType?: string;
+        title?: string;
+      };
+      const afterCallout = afterNode as {
+        calloutType?: string;
+        title?: string;
+      };
+      const changes: string[] = [];
+      if (beforeCallout.calloutType !== afterCallout.calloutType) {
+        changes.push(
+          `类型：${beforeCallout.calloutType || "note"} -> ${afterCallout.calloutType || "note"}`,
+        );
+      }
+      if ((beforeCallout.title || "") !== (afterCallout.title || "")) {
+        changes.push(
+          `标题：${beforeCallout.title || "空"} -> ${afterCallout.title || "空"}`,
+        );
+      }
+      return changes.length > 0
+        ? `Callout 属性已修改：${changes.join("；")}`
+        : null;
+    }
+    case "highlight-block": {
+      const beforeColor = (beforeNode as { color?: string }).color || "";
+      const afterColor = (afterNode as { color?: string }).color || "";
+      if (beforeColor === afterColor) {
+        return null;
+      }
+      return `高亮块颜色已修改：${beforeColor || "默认"} -> ${afterColor || "默认"}`;
+    }
+    case "list-item": {
+      const beforeMeta = beforeNode as {
+        iconType?: string;
+        icon?: string;
+        iconUrl?: string;
+      };
+      const afterMeta = afterNode as {
+        iconType?: string;
+        icon?: string;
+        iconUrl?: string;
+      };
+      if (
+        beforeMeta.iconType === afterMeta.iconType &&
+        beforeMeta.icon === afterMeta.icon &&
+        beforeMeta.iconUrl === afterMeta.iconUrl
+      ) {
+        return null;
+      }
+      return "列表项图标已修改";
+    }
+    case "code-block": {
+      const beforeCode = beforeNode as {
+        language?: string;
+        highlightLines?: string;
+        magicMove?: unknown;
+      };
+      const afterCode = afterNode as {
+        language?: string;
+        highlightLines?: string;
+        magicMove?: unknown;
+      };
+      const changes: string[] = [];
+      if ((beforeCode.language || "") !== (afterCode.language || "")) {
+        changes.push(
+          `语言：${beforeCode.language || "plain"} -> ${afterCode.language || "plain"}`,
+        );
+      }
+      if (
+        (beforeCode.highlightLines || "") !== (afterCode.highlightLines || "")
+      ) {
+        changes.push("高亮行已修改");
+      }
+      const beforeMagicMove = JSON.stringify(beforeCode.magicMove || null);
+      const afterMagicMove = JSON.stringify(afterCode.magicMove || null);
+      if (beforeMagicMove !== afterMagicMove) {
+        changes.push("Magic Move 已修改");
+      }
+      return changes.length > 0
+        ? `代码块属性已修改：${changes.join("；")}`
+        : null;
+    }
+    default:
+      return null;
+  }
+};
+
+const isNodeEquivalent = (
+  beforeNode: Descendant,
+  afterNode: Descendant,
+): boolean => {
+  if (getNodeType(beforeNode) !== getNodeType(afterNode)) {
+    return false;
+  }
+
+  if (isTextNode(beforeNode) && isTextNode(afterNode)) {
+    const { text: beforeText, ...beforeRest } = beforeNode;
+    const { text: afterText, ...afterRest } = afterNode;
+    return (
+      beforeText === afterText &&
+      JSON.stringify(beforeRest) === JSON.stringify(afterRest)
+    );
+  }
+
+  const capability = getNodeCapability(afterNode);
+  if (capability === "text-block") {
+    return (
+      areMetadataEqual(beforeNode, afterNode) &&
+      getNodeSummaryText(beforeNode) === getNodeSummaryText(afterNode)
+    );
+  }
+
+  if (capability === "code-block") {
+    return (
+      areMetadataEqual(beforeNode, afterNode) &&
+      getNodeSummaryText(beforeNode) === getNodeSummaryText(afterNode)
+    );
+  }
+
+  if (capability === "container") {
+    if (!areMetadataEqual(beforeNode, afterNode)) {
+      return false;
+    }
+    const beforeChildren = getRelevantChildren(beforeNode);
+    const afterChildren = getRelevantChildren(afterNode);
+    if (beforeChildren.length !== afterChildren.length) {
+      return false;
+    }
+    return beforeChildren.every((child, index) =>
+      isNodeEquivalent(child, afterChildren[index]),
+    );
+  }
+
+  return (
+    JSON.stringify(getNodeMetadata(beforeNode)) ===
+    JSON.stringify(getNodeMetadata(afterNode))
+  );
+};
+
+const computeNodeSimilarity = (
+  beforeNode: Descendant,
+  afterNode: Descendant,
+) => {
+  if (getNodeType(beforeNode) !== getNodeType(afterNode)) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  const beforeCapability = getNodeCapability(beforeNode);
+  const afterCapability = getNodeCapability(afterNode);
+  if (beforeCapability !== afterCapability) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  const baseSimilarity = computeTextSimilarity(
+    getNodeSummaryText(beforeNode),
+    getNodeSummaryText(afterNode),
+  );
+
+  switch (afterCapability) {
+    case "container":
+      return baseSimilarity >= 0.18 ? baseSimilarity : Number.NEGATIVE_INFINITY;
+    case "text-block":
+      return baseSimilarity >= 0.24 ? baseSimilarity : Number.NEGATIVE_INFINITY;
+    case "code-block":
+      return baseSimilarity >= 0.08 ? baseSimilarity : Number.NEGATIVE_INFINITY;
+    case "opaque":
+      return baseSimilarity >= 0.92 ? baseSimilarity : Number.NEGATIVE_INFINITY;
+    default:
+      return Number.NEGATIVE_INFINITY;
+  }
+};
+
+const computeSequenceDiff = <T>(
+  beforeItems: T[],
+  afterItems: T[],
+  similarity: (beforeItem: T, afterItem: T) => number,
+): SequenceDiff<T>[] => {
+  const rowCount = beforeItems.length + 1;
+  const colCount = afterItems.length + 1;
   const dp = Array.from({ length: rowCount }, () => Array(colCount).fill(0));
   const decision = Array.from({ length: rowCount }, () =>
-    Array<"match" | "delete" | "insert" | null>(colCount).fill(null),
+    Array<SequenceDiffType | "match" | null>(colCount).fill(null),
   );
 
   for (let i = 1; i < rowCount; i += 1) {
@@ -397,13 +487,11 @@ const alignUnits = (beforeUnits: ReviewUnit[], afterUnits: ReviewUnit[]) => {
 
   for (let i = 1; i < rowCount; i += 1) {
     for (let j = 1; j < colCount; j += 1) {
-      const beforeUnit = beforeUnits[i - 1];
-      const afterUnit = afterUnits[j - 1];
-      const similarity = computeUnitSimilarity(beforeUnit, afterUnit);
-      const canMatch = similarity >= 0.38;
-      const matchScore = canMatch
-        ? dp[i - 1][j - 1] + 2 + similarity * 3
-        : Number.NEGATIVE_INFINITY;
+      const similarityScore = similarity(beforeItems[i - 1], afterItems[j - 1]);
+      const matchScore =
+        similarityScore === Number.NEGATIVE_INFINITY
+          ? Number.NEGATIVE_INFINITY
+          : dp[i - 1][j - 1] + 2 + similarityScore * 3;
       const deleteScore = dp[i - 1][j] - 1;
       const insertScore = dp[i][j - 1] - 1;
 
@@ -420,16 +508,17 @@ const alignUnits = (beforeUnits: ReviewUnit[], afterUnits: ReviewUnit[]) => {
     }
   }
 
-  const matches: UnitMatch[] = [];
-  let i = beforeUnits.length;
-  let j = afterUnits.length;
+  const diffs: SequenceDiff<T>[] = [];
+  let i = beforeItems.length;
+  let j = afterItems.length;
 
   while (i > 0 || j > 0) {
     const current = decision[i][j];
     if (current === "match") {
-      matches.push({
-        beforeIndex: i - 1,
-        afterIndex: j - 1,
+      diffs.push({
+        type: "equal",
+        beforeItem: beforeItems[i - 1],
+        afterItem: afterItems[j - 1],
       });
       i -= 1;
       j -= 1;
@@ -437,11 +526,19 @@ const alignUnits = (beforeUnits: ReviewUnit[], afterUnits: ReviewUnit[]) => {
     }
 
     if (current === "delete") {
+      diffs.push({
+        type: "delete",
+        beforeItem: beforeItems[i - 1],
+      });
       i -= 1;
       continue;
     }
 
     if (current === "insert") {
+      diffs.push({
+        type: "insert",
+        afterItem: afterItems[j - 1],
+      });
       j -= 1;
       continue;
     }
@@ -449,72 +546,12 @@ const alignUnits = (beforeUnits: ReviewUnit[], afterUnits: ReviewUnit[]) => {
     break;
   }
 
-  return matches.reverse();
-};
-
-const resolveDiffId = (payload: {
-  beforeUnit?: ReviewUnit;
-  afterUnit?: ReviewUnit;
-  spans: PatchSpan[];
-}) => {
-  const { beforeUnit, afterUnit, spans } = payload;
-  const ids = Array.from(
-    new Set(
-      spans
-        .filter((span) => {
-          const hitsBefore =
-            beforeUnit &&
-            rangesOverlap(
-              span.beforeStart,
-              span.beforeEnd,
-              beforeUnit.start,
-              beforeUnit.end,
-            );
-          const hitsAfter =
-            afterUnit &&
-            rangesOverlap(
-              span.afterStart,
-              span.afterEnd,
-              afterUnit.start,
-              afterUnit.end,
-            );
-          return Boolean(hitsBefore || hitsAfter);
-        })
-        .map((span) => span.patch.operationId),
-    ),
-  );
-
-  if (ids.length > 0) {
-    return ids.join("|");
-  }
-
-  return `${beforeUnit?.id || "none"}=>${afterUnit?.id || "none"}`;
-};
-
-const getNodeAtPath = (
-  content: Descendant[],
-  path: number[],
-): (Descendant & { children?: Descendant[] }) | null => {
-  let current: Descendant | undefined = content[path[0]];
-  if (!current) {
-    return null;
-  }
-
-  for (let i = 1; i < path.length; i += 1) {
-    if (!isElementNode(current)) {
-      return null;
-    }
-    current = current.children[path[i]];
-    if (!current) {
-      return null;
-    }
-  }
-
-  return current as Descendant & { children?: Descendant[] };
+  return diffs.reverse();
 };
 
 const mergeAdjacentLeaves = (leaves: ReviewLeaf[]) => {
   const merged: ReviewLeaf[] = [];
+
   const getComparableShape = (leaf: ReviewLeaf) => {
     const { text: _text, ...rest } = leaf;
     return JSON.stringify(rest);
@@ -535,42 +572,45 @@ const mergeAdjacentLeaves = (leaves: ReviewLeaf[]) => {
   return merged;
 };
 
-const buildInlineMergedContent = (
-  beforeUnit: ReviewUnit,
-  afterUnit: ReviewUnit,
+const markWholeSubtree = (
+  content: Descendant[],
+  diffType: ReviewDiffType,
   diffId: string,
-): Descendant[] | null => {
-  if (!beforeUnit.inlineContainerPath || !afterUnit.inlineContainerPath) {
-    return null;
+): Descendant[] => {
+  const markNode = (node: Descendant): Descendant => {
+    if (isTextNode(node)) {
+      return {
+        ...node,
+        diffType,
+        diffId,
+        ...(diffType === "delete" ? { strikethrough: true } : {}),
+      } as Descendant;
+    }
+
+    if (!isElementNode(node)) {
+      return node;
+    }
+
+    return {
+      ...node,
+      children: node.children.map(markNode),
+    } as Descendant;
+  };
+
+  return cloneValue(content).map(markNode);
+};
+
+const buildInlineMergedNode = (
+  beforeNode: Descendant,
+  afterNode: Descendant,
+  diffId: string,
+): Descendant[] => {
+  if (!isElementNode(beforeNode) || !isElementNode(afterNode)) {
+    return markWholeSubtree([afterNode], "replace", diffId);
   }
 
-  const beforeContainer = getNodeAtPath(
-    beforeUnit.content,
-    beforeUnit.inlineContainerPath,
-  );
-  const afterContent = cloneValue(afterUnit.content);
-  const afterContainer = getNodeAtPath(
-    afterContent,
-    afterUnit.inlineContainerPath,
-  );
-  if (
-    !beforeContainer ||
-    !afterContainer ||
-    !isElementNode(beforeContainer as Descendant) ||
-    !isElementNode(afterContainer as Descendant)
-  ) {
-    return null;
-  }
-
-  if (
-    !Array.isArray(beforeContainer.children) ||
-    !Array.isArray(afterContainer.children)
-  ) {
-    return null;
-  }
-
-  const beforeLeaves = flattenTextLeaves(beforeContainer.children);
-  const afterLeaves = flattenTextLeaves(afterContainer.children);
+  const beforeLeaves = flattenTextLeaves(beforeNode.children);
+  const afterLeaves = flattenTextLeaves(afterNode.children);
   const beforeText = beforeLeaves.map((leaf) => leaf.text).join("");
   const afterText = afterLeaves.map((leaf) => leaf.text).join("");
   const diffs = computeCharDiff(beforeText, afterText);
@@ -593,8 +633,9 @@ const buildInlineMergedContent = (
         afterLeafOffset,
         afterLeafOffset + take,
       );
+
       mergedLeaves.push({
-        ...current.marks,
+        ...current,
         text: segmentText,
         ...(diffType
           ? {
@@ -603,6 +644,7 @@ const buildInlineMergedContent = (
             }
           : {}),
       });
+
       afterLeafOffset += take;
       remaining -= take;
       if (afterLeafOffset >= current.text.length) {
@@ -633,172 +675,379 @@ const buildInlineMergedContent = (
     });
   });
 
-  const normalizedLeaves = mergeAdjacentLeaves(mergedLeaves);
-  afterContainer.children =
-    normalizedLeaves.length > 0
-      ? normalizedLeaves
-      : [
-          {
-            type: "formatted",
-            text: "",
-          },
-        ];
+  const nextNode = cloneValue(afterNode);
+  nextNode.children =
+    mergeAdjacentLeaves(mergedLeaves).length > 0
+      ? mergeAdjacentLeaves(mergedLeaves)
+      : [createLeaf("")];
 
-  return afterContent;
+  return [nextNode];
 };
 
-const markWholeSubtree = (
-  content: Descendant[],
-  diffType: ReviewDiffType,
+const createCodeLineParagraph = (
+  leaves: ReviewLeaf[],
   diffId: string,
-): Descendant[] => {
-  const markNode = (node: Descendant): Descendant => {
-    if (isTextNode(node)) {
-      return {
-        ...node,
-        diffType,
-        diffId,
-        ...(diffType === "delete" ? { strikethrough: true } : {}),
-      } as Descendant;
-    }
-    if (!isElementNode(node)) {
-      return node;
-    }
-    return {
-      ...node,
-      children: node.children.map((child) => markNode(child)),
-    } as Descendant;
-  };
-
-  return cloneValue(content).map((node) => markNode(node));
+  diffType?: ReviewDiffType,
+): Descendant => {
+  const withSynthetic = leaves.map((leaf) => ({
+    ...leaf,
+    reviewSynthetic: true,
+    reviewSyntheticKind: "code" as const,
+    ...(diffType ? { diffType } : {}),
+    ...(diffType ? { diffId } : {}),
+  }));
+  return createParagraph(
+    withSynthetic.length > 0
+      ? withSynthetic
+      : [
+          createLeaf("", {
+            reviewSynthetic: true,
+            reviewSyntheticKind: "code",
+            ...(diffType ? { diffType, diffId } : {}),
+          }),
+        ],
+  );
 };
 
-const renderUnits = (units: ReviewUnit[]) => {
-  return units.flatMap((unit) => cloneValue(unit.content));
-};
+const buildCodeLineReplaceLeaves = (
+  beforeLine: string,
+  afterLine: string,
+  diffId: string,
+) => {
+  const diffs = computeCharDiff(beforeLine, afterLine);
+  const hasDelete = diffs.some((diff) => diff.type === "delete");
+  const leaves: ReviewLeaf[] = [
+    createLeaf("+ ", {
+      reviewSynthetic: true,
+      reviewSyntheticKind: "code",
+      diffType: "replace",
+      diffId,
+    }),
+  ];
 
-const mergeAdjacentListContainers = (content: Descendant[]) => {
-  const merged: Descendant[] = [];
-
-  content.forEach((node) => {
-    const previous = merged[merged.length - 1];
-    if (
-      previous &&
-      isElementNode(previous) &&
-      isElementNode(node) &&
-      (previous.type === "bulleted-list" ||
-        previous.type === "numbered-list") &&
-      previous.type === node.type
-    ) {
-      previous.children = [...previous.children, ...cloneValue(node.children)];
+  diffs.forEach((diff) => {
+    if (diff.type === "equal") {
+      leaves.push(
+        createLeaf(diff.text, {
+          reviewSynthetic: true,
+          reviewSyntheticKind: "code",
+        }),
+      );
       return;
     }
-    merged.push(node);
+
+    if (diff.type === "delete") {
+      leaves.push(
+        createLeaf(diff.text, {
+          reviewSynthetic: true,
+          reviewSyntheticKind: "code",
+          diffType: "delete",
+          diffId,
+          strikethrough: true,
+        }),
+      );
+      return;
+    }
+
+    leaves.push(
+      createLeaf(diff.text, {
+        reviewSynthetic: true,
+        reviewSyntheticKind: "code",
+        diffType: hasDelete ? "replace" : "insert",
+        diffId,
+      }),
+    );
   });
 
-  return merged;
+  return mergeAdjacentLeaves(leaves);
 };
 
-const renderDeleteUnits = (units: ReviewUnit[], spans: PatchSpan[]) => {
-  return mergeAdjacentListContainers(
-    markWholeSubtree(
-      renderUnits(units),
-      "delete",
-      resolveDiffId({ beforeUnit: units[0], spans }),
-    ),
-  );
+const normalizeCodeLines = (code: string) => {
+  if (code.length === 0) {
+    return [""];
+  }
+  return code.split("\n");
 };
 
-const renderInsertUnits = (units: ReviewUnit[], spans: PatchSpan[]) => {
-  return mergeAdjacentListContainers(
-    markWholeSubtree(
-      renderUnits(units),
-      "insert",
-      resolveDiffId({ afterUnit: units[0], spans }),
-    ),
-  );
-};
-
-const renderAlignedPair = (
-  beforeUnit: ReviewUnit,
-  afterUnit: ReviewUnit,
-  spans: PatchSpan[],
-) => {
-  const diffId = resolveDiffId({ beforeUnit, afterUnit, spans });
-  const inlineContent = buildInlineMergedContent(beforeUnit, afterUnit, diffId);
-  if (inlineContent) {
-    return mergeAdjacentListContainers(inlineContent);
+const renderCodeBlockDiff = (
+  beforeNode: Descendant,
+  afterNode: Descendant,
+  diffId: string,
+): Descendant[] => {
+  const beforeCodeNode = beforeNode as {
+    code?: string;
+  };
+  const afterCodeNode = afterNode as {
+    code?: string;
+  };
+  const results: Descendant[] = [];
+  const metaDescription = describeMetadataDiff(beforeNode, afterNode);
+  if (metaDescription) {
+    results.push(
+      createSyntheticParagraph(metaDescription, "meta", "replace", diffId),
+    );
   }
 
-  return mergeAdjacentListContainers([
-    ...markWholeSubtree(renderUnits([beforeUnit]), "delete", diffId),
-    ...markWholeSubtree(renderUnits([afterUnit]), "replace", diffId),
-  ]);
+  const beforeLines = normalizeCodeLines(String(beforeCodeNode.code || ""));
+  const afterLines = normalizeCodeLines(String(afterCodeNode.code || ""));
+  const diffs = computeSequenceDiff(
+    beforeLines,
+    afterLines,
+    (beforeLine, afterLine) =>
+      beforeLine === afterLine ? 1 : Number.NEGATIVE_INFINITY,
+  );
+
+  for (let index = 0; index < diffs.length; index += 1) {
+    const diff = diffs[index];
+    if (diff.type === "equal") {
+      results.push(
+        createCodeLineParagraph(
+          [
+            createLeaf(`  ${diff.afterItem || ""}`, {
+              reviewSynthetic: true,
+              reviewSyntheticKind: "code",
+            }),
+          ],
+          diffId,
+        ),
+      );
+      continue;
+    }
+
+    if (
+      diff.type === "delete" &&
+      index + 1 < diffs.length &&
+      diffs[index + 1].type === "insert"
+    ) {
+      const deletedLine = diff.beforeItem || "";
+      const insertedLine = diffs[index + 1].afterItem || "";
+      results.push(
+        createCodeLineParagraph(
+          [
+            createLeaf(`- ${deletedLine}`, {
+              reviewSynthetic: true,
+              reviewSyntheticKind: "code",
+            }),
+          ],
+          diffId,
+          "delete",
+        ),
+      );
+      results.push(
+        createCodeLineParagraph(
+          buildCodeLineReplaceLeaves(deletedLine, insertedLine, diffId),
+          diffId,
+        ),
+      );
+      index += 1;
+      continue;
+    }
+
+    if (diff.type === "delete") {
+      results.push(
+        createCodeLineParagraph(
+          [
+            createLeaf(`- ${diff.beforeItem || ""}`, {
+              reviewSynthetic: true,
+              reviewSyntheticKind: "code",
+            }),
+          ],
+          diffId,
+          "delete",
+        ),
+      );
+      continue;
+    }
+
+    results.push(
+      createCodeLineParagraph(
+        [
+          createLeaf(`+ ${diff.afterItem || ""}`, {
+            reviewSynthetic: true,
+            reviewSyntheticKind: "code",
+          }),
+        ],
+        diffId,
+        "insert",
+      ),
+    );
+  }
+
+  return results.length > 0 ? results : createEmptyParagraph();
+};
+
+const mergeNodePair = (
+  beforeNode: Descendant,
+  afterNode: Descendant,
+  diffId: string,
+): Descendant[] => {
+  if (isNodeEquivalent(beforeNode, afterNode)) {
+    return [cloneValue(afterNode)];
+  }
+
+  const capability = getNodeCapability(afterNode);
+  if (capability === "text-block") {
+    return buildInlineMergedNode(beforeNode, afterNode, diffId);
+  }
+
+  if (
+    capability === "container" &&
+    isElementNode(beforeNode) &&
+    isElementNode(afterNode)
+  ) {
+    const nextNode = cloneValue(afterNode);
+    const children = mergeNodeList(
+      beforeNode.children,
+      afterNode.children,
+      diffId,
+    );
+    const metaDescription = describeMetadataDiff(beforeNode, afterNode);
+    nextNode.children = metaDescription
+      ? [
+          createSyntheticParagraph(metaDescription, "meta", "replace", diffId),
+          ...children,
+        ]
+      : children;
+    return [nextNode];
+  }
+
+  if (capability === "code-block") {
+    return renderCodeBlockDiff(beforeNode, afterNode, diffId);
+  }
+
+  return [
+    ...markWholeSubtree([beforeNode], "delete", diffId),
+    ...markWholeSubtree([afterNode], "replace", diffId),
+  ];
+};
+
+const mergeNodeList = (
+  beforeNodes: Descendant[],
+  afterNodes: Descendant[],
+  diffId: string,
+): Descendant[] => {
+  const diffs = computeSequenceDiff(
+    beforeNodes,
+    afterNodes,
+    computeNodeSimilarity,
+  );
+  const merged: Descendant[] = [];
+
+  diffs.forEach((diff) => {
+    if (diff.type === "equal" && diff.beforeItem && diff.afterItem) {
+      merged.push(...mergeNodePair(diff.beforeItem, diff.afterItem, diffId));
+      return;
+    }
+
+    if (diff.type === "delete" && diff.beforeItem) {
+      merged.push(...markWholeSubtree([diff.beforeItem], "delete", diffId));
+      return;
+    }
+
+    if (diff.type === "insert" && diff.afterItem) {
+      merged.push(...markWholeSubtree([diff.afterItem], "insert", diffId));
+    }
+  });
+
+  return merged.length > 0 ? merged : createEmptyParagraph();
+};
+
+const subtreeHasDiff = (node: Descendant): boolean => {
+  if (isTextNode(node)) {
+    return Boolean(node.diffType);
+  }
+
+  if (!isElementNode(node)) {
+    return false;
+  }
+
+  return node.children.some(subtreeHasDiff);
+};
+
+const collapseUnchangedRootUnits = (
+  content: Descendant[],
+  contextRadius: number,
+): Descendant[] => {
+  const changedIndexes = content
+    .map((node, index) => (subtreeHasDiff(node) ? index : -1))
+    .filter((index) => index >= 0);
+
+  if (changedIndexes.length === 0) {
+    return content;
+  }
+
+  const windows = changedIndexes
+    .map((index) => ({
+      start: Math.max(0, index - contextRadius),
+      end: Math.min(content.length - 1, index + contextRadius),
+    }))
+    .sort((left, right) => left.start - right.start);
+
+  const mergedWindows: Array<{ start: number; end: number }> = [];
+  windows.forEach((window) => {
+    const previous = mergedWindows[mergedWindows.length - 1];
+    if (!previous || window.start > previous.end + 1) {
+      mergedWindows.push({ ...window });
+      return;
+    }
+    previous.end = Math.max(previous.end, window.end);
+  });
+
+  const result: Descendant[] = [];
+  let cursor = 0;
+
+  mergedWindows.forEach((window) => {
+    if (window.start > cursor) {
+      result.push(
+        createSyntheticParagraph("…… 已折叠未改动内容 ……", "collapsed"),
+      );
+    }
+
+    for (let index = window.start; index <= window.end; index += 1) {
+      result.push(cloneValue(content[index]));
+    }
+    cursor = window.end + 1;
+  });
+
+  if (cursor < content.length) {
+    result.push(
+      createSyntheticParagraph("…… 已折叠未改动内容 ……", "collapsed"),
+    );
+  }
+
+  return result;
 };
 
 export const buildMergedReviewContent = (payload: {
   beforeMarkdown: string;
   afterMarkdown: string;
   patches: AppliedPatch[];
+  options?: BuildMergedReviewContentOptions;
 }) => {
-  const { beforeMarkdown, afterMarkdown, patches } = payload;
-  const beforeUnits = extractReviewUnits(beforeMarkdown, "before");
-  const afterUnits = extractReviewUnits(afterMarkdown, "after");
+  const { beforeMarkdown, afterMarkdown, patches, options } = payload;
+  const beforeContent = importSnippetContent(beforeMarkdown);
+  const afterContent = importSnippetContent(afterMarkdown);
 
   if (patches.length === 0) {
-    const content = importSnippetContent(afterMarkdown);
     return {
-      content: content.length > 0 ? content : createEmptyParagraph(),
+      content: afterContent.length > 0 ? afterContent : createEmptyParagraph(),
     };
   }
 
-  const spans = toPatchSpans(patches);
-  const matches = alignUnits(beforeUnits, afterUnits);
-  const content: Descendant[] = [];
-  let beforeCursor = 0;
-  let afterCursor = 0;
+  const diffId =
+    Array.from(
+      new Set(patches.map((patch) => patch.operationId).filter(Boolean)),
+    ).join("|") || "review-change";
 
-  matches.forEach((match) => {
-    if (match.beforeIndex > beforeCursor) {
-      content.push(
-        ...renderDeleteUnits(
-          beforeUnits.slice(beforeCursor, match.beforeIndex),
-          spans,
-        ),
-      );
-    }
+  const mergedContent = mergeNodeList(beforeContent, afterContent, diffId);
+  const finalContent = options?.collapseUnchanged
+    ? collapseUnchangedRootUnits(
+        mergedContent,
+        Math.max(0, options.contextRadius ?? 1),
+      )
+    : mergedContent;
 
-    if (match.afterIndex > afterCursor) {
-      content.push(
-        ...renderInsertUnits(
-          afterUnits.slice(afterCursor, match.afterIndex),
-          spans,
-        ),
-      );
-    }
-
-    const beforeUnit = beforeUnits[match.beforeIndex];
-    const afterUnit = afterUnits[match.afterIndex];
-    if (beforeUnit.plainText === afterUnit.plainText) {
-      content.push(...cloneValue(afterUnit.content));
-    } else {
-      content.push(...renderAlignedPair(beforeUnit, afterUnit, spans));
-    }
-
-    beforeCursor = match.beforeIndex + 1;
-    afterCursor = match.afterIndex + 1;
-  });
-
-  if (beforeCursor < beforeUnits.length) {
-    content.push(...renderDeleteUnits(beforeUnits.slice(beforeCursor), spans));
-  }
-
-  if (afterCursor < afterUnits.length) {
-    content.push(...renderInsertUnits(afterUnits.slice(afterCursor), spans));
-  }
-
-  const mergedContent = mergeAdjacentListContainers(content);
   return {
-    content: mergedContent.length > 0 ? mergedContent : createEmptyParagraph(),
+    content: finalContent.length > 0 ? finalContent : createEmptyParagraph(),
   };
 };

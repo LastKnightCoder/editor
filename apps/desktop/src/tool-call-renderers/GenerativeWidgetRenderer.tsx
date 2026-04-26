@@ -335,7 +335,7 @@ const GenerativeWidgetFrame = ({
           ? "h-full min-h-0 overflow-auto"
           : `overflow-hidden rounded-xl border ${
               isDark
-                ? "border-white/10 bg-slate-950/40"
+                ? "border-white/10 bg-zinc-950/40"
                 : "border-slate-200 bg-slate-50/60"
             }`
       }

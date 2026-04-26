@@ -22,6 +22,10 @@ export {
   OUTLINE_GENERATION_SIMPLE_PROMPT,
 } from "./outline-generation";
 export {
+  ARTICLE_GENERATION_WITH_TOOLS_PROMPT,
+  ARTICLE_GENERATION_WITH_TOOLS_USER_PROMPT,
+} from "./article-generation";
+export {
   MINDMAP_GENERATION_WITH_TOOLS_PROMPT,
   MINDMAP_GENERATION_WITH_TOOLS_USER_PROMPT,
 } from "./mindmap-generation";
@@ -35,10 +39,6 @@ export {
   ANSWER_JUDGEMENT_SYSTEM_PROMPT,
   buildAnswerJudgementUserPrompt,
 } from "./answer-judgement";
-export {
-  AUTO_TAGGING_SYSTEM_PROMPT,
-  buildAutoTaggingUserPrompt,
-} from "./auto-tagging";
 export {
   TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT,
   buildTranscriptionOptimizationUserPrompt,
@@ -62,6 +62,7 @@ export {
 export {
   VIDEO_EBOOK_REWRITE_SYSTEM_PROMPT,
   VIDEO_EBOOK_REWRITE_STYLE_OPTIONS,
+  VIDEO_EBOOK_REWRITE_STYLE_INSTRUCTIONS,
   buildVideoEbookRewriteUserPrompt,
 } from "./video-ebook-rewrite";
 export { buildSkillPrompt, buildSkillPromptSync } from "./skills";

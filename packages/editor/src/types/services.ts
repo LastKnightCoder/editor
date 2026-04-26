@@ -167,6 +167,22 @@ export interface AIService {
   isTTSConfigured?: () => boolean;
 }
 
+export interface ImageGenerationResult {
+  url: string;
+  fileName?: string;
+  mimeType?: string;
+  revisedPrompt?: string;
+}
+
+export interface ImageGenerationService {
+  isAvailable: () => boolean;
+  generateImage: (params: { prompt: string }) => Promise<ImageGenerationResult>;
+  editImage: (params: {
+    prompt: string;
+    imageUrl: string;
+  }) => Promise<ImageGenerationResult>;
+}
+
 export interface CompilerService {
   typst: (code: string) => Promise<string>; // Returns SVG or PDF
   tailwindRuntime: (html: string) => Promise<string>;
@@ -178,6 +194,11 @@ export interface UtilityService {
   openUrl: (url: string) => Promise<void>;
   nodeFetch: (url: string, options: RequestInit) => Promise<string>;
   getMarkdown: (content: Descendant[]) => string;
+  importFromMarkdown: (
+    markdown: string,
+    ignoreTypes?: string[],
+  ) => Descendant[];
+  isMarkdownLikeText: (text: string) => boolean;
 }
 
 export interface WebviewProps {
@@ -243,6 +264,7 @@ export interface EditorServices {
   settings: SettingsService;
   theme: ThemeService;
   ai: AIService;
+  imageGeneration?: ImageGenerationService;
   compiler?: CompilerService;
   utility: UtilityService;
   customBlock?: CustomBlockService;

@@ -14,21 +14,15 @@ import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 
 import CustomModal from "@/components/CustomModal";
-import { chatLLMStream } from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useVLResourceSelection from "@/hooks/useVLResourceSelection";
 import useVLTools from "@/hooks/useVLTools";
 import { createVLNote } from "@/commands/vibe-learning";
 import { createContent } from "@/commands";
-import { RequestMessage, ToolCallExecutionState } from "@/types";
+import { ToolCallExecutionState } from "@/types";
 import { VLNote } from "@/types/vibe-learning";
-import { Role } from "@/constants";
 import { getContentLength, importFromMarkdown } from "@/utils";
-import {
-  getPPTGenerationPrompt,
-  getPPTGenerationUserPrompt,
-  cleanPPTHtmlContent,
-} from "@/constants/prompts/ppt-generation";
+import { cleanPPTHtmlContent } from "@/constants/prompts/ppt-generation";
 import {
   PPT_TEMPLATES,
   DEFAULT_TEMPLATE_ID,
@@ -39,6 +33,7 @@ import {
   GeneratingProgress,
   PPTTemplateSelector,
 } from "../components";
+import { runGenerationTask } from "@/services/generation-orchestrator";
 
 interface PPTGenerateModalProps {
   open: boolean;
@@ -175,57 +170,51 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
 
     const resourceNames = getSelectedResourceNames();
 
-    const messages: RequestMessage[] = [
+    runGenerationTask(
+      providerConfig,
+      modelConfig,
       {
-        role: Role.System,
-        content: [
-          { type: "text", text: getPPTGenerationPrompt(selectedTemplate) },
-        ],
+        taskType: "ppt",
+        sourceType: "vibe_learning",
+        taskPayload: {
+          template: selectedTemplate,
+        },
+        sourcePayload: {
+          projectId,
+          mainDbName,
+          resourceNames,
+          userPrompt: userPrompt || undefined,
+        },
       },
       {
-        role: Role.User,
-        content: [
-          {
-            type: "text",
-            text: getPPTGenerationUserPrompt(
-              resourceNames,
-              selectedTemplate.name,
-              userPrompt || undefined,
-            ),
-          },
-        ],
-      },
-    ];
-
-    chatLLMStream(providerConfig, modelConfig, messages, {
-      enableTools: true,
-      onUpdate: (responseText) => {
-        setGeneratedHtml(responseText);
-      },
-      onFinish: (content) => {
-        setIsGenerating(false);
-        setGeneratedHtml(content);
-        processGeneratedHtml(content);
-        setStep("preview");
-      },
-      onError: (e) => {
-        setIsGenerating(false);
-        console.error("Generate PPT error:", e);
-        message.error(e.message || "生成 PPT 失败");
-        if (!generatedHtml) {
-          setStep("select-resources");
-        } else {
-          processGeneratedHtml(generatedHtml);
+        onUpdate: (responseText) => {
+          setGeneratedHtml(responseText);
+        },
+        onFinish: (content) => {
+          setIsGenerating(false);
+          setGeneratedHtml(content);
+          processGeneratedHtml(content);
           setStep("preview");
-        }
+        },
+        onError: (e) => {
+          setIsGenerating(false);
+          console.error("Generate PPT error:", e);
+          message.error(e.message || "生成 PPT 失败");
+          if (!generatedHtml) {
+            setStep("select-resources");
+          } else {
+            processGeneratedHtml(generatedHtml);
+            setStep("preview");
+          }
+        },
+        onController: (controller) => {
+          abortControllerRef.current = controller;
+        },
+        onToolCallsUpdate: (executions) => {
+          setToolExecutions(executions);
+        },
       },
-      onController: (controller) => {
-        abortControllerRef.current = controller;
-      },
-      onToolCallsUpdate: (executions) => {
-        setToolExecutions(executions);
-      },
-    });
+    );
   });
 
   // 停止生成
@@ -322,6 +311,11 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
         list_project_resources: "获取资源列表",
         read_resource_content: "读取资源内容",
         read_resource_range: "分段读取内容",
+        list_resource_chapters: "查看章节结构",
+        read_resource_chapter: "读取章节正文",
+        read_resource_chapter_range: "分段读取章节",
+        read_search_hit_context: "补读命中上下文",
+        deep_read_resource: "深度阅读资料",
         search_project_knowledge: "搜索知识库",
       };
       return toolNameMap[executingTool.toolName] || "执行工具调用";
@@ -384,7 +378,7 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
               "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
               viewMode === "preview"
                 ? "bg-blue-500 text-white"
-                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700",
+                : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-700",
             )}
           >
             <Eye className="w-3.5 h-3.5" />
@@ -397,7 +391,7 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
               "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
               viewMode === "source"
                 ? "bg-blue-500 text-white"
-                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700",
+                : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-700",
             )}
           >
             <Code className="w-3.5 h-3.5" />
@@ -410,7 +404,7 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
       <div
         className={classNames(
           "rounded-xl border overflow-hidden",
-          "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700",
+          "bg-gray-50 dark:bg-zinc-800/50 border-gray-200 dark:border-gray-700",
         )}
         style={{ height: 400 }}
       >
@@ -458,13 +452,13 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
     "bg-blue-500 text-white",
     "hover:bg-blue-600",
-    "disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed",
+    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed",
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-    "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300",
-    "hover:bg-gray-200 dark:hover:bg-gray-700",
+    "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
+    "hover:bg-gray-200 dark:hover:bg-zinc-700",
     "border border-gray-200 dark:border-gray-700",
   );
 

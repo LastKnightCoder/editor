@@ -63,6 +63,12 @@ export async function isContentIsCard(contentId: number): Promise<boolean> {
   return invoke("is-content-is-card", contentId);
 }
 
+export async function getCardByContentId(
+  contentId: number,
+): Promise<ICard | null> {
+  return invoke("get-card-by-content-id", contentId);
+}
+
 export async function buildCardFromContent(contentId: number): Promise<ICard> {
   return invoke("build-card-from-content", contentId);
 }

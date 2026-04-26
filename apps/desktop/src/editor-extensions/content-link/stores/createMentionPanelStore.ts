@@ -62,8 +62,7 @@ export const createMentionPanelStore = (editor: Editor) => {
       }
 
       const item = searchResults[selectIndex];
-      // 使用用户输入的文字（去掉 @ 符号）作为显示文本
-      const displayText = inputValue.slice(1); // 移除开头的 @
+      const displayText = item.title || inputValue.slice(1);
       wrapContentLink(
         editor,
         item.contentId,

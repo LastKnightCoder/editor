@@ -225,8 +225,9 @@ const ModuleCard: React.FC<ModuleCardProps> = ({
       role={!isEditMode ? "button" : undefined}
       tabIndex={!isEditMode ? 0 : -1}
       className={classNames(
-        "group flex flex-col items-center justify-center py-3 px-4 rounded-2xl transition-all duration-300 border border-transparent shadow-sm relative",
+        "group flex flex-col items-center justify-center py-3 px-4 rounded-2xl transition-all duration-300 border shadow-sm relative",
         themeColors.cardBgClass,
+        themeColors.cardBorderClass,
         themeColors.hoverBorderClass,
         isEditMode && "cursor-move",
         !isEditMode && "cursor-pointer",
@@ -289,7 +290,7 @@ const AddModuleCard: React.FC<AddModuleCardProps> = ({ onClick }) => {
       <div
         className={classNames(
           "w-10 h-10 rounded-xl flex items-center justify-center mb-2 transition-colors",
-          "bg-gray-100 dark:bg-gray-700",
+          "bg-gray-100 dark:bg-zinc-700",
           themeColors.hoverClass.replace("hover:", "group-hover:"),
         )}
       >

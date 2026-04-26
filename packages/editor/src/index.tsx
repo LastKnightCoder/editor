@@ -30,6 +30,7 @@ import { useEditorServices } from "./contexts/EditorServicesContext";
 
 import {
   applyPlugin,
+  normalizeEditorContent,
   registerHotKey,
   Plugin,
   updateNodeRecursively,
@@ -39,6 +40,8 @@ import {
   withNormalize,
   withBlockNavigation,
   withFileDrop,
+  withMarkdownPasteImport,
+  withNormalizedCopy,
 } from "./plugins";
 import IExtension from "./extensions/types";
 import { pluginOptimizer } from "./utils/PluginOptimizer";
@@ -119,6 +122,8 @@ const defaultPlugins: Plugin[] = [
   withHistory,
   withNormalize,
   withFileDrop,
+  withNormalizedCopy,
+  withMarkdownPasteImport,
   withSlashCommands,
 ];
 
@@ -258,6 +263,30 @@ const Index = memo(
       },
     );
 
+    // 在 Slate 同步 DOM selection 后，将选区滚入可视区域
+    const scrollSelectionIntoView = useMemoizedFn(
+      (slateEditor: ReactEditor, domRange: globalThis.Range) => {
+        const isBackward =
+          !!slateEditor.selection && Range.isBackward(slateEditor.selection);
+        const domFocusPoint = domRange.cloneRange();
+        domFocusPoint.collapse(isBackward);
+        const leafEl = domFocusPoint.commonAncestorContainer.parentElement;
+        if (!leafEl) return;
+
+        // @ts-ignore scrollIntoViewIfNeeded 存在于 Chromium
+        if (typeof leafEl.scrollIntoViewIfNeeded === "function") {
+          // @ts-ignore
+          leafEl.scrollIntoViewIfNeeded();
+        } else {
+          leafEl.scrollIntoView({
+            block: "center",
+            inline: "nearest",
+            behavior: "smooth",
+          });
+        }
+      },
+    );
+
     const [isNormalized, setIsNormalized] = useState(false);
     const [isInit, setIsInit] = useState(false);
 
@@ -279,6 +308,7 @@ const Index = memo(
           ReactEditor.deselect(editor);
         },
         setEditorValue: (nodes: Descendant[]) => {
+          const normalizedNodes = normalizeEditorContent(nodes);
           editor.isResetValue = true;
           Editor.withoutNormalizing(editor, () => {
             updateNodeRecursively(
@@ -287,7 +317,7 @@ const Index = memo(
               // @ts-ignore
               {
                 // @ts-ignore
-                children: nodes,
+                children: normalizedNodes,
               },
               [],
             );
@@ -314,13 +344,16 @@ const Index = memo(
     );
 
     const handleOnChange = (value: Descendant[]) => {
+      const normalizedValue = normalizeEditorContent(value);
       if (syncSelectionSnapshot()) {
         onSelectionChange?.();
       }
-      if (JSON.stringify(currentValue.current) === JSON.stringify(value))
+      if (
+        JSON.stringify(currentValue.current) === JSON.stringify(normalizedValue)
+      )
         return;
-      currentValue.current = value;
-      onChange && onChange(value, editor);
+      currentValue.current = normalizedValue;
+      onChange && onChange(normalizedValue, editor);
     };
 
     useEffect(() => {
@@ -383,36 +416,8 @@ const Index = memo(
               if (syncSelectionSnapshot()) {
                 onSelectionChange?.();
               }
-              if (!(window as any).chrome) return;
-              const selection = editor.selection;
-              if (selection == null) return;
-
-              try {
-                const domPoint = ReactEditor.toDOMPoint(
-                  editor,
-                  selection.focus,
-                );
-                const node = domPoint[0];
-                if (!node) return;
-                const element = node.parentElement;
-                if (!element) return;
-                // @ts-ignore scrollIntoViewIfNeeded 存在于 Chromium
-                if (typeof element.scrollIntoViewIfNeeded === "function") {
-                  // @ts-ignore
-                  element.scrollIntoViewIfNeeded();
-                } else {
-                  element.scrollIntoView({
-                    block: "center",
-                    inline: "nearest",
-                    behavior: "smooth",
-                  });
-                }
-              } catch (e) {
-                /**
-                 * Empty catch. Do nothing if there is an error.
-                 */
-              }
             }}
+            scrollSelectionIntoView={scrollSelectionIntoView}
             onFocus={onFocus}
             onBlur={onBlur}
           />

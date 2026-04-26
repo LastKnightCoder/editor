@@ -1011,7 +1011,7 @@ const ResourceManagementSidebar = memo(
               onChange={(e) => handleSearch(e.target.value)}
               className={classnames(
                 "w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none transition-all",
-                "bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700",
+                "bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700",
                 "text-gray-800 dark:text-white",
                 "placeholder:text-gray-400 dark:placeholder:text-slate-500",
                 "focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.15)]",
@@ -1112,7 +1112,7 @@ const ResourceManagementSidebar = memo(
               onChange={(e) => setUploadResourceName(e.target.value)}
               className={classnames(
                 "w-full px-4 py-3 rounded-xl text-sm outline-none transition-all",
-                "bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700",
+                "bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700",
                 "text-gray-800 dark:text-white",
                 "placeholder:text-gray-400 dark:placeholder:text-slate-500",
                 "focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.15)]",
@@ -1138,7 +1138,7 @@ const ResourceManagementSidebar = memo(
             onKeyDown={(e) => e.key === "Enter" && handleGroupDialogOk()}
             className={classnames(
               "w-full px-4 py-3 rounded-xl text-sm outline-none transition-all",
-              "bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700",
+              "bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700",
               "text-gray-800 dark:text-white",
               "placeholder:text-gray-400 dark:placeholder:text-slate-500",
               "focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.15)]",

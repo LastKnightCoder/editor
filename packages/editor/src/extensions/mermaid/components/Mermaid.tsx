@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from "react";
-import { useCreation } from "ahooks";
+import { useCreation, useMemoizedFn } from "ahooks";
 import {
   renderMermaidWithFallback,
   type MermaidRenderStyle,
@@ -32,8 +32,12 @@ const Mermaid = (props: IMermaidProps) => {
   const [asciiContent, setAsciiContent] = useState<string>("");
   const [, setSettingVersion] = useState(0);
 
-  // Check if we have valid cached SVG
-  const hasCachedSvg = compiledFrom === chart && !!initialSvg;
+  const stableOnCompiled = useMemoizedFn(onCompiled ?? (() => {}));
+
+  const initialSvgRef = useRef(initialSvg);
+  const compiledFromRef = useRef(compiledFrom);
+  initialSvgRef.current = initialSvg;
+  compiledFromRef.current = compiledFrom;
 
   useEffect(() => {
     if (!settings.subscribe) {
@@ -61,10 +65,15 @@ const Mermaid = (props: IMermaidProps) => {
   }, []);
 
   useEffect(() => {
+    // Capture ref values at the time this effect runs, before any async work
+    const cachedSvg = initialSvgRef.current;
+    const cachedFrom = compiledFromRef.current;
+    const hasCachedSvg = cachedFrom === chart && !!cachedSvg;
+
     // 先展示缓存 SVG，再继续后台渲染，确保主题切换时可实时刷新
-    if (renderStyle === "svg" && hasCachedSvg && initialSvg) {
+    if (renderStyle === "svg" && hasCachedSvg && cachedSvg) {
       setDisplayMode("svg");
-      setSvgContent(initialSvg);
+      setSvgContent(cachedSvg);
       setAsciiContent("");
       setError("");
     }
@@ -97,10 +106,9 @@ const Mermaid = (props: IMermaidProps) => {
 
         if (
           result.cachedSvg &&
-          onCompiled &&
-          (compiledFrom !== chart || initialSvg !== result.cachedSvg)
+          (cachedFrom !== chart || cachedSvg !== result.cachedSvg)
         ) {
-          onCompiled(result.cachedSvg, chart);
+          stableOnCompiled(result.cachedSvg, chart);
         }
       } catch (e: unknown) {
         if (!isMounted) return;
@@ -124,15 +132,11 @@ const Mermaid = (props: IMermaidProps) => {
     chart,
     mermaidId,
     isDark,
-    hasCachedSvg,
-    initialSvg,
-    onCompiled,
-    compiledFrom,
-    renderStyleOverride,
     renderStyle,
     lightTheme,
     darkTheme,
     useBeautifulMermaid,
+    stableOnCompiled,
   ]);
 
   return (

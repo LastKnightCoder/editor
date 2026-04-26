@@ -67,7 +67,7 @@ const SettingAutoComplete: React.FC<SettingAutoCompleteProps> = ({
         placeholder={placeholder}
         disabled={disabled}
         className={`w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all
-          bg-gray-50 dark:bg-slate-950
+          bg-gray-50 dark:bg-zinc-950
           border border-gray-200 dark:border-slate-700
           text-gray-800 dark:text-white
           shadow-inner
@@ -82,7 +82,7 @@ const SettingAutoComplete: React.FC<SettingAutoCompleteProps> = ({
           className="absolute top-full left-0 right-0 mt-1 z-50
             max-h-60 overflow-y-auto
             rounded-xl
-            bg-white dark:bg-slate-900
+            bg-white dark:bg-zinc-900
             border border-gray-200 dark:border-slate-700
             shadow-lg"
         >
@@ -92,7 +92,7 @@ const SettingAutoComplete: React.FC<SettingAutoCompleteProps> = ({
               type="button"
               className="w-full px-4 py-2.5 text-left text-sm
                 text-gray-800 dark:text-white
-                hover:bg-gray-100 dark:hover:bg-slate-800
+                hover:bg-gray-100 dark:hover:bg-zinc-800
                 first:rounded-t-xl last:rounded-b-xl
                 transition-colors"
               onClick={() => {

@@ -31,6 +31,10 @@ export type {
   LastRowMode,
   ObjectFitMode,
 } from "./element/gallery";
+export type {
+  ImageBorderRadiusPreset,
+  ImageShadowPreset,
+} from "./element/image-appearance";
 export type { GraphvizElement } from "./element/graphviz";
 export type { HeaderElement } from "./element/header";
 export type { Color, HighlightBlockElement } from "./element/highlight-block";

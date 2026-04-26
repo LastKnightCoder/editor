@@ -1,8 +1,11 @@
-import { Editor, Element as SlateElement, Transforms, Path } from "slate";
 import {
-  isParagraphAndEmpty,
-  getParentNodeByNode,
-} from "../../../utils";
+  Editor,
+  Element as SlateElement,
+  Range,
+  Transforms,
+  Path,
+} from "slate";
+import { isParagraphAndEmpty } from "../../../utils";
 
 export const insertBreak = (editor: Editor) => {
   const { insertBreak } = editor;
@@ -12,10 +15,15 @@ export const insertBreak = (editor: Editor) => {
       mode: "lowest",
     });
     if (listMatch) {
+      const [paragraphMatch] = Editor.nodes(editor, {
+        match: (n) => SlateElement.isElement(n) && n.type === "paragraph",
+        mode: "lowest",
+      });
+
       // 在行首，并且内容为空
       if (isParagraphAndEmpty(editor)) {
-        const [checkListItem, checkListItemPath] = listMatch;
-        const parent = getParentNodeByNode(editor, checkListItem);
+        const [, checkListItemPath] = listMatch;
+        const parent = Editor.parent(editor, checkListItemPath);
 
         if (parent[0].type === "check-list") {
           const checkListPath = parent[1];
@@ -28,7 +36,7 @@ export const insertBreak = (editor: Editor) => {
           if (isLastItem) {
             let grandParent = null;
             try {
-              grandParent = getParentNodeByNode(editor, parent[0]);
+              grandParent = Editor.parent(editor, checkListPath);
             } catch (e) {
               console.error("e", e);
             }
@@ -94,6 +102,42 @@ export const insertBreak = (editor: Editor) => {
             });
           }
           return; // 阻止默认行为
+        }
+      }
+
+      if (paragraphMatch) {
+        const [, checkListItemPath] = listMatch;
+        const [, paragraphPath] = paragraphMatch;
+        const { selection } = editor;
+
+        if (
+          selection &&
+          Range.isCollapsed(selection) &&
+          paragraphPath.length === checkListItemPath.length + 1 &&
+          paragraphPath[paragraphPath.length - 1] === 0 &&
+          Editor.isEnd(editor, selection.anchor, paragraphPath)
+        ) {
+          Editor.withoutNormalizing(editor, () => {
+            Transforms.insertNodes(
+              editor,
+              {
+                type: "check-list-item",
+                checked: false,
+                children: [
+                  {
+                    type: "paragraph",
+                    children: [{ type: "formatted", text: "" }],
+                  },
+                ],
+              },
+              {
+                at: Path.next(checkListItemPath),
+              },
+            );
+
+            Transforms.select(editor, [...Path.next(checkListItemPath), 0, 0]);
+          });
+          return;
         }
       }
     }

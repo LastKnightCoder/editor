@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import toolRegistry from "@/tools";
 import {
   createGetVideoNoteHighlightsTool,
-  createGetVideoNoteThemeContextTool,
+  createGetVideoNoteTranscriptRangeTool,
   createSearchVideoNoteHighlightsTool,
   createVideoNoteSearchTool,
   type VideoNoteChatContextProvider,
@@ -17,9 +17,9 @@ export const useVideoNoteChat = (
     const sourceId = `video-note-${videoNoteId}`;
     const tools = [
       createVideoNoteSearchTool(videoNoteId, mainDbName),
+      createGetVideoNoteTranscriptRangeTool(videoNoteId),
       createGetVideoNoteHighlightsTool(contextProvider),
       createSearchVideoNoteHighlightsTool(contextProvider),
-      createGetVideoNoteThemeContextTool(contextProvider),
     ];
     toolRegistry.registerTools(sourceId, tools, true);
 

@@ -23,7 +23,7 @@ const EditorWrapper: FC<EditorWrapperProps> = ({
         描述（可选）
       </label>
       <div
-        className={`rounded-xl p-5 min-h-[120px] transition-all bg-gray-50 dark:bg-slate-950 ${
+        className={`rounded-xl p-5 min-h-[120px] transition-all bg-gray-50 dark:bg-zinc-950 ${
           isFocused
             ? "border-2 border-indigo-500 dark:border-indigo-400"
             : "border border-gray-200 dark:border-slate-700"

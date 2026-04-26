@@ -134,7 +134,7 @@ const renderDataSummary = (payload: OperationPayload, isDark: boolean) => {
             key={note.id}
             className={`rounded-md px-3 py-2 text-xs ${
               isDark
-                ? "bg-slate-950/50 text-slate-300"
+                ? "bg-zinc-950/50 text-slate-300"
                 : "bg-slate-50 text-slate-600"
             }`}
           >
@@ -154,7 +154,7 @@ const renderDataSummary = (payload: OperationPayload, isDark: boolean) => {
             key={mapping.id}
             className={`rounded-md px-3 py-2 text-xs ${
               isDark
-                ? "bg-slate-950/50 text-slate-300"
+                ? "bg-zinc-950/50 text-slate-300"
                 : "bg-slate-50 text-slate-600"
             }`}
           >
@@ -170,7 +170,7 @@ const renderDataSummary = (payload: OperationPayload, isDark: boolean) => {
       <div
         className={`rounded-md px-3 py-2 text-xs ${
           isDark
-            ? "bg-slate-950/50 text-slate-300"
+            ? "bg-zinc-950/50 text-slate-300"
             : "bg-slate-50 text-slate-600"
         }`}
       >
@@ -187,7 +187,7 @@ const renderDataSummary = (payload: OperationPayload, isDark: boolean) => {
         <div
           className={`rounded-md px-3 py-2 text-xs ${
             isDark
-              ? "bg-slate-950/50 text-slate-300"
+              ? "bg-zinc-950/50 text-slate-300"
               : "bg-slate-50 text-slate-600"
           }`}
         >

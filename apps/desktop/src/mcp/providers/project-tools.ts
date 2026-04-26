@@ -1,10 +1,12 @@
 import dayjs from "dayjs";
 import type { ToolParameterSchema } from "@/types";
 import {
+  getProjectById,
   getProjectItemsByDates,
   getProjectItemsByDateRange,
   getProjectItemsContentByIds,
   getProjectItemById,
+  getProjectItemsByIds,
 } from "@/commands";
 import { analyzeOperations } from "@/commands/operation";
 import { getMarkdown } from "@/utils/markdown-helper";
@@ -19,7 +21,167 @@ import {
 import { getWhiteBoardById } from "@/commands/white-board";
 import { getDataTableDetail } from "@/commands/data-table";
 import { getNotionSync } from "@/commands/notion-sync";
+import type { Project, ProjectItem } from "@/types/project";
 import type { MCPProviderDefinition } from "./types";
+
+const PROJECT_TREE_BATCH_SIZE = 50;
+
+const getProjectItemDisplayName = (item: Pick<ProjectItem, "id" | "title">) =>
+  `${item.title?.trim() || `条目 #${item.id}`} (projectItemId: ${item.id})`;
+
+const createMissingProjectItemLine = (projectItemId: number) =>
+  `[缺失条目] (projectItemId: ${projectItemId})`;
+
+const createCycleProjectItemLine = (projectItemId: number) =>
+  `[检测到循环引用] (projectItemId: ${projectItemId})`;
+
+const loadProjectTreeMap = async (
+  rootIds: number[],
+): Promise<Map<number, ProjectItem>> => {
+  const queue = [...new Set(rootIds)];
+  const visited = new Set<number>();
+  const itemMap = new Map<number, ProjectItem>();
+
+  while (queue.length > 0) {
+    const batch = queue.splice(0, PROJECT_TREE_BATCH_SIZE);
+    const items = await getProjectItemsByIds(batch);
+
+    items.forEach((item) => {
+      if (visited.has(item.id)) {
+        return;
+      }
+      visited.add(item.id);
+      itemMap.set(item.id, item);
+
+      if (item.children?.length) {
+        queue.push(...item.children);
+      }
+    });
+  }
+
+  return itemMap;
+};
+
+const collectDisplayedProjectItemIds = (
+  itemMap: Map<number, ProjectItem>,
+  rootIds: number[],
+): number[] => {
+  const result: number[] = [];
+  const visited = new Set<number>();
+
+  const walk = (projectItemId: number) => {
+    if (visited.has(projectItemId)) {
+      return;
+    }
+    visited.add(projectItemId);
+
+    const item = itemMap.get(projectItemId);
+    if (!item) {
+      return;
+    }
+
+    result.push(projectItemId);
+    item.children?.forEach(walk);
+  };
+
+  rootIds.forEach(walk);
+  return result;
+};
+
+const renderProjectTreeLines = (
+  itemMap: Map<number, ProjectItem>,
+  rootIds: number[],
+): string[] => {
+  const renderNode = (
+    projectItemId: number,
+    prefix: string,
+    isLast: boolean,
+    ancestors: Set<number>,
+  ): string[] => {
+    const connector = isLast ? "└── " : "├── ";
+    const item = itemMap.get(projectItemId);
+
+    if (!item) {
+      return [
+        `${prefix}${connector}${createMissingProjectItemLine(projectItemId)}`,
+      ];
+    }
+
+    const currentLine = `${prefix}${connector}${getProjectItemDisplayName(item)}`;
+    if (ancestors.has(projectItemId)) {
+      return [
+        currentLine,
+        `${prefix}${isLast ? "    " : "│   "}└── ${createCycleProjectItemLine(projectItemId)}`,
+      ];
+    }
+
+    const childPrefix = `${prefix}${isLast ? "    " : "│   "}`;
+    const nextAncestors = new Set(ancestors);
+    nextAncestors.add(projectItemId);
+    const childLines = (item.children || []).flatMap(
+      (childId, index, children) =>
+        renderNode(
+          childId,
+          childPrefix,
+          index === children.length - 1,
+          nextAncestors,
+        ),
+    );
+
+    return [currentLine, ...childLines];
+  };
+
+  return rootIds.flatMap((rootId, index) =>
+    renderNode(rootId, "", index === rootIds.length - 1, new Set<number>()),
+  );
+};
+
+const buildProjectTreeResult = async (
+  project: Project,
+  rootProjectItemId?: number,
+) => {
+  const projectRootIds = Array.isArray(project.children)
+    ? project.children
+    : [];
+  const itemMap = await loadProjectTreeMap(projectRootIds);
+
+  if (rootProjectItemId != null && !itemMap.has(rootProjectItemId)) {
+    const targetItem = await getProjectItemById(rootProjectItemId);
+    return {
+      success: false,
+      error: targetItem
+        ? `projectItemId ${rootProjectItemId} 不属于 projectId ${project.id} 的文档树`
+        : `projectItemId ${rootProjectItemId} 不存在`,
+    };
+  }
+
+  const selectedRootIds =
+    rootProjectItemId != null ? [rootProjectItemId] : projectRootIds;
+  const displayedIds = collectDisplayedProjectItemIds(itemMap, selectedRootIds);
+  const header = `${project.title || `项目 #${project.id}`} (projectId: ${project.id})`;
+
+  if (selectedRootIds.length === 0) {
+    return {
+      success: true,
+      projectId: project.id,
+      projectTitle: project.title,
+      rootProjectItemId: rootProjectItemId ?? null,
+      itemCount: 0,
+      tree: `${header}\n[空项目]`,
+    };
+  }
+
+  return {
+    success: true,
+    projectId: project.id,
+    projectTitle: project.title,
+    rootProjectItemId: rootProjectItemId ?? null,
+    itemCount: displayedIds.length,
+    tree: [header, ...renderProjectTreeLines(itemMap, selectedRootIds)].join(
+      "\n",
+    ),
+  };
+};
 
 export const projectToolsProvider: MCPProviderDefinition = {
   id: "project-tools",
@@ -27,6 +189,71 @@ export const projectToolsProvider: MCPProviderDefinition = {
   description: "提供项目文档查询、操作记录分析和内容获取工具",
   defaultEnabled: true,
   tools: () => [
+    {
+      name: "get_project_document_tree",
+      description:
+        "按树形结构列出指定项目的文档树。必须传入 projectId；可选传入 projectItemId 作为子树根节点。返回结果包含类似 tree 命令的文本，每一行都带有文档标题和 projectItemId。",
+      parameters: {
+        type: "object",
+        properties: {
+          projectId: {
+            type: "number",
+            description: "项目 ID",
+          },
+          projectItemId: {
+            type: "number",
+            description:
+              "可选，作为树根的项目项 ID。不传时返回整个项目的文档树。",
+          },
+        } as Record<string, ToolParameterSchema>,
+        required: ["projectId"],
+        additionalProperties: false,
+      },
+      executor: async (args) => {
+        const projectId = Number(args.projectId);
+        const rootProjectItemId =
+          args.projectItemId == null ? undefined : Number(args.projectItemId);
+
+        if (!Number.isInteger(projectId) || projectId <= 0) {
+          return {
+            content: JSON.stringify({
+              success: false,
+              error: "projectId 必须是正整数",
+            }),
+          };
+        }
+
+        if (
+          rootProjectItemId != null &&
+          (!Number.isInteger(rootProjectItemId) || rootProjectItemId <= 0)
+        ) {
+          return {
+            content: JSON.stringify({
+              success: false,
+              error: "projectItemId 必须是正整数",
+            }),
+          };
+        }
+
+        const project = await getProjectById(projectId);
+        if (!project) {
+          return {
+            content: JSON.stringify({
+              success: false,
+              error: `projectId ${projectId} 不存在`,
+            }),
+          };
+        }
+
+        return {
+          content: JSON.stringify(
+            await buildProjectTreeResult(project, rootProjectItemId),
+            null,
+            2,
+          ),
+        };
+      },
+    },
     {
       name: "get_project_items_by_dates",
       description:

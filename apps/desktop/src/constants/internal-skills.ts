@@ -6,6 +6,7 @@ import mindmapReadme from "./internal-skills/mindmap.md?raw";
 import tikzReadme from "./internal-skills/tikz.md?raw";
 import typstReadme from "./internal-skills/typst.md?raw";
 import knowledgeBaseReadme from "./internal-skills/knowledge-base.md?raw";
+import whiteboardReadme from "./internal-skills/whiteboard.md?raw";
 
 // 内部 Skill 注册表
 const internalSkillRegistry = new Map<string, InternalSkill>([
@@ -26,6 +27,16 @@ const internalSkillRegistry = new Map<string, InternalSkill>([
       name: "思维导图",
       description: "创建思维导图、脑图、知识图谱或组织结构图",
       readmeContent: mindmapReadme,
+      isInternal: true,
+    },
+  ],
+  [
+    "whiteboard",
+    {
+      folderName: "whiteboard",
+      name: "白板",
+      description: "在聊天中生成可缩放、可复制到白板的流程图、结构图和关系图",
+      readmeContent: whiteboardReadme,
       isInternal: true,
     },
   ],

@@ -35,6 +35,7 @@ export const DiffHighlightedEditor = ({
       const diffLeaf = leaf as ReviewLeaf;
 
       let highlightClass = "";
+      let syntheticClass = "";
       if (diffLeaf.diffType === "insert") {
         highlightClass = isDark
           ? "bg-green-900/30 text-green-200 border-b-2 border-green-500/50"
@@ -49,10 +50,22 @@ export const DiffHighlightedEditor = ({
           : "bg-red-50 text-red-700 line-through rounded-sm";
       }
 
+      if (diffLeaf.reviewSyntheticKind === "collapsed") {
+        syntheticClass = isDark
+          ? "italic text-slate-500"
+          : "italic text-slate-400";
+      } else if (diffLeaf.reviewSyntheticKind === "meta") {
+        syntheticClass = isDark ? "italic text-sky-300" : "italic text-sky-700";
+      } else if (diffLeaf.reviewSyntheticKind === "code") {
+        syntheticClass = isDark
+          ? "font-mono whitespace-pre-wrap"
+          : "font-mono whitespace-pre-wrap";
+      }
+
       return (
         <span
           {...attributes}
-          className={classNames(highlightClass)}
+          className={classNames(highlightClass, syntheticClass)}
           title={diffLeaf.diffId ? `变更：${diffLeaf.diffId}` : undefined}
         >
           <FormattedText

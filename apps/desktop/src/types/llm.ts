@@ -1,10 +1,12 @@
 import { Role } from "@/constants";
 import type { ToolCallPayload } from "./tool";
 import type { EmbeddingProviderType } from "./embedding";
+import type { MentionRef } from "@tau/shared";
 
 export interface TextContent {
   type: "text";
   text: string;
+  mentions?: MentionRef[];
 }
 
 export interface ImageContent {
@@ -26,6 +28,7 @@ export type ReasoningEffort = "none" | "low" | "medium" | "high";
 export interface RequestMessage {
   role: Role;
   content: MessageContent[] | string;
+  reasoning_content?: string;
   name?: string;
   tool_call_id?: string;
   tool_calls?: ToolCallPayload[];
@@ -131,10 +134,15 @@ export interface ModelFeatures {
   multimodal?: boolean;
 }
 
+export type MessageFormat = "openai" | "claude";
+export type LLMApiProtocol = "chat-completions" | "responses";
+
 export interface ModelConfig {
   name: string;
   description: string;
   features: ModelFeatures;
+  messageFormat?: MessageFormat;
+  apiProtocol?: LLMApiProtocol;
 }
 
 export interface LLMUsageConfig {

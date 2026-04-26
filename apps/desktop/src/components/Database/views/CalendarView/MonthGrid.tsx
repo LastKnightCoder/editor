@@ -635,7 +635,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
             <div
               className={classnames(
                 "w-full max-w-3xl rounded-lg shadow-xl flex flex-col",
-                themeColors.glassPanelBg,
+                themeColors.modalPanelBg,
               )}
               style={{ height: "800px", maxHeight: "calc(100vh - 200px)" }}
               onClick={(e) => e.stopPropagation()}

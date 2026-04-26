@@ -14,8 +14,16 @@ import CustomModal from "@/components/CustomModal";
 import { LoadingSpinner } from "./index";
 import { getProjectList } from "@/commands/project";
 import { getAllDocuments } from "@/commands/document";
-import { addRootProjectItem, addChildProjectItem } from "@/commands/project";
-import { addRootDocumentItem, addChildDocumentItem } from "@/commands/document";
+import {
+  addRootProjectItem,
+  addChildProjectItem,
+  createSharedProjectItemFromContent,
+} from "@/commands/project";
+import {
+  addRootDocumentItem,
+  addChildDocumentItem,
+  createSharedDocumentItemFromContent,
+} from "@/commands/document";
 import { getContentById } from "@/commands";
 import { getContentLength } from "@/utils";
 import { EProjectType, EProjectItemType } from "@/types/project";
@@ -32,7 +40,8 @@ interface InsertNoteToTreeModalProps {
   open: boolean;
   noteTitle: string;
   noteContent: Descendant[];
-  noteContentId: number | null;
+  sourceContentId?: number | null;
+  insertMode?: "copy" | "shared-content";
   onCancel: () => void;
   onSuccess: () => void;
 }
@@ -56,7 +65,7 @@ const TreeNodeItem = memo<{
           "flex items-center gap-2 px-3 py-1.5 transition-colors cursor-pointer mx-1 rounded-md",
           isSelected
             ? "bg-blue-50 dark:bg-blue-500/10"
-            : "hover:bg-gray-50 dark:hover:bg-gray-800/30",
+            : "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
         )}
         style={{ paddingLeft: depth * 12 + 12 }}
         onClick={() => onSelect(node.id)}
@@ -125,7 +134,8 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
     open,
     noteTitle,
     noteContent,
-    noteContentId,
+    sourceContentId = null,
+    insertMode = "copy",
     onCancel,
     onSuccess,
   }) => {
@@ -210,56 +220,83 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
       if (!selectedEntityId) return;
       setInserting(true);
       try {
-        // 获取最新内容
-        let contentToInsert = noteContent;
-        if (noteContentId) {
-          const contentData = await getContentById(noteContentId);
-          if (contentData) {
-            contentToInsert = contentData.content;
+        if (insertMode === "shared-content") {
+          if (!sourceContentId) {
+            throw new Error("缺少共享内容 ID");
           }
-        }
-        const count = getContentLength(contentToInsert);
 
-        if (mode === "project") {
-          const newItem: CreateProjectItem = {
-            title: noteTitle || "VL 笔记",
-            content: contentToInsert,
-            children: [],
-            refType: "",
-            refId: 0,
-            projectItemType: EProjectItemType.Document,
-            count,
-            whiteBoardContentId: 0,
-          };
-          if (selectedNodeId) {
-            await addChildProjectItem(selectedNodeId, newItem);
+          const title = noteTitle || `答案 #${sourceContentId}`;
+          if (mode === "project") {
+            await createSharedProjectItemFromContent({
+              sourceContentId,
+              projectId: selectedEntityId,
+              parentProjectItemId: selectedNodeId,
+              title,
+            });
           } else {
-            await addRootProjectItem(selectedEntityId, newItem);
+            await createSharedDocumentItemFromContent({
+              sourceContentId,
+              documentId: selectedEntityId,
+              parentDocumentItemId: selectedNodeId,
+              title,
+            });
           }
+          message.success("内容已挂载");
         } else {
-          const newItem: ICreateDocumentItem = {
-            title: noteTitle || "VL 笔记",
-            content: contentToInsert,
-            children: [],
-            tags: [],
-            isArticle: false,
-            articleId: 0,
-            isCard: false,
-            cardId: 0,
-            parents: [],
-            count,
-          };
-          if (selectedNodeId) {
-            await addChildDocumentItem(selectedNodeId, newItem);
-          } else {
-            await addRootDocumentItem(selectedEntityId, newItem);
+          let contentToInsert = noteContent;
+          if (sourceContentId) {
+            const contentData = await getContentById(sourceContentId);
+            if (contentData) {
+              contentToInsert = contentData.content;
+            }
           }
+          const count = getContentLength(contentToInsert);
+
+          if (mode === "project") {
+            const newItem: CreateProjectItem = {
+              title: noteTitle || "VL 笔记",
+              content: contentToInsert,
+              children: [],
+              refType: "",
+              refId: 0,
+              projectItemType: EProjectItemType.Document,
+              count,
+              whiteBoardContentId: 0,
+            };
+            if (selectedNodeId) {
+              await addChildProjectItem(selectedNodeId, newItem);
+            } else {
+              await addRootProjectItem(selectedEntityId, newItem);
+            }
+          } else {
+            const newItem: ICreateDocumentItem = {
+              title: noteTitle || "VL 笔记",
+              content: contentToInsert,
+              children: [],
+              tags: [],
+              isArticle: false,
+              articleId: 0,
+              isCard: false,
+              cardId: 0,
+              refType: "",
+              refId: 0,
+              parents: [],
+              count,
+            };
+            if (selectedNodeId) {
+              await addChildDocumentItem(selectedNodeId, newItem);
+            } else {
+              await addRootDocumentItem(selectedEntityId, newItem);
+            }
+          }
+          message.success("笔记已插入");
         }
-        message.success("笔记已插入");
         onSuccess();
       } catch (error) {
         console.error("Failed to insert note:", error);
-        message.error("插入笔记失败");
+        message.error(
+          insertMode === "shared-content" ? "挂载内容失败" : "插入笔记失败",
+        );
       } finally {
         setInserting(false);
       }
@@ -269,7 +306,8 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
       selectedNodeId,
       noteTitle,
       noteContent,
-      noteContentId,
+      sourceContentId,
+      insertMode,
       message,
       onSuccess,
     ]);
@@ -280,9 +318,17 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
         onCancel={onCancel}
         width={680}
         bodyClassName="!p-0"
-        title={mode === "project" ? "插入笔记到项目" : "插入笔记到知识库"}
+        title={
+          mode === "project"
+            ? insertMode === "shared-content"
+              ? "创建项目文档"
+              : "插入笔记到项目"
+            : insertMode === "shared-content"
+              ? "创建知识库文档"
+              : "插入笔记到知识库"
+        }
         onOk={handleConfirm}
-        okText="插入"
+        okText={insertMode === "shared-content" ? "创建" : "插入"}
         cancelText="取消"
         confirmLoading={inserting}
         okButtonProps={{ disabled: !selectedEntityId }}
@@ -320,7 +366,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
                         ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium"
                         : classNames(
                             themeColors.textClass,
-                            "hover:bg-gray-50 dark:hover:bg-gray-800/30",
+                            "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
                           ),
                     )}
                     onClick={() => handleSelectEntity(entity)}
@@ -360,7 +406,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
                     "flex items-center gap-2 px-3 py-1.5 cursor-pointer mx-1 rounded-md transition-colors",
                     selectedNodeId === null
                       ? "bg-blue-50 dark:bg-blue-500/10"
-                      : "hover:bg-gray-50 dark:hover:bg-gray-800/30",
+                      : "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
                   )}
                   onClick={() => setSelectedNodeId(null)}
                 >

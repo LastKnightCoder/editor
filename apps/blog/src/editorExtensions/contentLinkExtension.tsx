@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type MouseEvent,
   type ReactNode,
 } from "react";
@@ -44,12 +45,53 @@ type LinkPreviewState = {
 
 const linkPreviewLoader = createContentLinkPreviewLoader();
 const unresolvedMessage = "目标未发布或不可用";
+const DEFAULT_CONTENT_LINK_LABEL = "关联内容";
+const COMPACT_CONTENT_LINK_LABEL = "内容";
+const contentLinkPopoverRootStyle = {
+  "--antd-arrow-background-color": "var(--color-bg-container)",
+  background: "transparent",
+  padding: 0,
+} as CSSProperties;
+const contentLinkPopoverContainerStyle: CSSProperties = {
+  padding: 0,
+  background: "var(--color-bg-container)",
+  border: "1px solid var(--color-border-ring)",
+  borderRadius: 8,
+  overflow: "hidden",
+  boxShadow: "var(--shadow-dropdown)",
+};
+const contentLinkPopoverContentStyle: CSSProperties = {
+  padding: 0,
+  background: "transparent",
+};
 
 function readText(input: unknown, fallback = ""): string {
   if (typeof input === "string" && input.trim()) {
     return input.trim();
   }
   return fallback;
+}
+
+function readNodeText(input: unknown): string {
+  if (typeof input === "string") {
+    return input;
+  }
+
+  if (!input || typeof input !== "object") {
+    return "";
+  }
+
+  const node = input as Record<string, unknown>;
+
+  if (typeof node.text === "string") {
+    return node.text;
+  }
+
+  if (Array.isArray(node.children)) {
+    return node.children.map(readNodeText).join("");
+  }
+
+  return "";
 }
 
 const ContentLinkPreviewPanel = memo(
@@ -112,7 +154,14 @@ const ContentLinkNode = memo((props: ContentLinkProps) => {
     [element.contentType, element.refId, targetMap],
   );
 
-  const displayTitle = readText(element.contentTitle, "关联内容");
+  const inlineLabel = readText(readNodeText(element.children));
+  const displayTitle = readText(
+    element.contentTitle,
+    COMPACT_CONTENT_LINK_LABEL,
+  );
+  const shouldCompactLabel =
+    !readText(element.contentTitle) &&
+    inlineLabel === DEFAULT_CONTENT_LINK_LABEL;
   const targetHref = target
     ? joinPath(site.basePath, target.href, { raw: true })
     : "";
@@ -193,7 +242,7 @@ const ContentLinkNode = memo((props: ContentLinkProps) => {
       })}
       title={displayTitle}
     >
-      {children}
+      {shouldCompactLabel ? COMPACT_CONTENT_LINK_LABEL : children}
     </a>
   );
 
@@ -211,6 +260,11 @@ const ContentLinkNode = memo((props: ContentLinkProps) => {
       mouseLeaveDelay={0.1}
       content={<ContentLinkPreviewPanel state={previewState} />}
       overlayClassName="blog-content-link-popover"
+      styles={{
+        root: contentLinkPopoverRootStyle,
+        container: contentLinkPopoverContainerStyle,
+        content: contentLinkPopoverContentStyle,
+      }}
     >
       {linkNode}
     </Popover>

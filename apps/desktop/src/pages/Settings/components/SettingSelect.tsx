@@ -36,13 +36,13 @@ const SettingSelect: React.FC<SettingSelectProps> = ({
           disabled={disabled}
           className={`w-full py-2.5 pl-3.5 pr-9 rounded-xl text-sm outline-none
             appearance-none cursor-pointer transition-all
-            bg-gray-50 dark:bg-slate-950
+            bg-gray-50 dark:bg-zinc-950
             border border-gray-200 dark:border-slate-700
             text-gray-800 dark:text-white
             focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.15)]
             dark:focus:shadow-[0_0_0_3px_rgba(59,130,246,0.25)]
             disabled:opacity-60 disabled:cursor-not-allowed
-            [&_option]:dark:bg-slate-900 [&_option]:dark:text-white
+            [&_option]:dark:bg-zinc-900 [&_option]:dark:text-white
             ${className}`}
         >
           {options.map((option) => (

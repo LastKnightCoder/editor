@@ -91,13 +91,14 @@ export const computeTranscriptHash = (
 ): string => {
   const segments = transcriptSegments || [];
   const baseText =
-    transcript?.trim() ||
-    segments
-      .map(
-        (segment, index) =>
-          `${index}:${segment.start}-${segment.end}:${segment.text}`,
-      )
-      .join("\n");
+    segments.length > 0
+      ? segments
+          .map(
+            (segment, index) =>
+              `${index}:${segment.start}-${segment.end}:${segment.text}`,
+          )
+          .join("\n")
+      : transcript?.trim() || "";
   return `tn-${simpleHash(baseText)}`;
 };
 

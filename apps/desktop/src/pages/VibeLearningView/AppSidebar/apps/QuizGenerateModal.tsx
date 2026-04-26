@@ -243,6 +243,11 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
         list_project_resources: "获取资源列表",
         read_resource_content: "读取资源内容",
         read_resource_range: "分段读取内容",
+        list_resource_chapters: "查看章节结构",
+        read_resource_chapter: "读取章节正文",
+        read_resource_chapter_range: "分段读取章节",
+        read_search_hit_context: "补读命中上下文",
+        deep_read_resource: "深度阅读资料",
         search_project_knowledge: "搜索知识库",
       };
       return toolNameMap[executingTool.toolName] || "执行工具调用";
@@ -296,7 +301,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
           placeholder="输入测验名称"
           className={classNames(
             "w-full px-4 py-3 rounded-xl text-sm outline-none transition-all",
-            "bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700",
+            "bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700",
             "text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500",
             "focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20",
           )}
@@ -332,7 +337,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
           </div>
         </div>
 
-        <div className="max-h-80 overflow-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+        <div className="max-h-80 overflow-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-zinc-800/50">
           <AnimatePresence>
             {generatedItems.map((item, index) => (
               <QuizItemPreview
@@ -365,13 +370,13 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
     "bg-blue-500 text-white",
     "hover:bg-blue-600",
-    "disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed",
+    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed",
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-    "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300",
-    "hover:bg-gray-200 dark:hover:bg-gray-700",
+    "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
+    "hover:bg-gray-200 dark:hover:bg-zinc-700",
     "border border-gray-200 dark:border-gray-700",
   );
 
@@ -565,7 +570,7 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
         "border-b border-gray-100 dark:border-gray-700/50 last:border-b-0",
         item.selected
           ? "bg-blue-50 dark:bg-blue-500/10"
-          : "hover:bg-gray-100 dark:hover:bg-gray-700/50",
+          : "hover:bg-gray-100 dark:hover:bg-zinc-700/50",
       )}
       onClick={onToggle}
     >
@@ -591,7 +596,7 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
             className={classNames(
               "px-2 py-0.5 rounded-md text-[10px] font-semibold",
               difficultyColors[item.difficulty] ||
-                "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400",
+                "bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-400",
             )}
           >
             {difficultyLabels[item.difficulty] || item.difficulty}

@@ -1,3 +1,6 @@
+import { VIBE_LEARNING_GENERATION_RULES } from "./vibe-learning-generation";
+import { PPT_AI_ILLUSTRATION_RULES } from "./ppt-generation";
+
 export const getPPTEditPrompt = (currentHtml: string): string => `
 ## 角色设定
 你是一位顶级的网页设计师和交互演示专家，现在需要编辑一个已有的 HTML PPT。
@@ -13,32 +16,16 @@ ${currentHtml}
 - 删除不需要的 slide
 - 补充更多细节
 
-## 可用工具
+${VIBE_LEARNING_GENERATION_RULES}
 
-你可以使用以下工具来获取资料内容：
+${PPT_AI_ILLUSTRATION_RULES}
 
-### 1. list_project_resources
-- 功能：列出当前项目的所有上传资源
-- 用途：了解项目中有哪些资料可用
+## 编辑场景下的信息获取策略
 
-### 2. read_resource_content
-- 功能：读取指定资源的完整 Markdown 内容
-- 参数：resourceName（资源名称）
-- 用途：获取资源的全部内容
-
-### 3. read_resource_range
-- 功能：按行范围读取指定资源的内容
-- 参数：resourceName（资源名称）、startLine（起始行）、endLine（结束行）
-- 用途：分段读取大文件，避免一次性加载过多内容
-
-### 4. search_project_knowledge
-- 功能：在项目资料中搜索关键词
-- 参数：query（搜索关键词）、limit（返回数量，默认5）
-- 用途：快速定位包含特定关键词的内容
-
-## 信息获取策略
-
-**优先使用 read_resource_content 直接读取完整内容**，这是最高效的方式。如果用户选择了参考资源，请优先读取这些资源。如果用户未选择资源，你可以根据需要使用工具搜索项目中的相关资料。
+- 如果用户选择了参考资源，先读取这些资源的结构索引和正文证据，再决定如何修改现有 PPT
+- 如果用户没有指定资源，但要求补充内容或修正事实，可以根据需要搜索项目资料并继续补读正文
+- 不要仅凭搜索片段或摘要直接新增页面内容，编辑结果也必须基于充分证据
+- 编辑已有 PPT 时，对 AI 插图保持保守：只有用户明确要求增加、替换或优化插图/案例图/视觉说明，才调用 \`generate_image\`，不要主动大规模重绘已有配图
 
 ## 重要约束
 1. **保持原有的设计风格和模板**：不要改变整体的视觉风格、配色方案和布局结构
@@ -87,3 +74,19 @@ ${currentHtml}
 - ❌ "以下是修改后的HTML代码：<!DOCTYPE html>..."
 - ❌ 把所有代码压缩成一行：\`<!DOCTYPE html><html><head>...</head><body>...</body></html>\`
 `;
+
+export const buildPPTEditUserPrompt = (
+  userPrompt: string,
+  resourceNames: string[],
+): string => {
+  let prompt = `请根据以下要求编辑 PPT：\n\n${userPrompt}`;
+
+  if (resourceNames.length > 0) {
+    prompt += `\n\n## 参考资源\n请优先参考以下资源：\n${resourceNames.map((name) => `- ${name}`).join("\n")}`;
+  } else {
+    prompt +=
+      "\n\n## 参考资源\n用户未指定参考资源，你可以根据需要使用工具搜索项目中的相关资料。";
+  }
+
+  return prompt;
+};

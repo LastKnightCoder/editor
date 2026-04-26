@@ -1,55 +1,13 @@
+import {
+  buildVibeLearningGenerationUserPrompt,
+  VIBE_LEARNING_GENERATION_RULES,
+} from "./vibe-learning-generation";
+
 export const MINDMAP_GENERATION_WITH_TOOLS_PROMPT = `
 ## 角色设定
 你是一位专业的知识可视化专家，擅长将学习材料转化为结构清晰的思维导图。你的任务是主动获取项目资料内容，然后生成层次分明、逻辑清晰的思维导图结构，帮助学习者快速把握知识框架。
 
-## 可用工具
-
-你可以使用以下工具来获取资料内容：
-
-### 1. list_project_resources
-- 功能：列出当前项目的所有上传资源
-- 用途：了解项目中有哪些资料可用
-
-### 2. read_resource_content
-- 功能：读取指定资源的完整 Markdown 内容
-- 参数：resourceName（资源名称）
-- 用途：获取资源的全部内容
-
-### 3. read_resource_range
-- 功能：按行范围读取指定资源的内容
-- 参数：resourceName（资源名称）、startLine（起始行）、endLine（结束行）
-- 用途：分段读取大文件，避免一次性加载过多内容
-
-### 4. search_project_knowledge
-- 功能：在项目资料中搜索关键词
-- 参数：query（搜索关键词）、limit（返回数量，默认5）
-- 用途：快速定位包含特定关键词的内容
-
-## 信息获取策略（核心要求）
-
-**在生成思维导图之前，你必须先充分获取资料内容。请严格遵循以下策略：**
-
-### 1. 高效获取信息（重要）
-- **优先使用 read_resource_content 直接读取完整内容**，这是最高效的方式
-- 不要过度依赖搜索，直接读取全文能获取更完整的信息
-- 如果资源内容被截断，再使用 read_resource_range 分段读取剩余部分
-
-### 2. 搜索作为补充
-- 搜索主要用于快速定位特定知识点，不是主要的信息获取方式
-- 如果需要搜索，每个资源最多搜索 2-3 个关键词即可
-- 搜索应聚焦于核心概念，避免过于宽泛的关键词
-
-### 3. 推荐工作流程（高效版）
-1. 首先调用 list_project_resources 了解有哪些资源
-2. **直接使用 read_resource_content 读取每个资源的完整内容**
-3. 如果内容被截断，使用 read_resource_range 继续读取剩余部分
-4. 只有在需要定位特定信息时才使用搜索
-5. 获取足够信息后，立即开始生成思维导图
-
-### 4. 注意事项
-- 控制工具调用次数，避免过多的工具调用导致超时
-- 每个资源尽量一次性读取完整内容
-- 不要反复搜索相似的关键词
+${VIBE_LEARNING_GENERATION_RULES}
 
 ## 思维导图质量标准
 
@@ -104,7 +62,7 @@ export const MINDMAP_GENERATION_WITH_TOOLS_PROMPT = `
 ## 重要规则
 
 1. **先获取信息**：必须先使用工具充分获取资料内容，再生成思维导图
-2. **读取全文**：对每个资源，优先读取完整内容，确保理解全貌
+2. **先看结构再看正文**：长文先建立结构理解，再读取关键章节正文
 3. **单根节点**：思维导图必须只有一个根节点
 4. **节点简洁**：每个节点使用简短的关键词或短语，避免长句子
 5. **内容准确**：思维导图内容必须基于资料，不要编造信息
@@ -119,35 +77,20 @@ export const MINDMAP_GENERATION_WITH_TOOLS_USER_PROMPT = (
   resourceNames: string[],
   userPrompt?: string,
 ): string => {
-  const resourceList = resourceNames.map((name) => `- ${name}`).join("\n");
-
-  let prompt = `
-请为以下资源生成思维导图：
-
-**待处理的资源列表**：
-${resourceList}
-
-**重要提醒**：
-1. **先获取资料内容**：请先使用工具获取上述资源的内容，不要直接生成思维导图
-2. **读取全文**：对于每个资源，请读取完整内容以确保理解全貌
-3. **信息充分后再生成**：确保获取了足够丰富的信息后，再开始生成思维导图
-`;
-
-  if (userPrompt && userPrompt.trim()) {
-    prompt += `
-**用户的额外要求**：
-${userPrompt}
-`;
-  }
-
-  prompt += `
-**最终输出**：
-- 获取足够信息后，直接输出 Markdown 无序列表格式的思维导图
-- 必须只有一个根节点
-- 使用 2 空格缩进表示层级
-- 节点内容简洁，使用关键词或短语
-- 不要输出任何额外的说明文字，只输出思维导图列表
-`;
-
-  return prompt;
+  return buildVibeLearningGenerationUserPrompt({
+    title: "思维导图生成",
+    resourceNames,
+    userPrompt,
+    extraReminders: [
+      "思维导图依赖整体结构，不能主要依据搜索片段生成",
+      "如果涉及大型分章文档，请确保已覆盖主要章节和核心模块",
+    ],
+    finalOutput: [
+      "获取足够信息后，直接输出 Markdown 无序列表格式的思维导图",
+      "必须只有一个根节点",
+      "使用 2 空格缩进表示层级",
+      "节点内容简洁，使用关键词或短语",
+      "不要输出任何额外的说明文字，只输出思维导图列表",
+    ],
+  });
 };

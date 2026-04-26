@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Descendant } from "slate";
 import { updateContent, getContentById } from "@/commands";
 import { useMemoizedFn, useCreation, useThrottleFn } from "ahooks";
@@ -21,21 +21,29 @@ const useEditContent = (
     [],
   );
   const [content, setContent] = useState<Descendant[]>(DEFAULT_CONTENT);
+  const onContentChangeRef = useRef(onContentChange);
+
+  useEffect(() => {
+    onContentChangeRef.current = onContentChange;
+  }, [onContentChange]);
 
   useEffect(() => {
     if (!contentId) {
       setContent(DEFAULT_CONTENT);
+      onContentChangeRef.current(DEFAULT_CONTENT);
     }
     if (contentId) {
       getContentById(contentId).then((content) => {
-        setContent(content?.content || DEFAULT_CONTENT);
+        const nextContent = content?.content || DEFAULT_CONTENT;
+        setContent(nextContent);
+        onContentChangeRef.current(nextContent);
       });
     }
   }, [contentId]);
 
   const handleSubscribeContentUpdate = useMemoizedFn(
     (data: ContentEventData) => {
-      onContentChange(data.content.content);
+      onContentChangeRef.current(data.content.content);
       setContent(data.content.content);
     },
   );

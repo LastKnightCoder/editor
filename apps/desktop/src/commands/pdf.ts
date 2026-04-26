@@ -5,6 +5,17 @@ import {
   CreatePdfAnnotation,
   PdfBookmark,
   CreatePdfBookmark,
+  PdfIndexStatus,
+  PdfSearchResult,
+  PdfDocumentInfo,
+  PdfPageContent,
+  PdfOutlineNode,
+  PdfDocumentMap,
+  PdfSectionSummary,
+  PdfSectionDetail,
+  PdfChatMessage,
+  CreatePdfChat,
+  UpdatePdfChat,
 } from "@/types";
 
 export const createPdf = async (
@@ -71,4 +82,149 @@ export const getPdfBookmarks = async (
 
 export const removePdfBookmark = async (id: number): Promise<number> => {
   return await invoke("delete-pdf-bookmark", id);
+};
+
+export const ensurePdfIndex = async (params: {
+  pdfId: number;
+  resolvedPath: string;
+  fileName: string;
+  mainDbName: string;
+  force?: boolean;
+}): Promise<PdfIndexStatus> => {
+  return await invoke("pdf-index:ensure", params);
+};
+
+export const rebuildPdfIndex = async (params: {
+  pdfId: number;
+  resolvedPath: string;
+  fileName: string;
+  mainDbName: string;
+}): Promise<PdfIndexStatus> => {
+  return await invoke("pdf-index:rebuild", params);
+};
+
+export const getPdfIndexStatus = async (params: {
+  pdfId: number;
+  mainDbName: string;
+}): Promise<PdfIndexStatus> => {
+  return await invoke("pdf-index:status", params);
+};
+
+export const searchPdfContent = async (params: {
+  pdfId: number;
+  mainDbName: string;
+  query: string;
+  limit?: number;
+}): Promise<PdfSearchResult[]> => {
+  return await invoke("pdf-index:search", params);
+};
+
+export const getPdfDocumentInfo = async (params: {
+  pdfId: number;
+  mainDbName: string;
+}): Promise<PdfDocumentInfo> => {
+  return await invoke("pdf-index:document-info", params);
+};
+
+export const getPdfPageContent = async (params: {
+  pdfId: number;
+  mainDbName: string;
+  pageNumber: number;
+}): Promise<PdfPageContent | null> => {
+  return await invoke("pdf-index:page-content", params);
+};
+
+export const getPdfPageRangeContent = async (params: {
+  pdfId: number;
+  mainDbName: string;
+  startPage: number;
+  endPage: number;
+}): Promise<PdfPageContent[]> => {
+  return await invoke("pdf-index:page-range-content", params);
+};
+
+export const getPdfOutline = async (params: {
+  pdfId: number;
+  mainDbName: string;
+}): Promise<PdfOutlineNode[]> => {
+  return await invoke("pdf-index:outline", params);
+};
+
+export const getPdfDocumentMap = async (params: {
+  pdfId: number;
+  mainDbName: string;
+  depth?: number;
+}): Promise<PdfDocumentMap> => {
+  return await invoke("pdf-index:document-map", params);
+};
+
+export const getPdfSectionSummary = async (params: {
+  pdfId: number;
+  mainDbName: string;
+  sectionId: string;
+}): Promise<PdfSectionSummary | null> => {
+  return await invoke("pdf-index:section-summary", params);
+};
+
+export const searchPdfSections = async (params: {
+  pdfId: number;
+  mainDbName: string;
+  query: string;
+  limit?: number;
+}): Promise<PdfSectionSummary[]> => {
+  return await invoke("pdf-index:section-search", params);
+};
+
+export const readPdfSection = async (params: {
+  pdfId: number;
+  mainDbName: string;
+  sectionId: string;
+}): Promise<PdfSectionDetail | null> => {
+  return await invoke("pdf-index:section-detail", params);
+};
+
+export const createPdfChat = async (
+  params: CreatePdfChat,
+): Promise<PdfChatMessage> => {
+  return await invoke("pdf-chat:create", params);
+};
+
+export const updatePdfChat = async (
+  params: UpdatePdfChat,
+): Promise<PdfChatMessage | null> => {
+  return await invoke("pdf-chat:update", params);
+};
+
+export const deletePdfChat = async (id: number): Promise<boolean> => {
+  return await invoke("pdf-chat:delete", id);
+};
+
+export const getPdfChatById = async (
+  id: number,
+): Promise<PdfChatMessage | null> => {
+  return await invoke("pdf-chat:get", id);
+};
+
+export const getPdfChatsByPdfId = async (
+  pdfId: number,
+): Promise<PdfChatMessage[]> => {
+  return await invoke("pdf-chat:list-by-pdf-id", pdfId);
+};
+
+export const getPdfChatBranches = async (
+  parentChatId: number,
+): Promise<PdfChatMessage[]> => {
+  return await invoke("pdf-chat:get-branches", parentChatId);
+};
+
+export const getPdfNextBranchIndex = async (
+  parentChatId: number,
+): Promise<number> => {
+  return await invoke("pdf-chat:get-next-branch-index", parentChatId);
+};
+
+export const getPdfChildBranchesCount = async (
+  parentChatId: number,
+): Promise<number> => {
+  return await invoke("pdf-chat:get-child-branches-count", parentChatId);
 };

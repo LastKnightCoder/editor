@@ -200,7 +200,7 @@ const Resizer = memo(
     return (
       <div
         className={classnames(
-          "bg-gray-300 dark:bg-gray-700 hover:bg-blue-400 dark:hover:bg-blue-600 transition-colors z-10",
+          "bg-gray-300 dark:bg-zinc-700 hover:bg-blue-400 dark:hover:bg-blue-600 transition-colors z-10",
           {
             "w-1 cursor-col-resize": isHorizontal,
             "h-1 cursor-row-resize": !isHorizontal,

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { produce } from "immer";
 import { merge } from "lodash";
 import type { MermaidRenderStyle, MermaidThemeName } from "@tau/shared";
+import type { ImageBorderRadiusPreset, ImageShadowPreset } from "@tau/editor";
 
 import { EGithubCDN } from "@/constants/github";
 import type { WeReadCookie, WeReadSessionStatus } from "@/types/weread";
@@ -9,6 +10,11 @@ import { ETTSProvider } from "@/types/tts";
 import type { EmbeddingProviderType } from "@/types/embedding";
 import type { MinimaxSpeechModel } from "@/types/minimax";
 import { MINIMAX_DEFAULT_SPEECH_MODEL } from "@/utils/tts/minimaxSpeech";
+import {
+  DEFAULT_OPENAI_IMAGE_BASE_URL,
+  DEFAULT_OPENAI_IMAGE_MODEL,
+  type ImageGenerationConfig,
+} from "@/utils/openai-image-service";
 
 export enum EImageBed {
   Local = "local",
@@ -104,6 +110,7 @@ const sanitizeDeprecatedLLMUsageSettings = <T extends Partial<ISetting>>(
     typeof nextSetting.llmUsageSettings === "object"
   ) {
     delete nextSetting.llmUsageSettings.contentPolish;
+    delete nextSetting.llmUsageSettings.autoTagging;
   }
 
   return nextSetting;
@@ -129,6 +136,10 @@ export interface ISetting {
       | "gradient8"
       | "gradient9";
     backgroundAnimation?: boolean;
+    image?: {
+      borderRadius?: ImageBorderRadiusPreset;
+      shadow?: ImageShadowPreset | boolean;
+    };
   };
   imageBed: {
     active: EImageBed;
@@ -276,6 +287,7 @@ export interface ISetting {
     device: "cuda" | "cpu";
   };
   llmConfigs: ProviderConfig[];
+  imageGeneration: ImageGenerationConfig;
   llmUsageSettings: {
     chat: LLMUsageConfig | null;
     titleSummary: LLMUsageConfig | null;
@@ -284,7 +296,6 @@ export interface ISetting {
     podcastGeneration: LLMUsageConfig | null;
     flashcardGeneration: LLMUsageConfig | null;
     aiJudgement: LLMUsageConfig | null;
-    autoTagging: LLMUsageConfig | null;
     transcriptionOptimization: LLMUsageConfig | null;
     videoSummary: LLMUsageConfig | null;
     videoEbookRewrite: LLMUsageConfig | null;
@@ -664,6 +675,10 @@ const initialState: IState = {
     appearance: {
       backgroundType: "solid",
       backgroundAnimation: false,
+      image: {
+        borderRadius: "none",
+        shadow: "none",
+      },
     },
     imageBed: {
       active: EImageBed.Github,
@@ -812,6 +827,11 @@ const initialState: IState = {
       device: "cuda",
     },
     llmConfigs: [],
+    imageGeneration: {
+      baseUrl: DEFAULT_OPENAI_IMAGE_BASE_URL,
+      apiKey: "",
+      modelName: DEFAULT_OPENAI_IMAGE_MODEL,
+    },
     llmUsageSettings: {
       chat: null,
       titleSummary: null,
@@ -820,7 +840,6 @@ const initialState: IState = {
       podcastGeneration: null,
       flashcardGeneration: null,
       aiJudgement: null,
-      autoTagging: null,
       transcriptionOptimization: null,
       videoSummary: null,
       videoEbookRewrite: null,

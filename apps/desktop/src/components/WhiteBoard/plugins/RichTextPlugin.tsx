@@ -1,6 +1,12 @@
 import { Descendant } from "slate";
 import { v4 as getUuid } from "uuid";
-import { Type } from "lucide-react";
+import {
+  Type,
+  CreditCard,
+  FileText,
+  BookOpenText,
+  FolderOpen,
+} from "lucide-react";
 
 import {
   Board,
@@ -32,6 +38,10 @@ import { SelectTransforms } from "../transforms";
 export interface RichTextElement extends CommonElement {
   type: "richtext";
   content: Descendant[];
+  contentId?: number;
+  contentTitle?: string;
+  linkedCardId?: number;
+  linkedArticleId?: number;
   readonly?: boolean;
   maxWidth: number;
   maxHeight: number;
@@ -105,6 +115,71 @@ export class RichTextPlugin extends CommonPlugin {
       });
     }
 
+    if (targetElements.length === 1 && targetElements[0].type === "richtext") {
+      const richText = targetElements[0] as RichTextElement;
+      items.push({
+        key: `richtext-create-as-${richText.id}`,
+        label: "创建为",
+        icon: <FolderOpen size={14} />,
+        priority: 260,
+        children: [
+          !richText.linkedCardId
+            ? {
+                key: `richtext-create-as-card-${richText.id}`,
+                label: "卡片",
+                icon: <CreditCard size={14} />,
+                priority: 261,
+                onSelect: (ctx: ContextMenuContext) => {
+                  ctx.board.emit("richtext:create-as", {
+                    elementId: richText.id,
+                    mode: "card",
+                  });
+                },
+              }
+            : null,
+          !richText.linkedArticleId
+            ? {
+                key: `richtext-create-as-article-${richText.id}`,
+                label: "文章",
+                icon: <FileText size={14} />,
+                priority: 262,
+                onSelect: (ctx: ContextMenuContext) => {
+                  ctx.board.emit("richtext:create-as", {
+                    elementId: richText.id,
+                    mode: "article",
+                  });
+                },
+              }
+            : null,
+          {
+            key: `richtext-create-as-document-${richText.id}`,
+            label: "知识库文档",
+            icon: <BookOpenText size={14} />,
+            priority: 263,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("richtext:create-as", {
+                elementId: richText.id,
+                mode: "document",
+              });
+            },
+          },
+          {
+            key: `richtext-create-as-project-${richText.id}`,
+            label: "项目文档",
+            icon: <FolderOpen size={14} />,
+            priority: 264,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("richtext:create-as", {
+                elementId: richText.id,
+                mode: "project",
+              });
+            },
+          },
+        ].filter(Boolean) as PluginContextMenuItem[],
+        onSelect: () => {},
+      });
+    }
+
     return items;
   }
 
@@ -125,8 +200,8 @@ export class RichTextPlugin extends CommonPlugin {
       type: "richtext",
       x,
       y,
-      width: 32,
-      height: 42,
+      width: 180,
+      height: 72,
       maxWidth: 300,
       maxHeight: 1000,
       readonly: false,
@@ -173,8 +248,8 @@ export class RichTextPlugin extends CommonPlugin {
       type: "richtext",
       x,
       y,
-      width: 32,
-      height: 42,
+      width: 180,
+      height: 72,
       maxWidth: 300,
       maxHeight: 1000,
       readonly: false,
@@ -316,6 +391,24 @@ export class RichTextPlugin extends CommonPlugin {
     }
   };
 
+  private onElementChange = (
+    board: Board,
+    element: RichTextElement,
+    patch: Partial<RichTextElement>,
+  ) => {
+    const path = PathUtil.getPathByElement(board, element);
+    if (!path) return;
+
+    const newElement = {
+      ...element,
+      ...patch,
+    };
+    const ops = BoardUtil.diffNodePatchOnly(element, newElement, path);
+    if (ops.length > 0) {
+      board.apply(ops);
+    }
+  };
+
   render(_board: Board, { element }: { element: RichTextElement }) {
     const { id } = element;
     return (
@@ -324,6 +417,7 @@ export class RichTextPlugin extends CommonPlugin {
         element={element}
         onContentChange={this.onContentChange}
         onEditorSizeChange={this.onEditorSizeChange}
+        onElementChange={this.onElementChange}
         removeAutoFocus={this.removeAutoFocus}
         onResizeStart={this.onResizeStart}
         onResize={this.onResize}

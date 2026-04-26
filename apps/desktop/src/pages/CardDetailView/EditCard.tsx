@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
-import { Descendant } from "slate";
+import { Descendant, Range, Transforms } from "slate";
+import { ReactEditor } from "slate-react";
 import {
   LinkOutlined,
   ReadOutlined,
@@ -23,13 +24,13 @@ import StatusBar from "@/components/StatusBar";
 import ContentExportModal from "@/components/ContentExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
-import ImmersiveEditorMode from "@/components/ImmersiveEditorMode";
+import ImmersiveEditorMode, {
+  type ImmersiveEditorExitPayload,
+} from "@/components/ImmersiveEditorMode";
 
 import useEditContent from "@/hooks/useEditContent";
 import useRegisterActiveEditingContext from "@/hooks/useRegisterActiveEditingContext";
-import useLLMConfig from "@/hooks/useLLMConfig";
 import useFlashcardCreation from "@/hooks/useFlashcardCreation";
-import useAutoTagging from "@/hooks/useAutoTagging";
 import DeckSelectorModal from "@/components/DeckSelectorModal";
 import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
 import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
@@ -51,12 +52,7 @@ import {
   copyWechatHtmlToClipboard,
 } from "@/utils";
 import { ICard } from "@/types";
-import {
-  deleteCard,
-  getAllCards,
-  openCardInNewWindow,
-  getAllGlobalTags,
-} from "@/commands";
+import { deleteCard, getAllCards, openCardInNewWindow } from "@/commands";
 import graphIcon from "@/assets/icons/graph.svg";
 
 import useEditCard from "./useEditCard";
@@ -73,6 +69,20 @@ import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 
 const minFitViewPadding = [120];
 const maxFitViewPadding = [80];
+
+const cloneRange = (selection: Range | null): Range | null => {
+  if (!selection) return null;
+  return {
+    anchor: {
+      path: [...selection.anchor.path],
+      offset: selection.anchor.offset,
+    },
+    focus: {
+      path: [...selection.focus.path],
+      offset: selection.focus.offset,
+    },
+  };
+};
 
 interface IEditCardProps {
   cardId: number;
@@ -95,7 +105,6 @@ const EditCard = (props: IEditCardProps) => {
   const darkMode = useSettingStore((state) => state.setting.darkMode);
   const {
     onInit,
-    initValue,
     loading,
     editingCard,
     onContentChange: onContentChangeFromEditCard,
@@ -117,6 +126,8 @@ const EditCard = (props: IEditCardProps) => {
   );
 
   const editorRef = useRef<EditorRef>(null);
+  const immersiveEntrySelectionRef = useRef<Range | null>(null);
+  const pendingSelectionRef = useRef<Range | null>(null);
   const {
     handleSelectionChange: handleEditorSelectionChange,
     handleFocus: handleEditorFocus,
@@ -142,15 +153,8 @@ const EditCard = (props: IEditCardProps) => {
   const [epubExportModalOpen, setEpubExportModalOpen] = useState(false);
   const [pdfExportModalOpen, setPdfExportModalOpen] = useState(false);
   const [immersiveMode, setImmersiveMode] = useState(false);
+  const [editorRemountKey, setEditorRemountKey] = useState(0);
   const [updateTime, setUpdateTime] = useState(editingCard?.update_time || 0);
-
-  // AI 自动标签配置和 hook
-  const { providerConfig: tagProviderConfig, modelConfig: tagModelConfig } =
-    useLLMConfig("autoTagging");
-  const { isGenerating: isTagGenerating, generateTags } = useAutoTagging(
-    tagProviderConfig,
-    tagModelConfig,
-  );
 
   // 闪卡生成
   const flashcard = useFlashcardCreation({
@@ -175,6 +179,41 @@ const EditCard = (props: IEditCardProps) => {
       setUpdateTime(editingCard?.update_time);
     }
   }, [editingCard?.update_time]);
+
+  const handleImmersiveExit = useMemoizedFn(
+    (payload?: ImmersiveEditorExitPayload) => {
+      pendingSelectionRef.current = payload?.selection ?? null;
+      setImmersiveMode(false);
+      setEditorRemountKey((current) => current + 1);
+    },
+  );
+
+  useEffect(() => {
+    if (immersiveMode || !pendingSelectionRef.current) return;
+
+    const timer = window.setTimeout(() => {
+      const editor = editorRef.current?.getEditor();
+      const selection = pendingSelectionRef.current;
+      if (!editor || !selection) return;
+
+      try {
+        Transforms.select(editor, selection);
+        ReactEditor.focus(editor as any);
+        pendingSelectionRef.current = null;
+      } catch (error) {
+        console.warn("恢复沉浸模式焦点失败:", error);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [editorRemountKey, immersiveMode]);
+
+  const handleEnterImmersiveMode = useMemoizedFn(() => {
+    immersiveEntrySelectionRef.current = cloneRange(
+      editorRef.current?.getEditor().selection ?? null,
+    );
+    setImmersiveMode(true);
+  });
 
   const handleDeleteCard = useMemoizedFn(async (cardId: number) => {
     try {
@@ -253,44 +292,6 @@ const EditCard = (props: IEditCardProps) => {
       tag === oldTag ? newTag : tag,
     );
     onTagChange(newTags);
-  });
-
-  // AI 自动打标签
-  const handleAiTagClick = useMemoizedFn(async () => {
-    if (!editingCard || isTagGenerating) return;
-
-    if (!tagProviderConfig || !tagModelConfig) {
-      message.error("请先在设置中配置自动打标签的模型");
-      return;
-    }
-
-    try {
-      // 获取全局标签
-      const allTags = await getAllGlobalTags();
-      console.log("[AutoTagging] 获取到全局标签数量:", allTags.length);
-      console.log("[AutoTagging] 全局标签:", allTags);
-
-      // 生成新标签
-      const newTags = await generateTags(
-        editingCard.content,
-        editingCard.tags,
-        allTags,
-      );
-
-      if (newTags.length === 0) {
-        message.info("未能生成新标签，当前内容可能已有足够的标签覆盖");
-        return;
-      }
-
-      // 一次性追加所有新标签（避免 React 状态更新的异步问题）
-      const mergedTags = [...editingCard.tags, ...newTags];
-      onTagChange(mergedTags);
-
-      message.success(`已添加 ${newTags.length} 个新标签`);
-    } catch (error) {
-      console.error("AI 标签生成失败:", error);
-      message.error("标签生成失败，请重试");
-    }
   });
 
   useRafInterval(async () => {
@@ -427,7 +428,7 @@ const EditCard = (props: IEditCardProps) => {
       if (key === "presentation") {
         setPresentationMode(true);
       } else if (key === "immersive-mode") {
-        setImmersiveMode(true);
+        handleEnterImmersiveMode();
       } else if (key === "generate-podcast") {
         openPodcastModal();
       } else if (key === "open-window") {
@@ -600,10 +601,10 @@ const EditCard = (props: IEditCardProps) => {
             )}
             <ErrorBoundary>
               <Editor
-                key={`normal-${editingCard.id}`}
+                key={`normal-${editingCard.id}-${editorRemountKey}`}
                 ref={editorRef}
                 onInit={onInit}
-                initValue={initValue}
+                initValue={editingCard.content}
                 onChange={onContentChange}
                 onSelectionChange={handleEditorSelectionChange}
                 onFocus={handleEditorFocus}
@@ -621,9 +622,6 @@ const EditCard = (props: IEditCardProps) => {
             removeTag={handleDeleteTag}
             editTag={handleEditTag}
             readonly={readonly}
-            showAiButton={!readonly}
-            onAiTagClick={handleAiTagClick}
-            isAiGenerating={isTagGenerating}
             onReorder={onTagChange}
           />
         </div>
@@ -684,13 +682,10 @@ const EditCard = (props: IEditCardProps) => {
         {immersiveMode && (
           <ImmersiveEditorMode
             initValue={editingCard.content}
+            initialSelection={immersiveEntrySelectionRef.current}
             onChange={onContentChange}
             onInit={onInit}
-            onExit={() => {
-              setImmersiveMode(false);
-              // 退出沉浸模式时，同步更新主编辑器内容（Editor 是非受控组件）
-              editorRef.current?.setEditorValue(editingCard.content);
-            }}
+            onExit={handleImmersiveExit}
             wordCount={editingCard.count}
             readonly={readonly}
             extensions={dynamicExtensions}

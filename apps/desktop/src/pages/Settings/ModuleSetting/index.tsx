@@ -411,7 +411,7 @@ const ModuleSetting = () => {
                       ${
                         module.enable
                           ? `${themeColors.cardBorderClass} ${themeColors.activeBgClass}`
-                          : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 opacity-75 hover:opacity-85 hover:bg-gray-100 dark:hover:bg-gray-800/70"
+                          : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-zinc-800/50 opacity-75 hover:opacity-85 hover:bg-gray-100 dark:hover:bg-zinc-800/70"
                       }
                     `}
                   >
@@ -429,7 +429,7 @@ const ModuleSetting = () => {
                         ${
                           module.enable
                             ? `${themeColors.iconBgClass} ${themeColors.activeTextClass}`
-                            : "bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+                            : "bg-gray-200 text-gray-500 dark:bg-zinc-700 dark:text-gray-400"
                         }
                       `}
                       >
@@ -443,7 +443,7 @@ const ModuleSetting = () => {
                         ${
                           module.enable
                             ? `${themeColors.activeBadgeClass} ${themeColors.activeTextClass}`
-                            : "bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+                            : "bg-gray-200 text-gray-500 dark:bg-zinc-700 dark:text-gray-400"
                         }
                       `}
                       >

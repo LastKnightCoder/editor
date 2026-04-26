@@ -1,5 +1,6 @@
 import { Descendant } from "slate";
 import type { PdfAnnotationObject, PdfBookmarkObject } from "@embedpdf/models";
+import type { ChatSessionMessage } from "./llm";
 
 export enum EHighlightColor {
   Red = "red",
@@ -67,3 +68,188 @@ export type CreatePdfAnnotation = Omit<
   PdfAnnotation,
   "id" | "createTime" | "updateTime"
 >;
+
+export interface PdfIndexStatus {
+  pdfId: number;
+  state: "pending" | "building" | "ready" | "failed";
+  pageCount: number;
+  updatedAt: number | null;
+  fingerprint?: string;
+  error?: string;
+  partial?: boolean;
+  currentStage?:
+    | "extracting"
+    | "structuring"
+    | "summarizing"
+    | "embedding"
+    | "persisting";
+  progressCurrent?: number;
+  progressTotal?: number;
+  progressLabel?: string;
+}
+
+export interface PdfPageContent {
+  pdfId: number;
+  pageNumber: number;
+  content: string;
+  charCount: number;
+}
+
+export interface PdfOutlineNode {
+  id: string;
+  title: string;
+  pageNumber: number | null;
+  orderIndex: number;
+  children: PdfOutlineNode[];
+}
+
+export interface PdfSectionBreadcrumb {
+  id: string;
+  title: string;
+}
+
+export interface PdfReadingPath {
+  id: string;
+  label: string;
+  description: string;
+  sectionIds: string[];
+}
+
+export interface PdfChapterMapItem {
+  sectionId: string;
+  title: string;
+  role: string;
+  startPage: number | null;
+  endPage: number | null;
+}
+
+export interface PdfSectionSummary {
+  pdfId: number;
+  sectionId: string;
+  title: string;
+  level: number;
+  pathTitles: string[];
+  startPage: number;
+  endPage: number;
+  overview: string;
+  mainPoints: string[];
+  arguments: string[];
+  evidence: string[];
+  conclusions: string[];
+  terms: string[];
+  questions: string[];
+  summarySource: "llm" | "extractive";
+  status: "ready" | "degraded" | "failed";
+  score?: number;
+  source?: "fts" | "vec" | "hybrid";
+}
+
+export interface PdfSectionNode {
+  id: string;
+  parentId: string | null;
+  title: string;
+  level: number;
+  startPage: number;
+  endPage: number;
+  orderIndex: number;
+  pathTitles: string[];
+  source: "outline" | "inferred" | "synthetic";
+  summary: PdfSectionSummary | null;
+  children: PdfSectionNode[];
+}
+
+export interface PdfDocumentSummary {
+  pdfId: number;
+  overview: string;
+  themes: string[];
+  chapterMap: PdfChapterMapItem[];
+  mainArguments: string[];
+  coreEvidence: string[];
+  conclusion: string[];
+  readingPaths: PdfReadingPath[];
+  summarySource: "llm" | "extractive";
+  status: "ready" | "degraded" | "failed";
+}
+
+export interface PdfDocumentMap {
+  pdfId: number;
+  fileName: string;
+  pageCount: number;
+  indexStatus: PdfIndexStatus;
+  summary: PdfDocumentSummary | null;
+  sections: PdfSectionNode[];
+}
+
+export interface PdfSectionDetail {
+  pdfId: number;
+  section: PdfSectionSummary | null;
+  breadcrumbs: PdfSectionBreadcrumb[];
+  pages: PdfPageContent[];
+  content: string;
+}
+
+export interface PdfSearchResult {
+  pdfId: number;
+  pageNumber: number;
+  chunkIndex: number;
+  snippet: string;
+  content: string;
+  source: "fts" | "vec";
+  score: number;
+  charStart: number;
+  charEnd: number;
+  rrfScore?: number;
+  rerankScore?: number;
+  sectionId?: string;
+  sectionTitle?: string;
+  sectionPath?: string[];
+  sectionStartPage?: number;
+  sectionEndPage?: number;
+}
+
+export interface PdfDocumentInfo {
+  pdfId: number;
+  fileName: string;
+  pageCount: number;
+  indexStatus: PdfIndexStatus;
+}
+
+export interface PdfAnnotationContext {
+  id: number;
+  pdfId: number;
+  pageNumber: number;
+  type: PdfAnnotationType;
+  color?: EHighlightColor;
+  snippet?: string;
+  notes: Array<Note>;
+  areaData?: AreaAnnotationData;
+}
+
+export interface PdfChatMessage {
+  id: number;
+  pdfId: number;
+  createTime: number;
+  updateTime: number;
+  messages: ChatSessionMessage[];
+  title: string;
+  archived?: boolean;
+  parentChatId?: number | null;
+  branchIndex?: number;
+}
+
+export interface CreatePdfChat {
+  pdfId: number;
+  messages: ChatSessionMessage[];
+  title?: string;
+  parentChatId?: number | null;
+  branchIndex?: number;
+}
+
+export interface UpdatePdfChat {
+  id: number;
+  messages?: ChatSessionMessage[];
+  title?: string;
+  archived?: boolean;
+  parentChatId?: number | null;
+  branchIndex?: number;
+}

@@ -72,7 +72,7 @@ const CreateSkillModal = memo(({ open, onClose }: CreateSkillModalProps) => {
         <div className="flex justify-end gap-3">
           <button
             onClick={handleClose}
-            className="px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700"
+            className="px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-zinc-700"
           >
             取消
           </button>
@@ -80,7 +80,7 @@ const CreateSkillModal = memo(({ open, onClose }: CreateSkillModalProps) => {
             onClick={handleSubmit}
             disabled={loading}
             className={classNames(
-              "px-5 py-2.5 rounded-xl border-none text-sm font-semibold cursor-pointer transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2),0_1px_2px_rgba(0,0,0,0.05)] hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700",
+              "px-5 py-2.5 rounded-xl border-none text-sm font-semibold cursor-pointer transition-all shadow-[0_4px_14px_rgba(0,0,0,0.2),0_1px_2px_rgba(0,0,0,0.05)] hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700",
               themeColors.buttonBg,
               themeColors.buttonTextClass,
             )}
@@ -105,7 +105,7 @@ const CreateSkillModal = memo(({ open, onClose }: CreateSkillModalProps) => {
             placeholder="例如：代码审查"
             className={classNames(
               "w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all border",
-              "bg-gray-50 dark:bg-slate-950 text-gray-900 dark:text-white",
+              "bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-white",
               error
                 ? "border-red-500 focus:border-red-500 focus:shadow-[0_0_0_3px_rgba(239,68,68,0.15)]"
                 : "border-gray-200 dark:border-slate-700 focus:border-emerald-500 focus:shadow-[0_0_0_3px_rgba(16,185,129,0.15)]",
@@ -125,7 +125,7 @@ const CreateSkillModal = memo(({ open, onClose }: CreateSkillModalProps) => {
             rows={3}
             className={classNames(
               "w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all border resize-none",
-              "bg-gray-50 dark:bg-slate-950 text-gray-900 dark:text-white",
+              "bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-white",
               "border-gray-200 dark:border-slate-700 focus:border-emerald-500 focus:shadow-[0_0_0_3px_rgba(16,185,129,0.15)]",
             )}
           />
@@ -134,7 +134,7 @@ const CreateSkillModal = memo(({ open, onClose }: CreateSkillModalProps) => {
         <div
           className={classNames(
             "text-xs p-3 rounded-lg",
-            "bg-gray-50 dark:bg-slate-900",
+            "bg-gray-50 dark:bg-zinc-900",
             themeColors.secondaryTextClass,
           )}
         >

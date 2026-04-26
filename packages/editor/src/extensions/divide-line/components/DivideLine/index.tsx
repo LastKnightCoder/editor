@@ -7,7 +7,7 @@ import { Trash2 } from "lucide-react";
 import { type DivideLineElement } from "../../../types";
 import AddParagraph from "../../../../components/AddParagraph";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
-import useThemeColors from "../../../../hooks/useThemeColors";
+
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
 import { deleteNode } from "../../../../utils/nodeOperations";
@@ -42,7 +42,6 @@ const DivideLineElement: React.FC<PropsWithChildren<DivideLineProps>> = (
 
   const editor = useSlate();
   const readOnly = useReadOnly();
-  const { accentColor } = useThemeColors();
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
       element,
@@ -74,8 +73,7 @@ const DivideLineElement: React.FC<PropsWithChildren<DivideLineProps>> = (
       <div
         {...attributes}
         contentEditable={false}
-        className="w-4/5 h-[0.125em] my-12 mx-auto"
-        style={{ backgroundColor: accentColor }}
+        className="w-[90%] h-[0.125em] my-[1.5em] mx-auto bg-zinc-200 dark:bg-zinc-700"
       >
         {children}
         <AddParagraph element={element} />

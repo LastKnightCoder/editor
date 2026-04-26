@@ -1,4 +1,13 @@
-import { invoke } from "@/electron";
+import { invoke, on, off } from "@/electron";
+
+export interface TextFileChangedPayload {
+  filePath: string;
+}
+
+export type TextFileChangedListener = (
+  _event: unknown,
+  payload: TextFileChangedPayload,
+) => void;
 export const showInFolder = async (path: string) => {
   await invoke("show-in-folder", path);
 };
@@ -48,6 +57,22 @@ export const writeTextFile = async (
   contents: string,
 ): Promise<void> => {
   return await invoke("write-text-file", filePath, contents);
+};
+
+export const watchTextFile = async (filePath: string): Promise<void> => {
+  return await invoke("watch-text-file", filePath);
+};
+
+export const unwatchTextFile = async (filePath: string): Promise<void> => {
+  return await invoke("unwatch-text-file", filePath);
+};
+
+export const onTextFileChanged = (listener: TextFileChangedListener): void => {
+  on("text-file-changed", listener as (...args: unknown[]) => void);
+};
+
+export const offTextFileChanged = (listener: TextFileChangedListener): void => {
+  off("text-file-changed", listener as (...args: unknown[]) => void);
 };
 
 export const createDir = async (dirPath: string): Promise<void> => {
@@ -108,6 +133,13 @@ export const readDirectory = async (
 
 export const getDirectoryName = async (filePath: string): Promise<string> => {
   return await invoke("get-directory-name", filePath);
+};
+
+export const resolvePathFrom = async (
+  baseDir: string,
+  targetPath: string,
+): Promise<string> => {
+  return await invoke("resolve-path-from", baseDir, targetPath);
 };
 
 export const isDirectory = async (path: string): Promise<boolean> => {

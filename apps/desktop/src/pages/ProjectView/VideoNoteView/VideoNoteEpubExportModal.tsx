@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "motion/react";
 import classNames from "classnames";
 import type { Descendant } from "slate";
 import { Editor, EditorRef } from "@tau/editor/src";
+import { SelectDropDown } from "@tau/shared";
 import { readBinaryFile, selectFile, showInFolder } from "@/commands";
 import type { EpubMetadataInput } from "@/types";
 import type { ProviderConfig, ModelConfig } from "@/types/llm";
@@ -72,30 +73,35 @@ const STYLE_OPTIONS: Array<{
   label: string;
   value: VideoEbookRewriteStyle;
   description: string;
+  detail: string;
   icon: string;
 }> = [
   {
     label: "杂志风",
     value: "magazine",
     description: "叙事性强、可读性高，兼顾信息密度与阅读节奏",
+    detail: "适合把复杂内容整理成更顺滑、更有阅读感的长文结构。",
     icon: "📰",
   },
   {
     label: "学术总结",
     value: "academic",
     description: "结构严谨、概念清晰，强调论点与结论",
+    detail: "适合输出定义、论据、方法与结论更明确的总结型内容。",
     icon: "🎓",
   },
   {
     label: "轻松博客",
     value: "casual",
     description: "语气亲切、段落短、节奏快，强调易读性",
+    detail: "适合快速浏览和轻阅读场景，让内容更自然、更容易读完。",
     icon: "✏️",
   },
   {
     label: "技术文档",
     value: "technical",
     description: "结构化表达，强调可检索性与准确性",
+    detail: "适合沉淀术语、前提、步骤和边界条件都更清晰的说明文。",
     icon: "📋",
   },
 ];
@@ -212,7 +218,7 @@ const StepIndicator = ({ currentStep }: { currentStep: Step }) => {
                   "h-px w-5 transition-colors",
                   isPast || isActive
                     ? "bg-indigo-400 dark:bg-indigo-500"
-                    : "bg-gray-200 dark:bg-slate-700",
+                    : "bg-gray-200 dark:bg-zinc-700",
                 )}
               />
             )}
@@ -233,7 +239,7 @@ const StepIndicator = ({ currentStep }: { currentStep: Step }) => {
                     ? "bg-indigo-500 text-white dark:bg-indigo-500"
                     : isPast
                       ? "bg-indigo-200 text-indigo-600 dark:bg-indigo-500/30 dark:text-indigo-400"
-                      : "bg-gray-200 text-gray-500 dark:bg-slate-700 dark:text-slate-400",
+                      : "bg-gray-200 text-gray-500 dark:bg-zinc-700 dark:text-slate-400",
                 )}
               >
                 {isPast ? "✓" : s.number}
@@ -266,6 +272,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
   const [editorSessionId, setEditorSessionId] = useState(0);
   const [selectedStyle, setSelectedStyle] =
     useState<VideoEbookRewriteStyle>("magazine");
+  const [styleDropdownOpen, setStyleDropdownOpen] = useState(false);
   const [selectedFormats, setSelectedFormats] = useState<Set<"pdf" | "epub">>(
     new Set(["epub"]),
   );
@@ -286,6 +293,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
   >(STORAGE_KEY, {
     defaultValue: undefined,
   });
+  const styleTriggerRef = useRef<HTMLButtonElement>(null);
 
   const {
     isRewriting,
@@ -374,6 +382,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       remembered,
     });
     setMetadata(defaultMetadata);
+    setStyleDropdownOpen(false);
   }, [open, videoTitle, remembered, resetRewriteState]);
 
   useEffect(() => {
@@ -506,6 +515,13 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     }
     return "导出 PDF 和 EPUB";
   }, [selectedFormats]);
+
+  const selectedStyleOption = useMemo(
+    () =>
+      STYLE_OPTIONS.find((option) => option.value === selectedStyle) ||
+      STYLE_OPTIONS[0],
+    [selectedStyle],
+  );
 
   const handleStartRewrite = useMemoizedFn(() => {
     if (!normalizeText(transcript)) {
@@ -834,35 +850,61 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
     themeColors.buttonBg,
     themeColors.buttonTextClass,
-    "disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed",
+    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed dark:disabled:border dark:disabled:border-slate-700",
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-    "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300",
-    "hover:bg-gray-200 dark:hover:bg-gray-700",
+    "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
+    "hover:bg-gray-200 dark:hover:bg-zinc-700",
     "border border-gray-200 dark:border-gray-700",
   );
 
   const inputClass = classNames(
     "w-full px-3.5 py-2.5 rounded-xl text-sm outline-none transition-all",
-    "bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700",
+    "bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700",
     "text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500",
     "focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 dark:focus:border-indigo-500 dark:focus:ring-indigo-500/20",
   );
 
   const renderRewriteStep = () => (
-    <div className="flex h-[560px] flex-col gap-4">
-      {/* 风格选择卡片 */}
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="shrink-0">
-        <div className="mb-2.5 flex items-center justify-between">
-          <span className="text-xs font-semibold text-gray-500 dark:text-slate-400">
-            选择写作风格
-          </span>
+        <span className="mb-2 block text-xs font-semibold text-gray-500 dark:text-slate-400">
+          选择写作风格
+        </span>
+        <div className="flex items-center gap-3">
+          <button
+            ref={styleTriggerRef}
+            type="button"
+            disabled={isRewriting}
+            onClick={() => setStyleDropdownOpen((prev) => !prev)}
+            className={classNames(
+              "flex h-12 min-w-0 flex-1 items-center justify-between gap-3 rounded-xl border px-4 text-left transition-all",
+              "disabled:cursor-not-allowed disabled:opacity-60",
+              "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 dark:border-slate-700 dark:bg-zinc-900/50 dark:hover:border-slate-600 dark:hover:bg-zinc-800/50",
+            )}
+          >
+            <span className="min-w-0 truncate text-sm font-semibold text-gray-800 dark:text-slate-100">
+              {selectedStyleOption.label}
+            </span>
+            <svg
+              className={classNames(
+                "h-4 w-4 shrink-0 text-gray-400 transition-transform dark:text-slate-500",
+                styleDropdownOpen && "rotate-180",
+              )}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
           {isRewriting ? (
             <button
               type="button"
-              className="rounded-lg px-3 py-1.5 text-xs font-medium text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
+              className="flex h-12 shrink-0 items-center justify-center rounded-xl px-4 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
               onClick={stopRewrite}
             >
               取消生成
@@ -871,7 +913,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
             <button
               type="button"
               className={classNames(
-                "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                "flex h-12 shrink-0 items-center justify-center rounded-xl px-5 text-sm font-semibold transition-colors",
                 themeColors.buttonBg,
                 themeColors.buttonTextClass,
               )}
@@ -881,54 +923,52 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
             </button>
           )}
         </div>
-        <div className="grid grid-cols-4 gap-2.5">
-          {STYLE_OPTIONS.map((option) => {
-            const isSelected = selectedStyle === option.value;
+        <SelectDropDown
+          items={STYLE_OPTIONS}
+          selectedKey={selectedStyle}
+          show={styleDropdownOpen}
+          onClose={() => setStyleDropdownOpen(false)}
+          onSelect={(option) => {
+            setSelectedStyle(option.value);
+          }}
+          triggerElement={styleTriggerRef.current}
+          getKey={(option) => option.value}
+          renderItem={(option) => {
+            const isSelected = option.value === selectedStyle;
             return (
-              <button
-                key={option.value}
-                type="button"
-                disabled={isRewriting}
-                onClick={() => setSelectedStyle(option.value)}
-                className={classNames(
-                  "group relative flex flex-col items-start rounded-xl border p-3 text-left transition-all",
-                  "disabled:cursor-not-allowed disabled:opacity-60",
-                  isSelected
-                    ? "border-indigo-400 bg-indigo-50/80 ring-2 ring-indigo-500/25 dark:border-indigo-500 dark:bg-indigo-500/10 dark:ring-indigo-500/20"
-                    : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/80 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:border-slate-600 dark:hover:bg-slate-800/50",
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div
+                    className={classNames(
+                      "text-[15px] font-semibold leading-6",
+                      isSelected
+                        ? "text-blue-600"
+                        : "text-gray-800 dark:text-slate-100",
+                    )}
+                  >
+                    {option.label}
+                  </div>
+                  <p className="mt-1 text-[13px] leading-6 text-gray-500 dark:text-slate-400">
+                    {option.description}
+                  </p>
+                  <p className="mt-1 text-[12px] leading-5 text-gray-400 dark:text-slate-500">
+                    {option.detail}
+                  </p>
+                </div>
+                {isSelected && (
+                  <span className="mt-1 text-base font-semibold text-blue-500">
+                    ✓
+                  </span>
                 )}
-              >
-                <span className="mb-1 text-base leading-none">
-                  {option.icon}
-                </span>
-                <span
-                  className={classNames(
-                    "text-xs font-semibold",
-                    isSelected
-                      ? "text-indigo-700 dark:text-indigo-300"
-                      : "text-gray-700 dark:text-slate-200",
-                  )}
-                >
-                  {option.label}
-                </span>
-                <span
-                  className={classNames(
-                    "mt-0.5 text-[11px] leading-tight",
-                    isSelected
-                      ? "text-indigo-500/80 dark:text-indigo-400/70"
-                      : "text-gray-400 dark:text-slate-500",
-                  )}
-                >
-                  {option.description}
-                </span>
-              </button>
+              </div>
             );
-          })}
-        </div>
+          }}
+          width={Math.max(styleTriggerRef.current?.offsetWidth || 0, 420)}
+          maxHeight={420}
+        />
       </div>
 
-      {/* 编辑器区域 */}
-      <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-950/50">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-zinc-950/50">
         <div className="flex h-9 shrink-0 items-center justify-between border-b border-gray-100 px-3 dark:border-slate-700/60">
           <span className="text-xs text-gray-500 dark:text-slate-400">
             {isRewriting ? (
@@ -953,13 +993,18 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
             {isRewriting ? "只读" : "可编辑"}
           </span>
         </div>
-        <div className="relative min-h-0 flex-1 overflow-auto p-3">
+        <div className="min-h-0 flex-1 overflow-hidden px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
           <Editor
             ref={editorRef}
             key={`video-note-ebook-${videoNoteId}-${editorSessionId}`}
             initValue={draftContent}
             onChange={handleEditorChange}
             readonly={isRewriting}
+            className="h-full overflow-y-auto rounded-[18px]"
+            style={{
+              padding: "20px 20px 20px 32px",
+              scrollbarGutter: "stable",
+            }}
             features={{ disableHeaderCollapse: true }}
           />
         </div>
@@ -968,203 +1013,213 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
   );
 
   const renderExportSettingsStep = () => (
-    <div className="flex h-[560px] flex-col gap-5 overflow-y-auto pr-1">
-      {/* 导出格式选择 */}
-      <div className="space-y-3">
-        <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-          导出格式
-        </label>
-        <div className="grid grid-cols-2 gap-3">
-          {FORMAT_OPTIONS.map((option) => {
-            const isSelected = selectedFormats.has(option.value);
-            return (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => {
-                  const newFormats = new Set(selectedFormats);
-                  if (isSelected) {
-                    newFormats.delete(option.value);
-                  } else {
-                    newFormats.add(option.value);
-                  }
-                  setSelectedFormats(newFormats);
-                }}
-                className={classNames(
-                  "flex flex-col items-start rounded-xl border p-3 text-left transition-all",
-                  isSelected
-                    ? "border-indigo-400 bg-indigo-50/80 ring-2 ring-indigo-500/25 dark:border-indigo-500 dark:bg-indigo-500/10 dark:ring-indigo-500/20"
-                    : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/80 dark:border-slate-700 dark:bg-slate-900/50 dark:hover:border-slate-600 dark:hover:bg-slate-800/50",
-                )}
-              >
-                <span className="text-base">{option.icon}</span>
-                <span
-                  className={classNames(
-                    "text-xs font-semibold",
-                    isSelected
-                      ? "text-indigo-700 dark:text-indigo-300"
-                      : "text-gray-700 dark:text-slate-200",
-                  )}
-                >
-                  {option.label}
-                </span>
-                <span
-                  className={classNames(
-                    "text-[11px]",
-                    isSelected
-                      ? "text-indigo-500/80 dark:text-indigo-400/70"
-                      : "text-gray-400 dark:text-slate-500",
-                  )}
-                >
-                  {option.description}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 基本信息 */}
-      <div className="space-y-4">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-            书名 <span className="text-red-400">*</span>
-          </label>
-          <input
-            type="text"
-            value={metadata.title}
-            placeholder="请输入书名"
-            onChange={(event) => onFieldChange("title", event.target.value)}
-            className={inputClass}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1.5">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div
+        className="min-h-0 flex-1 overflow-y-auto border border-transparent pr-2"
+        style={{ scrollbarGutter: "stable" }}
+      >
+        <div className="space-y-5 pb-1">
+          {/* 导出格式选择 */}
+          <div className="space-y-3">
             <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-              作者 <span className="text-red-400">*</span>
+              导出格式
             </label>
-            <input
-              type="text"
-              value={metadata.author}
-              placeholder="请输入作者"
-              onChange={(event) => onFieldChange("author", event.target.value)}
-              className={inputClass}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-              语言 <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              value={metadata.language}
-              placeholder="例如 zh-CN / en"
-              onChange={(event) =>
-                onFieldChange("language", event.target.value)
-              }
-              className={inputClass}
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-            简介
-          </label>
-          <textarea
-            value={metadata.description}
-            rows={2}
-            placeholder="可选，建议一句话简介"
-            onChange={(event) =>
-              onFieldChange("description", event.target.value)
-            }
-            className={classNames(inputClass, "resize-y")}
-          />
-        </div>
-      </div>
-
-      {/* 封面图 */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
-            封面图（可选）
-          </label>
-          <span className="text-[11px] text-gray-400 dark:text-slate-500">
-            封面将用于 EPUB 和 PDF 首页
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleChooseCoverFromFile}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-          >
-            选择本地图片
-          </button>
-          {normalizeText(metadata.coverImageSrc) && (
-            <button
-              type="button"
-              onClick={handleClearCover}
-              className="rounded-lg px-2.5 py-1.5 text-xs text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
-            >
-              清除
-            </button>
-          )}
-        </div>
-
-        {selectedCoverPreview ? (
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-950">
-            <img
-              src={selectedCoverPreview}
-              alt="封面预览"
-              className="h-40 w-full object-cover"
-            />
-          </div>
-        ) : (
-          <div className="flex items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50/50 px-4 py-8 dark:border-slate-700 dark:bg-slate-950/50">
-            <span className="text-xs text-gray-400 dark:text-slate-500">
-              未选择封面图，将使用默认样式
-            </span>
-          </div>
-        )}
-
-        {loadingCoverCandidates ? (
-          <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-500">
-            <LoadingOutlined className="animate-spin" />
-            正在提取正文图片...
-          </div>
-        ) : coverCandidates.length > 0 ? (
-          <div>
-            <span className="mb-2 block text-[11px] text-gray-400 dark:text-slate-500">
-              从草稿中提取的图片
-            </span>
-            <div className="grid grid-cols-4 gap-2">
-              {coverCandidates.map((candidate) => {
-                const isSelected = metadata.coverImageSrc === candidate.dataUri;
+            <div className="grid grid-cols-2 gap-3">
+              {FORMAT_OPTIONS.map((option) => {
+                const isSelected = selectedFormats.has(option.value);
                 return (
                   <button
-                    key={candidate.id}
+                    key={option.value}
                     type="button"
-                    onClick={() => handleSelectCoverCandidate(candidate)}
+                    onClick={() => {
+                      const newFormats = new Set(selectedFormats);
+                      if (isSelected) {
+                        newFormats.delete(option.value);
+                      } else {
+                        newFormats.add(option.value);
+                      }
+                      setSelectedFormats(newFormats);
+                    }}
                     className={classNames(
-                      "overflow-hidden rounded-lg border-2 transition-all",
+                      "flex flex-col items-start rounded-xl border p-3 text-left transition-all",
                       isSelected
-                        ? "border-indigo-500 ring-2 ring-indigo-500/25"
-                        : "border-transparent hover:border-gray-300 dark:hover:border-slate-600",
+                        ? "border-indigo-400 bg-indigo-50/80 ring-2 ring-indigo-500/25 dark:border-indigo-500 dark:bg-indigo-500/10 dark:ring-indigo-500/20"
+                        : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/80 dark:border-slate-700 dark:bg-zinc-900/50 dark:hover:border-slate-600 dark:hover:bg-zinc-800/50",
                     )}
                   >
-                    <img
-                      src={candidate.dataUri}
-                      alt={candidate.label}
-                      className="h-16 w-full object-cover"
-                    />
+                    <span className="text-base">{option.icon}</span>
+                    <span
+                      className={classNames(
+                        "text-xs font-semibold",
+                        isSelected
+                          ? "text-indigo-700 dark:text-indigo-300"
+                          : "text-gray-700 dark:text-slate-200",
+                      )}
+                    >
+                      {option.label}
+                    </span>
+                    <span
+                      className={classNames(
+                        "text-[11px]",
+                        isSelected
+                          ? "text-indigo-500/80 dark:text-indigo-400/70"
+                          : "text-gray-400 dark:text-slate-500",
+                      )}
+                    >
+                      {option.description}
+                    </span>
                   </button>
                 );
               })}
             </div>
           </div>
-        ) : null}
+
+          {/* 基本信息 */}
+          <div className="space-y-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
+                书名 <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={metadata.title}
+                placeholder="请输入书名"
+                onChange={(event) => onFieldChange("title", event.target.value)}
+                className={inputClass}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
+                  作者 <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={metadata.author}
+                  placeholder="请输入作者"
+                  onChange={(event) =>
+                    onFieldChange("author", event.target.value)
+                  }
+                  className={inputClass}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
+                  语言 <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={metadata.language}
+                  placeholder="例如 zh-CN / en"
+                  onChange={(event) =>
+                    onFieldChange("language", event.target.value)
+                  }
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
+                简介
+              </label>
+              <textarea
+                value={metadata.description}
+                rows={2}
+                placeholder="可选，建议一句话简介"
+                onChange={(event) =>
+                  onFieldChange("description", event.target.value)
+                }
+                className={classNames(inputClass, "resize-y")}
+              />
+            </div>
+          </div>
+
+          {/* 封面图 */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-gray-600 dark:text-slate-300">
+                封面图（可选）
+              </label>
+              <span className="text-[11px] text-gray-400 dark:text-slate-500">
+                封面将用于 EPUB 和 PDF 首页
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleChooseCoverFromFile}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-zinc-900 dark:text-slate-300 dark:hover:bg-zinc-800"
+              >
+                选择本地图片
+              </button>
+              {normalizeText(metadata.coverImageSrc) && (
+                <button
+                  type="button"
+                  onClick={handleClearCover}
+                  className="rounded-lg px-2.5 py-1.5 text-xs text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-slate-500 dark:hover:bg-zinc-800 dark:hover:text-slate-300"
+                >
+                  清除
+                </button>
+              )}
+            </div>
+
+            {selectedCoverPreview ? (
+              <div className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-zinc-950">
+                <img
+                  src={selectedCoverPreview}
+                  alt="封面预览"
+                  className="h-40 w-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="flex items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50/50 px-4 py-8 dark:border-slate-700 dark:bg-zinc-950/50">
+                <span className="text-xs text-gray-400 dark:text-slate-500">
+                  未选择封面图，将使用默认样式
+                </span>
+              </div>
+            )}
+
+            {loadingCoverCandidates ? (
+              <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-slate-500">
+                <LoadingOutlined className="animate-spin" />
+                正在提取正文图片...
+              </div>
+            ) : coverCandidates.length > 0 ? (
+              <div>
+                <span className="mb-2 block text-[11px] text-gray-400 dark:text-slate-500">
+                  从草稿中提取的图片
+                </span>
+                <div className="grid grid-cols-4 gap-2">
+                  {coverCandidates.map((candidate) => {
+                    const isSelected =
+                      metadata.coverImageSrc === candidate.dataUri;
+                    return (
+                      <button
+                        key={candidate.id}
+                        type="button"
+                        onClick={() => handleSelectCoverCandidate(candidate)}
+                        className={classNames(
+                          "overflow-hidden rounded-lg border-2 transition-all",
+                          isSelected
+                            ? "border-indigo-500 ring-2 ring-indigo-500/25"
+                            : "border-transparent hover:border-gray-300 dark:hover:border-slate-600",
+                        )}
+                      >
+                        <img
+                          src={candidate.dataUri}
+                          alt={candidate.label}
+                          className="h-16 w-full object-cover"
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1277,7 +1332,8 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       subtitle={STEP_META[step].subtitle}
       footer={renderFooter()}
       width={880}
-      bodyClassName="px-5 pb-1"
+      bodyClassName="flex min-h-0 px-5 pb-1"
+      contentStyle={{ height: "calc(100vh - 200px)" }}
       destroyOnClose={false}
       maskClosable={!isRewriting}
       showCloseButton={!isRewriting}
@@ -1289,6 +1345,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.2 }}
+          className="flex min-h-0 flex-1 flex-col"
         >
           {step === "rewrite" && renderRewriteStep()}
           {step === "export-settings" && renderExportSettingsStep()}

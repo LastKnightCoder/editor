@@ -1,5 +1,7 @@
 import React, { useMemo, memo, useCallback, useRef } from "react";
+import { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import classnames from "classnames";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
@@ -9,6 +11,7 @@ import MarkdownContext, {
   MarkdownMessageMeta,
 } from "./MarkdownContext";
 import { remarkDocumentReference } from "@tau/shared";
+import remarkPdfCitation from "@/utils/remark-pdf-citation";
 import { getRefTypeLabel, getRefTypeColor } from "@/utils";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
@@ -17,9 +20,53 @@ import {
   getRootDocumentsByDocumentItemId,
 } from "@/commands";
 import { getDiaryEntryById } from "@/commands/diary";
+import LocalImage from "@/components/LocalImage";
+import LocalImagePreviewPortal from "@/components/LocalImagePreviewPortal";
+import useThemeColors from "@/hooks/useThemeColors";
+import styles from "./MarkdownRenderer.module.less";
 
-const remarkPlugins = [remarkMath, remarkGfm, remarkDocumentReference];
+const remarkPlugins = [
+  remarkMath,
+  remarkGfm,
+  remarkDocumentReference,
+  remarkPdfCitation,
+];
 const rehypePlugins = [rehypeKatex];
+
+const MarkdownImage = ({
+  src,
+  alt,
+  className,
+  props,
+}: {
+  src: string;
+  alt?: string;
+  className?: string;
+  props: Record<string, unknown>;
+}) => {
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const imageClassName = className ? `block ${className}` : "block";
+
+  return (
+    <span className="my-4 block">
+      <button
+        type="button"
+        className="block cursor-zoom-in text-left"
+        onClick={() => setPreviewOpen(true)}
+        aria-label="点击放大图片"
+      >
+        <LocalImage url={src} alt={alt} className={imageClassName} {...props} />
+      </button>
+      {previewOpen ? (
+        <LocalImagePreviewPortal
+          url={src}
+          alt={alt}
+          onClose={() => setPreviewOpen(false)}
+        />
+      ) : null}
+    </span>
+  );
+};
 
 interface MarkdownRendererProps {
   content: string;
@@ -34,6 +81,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
     const baseContext = useMarkdownContext();
     const { cache, isVisible } = baseContext;
     const openInNewTab = useTabStore((state) => state.openInNewTab);
+    const { accentColor, secondaryTextClass } = useThemeColors();
 
     // 处理文档引用点击
     const handleReferenceClick = useCallback(
@@ -106,8 +154,20 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
 
     // 自定义组件，用于渲染文档引用
     const customComponents = useMemo(() => {
+      const CustomSpanComponent = markdownComponents?.span;
       return {
         ...markdownComponents,
+        pre: ({ children, className, node: _node, ...props }: any) => {
+          return (
+            <div
+              {...props}
+              data-markdown-pre="true"
+              className={classnames(styles.markdownPre, className)}
+            >
+              {children}
+            </div>
+          );
+        },
         span: ({ className, children, ...props }: any) => {
           // 检查是否是文档引用
           if (className === "document-reference") {
@@ -141,6 +201,14 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
             );
           }
 
+          if (CustomSpanComponent) {
+            return (
+              <CustomSpanComponent className={className} {...props}>
+                {children}
+              </CustomSpanComponent>
+            );
+          }
+
           // 其他 span 元素使用默认处理
           return (
             <span className={className} {...props}>
@@ -149,10 +217,65 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
           );
         },
         hr: ({ ...props }: any) => {
+          return <hr {...props} className={styles.markdownHr} />;
+        },
+        ul: ({ className, children, ...props }: any) => {
           return (
-            <hr
+            <ul
               {...props}
-              className="my-4 border border-gray-300 dark:border-gray-600"
+              className={classnames(styles.bulletedList, className)}
+            >
+              {children}
+            </ul>
+          );
+        },
+        ol: ({ className, children, ...props }: any) => {
+          return (
+            <ol
+              {...props}
+              className={classnames(styles.numberedList, className)}
+            >
+              {children}
+            </ol>
+          );
+        },
+        li: ({ className, children, ...props }: any) => {
+          return (
+            <li {...props} className={classnames(styles.listItem, className)}>
+              {children}
+            </li>
+          );
+        },
+        blockquote: ({ children, className, ...props }: any) => {
+          return (
+            <blockquote
+              {...props}
+              className={classnames(
+                "relative my-4 pl-[1.5em] py-[0.75em] italic leading-relaxed transition-colors duration-200",
+                secondaryTextClass,
+                "[&_p]:my-0 [&_p+p]:mt-2",
+                className,
+              )}
+            >
+              <div
+                aria-hidden="true"
+                className="absolute left-0 top-1 bottom-1 w-1 rounded-full select-none"
+                style={{ backgroundColor: accentColor }}
+              />
+              {children}
+            </blockquote>
+          );
+        },
+        img: ({ src, alt, node: _node, className, ...props }: any) => {
+          if (typeof src !== "string" || !src) {
+            return null;
+          }
+          return (
+            <MarkdownImage
+              src={src}
+              alt={alt}
+              className={className}
+              props={props}
             />
           );
         },
@@ -204,6 +327,8 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       cache,
       baseContext,
       messageMeta,
+      accentColor,
+      secondaryTextClass,
     ]);
 
     // 如果侧边栏关闭或不应该渲染，则直接返回null

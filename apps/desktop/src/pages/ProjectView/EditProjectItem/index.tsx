@@ -1,5 +1,6 @@
 import { useEffect, useRef, useMemo, useState } from "react";
-import { Descendant } from "slate";
+import { Descendant, Range, Transforms } from "slate";
+import { ReactEditor } from "slate-react";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 import { Tooltip } from "antd";
 import { Maximize2 } from "lucide-react";
@@ -17,16 +18,35 @@ import NotionConflictModal from "@/components/NotionConflictModal";
 import { notionCompatibleExtensions } from "@tau/editor/src";
 import { useNotionSyncIntegration } from "./useNotionSyncIntegration";
 import useThemeColors from "@/hooks/useThemeColors";
-import ImmersiveEditorMode from "@/components/ImmersiveEditorMode";
+import ImmersiveEditorMode, {
+  type ImmersiveEditorExitPayload,
+} from "@/components/ImmersiveEditorMode";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 import { createProjectCardListExtension } from "@/editor-extensions";
 
+const cloneRange = (selection: Range | null): Range | null => {
+  if (!selection) return null;
+  return {
+    anchor: {
+      path: [...selection.anchor.path],
+      offset: selection.anchor.offset,
+    },
+    focus: {
+      path: [...selection.focus.path],
+      offset: selection.focus.offset,
+    },
+  };
+};
+
 const EditProjectItem = (props: { projectItemId: number }) => {
   const { projectItemId } = props;
   const editorRef = useRef<EditorRef>(null);
+  const immersiveEntrySelectionRef = useRef<Range | null>(null);
+  const pendingSelectionRef = useRef<Range | null>(null);
   const titleRef = useRef<EditTextHandle>(null);
   const [immersiveMode, setImmersiveMode] = useState(false);
+  const [editorRemountKey, setEditorRemountKey] = useState(0);
   const projectItemEventBus = useCreation(
     () => defaultProjectItemEventBus.createEditor(),
     [],
@@ -127,6 +147,41 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     onContentChangeFromEditProjectItem(content);
   });
 
+  const handleImmersiveExit = useMemoizedFn(
+    (payload?: ImmersiveEditorExitPayload) => {
+      pendingSelectionRef.current = payload?.selection ?? null;
+      setImmersiveMode(false);
+      setEditorRemountKey((current) => current + 1);
+    },
+  );
+
+  useEffect(() => {
+    if (immersiveMode || !pendingSelectionRef.current) return;
+
+    const timer = window.setTimeout(() => {
+      const editor = editorRef.current?.getEditor();
+      const selection = pendingSelectionRef.current;
+      if (!editor || !selection) return;
+
+      try {
+        Transforms.select(editor, selection);
+        ReactEditor.focus(editor as any);
+        pendingSelectionRef.current = null;
+      } catch (error) {
+        console.warn("恢复沉浸模式焦点失败:", error);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [editorRemountKey, immersiveMode]);
+
+  const handleEnterImmersiveMode = useMemoizedFn(() => {
+    immersiveEntrySelectionRef.current = cloneRange(
+      editorRef.current?.getEditor().selection ?? null,
+    );
+    setImmersiveMode(true);
+  });
+
   const onClickHeader = useMemoizedFn((index: number) => {
     editorRef.current?.scrollHeaderIntoView(index);
   });
@@ -191,7 +246,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
           >
             <ErrorBoundary>
               <Editor
-                key={projectItem.id}
+                key={`${projectItem.id}-${editorRemountKey}`}
                 ref={editorRef}
                 initValue={projectItem.content}
                 onInit={onInit}
@@ -220,7 +275,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
         <Tooltip title="沉浸模式">
           <div
             className="cursor-pointer p-1 hover:bg-black/10 rounded transition-colors"
-            onClick={() => setImmersiveMode(true)}
+            onClick={handleEnterImmersiveMode}
           >
             <Maximize2 size={14} />
           </div>
@@ -253,13 +308,10 @@ const EditProjectItem = (props: { projectItemId: number }) => {
       {immersiveMode && (
         <ImmersiveEditorMode
           initValue={projectItem.content}
+          initialSelection={immersiveEntrySelectionRef.current}
           onChange={onContentChange}
           onInit={onInit}
-          onExit={() => {
-            setImmersiveMode(false);
-            // 退出沉浸模式时，同步更新主编辑器内容（Editor 是非受控组件）
-            editorRef.current?.setEditorValue(projectItem.content);
-          }}
+          onExit={handleImmersiveExit}
           wordCount={projectItem.count}
           readonly={false}
           extensions={extensions}

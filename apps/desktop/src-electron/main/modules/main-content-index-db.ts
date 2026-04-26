@@ -16,6 +16,7 @@ import {
 
 export type IndexMigrationState = "init" | "copying" | "cutover" | "done";
 export type IndexRebuildState = "pending" | "building" | "ready" | "failed";
+export type IndexRebuildTarget = "aggregate" | "fts" | "vec";
 
 export interface EnsureIndexReadyResult {
   migrationState: IndexMigrationState;
@@ -24,6 +25,8 @@ export interface EnsureIndexReadyResult {
 
 const MIGRATION_STATE_KEY = "migration_state";
 const REBUILD_STATE_KEY = "rebuild_state";
+const FTS_REBUILD_STATE_KEY = "fts_rebuild_state";
+const VEC_REBUILD_STATE_KEY = "vec_rebuild_state";
 const UPDATED_AT_KEY = "updated_at";
 const DEFAULT_VEC_DIMENSION = 3072;
 
@@ -37,6 +40,91 @@ interface CopyResult {
 class MainContentIndexDBManager {
   private databases: Map<string, Database.Database> = new Map();
   private legacyScanCompleted = false;
+
+  private normalizeRebuildState(
+    value: string | null | undefined,
+  ): IndexRebuildState {
+    if (
+      value === "pending" ||
+      value === "building" ||
+      value === "ready" ||
+      value === "failed"
+    ) {
+      return value;
+    }
+    return "pending";
+  }
+
+  private getRebuildStateKey(target: IndexRebuildTarget): string {
+    if (target === "fts") {
+      return FTS_REBUILD_STATE_KEY;
+    }
+    if (target === "vec") {
+      return VEC_REBUILD_STATE_KEY;
+    }
+    return REBUILD_STATE_KEY;
+  }
+
+  private combineRebuildStates(states: IndexRebuildState[]): IndexRebuildState {
+    if (states.includes("failed")) {
+      return "failed";
+    }
+    if (states.includes("building")) {
+      return "building";
+    }
+    if (states.includes("pending")) {
+      return "pending";
+    }
+    return "ready";
+  }
+
+  private ensureScopedRebuildStates(indexDb: Database.Database): void {
+    const aggregate = this.normalizeRebuildState(
+      this.getMeta(indexDb, REBUILD_STATE_KEY),
+    );
+
+    if (!this.getMeta(indexDb, FTS_REBUILD_STATE_KEY)) {
+      this.setMeta(indexDb, FTS_REBUILD_STATE_KEY, aggregate);
+    }
+    if (!this.getMeta(indexDb, VEC_REBUILD_STATE_KEY)) {
+      this.setMeta(indexDb, VEC_REBUILD_STATE_KEY, aggregate);
+    }
+    this.syncAggregateRebuildState(indexDb);
+  }
+
+  private syncAggregateRebuildState(
+    indexDb: Database.Database,
+  ): IndexRebuildState {
+    const nextAggregate = this.combineRebuildStates([
+      this.normalizeRebuildState(this.getMeta(indexDb, FTS_REBUILD_STATE_KEY)),
+      this.normalizeRebuildState(this.getMeta(indexDb, VEC_REBUILD_STATE_KEY)),
+    ]);
+    this.setMeta(indexDb, REBUILD_STATE_KEY, nextAggregate);
+    return nextAggregate;
+  }
+
+  private readRebuildState(
+    indexDb: Database.Database,
+    target: IndexRebuildTarget,
+  ): IndexRebuildState {
+    this.ensureScopedRebuildStates(indexDb);
+    return this.normalizeRebuildState(
+      this.getMeta(indexDb, this.getRebuildStateKey(target)),
+    );
+  }
+
+  private writeRebuildState(
+    indexDb: Database.Database,
+    state: IndexRebuildState,
+    target: IndexRebuildTarget,
+  ): IndexRebuildState {
+    this.ensureScopedRebuildStates(indexDb);
+    this.setMeta(indexDb, this.getRebuildStateKey(target), state);
+    const aggregate =
+      target === "aggregate" ? state : this.syncAggregateRebuildState(indexDb);
+    this.setMeta(indexDb, UPDATED_AT_KEY, String(Date.now()));
+    return aggregate;
+  }
 
   private normalizeMainDbName(mainDbName: string): string {
     return mainDbName.endsWith(".db") ? mainDbName : `${mainDbName}.db`;
@@ -234,8 +322,9 @@ class MainContentIndexDBManager {
     if (!this.getMeta(indexDb, REBUILD_STATE_KEY)) {
       this.setMeta(indexDb, REBUILD_STATE_KEY, "pending");
     }
+    this.ensureScopedRebuildStates(indexDb);
     if (vecRecreated) {
-      this.setMeta(indexDb, REBUILD_STATE_KEY, "pending");
+      this.writeRebuildState(indexDb, "pending", "vec");
     }
     log.info(
       `[MainContentIndexDB] initSchema done: vecDimensions=${vecDimensions}, vecRecreated=${vecRecreated}, totalElapsedMs=${Date.now() - startedAt}`,
@@ -576,24 +665,21 @@ class MainContentIndexDBManager {
     return "init";
   }
 
-  getRebuildState(mainDbName: string): IndexRebuildState {
+  getRebuildState(
+    mainDbName: string,
+    target: IndexRebuildTarget = "aggregate",
+  ): IndexRebuildState {
     const indexDb = this.getDatabase(mainDbName);
-    const value = this.getMeta(indexDb, REBUILD_STATE_KEY);
-    if (
-      value === "pending" ||
-      value === "building" ||
-      value === "ready" ||
-      value === "failed"
-    ) {
-      return value;
-    }
-    return "pending";
+    return this.readRebuildState(indexDb, target);
   }
 
-  setRebuildState(mainDbName: string, state: IndexRebuildState) {
+  setRebuildState(
+    mainDbName: string,
+    state: IndexRebuildState,
+    target: IndexRebuildTarget = "aggregate",
+  ) {
     const indexDb = this.getDatabase(mainDbName);
-    this.setMeta(indexDb, REBUILD_STATE_KEY, state);
-    this.setMeta(indexDb, UPDATED_AT_KEY, String(Date.now()));
+    this.writeRebuildState(indexDb, state, target);
   }
 
   ensureReady(
@@ -614,7 +700,7 @@ class MainContentIndexDBManager {
         vecDimensions,
       );
       if (vecRecreated) {
-        this.setMeta(indexDb, REBUILD_STATE_KEY, "pending");
+        this.writeRebuildState(indexDb, "pending", "vec");
       }
       const nextRebuildState = this.getRebuildState(mainDbName);
       log.info(
@@ -627,7 +713,8 @@ class MainContentIndexDBManager {
     }
 
     this.setMeta(indexDb, MIGRATION_STATE_KEY, "copying");
-    this.setMeta(indexDb, REBUILD_STATE_KEY, "building");
+    this.writeRebuildState(indexDb, "building", "fts");
+    this.writeRebuildState(indexDb, "building", "vec");
     log.info(
       `[MainContentIndexDB] migration state update: mainDb=${mainDbName}, migrationState=copying, rebuildState=building`,
     );
@@ -680,15 +767,23 @@ class MainContentIndexDBManager {
       vecDimensions,
     );
 
-    const nextRebuildState: IndexRebuildState = vecRecreated
+    const nextFtsRebuildState: IndexRebuildState = ftsResult.copied
+      ? "ready"
+      : "pending";
+    const nextVecRebuildState: IndexRebuildState = vecRecreated
       ? "pending"
-      : ftsResult.copied || vecResult.copied
+      : vecResult.copied
         ? "ready"
         : "pending";
     this.setMeta(indexDb, MIGRATION_STATE_KEY, "done");
-    this.setMeta(indexDb, REBUILD_STATE_KEY, nextRebuildState);
+    this.writeRebuildState(indexDb, nextFtsRebuildState, "fts");
+    const nextRebuildState = this.writeRebuildState(
+      indexDb,
+      nextVecRebuildState,
+      "vec",
+    );
     log.info(
-      `[MainContentIndexDB] migration state update: mainDb=${mainDbName}, migrationState=done, rebuildState=${nextRebuildState}, vecDimensions=${vecDimensions}, vecRecreated=${vecRecreated}, elapsedMs=${Date.now() - startAt}`,
+      `[MainContentIndexDB] migration state update: mainDb=${mainDbName}, migrationState=done, rebuildState=${nextRebuildState}, ftsRebuildState=${nextFtsRebuildState}, vecRebuildState=${nextVecRebuildState}, vecDimensions=${vecDimensions}, vecRecreated=${vecRecreated}, elapsedMs=${Date.now() - startAt}`,
     );
 
     return {

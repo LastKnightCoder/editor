@@ -289,12 +289,8 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     return "";
   }, [videoNote]);
   const currentTranscriptHash = useMemo(
-    () =>
-      computeTranscriptHash(
-        videoNote?.transcript,
-        videoNote?.transcriptSegments,
-      ),
-    [videoNote?.transcript, videoNote?.transcriptSegments],
+    () => computeTranscriptHash("", videoNote?.transcriptSegments),
+    [videoNote?.transcriptSegments],
   );
   const hasInsights = useMemo(() => {
     const topics = videoNote?.insights?.topics || [];
@@ -702,7 +698,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         return;
       }
       try {
-        const insights = await generateInsights(segments, transcriptForChat);
+        const insights = await generateInsights(segments);
         await Promise.all([
           updateVideoNoteInsights(videoNoteId, insights),
           updateVideoNoteHighlights(videoNoteId, insights.highlights),
@@ -1450,7 +1446,6 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
       const mergedInsights = await generateTopicHighlights(
         normalized,
         videoNote.transcriptSegments,
-        transcriptForChat,
         videoNote.insights,
       );
       await Promise.all([
@@ -1712,7 +1707,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
           {/* 转录按钮 */}
           <Tooltip title={isTranscribing ? transcriptionProgress : "转录视频"}>
             <button
-              className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={isTranscribing || !videoNote}
               onClick={handleTranscribe}
             >
@@ -1729,7 +1724,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
             videoNote.transcriptWordSegments.length > 0 && (
               <Tooltip title="AI 优化断句">
                 <button
-                  className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={isTranscribing}
                   onClick={handleAIOptimize}
                 >
@@ -1741,7 +1736,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
           {/* 字幕挂载按钮 */}
           <Tooltip title={subtitleTooltipTitle}>
             <button
-              className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={!hasTranscriptSegments}
               onClick={handleToggleSubtitle}
             >
@@ -1758,7 +1753,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
 
           <Tooltip title="AI 导出电子书">
             <button
-              className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
               onClick={handleOpenEbookExportModal}
             >
               <BookOutlined />
@@ -1868,7 +1863,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                     {isTopicInputOpen ? (
                       <div
                         ref={topicInputWrapperRef}
-                        className="flex items-center gap-2 rounded-full bg-gray-100 px-4 py-1 dark:bg-gray-800"
+                        className="flex items-center gap-2 rounded-full bg-gray-100 px-4 py-1 dark:bg-zinc-800"
                       >
                         <input
                           ref={topicInputRef}
@@ -1902,7 +1897,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                           }}
                         />
                         <button
-                          className="flex h-6 w-6 items-center justify-center rounded-full text-gray-500 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-gray-700"
+                          className="flex h-6 w-6 items-center justify-center rounded-full text-gray-500 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-zinc-700"
                           disabled={isGeneratingTopicHighlights}
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={handleCreateCustomTheme}
@@ -1917,14 +1912,14 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                     ) : (
                       <button
                         type="button"
-                        className="flex shrink-0 items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                        className="flex shrink-0 items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-200 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700"
                         disabled={
                           !hasTranscriptSegments || isGeneratingTopicHighlights
                         }
                         onClick={() => setIsTopicInputOpen(true)}
                       >
                         <Plus size={14} />
-                        Your Topic
+                        自定义主题
                       </button>
                     )}
 
@@ -1933,12 +1928,12 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                       className={classNames(
                         "shrink-0 rounded-full px-3 py-1.5 text-sm transition-colors",
                         !selectedTheme
-                          ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700",
+                          ? "bg-zinc-900 text-white dark:bg-gray-100 dark:text-gray-900"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700",
                       )}
                       onClick={() => handleThemeSelect(null)}
                     >
-                      Overall highlights
+                      全部高亮
                     </button>
                     {allTopics.map((topic) => (
                       <button
@@ -1947,8 +1942,8 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                         className={classNames(
                           "shrink-0 rounded-full px-3 py-1.5 text-sm transition-colors",
                           selectedTheme === topic.id
-                            ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700",
+                            ? "bg-zinc-900 text-white dark:bg-gray-100 dark:text-gray-900"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700",
                         )}
                         onClick={() =>
                           handleThemeSelect(
@@ -1962,7 +1957,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                   </div>
 
                   <div
-                    className="shrink-0 relative h-16 cursor-pointer overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800"
+                    className="shrink-0 relative h-16 cursor-pointer overflow-hidden rounded-2xl bg-gray-100 dark:bg-zinc-800"
                     onClick={(event) =>
                       handleProgressSeek(event, progressDurationMs)
                     }
@@ -2080,11 +2075,11 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                     <button
                       type="button"
                       disabled={playQueue.length === 0}
-                      className="flex items-center gap-1.5 rounded-full bg-gray-900 px-3 py-1.5 text-sm text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
+                      className="flex items-center gap-1.5 rounded-full bg-zinc-900 px-3 py-1.5 text-sm text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
                       onClick={handlePlayAllToggle}
                     >
                       {isPlayingAll ? <Pause size={14} /> : <Play size={14} />}
-                      {isPlayingAll ? "Stop" : "Play All"}
+                      {isPlayingAll ? "停止播放" : "播放全部"}
                     </button>
                   </div>
                 </div>
@@ -2214,7 +2209,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                     !isSummarizing && (
                       <Tooltip title="放大查看">
                         <button
-                          className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                          className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
                           onClick={() => setSummaryModalOpen(true)}
                         >
                           <Expand size={16} />
@@ -2246,7 +2241,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                             {streamingSegments.map((segment, index) => (
                               <div
                                 key={`${segment.start}-${index}`}
-                                className={`flex cursor-pointer gap-3 rounded-md p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 ${
+                                className={`flex cursor-pointer gap-3 rounded-md p-2 transition-colors hover:bg-gray-100 dark:hover:bg-zinc-800 ${
                                   segment.status === "pending"
                                     ? "opacity-70"
                                     : ""
@@ -2305,7 +2300,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                               "group flex items-start gap-3 rounded-md p-2 transition-colors",
                               currentSegmentIndex === index
                                 ? "bg-blue-100 dark:bg-blue-900/30"
-                                : "hover:bg-gray-100 dark:hover:bg-gray-800",
+                                : "hover:bg-gray-100 dark:hover:bg-zinc-800",
                             )}
                           >
                             <span
@@ -2321,7 +2316,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                               {segment.text}
                             </span>
                             <button
-                              className="invisible flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400 hover:bg-gray-200 hover:text-gray-600 group-hover:visible dark:hover:bg-gray-700 dark:hover:text-gray-300"
+                              className="invisible flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400 hover:bg-gray-200 hover:text-gray-600 group-hover:visible dark:hover:bg-zinc-700 dark:hover:text-gray-300"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleStartEditSegment(index);

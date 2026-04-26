@@ -1,59 +1,30 @@
 import type { PPTTemplate } from "@/constants/ppt-templates";
+import {
+  buildVibeLearningGenerationUserPrompt,
+  VIBE_LEARNING_GENERATION_RULES,
+} from "./vibe-learning-generation";
 
-export const getPPTGenerationPrompt = (template: PPTTemplate): string => `
+export const PPT_AI_ILLUSTRATION_RULES = `## AI 插图使用规则（工具可用时自动增强）
+
+- 如果工具列表中存在 \`generate_image\`，且插图能显著帮助理解当前 slide 的教学概念、类比、流程、系统架构、故事化场景或对比关系，可以主动调用该工具生成插图。
+- 不要为了装饰而生成图片；每张插图都必须服务于页面的核心观点，并与当前 PPT 模板风格一致。
+- 调用 \`generate_image\` 时，prompt 必须说明图片用途、画面主体、构图重点、视觉风格，以及它会放在哪类 slide 中。
+- 工具成功后，只能使用返回 JSON 中的 \`images[0].url\` 作为 \`<img src="...">\`；不要伪造 URL，不要写本地路径，不要写 file://，不要内联 base64。
+- 每个适合配图的重点页面最多 1 张图片，整套 PPT 不强制每页都有图，优先保证内容密度和讲解节奏。
+- 图片容器必须遵守视口约束：设置 \`max-height: min(50vh, 400px)\`、\`object-fit: contain\`、\`overflow: hidden\`，避免遮挡文字或造成内部滚动。
+- 如果 \`generate_image\` 不可用、返回错误或没有可用 URL，降级为无图片版 slide，使用 HTML/CSS/SVG/图表排版完成表达；不要向用户暴露工具错误，也不要输出损坏的 \`<img>\` 或占位假链接。
+- 不生成敏感、侵权、误导性图片，不生成可能被误认为真实证据的数据图或截图。`;
+
+export const getPPTGenerationPrompt = (
+  template: PPTTemplate,
+  options: { enableAIIllustration?: boolean } = {},
+): string => `
 ## 角色设定
 你是一位顶级的网页设计师和交互演示专家，擅长使用 HTML/CSS/JS 制作精美的在线演示文稿。你的任务是主动获取项目资料内容，然后生成一个符合「${template.name}」风格的单文件 HTML 演示文稿。
 
-## 可用工具
+${VIBE_LEARNING_GENERATION_RULES}
 
-你可以使用以下工具来获取资料内容：
-
-### 1. list_project_resources
-- 功能：列出当前项目的所有上传资源
-- 用途：了解项目中有哪些资料可用
-
-### 2. read_resource_content
-- 功能：读取指定资源的完整 Markdown 内容
-- 参数：resourceName（资源名称）
-- 用途：获取资源的全部内容
-
-### 3. read_resource_range
-- 功能：按行范围读取指定资源的内容
-- 参数：resourceName（资源名称）、startLine（起始行）、endLine（结束行）
-- 用途：分段读取大文件，避免一次性加载过多内容
-
-### 4. search_project_knowledge
-- 功能：在项目资料中搜索关键词
-- 参数：query（搜索关键词）、limit（返回数量，默认5）
-- 用途：快速定位包含特定关键词的内容
-
-## 信息获取策略（核心要求）
-
-**在生成 PPT 之前，你必须先充分获取资料内容。请严格遵循以下策略：**
-
-### 1. 高效获取信息（重要）
-- **优先使用 read_resource_content 直接读取完整内容**，这是最高效的方式
-- 不要过度依赖搜索，直接读取全文能获取更完整的信息
-- 如果资源内容被截断，再使用 read_resource_range 分段读取剩余部分
-
-### 2. 搜索作为补充
-- 搜索主要用于快速定位特定知识点，不是主要的信息获取方式
-- 如果需要搜索，每个资源最多搜索 2-3 个关键词即可
-- 搜索应聚焦于核心概念，避免过于宽泛的关键词
-
-### 3. 推荐工作流程（高效版）
-1. 首先调用 list_project_resources 了解有哪些资源
-2. **直接使用 read_resource_content 读取每个资源的完整内容**
-3. 如果内容被截断，使用 read_resource_range 继续读取剩余部分
-4. 只有在需要定位特定信息时才使用搜索
-5. 获取足够信息后，立即开始生成 PPT
-
-### 4. 注意事项
-- 控制工具调用次数，避免过多的工具调用导致超时
-- 每个资源尽量一次性读取完整内容
-- 不要反复搜索相似的关键词
-
----
+${options.enableAIIllustration ? `${PPT_AI_ILLUSTRATION_RULES}\n\n---` : ""}
 
 ## ⚠️ 视口适配（CRITICAL — 最核心的要求）
 
@@ -521,42 +492,25 @@ export const getPPTGenerationUserPrompt = (
   templateName: string,
   userPrompt?: string,
 ): string => {
-  const resourceList = resourceNames.map((name) => `- ${name}`).join("\n");
-
-  let prompt = `
-请为以下资源生成一个「${templateName}」风格的 HTML 演示文稿（PPT）：
-
-**待处理的资源列表**：
-${resourceList}
-
-**重要提醒**：
-1. **先获取资料内容**：请先使用工具获取上述资源的内容，不要直接生成 PPT
-2. **读取全文**：对于每个资源，请读取完整内容以确保理解全貌
-3. **信息充分后再生成**：确保获取了足够丰富的信息后，再开始生成 PPT
-4. **严格遵循风格**：生成的 PPT 必须严格遵循「${templateName}」的视觉风格和设计规范
-5. **视口适配**：每张 slide 必须精确适配视口（100vh/100dvh），绝不允许内部滚动
-6. **内容密度**：严格控制每页内容量，超出限制必须拆分到下一页
-7. **至少 10 页**：确保生成足够丰富的内容，页面类型多样化
-`;
-
-  if (userPrompt && userPrompt.trim()) {
-    prompt += `
-**用户的额外要求**：
-${userPrompt}
-`;
-  }
-
-  prompt += `
-**最终输出（必须严格遵守）**：
-- 获取足够信息后，直接输出完整的 HTML 代码
-- 以 <!DOCTYPE html> 开始，以 </html> 结束
-- 不要使用代码块标记（\`\`\`）
-- 不要在 HTML 前后添加任何说明文字
-- 确保 HTML 文件包含完整的 CSS 样式和 JS 交互代码
-- **必须保持正确的代码格式**：每个标签、CSS 规则、JS 语句都要正确换行和缩进，不要压缩成一行
-`;
-
-  return prompt;
+  return buildVibeLearningGenerationUserPrompt({
+    title: `「${templateName}」风格 HTML 演示文稿（PPT）生成`,
+    resourceNames,
+    userPrompt,
+    extraReminders: [
+      `生成的 PPT 必须严格遵循「${templateName}」的视觉风格和设计规范`,
+      "每张 slide 必须精确适配视口（100vh/100dvh），绝不允许内部滚动",
+      "严格控制每页内容量，超出限制必须拆分到下一页",
+      "至少生成 10 页，并保证页面类型多样化",
+    ],
+    finalOutput: [
+      "获取足够信息后，直接输出完整的 HTML 代码",
+      "以 <!DOCTYPE html> 开始，以 </html> 结束",
+      "不要使用代码块标记（```）",
+      "不要在 HTML 前后添加任何说明文字",
+      "确保 HTML 文件包含完整的 CSS 样式和 JS 交互代码",
+      "必须保持正确的代码格式：每个标签、CSS 规则、JS 语句都要正确换行和缩进，不要压缩成一行",
+    ],
+  });
 };
 
 export const cleanPPTHtmlContent = (content: string): string => {

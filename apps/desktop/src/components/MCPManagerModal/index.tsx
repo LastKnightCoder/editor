@@ -44,7 +44,7 @@ const ToggleSwitch: React.FC<{
         onClick={() => !disabled && onChange(!checked)}
         className={`
           w-11 h-6 rounded-full transition-all duration-200 ease-in-out cursor-pointer
-          ${checked ? "bg-indigo-500" : "bg-gray-200 dark:bg-slate-700"}
+          ${checked ? "bg-indigo-500" : "bg-gray-200 dark:bg-zinc-700"}
           ${disabled ? "opacity-50 cursor-not-allowed" : "hover:shadow-md"}
         `}
       >
@@ -89,7 +89,7 @@ const ConnectionStatusBadge: React.FC<{
         return {
           text: "未连接",
           className:
-            "bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-400",
+            "bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-slate-400",
         };
     }
   };
@@ -111,7 +111,7 @@ const TransportTypeBadge: React.FC<{ type: "stdio" | "streamable-http" }> = ({
   type,
 }) => {
   return (
-    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-slate-400">
       {type === "stdio" ? "stdio" : "http"}
     </span>
   );
@@ -445,7 +445,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
           className="w-full max-w-[720px] m-4 max-h-[90vh] flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 flex flex-col overflow-hidden">
+          <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800 flex flex-col overflow-hidden">
             {/* Header */}
             <div className="flex items-start gap-3 mb-5 shrink-0">
               <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30">
@@ -471,19 +471,19 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
               </div>
               <button
                 onClick={onClose}
-                className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
               >
                 <MdClose className="w-5 h-5" />
               </button>
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 p-1 mb-4 rounded-xl bg-gray-100 dark:bg-slate-800 shrink-0">
+            <div className="flex gap-1 p-1 mb-4 rounded-xl bg-gray-100 dark:bg-zinc-800 shrink-0">
               <button
                 onClick={() => setActiveTab("builtin")}
                 className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                   activeTab === "builtin"
-                    ? "bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm"
+                    ? "bg-white dark:bg-zinc-700 text-gray-900 dark:text-white shadow-sm"
                     : "text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white"
                 }`}
               >
@@ -493,7 +493,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                 onClick={() => setActiveTab("custom")}
                 className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                   activeTab === "custom"
-                    ? "bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm"
+                    ? "bg-white dark:bg-zinc-700 text-gray-900 dark:text-white shadow-sm"
                     : "text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white"
                 }`}
               >
@@ -510,7 +510,9 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                     选择要启用的内置 MCP
                     服务，启用后模型即可自动调用相应的工具完成任务。
                   </p>
-                  {MCP_PROVIDERS.map((provider) => {
+                  {MCP_PROVIDERS.filter(
+                    (provider) => provider.isAvailable?.() ?? true,
+                  ).map((provider) => {
                     const enabled =
                       providerStates[provider.id]?.enabled ??
                       provider.defaultEnabled ??
@@ -518,7 +520,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                     return (
                       <div
                         key={provider.id}
-                        className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-700/50"
+                        className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-zinc-800/50 border border-gray-100 dark:border-slate-700/50"
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-0.5">
@@ -529,7 +531,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                               className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                                 enabled
                                   ? "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400"
-                                  : "bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-400"
+                                  : "bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-slate-400"
                               }`}
                             >
                               {enabled ? "已启用" : "未启用"}
@@ -558,7 +560,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                   </p>
 
                   {/* 添加/编辑表单 */}
-                  <div className="p-4 rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-700/50 space-y-3">
+                  <div className="p-4 rounded-xl bg-gray-50 dark:bg-zinc-800/50 border border-gray-100 dark:border-slate-700/50 space-y-3">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <MdAdd className="w-4 h-4 text-indigo-500" />
@@ -587,7 +589,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                             value={jsonConfig}
                             onChange={(e) => setJsonConfig(e.target.value)}
                             rows={8}
-                            className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-none font-mono"
+                            className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-white dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-none font-mono"
                             placeholder={`{\n  "mcpServers": {\n    "服务名称": {\n      "command": "npx",\n      "args": ["-y", "@antv/mcp-server-chart"]\n    }\n  }\n}`}
                           />
                           <p className="text-xs text-gray-500 dark:text-slate-400">
@@ -597,7 +599,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                         <button
                           onClick={parseJsonConfig}
                           disabled={!jsonConfig.trim()}
-                          className="w-full px-4 py-2.5 rounded-xl text-sm font-medium transition-all bg-indigo-500 text-white hover:bg-indigo-600 disabled:bg-gray-200 dark:disabled:bg-slate-700 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed"
+                          className="w-full px-4 py-2.5 rounded-xl text-sm font-medium transition-all bg-indigo-500 text-white hover:bg-indigo-600 disabled:bg-gray-200 dark:disabled:bg-zinc-700 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed"
                         >
                           解析并填充
                         </button>
@@ -616,7 +618,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                             type="text"
                             value={formName}
                             onChange={(e) => setFormName(e.target.value)}
-                            className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-white dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                             placeholder="例如：文件系统 MCP"
                           />
                         </div>
@@ -630,7 +632,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                             value={formDescription}
                             onChange={(e) => setFormDescription(e.target.value)}
                             rows={2}
-                            className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-none"
+                            className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-white dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-none"
                             placeholder="可选描述，帮助记忆用途"
                           />
                         </div>
@@ -646,7 +648,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                               className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
                                 transportType === "stdio"
                                   ? "bg-indigo-50 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-400"
-                                  : "bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800"
+                                  : "bg-white dark:bg-zinc-900 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-zinc-800"
                               }`}
                             >
                               Stdio（本地进程）
@@ -658,7 +660,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                               className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
                                 transportType === "streamable-http"
                                   ? "bg-indigo-50 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-400"
-                                  : "bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800"
+                                  : "bg-white dark:bg-zinc-900 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-zinc-800"
                               }`}
                             >
                               Streamable HTTP
@@ -677,7 +679,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                                 type="text"
                                 value={formCommand}
                                 onChange={(e) => setFormCommand(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-mono"
+                                className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-white dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-mono"
                                 placeholder="npx"
                               />
                               <p className="text-xs text-gray-500 dark:text-slate-400 -mt-1">
@@ -692,7 +694,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                                 type="text"
                                 value={formArgs}
                                 onChange={(e) => setFormArgs(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-mono"
+                                className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-white dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-mono"
                                 placeholder="-y, @modelcontextprotocol/server-filesystem, /path/to/directory"
                               />
                               <p className="text-xs text-gray-500 dark:text-slate-400 -mt-1">
@@ -708,7 +710,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                                 value={formEnv}
                                 onChange={(e) => setFormEnv(e.target.value)}
                                 rows={2}
-                                className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-none font-mono"
+                                className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-white dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-none font-mono"
                                 placeholder='{"API_KEY": "xxx"}'
                               />
                             </div>
@@ -720,7 +722,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                                 type="text"
                                 value={formCwd}
                                 onChange={(e) => setFormCwd(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-mono"
+                                className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-white dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-mono"
                                 placeholder="可选，默认为当前目录"
                               />
                             </div>
@@ -738,7 +740,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                                 type="text"
                                 value={formUrl}
                                 onChange={(e) => setFormUrl(e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-mono"
+                                className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-white dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 font-mono"
                                 placeholder="https://example.com/mcp"
                               />
                             </div>
@@ -750,7 +752,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                                 value={formHeaders}
                                 onChange={(e) => setFormHeaders(e.target.value)}
                                 rows={2}
-                                className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-none font-mono"
+                                className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-white dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-none font-mono"
                                 placeholder='{"Authorization": "Bearer xxx"}'
                               />
                             </div>
@@ -762,7 +764,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                           {editingServer && (
                             <button
                               onClick={resetForm}
-                              className="px-4 py-2.5 rounded-xl text-sm font-medium transition-all bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-600"
+                              className="px-4 py-2.5 rounded-xl text-sm font-medium transition-all bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-600"
                             >
                               取消编辑
                             </button>
@@ -770,7 +772,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                           <button
                             onClick={handleSubmit}
                             disabled={!isFormValid()}
-                            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all bg-indigo-500 text-white hover:bg-indigo-600 disabled:bg-gray-200 dark:disabled:bg-slate-700 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed"
+                            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all bg-indigo-500 text-white hover:bg-indigo-600 disabled:bg-gray-200 dark:disabled:bg-zinc-700 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed"
                           >
                             {editingServer ? "保存更改" : "添加服务"}
                           </button>
@@ -792,7 +794,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                         return (
                           <div
                             key={server.id}
-                            className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-800/50 border border-gray-100 dark:border-slate-700/50"
+                            className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-zinc-800/50 border border-gray-100 dark:border-slate-700/50"
                           >
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-0.5 flex-wrap">
@@ -805,7 +807,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                                     error={error}
                                   />
                                 ) : (
-                                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-400">
+                                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-slate-400">
                                     未启用
                                   </span>
                                 )}
@@ -835,7 +837,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                               )}
                               <button
                                 onClick={() => setEditingServer(server)}
-                                className="p-2 rounded-lg transition-all text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700"
+                                className="p-2 rounded-lg transition-all text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-zinc-700"
                                 title="编辑"
                               >
                                 <MdEdit className="w-4 h-4" />

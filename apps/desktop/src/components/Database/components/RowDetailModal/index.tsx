@@ -4,6 +4,9 @@ import {
   MdDragIndicator,
   MdDeleteOutline,
   MdOutlineEdit,
+  MdFullscreen,
+  MdFullscreenExit,
+  MdClose,
 } from "react-icons/md";
 import { ColumnDef, RowData, CellValue } from "../../types";
 import { PluginManager } from "../../PluginManager";
@@ -22,6 +25,7 @@ import classNames from "classnames";
 import ColumnEditModal from "../../views/TableView/components/ColumnEditModal";
 import { useDatabaseStore } from "../../hooks";
 import CustomModal from "@/components/CustomModal";
+import useThemeColors from "@/hooks/useThemeColors";
 
 const COLUMN_ITEM_TYPE = "rowDetailModalColumn";
 
@@ -62,8 +66,10 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
     const [rowData, setRowData] = useState<RowData>({ ...row });
     const [editingColumn, setEditingColumn] = useState<string | null>(null);
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
+    const [isExpanded, setIsExpanded] = useState(false);
 
     const { modal } = App.useApp();
+    const themeColors = useThemeColors();
 
     const {
       columnOrder,
@@ -207,40 +213,106 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
       return { ...found, width } as ColumnDef;
     }, [editingColumnId, columns, columnWidths]);
 
+    const modalWidth = isExpanded ? "100vw" : 720;
+    const modalContentStyle = isExpanded
+      ? {
+          height: "calc(100vh - var(--title-bar-height, 48px))",
+          maxHeight: "calc(100vh - var(--title-bar-height, 48px))",
+        }
+      : {
+          height: "min(800px, calc(100vh - 200px))",
+        };
+
+    const modalOverlayStyle = isExpanded
+      ? {
+          top: "var(--title-bar-height, 48px)",
+        }
+      : undefined;
+
     return (
       <CustomModal
         open
-        width={720}
+        width={modalWidth}
         onCancel={handleClose}
         footer={null}
         destroyOnClose
         closeOnEscape={false}
-        contentClassName="p-0"
+        showCloseButton={false}
+        centered={!isExpanded}
+        overlayClassName={isExpanded ? "!items-start !px-0 !pt-0 !pb-0" : ""}
+        overlayStyle={modalOverlayStyle}
+        contentClassName={classNames(
+          "p-0",
+          isExpanded && "!rounded-none !border-0 !shadow-none",
+        )}
+        bodyClassName="h-full overflow-hidden"
+        contentStyle={modalContentStyle}
       >
         <div
-          style={{
-            height: 800,
-            maxHeight: "calc(100vh - 200px)",
-            overflow: "hidden",
-          }}
+          className={classNames(
+            "flex h-full min-h-0 flex-col",
+            isExpanded ? "px-12 py-6" : "px-10 py-4",
+          )}
         >
-          <div className="flex flex-col h-full px-10">
-            {primaryColumn && (
-              <div className="mb-6">
-                <input
-                  type="text"
-                  value={String(rowData[primaryColumn.id] || "")}
-                  onChange={(e) =>
-                    handleColumnValueChange(primaryColumn.id, e.target.value)
-                  }
-                  disabled={readonly || primaryColumn.readonly}
-                  className="w-full border-0 px-0 py-2 text-2xl font-bold bg-transparent focus:outline-none dark:text-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  placeholder={`输入${primaryColumn.title}`}
-                />
-              </div>
+          <div
+            className={classNames(
+              "flex-1 min-h-0 overflow-y-auto pb-4",
+              isExpanded ? "pr-6" : "pr-4",
             )}
+          >
+            <div className="mb-5 flex items-start gap-4 shrink-0">
+              <div className="flex-1 min-w-0">
+                {primaryColumn && (
+                  <input
+                    type="text"
+                    value={String(rowData[primaryColumn.id] || "")}
+                    onChange={(e) =>
+                      handleColumnValueChange(primaryColumn.id, e.target.value)
+                    }
+                    disabled={readonly || primaryColumn.readonly}
+                    className={classNames(
+                      "w-full border-0 px-0 bg-transparent focus:outline-none dark:text-gray-100 disabled:cursor-not-allowed disabled:opacity-60",
+                      isExpanded ? "py-1 text-[34px]" : "py-1 text-2xl",
+                    )}
+                    placeholder={`输入${primaryColumn.title}`}
+                  />
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  className={classNames(
+                    "w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer",
+                    themeColors.tagBgClass,
+                    themeColors.textClass,
+                    themeColors.tagHoverBgClass,
+                  )}
+                  onClick={() => setIsExpanded((prev) => !prev)}
+                  title={isExpanded ? "退出展开" : "展开"}
+                >
+                  {isExpanded ? (
+                    <MdFullscreenExit className="w-4 h-4" />
+                  ) : (
+                    <MdFullscreen className="w-4 h-4" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className={classNames(
+                    "w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer",
+                    themeColors.tagBgClass,
+                    themeColors.textClass,
+                    themeColors.tagHoverBgClass,
+                  )}
+                  onClick={handleClose}
+                  title="关闭"
+                >
+                  <MdClose className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
             {otherColumns.length > 0 && (
-              <div className="mb-6">
+              <div className="mb-5 shrink-0">
                 <div className="space-y-1">
                   {otherColumns.map((column) => (
                     <ColumnPropertyRow
@@ -268,7 +340,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                       e.stopPropagation();
                       onAddColumn();
                     }}
-                    className="flex items-center gap-2 h-10 px-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors cursor-pointer"
+                    className="flex items-center gap-2 h-10 px-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700/50 rounded transition-colors cursor-pointer"
                   >
                     <MdAdd className="w-[14px] h-[14px] mr-1.5" />
                     <span>添加属性</span>
@@ -277,13 +349,15 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
               </div>
             )}
 
-            <div className="flex-1 min-h-0 overflow-y-auto">
+            <div>
               <Editor
                 ref={editorRef}
                 initValue={DEFAULT_CONTENT}
                 onChange={setDescription}
                 readonly={readonly}
                 placeHolder="添加详细描述..."
+                className="break-words [overflow-wrap:anywhere]"
+                style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}
               />
             </div>
           </div>
@@ -437,9 +511,9 @@ const ColumnPropertyRow: React.FC<ColumnPropertyRowProps> = ({
     <div
       ref={ref}
       className={classNames(
-        "flex items-center gap-3 rounded px-2 py-1 transition-colors",
+        "flex min-w-0 items-center gap-3 rounded px-2 py-1 transition-colors",
         {
-          "hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer":
+          "hover:bg-gray-50 dark:hover:bg-zinc-700/50 cursor-pointer":
             !readonly,
           "opacity-50": isDragging,
         },
@@ -457,8 +531,8 @@ const ColumnPropertyRow: React.FC<ColumnPropertyRowProps> = ({
           {column.title}
         </span>
       </div>
-      <div className="flex-1 min-h-[40px] flex items-center">
-        <div className="w-full">{valueRenderer()}</div>
+      <div className="flex-1 min-w-0 min-h-[40px] flex items-center">
+        <div className="w-full min-w-0">{valueRenderer()}</div>
       </div>
       {!readonly && (
         <div className="flex items-center gap-2 shrink-0">

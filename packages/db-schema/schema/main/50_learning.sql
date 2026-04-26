@@ -290,6 +290,7 @@ CREATE TABLE IF NOT EXISTS epub_bookmarks (
 CREATE TABLE IF NOT EXISTS vibe_learning_resources (
         id INTEGER PRIMARY KEY,
         project_id INTEGER NOT NULL,
+        sort_index INTEGER NOT NULL DEFAULT 0,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         name TEXT NOT NULL,

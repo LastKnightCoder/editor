@@ -27,6 +27,7 @@ import useSettingStore from "@/stores/useSettingStore";
  * @property {string} tagHoverBgClass - Tag hover background class
  * @property {string} tagTextClass - Tag text color class
  * @property {string} glassPanelBg - Glass panel background class
+ * @property {string} modalPanelBg - Modal panel background class
  * @property {string} quoteBgClass - Quote/highlight background class
  * @property {string} badgeBgClass - Badge background class
  * @property {string} badgeTextClass - Badge text color class
@@ -106,9 +107,9 @@ const useThemeColors = () => {
 
   if (isSolid) {
     return {
-      hoverClass: "hover:bg-gray-100 dark:hover:bg-gray-800",
+      hoverClass: "hover:bg-gray-100 dark:hover:bg-zinc-800",
       activeClass:
-        "bg-[#eee] text-gray-900 dark:bg-gray-800 dark:text-gray-100",
+        "bg-[#eee] text-gray-900 dark:bg-zinc-700 dark:text-gray-100",
       hoverTextClass: "hover:text-gray-900 dark:hover:text-gray-100",
       borderClass: "border-[#f0f0f0] dark:border-[#2a2a2a]",
       divideCalass: "bg-[#f0f0f0] dark:bg-[#2a2a2a]",
@@ -117,7 +118,7 @@ const useThemeColors = () => {
       focusRingClass:
         "focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(107,107,107,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(154,154,154,0.25)]",
       activeBorderClass: "border-gray-300 dark:border-gray-700",
-      activeBadgeClass: "bg-gray-100 dark:bg-gray-800",
+      activeBadgeClass: "bg-gray-100 dark:bg-zinc-800",
       activeBgClass:
         "bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900",
       iconBgClass:
@@ -125,47 +126,48 @@ const useThemeColors = () => {
       iconBgDeepClass:
         "bg-gradient-to-br from-gray-700 to-gray-800 dark:from-gray-600/60 dark:to-gray-700/60",
       iconTextClass: "text-gray-700 dark:text-gray-300",
-      iconHoverClass: "group-hover:bg-gray-100 dark:group-hover:bg-gray-800",
+      iconHoverClass: "group-hover:bg-gray-100 dark:group-hover:bg-zinc-800",
       gradientClass:
         "bg-linear-to-r from-gray-500 via-gray-400 to-gray-500 dark:from-gray-600 dark:via-gray-500 dark:to-gray-600",
       primaryButtonClass:
-        "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 active:bg-gray-700 dark:active:bg-gray-300",
-      inputBgClass: "bg-gray-50 dark:bg-slate-950",
+        "bg-zinc-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-zinc-800 dark:hover:bg-gray-200 active:bg-zinc-700 dark:active:bg-gray-300",
+      inputBgClass: "bg-gray-50 dark:bg-zinc-950",
       // Chat background colors for solid mode
-      chatMessageBg: "bg-gray-50/80 dark:bg-gray-900/50",
+      chatMessageBg: "bg-gray-50/80 dark:bg-zinc-800/70",
       chatInputBg:
-        "bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800",
+        "bg-white dark:bg-zinc-800/70 border border-gray-200 dark:border-zinc-700/60",
       chatContainerBg: "bg-white/95 dark:bg-[#0a0a0a]/95",
       // Tag count and button colors
-      tagCountBg: "bg-gray-100 dark:bg-gray-800",
-      buttonBg: "bg-gray-900 dark:bg-gray-100",
+      tagCountBg: "bg-gray-100 dark:bg-zinc-800",
+      buttonBg: "bg-zinc-900 dark:bg-gray-100",
       buttonTextClass: "text-white dark:text-gray-900",
       // Text colors
       textClass: "text-gray-600 dark:text-gray-400",
       secondaryTextClass: "text-gray-400 dark:text-gray-500",
       activeTextClass: "text-gray-900 dark:text-gray-100",
       // Card colors
-      cardBorderClass: "border-gray-200 dark:border-gray-800",
-      cardBgClass: "bg-gray-50/80 dark:bg-gray-900/50",
+      cardBorderClass: "border-gray-200 dark:border-zinc-700/60",
+      cardBgClass: "bg-gray-50/80 dark:bg-zinc-800/70",
       pinnedCardBgClass:
         "bg-gradient-to-br from-gray-200/50 to-gray-50/80 dark:from-gray-800/50 dark:to-gray-900/50",
       pinnedCardBorderClass: "border-gray-300 dark:border-gray-700",
       // Tag colors
-      tagBgClass: "bg-gray-100 dark:bg-gray-800",
-      tagHoverBgClass: "hover:bg-gray-200 dark:hover:bg-gray-700",
+      tagBgClass: "bg-gray-100 dark:bg-zinc-800",
+      tagHoverBgClass: "hover:bg-gray-200 dark:hover:bg-zinc-700",
       tagTextClass: "text-gray-700 dark:text-gray-300",
-      // Glass panel colors
-      glassPanelBg: "bg-white/95 dark:bg-black/90",
+      // Panel colors
+      glassPanelBg: "bg-white/95 dark:bg-zinc-800/65",
+      modalPanelBg: "bg-white dark:bg-zinc-800",
       // Quote and badge colors
-      quoteBgClass: "bg-gray-100 dark:bg-gray-800",
+      quoteBgClass: "bg-gray-100 dark:bg-zinc-800",
       badgeBgClass: "bg-blue-500",
       badgeTextClass: "text-white",
       // Timeline colors
       timelineRingColor: "rgb(107, 114, 128)", // gray-500
       timelineRingColorDark: "rgb(156, 163, 175)", // gray-400
       // Graph colors (Grayscale)
-      graphNodeFill: "hsl(0, 0%, 42%)",
-      graphNodeStroke: "hsl(0, 0%, 24%)",
+      graphNodeFill: "hsl(210, 10%, 62%)",
+      graphNodeStroke: "hsl(210, 10%, 44%)",
       graphEdgeStroke: "hsl(0, 0%, 78%)",
       graphNodeFillDark: "hsl(0, 0%, 16%)",
       graphNodeStrokeDark: "hsl(0, 0%, 34%)",
@@ -174,8 +176,12 @@ const useThemeColors = () => {
       graphNodeSelectedStroke: isDarkMode
         ? "hsl(0, 0%, 52%)"
         : "hsl(0, 0%, 62%)",
-      graphNodeCurrentFill: "rgba(107, 114, 128, 0.58)",
-      graphNodeCurrentStroke: "rgb(107, 114, 128)",
+      graphNodeCurrentFill: isDarkMode
+        ? "rgba(107, 114, 128, 0.58)"
+        : "rgba(71, 85, 105, 0.86)",
+      graphNodeCurrentStroke: isDarkMode
+        ? "rgb(107, 114, 128)"
+        : "rgb(30, 41, 59)",
       accentColor: solidAccentColor,
       accentSoftBg: solidAccentSoftBg,
       twoToneColor: solidAccentColor,
@@ -235,8 +241,9 @@ const useThemeColors = () => {
       tagBgClass: "bg-purple-100/60 dark:bg-purple-900/50",
       tagHoverBgClass: "hover:bg-purple-200/70 dark:hover:bg-purple-800/60",
       tagTextClass: "text-purple-700 dark:text-purple-300",
-      // Glass panel colors
+      // Panel colors
       glassPanelBg: "bg-purple-50/95 dark:bg-[#1a0b2e]/90",
+      modalPanelBg: "bg-purple-50 dark:bg-[#1a0b2e]",
       // Quote and badge colors
       quoteBgClass: "bg-black/5 dark:bg-white/10",
       badgeBgClass: "bg-purple-600/80 dark:bg-purple-700/80 backdrop-blur-sm",
@@ -310,8 +317,9 @@ const useThemeColors = () => {
       tagBgClass: "bg-blue-100/60 dark:bg-blue-900/50",
       tagHoverBgClass: "hover:bg-blue-200/70 dark:hover:bg-blue-800/60",
       tagTextClass: "text-blue-700 dark:text-blue-300",
-      // Glass panel colors
+      // Panel colors
       glassPanelBg: "bg-blue-50/95 dark:bg-[#0b1a2e]/90",
+      modalPanelBg: "bg-blue-50 dark:bg-[#0b1a2e]",
       // Quote and badge colors
       quoteBgClass: "bg-black/5 dark:bg-white/10",
       badgeBgClass: "bg-blue-600/80 dark:bg-blue-700/80 backdrop-blur-sm",
@@ -385,8 +393,9 @@ const useThemeColors = () => {
       tagBgClass: "bg-orange-100/60 dark:bg-orange-900/50",
       tagHoverBgClass: "hover:bg-orange-200/70 dark:hover:bg-orange-800/60",
       tagTextClass: "text-orange-700 dark:text-orange-300",
-      // Glass panel colors
+      // Panel colors
       glassPanelBg: "bg-orange-50/95 dark:bg-[#2e1a0b]/90",
+      modalPanelBg: "bg-orange-50 dark:bg-[#2e1a0b]",
       // Quote and badge colors
       quoteBgClass: "bg-black/5 dark:bg-white/10",
       badgeBgClass: "bg-orange-600/80 dark:bg-orange-700/80 backdrop-blur-sm",
@@ -460,8 +469,9 @@ const useThemeColors = () => {
       tagBgClass: "bg-green-100/60 dark:bg-green-900/50",
       tagHoverBgClass: "hover:bg-green-200/70 dark:hover:bg-green-800/60",
       tagTextClass: "text-green-700 dark:text-green-300",
-      // Glass panel colors
+      // Panel colors
       glassPanelBg: "bg-green-50/95 dark:bg-[#0b2e1a]/90",
+      modalPanelBg: "bg-green-50 dark:bg-[#0b2e1a]",
       // Quote and badge colors
       quoteBgClass: "bg-black/5 dark:bg-white/10",
       badgeBgClass: "bg-green-600/80 dark:bg-green-700/80 backdrop-blur-sm",
@@ -535,8 +545,9 @@ const useThemeColors = () => {
       tagBgClass: "bg-pink-100/60 dark:bg-pink-900/50",
       tagHoverBgClass: "hover:bg-pink-200/70 dark:hover:bg-pink-800/60",
       tagTextClass: "text-pink-700 dark:text-pink-300",
-      // Glass panel colors
+      // Panel colors
       glassPanelBg: "bg-pink-50/95 dark:bg-[#2e0b1a]/90",
+      modalPanelBg: "bg-pink-50 dark:bg-[#2e0b1a]",
       // Quote and badge colors
       quoteBgClass: "bg-black/5 dark:bg-white/10",
       badgeBgClass: "bg-pink-600/80 dark:bg-pink-700/80 backdrop-blur-sm",
@@ -573,7 +584,7 @@ const useThemeColors = () => {
       focusRingClass:
         "focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(75,85,99,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(107,114,128,0.25)]",
       activeBorderClass: "border-gray-500/40 dark:border-gray-400/40",
-      activeBadgeClass: "bg-gray-100/60 dark:bg-gray-700/40",
+      activeBadgeClass: "bg-gray-100/60 dark:bg-zinc-700/40",
       activeBgClass:
         "bg-gradient-to-br from-gray-500/20 to-gray-50 dark:from-gray-400/20 dark:to-gray-800/60",
       iconBgClass:
@@ -586,15 +597,15 @@ const useThemeColors = () => {
       gradientClass:
         "bg-linear-to-r from-gray-500 via-gray-400 to-gray-500 dark:from-gray-600 dark:via-gray-500 dark:to-gray-600",
       primaryButtonClass:
-        "bg-gray-600/80 dark:bg-gray-700/80 backdrop-blur-sm text-white dark:text-gray-100 hover:bg-gray-700/90 dark:hover:bg-gray-600/90",
-      inputBgClass: "bg-gray-50/50 dark:bg-gray-800/30",
+        "bg-gray-600/80 dark:bg-zinc-700/80 backdrop-blur-sm text-white dark:text-gray-100 hover:bg-zinc-700/90 dark:hover:bg-gray-600/90",
+      inputBgClass: "bg-gray-50/50 dark:bg-zinc-800/30",
       // Chat background colors for gray theme
-      chatMessageBg: "bg-gray-50 dark:bg-gray-800/60",
-      chatInputBg: "bg-gray-50/80 dark:bg-gray-800/50",
+      chatMessageBg: "bg-gray-50 dark:bg-zinc-800/60",
+      chatInputBg: "bg-gray-50/80 dark:bg-zinc-800/50",
       chatContainerBg: "bg-white/95 dark:bg-[#0a0a0a]/95",
       // Tag count and button colors
-      tagCountBg: "bg-gray-100/60 dark:bg-gray-700/40",
-      buttonBg: "bg-gray-600/80 dark:bg-gray-700/80 backdrop-blur-sm",
+      tagCountBg: "bg-gray-100/60 dark:bg-zinc-700/40",
+      buttonBg: "bg-gray-600/80 dark:bg-zinc-700/80 backdrop-blur-sm",
       buttonTextClass: "text-white dark:text-gray-100",
       // Text colors
       textClass: "text-gray-700 dark:text-gray-300",
@@ -602,19 +613,20 @@ const useThemeColors = () => {
       activeTextClass: "text-gray-700 dark:text-gray-200",
       // Card colors (使用与聊天消息相同的背景)
       cardBorderClass: "border-gray-200/30 dark:border-gray-400/20",
-      cardBgClass: "bg-gray-50 dark:bg-gray-800/60",
+      cardBgClass: "bg-gray-50 dark:bg-zinc-800/60",
       pinnedCardBgClass:
         "bg-gradient-to-br from-gray-500/20 to-gray-50 dark:from-gray-400/20 dark:to-gray-800/60",
       pinnedCardBorderClass: "border-gray-500/40 dark:border-gray-400/40",
       // Tag colors
-      tagBgClass: "bg-gray-100/60 dark:bg-gray-700/50",
+      tagBgClass: "bg-gray-100/60 dark:bg-zinc-700/50",
       tagHoverBgClass: "hover:bg-gray-200/70 dark:hover:bg-gray-600/60",
       tagTextClass: "text-gray-700 dark:text-gray-300",
-      // Glass panel colors
+      // Panel colors
       glassPanelBg: "bg-gray-50/95 dark:bg-[#1a1a1a]/90",
+      modalPanelBg: "bg-gray-50 dark:bg-[#1a1a1a]",
       // Quote and badge colors
       quoteBgClass: "bg-black/5 dark:bg-white/10",
-      badgeBgClass: "bg-gray-600/80 dark:bg-gray-700/80 backdrop-blur-sm",
+      badgeBgClass: "bg-gray-600/80 dark:bg-zinc-700/80 backdrop-blur-sm",
       badgeTextClass: "text-white dark:text-gray-100",
       // Timeline colors
       timelineRingColor: "rgb(75, 85, 99)", // gray-600
@@ -689,8 +701,9 @@ const useThemeColors = () => {
       tagBgClass: "bg-cyan-100/60 dark:bg-cyan-900/50",
       tagHoverBgClass: "hover:bg-cyan-200/70 dark:hover:bg-cyan-800/60",
       tagTextClass: "text-cyan-700 dark:text-cyan-300",
-      // Glass panel colors
+      // Panel colors
       glassPanelBg: "bg-cyan-50/95 dark:bg-[#0b2e2e]/90",
+      modalPanelBg: "bg-cyan-50 dark:bg-[#0b2e2e]",
       // Quote and badge colors
       quoteBgClass: "bg-black/5 dark:bg-white/10",
       badgeBgClass: "bg-cyan-600/80 dark:bg-cyan-700/80 backdrop-blur-sm",
@@ -764,8 +777,9 @@ const useThemeColors = () => {
       tagBgClass: "bg-amber-100/60 dark:bg-amber-900/50",
       tagHoverBgClass: "hover:bg-amber-200/70 dark:hover:bg-amber-800/60",
       tagTextClass: "text-amber-700 dark:text-amber-300",
-      // Glass panel colors
+      // Panel colors
       glassPanelBg: "bg-amber-50/95 dark:bg-[#2e2810]/90",
+      modalPanelBg: "bg-amber-50 dark:bg-[#2e2810]",
       // Quote and badge colors
       quoteBgClass: "bg-black/5 dark:bg-white/10",
       badgeBgClass: "bg-amber-600/80 dark:bg-amber-700/80 backdrop-blur-sm",
@@ -838,8 +852,9 @@ const useThemeColors = () => {
       tagBgClass: "bg-red-100/60 dark:bg-red-900/50",
       tagHoverBgClass: "hover:bg-red-200/70 dark:hover:bg-red-800/60",
       tagTextClass: "text-red-700 dark:text-red-300",
-      // Glass panel colors
+      // Panel colors
       glassPanelBg: "bg-red-50/95 dark:bg-[#2e1515]/90",
+      modalPanelBg: "bg-red-50 dark:bg-[#2e1515]",
       // Quote and badge colors
       quoteBgClass: "bg-black/5 dark:bg-white/10",
       badgeBgClass: "bg-red-600/80 dark:bg-red-700/80 backdrop-blur-sm",

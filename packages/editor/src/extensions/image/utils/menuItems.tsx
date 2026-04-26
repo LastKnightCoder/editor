@@ -8,6 +8,7 @@ import {
   Copy,
   Link2,
   Trash2,
+  Sparkles,
 } from "lucide-react";
 import { Transforms } from "slate";
 import { ReactEditor } from "slate-react";
@@ -17,8 +18,18 @@ import {
   ContextMenuItem,
   BuildMenuParams,
 } from "../../../components/EditorContextMenu/types";
-import type { FileService, ImageElement } from "../../../types";
+import type {
+  FileService,
+  ImageBorderRadiusPreset,
+  ImageShadowPreset,
+  ImageElement,
+} from "../../../types";
 import { imageActionsMap } from "../index";
+import {
+  IMAGE_BORDER_RADIUS_OPTIONS,
+  IMAGE_SHADOW_OPTIONS,
+  normalizeImageShadowPreset,
+} from "./appearance";
 
 const resolveLocalPath = (url: string, fileService?: FileService) => {
   if (!url.startsWith("~") || !fileService?.getHomeDir) {
@@ -110,8 +121,24 @@ export function buildImageMenuItems(
 ): ContextMenuItem[] {
   const { element, editor } = params;
   const fileService = editor.services?.file;
+  const settings = editor.services?.settings;
 
   const menuItems: ContextMenuItem[] = [];
+  const currentBorderRadius =
+    element.borderRadius ??
+    settings?.get<ImageBorderRadiusPreset>("appearance.image.borderRadius") ??
+    "none";
+  const currentShadow = normalizeImageShadowPreset(
+    element.shadow ??
+      settings?.get<ImageShadowPreset | boolean>("appearance.image.shadow"),
+  );
+  const setAppearance = (value: {
+    borderRadius?: ImageBorderRadiusPreset;
+    shadow?: ImageShadowPreset;
+  }) => {
+    const path = ReactEditor.findPath(editor, element);
+    Transforms.setNodes(editor, value, { at: path });
+  };
 
   menuItems.push({
     key: "fullscreen",
@@ -132,6 +159,18 @@ export function buildImageMenuItems(
       actions?.startCrop();
     },
   });
+
+  if (editor.services?.imageGeneration?.isAvailable?.()) {
+    menuItems.push({
+      key: "ai-edit",
+      label: "AI 编辑图片",
+      icon: <Sparkles size={16} />,
+      onSelect: () => {
+        const actions = imageActionsMap.get(element);
+        actions?.startAIEdit();
+      },
+    });
+  }
 
   const currentAlign = element.align || "center";
   menuItems.push({
@@ -195,6 +234,38 @@ export function buildImageMenuItems(
       const actions = imageActionsMap.get(element);
       actions?.showDescEditor();
     },
+  });
+
+  menuItems.push({
+    key: "appearance",
+    label: "外观",
+    icon: <Sparkles size={16} />,
+    children: [
+      {
+        key: "appearance-radius",
+        label: "圆角",
+        children: IMAGE_BORDER_RADIUS_OPTIONS.map((option) => ({
+          key: `appearance-radius-${option.value}`,
+          label: option.label,
+          disabled: currentBorderRadius === option.value,
+          onSelect: () => {
+            setAppearance({ borderRadius: option.value });
+          },
+        })),
+      },
+      {
+        key: "appearance-shadow",
+        label: "阴影",
+        children: IMAGE_SHADOW_OPTIONS.map((option) => ({
+          key: `appearance-shadow-${option.value}`,
+          label: option.label,
+          disabled: currentShadow === option.value,
+          onSelect: () => {
+            setAppearance({ shadow: option.value });
+          },
+        })),
+      },
+    ],
   });
 
   if (message) {

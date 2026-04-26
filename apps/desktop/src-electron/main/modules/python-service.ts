@@ -22,12 +22,19 @@ class PythonService implements Module {
   private client: PythonWebSocketClient | null = null;
   private starting = false;
   private startPromise: Promise<void> | null = null;
+  private initialized = false;
+  private serverReadyListeners = new Set<() => void>();
 
   constructor() {
     this.name = "python-service";
   }
 
   async init() {
+    if (this.initialized) {
+      return;
+    }
+    this.initialized = true;
+
     pythonRuntimeManager.init();
 
     // 注册 IPC 处理器
@@ -143,6 +150,16 @@ class PythonService implements Module {
       this.client = new PythonWebSocketClient(WS_PORT, {
         onServerReady: () => {
           console.log("[PythonService] Python server is ready");
+          this.serverReadyListeners.forEach((listener) => {
+            try {
+              listener();
+            } catch (error) {
+              console.error(
+                "[PythonService] serverReady listener failed:",
+                error,
+              );
+            }
+          });
         },
         onServerGone: () => {
           console.log("[PythonService] Python server is gone");
@@ -283,6 +300,13 @@ class PythonService implements Module {
     }
 
     return this.client;
+  }
+
+  onServerReady(listener: () => void): () => void {
+    this.serverReadyListeners.add(listener);
+    return () => {
+      this.serverReadyListeners.delete(listener);
+    };
   }
 }
 

@@ -46,6 +46,7 @@ export default defineConfig(() => {
             resolve: {
               alias: {
                 "@": path.resolve(__dirname, "src"),
+                "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
                 "@tau/db-schema": path.resolve(
                   __dirname,
                   "../../packages/db-schema"

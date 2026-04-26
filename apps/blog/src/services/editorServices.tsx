@@ -1,14 +1,18 @@
 import type { Descendant, Text } from "slate";
-import type {
-  EditorServices,
-  MediaInfo,
-  ThemeColors,
-  ComponentService,
+import { forwardRef } from "react";
+import type { ImgHTMLAttributes } from "react";
+import {
+  importFromMarkdown,
+  isMarkdownLikeText,
+  type EditorServices,
+  type MediaInfo,
+  type ThemeColors,
+  type ComponentService,
 } from "@tau/editor";
 
 const createDefaultThemeColors = (): ThemeColors => ({
-  hoverClass: "hover:bg-gray-100 dark:hover:bg-gray-800",
-  activeClass: "bg-gray-100 dark:bg-gray-800",
+  hoverClass: "hover:bg-gray-100 dark:hover:bg-zinc-800",
+  activeClass: "bg-gray-100 dark:bg-zinc-800",
   hoverTextClass: "hover:text-gray-900 dark:hover:text-gray-100",
   borderClass: "border-gray-200 dark:border-gray-700",
   hoverBorderClass: "hover:border-gray-300 dark:hover:border-gray-600",
@@ -17,7 +21,7 @@ const createDefaultThemeColors = (): ThemeColors => ({
   secondaryTextClass: "text-gray-500 dark:text-gray-500",
   activeTextClass: "text-gray-900 dark:text-gray-100",
   cardBorderClass: "border-gray-200 dark:border-gray-700",
-  cardBgClass: "bg-white dark:bg-gray-900",
+  cardBgClass: "bg-white dark:bg-zinc-900",
   accentColor: "#3b82f6",
   accentSoftBg: "rgba(59, 130, 246, 0.15)",
 });
@@ -37,6 +41,23 @@ const createComponentRegistry = (): ComponentService => {
   const ResourcePickerModal: ComponentService["ResourcePickerModal"] = () =>
     null;
 
+  const Image = forwardRef<
+    HTMLImageElement,
+    ImgHTMLAttributes<HTMLImageElement> & { url: string; alt?: string }
+  >(({ url, alt, className, style, onClick, onLoad, crossOrigin }, ref) => (
+    <img
+      ref={ref}
+      src={url}
+      alt={alt || url}
+      className={className}
+      style={{ borderRadius: "0.5rem", ...style }}
+      onClick={onClick}
+      onLoad={onLoad}
+      crossOrigin={crossOrigin}
+    />
+  ));
+  Image.displayName = "BlogImage";
+
   const VideoLoader = ({ message }: { message: string }) => (
     <div className="rounded border border-dashed border-gray-300 p-4 text-sm text-gray-500">
       {message}
@@ -44,9 +65,7 @@ const createComponentRegistry = (): ComponentService => {
   );
 
   return {
-    Image: ({ url }: { url: string }) => (
-      <img src={url} alt={url} className="w-full h-full object-cover" />
-    ),
+    Image,
     Video: ({ src }: { src: string }) => (
       <video src={src} controls className="w-full h-full object-cover" />
     ),
@@ -105,6 +124,14 @@ const formatDate = (
   )}:${pad(date.getMinutes())}`;
 };
 
+const getDocumentTheme = (): "light" | "dark" => {
+  if (typeof document === "undefined") {
+    return "light";
+  }
+  const theme = document.documentElement.getAttribute("data-theme");
+  return theme === "dark" ? "dark" : "light";
+};
+
 export function createBlogEditorServices(): EditorServices {
   const components = createComponentRegistry();
 
@@ -155,12 +182,11 @@ export function createBlogEditorServices(): EditorServices {
         return undefined as T;
       },
       getYoutubeProxy: () => null,
-      isDarkMode: () => document.documentElement.classList.contains("dark"),
+      isDarkMode: () => getDocumentTheme() === "dark",
     },
 
     theme: {
-      current: () =>
-        document.documentElement.classList.contains("dark") ? "dark" : "light",
+      current: () => getDocumentTheme(),
       colors: () => createDefaultThemeColors(),
     },
 
@@ -178,6 +204,8 @@ export function createBlogEditorServices(): EditorServices {
         window.open(url, "_blank", "noopener,noreferrer");
       },
       getMarkdown: (content: Descendant[]) => extractText(content),
+      importFromMarkdown,
+      isMarkdownLikeText,
       nodeFetch: async (url: string, options: RequestInit) => {
         return await fetch(url, options).then((res) => res.text());
       },

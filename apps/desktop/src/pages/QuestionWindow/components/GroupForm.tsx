@@ -106,7 +106,7 @@ const GroupForm = memo(
               disabled={initialData?.isDefault}
               className={classNames(
                 "w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all border",
-                "bg-gray-50 dark:bg-slate-950 border-gray-200 dark:border-slate-700",
+                "bg-gray-50 dark:bg-zinc-950 border-gray-200 dark:border-slate-700",
                 "text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500",
                 "focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[0_0_0_3px_rgba(99,102,241,0.25)]",
                 "disabled:opacity-60 disabled:cursor-not-allowed",

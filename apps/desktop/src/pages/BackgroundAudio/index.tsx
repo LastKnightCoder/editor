@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { usePomodoroStore } from "@/stores/usePomodoroStore";
 import { BACKGROUND_SOUND_FILES } from "@/constants/backgroundSounds";
 import useInitDatabase from "@/hooks/useInitDatabase";
+import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 
 /**
  * 背景音播放页面
@@ -9,14 +10,22 @@ import useInitDatabase from "@/hooks/useInitDatabase";
  */
 const BackgroundAudio: React.FC = () => {
   useInitDatabase();
+  const isConnected = useDatabaseConnected();
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const { activeSession, backgroundSound, backgroundVolume, initPomodoro } =
-    usePomodoroStore();
+  const {
+    activeSession,
+    backgroundSound,
+    backgroundVolume,
+    initPomodoro,
+    inited,
+  } = usePomodoroStore();
 
   // 初始化
   useEffect(() => {
-    initPomodoro();
-  }, [initPomodoro]);
+    if (isConnected && !inited) {
+      initPomodoro();
+    }
+  }, [initPomodoro, inited, isConnected]);
 
   // 初始化音频元素
   useEffect(() => {

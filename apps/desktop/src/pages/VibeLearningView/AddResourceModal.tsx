@@ -18,7 +18,11 @@ import type { UploadProps } from "antd";
 
 import CustomModal from "@/components/CustomModal";
 import LocalImage from "@/components/LocalImage";
-import { createVLResource, addVLIndexTask } from "@/commands/vibe-learning";
+import {
+  createVLResource,
+  addVLIndexTask,
+  ensureVLNoteResource,
+} from "@/commands/vibe-learning";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { nodeFetch } from "@/commands/extra";
 import { createSmartExtractProvider } from "@/utils/web-clipper/providers";
@@ -39,7 +43,6 @@ import type {
   VLResourceType,
   BilibiliSourceMeta,
   YoutubeSourceMeta,
-  NoteSourceMeta,
 } from "@/types/vibe-learning";
 import type { StreamOption } from "@/types/youtube";
 import type { SearchResult } from "@/types/search";
@@ -782,32 +785,13 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
 
     try {
       const resourceName = getResourceName(note);
-
-      // 1. 创建资源记录（存储 contentId 等信息供后端使用）
-      const sourceMeta: NoteSourceMeta = {
-        contentId: note.contentId,
-        type: note.type,
-        title: resourceName,
-        originalId: note.id,
-      };
-
-      const resource = await createVLResource({
-        projectId,
-        name: `${resourceName}.md`,
-        originalPath: `note://${note.contentId}`, // 特殊标识
-        resourceType: "md",
-        sourceType: "note",
-        sourceMetaInfo: JSON.stringify(sourceMeta),
-      });
-
-      // 2. 添加索引任务（后端会根据 sourceType=note 自动从数据库获取内容）
-      await addVLIndexTask({
-        resourceId: resource.id,
+      await ensureVLNoteResource({
         projectId,
         mainDbName,
-        originalPath: `note://${note.contentId}`,
-        resourceName: `${resourceName}.md`,
-        type: "full",
+        contentId: note.contentId,
+        title: resourceName,
+        noteType: note.type,
+        originalId: note.id,
       });
 
       setNoteStep("done");
@@ -843,7 +827,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       <Upload.Dragger
         {...uploadProps}
         disabled={uploading}
-        className="bg-gray-50! dark:bg-gray-800/50! border-dashed! border-gray-200! dark:border-gray-700! rounded-xl! hover:border-blue-500! transition-all"
+        className="bg-gray-50! dark:bg-zinc-800/50! border-dashed! border-gray-200! dark:border-gray-700! rounded-xl! hover:border-blue-500! transition-all"
       >
         <div className="py-8">
           {uploading ? (
@@ -910,7 +894,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           disabled={processingStep !== "idle"}
           className={classNames(
             "w-full px-4 py-3 rounded-xl text-sm outline-none transition-all",
-            "bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700",
+            "bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700",
             "text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500",
             "focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20",
             "disabled:opacity-60 disabled:cursor-not-allowed",
@@ -933,7 +917,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           disabled={processingStep !== "idle"}
           className={classNames(
             "w-full px-4 py-3 rounded-xl text-sm outline-none transition-all",
-            "bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700",
+            "bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700",
             "text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500",
             "focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20",
             "disabled:opacity-60 disabled:cursor-not-allowed",
@@ -1034,7 +1018,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
               }}
               className={classNames(
                 "w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all",
-                "bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700",
+                "bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700",
                 "text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500",
                 "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20",
                 "disabled:opacity-60 disabled:cursor-not-allowed",
@@ -1087,7 +1071,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
                   onChange={(e) => setSelectedQuality(Number(e.target.value))}
                   className={classNames(
                     "w-full py-3 pl-4 pr-10 rounded-xl text-sm outline-none appearance-none cursor-pointer transition-all",
-                    "bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700",
+                    "bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700",
                     "text-gray-800 dark:text-white",
                     "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20",
                   )}
@@ -1126,7 +1110,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
                     onChange={(e) => setSelectedVideoStream(e.target.value)}
                     className={classNames(
                       "w-full py-3 pl-4 pr-10 rounded-xl text-sm outline-none appearance-none cursor-pointer transition-all",
-                      "bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700",
+                      "bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700",
                       "text-gray-800 dark:text-white",
                       "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20",
                     )}
@@ -1160,7 +1144,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
                     onChange={(e) => setSelectedAudioStream(e.target.value)}
                     className={classNames(
                       "w-full py-3 pl-4 pr-10 rounded-xl text-sm outline-none appearance-none cursor-pointer transition-all",
-                      "bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700",
+                      "bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700",
                       "text-gray-800 dark:text-white",
                       "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20",
                     )}
@@ -1313,13 +1297,13 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
     "bg-blue-500 text-white",
     "hover:bg-blue-600",
-    "disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed",
+    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed",
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-    "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300",
-    "hover:bg-gray-200 dark:hover:bg-gray-700",
+    "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
+    "hover:bg-gray-200 dark:hover:bg-zinc-700",
     "border border-gray-200 dark:border-gray-700",
   );
 
@@ -1388,7 +1372,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
                 "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
                 "bg-pink-500 text-white",
                 "hover:bg-pink-600",
-                "disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed",
+                "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed",
                 "flex items-center gap-2",
               )}
             >
@@ -1502,7 +1486,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       )}
 
       {/* Tab 切换 */}
-      <div className="flex gap-1 p-1 mb-5 bg-gray-100 dark:bg-gray-800 rounded-xl">
+      <div className="flex gap-1 p-1 mb-5 bg-gray-100 dark:bg-zinc-800 rounded-xl">
         <button
           type="button"
           onClick={() => setActiveTab("file")}
@@ -1514,7 +1498,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           className={classNames(
             "flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
             activeTab === "file"
-              ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+              ? "bg-white dark:bg-zinc-700 text-gray-900 dark:text-white shadow-sm"
               : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300",
             "disabled:opacity-50 disabled:cursor-not-allowed",
           )}
@@ -1533,7 +1517,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           className={classNames(
             "flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
             activeTab === "url"
-              ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+              ? "bg-white dark:bg-zinc-700 text-gray-900 dark:text-white shadow-sm"
               : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300",
             "disabled:opacity-50 disabled:cursor-not-allowed",
           )}
@@ -1552,7 +1536,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           className={classNames(
             "flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
             activeTab === "video"
-              ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+              ? "bg-white dark:bg-zinc-700 text-gray-900 dark:text-white shadow-sm"
               : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300",
             "disabled:opacity-50 disabled:cursor-not-allowed",
           )}
@@ -1571,7 +1555,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           className={classNames(
             "flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
             activeTab === "note"
-              ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+              ? "bg-white dark:bg-zinc-700 text-gray-900 dark:text-white shadow-sm"
               : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300",
             "disabled:opacity-50 disabled:cursor-not-allowed",
           )}

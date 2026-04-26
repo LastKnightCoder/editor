@@ -62,7 +62,7 @@ const UnderlineSelectItem = memo((props: IUnderlineSelectItemProps) => {
           isSelected &&
             "border-blue-500 shadow-[0_10px_25px_rgba(59,130,246,0.35)]",
           isDefault &&
-            "bg-white/40 dark:bg-slate-800/40 border-slate-300/80 dark:border-slate-600",
+            "bg-white/40 dark:bg-zinc-800/40 border-slate-300/80 dark:border-slate-600",
         )}
         style={{
           backgroundColor: isDefault ? undefined : getColorValue(color || ""),
@@ -87,7 +87,7 @@ const UnderlineSelectItem = memo((props: IUnderlineSelectItemProps) => {
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       className={classnames(
-        "w-12 h-8 rounded-xl border border-slate-200/90 dark:border-slate-600 bg-white/60 dark:bg-slate-900/70 flex items-center justify-center cursor-pointer transition-all duration-200",
+        "w-12 h-8 rounded-xl border border-slate-200/90 dark:border-slate-600 bg-white/60 dark:bg-zinc-900/70 flex items-center justify-center cursor-pointer transition-all duration-200",
         isSelected &&
           "border-2 border-blue-500 bg-blue-50/70 dark:bg-blue-900/30",
       )}

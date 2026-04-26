@@ -260,7 +260,7 @@ const ChatDropdownSelector = memo(
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <div
             ref={triggerRef}
-            className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1 rounded transition-colors"
+            className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700 px-2 py-1 rounded transition-colors"
             onClick={() => setShowDropdown(!showDropdown)}
           >
             <ChevronDown size={16} className="shrink-0 opacity-60" />
@@ -305,7 +305,7 @@ const ChatDropdownSelector = memo(
               placement="bottomRight"
             >
               <button
-                className="shrink-0 rounded p-1 text-text-secondary transition-colors hover:bg-gray-100 hover:text-text-primary dark:hover:bg-gray-700 dark:hover:text-white"
+                className="shrink-0 rounded p-1 text-text-secondary transition-colors hover:bg-gray-100 hover:text-text-primary dark:hover:bg-zinc-700 dark:hover:text-white"
                 title="更多操作"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -320,7 +320,7 @@ const ChatDropdownSelector = memo(
           <>
             <div
               ref={branchTriggerRef}
-              className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer text-sm text-text-secondary transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer text-sm text-text-secondary transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700"
               onClick={() => setShowBranchDropdown(true)}
             >
               <GitBranch size={14} />

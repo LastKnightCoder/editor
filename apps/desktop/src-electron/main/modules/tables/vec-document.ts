@@ -33,6 +33,19 @@ const extractIdFromPrefixed = (
 };
 
 export default class VecDocumentTable {
+  private static getIndexMeta(
+    indexDb: Database.Database,
+    key: string,
+  ): string | null {
+    if (!this.hasTable(indexDb, "index_meta")) {
+      return null;
+    }
+    const row = indexDb
+      .prepare("SELECT value FROM index_meta WHERE key = ?")
+      .get(key) as { value?: string } | undefined;
+    return row?.value || null;
+  }
+
   private static async createEmbeddings(
     texts: string[],
     modelInfo: NonNullable<IndexParams["modelInfo"]>,
@@ -109,17 +122,31 @@ export default class VecDocumentTable {
     return !!row;
   }
 
-  private static isIndexReady(indexDb: Database.Database): boolean {
-    if (!this.hasTable(indexDb, "index_meta")) {
-      return false;
-    }
-    const migrationState = indexDb
-      .prepare("SELECT value FROM index_meta WHERE key = 'migration_state'")
-      .get() as { value?: string } | undefined;
-    const rebuildState = indexDb
-      .prepare("SELECT value FROM index_meta WHERE key = 'rebuild_state'")
-      .get() as { value?: string } | undefined;
-    return migrationState?.value === "done" && rebuildState?.value === "ready";
+  private static getIndexAvailability(indexDb: Database.Database): {
+    hasVecTable: boolean;
+    migrationState: string;
+    vecRebuildState: string;
+    searchable: boolean;
+    partial: boolean;
+  } {
+    const hasVecTable = this.hasTable(indexDb, "vec_documents");
+    const migrationState =
+      this.getIndexMeta(indexDb, "migration_state") || "init";
+    const vecRebuildState =
+      this.getIndexMeta(indexDb, "vec_rebuild_state") ||
+      this.getIndexMeta(indexDb, "rebuild_state") ||
+      "pending";
+
+    return {
+      hasVecTable,
+      migrationState,
+      vecRebuildState,
+      searchable:
+        hasVecTable &&
+        migrationState === "done" &&
+        vecRebuildState !== "failed",
+      partial: vecRebuildState === "building",
+    };
   }
 
   static initTableByVecLength(db: Database.Database, vecLength: number) {
@@ -343,10 +370,9 @@ export default class VecDocumentTable {
 
     if (!query) return [];
 
-    const hasTable = this.hasTable(indexDb, "vec_documents");
-    const indexReady = hasTable && this.isIndexReady(indexDb);
-    if (!hasTable || !indexReady) {
-      log.warn("[VecDocument] search skipped:", { hasTable, indexReady });
+    const availability = this.getIndexAvailability(indexDb);
+    if (!availability.searchable) {
+      log.warn("[VecDocument] search skipped:", availability);
       return [];
     }
 
@@ -354,6 +380,9 @@ export default class VecDocumentTable {
       model: modelInfo?.model,
       distance: modelInfo?.distance,
       typesFilter: types,
+      vecRebuildState: availability.vecRebuildState,
+      partial: availability.partial,
+      vecAvailableDuringBuilding: availability.vecRebuildState === "building",
     });
 
     const results: SearchResult[] = [];
@@ -378,6 +407,8 @@ export default class VecDocumentTable {
         );
         log.info("[VecDocument] searchVecDocuments 结果:", {
           count: searchResults.length,
+          vecRebuildState: availability.vecRebuildState,
+          partial: availability.partial,
         });
 
         const processedIds = new Set<string>();

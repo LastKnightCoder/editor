@@ -21,6 +21,7 @@ import { LocalQueryExpander, NoopExpander } from "./search-core/expander";
 import { LocalReranker, NoopReranker } from "./search-core/reranker";
 import { readSearchModelProviderConfig } from "../utils/search-model-config";
 import PathUtil from "../utils/PathUtil";
+import { yieldEvery, yieldToEventLoop } from "../utils/event-loop-yield";
 
 interface EmbeddingSettingConfig {
   id: string;
@@ -61,7 +62,9 @@ type EmbeddingSwitchReason =
   | "config_switch"
   | "model_switch"
   | "db_switch"
-  | "startup_reconcile";
+  | "startup_reconcile"
+  | "sync_upload_reconnect"
+  | "sync_download_reconnect";
 
 interface IndexTask {
   mainDbName: string;
@@ -85,12 +88,16 @@ interface HandleEmbeddingSwitchByPolicyResult {
   currentGeneration: number;
 }
 
+type IndexVideoNoteResult = "done" | "retry";
+
 class VideoNoteIndexQueue implements Module {
   name = "video-note-index-queue";
   private queue: IndexTask[] = [];
   private queueGeneration = 0;
   private isProcessing = false;
   private cachedEmbeddingConfig: EmbeddingConfig | null | undefined = undefined;
+  private recoveryNeededDbNames: Set<string> = new Set();
+  private static readonly RECOVER_YIELD_EVERY = 20;
 
   async init() {
     ipcMain.handle("video-note-search-content", async (_event, params) => {
@@ -134,10 +141,36 @@ class VideoNoteIndexQueue implements Module {
       },
     );
 
-    databaseModule.onDatabaseConnected((dbName) => {
-      this.checkAndRecoverVideoNotes(dbName).catch((error) => {
-        log.error("[VideoNoteIndexQueue] recover failed:", error);
-      });
+    databaseModule.onDatabaseConnected((dbName, reason) => {
+      const shouldRecover =
+        reason !== "sync_upload_reconnect" ||
+        this.recoveryNeededDbNames.has(dbName);
+
+      if (shouldRecover) {
+        this.checkAndRecoverVideoNotes(dbName)
+          .then(() => {
+            this.recoveryNeededDbNames.delete(dbName);
+            if (this.hasQueuedTasksForDb(dbName)) {
+              void this.processQueue();
+            }
+          })
+          .catch((error) => {
+            log.error("[VideoNoteIndexQueue] recover failed:", error);
+          });
+        return;
+      }
+
+      if (this.hasQueuedTasksForDb(dbName)) {
+        log.info(
+          `[VideoNoteIndexQueue] Resume queued tasks after upload reconnect: db=${dbName}`,
+        );
+        void this.processQueue();
+        return;
+      }
+
+      log.info(
+        `[VideoNoteIndexQueue] Skip recover after upload reconnect: db=${dbName}`,
+      );
     });
 
     log.info("[VideoNoteIndexQueue] Module initialized");
@@ -158,6 +191,14 @@ class VideoNoteIndexQueue implements Module {
     return null;
   }
 
+  private hasQueuedTasksForDb(mainDbName: string): boolean {
+    return this.queue.some(
+      (task) =>
+        task.mainDbName === mainDbName &&
+        task.generation === this.queueGeneration,
+    );
+  }
+
   private async processQueue(): Promise<void> {
     if (this.isProcessing) {
       return;
@@ -173,8 +214,16 @@ class VideoNoteIndexQueue implements Module {
           continue;
         }
         try {
-          await this.indexVideoNote(task);
+          const result = await this.indexVideoNote(task);
+          if (result === "retry") {
+            this.queue.unshift(task);
+            log.info(
+              `[VideoNoteIndexQueue] Defer task until database reconnects: db=${task.mainDbName}, videoNoteId=${task.videoNoteId}`,
+            );
+            break;
+          }
         } catch (error) {
+          this.recoveryNeededDbNames.add(task.mainDbName);
           log.error(
             `[VideoNoteIndexQueue] index failed: videoNoteId=${task.videoNoteId}, error=${error}`,
           );
@@ -222,10 +271,10 @@ class VideoNoteIndexQueue implements Module {
     videoNoteIndexDBManager.deleteDatabase(mainDbName, videoNoteId);
   }
 
-  private async indexVideoNote(task: IndexTask): Promise<void> {
+  private async indexVideoNote(task: IndexTask): Promise<IndexVideoNoteResult> {
     const db = databaseModule.getDatabase(task.mainDbName);
     if (!db) {
-      return;
+      return "retry";
     }
 
     const row = db
@@ -236,7 +285,7 @@ class VideoNoteIndexQueue implements Module {
     const segments = this.parseTranscriptSegments(row?.transcript_segments);
     if (segments.length === 0) {
       videoNoteIndexDBManager.removeIndex(task.mainDbName, task.videoNoteId);
-      return;
+      return "done";
     }
 
     const chunks: VideoNoteIndexChunk[] = segments
@@ -255,13 +304,13 @@ class VideoNoteIndexQueue implements Module {
         task.videoNoteId,
         chunks,
       );
-      return;
+      return "done";
     }
 
     const batchSize = embeddingConfig.batchSize || 8;
     for (let i = 0; i < chunks.length; i += batchSize) {
       if (this.isStale(task)) {
-        return;
+        return "done";
       }
       const batch = chunks.slice(i, i + batchSize);
       const embeddings = await this.embedTexts(
@@ -280,6 +329,7 @@ class VideoNoteIndexQueue implements Module {
       task.videoNoteId,
       chunks,
     );
+    return "done";
   }
 
   private async getEmbeddingConfig(): Promise<EmbeddingConfig | null> {
@@ -423,6 +473,7 @@ class VideoNoteIndexQueue implements Module {
       transcript_segments?: string;
     }>;
 
+    let processed = 0;
     for (const row of rows) {
       const hasSegments =
         this.parseTranscriptSegments(row.transcript_segments).length > 0;
@@ -440,7 +491,10 @@ class VideoNoteIndexQueue implements Module {
       if (!indexed) {
         this.enqueueTask(mainDbName, row.id);
       }
+      processed += 1;
+      await yieldEvery(processed, VideoNoteIndexQueue.RECOVER_YIELD_EVERY);
     }
+    await yieldToEventLoop();
   }
 
   private async reinitAllVecTables(
@@ -456,6 +510,7 @@ class VideoNoteIndexQueue implements Module {
     }>;
     videoNoteIndexDBManager.setVecDimensions(dimensions);
     let ok = true;
+    let processed = 0;
     for (const row of rows) {
       const exists = videoNoteIndexDBManager.checkIndexExists(
         mainDbName,
@@ -472,7 +527,10 @@ class VideoNoteIndexQueue implements Module {
       if (!reinitOk) {
         ok = false;
       }
+      processed += 1;
+      await yieldEvery(processed, VideoNoteIndexQueue.RECOVER_YIELD_EVERY);
     }
+    await yieldToEventLoop();
     return ok;
   }
 

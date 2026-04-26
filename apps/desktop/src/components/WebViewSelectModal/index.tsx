@@ -141,7 +141,7 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
             exit={{ scale: 0.95, opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800">
+            <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800">
               {/* Header */}
               <div className="flex items-start gap-3 mb-5">
                 <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-emerald-50 dark:bg-emerald-500/20 border border-emerald-200 dark:border-emerald-500/30">
@@ -166,7 +166,7 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
                   </p>
                 </div>
                 <button
-                  className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                  className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
                   onClick={onCancel}
                 >
                   <svg
@@ -182,11 +182,11 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
               </div>
 
               {/* Tabs */}
-              <div className="flex gap-2 mb-4 p-1 rounded-xl bg-gray-100 dark:bg-slate-950">
+              <div className="flex gap-2 mb-4 p-1 rounded-xl bg-gray-100 dark:bg-zinc-950">
                 <button
                   className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                     activeTab === "url"
-                      ? "bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm"
+                      ? "bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 shadow-sm"
                       : "text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
                   }`}
                   onClick={() => setActiveTab("url")}
@@ -208,7 +208,7 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
                 <button
                   className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                     activeTab === "local"
-                      ? "bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm"
+                      ? "bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 shadow-sm"
                       : "text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
                   }`}
                   onClick={() => setActiveTab("local")}
@@ -246,7 +246,7 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
                         value={remoteTitle}
                         onChange={(e) => setRemoteTitle(e.target.value)}
                         placeholder="请输入网页标题（可选）"
-                        className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-emerald-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(16,185,129,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(16,185,129,0.25)]"
+                        className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-emerald-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(16,185,129,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(16,185,129,0.25)]"
                       />
                       <div className="relative">
                         <input
@@ -258,7 +258,7 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
                             setError(null);
                           }}
                           placeholder="在此粘贴网址，例如：https://www.example.com"
-                          className="w-full px-4 py-3.5 pl-10 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-emerald-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(16,185,129,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(16,185,129,0.25)]"
+                          className="w-full px-4 py-3.5 pl-10 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-emerald-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(16,185,129,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(16,185,129,0.25)]"
                         />
                         <svg
                           className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none text-gray-400 dark:text-slate-500"
@@ -287,7 +287,7 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
                         value={localTitle}
                         onChange={(e) => setLocalTitle(e.target.value)}
                         placeholder="请输入网页标题（可选）"
-                        className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-emerald-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(16,185,129,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(16,185,129,0.25)]"
+                        className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-emerald-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(16,185,129,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(16,185,129,0.25)]"
                       />
 
                       <button
@@ -364,7 +364,7 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
                 )}
 
                 <button
-                  className="w-full px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-emerald-500 text-white shadow-[0_4px_14px_rgba(16,185,129,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-emerald-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700"
+                  className="w-full px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-emerald-500 text-white shadow-[0_4px_14px_rgba(16,185,129,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-emerald-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700"
                   onClick={handleSubmit}
                   disabled={
                     isUploading ||

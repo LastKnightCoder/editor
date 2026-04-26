@@ -103,7 +103,7 @@ const VideoScreenshot: React.FC<PropsWithChildren<VideoScreenshotProps>> = ({
           contentEditable={false}
           className={classnames(
             "overflow-hidden rounded-lg",
-            isDark ? "bg-gray-800" : "bg-gray-100",
+            isDark ? "bg-zinc-800" : "bg-gray-100",
           )}
         >
           <LocalImage

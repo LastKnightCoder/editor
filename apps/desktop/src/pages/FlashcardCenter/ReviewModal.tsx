@@ -252,7 +252,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
               const showResult = answerState.submitted;
 
               let cardStyle =
-                "border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-gray-50 dark:hover:bg-gray-800/50";
+                "border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-gray-50 dark:hover:bg-zinc-800/50";
               let iconColor =
                 "text-gray-300 dark:text-gray-600 group-hover:text-blue-400";
 
@@ -386,7 +386,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                 "w-full px-5 py-4 rounded-xl border-2 min-h-[160px] resize-none transition-all text-base leading-relaxed",
                 "focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10",
                 isDark
-                  ? "bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-500"
+                  ? "bg-zinc-800 border-gray-700 text-gray-100 placeholder-gray-500"
                   : "bg-white border-gray-200 text-gray-900 placeholder-gray-400",
                 { "opacity-60 cursor-not-allowed": answerState.submitted },
               )}
@@ -417,7 +417,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                   className={classNames(
                     "p-5 rounded-xl border-l-4 shadow-sm",
                     isDark
-                      ? "bg-gray-800 border-emerald-500/50"
+                      ? "bg-zinc-800 border-emerald-500/50"
                       : "bg-white border-emerald-500 shadow-gray-100",
                   )}
                 >
@@ -455,7 +455,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
               const Icon = option.icon;
 
               let btnClass =
-                "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600";
+                "border-gray-200 dark:border-gray-700 bg-white dark:bg-zinc-800 hover:border-gray-300 dark:hover:border-gray-600";
               let textClass = "text-gray-600 dark:text-gray-400";
 
               if (!showResult) {
@@ -463,7 +463,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                   btnClass = `border-${option.color}-500 bg-${option.color}-50 dark:bg-${option.color}-500/10 shadow-sm`;
                   textClass = `text-${option.color}-600 dark:text-${option.color}-400`;
                 } else {
-                  btnClass += " hover:bg-gray-50 dark:hover:bg-gray-700/50";
+                  btnClass += " hover:bg-gray-50 dark:hover:bg-zinc-700/50";
                 }
               } else {
                 if (isCorrect) {
@@ -528,7 +528,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
         <div className="pt-6 px-8 pb-4 border-b border-gray-100 dark:border-gray-800">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+              <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400">
                 {currentIndex + 1} / {totalCards}
               </span>
               <span className="text-sm font-medium text-gray-400 dark:text-gray-500">
@@ -543,7 +543,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
               {Math.round(progress)}%
             </span>
           </div>
-          <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden">
             <motion.div
               className="h-full bg-blue-500 rounded-full"
               initial={{ width: 0 }}
@@ -566,7 +566,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                   className="text-xl md:text-2xl font-medium leading-normal text-gray-900 dark:text-gray-50"
                 />
                 {extractPlainText(currentCard.detail).trim() && (
-                  <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+                  <div className="mt-4 p-4 bg-gray-50 dark:bg-zinc-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
                     <RichTextRenderer
                       key={`detail-${currentCard.id}`}
                       content={currentCard.detail}
@@ -582,7 +582,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                 {currentCard.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700"
+                    className="px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700"
                   >
                     #{tag}
                   </span>
@@ -657,7 +657,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
+        <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-zinc-900/50">
           {!answerState.submitted ? (
             <button
               onClick={handleSubmitAnswer}
@@ -666,7 +666,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                 "w-full py-3.5 rounded-xl font-bold text-lg transition-all duration-200 shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0",
                 canSubmit
                   ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20"
-                  : "bg-gray-200 dark:bg-gray-800 text-gray-400 cursor-not-allowed shadow-none",
+                  : "bg-gray-200 dark:bg-zinc-800 text-gray-400 cursor-not-allowed shadow-none",
               )}
             >
               提交答案
@@ -674,11 +674,11 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
           ) : (
             <div className="space-y-4">
               <div className="flex items-center gap-4">
-                <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+                <div className="h-px flex-1 bg-gray-200 dark:bg-zinc-700"></div>
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400 shrink-0">
                   反馈难度以调整复习间隔
                 </p>
-                <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+                <div className="h-px flex-1 bg-gray-200 dark:bg-zinc-700"></div>
               </div>
 
               <div className="grid grid-cols-4 gap-3">

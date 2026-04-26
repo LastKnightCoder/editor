@@ -174,7 +174,7 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {step === "input" ? (
-          <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800">
+          <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800">
             <div className="flex items-start gap-3 mb-5">
               <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30">
                 <svg
@@ -197,7 +197,7 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
                 </p>
               </div>
               <button
-                className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
                 onClick={onCancel}
               >
                 <svg
@@ -223,7 +223,7 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
                     setError(null);
                   }}
                   placeholder="在此粘贴 YouTube 链接..."
-                  className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)] disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)] disabled:opacity-60 disabled:cursor-not-allowed"
                   disabled={isAnalyzing}
                 />
               </div>
@@ -235,7 +235,7 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
               )}
 
               <button
-                className="w-full px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-indigo-500 text-white shadow-[0_4px_14px_rgba(99,102,241,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-indigo-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700"
+                className="w-full px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-indigo-500 text-white shadow-[0_4px_14px_rgba(99,102,241,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-indigo-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700"
                 onClick={handleAnalyze}
                 disabled={!url.trim() || isAnalyzing}
               >
@@ -270,7 +270,7 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
             </div>
           </div>
         ) : (
-          <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800">
+          <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800">
             <div className="flex items-center gap-3 pb-4 mb-1 border-b border-gray-200 dark:border-slate-800">
               {videoInfo?.thumbnail && (
                 <img
@@ -291,13 +291,13 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
                 </p>
               </div>
               <button
-                className="shrink-0 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-all bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                className="shrink-0 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
                 onClick={handleBack}
               >
                 返回
               </button>
               <button
-                className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
                 onClick={onCancel}
               >
                 <svg
@@ -339,7 +339,7 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
                   <select
                     value={selectedVideo}
                     onChange={(e) => setSelectedVideo(e.target.value)}
-                    className="w-full py-2.5 pl-3.5 pr-9 rounded-[10px] text-[13px] outline-none appearance-none cursor-pointer transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[0_0_0_3px_rgba(99,102,241,0.25)] [&_option]:dark:bg-slate-900 [&_option]:dark:text-white"
+                    className="w-full py-2.5 pl-3.5 pr-9 rounded-[10px] text-[13px] outline-none appearance-none cursor-pointer transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[0_0_0_3px_rgba(99,102,241,0.25)] [&_option]:dark:bg-zinc-900 [&_option]:dark:text-white"
                   >
                     {videoInfo?.videoStreams.map((stream) => (
                       <option key={stream.id} value={stream.id}>
@@ -383,7 +383,7 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
                   <select
                     value={selectedAudio}
                     onChange={(e) => setSelectedAudio(e.target.value)}
-                    className="w-full py-2.5 pl-3.5 pr-9 rounded-[10px] text-[13px] outline-none appearance-none cursor-pointer transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[0_0_0_3px_rgba(99,102,241,0.25)] [&_option]:dark:bg-slate-900 [&_option]:dark:text-white"
+                    className="w-full py-2.5 pl-3.5 pr-9 rounded-[10px] text-[13px] outline-none appearance-none cursor-pointer transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[0_0_0_3px_rgba(99,102,241,0.25)] [&_option]:dark:bg-zinc-900 [&_option]:dark:text-white"
                   >
                     {videoInfo?.audioStreams.map((stream) => (
                       <option key={stream.id} value={stream.id}>

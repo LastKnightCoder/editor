@@ -223,7 +223,7 @@ export function DatabaseSyncStatusSection(
               void runDatabaseAction(props.onSyncUpload, "数据库上传已完成")
             }
             disabled={props.isSyncing || isSubmitting}
-            className="h-11 rounded-xl bg-gray-900 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+            className="h-11 rounded-xl bg-zinc-900 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
           >
             {props.isSyncing ? "处理中..." : "上传"}
           </button>
@@ -330,7 +330,7 @@ export function ResourceSyncStatusSection(
         </div>
         <div className="h-2 rounded-full bg-gray-200 dark:bg-neutral-800">
           <div
-            className="h-2 rounded-full bg-gray-700 transition-all dark:bg-neutral-200"
+            className="h-2 rounded-full bg-zinc-700 transition-all dark:bg-neutral-200"
             style={{ width: `${percent}%` }}
           />
         </div>
@@ -392,7 +392,7 @@ export function ResourceSyncStatusSection(
               )
             }
             disabled={props.isResourceSyncing || isSubmitting}
-            className="h-11 rounded-xl bg-gray-900 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+            className="h-11 rounded-xl bg-zinc-900 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
           >
             开始同步
           </button>

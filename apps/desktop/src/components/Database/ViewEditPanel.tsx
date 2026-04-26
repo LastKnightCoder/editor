@@ -288,7 +288,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
+              className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
               placeholder="请输入视图名称"
               maxLength={50}
             />
@@ -451,11 +451,11 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
                   卡片属性字段
                 </label>
                 {kanbanTemplate === "compact" ? (
-                  <div className="px-3 py-2 rounded-lg text-sm bg-gray-50 dark:bg-slate-900 text-gray-500 dark:text-slate-400 border border-gray-200 dark:border-slate-700">
+                  <div className="px-3 py-2 rounded-lg text-sm bg-gray-50 dark:bg-zinc-900 text-gray-500 dark:text-slate-400 border border-gray-200 dark:border-slate-700">
                     简洁模板不展示属性字段
                   </div>
                 ) : (
-                  <div className="max-h-44 overflow-y-auto rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-950 p-2 space-y-2">
+                  <div className="max-h-44 overflow-y-auto rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-zinc-950 p-2 space-y-2">
                     {kanbanDisplay.candidateFields.length === 0 ? (
                       <div className="px-2 py-1 text-sm text-gray-500 dark:text-slate-400">
                         暂无可显示字段
@@ -468,7 +468,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
                         return (
                           <label
                             key={field.id}
-                            className="flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-800"
+                            className="flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800"
                           >
                             <input
                               type="checkbox"
@@ -489,7 +489,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
                 )}
               </div>
 
-              <label className="flex items-center justify-between px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-700 cursor-pointer">
+              <label className="flex items-center justify-between px-3 py-2 rounded-xl bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 cursor-pointer">
                 <span className="text-sm text-gray-700 dark:text-slate-200">
                   显示字段标签
                 </span>
@@ -511,7 +511,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold cursor-pointer transition-all bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-700"
+            className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-zinc-700"
           >
             取消
           </button>
@@ -519,7 +519,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
             type="button"
             onClick={handleOk}
             disabled={!canSave}
-            className="flex-1 px-4 py-3 rounded-xl border-none text-sm font-semibold cursor-pointer transition-all bg-indigo-500 text-white shadow-[0_4px_14px_rgba(99,102,241,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-indigo-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none"
+            className="flex-1 px-4 py-3 rounded-xl border-none text-sm font-semibold cursor-pointer transition-all bg-indigo-500 text-white shadow-[0_4px_14px_rgba(99,102,241,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-indigo-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none"
           >
             保存
           </button>

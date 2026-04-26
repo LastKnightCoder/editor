@@ -123,13 +123,24 @@
   min-width: 160px;
   max-width: 240px;
   padding: 8px;
-  border-radius: 16px;
+  border: 6px solid transparent;
+  border-radius: 18px;
+  box-sizing: border-box;
+  overflow: visible;
 
   // 继承父菜单的玻璃样式
   background: rgba(248, 250, 255, 0.92);
   backdrop-filter: blur(18px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.35);
   box-shadow: 0 18px 45px rgba(15, 23, 42, 0.25);
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    pointer-events: none;
+  }
 
   &.subMenuVisible {
     display: block;
@@ -142,10 +153,19 @@
   }
 }
 
+.subMenuContent {
+  display: flex;
+  flex-direction: column;
+  max-height: min(24rem, calc(100vh - 8rem));
+}
+
 :global(.dark) .subMenu {
   background: rgba(10, 15, 28, 0.85);
-  border-color: rgba(255, 255, 255, 0.12);
   box-shadow: 0 22px 60px rgba(2, 6, 23, 0.7);
+}
+
+:global(.dark) .subMenu::before {
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 // 安全三角区 - 防止鼠标快速移动时失去悬停

@@ -81,7 +81,7 @@ const GenerationConfigStep = memo((props: GenerationConfigStepProps) => {
           rows={3}
           className={classNames(
             "w-full px-4 py-3 rounded-xl text-sm outline-none transition-all resize-none",
-            "bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700",
+            "bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700",
             "text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500",
             "focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20",
           )}

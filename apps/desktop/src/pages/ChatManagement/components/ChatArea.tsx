@@ -336,6 +336,16 @@ const ChatArea = memo(
               Object.assign(blockData.metadata, renderer.extractMetadata(code));
             }
 
+            if (renderer?.renderInline && renderer.inlineMode === "expanded") {
+              return (
+                <div className="my-3">
+                  {renderer.renderInline({
+                    block: blockData,
+                  })}
+                </div>
+              );
+            }
+
             return <BlockCard block={blockData} />;
           }
 
@@ -432,7 +442,7 @@ const ChatArea = memo(
                     menu={{ items: branchMenuItems }}
                     placement="bottomRight"
                   >
-                    <div className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer text-sm text-text-secondary transition-colors hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <div className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer text-sm text-text-secondary transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700">
                       <GitBranch size={14} />
                       <span>
                         {currentBranchIndex === 0 && !chatToUse?.parentChatId

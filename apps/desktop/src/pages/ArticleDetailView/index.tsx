@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Empty } from "antd";
 import { useLocalStorageState } from "ahooks";
@@ -7,6 +8,7 @@ import classnames from "classnames";
 import PresentationMode from "@/components/PresentationMode";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import SidebarToggleButton from "@/components/SidebarToggleButton";
+import StatusBar, { StatusBarConfig } from "@/components/StatusBar";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import useTabParams from "@/hooks/useTabParams";
 import { TabType } from "@/types/tab";
@@ -16,6 +18,13 @@ import SimpleArticleList from "./SimpleArticleList";
 import styles from "./index.module.less";
 
 const ArticleDetailView = () => {
+  const [statusBarConfigs, setStatusBarConfigs] = useState<{
+    leftConfigs: StatusBarConfig[];
+    rightConfigs: StatusBarConfig[];
+  }>({
+    leftConfigs: [],
+    rightConfigs: [],
+  });
   const { id } = useTabParams(TabType.ArticleDetail);
   const articleId = id;
 
@@ -82,8 +91,20 @@ const ArticleDetailView = () => {
           })}
         >
           <div className={styles.editContainer}>
-            <EditArticle defaultReadonly={readonly} articleId={articleId} />
+            <EditArticle
+              defaultReadonly={readonly}
+              articleId={articleId}
+              onStatusBarChange={setStatusBarConfigs}
+            />
           </div>
+        </div>
+      </div>
+      <div className={styles.statusBarShell}>
+        <div className={styles.statusBarLeft}>
+          <StatusBar configs={statusBarConfigs.leftConfigs} />
+        </div>
+        <div className={styles.statusBarRight}>
+          <StatusBar configs={statusBarConfigs.rightConfigs} />
         </div>
       </div>
 

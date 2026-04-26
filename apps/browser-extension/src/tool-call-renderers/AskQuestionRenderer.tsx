@@ -193,7 +193,7 @@ const AskQuestionRenderer = ({
       className={classNames(
         "my-3 overflow-hidden rounded-2xl border shadow-[0_14px_36px_rgba(15,23,42,0.12)] backdrop-blur-xl",
         isDark
-          ? "border-white/10 bg-slate-900/80"
+          ? "border-white/10 bg-zinc-900/80"
           : "border-slate-200/80 bg-white/80",
       )}
     >
@@ -249,7 +249,7 @@ const AskQuestionRenderer = ({
               className={classNames(
                 "rounded-xl border p-4",
                 isDark
-                  ? "border-white/10 bg-slate-950/50"
+                  ? "border-white/10 bg-zinc-950/50"
                   : "border-slate-200 bg-slate-50/70",
               )}
             >
@@ -258,7 +258,7 @@ const AskQuestionRenderer = ({
                   className={classNames(
                     "inline-flex h-5 min-w-5 items-center justify-center rounded-md text-[11px] font-semibold px-1.5",
                     isDark
-                      ? "bg-slate-800 text-slate-300 border border-slate-700"
+                      ? "bg-zinc-800 text-slate-300 border border-slate-700"
                       : "bg-white text-slate-600 border border-slate-200",
                   )}
                 >
@@ -306,7 +306,7 @@ const AskQuestionRenderer = ({
                             ? "border-sky-300/60 bg-sky-400/15 text-slate-100"
                             : "border-sky-300 bg-sky-50 text-slate-900"
                           : isDark
-                            ? "border-white/10 bg-slate-900/40 text-slate-300 hover:bg-slate-800/60"
+                            ? "border-white/10 bg-zinc-900/40 text-slate-300 hover:bg-zinc-800/60"
                             : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
                         isLocked && "cursor-not-allowed opacity-80",
                       )}
@@ -385,7 +385,7 @@ const AskQuestionRenderer = ({
                     "w-full rounded-xl border px-3 py-2 text-sm outline-none transition-all",
                     "focus:ring-2 focus:ring-sky-300/30 focus:border-sky-400",
                     isDark
-                      ? "border-slate-700 bg-slate-900 text-slate-100 placeholder:text-slate-500"
+                      ? "border-slate-700 bg-zinc-900 text-slate-100 placeholder:text-slate-500"
                       : "border-slate-200 bg-white text-slate-800 placeholder:text-slate-400",
                     isLocked && "cursor-not-allowed opacity-80",
                   )}
@@ -443,7 +443,7 @@ const AskQuestionRenderer = ({
               "focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
               isLocked
                 ? isDark
-                  ? "bg-slate-700 text-slate-400 cursor-not-allowed"
+                  ? "bg-zinc-700 text-slate-400 cursor-not-allowed"
                   : "bg-slate-100 text-slate-400 cursor-not-allowed"
                 : "bg-sky-500 text-white hover:bg-sky-600",
             )}

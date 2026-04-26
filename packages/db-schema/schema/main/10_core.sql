@@ -69,6 +69,8 @@ CREATE TABLE IF NOT EXISTS document_items (
             article_id INTEGER DEFAULT 0,
             is_card INTEGER DEFAULT 0,
             card_id INTEGER DEFAULT 0,
+            ref_type TEXT DEFAULT '',
+            ref_id INTEGER DEFAULT 0,
             parents TEXT DEFAULT '[]', content_id INTEGER, documents TEXT DEFAULT '[]');
 CREATE TABLE IF NOT EXISTS pdfs (
             id INTEGER PRIMARY KEY,
@@ -100,6 +102,17 @@ CREATE TABLE IF NOT EXISTS pdf_bookmarks (
         update_time INTEGER NOT NULL,
         pdf_id INTEGER NOT NULL,
         bookmark_payload TEXT NOT NULL
+      );
+CREATE TABLE IF NOT EXISTS pdf_chats (
+        id INTEGER PRIMARY KEY,
+        pdf_id INTEGER NOT NULL,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        messages TEXT,
+        title TEXT,
+        archived INTEGER DEFAULT 0,
+        parent_chat_id INTEGER,
+        branch_index INTEGER DEFAULT 0
       );
 CREATE TABLE IF NOT EXISTS daily_notes (
             id INTEGER PRIMARY KEY,

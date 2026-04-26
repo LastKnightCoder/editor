@@ -1,5 +1,5 @@
 import React from "react";
-import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
+import { RenderElementProps, useSlateStatic } from "slate-react";
 import classnames from "classnames";
 import styles from "./index.module.less";
 import type { HeaderElement } from "../../../types";
@@ -17,13 +17,11 @@ const Header: React.FC<React.PropsWithChildren<IHeaderProps>> = (props) => {
   const { element, attributes, children } = props;
   const { level, collapsed = false } = element;
   const editor = useSlateStatic();
-  const path = ReactEditor.findPath(editor, element);
   const features = useEditorFeatures();
 
   const { toggleCollapse } = useHeaderCollapse({
     editor,
     element,
-    path,
   });
 
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =

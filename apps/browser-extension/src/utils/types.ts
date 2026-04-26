@@ -64,6 +64,10 @@ export interface NoteMetadata {
   title: string; // 自动生成如 "笔记 1"，可编辑
   createdAt: number;
   updatedAt: number;
+  /** 当前笔记内容最近一次本地变更时间，用于判断是否存在待同步修改 */
+  contentUpdatedAt?: number;
   /** 数据库名称 -> contentId 的映射，contentId 仅在对应数据库下有效 */
   contentIdMap?: Record<string, number>;
+  /** 数据库名称 -> 最近一次与应用内容成功对齐时的远端 updateTime */
+  syncedContentUpdateTimeMap?: Record<string, number>;
 }

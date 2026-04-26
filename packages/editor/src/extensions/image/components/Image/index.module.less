@@ -2,7 +2,7 @@
   display: block;
   width: fit-content;
   position: relative;
-  border-radius: 0;
+  border-radius: var(--image-border-radius, 0);
   max-width: 100%;
   margin: 0 auto; // 默认居中
 
@@ -28,7 +28,7 @@
     left: -2px;
     pointer-events: none;
     border: 1.5px solid var(--color-primary, #1890ff);
-    border-radius: 0;
+    border-radius: var(--image-border-radius, 0);
   }
 
   &:hover .actions {
@@ -39,6 +39,7 @@
 
   .image {
     max-width: 100%;
+    display: block;
     // zoom removed to ensure resize width equals visual width
     //box-shadow: 0 5px 11px 0 rgba(0, 0, 0, 18%), 0 4px 15px 0 rgba(0, 0, 0, 15%);
     cursor: default;
@@ -471,4 +472,419 @@
 .actionsRow {
   display: flex;
   justify-content: flex-start;
+}
+
+.aiInlinePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.aiPromptInput {
+  width: 100%;
+  min-height: 112px;
+  resize: vertical;
+  padding: 12px 14px;
+  border: 1px solid #d4d4d8;
+  border-radius: 12px;
+  background: #fff;
+  color: #18181b;
+  font-size: 14px;
+  line-height: 1.6;
+  outline: none;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.aiPromptInput::placeholder {
+  color: #a1a1aa;
+}
+
+.aiPromptInput:focus {
+  border-color: #71717a;
+  box-shadow: 0 0 0 3px rgba(113, 113, 122, 0.14);
+}
+
+.aiPromptInput:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.aiPreviewPanel {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  border: 1px dashed #d4d4d8;
+  border-radius: 14px;
+  background: #fafafa;
+}
+
+.aiPreviewEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: #71717a;
+  font-size: 14px;
+  text-align: center;
+}
+
+.aiPreviewImage {
+  max-width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.aiPreviewMeta {
+  color: #71717a;
+  font-size: 13px;
+}
+
+.aiActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.aiPrimaryButton,
+.aiSecondaryButton {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.aiPrimaryButton:disabled,
+.aiSecondaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.aiPrimaryButton {
+  background: #18181b;
+  color: #fff;
+}
+
+.aiPrimaryButton:not(:disabled):hover {
+  background: #27272a;
+}
+
+.aiSecondaryButton {
+  background: #fff;
+  color: #3f3f46;
+  border-color: #d4d4d8;
+}
+
+.aiSecondaryButton:not(:disabled):hover {
+  color: #18181b;
+  border-color: #a1a1aa;
+  background: #f4f4f5;
+}
+
+.sourcePanel.dark .aiPromptInput,
+.imageContainer .aiPromptInput,
+.aiEditModal.dark .aiPromptInput {
+  background: #18181b;
+  color: #f4f4f5;
+  border-color: #52525b;
+}
+
+.sourcePanel.dark .aiPromptInput::placeholder,
+.imageContainer .aiPromptInput::placeholder,
+.aiEditModal.dark .aiPromptInput::placeholder {
+  color: #71717a;
+}
+
+.sourcePanel.dark .aiPromptInput:focus,
+.imageContainer .aiPromptInput:focus,
+.aiEditModal.dark .aiPromptInput:focus {
+  border-color: #a1a1aa;
+  box-shadow: 0 0 0 3px rgba(161, 161, 170, 0.16);
+}
+
+.sourcePanel.dark .aiPreviewPanel,
+.imageContainer .aiPreviewPanel,
+.aiEditModal.dark .aiPreviewPanel {
+  background: #18181b;
+  border-color: #3f3f46;
+}
+
+.sourcePanel.dark .aiPreviewEmpty,
+.sourcePanel.dark .aiPreviewMeta,
+.imageContainer .aiPreviewEmpty,
+.imageContainer .aiPreviewMeta,
+.aiEditModal.dark .aiPreviewEmpty,
+.aiEditModal.dark .aiPreviewMeta {
+  color: #a1a1aa;
+}
+
+.sourcePanel.dark .aiPrimaryButton,
+.imageContainer .aiPrimaryButton,
+.aiEditModal.dark .aiPrimaryButton {
+  background: #f4f4f5;
+  color: #18181b;
+}
+
+.sourcePanel.dark .aiPrimaryButton:not(:disabled):hover,
+.imageContainer .aiPrimaryButton:not(:disabled):hover,
+.aiEditModal.dark .aiPrimaryButton:not(:disabled):hover {
+  background: #e4e4e7;
+}
+
+.sourcePanel.dark .aiSecondaryButton,
+.imageContainer .aiSecondaryButton,
+.aiEditModal.dark .aiSecondaryButton {
+  background: #27272a;
+  color: #e4e4e7;
+  border-color: #52525b;
+}
+
+.sourcePanel.dark .aiSecondaryButton:not(:disabled):hover,
+.imageContainer .aiSecondaryButton:not(:disabled):hover,
+.aiEditModal.dark .aiSecondaryButton:not(:disabled):hover {
+  background: #3f3f46;
+  color: #fafafa;
+  border-color: #71717a;
+}
+
+.aiEditModal {
+  max-height: 90vh;
+}
+
+.aiEditModalBody {
+  max-height: calc(90vh - 170px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.aiEditModalBody::-webkit-scrollbar {
+  width: 4px;
+}
+
+.aiEditModalBody::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.aiEditModalBody::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+:global(.dark) .aiEditModalBody::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.aiEditModalContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.aiEditSourceImage {
+  max-height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid #e4e4e7;
+  border-radius: 14px;
+  background: #f4f4f5;
+}
+
+.aiEditSourceImage img {
+  max-width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+}
+
+.aiEditModal.dark .aiEditSourceImage {
+  background: #18181b;
+  border-color: #3f3f46;
+}
+
+.aiReferenceSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.aiReferenceTitle {
+  color: #71717a;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.aiReferenceList {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.aiReferenceCard {
+  position: relative;
+  width: 92px;
+  min-width: 92px;
+  height: 76px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #d4d4d8;
+  border-radius: 12px;
+  background: #fff;
+  color: #52525b;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.aiReferenceCard:hover {
+  border-color: #a1a1aa;
+  background: #f4f4f5;
+}
+
+.aiReferenceCard.selected {
+  border-color: #18181b;
+  box-shadow: 0 0 0 2px rgba(24, 24, 27, 0.16);
+}
+
+.aiReferenceCard:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.aiReferenceImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.aiReferenceEmpty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fafafa;
+  color: #a1a1aa;
+  font-size: 18px;
+}
+
+.aiReferenceLabel {
+  position: absolute;
+  left: 6px;
+  bottom: 5px;
+  max-width: calc(100% - 12px);
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  color: #3f3f46;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sourcePanel.dark .aiReferenceTitle,
+.aiEditModal.dark .aiReferenceTitle {
+  color: #a1a1aa;
+}
+
+.sourcePanel.dark .aiReferenceCard,
+.aiEditModal.dark .aiReferenceCard {
+  background: #18181b;
+  border-color: #3f3f46;
+  color: #d4d4d8;
+}
+
+.sourcePanel.dark .aiReferenceCard:hover,
+.aiEditModal.dark .aiReferenceCard:hover {
+  background: #27272a;
+  border-color: #71717a;
+}
+
+.sourcePanel.dark .aiReferenceCard.selected,
+.aiEditModal.dark .aiReferenceCard.selected {
+  border-color: #e4e4e7;
+  box-shadow: 0 0 0 2px rgba(228, 228, 231, 0.16);
+}
+
+.sourcePanel.dark .aiReferenceEmpty,
+.aiEditModal.dark .aiReferenceEmpty {
+  background: #18181b;
+  color: #71717a;
+}
+
+.sourcePanel.dark .aiReferenceLabel,
+.aiEditModal.dark .aiReferenceLabel {
+  background: rgba(24, 24, 27, 0.88);
+  color: #f4f4f5;
+}
+
+.aiReferencePreviewOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(8px);
+}
+
+.aiReferencePreviewClose {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.aiReferencePreviewClose:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.aiReferencePreviewImageWrap {
+  max-width: 92vw;
+  max-height: 90vh;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: zoom-out;
+}
+
+.aiReferencePreviewImage {
+  max-width: 92vw;
+  max-height: 90vh;
+  object-fit: contain;
+  display: block;
 }

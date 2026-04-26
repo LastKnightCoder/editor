@@ -52,6 +52,14 @@ export interface BlockPreviewRendererProps {
 }
 
 /**
+ * 块行内渲染器 Props
+ */
+export interface BlockInlineRendererProps {
+  block: BlockData;
+  onPreview?: () => void;
+}
+
+/**
  * 块渲染器接口
  */
 export interface BlockRenderer {
@@ -63,11 +71,20 @@ export interface BlockRenderer {
   // 渲染卡片模式（在消息流中显示）- 可选，如果不提供则使用默认卡片
   renderCard?: (props: BlockCardRendererProps) => React.ReactNode;
 
+  // 渲染行内模式（直接在消息流中展开显示）- 可选
+  renderInline?: (props: BlockInlineRendererProps) => React.ReactNode;
+
   // 渲染预览模式（在右侧面板中显示）
   renderPreview: (props: BlockPreviewRendererProps) => React.ReactNode;
 
   // 可选：提取元数据
   extractMetadata?: (content: string) => Partial<BlockMetadata>;
+
+  // 行内展示模式，默认 card
+  inlineMode?: "expanded" | "card";
+
+  // 是否适合流式更新
+  supportsStreaming?: boolean;
 }
 
 /**

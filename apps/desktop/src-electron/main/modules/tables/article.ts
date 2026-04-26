@@ -50,6 +50,7 @@ export default class ArticleTable {
       "get-articles-by-date-range": this.getArticlesByDateRange.bind(this),
       "get-articles-content-by-ids": this.getArticlesContentByIds.bind(this),
       "is-content-is-article": this.isContentIsArticle.bind(this),
+      "get-article-by-content-id": this.getArticleByContentId.bind(this),
       "build-article-from-content": this.buildArticleFromContent.bind(this),
     };
   }
@@ -569,6 +570,20 @@ export default class ArticleTable {
     );
     const result = stmt.get(contentId);
     return !!result;
+  }
+
+  static getArticleByContentId(
+    db: Database.Database,
+    contentId: number,
+  ): IArticle | null {
+    const stmt = db.prepare(
+      "SELECT id FROM articles WHERE content_id = ? AND is_delete = 0",
+    );
+    const result = stmt.get(contentId) as { id: number } | undefined;
+    if (!result) {
+      return null;
+    }
+    return this.getArticleById(db, result.id);
   }
 
   static buildArticleFromContent(

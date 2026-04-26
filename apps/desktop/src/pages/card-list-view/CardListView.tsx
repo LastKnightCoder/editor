@@ -37,7 +37,6 @@ import {
   updateCard,
   readTextFile,
   selectFile,
-  getCardById,
 } from "@/commands";
 import classNames from "classnames";
 import { useThemeColors } from "@/hooks";
@@ -174,18 +173,6 @@ const CardListView = () => {
   const handleClosePreview = useMemoizedFn(async () => {
     setIsPreviewVisible(false);
     setPreviewCardId(undefined);
-    if (previewCardId) {
-      const updatedPreviewCard = await getCardById(previewCardId);
-      if (updatedPreviewCard) {
-        // 更新 cards
-        setCards((prevCards) =>
-          prevCards.map((c) =>
-            c.id === updatedPreviewCard.id ? updatedPreviewCard : c,
-          ),
-        );
-        cardEventBus.publishCardEvent("card:updated", updatedPreviewCard);
-      }
-    }
   });
 
   const handleImportMarkdown = useMemoizedFn(async () => {
@@ -506,6 +493,7 @@ const CardListView = () => {
                   initCards={sortedCards}
                   onClickCard={handleCardClick}
                   className="w-full h-full"
+                  enableHoverPreview={!isPreviewVisible}
                   currentCardIds={filteredCards.map((card) => card.id)}
                 />
               </If>

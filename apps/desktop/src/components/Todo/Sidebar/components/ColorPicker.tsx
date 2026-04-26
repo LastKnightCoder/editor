@@ -26,7 +26,7 @@ const ColorPicker = memo(({ value, onChange, theme }: ColorPickerProps) => {
       <div
         ref={triggerRef}
         className={classNames(
-          "w-full h-10 border rounded-lg cursor-pointer flex items-center px-3 transition-all duration-200 bg-white dark:bg-gray-700",
+          "w-full h-10 border rounded-lg cursor-pointer flex items-center px-3 transition-all duration-200 bg-white dark:bg-zinc-700",
           isOpen
             ? "border-blue-500 ring-1 ring-blue-200 dark:ring-blue-800/50 shadow-sm"
             : "border-gray-200 dark:border-gray-600 hover:border-blue-400",

@@ -27,26 +27,17 @@ const DocCollectionsMenu = ({
         setOpenMenu(null);
       }
     };
-
     document.addEventListener("click", handleClick);
-    return () => {
-      document.removeEventListener("click", handleClick);
-    };
+    return () => document.removeEventListener("click", handleClick);
   }, [openMenu]);
 
-  // ESC 关闭
   useEffect(() => {
     if (!openMenu) return;
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpenMenu(null);
-      }
+      if (event.key === "Escape") setOpenMenu(null);
     };
-
     document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-    };
+    return () => document.removeEventListener("keydown", handleEscape);
   }, [openMenu]);
 
   const normalized = collections
@@ -56,11 +47,8 @@ const DocCollectionsMenu = ({
     }))
     .filter((collection) => collection.items.length > 0);
 
-  if (!normalized.length) {
-    return null;
-  }
+  if (!normalized.length) return null;
 
-  // 移动端样式
   if (variant === "mobile") {
     return (
       <div className="flex w-full flex-col gap-3" ref={wrapperRef}>
@@ -72,9 +60,9 @@ const DocCollectionsMenu = ({
               <button
                 type="button"
                 className={classNames(
-                  "flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm font-medium transition-all",
+                  "flex w-full items-center justify-between rounded-lg px-4 py-3 text-sm font-medium transition-colors",
                   isOpen || hasActiveItem
-                    ? "bg-[var(--color-primary-subtle)] text-[var(--color-primary)]"
+                    ? "bg-[var(--color-primary-subtle)] text-[var(--color-text-primary)]"
                     : "bg-[var(--color-bg-canvas)] text-[var(--color-text-secondary)]",
                 )}
                 aria-expanded={isOpen}
@@ -87,7 +75,7 @@ const DocCollectionsMenu = ({
                 <span>{collection.label}</span>
                 <svg
                   className={classNames(
-                    "h-4 w-4 transition-transform duration-200",
+                    "h-4 w-4 transition-transform duration-150",
                     isOpen && "rotate-180",
                   )}
                   fill="none"
@@ -103,28 +91,20 @@ const DocCollectionsMenu = ({
                 </svg>
               </button>
               {isOpen && (
-                <div className="mt-2 space-y-1 pl-4">
+                <div className="mt-1 space-y-0.5 pl-4">
                   {collection.items.map((item) => (
                     <a
                       key={`${collection.type}-${item.id}`}
                       href={joinPath(basePath, item.href, { raw: true })}
                       className={classNames(
-                        "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
+                        "block rounded-lg px-3 py-2 text-sm transition-colors",
                         item.active
-                          ? "text-[var(--color-primary)] font-medium"
-                          : "text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]",
+                          ? "text-[var(--color-text-primary)] font-medium"
+                          : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]",
                       )}
                       onClick={() => setOpenMenu(null)}
                     >
-                      <span
-                        className={classNames(
-                          "h-1.5 w-1.5 rounded-full",
-                          item.active
-                            ? "bg-[var(--color-primary)]"
-                            : "bg-[var(--color-text-quaternary)]",
-                        )}
-                      />
-                      <span className="line-clamp-1">{item.title}</span>
+                      {item.title}
                     </a>
                   ))}
                 </div>
@@ -136,9 +116,8 @@ const DocCollectionsMenu = ({
     );
   }
 
-  // 桌面端样式
   return (
-    <div className="flex items-center gap-2" ref={wrapperRef}>
+    <div className="flex items-center gap-1" ref={wrapperRef}>
       {normalized.map((collection) => {
         const isOpen = openMenu === collection.type;
         const hasActiveItem = collection.items.some((item) => item.active);
@@ -160,7 +139,7 @@ const DocCollectionsMenu = ({
               <span>{collection.label}</span>
               <svg
                 className={classNames(
-                  "h-4 w-4 transition-transform duration-200",
+                  "h-4 w-4 transition-transform duration-150",
                   isOpen && "rotate-180",
                 )}
                 fill="none"

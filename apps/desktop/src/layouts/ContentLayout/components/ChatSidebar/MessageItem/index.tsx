@@ -13,12 +13,23 @@ import MarkdownRenderer from "../MarkdownRenderer";
 import { MarkdownMessageMeta } from "../MarkdownContext";
 import ToolCallDisplay from "./ToolCallDisplay";
 import ReasoningDisplay from "./ReasoningDisplay";
-import { BiCopy, BiTrash, BiRefresh, BiGitBranch } from "react-icons/bi";
+import {
+  BiCopy,
+  BiTrash,
+  BiRefresh,
+  BiGitBranch,
+  BiEdit,
+} from "react-icons/bi";
 import { App } from "antd";
 import { FilePdfOutlined } from "@ant-design/icons";
 import { showInFolder, getHomeDir } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 import { useThemeColors } from "@/hooks";
+import LocalImage from "@/components/LocalImage";
+import {
+  buildLegacyAssistantDisplayBlocks,
+  getDisplayTextFromBlocks,
+} from "@tau/shared";
 import styles from "./index.module.less";
 
 interface MessageItemProps {
@@ -134,6 +145,37 @@ const getFileContent = (
     });
 };
 
+const mapAssistantBlocksToContentBlocks = (
+  assistantBlocks: AssistantBlock[],
+): ResponseContentBlock[] =>
+  assistantBlocks.flatMap((block): ResponseContentBlock[] => {
+    if (block.type === "tool_call") {
+      return [
+        {
+          type: "tool_calls",
+          executions: [block.execution].filter(
+            (execution): execution is ToolCallExecutionState =>
+              Boolean(execution),
+          ),
+        },
+      ];
+    }
+
+    if (block.type === "text") {
+      return [{ type: "text", content: block.content }];
+    }
+
+    return [
+      {
+        type: "reasoning",
+        content: block.content,
+        startTime: block.startTime,
+        endTime: block.endTime,
+        duration: block.duration,
+      },
+    ];
+  });
+
 const MessageItem: React.FC<MessageItemProps> = memo(
   ({
     message,
@@ -142,6 +184,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     isVisible,
     onDeleteMessage,
     onRegenerateMessage,
+    onEditMessage,
     onCreateBranch,
     messageIndex,
     messageMeta,
@@ -155,10 +198,8 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     const isAssistant = message.role === Role.Assistant;
 
     let displayContent = "";
-    let reasoningContent = "";
-    let toolExecutions: ToolCallExecutionState[] = [];
     let assistantBlocks: AssistantBlock[] = [];
-    let contentBlocks: ResponseContentBlock[] | undefined;
+    let contentBlocks: ResponseContentBlock[] = [];
     let images: string[] = [];
     let files: Array<{ path: string; name: string }> = [];
 
@@ -170,77 +211,36 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     } else {
       const assistantMessage = message as ResponseMessage;
       assistantBlocks = assistantMessage.assistant_blocks || [];
-      // 优先使用 content_blocks（新的有序结构）
-      contentBlocks =
+      const baseContentBlocks =
         assistantBlocks.length > 0
-          ? undefined
-          : assistantMessage.content_blocks;
-
-      // 向后兼容：如果没有 content_blocks，使用旧字段
-      if (
-        assistantBlocks.length === 0 &&
-        (!contentBlocks || contentBlocks.length === 0)
-      ) {
-        displayContent = assistantMessage.content;
-        reasoningContent = assistantMessage.reasoning_content || "";
-        toolExecutions = assistantMessage.tool_executions || [];
-      }
+          ? mapAssistantBlocksToContentBlocks(assistantBlocks)
+          : assistantMessage.content_blocks?.length
+            ? assistantMessage.content_blocks
+            : (buildLegacyAssistantDisplayBlocks({
+                content: assistantMessage.content,
+                reasoning: assistantMessage.reasoning_content || "",
+                toolExecutions: assistantMessage.tool_executions || [],
+              }) as ResponseContentBlock[]);
+      contentBlocks = baseContentBlocks;
     }
 
-    const filteredAssistantBlocks = assistantBlocks.filter((block) => {
+    const filteredContentBlocks = contentBlocks.filter((block) => {
       if (block.type === "text" || block.type === "reasoning") {
         return block.content.trim().length > 0;
+      }
+      if (block.type === "tool_calls") {
+        return block.executions.length > 0;
       }
       return true;
     });
 
-    const filteredContentBlocks =
-      contentBlocks?.filter((block) => {
-        if (block.type === "text" || block.type === "reasoning") {
-          return block.content.trim().length > 0;
-        }
-        if (block.type === "tool_calls") {
-          return block.executions.length > 0;
-        }
-        return true;
-      }) || [];
-
     useEffect(() => {
-      if (
-        !isAssistant ||
-        (filteredAssistantBlocks.length === 0 &&
-          filteredContentBlocks.length === 0)
-      ) {
+      if (!isAssistant || filteredContentBlocks.length === 0) {
         return;
       }
 
       const suspiciousPattern = findRenderedSuspiciousPattern(
-        filteredContentBlocks.length > 0
-          ? filteredContentBlocks
-          : filteredAssistantBlocks.flatMap((block): ResponseContentBlock[] => {
-              if (block.type === "tool_call") {
-                return [
-                  {
-                    type: "tool_calls",
-                    executions: [block.execution].filter(
-                      (execution): execution is ToolCallExecutionState =>
-                        Boolean(execution),
-                    ),
-                  },
-                ];
-              }
-              return [
-                block.type === "text"
-                  ? { type: "text", content: block.content }
-                  : {
-                      type: "reasoning",
-                      content: block.content,
-                      startTime: block.startTime,
-                      endTime: block.endTime,
-                      duration: block.duration,
-                    },
-              ];
-            }),
+        filteredContentBlocks,
       );
       if (!suspiciousPattern) {
         return;
@@ -267,33 +267,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
         rawReasoning: summarizeText(
           (message as ResponseMessage).reasoning_content || "",
         ),
-        blocks: (filteredContentBlocks.length > 0
-          ? filteredContentBlocks
-          : filteredAssistantBlocks.flatMap((block): ResponseContentBlock[] => {
-              if (block.type === "tool_call") {
-                return [
-                  {
-                    type: "tool_calls",
-                    executions: [block.execution].filter(
-                      (execution): execution is ToolCallExecutionState =>
-                        Boolean(execution),
-                    ),
-                  },
-                ];
-              }
-              return [
-                block.type === "text"
-                  ? { type: "text", content: block.content }
-                  : {
-                      type: "reasoning",
-                      content: block.content,
-                      startTime: block.startTime,
-                      endTime: block.endTime,
-                      duration: block.duration,
-                    },
-              ];
-            })
-        ).map((block) => {
+        blocks: filteredContentBlocks.map((block) => {
           if (block.type === "tool_calls") {
             return {
               type: block.type,
@@ -312,21 +286,12 @@ const MessageItem: React.FC<MessageItemProps> = memo(
         }),
         pattern: suspiciousPattern,
       });
-    }, [
-      filteredAssistantBlocks,
-      filteredContentBlocks,
-      isAssistant,
-      message,
-      messageIndex,
-    ]);
+    }, [filteredContentBlocks, isAssistant, message, messageIndex]);
 
     if (
       !displayContent &&
-      !reasoningContent &&
       images.length === 0 &&
       files.length === 0 &&
-      toolExecutions.length === 0 &&
-      filteredAssistantBlocks.length === 0 &&
       filteredContentBlocks.length === 0
     ) {
       return null;
@@ -349,26 +314,13 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     };
 
     const handleCopy = async () => {
-      let contentToCopy = displayContent || reasoningContent;
-
-      if (!contentToCopy && filteredAssistantBlocks.length > 0) {
-        contentToCopy = filteredAssistantBlocks
-          .filter(
-            (block) => block.type === "text" || block.type === "reasoning",
-          )
-          .map((block) => block.content)
-          .join("\n\n");
-      }
-
-      // 如果使用 contentBlocks，从中提取文本内容
-      if (!contentToCopy && contentBlocks && contentBlocks.length > 0) {
-        contentToCopy = contentBlocks
-          .filter(
-            (block) => block.type === "text" || block.type === "reasoning",
-          )
-          .map((block) => block.content)
-          .join("\n\n");
-      }
+      const contentToCopy = isUser
+        ? displayContent
+        : getDisplayTextFromBlocks(
+            filteredContentBlocks as Parameters<
+              typeof getDisplayTextFromBlocks
+            >[0],
+          );
 
       if (!contentToCopy) {
         antdMessage.warning("没有可复制的内容");
@@ -402,9 +354,16 @@ const MessageItem: React.FC<MessageItemProps> = memo(
       onRegenerateMessage?.(messageIndex);
     };
 
+    const handleEdit = () => {
+      onEditMessage?.(messageIndex, displayContent);
+    };
+
     const handleCreateBranch = () => {
       onCreateBranch?.(messageIndex);
     };
+
+    const canEditMessage =
+      isUser && !!onEditMessage && displayContent.length > 0;
 
     return (
       <div
@@ -424,15 +383,14 @@ const MessageItem: React.FC<MessageItemProps> = memo(
           })}
         >
           <div className={styles.messageContent}>
-            {/* 新逻辑：优先使用 assistant_blocks，其次兼容 content_blocks */}
-            {filteredAssistantBlocks.length > 0 ? (
+            {isUser ? (
               <>
                 {images.length > 0 && (
                   <div className={styles.imagesContainer}>
                     {images.map((image, index) => (
-                      <img
+                      <LocalImage
                         key={index}
-                        src={image}
+                        url={image}
                         alt={`User uploaded image ${index + 1}`}
                         className={styles.messageImage}
                       />
@@ -458,118 +416,19 @@ const MessageItem: React.FC<MessageItemProps> = memo(
                     ))}
                   </div>
                 )}
-                {(() => {
-                  let lastTextBlockIndex = -1;
-                  for (
-                    let i = filteredAssistantBlocks.length - 1;
-                    i >= 0;
-                    i--
-                  ) {
-                    if (filteredAssistantBlocks[i].type === "text") {
-                      lastTextBlockIndex = i;
-                      break;
-                    }
-                  }
-
-                  return filteredAssistantBlocks.map((block, index) => {
-                    const isLastTextBlock =
-                      block.type === "text" && index === lastTextBlockIndex;
-                    const textContent =
-                      block.type === "text" ? block.content : undefined;
-                    const blockMeta = messageMeta
-                      ? {
-                          ...messageMeta,
-                          blockIndex: index,
-                          isLastTextBlock,
-                          textContent,
-                        }
-                      : undefined;
-
-                    if (block.type === "reasoning") {
-                      return (
-                        <ReasoningDisplay
-                          key={block.id}
-                          content={block.content}
-                          isDark={isDark}
-                          markdownComponents={markdownComponents}
-                          isVisible={isVisible}
-                          startTime={block.startTime}
-                          endTime={block.endTime}
-                          duration={block.duration}
-                          messageMeta={blockMeta}
-                        />
-                      );
-                    }
-
-                    if (block.type === "tool_call") {
-                      const execution = block.execution;
-                      if (!execution) {
-                        return null;
-                      }
-                      return (
-                        <div
-                          key={block.id}
-                          className={styles.toolCallsContainer}
-                        >
-                          <ToolCallDisplay
-                            execution={execution}
-                            isDark={isDark}
-                          />
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <MarkdownRenderer
-                        key={block.id}
-                        content={block.content}
-                        className={styles.markdown}
-                        markdownComponents={markdownComponents}
-                        shouldRender={isVisible}
-                        messageMeta={blockMeta}
-                      />
-                    );
-                  });
-                })()}
+                {displayContent && (
+                  <MarkdownRenderer
+                    content={displayContent}
+                    className={styles.markdown}
+                    markdownComponents={markdownComponents}
+                    shouldRender={isVisible}
+                    messageMeta={messageMeta}
+                  />
+                )}
               </>
             ) : filteredContentBlocks.length > 0 ? (
               <>
-                {/* 用户内容（图片和文件）在顶部 */}
-                {images.length > 0 && (
-                  <div className={styles.imagesContainer}>
-                    {images.map((image, index) => (
-                      <img
-                        key={index}
-                        src={image}
-                        alt={`User uploaded image ${index + 1}`}
-                        className={styles.messageImage}
-                      />
-                    ))}
-                  </div>
-                )}
-                {files.length > 0 && (
-                  <div className={styles.filesContainer}>
-                    {files.map((file, index) => (
-                      <button
-                        key={`${file.path}-${index}`}
-                        className={styles.fileAttachment}
-                        onClick={() => openFileInExplorer(file.path)}
-                      >
-                        <div className={styles.fileInfo}>
-                          <FilePdfOutlined />
-                          <span>{file.name}</span>
-                        </div>
-                        <span className={styles.fileAction}>
-                          在文件夹中打开
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* 按顺序渲染所有内容块 */}
                 {(() => {
-                  // 找出最后一个 text block 的索引
                   let lastTextBlockIndex = -1;
                   for (let i = filteredContentBlocks.length - 1; i >= 0; i--) {
                     if (filteredContentBlocks[i].type === "text") {
@@ -637,71 +496,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
                   });
                 })()}
               </>
-            ) : (
-              <>
-                {/* 旧逻辑：向后兼容 */}
-                {reasoningContent && (
-                  <ReasoningDisplay
-                    content={reasoningContent}
-                    isDark={isDark}
-                    markdownComponents={markdownComponents}
-                    isVisible={isVisible}
-                    messageMeta={messageMeta}
-                  />
-                )}
-                {toolExecutions.length > 0 && (
-                  <div className={styles.toolCallsContainer}>
-                    {toolExecutions.map((execution, index) => (
-                      <ToolCallDisplay
-                        key={execution.toolCallId || index}
-                        execution={execution}
-                        isDark={isDark}
-                      />
-                    ))}
-                  </div>
-                )}
-                {images.length > 0 && (
-                  <div className={styles.imagesContainer}>
-                    {images.map((image, index) => (
-                      <img
-                        key={index}
-                        src={image}
-                        alt={`User uploaded image ${index + 1}`}
-                        className={styles.messageImage}
-                      />
-                    ))}
-                  </div>
-                )}
-                {files.length > 0 && (
-                  <div className={styles.filesContainer}>
-                    {files.map((file, index) => (
-                      <button
-                        key={`${file.path}-${index}`}
-                        className={styles.fileAttachment}
-                        onClick={() => openFileInExplorer(file.path)}
-                      >
-                        <div className={styles.fileInfo}>
-                          <FilePdfOutlined />
-                          <span>{file.name}</span>
-                        </div>
-                        <span className={styles.fileAction}>
-                          在文件夹中打开
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {displayContent && (
-                  <MarkdownRenderer
-                    content={displayContent}
-                    className={styles.markdown}
-                    markdownComponents={markdownComponents}
-                    shouldRender={isVisible}
-                    messageMeta={messageMeta}
-                  />
-                )}
-              </>
-            )}
+            ) : null}
           </div>
         </div>
         <div
@@ -714,7 +509,18 @@ const MessageItem: React.FC<MessageItemProps> = memo(
         >
           {isUser ? (
             <>
+              {canEditMessage && (
+                <button
+                  type="button"
+                  className={styles.actionButton}
+                  onClick={handleEdit}
+                  title="编辑"
+                >
+                  <BiEdit />
+                </button>
+              )}
               <button
+                type="button"
                 className={styles.actionButton}
                 onClick={handleRegenerate}
                 title="重新生成"
@@ -722,6 +528,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
                 <BiRefresh />
               </button>
               <button
+                type="button"
                 className={styles.actionButton}
                 onClick={handleCopy}
                 title="复制"
@@ -729,6 +536,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
                 <BiCopy />
               </button>
               <button
+                type="button"
                 className={styles.actionButton}
                 onClick={handleDelete}
                 title="删除"
@@ -739,6 +547,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
           ) : (
             <>
               <button
+                type="button"
                 className={styles.actionButton}
                 onClick={handleCreateBranch}
                 title="创建分支"
@@ -746,6 +555,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
                 <BiGitBranch />
               </button>
               <button
+                type="button"
                 className={styles.actionButton}
                 onClick={handleCopy}
                 title="复制"
@@ -753,6 +563,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
                 <BiCopy />
               </button>
               <button
+                type="button"
                 className={styles.actionButton}
                 onClick={handleDelete}
                 title="删除"

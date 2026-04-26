@@ -315,6 +315,17 @@ const RightChatSidebar = memo(
             Object.assign(blockData.metadata, renderer.extractMetadata(code));
           }
 
+          if (renderer?.renderInline && renderer.inlineMode === "expanded") {
+            return (
+              <div className="my-3">
+                {renderer.renderInline({
+                  block: blockData,
+                  onPreview: () => handleOpenInTab(blockData),
+                })}
+              </div>
+            );
+          }
+
           return <BlockCard block={blockData} onPreview={handleOpenInTab} />;
         }
 
@@ -379,11 +390,11 @@ const RightChatSidebar = memo(
         onWidthChange={(newWidth) => {
           setWidth(newWidth);
         }}
-        side="left"
+        resizeHandleSide="left"
         minWidth={400}
         maxWidth={800}
         disableResize={!open}
-        handleOffset={14}
+        handleOffset={9}
       >
         <MarkdownProvider isDark={isDark} isVisible={open}>
           <div className="h-full box-border overflow-hidden rounded-2xl">

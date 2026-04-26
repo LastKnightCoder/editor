@@ -9,10 +9,11 @@ interface FullscreenPortalProps {
   onClose: () => void;
   title?: string;
   className?: string;
+  hideHeader?: boolean;
 }
 
 const FullscreenPortal: React.FC<FullscreenPortalProps> = memo(
-  ({ children, onClose, title, className }) => {
+  ({ children, onClose, title, className, hideHeader = false }) => {
     useEffect(() => {
       // 禁止body滚动
       document.body.style.overflow = "hidden";
@@ -35,15 +36,15 @@ const FullscreenPortal: React.FC<FullscreenPortalProps> = memo(
     return createPortal(
       <div className={classNames(styles.overlay, className)}>
         <div className={styles.container}>
-          {/* 头部 */}
-          <div className={styles.header}>
-            <div className={styles.title}>{title || "Fullscreen View"}</div>
-            <button className={styles.closeBtn} onClick={onClose}>
-              <X size={18} />
-            </button>
-          </div>
+          {!hideHeader && (
+            <div className={styles.header}>
+              <div className={styles.title}>{title || "Fullscreen View"}</div>
+              <button className={styles.closeBtn} onClick={onClose}>
+                <X size={18} />
+              </button>
+            </div>
+          )}
 
-          {/* 内容区 */}
           <div className={styles.content}>{children}</div>
         </div>
       </div>,

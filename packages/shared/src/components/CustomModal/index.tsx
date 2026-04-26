@@ -326,7 +326,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
       >
         <div
           className={classNames(
-            "rounded-2xl p-6 shadow-2xl bg-white/95 dark:bg-slate-900/95 border border-gray-200 dark:border-slate-800 backdrop-blur",
+            "rounded-2xl p-6 shadow-2xl bg-white/95 dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800 backdrop-blur",
             contentClassName,
           )}
           style={contentStyle}
@@ -365,7 +365,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
                   {showCloseButton && closeIcon !== null && (
                     <button
                       type="button"
-                      className="shrink-0 w-8 h-8 ml-3 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                      className="shrink-0 w-8 h-8 ml-3 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
                       onClick={onCancel}
                     >
                       {computedCloseIcon}
@@ -377,7 +377,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
                 closeIcon !== null && (
                   <button
                     type="button"
-                    className="shrink-0 w-8 h-8 ml-auto rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
+                    className="shrink-0 w-8 h-8 ml-auto rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
                     onClick={onCancel}
                   >
                     {computedCloseIcon}
