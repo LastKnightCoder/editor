@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Transforms, Editor as SlateEditor } from "slate";
+import { Transforms } from "slate";
 import {
   ReactEditor,
   RenderElementProps,
