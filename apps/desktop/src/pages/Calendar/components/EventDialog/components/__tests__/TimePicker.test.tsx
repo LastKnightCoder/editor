@@ -6,7 +6,7 @@ import TimePicker from "../TimePicker";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-const originalScrollTo = HTMLElement.prototype.scrollTo;
+const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
 
 const mount = async (node: ReactNode) => {
   const container = document.createElement("div");
@@ -33,48 +33,18 @@ describe("TimePicker", () => {
   afterEach(() => {
     vi.useRealTimers();
     document.body.innerHTML = "";
-    if (originalScrollTo) {
-      HTMLElement.prototype.scrollTo = originalScrollTo;
+    if (originalScrollIntoView) {
+      HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
     } else {
-      delete (HTMLElement.prototype as Partial<HTMLElement>).scrollTo;
+      delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
     }
     vi.restoreAllMocks();
   });
 
   it("打开面板时应滚动到当前选中的小时和分钟", async () => {
-    const scrollToMock = vi.fn();
-    HTMLElement.prototype.scrollTo = scrollToMock;
-
-    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(
-      function mockClientHeight(this: HTMLElement) {
-        return String(this.className).includes("overflow-y-auto") ? 160 : 0;
-      },
-    );
-    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(
-      function mockOffsetHeight(this: HTMLElement) {
-        if (
-          this instanceof HTMLButtonElement &&
-          /^\d{2}$/.test(this.textContent?.trim() ?? "")
-        ) {
-          return 28;
-        }
-        return 0;
-      },
-    );
-    vi.spyOn(HTMLElement.prototype, "offsetTop", "get").mockImplementation(
-      function mockOffsetTop(this: HTMLElement) {
-        if (!(this instanceof HTMLButtonElement)) {
-          return 0;
-        }
-
-        const text = this.textContent?.trim() ?? "";
-        if (!/^\d{2}$/.test(text)) {
-          return 0;
-        }
-
-        return Number(text) * 28;
-      },
-    );
+    const scrollIntoViewMock = vi.fn();
+    HTMLElement.prototype.scrollIntoView =
+      scrollIntoViewMock as typeof HTMLElement.prototype.scrollIntoView;
 
     const { root, container } = await mount(
       <TimePicker value="18:45" onChange={vi.fn()} label="开始时间" />,
@@ -91,53 +61,29 @@ describe("TimePicker", () => {
       vi.runAllTimers();
     });
 
-    expect(scrollToMock).toHaveBeenCalledTimes(2);
-    expect(scrollToMock).toHaveBeenNthCalledWith(1, {
-      top: 438,
-      behavior: "smooth",
+    expect(scrollIntoViewMock).toHaveBeenCalledTimes(2);
+    expect(scrollIntoViewMock).toHaveBeenNthCalledWith(1, {
+      block: "nearest",
+      inline: "nearest",
     });
-    expect(scrollToMock).toHaveBeenNthCalledWith(2, {
-      top: 1194,
-      behavior: "smooth",
+    expect(scrollIntoViewMock).toHaveBeenNthCalledWith(2, {
+      block: "nearest",
+      inline: "nearest",
     });
+    expect(
+      (scrollIntoViewMock.mock.instances[0] as HTMLElement).textContent?.trim(),
+    ).toBe("18");
+    expect(
+      (scrollIntoViewMock.mock.instances[1] as HTMLElement).textContent?.trim(),
+    ).toBe("45");
 
     await unmount(root, container);
   });
 
   it("外部 value 更新后应滚动到新的已选小时和分钟", async () => {
-    const scrollToMock = vi.fn();
-    HTMLElement.prototype.scrollTo = scrollToMock;
-
-    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(
-      function mockClientHeight(this: HTMLElement) {
-        return String(this.className).includes("overflow-y-auto") ? 160 : 0;
-      },
-    );
-    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(
-      function mockOffsetHeight(this: HTMLElement) {
-        if (
-          this instanceof HTMLButtonElement &&
-          /^\d{2}$/.test(this.textContent?.trim() ?? "")
-        ) {
-          return 28;
-        }
-        return 0;
-      },
-    );
-    vi.spyOn(HTMLElement.prototype, "offsetTop", "get").mockImplementation(
-      function mockOffsetTop(this: HTMLElement) {
-        if (!(this instanceof HTMLButtonElement)) {
-          return 0;
-        }
-
-        const text = this.textContent?.trim() ?? "";
-        if (!/^\d{2}$/.test(text)) {
-          return 0;
-        }
-
-        return Number(text) * 28;
-      },
-    );
+    const scrollIntoViewMock = vi.fn();
+    HTMLElement.prototype.scrollIntoView =
+      scrollIntoViewMock as typeof HTMLElement.prototype.scrollIntoView;
 
     const { root, container } = await mount(
       <TimePicker value="09:00" onChange={vi.fn()} label="开始时间" />,
@@ -153,7 +99,7 @@ describe("TimePicker", () => {
       vi.runAllTimers();
     });
 
-    scrollToMock.mockClear();
+    scrollIntoViewMock.mockClear();
 
     await act(async () => {
       root.render(
@@ -164,15 +110,21 @@ describe("TimePicker", () => {
       vi.runAllTimers();
     });
 
-    expect(scrollToMock).toHaveBeenCalledTimes(2);
-    expect(scrollToMock).toHaveBeenNthCalledWith(1, {
-      top: 214,
-      behavior: "smooth",
+    expect(scrollIntoViewMock).toHaveBeenCalledTimes(2);
+    expect(scrollIntoViewMock).toHaveBeenNthCalledWith(1, {
+      block: "nearest",
+      inline: "nearest",
     });
-    expect(scrollToMock).toHaveBeenNthCalledWith(2, {
-      top: 774,
-      behavior: "smooth",
+    expect(scrollIntoViewMock).toHaveBeenNthCalledWith(2, {
+      block: "nearest",
+      inline: "nearest",
     });
+    expect(
+      (scrollIntoViewMock.mock.instances[0] as HTMLElement).textContent?.trim(),
+    ).toBe("10");
+    expect(
+      (scrollIntoViewMock.mock.instances[1] as HTMLElement).textContent?.trim(),
+    ).toBe("30");
 
     await unmount(root, container);
   });

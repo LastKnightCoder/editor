@@ -14,9 +14,11 @@ const ToggleSwitch: FC<ToggleSwitchProps> = ({
   label,
 }) => {
   return (
-    <label className="flex items-center gap-3 cursor-pointer group">
+    <div className="flex items-center gap-3">
       {/* Toggle Switch */}
-      <div className="relative">
+      <label
+        className={`relative group ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+      >
         <input
           type="checkbox"
           checked={checked}
@@ -44,7 +46,7 @@ const ToggleSwitch: FC<ToggleSwitchProps> = ({
             `}
           />
         </div>
-      </div>
+      </label>
 
       {/* Label */}
       <span
@@ -56,7 +58,7 @@ const ToggleSwitch: FC<ToggleSwitchProps> = ({
       >
         {label}
       </span>
-    </label>
+    </div>
   );
 };
 

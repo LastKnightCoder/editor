@@ -54,6 +54,7 @@ import {
   normalizeMagicMove,
   removeMagicMoveStep,
 } from "../../utils/magicMoveOps";
+import { deleteCodeBlock } from "../../utils/deleteCodeBlock";
 import {
   hasHighlightedLineInRange,
   mergeHighlightRange,
@@ -726,26 +727,8 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
         if (readOnly) return;
         cancelPendingPersist();
         const path = ReactEditor.findPath(slateEditor, element);
-        SlateEditor.withoutNormalizing(slateEditor, () => {
-          Transforms.delete(slateEditor, { at: path });
-          Transforms.insertNodes(
-            slateEditor,
-            {
-              type: "paragraph",
-              children: [
-                {
-                  type: "formatted",
-                  text: "",
-                },
-              ],
-            },
-            {
-              at: path,
-              select: true,
-            },
-          );
-        });
         codeBlockMap.delete(uuid);
+        deleteCodeBlock(slateEditor, path);
         return;
       }
 
