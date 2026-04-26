@@ -1,5 +1,5 @@
 import type { HeaderElement } from "../../../types";
-import { Editor, NodeEntry, Transforms } from "slate";
+import { Editor, NodeEntry, Range, Transforms } from "slate";
 
 export const insertBreak = (editor: Editor) => {
   const { insertBreak } = editor;
@@ -9,6 +9,26 @@ export const insertBreak = (editor: Editor) => {
     });
     if (match) {
       const [node, path] = match as NodeEntry<HeaderElement>;
+      const { selection } = editor;
+      if (
+        selection &&
+        Range.isCollapsed(selection) &&
+        Editor.isStart(editor, selection.anchor, path)
+      ) {
+        Editor.withoutNormalizing(editor, () => {
+          const nextPath = [...path.slice(0, -1), path[path.length - 1] + 1];
+          Transforms.insertNodes(
+            editor,
+            {
+              type: "paragraph",
+              children: [{ type: "formatted", text: "" }],
+            },
+            { at: path },
+          );
+          Transforms.select(editor, Editor.start(editor, nextPath));
+        });
+        return;
+      }
       if (node.collapsed) {
         Transforms.setNodes(editor, { collapsed: false }, { at: path });
         return;

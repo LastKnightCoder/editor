@@ -27,8 +27,6 @@ const TimePicker: FC<TimePickerProps> = ({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const hourListRef = useRef<HTMLDivElement>(null);
-  const minuteListRef = useRef<HTMLDivElement>(null);
   const selectedHourRef = useRef<HTMLButtonElement>(null);
   const selectedMinuteRef = useRef<HTMLButtonElement>(null);
   const [position, setPosition] = useState<Position>({
@@ -122,20 +120,12 @@ const TimePicker: FC<TimePickerProps> = ({
   });
 
   const scrollToSelectedOption = useMemoizedFn(
-    (
-      container: HTMLDivElement | null,
-      target: HTMLButtonElement | null,
-    ): void => {
-      if (!container || !target) return;
+    (target: HTMLButtonElement | null): void => {
+      if (!target) return;
 
-      const top = Math.max(
-        0,
-        target.offsetTop - container.clientHeight / 2 + target.offsetHeight / 2,
-      );
-
-      container.scrollTo({
-        top,
-        behavior: "smooth",
+      target.scrollIntoView({
+        block: "nearest",
+        inline: "nearest",
       });
     },
   );
@@ -144,8 +134,8 @@ const TimePicker: FC<TimePickerProps> = ({
     if (!isOpen) return;
 
     const timer = window.setTimeout(() => {
-      scrollToSelectedOption(hourListRef.current, selectedHourRef.current);
-      scrollToSelectedOption(minuteListRef.current, selectedMinuteRef.current);
+      scrollToSelectedOption(selectedHourRef.current);
+      scrollToSelectedOption(selectedMinuteRef.current);
     }, 0);
 
     return () => {
@@ -320,10 +310,7 @@ const TimePicker: FC<TimePickerProps> = ({
                     <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-2 text-center">
                       小时
                     </div>
-                    <div
-                      ref={hourListRef}
-                      className="h-40 overflow-y-auto rounded-lg bg-white/20 dark:bg-black/20 p-1"
-                    >
+                    <div className="h-40 overflow-y-auto rounded-lg bg-white/20 dark:bg-black/20 p-1">
                       {hourOptions.map((hour) => (
                         <button
                           key={hour}
@@ -347,10 +334,7 @@ const TimePicker: FC<TimePickerProps> = ({
                     <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-2 text-center">
                       分钟
                     </div>
-                    <div
-                      ref={minuteListRef}
-                      className="h-40 overflow-y-auto rounded-lg bg-white/20 dark:bg-black/20 p-1"
-                    >
+                    <div className="h-40 overflow-y-auto rounded-lg bg-white/20 dark:bg-black/20 p-1">
                       {minuteOptions.map((minute) => (
                         <button
                           key={minute}

@@ -13,22 +13,26 @@ import type { HeaderElement } from "../../../../types";
 interface UseHeaderCollapseParams {
   editor: Editor;
   element: HeaderElement;
-  path: Path;
 }
 
-const useHeaderCollapse = ({
-  editor,
-  element,
-  path,
-}: UseHeaderCollapseParams) => {
+const useHeaderCollapse = ({ editor, element }: UseHeaderCollapseParams) => {
   const { level, collapsed = false } = element;
 
   // Store references to hidden nodes for cleanup
   const hiddenNodesRef = useRef<Array<HTMLElement>>([]);
 
+  const getCurrentPath = useMemoizedFn((): Path | null => {
+    try {
+      return ReactEditor.findPath(editor, element);
+    } catch (e) {
+      return null;
+    }
+  });
+
   const setCollapsed = useMemoizedFn((collapsed: boolean) => {
-    if (!path) return;
-    Transforms.setNodes(editor, { collapsed }, { at: path });
+    const currentPath = getCurrentPath();
+    if (!currentPath) return;
+    Transforms.setNodes(editor, { collapsed }, { at: currentPath });
   });
 
   // Toggle collapse/expand state
@@ -55,22 +59,29 @@ const useHeaderCollapse = ({
   const getHeaderSectionNodes = useMemoizedFn(() => {
     try {
       const nodes: { node: SlateNode; path: Path }[] = [];
-
-      const deepLevel = path.length - 1;
-      let parent: SlateElement | Editor = editor;
-      for (let i = 0; i < deepLevel; i++) {
-        // @ts-ignore
-        parent = parent.children[path[i]];
+      const currentPath = getCurrentPath();
+      if (!currentPath) {
+        return nodes;
       }
+
+      const parentPath =
+        currentPath.length > 1 ? Path.parent(currentPath) : null;
+      const parent = parentPath
+        ? (Editor.node(editor, parentPath)[0] as SlateElement | Editor)
+        : editor;
+      const currentIndex = currentPath[currentPath.length - 1];
       // @ts-ignore
-      const afterNodes = parent.children.slice(path[deepLevel] + 1);
+      const afterNodes = parent.children.slice(currentIndex + 1);
 
       for (let i = 0; i < afterNodes.length; i++) {
         const node = afterNodes[i];
         if (isSameOrHigherLevelHeader(node)) {
           break;
         }
-        nodes.push({ node, path: [...path, i + path[path.length - 1] + 1] });
+        nodes.push({
+          node,
+          path: [...(parentPath ?? []), currentIndex + i + 1],
+        });
       }
 
       return nodes;
@@ -84,14 +95,15 @@ const useHeaderCollapse = ({
   const getDomNodesToToggle = useMemoizedFn(() => {
     const domNodes: HTMLElement[] = [];
 
-    // Header path string representation (for comparison)
-    const headerPath = ReactEditor.findPath(editor, element);
-    const headerPathStr = JSON.stringify(headerPath);
+    const currentPath = getCurrentPath();
+    if (!currentPath) {
+      return { domNodes };
+    }
 
     getHeaderSectionNodes().forEach(({ node, path }) => {
       try {
         // Make sure we don't operate on the header itself
-        if (JSON.stringify(path) === headerPathStr) {
+        if (Path.equals(path, currentPath)) {
           return;
         }
 

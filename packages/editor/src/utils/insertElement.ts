@@ -96,6 +96,39 @@ const focusInsertedPreviewElement = (
   focusEditor(retry);
 };
 
+const focusInsertedCodeBlock = (editor: Editor, uuid: string, retry = 5) => {
+  if (retry <= 0) {
+    return;
+  }
+  const selectionSnapshot = getSelectionSnapshot(editor.selection);
+  const shouldKeepFocusing = () =>
+    !selectionSnapshot ||
+    isSelectionSnapshotUnchanged(editor, selectionSnapshot);
+
+  const focusEditor = (leftTryCount: number) => {
+    if (leftTryCount <= 0 || !shouldKeepFocusing()) {
+      return;
+    }
+
+    setTimeout(() => {
+      if (!shouldKeepFocusing()) {
+        return;
+      }
+
+      const codeMirrorEditor = codeBlockMap.get(uuid);
+      if (codeMirrorEditor) {
+        codeMirrorEditor.focus();
+        codeMirrorEditor.setCursor({ line: 0, ch: 0 });
+        return;
+      }
+
+      focusEditor(leftTryCount - 1);
+    }, 80);
+  };
+
+  focusEditor(retry);
+};
+
 export const setOrInsertNode = (
   editor: Editor,
   node: BlockElement,
@@ -415,13 +448,7 @@ export const insertCodeBlock = (
     uuid,
     children: [{ type: "formatted", text: "" }],
   });
-  // 聚焦到 code-block
-  setTimeout(() => {
-    const codeMirrorEditor = codeBlockMap.get(uuid);
-    if (codeMirrorEditor) {
-      codeMirrorEditor.focus();
-    }
-  }, 100);
+  focusInsertedCodeBlock(editor, uuid);
   return res;
 };
 

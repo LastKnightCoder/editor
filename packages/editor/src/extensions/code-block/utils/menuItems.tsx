@@ -19,9 +19,9 @@ import {
   ContextMenuItem,
   BuildMenuParams,
 } from "../../../components/EditorContextMenu/types";
-import { deleteNode } from "../../../utils/nodeOperations";
 import type { CodeBlockElement } from "../../../types";
 import { codeBlockMap, codeBlockActionsMap } from "../index";
+import { deleteCodeBlock } from "./deleteCodeBlock";
 import {
   createInitialMagicMove,
   getActiveStepCode,
@@ -237,7 +237,7 @@ export function buildCodeBlockMenuItems(
       label: "删除",
       icon: <Trash2 size={16} />,
       danger: true,
-      onSelect: () => deleteNode(editor, path),
+      onSelect: () => deleteCodeBlock(editor, path),
     },
   );
 
