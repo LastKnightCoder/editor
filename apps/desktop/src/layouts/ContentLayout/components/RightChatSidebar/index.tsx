@@ -26,6 +26,7 @@ import {
   MarkdownProvider,
   useMarkdownContext,
 } from "../ChatSidebar/MarkdownContext";
+import { shouldRenderAsBlockCode } from "../ChatSidebar/codeBlockUtils";
 
 import { ResponseMessage, ChatMessage, ChatSessionMessage } from "@/types";
 import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
@@ -237,7 +238,13 @@ const RightChatSidebar = memo(
       const CodeBlockRenderer: React.FC<{
         children?: React.ReactNode;
         className?: string;
-      }> = ({ children, className, ...rest }) => {
+        "data-markdown-block-code"?: string;
+      }> = ({
+        children,
+        className,
+        "data-markdown-block-code": markdownBlockCode,
+        ...rest
+      }) => {
         const mermaidRenderPreference = useMermaidRenderPreference();
         const { messageMeta } = useMarkdownContext();
         const sourceChatId = messageMeta?.chatId ?? 0;
@@ -247,6 +254,10 @@ const RightChatSidebar = memo(
 
         const match = /language-([\w-]+)/.exec(className || "");
         const language = match ? match[1] : undefined;
+        const isBlockCode = shouldRenderAsBlockCode({
+          className,
+          "data-markdown-block-code": markdownBlockCode,
+        });
         const code = String(children).replace(/\n$/, "");
 
         // 判断代码块是否正在生成：
@@ -337,6 +348,14 @@ const RightChatSidebar = memo(
               isDark={isDark}
               {...rest}
             >
+              {code}
+            </LazySyntaxHighlighter>
+          );
+        }
+
+        if (isBlockCode) {
+          return (
+            <LazySyntaxHighlighter language="text" isDark={isDark} {...rest}>
               {code}
             </LazySyntaxHighlighter>
           );

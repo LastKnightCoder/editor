@@ -33,6 +33,7 @@ import { measurePerformance } from "./hooks/usePerformanceMonitor";
 
 import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
 import { MarkdownProvider, useMarkdownContext } from "./MarkdownContext";
+import { shouldRenderAsBlockCode } from "./codeBlockUtils";
 import BlockCard from "@/components/BlockCard";
 import { blockRegistry } from "@/utils/blockRegistry";
 import type { BlockData } from "@/types/block-preview";
@@ -303,11 +304,21 @@ const ChatSidebar = memo(() => {
   const CodeBlockRenderer: React.FC<{
     children?: React.ReactNode;
     className?: string;
-  }> = ({ children, className, ...rest }) => {
+    "data-markdown-block-code"?: string;
+  }> = ({
+    children,
+    className,
+    "data-markdown-block-code": markdownBlockCode,
+    ...rest
+  }) => {
     const mermaidRenderPreference = useMermaidRenderPreference();
     const { messageMeta } = useMarkdownContext();
     const match = /language-([\w-]+)/.exec(className || "");
     const language = match ? match[1] : undefined;
+    const isBlockCode = shouldRenderAsBlockCode({
+      className,
+      "data-markdown-block-code": markdownBlockCode,
+    });
     const code = String(children).replace(/\n$/, "");
 
     // 特殊渲染器优先处理
@@ -393,6 +404,14 @@ const ChatSidebar = memo(() => {
     if (language) {
       return (
         <LazySyntaxHighlighter language={language} isDark={isDark} {...rest}>
+          {code}
+        </LazySyntaxHighlighter>
+      );
+    }
+
+    if (isBlockCode) {
+      return (
+        <LazySyntaxHighlighter language="text" isDark={isDark} {...rest}>
           {code}
         </LazySyntaxHighlighter>
       );
