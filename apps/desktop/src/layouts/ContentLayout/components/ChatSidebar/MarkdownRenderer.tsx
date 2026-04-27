@@ -1,4 +1,12 @@
-import React, { useMemo, memo, useCallback, useRef } from "react";
+import React, {
+  useMemo,
+  memo,
+  useCallback,
+  useRef,
+  Children,
+  cloneElement,
+  isValidElement,
+} from "react";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import classnames from "classnames";
@@ -24,6 +32,10 @@ import LocalImage from "@/components/LocalImage";
 import LocalImagePreviewPortal from "@/components/LocalImagePreviewPortal";
 import useThemeColors from "@/hooks/useThemeColors";
 import styles from "./MarkdownRenderer.module.less";
+import {
+  MARKDOWN_BLOCK_CODE_ATTRIBUTE,
+  MARKDOWN_BLOCK_CODE_VALUE,
+} from "./codeBlockUtils";
 
 const remarkPlugins = [
   remarkMath,
@@ -158,13 +170,26 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       return {
         ...markdownComponents,
         pre: ({ children, className, node: _node, ...props }: any) => {
+          const childrenWithBlockCodeMarker = Children.map(
+            children,
+            (child) => {
+              if (!isValidElement<Record<string, unknown>>(child)) {
+                return child;
+              }
+
+              return cloneElement(child, {
+                [MARKDOWN_BLOCK_CODE_ATTRIBUTE]: MARKDOWN_BLOCK_CODE_VALUE,
+              } as Record<string, string>);
+            },
+          );
+
           return (
             <div
               {...props}
               data-markdown-pre="true"
               className={classnames(styles.markdownPre, className)}
             >
-              {children}
+              {childrenWithBlockCodeMarker}
             </div>
           );
         },

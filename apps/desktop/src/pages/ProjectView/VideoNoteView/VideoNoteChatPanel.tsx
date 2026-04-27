@@ -24,6 +24,7 @@ import {
   MarkdownProvider,
   useMarkdownContext,
 } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
+import { shouldRenderAsBlockCode } from "@/layouts/ContentLayout/components/ChatSidebar/codeBlockUtils";
 import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
 import { ResponseMessage, ChatMessage } from "@/types";
 import { Role, buildSessionAwareSystemPrompt } from "@/constants";
@@ -41,12 +42,22 @@ const ChatContainer = lazy(
 const CodeRenderer: React.FC<{
   children?: React.ReactNode;
   className?: string;
-}> = ({ children, className, ...rest }) => {
+  "data-markdown-block-code"?: string;
+}> = ({
+  children,
+  className,
+  "data-markdown-block-code": markdownBlockCode,
+  ...rest
+}) => {
   const { message } = App.useApp();
   const mermaidRenderPreference = useMermaidRenderPreference();
   const { isDark, messageMeta } = useMarkdownContext();
   const match = /language-([\w-]+)/.exec(className || "");
   const language = match ? match[1] : undefined;
+  const isBlockCode = shouldRenderAsBlockCode({
+    className,
+    "data-markdown-block-code": markdownBlockCode,
+  });
   const code = String(children).replace(/\n$/, "");
   if (language === "mermaid") {
     return (
@@ -61,6 +72,13 @@ const CodeRenderer: React.FC<{
   if (language) {
     return (
       <LazySyntaxHighlighter language={language} isDark={isDark} {...rest}>
+        {code}
+      </LazySyntaxHighlighter>
+    );
+  }
+  if (isBlockCode) {
+    return (
+      <LazySyntaxHighlighter language="text" isDark={isDark} {...rest}>
         {code}
       </LazySyntaxHighlighter>
     );
