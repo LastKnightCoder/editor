@@ -445,9 +445,9 @@ const InlineAIComposerPanel = ({
               );
             });
           },
-          onAssistantTurnEnd: ({ turnId, finishReason, resultType }) => {
+          onAssistantTurnEnd: ({ turnId, resultType }) => {
             patchAssistantMessage((assistantMessage) => {
-              finalizeAssistantTurn(assistantMessage, turnId, finishReason);
+              finalizeAssistantTurn(assistantMessage, turnId);
             });
             if (resultType !== "response") {
               return;
