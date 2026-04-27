@@ -25,5 +25,6 @@ export const getToolRegistryAgentTools = (options?: {
       description: tool.description,
       source: tool.source,
       parameters: tool.parameters,
+      execution: tool.execution,
       execute: tool.executor,
     }));

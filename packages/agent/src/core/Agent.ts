@@ -684,15 +684,21 @@ export class Agent {
         );
         const defaultTimeoutMs =
           this.config.policies?.defaultToolTimeoutMs ?? DEFAULT_TOOL_TIMEOUT_MS;
-        const shouldSkipTimeout =
+        const toolExecutionPolicy = resolvedTool?.execution;
+        const toolTimeoutOverride = toolExecutionPolicy?.timeoutMs;
+        const shouldSkipTimeoutByPolicy =
           this.config.policies?.shouldSkipToolTimeout?.(call.function.name) ??
           false;
+        const shouldSkipTimeout =
+          toolTimeoutOverride === null || shouldSkipTimeoutByPolicy;
         const timeoutMs =
-          this.config.policies?.getToolTimeoutMs?.(
-            call.function.name,
-            defaultTimeoutMs,
-          ) ?? defaultTimeoutMs;
-        const maxRetry = shouldSkipTimeout
+          typeof toolTimeoutOverride === "number"
+            ? toolTimeoutOverride
+            : (this.config.policies?.getToolTimeoutMs?.(
+                call.function.name,
+                defaultTimeoutMs,
+              ) ?? defaultTimeoutMs);
+        const maxRetry = shouldSkipTimeoutByPolicy
           ? 0
           : (this.config.policies?.maxToolRetries ?? DEFAULT_MAX_TOOL_RETRIES);
 

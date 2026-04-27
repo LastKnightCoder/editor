@@ -55,6 +55,10 @@ export interface ToolExecutionContext {
   toolContext?: ToolExecutionMetadata;
 }
 
+export interface ToolExecutionPolicy {
+  timeoutMs?: number | null;
+}
+
 export type ToolExecutor = (
   args: Record<string, unknown>,
   context?: ToolExecutionContext,
@@ -64,6 +68,7 @@ export interface ToolDefinition {
   name: string;
   description: string;
   parameters: ToolJsonSchema;
+  execution?: ToolExecutionPolicy;
   executor: ToolExecutor;
 }
 

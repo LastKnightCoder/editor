@@ -58,11 +58,15 @@ vi.mock("@/tools/toolIntegrationRegistry", () => ({
 vi.mock("@/tools/toolRuntimePolicy", () => ({
   filterConflictingToolSchemas: vi.fn((schemas) => schemas),
   shouldSkipToolTimeout: vi.fn(() => false),
+  getToolExecutionTimeout: vi.fn((toolName: string, defaultTimeout: number) =>
+    toolName === "generate_image" ? 300000 : defaultTimeout,
+  ),
 }));
 
 import {
   chatLLM,
   chatStreamCore,
+  createDesktopAgentPolicies,
   shouldSkipDesktopToolTimeout,
 } from "../useChatLLM";
 
@@ -102,6 +106,14 @@ describe("hooks/useChatLLM headers", () => {
   it("SubAgent 工具应跳过父 Agent 通用工具超时", () => {
     expect(shouldSkipDesktopToolTimeout("subagent_research")).toBe(true);
     expect(shouldSkipDesktopToolTimeout("query_todos")).toBe(false);
+  });
+
+  it("应将工具级超时策略注入 Agent policies", () => {
+    const policies = createDesktopAgentPolicies();
+
+    expect(policies.defaultToolTimeoutMs).toBe(30000);
+    expect(policies.getToolTimeoutMs?.("generate_image", 30000)).toBe(300000);
+    expect(policies.getToolTimeoutMs?.("lookup", 30000)).toBe(30000);
   });
 
   it("kimi-for-coding 应注入 KimiCLI User-Agent", async () => {

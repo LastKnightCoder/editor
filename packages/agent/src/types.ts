@@ -102,11 +102,16 @@ export interface AgentToolExecutionContext {
   toolContext?: Record<string, unknown>;
 }
 
+export interface AgentToolExecutionPolicy {
+  timeoutMs?: number | null;
+}
+
 export interface AgentTool {
   name: string;
   description: string;
   source: string;
   parameters: AgentToolJsonSchema;
+  execution?: AgentToolExecutionPolicy;
   execute: (
     args: Record<string, unknown>,
     context?: AgentToolExecutionContext,

@@ -20,6 +20,14 @@ describe("askQuestionTool", () => {
     resetAskQuestionStore();
   });
 
+  it("应通过 timeoutMs:null 声明为无超时工具", () => {
+    const tool = createAskQuestionTool();
+
+    expect(tool.execution).toEqual({
+      timeoutMs: null,
+    });
+  });
+
   it("参数非法时应返回参数错误结果", async () => {
     const tool = createAskQuestionTool();
     const result = await tool.executor(

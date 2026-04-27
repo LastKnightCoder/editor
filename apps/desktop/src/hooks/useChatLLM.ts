@@ -18,6 +18,7 @@ import { toAgentSkills } from "@/agent/desktopSkillAdapter";
 import { toExternalAgentTools } from "@/agent/externalAgentTools";
 import { getToolRegistryAgentTools } from "@/agent/toolRegistryAgentTools";
 import { SUBAGENT_RESEARCH_TOOL_NAME } from "@/agent/subagentResearch";
+import { getToolExecutionTimeout } from "@/tools/toolRuntimePolicy";
 
 ensureToolingReady();
 
@@ -150,6 +151,15 @@ const TOOL_EXECUTION_TIMEOUT = 30000; // 单个工具执行超时时间 30 秒
 export const shouldSkipDesktopToolTimeout = (toolName: string): boolean =>
   toolName === SUBAGENT_RESEARCH_TOOL_NAME;
 
+export const createDesktopAgentPolicies = () => ({
+  maxToolCallLoops: MAX_TOOL_CALL_LOOPS,
+  maxToolRetries: MAX_EXECUTION_RETRY,
+  defaultToolTimeoutMs: TOOL_EXECUTION_TIMEOUT,
+  shouldSkipToolTimeout: shouldSkipDesktopToolTimeout,
+  getToolTimeoutMs: getToolExecutionTimeout,
+  isTransientToolError: isTransientError,
+});
+
 /**
  * 判断执行错误是否为可自动重试的瞬时故障（网络、超时等）。
  * 参数错误不在此判断——参数错误由 toolRegistry 返回 isParameterError，走反馈模型路径。
@@ -254,13 +264,7 @@ const createDesktopAgent = (options: {
       executeToolCall: options.executeToolCall,
     }),
     skills: toAgentSkills(options.skills || []),
-    policies: {
-      maxToolCallLoops: MAX_TOOL_CALL_LOOPS,
-      maxToolRetries: MAX_EXECUTION_RETRY,
-      defaultToolTimeoutMs: TOOL_EXECUTION_TIMEOUT,
-      shouldSkipToolTimeout: shouldSkipDesktopToolTimeout,
-      isTransientToolError: isTransientError,
-    },
+    policies: createDesktopAgentPolicies(),
   });
 
 const chatInner = async (
@@ -486,7 +490,9 @@ export const chatStreamCore = async (
       }
 
       if (event.type === "run-error") {
-        onError?.(new Error(event.error.message));
+        const nextError = new Error(event.error.message);
+        nextError.name = event.error.name;
+        onError?.(nextError);
       }
     }
   } catch (error) {
