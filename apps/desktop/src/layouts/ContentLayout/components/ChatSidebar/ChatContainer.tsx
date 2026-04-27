@@ -337,6 +337,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const supportFile = modelFeatureSupport?.file ?? false;
 
     const abortControllerRef = useRef<AbortController | null>(null);
+    const activeAssistantTurnIdRef = useRef<string | null>(null);
     const persistedAskQuestionSnapshotsRef = useRef<Set<string>>(new Set());
     const resumingAskQuestionRef = useRef<Set<string>>(new Set());
     const debugStreamCounterRef = useRef(0);
@@ -350,6 +351,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       if (isDifferentChat || hasExternalSnapshot) {
         actualChatRef.current = currentChat;
         if (isDifferentChat) {
+          activeAssistantTurnIdRef.current = null;
           persistedAskQuestionSnapshotsRef.current.clear();
           resumingAskQuestionRef.current.clear();
         }
@@ -610,6 +612,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           },
 
           onAssistantTurnEnd: async ({ turnId, finishReason, resultType }) => {
+            activeAssistantTurnIdRef.current = null;
             const finalizedChat = produce(actualCurrentChat, (draft) => {
               const lastMessageIndex = draft.messages.length - 1;
               if (
@@ -762,6 +765,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             reasoningText?: string,
             turnId?: string,
           ) => {
+            if (turnId) {
+              activeAssistantTurnIdRef.current = turnId;
+            }
             // 基于当前实际聊天对象进行更新
             const updatedChat = produce(actualCurrentChat, (draft) => {
               // 找到最后一条助手消息并更新其内容
@@ -800,6 +806,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           },
 
           onReasoning: (full: string, _inc: string, turnId?: string) => {
+            if (turnId) {
+              activeAssistantTurnIdRef.current = turnId;
+            }
             // 基于当前实际聊天对象进行更新
             const updatedChat = produce(actualCurrentChat, (draft) => {
               // 找到最后一条助手消息并更新其推理内容
@@ -841,6 +850,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             turnId?: string,
             toolCalls?: ToolCallPayload[],
           ) => {
+            if (turnId) {
+              activeAssistantTurnIdRef.current = turnId;
+            }
             // 基于当前实际聊天对象进行更新
             const updatedChat = produce(actualCurrentChat, (draft) => {
               // 找到最后一条助手消息并更新其工具执行状态
@@ -907,12 +919,23 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             }, 0);
           },
 
-          onError: () => {
+          onError: (error) => {
+            const isAbortError =
+              error.name === "AbortError" ||
+              /aborted|abort|cancelled/i.test(error.message);
+            const finalizedChat = finalizeActiveAssistantTurn(
+              isAbortError ? "cancelled" : "error",
+            );
+            if (finalizedChat) {
+              actualCurrentChat = finalizedChat;
+            }
             updateCurrentChat(actualCurrentChat);
             setSendLoading(false);
             abortControllerRef.current = null;
 
-            message.error("请求失败");
+            if (!isAbortError) {
+              message.error("请求失败");
+            }
             perf.end();
             if (shouldClearInput) {
               setTimeout(() => {
@@ -1183,13 +1206,48 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }
     });
 
+    const finalizeActiveAssistantTurn = useMemoizedFn(
+      (finishReason: string | null) => {
+        const turnId = activeAssistantTurnIdRef.current;
+        if (!turnId) {
+          return null;
+        }
+
+        const finalizedChat = produce(actualChatRef.current, (draft) => {
+          const lastMessageIndex = draft.messages.length - 1;
+          if (
+            lastMessageIndex >= 0 &&
+            draft.messages[lastMessageIndex].role === Role.Assistant
+          ) {
+            finalizeAssistantTurn(
+              draft.messages[lastMessageIndex] as ResponseMessage,
+              turnId,
+              finishReason,
+            );
+          }
+        });
+
+        activeAssistantTurnIdRef.current = null;
+        actualChatRef.current = finalizedChat;
+        setUpdateCounter((prev) => prev + 1);
+        updateCurrentChat(finalizedChat);
+        return finalizedChat;
+      },
+    );
+
     // 停止流式请求
     const stopStreaming = useMemoizedFn(() => {
       if (abortControllerRef.current) {
+        const finalizedChat = finalizeActiveAssistantTurn("cancelled");
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
         // 立即清除 loading 状态，避免 UI 无响应
         setSendLoading(false);
+        if (finalizedChat) {
+          void updateChatMessage(finalizedChat).catch((error) => {
+            console.error("停止生成后持久化对话失败:", error);
+          });
+        }
       }
     });
 

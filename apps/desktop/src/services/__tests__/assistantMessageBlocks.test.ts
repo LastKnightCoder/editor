@@ -204,6 +204,21 @@ describe("assistant reasoning timing", () => {
     expect(reasoningBlock?.duration).toBe(700);
   });
 
+  it("cancelled turn 也应关闭 reasoning 计时", () => {
+    vi.useFakeTimers();
+    const message = createAssistantMessage();
+    const turnId = "turn-cancelled";
+
+    applyAssistantReasoningSnapshot(message, turnId, "先思考", 1000);
+
+    vi.setSystemTime(1900);
+    finalizeAssistantTurn(message, turnId, "cancelled");
+
+    const reasoningBlock = getReasoningBlock(message, turnId);
+    expect(reasoningBlock?.endTime).toBe(1900);
+    expect(reasoningBlock?.duration).toBe(900);
+  });
+
   it("已结束的 reasoning 不会被后续 text/tool 更新重复覆盖", () => {
     vi.useFakeTimers();
     const message = createAssistantMessage();

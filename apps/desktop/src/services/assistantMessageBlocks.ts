@@ -402,9 +402,7 @@ export const finalizeAssistantTurn = (
       block.state = "final";
     }
   });
-  if (finishReason !== "cancelled") {
-    closeReasoningBlocksForTurn(blocks, turnId);
-  }
+  closeReasoningBlocksForTurn(blocks, turnId);
   syncAssistantDerivedFields(message);
 };
 

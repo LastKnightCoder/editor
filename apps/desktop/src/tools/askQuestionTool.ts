@@ -23,6 +23,9 @@ export const createAskQuestionTool = (): ToolDefinition => ({
   name: ASK_QUESTION_TOOL_NAME,
   description:
     "当需要进一步澄清用户意图时，向用户发起结构化问题。支持单选、多选和一次提出多个问题。",
+  execution: {
+    timeoutMs: null,
+  },
   parameters: {
     type: "object",
     properties: {

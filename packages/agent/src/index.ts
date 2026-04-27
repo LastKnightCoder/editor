@@ -43,6 +43,7 @@ export type {
   AgentToolCallDelta,
   AgentMutableState,
   AgentToolExecutionContext,
+  AgentToolExecutionPolicy,
   AgentToolExecutionResult,
   AgentToolExecutionState,
   AgentToolJsonSchema,

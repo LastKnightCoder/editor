@@ -367,6 +367,98 @@ describe("Agent", () => {
     });
   });
 
+  it("等待用户确认的工具不应套用默认超时", async () => {
+    let turnIndex = 0;
+    const toolCalls: AgentToolCall[] = [
+      {
+        id: "call_confirm",
+        function: {
+          name: "confirm_tool",
+          arguments: "{}",
+        },
+      },
+    ];
+
+    const model: AgentModelAdapter = {
+      async *streamTurn() {
+        if (turnIndex === 0) {
+          turnIndex += 1;
+          yield {
+            type: "turn-complete",
+            result: {
+              type: "tool_calls",
+              content: "",
+              reasoningContent: "",
+              finishReason: "tool_calls",
+              toolCalls,
+            },
+          };
+          return;
+        }
+
+        yield {
+          type: "turn-complete",
+          result: {
+            type: "response",
+            content: "confirmed",
+            reasoningContent: "",
+            finishReason: "stop",
+          },
+        };
+      },
+    };
+
+    const agent = new Agent({
+      model,
+      tools: [
+        {
+          name: "confirm_tool",
+          description: "等待确认的工具",
+          source: "test-tools",
+          parameters: {
+            type: "object",
+            properties: {},
+            required: [],
+            additionalProperties: false,
+          },
+          execution: {
+            timeoutMs: null,
+          },
+          async execute() {
+            await new Promise((resolve) => setTimeout(resolve, 20));
+            return {
+              content: "等待确认完成",
+            };
+          },
+        },
+      ],
+      policies: {
+        defaultToolTimeoutMs: 1,
+        maxToolRetries: 0,
+      },
+    });
+
+    const events = await collectEvents(
+      agent.run({
+        messages: [createTextMessage("hello")],
+        enableTools: true,
+      }),
+    );
+
+    const toolFinished = events.find(
+      (event): event is Extract<AgentEvent, { type: "tool-call-finished" }> =>
+        event.type === "tool-call-finished",
+    );
+    const runFinished = events.find(
+      (event): event is Extract<AgentEvent, { type: "run-finished" }> =>
+        event.type === "run-finished",
+    );
+
+    expect(toolFinished?.execution.status).toBe("success");
+    expect(toolFinished?.execution.output).toBe("等待确认完成");
+    expect(runFinished?.content).toBe("confirmed");
+  });
+
   it("支持通过 tools 构造参数直接注册内联工具", async () => {
     const seenToolNames: string[][] = [];
     let turnIndex = 0;
