@@ -622,7 +622,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                 const lastMessage = draft.messages[
                   lastMessageIndex
                 ] as ResponseMessage;
-                finalizeAssistantTurn(lastMessage, turnId, finishReason);
+                finalizeAssistantTurn(lastMessage, turnId);
                 maybeLogAssistantStructure("onAssistantTurnEnd", lastMessage, {
                   turnId,
                   finishReason,
@@ -923,9 +923,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             const isAbortError =
               error.name === "AbortError" ||
               /aborted|abort|cancelled/i.test(error.message);
-            const finalizedChat = finalizeActiveAssistantTurn(
-              isAbortError ? "cancelled" : "error",
-            );
+            const finalizedChat = finalizeActiveAssistantTurn();
             if (finalizedChat) {
               actualCurrentChat = finalizedChat;
             }
@@ -1206,39 +1204,36 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }
     });
 
-    const finalizeActiveAssistantTurn = useMemoizedFn(
-      (finishReason: string | null) => {
-        const turnId = activeAssistantTurnIdRef.current;
-        if (!turnId) {
-          return null;
+    const finalizeActiveAssistantTurn = useMemoizedFn(() => {
+      const turnId = activeAssistantTurnIdRef.current;
+      if (!turnId) {
+        return null;
+      }
+
+      const finalizedChat = produce(actualChatRef.current, (draft) => {
+        const lastMessageIndex = draft.messages.length - 1;
+        if (
+          lastMessageIndex >= 0 &&
+          draft.messages[lastMessageIndex].role === Role.Assistant
+        ) {
+          finalizeAssistantTurn(
+            draft.messages[lastMessageIndex] as ResponseMessage,
+            turnId,
+          );
         }
+      });
 
-        const finalizedChat = produce(actualChatRef.current, (draft) => {
-          const lastMessageIndex = draft.messages.length - 1;
-          if (
-            lastMessageIndex >= 0 &&
-            draft.messages[lastMessageIndex].role === Role.Assistant
-          ) {
-            finalizeAssistantTurn(
-              draft.messages[lastMessageIndex] as ResponseMessage,
-              turnId,
-              finishReason,
-            );
-          }
-        });
-
-        activeAssistantTurnIdRef.current = null;
-        actualChatRef.current = finalizedChat;
-        setUpdateCounter((prev) => prev + 1);
-        updateCurrentChat(finalizedChat);
-        return finalizedChat;
-      },
-    );
+      activeAssistantTurnIdRef.current = null;
+      actualChatRef.current = finalizedChat;
+      setUpdateCounter((prev) => prev + 1);
+      updateCurrentChat(finalizedChat);
+      return finalizedChat;
+    });
 
     // 停止流式请求
     const stopStreaming = useMemoizedFn(() => {
       if (abortControllerRef.current) {
-        const finalizedChat = finalizeActiveAssistantTurn("cancelled");
+        const finalizedChat = finalizeActiveAssistantTurn();
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
         // 立即清除 loading 状态，避免 UI 无响应

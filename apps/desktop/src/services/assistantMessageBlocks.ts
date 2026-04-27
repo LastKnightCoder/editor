@@ -394,7 +394,6 @@ export const applyAssistantToolCallsSnapshot = (
 export const finalizeAssistantTurn = (
   message: ResponseMessage,
   turnId: string,
-  finishReason?: string | null,
 ) => {
   const blocks = ensureAssistantBlocks(message);
   blocks.forEach((block) => {

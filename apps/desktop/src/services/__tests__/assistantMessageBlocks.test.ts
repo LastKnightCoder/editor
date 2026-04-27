@@ -204,21 +204,6 @@ describe("assistant reasoning timing", () => {
     expect(reasoningBlock?.duration).toBe(700);
   });
 
-  it("cancelled turn 也应关闭 reasoning 计时", () => {
-    vi.useFakeTimers();
-    const message = createAssistantMessage();
-    const turnId = "turn-cancelled";
-
-    applyAssistantReasoningSnapshot(message, turnId, "先思考", 1000);
-
-    vi.setSystemTime(1900);
-    finalizeAssistantTurn(message, turnId, "cancelled");
-
-    const reasoningBlock = getReasoningBlock(message, turnId);
-    expect(reasoningBlock?.endTime).toBe(1900);
-    expect(reasoningBlock?.duration).toBe(900);
-  });
-
   it("已结束的 reasoning 不会被后续 text/tool 更新重复覆盖", () => {
     vi.useFakeTimers();
     const message = createAssistantMessage();
@@ -295,14 +280,14 @@ describe("assistant reasoning timing", () => {
         },
       ],
     );
-    finalizeAssistantTurn(message, toolTurnId, "tool_calls");
+    finalizeAssistantTurn(message, toolTurnId);
 
     vi.setSystemTime(2200);
     applyAssistantReasoningSnapshot(message, answerTurnId, "再思考", 2200);
 
     vi.setSystemTime(2600);
     applyAssistantTextSnapshot(message, answerTurnId, "最终答案");
-    finalizeAssistantTurn(message, answerTurnId, "stop");
+    finalizeAssistantTurn(message, answerTurnId);
 
     expect(message.reasoning_content).toBe("先思考\n\n再思考");
     expect(message.content).toBe("最终答案");
@@ -370,7 +355,7 @@ describe("assistant reasoning timing", () => {
         },
       ],
     );
-    finalizeAssistantTurn(message, turnId, "tool_calls");
+    finalizeAssistantTurn(message, turnId);
 
     expect(buildAssistantHistoryMessages(message)).toEqual([
       {
@@ -403,7 +388,7 @@ describe("assistant reasoning timing", () => {
 
     applyAssistantReasoningSnapshot(message, turnId, "先整理思路", 1000);
     applyAssistantTextSnapshot(message, turnId, "最终答案");
-    finalizeAssistantTurn(message, turnId, "stop");
+    finalizeAssistantTurn(message, turnId);
 
     expect(buildAssistantHistoryMessages(message)).toEqual([
       {
