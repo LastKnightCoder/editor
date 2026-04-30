@@ -135,9 +135,9 @@ export const usePodcastGeneration = () => {
     });
   }, []);
 
-  // 生成播客
+  // 生成播客（返回错误信息字符串，undefined 表示成功启动）
   const generatePodcast = useMemoizedFn(
-    async (params: PodcastGenerationParams) => {
+    async (params: PodcastGenerationParams): Promise<string | undefined> => {
       const {
         content,
         resourceNames,
@@ -152,28 +152,23 @@ export const usePodcastGeneration = () => {
       // 验证参数
       const ttsProvider = TTSProviderFactory.getTTSProvider();
       if (!ttsProvider || !ttsProvider.isConfigured()) {
-        message.error("请先配置 TTS 服务提供商");
-        return;
+        return "请先配置 TTS 服务提供商";
       }
 
       if (!providerConfig || !modelConfig) {
-        message.error("请先配置播客生成的 LLM 模型");
-        return;
+        return "请先配置播客生成的 LLM 模型";
       }
 
       if (!content?.trim() && (!resourceNames || resourceNames.length === 0)) {
-        message.error("缺少可用于生成播客的内容或资源");
-        return;
+        return "缺少可用于生成播客的内容或资源";
       }
 
       if (speakers.length < 2) {
-        message.error("至少需要 2 个说话人");
-        return;
+        return "至少需要 2 个说话人";
       }
 
       if (speakers.some((s) => !s.voiceId)) {
-        message.error("请为所有说话人选择音色");
-        return;
+        return "请为所有说话人选择音色";
       }
 
       // 重置状态
@@ -231,9 +226,9 @@ export const usePodcastGeneration = () => {
                   },
             },
             {
-              onUpdate: (chunk: string) => {
-                fullScript += chunk;
-                setState((prev) => ({ ...prev, script: fullScript }));
+              onUpdate: (responseText: string) => {
+                fullScript = responseText;
+                setState((prev) => ({ ...prev, script: responseText }));
               },
               onFinish: () => {
                 updateProgress({ stageProgress: 100 });
@@ -285,13 +280,15 @@ export const usePodcastGeneration = () => {
     },
   );
 
-  // 继续 TTS 合成 (用于脚本编辑后继续)
+  // 继续 TTS 合成 (用于脚本编辑后继续，返回错误信息字符串)
   const continueWithTTS = useMemoizedFn(
-    async (lines: typeof state.scriptLines, generateMusic: boolean) => {
+    async (
+      lines: typeof state.scriptLines,
+      generateMusic: boolean,
+    ): Promise<string | undefined> => {
       const ttsProvider = TTSProviderFactory.getTTSProvider();
       if (!ttsProvider || !ttsProvider.isConfigured()) {
-        message.error("请先配置 TTS 服务提供商");
-        return;
+        return "请先配置 TTS 服务提供商";
       }
 
       try {

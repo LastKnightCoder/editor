@@ -11,7 +11,7 @@ export const SectionTitle = ({
 }) => (
   <h3
     className={classNames(
-      "text-sm font-semibold text-gray-800 dark:text-slate-100",
+      "text-sm font-semibold text-gray-800 dark:text-zinc-100",
       className,
     )}
   >
@@ -28,7 +28,7 @@ export const TextStrong = ({
 }) => (
   <span
     className={classNames(
-      "font-medium text-gray-800 dark:text-slate-100",
+      "font-medium text-gray-800 dark:text-zinc-100",
       className,
     )}
   >
@@ -43,7 +43,7 @@ export const TextSecondary = ({
   children: React.ReactNode;
   className?: string;
 }) => (
-  <span className={classNames("text-gray-500 dark:text-slate-400", className)}>
+  <span className={classNames("text-gray-500 dark:text-zinc-400", className)}>
     {children}
   </span>
 );
@@ -82,19 +82,19 @@ export const Button = ({
   type?: "button" | "submit" | "reset";
 }) => {
   const base =
-    "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed";
+    "inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-colors duration-150 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed";
   const sizeClass =
-    size === "small" ? "px-2.5 h-7 text-xs" : "px-4 h-10 text-sm";
+    size === "small" ? "px-2.5 h-7 text-xs" : "px-4 h-9 text-sm";
   const variantClass =
     variant === "primary"
-      ? "bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400"
+      ? "bg-gray-900 text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200 shadow-[0_1px_2px_rgba(0,0,0,0.1)]"
       : variant === "text"
-        ? "bg-transparent text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-zinc-700/60"
+        ? "bg-transparent text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700/60"
         : variant === "dashed"
-          ? "border border-dashed border-gray-300 dark:border-slate-600 bg-transparent text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-zinc-800/50"
+          ? "border border-dashed border-gray-300 dark:border-zinc-600 bg-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-200 hover:border-gray-400 dark:hover:border-zinc-500"
           : variant === "danger"
             ? "bg-red-500 text-white hover:bg-red-600 dark:bg-red-500/80 dark:hover:bg-red-500"
-            : "border border-gray-200 dark:border-slate-700 bg-white dark:bg-zinc-900 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-zinc-800";
+            : "bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-200 shadow-[0_0_0_1px_rgba(34,42,53,0.1),0_1px_2px_rgba(0,0,0,0.06)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)] hover:bg-gray-50 dark:hover:bg-zinc-800";
 
   return (
     <button
@@ -155,10 +155,10 @@ export const TextInput = ({
     disabled={disabled}
     maxLength={maxLength}
     className={classNames(
-      "h-10 px-3 rounded-lg border bg-white dark:bg-zinc-900 text-sm text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30",
+      "h-9 px-3 rounded-lg border bg-white dark:bg-zinc-900 text-sm text-gray-800 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 transition-colors duration-150 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
       error
         ? "border-red-400 focus:ring-red-500/30"
-        : "border-gray-200 dark:border-slate-700",
+        : "border-gray-200 dark:border-zinc-700",
       disabled && "opacity-60 cursor-not-allowed",
       // 如果没有传入宽度类，默认使用 w-full
       className?.includes("w-") ? "" : "w-full",
@@ -211,8 +211,8 @@ export const TextArea = ({
       autoFocus={autoFocus}
       rows={autoSize?.minRows}
       className={classNames(
-        "w-full px-3 py-2 rounded-lg border bg-white dark:bg-zinc-900 text-sm text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 resize-none",
-        "border-gray-200 dark:border-slate-700",
+        "w-full px-3 py-2 rounded-lg border bg-white dark:bg-zinc-900 text-sm text-gray-800 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 resize-none transition-colors duration-150",
+        "border-gray-200 dark:border-zinc-700",
         disabled && "opacity-60 cursor-not-allowed",
         className,
       )}
@@ -232,6 +232,7 @@ export const SelectField = <T extends string | number>({
   options,
   placeholder,
   searchable = false,
+  creatable = false,
   disabled = false,
   size = "default",
   className,
@@ -241,6 +242,7 @@ export const SelectField = <T extends string | number>({
   options: Array<SelectOption<T>>;
   placeholder?: string;
   searchable?: boolean;
+  creatable?: boolean;
   disabled?: boolean;
   size?: ButtonSize;
   className?: string;
@@ -318,19 +320,24 @@ export const SelectField = <T extends string | number>({
     );
   }, [options, query, searchable]);
 
+  const showCreatable = useMemo(() => {
+    if (!creatable || !query.trim()) return false;
+    return !options.some((o) => String(o.value) === query.trim());
+  }, [creatable, query, options]);
+
   const triggerClass = classNames(
-    "w-full rounded-xl border bg-white dark:bg-zinc-900 text-sm text-gray-800 dark:text-slate-100 px-3 flex items-center justify-between cursor-pointer transition-colors",
-    size === "small" ? "h-7 text-xs" : "h-10",
+    "w-full rounded-lg bg-white dark:bg-zinc-900 text-sm text-gray-800 dark:text-zinc-100 px-3 flex items-center justify-between cursor-pointer transition-colors duration-150",
+    size === "small" ? "h-7 text-xs" : "h-9",
     disabled
-      ? "opacity-60 cursor-not-allowed"
-      : "hover:border-gray-300 dark:hover:border-slate-600",
-    "border-gray-200 dark:border-slate-700",
+      ? "opacity-50 cursor-not-allowed"
+      : "hover:bg-gray-50 dark:hover:bg-zinc-800",
+    "shadow-[0_0_0_1px_rgba(34,42,53,0.1),0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)]",
   );
 
   const dropdownContent = (
     <div
       ref={dropdownRef}
-      className="fixed z-[9999] p-2 rounded-2xl bg-white/95 dark:bg-zinc-900/90 backdrop-blur-lg border border-white/50 dark:border-white/10 shadow-[0_18px_45px_rgba(15,23,42,0.2)] dark:shadow-[0_22px_60px_rgba(2,6,23,0.6)]"
+      className="fixed z-[9999] p-1.5 rounded-xl bg-white dark:bg-zinc-900 shadow-[0_0_0_1px_rgba(34,42,53,0.08),0_1px_5px_-4px_rgba(19,19,22,0.7),0_4px_8px_rgba(34,42,53,0.05)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_4px_16px_rgba(0,0,0,0.4)]"
       style={{
         top: placement === "bottom" ? position.top : "auto",
         bottom:
@@ -343,15 +350,34 @@ export const SelectField = <T extends string | number>({
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && showCreatable) {
+              onChange(query.trim() as T);
+              setOpen(false);
+              setQuery("");
+            }
+          }}
           placeholder="搜索..."
-          className="w-full h-9 px-3 mb-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-zinc-800 text-sm text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+          className="w-full h-8 px-3 mb-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-sm text-gray-800 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10"
           autoFocus
           onClick={(e) => e.stopPropagation()}
         />
       )}
       <div className="max-h-[240px] overflow-y-auto overflow-x-hidden scrollbar-thin">
-        {filtered.length === 0 && (
-          <div className="px-3 py-2 text-sm text-gray-500 dark:text-slate-400">
+        {showCreatable && (
+          <div
+            className="px-3 py-1.5 mx-0.5 mb-0.5 rounded-lg text-sm cursor-pointer transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700/50 text-gray-900 dark:text-gray-100 font-medium"
+            onClick={() => {
+              onChange(query.trim() as T);
+              setOpen(false);
+              setQuery("");
+            }}
+          >
+            使用 "{query.trim()}"
+          </div>
+        )}
+        {filtered.length === 0 && !showCreatable && (
+          <div className="px-3 py-2 text-sm text-gray-500 dark:text-zinc-400">
             无匹配项
           </div>
         )}
@@ -361,10 +387,10 @@ export const SelectField = <T extends string | number>({
             role="option"
             aria-selected={o.value === value}
             className={classNames(
-              "px-3 py-2 mx-1 mb-0.5 rounded-xl text-sm cursor-pointer transition-colors",
+              "px-3 py-1.5 mx-0.5 mb-0.5 rounded-lg text-sm cursor-pointer transition-colors duration-100",
               o.value === value
-                ? "bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400"
-                : "hover:bg-white/60 dark:hover:bg-zinc-700/50 text-gray-700 dark:text-slate-200",
+                ? "bg-gray-900/[0.06] text-gray-900 dark:bg-white/[0.08] dark:text-white font-medium"
+                : "hover:bg-gray-100 dark:hover:bg-zinc-700/50 text-gray-700 dark:text-zinc-200",
             )}
             onClick={() => {
               onChange(o.value);
@@ -393,15 +419,18 @@ export const SelectField = <T extends string | number>({
         aria-expanded={open}
       >
         <div className="truncate flex-1 min-w-0">
-          {selected?.label ?? (
-            <span className="text-gray-400 dark:text-slate-500">
-              {placeholder ?? "请选择"}
-            </span>
-          )}
+          {selected?.label ??
+            (value ? (
+              <span>{String(value)}</span>
+            ) : (
+              <span className="text-gray-400 dark:text-zinc-500">
+                {placeholder ?? "请选择"}
+              </span>
+            ))}
         </div>
         <svg
           className={classNames(
-            "w-4 h-4 shrink-0 ml-2 transition-transform text-gray-400 dark:text-slate-500",
+            "w-4 h-4 shrink-0 ml-2 transition-transform text-gray-400 dark:text-zinc-500",
             open && "rotate-180",
           )}
           viewBox="0 0 24 24"

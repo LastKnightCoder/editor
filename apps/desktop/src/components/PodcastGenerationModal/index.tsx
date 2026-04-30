@@ -152,13 +152,16 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
         return;
       }
 
-      await generatePodcast({
+      const error = await generatePodcast({
         content,
         speakers,
         generateMusic,
         durationMin: durationRange[0],
         durationMax: durationRange[1],
       });
+      if (error) {
+        notify("error", error);
+      }
     }, [
       speakers,
       notify,
@@ -243,7 +246,12 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
           <Button onClick={() => reset()}>取消</Button>
           <Button
             variant="primary"
-            onClick={() => continueWithTTS(scriptLines, generateMusic)}
+            onClick={async () => {
+              const error = await continueWithTTS(scriptLines, generateMusic);
+              if (error) {
+                notify("error", error);
+              }
+            }}
           >
             确认并生成音频
           </Button>
@@ -270,7 +278,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
         footer={footerNode}
         maskClosable={false}
         closeOnEscape={status !== "loading"}
-        bodyClassName="overflow-y-auto pt-3"
+        bodyClassName="overflow-y-auto pt-3 px-2"
       >
         <div className="space-y-6">
           {/* 通知显示 */}
@@ -280,15 +288,15 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                 <div
                   key={notice.id}
                   className={classNames(
-                    "px-3 py-2 rounded-lg text-sm border whitespace-pre-wrap",
+                    "px-3 py-2 rounded-lg text-sm whitespace-pre-wrap",
                     notice.type === "success" &&
-                      "bg-green-50 border-green-200 text-green-700 dark:bg-green-500/10 dark:border-green-500/30 dark:text-green-400",
+                      "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400",
                     notice.type === "error" &&
-                      "bg-red-50 border-red-200 text-red-700 dark:bg-red-500/10 dark:border-red-500/30 dark:text-red-400",
+                      "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400",
                     notice.type === "warning" &&
-                      "bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-500/10 dark:border-yellow-500/30 dark:text-yellow-400",
+                      "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
                     notice.type === "info" &&
-                      "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400",
+                      "bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-zinc-300",
                   )}
                 >
                   {notice.text}
@@ -309,7 +317,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                   onChange={setPodcastName}
                   maxLength={100}
                 />
-                <div className="mt-1 text-right text-xs text-gray-400 dark:text-slate-500">
+                <div className="mt-1 text-right text-xs text-gray-400 dark:text-zinc-500">
                   {podcastName.length}/100
                 </div>
               </div>
@@ -343,11 +351,11 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
             <div className="space-y-4">
               <SectionTitle>其他选项</SectionTitle>
 
-              <div className="flex items-start gap-4">
-                <TextSecondary className="whitespace-nowrap pt-2">
-                  播客时长（分钟）
+              <div className="flex items-center gap-3">
+                <TextSecondary className="whitespace-nowrap text-sm">
+                  播客时长
                 </TextSecondary>
-                <div className="flex-1 flex items-center gap-2">
+                <div className="flex items-center gap-2">
                   <TextInput
                     type="number"
                     value={String(durationRange[0])}
@@ -357,9 +365,9 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                         normalizeDurationRange(nextMin, prev[1]),
                       );
                     }}
-                    className="w-20"
+                    className="w-16"
                   />
-                  <TextSecondary>到</TextSecondary>
+                  <TextSecondary className="text-xs">~</TextSecondary>
                   <TextInput
                     type="number"
                     value={String(durationRange[1])}
@@ -369,14 +377,11 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                         normalizeDurationRange(prev[0], nextMax),
                       );
                     }}
-                    className="w-20"
+                    className="w-16"
                   />
+                  <TextSecondary className="text-xs">分钟</TextSecondary>
                 </div>
               </div>
-
-              <TextSecondary className="text-xs">
-                当前: {durationRange[0]} - {durationRange[1]} 分钟
-              </TextSecondary>
             </div>
           )}
 
@@ -414,7 +419,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                   onChange={setPodcastName}
                   maxLength={100}
                 />
-                <div className="mt-1 text-right text-xs text-gray-400 dark:text-slate-500">
+                <div className="mt-1 text-right text-xs text-gray-400 dark:text-zinc-500">
                   {podcastName.length}/100
                 </div>
               </div>
@@ -445,22 +450,19 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
             <div className="space-y-4">
               <SectionTitle>生成失败</SectionTitle>
               {error && (
-                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-sm text-red-700 dark:text-red-400 whitespace-pre-wrap">
+                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-500/10 text-sm text-red-700 dark:text-red-400 whitespace-pre-wrap">
                   {error}
                 </div>
               )}
-              <TextSecondary className="text-sm text-red-700 dark:text-red-400">
-                请查看日志了解详情
-              </TextSecondary>
               <details open className="mt-4">
-                <summary className="cursor-pointer text-sm font-medium text-gray-700 dark:text-slate-200 flex items-center justify-between">
+                <summary className="cursor-pointer text-xs font-medium text-gray-500 dark:text-zinc-400 select-none">
                   详细日志
                 </summary>
-                <div className="mt-2 max-h-64 overflow-y-auto space-y-1 p-2 rounded">
+                <div className="mt-2 max-h-64 overflow-y-auto space-y-0.5 p-3 rounded-lg bg-gray-50 dark:bg-zinc-800/60 border border-gray-100 dark:border-zinc-700/50">
                   {logs.map((log, index) => (
                     <div
                       key={index}
-                      className="text-sm text-gray-700 dark:text-slate-200"
+                      className="text-xs font-mono text-gray-600 dark:text-zinc-300 leading-relaxed"
                     >
                       {log}
                     </div>
