@@ -1,9 +1,15 @@
 import { memo, useEffect, useMemo, useState } from "react";
+import { motion } from "motion/react";
 import { Header, CardTagFilterPanel } from "@blog/components/Layout";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
 import { Tag, Pagination, ScrollToTop } from "@blog/components/Common";
 import { getInitData, formatDate, joinPath } from "@blog/utils";
 import { CardTagTree, ListData, ListItem } from "@blog/types";
+import {
+  fadeUp,
+  staggerContainer,
+  defaultTransition,
+} from "@blog/utils/motion";
 import "@tau/themes/light.less";
 import "@tau/themes/dark.less";
 
@@ -110,29 +116,27 @@ const ArticleListRow = memo(
   ({ item, basePath }: { item: ListItem; basePath: string }) => (
     <a
       href={joinPath(basePath, item.href)}
-      className="group block border-b border-[var(--color-border-ring)] py-6 transition-colors last:border-b-0 hover:border-[var(--color-border-ring-heavy)]"
+      className="group grid grid-cols-1 gap-2 rounded-xl py-8 transition-colors hover:bg-[var(--color-bg-canvas)] md:grid-cols-[7rem_1fr] md:gap-8 md:px-4 md:-mx-4"
     >
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between md:gap-8">
-        <div className="min-w-0 flex-1">
-          {item.title && (
-            <h3 className="text-2xl font-semibold leading-tight text-[var(--color-text-primary)] transition-opacity group-hover:opacity-70">
-              {item.title}
-            </h3>
-          )}
-          <p className="mt-3 line-clamp-3 text-sm leading-7 text-[var(--color-text-secondary)] sm:text-[0.95rem]">
-            {item.summary}
-          </p>
-          {item.tags.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {item.tags.map((tag) => (
-                <Tag key={tag} name={tag} size="sm" />
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="shrink-0 text-sm tabular-nums text-[var(--color-text-tertiary)] md:pt-1">
-          {formatDate(item.createTime)}
-        </div>
+      <div className="shrink-0 text-sm tabular-nums text-[var(--color-text-tertiary)] md:pt-1.5">
+        {formatDate(item.createTime)}
+      </div>
+      <div className="min-w-0 flex-1">
+        {item.title && (
+          <h3 className="text-xl font-semibold leading-tight text-[var(--color-text-primary)] transition-colors group-hover:text-[var(--color-accent)]">
+            {item.title}
+          </h3>
+        )}
+        <p className="mt-2 line-clamp-2 text-sm leading-[1.8] text-[var(--color-text-secondary)]">
+          {item.summary}
+        </p>
+        {item.tags.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {item.tags.map((tag) => (
+              <Tag key={tag} name={tag} size="sm" />
+            ))}
+          </div>
+        )}
       </div>
     </a>
   ),
@@ -140,102 +144,32 @@ const ArticleListRow = memo(
 
 ArticleListRow.displayName = "ArticleListRow";
 
-/* 大卡片：首条内容 */
-const FeaturedListItem = memo(
-  ({ item, basePath }: { item: ListItem; basePath: string }) => (
-    <a
-      href={joinPath(basePath, item.href)}
-      className="featured-card group block fade-in-up stagger-1"
-    >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 flex-1 space-y-3">
-          {item.title && (
-            <h3 className="text-2xl font-semibold leading-tight text-[var(--color-text-primary)] transition-opacity group-hover:opacity-70">
-              {item.title}
-            </h3>
-          )}
-          <p className="line-clamp-3 text-base leading-relaxed text-[var(--color-text-secondary)]">
-            {item.summary}
-          </p>
-          {item.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {item.tags.slice(0, 4).map((tag) => (
-                <Tag key={tag} name={tag} size="sm" />
-              ))}
-            </div>
-          )}
-        </div>
-        <span className="shrink-0 text-sm text-[var(--color-text-tertiary)]">
-          {formatDate(item.createTime)}
-        </span>
-      </div>
-    </a>
-  ),
-);
-
-FeaturedListItem.displayName = "FeaturedListItem";
-
 const CardListRow = memo(
   ({ item, basePath }: { item: ListItem; basePath: string }) => (
     <a
       href={joinPath(basePath, item.href)}
-      className="group block border-b border-[var(--color-border-ring)] py-6 transition-colors last:border-b-0 hover:border-[var(--color-border-ring-heavy)]"
+      className="group grid grid-cols-1 gap-2 rounded-xl py-6 transition-colors hover:bg-[var(--color-bg-canvas)] md:grid-cols-[7rem_1fr] md:gap-8 md:px-4 md:-mx-4"
     >
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between md:gap-8">
-        <div className="min-w-0 flex-1">
-          <p className="line-clamp-4 text-sm leading-8 text-[var(--color-text-secondary)] transition-colors group-hover:text-[var(--color-text-primary)] sm:text-[0.95rem]">
-            {item.summary}
-          </p>
-
-          {item.tags.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {item.tags.map((tag) => (
-                <Tag key={tag} name={tag} size="sm" />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="shrink-0 text-sm tabular-nums text-[var(--color-text-tertiary)] md:pt-1">
-          {formatDate(item.createTime)}
-        </div>
+      <div className="shrink-0 text-sm tabular-nums text-[var(--color-text-tertiary)] md:pt-0.5">
+        {formatDate(item.createTime)}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="line-clamp-3 text-sm leading-[1.9] text-[var(--color-text-secondary)] transition-colors group-hover:text-[var(--color-text-primary)]">
+          {item.summary}
+        </p>
+        {item.tags.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {item.tags.map((tag) => (
+              <Tag key={tag} name={tag} size="sm" />
+            ))}
+          </div>
+        )}
       </div>
     </a>
   ),
 );
 
 CardListRow.displayName = "CardListRow";
-
-/* 普通卡片 */
-const ListItemCard = memo(
-  ({ item, basePath }: { item: ListItem; basePath: string }) => (
-    <a
-      href={joinPath(basePath, item.href)}
-      className="timeline-card group block fade-in-up"
-    >
-      {item.title && (
-        <h3 className="mb-2 text-base font-semibold leading-snug text-[var(--color-text-primary)] transition-opacity group-hover:opacity-70">
-          {item.title}
-        </h3>
-      )}
-      <p className="mb-4 line-clamp-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-        {item.summary}
-      </p>
-      <div className="flex items-center justify-between">
-        <div className="flex flex-wrap gap-1.5">
-          {item.tags.slice(0, 3).map((tag) => (
-            <Tag key={tag} name={tag} size="sm" />
-          ))}
-        </div>
-        <span className="text-xs text-[var(--color-text-tertiary)]">
-          {formatDate(item.createTime)}
-        </span>
-      </div>
-    </a>
-  ),
-);
-
-ListItemCard.displayName = "ListItemCard";
 
 const ListPage = memo(() => {
   const initData = getInitData();
@@ -315,7 +249,6 @@ const ListPage = memo(() => {
     [activeTag, isCardList, list.items],
   );
 
-  const [featured, ...rest] = filteredItems;
   const serverFilteredByTag = Boolean(
     activeTag && (initData.activeTag || list.activeTag),
   );
@@ -361,27 +294,40 @@ const ListPage = memo(() => {
                   data-primary-scroll-container
                 >
                   <div className="mx-auto max-w-4xl">
-                    <div className="mb-8 sm:mb-10">
+                    <motion.div
+                      className="mb-10"
+                      initial={fadeUp.hidden}
+                      animate={fadeUp.visible}
+                      transition={defaultTransition}
+                    >
                       <div className="flex flex-wrap items-center gap-3">
-                        <h1 className="text-3xl font-bold text-[var(--color-text-primary)] sm:text-4xl">
+                        <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">
                           {listTitle}
                         </h1>
                         {activeTag && <Tag name={activeTag} active size="sm" />}
                       </div>
-                      <p className="mt-3 text-sm leading-6 text-[var(--color-text-secondary)] sm:text-base">
+                      <p className="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">
                         共 {totalCount} 张卡片
                         {activeTag && "，包含当前标签及其子标签"}
                       </p>
-                    </div>
+                    </motion.div>
 
                     {filteredItems.length > 0 ? (
-                      filteredItems.map((item) => (
-                        <CardListRow
-                          key={item.id}
-                          item={item}
-                          basePath={site.basePath}
-                        />
-                      ))
+                      <motion.div
+                        variants={staggerContainer}
+                        initial="hidden"
+                        animate="visible"
+                      >
+                        {filteredItems.map((item) => (
+                          <motion.div
+                            key={item.id}
+                            variants={fadeUp}
+                            transition={defaultTransition}
+                          >
+                            <CardListRow item={item} basePath={site.basePath} />
+                          </motion.div>
+                        ))}
+                      </motion.div>
                     ) : (
                       <div className="empty-state content-panel">
                         <p className="text-base font-medium">
@@ -401,56 +347,46 @@ const ListPage = memo(() => {
           <div className="h-full min-h-0 px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
             <div className="panel-scroll-area" data-primary-scroll-container>
               <div className="list-column py-4">
-                {/* 页面标题 */}
-                <div className="mb-10 text-center">
-                  <h1 className="text-3xl font-bold text-[var(--color-text-primary)] sm:text-4xl">
+                {/* 页面标题：左对齐 */}
+                <motion.div
+                  className="mb-12"
+                  initial={fadeUp.hidden}
+                  animate={fadeUp.visible}
+                  transition={defaultTransition}
+                >
+                  <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-primary)] sm:text-4xl">
                     {listTitle}
                   </h1>
-                  <p className="mt-3 text-base text-[var(--color-text-secondary)]">
+                  <p className="mt-3 text-sm text-[var(--color-text-secondary)]">
                     共 {list.pagination?.total || list.items.length} 篇内容
                   </p>
-                </div>
+                </motion.div>
 
                 {/* 内容列表 */}
                 {filteredItems.length > 0 ? (
-                  <div
-                    className={
-                      isArticleList ? "mx-auto max-w-4xl" : "space-y-8"
-                    }
+                  <motion.div
+                    className={isArticleList ? "mx-auto max-w-4xl" : ""}
+                    variants={staggerContainer}
+                    initial="hidden"
+                    animate="visible"
                   >
-                    {isArticleList ? (
-                      filteredItems.map((item) => (
-                        <ArticleListRow
-                          key={item.id}
-                          item={item}
-                          basePath={site.basePath}
-                        />
-                      ))
-                    ) : (
-                      <>
-                        {/* 首条大卡片 */}
-                        {featured && (
-                          <FeaturedListItem
-                            item={featured}
+                    {filteredItems.map((item) => (
+                      <motion.div
+                        key={item.id}
+                        variants={fadeUp}
+                        transition={defaultTransition}
+                      >
+                        {isArticleList ? (
+                          <ArticleListRow
+                            item={item}
                             basePath={site.basePath}
                           />
+                        ) : (
+                          <CardListRow item={item} basePath={site.basePath} />
                         )}
-
-                        {/* 剩余双列 */}
-                        {rest.length > 0 && (
-                          <div className="grid gap-6 sm:grid-cols-2">
-                            {rest.map((item) => (
-                              <ListItemCard
-                                key={item.id}
-                                item={item}
-                                basePath={site.basePath}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
+                      </motion.div>
+                    ))}
+                  </motion.div>
                 ) : (
                   <div className="empty-state">
                     <p className="text-base font-medium">暂无内容</p>

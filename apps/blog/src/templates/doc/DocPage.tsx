@@ -222,7 +222,7 @@ const DocPage = memo(() => {
                       {doc.prevPage ? (
                         <a
                           href={joinPath(site.basePath, doc.prevPage.href)}
-                          className="group flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+                          className="group flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-accent)]"
                         >
                           <span className="text-[var(--color-text-tertiary)] transition-transform group-hover:-translate-x-0.5">
                             &larr;
@@ -235,7 +235,7 @@ const DocPage = memo(() => {
                       {doc.nextPage && (
                         <a
                           href={joinPath(site.basePath, doc.nextPage.href)}
-                          className="group flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+                          className="group flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-accent)]"
                         >
                           {doc.nextPage.title}
                           <span className="text-[var(--color-text-tertiary)] transition-transform group-hover:translate-x-0.5">
@@ -252,7 +252,7 @@ const DocPage = memo(() => {
             {headers.length > 0 && (
               <aside className="outline-panel hidden xl:block">
                 <div className="panel-scroll-area scrollbar-inset scroll-region-contained">
-                  <h4 className="mb-3 px-2.5 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                  <h4 className="mb-3 px-2.5 text-xs font-medium uppercase tracking-[0.15em] text-[var(--color-text-tertiary)]">
                     页面目录
                   </h4>
                   <Outline headers={headers} onClick={handleHeaderClick} />

@@ -1,39 +1,27 @@
 import { memo } from "react";
+import { motion } from "motion/react";
 import { Header } from "@blog/components/Layout";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
 import { getInitData, formatDate, joinPath, truncate } from "@blog/utils";
 import { HomeData } from "@blog/types";
+import {
+  fadeUp,
+  staggerContainer,
+  defaultTransition,
+  charReveal,
+  charContainer,
+  heroTransition,
+} from "@blog/utils/motion";
 import "@tau/themes/light.less";
 import "@tau/themes/dark.less";
 
-const typeLabels: Record<string, string> = {
-  card: "卡片",
-  article: "文章",
-  doc: "文档",
-};
-
-const HOME_RECENT_ITEM_MAX_LENGTH = 24;
+const HOME_RECENT_ITEM_MAX_LENGTH = 36;
 
 const HomePage = memo(() => {
   const initData = getInitData();
   const { site, navigation } = initData;
   const content = initData.content as HomeData;
   const docCollections = initData.docCollections || [];
-
-  const docStats = content.docStats || { projects: 0, documents: 0 };
-  const articleCount =
-    content.stats?.articles ??
-    content.timeline.filter((i) => i.type === "article").length;
-  const cardCount =
-    content.stats?.cards ??
-    content.timeline.filter((i) => i.type === "card").length;
-
-  const stats = [
-    { label: "文章", value: articleCount },
-    { label: "卡片", value: cardCount },
-    { label: "项目", value: docStats.projects },
-    { label: "知识库", value: docStats.documents },
-  ];
 
   const desktopDocNav =
     docCollections.length > 0 ? (
@@ -58,10 +46,11 @@ const HomePage = memo(() => {
       href: collection.items[0].href,
     }));
 
-  const recentItems = content.timeline.slice(0, 5);
+  const recentItems = content.timeline.slice(0, 6);
+  const titleChars = content.hero?.title.split("") ?? [];
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-y-auto lg:overflow-hidden">
+    <div className="flex h-[100dvh] flex-col overflow-hidden">
       <Header
         title={site.title}
         basePath={site.basePath}
@@ -70,53 +59,83 @@ const HomePage = memo(() => {
         mobileCustomNav={mobileDocNav}
       />
 
-      <main className="flex flex-1 items-center px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto flex w-full max-w-[var(--content-max-width)] flex-col gap-12 py-10 lg:flex-row lg:items-center lg:gap-20 lg:py-0">
-          {/* 左栏：Hero + 统计 + 导航 */}
+      <main className="flex min-h-0 flex-1 items-stretch px-6 sm:px-8 lg:px-12">
+        <div className="mx-auto flex w-full max-w-6xl min-h-0 flex-1 items-center gap-12 lg:gap-20">
+          {/* 左栏：Hero + 逐字揭幕 */}
           {content.hero && (
-            <div className="shrink-0 lg:w-[46%]">
-              <p className="fade-in-up stagger-1 mb-4 text-xs font-semibold tracking-[0.18em] text-[var(--color-text-tertiary)] uppercase">
+            <div className="flex min-w-0 flex-1 flex-col justify-center py-12">
+              <motion.p
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ...heroTransition, duration: 0.5 }}
+                className="mb-5 text-xs font-medium tracking-[0.25em] uppercase text-[var(--color-text-tertiary)]"
+              >
                 Welcome to my digital garden
-              </p>
+              </motion.p>
 
-              <h1 className="fade-in-up stagger-2 text-4xl font-bold leading-[1.08] tracking-tight text-[var(--color-text-primary)] sm:text-5xl lg:text-[3.25rem]">
-                {content.hero.title}
-              </h1>
-
-              <p className="fade-in-up stagger-3 mt-5 text-base leading-[1.8] text-[var(--color-text-secondary)]">
-                {content.hero.description}
-              </p>
-
-              {/* 统计行 */}
-              <div className="fade-in-up stagger-4 mt-8 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--color-text-tertiary)]">
-                {stats.map((stat, i) => (
-                  <span key={stat.label} className="flex items-center gap-x-4">
-                    <span>
-                      <span className="font-semibold tabular-nums text-[var(--color-text-primary)]">
-                        {stat.value}
-                      </span>{" "}
-                      {stat.label}
-                    </span>
-                    {i < stats.length - 1 && (
-                      <span className="text-[var(--color-text-quaternary)]">
-                        ·
-                      </span>
-                    )}
+              <motion.h1
+                variants={charContainer}
+                initial="hidden"
+                animate="visible"
+                className="flex flex-wrap items-center font-bold text-[var(--color-text-primary)]"
+                style={{
+                  fontSize: "clamp(2.5rem, 6vw, 5rem)",
+                  lineHeight: 1.1,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                {titleChars.map((char, i) => (
+                  <span key={i} className="inline-block overflow-hidden">
+                    <motion.span
+                      className="inline-block"
+                      variants={charReveal}
+                      transition={{
+                        duration: 0.6,
+                        ease: [0.22, 1, 0.36, 1],
+                      }}
+                    >
+                      {char}
+                    </motion.span>
                   </span>
                 ))}
-              </div>
+              </motion.h1>
 
-              {/* 导航入口 */}
-              <div className="fade-in-up stagger-5 mt-5 flex flex-wrap gap-2.5">
+              <motion.div
+                className="mt-5 h-px w-12 bg-[var(--color-border-ring-heavy)]"
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{
+                  duration: 0.8,
+                  ease: [0.22, 1, 0.36, 1],
+                  delay: 0.8,
+                }}
+                style={{ transformOrigin: "left" }}
+              />
+
+              <motion.p
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ...heroTransition, delay: 0.9 }}
+                className="mt-5 max-w-md text-base leading-[1.9] text-[var(--color-text-secondary)]"
+              >
+                {content.hero.description}
+              </motion.p>
+
+              <motion.nav
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ...heroTransition, delay: 1.1 }}
+                className="mt-8 flex flex-wrap gap-x-6 gap-y-2"
+              >
                 <a
                   href={joinPath(site.basePath, "/articles")}
-                  className="nav-entry nav-entry-ghost"
+                  className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
                 >
                   文章
                 </a>
                 <a
                   href={joinPath(site.basePath, "/cards")}
-                  className="nav-entry nav-entry-ghost"
+                  className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
                 >
                   卡片
                 </a>
@@ -125,7 +144,7 @@ const HomePage = memo(() => {
                       <a
                         key={entry.label}
                         href={joinPath(site.basePath, entry.href)}
-                        className="nav-entry nav-entry-ghost"
+                        className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
                       >
                         {entry.label}
                       </a>
@@ -134,44 +153,54 @@ const HomePage = memo(() => {
                 {docCollections.length === 0 && (
                   <a
                     href={joinPath(site.basePath, "/docs")}
-                    className="nav-entry nav-entry-ghost"
+                    className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
                   >
                     文档
                   </a>
                 )}
-              </div>
+              </motion.nav>
             </div>
           )}
 
-          {/* 右栏：最近动态列表 */}
+          {/* 右栏：最近更新 */}
           {recentItems.length > 0 && (
-            <div className="flex-1">
-              <p className="fade-in-up stagger-2 mb-4 text-xs font-semibold tracking-[0.18em] text-[var(--color-text-tertiary)] uppercase">
+            <motion.div
+              className="hidden w-80 shrink-0 flex-col justify-center py-12 lg:flex xl:w-96"
+              variants={staggerContainer}
+              initial="hidden"
+              animate="visible"
+              transition={{ delayChildren: 1.3, staggerChildren: 0.06 }}
+            >
+              <motion.p
+                variants={fadeUp}
+                transition={defaultTransition}
+                className="mb-6 text-xs font-medium tracking-[0.2em] text-[var(--color-text-tertiary)] uppercase"
+              >
                 最近更新
-              </p>
-              <div className="space-y-px">
-                {recentItems.map((item, i) => (
-                  <a
+              </motion.p>
+
+              <div>
+                {recentItems.map((item) => (
+                  <motion.a
                     key={`${item.type}-${item.id}`}
                     href={joinPath(site.basePath, item.href)}
-                    className={`group grid grid-cols-[3rem_minmax(0,1fr)_5.5rem] items-center gap-4 rounded-lg px-4 py-3.5 transition-colors hover:bg-[var(--color-bg-canvas)] fade-in-up stagger-${Math.min(i + 3, 6)}`}
+                    variants={fadeUp}
+                    transition={defaultTransition}
+                    className="group grid grid-cols-[5rem_1fr] items-baseline gap-4 rounded-lg py-3 transition-colors sm:px-3 sm:-mx-3 hover:bg-[var(--color-bg-canvas)]"
                   >
-                    <span className="w-12 text-[0.6875rem] font-medium uppercase tracking-wider text-[var(--color-text-quaternary)]">
-                      {typeLabels[item.type]}
+                    <span className="text-xs tabular-nums text-[var(--color-text-tertiary)]">
+                      {formatDate(item.publishTime, "short")}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--color-text-primary)] transition-opacity group-hover:opacity-70">
+                    <span className="text-sm font-medium text-[var(--color-text-primary)] transition-colors group-hover:text-[var(--color-accent)] truncate">
                       {truncate(
                         item.title || item.summary,
                         HOME_RECENT_ITEM_MAX_LENGTH,
                       )}
                     </span>
-                    <span className="w-[5.5rem] text-right text-xs tabular-nums text-[var(--color-text-tertiary)]">
-                      {formatDate(item.publishTime, "short")}
-                    </span>
-                  </a>
+                  </motion.a>
                 ))}
               </div>
-            </div>
+            </motion.div>
           )}
         </div>
       </main>

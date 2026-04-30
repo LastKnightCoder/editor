@@ -1,4 +1,5 @@
 import { memo, useMemo } from "react";
+import { motion } from "motion/react";
 import { Header } from "@blog/components/Layout";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
 import { Tag, ScrollToTop } from "@blog/components/Common";
@@ -11,6 +12,7 @@ import { getInlineElementText } from "@blog/utils/editor";
 import DndProvider from "@blog/components/DndProvider";
 import { createBlogEditorServices } from "@blog/services/editorServices";
 import { blogEditorExtensions } from "@blog/editorExtensions";
+import { fadeUp, defaultTransition } from "@blog/utils/motion";
 import "@tau/themes/light.less";
 import "@tau/themes/dark.less";
 
@@ -94,7 +96,6 @@ const ArticlePage = memo(() => {
         <div className="flex h-full min-h-0 gap-8 px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
           <div className="outline-layout-shell" data-prose-width="prose">
             <div className="panel-scroll-area" data-primary-scroll-container>
-              {/* 阅读列（居中，最大 720px） */}
               <article
                 className="outline-content-frame min-w-0"
                 data-has-outline={headers.length > 0}
@@ -104,46 +105,40 @@ const ArticlePage = memo(() => {
                   className="mx-auto min-w-0 w-full"
                   style={{ maxWidth: "720px" }}
                 >
-                  {/* Banner（可选） */}
+                  {/* Banner */}
                   {article.bannerBg && (
-                    <div className="pb-8">
+                    <div
+                      className="pb-10 -mx-4 sm:mx-0"
+                      style={{ maxWidth: "960px" }}
+                    >
                       <img
                         src={article.bannerBg}
                         alt={article.title}
-                        className="w-full rounded-xl object-cover"
+                        className="w-full rounded-2xl object-cover"
                         style={{ maxHeight: "420px" }}
                       />
                     </div>
                   )}
 
                   {/* 文章头部 */}
-                  <header className="mb-10">
-                    <span className="type-badge mb-4 inline-flex">
-                      深度阅读
-                    </span>
-                    <h1 className="text-3xl font-bold leading-tight text-[var(--color-text-primary)] sm:text-4xl">
-                      {article.title}
-                    </h1>
-                    <p className="mt-4 text-sm text-[var(--color-text-secondary)]">
+                  <motion.header
+                    className="mb-12"
+                    initial={fadeUp.hidden}
+                    animate={fadeUp.visible}
+                    transition={defaultTransition}
+                  >
+                    <p className="mb-5 text-xs font-medium uppercase tracking-[0.15em] text-[var(--color-text-tertiary)]">
                       {metaParts.join(" · ")}
                     </p>
-                    {article.tags && article.tags.length > 0 && (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {article.tags.map((tag) => (
-                          <Tag
-                            key={tag}
-                            name={tag}
-                            href={joinPath(
-                              site.basePath,
-                              `/articles?tag=${encodeURIComponent(tag)}`,
-                            )}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </header>
+                    <h1 className="text-4xl font-bold leading-[1.08] tracking-tighter text-[var(--color-text-primary)] sm:text-5xl">
+                      {article.title}
+                    </h1>
+                  </motion.header>
 
-                  <div className="mb-10 h-px bg-[var(--color-border-ring)]" />
+                  {/* 短分割线 */}
+                  <div className="mb-12 flex">
+                    <div className="h-px w-16 bg-[var(--color-border-ring-heavy)]" />
+                  </div>
 
                   {/* 正文内容 */}
                   <DndProvider>
@@ -158,10 +153,26 @@ const ArticlePage = memo(() => {
                     </EditorServicesProvider>
                   </DndProvider>
 
+                  {/* 标签区域（文章底部） */}
+                  {article.tags && article.tags.length > 0 && (
+                    <div className="mt-12 flex flex-wrap gap-2">
+                      {article.tags.map((tag) => (
+                        <Tag
+                          key={tag}
+                          name={tag}
+                          href={joinPath(
+                            site.basePath,
+                            `/articles?tag=${encodeURIComponent(tag)}`,
+                          )}
+                        />
+                      ))}
+                    </div>
+                  )}
+
                   {/* 更新时间 */}
                   {article.updateTime !== article.createTime && (
                     <>
-                      <div className="mt-10 h-px bg-[var(--color-border-ring)]" />
+                      <div className="mt-12 h-px bg-[var(--color-border-ring)]" />
                       <p className="mt-4 text-sm text-[var(--color-text-tertiary)]">
                         最后更新于 {formatDate(article.updateTime, "full")}
                       </p>
@@ -174,7 +185,7 @@ const ArticlePage = memo(() => {
             {headers.length > 0 && (
               <aside className="outline-panel hidden xl:block">
                 <div className="panel-scroll-area scrollbar-inset scroll-region-contained">
-                  <h4 className="mb-3 px-2.5 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                  <h4 className="mb-3 px-2.5 text-xs font-medium uppercase tracking-[0.15em] text-[var(--color-text-tertiary)]">
                     目录
                   </h4>
                   <Outline headers={headers} onClick={handleHeaderClick} />

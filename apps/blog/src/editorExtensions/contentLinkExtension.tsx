@@ -122,9 +122,6 @@ const ContentLinkPreviewPanel = memo(
 
     return (
       <div className="blog-content-link-preview">
-        <div className="blog-content-link-preview-header">
-          {state.data.title}
-        </div>
         <div className="blog-content-link-preview-body">
           <Editor
             initValue={state.data.content}
@@ -256,15 +253,19 @@ const ContentLinkNode = memo((props: ContentLinkProps) => {
       open={open}
       onOpenChange={setOpen}
       placement="bottom"
+      autoAdjustOverflow
       mouseEnterDelay={0.35}
       mouseLeaveDelay={0.1}
       content={<ContentLinkPreviewPanel state={previewState} />}
-      overlayClassName="blog-content-link-popover"
       styles={{
         root: contentLinkPopoverRootStyle,
         container: contentLinkPopoverContainerStyle,
         content: contentLinkPopoverContentStyle,
       }}
+      classNames={{
+        root: "blog-content-link-popover",
+      }}
+      arrow={false}
     >
       {linkNode}
     </Popover>
