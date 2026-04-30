@@ -167,7 +167,7 @@ const AnnotationSelectionMenu = ({
           </button>
 
           <div
-            className={classNames("w-px h-4 mx-0.5", themeColors.divideCalass)}
+            className={classNames("w-px h-4 mx-0.5", themeColors.divideClass)}
           />
 
           {/* 样式按钮组 */}
@@ -190,7 +190,7 @@ const AnnotationSelectionMenu = ({
           ))}
 
           <div
-            className={classNames("w-px h-4 mx-0.5", themeColors.divideCalass)}
+            className={classNames("w-px h-4 mx-0.5", themeColors.divideClass)}
           />
 
           {/* 添加笔记按钮 */}
@@ -213,7 +213,7 @@ const AnnotationSelectionMenu = ({
               <div
                 className={classNames(
                   "w-px h-4 mx-0.5",
-                  themeColors.divideCalass,
+                  themeColors.divideClass,
                 )}
               />
               <button

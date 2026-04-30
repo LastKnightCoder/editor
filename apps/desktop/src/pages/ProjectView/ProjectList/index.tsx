@@ -96,7 +96,7 @@ const Project = () => {
   const navigateTo = useTabStore((state) => state.navigateTo);
   const { setting } = useSettingStore((state) => ({ setting: state.setting }));
   const [hideSidebar, setHideSidebar] = useState(false);
-  const { divideCalass } = useThemeColors();
+  const { divideClass } = useThemeColors();
   const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
     "project-list-sidebar-width",
     {
@@ -703,7 +703,7 @@ const Project = () => {
               </Dropdown>
             </div>
           </div>
-          <div className={classnames(styles.divider, divideCalass)}></div>
+          <div className={classnames(styles.divider, divideClass)}></div>
           <div className={styles.contentArea}>
             <If condition={project.children.length === 0}>
               <Empty description={"项目下暂无文档"} />
