@@ -69,16 +69,13 @@ const NavLink = ({ item, basePath }: { item: NavItem; basePath: string }) => (
   <a
     href={joinPath(basePath, item.href)}
     className={classNames(
-      "relative px-3 py-2 text-sm font-medium transition-opacity",
+      "relative px-3 py-2 text-sm transition-colors",
       item.active
-        ? "text-[var(--color-text-primary)]"
-        : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]",
+        ? "font-semibold text-[var(--color-text-primary)]"
+        : "font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]",
     )}
   >
     {item.label}
-    {item.active && (
-      <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full bg-[var(--color-text-primary)]" />
-    )}
   </a>
 );
 
@@ -153,14 +150,13 @@ const Header = memo(
     return (
       <header
         ref={headerRef}
-        className="sticky top-0 z-50 h-16 bg-[var(--color-bg-container)]"
-        style={{ boxShadow: "0 0 0 1px var(--color-border-ring)" }}
+        className="sticky top-0 z-50 h-14 border-b border-[var(--color-border-ring)] bg-[var(--color-bg-page)]/95 backdrop-blur-sm"
       >
         <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          {/* Logo：纯文字 */}
+          {/* Logo */}
           <a
             href={joinPath(basePath, "/")}
-            className="text-lg font-semibold tracking-tight text-[var(--color-text-primary)] transition-opacity hover:opacity-70"
+            className="text-xl font-semibold tracking-tight text-[var(--color-text-primary)] transition-colors hover:text-[var(--color-accent)]"
           >
             {title}
           </a>
@@ -193,13 +189,7 @@ const Header = memo(
 
         {/* 移动端菜单 */}
         {menuOpen && (
-          <div
-            className="absolute left-0 right-0 top-16 z-40 bg-[var(--color-bg-container)] md:hidden"
-            style={{
-              boxShadow:
-                "0 0 0 1px var(--color-border-ring), 0 4px 12px rgba(0,0,0,0.06)",
-            }}
-          >
+          <div className="absolute left-0 right-0 top-14 z-40 border-b border-[var(--color-border-ring)] bg-[var(--color-bg-page)] md:hidden">
             <nav className="px-4 py-3">
               <div className="flex flex-col gap-1">
                 {navigation.map((item) => (

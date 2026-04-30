@@ -116,7 +116,7 @@ export const DocSidebar = memo(
     return (
       <aside className="w-full shrink-0">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
-          <span className="h-4 w-0.5 rounded-full bg-[var(--color-text-primary)]" />
+          <span className="h-4 w-0.5 rounded-full bg-[var(--color-accent)]" />
           <span className="min-w-0 flex-1 break-words">{title}</span>
         </h3>
         <nav className="space-y-0.5 pr-2">
@@ -154,7 +154,7 @@ export const ArticleSidebar = memo(
     return (
       <aside className="w-full shrink-0">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
-          <span className="h-4 w-0.5 rounded-full bg-[var(--color-text-primary)]" />
+          <span className="h-4 w-0.5 rounded-full bg-[var(--color-accent)]" />
           <span className="min-w-0 flex-1 break-words">{title}</span>
         </h3>
         <nav className="space-y-1">
@@ -205,7 +205,7 @@ export const CardSidebar = memo(
     return (
       <aside className="w-full shrink-0">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
-          <span className="h-4 w-0.5 rounded-full bg-[var(--color-text-primary)]" />
+          <span className="h-4 w-0.5 rounded-full bg-[var(--color-accent)]" />
           <span className="min-w-0 flex-1 break-words">{title}</span>
         </h3>
         <nav className="space-y-1">
@@ -399,7 +399,7 @@ export const CardTagPanel = memo(
     return (
       <div>
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
-          <span className="h-4 w-0.5 rounded-full bg-[var(--color-text-primary)]" />
+          <span className="h-4 w-0.5 rounded-full bg-[var(--color-accent)]" />
           {title}
         </h3>
         <nav className="space-y-0.5">
@@ -563,7 +563,7 @@ export const CardTagFilterPanel = memo(
     return (
       <aside className="w-full shrink-0">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
-          <span className="h-4 w-0.5 rounded-full bg-[var(--color-text-primary)]" />
+          <span className="h-4 w-0.5 rounded-full bg-[var(--color-accent)]" />
           <span className="min-w-0 flex-1 break-words">{title}</span>
         </h3>
 

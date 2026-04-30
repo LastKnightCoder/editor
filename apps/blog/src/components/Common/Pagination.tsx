@@ -56,7 +56,7 @@ const Pagination = memo(
         "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
         disabled
           ? "pointer-events-none text-[var(--color-text-quaternary)]"
-          : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)]",
+          : "text-[var(--color-text-secondary)] hover:text-[var(--color-accent)]",
       );
 
       const icon = (
@@ -108,10 +108,10 @@ const Pagination = memo(
                 key={page}
                 href={getPageUrl(page)}
                 className={classNames(
-                  "flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition-colors",
+                  "flex h-9 w-9 items-center justify-center rounded-lg text-sm transition-colors",
                   page === current
-                    ? "bg-[var(--color-primary)] text-[var(--color-text-inverse)]"
-                    : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)]",
+                    ? "font-semibold text-[var(--color-text-primary)] underline underline-offset-4 decoration-[var(--color-accent)]"
+                    : "font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-accent)]",
                 )}
               >
                 {page}

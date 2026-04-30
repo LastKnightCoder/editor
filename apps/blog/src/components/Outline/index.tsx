@@ -29,7 +29,7 @@ const Outline = ({ headers, className, style, onClick }: OutlineProps) => {
           key={index}
           type="button"
           className={classNames(
-            "rounded-md pr-2.5 py-1.5 text-left text-[13px] leading-normal text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-primary-subtle)] hover:text-[var(--color-text-primary)]",
+            "rounded-md pr-2.5 py-1.5 text-left text-xs leading-normal text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-primary-subtle)] hover:text-[var(--color-text-primary)]",
             levelIndent[header.level] ?? "pl-2.5",
           )}
           onClick={() => onClick?.(index)}
