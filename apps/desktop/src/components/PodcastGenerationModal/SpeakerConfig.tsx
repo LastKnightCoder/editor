@@ -10,7 +10,10 @@ export interface SpeakerConfigProps {
   setSpeakers: React.Dispatch<React.SetStateAction<PodcastSpeaker[]>>;
   voices: VoiceOption[];
   voicesLoading: boolean;
-  notify: (type: "success" | "error" | "warning" | "info", text: string) => void;
+  notify: (
+    type: "success" | "error" | "warning" | "info",
+    text: string,
+  ) => void;
 }
 
 export const SpeakerConfig = ({
@@ -45,11 +48,15 @@ export const SpeakerConfig = ({
       }
       setSpeakers(speakers.filter((_, i) => i !== index));
     },
-    [speakers, notify, setSpeakers]
+    [speakers, notify, setSpeakers],
   );
 
   const updateSpeaker = useCallback(
-    (index: number, field: keyof PodcastSpeaker, value: string | SpeakerRole) => {
+    (
+      index: number,
+      field: keyof PodcastSpeaker,
+      value: string | SpeakerRole,
+    ) => {
       const newSpeakers = [...speakers];
       newSpeakers[index] = { ...newSpeakers[index], [field]: value };
 
@@ -62,15 +69,15 @@ export const SpeakerConfig = ({
 
       setSpeakers(newSpeakers);
     },
-    [speakers, voices, setSpeakers]
+    [speakers, voices, setSpeakers],
   );
 
   return (
     <div className="space-y-3">
       {voicesLoading && (
-        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
+        <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-zinc-500">
           <svg
-            className="w-3.5 h-3.5 animate-spin"
+            className="w-3 h-3 animate-spin"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -107,18 +114,21 @@ export const SpeakerConfig = ({
               ]}
             />
             <SelectField
-              placeholder="选择音色"
+              placeholder="选择或输入音色 ID"
               value={speaker.voiceId || undefined}
               onChange={(value) => updateSpeaker(index, "voiceId", value)}
               className="flex-1 min-w-0"
               searchable
+              creatable
               options={voices.map((voice) => ({
                 value: voice.id,
                 label: (
                   <div>
                     <div>{voice.name || voice.id}</div>
                     {voice.description && (
-                      <TextSecondary className="text-xs">{voice.description}</TextSecondary>
+                      <TextSecondary className="text-xs">
+                        {voice.description}
+                      </TextSecondary>
                     )}
                   </div>
                 ),
@@ -130,7 +140,7 @@ export const SpeakerConfig = ({
                 icon={<Trash2 size={14} />}
                 variant="danger"
                 size="small"
-                className="w-7 h-7 px-0 rounded-lg shrink-0"
+                className="w-7 h-7 px-0 shrink-0"
                 onClick={() => removeSpeaker(index)}
               />
             )}

@@ -80,6 +80,8 @@ export function parseScript(
 ): PodcastScriptLine[] {
   const lines = script.split("\n").filter((line) => line.trim());
   const scriptLines: PodcastScriptLine[] = [];
+  const speakerNames = new Set(speakers.map((s) => s.name));
+  const missedSpeakers = new Set<string>();
 
   for (const line of lines) {
     // 匹配 "SpeakerName: 文本" 格式
@@ -92,18 +94,15 @@ export function parseScript(
     // 查找对应的 speaker 配置
     const speaker = speakers.find((s) => s.name === speakerName);
     if (!speaker) {
-      console.warn(`未找到说话人: ${speakerName}`);
+      missedSpeakers.add(speakerName);
       continue;
     }
 
     // 检查是否与上一个说话人相同，如果相同则合并文本
     const lastLine = scriptLines[scriptLines.length - 1];
     if (lastLine && lastLine.speaker === speakerName) {
-      // 合并到上一条记录，添加空格分隔
       lastLine.text += " " + text;
-      console.log(`检测到 ${speakerName} 连续发言，已自动合并`);
     } else {
-      // 创建新记录
       scriptLines.push({
         speaker: speakerName,
         text,
@@ -112,6 +111,12 @@ export function parseScript(
         duration: 0,
       });
     }
+  }
+
+  if (missedSpeakers.size > 0) {
+    console.warn(
+      `脚本解析：未匹配的说话人 [${[...missedSpeakers].join(", ")}]，已有说话人 [${[...speakerNames].join(", ")}]`,
+    );
   }
 
   return scriptLines;

@@ -205,19 +205,19 @@ export const ResultPreview = ({
   return (
     <div className="space-y-4">
       <SectionTitle>
-        <Volume2 size={16} className="inline-block mr-1" /> 播客音频
+        <Volume2 size={14} className="inline-block mr-1.5 -mt-px" /> 播客音频
       </SectionTitle>
-      <audio key={audioUrl} controls className="w-full mb-4" src={audioUrl} />
-      <TextSecondary className="text-sm">
+      <audio key={audioUrl} controls className="w-full" src={audioUrl} />
+      <TextSecondary className="text-xs">
         时长: {Math.floor(duration / 60)}:
         {(duration % 60).toString().padStart(2, "0")}
       </TextSecondary>
 
       <details open className="mt-4">
-        <summary className="cursor-pointer text-sm font-medium text-gray-700 dark:text-slate-200 flex items-center gap-2">
-          <FileText size={16} className="inline-block" /> 查看脚本
+        <summary className="cursor-pointer text-xs font-medium text-gray-500 dark:text-zinc-400 flex items-center gap-1.5 select-none">
+          <FileText size={14} className="inline-block" /> 查看脚本
         </summary>
-        <div className="overflow-y-auto flex flex-col gap-3 p-4 rounded max-h-[400px]">
+        <div className="overflow-y-auto flex flex-col gap-2 pt-3 max-h-[400px]">
           {scriptLines.map((line, index) => {
             const isEditing = editingSegmentIndex === index;
             const isRegenerating = regeneratingSegmentIndex === index;
@@ -228,12 +228,12 @@ export const ResultPreview = ({
               <div
                 key={index}
                 className={classNames(
-                  "p-3 rounded border transition-colors",
+                  "p-3 rounded-lg transition-colors duration-150",
                   isEditing
-                    ? "bg-blue-50 dark:bg-blue-500/10 border-blue-300 dark:border-blue-500/30"
+                    ? "bg-blue-50 dark:bg-blue-500/10 shadow-[0_0_0_1px_rgba(59,130,246,0.3)]"
                     : isRegenerating
-                      ? "bg-yellow-50 dark:bg-yellow-500/10 border-yellow-300 dark:border-yellow-500/30"
-                      : "bg-gray-50 dark:bg-zinc-800/50 border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600",
+                      ? "bg-amber-50 dark:bg-amber-500/10 shadow-[0_0_0_1px_rgba(245,158,11,0.3)]"
+                      : "bg-gray-50 dark:bg-zinc-800/50 shadow-[0_0_0_1px_rgba(34,42,53,0.06)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.04)] hover:shadow-[0_0_0_1px_rgba(34,42,53,0.12)] dark:hover:shadow-[0_0_0_1px_rgba(255,255,255,0.08)]",
                 )}
               >
                 <div className="flex justify-between items-center mb-2">
@@ -303,7 +303,7 @@ export const ResultPreview = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="text-gray-700 dark:text-slate-200 whitespace-pre-wrap">
+                  <div className="text-sm text-gray-700 dark:text-zinc-200 whitespace-pre-wrap leading-relaxed">
                     {line.text}
                   </div>
                 )}
