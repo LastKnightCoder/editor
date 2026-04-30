@@ -2135,7 +2135,7 @@ class PublishModule implements Module {
           await repoGit.commit(commitMessage, undefined, {
             "--author": `${committerName} <${committerEmail}>`,
           });
-          await repoGit.push("origin", providerConfig.branch);
+          await repoGit.push("origin", providerConfig.branch, ["--force"]);
         } else {
           log.info("No content changes detected, skip git push.");
         }

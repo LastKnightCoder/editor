@@ -62,7 +62,7 @@ const DraggableTab = memo((props: DraggableTabProps) => {
   const ref = useRef<HTMLDivElement>(null);
   const reorderTabGroup = useTabStore((state) => state.reorderTabGroup);
   const moveTabGroupToTab = useTabStore((state) => state.moveTabGroupToTab);
-  const { hoverClass, divideCalass } = useThemeColors();
+  const { hoverClass, divideClass } = useThemeColors();
   const { backgroundType } = useBackgroundMode();
   const isDarkMode = useSettingStore((state) => state.setting.darkMode);
 
@@ -349,7 +349,7 @@ const DraggableTab = memo((props: DraggableTabProps) => {
       <div
         className={classnames(
           "w-0.5 h-3 shrink-0 mr-1 rounded-full transition-opacity group-hover:opacity-0",
-          divideCalass,
+          divideClass,
           {
             "opacity-0": !showDivider,
             "opacity-100": showDivider,

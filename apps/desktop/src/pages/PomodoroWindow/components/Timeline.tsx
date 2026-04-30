@@ -216,7 +216,7 @@ const Timeline = () => {
                         <div
                           className={classNames(
                             "absolute w-[2px] z-0 transition-colors",
-                            themeColors.divideCalass,
+                            themeColors.divideClass,
                           )}
                           style={{
                             left: "calc(1rem - 1px)",
@@ -229,7 +229,7 @@ const Timeline = () => {
                         <div
                           className={classNames(
                             "absolute w-[2px] z-0 transition-colors",
-                            themeColors.divideCalass,
+                            themeColors.divideClass,
                           )}
                           style={{
                             left: "calc(1rem - 1px)",

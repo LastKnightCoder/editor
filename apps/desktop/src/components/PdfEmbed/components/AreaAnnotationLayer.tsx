@@ -252,7 +252,7 @@ const AreaAnnotationMenu = ({
           </button>
 
           <div
-            className={classNames("w-px h-4 mx-0.5", themeColors.divideCalass)}
+            className={classNames("w-px h-4 mx-0.5", themeColors.divideClass)}
           />
 
           {/* 添加笔记按钮 */}
@@ -272,7 +272,7 @@ const AreaAnnotationMenu = ({
           </button>
 
           <div
-            className={classNames("w-px h-4 mx-0.5", themeColors.divideCalass)}
+            className={classNames("w-px h-4 mx-0.5", themeColors.divideClass)}
           />
 
           {/* 删除按钮 */}
