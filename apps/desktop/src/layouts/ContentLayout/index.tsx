@@ -95,7 +95,7 @@ const ShortSidebarLayout = memo(() => {
       >
         <GlobalTitlebar />
 
-        <div className="flex-1 min-h-0 flex gap-3 px-3 pb-3 pt-3 overflow-hidden">
+        <div className="flex-1 min-h-0 flex px-3 pb-3 pt-3 overflow-hidden">
           <div className={`flex-1 min-w-0 h-full box-border flex flex-col`}>
             <div
               className={`flex-1 min-h-0 shadow-lg flex overflow-hidden rounded-2xl border ${

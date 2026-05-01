@@ -398,7 +398,7 @@ const RightChatSidebar = memo(
       <ResizableAndHideableSidebar
         className={classnames(
           "relative box-border flex-none h-full",
-          open && "rounded-2xl shadow-lg border",
+          open && "ml-3 rounded-2xl shadow-lg border",
           open &&
             (isGradient
               ? "bg-white/20 dark:bg-[#0a0a0a]/15 backdrop-blur-sm backdrop-saturate-110 border-white/30 dark:border-white/20"

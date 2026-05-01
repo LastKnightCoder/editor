@@ -9,8 +9,19 @@ import {
   shouldRefreshTodoQueryResult,
   TODO_MUTATION_ACTIONS,
 } from "@/mcp/todo/mutation";
+import { ToolDividerList, ToolDividerListItem, ToolProgressBar } from "./ui";
 import TodoRowCard from "./todo/TodoRowCard";
 import { parseTodoRendererOutput, type TodoRendererData } from "./todo/utils";
+
+const SHADOW_CARD_LIGHT =
+  "0 0 0 1px rgba(34,42,53,0.08), 0 1px 5px -4px rgba(19,19,22,0.7), 0 4px 8px rgba(34,42,53,0.05)";
+const SHADOW_CARD_DARK =
+  "0 0 0 1px rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.2)";
+const SHADOW_DIVIDER_LIGHT = "inset 0 -1px 0 0 rgba(34,42,53,0.08)";
+const SHADOW_DIVIDER_DARK = "inset 0 -1px 0 0 rgba(255,255,255,0.06)";
+const SHADOW_BTN_LIGHT =
+  "0 0 0 1px rgba(34,42,53,0.08), 0 1px 2px rgba(34,42,53,0.04)";
+const SHADOW_BTN_DARK = "0 0 0 1px rgba(255,255,255,0.06)";
 
 const TodoToolRenderer = ({
   execution,
@@ -97,10 +108,8 @@ const TodoToolRenderer = ({
     if (items.length === 0) {
       return (
         <div
-          className={`rounded-lg border px-3 py-4 text-center text-sm ${
-            isDark
-              ? "border-white/10 text-slate-400"
-              : "border-slate-200 text-slate-500"
+          className={`rounded-lg px-3 py-4 text-center text-sm ${
+            isDark ? "text-slate-400" : "text-slate-500"
           }`}
         >
           当前没有符合条件的任务
@@ -109,16 +118,17 @@ const TodoToolRenderer = ({
     }
 
     return (
-      <div className="space-y-3">
+      <ToolDividerList isDark={isDark}>
         {items.map((item) => (
-          <TodoRowCard
-            key={item.id}
-            item={item}
-            isDark={isDark}
-            onToggleComplete={handleToggleComplete}
-          />
+          <ToolDividerListItem key={item.id} isDark={isDark}>
+            <TodoRowCard
+              item={item}
+              isDark={isDark}
+              onToggleComplete={handleToggleComplete}
+            />
+          </ToolDividerListItem>
         ))}
-      </div>
+      </ToolDividerList>
     );
   };
 
@@ -157,14 +167,14 @@ const TodoToolRenderer = ({
           return (
             <div key={group.key} className="space-y-2">
               <div
-                className={`pb-2 text-sm font-semibold ${isDark ? "text-slate-400" : "text-slate-600"}`}
+                className={`pb-2 text-xs font-semibold uppercase tracking-wider ${isDark ? "text-slate-500" : "text-slate-400"}`}
               >
                 {group.label} · {group.totalCount}
               </div>
               {renderItems(displayItems)}
               {hasMore && (
                 <button
-                  className="w-full py-2 text-center text-xs text-blue-500 hover:text-blue-600 hover:underline cursor-pointer"
+                  className="w-full py-2 text-center text-xs text-blue-500 hover:text-blue-600 transition-colors duration-150 cursor-pointer"
                   onClick={() =>
                     setExpandedGroups((prev) => ({
                       ...prev,
@@ -187,12 +197,18 @@ const TodoToolRenderer = ({
   const summary = data.summary;
   return (
     <div
-      className={`my-3 overflow-hidden rounded-lg border ${
-        isDark ? "border-white/10 bg-zinc-900/50" : "border-slate-200 bg-white"
+      className={`my-3 overflow-hidden rounded-xl animate-fadeIn ${
+        isDark ? "bg-zinc-900/50" : "bg-white"
       }`}
+      style={{
+        boxShadow: isDark ? SHADOW_CARD_DARK : SHADOW_CARD_LIGHT,
+      }}
     >
       <div
-        className={`border-b px-4 py-3 ${isDark ? "border-white/10" : "border-slate-200"}`}
+        className="px-4 py-3.5"
+        style={{
+          boxShadow: isDark ? SHADOW_DIVIDER_DARK : SHADOW_DIVIDER_LIGHT,
+        }}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -211,15 +227,22 @@ const TodoToolRenderer = ({
             </div>
           </div>
           <button
-            className={`rounded px-3 py-1 text-xs transition-colors ${
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-150 ${
               loading
                 ? isDark
-                  ? "cursor-not-allowed bg-zinc-800 text-slate-500"
-                  : "cursor-not-allowed bg-slate-100 text-slate-400"
+                  ? "cursor-not-allowed bg-zinc-800/60 text-slate-500"
+                  : "cursor-not-allowed bg-slate-50 text-slate-400"
                 : isDark
                   ? "bg-zinc-800 text-slate-200 hover:bg-zinc-700"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  : "bg-slate-50 text-slate-700 hover:bg-slate-100"
             }`}
+            style={
+              !loading
+                ? {
+                    boxShadow: isDark ? SHADOW_BTN_DARK : SHADOW_BTN_LIGHT,
+                  }
+                : undefined
+            }
             disabled={loading}
             onClick={() => void refresh()}
           >
@@ -228,33 +251,27 @@ const TodoToolRenderer = ({
         </div>
       </div>
 
-      <div className="space-y-4 px-4 py-3">
+      <div className="space-y-4 px-4 py-4">
         {data.type === "todo-dashboard" ? (
           <div className="space-y-4">
-            <div className="flex gap-3 overflow-x-auto">
+            <div className="space-y-2">
+              <ToolProgressBar
+                isDark={isDark}
+                segments={[
+                  { value: summary.completedCount, color: "#10b981" },
+                  {
+                    value: summary.pendingCount - summary.overdueCount,
+                    color: isDark ? "#71717a" : "#cbd5e1",
+                  },
+                  { value: summary.overdueCount, color: "#f43f5e" },
+                ]}
+              />
               <div
-                className={`min-w-[120px] flex-shrink-0 rounded-lg p-3 ${isDark ? "bg-zinc-950/30" : "bg-slate-50/50"}`}
+                className={`text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}
               >
-                <div className="text-xs opacity-70">待处理</div>
-                <div className="mt-1 text-2xl font-semibold">
-                  {summary.pendingCount}
-                </div>
-              </div>
-              <div
-                className={`min-w-[120px] flex-shrink-0 rounded-lg p-3 ${isDark ? "bg-zinc-950/30" : "bg-slate-50/50"}`}
-              >
-                <div className="text-xs opacity-70">最近完成</div>
-                <div className="mt-1 text-2xl font-semibold">
-                  {data.recentCompletedItems.length}
-                </div>
-              </div>
-              <div
-                className={`min-w-[120px] flex-shrink-0 rounded-lg p-3 ${isDark ? "bg-zinc-950/30" : "bg-slate-50/50"}`}
-              >
-                <div className="text-xs opacity-70">逾期</div>
-                <div className="mt-1 text-2xl font-semibold text-rose-500">
-                  {summary.overdueCount}
-                </div>
+                {summary.completedCount}/{summary.totalCount} 已完成
+                {summary.overdueCount > 0 &&
+                  ` · ${summary.overdueCount} 项逾期`}
               </div>
             </div>
 

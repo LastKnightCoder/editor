@@ -1,14 +1,19 @@
 import type { PropsWithChildren, ReactNode } from "react";
 
+const SHADOW_CARD_LIGHT =
+  "0 0 0 1px rgba(34,42,53,0.08), 0 1px 5px -4px rgba(19,19,22,0.7), 0 4px 8px rgba(34,42,53,0.05)";
+const SHADOW_CARD_DARK =
+  "0 0 0 1px rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.2)";
+const SHADOW_DIVIDER_LIGHT = "inset 0 -1px 0 0 rgba(34,42,53,0.08)";
+const SHADOW_DIVIDER_DARK = "inset 0 -1px 0 0 rgba(255,255,255,0.06)";
+
 export const ToolBadge = ({
   isDark,
   children,
 }: PropsWithChildren<{ isDark: boolean }>) => (
   <span
-    className={`inline-flex max-w-full items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-      isDark
-        ? "border-white/10 bg-white/5 text-slate-300"
-        : "border-slate-200 bg-slate-50 text-slate-600"
+    className={`inline-flex max-w-full items-center rounded-full px-2 py-0.5 text-[11px] font-medium tracking-wide ${
+      isDark ? "bg-white/[0.08] text-slate-300" : "bg-slate-100 text-slate-600"
     }`}
   >
     <span className="truncate">{children}</span>
@@ -20,9 +25,12 @@ export const ToolCard = ({
   children,
 }: PropsWithChildren<{ isDark: boolean }>) => (
   <div
-    className={`my-3 w-full max-w-full min-w-0 overflow-hidden rounded-xl border ${
-      isDark ? "border-white/10 bg-zinc-900/50" : "border-slate-200 bg-white"
+    className={`my-3 w-full max-w-full min-w-0 overflow-hidden rounded-xl animate-fadeIn ${
+      isDark ? "bg-zinc-900/50" : "bg-white"
     }`}
+    style={{
+      boxShadow: isDark ? SHADOW_CARD_DARK : SHADOW_CARD_LIGHT,
+    }}
   >
     {children}
   </div>
@@ -34,16 +42,21 @@ export const ToolCardHeader = ({
   divided = false,
 }: PropsWithChildren<{ isDark: boolean; divided?: boolean }>) => (
   <div
-    className={`${divided ? "border-b" : ""} px-4 py-3 ${
-      isDark ? "border-white/10" : "border-slate-200"
-    }`}
+    className="px-4 py-3.5"
+    style={
+      divided
+        ? {
+            boxShadow: isDark ? SHADOW_DIVIDER_DARK : SHADOW_DIVIDER_LIGHT,
+          }
+        : undefined
+    }
   >
     {children}
   </div>
 );
 
 export const ToolCardBody = ({ children }: PropsWithChildren) => (
-  <div className="space-y-3 px-4 py-3">{children}</div>
+  <div className="space-y-4 px-4 py-4">{children}</div>
 );
 
 export const ToolMutedText = ({
@@ -85,3 +98,61 @@ export const ToolSectionTitle = ({
     {action}
   </div>
 );
+
+export const ToolDividerList = ({
+  isDark,
+  children,
+}: PropsWithChildren<{ isDark: boolean }>) => (
+  <div
+    className={`divide-y ${
+      isDark ? "divide-white/[0.06]" : "divide-slate-100"
+    }`}
+  >
+    {children}
+  </div>
+);
+
+export const ToolDividerListItem = ({
+  isDark,
+  children,
+}: PropsWithChildren<{ isDark: boolean }>) => (
+  <div
+    className={`py-3 first:pt-0 last:pb-0 transition-colors duration-150 ${
+      isDark ? "hover:bg-white/[0.02]" : "hover:bg-slate-50/50"
+    }`}
+  >
+    {children}
+  </div>
+);
+
+export const ToolProgressBar = ({
+  isDark,
+  segments,
+}: {
+  isDark: boolean;
+  segments: Array<{ value: number; color: string }>;
+}) => {
+  const total = segments.reduce((sum, s) => sum + s.value, 0);
+  if (total === 0) return null;
+
+  return (
+    <div
+      className={`flex h-2 w-full overflow-hidden rounded-full ${
+        isDark ? "bg-zinc-800" : "bg-slate-100"
+      }`}
+    >
+      {segments.map((segment, i) =>
+        segment.value > 0 ? (
+          <div
+            key={i}
+            className="transition-all duration-200"
+            style={{
+              width: `${(segment.value / total) * 100}%`,
+              backgroundColor: segment.color,
+            }}
+          />
+        ) : null,
+      )}
+    </div>
+  );
+};
