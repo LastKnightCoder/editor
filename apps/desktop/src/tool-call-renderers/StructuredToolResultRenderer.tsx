@@ -4,6 +4,8 @@ import {
   ToolCard,
   ToolCardBody,
   ToolCardHeader,
+  ToolDividerList,
+  ToolDividerListItem,
   ToolMutedText,
   ToolSectionTitle,
   ToolValuePill,
@@ -115,15 +117,11 @@ const StructuredToolResultRenderer = ({
         ) : null}
 
         {payload.items?.length ? (
-          <div className="space-y-2">
+          <ToolDividerList isDark={isDark}>
             {payload.items.map((item, index) => (
-              <div
+              <ToolDividerListItem
                 key={`${item.title || "item"}-${index}`}
-                className={`rounded-xl border p-3 ${
-                  isDark
-                    ? "border-white/10 bg-zinc-950/40"
-                    : "border-slate-200 bg-slate-50/60"
-                }`}
+                isDark={isDark}
               >
                 <ToolSectionTitle isDark={isDark}>
                   {item.title || `项目 ${index + 1}`}
@@ -134,12 +132,12 @@ const StructuredToolResultRenderer = ({
                   </ToolMutedText>
                 ) : null}
                 {item.description ? (
-                  <ToolMutedText isDark={isDark} className="mt-2 break-words">
+                  <ToolMutedText isDark={isDark} className="mt-1.5 break-words">
                     {item.description}
                   </ToolMutedText>
                 ) : null}
                 {item.badges?.length ? (
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="mt-2 flex flex-wrap gap-1.5">
                     {item.badges.map((badge) => (
                       <ToolBadge key={badge} isDark={isDark}>
                         {badge}
@@ -147,9 +145,9 @@ const StructuredToolResultRenderer = ({
                     ))}
                   </div>
                 ) : null}
-              </div>
+              </ToolDividerListItem>
             ))}
-          </div>
+          </ToolDividerList>
         ) : null}
 
         {!payload.metrics?.length &&
