@@ -24,6 +24,9 @@ const buildInitialOtherMap = (answers: AskQuestionAnswerItem[] | undefined) =>
     return acc;
   }, {});
 
+const isTransientStreamingState = (status: string) =>
+  status === "pending" || status === "executing" || status === "retrying";
+
 const parseOutputResult = (output?: string): AskQuestionToolResult | null => {
   if (!output) return null;
   try {
@@ -64,21 +67,37 @@ const AskQuestionRenderer = ({
     }
     return normalizeAskQuestionPayload(parsedInput);
   }, [sessionRecord?.payload, parsedInput]);
+  const executionIdentity = useMemo(
+    () =>
+      JSON.stringify({
+        toolCallId: execution.toolCallId,
+        rawInput: execution.input,
+        timestamp: execution.timestamp,
+      }),
+    [execution.input, execution.timestamp, execution.toolCallId],
+  );
 
   const payload = normalized.payload;
-  const outputResult = parseOutputResult(execution.output);
-  const submittedAnswers =
-    sessionRecord?.submittedAnswers ||
-    (outputResult
-      ? {
-          submittedAt: outputResult.submittedAt,
-          answers: outputResult.answers.map((item) => ({
-            questionId: item.questionId,
-            selectedValues: item.selectedOptions.map((option) => option.value),
-            otherText: item.otherText || "",
-          })),
-        }
-      : undefined);
+  const outputResult = useMemo(
+    () => parseOutputResult(execution.output),
+    [execution.output],
+  );
+  const submittedAnswers = useMemo(() => {
+    if (sessionRecord?.submittedAnswers) {
+      return sessionRecord.submittedAnswers;
+    }
+    if (!outputResult) {
+      return undefined;
+    }
+    return {
+      submittedAt: outputResult.submittedAt,
+      answers: outputResult.answers.map((item) => ({
+        questionId: item.questionId,
+        selectedValues: item.selectedOptions.map((option) => option.value),
+        otherText: item.otherText || "",
+      })),
+    };
+  }, [outputResult, sessionRecord?.submittedAnswers]);
 
   const [selectedValuesMap, setSelectedValuesMap] = useState<
     Record<string, string[]>
@@ -89,17 +108,30 @@ const AskQuestionRenderer = ({
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!submittedAnswers) return;
-    setSelectedValuesMap(buildInitialSelectedMap(submittedAnswers.answers));
-    setOtherTextMap(buildInitialOtherMap(submittedAnswers.answers));
-  }, [submittedAnswers]);
+    setSelectedValuesMap(buildInitialSelectedMap(submittedAnswers?.answers));
+    setOtherTextMap(buildInitialOtherMap(submittedAnswers?.answers));
+    setError("");
+  }, [executionIdentity, submittedAnswers]);
+
+  const displayAnswerMap = useMemo(
+    () =>
+      new Map(
+        (submittedAnswers?.answers || []).map((answer) => [
+          answer.questionId,
+          answer,
+        ]),
+      ),
+    [submittedAnswers?.answers],
+  );
 
   if (!payload) {
-    console.warn("[ask-question] 无法解析工具输入", {
-      toolCallId: execution.toolCallId,
-      inputParseError,
-      normalizedError: normalized.error,
-    });
+    if (!isTransientStreamingState(execution.status)) {
+      console.warn("[ask-question] 无法解析工具输入", {
+        toolCallId: execution.toolCallId,
+        inputParseError,
+        normalizedError: normalized.error,
+      });
+    }
     return <>{renderDefault()}</>;
   }
 
@@ -182,10 +214,6 @@ const AskQuestionRenderer = ({
     setError("");
   };
 
-  const displaySummary = submittedAnswers?.answers || [];
-  const displayAnswerMap = new Map(
-    displaySummary.map((answer) => [answer.questionId, answer]),
-  );
   const checkboxAccentColor = isDark ? "#38bdf8" : "#0284c7";
 
   return (
