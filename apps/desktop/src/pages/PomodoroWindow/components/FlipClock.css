@@ -1,0 +1,151 @@
+.fc-clock {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.fc-pair {
+  display: flex;
+  gap: 8px;
+}
+
+.fc-colon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  width: 20px;
+}
+
+.fc-colon-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.fc-digit {
+  position: relative;
+  width: 120px;
+  height: 164px;
+  perspective: 400px;
+}
+
+.fc-digit::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 20;
+  pointer-events: none;
+}
+
+.fc-half {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+  overflow: hidden;
+}
+
+.fc-upper {
+  top: 0;
+  border-radius: 10px 10px 0 0;
+  background: linear-gradient(180deg, #1c1c1e, #181818);
+}
+
+.fc-lower {
+  bottom: 0;
+  border-radius: 0 0 10px 10px;
+  background: linear-gradient(180deg, #131313, #161616);
+}
+
+.fc-num {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  height: 164px;
+  line-height: 164px;
+  font-size: 110px;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.88);
+  font-variant-numeric: tabular-nums;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  user-select: none;
+  pointer-events: none;
+}
+
+.fc-upper .fc-num {
+  top: 0;
+}
+
+.fc-lower .fc-num {
+  bottom: 0;
+}
+
+/* Animated flaps */
+.fc-flap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  z-index: 10;
+  will-change: transform;
+}
+
+.fc-flap-top {
+  top: 0;
+  border-radius: 10px 10px 0 0;
+  background: linear-gradient(180deg, #1c1c1e, #181818);
+  transform-origin: bottom center;
+  animation: fc-fold-top 0.3s cubic-bezier(0.4, 0, 1, 1) forwards;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.fc-flap-top .fc-num {
+  top: 0;
+}
+
+.fc-flap-bottom {
+  bottom: 0;
+  border-radius: 0 0 10px 10px;
+  background: linear-gradient(180deg, #131313, #161616);
+  transform-origin: top center;
+  transform: rotateX(90deg);
+  animation: fc-fold-bottom 0.3s cubic-bezier(0, 0, 0.2, 1) forwards;
+  animation-delay: 0.15s;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.fc-flap-bottom .fc-num {
+  bottom: 0;
+}
+
+@keyframes fc-fold-top {
+  0% {
+    transform: rotateX(0deg);
+  }
+  100% {
+    transform: rotateX(-90deg);
+  }
+}
+
+@keyframes fc-fold-bottom {
+  0% {
+    transform: rotateX(90deg);
+  }
+  100% {
+    transform: rotateX(0deg);
+  }
+}

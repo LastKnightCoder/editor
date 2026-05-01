@@ -44,8 +44,9 @@ const CircularProgress: React.FC<CircularProgressProps> = ({
         cy={size / 2}
         r={radius}
         fill="none"
-        stroke="#e5e7eb"
+        stroke="currentColor"
         strokeWidth={strokeWidth}
+        className="opacity-10"
       />
       <circle
         cx={size / 2}
@@ -57,7 +58,10 @@ const CircularProgress: React.FC<CircularProgressProps> = ({
         strokeDasharray={circumference}
         strokeDashoffset={offset}
         strokeLinecap="round"
-        className="transition-all duration-300"
+        style={{
+          transition:
+            "stroke-dashoffset 1s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.5s ease",
+        }}
       />
     </svg>
   );

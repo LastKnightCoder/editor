@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import {
   pausePomodoroSession,
   resumePomodoroSession,
@@ -10,10 +10,15 @@ import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 import useInitDatabase from "@/hooks/useInitDatabase";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import { fmt, FIVE_MINUTES_MS } from "./utils";
-import { AiOutlineClose } from "react-icons/ai";
-import { HiMusicNote } from "react-icons/hi";
 import { App } from "antd";
+import { motion } from "motion/react";
+import FlipClock from "./components/FlipClock";
 import BackgroundSoundPanel from "./components/BackgroundSoundPanel";
+import { HiMusicNote } from "react-icons/hi";
+import { AiOutlineClose } from "react-icons/ai";
+
+const SIXTY_MIN_MS = 60 * 60 * 1000;
+const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 const Immersive: React.FC = () => {
   useInitDatabase();
@@ -79,7 +84,6 @@ const Immersive: React.FC = () => {
     };
   }, [inited, syncActiveSession]);
 
-  // 监听 Esc 键隐藏窗口
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -92,12 +96,10 @@ const Immersive: React.FC = () => {
     };
   }, []);
 
-  // 监听番茄钟结束，自动关闭窗口
   useEffect(() => {
     if (!client) return;
 
     const handler = (session: unknown) => {
-      // 当 activeSession 从有变为 null 时，说明番茄钟结束
       if (!session) {
         hidePomodoroImmersiveWindow();
       }
@@ -116,97 +118,179 @@ const Immersive: React.FC = () => {
     };
   }, [client]);
 
+  const progress = useMemo(() => {
+    if (!activeSession) return 0;
+    if (
+      activeSession.expectedMs !== undefined &&
+      activeSession.expectedMs > 0
+    ) {
+      const elapsed = activeSession.expectedMs - Math.max(remainMs ?? 0, 0);
+      return Math.min(
+        Math.max((elapsed / activeSession.expectedMs) * 100, 0),
+        100,
+      );
+    }
+    return Math.min((elapsedMs / SIXTY_MIN_MS) * 100, 100);
+  }, [activeSession, remainMs, elapsedMs]);
+
+  const isRunning = activeSession?.status === "running";
+
+  const accentColor = isRunning ? "#67e8f9" : "#fdba74";
+  const glowColor = isRunning
+    ? "rgba(103, 232, 249, 0.08)"
+    : "rgba(253, 186, 116, 0.05)";
+
   if (initStatus === "loading" || (isConnected && !inited)) {
     return (
-      <div className="w-screen h-screen bg-black flex items-center justify-center">
-        <div className="text-white/70 text-xl">正在同步专注状态...</div>
+      <div
+        className="w-screen h-screen flex items-center justify-center"
+        style={{
+          background:
+            "radial-gradient(ellipse at 50% 40%, #0f0f1a, #08080f 70%)",
+        }}
+      >
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4 }}
+          className="text-white/40 text-lg tracking-wider"
+        >
+          正在同步...
+        </motion.div>
       </div>
     );
   }
 
   if (!activeSession) {
     return (
-      <div className="w-screen h-screen bg-black flex items-center justify-center">
-        <div className="text-white text-xl">当前没有正在进行的番茄钟</div>
+      <div
+        className="w-screen h-screen flex items-center justify-center"
+        style={{
+          background:
+            "radial-gradient(ellipse at 50% 40%, #0f0f1a, #08080f 70%)",
+        }}
+      >
+        <div className="text-white/30 text-lg tracking-wider">
+          当前没有进行中的专注
+        </div>
       </div>
     );
   }
 
+  const handleStop = async () => {
+    if (elapsedMs < FIVE_MINUTES_MS) {
+      modal.confirm({
+        title: "专注时长不足 5 分钟",
+        content: "当前专注时长不足 5 分钟，是否放弃本次记录？",
+        okText: "放弃",
+        cancelText: "取消",
+        okButtonProps: { danger: true },
+        onOk: async () => {
+          await stopPomodoroSession(true);
+          hidePomodoroImmersiveWindow();
+        },
+      });
+    } else {
+      await stopPomodoroSession(true);
+      hidePomodoroImmersiveWindow();
+    }
+  };
+
+  const timeDisplay =
+    activeSession.expectedMs !== undefined
+      ? fmt(remainMs ?? 0)
+      : fmt(elapsedMs);
+
   return (
-    <div className="w-screen h-screen bg-black flex flex-col items-center justify-center relative">
-      {/* 主要内容区 */}
-      <div className="flex flex-col items-center gap-8">
-        {/* 倒计时/正计时显示 */}
-        <div className="text-white text-[120px] font-light tracking-wider">
-          {activeSession.expectedMs !== undefined
-            ? fmt(remainMs ?? 0)
-            : fmt(elapsedMs)}
-        </div>
+    <div
+      className="w-screen h-screen flex flex-col items-center justify-center relative select-none"
+      style={{
+        background: "radial-gradient(ellipse at 50% 40%, #0f0f1a, #08080f 70%)",
+      }}
+    >
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: `radial-gradient(ellipse at 50% 45%, ${glowColor}, transparent 55%)`,
+        }}
+      />
 
-        {/* 状态文字 */}
-        <div className="text-white/60 text-2xl tracking-widest">
-          {activeSession.status === "running" ? "专注中" : "已暂停"}
-        </div>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.6, ease: EASE_OUT_EXPO }}
+      >
+        <FlipClock time={timeDisplay} />
+      </motion.div>
 
-        {/* 控制按钮 */}
-        <div className="flex items-center gap-6 mt-4">
-          {activeSession.status === "running" ? (
-            <button
-              className="px-8 py-3 rounded-full bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 text-lg border border-amber-500/30 transition-all"
-              onClick={() => pausePomodoroSession()}
-            >
-              暂停
-            </button>
-          ) : (
-            <button
-              className="px-8 py-3 rounded-full bg-green-600/20 text-green-400 hover:bg-green-600/30 text-lg border border-green-600/30 transition-all"
-              onClick={() => resumePomodoroSession()}
-            >
-              继续
-            </button>
-          )}
-          <button
-            className="px-8 py-3 rounded-full bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 text-lg border border-rose-600/30 transition-all"
-            onClick={async () => {
-              if (elapsedMs < FIVE_MINUTES_MS) {
-                modal.confirm({
-                  title: "专注时长不足 5 分钟",
-                  content: "当前专注时长不足 5 分钟，是否放弃本次记录？",
-                  okText: "放弃",
-                  cancelText: "取消",
-                  okButtonProps: { danger: true },
-                  onOk: async () => {
-                    await stopPomodoroSession(true);
-                    hidePomodoroImmersiveWindow();
-                  },
-                });
-              } else {
-                await stopPomodoroSession(true);
-                hidePomodoroImmersiveWindow();
-              }
+      {activeSession.expectedMs !== undefined && (
+        <motion.div
+          className="mt-8 rounded-full overflow-hidden"
+          style={{
+            width: 540,
+            height: 2,
+            background: "rgba(255, 255, 255, 0.06)",
+          }}
+          initial={{ opacity: 0, scaleX: 0.8 }}
+          animate={{ opacity: 1, scaleX: 1 }}
+          transition={{ duration: 0.5, delay: 0.3, ease: EASE_OUT_EXPO }}
+        >
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${progress}%`,
+              backgroundColor: accentColor,
+              opacity: 0.6,
+              transition: "width 1s cubic-bezier(0.16, 1, 0.3, 1)",
             }}
-          >
-            结束
-          </button>
-        </div>
-      </div>
+          />
+        </motion.div>
+      )}
 
-      {/* 右下角按钮组 */}
+      <motion.div
+        className="flex items-center gap-4 mt-10"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.15, ease: EASE_OUT_EXPO }}
+      >
+        {isRunning ? (
+          <button
+            className="px-7 py-2.5 rounded-xl text-sm tracking-wide cursor-pointer transition-all duration-200 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80 border border-white/[0.08]"
+            onClick={() => pausePomodoroSession()}
+          >
+            暂停
+          </button>
+        ) : (
+          <button
+            className="px-7 py-2.5 rounded-xl text-sm tracking-wide cursor-pointer transition-all duration-200 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80 border border-white/[0.08]"
+            onClick={() => resumePomodoroSession()}
+          >
+            继续
+          </button>
+        )}
+        <button
+          className="px-7 py-2.5 rounded-xl text-sm tracking-wide cursor-pointer transition-all duration-200 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80 border border-white/[0.08]"
+          onClick={handleStop}
+        >
+          结束
+        </button>
+      </motion.div>
+
       <BackgroundSoundPanel>
         <button
-          className="absolute bottom-8 right-24 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/60 hover:text-white transition-all"
+          className="absolute bottom-6 right-20 w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 bg-white/5 hover:bg-white/10 text-white/30 hover:text-white/60"
           title="背景音"
         >
-          <HiMusicNote className="text-2xl" />
+          <HiMusicNote className="text-lg" />
         </button>
       </BackgroundSoundPanel>
 
       <button
-        className="absolute bottom-8 right-8 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/60 hover:text-white transition-all"
+        className="absolute bottom-6 right-6 w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 bg-white/5 hover:bg-white/10 text-white/30 hover:text-white/60"
         onClick={() => hidePomodoroImmersiveWindow()}
         title="退出沉浸模式 (Esc)"
       >
-        <AiOutlineClose className="text-2xl" />
+        <AiOutlineClose className="text-lg" />
       </button>
     </div>
   );

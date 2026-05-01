@@ -541,15 +541,22 @@ export class WindowManager {
   private initPomodoroMiniWindow() {
     log.info("初始化番茄小窗（隐藏状态）");
 
-    const baseConfig = this.createBaseWindowConfig();
-    baseConfig.width = 240;
-    baseConfig.height = 100;
-    baseConfig.alwaysOnTop = true;
-    baseConfig.frame = false;
-    baseConfig.resizable = false;
-    baseConfig.movable = true;
-    baseConfig.show = false;
-    const win = new BrowserWindow(baseConfig);
+    const miniConfig: BrowserWindowConstructorOptions = {
+      width: 240,
+      height: 130,
+      alwaysOnTop: true,
+      frame: false,
+      resizable: false,
+      movable: true,
+      show: false,
+      autoHideMenuBar: true,
+      icon: path.join(path.dirname(preload), "../../build/icon.png"),
+      webPreferences: {
+        preload,
+        spellcheck: false,
+      },
+    };
+    const win = new BrowserWindow(miniConfig);
     this.setupWindowEvents(win, false);
 
     win.on("close", (event) => {

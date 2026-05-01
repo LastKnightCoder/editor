@@ -110,7 +110,10 @@
       "Bash(npm test:*)",
       "Bash(npx vitest:*)",
       "Bash(pnpm --filter blog build)",
-      "Skill(impeccable)"
+      "Skill(impeccable)",
+      "Bash(pnpm --filter desktop dev)",
+      "Bash(curl -s http://localhost:5173/)",
+      "Bash(curl *)"
     ],
     "deny": [],
     "ask": []

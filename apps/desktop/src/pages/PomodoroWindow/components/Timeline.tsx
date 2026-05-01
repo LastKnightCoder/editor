@@ -130,12 +130,7 @@ const Timeline = () => {
   return (
     <div className="mt-6 h-full flex flex-col overflow-hidden">
       <div className="mb-4 shrink-0 flex items-center justify-between">
-        <div
-          className={classNames(
-            "text-sm transition-colors",
-            themeColors.textClass,
-          )}
-        >
+        <div className="text-sm transition-colors text-gray-800 dark:text-gray-200">
           专注记录
         </div>
         <Dropdown
@@ -177,12 +172,7 @@ const Timeline = () => {
 
           return (
             <div key={dateKey}>
-              <div
-                className={classNames(
-                  "text-sm mb-3 opacity-60 transition-colors",
-                  themeColors.textClass,
-                )}
-              >
+              <div className="text-sm mb-3 text-gray-500 dark:text-gray-400 transition-colors">
                 {displayDate}
               </div>
               <div>
@@ -214,10 +204,7 @@ const Timeline = () => {
                       {/* 连接线 - 相对于整个条目定位，延伸到下一个条目 */}
                       {!isLast && (
                         <div
-                          className={classNames(
-                            "absolute w-[2px] z-0 transition-colors",
-                            themeColors.divideClass,
-                          )}
+                          className="absolute w-[2px] z-0 bg-gray-200 dark:bg-gray-700"
                           style={{
                             left: "calc(1rem - 1px)",
                             top: "2.25rem",
@@ -227,10 +214,7 @@ const Timeline = () => {
                       )}
                       {isLast && (
                         <div
-                          className={classNames(
-                            "absolute w-[2px] z-0 transition-colors",
-                            themeColors.divideClass,
-                          )}
+                          className="absolute w-[2px] z-0 bg-gray-200 dark:bg-gray-700"
                           style={{
                             left: "calc(1rem - 1px)",
                             top: "2.25rem",
@@ -249,51 +233,27 @@ const Timeline = () => {
                         >
                           <SVG
                             src={stopwatchIcon}
-                            className={classNames(
-                              "w-5 h-5",
-                              themeColors.activeTextClass,
-                            )}
+                            className="w-5 h-5 text-gray-700 dark:text-gray-300"
                           />
                         </div>
-                        <div
-                          className={classNames(
-                            "w-2 h-2 border rounded-full mt-3 relative z-10 transition-colors",
-                            themeColors.cardBgClass,
-                            themeColors.focusBorderClass,
-                          )}
-                        />
+                        <div className="w-2 h-2 border rounded-full mt-3 relative z-10 bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600" />
                       </div>
 
                       {/* 中间和右侧：内容 */}
                       <div className="flex-1 pb-8">
                         <div className="flex items-start justify-between group">
                           <div>
-                            <div
-                              className={classNames(
-                                "text-sm transition-colors",
-                                themeColors.textClass,
-                              )}
-                            >
+                            <div className="text-sm transition-colors text-gray-500 dark:text-gray-400">
                               {startTime} - {endTime || "进行中"}
                             </div>
-                            <div
-                              className={classNames(
-                                "text-base mt-1 transition-colors",
-                                themeColors.activeTextClass,
-                              )}
-                            >
+                            <div className="text-base mt-1 transition-colors text-gray-900 dark:text-gray-100">
                               {presetName}
                             </div>
                           </div>
 
                           {/* 右侧：时长和操作 */}
                           <div className="flex items-center gap-2">
-                            <div
-                              className={classNames(
-                                "text-sm transition-colors",
-                                themeColors.textClass,
-                              )}
-                            >
+                            <div className="text-sm transition-colors text-gray-500 dark:text-gray-400">
                               {focusMinutes}m
                             </div>
                             <Dropdown
