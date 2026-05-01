@@ -5,10 +5,36 @@ import {
   importFromMarkdown,
   isMarkdownLikeText,
   type EditorServices,
+  type ImageBorderRadiusPreset,
+  type ImageShadowPreset,
   type MediaInfo,
   type ThemeColors,
   type ComponentService,
 } from "@tau/editor";
+
+export interface BlogPublishSettings {
+  appearance?: {
+    image?: {
+      borderRadius?: ImageBorderRadiusPreset;
+      shadow?: ImageShadowPreset | boolean;
+    };
+  };
+}
+
+const BLOG_DEFAULT_IMAGE_SETTINGS = {
+  borderRadius: "md" as ImageBorderRadiusPreset,
+  shadow: "none" as ImageShadowPreset | boolean,
+};
+
+function getBlogImageSettingValue<T extends "borderRadius" | "shadow">(
+  settings: BlogPublishSettings | undefined,
+  key: T,
+): NonNullable<NonNullable<BlogPublishSettings["appearance"]>["image"]>[T] {
+  return (settings?.appearance?.image?.[key] ??
+    BLOG_DEFAULT_IMAGE_SETTINGS[key]) as NonNullable<
+    NonNullable<BlogPublishSettings["appearance"]>["image"]
+  >[T];
+}
 
 const createDefaultThemeColors = (): ThemeColors => ({
   hoverClass: "hover:bg-gray-100 dark:hover:bg-zinc-800",
@@ -50,7 +76,7 @@ const createComponentRegistry = (): ComponentService => {
       src={url}
       alt={alt || url}
       className={className}
-      style={{ borderRadius: "0.5rem", ...style }}
+      style={style}
       onClick={onClick}
       onLoad={onLoad}
       crossOrigin={crossOrigin}
@@ -132,7 +158,9 @@ const getDocumentTheme = (): "light" | "dark" => {
   return theme === "dark" ? "dark" : "light";
 };
 
-export function createBlogEditorServices(): EditorServices {
+export function createBlogEditorServices(
+  settingsSnapshot?: BlogPublishSettings,
+): EditorServices {
   const components = createComponentRegistry();
 
   return {
@@ -178,6 +206,15 @@ export function createBlogEditorServices(): EditorServices {
 
     settings: {
       get: <T,>(key: string): T => {
+        if (key === "appearance.image.borderRadius") {
+          return getBlogImageSettingValue(
+            settingsSnapshot,
+            "borderRadius",
+          ) as T;
+        }
+        if (key === "appearance.image.shadow") {
+          return getBlogImageSettingValue(settingsSnapshot, "shadow") as T;
+        }
         console.warn(`Blog 模式下读取设置 "${key}" 默认返回 undefined`);
         return undefined as T;
       },

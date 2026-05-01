@@ -1,12 +1,12 @@
 .fc-clock {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
 }
 
 .fc-pair {
   display: flex;
-  gap: 8px;
+  gap: 10px;
 }
 
 .fc-colon {
@@ -14,22 +14,22 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 24px;
-  width: 20px;
+  gap: 36px;
+  width: 24px;
 }
 
 .fc-colon-dot {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .fc-digit {
   position: relative;
-  width: 120px;
-  height: 164px;
-  perspective: 400px;
+  width: 160px;
+  height: 220px;
+  perspective: 500px;
 }
 
 .fc-digit::after {
@@ -39,7 +39,7 @@
   right: 0;
   top: 50%;
   height: 1px;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.9);
   z-index: 20;
   pointer-events: none;
 }
@@ -54,14 +54,14 @@
 
 .fc-upper {
   top: 0;
-  border-radius: 10px 10px 0 0;
-  background: linear-gradient(180deg, #1c1c1e, #181818);
+  border-radius: 12px 12px 0 0;
+  background: #0e0e0e;
 }
 
 .fc-lower {
   bottom: 0;
-  border-radius: 0 0 10px 10px;
-  background: linear-gradient(180deg, #131313, #161616);
+  border-radius: 0 0 12px 12px;
+  background: #0a0a0a;
 }
 
 .fc-num {
@@ -69,16 +69,14 @@
   left: 0;
   right: 0;
   text-align: center;
-  height: 164px;
-  line-height: 164px;
-  font-size: 110px;
-  font-weight: 300;
-  color: rgba(255, 255, 255, 0.88);
+  height: 220px;
+  line-height: 220px;
+  font-size: 150px;
+  font-weight: 200;
+  color: rgba(255, 255, 255, 0.9);
   font-variant-numeric: tabular-nums;
-  font-family:
-    system-ui,
-    -apple-system,
-    sans-serif;
+  font-family: var(--font, system-ui, -apple-system, sans-serif);
+  letter-spacing: -2px;
   user-select: none;
   pointer-events: none;
 }
@@ -91,7 +89,6 @@
   bottom: 0;
 }
 
-/* Animated flaps */
 .fc-flap {
   position: absolute;
   left: 0;
@@ -106,11 +103,11 @@
 
 .fc-flap-top {
   top: 0;
-  border-radius: 10px 10px 0 0;
-  background: linear-gradient(180deg, #1c1c1e, #181818);
+  border-radius: 12px 12px 0 0;
+  background: #0e0e0e;
   transform-origin: bottom center;
   animation: fc-fold-top 0.3s cubic-bezier(0.4, 0, 1, 1) forwards;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 .fc-flap-top .fc-num {
@@ -119,13 +116,13 @@
 
 .fc-flap-bottom {
   bottom: 0;
-  border-radius: 0 0 10px 10px;
-  background: linear-gradient(180deg, #131313, #161616);
+  border-radius: 0 0 12px 12px;
+  background: #0a0a0a;
   transform-origin: top center;
   transform: rotateX(90deg);
   animation: fc-fold-bottom 0.3s cubic-bezier(0, 0, 0.2, 1) forwards;
   animation-delay: 0.15s;
-  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.5);
 }
 
 .fc-flap-bottom .fc-num {

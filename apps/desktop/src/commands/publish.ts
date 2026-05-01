@@ -5,6 +5,7 @@ import {
   IPublishPlan,
   IPublishResult,
   IPublishFile,
+  IPublishAppearanceSettings,
   PublishContentType,
 } from "@/types/publish";
 
@@ -108,6 +109,7 @@ export async function exportPublishOutput(options: {
   providerType: "github" | "s3" | "local";
   providerConfig?: Record<string, unknown>;
   siteConfig: { title: string; description: string };
+  settings?: IPublishAppearanceSettings;
 }): Promise<string[]> {
   return invoke("export-publish-output", options);
 }
@@ -126,6 +128,7 @@ export async function executePublish(config: {
   providerType: "github" | "s3";
   providerConfig: Record<string, unknown>;
   siteConfig: { title: string; description: string };
+  settings?: IPublishAppearanceSettings;
   options?: {
     maxRetries?: number;
     retryDelay?: number;

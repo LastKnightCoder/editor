@@ -100,6 +100,15 @@ export interface IPublishContentLinkTarget {
   title?: string;
 }
 
+export interface IPublishAppearanceSettings {
+  appearance?: {
+    image?: {
+      borderRadius?: import("@tau/editor/src/types").ImageBorderRadiusPreset;
+      shadow?: import("@tau/editor/src/types").ImageShadowPreset | boolean;
+    };
+  };
+}
+
 /**
  * 上传结果
  */
@@ -154,6 +163,7 @@ export interface IPublishInitData {
   }>;
   docCollections?: IPublishDocCollection[];
   contentLinkTargets?: Record<string, IPublishContentLinkTarget>;
+  settings?: IPublishAppearanceSettings;
   content: Record<string, unknown>;
   meta: {
     type: "home" | "card" | "article" | "doc" | "list";
