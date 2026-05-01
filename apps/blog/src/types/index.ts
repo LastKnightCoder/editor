@@ -1,4 +1,5 @@
 import { Descendant } from "slate";
+import type { ImageBorderRadiusPreset, ImageShadowPreset } from "@tau/editor";
 
 // 站点配置
 export interface SiteConfig {
@@ -188,6 +189,14 @@ export interface InitData {
   activeTag?: string; // 当前激活的标签（用于筛选）
   docCollections?: DocCollection[]; // 项目/知识库集合
   contentLinkTargets?: Record<string, ContentLinkTarget>;
+  settings?: {
+    appearance?: {
+      image?: {
+        borderRadius?: ImageBorderRadiusPreset;
+        shadow?: ImageShadowPreset | boolean;
+      };
+    };
+  };
   content: CardData | ArticleData | DocData | HomeData | ListData;
   meta: PageMeta;
 }

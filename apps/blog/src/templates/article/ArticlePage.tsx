@@ -38,6 +38,7 @@ const ArticlePage = memo(() => {
   const { site, navigation } = initData;
   const article = initData.content as ArticleData;
   const docCollections = initData.docCollections || [];
+  const blogSettings = initData.settings;
 
   const readingTime = useMemo(
     () => getReadingTime(article.content),
@@ -143,7 +144,7 @@ const ArticlePage = memo(() => {
                   {/* 正文内容 */}
                   <DndProvider>
                     <EditorServicesProvider
-                      services={createBlogEditorServices()}
+                      services={createBlogEditorServices(blogSettings)}
                     >
                       <Editor
                         initValue={article.content}

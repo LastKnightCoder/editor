@@ -23,6 +23,7 @@ import {
   IPublishCardTagTree,
   IPublishCardListItem,
   IPublishListItem,
+  IPublishAppearanceSettings,
 } from "@/types/publish";
 import { createHash } from "crypto";
 import { join, resolve, dirname } from "path";
@@ -52,6 +53,7 @@ import {
   buildSelectionContentLinkTargets,
   mergeDocEntryContentLinkTargets,
 } from "./publish-content-link-targets";
+import { attachPublishAppearanceSettings } from "./publish-appearance-settings";
 
 const TEMPLATE_ENTRY_MAP: Record<string, string> = {
   "home.html": "src/templates/home/index.html",
@@ -141,12 +143,14 @@ type ExecutePublishConfig =
       providerType: "github";
       providerConfig: IGithubPagesConfig;
       siteConfig: { title: string; description: string };
+      settings?: IPublishAppearanceSettings;
       options?: IUploadOptions;
     }
   | {
       providerType: "s3";
       providerConfig: IS3HostingConfig;
       siteConfig: { title: string; description: string };
+      settings?: IPublishAppearanceSettings;
       options?: IUploadOptions;
     };
 
@@ -239,6 +243,7 @@ class PublishModule implements Module {
           providerType: "github" | "s3" | "local";
           providerConfig?: Record<string, unknown>;
           siteConfig: { title: string; description: string };
+          settings?: IPublishAppearanceSettings;
         },
       ) => {
         const db = this.getDatabase(event);
@@ -252,7 +257,12 @@ class PublishModule implements Module {
           payload.siteConfig,
         );
 
-        return this.exportPublishOutput(db, siteMeta, payload.targetDir);
+        return this.exportPublishOutput(
+          db,
+          siteMeta,
+          payload.targetDir,
+          payload.settings,
+        );
       },
     );
 
@@ -279,9 +289,15 @@ class PublishModule implements Module {
     db: import("better-sqlite3").Database,
     site: ISiteMeta,
     targetDir: string,
+    settings?: IPublishAppearanceSettings,
   ): Promise<string[]> {
     const selections = PublishSelectionTable.getAll(db);
-    const { files } = await this.generatePublishFiles(db, selections, site);
+    const { files } = await this.generatePublishFiles(
+      db,
+      selections,
+      site,
+      settings,
+    );
 
     if (!existsSync(targetDir)) {
       mkdirSync(targetDir, { recursive: true });
@@ -370,6 +386,7 @@ class PublishModule implements Module {
   async buildPublishPlan(
     db: import("better-sqlite3").Database,
     site: ISiteMeta,
+    appearanceSettings?: IPublishAppearanceSettings,
   ): Promise<IPublishPlan> {
     // 获取选中的内容
     const selections = PublishSelectionTable.getAll(db);
@@ -380,7 +397,7 @@ class PublishModule implements Module {
 
     // 生成要发布的文件
     const { files: newFiles, virtualProcessed } =
-      await this.generatePublishFiles(db, selections, site);
+      await this.generatePublishFiles(db, selections, site, appearanceSettings);
     const newFileMap = new Map(newFiles.map((f) => [f.path, f]));
 
     const toUpload: IPublishFile[] = [];
@@ -411,6 +428,7 @@ class PublishModule implements Module {
       parentPath: string;
     }>,
     site: ISiteMeta,
+    appearanceSettings?: IPublishAppearanceSettings,
   ): Promise<{ files: IPublishFile[]; virtualProcessed: number }> {
     const files: IPublishFile[] = [];
 
@@ -483,6 +501,7 @@ class PublishModule implements Module {
       projectScopes,
       documentScopes,
       baseContentLinkTargets,
+      appearanceSettings,
     );
     files.push(...docPublishResult.files);
     const docCollections = docPublishResult.collections;
@@ -495,6 +514,7 @@ class PublishModule implements Module {
         docPublishResult.listEntries,
         docCollections,
         contentLinkTargets,
+        appearanceSettings,
       );
       const docListHtml = this.injectData(
         "list.html",
@@ -523,6 +543,7 @@ class PublishModule implements Module {
         linkedCards,
         docCollections,
         contentLinkTargets,
+        appearanceSettings,
       );
       const path = `cards/${selection.contentId}.html`;
       const runtimeCss = await this.buildTailwindRuntimeCss(card.content || []);
@@ -548,6 +569,7 @@ class PublishModule implements Module {
         article,
         docCollections,
         contentLinkTargets,
+        appearanceSettings,
       );
       const path = `articles/${selection.contentId}.html`;
       const runtimeCss = await this.buildTailwindRuntimeCss(
@@ -573,6 +595,7 @@ class PublishModule implements Module {
         cards,
         docCollections,
         contentLinkTargets,
+        appearanceSettings,
       );
       const cardListHtml = this.injectData(
         "list.html",
@@ -594,6 +617,7 @@ class PublishModule implements Module {
         articles,
         docCollections,
         contentLinkTargets,
+        appearanceSettings,
       );
       const articleListHtml = this.injectData(
         "list.html",
@@ -617,6 +641,7 @@ class PublishModule implements Module {
       documents.length,
       docCollections,
       contentLinkTargets,
+      appearanceSettings,
     );
     const homeHtml = this.injectData("home.html", homeInitData, "index.html");
     files.push({
@@ -721,6 +746,7 @@ class PublishModule implements Module {
     documentCount: number,
     docCollections?: IPublishInitData["docCollections"],
     contentLinkTargets?: IPublishInitData["contentLinkTargets"],
+    appearanceSettings?: IPublishAppearanceSettings,
   ): IPublishInitData {
     const timeline = this.buildTimelineEntries(cards, articles, docTimeline);
     const hero =
@@ -731,28 +757,31 @@ class PublishModule implements Module {
           }
         : undefined;
 
-    return {
-      site,
-      navigation,
-      docCollections,
-      contentLinkTargets,
-      content: {
-        hero,
-        timeline,
-        stats: {
-          articles: articles.length,
-          cards: cards.length,
+    return attachPublishAppearanceSettings(
+      {
+        site,
+        navigation,
+        docCollections,
+        contentLinkTargets,
+        content: {
+          hero,
+          timeline,
+          stats: {
+            articles: articles.length,
+            cards: cards.length,
+          },
+          docStats: {
+            projects: projectCount,
+            documents: documentCount,
+          },
         },
-        docStats: {
-          projects: projectCount,
-          documents: documentCount,
+        meta: {
+          type: "home",
+          publishTime: Date.now(),
         },
       },
-      meta: {
-        type: "home",
-        publishTime: Date.now(),
-      },
-    };
+      appearanceSettings,
+    );
   }
 
   /**
@@ -767,28 +796,32 @@ class PublishModule implements Module {
     linkedCards?: ILinkedCardInfo[],
     docCollections?: IPublishInitData["docCollections"],
     contentLinkTargets?: IPublishInitData["contentLinkTargets"],
+    appearanceSettings?: IPublishAppearanceSettings,
   ): IPublishInitData {
-    return {
-      site,
-      navigation,
-      docCollections,
-      contentLinkTargets,
-      cardTagTree,
-      activeTag,
-      content: {
-        id: card.id,
-        content: card.content || [],
-        tags: card.tags || [],
-        category: card.category,
-        createTime: card.create_time,
-        updateTime: card.update_time,
-        linkedCards,
+    return attachPublishAppearanceSettings(
+      {
+        site,
+        navigation,
+        docCollections,
+        contentLinkTargets,
+        cardTagTree,
+        activeTag,
+        content: {
+          id: card.id,
+          content: card.content || [],
+          tags: card.tags || [],
+          category: card.category,
+          createTime: card.create_time,
+          updateTime: card.update_time,
+          linkedCards,
+        },
+        meta: {
+          type: "card",
+          publishTime: Date.now(),
+        },
       },
-      meta: {
-        type: "card",
-        publishTime: Date.now(),
-      },
-    };
+      appearanceSettings,
+    );
   }
 
   /**
@@ -800,27 +833,31 @@ class PublishModule implements Module {
     article: IArticle,
     docCollections?: IPublishInitData["docCollections"],
     contentLinkTargets?: IPublishInitData["contentLinkTargets"],
+    appearanceSettings?: IPublishAppearanceSettings,
   ): IPublishInitData {
-    return {
-      site,
-      navigation,
-      docCollections,
-      contentLinkTargets,
-      content: {
-        id: article.id,
-        title: article.title,
-        author: article.author,
-        content: article.content || [],
-        tags: article.tags || [],
-        bannerBg: article.bannerBg,
-        createTime: article.create_time,
-        updateTime: article.update_time,
+    return attachPublishAppearanceSettings(
+      {
+        site,
+        navigation,
+        docCollections,
+        contentLinkTargets,
+        content: {
+          id: article.id,
+          title: article.title,
+          author: article.author,
+          content: article.content || [],
+          tags: article.tags || [],
+          bannerBg: article.bannerBg,
+          createTime: article.create_time,
+          updateTime: article.update_time,
+        },
+        meta: {
+          type: "article",
+          publishTime: Date.now(),
+        },
       },
-      meta: {
-        type: "article",
-        publishTime: Date.now(),
-      },
-    };
+      appearanceSettings,
+    );
   }
 
   /**
@@ -833,6 +870,7 @@ class PublishModule implements Module {
     records: ICard[] | IArticle[],
     docCollections?: IPublishInitData["docCollections"],
     contentLinkTargets?: IPublishInitData["contentLinkTargets"],
+    appearanceSettings?: IPublishAppearanceSettings,
   ): IPublishInitData {
     const items: IPublishListItem[] =
       type === "card"
@@ -853,27 +891,30 @@ class PublishModule implements Module {
           }));
     items.sort((a, b) => b.createTime - a.createTime);
     const tagStats = this.buildTagStats(items);
-    return {
-      site,
-      navigation,
-      docCollections,
-      contentLinkTargets,
-      content: {
-        title: type === "card" ? "全部卡片" : "全部文章",
-        type,
-        items,
-        tags: tagStats,
-        pagination: {
-          current: 1,
-          total: items.length,
-          pageSize: Math.max(items.length, 1),
+    return attachPublishAppearanceSettings(
+      {
+        site,
+        navigation,
+        docCollections,
+        contentLinkTargets,
+        content: {
+          title: type === "card" ? "全部卡片" : "全部文章",
+          type,
+          items,
+          tags: tagStats,
+          pagination: {
+            current: 1,
+            total: items.length,
+            pageSize: Math.max(items.length, 1),
+          },
+        },
+        meta: {
+          type: "list",
+          publishTime: Date.now(),
         },
       },
-      meta: {
-        type: "list",
-        publishTime: Date.now(),
-      },
-    };
+      appearanceSettings,
+    );
   }
 
   private groupSelections(
@@ -1094,6 +1135,7 @@ class PublishModule implements Module {
     projectScopes: Map<number, EntityScopeConfig>,
     documentScopes: Map<number, EntityScopeConfig>,
     baseContentLinkTargets?: IPublishInitData["contentLinkTargets"],
+    appearanceSettings?: IPublishAppearanceSettings,
   ): Promise<{
     files: IPublishFile[];
     listEntries: IDocEntry[];
@@ -1176,6 +1218,7 @@ class PublishModule implements Module {
           next,
           docCollections,
           contentLinkTargets,
+          appearanceSettings,
         );
         const path = entry.href.replace(/^\//, "");
         const runtimeCss = await this.buildTailwindRuntimeCss(
@@ -1220,34 +1263,38 @@ class PublishModule implements Module {
     next: IDocEntry | undefined,
     docCollections?: IPublishInitData["docCollections"],
     contentLinkTargets?: IPublishInitData["contentLinkTargets"],
+    appearanceSettings?: IPublishAppearanceSettings,
   ): IPublishInitData {
     const activeCollections = this.applyActiveDocCollections(
       docCollections,
       entry.kind,
       entry.entityId,
     );
-    return {
-      site,
-      navigation,
-      sidebar: entry.sidebar,
-      docCollections: activeCollections,
-      contentLinkTargets,
-      content: {
-        id: entry.id,
-        title: entry.title,
-        content: entry.content || [],
-        breadcrumb: entry.breadcrumb,
-        prevPage: prev ? { title: prev.title, href: prev.href } : undefined,
-        nextPage: next ? { title: next.title, href: next.href } : undefined,
-        createTime: entry.createTime,
-        updateTime: entry.updateTime,
-        currentPath: entry.href,
+    return attachPublishAppearanceSettings(
+      {
+        site,
+        navigation,
+        sidebar: entry.sidebar,
+        docCollections: activeCollections,
+        contentLinkTargets,
+        content: {
+          id: entry.id,
+          title: entry.title,
+          content: entry.content || [],
+          breadcrumb: entry.breadcrumb,
+          prevPage: prev ? { title: prev.title, href: prev.href } : undefined,
+          nextPage: next ? { title: next.title, href: next.href } : undefined,
+          createTime: entry.createTime,
+          updateTime: entry.updateTime,
+          currentPath: entry.href,
+        },
+        meta: {
+          type: "doc",
+          publishTime: Date.now(),
+        },
       },
-      meta: {
-        type: "doc",
-        publishTime: Date.now(),
-      },
-    };
+      appearanceSettings,
+    );
   }
 
   private buildDocCollectionsFromMeta(
@@ -1313,6 +1360,7 @@ class PublishModule implements Module {
     entries: IDocEntry[],
     docCollections?: IPublishInitData["docCollections"],
     contentLinkTargets?: IPublishInitData["contentLinkTargets"],
+    appearanceSettings?: IPublishAppearanceSettings,
   ): IPublishInitData {
     const items = entries
       .slice()
@@ -1325,26 +1373,29 @@ class PublishModule implements Module {
         tags: entry.tags,
         createTime: entry.createTime,
       }));
-    return {
-      site,
-      navigation,
-      docCollections,
-      contentLinkTargets,
-      content: {
-        title: "全部文档",
-        type: "doc",
-        items,
-        pagination: {
-          current: 1,
-          total: items.length,
-          pageSize: Math.max(items.length, 1),
+    return attachPublishAppearanceSettings(
+      {
+        site,
+        navigation,
+        docCollections,
+        contentLinkTargets,
+        content: {
+          title: "全部文档",
+          type: "doc",
+          items,
+          pagination: {
+            current: 1,
+            total: items.length,
+            pageSize: Math.max(items.length, 1),
+          },
+        },
+        meta: {
+          type: "list",
+          publishTime: Date.now(),
         },
       },
-      meta: {
-        type: "list",
-        publishTime: Date.now(),
-      },
-    };
+      appearanceSettings,
+    );
   }
 
   private buildProjectDocEntries(
@@ -1912,7 +1963,7 @@ class PublishModule implements Module {
     );
 
     const options = { ...DEFAULT_UPLOAD_OPTIONS, ...config.options };
-    const plan = await this.buildPublishPlan(db, site);
+    const plan = await this.buildPublishPlan(db, site, config.settings);
 
     if (config.providerType === "github" && config.providerConfig.useGitCli) {
       return this.executeGitCliPublish(db, config, plan);

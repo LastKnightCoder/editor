@@ -38,6 +38,7 @@ const DocPage = memo(() => {
   const { site, navigation, sidebar } = initData;
   const doc = initData.content as DocData;
   const docCollections = initData.docCollections || [];
+  const blogSettings = initData.settings;
   const sidebarScrollRef = useRef<HTMLDivElement | null>(null);
 
   const headers = useMemo(() => extractHeaders(doc.content), [doc.content]);
@@ -206,7 +207,7 @@ const DocPage = memo(() => {
                   {/* 正文 */}
                   <DndProvider>
                     <EditorServicesProvider
-                      services={createBlogEditorServices()}
+                      services={createBlogEditorServices(blogSettings)}
                     >
                       <Editor
                         initValue={doc.content}

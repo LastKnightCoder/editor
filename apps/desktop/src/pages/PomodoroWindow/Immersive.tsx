@@ -16,6 +16,7 @@ import FlipClock from "./components/FlipClock";
 import BackgroundSoundPanel from "./components/BackgroundSoundPanel";
 import { HiMusicNote } from "react-icons/hi";
 import { AiOutlineClose } from "react-icons/ai";
+import { FiPause, FiSquare, FiPlay } from "react-icons/fi";
 
 const SIXTY_MIN_MS = 60 * 60 * 1000;
 const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
@@ -135,25 +136,14 @@ const Immersive: React.FC = () => {
 
   const isRunning = activeSession?.status === "running";
 
-  const accentColor = isRunning ? "#67e8f9" : "#fdba74";
-  const glowColor = isRunning
-    ? "rgba(103, 232, 249, 0.08)"
-    : "rgba(253, 186, 116, 0.05)";
-
   if (initStatus === "loading" || (isConnected && !inited)) {
     return (
-      <div
-        className="w-screen h-screen flex items-center justify-center"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 40%, #0f0f1a, #08080f 70%)",
-        }}
-      >
+      <div className="w-screen h-screen flex items-center justify-center bg-black">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4 }}
-          className="text-white/40 text-lg tracking-wider"
+          className="text-white/30 text-sm tracking-widest uppercase"
         >
           正在同步...
         </motion.div>
@@ -163,14 +153,8 @@ const Immersive: React.FC = () => {
 
   if (!activeSession) {
     return (
-      <div
-        className="w-screen h-screen flex items-center justify-center"
-        style={{
-          background:
-            "radial-gradient(ellipse at 50% 40%, #0f0f1a, #08080f 70%)",
-        }}
-      >
-        <div className="text-white/30 text-lg tracking-wider">
+      <div className="w-screen h-screen flex items-center justify-center bg-black">
+        <div className="text-white/20 text-sm tracking-widest uppercase">
           当前没有进行中的专注
         </div>
       </div>
@@ -202,21 +186,9 @@ const Immersive: React.FC = () => {
       : fmt(elapsedMs);
 
   return (
-    <div
-      className="w-screen h-screen flex flex-col items-center justify-center relative select-none"
-      style={{
-        background: "radial-gradient(ellipse at 50% 40%, #0f0f1a, #08080f 70%)",
-      }}
-    >
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: `radial-gradient(ellipse at 50% 45%, ${glowColor}, transparent 55%)`,
-        }}
-      />
-
+    <div className="w-screen h-screen flex flex-col items-center justify-center relative select-none bg-black">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
+        initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.6, ease: EASE_OUT_EXPO }}
       >
@@ -225,11 +197,11 @@ const Immersive: React.FC = () => {
 
       {activeSession.expectedMs !== undefined && (
         <motion.div
-          className="mt-8 rounded-full overflow-hidden"
+          className="mt-10 rounded-full overflow-hidden"
           style={{
-            width: 540,
+            width: 640,
             height: 2,
-            background: "rgba(255, 255, 255, 0.06)",
+            background: "rgba(255, 255, 255, 0.04)",
           }}
           initial={{ opacity: 0, scaleX: 0.8 }}
           animate={{ opacity: 1, scaleX: 1 }}
@@ -239,8 +211,7 @@ const Immersive: React.FC = () => {
             className="h-full rounded-full"
             style={{
               width: `${progress}%`,
-              backgroundColor: accentColor,
-              opacity: 0.6,
+              backgroundColor: "rgba(255, 255, 255, 0.25)",
               transition: "width 1s cubic-bezier(0.16, 1, 0.3, 1)",
             }}
           />
@@ -248,37 +219,40 @@ const Immersive: React.FC = () => {
       )}
 
       <motion.div
-        className="flex items-center gap-4 mt-10"
+        className="flex items-center gap-6 mt-12"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.15, ease: EASE_OUT_EXPO }}
       >
         {isRunning ? (
           <button
-            className="px-7 py-2.5 rounded-xl text-sm tracking-wide cursor-pointer transition-all duration-200 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80 border border-white/[0.08]"
+            className="w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 bg-white/[0.06] hover:bg-white/[0.12] text-white/40 hover:text-white/70"
             onClick={() => pausePomodoroSession()}
+            title="暂停"
           >
-            暂停
+            <FiPause className="text-lg" />
           </button>
         ) : (
           <button
-            className="px-7 py-2.5 rounded-xl text-sm tracking-wide cursor-pointer transition-all duration-200 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80 border border-white/[0.08]"
+            className="w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 bg-white/[0.06] hover:bg-white/[0.12] text-white/40 hover:text-white/70"
             onClick={() => resumePomodoroSession()}
+            title="继续"
           >
-            继续
+            <FiPlay className="text-lg" />
           </button>
         )}
         <button
-          className="px-7 py-2.5 rounded-xl text-sm tracking-wide cursor-pointer transition-all duration-200 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80 border border-white/[0.08]"
+          className="w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 bg-white/[0.06] hover:bg-white/[0.12] text-white/40 hover:text-white/70"
           onClick={handleStop}
+          title="结束"
         >
-          结束
+          <FiSquare className="text-base" />
         </button>
       </motion.div>
 
       <BackgroundSoundPanel>
         <button
-          className="absolute bottom-6 right-20 w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 bg-white/5 hover:bg-white/10 text-white/30 hover:text-white/60"
+          className="absolute bottom-6 right-20 w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 text-white/15 hover:text-white/40"
           title="背景音"
         >
           <HiMusicNote className="text-lg" />
@@ -286,7 +260,7 @@ const Immersive: React.FC = () => {
       </BackgroundSoundPanel>
 
       <button
-        className="absolute bottom-6 right-6 w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 bg-white/5 hover:bg-white/10 text-white/30 hover:text-white/60"
+        className="absolute bottom-6 right-6 w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 text-white/15 hover:text-white/40"
         onClick={() => hidePomodoroImmersiveWindow()}
         title="退出沉浸模式 (Esc)"
       >

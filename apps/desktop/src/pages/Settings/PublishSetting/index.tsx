@@ -102,9 +102,10 @@ const PublishSetting = () => {
   const { client } = useBackendWebsocketStore();
   const themeColors = useThemeColors();
 
-  const { publish, integration } = useSettingStore((state) => ({
+  const { publish, integration, appearance } = useSettingStore((state) => ({
     publish: state.setting.publish,
     integration: state.setting.integration,
+    appearance: state.setting.appearance,
   }));
 
   const [isPublishing, setIsPublishing] = useState(false);
@@ -237,6 +238,7 @@ const PublishSetting = () => {
           providerType: EPublishProvider.Local,
           providerConfig: { basePath: publish.local.basePath },
           siteConfig: publish.site,
+          settings: { appearance },
         });
         message.success(`已导出到 ${targetDir}`);
       } catch (error) {
@@ -278,6 +280,7 @@ const PublishSetting = () => {
         providerType: activeKey,
         providerConfig: getProviderConfig(),
         siteConfig: publish.site,
+        settings: { appearance },
       });
 
       if (result.success) {

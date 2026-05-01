@@ -46,6 +46,7 @@ const CardPage = memo(() => {
   const { site, navigation } = initData;
   const card = initData.content as CardData;
   const docCollections = initData.docCollections || [];
+  const blogSettings = initData.settings;
 
   const readingTime = useMemo(
     () => getReadingTime(card.content),
@@ -117,7 +118,9 @@ const CardPage = memo(() => {
 
               {/* 正文 */}
               <DndProvider>
-                <EditorServicesProvider services={createBlogEditorServices()}>
+                <EditorServicesProvider
+                  services={createBlogEditorServices(blogSettings)}
+                >
                   <Editor
                     initValue={card.content}
                     readonly
