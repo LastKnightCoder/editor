@@ -59,6 +59,11 @@ import { readSearchModelProviderConfig } from "../utils/search-model-config";
 import YtDlpService from "../utils/YtDlpService";
 import { runSearchPipeline } from "./search-core/pipeline";
 import { createVibeLearningAdapter } from "./search-core/vibe-learning-adapter";
+import {
+  buildSectionNodesFromMarkdown,
+  resolveSectionContextForLineRange,
+} from "./vibe-learning-section-index";
+import { buildChunkLineMap } from "./vibe-learning-chunk-line-map";
 import { LocalQueryExpander, NoopExpander } from "./search-core/expander";
 import { LocalReranker, NoopReranker } from "./search-core/reranker";
 import { calculateLexicalScore } from "./search-core/retriever";
@@ -1349,7 +1354,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
             this.emit("status-change", resourceId, "summarizing");
 
             log.info(
-              `[VibeLearningIndexQueue] Large document detected (${markdownContent.length} chars), starting AI chapter split`,
+              `[VibeLearningIndexQueue] Large document detected (${markdownContent.length} chars), starting AI chapter split for "${resourceName}" with model=${docSummaryConfig.llmModel}, baseURL=${docSummaryConfig.llmBaseUrl || "default"}`,
             );
 
             const result = await splitMarkdownByAI(
@@ -2151,7 +2156,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     const client = new OpenAI({
       apiKey: config.llmApiKey,
       baseURL: config.llmBaseUrl,
-      timeout: 90_000,
     });
 
     log.info(
@@ -2669,11 +2673,13 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       overlap: 0,
       splitter: "sentence",
     });
-
-    console.log(
-      "chunks",
-      chunks.map((c) => c.length),
-    );
+    const sectionNodes = buildSectionNodesFromMarkdown(content);
+    const chunkLineMap = buildChunkLineMap(content, {
+      minLength: 1000,
+      maxLength: 2000,
+      overlap: 0,
+      splitter: "sentence",
+    });
 
     const embeddingConfig = await this.getEmbeddingConfig();
 
@@ -2681,6 +2687,12 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       text: string;
       original: string;
       embedding: number[] | undefined;
+      searchText?: string;
+      displayText?: string;
+      sectionTitle?: string;
+      sectionPath?: string[];
+      chunkStartLine?: number;
+      chunkEndLine?: number;
     }> = [];
 
     // 如果有 embedding 配置，批量生成向量
@@ -2723,10 +2735,20 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
             for (let j = 0; j < batchChunks.length; j++) {
               const chunkText = batchChunks[j];
               const segmented = jieba.cutForSearch(chunkText, true).join(" ");
+              const lineRange = chunkLineMap[i + j];
+              const sectionContext = lineRange
+                ? resolveSectionContextForLineRange(sectionNodes, lineRange)
+                : null;
               processedChunks.push({
                 text: segmented,
                 original: chunkText,
                 embedding: embeddings[j],
+                searchText: segmented,
+                displayText: chunkText,
+                sectionTitle: sectionContext?.sectionTitle,
+                sectionPath: sectionContext?.sectionPath,
+                chunkStartLine: lineRange?.startLine,
+                chunkEndLine: lineRange?.endLine,
               });
             }
             batchSuccess = true;
@@ -2742,12 +2764,23 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
           log.error(
             `[VibeLearningIndexQueue] Embedding batch ${i} failed after ${maxRetries} retries, degrading to FTS only`,
           );
-          for (const chunkText of batchChunks) {
+          for (let j = 0; j < batchChunks.length; j++) {
+            const chunkText = batchChunks[j];
             const segmented = jieba.cutForSearch(chunkText, true).join(" ");
+            const lineRange = chunkLineMap[i + j];
+            const sectionContext = lineRange
+              ? resolveSectionContextForLineRange(sectionNodes, lineRange)
+              : null;
             processedChunks.push({
               text: segmented,
               original: chunkText,
               embedding: undefined,
+              searchText: segmented,
+              displayText: chunkText,
+              sectionTitle: sectionContext?.sectionTitle,
+              sectionPath: sectionContext?.sectionPath,
+              chunkStartLine: lineRange?.startLine,
+              chunkEndLine: lineRange?.endLine,
             });
           }
         }
@@ -2760,18 +2793,23 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       // 没有 embedding 配置，只创建 FTS 索引
       for (const chunkText of chunks) {
         const segmented = jieba.cutForSearch(chunkText, true).join(" ");
+        const lineRange = chunkLineMap[processedChunks.length];
+        const sectionContext = lineRange
+          ? resolveSectionContextForLineRange(sectionNodes, lineRange)
+          : null;
         processedChunks.push({
           text: segmented,
           original: chunkText,
           embedding: undefined,
+          searchText: segmented,
+          displayText: chunkText,
+          sectionTitle: sectionContext?.sectionTitle,
+          sectionPath: sectionContext?.sectionPath,
+          chunkStartLine: lineRange?.startLine,
+          chunkEndLine: lineRange?.endLine,
         });
       }
     }
-
-    console.log(
-      "processedChunks",
-      processedChunks.map((p) => p.embedding),
-    );
 
     // 创建索引
     if (task) {
@@ -4353,6 +4391,16 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
 
       const enrichedResults = await Promise.all(
         results.map(async (result) => {
+          const chunkMetadata =
+            typeof result.chunkIndex === "number"
+              ? vibeLearningDBManager.getChunkMetadata(
+                  mainDbName,
+                  projectId,
+                  result.resourceId,
+                  result.chunkIndex,
+                )
+              : null;
+
           if (!db || typeof result.chunkIndex !== "number") {
             return result;
           }
@@ -4386,6 +4434,25 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
 
           return {
             ...result,
+            displayContent: chunkMetadata?.displayContent || result.content,
+            searchContent: chunkMetadata?.searchContent || result.content,
+            sectionTitle: chunkMetadata?.sectionTitle,
+            sectionPath: chunkMetadata?.sectionPath,
+            chunkStartLine: chunkMetadata?.chunkStartLine,
+            chunkEndLine: chunkMetadata?.chunkEndLine,
+            chunkLevel:
+              chunkLocation.hitType === "summary"
+                ? "summary"
+                : chunkMetadata?.sectionTitle
+                  ? "section"
+                  : "chapter",
+            evidenceScore: result.score,
+            whyMatched:
+              chunkLocation.hitType === "summary"
+                ? "命中摘要索引，适合作为定位线索。"
+                : chunkMetadata?.sectionTitle
+                  ? `命中章节正文中的小节「${chunkMetadata.sectionTitle}」，建议围绕该小节继续补读。`
+                  : "命中章节正文，建议继续补读上下文确认细节。",
             hitType: chunkLocation.hitType,
             chapterIndex: chunkLocation.chapterIndex,
             chapterTitle: matchedChapter?.title,
@@ -4395,7 +4462,26 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         }),
       );
 
-      return enrichedResults;
+      return enrichedResults.map(
+        (result): VLSearchResult => ({
+          ...result,
+          displayContent: String(result.displayContent || result.content),
+          searchContent: String(result.searchContent || result.content),
+          chunkLevel:
+            (result.chunkLevel as VLSearchResult["chunkLevel"]) ||
+            (result.hitType === "summary" ? "summary" : "passage"),
+          evidenceScore:
+            typeof result.evidenceScore === "number"
+              ? result.evidenceScore
+              : result.score,
+          whyMatched: String(
+            result.whyMatched ||
+              (result.hitType === "summary"
+                ? "命中摘要索引，适合作为定位线索。"
+                : "命中正文内容，可继续补读上下文。"),
+          ),
+        }),
+      );
     } catch (error) {
       log.error(`[VibeLearningIndexQueue] Search failed: ${error}`);
       return [];

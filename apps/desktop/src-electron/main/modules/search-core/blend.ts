@@ -37,13 +37,38 @@ export function blendScore(params: {
   rrfScore: number;
   rerankScore?: number;
   config: SearchCoreConfig;
+  structureLevel?: "resource" | "summary" | "section" | "chapter" | "passage";
 }): number {
-  const { rank, rrfScore, rerankScore, config } = params;
+  const { rank, rrfScore, rerankScore, config, structureLevel } = params;
   if (typeof rerankScore !== "number" || !Number.isFinite(rerankScore)) {
-    return rrfScore;
+    return applyStructureBonus(rrfScore, structureLevel, config);
   }
 
   const weight = resolvePositionWeight(rank, config);
   const positionScore = 1 / rank;
-  return weight * positionScore + (1 - weight) * rerankScore;
+  const baseScore = weight * positionScore + (1 - weight) * rerankScore;
+  return applyStructureBonus(baseScore, structureLevel, config);
+}
+
+function applyStructureBonus(
+  score: number,
+  structureLevel:
+    | "resource"
+    | "summary"
+    | "section"
+    | "chapter"
+    | "passage"
+    | undefined,
+  config: SearchCoreConfig,
+) {
+  if (structureLevel === "section") {
+    return score + config.structureBonus.section;
+  }
+  if (structureLevel === "chapter") {
+    return score + config.structureBonus.chapter;
+  }
+  if (structureLevel === "summary") {
+    return score + config.structureBonus.summary;
+  }
+  return score;
 }

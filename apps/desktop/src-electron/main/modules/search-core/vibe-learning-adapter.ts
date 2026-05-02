@@ -21,8 +21,15 @@ export interface VibeLearningSearchPayload extends Record<string, unknown> {
   resourceId: number;
   resourceName: string;
   content: string;
+  displayContent?: string;
+  searchContent?: string;
   score: number;
   chunkIndex?: number;
+  chunkLevel?: "resource" | "summary" | "section" | "chapter" | "passage";
+  sectionTitle?: string;
+  sectionPath?: string[];
+  chunkStartLine?: number;
+  chunkEndLine?: number;
   rrfScore?: number;
   rerankScore?: number;
 }
@@ -54,7 +61,7 @@ export function createVibeLearningAdapter(): SearchAdapter<
     ): Promise<StrongSignalProbeResult<VibeLearningSearchPayload>> {
       const ftsResults = queryFTS(context, query.normalized, limit);
       const candidates = ftsResults.map((result) =>
-        mapFTSRowToCandidate(result, query),
+        mapFTSRowToCandidate(result, query, context),
       );
       return {
         candidates,
@@ -79,7 +86,9 @@ export function createVibeLearningAdapter(): SearchAdapter<
         isEmpty: !queryText.trim(),
       };
       const ftsResults = queryFTS(context, queryText, limit);
-      return ftsResults.map((result) => mapFTSRowToCandidate(result, query));
+      return ftsResults.map((result) =>
+        mapFTSRowToCandidate(result, query, context),
+      );
     },
     async searchVec(
       queryText: string,
@@ -159,6 +168,19 @@ function queryFTS(
   ) as VibeLearningFTSRow[];
 }
 
+function getChunkMetadata(
+  context: VibeLearningAdapterContext,
+  resourceId: number,
+  chunkIndex: number,
+) {
+  return vibeLearningDBManager.getChunkMetadata(
+    context.mainDbName,
+    context.projectId,
+    resourceId,
+    chunkIndex,
+  );
+}
+
 function buildFTSQuery(queryText: string): string {
   const normalized = queryText.trim();
   if (!normalized) {
@@ -177,22 +199,34 @@ function buildFTSQuery(queryText: string): string {
 function mapFTSRowToCandidate(
   result: VibeLearningFTSRow,
   query: ParsedQuery,
+  context?: VibeLearningAdapterContext,
 ): SearchCandidate<VibeLearningSearchPayload> {
   const lexicalScore = calculateLexicalScore(query, result.content);
+  const chunkMetadata =
+    context && typeof result.chunkIndex === "number"
+      ? getChunkMetadata(context, result.resourceId, result.chunkIndex)
+      : null;
   const payload: VibeLearningSearchPayload = {
     resourceId: result.resourceId,
     resourceName: "",
     content: result.content,
+    displayContent: chunkMetadata?.displayContent || result.content,
+    searchContent: chunkMetadata?.searchContent || result.content,
     score: lexicalScore,
     chunkIndex: result.chunkIndex,
+    chunkLevel: chunkMetadata?.sectionTitle ? "section" : "passage",
+    sectionTitle: chunkMetadata?.sectionTitle,
+    sectionPath: chunkMetadata?.sectionPath,
+    chunkStartLine: chunkMetadata?.chunkStartLine,
+    chunkEndLine: chunkMetadata?.chunkEndLine,
   };
   return {
     key: `resource:${result.resourceId}:chunk:${result.chunkIndex}:fts`,
     dedupeKey: `resource:${result.resourceId}:chunk:${result.chunkIndex}`,
     source: "fts",
     payload,
-    text: result.content,
-    snippet: result.content,
+    text: chunkMetadata?.displayContent || result.content,
+    snippet: chunkMetadata?.displayContent || result.content,
     retrievalScore: Math.max(lexicalScore, rankToScore(result.rank)),
   };
 }
