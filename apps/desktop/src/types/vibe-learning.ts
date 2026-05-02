@@ -161,13 +161,22 @@ export interface VLSearchResult {
   resourceId: number;
   resourceName: string;
   content: string;
+  displayContent?: string;
+  searchContent?: string;
   score: number;
   chunkIndex?: number;
   hitType?: "summary" | "chapter";
+  chunkLevel?: "resource" | "summary" | "section" | "chapter" | "passage";
   chapterIndex?: number;
   chapterTitle?: string;
   chapterSummary?: string;
+  sectionTitle?: string;
+  sectionPath?: string[];
   chunkIndexInSection?: number;
+  chunkStartLine?: number;
+  chunkEndLine?: number;
+  evidenceScore?: number;
+  whyMatched?: string;
   rrfScore?: number;
   rerankScore?: number;
 }

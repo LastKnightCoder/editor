@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import toolRegistry from "@/tools";
 import {
+  createBatchReadSearchHitsTool,
+  createBatchSearchProjectKnowledgeTool,
   createVibeLearningSearchTool,
   createListResourcesTool,
   createReadResourceContentTool,
@@ -9,7 +11,6 @@ import {
   createReadSearchHitContextTool,
   createReadResourceChapterRangeTool,
   createListResourceChaptersTool,
-  createDeepReadResourceTool,
 } from "@/tools/vibeLearningSearchTool";
 
 export interface UseVLToolsOptions {
@@ -34,8 +35,9 @@ export interface UseVLToolsOptions {
  * - read_search_hit_context: 读取命中上下文
  * - read_resource_chapter_range: 分段读取章节正文
  * - list_resource_chapters: 查看章节列表与摘要
- * - deep_read_resource: 深度阅读长文
  * - search_project_knowledge: 搜索项目知识库
+ * - batch_search_project_knowledge: 批量执行多个搜索角度
+ * - batch_read_search_hits: 批量补读命中上下文
  *
  * @example
  * ```tsx
@@ -58,6 +60,7 @@ const useVLTools = (options: UseVLToolsOptions): void => {
     // 注册 VibeLearning 专属工具
     const tools = [
       createVibeLearningSearchTool(projectId, mainDbName),
+      createBatchSearchProjectKnowledgeTool(projectId, mainDbName),
       createListResourcesTool(projectId),
       createReadResourceContentTool(projectId, mainDbName),
       createReadResourceRangeTool(projectId, mainDbName),
@@ -65,7 +68,7 @@ const useVLTools = (options: UseVLToolsOptions): void => {
       createReadSearchHitContextTool(projectId, mainDbName),
       createReadResourceChapterRangeTool(projectId, mainDbName),
       createListResourceChaptersTool(projectId, mainDbName),
-      createDeepReadResourceTool(projectId, mainDbName),
+      createBatchReadSearchHitsTool(projectId, mainDbName),
     ];
 
     toolRegistry.registerTools(sourceId, tools, true);

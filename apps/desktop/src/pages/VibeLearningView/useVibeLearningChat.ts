@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import toolRegistry from "@/tools";
 import {
+  createBatchReadSearchHitsTool,
+  createBatchSearchProjectKnowledgeTool,
   createVibeLearningSearchTool,
   createListResourcesTool,
   createReadResourceContentTool,
@@ -9,7 +11,6 @@ import {
   createReadSearchHitContextTool,
   createReadResourceChapterRangeTool,
   createListResourceChaptersTool,
-  createDeepReadResourceTool,
 } from "@/tools/vibeLearningSearchTool";
 
 export const useVibeLearningChat = (projectId: number, mainDbName: string) => {
@@ -19,6 +20,7 @@ export const useVibeLearningChat = (projectId: number, mainDbName: string) => {
     // 注册项目专属工具
     const tools = [
       createVibeLearningSearchTool(projectId, mainDbName),
+      createBatchSearchProjectKnowledgeTool(projectId, mainDbName),
       createListResourcesTool(projectId),
       createReadResourceContentTool(projectId, mainDbName),
       createReadResourceRangeTool(projectId, mainDbName),
@@ -26,7 +28,7 @@ export const useVibeLearningChat = (projectId: number, mainDbName: string) => {
       createReadSearchHitContextTool(projectId, mainDbName),
       createReadResourceChapterRangeTool(projectId, mainDbName),
       createListResourceChaptersTool(projectId, mainDbName),
-      createDeepReadResourceTool(projectId, mainDbName),
+      createBatchReadSearchHitsTool(projectId, mainDbName),
     ];
     toolRegistry.registerTools(sourceId, tools, true);
 

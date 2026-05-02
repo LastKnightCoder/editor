@@ -9,7 +9,7 @@
 import { ipcMain, BrowserWindow } from "electron";
 import Database from "better-sqlite3";
 import { basename, join } from "node:path";
-import { existsSync, unlinkSync, readFileSync } from "node:fs";
+import { existsSync, unlinkSync, readFileSync, copyFileSync } from "node:fs";
 import log from "electron-log";
 import PathUtil from "../utils/PathUtil";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
@@ -27,6 +27,8 @@ class VibeLearningDBManager implements Module {
   private databases: Map<string, Database.Database> = new Map();
   private currentVecDimensions = 3072; // 默认维度，会在初始化时从配置读取
   private legacyScanCompleted = false;
+  private chunkMetadataLegacyFallback = new Set<string>();
+  private chunkMetadataLegacySchemaMode = new Set<string>();
 
   constructor() {
     this.name = "vibe-learning-db";
@@ -202,7 +204,7 @@ class VibeLearningDBManager implements Module {
     db.pragma("journal_mode = WAL");
 
     // 初始化表结构
-    this.initTables(db);
+    this.initTables(db, dbPath);
 
     this.databases.set(key, db);
     return db;
@@ -211,7 +213,11 @@ class VibeLearningDBManager implements Module {
   /**
    * 初始化表结构（FTS 和 Vec）
    */
-  private initTables(db: Database.Database, dimensions?: number) {
+  private initTables(
+    db: Database.Database,
+    dbPath?: string,
+    dimensions?: number,
+  ) {
     // FTS 全文搜索表
     db.exec(`
       CREATE VIRTUAL TABLE IF NOT EXISTS vl_content_fts USING fts5(
@@ -221,6 +227,63 @@ class VibeLearningDBManager implements Module {
         tokenize='porter unicode61'
       )
     `);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS vl_chunk_metadata (
+        resource_id INTEGER NOT NULL,
+        chunk_index INTEGER NOT NULL,
+        search_content TEXT NOT NULL,
+        display_content TEXT NOT NULL,
+        section_title TEXT,
+        section_path TEXT,
+        chunk_start_line INTEGER,
+        chunk_end_line INTEGER,
+        PRIMARY KEY (resource_id, chunk_index)
+      )
+    `);
+
+    const dbKey = dbPath ? this.getDatabaseKeyFromPath(dbPath) : null;
+    const metadataColumns = db
+      .prepare("PRAGMA table_info(vl_chunk_metadata)")
+      .all() as Array<{ name: string }>;
+    const columnNames = metadataColumns.map((column) => column.name);
+
+    let migrationSucceeded = true;
+    if (this.shouldMigrateChunkMetadataColumns(columnNames)) {
+      migrationSucceeded = this.migrateChunkMetadataColumns(db, dbPath);
+      if (!migrationSucceeded && dbKey) {
+        this.chunkMetadataLegacySchemaMode.add(dbKey);
+      }
+    }
+
+    const refreshedMetadataColumns = db
+      .prepare("PRAGMA table_info(vl_chunk_metadata)")
+      .all() as Array<{ name: string }>;
+    const refreshedColumnNames = refreshedMetadataColumns.map(
+      (column) => column.name,
+    );
+    if (!refreshedColumnNames.includes("section_title")) {
+      db.exec("ALTER TABLE vl_chunk_metadata ADD COLUMN section_title TEXT");
+    }
+    if (!refreshedColumnNames.includes("section_path")) {
+      db.exec("ALTER TABLE vl_chunk_metadata ADD COLUMN section_path TEXT");
+    }
+    if (
+      migrationSucceeded &&
+      !refreshedColumnNames.includes("chunk_start_line")
+    ) {
+      db.exec(
+        "ALTER TABLE vl_chunk_metadata ADD COLUMN chunk_start_line INTEGER",
+      );
+    }
+    if (
+      migrationSucceeded &&
+      !refreshedColumnNames.includes("chunk_end_line")
+    ) {
+      db.exec(
+        "ALTER TABLE vl_chunk_metadata ADD COLUMN chunk_end_line INTEGER",
+      );
+    }
 
     // 获取 vec_version 来确认 sqlite-vec 已加载
     const { vec_version } = db
@@ -375,6 +438,8 @@ class VibeLearningDBManager implements Module {
       }
       this.databases.delete(key);
     }
+    this.chunkMetadataLegacySchemaMode.delete(key);
+    this.chunkMetadataLegacyFallback.delete(key);
   }
 
   /**
@@ -392,6 +457,8 @@ class VibeLearningDBManager implements Module {
           log.error(`[VibeLearningDBManager] Error closing database: ${error}`);
         }
         this.databases.delete(key);
+        this.chunkMetadataLegacySchemaMode.delete(key);
+        this.chunkMetadataLegacyFallback.delete(key);
       }
     }
   }
@@ -549,7 +616,16 @@ class VibeLearningDBManager implements Module {
     projectId: number,
     resourceId: number,
     _content: string,
-    chunks: Array<{ text: string; embedding?: number[] }>,
+    chunks: Array<{
+      text: string;
+      embedding?: number[] | undefined;
+      displayText?: string;
+      searchText?: string;
+      sectionTitle?: string;
+      sectionPath?: string[];
+      chunkStartLine?: number;
+      chunkEndLine?: number;
+    }>,
     chunkIndexOffset?: number,
   ): boolean {
     try {
@@ -565,6 +641,9 @@ class VibeLearningDBManager implements Module {
 
       const bigIntResourceId = BigInt(resourceId);
       const offset = chunkIndexOffset || 0;
+      const dbKey = this.getDatabaseKey(mainDbName, projectId);
+      const usesLegacyMetadataSchema =
+        this.chunkMetadataLegacySchemaMode.has(dbKey);
 
       // 使用事务确保原子性：删除旧索引和插入新索引要么全部成功，要么全部失败
       const transaction = db.transaction(() => {
@@ -579,6 +658,10 @@ class VibeLearningDBManager implements Module {
           db.prepare("DELETE FROM vl_vec_documents WHERE resource_id = ?").run(
             bigIntResourceId,
           );
+
+          db.prepare("DELETE FROM vl_chunk_metadata WHERE resource_id = ?").run(
+            resourceId,
+          );
         }
 
         // 3. 准备插入语句
@@ -591,18 +674,57 @@ class VibeLearningDBManager implements Module {
           INSERT INTO vl_vec_documents (resource_id, chunk_index, content, vec_embedding)
           VALUES (?, ?, ?, vec_f32(?))
         `);
+        const metadataStmt = usesLegacyMetadataSchema
+          ? db.prepare(`
+              INSERT INTO vl_chunk_metadata (
+                resource_id,
+                chunk_index,
+                search_content,
+                display_content,
+                section_title,
+                section_path,
+                chapter_start_line,
+                chapter_end_line
+              )
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `)
+          : db.prepare(`
+              INSERT INTO vl_chunk_metadata (
+                resource_id,
+                chunk_index,
+                search_content,
+                display_content,
+                section_title,
+                section_path,
+                chunk_start_line,
+                chunk_end_line
+              )
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `);
 
         // 4. 插入新索引
         for (let i = 0; i < chunks.length; i++) {
           const chunk = chunks[i];
           const chunkIndex = offset + i;
-          ftsStmt.run(String(resourceId), chunkIndex, chunk.text);
+          const searchContent = chunk.searchText || chunk.text;
+          const displayContent = chunk.displayText || chunk.text;
+          ftsStmt.run(String(resourceId), chunkIndex, searchContent);
+          metadataStmt.run(
+            resourceId,
+            chunkIndex,
+            searchContent,
+            displayContent,
+            chunk.sectionTitle || null,
+            chunk.sectionPath ? JSON.stringify(chunk.sectionPath) : null,
+            chunk.chunkStartLine ?? null,
+            chunk.chunkEndLine ?? null,
+          );
 
           if (chunk.embedding && chunk.embedding.length > 0) {
             vecStmt.run(
               bigIntResourceId,
               BigInt(chunkIndex),
-              chunk.text,
+              searchContent,
               JSON.stringify(chunk.embedding),
             );
           }
@@ -641,6 +763,9 @@ class VibeLearningDBManager implements Module {
 
       db.prepare("DELETE FROM vl_content_fts WHERE resource_id = ?").run(
         String(intResourceId),
+      );
+      db.prepare("DELETE FROM vl_chunk_metadata WHERE resource_id = ?").run(
+        intResourceId,
       );
       db.prepare("DELETE FROM vl_vec_documents WHERE resource_id = ?").run(
         bigIntResourceId,
@@ -697,6 +822,233 @@ class VibeLearningDBManager implements Module {
     } catch (error) {
       log.error(`[VibeLearningDBManager] Error in FTS search: ${error}`);
       return [];
+    }
+  }
+
+  getChunkMetadata(
+    mainDbName: string,
+    projectId: number,
+    resourceId: number,
+    chunkIndex: number,
+  ): {
+    searchContent: string;
+    displayContent: string;
+    sectionTitle?: string;
+    sectionPath?: string[];
+    chunkStartLine?: number;
+    chunkEndLine?: number;
+  } | null {
+    try {
+      const db = this.getDatabase(mainDbName, projectId);
+      const row = this.getChunkMetadataRow(
+        db,
+        mainDbName,
+        projectId,
+        resourceId,
+        chunkIndex,
+      );
+
+      if (!row) {
+        return null;
+      }
+
+      return {
+        searchContent: row.search_content,
+        displayContent: row.display_content,
+        sectionTitle: row.section_title || undefined,
+        sectionPath: row.section_path
+          ? safelyParseStringArray(row.section_path)
+          : undefined,
+        chunkStartLine:
+          row.chunk_start_line ?? row.chapter_start_line ?? undefined,
+        chunkEndLine: row.chunk_end_line ?? row.chapter_end_line ?? undefined,
+      };
+    } catch (error) {
+      log.error(
+        `[VibeLearningDBManager] Error getting chunk metadata: ${error}`,
+      );
+      return null;
+    }
+  }
+
+  private shouldMigrateChunkMetadataColumns(columnNames: string[]): boolean {
+    const hasLegacyStart = columnNames.includes("chapter_start_line");
+    const hasLegacyEnd = columnNames.includes("chapter_end_line");
+    const hasNewStart = columnNames.includes("chunk_start_line");
+    const hasNewEnd = columnNames.includes("chunk_end_line");
+
+    return (hasLegacyStart || hasLegacyEnd) && !hasNewStart && !hasNewEnd;
+  }
+
+  private migrateChunkMetadataColumns(
+    db: Database.Database,
+    dbPath?: string,
+  ): boolean {
+    try {
+      if (dbPath && existsSync(dbPath)) {
+        this.backupIndexDbWithSidecars(db, dbPath);
+      }
+
+      db.exec("BEGIN");
+      db.exec(
+        "ALTER TABLE vl_chunk_metadata RENAME TO vl_chunk_metadata_legacy",
+      );
+      db.exec(`
+        CREATE TABLE vl_chunk_metadata (
+          resource_id INTEGER NOT NULL,
+          chunk_index INTEGER NOT NULL,
+          search_content TEXT NOT NULL,
+          display_content TEXT NOT NULL,
+          section_title TEXT,
+          section_path TEXT,
+          chunk_start_line INTEGER,
+          chunk_end_line INTEGER,
+          PRIMARY KEY (resource_id, chunk_index)
+        )
+      `);
+      db.exec(`
+        INSERT INTO vl_chunk_metadata (
+          resource_id,
+          chunk_index,
+          search_content,
+          display_content,
+          section_title,
+          section_path,
+          chunk_start_line,
+          chunk_end_line
+        )
+        SELECT
+          resource_id,
+          chunk_index,
+          search_content,
+          display_content,
+          section_title,
+          section_path,
+          chapter_start_line AS chunk_start_line,
+          chapter_end_line AS chunk_end_line
+        FROM vl_chunk_metadata_legacy
+      `);
+      db.exec("DROP TABLE vl_chunk_metadata_legacy");
+      db.exec("COMMIT");
+      log.info(
+        "[VibeLearningDBManager] Migrated vl_chunk_metadata line columns",
+      );
+      return true;
+    } catch (error) {
+      try {
+        db.exec("ROLLBACK");
+      } catch {
+        // ignore rollback failure
+      }
+      log.warn(
+        `[VibeLearningDBManager] Failed to migrate vl_chunk_metadata line columns, fallback to legacy read path: ${error}`,
+      );
+      return false;
+    }
+  }
+
+  private getChunkMetadataRow(
+    db: Database.Database,
+    mainDbName: string,
+    projectId: number,
+    resourceId: number,
+    chunkIndex: number,
+  ):
+    | {
+        search_content: string;
+        display_content: string;
+        section_title: string | null;
+        section_path: string | null;
+        chunk_start_line?: number | null;
+        chunk_end_line?: number | null;
+        chapter_start_line?: number | null;
+        chapter_end_line?: number | null;
+      }
+    | undefined {
+    const legacyKey = this.getDatabaseKey(mainDbName, projectId);
+
+    if (
+      !this.chunkMetadataLegacyFallback.has(legacyKey) &&
+      !this.chunkMetadataLegacySchemaMode.has(legacyKey)
+    ) {
+      try {
+        return db
+          .prepare(
+            `SELECT search_content, display_content, section_title, section_path, chunk_start_line, chunk_end_line
+             FROM vl_chunk_metadata
+             WHERE resource_id = ? AND chunk_index = ?`,
+          )
+          .get(resourceId, chunkIndex) as
+          | {
+              search_content: string;
+              display_content: string;
+              section_title: string | null;
+              section_path: string | null;
+              chunk_start_line: number | null;
+              chunk_end_line: number | null;
+            }
+          | undefined;
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          /no such column:\s*chunk_(start|end)_line/i.test(error.message)
+        ) {
+          this.chunkMetadataLegacyFallback.add(legacyKey);
+          log.warn(
+            `[VibeLearningDBManager] Chunk metadata still uses legacy line columns, fallback enabled for ${legacyKey}`,
+          );
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    return db
+      .prepare(
+        `SELECT search_content, display_content, section_title, section_path, chapter_start_line, chapter_end_line
+         FROM vl_chunk_metadata
+         WHERE resource_id = ? AND chunk_index = ?`,
+      )
+      .get(resourceId, chunkIndex) as
+      | {
+          search_content: string;
+          display_content: string;
+          section_title: string | null;
+          section_path: string | null;
+          chapter_start_line: number | null;
+          chapter_end_line: number | null;
+        }
+      | undefined;
+  }
+
+  private getDatabaseKeyFromPath(dbPath: string): string {
+    const fileName = dbPath.split("/").pop() || dbPath;
+    return fileName.endsWith(".db") ? fileName.slice(0, -3) : fileName;
+  }
+
+  private backupIndexDbWithSidecars(
+    db: Database.Database,
+    dbPath: string,
+  ): void {
+    try {
+      db.pragma("wal_checkpoint(PASSIVE)");
+    } catch (error) {
+      log.warn(
+        `[VibeLearningDBManager] wal checkpoint before chunk metadata migration backup failed: ${error}`,
+      );
+    }
+
+    const backupPath = `${dbPath}.chunk-line-migration.bak`;
+    if (!existsSync(backupPath)) {
+      copyFileSync(dbPath, backupPath);
+    }
+
+    for (const suffix of ["-wal", "-shm"]) {
+      const sidecarPath = `${dbPath}${suffix}`;
+      const backupSidecarPath = `${backupPath}${suffix}`;
+      if (existsSync(sidecarPath) && !existsSync(backupSidecarPath)) {
+        copyFileSync(sidecarPath, backupSidecarPath);
+      }
     }
   }
 
@@ -767,3 +1119,14 @@ class VibeLearningDBManager implements Module {
 
 const vibeLearningDBManager = new VibeLearningDBManager();
 export default vibeLearningDBManager;
+
+function safelyParseStringArray(raw: string): string[] | undefined {
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === "string")
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
