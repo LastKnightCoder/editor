@@ -114,6 +114,11 @@ export interface SearchCoreConfig {
     top4To10: number;
     top11Plus: number;
   };
+  structureBonus: {
+    section: number;
+    chapter: number;
+    summary: number;
+  };
   strongSignal: {
     minScore: number;
     minGap: number;
@@ -132,6 +137,11 @@ export const DEFAULT_SEARCH_CORE_CONFIG: SearchCoreConfig = {
     top1To3: 0.75,
     top4To10: 0.6,
     top11Plus: 0.4,
+  },
+  structureBonus: {
+    section: 0.04,
+    chapter: 0.02,
+    summary: -0.01,
   },
   strongSignal: {
     minScore: 0.85,

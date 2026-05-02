@@ -1,10 +1,54 @@
 import type { ToolDefinition } from "@/types/tool";
-import type { VLResource } from "@/types/vibe-learning";
+import type { VLResource, VLSearchResult } from "@/types/vibe-learning";
 import { invoke } from "@/electron";
 
 const stringifyResult = (payload: unknown) => ({
   content: JSON.stringify(payload),
 });
+
+const LONG_RUNNING_TOOL_EXECUTION = {
+  timeoutMs: null,
+} as const;
+
+type SearchToolResult = VLSearchResult & {
+  rrfScore?: number;
+  rerankScore?: number;
+};
+
+type BatchSearchQueryInput = {
+  label?: string;
+  query: string;
+};
+
+const normalizeSearchResults = (results: SearchToolResult[]) =>
+  results.map((r) => ({
+    resourceId: r.resourceId,
+    resourceName: r.resourceName,
+    hitType: r.hitType,
+    chunkLevel:
+      r.chunkLevel || (r.hitType === "summary" ? "summary" : "passage"),
+    chapterIndex: r.chapterIndex,
+    chapterTitle: r.chapterTitle,
+    chapterSummary: r.chapterSummary,
+    sectionTitle: r.sectionTitle,
+    sectionPath: r.sectionPath,
+    chunkIndex: r.chunkIndex,
+    chunkIndexInSection: r.chunkIndexInSection,
+    chunkStartLine: r.chunkStartLine,
+    chunkEndLine: r.chunkEndLine,
+    content: r.content.slice(0, 3000),
+    displayContent: (r.displayContent || r.content).slice(0, 3000),
+    searchContent: (r.searchContent || r.content).slice(0, 3000),
+    relevanceScore: r.score,
+    evidenceScore: r.evidenceScore ?? r.score,
+    whyMatched:
+      r.whyMatched ||
+      (r.hitType === "summary"
+        ? "命中摘要索引，适合作为定位线索。"
+        : "命中正文内容，可继续补读上下文。"),
+    rrfScore: r.rrfScore,
+    rerankScore: r.rerankScore,
+  }));
 
 /**
  * 创建列出项目资源工具
@@ -80,6 +124,7 @@ export const createReadResourceContentTool = (
     },
     required: ["resourceName"],
   },
+  execution: LONG_RUNNING_TOOL_EXECUTION,
   executor: async (args) => {
     const { resourceName } = args as { resourceName: string };
 
@@ -145,6 +190,7 @@ export const createReadResourceRangeTool = (
     },
     required: ["resourceName", "startLine", "endLine"],
   },
+  execution: LONG_RUNNING_TOOL_EXECUTION,
   executor: async (args) => {
     const { resourceName, startLine, endLine } = args as {
       resourceName: string;
@@ -211,62 +257,34 @@ export const createVibeLearningSearchTool = (
     },
     required: ["query"],
   },
+  execution: LONG_RUNNING_TOOL_EXECUTION,
   executor: async (args) => {
     const { query, limit = 5 } = args as { query: string; limit?: number };
 
     try {
       // 调用后端搜索
-      const results = await invoke("vl-search-content", {
+      const results = (await invoke("vl-search-content", {
         projectId,
         mainDbName,
         query,
         limit: Math.min(limit, 10),
-      });
+      })) as SearchToolResult[];
 
       if (!results || results.length === 0) {
         return stringifyResult({
           success: true,
           message: "未找到相关内容",
+          query,
           results: [],
         });
       }
 
-      // 格式化结果
-      const formattedResults = results.map(
-        (r: {
-          resourceId: number;
-          resourceName: string;
-          content: string;
-          score: number;
-          hitType?: "summary" | "chapter";
-          chapterIndex?: number;
-          chapterTitle?: string;
-          chapterSummary?: string;
-          chunkIndex?: number;
-          chunkIndexInSection?: number;
-          rrfScore?: number;
-          rerankScore?: number;
-        }) => ({
-          resourceId: r.resourceId,
-          resourceName: r.resourceName,
-          hitType: r.hitType,
-          chapterIndex: r.chapterIndex,
-          chapterTitle: r.chapterTitle,
-          chapterSummary: r.chapterSummary,
-          chunkIndex: r.chunkIndex,
-          chunkIndexInSection: r.chunkIndexInSection,
-          content: r.content.slice(0, 3000),
-          relevanceScore: r.score,
-          rrfScore: r.rrfScore,
-          rerankScore: r.rerankScore,
-        }),
-      );
+      const formattedResults = normalizeSearchResults(results);
 
       return stringifyResult({
         success: true,
+        query,
         message: `找到 ${results.length} 条相关内容`,
-        usageHint:
-          "先根据 hitType、chapterIndex 和 chapterTitle 判断是否需要继续读取上下文或章节正文；不要直接把片段当成最终证据。",
         results: formattedResults,
       });
     } catch (error) {
@@ -278,6 +296,143 @@ export const createVibeLearningSearchTool = (
         results: [],
       });
     }
+  },
+});
+
+export const createBatchSearchProjectKnowledgeTool = (
+  projectId: number,
+  mainDbName: string,
+): ToolDefinition => ({
+  name: "batch_search_project_knowledge",
+  description:
+    "对多个查询角度批量搜索当前项目知识库。适合在复杂问题中并行比较不同搜索表达。",
+  parameters: {
+    type: "object",
+    properties: {
+      queries: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            label: {
+              type: "string",
+              description: "查询标签，便于调用方标识该查询的策略用途",
+            },
+            query: {
+              type: "string",
+              description: "要执行的搜索问题或关键词",
+            },
+          },
+          required: ["query"],
+        },
+        description:
+          "需要批量执行的查询列表，每项为 { label, query }，便于调用方显式标记每个查询的用途。",
+      },
+      limitPerQuery: {
+        type: "number",
+        description: "每个查询返回数量，默认 5，最大 10",
+      },
+    },
+    required: ["queries"],
+  },
+  execution: LONG_RUNNING_TOOL_EXECUTION,
+  executor: async (args) => {
+    const { queries, limitPerQuery = 5 } = args as {
+      queries: BatchSearchQueryInput[];
+      limitPerQuery?: number;
+    };
+    const safeQueries = Array.isArray(queries)
+      ? (queries
+          .map((item) => {
+            if (
+              item &&
+              typeof item === "object" &&
+              typeof item.query === "string" &&
+              item.query.trim()
+            ) {
+              return {
+                label:
+                  typeof item.label === "string" && item.label.trim()
+                    ? item.label.trim()
+                    : undefined,
+                query: item.query.trim(),
+              };
+            }
+
+            return null;
+          })
+          .filter(Boolean) as Array<{ label?: string; query: string }>)
+      : [];
+
+    const searches = await Promise.all(
+      safeQueries.map(async ({ label, query }) => {
+        const results = (await invoke("vl-search-content", {
+          projectId,
+          mainDbName,
+          query,
+          limit: Math.min(limitPerQuery, 10),
+        })) as SearchToolResult[];
+        return {
+          label,
+          query,
+          results: normalizeSearchResults(results || []),
+        };
+      }),
+    );
+
+    return stringifyResult({
+      success: true,
+      searches,
+    });
+  },
+});
+
+export const createBatchReadSearchHitsTool = (
+  projectId: number,
+  mainDbName: string,
+): ToolDefinition => ({
+  name: "batch_read_search_hits",
+  description:
+    "批量读取多个搜索命中的上下文。适合在已经找到多条候选证据后，统一补读上下文。",
+  parameters: {
+    type: "object",
+    properties: {
+      hits: {
+        type: "array",
+        description: "搜索命中数组，每项至少包含 resourceName 和 chunkIndex",
+        items: {
+          type: "object",
+        },
+      },
+    },
+    required: ["hits"],
+  },
+  execution: LONG_RUNNING_TOOL_EXECUTION,
+  executor: async (args) => {
+    const { hits } = args as {
+      hits: Array<{
+        resourceName: string;
+        chunkIndex: number;
+        radius?: number;
+      }>;
+    };
+    const safeHits = Array.isArray(hits) ? hits : [];
+    const contexts = await Promise.all(
+      safeHits.map((hit) =>
+        invoke("vl-read-search-hit-context", {
+          projectId,
+          resourceName: hit.resourceName,
+          mainDbName,
+          chunkIndex: hit.chunkIndex,
+          radius: hit.radius,
+        }),
+      ),
+    );
+
+    return stringifyResult({
+      success: true,
+      contexts,
+    });
   },
 });
 
@@ -306,6 +461,7 @@ export const createReadResourceChapterTool = (
     },
     required: ["resourceName", "chapterIndex"],
   },
+  execution: LONG_RUNNING_TOOL_EXECUTION,
   executor: async (args) => {
     const { resourceName, chapterIndex } = args as {
       resourceName: string;
@@ -372,6 +528,7 @@ export const createReadSearchHitContextTool = (
     },
     required: ["resourceName", "chunkIndex"],
   },
+  execution: LONG_RUNNING_TOOL_EXECUTION,
   executor: async (args) => {
     const { resourceName, chunkIndex, radius } = args as {
       resourceName: string;
@@ -447,6 +604,7 @@ export const createReadResourceChapterRangeTool = (
     },
     required: ["resourceName", "chapterIndex", "startLine", "endLine"],
   },
+  execution: LONG_RUNNING_TOOL_EXECUTION,
   executor: async (args) => {
     const { resourceName, chapterIndex, startLine, endLine } = args as {
       resourceName: string;
@@ -513,6 +671,7 @@ export const createListResourceChaptersTool = (
     },
     required: ["resourceName"],
   },
+  execution: LONG_RUNNING_TOOL_EXECUTION,
   executor: async (args) => {
     const { resourceName } = args as { resourceName: string };
 
@@ -541,74 +700,6 @@ export const createListResourceChaptersTool = (
       return stringifyResult({
         success: false,
         error: `列出章节失败: ${errorMessage}`,
-      });
-    }
-  },
-});
-
-/**
- * 创建深度阅读工具
- */
-export const createDeepReadResourceTool = (
-  projectId: number,
-  mainDbName: string,
-): ToolDefinition => ({
-  name: "deep_read_resource",
-  description:
-    "对大型分章文档进行高成本深度阅读分析。仅在以下情况使用：1) 用户明确要求全面分析整个文档 2) 常规搜索、上下文补读和章节阅读后仍无法回答 3) 需要跨多个章节综合分析。此工具会联合结构索引和检索结果自动选章。",
-  parameters: {
-    type: "object",
-    properties: {
-      resourceName: {
-        type: "string",
-        description: "资源名称",
-      },
-      question: {
-        type: "string",
-        description: "需要深度分析的问题",
-      },
-      focusChapters: {
-        type: "array",
-        items: { type: "number" },
-        description: "可选，重点分析的章节索引列表。不指定则自动选择相关章节",
-      },
-    },
-    required: ["resourceName", "question"],
-  },
-  executor: async (args) => {
-    const { resourceName, question, focusChapters } = args as {
-      resourceName: string;
-      question: string;
-      focusChapters?: number[];
-    };
-
-    try {
-      const result = await invoke("vl-deep-read-resource", {
-        projectId,
-        resourceName,
-        mainDbName,
-        question,
-        focusChapters,
-      });
-
-      if (!result.success) {
-        return stringifyResult({
-          success: false,
-          error: result.error,
-        });
-      }
-
-      return stringifyResult({
-        success: true,
-        answer: result.answer,
-        analyzedChapters: result.analyzedChapters,
-      });
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      return stringifyResult({
-        success: false,
-        error: `深度阅读失败: ${errorMessage}`,
       });
     }
   },
