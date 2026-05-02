@@ -136,7 +136,7 @@ describe("weread login window lifecycle", () => {
       requestHeaders: {
         Cookie: "wr_name=%E6%B5%8B%E8%AF%95%E7%94%A8%E6%88%B7; wr_vid=vid-1",
       },
-    } as Electron.OnSendHeadersListenerDetails);
+    } as unknown as Electron.OnSendHeadersListenerDetails);
 
     await expect(loginPromise).resolves.toEqual({
       cookies: [
