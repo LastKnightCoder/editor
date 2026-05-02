@@ -260,25 +260,45 @@ export const updateNodeRecursively = (
         oldType === "formatted" &&
         oldNodeProperties.text !== nodeProperties.text
       ) {
-        const text = oldNodeProperties.text;
+        const text = String(oldNodeProperties.text ?? "");
         const nextText = String(nodeProperties.text ?? "");
-        const replaceRange = {
-          anchor: {
+        let start = 0;
+        let oldEnd = text.length;
+        let newEnd = nextText.length;
+
+        while (
+          start < oldEnd &&
+          start < newEnd &&
+          text[start] === nextText[start]
+        ) {
+          start += 1;
+        }
+
+        while (
+          oldEnd > start &&
+          newEnd > start &&
+          text[oldEnd - 1] === nextText[newEnd - 1]
+        ) {
+          oldEnd -= 1;
+          newEnd -= 1;
+        }
+
+        if (oldEnd > start) {
+          editor.apply({
+            type: "remove_text",
             path,
-            offset: 0,
-          },
-          focus: {
-            path,
-            offset: text.length,
-          },
-        };
-        if (nextText.length === 0) {
-          Transforms.delete(editor, {
-            at: replaceRange,
+            offset: start,
+            text: text.slice(start, oldEnd),
           });
-        } else {
-          Transforms.select(editor, replaceRange);
-          editor.insertText(nextText);
+        }
+
+        if (newEnd > start) {
+          editor.apply({
+            type: "insert_text",
+            path,
+            offset: start,
+            text: nextText.slice(start, newEnd),
+          });
         }
         delete oldNodeProperties.text;
         delete nodeProperties.text;

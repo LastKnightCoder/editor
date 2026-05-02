@@ -34,10 +34,10 @@
 
 ## v0.3.7
 
-- fix: 代码块、图片、PreviewWithEditor 删除优化
-- fix: 颜色选择 bug 修复
 - feat: 优化选择卡片弹窗打开速度
 - feat: 获取卡片简介方法优化
+- fix: 代码块、图片、PreviewWithEditor 删除优化
+- fix: 颜色选择 bug 修复
 
 ## v0.3.8
 
@@ -73,10 +73,10 @@
 
 ## v0.3.14
 
+- feat: tabsContainer 也支持拖拽
 - fix: 修复 bug，hovering bar 位置不对
 - fix: status bar 导致窗口抖动，以及位置会随着滚动发生改变
 - fix: block-panel 位置修复，支持拼音关键字
-- feat: tabsContainer 也支持拖拽
 
 ## v0.4.0
 
@@ -165,7 +165,7 @@
   - 相同的目录下禁止有相同的文档，无论是拖动还是选择都会禁止掉
 
 - fix: 图片概览bug修复
-- fix: 列表无线滚动 bug 修复
+- fix: 列表无限滚动 bug 修复
 
 ## v0.4.15
 
@@ -797,8 +797,8 @@
 
 ## v0.19.0
 
--feat: 支持组件模板中心
--feat: Webview 支持选择本地 HTML 文件上传
+- feat: 支持组件模板中心
+- feat: Webview 支持选择本地 HTML 文件上传
 
 ## v0.19.1
 

@@ -113,7 +113,8 @@
       "Skill(impeccable)",
       "Bash(pnpm --filter desktop dev)",
       "Bash(curl -s http://localhost:5173/)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Bash(awk '{print $NF}')"
     ],
     "deny": [],
     "ask": []

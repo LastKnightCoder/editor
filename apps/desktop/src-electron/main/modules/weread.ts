@@ -230,15 +230,20 @@ class WeReadModule {
       });
 
       let resolved = false;
+      let listenersCleanedUp = false;
 
-      const session = loginWindow.webContents.session;
+      const webContents = loginWindow.webContents;
+      const session = webContents.session;
       const cleanupListeners = () => {
+        if (listenersCleanedUp) {
+          return;
+        }
+        listenersCleanedUp = true;
         session.webRequest.onCompleted(loginFilter, null);
         session.webRequest.onSendHeaders(cookieFilter, null);
-        loginWindow.webContents.removeListener(
-          "did-finish-load",
-          pageLoadedListener,
-        );
+        if (!webContents.isDestroyed()) {
+          webContents.removeListener("did-finish-load", pageLoadedListener);
+        }
       };
       const resolveLogin = (result: WeReadLoginResult) => {
         if (resolved) {
@@ -270,7 +275,7 @@ class WeReadModule {
       const completedListener = (
         details: Electron.OnCompletedListenerDetails,
       ) => {
-        if (details.statusCode === 200) {
+        if (details.statusCode === 200 && !loginWindow.isDestroyed()) {
           loginWindow.loadURL("https://weread.qq.com/web/shelf");
         }
       };
@@ -294,7 +299,9 @@ class WeReadModule {
         if (result) {
           resolveLogin(result);
         } else {
-          loginWindow.webContents.reload();
+          if (!webContents.isDestroyed()) {
+            webContents.reload();
+          }
         }
       };
       session.webRequest.onSendHeaders(cookieFilter, sendHeadersListener);
@@ -322,7 +329,9 @@ class WeReadModule {
 
       loginWindow.loadURL("https://weread.qq.com/#login").catch((error) => {
         cleanupListeners();
-        loginWindow.close();
+        if (!loginWindow.isDestroyed()) {
+          loginWindow.close();
+        }
         reject(error);
       });
     });
