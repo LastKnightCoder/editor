@@ -309,6 +309,11 @@ const Index = memo(
         },
         setEditorValue: (nodes: Descendant[]) => {
           const normalizedNodes = normalizeEditorContent(nodes);
+          ReactEditor.deselect(editor);
+          const domSelection = window.getSelection();
+          if (domSelection && domSelection.rangeCount > 0) {
+            domSelection.removeAllRanges();
+          }
           editor.isResetValue = true;
           Editor.withoutNormalizing(editor, () => {
             updateNodeRecursively(

@@ -6,25 +6,25 @@
 
 使用 Electron 打包为本地应用。 前端项目使用 `pnpm` 进行包管理，需要全局安装
 
-```bash
+```Bash
 npm install -g pnpm
 ```
 
-然后安装依赖
+​**然后安装依赖**
 
-```bash
+```Bash
 pnpm install
 ```
 
 本地运行
 
-```bash
+```Bash
 npm run dev
 ```
 
 打包
 
-```bash
+```Bash
 npm run build
 ```
 

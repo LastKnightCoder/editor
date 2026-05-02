@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Header, DocSidebar } from "@blog/components/Layout";
 import { Breadcrumb, ScrollToTop } from "@blog/components/Common";
 import { Editor, EditorServicesProvider } from "@tau/editor";
@@ -15,6 +15,7 @@ import "@tau/themes/light.less";
 import "@tau/themes/dark.less";
 
 const DOC_SIDEBAR_SCROLL_STORAGE_KEY = "blog:doc-sidebar-scroll";
+const DOC_SIDEBAR_COLLAPSE_STORAGE_KEY = "blog:doc-sidebar-collapse";
 
 function extractHeaders(content: unknown[]) {
   const headers: { level: number; title: string }[] = [];
@@ -40,6 +41,7 @@ const DocPage = memo(() => {
   const docCollections = initData.docCollections || [];
   const blogSettings = initData.settings;
   const sidebarScrollRef = useRef<HTMLDivElement | null>(null);
+  const [activeHeaderIndex, setActiveHeaderIndex] = useState(0);
 
   const headers = useMemo(() => extractHeaders(doc.content), [doc.content]);
   const activeCollectionTitle = useMemo(() => {
@@ -107,6 +109,11 @@ const DocPage = memo(() => {
       `${DOC_SIDEBAR_SCROLL_STORAGE_KEY}:${site.basePath}:${sidebarData.title}`,
     [sidebarData.title, site.basePath],
   );
+  const sidebarCollapseStorageKey = useMemo(
+    () =>
+      `${DOC_SIDEBAR_COLLAPSE_STORAGE_KEY}:${site.basePath}:${sidebarData.title}`,
+    [sidebarData.title, site.basePath],
+  );
 
   useEffect(() => {
     if (sidebarData.items.length === 0) {
@@ -149,6 +156,53 @@ const DocPage = memo(() => {
     };
   }, [doc.currentPath, sidebarData.items.length, sidebarScrollStorageKey]);
 
+  useEffect(() => {
+    const scrollContainer = document.querySelector<HTMLElement>(
+      "[data-primary-scroll-container]",
+    );
+    const editor = document.querySelector('[data-slate-editor="true"]');
+    if (!scrollContainer || !editor) {
+      return;
+    }
+
+    const headerElements = Array.from(
+      editor.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6"),
+    );
+    if (headerElements.length === 0) {
+      return;
+    }
+
+    const updateActiveHeader = () => {
+      const containerTop = scrollContainer.getBoundingClientRect().top;
+      const activationLine = containerTop + 96;
+      let nextActiveIndex = 0;
+
+      for (let index = 0; index < headerElements.length; index++) {
+        const rect = headerElements[index].getBoundingClientRect();
+        if (rect.top <= activationLine) {
+          nextActiveIndex = index;
+          continue;
+        }
+        break;
+      }
+
+      setActiveHeaderIndex((current) =>
+        current === nextActiveIndex ? current : nextActiveIndex,
+      );
+    };
+
+    updateActiveHeader();
+    scrollContainer.addEventListener("scroll", updateActiveHeader, {
+      passive: true,
+    });
+    window.addEventListener("resize", updateActiveHeader);
+
+    return () => {
+      scrollContainer.removeEventListener("scroll", updateActiveHeader);
+      window.removeEventListener("resize", updateActiveHeader);
+    };
+  }, [headers]);
+
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden">
       <Header
@@ -173,6 +227,7 @@ const DocPage = memo(() => {
                   basePath={site.basePath}
                   title={sidebarData.title}
                   currentPath={doc.currentPath}
+                  storageKey={sidebarCollapseStorageKey}
                 />
               </div>
             </div>
@@ -256,7 +311,11 @@ const DocPage = memo(() => {
                   <h4 className="mb-3 px-2.5 text-xs font-medium uppercase tracking-[0.15em] text-[var(--color-text-tertiary)]">
                     页面目录
                   </h4>
-                  <Outline headers={headers} onClick={handleHeaderClick} />
+                  <Outline
+                    headers={headers}
+                    activeIndex={activeHeaderIndex}
+                    onClick={handleHeaderClick}
+                  />
                 </div>
               </aside>
             )}

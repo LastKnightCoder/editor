@@ -6,8 +6,10 @@ import { initTheme } from "@blog/utils";
 
 // 开发环境使用 mock 数据
 if (import.meta.env.DEV) {
-  import("@blog/mock/data").then(({ mockDocPageData }) => {
-    window._INIT_DATA_ = mockDocPageData;
+  import("@blog/mock/data").then(({ getMockDocPageData }) => {
+    const params = new URLSearchParams(window.location.search);
+    const demo = params.get("demo");
+    window._INIT_DATA_ = getMockDocPageData(demo);
     initTheme();
     createRoot(document.getElementById("root")!).render(
       <StrictMode>

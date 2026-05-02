@@ -1,4 +1,11 @@
-import { memo, useState } from "react";
+import {
+  memo,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import classNames from "classnames";
 import {
   SidebarItem,
@@ -21,13 +28,149 @@ interface DocSidebarItemProps {
   basePath: string;
   currentPath?: string;
   level?: number;
+  storageKey: string;
 }
 
+interface DocSidebarItemInternalProps extends DocSidebarItemProps {
+  itemKey: string;
+}
+
+const buildSidebarManualPreferenceKey = (storageKey: string) =>
+  `${storageKey}:__manual`;
+
+const hasSidebarManualPreference = (storageKey: string) => {
+  const manualPreferenceKey = buildSidebarManualPreferenceKey(storageKey);
+  if (window.localStorage.getItem(manualPreferenceKey) === "true") {
+    return true;
+  }
+
+  const itemStateKeyPrefix = `${storageKey}:`;
+  for (let index = 0; index < window.localStorage.length; index++) {
+    const key = window.localStorage.key(index);
+    if (
+      key &&
+      key !== manualPreferenceKey &&
+      key.startsWith(itemStateKeyPrefix)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const branchContainsPath = (
+  item: SidebarItem,
+  currentPath?: string,
+): boolean => {
+  if (!currentPath) return false;
+  if (item.href === currentPath) return true;
+  if (!item.children?.length) return false;
+  return item.children.some((child) => branchContainsPath(child, currentPath));
+};
+
 const DocSidebarItem = memo(
-  ({ item, basePath, currentPath, level = 0 }: DocSidebarItemProps) => {
-    const [collapsed, setCollapsed] = useState(item.collapsed ?? false);
+  ({
+    item,
+    basePath,
+    currentPath,
+    level = 0,
+    storageKey,
+    itemKey,
+  }: DocSidebarItemInternalProps) => {
     const hasChildren = item.children && item.children.length > 0;
-    const isActive = item.href && currentPath === item.href;
+    const isActive = Boolean(item.href && currentPath === item.href);
+    const containsCurrentPath = useMemo(
+      () => branchContainsPath(item, currentPath),
+      [currentPath, item],
+    );
+    const collapseStateKey = useMemo(
+      () => `${storageKey}:${itemKey}`,
+      [itemKey, storageKey],
+    );
+    const manualPreferenceKey = useMemo(
+      () => buildSidebarManualPreferenceKey(storageKey),
+      [storageKey],
+    );
+    const [collapsed, setCollapsed] = useState(() => {
+      if (!hasChildren) {
+        return false;
+      }
+      const savedValue = window.localStorage.getItem(collapseStateKey);
+      if (savedValue === "true") return true;
+      if (savedValue === "false") return false;
+      if (!hasSidebarManualPreference(storageKey) && containsCurrentPath) {
+        return false;
+      }
+      return item.collapsed ?? false;
+    });
+    const childrenWrapperRef = useRef<HTMLDivElement | null>(null);
+    const [contentHeight, setContentHeight] = useState(0);
+    const [allowAnimation, setAllowAnimation] = useState(false);
+
+    useEffect(() => {
+      if (!hasChildren) {
+        return;
+      }
+      const savedValue = window.localStorage.getItem(collapseStateKey);
+      if (savedValue === "true") {
+        setAllowAnimation(false);
+        setCollapsed(true);
+        return;
+      }
+      if (savedValue === "false") {
+        setAllowAnimation(false);
+        setCollapsed(false);
+        return;
+      }
+      if (!hasSidebarManualPreference(storageKey) && containsCurrentPath) {
+        setAllowAnimation(false);
+        setCollapsed(false);
+        return;
+      }
+      setAllowAnimation(false);
+      setCollapsed(item.collapsed ?? false);
+    }, [
+      collapseStateKey,
+      containsCurrentPath,
+      hasChildren,
+      item.collapsed,
+      storageKey,
+    ]);
+
+    useEffect(() => {
+      if (!hasChildren) {
+        return;
+      }
+      if (!hasSidebarManualPreference(storageKey)) {
+        return;
+      }
+      window.localStorage.setItem(collapseStateKey, String(collapsed));
+    }, [collapseStateKey, collapsed, hasChildren, storageKey]);
+
+    useLayoutEffect(() => {
+      if (!hasChildren) {
+        return;
+      }
+
+      const updateHeight = () => {
+        setContentHeight(childrenWrapperRef.current?.scrollHeight ?? 0);
+      };
+
+      updateHeight();
+      const resizeObserver =
+        typeof ResizeObserver === "function" && childrenWrapperRef.current
+          ? new ResizeObserver(updateHeight)
+          : null;
+      if (resizeObserver && childrenWrapperRef.current) {
+        resizeObserver.observe(childrenWrapperRef.current);
+      }
+      window.addEventListener("resize", updateHeight);
+      return () => {
+        resizeObserver?.disconnect();
+        window.removeEventListener("resize", updateHeight);
+      };
+    }, [collapsed, hasChildren, item.children]);
 
     return (
       <div className="w-full">
@@ -40,11 +183,10 @@ const DocSidebarItem = memo(
                 isActive,
               "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)]":
                 !isActive,
-              "cursor-pointer": hasChildren || item.href,
+              "cursor-default": !item.href && !hasChildren,
             },
           )}
           style={{ paddingLeft: `${level * 12 + 12}px` }}
-          onClick={() => hasChildren && setCollapsed(!collapsed)}
         >
           {item.href ? (
             <a
@@ -58,33 +200,51 @@ const DocSidebarItem = memo(
           )}
 
           {hasChildren && (
-            <svg
-              className={classNames(
-                "h-4 w-4 shrink-0 text-[var(--color-text-tertiary)] transition-transform duration-150",
-                { "rotate-90": !collapsed },
-              )}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
+            <button
+              type="button"
+              aria-label={collapsed ? "展开分组" : "收起分组"}
+              aria-expanded={!collapsed}
+              className="ml-2 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-primary-subtle)] hover:text-[var(--color-text-primary)]"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                window.localStorage.setItem(manualPreferenceKey, "true");
+                setAllowAnimation(true);
+                setCollapsed((value) => !value);
+              }}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
+              <svg
+                className={classNames(
+                  "h-4 w-4 transition-transform duration-150",
+                  {
+                    "rotate-90": !collapsed,
+                  },
+                )}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </button>
           )}
         </div>
 
         {hasChildren && (
           <div
             className={classNames(
-              "overflow-hidden transition-all duration-150",
-              collapsed ? "max-h-0 opacity-0" : "max-h-[1000px] opacity-100",
+              "overflow-hidden",
+              allowAnimation && "transition-all duration-150",
+              collapsed ? "opacity-0" : "opacity-100",
             )}
+            style={{ maxHeight: collapsed ? "0px" : `${contentHeight}px` }}
           >
-            <div className="mt-0.5">
+            <div ref={childrenWrapperRef} className="mt-0.5">
               {item.children!.map((child, index) => (
                 <DocSidebarItem
                   key={child.href || index}
@@ -92,6 +252,8 @@ const DocSidebarItem = memo(
                   basePath={basePath}
                   currentPath={currentPath}
                   level={level + 1}
+                  storageKey={storageKey}
+                  itemKey={`${itemKey}.${index}`}
                 />
               ))}
             </div>
@@ -109,10 +271,17 @@ interface DocSidebarProps {
   basePath: string;
   currentPath?: string;
   title?: string;
+  storageKey?: string;
 }
 
 export const DocSidebar = memo(
-  ({ items, basePath, currentPath, title = "文档导航" }: DocSidebarProps) => {
+  ({
+    items,
+    basePath,
+    currentPath,
+    title = "文档导航",
+    storageKey = "blog:doc-sidebar",
+  }: DocSidebarProps) => {
     return (
       <aside className="w-full shrink-0">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
@@ -126,6 +295,8 @@ export const DocSidebar = memo(
               item={item}
               basePath={basePath}
               currentPath={currentPath}
+              storageKey={storageKey}
+              itemKey={String(index)}
             />
           ))}
         </nav>
