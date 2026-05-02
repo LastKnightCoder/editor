@@ -347,7 +347,6 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
         read_resource_chapter: "读取章节正文",
         read_resource_chapter_range: "分段读取章节",
         read_search_hit_context: "补读命中上下文",
-        deep_read_resource: "深度阅读资料",
         search_project_knowledge: "搜索知识库",
       };
       return toolNameMap[executingTool.toolName] || "执行工具调用";

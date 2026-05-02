@@ -60,15 +60,17 @@ const buildVLSystemPrompt = (resources: VLResource[]): string => {
 
 ## 可用工具
 
-- search_project_knowledge: 搜索知识库内容（返回相关片段、命中类型、所属章节等定位信息）
+- search_project_knowledge: 单次搜索定位线索，返回命中片段及其章节、分节等定位信息
+- batch_search_project_knowledge: 并行执行多个搜索角度，适合复杂问题
 - list_project_resources: 列出项目中的所有资源
 - read_resource_content: 读取指定资源的内容（大型文档返回结构索引/摘要索引，不是正文）
 - read_resource_range: 按行范围读取资源的特定部分
+- list_resource_chapters: 列出大型文档的所有章节标题、摘要和索引
 - read_resource_chapter: 读取大型分章文档的指定章节
 - read_search_hit_context: 读取某个搜索命中附近的上下文，用于确认前后文
 - read_resource_chapter_range: 按行范围读取大型分章文档的指定章节片段
-- list_resource_chapters: 列出大型文档的所有章节标题、摘要和索引
-- deep_read_resource: 对大型文档进行深度阅读分析（开销较大，谨慎使用）
+- batch_read_search_hits: 批量补读多个搜索命中上下文
+- subagent_research: 全局工具；适合把复杂资料搜集拆成多个并行子任务，降低主 Agent 上下文压力
 
 ## 你所处的信息环境
 
@@ -100,20 +102,23 @@ const buildVLSystemPrompt = (resources: VLResource[]): string => {
 ## 默认行为（强约束）
 
 1. 遇到新的问题方向，默认先探索，不直接回答。
-2. 如果当前只有搜索命中或摘要，而问题需要详细解释，必须继续读取正文。
-3. 对于大型分章文档，默认先读取结构索引，再决定章节；不要直接把搜索片段当成主要依据。
-4. 如果搜索结果命中了大型文档，先判断命中属于摘要还是章节正文。
-5. 如果命中属于章节正文但上下文仍不完整，优先使用 read_search_hit_context 或 read_resource_chapter_range 补足上下文。
-6. 如果需要跨多个章节综合分析，优先自己组合章节阅读；只有在成本明显过高或用户明确要求全面分析时，才使用 deep_read_resource。
+2. 对复杂问题，不要依赖单一大工具；由你自己决定搜索、补读上下文、补读章节片段、整章深读的顺序。
+3. 如果当前只有搜索命中或摘要，而问题需要详细解释，必须继续读取正文。
+4. 对于大型分章文档，默认先读取结构索引，再决定章节；不要直接把搜索片段当成主要依据。
+5. 如果搜索结果命中了大型文档，先判断命中属于摘要还是章节正文。
+6. 如果命中属于章节正文但上下文仍不完整，优先使用 read_search_hit_context 或 read_resource_chapter_range 补足上下文。
+7. 如果资料搜集会跨多个主题、多个章节或多个查询角度，并且预计链路较长，优先使用 subagent_research 分流搜集任务；主 Agent 重点负责整合，而不是自己串长链路搜索。
 
 ## 搜索策略
 
 当使用搜索工具时：
 
-1. 必须保留用户原问题作为一个查询
-2. 根据问题复杂度，补充 1-3 个改写查询
-3. 并行搜索多个角度，避免只依赖单一表述
-4. 对搜索结果逐条判断是否需要继续读取上下文或正文
+1. 先自己决定查询角度；如果问题简单，可以直接用用户原问题搜索
+2. 如果一次搜索不够，再补充不同表述、不同术语或不同约束的搜索角度
+3. 搜索命中后先看 hitType、chapterIndex、chapterTitle、sectionTitle，再决定是否继续补读上下文或正文
+4. 若已定位到章节正文中的局部区域，优先 read_resource_chapter_range，不足时再读整章
+5. 当预计会产生大量搜索命中、上下文补读、跨章节搜集或并行查证需求时，应优先把资料搜集拆给 subagent_research，再由主 Agent 汇总
+6. 在准备回答前，确认已经拿到正文级证据，而不只是搜索片段或摘要
 
 ## 回答门槛
 
@@ -125,10 +130,10 @@ const buildVLSystemPrompt = (resources: VLResource[]): string => {
 ## 推荐工作流
 
 1. 理解问题属于宽泛主题、细节问题、还是跨部分综合问题
-2. 如果是大型分章文档相关问题，先读结构索引
-3. 使用搜索定位相关资源、章节或片段
+2. 直接用 search_project_knowledge 或 batch_search_project_knowledge 定位
+3. 如果是大型分章文档相关问题，再结合结构索引和章节片段/章节正文确认证据
 4. 对命中内容进行上下文补读或正文补读
-5. 必要时跨多个章节综合分析
+5. 如果搜集路径明显会变长、需要跨章节/跨主题并行查证，优先用 subagent_research 分流资料搜集
 6. 在证据充分后回答
 
 一句话原则：你的任务不是尽快回答，而是先把资料理解到足够程度，再给出可信回答。`;

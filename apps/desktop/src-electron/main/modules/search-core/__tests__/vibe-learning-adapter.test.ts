@@ -1,17 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockSearchFTS, mockSearchVec, mockGetDatabase, mockGetResourcesByIds } =
-  vi.hoisted(() => ({
-    mockSearchFTS: vi.fn(),
-    mockSearchVec: vi.fn(),
-    mockGetDatabase: vi.fn(),
-    mockGetResourcesByIds: vi.fn(),
-  }));
+const {
+  mockSearchFTS,
+  mockSearchVec,
+  mockGetDatabase,
+  mockGetResourcesByIds,
+  mockGetChunkMetadata,
+} = vi.hoisted(() => ({
+  mockSearchFTS: vi.fn(),
+  mockSearchVec: vi.fn(),
+  mockGetDatabase: vi.fn(),
+  mockGetResourcesByIds: vi.fn(),
+  mockGetChunkMetadata: vi.fn(),
+}));
 
 vi.mock("../../vibe-learning-db", () => ({
   default: {
     searchFTS: mockSearchFTS,
     searchVec: mockSearchVec,
+    getChunkMetadata: mockGetChunkMetadata,
   },
 }));
 
@@ -34,6 +41,7 @@ describe("search-core/vibe-learning-adapter", () => {
     vi.clearAllMocks();
     mockGetDatabase.mockReturnValue({});
     mockGetResourcesByIds.mockReturnValue([{ name: "资料 A" }]);
+    mockGetChunkMetadata.mockReturnValue(null);
   });
 
   it("应为 FTS 和 Vec 结果生成 chunk 级 dedupeKey", async () => {
@@ -104,5 +112,70 @@ describe("search-core/vibe-learning-adapter", () => {
     expect(result.resourceName).toBe("资料 A");
     expect(result.chunkIndex).toBe(3);
     expect(result.score).toBe(0.9);
+  });
+
+  it("searchFTS 应透传 section 元数据", async () => {
+    mockSearchFTS.mockReturnValue([
+      {
+        resourceId: 1,
+        chunkIndex: 4,
+        content: "Q、K、V 分别来自输入向量的不同投影。",
+        rank: -0.8,
+      },
+    ]);
+    mockGetChunkMetadata.mockReturnValue({
+      searchContent: "q k v 输入 向量 不同 投影",
+      displayContent: "Q、K、V 分别来自输入向量的不同投影。",
+      sectionTitle: "Query / Key / Value",
+      sectionPath: ["Attention 机制", "Query / Key / Value"],
+    });
+
+    const adapter = createVibeLearningAdapter();
+    const context = {
+      projectId: 1,
+      mainDbName: "work.db",
+      vector: null,
+    };
+
+    const results = await adapter.searchFTS("QKV 投影", context, 5, "original");
+
+    expect(results[0]?.payload.sectionTitle).toBe("Query / Key / Value");
+    expect(results[0]?.payload.sectionPath).toEqual([
+      "Attention 机制",
+      "Query / Key / Value",
+    ]);
+    expect(results[0]?.payload.chunkLevel).toBe("section");
+    expect(results[0]?.text).toBe("Q、K、V 分别来自输入向量的不同投影。");
+  });
+
+  it("searchFTS 应透传 chunk 精确章节行号范围", async () => {
+    mockSearchFTS.mockReturnValue([
+      {
+        resourceId: 1,
+        chunkIndex: 4,
+        content: "Q、K、V 分别来自输入向量的不同投影。",
+        rank: -0.8,
+      },
+    ]);
+    mockGetChunkMetadata.mockReturnValue({
+      searchContent: "q k v 输入 向量 不同 投影",
+      displayContent: "Q、K、V 分别来自输入向量的不同投影。",
+      sectionTitle: "Query / Key / Value",
+      sectionPath: ["Attention 机制", "Query / Key / Value"],
+      chunkStartLine: 21,
+      chunkEndLine: 44,
+    });
+
+    const adapter = createVibeLearningAdapter();
+    const context = {
+      projectId: 1,
+      mainDbName: "work.db",
+      vector: null,
+    };
+
+    const results = await adapter.searchFTS("QKV 投影", context, 5, "original");
+
+    expect(results[0]?.payload.chunkStartLine).toBe(21);
+    expect(results[0]?.payload.chunkEndLine).toBe(44);
   });
 });

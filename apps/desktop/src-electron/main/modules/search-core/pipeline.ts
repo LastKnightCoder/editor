@@ -446,6 +446,21 @@ export async function runSearchPipeline<TPayload extends object, TContext>(
         rrfScore: candidate.rrfScore,
         rerankScore,
         config,
+        structureLevel:
+          typeof candidate.payload === "object" &&
+          candidate.payload &&
+          "chunkLevel" in candidate.payload
+            ? (
+                candidate.payload as {
+                  chunkLevel?:
+                    | "resource"
+                    | "summary"
+                    | "section"
+                    | "chapter"
+                    | "passage";
+                }
+              ).chunkLevel
+            : undefined,
       });
       return {
         ...candidate,

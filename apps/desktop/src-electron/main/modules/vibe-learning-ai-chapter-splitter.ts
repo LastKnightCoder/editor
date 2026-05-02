@@ -45,6 +45,8 @@ export interface TaskProgress {
   inProgress: number; // 进行中
 }
 
+const KIMI_CLI_USER_AGENT = "KimiCLI/1.37.0";
+
 // ============================================================
 // 内部类型
 // ============================================================
@@ -68,7 +70,7 @@ interface ChunkResult {
 // 常量
 // ============================================================
 
-const DEFAULT_MAX_CHUNK_LENGTH = 50_000; // 单个 chunk 的最大长度
+const DEFAULT_MAX_CHUNK_LENGTH = 20_000; // 单个 chunk 的最大长度；调小可降低单次 LLM 请求压力与超时风险，但会增加 chunk 数量
 const DEFAULT_OVERLAP = 1_000; // chunk 之间的重叠字符数
 const MAX_RETRIES = 3; // 每个 chunk 的最大重试次数
 const CONCURRENCY_LIMIT = 3; // chunk 并行处理的并发数
@@ -93,7 +95,7 @@ export async function splitMarkdownByAI(
   onProgress?: (progress: TaskProgress) => void,
 ): Promise<SplitResult> {
   log.info(
-    `[AIChapterSplitter] Starting AI chapter split, content length: ${content.length}`,
+    `[AIChapterSplitter] Starting AI chapter split for "${resourceName}", content length=${content.length}, model=${config.llmModel}, baseURL=${config.llmBaseUrl || "default"}, timeoutMs=1200000`,
   );
 
   // 1. 分块
@@ -106,6 +108,14 @@ export async function splitMarkdownByAI(
   const client = new OpenAI({
     apiKey: config.llmApiKey,
     baseURL: config.llmBaseUrl,
+    timeout: 1_200_000,
+    ...(config.llmModel === "kimi-for-coding"
+      ? {
+          defaultHeaders: {
+            "User-Agent": KIMI_CLI_USER_AGENT,
+          },
+        }
+      : {}),
   });
 
   // 进度计数器（共享状态，由各 worker 更新）
@@ -348,6 +358,11 @@ async function processChunkWithRetry(
         await sleep(delay);
       }
 
+      const requestStartedAt = Date.now();
+      log.info(
+        `[AIChapterSplitter] Sending LLM request for chunk ${chunkIndex + 1}/${totalChunks}, attempt ${attempt + 1}/${maxRetries}, model=${model}, chunkLength=${chunkText.length}`,
+      );
+
       const response = await client.chat.completions.create({
         model,
         messages: [
@@ -360,9 +375,14 @@ async function processChunkWithRetry(
         temperature: 0.1,
       });
 
+      const elapsedMs = Date.now() - requestStartedAt;
+
       const output = response.choices[0]?.message?.content;
       if (!output) {
         lastError = "AI 返回空内容";
+        log.warn(
+          `[AIChapterSplitter] LLM request finished with empty content for chunk ${chunkIndex + 1}/${totalChunks}, attempt ${attempt + 1}, elapsedMs=${elapsedMs}`,
+        );
         continue;
       }
 
@@ -371,10 +391,14 @@ async function processChunkWithRetry(
       if (chapters.length === 0) {
         lastError = "解析结果为空，未找到有效章节";
         log.warn(
-          `[AIChapterSplitter] Empty parse result for chunk ${chunkIndex + 1}, attempt ${attempt + 1}`,
+          `[AIChapterSplitter] Empty parse result for chunk ${chunkIndex + 1}/${totalChunks}, attempt ${attempt + 1}, elapsedMs=${elapsedMs}, outputLength=${output.length}`,
         );
         continue;
       }
+
+      log.info(
+        `[AIChapterSplitter] LLM request succeeded for chunk ${chunkIndex + 1}/${totalChunks}, attempt ${attempt + 1}, elapsedMs=${elapsedMs}, outputLength=${output.length}, chapters=${chapters.length}`,
+      );
 
       return {
         chunkIndex,
@@ -383,8 +407,9 @@ async function processChunkWithRetry(
       };
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
+      const errorDetails = formatErrorForLog(error);
       log.warn(
-        `[AIChapterSplitter] Error processing chunk ${chunkIndex + 1}, attempt ${attempt + 1}: ${lastError}`,
+        `[AIChapterSplitter] Error processing chunk ${chunkIndex + 1}/${totalChunks}, attempt ${attempt + 1}: ${errorDetails}`,
       );
     }
   }
@@ -408,6 +433,29 @@ async function processChunkWithRetry(
     success: false,
     error: lastError,
   };
+}
+
+function formatErrorForLog(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return String(error);
+  }
+
+  const detailParts = [error.message];
+  const maybeStatus = Reflect.get(error, "status");
+  const maybeCode = Reflect.get(error, "code");
+  const maybeType = Reflect.get(error, "type");
+
+  if (typeof maybeStatus === "number") {
+    detailParts.push(`status=${maybeStatus}`);
+  }
+  if (typeof maybeCode === "string" && maybeCode.length > 0) {
+    detailParts.push(`code=${maybeCode}`);
+  }
+  if (typeof maybeType === "string" && maybeType.length > 0) {
+    detailParts.push(`type=${maybeType}`);
+  }
+
+  return detailParts.join(", ");
 }
 
 // ============================================================
