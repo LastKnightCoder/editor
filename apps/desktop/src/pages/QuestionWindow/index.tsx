@@ -61,6 +61,7 @@ const QuestionWindowPage = () => {
   const [newQuestionValue, setNewQuestionValue] = useState("");
   const [newQuestionDescription, setNewQuestionDescription] =
     useState<Descendant[]>(DEFAULT_CONTENT);
+  const [newQuestionEditorKey, setNewQuestionEditorKey] = useState(0);
   const [editQuestionVisible, setEditQuestionVisible] = useState(false);
   const [editingQuestionId, setEditingQuestionId] = useState<number | null>(
     null,
@@ -82,6 +83,20 @@ const QuestionWindowPage = () => {
   const [answerStatuses, setAnswerStatuses] = useState<
     Record<number, AnswerContentStatus>
   >({});
+
+  const resetNewQuestionDraft = useMemoizedFn(() => {
+    setNewQuestionVisible(false);
+    setNewQuestionValue("");
+    setNewQuestionDescription(DEFAULT_CONTENT);
+    setNewQuestionEditorKey((current) => current + 1);
+  });
+
+  const openNewQuestionModal = useMemoizedFn(() => {
+    setNewQuestionValue("");
+    setNewQuestionDescription(DEFAULT_CONTENT);
+    setNewQuestionEditorKey((current) => current + 1);
+    setNewQuestionVisible(true);
+  });
 
   // 在数据库连接或切换时加载问题数据
   useDatabaseChangeEffect(() => {
@@ -217,9 +232,7 @@ const QuestionWindowPage = () => {
       groupId: activeGroupId,
       description: hasDescription ? newQuestionDescription : DEFAULT_CONTENT,
     });
-    setNewQuestionVisible(false);
-    setNewQuestionValue("");
-    setNewQuestionDescription(DEFAULT_CONTENT);
+    resetNewQuestionDraft();
     if (activeGroupId != null) await loadItems(activeGroupId);
     await loadGroupStats();
   };
@@ -437,7 +450,7 @@ const QuestionWindowPage = () => {
                 onGroupTitleChange={handleGroupTitleChange}
                 onFilterChange={setFilter}
                 onSearch={setSearchQuery}
-                onCreateQuestion={() => setNewQuestionVisible(true)}
+                onCreateQuestion={openNewQuestionModal}
               />
 
               <div className="flex-1 min-h-0 overflow-auto">
@@ -475,11 +488,7 @@ const QuestionWindowPage = () => {
 
         <CustomModal
           open={newQuestionVisible}
-          onCancel={() => {
-            setNewQuestionVisible(false);
-            setNewQuestionValue("");
-            setNewQuestionDescription(DEFAULT_CONTENT);
-          }}
+          onCancel={resetNewQuestionDraft}
           width={800}
           title="新建问题"
           subtitle="输入问题内容和描述"
@@ -500,11 +509,7 @@ const QuestionWindowPage = () => {
           footer={
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => {
-                  setNewQuestionVisible(false);
-                  setNewQuestionValue("");
-                  setNewQuestionDescription(DEFAULT_CONTENT);
-                }}
+                onClick={resetNewQuestionDraft}
                 className="px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-zinc-700"
               >
                 取消
@@ -538,6 +543,7 @@ const QuestionWindowPage = () => {
               </label>
               <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-zinc-950 shadow-inner transition-all focus-within:border-green-500 focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(34,197,94,0.15)] dark:focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(34,197,94,0.25)]">
                 <Editor
+                  key={`new-question-${newQuestionEditorKey}`}
                   initValue={newQuestionDescription}
                   onChange={(value) => setNewQuestionDescription(value)}
                   readonly={false}

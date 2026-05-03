@@ -4,6 +4,10 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { Module } from "../types/module";
+import {
+  buildMcpSpawnEnv,
+  resolveMcpCommand,
+} from "../utils/mcpCommandResolver";
 
 // 传输配置类型（与 useMCPStore 中定义保持一致）
 interface StdioTransportConfig {
@@ -95,7 +99,7 @@ class MCPConnectionManager {
       console.log(`[MCP] Connected to server: ${server.name} (${server.id})`);
     } catch (error) {
       console.error(`[MCP] Failed to connect to ${server.name}:`, error);
-      throw error;
+      throw this.normalizeConnectionError(error);
     }
   }
 
@@ -192,10 +196,12 @@ class MCPConnectionManager {
     const { transport } = server;
 
     if (transport.type === "stdio") {
+      const env = buildMcpSpawnEnv(transport.env);
+      const command = resolveMcpCommand(transport.command, env);
       return new StdioClientTransport({
-        command: transport.command,
+        command,
         args: transport.args,
-        env: transport.env,
+        env,
         cwd: transport.cwd,
       });
     } else if (transport.type === "streamable-http") {
@@ -318,6 +324,19 @@ class MCPConnectionManager {
         error,
       });
     });
+  }
+
+  private normalizeConnectionError(error: unknown): Error {
+    if (error instanceof Error && /spawn\s+\S+\s+ENOENT/i.test(error.message)) {
+      const command = error.message.match(/spawn\s+(\S+)\s+ENOENT/i)?.[1];
+      return new Error(
+        command
+          ? `未找到可执行命令 "${command}"。请检查 PATH 配置，或在 MCP 服务配置中填写绝对路径。`
+          : "未找到 MCP 本地服务所需的可执行命令。请检查 PATH 配置或改用绝对路径。",
+      );
+    }
+
+    return error instanceof Error ? error : new Error("未知错误");
   }
 }
 
