@@ -6,7 +6,6 @@ import {
   useMemo,
   useRef,
   memo,
-  createContext,
   CSSProperties,
 } from "react";
 import type { Node, Path } from "slate";
@@ -27,6 +26,11 @@ import { useCreation, useMemoizedFn } from "ahooks";
 import { DEFAULT_CARD_CONTENT } from "./constants";
 import useSystemTheme from "./hooks/useSystemTheme";
 import { useEditorServices } from "./contexts/EditorServicesContext";
+import {
+  EditorContext,
+  type EditorContextValue,
+  type EditorFeatures,
+} from "./contexts/EditorContext";
 
 import {
   applyPlugin,
@@ -78,20 +82,6 @@ import "codemirror/theme/blackboard.css";
 import "./extensions/drag-common.less";
 import "./extensions/drop-common.less";
 import styles from "./index.module.less";
-
-interface IEditorContext {
-  theme?: "light" | "dark";
-  features?: EditorFeatures;
-}
-
-export interface EditorFeatures {
-  /** 禁用 Header 折叠功能 */
-  disableHeaderCollapse?: boolean;
-}
-
-export const EditorContext = createContext<IEditorContext>({
-  theme: "light",
-});
 
 interface IEditorProps {
   initValue?: Descendant[];
@@ -368,7 +358,7 @@ const Index = memo(
     }, [editor, initValue, isInit, onInit]);
 
     // 使用 useMemo 稳定化 context value，避免不必要的重渲染
-    const editorContextValue = useMemo<IEditorContext>(
+    const editorContextValue = useMemo<EditorContextValue>(
       () => ({
         theme: theme || systemTheme,
         features,

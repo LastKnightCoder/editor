@@ -1,6 +1,9 @@
 import { useRef, useEffect } from "react";
 import useTheme from "../../../../hooks/useTheme";
-import { compileAndExecuteCustomBlock } from "../../utils/renderTemplate";
+import {
+  compileAndExecuteCustomBlock,
+  rerenderCustomBlockTheme,
+} from "../../utils/renderTemplate";
 import { useSlateStatic } from "slate-react";
 
 interface TemplatePreviewProps {
@@ -12,6 +15,8 @@ const TemplatePreview = ({ content }: TemplatePreviewProps) => {
   const { isDark } = useTheme();
   const editor = useSlateStatic();
   const compilerService = editor.services?.compiler;
+  const latestThemeRef = useRef(isDark);
+  latestThemeRef.current = isDark;
   useEffect(() => {
     if (!ref.current || !content) return;
 
@@ -21,7 +26,7 @@ const TemplatePreview = ({ content }: TemplatePreviewProps) => {
 
     compileAndExecuteCustomBlock(
       content,
-      isDark,
+      latestThemeRef.current,
       ref.current,
       { useTheme },
       {
@@ -50,7 +55,12 @@ const TemplatePreview = ({ content }: TemplatePreviewProps) => {
       cleanup?.();
       cleanup = undefined;
     };
-  }, [content, isDark, compilerService]);
+  }, [content, compilerService]);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    rerenderCustomBlockTheme(ref.current, isDark);
+  }, [isDark]);
 
   return (
     <div

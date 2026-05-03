@@ -17,6 +17,7 @@ import styles from "./index.module.less";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
+import { BlockElement } from "../../../../types/custom-element";
 
 interface ITabsProps {
   element: TabsElement;
@@ -39,7 +40,7 @@ const Tabs = (props: ITabsProps) => {
   const setTabsData = (
     newActiveKey: string,
     newTabsContent: ITabsContent[],
-    newChildren: any,
+    newChildren: BlockElement[],
   ) => {
     const path = ReactEditor.findPath(editor, element);
     Transforms.delete(editor, {
@@ -92,8 +93,9 @@ const Tabs = (props: ITabsProps) => {
         });
       }
     });
-    const newChildren = newTabsContent.find((tab) => tab.key === newActiveKey)!
-      .content as any;
+    const newChildren = newTabsContent.find(
+      (tab) => tab.key === newActiveKey,
+    )!.content;
 
     setTabsData(newActiveKey, newTabsContent, newChildren);
   };
@@ -125,7 +127,7 @@ const Tabs = (props: ITabsProps) => {
       draft.push(tab);
     });
 
-    setTabsData(newAddKey, newTabsContent, tab.content as any);
+    setTabsData(newAddKey, newTabsContent, tab.content);
   };
 
   const onDeleteTab = (key: string) => {
@@ -198,7 +200,7 @@ const Tabs = (props: ITabsProps) => {
         [styles.after]: !isBefore,
       })}
     >
-      <div className={styles.tabsContainer}>
+      <div className="rounded-xl border border-zinc-200/70 dark:border-zinc-700/40 overflow-hidden">
         <TabsHeader
           tabs={tabsContent}
           activeKey={activeKey}
@@ -207,7 +209,7 @@ const Tabs = (props: ITabsProps) => {
           onAddTab={onAddTab}
           onTitleChange={onTitleChange}
         />
-        <div {...attributes} className={styles.content}>
+        <div className="p-[1em]" {...attributes}>
           {children}
         </div>
       </div>

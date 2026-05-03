@@ -12,7 +12,7 @@ import {
   CalendarOutlined,
   SyncOutlined,
 } from "@ant-design/icons";
-import CreateTaskModal, { TaskCreationData } from "./CreateTaskModal";
+import TaskDialog, { TaskCreationData } from "./TaskDialog";
 import { emitTodoMutation, TODO_MUTATION_ACTIONS } from "@/mcp/todo/mutation";
 
 // 任务类型配置
@@ -327,7 +327,7 @@ const Toolbar = () => {
           />
         </div>
       )}
-      <CreateTaskModal
+      <TaskDialog
         visible={modalVisible}
         taskType={selectedTaskType}
         taskTitle={pendingTaskTitle}

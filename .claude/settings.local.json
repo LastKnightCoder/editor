@@ -114,7 +114,9 @@
       "Bash(pnpm --filter desktop dev)",
       "Bash(curl -s http://localhost:5173/)",
       "Bash(curl *)",
-      "Bash(awk '{print $NF}')"
+      "Bash(awk '{print $NF}')",
+      "Read(//tmp/**)",
+      "Bash(npx eslint *)"
     ],
     "deny": [],
     "ask": []

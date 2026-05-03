@@ -313,6 +313,14 @@
   .app-region-no-drag {
     -webkit-app-region: no-drag;
   }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @custom-variant dark (.dark &);

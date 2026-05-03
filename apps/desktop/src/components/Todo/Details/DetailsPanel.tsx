@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "motion/react";
 import { Descendant } from "slate";
-import { DatePicker, Empty, Select, Spin, Tooltip } from "antd";
 import dayjs from "dayjs";
 import classNames from "classnames";
-import CustomModal from "@/components/CustomModal";
+import { MdClose } from "react-icons/md";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import { Editor, EditorRef } from "@tau/editor/src";
 import useEditContent from "@/hooks/useEditContent";
 import { createContent } from "@/commands";
 import { getContentLength } from "@/utils";
 import { useTodoStore } from "@/stores/useTodoStore";
-import useThemeColors from "@/hooks/useThemeColors";
 import {
   TodoItemType,
   TodoRecurrence,
@@ -27,6 +27,11 @@ import {
   getStartOfDayTimestamp,
 } from "@/utils/recurrence";
 import { emitTodoMutation, TODO_MUTATION_ACTIONS } from "@/mcp/todo/mutation";
+import DateTimePicker from "@/components/Todo/List/TaskDialog/components/DateTimePicker";
+import CustomSelect from "@/components/Todo/List/TaskDialog/components/CustomSelect";
+import Spinner from "./components/Spinner";
+import Tooltip from "./components/Tooltip";
+import EmptyState from "./components/EmptyState";
 
 const DEFAULT_DESCRIPTION_CONTENT: Descendant[] = [
   {
@@ -294,7 +299,6 @@ const DetailsPanel = () => {
     loadItems,
     loadGroupStats,
   } = useTodoStore();
-  const themeColors = useThemeColors();
 
   const itemsKey = useMemo(() => {
     if (!activeGroupId) return -1;
@@ -487,265 +491,354 @@ const DetailsPanel = () => {
     }
   };
 
-  return (
-    <CustomModal
-      open={ui.rightOpen}
-      onCancel={() => setRightOpen(false)}
-      title="任务详情"
-      subtitle={current ? "编辑并查看任务数据" : "请选择一个任务"}
-      width={900}
-      footer={null}
-      destroyOnClose={false}
-      bodyClassName="max-h-[75vh] overflow-y-auto"
-    >
-      {!current ? (
-        <div className="py-12 flex items-center justify-center">
-          <Empty description="请选择一个任务查看详情" />
-        </div>
-      ) : (
-        <div className="flex flex-col gap-5">
-          <div className="flex flex-col gap-2">
-            <div
-              className={classNames(
-                "text-xs",
-                themeColors.textClass,
-                "opacity-70",
-              )}
-            >
-              标题
+  if (!ui.rightOpen) return null;
+
+  return createPortal(
+    <AnimatePresence>
+      {/* Overlay */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
+        className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        onClick={() => setRightOpen(false)}
+      >
+        {/* Modal Container */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: -10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: -10 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          className="w-full max-w-[900px] m-4 max-h-[90vh] flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal Content */}
+          <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800 flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-start gap-3 mb-5 shrink-0">
+              <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30 text-indigo-500">
+                <svg
+                  className="w-5 h-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-base font-bold m-0 text-gray-800 dark:text-white">
+                  任务详情
+                </h2>
+                <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
+                  {current ? "编辑并查看任务数据" : "请选择一个任务"}
+                </p>
+              </div>
+              <button
+                onClick={() => setRightOpen(false)}
+                className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
+              >
+                <MdClose className="w-5 h-5" />
+              </button>
             </div>
-            <EditText
-              key={current.id}
-              ref={titleRef}
-              defaultValue={current.title}
-              onChange={(value) => setTitle(value)}
-              onPressEnter={handleTitleChange}
-              contentEditable={true}
-              className={classNames(
-                "flex-1 min-w-0 h-9 leading-9 rounded-md px-3 text-base font-semibold transition-colors",
-                themeColors.textClass,
-                themeColors.hoverClass,
-              )}
-            />
-          </div>
 
-          <SectionBlock title="基本信息" description="任务类型与元信息">
-            <ListRow label="任务类型" description="切换任务的分类或模式">
-              <Select
-                value={current.type || "normal"}
-                onChange={(value: TodoItemType) =>
-                  updateItem({ id: current.id, type: value })
-                }
-                className="w-[200px]"
-                options={[
-                  { value: "normal", label: "普通任务" },
-                  { value: "deadline", label: "截止任务" },
-                  { value: "planned", label: "计划任务" },
-                  { value: "recurring", label: "周期任务" },
-                ]}
-              />
-            </ListRow>
-            <ListRow label="创建时间" description="记录首次创建的时间点">
-              <span className={classNames("text-sm", themeColors.textClass)}>
-                {formatDateTime(current.createTime)}
-              </span>
-            </ListRow>
-            <ListRow label="完成时间" description="标记完成的时间点">
-              <span className={classNames("text-sm", themeColors.textClass)}>
-                {current.completedAt
-                  ? formatDateTime(current.completedAt)
-                  : "尚未完成"}
-              </span>
-            </ListRow>
-          </SectionBlock>
-
-          {current.type === "deadline" && (
-            <SectionBlock title="截止任务" description="设置任务的截止与提醒">
-              <ListRow label="截止日期" description="选择截止时间">
-                <DatePicker
-                  showTime
-                  value={current.dueAt ? dayjs(current.dueAt) : null}
-                  onChange={(date) =>
-                    updateItem({
-                      id: current.id,
-                      dueAt: date ? date.valueOf() : null,
-                    })
-                  }
-                  allowClear
-                  placeholder="设置截止日期"
-                  className="w-full max-w-[240px]"
-                />
-              </ListRow>
-              {current.dueAt && (
-                <ListRow label="提前提醒" description="设置提醒提前量">
-                  <Select
-                    value={current.remindBefore || undefined}
-                    onChange={(value) =>
-                      updateItem({
-                        id: current.id,
-                        remindBefore: value || null,
-                      })
-                    }
-                    placeholder="不提醒"
-                    allowClear
-                    className="w-full max-w-[200px]"
-                    options={[
-                      { value: 0, label: "准时" },
-                      { value: 5 * 60 * 1000, label: "5分钟前" },
-                      { value: 10 * 60 * 1000, label: "10分钟前" },
-                      { value: 15 * 60 * 1000, label: "15分钟前" },
-                      { value: 30 * 60 * 1000, label: "30分钟前" },
-                      { value: 60 * 60 * 1000, label: "1小时前" },
-                      { value: 2 * 60 * 60 * 1000, label: "2小时前" },
-                      { value: 24 * 60 * 60 * 1000, label: "1天前" },
-                    ]}
-                  />
-                </ListRow>
-              )}
-            </SectionBlock>
-          )}
-
-          {current.type === "planned" && (
-            <SectionBlock title="计划任务" description="设置开始/结束与提醒">
-              <ListRow label="开始时间" description="计划的起始时间">
-                <DatePicker
-                  showTime
-                  value={current.startAt ? dayjs(current.startAt) : null}
-                  onChange={(date) =>
-                    updateItem({
-                      id: current.id,
-                      startAt: date ? date.valueOf() : null,
-                    })
-                  }
-                  allowClear
-                  placeholder="设置开始时间"
-                  className="w-full max-w-[240px]"
-                />
-              </ListRow>
-              <ListRow label="结束时间" description="计划的结束时间">
-                <DatePicker
-                  showTime
-                  value={current.dueAt ? dayjs(current.dueAt) : null}
-                  onChange={(date) =>
-                    updateItem({
-                      id: current.id,
-                      dueAt: date ? date.valueOf() : null,
-                    })
-                  }
-                  allowClear
-                  placeholder="设置结束时间"
-                  className="w-full max-w-[240px]"
-                />
-              </ListRow>
-              {current.dueAt && (
-                <ListRow label="提前提醒" description="设置提醒提前量">
-                  <Select
-                    value={current.remindBefore || undefined}
-                    onChange={(value) =>
-                      updateItem({
-                        id: current.id,
-                        remindBefore: value || null,
-                      })
-                    }
-                    placeholder="不提醒"
-                    allowClear
-                    className="w-full max-w-[200px]"
-                    options={[
-                      { value: 0, label: "准时" },
-                      { value: 5 * 60 * 1000, label: "5分钟前" },
-                      { value: 10 * 60 * 1000, label: "10分钟前" },
-                      { value: 15 * 60 * 1000, label: "15分钟前" },
-                      { value: 30 * 60 * 1000, label: "30分钟前" },
-                      { value: 60 * 60 * 1000, label: "1小时前" },
-                      { value: 2 * 60 * 60 * 1000, label: "2小时前" },
-                      { value: 24 * 60 * 60 * 1000, label: "1天前" },
-                    ]}
-                  />
-                </ListRow>
-              )}
-            </SectionBlock>
-          )}
-
-          {current.type === "recurring" && (
-            <div className="rounded-xl border border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-zinc-900/40 px-4 py-3 flex flex-col gap-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex flex-col">
-                  <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                    周期任务统计
+            {/* Scrollable Content */}
+            <div
+              className="flex-1 overflow-y-auto pr-1 min-h-0"
+              style={{ maxHeight: "calc(90vh - 120px)" }}
+            >
+              {!current ? (
+                <EmptyState description="请选择一个任务查看详情" />
+              ) : (
+                <div className="flex flex-col gap-5">
+                  <div className="flex flex-col gap-2">
+                    <div className="text-xs text-gray-500 dark:text-slate-400 opacity-70">
+                      标题
+                    </div>
+                    <EditText
+                      key={current.id}
+                      ref={titleRef}
+                      defaultValue={current.title}
+                      onChange={(value) => setTitle(value)}
+                      onPressEnter={handleTitleChange}
+                      contentEditable={true}
+                      className="flex-1 min-w-0 h-9 leading-9 rounded-md px-3 text-base font-semibold transition-colors text-gray-800 dark:text-white hover:bg-gray-50 dark:hover:bg-zinc-800"
+                    />
                   </div>
-                  {recurrenceConfig && (
-                    <div className="text-[11px] text-gray-500 dark:text-slate-400">
-                      起始：
-                      {dayjs(recurrenceConfig.startDate).format("YYYY-MM-DD")}
-                      {recurrenceConfig.endDate
-                        ? ` · 结束：${dayjs(recurrenceConfig.endDate).format("YYYY-MM-DD")}`
-                        : " · 持续进行中"}
+
+                  <SectionBlock title="基本信息" description="任务类型与元信息">
+                    <ListRow
+                      label="任务类型"
+                      description="切换任务的分类或模式"
+                    >
+                      <CustomSelect
+                        label=""
+                        value={current.type || "normal"}
+                        onChange={(value: string) =>
+                          updateItem({
+                            id: current.id,
+                            type: value as TodoItemType,
+                          })
+                        }
+                        options={[
+                          { value: "normal", label: "普通任务" },
+                          { value: "deadline", label: "截止任务" },
+                          { value: "planned", label: "计划任务" },
+                          { value: "recurring", label: "周期任务" },
+                        ]}
+                      />
+                    </ListRow>
+                    <ListRow
+                      label="创建时间"
+                      description="记录首次创建的时间点"
+                    >
+                      <span className="text-sm text-gray-800 dark:text-white">
+                        {formatDateTime(current.createTime)}
+                      </span>
+                    </ListRow>
+                    <ListRow label="完成时间" description="标记完成的时间点">
+                      <span className="text-sm text-gray-800 dark:text-white">
+                        {current.completedAt
+                          ? formatDateTime(current.completedAt)
+                          : "尚未完成"}
+                      </span>
+                    </ListRow>
+                  </SectionBlock>
+
+                  {current.type === "deadline" && (
+                    <SectionBlock
+                      title="截止任务"
+                      description="设置任务的截止与提醒"
+                    >
+                      <ListRow label="截止日期" description="选择截止时间">
+                        <DateTimePicker
+                          label=""
+                          value={current.dueAt ? dayjs(current.dueAt) : null}
+                          onChange={(date) =>
+                            updateItem({
+                              id: current.id,
+                              dueAt: date ? date.valueOf() : null,
+                            })
+                          }
+                        />
+                      </ListRow>
+                      {current.dueAt && (
+                        <ListRow label="提前提醒" description="设置提醒提前量">
+                          <CustomSelect
+                            label=""
+                            value={current.remindBefore?.toString() || ""}
+                            onChange={(value) =>
+                              updateItem({
+                                id: current.id,
+                                remindBefore: value ? parseInt(value) : null,
+                              })
+                            }
+                            options={[
+                              { value: "", label: "不提醒" },
+                              { value: "0", label: "准时" },
+                              {
+                                value: String(5 * 60 * 1000),
+                                label: "5分钟前",
+                              },
+                              {
+                                value: String(10 * 60 * 1000),
+                                label: "10分钟前",
+                              },
+                              {
+                                value: String(15 * 60 * 1000),
+                                label: "15分钟前",
+                              },
+                              {
+                                value: String(30 * 60 * 1000),
+                                label: "30分钟前",
+                              },
+                              {
+                                value: String(60 * 60 * 1000),
+                                label: "1小时前",
+                              },
+                              {
+                                value: String(2 * 60 * 60 * 1000),
+                                label: "2小时前",
+                              },
+                              {
+                                value: String(24 * 60 * 60 * 1000),
+                                label: "1天前",
+                              },
+                            ]}
+                          />
+                        </ListRow>
+                      )}
+                    </SectionBlock>
+                  )}
+
+                  {current.type === "planned" && (
+                    <SectionBlock
+                      title="计划任务"
+                      description="设置开始/结束与提醒"
+                    >
+                      <ListRow label="开始时间" description="计划的起始时间">
+                        <DateTimePicker
+                          label=""
+                          value={
+                            current.startAt ? dayjs(current.startAt) : null
+                          }
+                          onChange={(date) =>
+                            updateItem({
+                              id: current.id,
+                              startAt: date ? date.valueOf() : null,
+                            })
+                          }
+                        />
+                      </ListRow>
+                      <ListRow label="结束时间" description="计划的结束时间">
+                        <DateTimePicker
+                          label=""
+                          value={current.dueAt ? dayjs(current.dueAt) : null}
+                          onChange={(date) =>
+                            updateItem({
+                              id: current.id,
+                              dueAt: date ? date.valueOf() : null,
+                            })
+                          }
+                        />
+                      </ListRow>
+                      {current.dueAt && (
+                        <ListRow label="提前提醒" description="设置提醒提前量">
+                          <CustomSelect
+                            label=""
+                            value={current.remindBefore?.toString() || ""}
+                            onChange={(value) =>
+                              updateItem({
+                                id: current.id,
+                                remindBefore: value ? parseInt(value) : null,
+                              })
+                            }
+                            options={[
+                              { value: "", label: "不提醒" },
+                              { value: "0", label: "准时" },
+                              {
+                                value: String(5 * 60 * 1000),
+                                label: "5分钟前",
+                              },
+                              {
+                                value: String(10 * 60 * 1000),
+                                label: "10分钟前",
+                              },
+                              {
+                                value: String(15 * 60 * 1000),
+                                label: "15分钟前",
+                              },
+                              {
+                                value: String(30 * 60 * 1000),
+                                label: "30分钟前",
+                              },
+                              {
+                                value: String(60 * 60 * 1000),
+                                label: "1小时前",
+                              },
+                              {
+                                value: String(2 * 60 * 60 * 1000),
+                                label: "2小时前",
+                              },
+                              {
+                                value: String(24 * 60 * 60 * 1000),
+                                label: "1天前",
+                              },
+                            ]}
+                          />
+                        </ListRow>
+                      )}
+                    </SectionBlock>
+                  )}
+
+                  {current.type === "recurring" && (
+                    <div className="rounded-xl border border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-zinc-900/40 px-4 py-3 flex flex-col gap-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex flex-col">
+                          <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                            周期任务统计
+                          </div>
+                          {recurrenceConfig && (
+                            <div className="text-[11px] text-gray-500 dark:text-slate-400">
+                              起始：
+                              {dayjs(recurrenceConfig.startDate).format(
+                                "YYYY-MM-DD",
+                              )}
+                              {recurrenceConfig.endDate
+                                ? ` · 结束：${dayjs(recurrenceConfig.endDate).format("YYYY-MM-DD")}`
+                                : " · 持续进行中"}
+                            </div>
+                          )}
+                        </div>
+                        {recurrenceLoading && (
+                          <div className="flex items-center justify-center">
+                            <Spinner size="small" />
+                          </div>
+                        )}
+                      </div>
+                      {recurrenceLoading ? (
+                        <div className="py-4 text-center text-sm text-gray-500 dark:text-slate-400">
+                          加载统计中...
+                        </div>
+                      ) : recurrenceStats && recurrenceConfig ? (
+                        <>
+                          <div className="grid grid-cols-3 gap-3">
+                            <InfoItem
+                              label="持续天数"
+                              value={`${recurrenceStats.durationDays} 天`}
+                            />
+                            <InfoItem
+                              label="完成天数"
+                              value={`${recurrenceStats.completedDays} 天`}
+                            />
+                            <InfoItem
+                              label="缺卡天数"
+                              value={`${recurrenceStats.missedDays} 天`}
+                            />
+                          </div>
+                          <HeatmapGrid
+                            stats={recurrenceStats}
+                            recurrenceId={recurrenceConfig.id}
+                            onCellClick={handleHeatmapCellClick}
+                          />
+                        </>
+                      ) : (
+                        <div className="text-xs text-gray-500 dark:text-slate-400">
+                          尚未配置周期规则或暂无统计数据
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
-                {recurrenceLoading && <Spin size="small" />}
-              </div>
-              {recurrenceLoading ? (
-                <div className="py-4 text-center text-sm text-gray-500 dark:text-slate-400">
-                  加载统计中...
-                </div>
-              ) : recurrenceStats && recurrenceConfig ? (
-                <>
-                  <div className="grid grid-cols-3 gap-3">
-                    <InfoItem
-                      label="持续天数"
-                      value={`${recurrenceStats.durationDays} 天`}
-                    />
-                    <InfoItem
-                      label="完成天数"
-                      value={`${recurrenceStats.completedDays} 天`}
-                    />
-                    <InfoItem
-                      label="缺卡天数"
-                      value={`${recurrenceStats.missedDays} 天`}
-                    />
-                  </div>
-                  <HeatmapGrid
-                    stats={recurrenceStats}
-                    recurrenceId={recurrenceConfig.id}
-                    onCellClick={handleHeatmapCellClick}
-                  />
-                </>
-              ) : (
-                <div className="text-xs text-gray-500 dark:text-slate-400">
-                  尚未配置周期规则或暂无统计数据
-                </div>
-              )}
-            </div>
-          )}
 
-          <div className="flex flex-col gap-2">
-            <div className="text-xs text-gray-500 dark:text-slate-400">
-              描述
-            </div>
-            <div
-              className={classNames(
-                "rounded-md border px-3 py-2 min-h-[120px]",
-                themeColors.borderClass,
-                themeColors.hoverClass,
+                  <div className="flex flex-col gap-2">
+                    <div className="text-xs text-gray-500 dark:text-slate-400">
+                      描述
+                    </div>
+                    <div className="rounded-md border px-3 py-2 min-h-[120px] border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600">
+                      <Editor
+                        key={current.id}
+                        ref={descriptionEditorRef}
+                        initValue={
+                          current.descriptionContent ||
+                          DEFAULT_DESCRIPTION_CONTENT
+                        }
+                        onChange={handleDescriptionChange}
+                        readonly={false}
+                        placeHolder="添加描述..."
+                        className="text-[12px] text-gray-800 dark:text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
               )}
-            >
-              <Editor
-                key={current.id}
-                ref={descriptionEditorRef}
-                initValue={
-                  current.descriptionContent || DEFAULT_DESCRIPTION_CONTENT
-                }
-                onChange={handleDescriptionChange}
-                readonly={false}
-                placeHolder="添加描述..."
-                className={classNames("text-[12px]", themeColors.textClass)}
-              />
             </div>
           </div>
-        </div>
-      )}
-    </CustomModal>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>,
+    document.body,
   );
 };
 

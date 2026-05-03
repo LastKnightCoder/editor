@@ -1,11 +1,9 @@
 import { useRef, useState } from "react";
 import { MdOutlineClear } from "react-icons/md";
-import classnames from "classnames";
 
 import { If } from "@tau/shared";
 import { ITabsContent } from "../../../types";
 
-import styles from "./index.module.less";
 import { useReadOnly } from "slate-react";
 
 interface TabTitleProps {
@@ -34,12 +32,21 @@ const TabTitle = (props: TabTitleProps) => {
   const [editable, setEditable] = useState(false);
   const readOnly = useReadOnly();
 
+  const isActive = tab.key === activeKey;
+
   return (
     <div
       key={tab.key}
-      className={classnames(styles.tabHeaderItem, {
-        [styles.active]: tab.key === activeKey,
-      })}
+      data-tab-key={tab.key}
+      className={`
+        group flex shrink-0 items-center gap-[0.375em] p-[0.75em]
+        cursor-pointer select-none whitespace-nowrap text-[0.875em] transition-colors
+        ${
+          isActive
+            ? "text-zinc-800 font-medium dark:text-zinc-200"
+            : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-300"
+        }
+      `}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -51,51 +58,43 @@ const TabTitle = (props: TabTitleProps) => {
         e.stopPropagation();
         setEditable(true);
         titleRef.current.setAttribute("contenteditable", "plaintext-only");
-        // titleRef.current.focus();
         moveCursorToEnd(titleRef.current);
       }}
     >
-      <div className={styles.content}>
-        <div
-          ref={titleRef}
-          data-slate-editor
-          // @ts-ignore
-          contentEditable={readOnly || !editable ? false : "plaintext-only"}
-          suppressContentEditableWarning
-          onBlur={(e) => {
+      <div
+        ref={titleRef}
+        data-slate-editor
+        // @ts-ignore
+        contentEditable={readOnly || !editable ? false : "plaintext-only"}
+        suppressContentEditableWarning
+        onBlur={(e) => {
+          e.stopPropagation();
+          setEditable(false);
+          onTitleChange(tab.key, e.currentTarget.innerText);
+        }}
+        className="outline-none"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
             e.stopPropagation();
             setEditable(false);
             onTitleChange(tab.key, e.currentTarget.innerText);
-          }}
-          style={{
-            cursor: readOnly || !editable ? "pointer" : "text",
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              e.stopPropagation();
-              setEditable(false);
-              onTitleChange(tab.key, e.currentTarget.innerText);
-            }
-          }}
-        >
-          {tab.title}
-        </div>
-        <If condition={!readOnly}>
-          <div
-            className={styles.deleteIcon}
-            onClick={(e: React.MouseEvent) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onDeleteTab(tab.key);
-            }}
-          >
-            <MdOutlineClear />
-          </div>
-        </If>
+          }
+        }}
+      >
+        {tab.title}
       </div>
-      <If condition={tab.key === activeKey}>
-        <div className={styles.bottomLine} />
+      <If condition={!readOnly}>
+        <button
+          onClick={(e: React.MouseEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onDeleteTab(tab.key);
+          }}
+          className="flex h-[1em] w-[1em] shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+        >
+          <MdOutlineClear className="text-[0.875em]" />
+        </button>
       </If>
     </div>
   );

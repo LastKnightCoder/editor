@@ -100,6 +100,13 @@ export interface IPublishContentLinkTarget {
   title?: string;
 }
 
+export interface IPublishFaviconConfig {
+  cachePath: string;
+  fileName: string;
+  format: "svg" | "png" | "ico";
+  updatedAt: number;
+}
+
 export interface IPublishAppearanceSettings {
   appearance?: {
     image?: {
@@ -147,6 +154,11 @@ export interface IPublishInitData {
     title: string;
     description: string;
     basePath: string;
+    favicon?: {
+      href: string;
+      format: IPublishFaviconConfig["format"];
+      mimeType: string;
+    };
   };
   navigation: Array<{ label: string; href: string }>;
   cardTagTree?: IPublishCardTagTree[];

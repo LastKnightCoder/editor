@@ -29,7 +29,7 @@ const GroupList = () => {
 
   let pendingOrder: number[] = [];
   const scheduleReorder = (() => {
-    let timer: any = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     return (ids: number[]) => {
       pendingOrder = ids;
       if (timer) return;
@@ -66,7 +66,7 @@ const GroupList = () => {
   return (
     <div
       className={classNames(
-        "h-full flex flex-col border-r transition-colors",
+        "h-full flex flex-col border-r",
         themeColors.borderClass,
       )}
     >
@@ -77,7 +77,7 @@ const GroupList = () => {
           <>
             <div
               className={classNames(
-                "px-3 py-2 text-xs font-medium transition-colors",
+                "px-3 py-2 text-xs font-medium",
                 themeColors.textClass,
               )}
             >
@@ -98,7 +98,7 @@ const GroupList = () => {
             ))}
             <div
               className={classNames(
-                "mx-3 my-2 border-t transition-colors",
+                "mx-3 my-2 border-t",
                 themeColors.borderClass,
               )}
             />
@@ -110,7 +110,7 @@ const GroupList = () => {
           <>
             <div
               className={classNames(
-                "px-3 py-2 text-xs font-medium transition-colors",
+                "px-3 py-2 text-xs font-medium",
                 themeColors.textClass,
               )}
             >

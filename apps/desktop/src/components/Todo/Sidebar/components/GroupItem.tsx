@@ -154,7 +154,7 @@ const GroupItem = memo(
     return (
       <div
         className={classNames(
-          "px-3 h-8 flex items-center justify-between cursor-pointer rounded-md mx-2 my-1 transition-colors",
+          "px-3 h-8 flex items-center justify-between cursor-pointer rounded-md mx-2 my-1",
           active ? themeColors.activeClass : themeColors.hoverClass,
         )}
         onMouseEnter={() => setHover(true)}
@@ -180,7 +180,7 @@ const GroupItem = memo(
           <div className="flex items-center gap-1">
             <span
               className={classNames(
-                "text-[11px] px-1.5 py-0.5 rounded-full transition-colors",
+                "text-[11px] px-1.5 py-0.5 rounded-full",
                 themeColors.tagCountBg,
                 themeColors.textClass,
               )}
@@ -192,7 +192,7 @@ const GroupItem = memo(
           <Dropdown menu={{ items: menuItems }} trigger={["click"]}>
             <button
               className={classNames(
-                "text-sm cursor-pointer rounded-full p-1 transition-colors",
+                "text-sm cursor-pointer rounded-full p-1",
                 themeColors.textClass,
                 themeColors.hoverClass,
               )}

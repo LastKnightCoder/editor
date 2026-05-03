@@ -16,6 +16,10 @@ class ResourceModule implements Module {
       return PathUtil.getHomeDir();
     });
 
+    ipcMain.handle("get-user-data-dir", async () => {
+      return PathUtil.getAppDir();
+    });
+
     ipcMain.handle("get-app-dir", async () => {
       return PathUtil.getAppDir();
     });
