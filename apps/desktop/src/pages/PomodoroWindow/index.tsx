@@ -62,6 +62,8 @@ const PomodoroWindowPage: React.FC = () => {
   const {
     activeSession,
     initPomodoro,
+    initStatus,
+    inited,
     elapsedMs,
     remainMs,
     rightSidebarWidth,
@@ -191,6 +193,12 @@ const PomodoroWindowPage: React.FC = () => {
     );
   }, [presets, tabType]);
 
+  const shouldShowEmpty = useMemo(() => {
+    if (filteredPresets.length > 0) return false;
+    if (!inited) return false;
+    return initStatus === "ready" || initStatus === "error";
+  }, [filteredPresets.length, initStatus, inited]);
+
   const activePreset = useMemo(() => {
     return presets.find((p) => p.id === activeSession?.presetId);
   }, [presets, activeSession]);
@@ -319,7 +327,7 @@ const PomodoroWindowPage: React.FC = () => {
                     />
                   ))}
                 </ul>
-              ) : (
+              ) : shouldShowEmpty ? (
                 <div className="h-full min-h-full flex items-center justify-center">
                   <Empty description="暂无番茄钟">
                     {tabType === TabType.Active && (
@@ -329,7 +337,7 @@ const PomodoroWindowPage: React.FC = () => {
                     )}
                   </Empty>
                 </div>
-              )}
+              ) : null}
             </div>
             <AnimatePresence>
               {activeSession && (
