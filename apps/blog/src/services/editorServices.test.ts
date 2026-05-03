@@ -1,8 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { createBlogEditorServices } from "./editorServices";
 
 describe("blog/editorServices", () => {
+  afterEach(() => {
+    document.documentElement.removeAttribute("data-theme");
+    document.documentElement.classList.remove("dark");
+  });
+
   it("应优先读取发布页注入的图片外观 setting", () => {
     const services = createBlogEditorServices({
       appearance: {
@@ -22,5 +27,25 @@ describe("blog/editorServices", () => {
 
     expect(services.settings.get("appearance.image.borderRadius")).toBe("md");
     expect(services.settings.get("appearance.image.shadow")).toBe("none");
+  });
+
+  it("暗色主题下应正确返回主题状态", () => {
+    document.documentElement.setAttribute("data-theme", "dark");
+    document.documentElement.classList.add("dark");
+
+    const services = createBlogEditorServices();
+
+    expect(services.settings.isDarkMode()).toBe(true);
+    expect(services.theme.current()).toBe("dark");
+  });
+
+  it("亮色主题下应正确返回主题状态", () => {
+    document.documentElement.setAttribute("data-theme", "light");
+    document.documentElement.classList.remove("dark");
+
+    const services = createBlogEditorServices();
+
+    expect(services.settings.isDarkMode()).toBe(false);
+    expect(services.theme.current()).toBe("light");
   });
 });

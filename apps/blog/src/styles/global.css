@@ -6,6 +6,8 @@
 
 @import "tailwindcss";
 
+@custom-variant dark (.dark &);
+
 @source "../../../../packages/editor/src";
 @source "../../../../packages/shared/src";
 @source "../templates";

@@ -215,12 +215,20 @@ export function isDarkMode(): boolean {
 }
 
 /**
+ * 将主题状态同步到文档根节点，兼容 data-theme 与 Tailwind dark 变体
+ */
+export function applyThemeToDocument(theme: "light" | "dark"): void {
+  document.documentElement.setAttribute("data-theme", theme);
+  document.documentElement.classList.toggle("dark", theme === "dark");
+}
+
+/**
  * 切换主题
  */
 export function toggleTheme(): void {
   const current = getTheme();
   const next = current === "dark" ? "light" : "dark";
-  document.documentElement.setAttribute("data-theme", next);
+  applyThemeToDocument(next);
   localStorage.setItem("theme", next);
 }
 
@@ -229,5 +237,5 @@ export function toggleTheme(): void {
  */
 export function initTheme(): void {
   const theme = getTheme();
-  document.documentElement.setAttribute("data-theme", theme);
+  applyThemeToDocument(theme);
 }

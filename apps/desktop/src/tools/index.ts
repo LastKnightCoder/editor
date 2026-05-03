@@ -2,11 +2,12 @@ import useMCPStore, { CustomMCPServer } from "@/stores/useMCPStore";
 import { MCP_PROVIDERS } from "@/mcp/providers";
 import toolRegistry, { ToolRegistry } from "./toolRegistry";
 import { registerBuiltinTools } from "./builtinTools";
-import { fetchToolsFromServer } from "./customMCP";
+import { fetchToolsFromServer, onConnectionStatusChange } from "./customMCP";
 import useSettingStore from "@/stores/useSettingStore";
 
 let initialized = false;
 let knownCustomServerIds = new Set<string>();
+let mcpStatusUnsubscribe: (() => void) | null = null;
 
 const isProviderAvailable = (provider: (typeof MCP_PROVIDERS)[number]) =>
   provider.isAvailable?.() ?? true;
@@ -24,17 +25,26 @@ const registerBuiltinProviders = (registry: ToolRegistry) => {
 };
 
 const loadCustomServer = async (server: CustomMCPServer) => {
+  const store = useMCPStore.getState();
   toolRegistry.unregisterSource(server.id);
 
   if (!server.enabled) {
+    store.setConnectionStatus(server.id, "disconnected");
     return;
   }
 
+  store.setConnectionStatus(server.id, "connecting");
   try {
     const definitions = await fetchToolsFromServer(server);
     toolRegistry.registerTools(server.id, definitions, true);
+    store.setConnectionStatus(server.id, "connected");
   } catch (error) {
     console.error(`[MCP] 加载自定义 MCP 服务 ${server.name} 失败`, error);
+    store.setConnectionStatus(
+      server.id,
+      "error",
+      error instanceof Error ? error.message : "连接失败",
+    );
   }
 };
 
@@ -58,6 +68,13 @@ export const initializeTooling = () => {
     return;
   }
   initialized = true;
+
+  if (!mcpStatusUnsubscribe) {
+    const store = useMCPStore.getState();
+    mcpStatusUnsubscribe = onConnectionStatusChange((data) => {
+      store.setConnectionStatus(data.serverId, data.status, data.error);
+    });
+  }
 
   registerBuiltinTools(toolRegistry);
   registerBuiltinProviders(toolRegistry);

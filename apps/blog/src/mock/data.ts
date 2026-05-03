@@ -203,6 +203,61 @@ const mockArticleContent: Descendant[] = [
       },
     ],
   },
+  {
+    type: "header",
+    level: 2,
+    children: [{ type: "formatted", text: "3. CustomBlock 主题切换验证" }],
+  },
+  {
+    type: "paragraph",
+    children: [
+      {
+        type: "formatted",
+        text: "下面这个示例用于验证 blog 场景下 CustomBlock 内 Tailwind dark: 样式是否会随着主题切换同步变化。",
+      },
+    ],
+  },
+  {
+    type: "custom-block",
+    content: `const Component = () => {
+  const { useTheme } = hooks;
+  const { theme, isDark } = useTheme();
+
+  return (
+    <div className="rounded-2xl border border-stone-200 bg-stone-50/90 p-5 text-stone-900 shadow-sm transition-colors dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500 dark:text-stone-400">
+            Tailwind Theme Check
+          </div>
+          <div className="mt-2 text-lg font-semibold">
+            CustomBlock 会跟随 blog 主题切换
+          </div>
+        </div>
+        <div
+          className={
+            isDark
+              ? "rounded-full bg-amber-500/15 px-3 py-1 text-xs font-medium text-amber-200"
+              : "rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800"
+          }
+        >
+          当前主题：{theme === "dark" ? "暗色" : "亮色"}
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-stone-200/80 bg-white/80 p-3 text-sm text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200">
+          亮色主题下，这张卡片应为暖白底、柔和石色边框与深棕灰文字。
+        </div>
+        <div className="rounded-xl border border-amber-200/70 bg-amber-50/80 p-3 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
+          暗色主题下，这张卡片应切为深石色底，并保留偏暖的强调色层次。
+        </div>
+      </div>
+    </div>
+  );
+};`,
+    children: [{ type: "formatted", text: "" }],
+  } as any,
 ];
 
 // Mock 卡片标签树

@@ -155,7 +155,10 @@ const getDocumentTheme = (): "light" | "dark" => {
     return "light";
   }
   const theme = document.documentElement.getAttribute("data-theme");
-  return theme === "dark" ? "dark" : "light";
+  if (theme === "dark" || document.documentElement.classList.contains("dark")) {
+    return "dark";
+  }
+  return "light";
 };
 
 export function createBlogEditorServices(
