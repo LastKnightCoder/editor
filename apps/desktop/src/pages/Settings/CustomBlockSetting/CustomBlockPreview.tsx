@@ -1,5 +1,8 @@
 import { CSSProperties, useEffect, useRef } from "react";
-import { compileAndExecuteCustomBlock } from "@tau/editor/src";
+import {
+  compileAndExecuteCustomBlock,
+  rerenderCustomBlockTheme,
+} from "@tau/editor/src";
 import useTheme from "@/hooks/useTheme";
 import { compileCustomBlockTailwind } from "@/services/tailwindRuntime";
 
@@ -16,6 +19,7 @@ const CustomBlockPreview = ({
 }: CustomBlockPreviewProps) => {
   const ref = useRef<HTMLDivElement>(null);
   const { isDark } = useTheme();
+  const isMountedRef = useRef(false);
 
   useEffect(() => {
     if (!ref.current || !content) return;
@@ -52,6 +56,15 @@ const CustomBlockPreview = ({
       cleanup?.();
       cleanup = undefined;
     };
+  }, [content]);
+
+  useEffect(() => {
+    if (!ref.current || !content) return;
+    if (!isMountedRef.current) {
+      isMountedRef.current = true;
+      return;
+    }
+    rerenderCustomBlockTheme(ref.current, isDark);
   }, [content, isDark]);
 
   return <div ref={ref} className={className} style={style} />;

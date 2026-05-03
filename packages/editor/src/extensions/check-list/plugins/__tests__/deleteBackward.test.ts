@@ -9,37 +9,32 @@ import {
 import { ReactEditor, withReact } from "slate-react";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
+import type {
+  CheckListElement,
+  CheckListItemElement,
+  ParagraphElement,
+} from "../../../../types";
 import { withNormalize as withEditorNormalize } from "../../../../plugins/withNormalize";
 import { deleteBackward as withCheckListDeleteBackward } from "../deleteBackward";
 import { withNormalize as withCheckListNormalize } from "../normalize";
 
-const createParagraph = (text: string) => ({
+const createParagraph = (text: string): ParagraphElement => ({
   type: "paragraph" as const,
   children: [{ type: "formatted" as const, text }],
 });
 
-const createCheckListItem = (text: string, checked = false) => ({
+const createCheckListItem = (
+  text: string,
+  checked = false,
+): CheckListItemElement => ({
   type: "check-list-item" as const,
   checked,
   children: [createParagraph(text)],
 });
 
 const createCheckList = (
-  children: Array<
-    | ReturnType<typeof createCheckListItem>
-    | {
-        type: "check-list-item";
-        checked: boolean;
-        children: [
-          ReturnType<typeof createParagraph>,
-          {
-            type: "check-list";
-            children: ReturnType<typeof createCheckListItem>[];
-          },
-        ];
-      }
-  >,
-) => ({
+  children: CheckListItemElement[],
+): CheckListElement => ({
   type: "check-list" as const,
   children,
 });

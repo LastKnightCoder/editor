@@ -76,7 +76,7 @@ const Toolbar = memo(
               themeColors.textClass,
             )}
           />
-          <div className="relative w-48 flex justify-end flex-shrink-0">
+          <div className="relative w-48 flex justify-end shrink-0">
             <SearchInput
               value={searchQuery}
               onChange={onSearch}
@@ -86,7 +86,7 @@ const Toolbar = memo(
           </div>
           <button
             className={classNames(
-              "p-1.5 rounded-full cursor-pointer flex items-center justify-center flex-shrink-0",
+              "p-1.5 rounded-full cursor-pointer flex items-center justify-center shrink-0",
               themeColors.hoverTextClass,
               themeColors.hoverClass,
             )}
@@ -115,13 +115,9 @@ const Toolbar = memo(
               <div
                 key={option.value}
                 className={classNames(
-                  "text-[10px] px-[6px] py-[2px] cursor-pointer rounded-full transition-colors",
-                  themeColors.secondaryTextClass,
+                  "text-[10px] px-[6px] py-[2px] cursor-pointer rounded-full transition-colors text-[#8a9ca5]",
                   {
-                    [classNames(
-                      themeColors.buttonBg,
-                      themeColors.buttonTextClass,
-                    )]: option.active,
+                    "bg-[#7996a5] text-gray-100": option.active,
                   },
                 )}
                 onClick={() => onFilterChange(option.value)}

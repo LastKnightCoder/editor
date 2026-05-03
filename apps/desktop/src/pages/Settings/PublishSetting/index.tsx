@@ -9,6 +9,7 @@ import S3PublishSetting from "./S3PublishSetting";
 import LocalPublishSetting from "./LocalPublishSetting";
 import PublishSelector from "./PublishSelector";
 
+import LocalImage from "@/components/LocalImage";
 import useSettingStore, { EPublishProvider } from "@/stores/useSettingStore";
 import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 import {
@@ -24,9 +25,24 @@ import {
   checkPublishConnection,
   downloadPublishTemplate,
   selectFile,
+  getFileBaseName,
+  getFileExtension,
+  getUserDataDir,
+  readBinaryFile,
+  writeBinaryFile,
+  removeFile,
+  pathExists,
+  createDir,
 } from "@/commands";
-import { IPublishProgress } from "@/types/publish";
+import { IPublishFaviconConfig, IPublishProgress } from "@/types/publish";
 import { exportPublishOutput } from "@/commands/publish";
+import {
+  buildPublishFaviconCachePath,
+  buildPublishFaviconCachePaths,
+  createPublishFaviconConfig,
+  getParentDirFromPath,
+  normalizePublishFaviconExtension,
+} from "@/utils/publishFavicon";
 
 // 发布进度卡片组件
 const PublishProgressCard = ({
@@ -152,6 +168,95 @@ const PublishSetting = () => {
       );
     },
   );
+
+  const onSiteFaviconChange = useMemoizedFn(
+    (favicon?: IPublishFaviconConfig) => {
+      useSettingStore.setState(
+        produce((state) => {
+          state.setting.publish.site.favicon = favicon;
+        }),
+      );
+    },
+  );
+
+  const removeCachedFaviconFiles = useMemoizedFn(async () => {
+    const userDataDir = await getUserDataDir();
+    const targets = buildPublishFaviconCachePaths(userDataDir);
+    await Promise.all(
+      targets.map(async (targetPath) => {
+        if (await pathExists(targetPath)) {
+          await removeFile(targetPath);
+        }
+      }),
+    );
+  });
+
+  const handleSelectFavicon = useMemoizedFn(async () => {
+    try {
+      const paths = await selectFile({
+        properties: ["openFile"],
+        filters: [
+          {
+            name: "Favicon",
+            extensions: ["svg", "png", "ico"],
+          },
+        ],
+      });
+      if (!paths || paths.length === 0) {
+        return;
+      }
+
+      const filePath = paths[0];
+      const extension = normalizePublishFaviconExtension(
+        await getFileExtension(filePath),
+      );
+      if (!extension) {
+        message.error("仅支持 SVG、PNG、ICO 格式的 favicon");
+        return;
+      }
+
+      const userDataDir = await getUserDataDir();
+      const cacheDir = getParentDirFromPath(
+        buildPublishFaviconCachePath(userDataDir, extension),
+      );
+      await createDir(cacheDir);
+      await removeCachedFaviconFiles();
+
+      const content = await readBinaryFile(filePath);
+      const cachePath = buildPublishFaviconCachePath(userDataDir, extension);
+      await writeBinaryFile(cachePath, content);
+
+      const favicon = createPublishFaviconConfig({
+        cachePath,
+        fileName: await getFileBaseName(filePath),
+        format: extension,
+      });
+      onSiteFaviconChange(favicon);
+      message.success("已缓存发布 favicon");
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === "User canceled file selection"
+      ) {
+        return;
+      }
+      message.error(
+        `选择 favicon 失败: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  });
+
+  const handleClearFavicon = useMemoizedFn(async () => {
+    try {
+      await removeCachedFaviconFiles();
+      onSiteFaviconChange(undefined);
+      message.success("已清除自定义 favicon");
+    } catch (error) {
+      message.error(
+        `清除 favicon 失败: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  });
 
   const renderProviderSetting = () => {
     switch (activeKey) {
@@ -365,6 +470,83 @@ const PublishSetting = () => {
             onChange={(e) => onSiteConfigChange("description", e.target.value)}
             placeholder="记录学习与思考"
           />
+          <div className="flex flex-col gap-2">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                站点 Favicon
+              </div>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                支持 SVG、PNG、ICO。选择后会缓存到本地，后续发布自动复用。
+              </p>
+            </div>
+            <div
+              className={classNames(
+                "rounded-xl border px-4 py-3 flex items-center justify-between gap-3",
+                themeColors.inputBgClass,
+                themeColors.borderClass,
+              )}
+            >
+              <div className="min-w-0 flex items-center gap-4">
+                <div className="w-16 h-16 rounded-xl shrink-0 overflow-hidden flex items-center justify-center">
+                  {publish.site.favicon ? (
+                    <LocalImage
+                      url={publish.site.favicon.cachePath}
+                      alt={publish.site.favicon.fileName}
+                      data-testid="favicon-preview-image"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <span
+                      className={classNames(
+                        "text-[11px] uppercase tracking-wide",
+                        themeColors.secondaryTextClass,
+                      )}
+                    >
+                      无预览
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div
+                    className={classNames(
+                      "text-sm font-medium truncate",
+                      themeColors.textClass,
+                    )}
+                  >
+                    {publish.site.favicon?.fileName || "未选择自定义 favicon"}
+                  </div>
+                  <div
+                    className={classNames(
+                      "text-xs mt-1 truncate",
+                      themeColors.secondaryTextClass,
+                    )}
+                  >
+                    {publish.site.favicon
+                      ? `格式：${publish.site.favicon.format.toUpperCase()}`
+                      : "未配置时将使用默认模板 favicon"}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <SettingButton
+                  variant="secondary"
+                  type="button"
+                  onClick={handleSelectFavicon}
+                >
+                  {publish.site.favicon ? "重新选择" : "选择文件"}
+                </SettingButton>
+                {publish.site.favicon && (
+                  <SettingButton
+                    variant="secondary"
+                    type="button"
+                    onClick={handleClearFavicon}
+                  >
+                    清除
+                  </SettingButton>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </SettingSection>
 

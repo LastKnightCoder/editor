@@ -1,5 +1,7 @@
 import { useContext } from "react";
-import { EditorContext, EditorFeatures } from "../index.tsx";
+import { EditorContext, type EditorFeatures } from "../contexts/EditorContext";
+
+const EMPTY_EDITOR_FEATURES: EditorFeatures = {};
 
 /**
  * Hook to access editor features configuration
@@ -7,7 +9,7 @@ import { EditorContext, EditorFeatures } from "../index.tsx";
  */
 const useEditorFeatures = (): EditorFeatures => {
   const context = useContext(EditorContext);
-  return context.features ?? {};
+  return context.features ?? EMPTY_EDITOR_FEATURES;
 };
 
 export default useEditorFeatures;

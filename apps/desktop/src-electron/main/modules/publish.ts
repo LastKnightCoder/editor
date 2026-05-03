@@ -24,6 +24,7 @@ import {
   IPublishCardListItem,
   IPublishListItem,
   IPublishAppearanceSettings,
+  IPublishFaviconConfig,
 } from "@/types/publish";
 import { createHash } from "crypto";
 import { join, resolve, dirname } from "path";
@@ -54,6 +55,7 @@ import {
   mergeDocEntryContentLinkTargets,
 } from "./publish-content-link-targets";
 import { attachPublishAppearanceSettings } from "./publish-appearance-settings";
+import { resolvePublishFaviconOutput } from "./publish-favicon";
 
 const TEMPLATE_ENTRY_MAP: Record<string, string> = {
   "home.html": "src/templates/home/index.html",
@@ -70,6 +72,7 @@ interface ISiteMeta {
   title: string;
   description: string;
   basePath: string;
+  favicon?: IPublishFaviconConfig;
 }
 
 interface INavigationItem {
@@ -142,14 +145,22 @@ type ExecutePublishConfig =
   | {
       providerType: "github";
       providerConfig: IGithubPagesConfig;
-      siteConfig: { title: string; description: string };
+      siteConfig: {
+        title: string;
+        description: string;
+        favicon?: IPublishFaviconConfig;
+      };
       settings?: IPublishAppearanceSettings;
       options?: IUploadOptions;
     }
   | {
       providerType: "s3";
       providerConfig: IS3HostingConfig;
-      siteConfig: { title: string; description: string };
+      siteConfig: {
+        title: string;
+        description: string;
+        favicon?: IPublishFaviconConfig;
+      };
       settings?: IPublishAppearanceSettings;
       options?: IUploadOptions;
     };
@@ -242,7 +253,11 @@ class PublishModule implements Module {
           targetDir: string;
           providerType: "github" | "s3" | "local";
           providerConfig?: Record<string, unknown>;
-          siteConfig: { title: string; description: string };
+          siteConfig: {
+            title: string;
+            description: string;
+            favicon?: IPublishFaviconConfig;
+          };
           settings?: IPublishAppearanceSettings;
         },
       ) => {
@@ -328,7 +343,11 @@ class PublishModule implements Module {
   private resolveSiteMeta(
     providerType: "github" | "s3" | "local",
     providerConfig: unknown,
-    siteConfig: { title: string; description: string },
+    siteConfig: {
+      title: string;
+      description: string;
+      favicon?: IPublishFaviconConfig;
+    },
   ): ISiteMeta {
     let basePath = "/";
     if (providerType === "local") {
@@ -347,6 +366,33 @@ class PublishModule implements Module {
       title: siteConfig?.title?.trim() || "我的博客",
       description: siteConfig?.description || "",
       basePath,
+      favicon: siteConfig?.favicon,
+    };
+  }
+
+  private buildSiteInitMeta(site: ISiteMeta): IPublishInitData["site"] {
+    if (!site.favicon) {
+      return {
+        title: site.title,
+        description: site.description,
+        basePath: site.basePath,
+      };
+    }
+
+    const faviconOutput = resolvePublishFaviconOutput(
+      site.favicon,
+      site.basePath,
+    );
+
+    return {
+      title: site.title,
+      description: site.description,
+      basePath: site.basePath,
+      favicon: {
+        href: faviconOutput.href,
+        format: site.favicon.format,
+        mimeType: faviconOutput.mimeType,
+      },
     };
   }
 
@@ -451,6 +497,22 @@ class PublishModule implements Module {
           hash: this.computeHash(content),
         });
       }
+    }
+
+    if (site.favicon) {
+      if (!existsSync(site.favicon.cachePath)) {
+        throw new Error("已缓存的 favicon 不存在，请重新选择后再发布");
+      }
+      const faviconContent = readFileSync(site.favicon.cachePath);
+      const faviconOutput = resolvePublishFaviconOutput(
+        site.favicon,
+        site.basePath,
+      );
+      files.push({
+        path: faviconOutput.outputPath,
+        content: faviconContent,
+        hash: this.computeHash(faviconContent),
+      });
     }
 
     const grouped = this.groupSelections(selections);
@@ -720,6 +782,13 @@ class PublishModule implements Module {
     const assetsPath = this.computeAssetsRelativePath(targetPath);
     html = html.replace(/\.\.\/\.\.\/\.\.\/assets\//g, assetsPath);
 
+    if (initData.site.favicon) {
+      html = html.replace(
+        /<link rel="icon"[^>]*href="[^"]*" \/>/,
+        `<link rel="icon" type="${initData.site.favicon.mimeType}" href="${initData.site.favicon.href}" />`,
+      );
+    }
+
     const inlineStyle = options?.inlineStyle?.trim();
     if (inlineStyle) {
       const styleTag = `<style data-runtime-tailwind>${inlineStyle}</style>`;
@@ -759,7 +828,7 @@ class PublishModule implements Module {
 
     return attachPublishAppearanceSettings(
       {
-        site,
+        site: this.buildSiteInitMeta(site),
         navigation,
         docCollections,
         contentLinkTargets,
@@ -800,7 +869,7 @@ class PublishModule implements Module {
   ): IPublishInitData {
     return attachPublishAppearanceSettings(
       {
-        site,
+        site: this.buildSiteInitMeta(site),
         navigation,
         docCollections,
         contentLinkTargets,
@@ -837,7 +906,7 @@ class PublishModule implements Module {
   ): IPublishInitData {
     return attachPublishAppearanceSettings(
       {
-        site,
+        site: this.buildSiteInitMeta(site),
         navigation,
         docCollections,
         contentLinkTargets,
@@ -893,7 +962,7 @@ class PublishModule implements Module {
     const tagStats = this.buildTagStats(items);
     return attachPublishAppearanceSettings(
       {
-        site,
+        site: this.buildSiteInitMeta(site),
         navigation,
         docCollections,
         contentLinkTargets,
@@ -1272,7 +1341,7 @@ class PublishModule implements Module {
     );
     return attachPublishAppearanceSettings(
       {
-        site,
+        site: this.buildSiteInitMeta(site),
         navigation,
         sidebar: entry.sidebar,
         docCollections: activeCollections,
@@ -1375,7 +1444,7 @@ class PublishModule implements Module {
       }));
     return attachPublishAppearanceSettings(
       {
-        site,
+        site: this.buildSiteInitMeta(site),
         navigation,
         docCollections,
         contentLinkTargets,

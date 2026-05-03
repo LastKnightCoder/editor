@@ -20,6 +20,10 @@ export const getHomeDir = async () => {
   return await invoke("get-home-dir");
 };
 
+export const getUserDataDir = async () => {
+  return await invoke("get-user-data-dir");
+};
+
 export const selectFile = async (
   options?: object,
 ): Promise<string[] | null> => {

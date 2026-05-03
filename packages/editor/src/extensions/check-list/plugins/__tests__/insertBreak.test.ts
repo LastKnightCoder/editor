@@ -2,23 +2,31 @@ import { createEditor, Descendant, Transforms } from "slate";
 import { withReact } from "slate-react";
 import { describe, expect, it } from "vitest";
 
+import type {
+  CheckListElement,
+  CheckListItemElement,
+  ParagraphElement,
+} from "../../../../types";
 import { withNormalize } from "../normalize";
 import { insertBreak as withCheckListInsertBreak } from "../insertBreak";
 
-const createParagraph = (text: string) => ({
+const createParagraph = (text: string): ParagraphElement => ({
   type: "paragraph" as const,
   children: [{ type: "formatted" as const, text }],
 });
 
-const createCheckListItem = (text: string, checked: boolean) => ({
+const createCheckListItem = (
+  text: string,
+  checked: boolean,
+): CheckListItemElement => ({
   type: "check-list-item" as const,
   checked,
   children: [createParagraph(text)],
 });
 
 const createCheckList = (
-  children: ReturnType<typeof createCheckListItem>[],
-) => ({
+  children: CheckListItemElement[],
+): CheckListElement => ({
   type: "check-list" as const,
   children,
 });

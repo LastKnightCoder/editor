@@ -9,6 +9,7 @@ import type { WeReadCookie, WeReadSessionStatus } from "@/types/weread";
 import { ETTSProvider } from "@/types/tts";
 import type { EmbeddingProviderType } from "@/types/embedding";
 import type { MinimaxSpeechModel } from "@/types/minimax";
+import type { IPublishFaviconConfig } from "@/types/publish";
 import { MINIMAX_DEFAULT_SPEECH_MODEL } from "@/utils/tts/minimaxSpeech";
 import {
   DEFAULT_OPENAI_IMAGE_BASE_URL,
@@ -463,6 +464,7 @@ export interface ISetting {
     site: {
       title: string;
       description: string;
+      favicon?: IPublishFaviconConfig;
     };
   };
 }
@@ -987,6 +989,7 @@ const initialState: IState = {
       site: {
         title: "",
         description: "",
+        favicon: undefined,
       },
     },
   },

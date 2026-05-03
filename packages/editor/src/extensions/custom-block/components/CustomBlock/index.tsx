@@ -7,7 +7,10 @@ import styles from "./index.module.less";
 
 import { type CustomBlockElement } from "../../../types";
 import PreviewWithEditor from "../../../../components/PreviewWithEditor";
-import { compileAndExecuteCustomBlock } from "../../utils/renderTemplate";
+import {
+  compileAndExecuteCustomBlock,
+  rerenderCustomBlockTheme,
+} from "../../utils/renderTemplate";
 
 interface CustomBlockProps {
   attributes: RenderElementProps["attributes"];
@@ -19,6 +22,8 @@ const CustomBlock = (props: { content: string }) => {
   const { isDark } = useTheme();
   const { content } = props;
   const editor = useSlateStatic();
+  const latestThemeRef = useRef(isDark);
+  latestThemeRef.current = isDark;
 
   useEffect(() => {
     if (!ref.current || !content) return;
@@ -29,7 +34,7 @@ const CustomBlock = (props: { content: string }) => {
 
     compileAndExecuteCustomBlock(
       content,
-      isDark,
+      latestThemeRef.current,
       ref.current,
       {
         useTheme,
@@ -55,7 +60,12 @@ const CustomBlock = (props: { content: string }) => {
       cleanup?.();
       cleanup = undefined;
     };
-  }, [content, isDark, editor.services?.compiler]);
+  }, [content, editor.services?.compiler]);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    rerenderCustomBlockTheme(ref.current, isDark);
+  }, [isDark]);
 
   return <div ref={ref}></div>;
 };

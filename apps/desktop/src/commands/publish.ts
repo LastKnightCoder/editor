@@ -6,6 +6,7 @@ import {
   IPublishResult,
   IPublishFile,
   IPublishAppearanceSettings,
+  IPublishFaviconConfig,
   PublishContentType,
 } from "@/types/publish";
 
@@ -108,7 +109,11 @@ export async function exportPublishOutput(options: {
   targetDir: string;
   providerType: "github" | "s3" | "local";
   providerConfig?: Record<string, unknown>;
-  siteConfig: { title: string; description: string };
+  siteConfig: {
+    title: string;
+    description: string;
+    favicon?: IPublishFaviconConfig;
+  };
   settings?: IPublishAppearanceSettings;
 }): Promise<string[]> {
   return invoke("export-publish-output", options);
@@ -127,7 +132,11 @@ export async function previewPublishPlan(): Promise<IPublishPlan> {
 export async function executePublish(config: {
   providerType: "github" | "s3";
   providerConfig: Record<string, unknown>;
-  siteConfig: { title: string; description: string };
+  siteConfig: {
+    title: string;
+    description: string;
+    favicon?: IPublishFaviconConfig;
+  };
   settings?: IPublishAppearanceSettings;
   options?: {
     maxRetries?: number;

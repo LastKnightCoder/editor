@@ -1,5 +1,5 @@
 import { useContext, useMemo } from "react";
-import { EditorContext } from "../index.tsx";
+import { EditorContext } from "../contexts/EditorContext";
 
 const useTheme = () => {
   const { theme } = useContext(EditorContext);

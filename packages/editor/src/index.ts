@@ -1,5 +1,9 @@
-export { default as Editor, EditorContext } from "./index.tsx";
-export type { EditorFeatures } from "./index.tsx";
+export { default as Editor } from "./index.tsx";
+export {
+  EditorContext,
+  type EditorContextValue,
+  type EditorFeatures,
+} from "./contexts/EditorContext";
 
 export type {
   EditorServices,
@@ -47,6 +51,7 @@ export { useImageGeneration } from "./hooks/useImageGeneration";
 export {
   generateExecutableCode,
   compileAndExecuteCustomBlock,
+  rerenderCustomBlockTheme,
 } from "./extensions/custom-block/utils/renderTemplate";
 export { default as TemplatePreview } from "./extensions/custom-block/components/TemplateSelector/TemplatePreview";
 
