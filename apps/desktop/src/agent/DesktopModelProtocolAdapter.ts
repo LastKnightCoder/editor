@@ -506,7 +506,17 @@ export class DesktopModelProtocolAdapter implements AgentModelProtocolAdapter {
         model: modelName,
         max_tokens: 8192,
         stream: true,
-        ...(system ? { system } : {}),
+        ...(system
+          ? {
+              system: [
+                {
+                  type: "text",
+                  text: system,
+                  cache_control: { type: "ephemeral" },
+                },
+              ],
+            }
+          : {}),
         messages,
         ...(request.tools?.length
           ? { tools: convertToolsToClaudeFormat(request.tools) }
