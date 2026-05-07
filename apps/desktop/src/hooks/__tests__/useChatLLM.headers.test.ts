@@ -231,6 +231,122 @@ describe("hooks/useChatLLM headers", () => {
     expect(streamMock.mock.calls[0]?.[1]).not.toHaveProperty("top_p");
   });
 
+  it("Claude native payload 应携带 Anthropic prompt cache 控制字段", async () => {
+    const onError = vi.fn();
+    const modelConfig: ModelConfig = {
+      name: "claude-opus-4-6-v1",
+      description: "Claude",
+      messageFormat: "claude",
+      features: {
+        online: true,
+        thinking: true,
+        image: false,
+        video: false,
+        audio: false,
+        file: false,
+      },
+    };
+    const requestMessages: RequestMessage[] = [
+      {
+        role: Role.System,
+        content: [
+          {
+            type: "text",
+            text: "system prompt",
+          },
+        ],
+      },
+      {
+        role: Role.User,
+        content: [
+          {
+            type: "text",
+            text: "用户问题",
+          },
+        ],
+      },
+    ];
+    normalizeRequestMessagesMock.mockImplementation(
+      async (incoming) => incoming,
+    );
+
+    await chatStreamCore({
+      providerConfig,
+      modelConfig,
+      messages: requestMessages,
+      enableTools: false,
+      onError,
+    });
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(streamMock).toHaveBeenCalledOnce();
+    expect(streamMock.mock.calls[0]?.[0]).toBe(
+      "https://example.com/v1/messages",
+    );
+    expect(streamMock.mock.calls[0]?.[2]).toMatchObject({
+      "x-api-key": "test-key",
+      "anthropic-version": "2023-06-01",
+    });
+    expect(streamMock.mock.calls[0]?.[2]).not.toHaveProperty("anthropic-beta");
+    expect(streamMock.mock.calls[0]?.[1]).toMatchObject({
+      model: "claude-opus-4-6-v1",
+      stream: true,
+      system: [
+        {
+          type: "text",
+          text: "system prompt",
+          cache_control: {
+            type: "ephemeral",
+          },
+        },
+      ],
+      messages: [
+        {
+          role: "user",
+          content: "用户问题",
+        },
+      ],
+    });
+    expect(streamMock.mock.calls[0]?.[1]).not.toHaveProperty("cache_control");
+  });
+
+  it("OpenAI Responses payload 当前不携带缓存优化字段", async () => {
+    const onError = vi.fn();
+    const modelConfig: ModelConfig = {
+      name: "gpt-5.5",
+      description: "OpenAI Responses",
+      apiProtocol: "responses",
+      features: {
+        online: true,
+        thinking: true,
+        image: false,
+        video: false,
+        audio: false,
+        file: false,
+      },
+    };
+
+    await chatStreamCore({
+      providerConfig,
+      modelConfig,
+      messages,
+      enableTools: false,
+      onError,
+    });
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(streamMock).toHaveBeenCalledOnce();
+    expect(streamMock.mock.calls[0]?.[0]).toBe(
+      "https://example.com/v1/responses",
+    );
+    expect(streamMock.mock.calls[0]?.[1]).not.toHaveProperty(
+      "prompt_cache_key",
+    );
+    expect(streamMock.mock.calls[0]?.[1]).not.toHaveProperty(
+      "prompt_cache_retention",
+    );
+  });
+
   it("工具轮次应可直接消费 AgentEvent 并保持旧 callback 语义", async () => {
     const modelConfig: ModelConfig = {
       name: "gpt-4.1",
