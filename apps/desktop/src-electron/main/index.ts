@@ -16,7 +16,11 @@ import {
   RpcMessageType,
   type RpcRequestMessage,
   type RpcResponseMessage,
+  type SearchParams,
 } from "@/types";
+import FTSTable from "./modules/tables/fts";
+import userSettingModule from "./modules/user-setting";
+import { resolveEmbeddingConfig } from "./utils/embedding-config";
 import moduleInitManager from "./module-init/ModuleInitManager";
 
 (async (): Promise<void> => {
@@ -291,6 +295,57 @@ if (!gotTheLock) {
                 type: RpcMessageType.Response,
                 method: message.method,
                 result: { ok: true },
+                error: null,
+              };
+              return response;
+            },
+          );
+          backendServer.addMessageHandler(
+            "search-content",
+            async (message: RpcRequestMessage) => {
+              const [searchParams] = message.params as unknown as [
+                SearchParams,
+              ];
+
+              if (!searchParams.modelInfo) {
+                const setting = await userSettingModule.getSettingSnapshot();
+                const embeddingConfig = resolveEmbeddingConfig(setting as any);
+                if (embeddingConfig) {
+                  searchParams.modelInfo = {
+                    configId: embeddingConfig.configId,
+                    providerType: embeddingConfig.providerType,
+                    model: embeddingConfig.model,
+                    distance: embeddingConfig.distance,
+                    dimensions: embeddingConfig.dimensions,
+                    batchSize: embeddingConfig.batchSize,
+                    devicePolicy: embeddingConfig.devicePolicy,
+                    localModelDir: embeddingConfig.localModelDir,
+                    key: embeddingConfig.apiKey,
+                    baseUrl: embeddingConfig.baseUrl,
+                  };
+                }
+              }
+
+              const dbName = databaseModule.getCurrentDatabaseName();
+              const mainDb = databaseModule.getDatabase(dbName);
+              const indexDb = databaseModule.getCurrentIndexDatabase();
+
+              let results: any[] = [];
+              if (mainDb && indexDb) {
+                results = await FTSTable.searchHybridContent(
+                  mainDb,
+                  indexDb,
+                  searchParams,
+                );
+              } else if (mainDb) {
+                results = FTSTable.searchContent(mainDb, mainDb, searchParams);
+              }
+
+              const response: RpcResponseMessage = {
+                id: message.id,
+                type: RpcMessageType.Response,
+                method: message.method,
+                result: results,
                 error: null,
               };
               return response;

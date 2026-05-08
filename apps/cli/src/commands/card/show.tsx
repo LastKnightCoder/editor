@@ -4,6 +4,7 @@ import { getDataAccess, closeDataAccess } from "../../data-access/index.js";
 import { getActiveDbName } from "../../utils/path.js";
 import { getMarkdown } from "@tau/slate-markdown";
 import { Header, Divider } from "../../ui/components.js";
+import { formatDate } from "../../utils/text.js";
 
 interface CardRow {
   id: number;
@@ -16,10 +17,6 @@ interface CardRow {
   content: string | null;
   count: number | null;
   content_id: number;
-}
-
-function formatDate(ts: number): string {
-  return new Date(ts).toLocaleString("zh-CN");
 }
 
 function CardShowView({ card, markdown }: { card: CardRow; markdown: string }) {

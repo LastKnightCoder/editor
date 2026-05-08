@@ -1,0 +1,231 @@
+import React, { useState, useEffect } from "react";
+import { Box, Text, useInput } from "ink";
+import { getDataAccess, closeDataAccess } from "../../../data-access/index.js";
+import { getActiveDbName } from "../../../utils/path.js";
+import { runProjectEdit } from "../../project/edit.js";
+import { formatDate } from "../../../utils/text.js";
+import { buildTreeLines, TreeNode } from "../../../utils/tree.js";
+
+interface ProjectRow {
+  id: number;
+  create_time: number;
+  update_time: number;
+  title: string;
+  children: string;
+  archived: number;
+  pinned: number;
+  project_type: string;
+}
+
+interface ProjectItemRow {
+  id: number;
+  title: string;
+  children: string;
+  project_item_type: string;
+}
+
+function getTypeLabel(type: string): string {
+  switch (type) {
+    case "document-tree":
+      return "文档树";
+    case "data-table":
+      return "数据表";
+    case "vibe-learning":
+      return "学习";
+    default:
+      return type;
+  }
+}
+
+export function ProjectDetailView({
+  projectId,
+  onBack,
+  onShowProjectItem,
+}: {
+  projectId: number;
+  onBack: () => void;
+  onShowProjectItem?: (itemId: number) => void;
+}) {
+  const [project, setProject] = useState<ProjectRow | null>(null);
+  const [treeLines, setTreeLines] = useState<{ text: string; id: number }[]>(
+    [],
+  );
+  const [cursor, setCursor] = useState(0);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    try {
+      const dbName = getActiveDbName();
+      const da = getDataAccess(dbName);
+
+      const row = da.queryOne<ProjectRow>(
+        `SELECT id, create_time, update_time, title, children, archived, pinned, project_type
+         FROM project WHERE id = ?`,
+        projectId,
+      );
+
+      if (!row) {
+        setError(`Project #${projectId} not found.`);
+        return;
+      }
+
+      setProject(row);
+
+      let rootIds: number[] = [];
+      try {
+        rootIds = JSON.parse(row.children) as number[];
+      } catch {
+        /* ignore parse error */
+      }
+
+      const items = da.query<ProjectItemRow>(
+        `SELECT id, title, children, project_item_type FROM project_item
+         WHERE EXISTS (SELECT 1 FROM json_each(projects) WHERE value = ?)`,
+        projectId,
+      );
+
+      const nodeMap = new Map<number, TreeNode>();
+      for (const item of items) {
+        let children: number[] = [];
+        try {
+          children = JSON.parse(item.children) as number[];
+        } catch {
+          /* ignore parse error */
+        }
+        nodeMap.set(item.id, {
+          id: item.id,
+          title: item.title,
+          type: item.project_item_type,
+          children,
+        });
+      }
+
+      setTreeLines(buildTreeLines(rootIds, nodeMap));
+    } catch (e: any) {
+      setError(e.message);
+    }
+  }, [projectId]);
+
+  useInput((input, key) => {
+    if (key.escape || input === "q") {
+      onBack();
+      return;
+    }
+    if (input === "e") {
+      setMessage("Opening in editor...");
+      runProjectEdit(projectId).catch(() => {
+        setMessage("Failed to open editor");
+        setTimeout(() => setMessage(""), 2000);
+      });
+      return;
+    }
+    if (treeLines.length > 0) {
+      if (key.upArrow || input === "k") {
+        setCursor((c) => (c > 0 ? c - 1 : treeLines.length - 1));
+      } else if (key.downArrow || input === "j") {
+        setCursor((c) => (c < treeLines.length - 1 ? c + 1 : 0));
+      } else if (key.return && onShowProjectItem) {
+        const selected = treeLines[cursor];
+        if (selected) {
+          onShowProjectItem(selected.id);
+        }
+      }
+    }
+  });
+
+  if (error) {
+    return (
+      <Box flexDirection="column">
+        <Text color="red">{error}</Text>
+        <Text dimColor>Press Esc to go back</Text>
+      </Box>
+    );
+  }
+
+  if (!project) {
+    return <Text dimColor>Loading...</Text>;
+  }
+
+  return (
+    <Box flexDirection="column">
+      <Box marginBottom={0}>
+        <Text bold color="cyan">
+          Project #{project.id}: {project.title}
+        </Text>
+      </Box>
+      <Text dimColor>{"─".repeat(60)}</Text>
+      <Box flexDirection="column" marginBottom={1}>
+        <Box>
+          <Box width={12}>
+            <Text dimColor>Type</Text>
+          </Box>
+          <Text>{getTypeLabel(project.project_type)}</Text>
+        </Box>
+        <Box>
+          <Box width={12}>
+            <Text dimColor>Pinned</Text>
+          </Box>
+          <Text>{project.pinned ? "Yes" : "No"}</Text>
+        </Box>
+        <Box>
+          <Box width={12}>
+            <Text dimColor>Archived</Text>
+          </Box>
+          <Text>{project.archived ? "Yes" : "No"}</Text>
+        </Box>
+        <Box>
+          <Box width={12}>
+            <Text dimColor>Items</Text>
+          </Box>
+          <Text>{treeLines.length}</Text>
+        </Box>
+        <Box>
+          <Box width={12}>
+            <Text dimColor>Created</Text>
+          </Box>
+          <Text dimColor>{formatDate(project.create_time)}</Text>
+        </Box>
+        <Box>
+          <Box width={12}>
+            <Text dimColor>Updated</Text>
+          </Box>
+          <Text dimColor>{formatDate(project.update_time)}</Text>
+        </Box>
+      </Box>
+      <Text dimColor>{"─".repeat(60)}</Text>
+      {treeLines.length > 0 ? (
+        <Box flexDirection="column" marginTop={1}>
+          <Text bold dimColor>
+            Items:
+          </Text>
+          {treeLines.map((line, i) => (
+            <Text
+              key={`${line.id}-${i}`}
+              color={i === cursor ? "cyan" : undefined}
+              bold={i === cursor}
+            >
+              {i === cursor ? "❯ " : "  "}
+              {line.text}
+            </Text>
+          ))}
+        </Box>
+      ) : (
+        <Box marginTop={1}>
+          <Text dimColor>(no items)</Text>
+        </Box>
+      )}
+      <Box marginTop={1}>
+        <Text dimColor>{"─".repeat(60)}</Text>
+      </Box>
+      {message ? (
+        <Text color="green">{message}</Text>
+      ) : (
+        <Text dimColor>
+          e edit{treeLines.length > 0 ? " · ↑↓/jk select · Enter open" : ""} ·
+          Esc/q back
+        </Text>
+      )}
+    </Box>
+  );
+}

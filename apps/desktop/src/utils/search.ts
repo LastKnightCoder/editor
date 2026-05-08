@@ -57,26 +57,20 @@ export const indexContent = async (
 ): Promise<boolean> => {
   try {
     const indexTypes = indexParams.indexTypes || ["fts", "vec"];
-    const promises: Promise<boolean>[] = [];
+    const results: boolean[] = [];
 
-    // 根据指定的索引类型执行相应的索引操作
     if (indexTypes.includes("fts")) {
-      promises.push(indexFTSContent(indexParams));
+      results.push(await indexFTSContent(indexParams));
     }
 
     if (indexTypes.includes("vec") && indexParams.modelInfo) {
-      promises.push(indexVecDocumentContent(indexParams));
+      results.push(await indexVecDocumentContent(indexParams));
     }
 
-    // 如果没有需要执行的索引操作，直接返回true
-    if (promises.length === 0) {
+    if (results.length === 0) {
       return true;
     }
 
-    // 执行所有需要的索引操作
-    const results = await Promise.all(promises);
-
-    // 只有当所有操作都成功时，才返回true
     return results.every((result) => result);
   } catch (error) {
     console.error("索引内容失败:", error);
@@ -93,16 +87,11 @@ export const batchIndexContent = async (
   items: Array<IndexParams>,
 ): Promise<boolean> => {
   try {
-    // 并行执行全文索引和向量索引
-    const [ftsResult, vecResult] = await Promise.all([
-      batchIndexFTSContent(items),
-      // 如果有任何一项有模型信息，则执行向量索引
-      items.some((item) => !!item.modelInfo)
-        ? batchIndexVecDocumentContent(items)
-        : Promise.resolve(true),
-    ]);
+    const ftsResult = await batchIndexFTSContent(items);
+    const vecResult = items.some((item) => !!item.modelInfo)
+      ? await batchIndexVecDocumentContent(items)
+      : true;
 
-    // 只有当两者都成功时，才返回成功
     return ftsResult && vecResult;
   } catch (error) {
     console.error("批量索引内容失败:", error);
@@ -121,13 +110,9 @@ export const removeIndex = async (
   type: IndexType,
 ): Promise<boolean> => {
   try {
-    // 并行执行移除全文索引和向量索引
-    const [ftsResult, vecResult] = await Promise.all([
-      removeFTSIndex(id, type),
-      removeVecDocumentIndex(id, type),
-    ]);
+    const ftsResult = await removeFTSIndex(id, type);
+    const vecResult = await removeVecDocumentIndex(id, type);
 
-    // 只有当两者都成功时，才返回成功
     return ftsResult && vecResult;
   } catch (error) {
     console.error("移除索引失败:", error);
