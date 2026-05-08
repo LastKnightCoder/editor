@@ -445,6 +445,20 @@ class DatabaseModule implements Module {
     });
   }
 
+  reconnectForSync(name: string, source: DatabaseReconnectSource) {
+    log.info(`[database] reconnectForSync: db=${name}, source=${source}`);
+    if (this.databases.has(name)) {
+      this.databases.get(name)!.close();
+      mainContentIndexDBManager.closeDatabase(name);
+    }
+    const database = this.openDatabase(name, "normal");
+    this.databases.set(name, database);
+    this.warmIndexDatabaseInBackground(name, "connect_or_reconnect");
+    this.currentDatabaseName = name;
+    this.notifyDatabaseConnected(name, source);
+    this.hasConnectedDatabase = true;
+  }
+
   async init() {
     const connectDatabase = async (
       event: IpcMainInvokeEvent,

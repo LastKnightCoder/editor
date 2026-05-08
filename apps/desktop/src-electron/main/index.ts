@@ -5,6 +5,9 @@ import { fileURLToPath } from "node:url";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import log from "electron-log";
 import windowManagerModule from "./modules/window-manager";
+import databaseModule, {
+  type DatabaseReconnectSource,
+} from "./modules/database";
 import trayModule from "./modules/tray";
 import recentProjectsModule from "./modules/recent-projects";
 import PathUtil from "./utils/PathUtil";
@@ -191,6 +194,98 @@ if (!gotTheLock) {
             async (message: RpcRequestMessage) => {
               const event = message.params as unknown;
               backendServer.sendNotification("todo:mutation", event);
+              const response: RpcResponseMessage = {
+                id: message.id,
+                type: RpcMessageType.Response,
+                method: message.method,
+                result: { ok: true },
+                error: null,
+              };
+              return response;
+            },
+          );
+          backendServer.addMessageHandler(
+            "open-card-in-new-window",
+            async (message: RpcRequestMessage) => {
+              const [databaseName, cardId, options] =
+                message.params as unknown as [
+                  string,
+                  number,
+                  (
+                    | { showTitlebar?: boolean; isDefaultTop?: boolean }
+                    | undefined
+                  ),
+                ];
+              log.info(
+                `[ws] open-card-in-new-window: db=${databaseName}, card=${cardId}`,
+              );
+              windowManager.createEditorWindow("card", {
+                databaseName,
+                itemId: cardId,
+                ...options,
+              });
+              const response: RpcResponseMessage = {
+                id: message.id,
+                type: RpcMessageType.Response,
+                method: message.method,
+                result: { ok: true },
+                error: null,
+              };
+              return response;
+            },
+          );
+          backendServer.addMessageHandler(
+            "close-database",
+            async (message: RpcRequestMessage) => {
+              const [name] = message.params as unknown as [string];
+              log.info(`[ws] close-database: db=${name}`);
+              const checkpointOk = databaseModule.forceCheckpoint(name);
+              if (!checkpointOk) {
+                log.error(
+                  `[ws] close-database: checkpoint failed for db=${name}, aborting`,
+                );
+                const response: RpcResponseMessage = {
+                  id: message.id,
+                  type: RpcMessageType.Response,
+                  method: message.method,
+                  result: null,
+                  error: {
+                    code: -1,
+                    message:
+                      "Checkpoint failed: WAL has uncommitted data. Cannot safely close database for sync.",
+                  },
+                };
+                return response;
+              }
+              const database = databaseModule.getDatabase(name);
+              if (database) {
+                database.close();
+                databaseModule.databases.delete(name);
+              }
+              const response: RpcResponseMessage = {
+                id: message.id,
+                type: RpcMessageType.Response,
+                method: message.method,
+                result: { ok: true },
+                error: null,
+              };
+              return response;
+            },
+          );
+          backendServer.addMessageHandler(
+            "reconnect-database-fast",
+            async (message: RpcRequestMessage) => {
+              const [name, source] = message.params as unknown as [
+                string,
+                DatabaseReconnectSource | undefined,
+              ];
+              log.info(
+                `[ws] reconnect-database-fast: db=${name}, source=${source}`,
+              );
+              databaseModule.reconnectForSync(
+                name,
+                source || "sync_upload_reconnect",
+              );
               const response: RpcResponseMessage = {
                 id: message.id,
                 type: RpcMessageType.Response,

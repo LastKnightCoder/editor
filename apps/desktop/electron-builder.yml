@@ -4,6 +4,9 @@ copyright: "Copyright © 2025 ${author}"
 asar: true
 asarUnpack:
   - "node_modules/sqlite-vec-*/**/*"
+  - "node_modules/better-sqlite3/**/*"
+  - "node_modules/bindings/**/*"
+  - "node_modules/file-uri-to-path/**/*"
 directories:
   output: release/
   buildResources: build
@@ -15,6 +18,14 @@ extraResources:
   - from: dist-electron/main/idf.txt
     to: idf.txt
     filter: ["**/*"]
+  - from: ../cli/dist/index.js
+    to: cli/index.js
+  - from: ../cli/bin/tau.sh
+    to: cli/tau.sh
+  - from: ../cli/bin/tau.cmd
+    to: cli/tau.cmd
+  - from: ../cli/bin/tau.ps1
+    to: cli/tau.ps1
 
 
 files:
