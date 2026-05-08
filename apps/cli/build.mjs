@@ -19,7 +19,7 @@ const emptyModulePlugin = {
 const nativeRequirePlugin = {
   name: "native-require",
   setup(build) {
-    build.onResolve({ filter: /^better-sqlite3$/ }, (args) => {
+    build.onResolve({ filter: /^(better-sqlite3|sqlite-vec)$/ }, (args) => {
       if (args.namespace === "native-require") {
         return { path: args.path, external: true };
       }

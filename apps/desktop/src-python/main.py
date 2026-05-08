@@ -197,6 +197,109 @@ class PythonServer:
             asyncio.create_task(self.ws.close())
 
 
+class StandalonePythonServer:
+    """独立 WebSocket 服务器模式，供 CLI 直接连接使用"""
+
+    IDLE_TIMEOUT = 30 * 60  # 30 minutes
+
+    def __init__(self, port: int):
+        self.port = port
+        self._embedding_handler = EmbeddingHandler()
+        self.handlers = self._embedding_handler.get_handlers()
+        self._last_activity = asyncio.get_event_loop().time()
+        self._idle_task = None
+        print(f"[StandaloneServer] Registered handlers: {list(self.handlers.keys())}", file=sys.stderr)
+
+    def _touch(self):
+        self._last_activity = asyncio.get_event_loop().time()
+
+    async def _idle_watchdog(self):
+        """空闲超时自动退出"""
+        while True:
+            await asyncio.sleep(60)
+            elapsed = asyncio.get_event_loop().time() - self._last_activity
+            if elapsed >= self.IDLE_TIMEOUT:
+                print(f"[StandaloneServer] Idle for {int(elapsed)}s, shutting down", file=sys.stderr)
+                asyncio.get_event_loop().stop()
+                return
+
+    async def handle_connection(self, websocket):
+        """处理单个客户端连接"""
+        self._touch()
+        print(f"[StandaloneServer] Client connected", file=sys.stderr)
+        try:
+            async for message in websocket:
+                self._touch()
+                try:
+                    msg = json.loads(message)
+                    msg_type = msg.get("type")
+
+                    if msg_type == RpcMessageType.Ping:
+                        await websocket.send(json.dumps({"type": RpcMessageType.Pong}))
+                        continue
+
+                    if msg_type == RpcMessageType.Request:
+                        msg_id = msg.get("id")
+                        method = msg.get("method")
+                        params = msg.get("params", {})
+
+                        handler = self.handlers.get(method)
+                        if not handler:
+                            await websocket.send(json.dumps({
+                                "id": msg_id,
+                                "type": RpcMessageType.Response,
+                                "method": method,
+                                "result": None,
+                                "error": {"code": -32601, "message": f"Method not found: {method}"},
+                            }))
+                            continue
+
+                        try:
+                            async def on_progress(data: dict):
+                                await websocket.send(json.dumps({
+                                    "type": RpcMessageType.Notification,
+                                    "method": f"{method}:progress",
+                                    "data": {"requestId": msg_id, **data},
+                                }))
+
+                            result = await handler(params, on_progress)
+                            self._touch()
+                            await websocket.send(json.dumps({
+                                "id": msg_id,
+                                "type": RpcMessageType.Response,
+                                "method": method,
+                                "result": result,
+                                "error": None,
+                            }))
+                        except Exception as e:
+                            print(f"[StandaloneServer] Handler error: {e}", file=sys.stderr)
+                            traceback.print_exc(file=sys.stderr)
+                            await websocket.send(json.dumps({
+                                "id": msg_id,
+                                "type": RpcMessageType.Response,
+                                "method": method,
+                                "result": None,
+                                "error": {"code": -32000, "message": str(e)},
+                            }))
+                except json.JSONDecodeError as e:
+                    print(f"[StandaloneServer] Invalid JSON: {e}", file=sys.stderr)
+                except Exception as e:
+                    print(f"[StandaloneServer] Error: {e}", file=sys.stderr)
+                    traceback.print_exc(file=sys.stderr)
+        except Exception as e:
+            print(f"[StandaloneServer] Connection closed: {e}", file=sys.stderr)
+
+    async def start(self):
+        """启动独立 WebSocket 服务器"""
+        import websockets
+
+        self._idle_task = asyncio.create_task(self._idle_watchdog())
+        print(f"[StandaloneServer] Starting on port {self.port} (idle timeout: {self.IDLE_TIMEOUT}s)", file=sys.stderr)
+        async with websockets.serve(self.handle_connection, "localhost", self.port) as server:
+            print(f"STANDALONE_READY:{self.port}", flush=True)
+            await asyncio.Future()
+
+
 async def main():
     parser = argparse.ArgumentParser(description="Python WebSocket Server for Tau")
     parser.add_argument(
@@ -205,16 +308,27 @@ async def main():
         default=24678,
         help="WebSocket server port (default: 24678)"
     )
+    parser.add_argument(
+        "--standalone",
+        action="store_true",
+        help="Run as standalone WebSocket server (for CLI usage)"
+    )
 
     args = parser.parse_args()
 
-    server = PythonServer(args.port)
-
-    try:
-        await server.start()
-    except KeyboardInterrupt:
-        print("\n[PythonServer] Shutting down...", file=sys.stderr)
-        server.stop()
+    if args.standalone:
+        server = StandalonePythonServer(args.port)
+        try:
+            await server.start()
+        except KeyboardInterrupt:
+            print("\n[StandaloneServer] Shutting down...", file=sys.stderr)
+    else:
+        server = PythonServer(args.port)
+        try:
+            await server.start()
+        except KeyboardInterrupt:
+            print("\n[PythonServer] Shutting down...", file=sys.stderr)
+            server.stop()
 
 
 if __name__ == "__main__":
