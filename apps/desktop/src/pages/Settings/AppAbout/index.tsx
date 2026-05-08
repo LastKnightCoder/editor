@@ -1,15 +1,21 @@
 import { useState, memo } from "react";
 import { useAsyncEffect } from "ahooks";
+import { App } from "antd";
 import { getVersions } from "@/commands";
+import { invoke } from "@/electron";
 import SelectDatabase from "@/components/SelectDatabase";
-import { SettingContainer, SettingSection } from "../components";
+import { SettingButton, SettingContainer, SettingSection } from "../components";
 import useThemeColors from "@/hooks/useThemeColors";
 
 const AppAbout = memo(() => {
   const [loading, setLoading] = useState(false);
   const [version, setVersion] = useState("0.0");
   const [fetchVersionError, setFetchVersionError] = useState(false);
+  const [cliInstalled, setCliInstalled] = useState(false);
+  const [cliPath, setCliPath] = useState("");
+  const [cliLoading, setCliLoading] = useState(false);
   const themeColors = useThemeColors();
+  const { message } = App.useApp();
 
   useAsyncEffect(async () => {
     setLoading(true);
@@ -21,7 +27,72 @@ const AppAbout = memo(() => {
     } finally {
       setLoading(false);
     }
+
+    try {
+      const status = await invoke<{ installed: boolean; path: string }>(
+        "cli:get-status",
+      );
+      setCliInstalled(status.installed);
+      setCliPath(status.path);
+    } catch {
+      /* CLI not available */
+    }
   }, []);
+
+  const refreshCliStatus = async () => {
+    try {
+      const status = await invoke<{ installed: boolean; path: string }>(
+        "cli:get-status",
+      );
+      setCliInstalled(status.installed);
+      setCliPath(status.path);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handleInstallCli = async () => {
+    setCliLoading(true);
+    try {
+      const result = await invoke<{ success: boolean; error?: string }>(
+        "cli:install",
+      );
+      if (result.success) {
+        await refreshCliStatus();
+        const isWindows = navigator.userAgent.includes("Windows");
+        message.success(
+          isWindows
+            ? "命令行工具安装成功，请打开新的终端窗口使用 tau 命令"
+            : "命令行工具安装成功，可以在终端使用 tau 命令",
+        );
+      } else {
+        message.error(`安装失败: ${result.error}`);
+      }
+    } catch (e: unknown) {
+      message.error(`安装失败: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setCliLoading(false);
+    }
+  };
+
+  const handleUninstallCli = async () => {
+    setCliLoading(true);
+    try {
+      const result = await invoke<{ success: boolean; error?: string }>(
+        "cli:uninstall",
+      );
+      if (result.success) {
+        await refreshCliStatus();
+        message.success("命令行工具已卸载");
+      } else {
+        message.error(`卸载失败: ${result.error}`);
+      }
+    } catch (e: unknown) {
+      message.error(`卸载失败: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setCliLoading(false);
+    }
+  };
 
   return (
     <SettingContainer>
@@ -74,6 +145,59 @@ const AppAbout = memo(() => {
 
       <SettingSection title="数据库管理" description="选择和管理你的笔记数据库">
         <SelectDatabase />
+      </SettingSection>
+
+      <SettingSection
+        title="命令行工具"
+        description="安装 tau 命令到系统 PATH，可在终端中使用 tau 管理卡片和同步数据库"
+      >
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div
+              className={`w-2 h-2 rounded-full ${cliInstalled ? "bg-green-500" : "bg-gray-400"}`}
+            />
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              {cliInstalled ? "已安装" : "未安装"}
+            </span>
+            {cliInstalled && cliPath && (
+              <code className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400">
+                {cliPath}
+              </code>
+            )}
+          </div>
+          {cliInstalled ? (
+            <SettingButton
+              variant="danger"
+              loading={cliLoading}
+              onClick={handleUninstallCli}
+            >
+              卸载命令行工具
+            </SettingButton>
+          ) : (
+            <SettingButton
+              variant="primary"
+              loading={cliLoading}
+              onClick={handleInstallCli}
+              icon={
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+              }
+            >
+              安装命令行工具
+            </SettingButton>
+          )}
+        </div>
       </SettingSection>
     </SettingContainer>
   );
