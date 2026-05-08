@@ -10,7 +10,7 @@
   "scripts": {
     "predev": "pnpm -w db:schema:prepare",
     "dev": "vite",
-    "prebuild": "pnpm -w db:schema:prepare",
+    "prebuild": "pnpm -w db:schema:prepare && pnpm --filter @tau/cli build",
     "build": "cross-env-shell NODE_OPTIONS='--max-old-space-size=8092' \"tsc && vite build && electron-builder\"",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "postinstall": "node scripts/build-python.js install || true",
