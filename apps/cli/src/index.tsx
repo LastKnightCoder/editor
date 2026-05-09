@@ -22,4 +22,8 @@ registerDocumentCommands(program);
 registerSearchCommand(program);
 registerTuiCommand(program);
 
-program.parseAsync(process.argv);
+await program.parseAsync(process.argv);
+
+if (process.stdout.writable && !process.stdout.writableEnded) {
+  await new Promise<void>((resolve) => process.stdout.write("", resolve));
+}

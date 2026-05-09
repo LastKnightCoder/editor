@@ -22,4 +22,8 @@ if not exist "%CLI_ENTRY%" (
 
 set "ELECTRON_RUN_AS_NODE=1"
 set "NODE_PATH=%APP_MODULES%;%ASAR_MODULES%;%NODE_PATH%"
-"%ELECTRON_BIN%" "%CLI_ENTRY%" %*
+
+rem Use "start /wait" to ensure CMD waits for the GUI-subsystem Electron binary.
+rem The empty title "" is required by start when the command path is quoted.
+start "" /wait /b "%ELECTRON_BIN%" "%CLI_ENTRY%" %*
+exit /b %ERRORLEVEL%
