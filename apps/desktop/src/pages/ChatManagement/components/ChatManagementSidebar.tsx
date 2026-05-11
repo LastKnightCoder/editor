@@ -1,6 +1,6 @@
 import { memo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { App, Dropdown, Input } from "antd";
+import { App, Dropdown } from "antd";
 import type { MenuProps } from "antd";
 import {
   PlusOutlined,
@@ -882,11 +882,16 @@ const ChatManagementSidebar = memo(
           okText="确定"
           cancelText="取消"
         >
-          <Input
+          <input
+            type="text"
             placeholder="请输入分组名称"
             value={groupName}
             onChange={(e) => setGroupName(e.target.value)}
-            onPressEnter={handleGroupDialogOk}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleGroupDialogOk();
+            }}
+            autoFocus
+            className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
           />
         </CustomModal>
       </div>
