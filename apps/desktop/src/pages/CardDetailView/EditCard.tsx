@@ -51,8 +51,15 @@ import {
   copyMarkdownToClipboard,
   copyWechatHtmlToClipboard,
 } from "@/utils";
-import { ICard } from "@/types";
-import { deleteCard, getAllCards, openCardInNewWindow } from "@/commands";
+import { ICard, ECardCategory } from "@/types";
+import { cardCategoryName } from "@/constants/card";
+import { produce } from "immer";
+import {
+  deleteCard,
+  getAllCards,
+  openCardInNewWindow,
+  updateCard,
+} from "@/commands";
 import graphIcon from "@/assets/icons/graph.svg";
 
 import useEditCard from "./useEditCard";
@@ -468,6 +475,14 @@ const EditCard = (props: IEditCardProps) => {
         flashcard.openManualFlashcard();
       } else if (key === "ai-flashcard") {
         flashcard.openAiFlashcard();
+      } else if (Object.keys(cardCategoryName).includes(key)) {
+        const newCard = produce(editingCard, (draft) => {
+          draft!.category = key as ECardCategory;
+        });
+        const updatedCard = await updateCard(newCard!);
+        setEditingCard(updatedCard);
+        prevCard.current = updatedCard;
+        cardEventBus.publishCardEvent("card:updated", updatedCard);
       }
     },
   );
@@ -545,11 +560,20 @@ const EditCard = (props: IEditCardProps) => {
         ],
       },
       {
+        key: "edit-category",
+        label: "编辑分类",
+        children: Object.keys(cardCategoryName).map((key) => ({
+          label: cardCategoryName[key as ECardCategory],
+          key: key,
+          disabled: editingCard?.category === (key as ECardCategory),
+        })),
+      },
+      {
         key: "delete-card",
         label: "删除卡片",
       },
     ];
-  }, []);
+  }, [editingCard?.category]);
 
   if (loading) {
     return (
