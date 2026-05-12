@@ -6,6 +6,8 @@ import { registerArticleCommands } from "./commands/article/index.js";
 import { registerProjectCommands } from "./commands/project/index.js";
 import { registerDocumentCommands } from "./commands/document/index.js";
 import { registerSearchCommand } from "./commands/search/index.js";
+import { registerTodoCommands } from "./commands/todo/index.js";
+import { registerQuestionCommands } from "./commands/question/index.js";
 
 const program = new Command();
 
@@ -20,6 +22,8 @@ registerArticleCommands(program);
 registerProjectCommands(program);
 registerDocumentCommands(program);
 registerSearchCommand(program);
+registerTodoCommands(program);
+registerQuestionCommands(program);
 registerTuiCommand(program);
 
 await program.parseAsync(process.argv);

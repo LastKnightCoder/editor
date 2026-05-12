@@ -11,6 +11,12 @@ import { DocumentDetailView } from "./views/document-detail.js";
 import { ProjectItemDetailView } from "./views/project-item-detail.js";
 import { DocumentItemDetailView } from "./views/document-item-detail.js";
 import { SearchView } from "./views/search.js";
+import { TodoListView } from "./views/todo-list.js";
+import { TodoDetailView } from "./views/todo-detail.js";
+import { TodoGroupListView } from "./views/todo-group-list.js";
+import { QuestionListView } from "./views/question-list.js";
+import { QuestionDetailView } from "./views/question-detail.js";
+import { AnswerDetailView } from "./views/answer-detail.js";
 import { DbStatusView } from "./views/db-status.js";
 import { SyncView } from "./views/sync.js";
 
@@ -27,6 +33,17 @@ type Page =
   | { type: "document-list" }
   | { type: "document-detail"; docId: number }
   | { type: "document-item-detail"; itemId: number; backTo: Page }
+  | { type: "todo-list"; groupId?: number; systemType?: string }
+  | { type: "todo-detail"; todoId: number; backTo?: Page }
+  | { type: "todo-group-list" }
+  | { type: "question-list"; groupId?: number }
+  | { type: "question-detail"; questionId: number; backTo?: Page }
+  | {
+      type: "answer-detail";
+      questionId: number;
+      answerIndex: number;
+      backTo?: Page;
+    }
   | { type: "db-status" }
   | { type: "sync" };
 
@@ -36,6 +53,9 @@ const MENU_ITEMS = [
   { label: "Article List", description: "Browse articles" },
   { label: "Project List", description: "Browse projects" },
   { label: "Document List", description: "Browse documents" },
+  { label: "Todo List", description: "Manage tasks and todos" },
+  { label: "Todo Groups", description: "View task groups" },
+  { label: "Questions", description: "Browse questions and answers" },
   { label: "DB Status", description: "Database information" },
   { label: "Sync", description: "Database sync operations" },
   { label: "Quit", description: "Exit TUI" },
@@ -106,12 +126,21 @@ export function TuiApp() {
             setPage({ type: "document-list" });
             break;
           case 5:
-            setPage({ type: "db-status" });
+            setPage({ type: "todo-list" });
             break;
           case 6:
-            setPage({ type: "sync" });
+            setPage({ type: "todo-group-list" });
             break;
           case 7:
+            setPage({ type: "question-list" });
+            break;
+          case 8:
+            setPage({ type: "db-status" });
+            break;
+          case 9:
+            setPage({ type: "sync" });
+            break;
+          case 10:
             exit();
             break;
         }
@@ -283,6 +312,85 @@ export function TuiApp() {
             backTo: page,
           })
         }
+      />
+    );
+  }
+
+  if (page.type === "todo-list") {
+    return (
+      <TodoListView
+        initialGroupId={page.groupId}
+        initialSystemType={page.systemType}
+        onBack={() => setPage({ type: "menu" })}
+        onShowTodo={(todoId) =>
+          setPage({ type: "todo-detail", todoId, backTo: page })
+        }
+      />
+    );
+  }
+
+  if (page.type === "todo-detail") {
+    return (
+      <TodoDetailView
+        todoId={page.todoId}
+        onBack={() => setPage(page.backTo ?? { type: "todo-list" })}
+        onShowSubtask={(id) =>
+          setPage({ type: "todo-detail", todoId: id, backTo: page })
+        }
+      />
+    );
+  }
+
+  if (page.type === "todo-group-list") {
+    return (
+      <TodoGroupListView
+        onBack={() => setPage({ type: "menu" })}
+        onSelectGroup={(selection) =>
+          setPage({
+            type: "todo-list",
+            groupId: selection.groupId,
+            systemType: selection.systemType,
+          })
+        }
+      />
+    );
+  }
+
+  if (page.type === "question-list") {
+    return (
+      <QuestionListView
+        initialGroupId={page.groupId}
+        onBack={() => setPage({ type: "menu" })}
+        onShowQuestion={(questionId) =>
+          setPage({ type: "question-detail", questionId, backTo: page })
+        }
+      />
+    );
+  }
+
+  if (page.type === "question-detail") {
+    return (
+      <QuestionDetailView
+        questionId={page.questionId}
+        onBack={() => setPage(page.backTo ?? { type: "question-list" })}
+        onShowAnswer={(questionId, answerIndex) =>
+          setPage({
+            type: "answer-detail",
+            questionId,
+            answerIndex,
+            backTo: page,
+          })
+        }
+      />
+    );
+  }
+
+  if (page.type === "answer-detail") {
+    return (
+      <AnswerDetailView
+        questionId={page.questionId}
+        answerIndex={page.answerIndex}
+        onBack={() => setPage(page.backTo ?? { type: "question-list" })}
       />
     );
   }
