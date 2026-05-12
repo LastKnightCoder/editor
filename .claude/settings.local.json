@@ -116,7 +116,9 @@
       "Bash(curl *)",
       "Bash(awk '{print $NF}')",
       "Read(//tmp/**)",
-      "Bash(npx eslint *)"
+      "Bash(npx eslint *)",
+      "Bash(sed -i '' '/backdrop-filter: var\\(--glass-blur/d' template-gradient.html)",
+      "Bash(sed -i '' '/-webkit-backdrop-filter: var\\(--glass-blur/d' template-gradient.html)"
     ],
     "deny": [],
     "ask": []

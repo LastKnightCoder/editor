@@ -299,7 +299,6 @@
             font-size: var(--fs-body);
             color: var(--text-mid);
             line-height: 1.9;
-            max-width: 52em;
         }
 
         .highlight {
@@ -465,7 +464,6 @@
             border: 1px solid var(--border);
             padding: var(--space-md) var(--space-lg);
             margin-top: var(--space-md);
-            max-width: 52em;
             position: relative;
         }
 
@@ -582,7 +580,6 @@
             margin-top: var(--space-lg);
             position: relative;
             padding-left: clamp(2rem, 3vw, 3rem);
-            max-width: 52em;
         }
 
         .timeline::before {
@@ -1013,11 +1010,128 @@
            双栏详情页
            ═══════════════════════════════════════ */
 
-        .split-detail { display: grid; grid-template-columns: 2fr 3fr; gap: clamp(2rem, 4vw, 4rem); margin-top: var(--space-lg); width: 100%; align-items: center; }
-        .split-visual { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: var(--space-lg); border: 1px solid var(--border); background: var(--bg-card); }
-        .split-visual-icon { font-size: clamp(3rem, 6vw, 5rem); margin-bottom: var(--space-sm); }
-        .split-visual-num { font-family: var(--serif); font-size: var(--fs-stat); font-weight: 400; color: var(--primary); line-height: 1; }
-        .split-visual-label { font-family: var(--sans); font-size: var(--fs-label); color: var(--text-dim); letter-spacing: 0.2em; text-transform: uppercase; margin-top: var(--space-xs); }
+        .split-detail {
+            display: grid;
+            grid-template-columns: 2fr 3fr;
+            gap: clamp(2rem, 4vw, 4rem);
+            margin-top: var(--space-lg);
+            width: 100%;
+            align-items: center;
+        }
+
+        .split-visual {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: var(--space-lg);
+        }
+
+        .split-emblem {
+            position: relative;
+            width: clamp(9rem, 16vw, 14rem);
+            height: clamp(9rem, 16vw, 14rem);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .split-emblem::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border: 1px solid var(--border-strong);
+            border-radius: 50%;
+        }
+
+        .split-emblem::after {
+            content: '';
+            position: absolute;
+            inset: clamp(6px, 0.8vw, 10px);
+            border: 1px solid var(--border);
+            border-radius: 50%;
+        }
+
+        .split-emblem__ring {
+            position: absolute;
+            inset: clamp(14px, 1.8vw, 22px);
+            border-radius: 50%;
+            border: 1px solid rgba(201, 169, 110, 0.15);
+        }
+
+        .emblem-diamond {
+            position: absolute;
+            width: clamp(5px, 0.6vw, 8px);
+            height: clamp(5px, 0.6vw, 8px);
+            background: var(--primary);
+            transform: rotate(45deg);
+            opacity: 0.55;
+            z-index: 2;
+        }
+
+        .ed-top { top: -1px; left: 50%; transform: translateX(-50%) rotate(45deg); }
+        .ed-bottom { bottom: -1px; left: 50%; transform: translateX(-50%) rotate(45deg); }
+        .ed-left { left: -1px; top: 50%; transform: translateY(-50%) rotate(45deg); }
+        .ed-right { right: -1px; top: 50%; transform: translateY(-50%) rotate(45deg); }
+
+        .split-emblem__inner {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: radial-gradient(
+                circle at center,
+                rgba(201, 169, 110, 0.06) 0%,
+                rgba(201, 169, 110, 0.02) 40%,
+                transparent 70%
+            );
+        }
+
+        .split-visual-num {
+            font-family: var(--serif);
+            font-size: var(--fs-stat);
+            font-weight: 300;
+            color: var(--primary);
+            line-height: 1;
+            letter-spacing: 0.03em;
+        }
+
+        .split-visual-label {
+            font-family: var(--sans);
+            font-size: var(--fs-label);
+            color: var(--text-dim);
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            margin-top: var(--space-md);
+            font-weight: 500;
+            position: relative;
+            padding: 0 clamp(2.5rem, 5vw, 5rem);
+        }
+
+        .split-visual-label::before,
+        .split-visual-label::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: clamp(1.5rem, 3vw, 3rem);
+            height: 1px;
+        }
+
+        .split-visual-label::before {
+            right: 0;
+            background: linear-gradient(90deg, transparent, var(--border-strong));
+        }
+
+        .split-visual-label::after {
+            left: 0;
+            background: linear-gradient(270deg, transparent, var(--border-strong));
+        }
+
         .split-info h3 { font-family: var(--serif); font-size: clamp(1.2rem, 1.8vw, 1.8rem); font-weight: 400; color: var(--text); margin-bottom: var(--space-md); }
         .split-info-list { list-style: none; display: flex; flex-direction: column; gap: var(--space-sm); }
         .split-info-list li { padding: var(--space-xs) 0; border-bottom: 1px solid var(--border); font-size: var(--fs-body); color: var(--text-mid); line-height: 1.7; padding-left: var(--space-md); position: relative; }
@@ -1045,7 +1159,6 @@
         .end-sub {
             font-size: var(--fs-body);
             color: var(--text-dim);
-            max-width: 36em;
             line-height: 1.9;
             margin-bottom: var(--space-lg);
         }
@@ -1536,9 +1649,17 @@
         <h2 class="title-main reveal delay-2">手冲咖啡的精髓</h2>
         <div class="split-detail">
             <div class="split-visual reveal-left delay-3">
-                <div class="split-visual-icon">☕</div>
-                <div class="split-visual-num">92°C</div>
-                <div class="split-visual-label">IDEAL TEMP</div>
+                <div class="split-emblem">
+                    <span class="emblem-diamond ed-top"></span>
+                    <span class="emblem-diamond ed-right"></span>
+                    <span class="emblem-diamond ed-bottom"></span>
+                    <span class="emblem-diamond ed-left"></span>
+                    <div class="split-emblem__ring"></div>
+                    <div class="split-emblem__inner">
+                        <div class="split-visual-num">92°C</div>
+                    </div>
+                </div>
+                <div class="split-visual-label">Ideal Temp</div>
             </div>
             <div class="split-info reveal-right delay-4">
                 <h3>影响风味的四大关键变量</h3>

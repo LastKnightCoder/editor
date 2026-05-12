@@ -3,29 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>极简主义生活哲学</title>
+    <title>建筑与空间美学</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #000000;
-            --text: #ffffff;
-            --text-dim: rgba(255, 255, 255, 0.65);
-            --text-muted: rgba(255, 255, 255, 0.45);
-            --border: rgba(255, 255, 255, 0.10);
-            --border-hover: rgba(255, 255, 255, 0.18);
-            --surface: rgba(255, 255, 255, 0.03);
-            --surface-hover: rgba(255, 255, 255, 0.05);
-            --glow-faint: rgba(255, 255, 255, 0.08);
-            --glow-subtle: rgba(255, 255, 255, 0.12);
-            --serif: "Cormorant Garamond", "Source Han Serif SC", "Noto Serif SC", Georgia, serif;
-            --sans: "IBM Plex Sans", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+            --bg: #0f0e0d;
+            --bg-inset: #1a1816;
+            --text-1: #e8e5e0;
+            --text-2: #9c9590;
+            --text-3: #6b6560;
+            --text-ghost: #1e1c1a;
+            --rule: #2a2724;
+            --rule-light: #1e1c1a;
+
+            --serif: "DM Serif Display", "Source Han Serif SC", "Songti SC", Georgia, serif;
+            --sans: "Plus Jakarta Sans", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+
+            --fs-display: clamp(4.5rem, 12vw, 14rem);
+            --fs-ghost: clamp(8rem, 22vw, 28rem);
+            --fs-h1: clamp(2.2rem, 4.5vw, 5rem);
+            --fs-h2: clamp(1.6rem, 3vw, 3.2rem);
+            --fs-h3: clamp(1.2rem, 1.8vw, 1.8rem);
+            --fs-body: clamp(1rem, 1.15vw, 1.2rem);
+            --fs-small: clamp(0.85rem, 1vw, 1rem);
+            --fs-label: clamp(0.65rem, 0.75vw, 0.78rem);
+            --fs-stat: clamp(3.5rem, 9vw, 10rem);
+            --fs-quote: clamp(1.8rem, 3.5vw, 4rem);
+
+            --pad-y: clamp(3.5rem, 8vh, 10vh);
+            --pad-x-left: clamp(4rem, 10vw, 14vw);
+            --pad-x-right: clamp(3rem, 8vw, 10vw);
+
             --ease: cubic-bezier(0.16, 1, 0.3, 1);
-            --ease-out: cubic-bezier(0.0, 0, 0.2, 1);
-            --dur-slide: 1.2s;
-            --dur-reveal: 0.8s;
-            --dur-fade: 1s;
+            --dur-slide: 800ms;
+            --dur-reveal: 550ms;
         }
 
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -35,18 +48,18 @@
             overflow: hidden;
             -webkit-text-size-adjust: 100%;
         }
+
         body {
             background: var(--bg);
-            color: var(--text);
+            color: var(--text-1);
             font-family: var(--sans);
-            font-size: clamp(14px, 1.6vh, 18px);
-            font-weight: 300;
-            line-height: 1.6;
+            font-size: var(--fs-body);
+            font-weight: 400;
+            line-height: 1.7;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
 
-        /* ── 幻灯片基础 ── */
         .slide {
             position: absolute;
             inset: 0;
@@ -56,1062 +69,1189 @@
             display: flex;
             flex-direction: column;
             justify-content: center;
-            padding: clamp(48px, 10vh, 120px) clamp(48px, 10vw, 160px);
+            padding: var(--pad-y) var(--pad-x-right) var(--pad-y) var(--pad-x-left);
             opacity: 0;
             visibility: hidden;
-            transition: opacity var(--dur-slide) var(--ease), visibility var(--dur-slide);
-            will-change: opacity;
+            transition: opacity var(--dur-slide) var(--ease), visibility 0s linear var(--dur-slide);
         }
+
         .slide.active {
             opacity: 1;
             visibility: visible;
+            transition: opacity var(--dur-slide) var(--ease), visibility 0s linear 0s;
         }
 
-        /* ── 抽象装饰圆 ── */
-        .slide::before,
-        .slide::after {
-            content: '';
-            position: absolute;
-            border-radius: 50%;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 2s var(--ease);
-        }
-        .slide::before {
-            width: clamp(300px, 50vw, 700px);
-            height: clamp(300px, 50vw, 700px);
-            top: -15%;
-            right: -10%;
-            background: radial-gradient(circle, var(--glow-faint) 0%, transparent 70%);
-        }
-        .slide::after {
-            width: clamp(200px, 35vw, 500px);
-            height: clamp(200px, 35vw, 500px);
-            bottom: -10%;
-            left: -8%;
-            background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%);
-        }
-        .slide.active::before,
-        .slide.active::after {
-            opacity: 1;
-        }
-
-        /* ── Reveal 动画系统 ── */
-        .reveal {
-            opacity: 0;
-            transform: translateY(clamp(12px, 2vh, 24px));
-            transition: opacity var(--dur-reveal) var(--ease-out), transform var(--dur-reveal) var(--ease-out);
-        }
-        .reveal-fade {
-            opacity: 0;
-            transition: opacity var(--dur-fade) var(--ease-out);
-        }
-        .active .reveal,
-        .active .reveal-fade {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        .active .reveal.d1, .active .reveal-fade.d1 { transition-delay: 0.15s; }
-        .active .reveal.d2, .active .reveal-fade.d2 { transition-delay: 0.30s; }
-        .active .reveal.d3, .active .reveal-fade.d3 { transition-delay: 0.45s; }
-        .active .reveal.d4, .active .reveal-fade.d4 { transition-delay: 0.60s; }
-        .active .reveal.d5, .active .reveal-fade.d5 { transition-delay: 0.75s; }
-        .active .reveal.d6, .active .reveal-fade.d6 { transition-delay: 0.90s; }
-        .active .reveal.d7, .active .reveal-fade.d7 { transition-delay: 1.05s; }
-        .active .reveal.d8, .active .reveal-fade.d8 { transition-delay: 1.20s; }
-        .active .reveal.d9, .active .reveal-fade.d9 { transition-delay: 1.35s; }
-        .active .reveal.d10, .active .reveal-fade.d10 { transition-delay: 1.50s; }
-
-        /* ── 通用标签 ── */
-        .eyebrow {
-            font-family: var(--sans);
-            font-size: clamp(9px, 1.1vh, 12px);
-            font-weight: 400;
-            color: var(--text-muted);
-            letter-spacing: clamp(4px, 0.6vw, 8px);
-            text-transform: uppercase;
-            margin-bottom: clamp(16px, 2.5vh, 32px);
-        }
-
-        /* ── 通用标题 ── */
-        .title-main {
-            font-family: var(--serif);
-            font-size: clamp(24px, 3.5vw, 56px);
-            font-weight: 300;
-            line-height: 1.3;
-            letter-spacing: clamp(0.5px, 0.1vw, 2px);
-            margin-bottom: clamp(12px, 2vh, 28px);
-            color: var(--text);
-        }
-
-        .desc-text {
-            font-size: clamp(14px, 1.5vh, 17px);
-            font-weight: 300;
-            color: var(--text-dim);
-            line-height: 1.9;
-            max-width: 560px;
-        }
-
-        /* ====== Slide: 封面 ====== */
-        .slide-cover {
+        .slide--center {
             align-items: center;
             text-align: center;
-            justify-content: center;
-        }
-        .slide-cover h1 {
-            font-family: var(--serif);
-            font-size: clamp(36px, 7vw, 120px);
-            font-weight: 300;
-            letter-spacing: clamp(-1px, -0.05vw, 0px);
-            line-height: 1.05;
-            color: var(--text);
-        }
-        .slide-cover .cover-line {
-            width: clamp(40px, 5vw, 80px);
-            height: 1px;
-            background: var(--text-dim);
-            margin: clamp(24px, 4vh, 56px) 0;
-        }
-        .slide-cover .cover-sub {
-            font-family: var(--sans);
-            font-size: clamp(12px, 2vh, 20px);
-            font-weight: 300;
-            color: var(--text-muted);
-            letter-spacing: clamp(4px, 0.8vw, 12px);
-            text-transform: uppercase;
-        }
-        .slide-cover .cover-meta {
-            margin-top: clamp(32px, 5vh, 64px);
-            font-size: clamp(12px, 2vh, 20px);
-            color: rgba(255,255,255,0.35);
-            font-weight: 300;
-            letter-spacing: clamp(1px, 0.2vw, 3px);
+            padding-left: var(--pad-x-right);
         }
 
-        /* ====== Slide: 议程 ====== */
+        /* Reveal */
+        .reveal {
+            opacity: 0;
+            transform: translateY(14px);
+            transition: opacity var(--dur-reveal) var(--ease), transform var(--dur-reveal) var(--ease);
+        }
+        .reveal-scale {
+            opacity: 0;
+            transform: scale(0.96);
+            transition: opacity var(--dur-reveal) var(--ease), transform var(--dur-reveal) var(--ease);
+        }
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-16px);
+            transition: opacity var(--dur-reveal) var(--ease), transform var(--dur-reveal) var(--ease);
+        }
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(16px);
+            transition: opacity var(--dur-reveal) var(--ease), transform var(--dur-reveal) var(--ease);
+        }
+        .active .reveal,
+        .active .reveal-scale,
+        .active .reveal-left,
+        .active .reveal-right {
+            opacity: 1;
+            transform: none;
+        }
+        .active .d1 { transition-delay: 140ms; }
+        .active .d2 { transition-delay: 280ms; }
+        .active .d3 { transition-delay: 420ms; }
+        .active .d4 { transition-delay: 560ms; }
+        .active .d5 { transition-delay: 700ms; }
+        .active .d6 { transition-delay: 840ms; }
+        .active .d7 { transition-delay: 980ms; }
+        .active .d8 { transition-delay: 1120ms; }
+        .active .d9 { transition-delay: 1260ms; }
+        .active .d10 { transition-delay: 1400ms; }
+
+        /* Label */
+        .label {
+            font-family: var(--sans);
+            font-size: var(--fs-label);
+            font-weight: 600;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-3);
+            margin-bottom: clamp(1rem, 2vh, 1.5rem);
+        }
+
+        /* Section title */
+        .section-title {
+            font-family: var(--serif);
+            font-size: var(--fs-h2);
+            font-weight: 400;
+            line-height: 1.3;
+            color: var(--text-1);
+            margin-bottom: clamp(1.5rem, 3vh, 2.5rem);
+        }
+
+        /* Ghost number */
+        .ghost {
+            position: absolute;
+            font-family: var(--serif);
+            font-size: var(--fs-ghost);
+            font-weight: 400;
+            color: var(--text-ghost);
+            line-height: 0.8;
+            pointer-events: none;
+            user-select: none;
+            z-index: 0;
+            opacity: 0;
+            transition: opacity var(--dur-reveal) var(--ease);
+        }
+        .active .ghost {
+            opacity: 1;
+        }
+
+        /* Rule */
+        .rule {
+            width: clamp(2.5rem, 4vw, 5rem);
+            height: 1px;
+            background: var(--rule);
+        }
+        .rule--vert {
+            width: 1px;
+            height: clamp(2rem, 4vh, 4rem);
+            background: var(--rule);
+        }
+
+        /* Body text */
+        .body-text {
+            font-size: var(--fs-body);
+            font-weight: 300;
+            color: var(--text-2);
+            line-height: 1.9;
+            max-width: 60ch;
+        }
+
+        /* Cover */
+        .slide-cover {
+            justify-content: flex-end;
+            padding-bottom: clamp(5rem, 12vh, 14vh);
+            position: relative;
+        }
+        .cover-ghost {
+            top: clamp(2rem, 6vh, 8vh);
+            right: var(--pad-x-right);
+            font-size: clamp(12rem, 28vw, 36rem);
+            opacity: 0.4;
+        }
+        .cover-title {
+            font-family: var(--serif);
+            font-size: var(--fs-display);
+            font-weight: 400;
+            line-height: 1.05;
+            color: var(--text-1);
+            position: relative;
+            z-index: 1;
+        }
+        .cover-rule {
+            margin: clamp(1.5rem, 3vh, 2.5rem) 0;
+        }
+        .cover-sub {
+            font-size: var(--fs-body);
+            font-weight: 300;
+            color: var(--text-2);
+            line-height: 1.9;
+            position: relative;
+            z-index: 1;
+        }
+        .cover-meta {
+            margin-top: clamp(1.5rem, 3vh, 2.5rem);
+            font-size: var(--fs-small);
+            color: var(--text-3);
+            letter-spacing: 0.05em;
+        }
+
+        /* Agenda */
         .agenda-list {
             list-style: none;
-            margin-top: clamp(16px, 3vh, 40px);
+            margin-top: clamp(0.5rem, 1vh, 1rem);
         }
         .agenda-item {
             display: flex;
             align-items: baseline;
-            gap: clamp(16px, 2.5vw, 36px);
-            padding: clamp(14px, 2vh, 24px) 0;
-            border-bottom: 1px solid var(--border);
-            transition: border-color 0.5s var(--ease);
+            gap: clamp(1rem, 2vw, 2rem);
+            padding: clamp(0.8rem, 1.5vh, 1.2rem) 0;
+            border-bottom: 1px solid var(--rule-light);
         }
         .agenda-item:first-child {
-            border-top: 1px solid var(--border);
-        }
-        .agenda-item:hover {
-            border-bottom-color: var(--border-hover);
+            border-top: 1px solid var(--rule-light);
         }
         .agenda-num {
             font-family: var(--serif);
-            font-size: clamp(11px, 1.3vh, 15px);
-            color: var(--text-muted);
+            font-size: var(--fs-small);
+            color: var(--text-3);
             flex-shrink: 0;
-            width: clamp(24px, 3vw, 36px);
-            font-weight: 300;
+            min-width: clamp(1.5rem, 2.5vw, 2.5rem);
         }
-        .agenda-title {
-            font-size: clamp(14px, 1.7vh, 20px);
-            font-weight: 300;
-            color: var(--text);
-            letter-spacing: clamp(0.5px, 0.1vw, 2px);
+        .agenda-text {
+            font-size: var(--fs-body);
+            color: var(--text-2);
+            font-weight: 400;
         }
 
-        /* ====== Slide: 章节过渡 ====== */
+        /* Chapter */
         .slide-chapter {
-            align-items: flex-start;
+            justify-content: flex-end;
+            padding-bottom: clamp(5rem, 12vh, 14vh);
         }
-        .slide-chapter .chapter-num {
+        .chapter-ghost {
+            top: 50%;
+            left: var(--pad-x-left);
+            transform: translateY(-55%);
+        }
+        .active .chapter-ghost {
+            opacity: 1;
+            transform: translateY(-55%);
+        }
+        .chapter-title {
             font-family: var(--serif);
-            font-size: clamp(80px, 18vw, 280px);
-            font-weight: 300;
-            color: rgba(255,255,255,0.15);
-            line-height: 0.8;
-            margin-bottom: clamp(12px, 2vh, 28px);
+            font-size: var(--fs-h1);
+            font-weight: 400;
+            color: var(--text-1);
+            position: relative;
+            z-index: 1;
         }
-        .slide-chapter h2 {
-            font-family: var(--serif);
-            font-size: clamp(24px, 4vw, 64px);
-            font-weight: 300;
-            letter-spacing: clamp(2px, 0.4vw, 8px);
-            color: var(--text);
-        }
-        .slide-chapter .chapter-line {
-            width: clamp(30px, 4vw, 60px);
-            height: 1px;
-            background: var(--text-dim);
-            margin-top: clamp(16px, 2.5vh, 32px);
+        .chapter-rule {
+            margin-top: clamp(1rem, 2vh, 1.5rem);
         }
 
-        /* ====== Slide: 居中定义 ====== */
-        .slide-definition {
-            align-items: center;
-            text-align: center;
-        }
-        .slide-definition .def-term {
+        /* Definition */
+        .def-term {
             font-family: var(--serif);
-            font-size: clamp(28px, 4.5vw, 72px);
-            font-weight: 300;
+            font-size: var(--fs-h1);
+            font-weight: 400;
             font-style: italic;
-            color: var(--text);
-            margin-bottom: clamp(20px, 3.5vh, 48px);
-            letter-spacing: clamp(1px, 0.15vw, 3px);
+            color: var(--text-1);
+            margin-bottom: clamp(1.5rem, 3vh, 2.5rem);
         }
-        .slide-definition .def-body {
-            font-size: clamp(15px, 1.7vh, 20px);
-            font-weight: 300;
-            color: var(--text-dim);
-            line-height: 2.2;
-            max-width: clamp(400px, 50vw, 640px);
-        }
-        .slide-definition .def-line {
+        .def-rule {
             width: 1px;
-            height: clamp(24px, 3.5vh, 48px);
-            background: var(--text-muted);
-            margin: clamp(20px, 3vh, 40px) auto;
+            height: clamp(2rem, 4vh, 4rem);
+            background: var(--rule);
+            margin: 0 auto clamp(1.5rem, 3vh, 2.5rem);
+        }
+        .def-body {
+            font-size: var(--fs-body);
+            font-weight: 300;
+            color: var(--text-2);
+            line-height: 2.2;
+            max-width: 50ch;
+            margin: 0 auto;
         }
 
-        /* ====== Slide: 稀疏列表(原则) ====== */
+        /* Principles */
         .principle-list {
             list-style: none;
-            margin-top: clamp(12px, 2vh, 28px);
+            margin-top: clamp(0.5rem, 1vh, 1rem);
         }
         .principle-item {
-            display: flex;
+            display: grid;
+            grid-template-columns: clamp(3rem, 5vw, 5rem) 1fr;
+            gap: clamp(1rem, 2vw, 2rem);
+            padding: clamp(1.2rem, 2vh, 2rem) 0;
+            border-bottom: 1px solid var(--rule-light);
             align-items: baseline;
-            gap: clamp(20px, 3vw, 48px);
-            padding: clamp(18px, 2.8vh, 36px) 0;
-            border-bottom: 1px solid var(--border);
         }
         .principle-item:first-child {
-            border-top: 1px solid var(--border);
+            border-top: 1px solid var(--rule-light);
         }
         .principle-num {
             font-family: var(--serif);
-            font-size: clamp(28px, 4vh, 52px);
-            font-weight: 300;
-            color: rgba(255,255,255,0.25);
-            flex-shrink: 0;
+            font-size: clamp(1.8rem, 3vh, 2.8rem);
+            font-weight: 400;
+            color: var(--text-3);
             line-height: 1;
         }
-        .principle-body h4 {
+        .principle-title {
             font-family: var(--serif);
-            font-size: clamp(16px, 2vh, 24px);
-            font-weight: 300;
-            color: var(--text);
-            margin-bottom: clamp(4px, 0.6vh, 10px);
-            letter-spacing: clamp(0.5px, 0.1vw, 2px);
-        }
-        .principle-body p {
-            font-size: clamp(13px, 1.3vh, 15px);
-            font-weight: 300;
-            color: var(--text-dim);
-            line-height: 1.8;
-        }
-
-        /* ====== Slide: 对比卡片网格 ====== */
-        .contrast-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1px;
-            background: var(--border);
-            margin-top: clamp(20px, 3.5vh, 44px);
-        }
-        .contrast-card {
-            background: var(--bg);
-            padding: clamp(24px, 3.5vh, 44px) clamp(20px, 3vw, 40px);
-            transition: background 0.6s var(--ease);
-        }
-        .contrast-card:hover {
-            background: var(--surface-hover);
-        }
-        .contrast-label {
-            font-size: clamp(9px, 1vh, 11px);
+            font-size: var(--fs-h3);
             font-weight: 400;
-            color: var(--text-muted);
-            letter-spacing: clamp(2px, 0.4vw, 5px);
-            text-transform: uppercase;
-            margin-bottom: clamp(10px, 1.5vh, 20px);
+            color: var(--text-1);
+            margin-bottom: clamp(0.3rem, 0.5vh, 0.5rem);
         }
-        .contrast-card h4 {
-            font-family: var(--serif);
-            font-size: clamp(18px, 2.2vh, 28px);
+        .principle-desc {
+            font-size: var(--fs-small);
             font-weight: 300;
-            color: var(--text);
-            margin-bottom: clamp(8px, 1vh, 14px);
-        }
-        .contrast-card p {
-            font-size: clamp(13px, 1.3vh, 15px);
-            font-weight: 300;
-            color: var(--text-dim);
+            color: var(--text-2);
             line-height: 1.8;
         }
 
-        /* ====== Slide: 统计数字 ====== */
+        /* Comparison */
+        .compare-wrap {
+            display: grid;
+            grid-template-columns: 1fr 1px 1fr;
+            gap: clamp(2rem, 4vw, 4rem);
+            margin-top: clamp(1rem, 2vh, 2rem);
+            align-items: start;
+        }
+        .compare-divider {
+            background: linear-gradient(to bottom, transparent, var(--rule) 20%, var(--rule) 80%, transparent);
+            align-self: stretch;
+        }
+        .compare-col h4 {
+            font-family: var(--serif);
+            font-size: var(--fs-h3);
+            font-weight: 400;
+            color: var(--text-1);
+            margin-bottom: clamp(1rem, 2vh, 1.5rem);
+        }
+        .compare-col ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.5rem, 1vh, 0.8rem);
+        }
+        .compare-col li {
+            font-size: var(--fs-body);
+            font-weight: 300;
+            color: var(--text-2);
+            line-height: 1.8;
+            padding: clamp(0.4rem, 0.6vh, 0.6rem) 0;
+        }
+
+        /* Chart bars */
+        .chart-list {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(1.2rem, 2.5vh, 2rem);
+            margin-top: clamp(1rem, 2vh, 2rem);
+        }
+        .chart-item {
+            display: grid;
+            grid-template-columns: clamp(7rem, 12vw, 11rem) 1fr clamp(2.5rem, 4vw, 3.5rem);
+            gap: clamp(0.8rem, 1.5vw, 1.5rem);
+            align-items: center;
+        }
+        .chart-label {
+            font-size: var(--fs-small);
+            font-weight: 400;
+            color: var(--text-2);
+            text-align: right;
+        }
+        .chart-bar {
+            height: 3px;
+            background: var(--rule-light);
+            overflow: hidden;
+        }
+        .chart-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--text-2);
+            transition: width 1.2s var(--ease);
+        }
+        .chart-value {
+            font-family: var(--sans);
+            font-size: var(--fs-small);
+            font-weight: 500;
+            color: var(--text-3);
+        }
+
+        /* Statistics */
         .stats-row {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1px;
-            background: var(--border);
-            margin-top: clamp(20px, 3.5vh, 44px);
+            grid-template-columns: 1fr 1px 1fr 1px 1fr;
+            gap: clamp(1.5rem, 3vw, 3rem);
+            margin-top: clamp(1.5rem, 3vh, 3rem);
+            align-items: center;
+        }
+        .stats-divider {
+            height: clamp(4rem, 8vh, 8rem);
+            background: var(--rule-light);
+            align-self: center;
         }
         .stat-cell {
-            background: var(--bg);
-            padding: clamp(28px, 4vh, 56px) clamp(20px, 3vw, 40px);
             text-align: center;
         }
         .stat-value {
             font-family: var(--serif);
-            font-size: clamp(36px, 6vh, 80px);
-            font-weight: 300;
-            color: var(--text);
+            font-size: var(--fs-stat);
+            font-weight: 400;
+            color: var(--text-1);
             line-height: 1;
-            margin-bottom: clamp(8px, 1.2vh, 16px);
+            margin-bottom: clamp(0.5rem, 1vh, 1rem);
         }
         .stat-value .unit {
-            font-size: clamp(16px, 2.2vh, 28px);
-            color: var(--text-dim);
-            font-weight: 300;
+            font-size: 0.4em;
+            color: var(--text-3);
         }
         .stat-label {
-            font-size: clamp(11px, 1.2vh, 14px);
-            font-weight: 300;
-            color: var(--text-muted);
-            letter-spacing: clamp(1px, 0.2vw, 3px);
+            font-size: var(--fs-label);
+            font-weight: 500;
+            color: var(--text-3);
+            letter-spacing: 0.1em;
         }
 
-        /* ====== Slide: 引用 ====== */
-        .slide-quote {
-            align-items: center;
-            text-align: center;
-        }
-        .slide-quote blockquote {
+        /* Statement */
+        .statement-text {
             font-family: var(--serif);
-            font-size: clamp(24px, 4vw, 64px);
-            font-weight: 300;
+            font-size: clamp(2.5rem, 7vw, 7rem);
+            font-weight: 400;
             font-style: italic;
-            line-height: 1.5;
-            color: var(--text);
-            max-width: clamp(500px, 65vw, 900px);
+            line-height: 1.2;
+            color: var(--text-1);
+            max-width: 14em;
         }
-        .slide-quote .quote-mark {
-            font-family: var(--serif);
-            font-size: clamp(48px, 8vh, 120px);
+        .statement-text .accent {
+            border-bottom: 1px solid var(--rule);
+            padding-bottom: 2px;
+        }
+        .statement-sub {
+            margin-top: clamp(1.5rem, 3vh, 2.5rem);
+            font-size: var(--fs-body);
             font-weight: 300;
-            color: rgba(255,255,255,0.20);
-            line-height: 0.5;
-            margin-bottom: clamp(12px, 2vh, 28px);
-        }
-        .slide-quote .quote-author {
-            margin-top: clamp(24px, 3.5vh, 48px);
-            font-size: clamp(11px, 1.2vh, 14px);
-            font-weight: 300;
-            color: var(--text-muted);
-            letter-spacing: clamp(2px, 0.4vw, 6px);
-        }
-        .slide-quote .quote-line {
-            width: clamp(24px, 3vw, 48px);
-            height: 1px;
-            background: var(--text-muted);
-            margin: clamp(16px, 2.5vh, 32px) auto;
+            color: var(--text-2);
+            max-width: 40ch;
+            line-height: 1.9;
         }
 
-        /* ====== Slide: 垂直步骤 ====== */
-        .steps-vertical {
-            list-style: none;
-            margin-top: clamp(12px, 2vh, 28px);
-            position: relative;
-            padding-left: clamp(32px, 4vw, 56px);
+        /* Quote */
+        .slide-quote { justify-content: center; }
+        .quote-text {
+            font-family: var(--serif);
+            font-size: var(--fs-quote);
+            font-weight: 400;
+            font-style: italic;
+            line-height: 1.6;
+            color: var(--text-1);
+            max-width: 22em;
         }
-        .steps-vertical::before {
+        .quote-rule {
+            width: clamp(2rem, 3vw, 3.5rem);
+            height: 1px;
+            background: var(--rule);
+            margin: clamp(1.5rem, 3vh, 2.5rem) auto;
+        }
+        .quote-source {
+            font-size: var(--fs-small);
+            font-weight: 400;
+            color: var(--text-3);
+            letter-spacing: 0.1em;
+        }
+
+        /* Steps */
+        .steps-wrap {
+            position: relative;
+            padding-left: clamp(2.5rem, 4vw, 4rem);
+            margin-top: clamp(1rem, 2vh, 2rem);
+        }
+        .steps-wrap::before {
             content: '';
             position: absolute;
             left: 0;
-            top: clamp(8px, 1vh, 14px);
-            bottom: clamp(8px, 1vh, 14px);
+            top: clamp(0.8rem, 1.5vh, 1.2rem);
+            bottom: clamp(0.8rem, 1.5vh, 1.2rem);
             width: 1px;
-            background: var(--border);
+            background: var(--rule);
         }
         .step-item {
             position: relative;
-            padding: clamp(14px, 2vh, 24px) 0;
+            padding: clamp(0.8rem, 1.5vh, 1.2rem) 0;
         }
         .step-item::before {
             content: '';
             position: absolute;
-            left: calc(clamp(-32px, -4vw, -56px) - 3px);
-            top: clamp(22px, 3vh, 34px);
-            width: clamp(5px, 0.7vh, 7px);
-            height: clamp(5px, 0.7vh, 7px);
+            left: calc(-1 * clamp(2.5rem, 4vw, 4rem) - 2px);
+            top: clamp(1.4rem, 2.2vh, 2rem);
+            width: 5px;
+            height: 5px;
             border-radius: 50%;
-            background: var(--text-muted);
-            transition: background 0.5s var(--ease);
+            background: var(--text-3);
         }
-        .step-item:hover::before {
-            background: var(--text);
-        }
-        .step-num {
-            font-family: var(--serif);
-            font-size: clamp(10px, 1.1vh, 12px);
-            color: var(--text-muted);
-            letter-spacing: clamp(2px, 0.3vw, 4px);
-            margin-bottom: clamp(4px, 0.5vh, 8px);
+        .step-label {
+            font-size: var(--fs-label);
+            font-weight: 600;
+            color: var(--text-3);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: clamp(0.2rem, 0.3vh, 0.4rem);
         }
         .step-item h4 {
             font-family: var(--serif);
-            font-size: clamp(16px, 2vh, 24px);
-            font-weight: 300;
-            color: var(--text);
-            margin-bottom: clamp(4px, 0.5vh, 8px);
+            font-size: var(--fs-h3);
+            font-weight: 400;
+            color: var(--text-1);
+            margin-bottom: clamp(0.2rem, 0.4vh, 0.4rem);
         }
         .step-item p {
-            font-size: clamp(13px, 1.3vh, 15px);
+            font-size: var(--fs-small);
             font-weight: 300;
-            color: var(--text-dim);
+            color: var(--text-2);
             line-height: 1.8;
         }
 
-        /* ====== Slide: 日常实践(极简网格) ====== */
+        /* Split */
+        .split-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: clamp(2rem, 5vw, 5rem);
+            margin-top: clamp(1.5rem, 3vh, 2.5rem);
+            align-items: center;
+        }
+        .split-num {
+            text-align: center;
+        }
+        .split-num-value {
+            font-family: var(--serif);
+            font-size: var(--fs-stat);
+            font-weight: 400;
+            color: var(--text-1);
+            line-height: 1;
+        }
+        .split-num-label {
+            font-size: var(--fs-label);
+            font-weight: 500;
+            color: var(--text-3);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-top: clamp(0.5rem, 1vh, 1rem);
+        }
+        .split-info h3 {
+            font-family: var(--serif);
+            font-size: var(--fs-h3);
+            font-weight: 400;
+            color: var(--text-1);
+            margin-bottom: clamp(1rem, 2vh, 1.5rem);
+        }
+        .split-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.5rem, 1vh, 0.8rem);
+        }
+        .split-list li {
+            padding: clamp(0.5rem, 0.8vh, 0.8rem) 0;
+            border-bottom: 1px solid var(--rule-light);
+            font-size: var(--fs-body);
+            font-weight: 300;
+            color: var(--text-2);
+            line-height: 1.8;
+            padding-left: clamp(1rem, 2vw, 1.5rem);
+            position: relative;
+        }
+        .split-list li::before {
+            content: '/';
+            position: absolute;
+            left: 0;
+            color: var(--text-3);
+        }
+
+        /* Practice grid */
         .practice-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 1px;
-            background: var(--border);
-            margin-top: clamp(20px, 3.5vh, 44px);
+            gap: clamp(2rem, 4vw, 4rem) clamp(1.5rem, 3vw, 3rem);
+            margin-top: clamp(1.5rem, 3vh, 2.5rem);
         }
         .practice-card {
-            background: var(--bg);
-            padding: clamp(20px, 3vh, 40px) clamp(16px, 2.5vw, 32px);
-            transition: background 0.6s var(--ease);
-        }
-        .practice-card:hover {
-            background: var(--surface-hover);
+            padding: clamp(0.5rem, 1vh, 1rem) 0;
         }
         .practice-time {
             font-family: var(--serif);
-            font-size: clamp(22px, 3vh, 40px);
-            font-weight: 300;
-            color: rgba(255,255,255,0.25);
-            margin-bottom: clamp(8px, 1.2vh, 16px);
+            font-size: clamp(1.8rem, 3vh, 2.5rem);
+            font-weight: 400;
+            color: var(--text-ghost);
             line-height: 1;
+            margin-bottom: clamp(0.5rem, 1vh, 0.8rem);
         }
         .practice-card h4 {
-            font-size: clamp(13px, 1.5vh, 17px);
-            font-weight: 400;
-            color: var(--text);
-            margin-bottom: clamp(6px, 0.8vh, 12px);
-            letter-spacing: clamp(0.5px, 0.1vw, 1.5px);
+            font-size: var(--fs-body);
+            font-weight: 500;
+            color: var(--text-1);
+            margin-bottom: clamp(0.3rem, 0.5vh, 0.5rem);
         }
         .practice-card p {
-            font-size: clamp(12px, 1.2vh, 14px);
+            font-size: var(--fs-small);
             font-weight: 300;
-            color: var(--text-dim);
+            color: var(--text-2);
             line-height: 1.7;
         }
 
-        /* ====== Slide: 总结 ====== */
-        .summary-list {
-            list-style: none;
-            margin-top: clamp(16px, 2.5vh, 32px);
+        /* Matrix */
+        .matrix-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: clamp(12px, 2vh, 24px) clamp(20px, 3vw, 48px);
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: clamp(1.5rem, 3vh, 3rem);
+            margin-top: clamp(1.5rem, 3vh, 2.5rem);
+            position: relative;
+        }
+        .matrix-grid::before,
+        .matrix-grid::after {
+            content: '';
+            position: absolute;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .matrix-grid::before {
+            left: 50%;
+            top: 8%;
+            bottom: 8%;
+            width: 1px;
+            transform: translateX(-0.5px);
+            background: linear-gradient(to bottom, transparent, var(--rule) 20%, var(--rule) 80%, transparent);
+        }
+        .matrix-grid::after {
+            top: 50%;
+            left: 8%;
+            right: 8%;
+            height: 1px;
+            transform: translateY(-0.5px);
+            background: linear-gradient(to right, transparent, var(--rule) 20%, var(--rule) 80%, transparent);
+        }
+        .matrix-cell {
+            padding: clamp(1.2rem, 2.5vh, 2.5rem) clamp(1rem, 2vw, 2rem);
+        }
+        .matrix-cell h4 {
+            font-family: var(--serif);
+            font-size: var(--fs-h3);
+            font-weight: 400;
+            color: var(--text-1);
+            margin-bottom: clamp(0.4rem, 0.6vh, 0.6rem);
+        }
+        .matrix-cell p {
+            font-size: var(--fs-small);
+            font-weight: 300;
+            color: var(--text-2);
+            line-height: 1.7;
+        }
+
+        /* Summary */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(1.5rem, 3vh, 2.5rem) clamp(2rem, 4vw, 4rem);
+            margin-top: clamp(1rem, 2vh, 2rem);
         }
         .summary-item {
-            padding: clamp(16px, 2.5vh, 28px) 0;
-            border-top: 1px solid var(--border);
+            padding-top: clamp(1rem, 1.5vh, 1.5rem);
+            border-top: 1px solid var(--rule);
         }
         .summary-item h4 {
             font-family: var(--serif);
-            font-size: clamp(15px, 1.8vh, 22px);
-            font-weight: 300;
-            color: var(--text);
-            margin-bottom: clamp(6px, 0.8vh, 12px);
+            font-size: var(--fs-h3);
+            font-weight: 400;
+            color: var(--text-1);
+            margin-bottom: clamp(0.4rem, 0.6vh, 0.6rem);
         }
         .summary-item p {
-            font-size: clamp(13px, 1.3vh, 15px);
+            font-size: var(--fs-small);
             font-weight: 300;
-            color: var(--text-dim);
+            color: var(--text-2);
             line-height: 1.8;
         }
 
-        /* ====== Slide: 大字声明 ====== */
-        .slide-statement { text-align: center; align-items: center; justify-content: center; }
-        .statement-text { font-family: var(--serif); font-size: clamp(2.5rem, 8vw, 7rem); font-weight: 300; font-style: italic; line-height: 1.15; letter-spacing: 0.04em; color: var(--text); max-width: 16em; }
-        .statement-text .accent { border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 2px; }
-        .statement-sub { margin-top: clamp(16px, 3vh, 32px); font-size: clamp(14px, 1.6vh, 18px); color: var(--text-muted); max-width: 36em; line-height: 1.8; }
-
-        /* ====== Slide: 图表/进度条 ====== */
-        .chart-list { display: flex; flex-direction: column; gap: clamp(16px, 3vh, 32px); margin-top: clamp(24px, 4.5vh, 48px); width: 100%; }
-        .chart-item { display: grid; grid-template-columns: clamp(8rem, 14vw, 12rem) 1fr clamp(3rem, 5vw, 4rem); gap: clamp(8px, 1.5vh, 16px); align-items: center; }
-        .chart-label { font-family: var(--sans); font-size: clamp(14px, 1.6vh, 18px); font-weight: 300; color: var(--text); text-align: right; }
-        .chart-bar { height: clamp(3px, 0.5vh, 5px); background: var(--surface); overflow: hidden; }
-        .chart-fill { height: 100%; width: 0%; background: var(--text); transition: width 1.2s var(--ease); }
-        .chart-value { font-family: var(--sans); font-size: clamp(12px, 1.3vh, 15px); font-weight: 400; color: var(--text-dim); letter-spacing: 0.08em; }
-
-        /* ====== Slide: 矩阵/象限 ====== */
-        .matrix-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: clamp(16px, 3vh, 32px); margin-top: clamp(24px, 4.5vh, 48px); width: 100%; position: relative; }
-        .matrix-grid::before, .matrix-grid::after { content: ''; position: absolute; pointer-events: none; z-index: 1; }
-        .matrix-grid::before { left: 50%; top: 5%; bottom: 5%; width: 1px; transform: translateX(-0.5px); background: linear-gradient(to bottom, transparent, var(--border) 20%, var(--border) 80%, transparent); }
-        .matrix-grid::after { top: 50%; left: 5%; right: 5%; height: 1px; transform: translateY(-0.5px); background: linear-gradient(to right, transparent, var(--border) 20%, var(--border) 80%, transparent); }
-        .matrix-cell { padding: clamp(16px, 3vh, 32px); transition: background 0.6s var(--ease); }
-        .matrix-cell:hover { background: var(--surface); }
-        .cell-title { font-family: var(--serif); font-size: clamp(1rem, 2vh, 1.4rem); font-weight: 400; color: var(--text); margin-bottom: clamp(4px, 0.8vh, 8px); }
-        .cell-desc { font-size: clamp(13px, 1.3vh, 15px); font-weight: 300; color: var(--text-muted); line-height: 1.7; }
-
-        /* ====== Slide: 双栏详情 ====== */
-        .split-detail { display: grid; grid-template-columns: 2fr 3fr; gap: clamp(24px, 5vw, 56px); margin-top: clamp(24px, 4.5vh, 48px); width: 100%; align-items: center; }
-        .split-visual { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: clamp(24px, 4.5vh, 48px); border: 1px solid var(--border); }
-        .split-visual-num { font-family: var(--serif); font-size: clamp(2.5rem, 6vh, 5rem); font-weight: 300; color: var(--text); line-height: 1; }
-        .split-visual-label { font-family: var(--sans); font-size: clamp(11px, 1.2vh, 14px); font-weight: 400; color: var(--text-muted); letter-spacing: 0.25em; text-transform: uppercase; margin-top: clamp(8px, 1.5vh, 16px); }
-        .split-info h3 { font-family: var(--serif); font-size: clamp(1.1rem, 2.2vh, 1.6rem); font-weight: 400; color: var(--text); margin-bottom: clamp(16px, 3vh, 32px); }
-        .split-info-list { list-style: none; display: flex; flex-direction: column; gap: clamp(8px, 1.5vh, 16px); }
-        .split-info-list li { padding: clamp(6px, 1vh, 10px) 0; border-bottom: 1px solid var(--border); font-size: clamp(14px, 1.6vh, 18px); font-weight: 300; color: var(--text-dim); line-height: 1.7; padding-left: clamp(16px, 3vh, 28px); position: relative; }
-        .split-info-list li::before { content: '/'; position: absolute; left: 0; top: clamp(6px, 1vh, 10px); color: var(--text-muted); }
-
-        /* ====== Slide: 结束 ====== */
-        .slide-end {
-            align-items: center;
-            text-align: center;
-        }
-        .slide-end .end-statement {
+        /* End */
+        .slide-end { justify-content: center; }
+        .end-statement {
             font-family: var(--serif);
-            font-size: clamp(24px, 4vw, 64px);
-            font-weight: 300;
+            font-size: var(--fs-h1);
+            font-weight: 400;
             font-style: italic;
             line-height: 1.4;
-            color: var(--text);
-            max-width: clamp(400px, 55vw, 720px);
+            color: var(--text-1);
         }
-        .slide-end .end-line {
-            width: clamp(40px, 5vw, 80px);
-            height: 1px;
-            background: var(--text-muted);
-            margin: clamp(28px, 4.5vh, 56px) auto;
-        }
-        .slide-end .end-credit {
-            font-size: clamp(12px, 2vh, 20px);
-            font-weight: 300;
-            color: rgba(255,255,255,0.35);
-            letter-spacing: clamp(3px, 0.5vw, 8px);
+        .end-credit {
+            font-size: var(--fs-label);
+            font-weight: 600;
+            color: var(--text-3);
+            letter-spacing: 0.2em;
             text-transform: uppercase;
         }
+        .end-rule {
+            width: clamp(3rem, 5vw, 5rem);
+            height: 1px;
+            background: var(--rule);
+            margin: clamp(1.5rem, 3vh, 2.5rem) auto;
+        }
 
-        /* ── 代码块 ── */
+        /* Code block */
         pre {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            padding: clamp(16px, 2.5vh, 28px) clamp(18px, 2.5vw, 28px);
-            margin: clamp(16px, 2vh, 28px) 0;
+            background: var(--bg-inset);
+            border: 1px solid var(--rule-light);
+            padding: clamp(1rem, 2vh, 1.5rem) clamp(1.2rem, 2vw, 1.5rem);
+            margin: clamp(1rem, 1.5vh, 1.5rem) 0;
             overflow-x: auto;
         }
         pre code {
-            font-family: "SF Mono", "Fira Code", monospace;
-            font-size: clamp(13px, 1.3vh, 15px);
+            font-family: "SF Mono", "JetBrains Mono", "Fira Code", monospace;
+            font-size: var(--fs-small);
             line-height: 1.7;
-            color: var(--text-dim);
+            color: var(--text-2);
             white-space: pre;
             display: block;
         }
         code {
-            font-family: "SF Mono", "Fira Code", monospace;
-            background: var(--surface);
-            padding: 2px 8px;
-            font-size: 0.85em;
-            color: var(--text);
+            font-family: "SF Mono", "JetBrains Mono", "Fira Code", monospace;
+            background: var(--bg-inset);
+            padding: 2px 6px;
+            font-size: 0.88em;
+            color: var(--text-1);
         }
         pre code { background: none; padding: 0; }
 
-        /* ── 进度条 ── */
+        /* Progress */
         .progress-bar {
             position: fixed;
-            top: 0; left: 0; right: 0;
-            height: 1px;
-            background: rgba(255,255,255,0.05);
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--rule-light);
             z-index: 999;
         }
         .progress-fill {
             height: 100%;
-            background: var(--text-dim);
+            background: var(--text-2);
             width: 0%;
-            transition: width 0.8s var(--ease);
+            transition: width 600ms var(--ease);
         }
 
-        /* ── 页码 ── */
+        /* Counter */
         .slide-counter {
             position: fixed;
-            bottom: clamp(20px, 3vh, 36px);
-            right: clamp(24px, 4vw, 48px);
+            bottom: clamp(1.5rem, 3vh, 2.5rem);
+            right: clamp(2rem, 4vw, 3.5rem);
             font-family: var(--sans);
-            font-size: clamp(10px, 1.1vh, 12px);
-            font-weight: 300;
-            color: var(--text-muted);
-            letter-spacing: clamp(1px, 0.2vw, 3px);
+            font-size: var(--fs-label);
+            font-weight: 500;
+            color: var(--text-3);
+            letter-spacing: 0.15em;
             z-index: 999;
             display: flex;
             align-items: center;
-            gap: clamp(6px, 0.8vw, 10px);
+            gap: 6px;
         }
         .slide-counter .current {
-            color: var(--text-dim);
+            color: var(--text-2);
         }
 
-        /* ── 响应式：高度 ≤750px ── */
+        /* Responsive: height <= 750px */
         @media (max-height: 750px) {
-            .slide { padding: clamp(36px, 7vh, 80px) clamp(36px, 7vw, 100px); }
-            .slide-cover h1 { font-size: clamp(32px, 6vw, 90px); }
-            .slide-chapter .chapter-num { font-size: clamp(60px, 14vw, 200px); }
-            .contrast-grid, .stats-row, .practice-grid { margin-top: clamp(16px, 2.5vh, 32px); }
+            :root {
+                --fs-display: clamp(3rem, 9vw, 9rem);
+                --fs-ghost: clamp(6rem, 16vw, 18rem);
+                --fs-h1: clamp(1.8rem, 3.5vw, 3.5rem);
+                --fs-stat: clamp(2.5rem, 7vw, 7rem);
+                --pad-y: clamp(2.5rem, 6vh, 6vh);
+            }
         }
 
-        /* ── 响应式：高度 ≤650px ── */
+        /* Responsive: height <= 650px */
         @media (max-height: 650px) {
-            .slide { padding: clamp(28px, 5vh, 56px) clamp(28px, 6vw, 72px); }
-            .slide-cover h1 { font-size: clamp(28px, 5vw, 72px); }
-            .slide-chapter .chapter-num { font-size: clamp(48px, 12vw, 160px); }
-            .contrast-card { padding: clamp(16px, 2.5vh, 28px) clamp(14px, 2vw, 24px); }
-            .stat-cell { padding: clamp(18px, 2.8vh, 36px) clamp(14px, 2vw, 24px); }
-            .practice-grid { grid-template-columns: repeat(3, 1fr); }
-            .summary-list { gap: clamp(8px, 1.2vh, 16px) clamp(14px, 2vw, 28px); }
+            :root {
+                --fs-display: clamp(2.5rem, 7vw, 7rem);
+                --fs-ghost: clamp(4rem, 12vw, 14rem);
+                --fs-h1: clamp(1.5rem, 3vw, 3rem);
+                --fs-h2: clamp(1.3rem, 2.5vw, 2.5rem);
+                --fs-body: clamp(0.85rem, 1vw, 1rem);
+                --pad-y: clamp(1.5rem, 4vh, 4vh);
+            }
         }
 
-        /* ── 响应式：高度 ≤500px（横屏） ── */
+        /* Responsive: height <= 500px landscape */
         @media (max-height: 500px) and (orientation: landscape) {
-            .slide { padding: clamp(16px, 3vh, 32px) clamp(24px, 5vw, 56px); }
-            .slide-cover h1 { font-size: clamp(24px, 4.5vw, 56px); }
-            .slide-chapter .chapter-num { font-size: clamp(40px, 10vw, 120px); }
-            .contrast-grid { grid-template-columns: repeat(2, 1fr); }
-            .stats-row { grid-template-columns: repeat(3, 1fr); }
+            :root {
+                --fs-display: clamp(2rem, 5vw, 5rem);
+                --fs-ghost: clamp(3rem, 8vw, 9rem);
+                --fs-h1: clamp(1.3rem, 2.5vw, 2.5rem);
+                --fs-stat: clamp(2rem, 5vw, 4rem);
+                --pad-y: clamp(1rem, 2vh, 2vh);
+                --pad-x-left: clamp(2.5rem, 7vw, 8vw);
+                --pad-x-right: clamp(2rem, 5vw, 6vw);
+            }
             .practice-grid { grid-template-columns: repeat(3, 1fr); }
-            .principle-item { padding: clamp(10px, 1.5vh, 18px) 0; }
-            .steps-vertical .step-item { padding: clamp(8px, 1.2vh, 16px) 0; }
         }
 
-        /* ── 宽度断点：≤768px ── */
+        /* Responsive: width <= 768px */
         @media (max-width: 768px) {
-            .slide { padding: clamp(24px, 5vh, 48px) clamp(20px, 5vw, 40px); }
-            .contrast-grid { grid-template-columns: 1fr; }
-            .stats-row { grid-template-columns: 1fr; }
+            :root {
+                --pad-x-left: clamp(1.5rem, 5vw, 3rem);
+                --pad-x-right: clamp(1.5rem, 5vw, 3rem);
+            }
+            .compare-wrap { grid-template-columns: 1fr; gap: clamp(1.5rem, 3vh, 2.5rem); }
+            .compare-divider { display: none; }
+            .stats-row { grid-template-columns: 1fr; gap: clamp(1rem, 2vh, 1.5rem); }
+            .stats-divider { display: none; }
             .practice-grid { grid-template-columns: 1fr; }
-            .summary-list { grid-template-columns: 1fr; }
             .matrix-grid { grid-template-columns: 1fr; }
             .matrix-grid::before, .matrix-grid::after { display: none; }
-            .split-detail { grid-template-columns: 1fr; }
-            .chart-item { grid-template-columns: clamp(5rem, 10vw, 8rem) 1fr clamp(2.5rem, 4vw, 3.5rem); }
-            .slide-cover h1 { font-size: clamp(28px, 8vw, 56px); }
-            .slide-chapter .chapter-num { font-size: clamp(60px, 20vw, 120px); }
+            .split-grid { grid-template-columns: 1fr; }
+            .summary-grid { grid-template-columns: 1fr; }
+            .chart-item { grid-template-columns: clamp(5rem, 9vw, 7rem) 1fr clamp(2rem, 3vw, 3rem); }
+            .ghost { display: none; }
         }
 
-        /* ── 无障碍：减少动效 ── */
+        /* Reduced motion */
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after {
                 animation-duration: 0.01ms !important;
                 transition-duration: 0.01ms !important;
             }
             .slide { transition: none !important; }
-            .reveal, .reveal-fade { transform: none !important; transition: none !important; }
-            .slide.active .reveal, .slide.active .reveal-fade { opacity: 1; }
+            .reveal, .reveal-scale, .reveal-left, .reveal-right {
+                opacity: 1 !important;
+                transform: none !important;
+                transition: none !important;
+            }
         }
 
-        /* ── 全览模式 ── */
-        .ov-grid{position:fixed;inset:0;z-index:10000;background:rgba(10,10,15,.97);overflow:auto;padding:clamp(20px,3vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:clamp(10px,1.5vw,16px);align-content:start;opacity:0;transition:opacity .3s ease}
+        /* Overview */
+        .ov-grid{position:fixed;inset:0;z-index:10000;background:rgba(10,9,8,.97);overflow:auto;padding:clamp(20px,3vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:clamp(10px,1.5vw,16px);align-content:start;opacity:0;transition:opacity .3s ease}
         .ov-grid.ov-visible{opacity:1}
-        .ov-card{position:relative;aspect-ratio:16/10;overflow:hidden;border:2px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;background:var(--bg,#111);box-shadow:0 2px 8px rgba(0,0,0,.18)}
-        .ov-card:hover{border-color:rgba(100,160,255,.35);transform:scale(1.03);box-shadow:0 4px 16px rgba(0,0,0,.25)}
-        .ov-card.ov-current{border-color:rgba(100,170,255,.5);box-shadow:0 0 16px rgba(100,170,255,.12)}
+        .ov-card{position:relative;aspect-ratio:16/10;overflow:hidden;border:2px solid rgba(255,255,255,.06);border-radius:6px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;background:var(--bg);box-shadow:0 2px 8px rgba(0,0,0,.3)}
+        .ov-card:hover{border-color:rgba(255,255,255,.15);transform:scale(1.03);box-shadow:0 4px 16px rgba(0,0,0,.4)}
+        .ov-card.ov-current{border-color:rgba(255,255,255,.25);box-shadow:0 0 12px rgba(255,255,255,.05)}
         .ov-inner{position:absolute;top:0;left:0;width:100vw;height:100vh;transform-origin:top left;pointer-events:none;overflow:hidden}
         .ov-inner *{transition:none !important;animation:none !important}
-        .ov-inner .reveal,.ov-inner .reveal-scale,.ov-inner .reveal-left,.ov-inner .reveal-right,.ov-inner .reveal-blur{opacity:1 !important;transform:none !important;filter:none !important}
-        .ov-num{position:absolute;top:6px;right:8px;font-size:12px;color:rgba(255,255,255,.5);background:rgba(0,0,0,.6);padding:2px 8px;border-radius:4px;z-index:2;font-family:system-ui,monospace}
-        .ov-close{position:fixed;top:16px;right:20px;z-index:10001;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
-        .ov-close:hover{background:rgba(255,255,255,.2)}
+        .ov-inner .reveal,.ov-inner .reveal-scale,.ov-inner .reveal-left,.ov-inner .reveal-right{opacity:1 !important;transform:none !important}
+        .ov-num{position:absolute;top:6px;right:8px;font-size:11px;color:rgba(255,255,255,.5);background:rgba(0,0,0,.6);padding:2px 7px;border-radius:3px;z-index:2;font-family:var(--sans)}
+        .ov-close{position:fixed;top:16px;right:20px;z-index:10001;width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.08);color:white;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+        .ov-close:hover{background:rgba(255,255,255,.15)}
     </style>
 </head>
 <body>
 
     <div class="presentation">
 
-        <!-- ====== Slide 1: 封面 ====== -->
+        <!-- Slide 1: Cover -->
         <section class="slide slide-cover active">
-            <p class="cover-sub reveal">The Philosophy of Minimalist Living</p>
-            <h1 class="reveal d1">极简主义<br>生活哲学</h1>
-            <div class="cover-line reveal d2"></div>
-            <p class="cover-sub reveal d3">少即是多，回归本质</p>
-            <p class="cover-meta reveal d4">二〇二六 · 生活美学系列</p>
+            <div class="ghost cover-ghost">A</div>
+            <div class="label reveal">Architecture and Spatial Aesthetics</div>
+            <h1 class="cover-title reveal d1">建筑与<br>空间美学</h1>
+            <div class="rule cover-rule reveal d2"></div>
+            <p class="cover-sub reveal d3">从比例到空间，探索居住的艺术与生活的秩序</p>
+            <p class="cover-meta reveal d4">二〇二六 · 空间设计系列</p>
         </section>
 
-        <!-- ====== Slide 2: 议程 ====== -->
+        <!-- Slide 2: Agenda -->
         <section class="slide">
-            <div class="eyebrow reveal">Agenda</div>
-            <h2 class="title-main reveal d1">内容纲要</h2>
+            <div class="label reveal">Agenda</div>
+            <h2 class="section-title reveal d1">内容纲要</h2>
             <ul class="agenda-list">
                 <li class="agenda-item reveal d2">
                     <span class="agenda-num">01</span>
-                    <span class="agenda-title">何为极简主义</span>
+                    <span class="agenda-text">建筑美学的认知基础</span>
                 </li>
                 <li class="agenda-item reveal d3">
                     <span class="agenda-num">02</span>
-                    <span class="agenda-title">核心原则</span>
+                    <span class="agenda-text">空间构成的核心原则</span>
                 </li>
                 <li class="agenda-item reveal d4">
                     <span class="agenda-num">03</span>
-                    <span class="agenda-title">拥有与放下的对照</span>
+                    <span class="agenda-text">比例与韵律</span>
                 </li>
                 <li class="agenda-item reveal d5">
                     <span class="agenda-num">04</span>
-                    <span class="agenda-title">数据与洞察</span>
+                    <span class="agenda-text">材料、光线与空间叙事</span>
                 </li>
                 <li class="agenda-item reveal d6">
                     <span class="agenda-num">05</span>
-                    <span class="agenda-title">实践路径与日常应用</span>
+                    <span class="agenda-text">居住空间的实践应用</span>
                 </li>
                 <li class="agenda-item reveal d7">
                     <span class="agenda-num">06</span>
-                    <span class="agenda-title">总结与展望</span>
+                    <span class="agenda-text">总结与未来展望</span>
                 </li>
             </ul>
         </section>
 
-        <!-- ====== Slide 3: 章节过渡 — 认知 ====== -->
+        <!-- Slide 3: Chapter 01 -->
         <section class="slide slide-chapter">
-            <div class="chapter-num reveal">01</div>
-            <h2 class="reveal d1">认知</h2>
-            <div class="chapter-line reveal d2"></div>
+            <div class="ghost chapter-ghost">01</div>
+            <h2 class="chapter-title reveal d1">认知</h2>
+            <div class="rule chapter-rule reveal d2"></div>
         </section>
 
-        <!-- ====== Slide 4: 定义(居中呼吸式) ====== -->
-        <section class="slide slide-definition">
-            <div class="eyebrow reveal">Definition</div>
-            <p class="def-term reveal d1">Minimalism</p>
-            <div class="def-line reveal d2"></div>
+        <!-- Slide 4: Definition -->
+        <section class="slide slide--center">
+            <div class="label reveal">Definition</div>
+            <p class="def-term reveal d1">Architecture</p>
+            <div class="def-rule reveal d2"></div>
             <p class="def-body reveal d3">
-                极简主义不是匮乏，而是有意识地选择。<br>
-                它是一种将注意力从物质转向体验、<br>
-                从数量转向质量的生活方式。<br>
-                保留真正重要的，释放一切多余。
+                建筑是凝固的音乐，是空间与时间的对话。<br>
+                它不仅是遮风避雨的功能容器，<br>
+                更是人与环境之间关系的物质表达，<br>
+                承载着对秩序、比例与美的永恒追问。
             </p>
         </section>
 
-        <!-- ====== Slide 5: 核心原则(稀疏列表) ====== -->
+        <!-- Slide 5: Principles -->
         <section class="slide">
-            <div class="eyebrow reveal">Principles</div>
-            <h2 class="title-main reveal d1">核心原则</h2>
+            <div class="label reveal">Principles</div>
+            <h2 class="section-title reveal d1">空间构成的核心原则</h2>
             <ul class="principle-list">
                 <li class="principle-item reveal d2">
                     <span class="principle-num">01</span>
-                    <div class="principle-body">
-                        <h4>意识先行</h4>
-                        <p>每一次拥有都应是深思熟虑后的选择，而非冲动的积累</p>
+                    <div>
+                        <div class="principle-title">比例与韵律</div>
+                        <p class="principle-desc">黄金比例与模度体系赋予空间天然的和谐感，重复与变化创造视觉节奏</p>
                     </div>
                 </li>
                 <li class="principle-item reveal d3">
                     <span class="principle-num">02</span>
-                    <div class="principle-body">
-                        <h4>质量胜于数量</h4>
-                        <p>一件经久耐用之物，胜过十件速朽的替代品</p>
+                    <div>
+                        <div class="principle-title">材料的诚实</div>
+                        <p class="principle-desc">让材料以本来面貌呈现，混凝土的粗犷、木材的温润、玻璃的通透各归其位</p>
                     </div>
                 </li>
                 <li class="principle-item reveal d4">
                     <span class="principle-num">03</span>
-                    <div class="principle-body">
-                        <h4>空间即自由</h4>
-                        <p>留白不是空虚，是为重要事物预留的呼吸空间</p>
+                    <div>
+                        <div class="principle-title">光的叙事</div>
+                        <p class="principle-desc">自然光是空间的灵魂，光影的移动为静态建筑注入时间的维度与情感</p>
                     </div>
                 </li>
                 <li class="principle-item reveal d5">
                     <span class="principle-num">04</span>
-                    <div class="principle-body">
-                        <h4>体验超越占有</h4>
-                        <p>记忆比物品更持久，感受比拥有更真实</p>
+                    <div>
+                        <div class="principle-title">虚实相生</div>
+                        <p class="principle-desc">实体定义边界，虚空创造自由，二者的平衡是空间品质的关键</p>
                     </div>
                 </li>
             </ul>
         </section>
 
-        <!-- ====== Slide 6: 章节过渡 — 对照 ====== -->
+        <!-- Slide 6: Chapter 02 -->
         <section class="slide slide-chapter">
-            <div class="chapter-num reveal">02</div>
-            <h2 class="reveal d1">对照</h2>
-            <div class="chapter-line reveal d2"></div>
+            <div class="ghost chapter-ghost">02</div>
+            <h2 class="chapter-title reveal d1">体系</h2>
+            <div class="rule chapter-rule reveal d2"></div>
         </section>
 
-        <!-- ====== Slide 7: 对比卡片(1px边框网格) ====== -->
+        <!-- Slide 7: Comparison -->
         <section class="slide">
-            <div class="eyebrow reveal">Contrast</div>
-            <h2 class="title-main reveal d1">繁与简的对照</h2>
-            <div class="contrast-grid reveal d2">
-                <div class="contrast-card reveal-fade d3">
-                    <div class="contrast-label">繁</div>
-                    <h4>过度消费</h4>
-                    <p>不断购入新物品来填补内心的空缺，陷入"拥有更多才能快乐"的循环</p>
+            <div class="label reveal">Contrast</div>
+            <h2 class="section-title reveal d1">两种空间哲学</h2>
+            <div class="compare-wrap">
+                <div class="compare-col reveal-left d2">
+                    <h4>装饰主义</h4>
+                    <ul>
+                        <li>通过表面装饰创造丰富感</li>
+                        <li>强调材料的可塑性与表现力</li>
+                        <li>空间作为展示个性的舞台</li>
+                        <li>视觉层次依赖于附加元素</li>
+                    </ul>
                 </div>
-                <div class="contrast-card reveal-fade d4">
-                    <div class="contrast-label">简</div>
-                    <h4>有意识消费</h4>
-                    <p>每一笔支出都经过审慎考量，只为真正需要且热爱之物付出</p>
-                </div>
-                <div class="contrast-card reveal-fade d5">
-                    <div class="contrast-label">繁</div>
-                    <h4>信息过载</h4>
-                    <p>无休止地刷新社交媒体，被碎片信息淹没注意力</p>
-                </div>
-                <div class="contrast-card reveal-fade d6">
-                    <div class="contrast-label">简</div>
-                    <h4>专注深度</h4>
-                    <p>精选信息来源，将时间投入深度阅读与真实对话</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- ====== Slide: 图表/进度条 ====== -->
-        <section class="slide">
-            <div class="eyebrow reveal">Research</div>
-            <h2 class="section-title reveal d1">生活满意度与物品数量的关系</h2>
-            <div class="chart-list">
-                <div class="chart-item reveal d1">
-                    <div class="chart-label">心理幸福感</div>
-                    <div class="chart-bar"><div class="chart-fill" data-percent="87"></div></div>
-                    <div class="chart-value">87%</div>
-                </div>
-                <div class="chart-item reveal d2">
-                    <div class="chart-label">财务自由度</div>
-                    <div class="chart-bar"><div class="chart-fill" data-percent="73"></div></div>
-                    <div class="chart-value">73%</div>
-                </div>
-                <div class="chart-item reveal d2">
-                    <div class="chart-label">空间利用率</div>
-                    <div class="chart-bar"><div class="chart-fill" data-percent="92"></div></div>
-                    <div class="chart-value">92%</div>
-                </div>
-                <div class="chart-item reveal d3">
-                    <div class="chart-label">决策效率</div>
-                    <div class="chart-bar"><div class="chart-fill" data-percent="68"></div></div>
-                    <div class="chart-value">68%</div>
-                </div>
-                <div class="chart-item reveal d4">
-                    <div class="chart-label">环境可持续性</div>
-                    <div class="chart-bar"><div class="chart-fill" data-percent="81"></div></div>
-                    <div class="chart-value">81%</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ====== Slide 8: 统计数字 ====== -->
-        <section class="slide">
-            <div class="eyebrow reveal">Insights</div>
-            <h2 class="title-main reveal d1">数据洞察</h2>
-            <p class="desc-text reveal d2">全球极简主义生活方式研究数据</p>
-            <div class="stats-row reveal d3">
-                <div class="stat-cell reveal-fade d4">
-                    <div class="stat-value"><span data-count="72">0</span><span class="unit">%</span></div>
-                    <div class="stat-label">减少物品后感到更自由</div>
-                </div>
-                <div class="stat-cell reveal-fade d5">
-                    <div class="stat-value"><span data-count="3.2">0</span><span class="unit">h</span></div>
-                    <div class="stat-label">每日节省的决策时间</div>
-                </div>
-                <div class="stat-cell reveal-fade d6">
-                    <div class="stat-value"><span data-count="47">0</span><span class="unit">%</span></div>
-                    <div class="stat-label">年度消费支出降低</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ====== Slide: 大字声明 ====== -->
-        <section class="slide slide-statement">
-            <div class="eyebrow reveal">Insight</div>
-            <div class="statement-text reveal d1">
-                拥有更少<br><span class="accent">活得更多</span>
-            </div>
-            <p class="statement-sub reveal d2">真正的富足不在于积累的数量，而在于每一件留下的物品都承载着意义与喜悦。</p>
-        </section>
-
-        <!-- ====== Slide 9: 引用 ====== -->
-        <section class="slide slide-quote">
-            <div class="quote-mark reveal">"</div>
-            <blockquote class="reveal d1">
-                拥有得越少，<br>留给生命本身的空间就越大
-            </blockquote>
-            <div class="quote-line reveal d2"></div>
-            <p class="quote-author reveal d3">约书亚·菲尔茨·米尔本</p>
-        </section>
-
-        <!-- ====== Slide 10: 章节过渡 — 实践 ====== -->
-        <section class="slide slide-chapter">
-            <div class="chapter-num reveal">03</div>
-            <h2 class="reveal d1">实践</h2>
-            <div class="chapter-line reveal d2"></div>
-        </section>
-
-        <!-- ====== Slide 11: 垂直步骤 ====== -->
-        <section class="slide">
-            <div class="eyebrow reveal">Steps</div>
-            <h2 class="title-main reveal d1">开启极简之路</h2>
-            <ul class="steps-vertical">
-                <li class="step-item reveal d2">
-                    <div class="step-num">Step 01</div>
-                    <h4>审视当下</h4>
-                    <p>花一天时间观察你与物品的关系，记录哪些带来喜悦，哪些只是占据空间</p>
-                </li>
-                <li class="step-item reveal d3">
-                    <div class="step-num">Step 02</div>
-                    <h4>一个空间开始</h4>
-                    <p>选择一个最小的空间——一个抽屉、一个书架，完成第一次彻底的精简</p>
-                </li>
-                <li class="step-item reveal d4">
-                    <div class="step-num">Step 03</div>
-                    <h4>建立规则</h4>
-                    <p>制定"一进一出"的原则，每引入一样新物品，就释放一样旧物品</p>
-                </li>
-                <li class="step-item reveal d5">
-                    <div class="step-num">Step 04</div>
-                    <h4>扩展到数字世界</h4>
-                    <p>清理手机应用、退订无用邮件、整理数字文件——数字极简同样重要</p>
-                </li>
-                <li class="step-item reveal d6">
-                    <div class="step-num">Step 05</div>
-                    <h4>持续迭代</h4>
-                    <p>极简不是终点，而是持续的自我对话，每季度重新审视一次生活状态</p>
-                </li>
-            </ul>
-        </section>
-
-        <!-- ====== Slide: 双栏详情 ====== -->
-        <section class="slide">
-            <div class="eyebrow reveal">Method</div>
-            <h2 class="section-title reveal d1">90 天极简实验</h2>
-            <div class="split-detail">
-                <div class="split-visual reveal-left d2">
-                    <div class="split-visual-num">90</div>
-                    <div class="split-visual-label">Days</div>
-                </div>
-                <div class="split-info reveal-right d3">
-                    <h3>渐进式减法生活方案</h3>
-                    <ul class="split-info-list">
-                        <li>第 1-30 天：每日移除一件未使用物品</li>
-                        <li>第 31-60 天：审视数字生活，精简订阅与社交</li>
-                        <li>第 61-90 天：建立「进一出二」的长期习惯</li>
-                        <li>记录每周感受变化，量化心理轻盈感的提升</li>
+                <div class="compare-divider reveal d3"></div>
+                <div class="compare-col reveal-right d4">
+                    <h4>结构主义</h4>
+                    <ul>
+                        <li>通过结构本身创造美感</li>
+                        <li>强调材料的本真与力学逻辑</li>
+                        <li>空间作为体验流动的容器</li>
+                        <li>视觉层次源于比例与光影</li>
                     </ul>
                 </div>
             </div>
         </section>
 
-        <!-- ====== Slide 12: 日常实践 ====== -->
+        <!-- Slide 8: Chart bars -->
         <section class="slide">
-            <div class="eyebrow reveal">Daily</div>
-            <h2 class="title-main reveal d1">日常极简练习</h2>
-            <p class="desc-text reveal d2">将极简融入每天的细微之处</p>
-            <div class="practice-grid reveal d3">
-                <div class="practice-card reveal-fade d4">
-                    <div class="practice-time">AM</div>
-                    <h4>晨间三件事</h4>
-                    <p>每天只列三件最重要的事，拒绝冗长待办清单</p>
+            <div class="label reveal">Research</div>
+            <h2 class="section-title reveal d1">居住空间满意度影响因素</h2>
+            <div class="chart-list">
+                <div class="chart-item reveal d2">
+                    <div class="chart-label">自然采光</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="91"></div></div>
+                    <div class="chart-value">91%</div>
                 </div>
-                <div class="practice-card reveal-fade d5">
-                    <div class="practice-time">PM</div>
-                    <h4>无屏幕一小时</h4>
-                    <p>每日留出一小时远离所有屏幕，与自己或他人真实相处</p>
+                <div class="chart-item reveal d3">
+                    <div class="chart-label">空间比例</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="84"></div></div>
+                    <div class="chart-value">84%</div>
                 </div>
-                <div class="practice-card reveal-fade d6">
-                    <div class="practice-time">Eve</div>
-                    <h4>感恩三件事</h4>
-                    <p>睡前回顾今天值得感恩的三件事，以满足感取代匮乏感</p>
+                <div class="chart-item reveal d4">
+                    <div class="chart-label">材料质感</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="76"></div></div>
+                    <div class="chart-value">76%</div>
                 </div>
-                <div class="practice-card reveal-fade d7">
-                    <div class="practice-time">Wk</div>
-                    <h4>周末断舍离</h4>
-                    <p>每周末选择一个区域进行精简，保持生活空间的流动与清爽</p>
+                <div class="chart-item reveal d5">
+                    <div class="chart-label">流线合理性</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="68"></div></div>
+                    <div class="chart-value">68%</div>
                 </div>
-                <div class="practice-card reveal-fade d8">
-                    <div class="practice-time">Mo</div>
-                    <h4>月度消费复盘</h4>
-                    <p>每月回顾消费记录，识别冲动消费与真实需求之间的差异</p>
-                </div>
-                <div class="practice-card reveal-fade d9">
-                    <div class="practice-time">Yr</div>
-                    <h4>年度生活审计</h4>
-                    <p>每年对生活的各个维度进行一次全面的审视与重新校准</p>
+                <div class="chart-item reveal d6">
+                    <div class="chart-label">视觉秩序</div>
+                    <div class="chart-bar"><div class="chart-fill" data-percent="72"></div></div>
+                    <div class="chart-value">72%</div>
                 </div>
             </div>
         </section>
 
-        <!-- ====== Slide: 矩阵/象限 ====== -->
+        <!-- Slide 9: Statistics -->
         <section class="slide">
-            <div class="eyebrow reveal">Framework</div>
-            <h2 class="section-title reveal d1">极简生活四象限</h2>
-            <div class="matrix-grid">
-                <div class="matrix-cell reveal d1">
-                    <div class="cell-title">物质极简</div>
-                    <div class="cell-desc">精简物品至必要，每件物品都有明确用途与情感价值</div>
+            <div class="label reveal">Insights</div>
+            <h2 class="section-title reveal d1">空间设计的量化指标</h2>
+            <p class="body-text reveal d2">基于全球建筑美学研究的关键数据</p>
+            <div class="stats-row reveal d3">
+                <div class="stat-cell reveal d4">
+                    <div class="stat-value"><span data-count="1.618">0</span></div>
+                    <div class="stat-label">黄金比例</div>
                 </div>
+                <div class="stats-divider"></div>
+                <div class="stat-cell reveal d5">
+                    <div class="stat-value"><span data-count="73">0</span><span class="unit">%</span></div>
+                    <div class="stat-label">自然光需求占比</div>
+                </div>
+                <div class="stats-divider"></div>
+                <div class="stat-cell reveal d6">
+                    <div class="stat-value"><span data-count="2.7">0</span><span class="unit">m</span></div>
+                    <div class="stat-label">理想净高</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 10: Statement -->
+        <section class="slide slide--center">
+            <div class="label reveal">Insight</div>
+            <div class="statement-text reveal d1">
+                少即是<br><span class="accent">多</span>
+            </div>
+            <p class="statement-sub reveal d2">建筑的本质不在于堆砌，而在于取舍。每一处留白都是对空间的尊重，每一条线条都承载着明确的意图。</p>
+        </section>
+
+        <!-- Slide 11: Quote -->
+        <section class="slide slide--center slide-quote">
+            <div class="rule reveal" style="margin: 0 auto clamp(1.5rem, 3vh, 2.5rem);"></div>
+            <blockquote class="quote-text reveal d1">
+                上帝存在于细节之中
+            </blockquote>
+            <div class="quote-rule reveal d2"></div>
+            <p class="quote-source reveal d3">路德维希·密斯·凡·德·罗</p>
+        </section>
+
+        <!-- Slide 12: Chapter 03 -->
+        <section class="slide slide-chapter">
+            <div class="ghost chapter-ghost">03</div>
+            <h2 class="chapter-title reveal d1">实践</h2>
+            <div class="rule chapter-rule reveal d2"></div>
+        </section>
+
+        <!-- Slide 13: Steps -->
+        <section class="slide">
+            <div class="label reveal">Process</div>
+            <h2 class="section-title reveal d1">空间设计五步法</h2>
+            <div class="steps-wrap">
+                <div class="step-item reveal d2">
+                    <div class="step-label">Step 01</div>
+                    <h4>观察与感受</h4>
+                    <p>在空间中静止，感受光线的方向、声音的回响、空气的流动</p>
+                </div>
+                <div class="step-item reveal d3">
+                    <div class="step-label">Step 02</div>
+                    <h4>测量与分析</h4>
+                    <p>记录空间的尺度比例，分析现有结构的力学与美学逻辑</p>
+                </div>
+                <div class="step-item reveal d4">
+                    <div class="step-label">Step 03</div>
+                    <h4>减法思维</h4>
+                    <p>移除一切非必要的元素，直到空间呈现出最纯粹的状态</p>
+                </div>
+                <div class="step-item reveal d5">
+                    <div class="step-label">Step 04</div>
+                    <h4>材料选择</h4>
+                    <p>为每个面选择最诚实的材料，让材质本身的纹理成为唯一的装饰</p>
+                </div>
+                <div class="step-item reveal d6">
+                    <div class="step-label">Step 05</div>
+                    <h4>光线设计</h4>
+                    <p>规划自然光的路径，用光影的变化为空间赋予时间的维度</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 14: Split detail -->
+        <section class="slide">
+            <div class="label reveal">Method</div>
+            <h2 class="section-title reveal d1">365 天空间观察计划</h2>
+            <div class="split-grid">
+                <div class="split-num reveal-left d2">
+                    <div class="split-num-value"><span data-count="365">0</span></div>
+                    <div class="split-num-label">Days</div>
+                </div>
+                <div class="split-info reveal-right d3">
+                    <h3>渐进式空间感知训练</h3>
+                    <ul class="split-list">
+                        <li>第 1-90 天：每日记录一个空间的光影变化</li>
+                        <li>第 91-180 天：分析经典建筑的比例体系</li>
+                        <li>第 181-270 天：练习减法，在居住空间中实践</li>
+                        <li>第 271-365 天：完成一次完整的空间改造项目</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 15: Practice grid -->
+        <section class="slide">
+            <div class="label reveal">Daily</div>
+            <h2 class="section-title reveal d1">日常空间练习</h2>
+            <p class="body-text reveal d2">将建筑美学融入每天的观察与生活</p>
+            <div class="practice-grid reveal d3">
+                <div class="practice-card reveal d4">
+                    <div class="practice-time">AM</div>
+                    <h4>晨间光线观察</h4>
+                    <p>记录清晨光线进入空间的角度与色温变化</p>
+                </div>
+                <div class="practice-card reveal d5">
+                    <div class="practice-time">PM</div>
+                    <h4>比例感知训练</h4>
+                    <p>选择一个物体，目测其长宽高比例再验证</p>
+                </div>
+                <div class="practice-card reveal d6">
+                    <div class="practice-time">Eve</div>
+                    <h4>空间留白审视</h4>
+                    <p>审视一个角落，思考移除什么能让它更好</p>
+                </div>
+                <div class="practice-card reveal d7">
+                    <div class="practice-time">Wk</div>
+                    <h4>建筑散步</h4>
+                    <p>用一个小时专注观察一栋建筑的结构与细节</p>
+                </div>
+                <div class="practice-card reveal d8">
+                    <div class="practice-time">Mo</div>
+                    <h4>材料触感记录</h4>
+                    <p>收集不同材料的触感体验，建立材料感知库</p>
+                </div>
+                <div class="practice-card reveal d9">
+                    <div class="practice-time">Yr</div>
+                    <h4>空间年度复盘</h4>
+                    <p>回顾居住空间的变化，评估设计决策的效果</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 16: Matrix -->
+        <section class="slide">
+            <div class="label reveal">Framework</div>
+            <h2 class="section-title reveal d1">空间美学四象限</h2>
+            <div class="matrix-grid">
                 <div class="matrix-cell reveal d2">
-                    <div class="cell-title">数字极简</div>
-                    <div class="cell-desc">控制屏幕时间，精简应用与订阅，回归深度专注</div>
+                    <h4>形式</h4>
+                    <p>几何关系、比例体系、轴线对称与非对称的平衡</p>
                 </div>
                 <div class="matrix-cell reveal d3">
-                    <div class="cell-title">关系极简</div>
-                    <div class="cell-desc">维护深度连接，减少表面社交，珍惜真实关系</div>
+                    <h4>功能</h4>
+                    <p>动线流畅、空间效率、人体工学与使用逻辑</p>
                 </div>
                 <div class="matrix-cell reveal d4">
-                    <div class="cell-title">心智极简</div>
-                    <div class="cell-desc">减少信息噪音，专注当下，建立内在宁静感</div>
+                    <h4>光影</h4>
+                    <p>自然光引入、人工光层次、明暗对比的情绪营造</p>
+                </div>
+                <div class="matrix-cell reveal d5">
+                    <h4>材质</h4>
+                    <p>触感温度、视觉肌理、时间赋予的岁月痕迹</p>
                 </div>
             </div>
         </section>
 
-        <!-- ====== Slide 13: 总结 ====== -->
+        <!-- Slide 17: Summary -->
         <section class="slide">
-            <div class="eyebrow reveal">Summary</div>
-            <h2 class="title-main reveal d1">核心要义</h2>
-            <p class="desc-text reveal d2">极简主义生活的四个维度</p>
-            <ul class="summary-list">
-                <li class="summary-item reveal d3">
-                    <h4>物质维度</h4>
-                    <p>拥有少量高质量物品，每一件都有明确的用途与意义，拒绝无意识的囤积</p>
-                </li>
-                <li class="summary-item reveal d4">
-                    <h4>时间维度</h4>
-                    <p>学会说"不"，保护自己的时间，将精力集中在真正重要的人与事之上</p>
-                </li>
-                <li class="summary-item reveal d5">
-                    <h4>心灵维度</h4>
-                    <p>放下不必要的焦虑与比较，培养内在的平静，找到属于自己的节奏</p>
-                </li>
-                <li class="summary-item reveal d6">
-                    <h4>关系维度</h4>
-                    <p>深耕少数有意义的关系，用真诚与投入取代广泛而浅层的社交网络</p>
-                </li>
-            </ul>
+            <div class="label reveal">Summary</div>
+            <h2 class="section-title reveal d1">核心要义</h2>
+            <p class="body-text reveal d2">建筑空间美学的四个维度</p>
+            <div class="summary-grid">
+                <div class="summary-item reveal d3">
+                    <h4>秩序</h4>
+                    <p>在看似自由的空间中建立内在的逻辑与规则，让和谐自然涌现</p>
+                </div>
+                <div class="summary-item reveal d4">
+                    <h4>节制</h4>
+                    <p>克制装饰的冲动，让每一个元素都因不可或缺而存在</p>
+                </div>
+                <div class="summary-item reveal d5">
+                    <h4>呼吸</h4>
+                    <p>空间需要留白，如同音乐需要休止符，虚空赋予实体以意义</p>
+                </div>
+                <div class="summary-item reveal d6">
+                    <h4>时间</h4>
+                    <p>好的空间经得起时间考验，随岁月流转愈发展现其内在品质</p>
+                </div>
+            </div>
         </section>
 
-        <!-- ====== Slide 14: 结束 ====== -->
-        <section class="slide slide-end">
-            <p class="end-credit reveal">The Philosophy of Minimalist Living</p>
-            <div class="end-line reveal d1"></div>
+        <!-- Slide 18: End -->
+        <section class="slide slide--center slide-end">
+            <p class="end-credit reveal">Architecture and Spatial Aesthetics</p>
+            <div class="end-rule reveal d1"></div>
             <p class="end-statement reveal d2">
-                删繁就简，回归本真。<br>
-                在减少中找到丰盛。
+                在空间中寻找秩序，<br>在秩序中发现自由。
             </p>
-            <div class="end-line reveal d3"></div>
+            <div class="end-rule reveal d3"></div>
             <p class="end-credit reveal d4">谢谢</p>
         </section>
 
     </div>
 
-    <!-- 进度条 -->
     <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
 
-    <!-- 页码 -->
     <div class="slide-counter">
         <span class="current" id="counterCurrent">01</span>
-        <span>/</span>
-        <span id="counterTotal">14</span>
+        <span>·</span>
+        <span id="counterTotal">18</span>
     </div>
 
     <script>
@@ -1121,7 +1261,7 @@
             this.total = this.slides.length;
             this.current = 0;
             this.isTransitioning = false;
-            this.transitionDuration = 1200;
+            this.transitionDuration = 800;
             this.wheelThreshold = 60;
             this.wheelAccumulator = 0;
             this.wheelTimer = null;

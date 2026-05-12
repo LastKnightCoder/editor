@@ -56,7 +56,7 @@
             --pad-y: clamp(2.5rem, 6vh, 7rem);
 
             --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
-            --ease-bounce: cubic-bezier(0.34, 1.3, 0.64, 1);
+            --ease-bounce: cubic-bezier(0.22, 1, 0.36, 1);
             --dur-reveal: 600ms;
             --dur-slide: 700ms;
         }
@@ -290,7 +290,6 @@
             font-size: var(--fs-body);
             color: var(--text-mid);
             font-weight: 300;
-            max-width: clamp(300px, 50vw, 600px);
             line-height: 1.9;
         }
 
@@ -395,10 +394,11 @@
             align-items: flex-start;
             gap: var(--space-sm);
             padding: var(--space-sm) var(--space-md);
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 12px rgba(61,53,53,0.06);
-            border: 1px solid var(--border-soft);
+            background: transparent;
+            border-radius: 0;
+            box-shadow: none;
+            border: none;
+            border-left: 2px solid var(--blush-dim);
         }
 
         .agenda-num {
@@ -437,10 +437,10 @@
             display: flex;
             align-items: flex-start;
             gap: var(--space-sm);
-            padding: var(--space-sm) var(--space-md);
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(61,53,53,0.05);
+            padding: var(--space-xs) 0;
+            background: transparent;
+            border-radius: 0;
+            box-shadow: none;
             font-size: var(--fs-body);
             line-height: 1.7;
         }
@@ -471,12 +471,13 @@
         }
 
         .stat-card {
-            background: white;
-            border-radius: 16px;
+            background: transparent;
+            border-radius: 0;
             padding: var(--space-md);
             text-align: center;
-            box-shadow: 0 4px 16px rgba(61,53,53,0.07);
-            border: 1px solid var(--border-soft);
+            box-shadow: none;
+            border: none;
+            border-bottom: 2px solid var(--border-soft);
         }
 
         .stat-circle {
@@ -517,25 +518,26 @@
         .card-grid--2 { grid-template-columns: repeat(2, 1fr); }
 
         .card {
-            background: white;
-            border-radius: 16px;
-            padding: var(--space-md);
-            box-shadow: 0 4px 16px rgba(61,53,53,0.07);
-            border: 1px solid var(--border-soft);
-            transition: transform 0.25s var(--ease-soft), box-shadow 0.25s ease;
+            background: transparent;
+            border-radius: 0;
+            padding: var(--space-sm) 0 var(--space-sm) var(--space-md);
+            box-shadow: none;
+            border: none;
+            border-left: 3px solid var(--blush-dim);
+            transition: none;
         }
 
         .card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 24px rgba(61,53,53,0.12);
+            transform: none;
+            box-shadow: none;
         }
 
         .card-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
+            width: clamp(36px, 5vw, 52px);
+            height: 4px;
+            border-radius: 2px;
             background: var(--blush);
-            margin-bottom: var(--space-sm);
+            margin-bottom: var(--space-xs);
         }
 
         .card-title {
@@ -595,7 +597,6 @@
         .quote-inner {
             position: relative;
             z-index: 1;
-            max-width: clamp(400px, 65vw, 800px);
         }
 
         .quote-mark {
@@ -711,10 +712,10 @@
             display: flex;
             align-items: flex-start;
             gap: var(--space-md);
-            padding: var(--space-sm) var(--space-md);
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(61,53,53,0.05);
+            padding: var(--space-sm) 0;
+            background: transparent;
+            border-radius: 0;
+            box-shadow: none;
         }
 
         .step-num {
@@ -764,10 +765,12 @@
         }
 
         .matrix-cell {
-            background: white;
-            border-radius: 12px;
+            background: transparent;
+            border-radius: 0;
             padding: var(--space-sm) var(--space-md);
-            box-shadow: 0 2px 10px rgba(61,53,53,0.05);
+            box-shadow: none;
+            border: none;
+            border-top: 2px solid var(--blush-dim);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -793,12 +796,12 @@
            ═══════════════════════════════ */
 
         .def-box {
-            border-left: 3px solid var(--blush);
             padding: var(--space-md);
-            background: white;
-            border-radius: 0 12px 12px 0;
-            box-shadow: 0 2px 12px rgba(61,53,53,0.05);
-            max-width: clamp(500px, 65vw, 800px);
+            background: transparent;
+            border: none;
+            border-left: 3px solid var(--blush);
+            border-radius: 0;
+            box-shadow: none;
         }
 
         /* ═══════════════════════════════
@@ -811,7 +814,6 @@
             align-items: center;
             gap: var(--space-lg);
             margin-top: var(--space-md);
-            max-width: clamp(480px, 70vw, 860px);
         }
 
         .versus-mid {
@@ -1280,7 +1282,7 @@
         <div class="slide-label reveal">Deep Dive</div>
         <h2 class="title-main reveal delay-1">色彩规范的三个层次</h2>
         <div class="split-detail reveal delay-2">
-            <div style="text-align: center; padding: var(--space-md); background: white; border-radius: 16px; box-shadow: 0 4px 16px rgba(61,53,53,0.07);">
+            <div style="text-align: center; padding: var(--space-md);">
                 <div style="display: flex; justify-content: center; gap: 8px; margin-bottom: var(--space-sm);">
                     <div style="width: clamp(28px, 4vw, 40px); height: clamp(28px, 4vw, 40px); border-radius: 50%; background: var(--accent);"></div>
                     <div style="width: clamp(28px, 4vw, 40px); height: clamp(28px, 4vw, 40px); border-radius: 50%; background: var(--sky);"></div>
@@ -1354,27 +1356,61 @@
     <div class="slide">
         <div class="slide-label reveal">Comparison</div>
         <h2 class="title-main reveal delay-1">色温的情感语言</h2>
-        <div class="versus">
-            <div class="versus-side reveal delay-1">
-                <h3 style="color: var(--accent);">暖色调 🌅</h3>
-                <ul>
-                    <li>激发热情与行动力</li>
-                    <li>传递温暖与亲和感</li>
-                    <li>提升食欲与购买欲</li>
-                    <li>适合零售、餐饮、教育</li>
+        <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: var(--space-md); align-items: stretch; margin-top: var(--space-md);">
+            <!-- 暖色调 -->
+            <div class="reveal delay-1" style="padding: var(--space-md); border-top: 3px solid var(--blush);">
+                <div style="display: flex; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-sm);">
+                    <div style="width: 10px; height: 10px; border-radius: 50%; background: var(--blush);"></div>
+                    <h3 style="font-family: var(--font-display); font-size: var(--fs-h3); font-weight: 500; color: var(--accent);">暖色调</h3>
+                </div>
+                <ul style="list-style: none; display: flex; flex-direction: column; gap: var(--space-xs);">
+                    <li style="display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs) 0; font-size: var(--fs-small); color: var(--text);">
+                        <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0;"></span>
+                        激发热情与行动力
+                    </li>
+                    <li style="display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs) 0; font-size: var(--fs-small); color: var(--text);">
+                        <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0;"></span>
+                        传递温暖与亲和感
+                    </li>
+                    <li style="display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs) 0; font-size: var(--fs-small); color: var(--text);">
+                        <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0;"></span>
+                        提升食欲与购买欲
+                    </li>
+                    <li style="display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs) 0; font-size: var(--fs-small); color: var(--text);">
+                        <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0;"></span>
+                        适合零售、餐饮、教育
+                    </li>
                 </ul>
             </div>
-            <div class="versus-mid reveal delay-2">
-                <span>vs</span>
-                <div class="versus-mid-line"></div>
+            <!-- VS 分隔 -->
+            <div class="reveal delay-2" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-xs); padding: 0 var(--space-xs);">
+                <div style="width: 1px; flex: 1; background: linear-gradient(180deg, transparent, var(--border), transparent);"></div>
+                <span style="font-family: var(--font-display); font-size: var(--fs-body); font-style: italic; color: var(--text-light); background: var(--warm-white); padding: var(--space-xs) 0;">vs</span>
+                <div style="width: 1px; flex: 1; background: linear-gradient(180deg, transparent, var(--border), transparent);"></div>
             </div>
-            <div class="versus-side vs-sky reveal delay-1">
-                <h3>冷色调 🌊</h3>
-                <ul>
-                    <li>建立信任与专业感</li>
-                    <li>营造冷静与理性氛围</li>
-                    <li>降低焦虑，提升专注</li>
-                    <li>适合金融、科技、医疗</li>
+            <!-- 冷色调 -->
+            <div class="reveal delay-3" style="padding: var(--space-md); border-top: 3px solid var(--sky);">
+                <div style="display: flex; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-sm);">
+                    <div style="width: 10px; height: 10px; border-radius: 50%; background: var(--sky);"></div>
+                    <h3 style="font-family: var(--font-display); font-size: var(--fs-h3); font-weight: 500; color: #5080a8;">冷色调</h3>
+                </div>
+                <ul style="list-style: none; display: flex; flex-direction: column; gap: var(--space-xs);">
+                    <li style="display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs) 0; font-size: var(--fs-small); color: var(--text);">
+                        <span style="width: 6px; height: 6px; border-radius: 50%; background: #5080a8; flex-shrink: 0;"></span>
+                        建立信任与专业感
+                    </li>
+                    <li style="display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs) 0; font-size: var(--fs-small); color: var(--text);">
+                        <span style="width: 6px; height: 6px; border-radius: 50%; background: #5080a8; flex-shrink: 0;"></span>
+                        营造冷静与理性氛围
+                    </li>
+                    <li style="display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs) 0; font-size: var(--fs-small); color: var(--text);">
+                        <span style="width: 6px; height: 6px; border-radius: 50%; background: #5080a8; flex-shrink: 0;"></span>
+                        降低焦虑，提升专注
+                    </li>
+                    <li style="display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs) 0; font-size: var(--fs-small); color: var(--text);">
+                        <span style="width: 6px; height: 6px; border-radius: 50%; background: #5080a8; flex-shrink: 0;"></span>
+                        适合金融、科技、医疗
+                    </li>
                 </ul>
             </div>
         </div>

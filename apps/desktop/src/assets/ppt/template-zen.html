@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>日式禅意</title>
+    <title>禅意东方</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
@@ -251,7 +251,6 @@
             font-size: var(--fs-body);
             color: var(--ink-mid);
             font-weight: 300;
-            max-width: clamp(300px, 45vw, 560px);
             line-height: 2;
         }
 
@@ -400,6 +399,7 @@
 
         .stats-row {
             display: flex;
+            justify-content: space-between;
             gap: var(--space-xl);
             margin-top: var(--space-lg);
         }
@@ -516,7 +516,6 @@
         }
 
         .quote-wrap {
-            max-width: clamp(400px, 65vw, 800px);
         }
 
         .quote-text {
@@ -689,10 +688,9 @@
            ═══════════════════════════════ */
 
         .def-box {
-            border-left: 3px solid var(--vermilion);
             padding: var(--space-md);
-            background: white;
-            max-width: clamp(500px, 65vw, 800px);
+            background: var(--vermilion-dim);
+            border-radius: 4px;
         }
 
         /* ═══════════════════════════════
@@ -705,7 +703,6 @@
             align-items: center;
             gap: var(--space-lg);
             margin-top: var(--space-md);
-            max-width: clamp(480px, 70vw, 860px);
         }
 
         .versus-mid {
@@ -991,29 +988,25 @@
         <div class="slide-label reveal">比较</div>
         <h2 class="title-main reveal delay-1">东西方管理哲学对比</h2>
 
-        <div class="versus">
-            <div class="versus-side vs-vermilion reveal delay-1">
-                <h3>东方路径</h3>
-                <ul>
-                    <li style="color: var(--ink-mid);">顺势而为，因时制宜</li>
-                    <li style="color: var(--ink-mid);">关系网络与人情逻辑</li>
-                    <li style="color: var(--ink-mid);">长期主义，厚积薄发</li>
-                    <li style="color: var(--ink-mid);">集体主义，和而不同</li>
-                </ul>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xl); margin-top: var(--space-md); position: relative;">
+            <div style="position: absolute; left: 50%; top: 5%; bottom: 5%; width: 1px; transform: translateX(-0.5px); background: linear-gradient(to bottom, transparent, var(--border) 20%, var(--border) 80%, transparent); pointer-events: none;"></div>
+            <!-- 东方 -->
+            <div class="reveal-left delay-1" style="padding-right: var(--space-md);">
+                <div style="font-family: var(--font-serif); font-size: var(--fs-label); letter-spacing: 4px; color: var(--vermilion); margin-bottom: var(--space-sm);">东方路径 · EASTERN</div>
+                <h4 style="font-family: var(--font-serif); font-size: var(--fs-h3); font-weight: 400; color: var(--ink); margin-bottom: var(--space-sm); letter-spacing: 0.03em;">顺势而为，以柔克刚</h4>
+                <div style="padding: var(--space-sm) 0; border-bottom: 1px solid var(--border); font-size: var(--fs-small); color: var(--ink-mid); line-height: 1.8;">顺势而为，因时制宜</div>
+                <div style="padding: var(--space-sm) 0; border-bottom: 1px solid var(--border); font-size: var(--fs-small); color: var(--ink-mid); line-height: 1.8;">关系网络与人情逻辑</div>
+                <div style="padding: var(--space-sm) 0; border-bottom: 1px solid var(--border); font-size: var(--fs-small); color: var(--ink-mid); line-height: 1.8;">长期主义，厚积薄发</div>
+                <div style="padding: var(--space-sm) 0; font-size: var(--fs-small); color: var(--ink-mid); line-height: 1.8;">集体主义，和而不同</div>
             </div>
-            <div class="versus-mid reveal delay-2">
-                <span>对</span>
-                <div class="versus-mid-line"></div>
-                <span>比</span>
-            </div>
-            <div class="versus-side vs-bamboo reveal delay-1">
-                <h3>西方路径</h3>
-                <ul>
-                    <li>规则驱动，流程管控</li>
-                    <li>契约精神，权责清晰</li>
-                    <li>季度目标，快速迭代</li>
-                    <li>个人主义，充分竞争</li>
-                </ul>
+            <!-- 西方 -->
+            <div class="reveal-right delay-2" style="padding-left: var(--space-md);">
+                <div style="font-family: var(--font-serif); font-size: var(--fs-label); letter-spacing: 4px; color: var(--bamboo); margin-bottom: var(--space-sm);">西方路径 · WESTERN</div>
+                <h4 style="font-family: var(--font-serif); font-size: var(--fs-h3); font-weight: 400; color: var(--ink); margin-bottom: var(--space-sm); letter-spacing: 0.03em;">规则驱动，效率优先</h4>
+                <div style="padding: var(--space-sm) 0; border-bottom: 1px solid var(--border); font-size: var(--fs-small); color: var(--ink-mid); line-height: 1.8;">规则驱动，流程管控</div>
+                <div style="padding: var(--space-sm) 0; border-bottom: 1px solid var(--border); font-size: var(--fs-small); color: var(--ink-mid); line-height: 1.8;">契约精神，权责清晰</div>
+                <div style="padding: var(--space-sm) 0; border-bottom: 1px solid var(--border); font-size: var(--fs-small); color: var(--ink-mid); line-height: 1.8;">季度目标，快速迭代</div>
+                <div style="padding: var(--space-sm) 0; font-size: var(--fs-small); color: var(--ink-mid); line-height: 1.8;">个人主义，充分竞争</div>
             </div>
         </div>
     </div>
@@ -1203,36 +1196,36 @@
     <div class="slide">
         <div class="slide-label reveal">工具</div>
         <h2 class="title-main reveal delay-1">六大实践工具箱</h2>
-        <div class="card-grid card-grid--3" style="margin-top: var(--space-sm);">
-            <div class="card reveal delay-1">
-                <div class="card-num" style="font-size: clamp(1.2rem, 2vw, 1.8rem);">正</div>
-                <div class="card-title">正念冥想</div>
-                <div class="card-desc">每日 10 分钟静坐，培养专注力与自我觉察</div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-top: var(--space-sm);">
+            <div class="reveal delay-1" style="padding: var(--space-sm) var(--space-md) var(--space-sm) 0; border-bottom: 1px solid var(--border);">
+                <div style="font-family: var(--font-serif); font-size: clamp(1.4rem, 2.5vw, 2rem); font-weight: 400; color: var(--vermilion); margin-bottom: var(--space-xs);">正</div>
+                <div style="font-family: var(--font-serif); font-size: var(--fs-body); font-weight: 500; letter-spacing: 0.03em;">正念冥想</div>
+                <div style="font-size: var(--fs-small); color: var(--ink-mid); margin-top: 4px; line-height: 1.7;">每日 10 分钟静坐，培养专注力与自我觉察</div>
             </div>
-            <div class="card reveal delay-2">
-                <div class="card-num" style="font-size: clamp(1.2rem, 2vw, 1.8rem);">记</div>
-                <div class="card-title">晨间日记</div>
-                <div class="card-desc">三件感恩之事，沉淀思考，保持清醒</div>
+            <div class="reveal delay-2" style="padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--border); border-left: 1px solid var(--border);">
+                <div style="font-family: var(--font-serif); font-size: clamp(1.4rem, 2.5vw, 2rem); font-weight: 400; color: var(--vermilion); margin-bottom: var(--space-xs);">记</div>
+                <div style="font-family: var(--font-serif); font-size: var(--fs-body); font-weight: 500; letter-spacing: 0.03em;">晨间日记</div>
+                <div style="font-size: var(--fs-small); color: var(--ink-mid); margin-top: 4px; line-height: 1.7;">三件感恩之事，沉淀思考，保持清醒</div>
             </div>
-            <div class="card reveal delay-3">
-                <div class="card-num" style="font-size: clamp(1.2rem, 2vw, 1.8rem);">断</div>
-                <div class="card-title">断舍离</div>
-                <div class="card-desc">定期审视，删除不再服务于目标的事项</div>
+            <div class="reveal delay-3" style="padding: var(--space-sm) 0 var(--space-sm) var(--space-md); border-bottom: 1px solid var(--border); border-left: 1px solid var(--border);">
+                <div style="font-family: var(--font-serif); font-size: clamp(1.4rem, 2.5vw, 2rem); font-weight: 400; color: var(--vermilion); margin-bottom: var(--space-xs);">断</div>
+                <div style="font-family: var(--font-serif); font-size: var(--fs-body); font-weight: 500; letter-spacing: 0.03em;">断舍离</div>
+                <div style="font-size: var(--fs-small); color: var(--ink-mid); margin-top: 4px; line-height: 1.7;">定期审视，删除不再服务于目标的事项</div>
             </div>
-            <div class="card reveal delay-3">
-                <div class="card-num" style="font-size: clamp(1.2rem, 2vw, 1.8rem);">问</div>
-                <div class="card-title">五问法</div>
-                <div class="card-desc">连续追问五个「为什么」，挖掘根本原因</div>
+            <div class="reveal delay-3" style="padding: var(--space-sm) var(--space-md) var(--space-sm) 0;">
+                <div style="font-family: var(--font-serif); font-size: clamp(1.4rem, 2.5vw, 2rem); font-weight: 400; color: var(--bamboo); margin-bottom: var(--space-xs);">问</div>
+                <div style="font-family: var(--font-serif); font-size: var(--fs-body); font-weight: 500; letter-spacing: 0.03em;">五问法</div>
+                <div style="font-size: var(--fs-small); color: var(--ink-mid); margin-top: 4px; line-height: 1.7;">连续追问五个「为什么」，挖掘根本原因</div>
             </div>
-            <div class="card reveal delay-4">
-                <div class="card-num" style="font-size: clamp(1.2rem, 2vw, 1.8rem);">道</div>
-                <div class="card-title">复盘回顾</div>
-                <div class="card-desc">事后反思，提炼经验，螺旋上升迭代</div>
+            <div class="reveal delay-4" style="padding: var(--space-sm) var(--space-md); border-left: 1px solid var(--border);">
+                <div style="font-family: var(--font-serif); font-size: clamp(1.4rem, 2.5vw, 2rem); font-weight: 400; color: var(--bamboo); margin-bottom: var(--space-xs);">道</div>
+                <div style="font-family: var(--font-serif); font-size: var(--fs-body); font-weight: 500; letter-spacing: 0.03em;">复盘回顾</div>
+                <div style="font-size: var(--fs-small); color: var(--ink-mid); margin-top: 4px; line-height: 1.7;">事后反思，提炼经验，螺旋上升迭代</div>
             </div>
-            <div class="card reveal delay-5">
-                <div class="card-num" style="font-size: clamp(1.2rem, 2vw, 1.8rem);">合</div>
-                <div class="card-title">对话倾听</div>
-                <div class="card-desc">全神贯注，先理解对方，再表达自己</div>
+            <div class="reveal delay-5" style="padding: var(--space-sm) 0 var(--space-sm) var(--space-md); border-left: 1px solid var(--border);">
+                <div style="font-family: var(--font-serif); font-size: clamp(1.4rem, 2.5vw, 2rem); font-weight: 400; color: var(--bamboo); margin-bottom: var(--space-xs);">合</div>
+                <div style="font-family: var(--font-serif); font-size: var(--fs-body); font-weight: 500; letter-spacing: 0.03em;">对话倾听</div>
+                <div style="font-size: var(--fs-small); color: var(--ink-mid); margin-top: 4px; line-height: 1.7;">全神贯注，先理解对方，再表达自己</div>
             </div>
         </div>
     </div>
@@ -1255,26 +1248,26 @@
     <div class="slide">
         <div class="slide-label reveal">总结</div>
         <h2 class="title-main reveal delay-1">四大核心启示</h2>
-        <div class="card-grid card-grid--2" style="margin-top: var(--space-sm);">
-            <div class="card reveal delay-1" style="border-top: 2px solid var(--vermilion);">
-                <div class="card-num" style="color: var(--vermilion);">壹</div>
-                <div class="card-title">顺势而为</div>
-                <div class="card-desc">与其对抗规律，不如借力打力，以柔克刚</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-top: var(--space-sm);">
+            <div class="reveal delay-1" style="padding: var(--space-md) var(--space-md) var(--space-md) 0; border-bottom: 1px solid var(--border);">
+                <span style="font-family: var(--font-serif); font-size: var(--fs-small); color: var(--vermilion); font-weight: 500;">壹</span>
+                <div style="font-family: var(--font-serif); font-size: var(--fs-h3); font-weight: 400; letter-spacing: 0.03em; margin: var(--space-xs) 0;">顺势而为</div>
+                <div style="font-size: var(--fs-small); color: var(--ink-mid); line-height: 1.8;">与其对抗规律，不如借力打力，以柔克刚</div>
             </div>
-            <div class="card reveal delay-2" style="border-top: 2px solid var(--bamboo);">
-                <div class="card-num" style="color: var(--bamboo);">贰</div>
-                <div class="card-title">持续精进</div>
-                <div class="card-desc">小步迭代，积累复利，避免追求一蹴而就</div>
+            <div class="reveal delay-2" style="padding: var(--space-md) 0 var(--space-md) var(--space-md); border-bottom: 1px solid var(--border); border-left: 1px solid var(--border);">
+                <span style="font-family: var(--font-serif); font-size: var(--fs-small); color: var(--bamboo); font-weight: 500;">贰</span>
+                <div style="font-family: var(--font-serif); font-size: var(--fs-h3); font-weight: 400; letter-spacing: 0.03em; margin: var(--space-xs) 0;">持续精进</div>
+                <div style="font-size: var(--fs-small); color: var(--ink-mid); line-height: 1.8;">小步迭代，积累复利，避免追求一蹴而就</div>
             </div>
-            <div class="card reveal delay-3" style="border-top: 2px solid var(--gold);">
-                <div class="card-num" style="color: var(--gold);">叁</div>
-                <div class="card-title">和而不同</div>
-                <div class="card-desc">包容多样性，在差异中寻求更高维度的统一</div>
+            <div class="reveal delay-3" style="padding: var(--space-md) var(--space-md) var(--space-md) 0;">
+                <span style="font-family: var(--font-serif); font-size: var(--fs-small); color: var(--gold); font-weight: 500;">叁</span>
+                <div style="font-family: var(--font-serif); font-size: var(--fs-h3); font-weight: 400; letter-spacing: 0.03em; margin: var(--space-xs) 0;">和而不同</div>
+                <div style="font-size: var(--fs-small); color: var(--ink-mid); line-height: 1.8;">包容多样性，在差异中寻求更高维度的统一</div>
             </div>
-            <div class="card reveal delay-4" style="border-top: 2px solid var(--vermilion);">
-                <div class="card-num" style="color: var(--vermilion);">肆</div>
-                <div class="card-title">知行合一</div>
-                <div class="card-desc">思想与行动统一，理论必须落地于躬身实践</div>
+            <div class="reveal delay-4" style="padding: var(--space-md) 0 var(--space-md) var(--space-md); border-left: 1px solid var(--border);">
+                <span style="font-family: var(--font-serif); font-size: var(--fs-small); color: var(--vermilion); font-weight: 500;">肆</span>
+                <div style="font-family: var(--font-serif); font-size: var(--fs-h3); font-weight: 400; letter-spacing: 0.03em; margin: var(--space-xs) 0;">知行合一</div>
+                <div style="font-size: var(--fs-small); color: var(--ink-mid); line-height: 1.8;">思想与行动统一，理论必须落地于躬身实践</div>
             </div>
         </div>
     </div>

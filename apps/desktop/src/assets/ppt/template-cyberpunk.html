@@ -52,7 +52,7 @@
             --pad-x: clamp(2.5rem, 8vw, 10vw);
             --pad-y: clamp(2rem, 6vh, 7rem);
 
-            --ease-cyber: cubic-bezier(0.34, 1.56, 0.64, 1);
+            --ease-cyber: cubic-bezier(0.16, 1, 0.3, 1);
             --ease-out: cubic-bezier(0.0, 0, 0.2, 1);
             --dur-reveal: 500ms;
             --dur-slide: 600ms;
@@ -306,7 +306,6 @@
             font-size: var(--fs-body);
             color: var(--text-dim);
             font-weight: 300;
-            max-width: clamp(300px, 50vw, 600px);
             line-height: 1.8;
         }
 
@@ -611,7 +610,6 @@
             font-size: var(--fs-quote);
             font-weight: 300;
             line-height: 1.4;
-            max-width: clamp(400px, 65vw, 800px);
             color: var(--text);
         }
 
@@ -639,7 +637,6 @@
             font-weight: 900;
             line-height: 1.1;
             letter-spacing: -2px;
-            max-width: 900px;
         }
 
         /* ═══════════════════════════════
@@ -808,64 +805,56 @@
            ═══════════════════════════════ */
 
         .versus {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: var(--space-lg);
             margin-top: var(--space-md);
-            max-width: clamp(480px, 70vw, 860px);
+            width: 100%;
+            position: relative;
         }
 
-        .versus-divider {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: var(--space-xs);
-            align-self: stretch;
-        }
-
-        .versus-divider span {
-            font-family: var(--font-display);
-            font-size: var(--fs-small);
-            color: var(--text-muted);
-            font-weight: 700;
-            white-space: nowrap;
-        }
-
-        .versus-line {
+        .versus::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 5%;
+            bottom: 5%;
             width: 1px;
-            flex: 1;
-            min-height: 32px;
-            max-height: clamp(40px, 10vh, 80px);
-            background: linear-gradient(180deg, transparent, var(--border), transparent);
+            transform: translateX(-0.5px);
+            background: linear-gradient(to bottom, transparent, var(--neon-dim) 20%, var(--neon-dim) 80%, transparent);
+            pointer-events: none;
         }
+
+        .versus-side {
+            padding: 0 var(--space-md);
+        }
+
+        .versus-side .col-tag {
+            font-family: var(--font-mono);
+            letter-spacing: 0.2em;
+            font-size: var(--fs-label);
+            text-transform: uppercase;
+            margin-bottom: var(--space-md);
+        }
+
+        .vs-neon .col-tag { color: var(--neon); }
+        .vs-pink .col-tag { color: var(--pink); }
 
         .versus-side h3 {
             font-family: var(--font-display);
             font-size: var(--fs-h3);
             font-weight: 700;
             margin-bottom: var(--space-sm);
+            color: var(--text-primary);
         }
 
-        .versus-side ul {
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-xs);
-        }
-
-        .versus-side ul li {
+        .versus-side .compare-point {
             padding: var(--space-xs) 0;
+            border-bottom: 1px solid var(--border);
             font-size: var(--fs-small);
             color: var(--text-dim);
+            line-height: 1.75;
         }
-
-        .vs-neon h3 { color: var(--neon); }
-        .vs-pink h3 { color: var(--pink); }
-
-        .versus > .versus-side:first-child { text-align: left; }
-        .versus > .versus-side:last-child { text-align: right; }
 
         /* ═══════════════════════════════
            CODE BLOCK
@@ -1107,7 +1096,7 @@
         <div class="slide-label reveal">DEFINITION</div>
         <h2 class="title-main reveal delay-1">分布式系统</h2>
 
-        <div style="border: 1px solid var(--border); border-left: 3px solid var(--neon); padding: var(--space-md); background: var(--bg-card); max-width: clamp(500px, 65vw, 800px); box-shadow: 0 0 20px rgba(13,255,140,0.04);" class="reveal delay-2">
+        <div style="border: 1px solid var(--neon); padding: var(--space-md); background: var(--bg-card); box-shadow: 0 0 20px rgba(13,255,140,0.04);" class="reveal delay-2">
             <p style="font-size: var(--fs-body); line-height: 1.9; color: var(--text-dim);">
                 分布式系统是由多个通过网络连接的独立计算节点组成的系统，这些节点通过消息传递进行协调，对用户呈现为<span style="color: var(--text); font-weight: 500;">统一的计算实体</span>。
             </p>
@@ -1192,27 +1181,21 @@
         <h2 class="title-main reveal delay-1">单体 vs 微服务</h2>
 
         <div class="versus">
-            <div class="versus-side vs-neon reveal delay-1">
+            <div class="versus-side vs-neon reveal-left delay-1">
+                <div class="col-tag">Monolithic</div>
                 <h3 class="neon-text">单体架构</h3>
-                <ul>
-                    <li>开发部署简单</li>
-                    <li>本地调用高效</li>
-                    <li>事务管理直接</li>
-                    <li>技术栈统一</li>
-                </ul>
+                <div class="compare-point">开发部署简单</div>
+                <div class="compare-point">本地调用高效</div>
+                <div class="compare-point">事务管理直接</div>
+                <div class="compare-point">技术栈统一</div>
             </div>
-            <div class="versus-divider reveal delay-2">
-                <span class="neon-text">VS</span>
-                <div class="versus-line"></div>
-            </div>
-            <div class="versus-side vs-pink reveal delay-1">
+            <div class="versus-side vs-pink reveal-right delay-2">
+                <div class="col-tag">Microservices</div>
                 <h3 class="pink-text">微服务架构</h3>
-                <ul>
-                    <li>独立扩展能力</li>
-                    <li>技术多样性</li>
-                    <li>故障隔离</li>
-                    <li>团队自治</li>
-                </ul>
+                <div class="compare-point">独立扩展能力</div>
+                <div class="compare-point">技术多样性</div>
+                <div class="compare-point">故障隔离</div>
+                <div class="compare-point">团队自治</div>
             </div>
         </div>
     </div>

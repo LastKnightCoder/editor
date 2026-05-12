@@ -19,8 +19,8 @@
   --c-mint: #1dd1a1;
   --c-sky: #54a0ff;
   --c-violet: #9c88ff;
-  --c-white: #ffffff;
-  --c-text: #ffffff;
+  --c-white: #f7f5fa;
+  --c-text: #f7f5fa;
   --c-text-dim: rgba(255, 255, 255, 0.55);
   --c-text-muted: rgba(255, 255, 255, 0.35);
   --c-surface: rgba(255, 255, 255, 0.06);
@@ -59,7 +59,7 @@
   --radius-lg: clamp(1rem, 1.8vw, 2rem);
   --radius-xl: clamp(1.5rem, 2.5vw, 3rem);
 
-  --ease-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-bouncy: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-smooth: cubic-bezier(0.19, 1, 0.22, 1);
   --dur-slide: 0.8s;
   --dur-reveal: 0.7s;
@@ -264,10 +264,7 @@ body::before {
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  background: linear-gradient(90deg, var(--c-coral), var(--c-yellow));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--c-coral);
   margin-bottom: var(--sp-sm);
 }
 .heading-main {
@@ -288,13 +285,9 @@ body::before {
   font-size: var(--fs-body);
   color: var(--c-text-dim);
   line-height: 1.8;
-  max-width: 52ch;
 }
 .gradient-text {
-  background: linear-gradient(135deg, var(--c-coral), var(--c-yellow), var(--c-mint));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--c-coral);
 }
 .stroke-text {
   color: transparent;
@@ -353,17 +346,13 @@ body::before {
 }
 .slide--cover h1 .accent {
   display: block;
-  background: linear-gradient(135deg, var(--c-coral), var(--c-yellow));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--c-coral);
   font-style: italic;
 }
 .slide--cover .meta {
   font-size: var(--fs-sm);
   color: var(--c-text-dim);
   margin-left: clamp(1rem, 5vw, 4rem);
-  max-width: 36ch;
 }
 .slide--cover .author {
   margin-top: var(--sp-sm);
@@ -434,10 +423,9 @@ body::before {
 .definition-block {
   position: relative;
   padding: var(--sp-lg);
-  border-left: clamp(3px, 0.4vw, 5px) solid var(--c-coral);
   background: var(--c-surface);
-  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
-  max-width: 55ch;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
 }
 .definition-block .term {
   font-family: var(--f-display);
@@ -480,7 +468,6 @@ body::before {
 .palette-card__info {
   padding: var(--sp-sm);
   background: var(--c-surface);
-  backdrop-filter: blur(8px);
 }
 .palette-card__name {
   font-family: var(--f-display);
@@ -769,10 +756,8 @@ body::before {
 }
 .statement-text .accent {
   -webkit-text-stroke: 0;
-  -webkit-text-fill-color: transparent;
-  background: linear-gradient(135deg, var(--c-coral), var(--c-yellow));
-  -webkit-background-clip: text;
-  background-clip: text;
+  -webkit-text-fill-color: var(--c-coral);
+  color: var(--c-coral);
 }
 .statement-sub {
   margin-top: var(--sp-md);
@@ -792,7 +777,6 @@ body::before {
   gap: var(--sp-md);
   margin-top: var(--sp-lg);
   width: 100%;
-  max-width: 52em;
 }
 .chart-item {
   display: grid;
@@ -911,7 +895,6 @@ body::before {
   gap: clamp(2rem, 4vw, 4rem);
   margin-top: var(--sp-lg);
   width: 100%;
-  max-width: 52em;
   align-items: center;
 }
 .split-visual {
@@ -1583,7 +1566,7 @@ code {
 <section class="slide slide--end">
   <div class="tag reveal delay-1" style="display: inline-block; padding: var(--sp-xs) var(--sp-md); background: linear-gradient(135deg, var(--c-mint), var(--c-sky)); border-radius: 100vmax; font-family: var(--f-mono); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--c-bg);">Thank You</div>
   <h1 class="reveal delay-2">让品牌<br><span class="stroke-text">被看见</span></h1>
-  <p class="body-text reveal delay-3" style="text-align: center; max-width: 40ch; color: var(--c-text-dim);">期待与各位携手，打造具有时代感的品牌视觉体验。</p>
+  <p class="body-text reveal delay-3" style="text-align: center; color: var(--c-text-dim);">期待与各位携手，打造具有时代感的品牌视觉体验。</p>
   <p class="contact reveal delay-4">mingyuan.zhang@studio.design &nbsp;·&nbsp; 内部分享</p>
 </section>
 
@@ -1720,7 +1703,7 @@ class SlidePresentation {
     el.style.opacity = '0';
     setTimeout(() => {
       el.textContent = formatted;
-      el.style.transition = 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s ease';
+      el.style.transition = 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease';
       el.style.transform = 'translateY(0)';
       el.style.opacity = '1';
     }, 150);

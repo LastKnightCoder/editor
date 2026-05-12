@@ -14,6 +14,7 @@ import templateCyberpunk from "@/assets/ppt/template-cyberpunk.html?raw";
 import templateZen from "@/assets/ppt/template-zen.html?raw";
 import templateWatercolor from "@/assets/ppt/template-watercolor.html?raw";
 import templateBlueprint from "@/assets/ppt/template-blueprint.html?raw";
+import templateBrutalism from "@/assets/ppt/template-brutalism.html?raw";
 
 export interface PPTTemplate {
   id: string;
@@ -41,35 +42,40 @@ const cinematicStyleGuide = `
 `;
 
 const minimalStyleGuide = `
-### 视觉风格 (Minimal Style - 极简明亮)
-- **字体**: Google Fonts 导入 Archivo（标题）+ Nunito Sans（正文）
-- **配色**: 灰白背景 #fafafa，深蓝黑文字 #1a1a2e，单一蓝色强调 #2563eb
-- **排版**: 所有字号用 clamp()，标题 clamp(2.5rem, 6vw, 5rem)，字重极轻 200-300
-- **动效**: 微妙淡入 400-700ms，ease 缓动，避免花哨
-- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + delay 交错
-- **背景**: 纯净灰白，无纹理无装饰
-- **装饰**: 极细分割线 1px solid rgba，顶部细线进度条，右下角 01/12 页码
-- **卡片**: 顶部细边框分隔，无背景色，极简排版
-- **留白**: 90%+ 留白空间，内容自然呼吸
+### 视觉风格 (Minimal Style - 极简中性)
+- **字体**: Google Fonts 导入 Newsreader（衬线标题 400-500）+ Inter（正文 400-600）
+- **配色**: 纯白背景 #ffffff，浅灰面板 #f5f5f5，纯黑文字 #141414，次要文字 #525252，柔和文字 #8a8a8a，边框 #e5e5e5，强调色 #141414（黑色即强调），极淡背景 rgba(20,20,20,0.04)
+- **排版**: 所有字号用 clamp()，衬线标题 clamp(4rem, 10vw, 12rem)，正文 clamp(1rem, 1.2vw, 1.3rem)，字重 400-500（标题）/ 400（正文），衬线与无衬线对比建立层级，极致尺度差创造视觉冲击
+- **动效**: 微妙淡入 550ms，ease-out-quart cubic-bezier(0.25, 1, 0.5, 1)，translateY(18px) 入场
+- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + .delay-1~6 交错（每级 100ms）
+- **背景**: 纯白，无纹理无装饰，极度克制
+- **装饰**: 2px 黑色短横线作为分隔符（cover-rule / chapter-rule / def-rule / end-rule），顶部 2px 进度条，右下角页码
+- **布局**: 封面和章节页左对齐（编辑式排版），定义页和声明页居中，正文最大宽度 60ch，大量留白，章节数字极大（20rem）制造纵深
+- **卡片**: 使用 bg-alt (#f5f5f5) 淡色背景块替代边框卡片，无圆角，极简
+- **数据**: 衬线大号数字 + 黑色后缀标记，进度条使用黑色填充
+- **对比度**: 所有文本至少 WCAG AA（4.5:1+），主文本 #141414 on #ffffff ≈ 18.3:1，次要文本 #525252 ≈ 7.5:1
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持
-- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
+- **JS**: SlidePresentation class，键盘/滚轮/触摸/全览导航，data-count 计数动画
 `;
 
 const corporateStyleGuide = `
-### 视觉风格 (Corporate Style - 商务专业)
-- **字体**: Google Fonts 导入 Manrope（全程使用），粗细变化表达层级
-- **配色**: 白色 #ffffff，浅灰 #f8fafc，海军蓝 #1e3a5f，天蓝 #0ea5e9，绿 #10b981，橙 #f59e0b
-- **排版**: 所有字号用 clamp()，清晰信息层级：标签→标题→正文→数据
-- **动效**: 快速专业 200-400ms，ease-out 缓动
-- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + delay 交错
-- **背景**: 纯白或浅灰交替，无花哨装饰
-- **装饰**: 圆角卡片 border-radius: 12px，渐变图标背景，顶部进度条，右下角页码
-- **数据展示**: 四列统计数字 + data-count 计数动画，三列卡片网格，勾选清单
-- **卡片**: 白色圆角 + 柔和阴影，hover 上浮 + 阴影加深
+### 视觉风格 (Corporate Style - 商务权威)
+- **字体**: Google Fonts 导入 Source Serif 4（衬线标题展示 300-700）+ Work Sans（正文 300-600）+ Fira Code（标签/数据/等宽）
+- **配色**: OKLCH 色彩系统——深暖灰板岩 oklch(0.22 0.01 250)，赤陶强调 oklch(0.65 0.14 35)，鼠尾草绿次要 oklch(0.72 0.06 160)，暖白文字 oklch(0.93 0.01 80)
+- **排版**: 所有字号 clamp()，衬线标题对比无衬线正文，层级通过 ≥1.5 倍比 + weight 对比（Display 400 vs Body 300）
+- **动效**: 指数 ease-out cubic-bezier(0.16, 1, 0.3, 1)，500-600ms，无弹性回弹
+- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + .d1~d8 延迟交错（每级 80ms）
+- **背景**: 暖深灰板岩色 + body::after SVG feTurbulence 噪点纹理 (0.025 opacity)
+- **装饰**: 克制——2px 赤陶色短横线作为分隔符，巨型衬线幽灵数字 (6-8% opacity) 营造层次，建筑感直角 border-radius: 2-6px
+- **布局**: 不对称网格（35/65 分栏），内容左对齐为主，留白不均匀营造节奏感，1px 分隔线替代卡片包裹
+- **数据展示**: Source Serif 4 大号数字左对齐 + Fira Code 标签，四列统计通过竖线分隔而非卡片，进度条置于 graph-paper 网格背景上
+- **时间线**: 竖向布局 + 赤陶方形节点 + 等宽日期左置
+- **章节过渡**: 巨型幽灵数字（14vw 衬线，底部右侧出血）+ 居中衬线标题 + 赤陶短线
+- **进度条**: 底部 2px 细线（赤陶→鼠尾草渐变），Fira Code 等宽页码
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持
-- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
+- **JS**: SlidePresentation class，键盘/滚轮/触摸/全览导航，data-count 计数动画
 `;
 
 const techStyleGuide = `
@@ -171,19 +177,21 @@ const gradientStyleGuide = `
 
 const darkElegantStyleGuide = `
 ### 视觉风格 (Dark Elegant Style - 暗夜优雅)
-- **字体**: Google Fonts 导入 Cormorant Garamond（展示衬线 300/400/italic）+ IBM Plex Sans（正文 300/400/500）
-- **配色**: 纯黑 #000000，纯白 #ffffff，极淡白装饰 rgba(255,255,255,0.03-0.15)
-- **排版**: 所有字号用 clamp()，超细衬线标题 font-weight: 300，极致简约
-- **动效**: 缓慢戏剧性 1000-1500ms，ease 缓动
-- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + delay 交错
-- **背景**: 纯黑，偶尔极淡径向渐变装饰（rgba(255,255,255,0.02)）
-- **装饰**: 1px 超细进度线，零装饰页码计数器
-- **卡片**: 1px 白色边框分隔，无背景或极淡 rgba，hover 仅微妙亮度变化
-- **留白**: 极致黑色留白，克制到极点
-- **无装饰**: 不使用 emoji、图标或任何装饰元素
+- **字体**: Google Fonts 导入 DM Serif Display（展示衬线 400）+ Plus Jakarta Sans（正文 300/400/500/600）
+- **配色**: 深暖黑 #0f0e0d，暖白文字 #e8e5e0，中灰 #9c9590，暗灰 #6b6560，幽灵色 #1e1c1a，结构线 #2a2724
+- **排版**: 所有字号用 clamp()，强对比衬线标题 font-weight: 400，纯色调层级无强调色
+- **动效**: 精确 800ms 切换，550ms reveal，cubic-bezier(0.16, 1, 0.3, 1) 指数缓出
+- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + d1-d10 延迟（140ms 间隔）
+- **背景**: 深暖黑纯色，无装饰无渐变
+- **签名元素**: 超大幽灵数字（22vw）作为构图纹理，极低对比度 #1e1c1a
+- **结构**: 1px 细线分隔，非对称左重布局（左 padding 大于右）
+- **卡片**: 无边框无背景，纯留白分隔
+- **留白**: 极致深色留白，非对称构图创造编辑感张力
+- **无装饰**: 不使用 emoji、图标、色块或任何装饰元素
+- **页码**: 点分隔符 · 代替斜杠
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持
-- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画
+- **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画（支持小数）
 `;
 
 const handwrittenStyleGuide = `
@@ -221,7 +229,7 @@ const cyberpunkStyleGuide = `
 `;
 
 const zenStyleGuide = `
-### 视觉风格 (Zen Style - 日式禅意)
+### 视觉风格 (Zen Style - 禅意东方)
 - **字体**: Google Fonts 导入 Noto Serif SC（标题衬线）+ Noto Sans SC（正文）
 - **配色**: 宣纸白 #f9f5ec，墨黑 #1a1a1a，朱红 #c0392b，竹绿 #4a7c59，古金 #b8960c
 - **排版**: 所有字号用 clamp()，大量留白，letter-spacing 0.03~0.1em，行高 1.8~2
@@ -269,6 +277,29 @@ const blueprintStyleGuide = `
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持
 - **JS**: SlidePresentation class，键盘/滚轮/触摸导航，data-count 计数动画（支持小数）
+`;
+
+const brutalismStyleGuide = `
+### 视觉风格 (Brutalism Style - 粗野主义/新残酷主义)
+- **字体**: Google Fonts 导入 Space Grotesk（标题 700-900）+ Inter（正文 400-600）+ Space Mono（标签/数据/等宽）
+- **配色**: 米白背景 #FFFDF5，纯黑边框文字 #1A1A1A，明黄 #FFE600，正红 #FF3333，电蓝 #2E4CFF，亮绿 #00CC66，混凝土灰 #F0ECE2，次要文字 #555555
+- **排版**: 所有字号用 clamp()，标题 font-weight: 900 超粗体 + letter-spacing: -2px 紧凑，全大写标签，标题可达 clamp(3rem, 8vw, 9rem) 极大
+- **边框**: 3-4px 纯黑实线边框，无圆角（border-radius: 0），所有结构元素外露
+- **阴影**: 硬阴影 box-shadow: 6px 6px 0px #1A1A1A（无模糊），hover 时加大偏移 8px 8px
+- **色块**: 纯色填充无渐变，强调元素使用整块黄/红/蓝背景色，文字叠加
+- **动效**: 快速硬切 200-400ms，cubic-bezier(0.16, 1, 0.3, 1) 弹出感，元素 translate + scale 入场
+- **Reveal 系统**: .reveal / .reveal-scale / .reveal-left / .reveal-right + .delay-1~6 交错（每级 100ms）
+- **背景**: 米白纯色 + body::before 细网格线（1px rgba 极淡）模拟建筑图纸
+- **装饰**: 无花饰无 emoji，装饰性来自结构本身——粗边框、硬阴影、色块、错位
+- **卡片**: 4px 黑色边框 + 6px 硬阴影偏移 + hover translate(-2px,-2px) 浮起效果
+- **标签**: 方块标签贴纸风格——黄底黑字 2px 边框、Space Mono 等宽大写
+- **不对称**: 部分卡片或元素轻微偏移打破网格，制造"手工拼贴"张力
+- **进度条**: 顶部 3px 黑色实线进度条，右下角 Space Mono 等宽页码 [01/22]
+- **对比/VS**: 粗竖线分隔 + 两侧色块底色（黄 vs 蓝）区分
+- **章节过渡**: 巨型 900 字重数字铺底（18vw）+ 粗短横线 + 标题叠加
+- **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
+- **无障碍**: prefers-reduced-motion 支持
+- **JS**: SlidePresentation class，键盘/滚轮/触摸/全览导航，data-count 计数动画
 `;
 
 const generatePreviewHtml = (
@@ -340,13 +371,13 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
   },
   {
     id: "minimal",
-    name: "极简明亮",
-    description: "浅色背景，大量留白，优雅简约，适合产品发布",
+    name: "极简中性",
+    description: "纯白背景，黑白灰配色，极致留白与尺度对比，适合产品发布",
     previewHtml: generatePreviewHtml(
-      "#fafafa",
-      "#1a1a2e",
-      "#1a1a2e",
-      "极简明亮",
+      "#ffffff",
+      "#141414",
+      "#141414",
+      "极简中性",
       "MINIMAL",
       "light",
     ),
@@ -355,15 +386,16 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
   },
   {
     id: "corporate",
-    name: "商务专业",
-    description: "白色背景，海军蓝主色，清晰的信息层级，适合商业报告",
+    name: "商务权威",
+    description:
+      "深暖灰板岩背景，赤陶色强调，衬线/无衬线双字体系统，适合高端商业报告与咨询演示",
     previewHtml: generatePreviewHtml(
-      "#ffffff",
-      "#1e3a5f",
-      "#0ea5e9",
-      "商务专业",
+      "#2a2d32",
+      "#ece5d8",
+      "#c4704a",
+      "商务权威",
       "CORPORATE",
-      "light",
+      "dark",
     ),
     fullTemplate: templateCorporate,
     styleGuide: corporateStyleGuide,
@@ -461,13 +493,13 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
   {
     id: "dark-elegant",
     name: "暗夜优雅",
-    description: "纯黑背景，白色文字，极简高级感",
+    description: "深色背景，非对称编辑排版，纯色调层级极简",
     previewHtml: generatePreviewHtml(
-      "#000000",
-      "#ffffff",
-      "#ffffff",
+      "#0f0e0d",
+      "#e8e5e0",
+      "#9c9590",
       "暗夜优雅",
-      "ELEGANT",
+      "AXIS",
       "dark",
     ),
     fullTemplate: templateDarkElegant,
@@ -505,7 +537,7 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
   },
   {
     id: "zen",
-    name: "日式禅意",
+    name: "禅意东方",
     description: "宣纸质感，墨黑文字，朱红点缀，极简东方美学",
     previewHtml: generatePreviewHtml(
       "#f9f5ec",
@@ -547,6 +579,22 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
     ),
     fullTemplate: templateBlueprint,
     styleGuide: blueprintStyleGuide,
+  },
+  {
+    id: "brutalism",
+    name: "粗野主义",
+    description:
+      "厚重黑色边框，硬阴影，明黄红蓝撞色，原始结构外露，适合先锋创意与潮流品牌",
+    previewHtml: generatePreviewHtml(
+      "#FFFDF5",
+      "#1A1A1A",
+      "#FFE600",
+      "粗野主义",
+      "BRUTALISM",
+      "light",
+    ),
+    fullTemplate: templateBrutalism,
+    styleGuide: brutalismStyleGuide,
   },
 ];
 

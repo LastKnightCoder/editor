@@ -1,0 +1,2043 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>粗野主义风格演示</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;800;900&family=Inter:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #FFFDF5;
+            --bg-alt: #F0ECE2;
+            --bg-card: #FFFDF5;
+            --text: #1A1A1A;
+            --text-muted: #555555;
+            --border: #1A1A1A;
+            --accent-yellow: #FFE600;
+            --accent-red: #FF3333;
+            --accent-blue: #2E4CFF;
+            --accent-green: #00CC66;
+
+            --font-display: "Space Grotesk", sans-serif;
+            --font-body: "Inter", sans-serif;
+            --font-mono: "Space Mono", monospace;
+
+            --fs-hero: clamp(2.8rem, 7vw, 7rem);
+            --fs-chapter-num: clamp(6rem, 18vw, 16rem);
+            --fs-chapter-title: clamp(2.2rem, 5.5vw, 5rem);
+            --fs-title: clamp(1.4rem, 3vw, 2.8rem);
+            --fs-subtitle: clamp(1rem, 1.8vw, 1.6rem);
+            --fs-body: clamp(0.9rem, 1.2vw, 1.2rem);
+            --fs-stat: clamp(2.2rem, 5vw, 5rem);
+            --fs-quote: clamp(1.3rem, 2.5vw, 2.5rem);
+            --fs-label: clamp(0.65rem, 0.8vw, 0.85rem);
+            --fs-small: clamp(0.75rem, 0.9vw, 0.9rem);
+
+            --space-xs: clamp(0.3rem, 0.5vw, 0.5rem);
+            --space-sm: clamp(0.5rem, 1vw, 1rem);
+            --space-md: clamp(1rem, 2vw, 2rem);
+            --space-lg: clamp(1.5rem, 3vw, 3rem);
+            --space-xl: clamp(2rem, 4vw, 4.5rem);
+            --space-2xl: clamp(3rem, 6vw, 6rem);
+
+            --pad-slide: clamp(2rem, 5vw, 5rem);
+            --pad-slide-y: clamp(2rem, 4vh, 4rem);
+
+            --shadow: 6px 6px 0px var(--border);
+            --shadow-sm: 4px 4px 0px var(--border);
+            --shadow-accent-y: 6px 6px 0px var(--accent-yellow);
+            --shadow-accent-r: 6px 6px 0px var(--accent-red);
+            --shadow-accent-b: 6px 6px 0px var(--accent-blue);
+            --shadow-accent-g: 6px 6px 0px var(--accent-green);
+
+            --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+            --transition: 300ms var(--ease-out);
+        }
+
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: var(--font-body);
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            background-image:
+                linear-gradient(rgba(26,26,26,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(26,26,26,0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE CORE
+           ═══════════════════════════════════════ */
+
+        .slide {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: var(--pad-slide-y) var(--pad-slide);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity var(--transition), visibility 0s linear 300ms;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transition: opacity var(--transition), visibility 0s;
+            z-index: 2;
+        }
+
+        /* ═══════════════════════════════════════
+           REVEAL ANIMATIONS
+           ═══════════════════════════════════════ */
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 400ms var(--ease-out), transform 400ms var(--ease-out);
+        }
+
+        .reveal-scale {
+            opacity: 0;
+            transform: scale(0.9);
+            transition: opacity 400ms var(--ease-out), transform 400ms var(--ease-out);
+        }
+
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-30px);
+            transition: opacity 400ms var(--ease-out), transform 400ms var(--ease-out);
+        }
+
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(30px);
+            transition: opacity 400ms var(--ease-out), transform 400ms var(--ease-out);
+        }
+
+        .slide.active .reveal,
+        .slide.active .reveal-scale,
+        .slide.active .reveal-left,
+        .slide.active .reveal-right {
+            opacity: 1;
+            transform: none;
+        }
+
+        .delay-1 { transition-delay: 100ms; }
+        .delay-2 { transition-delay: 200ms; }
+        .delay-3 { transition-delay: 300ms; }
+        .delay-4 { transition-delay: 400ms; }
+        .delay-5 { transition-delay: 500ms; }
+        .delay-6 { transition-delay: 600ms; }
+
+        /* ═══════════════════════════════════════
+           PROGRESS BAR & COUNTER
+           ═══════════════════════════════════════ */
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: rgba(26,26,26,0.1);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--border);
+            transition: width 400ms var(--ease-out);
+        }
+
+        .slide-counter {
+            position: fixed;
+            bottom: clamp(12px, 2vh, 20px);
+            right: clamp(16px, 2vw, 28px);
+            font-family: var(--font-mono);
+            font-size: var(--fs-label);
+            font-weight: 700;
+            color: var(--text-muted);
+            z-index: 9999;
+            letter-spacing: 1px;
+        }
+
+        .slide-counter .divider-mark {
+            margin: 0 2px;
+            opacity: 0.5;
+        }
+
+        /* ═══════════════════════════════════════
+           TAG / LABEL COMPONENT
+           ═══════════════════════════════════════ */
+
+
+        /* ═══════════════════════════════════════
+           TITLE COMPONENT
+           ═══════════════════════════════════════ */
+
+        .title-main {
+            font-family: var(--font-display);
+            font-size: var(--fs-title);
+            font-weight: 800;
+            color: var(--text);
+            letter-spacing: -1px;
+            margin-bottom: var(--space-md);
+            text-transform: uppercase;
+        }
+
+        /* ═══════════════════════════════════════
+           ACCENT HIGHLIGHT
+           ═══════════════════════════════════════ */
+
+        .highlight {
+            background: var(--accent-yellow);
+            padding: 0 6px;
+            display: inline;
+        }
+
+        .highlight-red { background: var(--accent-red); color: #fff; padding: 0 6px; }
+        .highlight-blue { background: var(--accent-blue); color: #fff; padding: 0 6px; }
+
+        /* ═══════════════════════════════════════
+           SLIDE: COVER / HERO
+           ═══════════════════════════════════════ */
+
+        .slide-hero {
+            align-items: flex-start;
+            justify-content: center;
+            padding-left: clamp(3rem, 8vw, 10rem);
+        }
+
+        .hero-frame {
+            border: 4px solid var(--border);
+            padding: var(--space-lg) var(--space-xl);
+            box-shadow: var(--shadow);
+            background: var(--bg-card);
+            max-width: 75%;
+        }
+
+        .hero-title {
+            font-family: var(--font-display);
+            font-size: var(--fs-hero);
+            font-weight: 900;
+            letter-spacing: -3px;
+            line-height: 1.05;
+            text-transform: uppercase;
+            margin-bottom: var(--space-sm);
+        }
+
+        .hero-sub {
+            font-family: var(--font-mono);
+            font-size: var(--fs-small);
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            margin-top: var(--space-sm);
+        }
+
+        .hero-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            background: var(--accent-yellow);
+            border: 3px solid var(--border);
+            font-family: var(--font-mono);
+            font-size: var(--fs-label);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: var(--space-md);
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: AGENDA
+           ═══════════════════════════════════════ */
+
+        .agenda-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+            margin-top: var(--space-sm);
+        }
+
+        .agenda-item {
+            display: grid;
+            grid-template-columns: clamp(2.5rem, 4vw, 4rem) 1fr;
+            gap: var(--space-sm);
+            align-items: center;
+            padding: var(--space-sm) var(--space-md);
+            border-left: 4px solid var(--border);
+            background: var(--bg-card);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .agenda-item:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .agenda-num {
+            font-family: var(--font-display);
+            font-size: var(--fs-subtitle);
+            font-weight: 900;
+            color: var(--text);
+        }
+
+        .agenda-content h4 {
+            font-family: var(--font-display);
+            font-size: var(--fs-body);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .agenda-content p {
+            font-size: var(--fs-small);
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: CHAPTER TRANSITION
+           ═══════════════════════════════════════ */
+
+        .slide-chapter {
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .chapter-watermark {
+            position: absolute;
+            font-family: var(--font-display);
+            font-size: var(--fs-chapter-num);
+            font-weight: 900;
+            color: rgba(26,26,26,0.04);
+            z-index: 0;
+            line-height: 1;
+            user-select: none;
+        }
+
+        .chapter-label {
+            font-family: var(--font-mono);
+            font-size: var(--fs-label);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: var(--space-sm);
+            z-index: 1;
+            position: relative;
+        }
+
+        .chapter-title {
+            font-family: var(--font-display);
+            font-size: var(--fs-chapter-title);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -1px;
+            z-index: 1;
+            position: relative;
+        }
+
+        .chapter-line {
+            width: 60px;
+            height: 4px;
+            background: var(--border);
+            margin-top: var(--space-md);
+            z-index: 1;
+            position: relative;
+        }
+
+        .chapter-line.red { background: var(--accent-red); }
+        .chapter-line.blue { background: var(--accent-blue); }
+        .chapter-line.green { background: var(--accent-green); }
+
+        /* ═══════════════════════════════════════
+           SLIDE: KEY CONCEPT
+           ═══════════════════════════════════════ */
+
+        .concept-box {
+            border: 4px solid var(--border);
+            padding: var(--space-lg);
+            box-shadow: var(--shadow);
+            background: var(--bg-card);
+        }
+
+        .concept-term {
+            font-family: var(--font-display);
+            font-size: var(--fs-subtitle);
+            font-weight: 800;
+            text-transform: uppercase;
+            margin-bottom: var(--space-sm);
+            padding-bottom: var(--space-xs);
+            border-bottom: 3px solid var(--accent-yellow);
+        }
+
+        .concept-desc {
+            font-size: var(--fs-body);
+            line-height: 1.8;
+            color: var(--text);
+        }
+
+        .concept-tags {
+            display: flex;
+            gap: var(--space-sm);
+            margin-top: var(--space-md);
+            flex-wrap: wrap;
+        }
+
+        .concept-tag {
+            padding: 3px 10px;
+            border: 2px solid var(--border);
+            font-family: var(--font-mono);
+            font-size: var(--fs-label);
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: DATA CARDS
+           ═══════════════════════════════════════ */
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(clamp(12rem, 20vw, 18rem), 1fr));
+            gap: var(--space-md);
+        }
+
+        .brutal-card {
+            border: 4px solid var(--border);
+            padding: var(--space-md);
+            background: var(--bg-card);
+            box-shadow: var(--shadow);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            position: relative;
+        }
+
+        .brutal-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: var(--accent-yellow);
+        }
+
+        .brutal-card.card-red::before { background: var(--accent-red); }
+        .brutal-card.card-blue::before { background: var(--accent-blue); }
+        .brutal-card.card-green::before { background: var(--accent-green); }
+
+        .brutal-card:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 8px 8px 0px var(--border);
+        }
+
+        .card-stat {
+            font-family: var(--font-mono);
+            font-size: var(--fs-stat);
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: var(--space-xs);
+        }
+
+        .card-title {
+            font-family: var(--font-display);
+            font-size: var(--fs-body);
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: var(--space-xs);
+        }
+
+        .card-desc {
+            font-size: var(--fs-small);
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: COMPARISON
+           ═══════════════════════════════════════ */
+
+        .compare-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-md);
+            align-items: stretch;
+        }
+
+        .compare-col {
+            padding: var(--space-md) var(--space-lg);
+            border: 4px solid var(--border);
+            position: relative;
+        }
+
+        .compare-col.col-left {
+            background: var(--bg-card);
+            box-shadow: var(--shadow);
+        }
+
+        .compare-col.col-right {
+            background: var(--border);
+            color: var(--bg);
+            box-shadow: 6px 6px 0px var(--accent-yellow);
+        }
+
+        .compare-col h4 {
+            font-family: var(--font-display);
+            font-size: var(--fs-subtitle);
+            font-weight: 900;
+            text-transform: uppercase;
+            margin-bottom: var(--space-md);
+            padding-bottom: var(--space-sm);
+            border-bottom: 3px solid currentColor;
+        }
+
+        .compare-point {
+            font-size: var(--fs-body);
+            line-height: 2;
+            padding: var(--space-xs) 0;
+        }
+
+        .compare-point strong {
+            font-family: var(--font-mono);
+            font-size: var(--fs-small);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .compare-col.col-right .compare-point strong {
+            color: var(--accent-yellow);
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: STEPS
+           ═══════════════════════════════════════ */
+
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(clamp(10rem, 16vw, 14rem), 1fr));
+            gap: var(--space-md);
+        }
+
+        .step-card {
+            padding: var(--space-md);
+            border-left: 6px solid var(--border);
+            background: var(--bg-card);
+            border-top: 2px solid var(--border);
+            border-right: 2px solid var(--border);
+            border-bottom: 2px solid var(--border);
+            transition: transform 0.2s ease;
+        }
+
+        .step-card:nth-child(2) { border-left-color: var(--accent-yellow); }
+        .step-card:nth-child(3) { border-left-color: var(--accent-blue); }
+        .step-card:nth-child(4) { border-left-color: var(--accent-green); }
+
+        .step-card:hover {
+            transform: translate(-2px, -2px);
+        }
+
+        .step-num {
+            font-family: var(--font-display);
+            font-size: var(--fs-subtitle);
+            font-weight: 900;
+            width: clamp(2rem, 3vw, 3rem);
+            height: clamp(2rem, 3vw, 3rem);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--border);
+            color: var(--bg);
+            margin-bottom: var(--space-sm);
+        }
+
+        .step-title {
+            font-family: var(--font-display);
+            font-size: var(--fs-body);
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: var(--space-xs);
+        }
+
+        .step-desc {
+            font-size: var(--fs-small);
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: STATISTICS
+           ═══════════════════════════════════════ */
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(clamp(8rem, 14vw, 12rem), 1fr));
+            gap: var(--space-md);
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: var(--space-md);
+            border: 3px solid var(--border);
+            background: var(--bg-card);
+        }
+
+        .stat-number {
+            font-family: var(--font-mono);
+            font-size: var(--fs-stat);
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: var(--space-xs);
+        }
+
+        .stat-label {
+            font-family: var(--font-display);
+            font-size: var(--fs-body);
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: var(--space-xs);
+        }
+
+        .stat-desc {
+            font-size: var(--fs-small);
+            color: var(--text-muted);
+        }
+
+        .stat-underline {
+            width: 40px;
+            height: 4px;
+            margin: var(--space-sm) auto 0;
+        }
+
+        .stat-underline.yellow { background: var(--accent-yellow); }
+        .stat-underline.red { background: var(--accent-red); }
+        .stat-underline.blue { background: var(--accent-blue); }
+        .stat-underline.green { background: var(--accent-green); }
+
+        /* ═══════════════════════════════════════
+           SLIDE: PROGRESS BARS / CHART
+           ═══════════════════════════════════════ */
+
+        .chart-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-md);
+        }
+
+        .chart-item {
+            display: grid;
+            grid-template-columns: clamp(6rem, 12vw, 10rem) 1fr clamp(3rem, 5vw, 4rem);
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        .chart-label {
+            font-family: var(--font-mono);
+            font-size: var(--fs-small);
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .chart-bar {
+            height: clamp(18px, 2.5vw, 28px);
+            background: var(--bg-alt);
+            border: 2px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-fill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 0%;
+            background: var(--accent-yellow);
+            transition: width 1.2s var(--ease-out);
+        }
+
+        .chart-fill.red { background: var(--accent-red); }
+        .chart-fill.blue { background: var(--accent-blue); }
+        .chart-fill.green { background: var(--accent-green); }
+
+        .chart-value {
+            font-family: var(--font-mono);
+            font-size: var(--fs-body);
+            font-weight: 700;
+            text-align: right;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: QUOTE
+           ═══════════════════════════════════════ */
+
+        .slide-quote {
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .quote-mark {
+            font-family: var(--font-display);
+            font-size: clamp(6rem, 14vw, 14rem);
+            font-weight: 900;
+            color: var(--accent-yellow);
+            line-height: 0.6;
+            user-select: none;
+            position: absolute;
+            top: 15%;
+            left: 10%;
+            opacity: 0.3;
+        }
+
+        .quote-text {
+            font-family: var(--font-display);
+            font-size: var(--fs-quote);
+            font-weight: 700;
+            line-height: 1.5;
+            max-width: 70%;
+            position: relative;
+            z-index: 1;
+        }
+
+        .quote-text .highlight {
+            background: var(--accent-yellow);
+            padding: 2px 8px;
+        }
+
+        .quote-author {
+            font-family: var(--font-mono);
+            font-size: var(--fs-small);
+            color: var(--text-muted);
+            margin-top: var(--space-md);
+            letter-spacing: 1px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: SPLIT LAYOUT
+           ═══════════════════════════════════════ */
+
+        .split-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-lg);
+            align-items: center;
+        }
+
+        .split-visual {
+            border: 4px solid var(--border);
+            background: var(--bg-alt);
+            aspect-ratio: 4/3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow);
+        }
+
+        .split-visual-label {
+            font-family: var(--font-mono);
+            font-size: var(--fs-label);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .split-info h3 {
+            font-family: var(--font-display);
+            font-size: var(--fs-subtitle);
+            font-weight: 800;
+            text-transform: uppercase;
+            margin-bottom: var(--space-sm);
+        }
+
+        .split-info-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .split-info-list li {
+            font-size: var(--fs-body);
+            line-height: 1.8;
+            padding-left: var(--space-md);
+            position: relative;
+            color: var(--text);
+        }
+
+        .split-info-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 10px;
+            height: 10px;
+            background: var(--accent-yellow);
+            border: 2px solid var(--border);
+            transform: translateY(-50%);
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: BIG STATEMENT
+           ═══════════════════════════════════════ */
+
+        .slide-statement {
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .statement-text {
+            font-family: var(--font-display);
+            font-size: clamp(2rem, 5.5vw, 5rem);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -2px;
+            line-height: 1.15;
+            max-width: 80%;
+        }
+
+        .statement-sub {
+            font-size: var(--fs-body);
+            color: var(--text-muted);
+            margin-top: var(--space-md);
+            max-width: 60%;
+            line-height: 1.7;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: TIMELINE
+           ═══════════════════════════════════════ */
+
+        .timeline {
+            position: relative;
+            padding-left: clamp(2rem, 3vw, 3.5rem);
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--border);
+        }
+
+        .tl-item {
+            position: relative;
+            padding: var(--space-sm) 0 var(--space-md) var(--space-md);
+        }
+
+        .tl-item::before {
+            content: '';
+            position: absolute;
+            left: calc(-1 * clamp(2rem, 3vw, 3.5rem) + -2px);
+            top: clamp(6px, 1vw, 10px);
+            width: 16px;
+            height: 16px;
+            background: var(--accent-yellow);
+            border: 3px solid var(--border);
+        }
+
+        .tl-item:nth-child(2)::before { background: var(--accent-red); }
+        .tl-item:nth-child(3)::before { background: var(--accent-blue); }
+        .tl-item:nth-child(4)::before { background: var(--accent-green); }
+
+        .tl-time {
+            font-family: var(--font-mono);
+            font-size: var(--fs-label);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+            color: var(--text-muted);
+        }
+
+        .tl-item h4 {
+            font-family: var(--font-display);
+            font-size: var(--fs-body);
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .tl-item p {
+            font-size: var(--fs-small);
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: MATRIX 2x2
+           ═══════════════════════════════════════ */
+
+        .matrix-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: var(--space-sm);
+            position: relative;
+        }
+
+        .matrix-grid::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 5%;
+            bottom: 5%;
+            width: 3px;
+            background: var(--border);
+            transform: translateX(-50%);
+        }
+
+        .matrix-grid::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 5%;
+            right: 5%;
+            height: 3px;
+            background: var(--border);
+            transform: translateY(-50%);
+        }
+
+        .matrix-cell {
+            padding: var(--space-md);
+            border: 2px solid transparent;
+            transition: border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .matrix-cell:hover {
+            border-color: var(--border);
+            background: var(--bg-alt);
+        }
+
+        .cell-marker {
+            width: 12px;
+            height: 12px;
+            margin-bottom: var(--space-xs);
+        }
+
+        .cell-marker.yellow { background: var(--accent-yellow); border: 2px solid var(--border); }
+        .cell-marker.red { background: var(--accent-red); border: 2px solid var(--border); }
+        .cell-marker.blue { background: var(--accent-blue); border: 2px solid var(--border); }
+        .cell-marker.green { background: var(--accent-green); border: 2px solid var(--border); }
+
+        .cell-title {
+            font-family: var(--font-display);
+            font-size: var(--fs-body);
+            font-weight: 800;
+            text-transform: uppercase;
+            margin-bottom: var(--space-xs);
+        }
+
+        .cell-desc {
+            font-size: var(--fs-small);
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: DATA CARDS 2-COL VARIANT
+           ═══════════════════════════════════════ */
+
+        .card-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-md);
+        }
+
+        .tall-card {
+            border: 4px solid var(--border);
+            padding: var(--space-lg);
+            background: var(--bg-card);
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+
+        .tall-card-tag {
+            display: inline-block;
+            padding: 2px 10px;
+            background: var(--accent-yellow);
+            border: 2px solid var(--border);
+            font-family: var(--font-mono);
+            font-size: var(--fs-label);
+            font-weight: 700;
+            text-transform: uppercase;
+            align-self: flex-start;
+        }
+
+        .tall-card:nth-child(2) .tall-card-tag { background: var(--accent-blue); color: #fff; }
+
+        .tall-card h4 {
+            font-family: var(--font-display);
+            font-size: var(--fs-subtitle);
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .tall-card p {
+            font-size: var(--fs-body);
+            color: var(--text-muted);
+            line-height: 1.7;
+        }
+
+        .tall-card .card-stat {
+            font-size: clamp(2rem, 4vw, 3.5rem);
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: BULLET POINTS
+           ═══════════════════════════════════════ */
+
+        .bullet-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+            border-left: 6px solid var(--border);
+            padding-left: var(--space-md);
+        }
+
+        .bullet-item {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-sm);
+            padding: var(--space-sm) 0;
+            border-bottom: 1px dashed rgba(26,26,26,0.15);
+        }
+
+        .bullet-item:last-child { border-bottom: none; }
+
+        .bullet-marker {
+            width: 14px;
+            height: 14px;
+            min-width: 14px;
+            background: var(--accent-yellow);
+            border: 2px solid var(--border);
+            margin-top: 4px;
+        }
+
+        .bullet-item:nth-child(2) .bullet-marker { background: var(--accent-red); }
+        .bullet-item:nth-child(3) .bullet-marker { background: var(--accent-blue); }
+        .bullet-item:nth-child(4) .bullet-marker { background: var(--accent-green); }
+        .bullet-item:nth-child(5) .bullet-marker { background: var(--accent-yellow); }
+
+        .bullet-content h4 {
+            font-family: var(--font-display);
+            font-size: var(--fs-body);
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+
+        .bullet-content p {
+            font-size: var(--fs-small);
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: BEFORE/AFTER
+           ═══════════════════════════════════════ */
+
+        .ba-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-md);
+        }
+
+        .ba-col {
+            padding: var(--space-md);
+            border: 3px solid var(--border);
+        }
+
+        .ba-col.before {
+            background: rgba(255, 51, 51, 0.05);
+            box-shadow: 4px 4px 0px var(--accent-red);
+        }
+
+        .ba-col.after {
+            background: rgba(0, 204, 102, 0.05);
+            box-shadow: 4px 4px 0px var(--accent-green);
+        }
+
+        .ba-label {
+            font-family: var(--font-mono);
+            font-size: var(--fs-label);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: var(--space-sm);
+            padding: 2px 8px;
+            display: inline-block;
+        }
+
+        .ba-col.before .ba-label { background: var(--accent-red); color: #fff; }
+        .ba-col.after .ba-label { background: var(--accent-green); color: #fff; }
+
+        .ba-col h4 {
+            font-family: var(--font-display);
+            font-size: var(--fs-subtitle);
+            font-weight: 800;
+            text-transform: uppercase;
+            margin-bottom: var(--space-sm);
+        }
+
+        .ba-point {
+            font-size: var(--fs-body);
+            line-height: 1.8;
+            padding: var(--space-xs) 0;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: SUMMARY CARDS
+           ═══════════════════════════════════════ */
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: var(--space-md);
+        }
+
+        .summary-card {
+            border: 3px solid var(--border);
+            padding: var(--space-md);
+            background: var(--bg-card);
+            box-shadow: var(--shadow-sm);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .summary-card:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: var(--shadow);
+        }
+
+        .summary-num {
+            font-family: var(--font-display);
+            font-size: var(--fs-subtitle);
+            font-weight: 900;
+            margin-bottom: var(--space-xs);
+            display: inline-block;
+            background: var(--accent-yellow);
+            padding: 0 8px;
+        }
+
+        .summary-card:nth-child(2) .summary-num { background: var(--accent-red); color: #fff; }
+        .summary-card:nth-child(3) .summary-num { background: var(--accent-blue); color: #fff; }
+        .summary-card:nth-child(4) .summary-num { background: var(--accent-green); color: #fff; }
+
+        .summary-card h4 {
+            font-family: var(--font-display);
+            font-size: var(--fs-body);
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: var(--space-xs);
+        }
+
+        .summary-card p {
+            font-size: var(--fs-small);
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: CALL TO ACTION
+           ═══════════════════════════════════════ */
+
+        .slide-cta {
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .cta-title {
+            font-family: var(--font-display);
+            font-size: clamp(1.8rem, 4vw, 3.5rem);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -1px;
+            margin-bottom: var(--space-md);
+        }
+
+        .cta-desc {
+            font-size: var(--fs-body);
+            color: var(--text-muted);
+            max-width: 500px;
+            line-height: 1.7;
+            margin-bottom: var(--space-lg);
+        }
+
+        .cta-button {
+            display: inline-block;
+            padding: var(--space-sm) var(--space-xl);
+            border: 4px solid var(--border);
+            background: var(--accent-yellow);
+            font-family: var(--font-display);
+            font-size: var(--fs-subtitle);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            cursor: pointer;
+        }
+
+        .cta-button:hover {
+            transform: translate(-3px, -3px);
+            box-shadow: 9px 9px 0px var(--border);
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE: END
+           ═══════════════════════════════════════ */
+
+        .slide-end {
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .end-title {
+            font-family: var(--font-display);
+            font-size: clamp(3rem, 8vw, 8rem);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -3px;
+            line-height: 1;
+            text-shadow: 6px 6px 0px var(--accent-yellow);
+        }
+
+        .end-sub {
+            font-size: var(--fs-body);
+            color: var(--text-muted);
+            margin-top: var(--space-md);
+            line-height: 1.7;
+        }
+
+        .end-contact {
+            font-family: var(--font-mono);
+            font-size: var(--fs-small);
+            color: var(--text-muted);
+            margin-top: var(--space-lg);
+            padding: var(--space-sm) var(--space-md);
+            border: 2px solid var(--border);
+            letter-spacing: 1px;
+        }
+
+        /* ═══════════════════════════════════════
+           RESPONSIVE BREAKPOINTS
+           ═══════════════════════════════════════ */
+
+        @media (max-width: 768px) {
+            :root {
+                --pad-slide: clamp(1.5rem, 6vw, 4rem);
+            }
+
+            .hero-frame { max-width: 95%; }
+
+            .compare-grid,
+            .card-grid,
+            .steps-grid,
+            .stats-grid,
+            .summary-grid,
+            .matrix-grid,
+            .card-grid-2,
+            .ba-grid,
+            .split-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .matrix-grid::before,
+            .matrix-grid::after { display: none; }
+
+            .chart-item {
+                grid-template-columns: clamp(5rem, 10vw, 8rem) 1fr clamp(2.5rem, 4vw, 3.5rem);
+            }
+        }
+
+        @media (max-height: 750px) {
+            :root {
+                --space-lg: clamp(1rem, 2vw, 2rem);
+                --space-xl: clamp(1.5rem, 3vw, 3rem);
+                --pad-slide-y: clamp(1.5rem, 3vh, 3rem);
+            }
+        }
+
+        @media (max-height: 650px) {
+            :root {
+                --fs-hero: clamp(1.8rem, 4.5vw, 4rem);
+                --fs-chapter-title: clamp(1.4rem, 3.5vw, 3rem);
+                --fs-title: clamp(1.2rem, 2.5vw, 2.5rem);
+                --fs-quote: clamp(1.1rem, 2.2vw, 2.2rem);
+                --space-lg: clamp(0.8rem, 1.5vw, 1.5rem);
+                --space-md: clamp(0.6rem, 1.2vw, 1.2rem);
+                --pad-slide-y: clamp(1rem, 2vh, 2rem);
+            }
+        }
+
+        @media (max-height: 500px) and (orientation: landscape) {
+            :root {
+                --fs-hero: clamp(1.5rem, 4vw, 3rem);
+                --fs-chapter-num: clamp(4rem, 14vw, 12rem);
+                --fs-chapter-title: clamp(1.1rem, 2.8vw, 2.2rem);
+                --fs-title: clamp(1rem, 2vw, 1.8rem);
+                --fs-stat: clamp(1.6rem, 3.5vw, 3rem);
+                --fs-quote: clamp(0.95rem, 1.8vw, 1.8rem);
+                --pad-slide-y: clamp(0.5rem, 1.5vh, 1.5rem);
+                --space-lg: clamp(0.5rem, 1vw, 1rem);
+                --space-md: clamp(0.4rem, 0.8vw, 0.8rem);
+            }
+
+            .card-grid, .steps-grid, .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(clamp(8rem, 14vw, 12rem), 1fr));
+            }
+
+            .timeline { padding-left: clamp(1.5rem, 2vw, 2rem); }
+
+            .brutal-card, .tall-card, .summary-card {
+                box-shadow: var(--shadow-sm);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                transition-duration: 0.01ms !important;
+                animation-duration: 0.01ms !important;
+            }
+
+            .reveal, .reveal-scale, .reveal-left, .reveal-right {
+                opacity: 1;
+                transform: none;
+            }
+
+            .brutal-card:hover,
+            .step-card:hover,
+            .summary-card:hover,
+            .agenda-item:hover {
+                transform: none;
+            }
+        }
+
+        /* ── 全览模式 ── */
+        .ov-grid{position:fixed;inset:0;z-index:10000;background:rgba(10,10,10,.97);overflow:auto;padding:clamp(20px,3vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:clamp(10px,1.5vw,16px);align-content:start;opacity:0;transition:opacity .3s ease}
+        .ov-grid.ov-visible{opacity:1}
+        .ov-card{position:relative;aspect-ratio:16/10;overflow:hidden;border:3px solid rgba(255,255,255,.1);cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;background:var(--bg);box-shadow:4px 4px 0px rgba(0,0,0,.3)}
+        .ov-card:hover{border-color:var(--accent-yellow);transform:translate(-2px,-2px);box-shadow:6px 6px 0px rgba(0,0,0,.4)}
+        .ov-card.ov-current{border-color:var(--accent-yellow);box-shadow:0 0 0 2px var(--accent-yellow)}
+        .ov-inner{position:absolute;top:0;left:0;width:100vw;height:100vh;transform-origin:top left;pointer-events:none;overflow:hidden}
+        .ov-inner *{transition:none !important;animation:none !important}
+        .ov-inner .reveal,.ov-inner .reveal-scale,.ov-inner .reveal-left,.ov-inner .reveal-right{opacity:1 !important;transform:none !important;filter:none !important}
+        .ov-num{position:absolute;top:6px;right:8px;font-size:12px;color:var(--text);background:var(--accent-yellow);padding:2px 8px;z-index:2;font-family:var(--font-mono);font-weight:700;border:2px solid var(--border)}
+        .ov-close{position:fixed;top:16px;right:20px;z-index:10001;width:36px;height:36px;border:3px solid var(--border);background:var(--accent-yellow);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:900;transition:transform .2s}
+        .ov-close:hover{transform:translate(-2px,-2px);box-shadow:4px 4px 0px var(--border)}
+    </style>
+</head>
+<body>
+
+    <!-- 进度条 -->
+    <div class="progress-bar" role="progressbar">
+        <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <!-- 页码 -->
+    <div class="slide-counter" aria-live="polite">
+        <span class="current" id="counterCurrent">01</span>
+        <span class="divider-mark">/</span>
+        <span id="counterTotal">22</span>
+    </div>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 01 — COVER
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-hero active">
+        <div class="hero-frame reveal delay-1">
+            <h1 class="hero-title reveal delay-2">设计的<br><span class="highlight">粗野力量</span></h1>
+            <p class="hero-sub reveal delay-3">// BRUTALISM IN MODERN DESIGN — 2024</p>
+        </div>
+        <div class="hero-badge reveal delay-4">DESIGN MANIFESTO</div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 02 — AGENDA
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">演讲大纲</h2>
+        <div class="agenda-list">
+            <div class="agenda-item reveal delay-1">
+                <div class="agenda-num">01</div>
+                <div class="agenda-content">
+                    <h4>设计理念起源</h4>
+                    <p>从建筑到数字——粗野主义的前世今生</p>
+                </div>
+            </div>
+            <div class="agenda-item reveal delay-2">
+                <div class="agenda-num">02</div>
+                <div class="agenda-content">
+                    <h4>核心视觉原则</h4>
+                    <p>厚重边框、硬阴影、撞色——规则与打破规则</p>
+                </div>
+            </div>
+            <div class="agenda-item reveal delay-3">
+                <div class="agenda-num">03</div>
+                <div class="agenda-content">
+                    <h4>行业应用案例</h4>
+                    <p>品牌、网页、产品——实战中的粗野美学</p>
+                </div>
+            </div>
+            <div class="agenda-item reveal delay-4">
+                <div class="agenda-num">04</div>
+                <div class="agenda-content">
+                    <h4>数据与市场趋势</h4>
+                    <p>用户偏好与行业增长的量化解读</p>
+                </div>
+            </div>
+            <div class="agenda-item reveal delay-5">
+                <div class="agenda-num">05</div>
+                <div class="agenda-content">
+                    <h4>方案对比与实施</h4>
+                    <p>传统设计 vs 粗野主义的全面较量</p>
+                </div>
+            </div>
+            <div class="agenda-item reveal delay-6">
+                <div class="agenda-num">06</div>
+                <div class="agenda-content">
+                    <h4>未来展望</h4>
+                    <p>粗野主义的下一个十年</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 03 — CHAPTER 1
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-chapter">
+        <div class="chapter-watermark reveal-scale delay-1">01</div>
+        <div class="chapter-label reveal delay-2">CHAPTER ONE</div>
+        <h2 class="chapter-title reveal delay-3">设计理念起源</h2>
+        <div class="chapter-line red reveal delay-4"></div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 04 — KEY CONCEPT
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">什么是粗野主义？</h2>
+        <div class="concept-box reveal delay-3">
+            <div class="concept-term">Brutalism · 粗野主义</div>
+            <p class="concept-desc">
+                源自法语"béton brut"（清水混凝土），粗野主义最初是一种建筑风格，强调<span class="highlight">原始材料的外露</span>与<span class="highlight">结构的坦诚表达</span>。在数字设计中，它演变为一种拒绝修饰、拥抱原始结构美感的视觉语言——厚重边框、硬阴影、高对比撞色、暴露的网格系统。
+            </p>
+        </div>
+        <div class="concept-tags reveal delay-4">
+            <span class="concept-tag">RAW</span>
+            <span class="concept-tag">HONEST</span>
+            <span class="concept-tag">BOLD</span>
+            <span class="concept-tag">STRUCTURAL</span>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 05 — DATA CARDS (3-col)
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">市场关键指标</h2>
+        <div class="card-grid">
+            <div class="brutal-card reveal delay-2">
+                <div class="card-stat" data-count="340" data-suffix="%">0</div>
+                <div class="card-title">搜索增长</div>
+                <div class="card-desc">过去三年"Brutalist Design"全球搜索量增长率</div>
+            </div>
+            <div class="brutal-card card-red reveal delay-3">
+                <div class="card-stat" data-count="67" data-suffix="%">0</div>
+                <div class="card-title">Z世代偏好</div>
+                <div class="card-desc">18-25 岁用户群体对粗野风格的正面评价比例</div>
+            </div>
+            <div class="brutal-card card-blue reveal delay-4">
+                <div class="card-stat" data-count="2800" data-suffix="+">0</div>
+                <div class="card-title">品牌案例</div>
+                <div class="card-desc">全球已采用粗野主义设计语言的知名品牌数量</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 06 — COMPARISON
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-1">方案对比</h2>
+        <div class="compare-grid reveal delay-2">
+            <div class="compare-col col-left">
+                <h4>传统设计</h4>
+                <div class="compare-point"><strong>边框:</strong> 1px 淡灰，圆角 8-16px</div>
+                <div class="compare-point"><strong>阴影:</strong> 柔和模糊 box-shadow</div>
+                <div class="compare-point"><strong>配色:</strong> 安全色，低饱和度</div>
+                <div class="compare-point"><strong>字重:</strong> Regular 400-500</div>
+                <div class="compare-point"><strong>效果:</strong> 温和、专业、不引人注目</div>
+            </div>
+            <div class="compare-col col-right">
+                <h4>粗野主义</h4>
+                <div class="compare-point"><strong>边框:</strong> 3-4px 纯黑，无圆角</div>
+                <div class="compare-point"><strong>阴影:</strong> 硬偏移无模糊 6px 6px</div>
+                <div class="compare-point"><strong>配色:</strong> 撞色，高饱和度</div>
+                <div class="compare-point"><strong>字重:</strong> Black 800-900</div>
+                <div class="compare-point"><strong>效果:</strong> 大胆、先锋、令人过目不忘</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 07 — STEPS
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">设计实施四步法</h2>
+        <div class="steps-grid">
+            <div class="step-card reveal delay-2">
+                <div class="step-num">1</div>
+                <div class="step-title">解构</div>
+                <div class="step-desc">打破现有布局的圆角与柔和阴影，回归直角与硬边</div>
+            </div>
+            <div class="step-card reveal delay-3">
+                <div class="step-num">2</div>
+                <div class="step-title">撞色</div>
+                <div class="step-desc">选取 2-3 种高饱和度原色，建立视觉冲突与张力</div>
+            </div>
+            <div class="step-card reveal delay-4">
+                <div class="step-num">3</div>
+                <div class="step-title">加粗</div>
+                <div class="step-desc">将边框加至 3-4px，字重提升至 800-900，阴影硬化</div>
+            </div>
+            <div class="step-card reveal delay-5">
+                <div class="step-num">4</div>
+                <div class="step-title">错位</div>
+                <div class="step-desc">引入微量旋转与偏移，打破完美对齐营造手工拼贴感</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 08 — STATISTICS
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">用户行为数据</h2>
+        <div class="stats-grid">
+            <div class="stat-item reveal delay-2">
+                <div class="stat-number" data-count="42" data-suffix="%">0</div>
+                <div class="stat-label">点击提升</div>
+                <div class="stat-desc">粗野风格 CTA 按钮点击率提升</div>
+                <div class="stat-underline yellow"></div>
+            </div>
+            <div class="stat-item reveal delay-3">
+                <div class="stat-number" data-count="3" data-suffix=".2x" data-decimal="1">0</div>
+                <div class="stat-label">停留时长</div>
+                <div class="stat-desc">用户平均页面停留时间倍增</div>
+                <div class="stat-underline red"></div>
+            </div>
+            <div class="stat-item reveal delay-4">
+                <div class="stat-number" data-count="89" data-suffix="%">0</div>
+                <div class="stat-label">品牌记忆</div>
+                <div class="stat-desc">用户 24 小时后品牌识别率</div>
+                <div class="stat-underline blue"></div>
+            </div>
+            <div class="stat-item reveal delay-5">
+                <div class="stat-number" data-count="156" data-suffix="K">0</div>
+                <div class="stat-label">社交分享</div>
+                <div class="stat-desc">单月粗野设计相关帖子互动量</div>
+                <div class="stat-underline green"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 09 — PROGRESS BARS
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">各行业采纳率</h2>
+        <div class="chart-list">
+            <div class="chart-item reveal delay-2">
+                <div class="chart-label">时尚品牌</div>
+                <div class="chart-bar"><div class="chart-fill" data-percent="85"></div></div>
+                <div class="chart-value">85%</div>
+            </div>
+            <div class="chart-item reveal delay-3">
+                <div class="chart-label">独立音乐</div>
+                <div class="chart-bar"><div class="chart-fill red" data-percent="78"></div></div>
+                <div class="chart-value">78%</div>
+            </div>
+            <div class="chart-item reveal delay-4">
+                <div class="chart-label">科技创业</div>
+                <div class="chart-bar"><div class="chart-fill blue" data-percent="62"></div></div>
+                <div class="chart-value">62%</div>
+            </div>
+            <div class="chart-item reveal delay-5">
+                <div class="chart-label">餐饮零售</div>
+                <div class="chart-bar"><div class="chart-fill green" data-percent="45"></div></div>
+                <div class="chart-value">45%</div>
+            </div>
+            <div class="chart-item reveal delay-6">
+                <div class="chart-label">金融服务</div>
+                <div class="chart-bar"><div class="chart-fill" data-percent="28"></div></div>
+                <div class="chart-value">28%</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 10 — QUOTE
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-quote">
+        <div class="quote-mark reveal-scale delay-1">"</div>
+        <blockquote class="quote-text reveal delay-2">
+            好的设计是<span class="highlight">诚实的</span>设计。<br>它不试图操纵消费者。
+        </blockquote>
+        <div class="quote-author reveal delay-3">—— DIETER RAMS</div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 11 — CHAPTER 2
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-chapter">
+        <div class="chapter-watermark reveal-scale delay-1">02</div>
+        <div class="chapter-label reveal delay-2">CHAPTER TWO</div>
+        <h2 class="chapter-title reveal delay-3">应用与实践</h2>
+        <div class="chapter-line blue reveal delay-4"></div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 12 — SPLIT LAYOUT
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">品牌案例分析</h2>
+        <div class="split-grid">
+            <div class="split-visual reveal-left delay-3">
+                <div class="split-visual-label">[ VISUAL SHOWCASE ]</div>
+            </div>
+            <div class="split-info reveal-right delay-3">
+                <h3>核心设计决策</h3>
+                <ul class="split-info-list">
+                    <li>去除所有渐变与柔和阴影</li>
+                    <li>统一使用 4px 黑色实线边框</li>
+                    <li>标题字重提升至 900</li>
+                    <li>引入黄、红、蓝三色强调色</li>
+                    <li>品牌辨识度提升 340%</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 13 — BIG STATEMENT
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-statement">
+        <div class="statement-text reveal delay-2">
+            拒绝<span class="highlight-red">平庸</span><br>
+            拥抱<span class="highlight">原始</span>
+        </div>
+        <p class="statement-sub reveal delay-3">设计不应该是安全的。它应该让人停下来，思考，记住。粗野主义是对数字同质化的一次宣战。</p>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 14 — TIMELINE
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">发展里程碑</h2>
+        <div class="timeline">
+            <div class="tl-item reveal delay-2">
+                <div class="tl-time">1950s · ARCHITECTURE</div>
+                <h4>建筑粗野主义兴起</h4>
+                <p>Le Corbusier 的 Unité d'Habitation 确立了清水混凝土美学，建筑界开始拥抱原始材料。</p>
+            </div>
+            <div class="tl-item reveal delay-3">
+                <div class="tl-time">2014 · DIGITAL</div>
+                <h4>数字粗野主义萌芽</h4>
+                <p>brutalistwebsites.com 上线，开始系统性收录和定义网页粗野主义设计。</p>
+            </div>
+            <div class="tl-item reveal delay-4">
+                <div class="tl-time">2020 · MAINSTREAM</div>
+                <h4>主流品牌采纳</h4>
+                <p>Balenciaga、Bloomberg 等品牌大规模采用粗野美学，风格进入主流视野。</p>
+            </div>
+            <div class="tl-item reveal delay-5">
+                <div class="tl-time">2024 · NOW</div>
+                <h4>全面爆发期</h4>
+                <p>从网页到产品 UI，从印刷到视频，粗野主义成为最具辨识度的当代设计语言之一。</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 15 — MATRIX 2x2
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">设计决策矩阵</h2>
+        <div class="matrix-grid">
+            <div class="matrix-cell reveal delay-2">
+                <div class="cell-marker yellow"></div>
+                <div class="cell-title">高冲击 · 低成本</div>
+                <div class="cell-desc">字重加粗、去圆角、硬阴影——零额外开发成本即可获得显著视觉差异</div>
+            </div>
+            <div class="matrix-cell reveal delay-3">
+                <div class="cell-marker red"></div>
+                <div class="cell-title">高冲击 · 高成本</div>
+                <div class="cell-desc">全站改版、品牌视觉系统重构——需要团队协作与完整设计系统支撑</div>
+            </div>
+            <div class="matrix-cell reveal delay-4">
+                <div class="cell-marker blue"></div>
+                <div class="cell-title">低冲击 · 低成本</div>
+                <div class="cell-desc">单个组件实验、A/B 测试——快速验证粗野元素的用户接受度</div>
+            </div>
+            <div class="matrix-cell reveal delay-5">
+                <div class="cell-marker green"></div>
+                <div class="cell-title">低冲击 · 高成本</div>
+                <div class="cell-desc">过度工程化的微调——应避免在低价值区域投入过多设计资源</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 16 — DATA CARDS (2-col)
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">深度洞察</h2>
+        <div class="card-grid-2">
+            <div class="tall-card reveal-left delay-3">
+                <div class="tall-card-tag">ENGAGEMENT</div>
+                <div class="card-stat" data-count="73" data-suffix="%">0</div>
+                <h4>情感共鸣度</h4>
+                <p>粗野主义设计在用户情感反应测试中，激发"惊喜"和"好奇"情绪的比例远超传统设计方案。</p>
+            </div>
+            <div class="tall-card reveal-right delay-3">
+                <div class="tall-card-tag">CONVERSION</div>
+                <div class="card-stat" data-count="28" data-suffix="%">0</div>
+                <h4>转化率提升</h4>
+                <p>在电商场景中，粗野风格的产品页面相比传统设计页面，购买转化率平均提升 28%。</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 17 — CHAPTER 3
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-chapter">
+        <div class="chapter-watermark reveal-scale delay-1">03</div>
+        <div class="chapter-label reveal delay-2">CHAPTER THREE</div>
+        <h2 class="chapter-title reveal delay-3">落地与展望</h2>
+        <div class="chapter-line green reveal delay-4"></div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 18 — BULLET POINTS
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">设计原则要点</h2>
+        <div class="bullet-list">
+            <div class="bullet-item reveal delay-2">
+                <div class="bullet-marker"></div>
+                <div class="bullet-content">
+                    <h4>结构即装饰</h4>
+                    <p>让边框、网格、阴影本身成为视觉元素，而非隐藏起来</p>
+                </div>
+            </div>
+            <div class="bullet-item reveal delay-3">
+                <div class="bullet-marker"></div>
+                <div class="bullet-content">
+                    <h4>对比即层级</h4>
+                    <p>通过字重、色块、尺寸的强烈对比建立信息层级</p>
+                </div>
+            </div>
+            <div class="bullet-item reveal delay-4">
+                <div class="bullet-marker"></div>
+                <div class="bullet-content">
+                    <h4>不完美即真实</h4>
+                    <p>微量错位与不对齐传达手工感和人文温度</p>
+                </div>
+            </div>
+            <div class="bullet-item reveal delay-5">
+                <div class="bullet-marker"></div>
+                <div class="bullet-content">
+                    <h4>约束即创造</h4>
+                    <p>限定调色板与组件库，在约束中产生创造性解决方案</p>
+                </div>
+            </div>
+            <div class="bullet-item reveal delay-6">
+                <div class="bullet-marker"></div>
+                <div class="bullet-content">
+                    <h4>功能即形式</h4>
+                    <p>每个视觉选择都应服务于可用性与信息传达</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 19 — BEFORE/AFTER
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">改造前后对比</h2>
+        <div class="ba-grid">
+            <div class="ba-col before reveal-left delay-3">
+                <div class="ba-label">BEFORE</div>
+                <h4>传统方案</h4>
+                <div class="ba-point">圆角卡片 + 柔和阴影</div>
+                <div class="ba-point">低饱和度配色</div>
+                <div class="ba-point">Regular 字重</div>
+                <div class="ba-point">用户记忆度: 23%</div>
+            </div>
+            <div class="ba-col after reveal-right delay-3">
+                <div class="ba-label">AFTER</div>
+                <h4>粗野方案</h4>
+                <div class="ba-point">直角边框 + 硬阴影</div>
+                <div class="ba-point">高饱和度撞色</div>
+                <div class="ba-point">Black 900 字重</div>
+                <div class="ba-point">用户记忆度: 89%</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 20 — SUMMARY CARDS
+         ════════════════════════════════════════════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">核心收获</h2>
+        <div class="summary-grid">
+            <div class="summary-card reveal delay-2">
+                <div class="summary-num">01</div>
+                <h4>大胆即正确</h4>
+                <p>在信息过载时代，敢于突破视觉安全区的品牌才能被记住。</p>
+            </div>
+            <div class="summary-card reveal delay-3">
+                <div class="summary-num">02</div>
+                <h4>结构即美学</h4>
+                <p>不需要额外装饰——边框、阴影、色块本身就是最好的视觉语言。</p>
+            </div>
+            <div class="summary-card reveal delay-4">
+                <div class="summary-num">03</div>
+                <h4>数据验证</h4>
+                <p>粗野主义不是主观偏好，数据证明它在用户参与和转化上全面胜出。</p>
+            </div>
+            <div class="summary-card reveal delay-5">
+                <div class="summary-num">04</div>
+                <h4>渐进采纳</h4>
+                <p>从单个组件实验到全面系统改版，粗野主义支持渐进式落地策略。</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 21 — CALL TO ACTION
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-cta">
+        <div class="cta-title reveal delay-2">准备好打破常规了吗？</div>
+        <p class="cta-desc reveal delay-3">从今天开始，选择一个页面、一个组件、一次实验——让粗野之美为你的产品注入不可忽视的力量。</p>
+        <div class="cta-button reveal delay-4">START NOW →</div>
+    </section>
+
+    <!-- ════════════════════════════════════════════
+         SLIDE 22 — END
+         ════════════════════════════════════════════ -->
+    <section class="slide slide-end">
+        <div class="chapter-watermark reveal-scale delay-1" style="color: rgba(26,26,26,0.03);">FIN</div>
+        <div class="end-title reveal delay-2">THANK YOU</div>
+        <p class="end-sub reveal delay-3">设计的未来属于勇敢者。<br>粗野不是粗糙，是对真实的致敬。</p>
+        <div class="end-contact reveal delay-4">// BRUTALISM — DESIGN MANIFESTO 2024</div>
+    </section>
+
+    <script>
+    class SlidePresentation {
+        constructor() {
+            this.slides = document.querySelectorAll('.slide');
+            this.totalSlides = this.slides.length;
+            this.currentSlide = 0;
+            this.isTransitioning = false;
+            this.overviewActive = false;
+            this.transitionDuration = 350;
+            this.progressFill = document.getElementById('progressFill');
+            this.counterCurrent = document.getElementById('counterCurrent');
+            this.counterTotal = document.getElementById('counterTotal');
+            if (this.counterTotal) {
+                this.counterTotal.textContent = String(this.totalSlides).padStart(2, '0');
+            }
+            this.updateUI();
+            this.bindEvents();
+        }
+
+        bindEvents() {
+            window.addEventListener('keydown', (e) => {
+                switch (e.key) {
+                    case 'ArrowRight': case 'ArrowDown': case ' ': case 'PageDown':
+                        e.preventDefault(); this.next(); break;
+                    case 'ArrowLeft': case 'ArrowUp': case 'PageUp':
+                        e.preventDefault(); this.prev(); break;
+                    case 'Home': e.preventDefault(); this.goToSlide(0); break;
+                    case 'End': e.preventDefault(); this.goToSlide(this.totalSlides - 1); break;
+                    case 'f': case 'F': e.preventDefault(); this.toggleFullscreen(); break;
+                    case 'o': case 'O': e.preventDefault(); this.toggleOverview(); break;
+                    case 'Escape': this.closeOverview(); break;
+                }
+            });
+
+            window.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                if (e.deltaY > 20) this.next();
+                else if (e.deltaY < -20) this.prev();
+            }, { passive: false });
+
+            let touchStartY = 0, touchStartX = 0;
+            window.addEventListener('touchstart', (e) => {
+                touchStartY = e.touches[0].clientY;
+                touchStartX = e.touches[0].clientX;
+            }, { passive: true });
+
+            window.addEventListener('touchend', (e) => {
+                const dy = touchStartY - e.changedTouches[0].clientY;
+                const dx = touchStartX - e.changedTouches[0].clientX;
+                if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 50) {
+                    dy > 0 ? this.next() : this.prev();
+                } else if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+                    dx > 0 ? this.next() : this.prev();
+                }
+            }, { passive: true });
+        }
+
+        next() { this.goToSlide(this.currentSlide + 1); }
+        prev() { this.goToSlide(this.currentSlide - 1); }
+
+        goToSlide(index) {
+            if (this.isTransitioning || index < 0 || index >= this.totalSlides || index === this.currentSlide) return;
+            this.isTransitioning = true;
+            this.slides[this.currentSlide].classList.remove('active');
+            this.currentSlide = index;
+            this.slides[this.currentSlide].classList.add('active');
+            this.updateUI();
+            this.triggerSlideEffects(index);
+            setTimeout(() => { this.isTransitioning = false; }, this.transitionDuration);
+        }
+
+        updateUI() {
+            const progress = this.totalSlides > 1
+                ? (this.currentSlide / (this.totalSlides - 1)) * 100
+                : 100;
+            if (this.progressFill) this.progressFill.style.width = progress + '%';
+            if (this.counterCurrent) {
+                this.counterCurrent.textContent = String(this.currentSlide + 1).padStart(2, '0');
+            }
+        }
+
+        triggerSlideEffects(index) {
+            const slide = this.slides[index];
+            slide.querySelectorAll('[data-count]').forEach(el => {
+                if (!el.dataset.counted) {
+                    const hasDecimal = el.dataset.decimal;
+                    const target = hasDecimal
+                        ? parseFloat(el.dataset.count)
+                        : parseInt(el.dataset.count, 10);
+                    this.animateCounter(el, target, !!hasDecimal);
+                    el.dataset.counted = 'true';
+                }
+            });
+            slide.querySelectorAll('.chart-fill[data-percent]').forEach(el => {
+                if (!el.dataset.filled) {
+                    setTimeout(() => { el.style.width = el.dataset.percent + '%'; }, 300);
+                    el.dataset.filled = 'true';
+                }
+            });
+        }
+
+        animateCounter(el, target, isDecimal) {
+            const duration = 1800, start = performance.now();
+            const suffix = el.dataset.suffix || '';
+            function tick(now) {
+                const p = Math.min((now - start) / duration, 1);
+                const eased = 1 - Math.pow(1 - p, 3);
+                const current = eased * target;
+                el.textContent = (isDecimal ? current.toFixed(1) : Math.round(current)) + suffix;
+                if (p < 1) requestAnimationFrame(tick);
+                else el.textContent = (isDecimal ? target.toFixed(1) : target) + suffix;
+            }
+            setTimeout(() => requestAnimationFrame(tick), 350);
+        }
+
+        toggleFullscreen() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+            else document.exitFullscreen().catch(() => {});
+        }
+
+        toggleOverview() {
+            if (this.overviewActive) { this.closeOverview(); return; }
+            this.overviewActive = true;
+            const ov = document.createElement('div');
+            ov.className = 'ov-grid';
+            const close = document.createElement('button');
+            close.className = 'ov-close';
+            close.innerHTML = '&times;';
+            close.onclick = () => this.closeOverview();
+            ov.appendChild(close);
+            const vpAR = (window.innerWidth / window.innerHeight).toFixed(4);
+            this.slides.forEach((slide, i) => {
+                const card = document.createElement('div');
+                card.className = 'ov-card' + (i === this.currentSlide ? ' ov-current' : '');
+                card.style.aspectRatio = vpAR;
+                const inner = document.createElement('div');
+                inner.className = 'ov-inner';
+                const clone = slide.cloneNode(true);
+                clone.style.cssText = 'position:absolute;inset:0;width:100vw;height:100vh;opacity:1;visibility:visible;transform:none;pointer-events:none;';
+                clone.classList.add('active');
+                inner.appendChild(clone);
+                const num = document.createElement('span');
+                num.className = 'ov-num';
+                num.textContent = i + 1;
+                card.appendChild(inner);
+                card.appendChild(num);
+                card.onclick = () => { this.goToSlide(i); this.closeOverview(); };
+                ov.appendChild(card);
+            });
+            document.body.appendChild(ov);
+            this._ovEl = ov;
+            requestAnimationFrame(() => {
+                ov.querySelectorAll('.ov-inner').forEach(inner => {
+                    const card = inner.parentElement;
+                    const sx = card.offsetWidth / window.innerWidth;
+                    const sy = card.offsetHeight / window.innerHeight;
+                    inner.style.transform = 'scale(' + Math.min(sx, sy) + ')';
+                });
+                ov.classList.add('ov-visible');
+            });
+        }
+
+        closeOverview() {
+            this.overviewActive = false;
+            if (this._ovEl) { this._ovEl.remove(); this._ovEl = null; }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => { new SlidePresentation(); });
+    </script>
+</body>
+</html>

@@ -6,39 +6,76 @@
     <title>元宇宙与数字未来</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        @property --hue {
+            syntax: '<angle>';
+            initial-value: 260deg;
+            inherits: true;
+        }
+
+        @property --hue-accent {
+            syntax: '<angle>';
+            initial-value: 185deg;
+            inherits: true;
+        }
+
         :root {
-            --bg: #1a0a2e;
-            --white: #ffffff;
-            --text: #ffffff;
-            --text-dim: rgba(255, 255, 255, 0.7);
-            --text-muted: rgba(255, 255, 255, 0.45);
-            --glass: rgba(255, 255, 255, 0.08);
-            --glass-hover: rgba(255, 255, 255, 0.14);
-            --glass-border: rgba(255, 255, 255, 0.15);
-            --glass-border-hover: rgba(255, 255, 255, 0.28);
-            --glass-blur: blur(20px);
-            --glass-blur-light: blur(12px);
-            --glow-sm: 0 0 20px rgba(255, 255, 255, 0.08);
-            --glow-md: 0 0 40px rgba(255, 255, 255, 0.1);
-            --glow-lg: 0 4px 60px rgba(120, 80, 255, 0.15);
-            --font: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-            --ease: cubic-bezier(0.4, 0, 0.2, 1);
-            --ease-out: cubic-bezier(0.0, 0, 0.2, 1);
-            --dur: 0.6s;
-            --radius: clamp(12px, 2vw, 20px);
-            --radius-sm: clamp(8px, 1.2vw, 12px);
-            --radius-lg: clamp(16px, 2.5vw, 28px);
-            --radius-pill: 100px;
-            --space-xs: clamp(4px, 0.8vh, 8px);
-            --space-sm: clamp(8px, 1.5vh, 16px);
-            --space-md: clamp(16px, 3vh, 32px);
-            --space-lg: clamp(24px, 4.5vh, 48px);
-            --space-xl: clamp(32px, 6vh, 64px);
-            --space-2xl: clamp(40px, 8vh, 80px);
-            --slide-pad-x: clamp(32px, 8vw, 120px);
-            --slide-pad-y: clamp(32px, 7vh, 90px);
+            --bg: #0c0a1a;
+            --bg-card: rgba(255, 255, 255, 0.035);
+            --border: rgba(255, 255, 255, 0.08);
+            --border-subtle: rgba(255, 255, 255, 0.12);
+
+            --text: #f0eef5;
+            --text-dim: rgba(240, 238, 245, 0.75);
+            --text-muted: rgba(240, 238, 245, 0.6);
+
+            --accent: hsl(260, 80%, 65%);
+            --accent-cyan: #06b6d4;
+            --accent-warm: #d946ef;
+            --accent-green: #10b981;
+
+            --grad-primary: linear-gradient(135deg, #6366f1, #a855f7, #06b6d4);
+            --grad-h: linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4);
+            --grad-warm: linear-gradient(90deg, #a855f7, #d946ef, #ec4899);
+            --grad-line-1: linear-gradient(90deg, #6366f1, #06b6d4);
+            --grad-line-2: linear-gradient(90deg, #8b5cf6, #d946ef);
+            --grad-line-3: linear-gradient(90deg, #06b6d4, #10b981);
+
+            --glow-accent: 0 0 20px rgba(6, 182, 212, 0.3);
+            --glow-primary: 0 0 20px rgba(139, 92, 246, 0.2);
+
+            --font: "Sora", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+            --ease: cubic-bezier(0.16, 1, 0.3, 1);
+            --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+            --dur-reveal: 0.7s;
+            --dur-slide: 0.65s;
+            --dur-exit: 0.4s;
+
+            --fs-display: clamp(2.8rem, 7vw, 7rem);
+            --fs-h1: clamp(1.5rem, 3vw, 3.2rem);
+            --fs-h2: clamp(1.2rem, 2vw, 2rem);
+            --fs-h3: clamp(1rem, 1.4vw, 1.35rem);
+            --fs-body: clamp(0.88rem, 1.05vw, 1.08rem);
+            --fs-small: clamp(0.78rem, 0.88vw, 0.9rem);
+            --fs-label: clamp(0.62rem, 0.72vw, 0.76rem);
+            --fs-stat: clamp(2.2rem, 5.5vw, 5rem);
+            --fs-stat-hero: clamp(4rem, 12vw, 10rem);
+            --fs-quote: clamp(1.4rem, 3vw, 3rem);
+            --fs-chapter: clamp(6rem, 20vw, 20rem);
+            --fs-statement: clamp(2.5rem, 7vw, 6.5rem);
+
+            --space-xs: clamp(4px, 0.6vh, 8px);
+            --space-sm: clamp(8px, 1.2vh, 14px);
+            --space-md: clamp(14px, 2.5vh, 28px);
+            --space-lg: clamp(20px, 4vh, 44px);
+            --space-xl: clamp(28px, 5.5vh, 56px);
+
+            --pad-x: clamp(28px, 8vw, 110px);
+            --pad-y: clamp(28px, 6vh, 80px);
+            --pad-tight: clamp(16px, 3vh, 36px);
+            --radius: clamp(10px, 1.5vw, 16px);
+            --radius-sm: clamp(6px, 1vw, 10px);
         }
 
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -50,104 +87,53 @@
         }
 
         body {
+            background: var(--bg);
             color: var(--text);
             font-family: var(--font);
-            font-size: clamp(15px, 1.6vh, 18px);
-            line-height: 1.6;
+            font-size: var(--fs-body);
+            line-height: 1.65;
             -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
+            animation: hue-drift 30s linear infinite;
         }
 
-        /* ── 动态渐变背景 ── */
-        .gradient-bg {
+        /* ── Atmosphere (replaces mesh-blobs) ── */
+
+        body::before {
+            content: '';
             position: fixed;
             inset: 0;
-            background: linear-gradient(
-                -45deg,
-                #7c3aed, #6366f1, #3b82f6,
-                #8b5cf6, #ec4899, #f97316,
-                #a855f7, #6366f1
-            );
-            background-size: 400% 400%;
-            animation: gradientCycle 16s ease infinite;
-            z-index: -3;
-        }
-
-        @keyframes gradientCycle {
-            0%   { background-position: 0% 50%; }
-            25%  { background-position: 50% 100%; }
-            50%  { background-position: 100% 50%; }
-            75%  { background-position: 50% 0%; }
-            100% { background-position: 0% 50%; }
-        }
-
-        /* ── 浮动光球 ── */
-        .orb {
-            position: fixed;
-            border-radius: 50%;
-            filter: blur(80px);
-            opacity: 0.35;
-            z-index: -2;
+            z-index: 0;
             pointer-events: none;
-            will-change: transform;
+            background-image:
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E"),
+                linear-gradient(135deg, rgba(139, 92, 246, 0.025) 1px, transparent 1px),
+                linear-gradient(225deg, rgba(6, 182, 212, 0.02) 1px, transparent 1px);
+            background-size: 200px 200px, 60px 60px, 60px 60px;
         }
 
-        .orb--1 {
-            width: clamp(280px, 40vw, 500px);
-            height: clamp(280px, 40vw, 500px);
-            top: -10%;
-            left: -8%;
-            background: rgba(255, 255, 255, 0.25);
-            animation: orbFloat1 18s ease-in-out infinite;
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(ellipse at 75% 15%, hsla(var(--hue), 55%, 45%, 0.08), transparent 50%),
+                radial-gradient(ellipse at 20% 85%, hsla(calc(var(--hue) + 60deg), 55%, 45%, 0.05), transparent 45%);
         }
 
-        .orb--2 {
-            width: clamp(220px, 30vw, 400px);
-            height: clamp(220px, 30vw, 400px);
-            bottom: -5%;
-            right: -5%;
-            background: rgba(168, 85, 247, 0.3);
-            animation: orbFloat2 22s ease-in-out infinite;
+        @keyframes hue-drift {
+            from { --hue: 260deg; }
+            to { --hue: 620deg; }
         }
 
-        .orb--3 {
-            width: clamp(180px, 25vw, 350px);
-            height: clamp(180px, 25vw, 350px);
-            top: 50%;
-            left: 60%;
-            background: rgba(236, 72, 153, 0.2);
-            animation: orbFloat3 20s ease-in-out infinite;
+        @keyframes gradient-shift {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
         }
 
-        .orb--4 {
-            width: clamp(150px, 20vw, 280px);
-            height: clamp(150px, 20vw, 280px);
-            top: 20%;
-            right: 25%;
-            background: rgba(99, 102, 241, 0.2);
-            animation: orbFloat4 24s ease-in-out infinite;
-        }
+        /* ── Slides ── */
 
-        @keyframes orbFloat1 {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            33%      { transform: translate(60px, 40px) scale(1.08); }
-            66%      { transform: translate(-30px, 60px) scale(0.95); }
-        }
-        @keyframes orbFloat2 {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            33%      { transform: translate(-50px, -40px) scale(1.1); }
-            66%      { transform: translate(40px, -20px) scale(0.92); }
-        }
-        @keyframes orbFloat3 {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            50%      { transform: translate(-70px, 30px) scale(1.06); }
-        }
-        @keyframes orbFloat4 {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            50%      { transform: translate(50px, -50px) scale(1.12); }
-        }
-
-        /* ── 幻灯片基础 ── */
         .slide {
             position: absolute;
             inset: 0;
@@ -157,836 +143,1084 @@
             display: flex;
             flex-direction: column;
             justify-content: center;
-            padding: var(--slide-pad-y) var(--slide-pad-x);
+            padding: var(--pad-y) var(--pad-x);
             opacity: 0;
             visibility: hidden;
-            transform: scale(0.92);
+            transform: translateX(30px) scale(0.98);
+            filter: blur(2px);
             transition:
-                opacity var(--dur) var(--ease),
-                transform var(--dur) var(--ease),
-                visibility var(--dur);
-            will-change: opacity, transform;
+                opacity var(--dur-slide) var(--ease),
+                transform var(--dur-slide) var(--ease),
+                filter var(--dur-slide) var(--ease),
+                visibility 0s linear var(--dur-slide);
+            z-index: 1;
+            content-visibility: hidden;
         }
 
         .slide.active {
             opacity: 1;
             visibility: visible;
-            transform: scale(1);
+            transform: none;
+            filter: none;
+            transition:
+                opacity var(--dur-slide) var(--ease),
+                transform var(--dur-slide) var(--ease),
+                filter var(--dur-slide) var(--ease),
+                visibility 0s linear 0s;
+            content-visibility: visible;
         }
 
-        /* ── 揭示动画系统 ── */
+        .slide.exiting {
+            opacity: 0;
+            transform: translateX(-20px) scale(0.97);
+            filter: blur(3px);
+            transition:
+                opacity var(--dur-exit) ease-in,
+                transform var(--dur-exit) ease-in,
+                filter var(--dur-exit) ease-in;
+        }
+
+        .slide.enter-backward {
+            transform: translateX(-30px) scale(0.98);
+        }
+
+        .slide.enter-backward.active {
+            transform: none;
+        }
+
+        .slide-center { align-items: center; text-align: center; }
+        .slide-edge { padding: var(--pad-tight) var(--pad-x); }
+
+        /* ── Reveal System ── */
+
         .reveal {
             opacity: 0;
-            transform: translateY(clamp(15px, 2.5vh, 30px));
-            transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+            transform: translateY(clamp(14px, 2.5vh, 26px));
+            transition: opacity var(--dur-reveal) var(--ease), transform var(--dur-reveal) var(--ease);
         }
-
-        .active .reveal { opacity: 1; transform: translateY(0); }
 
         .reveal-scale {
             opacity: 0;
             transform: scale(0.85);
-            transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+            transition: opacity 0.8s var(--ease), transform 0.8s var(--ease);
         }
 
-        .active .reveal-scale { opacity: 1; transform: scale(1); }
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-24px);
+            transition: opacity var(--dur-reveal) var(--ease), transform var(--dur-reveal) var(--ease);
+        }
+
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(24px);
+            transition: opacity var(--dur-reveal) var(--ease), transform var(--dur-reveal) var(--ease);
+        }
+
+        .reveal-clip {
+            clip-path: inset(0 0 100% 0);
+            opacity: 0;
+            transition: clip-path 0.8s var(--ease), opacity 0.5s var(--ease);
+        }
+
+        .reveal-blur {
+            opacity: 0;
+            filter: blur(8px);
+            transform: translateY(10px);
+            transition: opacity 0.8s var(--ease), filter 0.8s var(--ease), transform 0.8s var(--ease);
+        }
+
+        .reveal-spring {
+            opacity: 0;
+            transform: scale(0.5);
+            transition: opacity 0.6s var(--ease), transform 0.8s var(--ease-spring);
+        }
+
+        .active .reveal,
+        .active .reveal-scale,
+        .active .reveal-left,
+        .active .reveal-right { opacity: 1; transform: none; }
+
+        .active .reveal-clip { clip-path: inset(0 0 0 0); opacity: 1; }
+        .active .reveal-blur { opacity: 1; filter: none; transform: none; }
+        .active .reveal-spring { opacity: 1; transform: scale(1); }
 
         .delay-1 { transition-delay: 0.1s; }
-        .delay-2 { transition-delay: 0.2s; }
-        .delay-3 { transition-delay: 0.35s; }
+        .delay-2 { transition-delay: 0.22s; }
+        .delay-3 { transition-delay: 0.36s; }
         .delay-4 { transition-delay: 0.5s; }
-        .delay-5 { transition-delay: 0.65s; }
-        .delay-6 { transition-delay: 0.8s; }
-        .delay-7 { transition-delay: 0.95s; }
+        .delay-5 { transition-delay: 0.64s; }
+        .delay-6 { transition-delay: 0.78s; }
+        .delay-7 { transition-delay: 0.92s; }
 
-        /* ── 通用排版 ── */
-        .label {
-            font-size: clamp(10px, 1.2vh, 13px);
-            font-weight: 600;
-            letter-spacing: clamp(2px, 0.3vw, 4px);
-            text-transform: uppercase;
-            color: var(--text-dim);
-            margin-bottom: var(--space-sm);
+        /* ── Gradient Utilities ── */
+
+        .grad-text {
+            background: var(--grad-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
-        .title-main {
-            font-size: clamp(24px, 4.5vw, 52px);
-            font-weight: 700;
-            line-height: 1.2;
-            letter-spacing: -0.02em;
-            margin-bottom: var(--space-md);
-            text-shadow: 0 2px 30px rgba(0, 0, 0, 0.2);
+        .grad-text-shimmer {
+            background: linear-gradient(90deg, #6366f1, #a855f7, #06b6d4, #a855f7, #6366f1);
+            background-size: 300% 100%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
-        .desc-text {
-            font-size: clamp(15px, 1.8vh, 20px);
-            color: var(--text-dim);
-            line-height: 1.8;
-            max-width: 680px;
+        .slide.active .grad-text-shimmer {
+            animation: shimmer 6s linear infinite;
         }
 
-        .highlight {
-            color: var(--white);
-            font-weight: 600;
-            position: relative;
+        @keyframes shimmer {
+            0% { background-position: -100% 0; }
+            100% { background-position: 200% 0; }
         }
 
-        .highlight::after {
-            content: '';
-            position: absolute;
-            left: 0;
-            bottom: -2px;
-            width: 100%;
+        .grad-line {
+            width: clamp(40px, 5vw, 70px);
             height: 2px;
-            background: rgba(255, 255, 255, 0.4);
+            background: var(--grad-h);
             border-radius: 1px;
         }
 
-        /* ── 封面页 ── */
-        .slide-cover {
-            align-items: center;
-            text-align: center;
-        }
+        .highlight { color: var(--accent-cyan); font-weight: 500; }
+        .highlight-warm { color: var(--accent-warm); font-weight: 500; }
 
-        .cover-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: clamp(6px, 1vw, 10px);
-            padding: clamp(8px, 1.2vh, 14px) clamp(18px, 2.5vw, 32px);
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
-            border-radius: var(--radius-pill);
-            font-size: clamp(11px, 1.3vh, 14px);
-            font-weight: 500;
-            letter-spacing: clamp(1px, 0.2vw, 3px);
-            text-transform: uppercase;
-            backdrop-filter: var(--glass-blur-light);
-            -webkit-backdrop-filter: var(--glass-blur-light);
-            margin-bottom: var(--space-lg);
-        }
+        /* ── Cover ── */
 
         .cover-title {
-            font-size: clamp(36px, 7vw, 90px);
+            font-size: var(--fs-display);
             font-weight: 700;
             letter-spacing: -0.03em;
             line-height: 1.1;
             margin-bottom: var(--space-md);
-            text-shadow: 0 4px 40px rgba(0, 0, 0, 0.25);
         }
 
         .cover-sub {
-            font-size: clamp(15px, 2vh, 22px);
+            font-size: clamp(0.95rem, 1.3vw, 1.25rem);
             color: var(--text-dim);
             font-weight: 300;
-            max-width: 600px;
-            line-height: 1.7;
+            line-height: 1.8;
         }
 
         .cover-meta {
             margin-top: var(--space-lg);
-            font-size: clamp(11px, 1.2vh, 14px);
+            font-size: var(--fs-label);
             color: var(--text-muted);
-            font-weight: 400;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.2em;
         }
 
-        /* ── 章节过渡页 ── */
-        .slide-chapter {
-            align-items: center;
-            text-align: center;
-        }
+        /* ── Chapter ── */
 
         .chapter-watermark {
-            font-size: clamp(120px, 25vh, 300px);
-            font-weight: 800;
-            color: rgba(255, 255, 255, 0.04);
+            font-size: var(--fs-chapter);
+            font-weight: 700;
             position: absolute;
-            z-index: -1;
             line-height: 1;
             user-select: none;
+            pointer-events: none;
+            color: transparent;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(6, 182, 212, 0.05));
+            -webkit-background-clip: text;
+            background-clip: text;
         }
 
-        .chapter-indicator {
-            display: flex;
-            align-items: center;
-            gap: clamp(10px, 1.5vw, 18px);
-            margin-bottom: var(--space-md);
-        }
-
-        .chapter-line {
-            width: clamp(30px, 4vw, 60px);
-            height: 2px;
-            background: rgba(255, 255, 255, 0.4);
-            border-radius: 1px;
-        }
-
-        .chapter-num {
-            font-size: clamp(11px, 1.2vh, 14px);
-            font-weight: 600;
-            letter-spacing: clamp(2px, 0.3vw, 4px);
+        .chapter-label {
+            font-size: var(--fs-label);
+            font-weight: 500;
+            letter-spacing: 0.3em;
             text-transform: uppercase;
-            color: var(--text-dim);
+            color: var(--text-muted);
+            margin-bottom: var(--space-xs);
         }
 
-        .slide-chapter h2 {
-            font-size: clamp(30px, 5.5vw, 68px);
+        .chapter-title {
+            font-size: clamp(2rem, 5vw, 5rem);
             font-weight: 700;
             letter-spacing: -0.02em;
-            text-shadow: 0 4px 40px rgba(0, 0, 0, 0.2);
-            margin-bottom: var(--space-sm);
         }
 
         .chapter-desc {
-            font-size: clamp(15px, 1.8vh, 20px);
+            font-size: var(--fs-body);
             color: var(--text-dim);
             font-weight: 300;
+            margin-top: var(--space-sm);
         }
 
-        /* ── 玻璃卡片网格 ── */
-        .glass-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: clamp(12px, 2vw, 24px);
-            margin-top: var(--space-md);
-        }
+        /* ── Title & Text ── */
 
-        .glass-card {
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
-            border-radius: var(--radius);
-            padding: clamp(20px, 3vh, 36px) clamp(18px, 2.5vw, 30px);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-            transition: transform 0.4s var(--ease), background 0.4s var(--ease), border-color 0.4s var(--ease), box-shadow 0.4s var(--ease);
-        }
-
-        .glass-card:hover {
-            transform: translateY(clamp(-3px, -0.5vh, -6px));
-            background: var(--glass-hover);
-            border-color: var(--glass-border-hover);
-            box-shadow: var(--glow-md);
-        }
-
-        .glass-card .icon {
-            font-size: clamp(24px, 3.5vh, 40px);
-            margin-bottom: var(--space-sm);
-            display: block;
-        }
-
-        .glass-card h4 {
-            font-size: clamp(15px, 2vh, 20px);
+        .title-main {
+            font-size: var(--fs-h1);
             font-weight: 600;
-            margin-bottom: var(--space-xs);
+            line-height: 1.25;
+            letter-spacing: -0.02em;
+            margin-bottom: var(--space-md);
         }
 
-        .glass-card p {
-            font-size: clamp(13px, 1.4vh, 15px);
+        .desc-text {
+            font-size: var(--fs-body);
             color: var(--text-dim);
-            line-height: 1.7;
+            line-height: 1.85;
         }
 
-        /* ── 统计数字 ── */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: clamp(12px, 2vw, 24px);
-            margin-top: var(--space-md);
-        }
+        /* ── Agenda ── */
 
-        .stat-item {
-            text-align: center;
-            padding: clamp(20px, 3vh, 40px) clamp(12px, 1.5vw, 20px);
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
-            border-radius: var(--radius);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-            transition: transform 0.4s var(--ease), box-shadow 0.4s var(--ease);
-        }
-
-        .stat-item:hover {
-            transform: translateY(clamp(-2px, -0.4vh, -5px));
-            box-shadow: var(--glow-md);
-        }
-
-        .stat-num {
-            font-size: clamp(32px, 6vh, 64px);
-            font-weight: 700;
-            line-height: 1;
-            margin-bottom: var(--space-xs);
-            text-shadow: 0 2px 20px rgba(255, 255, 255, 0.15);
-        }
-
-        .stat-unit {
-            font-size: clamp(14px, 2vh, 22px);
-            font-weight: 400;
-            opacity: 0.7;
-        }
-
-        .stat-label {
-            font-size: clamp(13px, 1.4vh, 15px);
-            color: var(--text-dim);
-            font-weight: 400;
-            margin-top: var(--space-xs);
-        }
-
-        .stat-detail {
-            font-size: clamp(11px, 1.1vh, 12px);
-            color: var(--text-muted);
-            margin-top: var(--space-xs);
-        }
-
-        /* ── 对比双栏 ── */
-        .compare-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: clamp(16px, 2.5vw, 32px);
-            margin-top: var(--space-md);
-        }
-
-        .compare-col {
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
-            border-radius: var(--radius-lg);
-            padding: clamp(24px, 3.5vh, 40px) clamp(20px, 3vw, 36px);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-            transition: transform 0.4s var(--ease), box-shadow 0.4s var(--ease);
-        }
-
-        .compare-col:hover {
-            transform: translateY(clamp(-2px, -0.4vh, -4px));
-            box-shadow: var(--glow-md);
-        }
-
-        .compare-tag {
-            display: inline-block;
-            font-size: clamp(10px, 1.1vh, 12px);
-            font-weight: 600;
-            letter-spacing: clamp(1px, 0.15vw, 2px);
-            text-transform: uppercase;
-            padding: clamp(4px, 0.6vh, 8px) clamp(10px, 1.5vw, 16px);
-            border-radius: var(--radius-pill);
-            margin-bottom: var(--space-sm);
-        }
-
-        .compare-tag--a {
-            background: rgba(139, 92, 246, 0.25);
-            border: 1px solid rgba(139, 92, 246, 0.3);
-        }
-
-        .compare-tag--b {
-            background: rgba(236, 72, 153, 0.25);
-            border: 1px solid rgba(236, 72, 153, 0.3);
-        }
-
-        .compare-col h4 {
-            font-size: clamp(18px, 2.5vh, 26px);
-            font-weight: 700;
-            margin-bottom: var(--space-sm);
-        }
-
-        .compare-list {
-            list-style: none;
-        }
-
-        .compare-list li {
-            font-size: clamp(13px, 1.4vh, 15px);
-            color: var(--text-dim);
-            padding: clamp(6px, 1vh, 12px) 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-            display: flex;
-            align-items: baseline;
-            gap: clamp(6px, 1vw, 10px);
-        }
-
-        .compare-list li:last-child { border-bottom: none; }
-
-        .compare-list .dot {
-            width: clamp(4px, 0.6vh, 6px);
-            height: clamp(4px, 0.6vh, 6px);
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.4);
-            flex-shrink: 0;
-            margin-top: clamp(4px, 0.7vh, 7px);
-        }
-
-        /* ── 时间线 ── */
-        .timeline {
-            display: flex;
-            flex-direction: column;
-            gap: clamp(2px, 0.3vh, 4px);
-            margin-top: var(--space-md);
-        }
-
-        .tl-item {
-            display: grid;
-            grid-template-columns: clamp(80px, 12vw, 140px) 1fr;
-            gap: clamp(12px, 2vw, 24px);
-            align-items: center;
-            padding: clamp(12px, 1.8vh, 22px) clamp(16px, 2vw, 28px);
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
-            border-radius: var(--radius-sm);
-            backdrop-filter: var(--glass-blur-light);
-            -webkit-backdrop-filter: var(--glass-blur-light);
-            transition: background 0.3s var(--ease);
-        }
-
-        .tl-item:hover { background: var(--glass-hover); }
-
-        .tl-time {
-            font-size: clamp(11px, 1.3vh, 14px);
-            font-weight: 600;
-            color: var(--text-dim);
-            letter-spacing: 0.03em;
-        }
-
-        .tl-content h4 {
-            font-size: clamp(14px, 1.7vh, 18px);
-            font-weight: 600;
-            margin-bottom: clamp(2px, 0.3vh, 4px);
-        }
-
-        .tl-content p {
-            font-size: clamp(13px, 1.3vh, 14px);
-            color: var(--text-dim);
-            line-height: 1.6;
-        }
-
-        /* ── 步骤 ── */
-        .steps-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: clamp(12px, 2vw, 24px);
-            margin-top: var(--space-md);
-            counter-reset: step;
-        }
-
-        .step {
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
-            border-radius: var(--radius);
-            padding: clamp(20px, 3vh, 36px) clamp(16px, 2vw, 24px);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-            position: relative;
-            transition: transform 0.4s var(--ease), box-shadow 0.4s var(--ease);
-        }
-
-        .step:hover {
-            transform: translateY(clamp(-2px, -0.4vh, -5px));
-            box-shadow: var(--glow-md);
-        }
-
-        .step-num {
-            font-size: clamp(10px, 1.1vh, 12px);
-            font-weight: 700;
-            letter-spacing: clamp(1px, 0.2vw, 3px);
-            text-transform: uppercase;
-            color: var(--text-muted);
-            margin-bottom: var(--space-sm);
-        }
-
-        .step-title {
-            font-size: clamp(15px, 2vh, 20px);
-            font-weight: 600;
-            margin-bottom: var(--space-xs);
-        }
-
-        .step-desc {
-            font-size: clamp(13px, 1.3vh, 14px);
-            color: var(--text-dim);
-            line-height: 1.7;
-        }
-
-        /* ── 引言页 ── */
-        .slide-quote {
-            align-items: center;
-            text-align: center;
-            position: relative;
-        }
-
-        .quote-watermark {
-            font-size: clamp(150px, 30vh, 360px);
-            font-weight: 800;
-            color: rgba(255, 255, 255, 0.04);
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -65%);
-            line-height: 1;
-            user-select: none;
-            z-index: -1;
-        }
-
-        .quote-text {
-            font-size: clamp(22px, 4vw, 48px);
-            font-weight: 600;
-            line-height: 1.5;
-            max-width: 850px;
-            text-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
-            letter-spacing: -0.01em;
-        }
-
-        .quote-author {
-            margin-top: var(--space-lg);
-            font-size: clamp(13px, 1.5vh, 17px);
-            color: var(--text-dim);
-            font-weight: 400;
-            font-style: italic;
-        }
-
-        /* ── 议程页 ── */
         .agenda-list {
             list-style: none;
             margin-top: var(--space-md);
-            max-width: 700px;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(4px, 0.5vh, 8px);
         }
 
         .agenda-item {
             display: flex;
             align-items: center;
             gap: clamp(14px, 2vw, 24px);
-            padding: clamp(14px, 2vh, 24px) clamp(18px, 2.5vw, 30px);
-            margin-bottom: clamp(6px, 1vh, 12px);
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
+            padding: clamp(14px, 2vh, 22px) clamp(16px, 2vw, 24px);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
             border-radius: var(--radius-sm);
-            backdrop-filter: var(--glass-blur-light);
-            -webkit-backdrop-filter: var(--glass-blur-light);
-            transition: background 0.3s var(--ease), transform 0.3s var(--ease);
+            border-left: 3px solid transparent;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.4s ease;
         }
 
-        .agenda-item:hover {
-            background: var(--glass-hover);
-            transform: translateX(clamp(4px, 0.5vw, 8px));
+        .slide.active .agenda-item::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: var(--grad-line-1);
+            background-size: 200% 100%;
+            animation: gradient-shift 4s linear infinite;
         }
+
+        .agenda-item:nth-child(1) { border-left-color: #6366f1; }
+        .agenda-item:nth-child(2) { border-left-color: #8b5cf6; }
+        .agenda-item:nth-child(3) { border-left-color: #06b6d4; }
+        .agenda-item:nth-child(4) { border-left-color: #d946ef; }
 
         .agenda-num {
-            font-size: clamp(20px, 3vh, 32px);
+            font-size: clamp(1.3rem, 2.2vh, 1.8rem);
             font-weight: 700;
-            opacity: 0.35;
-            min-width: clamp(30px, 4vw, 50px);
+            min-width: clamp(28px, 3.5vw, 44px);
+            color: var(--accent-cyan);
         }
 
         .agenda-text {
-            font-size: clamp(15px, 2vh, 20px);
+            font-size: clamp(0.95rem, 1.3vw, 1.15rem);
             font-weight: 500;
         }
 
-        /* ── 总结卡片 ── */
-        .summary-grid {
+        /* ── Feature Cards ── */
+
+        .feature-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: clamp(12px, 2vw, 24px);
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: clamp(10px, 1.5vw, 18px);
             margin-top: var(--space-md);
         }
 
-        .summary-card {
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
+        .feature-card-hero {
+            grid-row: 1 / -1;
+        }
+
+        .glass-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
             border-radius: var(--radius);
-            padding: clamp(22px, 3.2vh, 38px) clamp(18px, 2.5vw, 28px);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-            transition: transform 0.4s var(--ease), box-shadow 0.4s var(--ease);
+            padding: clamp(18px, 2.5vh, 30px) clamp(16px, 2vw, 22px);
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.4s ease;
         }
 
-        .summary-card:hover {
-            transform: translateY(clamp(-2px, -0.4vh, -5px));
-            box-shadow: var(--glow-md);
+        .slide.active .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--grad-line-1);
+            background-size: 200% 100%;
+            animation: gradient-shift 4s linear infinite;
         }
 
-        .summary-num {
-            font-size: clamp(10px, 1.1vh, 12px);
-            font-weight: 700;
-            letter-spacing: clamp(1px, 0.2vw, 3px);
-            color: var(--text-muted);
+        .slide[data-section="tech"] .glass-card::before { background: var(--grad-line-1); background-size: 200% 100%; }
+        .slide[data-section="market"] .glass-card::before { background: var(--grad-line-3); background-size: 200% 100%; }
+        .slide[data-section="future"] .glass-card::before { background: var(--grad-line-2); background-size: 200% 100%; }
+
+        .glass-card:hover {
+            border-color: var(--border-subtle);
+        }
+
+        .slide.active .glass-card {
+            backdrop-filter: blur(8px) saturate(1.2);
+            -webkit-backdrop-filter: blur(8px) saturate(1.2);
+        }
+
+        .glass-card .icon {
+            font-size: clamp(1.4rem, 2.5vh, 2rem);
             margin-bottom: var(--space-sm);
+            display: block;
         }
 
-        .summary-card h4 {
-            font-size: clamp(16px, 2.2vh, 22px);
-            font-weight: 700;
+        .glass-card h4 {
+            font-size: var(--fs-h3);
+            font-weight: 600;
             margin-bottom: var(--space-xs);
         }
 
-        .summary-card p {
-            font-size: clamp(13px, 1.3vh, 15px);
+        .glass-card p {
+            font-size: var(--fs-small);
             color: var(--text-dim);
             line-height: 1.7;
         }
 
-        /* ── 大字声明页 ── */
-        .slide-statement { text-align: center; align-items: center; justify-content: center; }
-        .statement-text { font-size: clamp(2.5rem, 8vw, 7rem); font-weight: 700; line-height: 1.15; color: var(--white); max-width: 16em; }
-        .statement-text .accent { opacity: 0.8; border-bottom: 2px solid rgba(255,255,255,0.3); padding-bottom: 2px; }
-        .statement-sub { margin-top: var(--space-md); font-size: clamp(15px, 1.6vh, 18px); color: var(--text-dim); max-width: 36em; line-height: 1.8; }
+        .feature-card-hero .icon { font-size: clamp(2rem, 3.5vh, 2.8rem); }
+        .feature-card-hero h4 { font-size: var(--fs-h2); }
+        .feature-card-hero p { font-size: var(--fs-body); }
 
-        /* ── 图表/进度条页 ── */
-        .chart-list { display: flex; flex-direction: column; gap: var(--space-md); margin-top: var(--space-lg); width: 100%; }
-        .chart-item { display: grid; grid-template-columns: clamp(8rem, 14vw, 12rem) 1fr clamp(3rem, 5vw, 4rem); gap: var(--space-sm); align-items: center; }
-        .chart-label { font-size: clamp(14px, 1.4vh, 17px); font-weight: 500; color: var(--text); text-align: right; }
-        .chart-bar { height: clamp(8px, 1.2vh, 12px); background: var(--glass); backdrop-filter: var(--glass-blur-light); border-radius: var(--radius-pill); border: 1px solid var(--glass-border); overflow: hidden; }
-        .chart-fill { height: 100%; width: 0%; background: linear-gradient(90deg, rgba(255,255,255,0.9), rgba(255,255,255,0.6)); border-radius: var(--radius-pill); transition: width 1s var(--ease); }
-        .chart-value { font-size: clamp(12px, 1.2vh, 15px); font-weight: 600; color: var(--white); letter-spacing: 0.05em; }
+        /* ── Stats ── */
 
-        /* ── 矩阵/象限页 ── */
-        .matrix-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: var(--space-md); margin-top: var(--space-lg); width: 100%; position: relative; }
-        .matrix-grid::before, .matrix-grid::after { content: ''; position: absolute; pointer-events: none; z-index: 1; }
-        .matrix-grid::before { left: 50%; top: 5%; bottom: 5%; width: 1px; transform: translateX(-0.5px); background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.15) 20%, rgba(255,255,255,0.15) 80%, transparent); }
-        .matrix-grid::after { top: 50%; left: 5%; right: 5%; height: 1px; transform: translateY(-0.5px); background: linear-gradient(to right, transparent, rgba(255,255,255,0.15) 20%, rgba(255,255,255,0.15) 80%, transparent); }
-        .matrix-cell { background: var(--glass); backdrop-filter: var(--glass-blur); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: var(--space-md); transition: background 0.4s var(--ease), border-color 0.4s var(--ease); }
-        .matrix-cell:hover { background: var(--glass-hover); border-color: var(--glass-border-hover); }
-        .cell-icon { font-size: clamp(1.2rem, 2.5vh, 1.8rem); margin-bottom: var(--space-sm); }
-        .cell-title { font-size: clamp(1rem, 1.8vh, 1.3rem); font-weight: 600; color: var(--white); margin-bottom: var(--space-xs); }
-        .cell-desc { font-size: clamp(13px, 1.3vh, 15px); color: var(--text-dim); line-height: 1.6; }
+        .stats-hero {
+            text-align: center;
+            padding: var(--space-md) 0;
+            margin-bottom: var(--space-md);
+            border-bottom: 1px solid var(--border);
+        }
 
-        /* ── 双栏详情页 ── */
-        .split-detail { display: grid; grid-template-columns: 2fr 3fr; gap: clamp(24px, 4vw, 48px); margin-top: var(--space-lg); width: 100%; align-items: center; }
-        .split-visual { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: var(--space-lg); background: var(--glass); backdrop-filter: var(--glass-blur); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); }
-        .split-visual-icon { font-size: clamp(3rem, 6vw, 5rem); margin-bottom: var(--space-sm); }
-        .split-visual-num { font-size: clamp(2rem, 5vh, 4rem); font-weight: 700; color: var(--white); line-height: 1; }
-        .split-visual-label { font-size: clamp(11px, 1.1vh, 14px); font-weight: 500; color: var(--text-muted); letter-spacing: 0.2em; text-transform: uppercase; margin-top: var(--space-xs); }
-        .split-info h3 { font-size: clamp(1.1rem, 2vh, 1.6rem); font-weight: 600; color: var(--white); margin-bottom: var(--space-md); }
-        .split-info-list { list-style: none; display: flex; flex-direction: column; gap: var(--space-sm); }
-        .split-info-list li { padding: var(--space-xs) 0; border-bottom: 1px solid var(--glass-border); font-size: clamp(14px, 1.4vh, 17px); color: var(--text-dim); line-height: 1.7; padding-left: var(--space-md); position: relative; }
-        .split-info-list li::before { content: ''; position: absolute; left: 0; top: 50%; width: 6px; height: 6px; background: rgba(255,255,255,0.5); border-radius: 50%; transform: translateY(-50%); }
+        .stat-hero-num {
+            font-size: var(--fs-stat-hero);
+            font-weight: 700;
+            line-height: 1;
+            background: var(--grad-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
 
-        /* ── 结束页 ── */
-        .slide-end {
+        .stat-hero-label {
+            font-size: var(--fs-body);
+            color: var(--text-dim);
+            margin-top: var(--space-sm);
+        }
+
+        .stat-hero-detail {
+            font-size: var(--fs-small);
+            color: var(--text-muted);
+            margin-top: var(--space-xs);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: clamp(10px, 1.5vw, 18px);
+        }
+
+        .stat-item {
+            padding: clamp(16px, 2vh, 28px) clamp(12px, 1.5vw, 18px);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.4s ease;
+        }
+
+        .slide.active .stat-item::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--grad-line-3);
+            background-size: 200% 100%;
+            animation: gradient-shift 4s linear infinite;
+        }
+
+        .stat-item:hover { border-color: var(--border-subtle); }
+
+        .stat-num {
+            font-size: var(--fs-stat);
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: var(--space-xs);
+            color: var(--accent-cyan);
+        }
+
+        .stat-unit {
+            font-size: clamp(1rem, 1.6vh, 1.3rem);
+            font-weight: 400;
+        }
+
+        .stat-label {
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            margin-top: var(--space-xs);
+        }
+
+        /* ── Statement ── */
+
+        .statement-text {
+            font-size: var(--fs-statement);
+            font-weight: 700;
+            line-height: 1.15;
+            letter-spacing: -0.02em;
+        }
+
+        .statement-sub {
+            margin-top: var(--space-lg);
+            font-size: var(--fs-body);
+            color: var(--text-dim);
+            line-height: 1.8;
+            font-weight: 300;
+            max-width: 42em;
+        }
+
+        /* ── Comparison ── */
+
+        .compare-grid {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: clamp(14px, 2vw, 26px);
+            margin-top: var(--space-md);
+            align-items: stretch;
+        }
+
+        .compare-vs {
+            display: flex;
             align-items: center;
+            justify-content: center;
+            font-size: var(--fs-label);
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            writing-mode: vertical-rl;
+        }
+
+        .compare-col {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: clamp(20px, 3vh, 34px) clamp(16px, 2vw, 26px);
+            position: relative;
+            overflow: hidden;
+            min-height: clamp(240px, 36vh, 380px);
+        }
+
+        .slide.active .compare-col::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--grad-line-1);
+            background-size: 200% 100%;
+            animation: gradient-shift 4s linear infinite;
+        }
+
+        .compare-tag {
+            display: inline-block;
+            font-size: var(--fs-label);
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            padding: clamp(3px, 0.4vh, 6px) clamp(10px, 1.2vw, 14px);
+            border-radius: 100px;
+            margin-bottom: var(--space-sm);
+        }
+
+        .compare-tag--a { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
+        .compare-tag--b { background: rgba(6, 182, 212, 0.15); color: #22d3ee; }
+
+        .compare-col h4 {
+            font-size: var(--fs-h2);
+            font-weight: 600;
+            margin-bottom: var(--space-sm);
+        }
+
+        .compare-list { list-style: none; }
+
+        .compare-list li {
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            padding: clamp(5px, 0.7vh, 9px) 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            display: flex;
+            align-items: baseline;
+            gap: clamp(6px, 0.8vw, 10px);
+        }
+
+        .compare-list li:last-child { border-bottom: none; }
+
+        .compare-list .dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-top: 6px;
+        }
+
+        .compare-col:first-child .dot { background: #818cf8; }
+        .compare-col:last-child .dot { background: var(--accent-cyan); box-shadow: 0 0 6px rgba(6, 182, 212, 0.5); }
+
+        /* ── Chart ── */
+
+        .chart-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-md);
+            margin-top: var(--space-lg);
+        }
+
+        .chart-item {
+            display: grid;
+            grid-template-columns: clamp(7rem, 12vw, 10rem) 1fr clamp(3rem, 4vw, 4rem);
+            gap: var(--space-sm);
+            align-items: center;
+        }
+
+        .chart-label {
+            font-size: var(--fs-small);
+            font-weight: 500;
+            text-align: right;
+        }
+
+        .chart-bar {
+            height: clamp(8px, 1.2vh, 12px);
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 100px;
+            overflow: hidden;
+        }
+
+        .chart-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 100px;
+            transition: width 1.2s var(--ease);
+        }
+
+        .chart-item:nth-child(1) .chart-fill { background: var(--grad-line-1); }
+        .chart-item:nth-child(2) .chart-fill { background: var(--grad-line-2); }
+        .chart-item:nth-child(3) .chart-fill { background: linear-gradient(90deg, #06b6d4, #a855f7); }
+        .chart-item:nth-child(4) .chart-fill { background: var(--grad-line-3); }
+        .chart-item:nth-child(5) .chart-fill { background: var(--grad-warm); }
+
+        .chart-value {
+            font-size: var(--fs-small);
+            font-weight: 600;
+            color: var(--accent-cyan);
+        }
+
+        /* ── Timeline ── */
+
+        .timeline {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(3px, 0.4vh, 5px);
+            margin-top: var(--space-md);
+        }
+
+        .tl-item {
+            display: grid;
+            grid-template-columns: clamp(70px, 10vw, 110px) 1fr;
+            gap: clamp(12px, 2vw, 20px);
+            align-items: center;
+            padding: clamp(12px, 1.6vh, 18px) clamp(14px, 1.8vw, 20px);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.4s ease;
+        }
+
+        .tl-item::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; bottom: 0;
+            width: 3px;
+            background: var(--grad-primary);
+        }
+
+        .tl-item:hover { border-color: var(--border-subtle); }
+
+        .tl-time {
+            font-size: var(--fs-label);
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            color: var(--accent-cyan);
+        }
+
+        .tl-content h4 {
+            font-size: clamp(0.88rem, 1.15vw, 1.05rem);
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .tl-content p {
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        /* ── Steps ── */
+
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: clamp(10px, 1.5vw, 18px);
+            margin-top: var(--space-md);
+            position: relative;
+        }
+
+        .step {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: clamp(18px, 2.5vh, 28px) clamp(14px, 1.8vw, 18px);
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.4s ease;
+        }
+
+        .slide.active .step::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--grad-line-1);
+            background-size: 200% 100%;
+            animation: gradient-shift 4s linear infinite;
+        }
+
+        .step:hover { border-color: var(--border-subtle); }
+
+        .step-num {
+            font-size: var(--fs-label);
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            margin-bottom: var(--space-sm);
+            color: var(--accent-cyan);
+        }
+
+        .step-title {
+            font-size: var(--fs-h3);
+            font-weight: 600;
+            margin-bottom: var(--space-xs);
+        }
+
+        .step-desc {
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        /* ── Layer Stack ── */
+
+        .layer-stack {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(6px, 1vh, 12px);
+        }
+
+        .layer-item {
+            display: grid;
+            grid-template-columns: clamp(50px, 7vw, 80px) 1fr;
+            gap: clamp(14px, 2vw, 24px);
+            align-items: center;
+            padding: clamp(16px, 2.2vh, 26px) clamp(18px, 2.5vw, 28px);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.4s ease;
+        }
+
+        .layer-item::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; bottom: 0;
+            width: 3px;
+            background: var(--grad-primary);
+        }
+
+        .layer-item:hover { border-color: var(--border-subtle); }
+
+        .layer-index {
+            font-size: clamp(1.4rem, 2.5vh, 2rem);
+            font-weight: 700;
+            color: var(--accent-cyan);
             text-align: center;
         }
 
-        .slide-end h2 {
-            font-size: clamp(36px, 7vw, 80px);
+        .layer-body h4 {
+            font-size: var(--fs-h3);
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .layer-body p {
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        .layer-footer {
+            margin-top: var(--space-md);
+            display: flex;
+            align-items: center;
+            gap: 0.75em;
+            font-size: var(--fs-small);
+            color: var(--text-dim);
+        }
+
+        .layer-footer-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            box-shadow: 0 0 8px rgba(6, 182, 212, 0.5);
+            flex-shrink: 0;
+        }
+
+        /* ── Quote ── */
+
+        .slide-quote { position: relative; }
+
+        .quote-watermark {
+            font-size: clamp(10rem, 28vw, 28rem);
+            font-weight: 700;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -60%);
+            line-height: 1;
+            user-select: none;
+            pointer-events: none;
+            color: transparent;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(6, 182, 212, 0.04));
+            -webkit-background-clip: text;
+            background-clip: text;
+        }
+
+        .quote-text {
+            font-size: var(--fs-quote);
+            font-weight: 500;
+            line-height: 1.5;
+            letter-spacing: -0.01em;
+        }
+
+        .quote-author {
+            margin-top: var(--space-lg);
+            font-size: var(--fs-small);
+            color: var(--text-muted);
+        }
+
+        /* ── Matrix ── */
+
+        .matrix-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: clamp(10px, 1.5vw, 18px);
+            margin-top: var(--space-md);
+        }
+
+        .matrix-cell {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: clamp(16px, 2.2vh, 26px) clamp(14px, 2vw, 22px);
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.4s ease;
+            min-height: clamp(120px, 18vh, 180px);
+        }
+
+        .slide.active .matrix-cell::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--grad-line-2);
+            background-size: 200% 100%;
+            animation: gradient-shift 4s linear infinite;
+        }
+
+        .matrix-cell:hover { border-color: var(--border-subtle); }
+
+        .cell-icon { font-size: clamp(1.2rem, 2vh, 1.6rem); margin-bottom: var(--space-sm); }
+        .cell-title { font-size: var(--fs-h3); font-weight: 600; margin-bottom: var(--space-xs); }
+        .cell-desc { font-size: var(--fs-small); color: var(--text-dim); line-height: 1.65; }
+
+        /* ── Summary ── */
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: clamp(10px, 1.5vw, 18px);
+            margin-top: var(--space-md);
+        }
+
+        .summary-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: clamp(20px, 2.8vh, 30px) clamp(16px, 2vw, 22px);
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.4s ease;
+            min-height: clamp(160px, 24vh, 240px);
+        }
+
+        .slide.active .summary-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--grad-line-2);
+            background-size: 200% 100%;
+            animation: gradient-shift 4s linear infinite;
+        }
+
+        .summary-card:hover { border-color: var(--border-subtle); }
+
+        .summary-num {
+            font-size: var(--fs-label);
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            margin-bottom: var(--space-sm);
+            color: var(--accent-cyan);
+        }
+
+        .summary-card h4 { font-size: var(--fs-h3); font-weight: 600; margin-bottom: var(--space-xs); }
+        .summary-card p { font-size: var(--fs-small); color: var(--text-dim); line-height: 1.7; }
+
+        /* ── End ── */
+
+        .end-title {
+            font-size: clamp(2.5rem, 6vw, 5.5rem);
             font-weight: 700;
             letter-spacing: -0.03em;
-            text-shadow: 0 4px 40px rgba(0, 0, 0, 0.25);
             margin-bottom: var(--space-sm);
         }
 
         .end-sub {
-            font-size: clamp(15px, 1.8vh, 20px);
+            font-size: clamp(0.95rem, 1.3vw, 1.15rem);
             color: var(--text-dim);
             font-weight: 300;
-            margin-bottom: var(--space-lg);
-            max-width: 500px;
-        }
-
-        .end-line {
-            width: clamp(40px, 6vw, 80px);
-            height: 2px;
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 1px;
             margin-bottom: var(--space-lg);
         }
 
         .end-contacts {
             display: flex;
-            gap: clamp(16px, 3vw, 40px);
-            font-size: clamp(13px, 1.3vh, 15px);
+            gap: clamp(16px, 3vw, 36px);
+            font-size: var(--fs-small);
+            color: var(--text-muted);
+        }
+
+        .end-contacts .sep { opacity: 0.3; }
+
+        /* ── Definition Split Layout ── */
+
+        .def-split {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr;
+            gap: var(--space-xl);
+            align-items: center;
+            margin-top: var(--space-md);
+        }
+
+        .def-main {
+            font-size: clamp(1.1rem, 1.5vw, 1.4rem);
             color: var(--text-dim);
-            font-weight: 400;
+            line-height: 1.9;
+            border-left: 3px solid var(--accent-cyan);
+            padding-left: var(--space-md);
         }
 
-        .end-contacts .sep {
-            color: rgba(255, 255, 255, 0.2);
+        .def-aside {
+            font-size: var(--fs-body);
+            color: var(--text-dim);
+            line-height: 1.85;
+            padding: var(--space-md);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
         }
 
-        /* ── 进度条 ── */
+        /* ── Dot Navigation ── */
+
+        .nav-dots {
+            position: fixed;
+            right: clamp(14px, 2vw, 24px);
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .nav-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            transition: all 0.3s var(--ease);
+        }
+
+        .nav-dot:hover { background: rgba(255, 255, 255, 0.4); }
+
+        .nav-dot.active {
+            background: var(--accent-cyan);
+            box-shadow: 0 0 8px rgba(6, 182, 212, 0.5);
+            height: 18px;
+        }
+
+        /* ── Progress (hidden visual, kept for API compat) ── */
+
         .progress-bar {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
-            height: clamp(2px, 0.35vh, 4px);
-            background: rgba(255, 255, 255, 0.08);
+            height: 2px;
+            background: transparent;
             z-index: 1000;
         }
 
         .progress-fill {
             height: 100%;
             width: 0%;
-            background: rgba(255, 255, 255, 0.5);
-            border-radius: 0 2px 2px 0;
-            transition: width 0.4s var(--ease);
-            box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+            background: var(--grad-h);
+            transition: width 0.5s var(--ease);
         }
 
-        /* ── 页码 ── */
+        /* ── Counter ── */
+
         .slide-counter {
             position: fixed;
-            bottom: clamp(16px, 3vh, 32px);
-            right: clamp(20px, 3vw, 40px);
-            font-size: clamp(11px, 1.2vh, 14px);
+            bottom: clamp(14px, 2.5vh, 28px);
+            right: clamp(18px, 3vw, 36px);
+            font-size: var(--fs-label);
             font-weight: 500;
             color: var(--text-muted);
             z-index: 1000;
             font-variant-numeric: tabular-nums;
-            letter-spacing: 0.05em;
-            backdrop-filter: var(--glass-blur-light);
-            -webkit-backdrop-filter: var(--glass-blur-light);
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
-            border-radius: var(--radius-pill);
-            padding: clamp(4px, 0.6vh, 8px) clamp(12px, 1.5vw, 20px);
+            letter-spacing: 0.08em;
         }
 
-        .slide-counter .current {
-            color: var(--white);
-            font-weight: 600;
-        }
+        .slide-counter .current { color: var(--accent-cyan); font-weight: 600; }
 
-        /* ── 代码块 ── */
-        pre {
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
-            border-radius: var(--radius);
-            padding: clamp(16px, 2.5vh, 28px) clamp(18px, 2.5vw, 30px);
-            margin: var(--space-sm) 0;
-            overflow-x: auto;
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-        }
-
-        pre code {
-            font-family: "SF Mono", "Fira Code", "JetBrains Mono", monospace;
-            font-size: clamp(13px, 1.3vh, 15px);
-            line-height: 1.7;
-            color: var(--text);
-            white-space: pre;
-            display: block;
-        }
-
-        code {
-            font-family: "SF Mono", "Fira Code", "JetBrains Mono", monospace;
-            background: var(--glass);
-            padding: clamp(2px, 0.3vh, 4px) clamp(6px, 0.8vw, 10px);
-            border-radius: clamp(4px, 0.5vw, 6px);
-            font-size: 0.88em;
-        }
-
-        pre code { background: none; padding: 0; }
-
-        /* ── 响应式断点 ── */
+        /* ── Responsive ── */
 
         @media (max-width: 768px) {
-            .glass-grid,
+            .feature-grid { grid-template-columns: 1fr 1fr; }
+            .feature-card-hero { grid-row: auto; }
             .summary-grid { grid-template-columns: 1fr 1fr; }
-            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .stats-grid { grid-template-columns: repeat(3, 1fr); }
             .compare-grid { grid-template-columns: 1fr; }
+            .compare-vs { writing-mode: horizontal-tb; padding: var(--space-xs) 0; }
             .steps-grid { grid-template-columns: 1fr 1fr; }
-            .end-contacts { flex-direction: column; align-items: center; gap: var(--space-xs); }
             .matrix-grid { grid-template-columns: 1fr; }
-            .matrix-grid::before, .matrix-grid::after { display: none; }
-            .split-detail { grid-template-columns: 1fr; }
-            .chart-item { grid-template-columns: clamp(5rem, 10vw, 8rem) 1fr clamp(2.5rem, 4vw, 3.5rem); }
-            .tl-item { grid-template-columns: clamp(60px, 20vw, 100px) 1fr; }
+            .def-split { grid-template-columns: 1fr; }
+            .layer-item { grid-template-columns: clamp(40px, 12vw, 60px) 1fr; }
+            .end-contacts { flex-direction: column; align-items: center; gap: var(--space-xs); }
+            .chart-item { grid-template-columns: clamp(5rem, 10vw, 7rem) 1fr clamp(2.5rem, 4vw, 3rem); }
+            .tl-item { grid-template-columns: clamp(55px, 18vw, 90px) 1fr; }
+            .nav-dots { display: none; }
         }
 
         @media (max-height: 750px) {
             :root {
-                --slide-pad-y: clamp(20px, 4vh, 50px);
-                --space-md: clamp(10px, 2vh, 20px);
-                --space-lg: clamp(14px, 2.5vh, 28px);
+                --pad-y: clamp(18px, 4vh, 50px);
+                --space-md: clamp(10px, 1.8vh, 20px);
+                --space-lg: clamp(14px, 2.5vh, 32px);
             }
-            .cover-title { font-size: clamp(28px, 5.5vw, 60px); }
-            .glass-card { padding: clamp(14px, 2vh, 22px) clamp(12px, 1.8vw, 20px); }
-            .stat-num { font-size: clamp(26px, 4.5vh, 48px); }
+            .cover-title { font-size: clamp(2.2rem, 5.5vw, 5rem); }
         }
 
         @media (max-height: 650px) {
             :root {
-                --slide-pad-y: clamp(14px, 3vh, 36px);
-                --space-md: clamp(8px, 1.5vh, 16px);
+                --pad-y: clamp(12px, 3vh, 32px);
+                --space-md: clamp(8px, 1.4vh, 16px);
                 --space-lg: clamp(10px, 2vh, 22px);
             }
-            .cover-title { font-size: clamp(24px, 4.5vw, 48px); }
-            .title-main { font-size: clamp(20px, 3.5vw, 38px); }
-            .glass-card { padding: clamp(10px, 1.5vh, 18px) clamp(10px, 1.5vw, 16px); }
-            .stat-num { font-size: clamp(22px, 3.5vh, 40px); }
-            .stat-detail { display: none; }
-            .chapter-watermark { font-size: clamp(80px, 18vh, 200px); }
-            .quote-text { font-size: clamp(18px, 3vw, 36px); }
+            .cover-title { font-size: clamp(1.8rem, 4.5vw, 4rem); }
+            .title-main { font-size: clamp(1.3rem, 2.5vw, 2.5rem); }
+            .stat-num { font-size: clamp(1.8rem, 4vh, 3.5rem); }
+            .stat-hero-num { font-size: clamp(2.5rem, 8vw, 6rem); }
+            .chapter-watermark { font-size: clamp(5rem, 14vw, 14rem); }
+            .quote-text { font-size: clamp(1.2rem, 2.4vw, 2.4rem); }
         }
 
         @media (max-height: 500px) and (orientation: landscape) {
             :root {
-                --slide-pad-y: clamp(10px, 2vh, 24px);
-                --slide-pad-x: clamp(24px, 5vw, 80px);
-                --space-sm: clamp(4px, 0.8vh, 10px);
-                --space-md: clamp(6px, 1.2vh, 14px);
+                --pad-y: clamp(8px, 2vh, 20px);
+                --pad-x: clamp(20px, 5vw, 70px);
+                --space-sm: clamp(4px, 0.6vh, 8px);
+                --space-md: clamp(6px, 1vh, 12px);
             }
-            .glass-grid,
-            .summary-grid { grid-template-columns: repeat(3, 1fr); }
-            .stats-grid { grid-template-columns: repeat(4, 1fr); }
+            .feature-grid { grid-template-columns: repeat(3, 1fr); grid-template-rows: 1fr; }
+            .feature-card-hero { grid-row: auto; }
+            .stats-grid { grid-template-columns: repeat(3, 1fr); }
             .steps-grid { grid-template-columns: repeat(4, 1fr); }
-            .cover-title { font-size: clamp(20px, 4vw, 40px); }
-            .cover-badge { margin-bottom: var(--space-sm); }
-            .glass-card .icon { font-size: clamp(18px, 2.5vh, 28px); margin-bottom: var(--space-xs); }
-            .stat-label { font-size: clamp(11px, 1.2vh, 13px); }
-            .tl-item { padding: clamp(8px, 1.2vh, 14px) clamp(10px, 1.5vw, 18px); }
-            .agenda-item { padding: clamp(8px, 1.2vh, 14px) clamp(12px, 1.5vw, 20px); }
         }
 
-        /* ── 动画减弱模式 ── */
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
+                animation: none !important;
                 transition-duration: 0.2s !important;
                 transition-delay: 0s !important;
             }
-            .slide { transform: none; }
-            .slide.active { transform: none; }
-            .reveal { opacity: 1; transform: none; }
-            .reveal-scale { opacity: 1; transform: none; }
-            .orb { animation: none; }
-            .gradient-bg { animation: none; }
+            .slide { transform: none; filter: none; }
+            .slide.active { transform: none; filter: none; }
+            .reveal, .reveal-scale, .reveal-left, .reveal-right,
+            .reveal-clip, .reveal-blur, .reveal-spring {
+                opacity: 1; transform: none; clip-path: none; filter: none;
+            }
         }
 
-        /* ── 全览模式 ── */
-        .ov-grid{position:fixed;inset:0;z-index:10000;background:rgba(10,10,15,.97);overflow:auto;padding:clamp(20px,3vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:clamp(10px,1.5vw,16px);align-content:start;opacity:0;transition:opacity .3s ease}
+        /* ── Overview ── */
+
+        .ov-grid{position:fixed;inset:0;z-index:10000;background:rgba(12,10,26,.97);overflow:auto;padding:clamp(20px,3vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:clamp(10px,1.5vw,16px);align-content:start;opacity:0;transition:opacity .3s ease}
         .ov-grid.ov-visible{opacity:1}
-        .ov-card{position:relative;aspect-ratio:16/10;overflow:hidden;border:2px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;background:var(--bg,#111);box-shadow:0 2px 8px rgba(0,0,0,.18)}
-        .ov-card:hover{border-color:rgba(100,160,255,.35);transform:scale(1.03);box-shadow:0 4px 16px rgba(0,0,0,.25)}
-        .ov-card.ov-current{border-color:rgba(100,170,255,.5);box-shadow:0 0 16px rgba(100,170,255,.12)}
-        .ov-inner{position:absolute;top:0;left:0;width:100vw;height:100vh;transform-origin:top left;pointer-events:none;overflow:hidden}
+        .ov-card{position:relative;aspect-ratio:16/10;overflow:hidden;border:1px solid rgba(255,255,255,.08);border-radius:10px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;background:var(--bg);box-shadow:0 2px 8px rgba(0,0,0,.3)}
+        .ov-card:hover{border-color:rgba(6,182,212,.4);transform:scale(1.03);box-shadow:0 4px 20px rgba(6,182,212,.12)}
+        .ov-card.ov-current{border-color:rgba(6,182,212,.6);box-shadow:0 0 20px rgba(6,182,212,.12)}
+        .ov-inner{position:absolute;top:0;left:0;width:100vw;height:100vh;transform-origin:top left;pointer-events:none;overflow:hidden;content-visibility:auto}
         .ov-inner *{transition:none !important;animation:none !important}
-        .ov-inner .reveal,.ov-inner .reveal-scale,.ov-inner .reveal-left,.ov-inner .reveal-right,.ov-inner .reveal-blur{opacity:1 !important;transform:none !important;filter:none !important}
-        .ov-num{position:absolute;top:6px;right:8px;font-size:12px;color:rgba(255,255,255,.5);background:rgba(0,0,0,.6);padding:2px 8px;border-radius:4px;z-index:2;font-family:system-ui,monospace}
-        .ov-close{position:fixed;top:16px;right:20px;z-index:10001;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
-        .ov-close:hover{background:rgba(255,255,255,.2)}
+        .ov-inner .reveal,.ov-inner .reveal-scale,.ov-inner .reveal-left,.ov-inner .reveal-right,.ov-inner .reveal-clip,.ov-inner .reveal-blur,.ov-inner .reveal-spring{opacity:1 !important;transform:none !important;clip-path:none !important;filter:none !important}
+        .ov-num{position:absolute;top:6px;right:8px;font-size:11px;color:var(--text-muted);background:rgba(0,0,0,.6);padding:2px 8px;border-radius:6px;z-index:2;font-family:var(--font)}
+        .ov-close{position:fixed;top:16px;right:20px;z-index:10001;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+        .ov-close:hover{background:rgba(255,255,255,.12)}
     </style>
 </head>
 <body>
 
-    <!-- 渐变背景 -->
-    <div class="gradient-bg"></div>
+    <div class="presentation" role="region" aria-roledescription="slide deck" aria-label="元宇宙与数字未来">
 
-    <!-- 浮动光球 -->
-    <div class="orb orb--1"></div>
-    <div class="orb orb--2"></div>
-    <div class="orb orb--3"></div>
-    <div class="orb orb--4"></div>
-
-    <div class="presentation">
-
-        <!-- ====== Slide 1: 封面 ====== -->
-        <section class="slide slide-cover active">
-            <div class="cover-badge reveal delay-1">Metaverse · 2026</div>
-            <h1 class="cover-title reveal delay-2">元宇宙与数字未来</h1>
-            <p class="cover-sub reveal delay-3">探索虚实交融的下一代互联网形态<br>从概念到落地的全景解读</p>
+        <!-- ====== 1: Cover ====== -->
+        <section class="slide slide-center active" data-section="intro" role="group" aria-roledescription="slide" aria-label="封面">
+            <h1 class="cover-title grad-text-shimmer reveal-clip delay-2">元宇宙与数字未来</h1>
+            <p class="cover-sub reveal-blur delay-3">探索虚实交融的下一代互联网形态<br>从概念到落地的全景解读</p>
             <div class="cover-meta reveal delay-4">前沿科技洞察 · 战略规划部</div>
         </section>
 
-        <!-- ====== Slide 2: 议程 ====== -->
-        <section class="slide">
-            <div class="label reveal delay-1">Agenda</div>
-            <h2 class="title-main reveal delay-2">今日议程</h2>
+        <!-- ====== 2: Agenda ====== -->
+        <section class="slide" data-section="intro" role="group" aria-roledescription="slide" aria-label="议程">
+            <h2 class="title-main reveal-clip delay-2">今日议程</h2>
             <ul class="agenda-list">
                 <li class="agenda-item reveal delay-2">
                     <span class="agenda-num">01</span>
@@ -1007,42 +1241,38 @@
             </ul>
         </section>
 
-        <!-- ====== Slide 3: 章节过渡 — 概念篇 ====== -->
-        <section class="slide slide-chapter">
+        <!-- ====== 3: Chapter 01 ====== -->
+        <section class="slide slide-center slide-edge" data-section="intro" role="group" aria-roledescription="slide" aria-label="第一章">
             <div class="chapter-watermark reveal-scale delay-1">01</div>
-            <div class="chapter-indicator reveal delay-2">
-                <div class="chapter-line"></div>
-                <span class="chapter-num">SECTION 01</span>
-            </div>
-            <h2 class="reveal delay-3">认识元宇宙</h2>
+            <div class="chapter-label reveal delay-2">SECTION 01</div>
+            <h2 class="chapter-title grad-text-shimmer reveal-clip delay-3">认识元宇宙</h2>
             <p class="chapter-desc reveal delay-4">从科幻概念到技术现实</p>
         </section>
 
-        <!-- ====== Slide 4: 定义/概念 ====== -->
-        <section class="slide">
-            <div class="label reveal delay-1">Definition</div>
-            <h2 class="title-main reveal delay-2">什么是元宇宙？</h2>
-            <p class="desc-text reveal delay-3">
-                元宇宙是一个<span class="highlight">持久化的、共享的三维虚拟空间</span>，
-                融合了增强现实、虚拟现实、区块链、人工智能等技术，
-                构建出一个与物理世界平行运行的数字世界。用户可以在其中进行
-                社交、工作、交易、娱乐等一切现实活动。
-            </p>
-            <p class="desc-text reveal delay-4" style="margin-top: var(--space-sm);">
-                这不是单一的产品或平台，而是一个<span class="highlight">互联互通的数字生态系统</span>
-                —— 下一代互联网的终极形态。
-            </p>
+        <!-- ====== 4: Definition (asymmetric split) ====== -->
+        <section class="slide" data-section="intro" role="group" aria-roledescription="slide" aria-label="定义">
+            <h2 class="title-main reveal-clip delay-2">什么是元宇宙？</h2>
+            <div class="def-split">
+                <div class="def-main reveal-left delay-3">
+                    元宇宙是一个<span class="highlight">持久化的、共享的三维虚拟空间</span>，
+                    融合了增强现实、虚拟现实、区块链、人工智能等技术，
+                    构建出一个与物理世界平行运行的数字世界。用户可以在其中进行
+                    社交、工作、交易、娱乐等一切现实活动。
+                </div>
+                <div class="def-aside reveal-right delay-4">
+                    这不是单一的产品或平台，而是一个<span class="highlight">互联互通的数字生态系统</span>，下一代互联网的终极形态。
+                </div>
+            </div>
         </section>
 
-        <!-- ====== Slide 5: 特性卡片（玻璃拟态） ====== -->
-        <section class="slide">
-            <div class="label reveal delay-1">Core Features</div>
-            <h2 class="title-main reveal delay-2">元宇宙的六大特征</h2>
-            <div class="glass-grid">
-                <div class="glass-card reveal delay-2">
+        <!-- ====== 5: Features (hero + grid) ====== -->
+        <section class="slide" data-section="intro" role="group" aria-roledescription="slide" aria-label="六大特征">
+            <h2 class="title-main reveal-clip delay-1">元宇宙的六大特征</h2>
+            <div class="feature-grid">
+                <div class="glass-card feature-card-hero reveal-left delay-2">
                     <span class="icon">🌐</span>
                     <h4>持续性</h4>
-                    <p>永不关闭、永远在线，独立于用户存在的数字世界</p>
+                    <p>永不关闭、永远在线，独立于用户存在的数字世界。这是元宇宙区别于任何游戏或应用的本质特征。</p>
                 </div>
                 <div class="glass-card reveal delay-3">
                     <span class="icon">👥</span>
@@ -1054,79 +1284,62 @@
                     <h4>互操作性</h4>
                     <p>数字资产与身份可在不同平台间自由流转</p>
                 </div>
-                <div class="glass-card reveal delay-4">
+                <div class="glass-card reveal delay-5">
                     <span class="icon">💎</span>
                     <h4>经济系统</h4>
                     <p>完整的数字经济体系，支持创造、交易和价值流通</p>
                 </div>
-                <div class="glass-card reveal delay-5">
+                <div class="glass-card reveal delay-6">
                     <span class="icon">🎭</span>
                     <h4>身份体系</h4>
                     <p>虚拟化身承载社交关系与个人数据主权</p>
                 </div>
-                <div class="glass-card reveal delay-5">
-                    <span class="icon">🏗️</span>
-                    <h4>用户共创</h4>
-                    <p>UGC 驱动内容生态，人人可成为世界的建设者</p>
-                </div>
             </div>
         </section>
 
-        <!-- ====== Slide 6: 章节过渡 — 技术篇 ====== -->
-        <section class="slide slide-chapter">
+        <!-- ====== 6: Chapter 02 ====== -->
+        <section class="slide slide-center slide-edge" data-section="tech" role="group" aria-roledescription="slide" aria-label="第二章">
             <div class="chapter-watermark reveal-scale delay-1">02</div>
-            <div class="chapter-indicator reveal delay-2">
-                <div class="chapter-line"></div>
-                <span class="chapter-num">SECTION 02</span>
-            </div>
-            <h2 class="reveal delay-3">技术支撑</h2>
+            <div class="chapter-label reveal delay-2">SECTION 02</div>
+            <h2 class="chapter-title grad-text-shimmer reveal-clip delay-3">技术支撑</h2>
             <p class="chapter-desc reveal delay-4">构建虚拟世界的基础设施</p>
         </section>
 
-        <!-- ====== Slide 7: 统计数据 ====== -->
-        <section class="slide">
-            <div class="label reveal delay-1">Market Data</div>
-            <h2 class="title-main reveal delay-2">市场规模与增长</h2>
-            <p class="desc-text reveal delay-3">全球元宇宙产业正经历爆发式增长，各领域投资持续加速</p>
+        <!-- ====== 7: Stats (hero + secondary) ====== -->
+        <section class="slide" data-section="market" role="group" aria-roledescription="slide" aria-label="市场数据">
+            <h2 class="title-main reveal-clip delay-1">市场规模与增长</h2>
+            <div class="stats-hero reveal-spring delay-2">
+                <div class="stat-hero-num"><span data-count="8500">0</span></div>
+                <div class="stat-hero-label">全球市场规模（亿美元）</div>
+                <div class="stat-hero-detail">2026年预估</div>
+            </div>
             <div class="stats-grid">
-                <div class="stat-item reveal delay-3">
-                    <div class="stat-num"><span data-count="8500">0</span></div>
-                    <div class="stat-label">全球市场规模</div>
-                    <div class="stat-detail">亿美元 · 2026年预估</div>
-                </div>
                 <div class="stat-item reveal delay-4">
                     <div class="stat-num"><span data-count="43">0</span><span class="stat-unit">%</span></div>
-                    <div class="stat-label">年复合增长率</div>
-                    <div class="stat-detail">CAGR 2022–2030</div>
+                    <div class="stat-label">年复合增长率 CAGR</div>
                 </div>
                 <div class="stat-item reveal delay-5">
                     <div class="stat-num"><span data-count="1200">0</span><span class="stat-unit">+</span></div>
-                    <div class="stat-label">活跃企业</div>
-                    <div class="stat-detail">全球元宇宙赛道参与者</div>
+                    <div class="stat-label">全球活跃企业</div>
                 </div>
                 <div class="stat-item reveal delay-6">
                     <div class="stat-num"><span data-count="3.5">0</span><span class="stat-unit">亿</span></div>
-                    <div class="stat-label">月活用户</div>
-                    <div class="stat-detail">主流元宇宙平台合计</div>
+                    <div class="stat-label">月活用户合计</div>
                 </div>
             </div>
         </section>
 
-        <!-- ====== Slide: 大字声明 ====== -->
-        <section class="slide slide-statement">
-            <div class="section-label reveal delay-1">核心洞察</div>
-            <div class="statement-text reveal delay-2">
-                虚实边界正在<br><span class="accent">彻底消融</span>
-            </div>
-            <p class="statement-sub reveal delay-3">当数字身份与物理身份同等重要，当虚拟资产与实物资产同等稀缺，元宇宙不再是未来——它已经是现在。</p>
+        <!-- ====== 8: Statement (edge-to-edge) ====== -->
+        <section class="slide slide-center slide-edge" data-section="market" role="group" aria-roledescription="slide" aria-label="核心观点">
+            <div class="statement-text grad-text-shimmer reveal-blur delay-2">虚实边界正在<br>彻底消融</div>
+            <p class="statement-sub reveal delay-3">当数字身份与物理身份同等重要，当虚拟资产与实物资产同等稀缺，元宇宙不再是未来，它已经是现在。</p>
         </section>
 
-        <!-- ====== Slide 8: 对比 ====== -->
-        <section class="slide">
-            <div class="label reveal delay-1">Comparison</div>
-            <h2 class="title-main reveal delay-2">Web 2.0 vs 元宇宙</h2>
+        <!-- ====== 9: Comparison ====== -->
+        <section class="slide" data-section="tech" role="group" aria-roledescription="slide" aria-label="对比">
+            <h2 class="title-main reveal-clip delay-1">Web 2.0 vs 元宇宙</h2>
             <div class="compare-grid">
-                <div class="compare-col reveal delay-3">
+                <div class="compare-col reveal-left delay-3">
                     <div class="compare-tag compare-tag--a">Web 2.0 时代</div>
                     <h4>二维平面交互</h4>
                     <ul class="compare-list">
@@ -1137,7 +1350,8 @@
                         <li><span class="dot"></span>社交基于文字与图片</li>
                     </ul>
                 </div>
-                <div class="compare-col reveal delay-4">
+                <div class="compare-vs reveal-scale delay-4">VS</div>
+                <div class="compare-col reveal-right delay-5">
                     <div class="compare-tag compare-tag--b">元宇宙时代</div>
                     <h4>三维沉浸体验</h4>
                     <ul class="compare-list">
@@ -1151,10 +1365,9 @@
             </div>
         </section>
 
-        <!-- ====== Slide: 图表/进度条 ====== -->
-        <section class="slide">
-            <div class="section-label reveal delay-1">市场渗透</div>
-            <h2 class="section-title reveal delay-2">元宇宙核心技术成熟度</h2>
+        <!-- ====== 10: Chart ====== -->
+        <section class="slide" data-section="tech" role="group" aria-roledescription="slide" aria-label="技术成熟度">
+            <h2 class="title-main reveal-clip delay-1">元宇宙核心技术成熟度</h2>
             <div class="chart-list">
                 <div class="chart-item reveal delay-2">
                     <div class="chart-label">VR/AR 硬件</div>
@@ -1184,41 +1397,40 @@
             </div>
         </section>
 
-        <!-- ====== Slide 9: 时间线 ====== -->
-        <section class="slide">
-            <div class="label reveal delay-1">Evolution</div>
-            <h2 class="title-main reveal delay-2">元宇宙演进史</h2>
+        <!-- ====== 11: Timeline ====== -->
+        <section class="slide" data-section="tech" role="group" aria-roledescription="slide" aria-label="演进史">
+            <h2 class="title-main reveal-clip delay-1">元宇宙演进史</h2>
             <div class="timeline">
-                <div class="tl-item reveal delay-2">
+                <div class="tl-item reveal-left delay-2">
                     <div class="tl-time">1992</div>
                     <div class="tl-content">
                         <h4>概念诞生</h4>
                         <p>尼尔·斯蒂芬森在《雪崩》中首次提出 "Metaverse" 概念</p>
                     </div>
                 </div>
-                <div class="tl-item reveal delay-3">
+                <div class="tl-item reveal-left delay-3">
                     <div class="tl-time">2003</div>
                     <div class="tl-content">
                         <h4>Second Life 上线</h4>
                         <p>首个大规模虚拟世界平台，用户可创建内容、交易虚拟资产</p>
                     </div>
                 </div>
-                <div class="tl-item reveal delay-4">
+                <div class="tl-item reveal-left delay-4">
                     <div class="tl-time">2014</div>
                     <div class="tl-content">
                         <h4>VR 元年</h4>
                         <p>Facebook 以 20 亿美元收购 Oculus，虚拟现实硬件爆发</p>
                     </div>
                 </div>
-                <div class="tl-item reveal delay-5">
+                <div class="tl-item reveal-left delay-5">
                     <div class="tl-time">2021</div>
                     <div class="tl-content">
                         <h4>全面加速</h4>
                         <p>Meta 更名、Roblox 上市，"元宇宙" 成为全球科技热词</p>
                     </div>
                 </div>
-                <div class="tl-item reveal delay-6">
-                    <div class="tl-time">2024–</div>
+                <div class="tl-item reveal-left delay-6">
+                    <div class="tl-time">2024</div>
                     <div class="tl-content">
                         <h4>AI + 空间计算融合</h4>
                         <p>Apple Vision Pro 发布，AI 大模型赋能虚拟世界自动生成</p>
@@ -1227,11 +1439,10 @@
             </div>
         </section>
 
-        <!-- ====== Slide 10: 步骤 ====== -->
-        <section class="slide">
-            <div class="label reveal delay-1">Roadmap</div>
-            <h2 class="title-main reveal delay-2">企业入局四步法</h2>
-            <p class="desc-text reveal delay-3">从认知到落地，构建元宇宙战略的系统方法论</p>
+        <!-- ====== 12: Steps ====== -->
+        <section class="slide" data-section="market" role="group" aria-roledescription="slide" aria-label="入局方法">
+            <h2 class="title-main reveal-clip delay-1">企业入局四步法</h2>
+            <p class="desc-text reveal delay-2">从认知到落地，构建元宇宙战略的系统方法论</p>
             <div class="steps-grid">
                 <div class="step reveal delay-3">
                     <div class="step-num">STEP 01</div>
@@ -1256,52 +1467,60 @@
             </div>
         </section>
 
-        <!-- ====== Slide: 双栏详情 ====== -->
-        <section class="slide">
-            <div class="section-label reveal delay-1">深度解析</div>
-            <h2 class="section-title reveal delay-2">数字身份体系</h2>
-            <div class="split-detail">
-                <div class="split-visual reveal-left delay-3">
-                    <div class="split-visual-icon">🪪</div>
-                    <div class="split-visual-num" data-count="3" data-suffix="层">0</div>
-                    <div class="split-visual-label">IDENTITY STACK</div>
+        <!-- ====== 13: Identity Stack ====== -->
+        <section class="slide" data-section="tech" role="group" aria-roledescription="slide" aria-label="身份体系">
+            <h2 class="title-main reveal-clip delay-1">数字身份体系</h2>
+            <p class="desc-text reveal delay-2" style="margin-bottom: var(--space-lg);">去中心化身份的三层架构</p>
+            <div class="layer-stack">
+                <div class="layer-item reveal delay-3">
+                    <div class="layer-index">03</div>
+                    <div class="layer-body">
+                        <h4>应用层</h4>
+                        <p>跨平台互通的统一数字化身与社交图谱</p>
+                    </div>
                 </div>
-                <div class="split-info reveal-right delay-4">
-                    <h3>去中心化身份的三层架构</h3>
-                    <ul class="split-info-list">
-                        <li>基础层：DID 去中心化标识符，链上锚定唯一性</li>
-                        <li>凭证层：可验证凭证（VC）承载属性与声誉数据</li>
-                        <li>应用层：跨平台互通的统一数字化身与社交图谱</li>
-                        <li>隐私保护：零知识证明实现选择性信息披露</li>
-                    </ul>
+                <div class="layer-item reveal delay-4">
+                    <div class="layer-index">02</div>
+                    <div class="layer-body">
+                        <h4>凭证层</h4>
+                        <p>可验证凭证（VC）承载属性与声誉数据</p>
+                    </div>
                 </div>
+                <div class="layer-item reveal delay-5">
+                    <div class="layer-index">01</div>
+                    <div class="layer-body">
+                        <h4>基础层</h4>
+                        <p>DID 去中心化标识符，链上锚定唯一性</p>
+                    </div>
+                </div>
+            </div>
+            <div class="layer-footer reveal delay-6">
+                <span class="layer-footer-dot"></span>
+                隐私保护：零知识证明实现选择性信息披露
             </div>
         </section>
 
-        <!-- ====== Slide 11: 引言 ====== -->
-        <section class="slide slide-quote">
+        <!-- ====== 14: Quote (tight padding) ====== -->
+        <section class="slide slide-center slide-edge slide-quote" data-section="future" role="group" aria-roledescription="slide" aria-label="引言">
             <div class="quote-watermark reveal-scale delay-1">"</div>
-            <blockquote class="quote-text reveal delay-2">
+            <blockquote class="quote-text reveal-blur delay-2">
                 元宇宙不是逃离现实，<br>而是让现实拥有无限的延伸。
             </blockquote>
-            <div class="quote-author reveal delay-3">—— 马修·鲍尔《元宇宙改变一切》</div>
+            <div class="grad-line reveal delay-3" style="margin: var(--space-md) auto;"></div>
+            <div class="quote-author reveal delay-4">马修·鲍尔《元宇宙改变一切》</div>
         </section>
 
-        <!-- ====== Slide 12: 章节过渡 — 展望 ====== -->
-        <section class="slide slide-chapter">
+        <!-- ====== 15: Chapter 03 ====== -->
+        <section class="slide slide-center slide-edge" data-section="future" role="group" aria-roledescription="slide" aria-label="第三章">
             <div class="chapter-watermark reveal-scale delay-1">03</div>
-            <div class="chapter-indicator reveal delay-2">
-                <div class="chapter-line"></div>
-                <span class="chapter-num">SECTION 03</span>
-            </div>
-            <h2 class="reveal delay-3">未来展望</h2>
+            <div class="chapter-label reveal delay-2">SECTION 03</div>
+            <h2 class="chapter-title grad-text-shimmer reveal-clip delay-3">未来展望</h2>
             <p class="chapter-desc reveal delay-4">通向数字文明的道路</p>
         </section>
 
-        <!-- ====== Slide: 矩阵/象限 ====== -->
-        <section class="slide">
-            <div class="section-label reveal delay-1">战略象限</div>
-            <h2 class="section-title reveal delay-2">元宇宙投资机会矩阵</h2>
+        <!-- ====== 16: Matrix ====== -->
+        <section class="slide" data-section="future" role="group" aria-roledescription="slide" aria-label="投资矩阵">
+            <h2 class="title-main reveal-clip delay-1">元宇宙投资机会矩阵</h2>
             <div class="matrix-grid">
                 <div class="matrix-cell reveal delay-2">
                     <div class="cell-icon">🎮</div>
@@ -1326,10 +1545,9 @@
             </div>
         </section>
 
-        <!-- ====== Slide 13: 总结 ====== -->
-        <section class="slide">
-            <div class="label reveal delay-1">Key Takeaways</div>
-            <h2 class="title-main reveal delay-2">核心洞察</h2>
+        <!-- ====== 17: Summary ====== -->
+        <section class="slide" data-section="future" role="group" aria-roledescription="slide" aria-label="核心洞察">
+            <h2 class="title-main reveal-clip delay-1">核心洞察</h2>
             <div class="summary-grid">
                 <div class="summary-card reveal delay-3">
                     <div class="summary-num">INSIGHT 01</div>
@@ -1339,7 +1557,7 @@
                 <div class="summary-card reveal delay-4">
                     <div class="summary-num">INSIGHT 02</div>
                     <h4>产业互联是关键</h4>
-                    <p>元宇宙的真正价值在 B 端 —— 数字孪生、工业仿真、远程协作将率先规模化。</p>
+                    <p>元宇宙的真正价值在 B 端：数字孪生、工业仿真、远程协作将率先规模化。</p>
                 </div>
                 <div class="summary-card reveal delay-5">
                     <div class="summary-num">INSIGHT 03</div>
@@ -1349,29 +1567,33 @@
             </div>
         </section>
 
-        <!-- ====== Slide 14: 结束页 ====== -->
-        <section class="slide slide-end">
-            <div class="cover-badge reveal delay-1" style="background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12);">虚实共生 · 无限可能</div>
-            <h2 class="reveal delay-2">感谢聆听</h2>
-            <p class="end-sub reveal delay-3">期待与您共同探索数字未来</p>
-            <div class="end-line reveal delay-4"></div>
+        <!-- ====== 18: End ====== -->
+        <section class="slide slide-center" data-section="future" role="group" aria-roledescription="slide" aria-label="结束">
+            <h2 class="end-title grad-text-shimmer reveal-clip delay-2">感谢聆听</h2>
+            <p class="end-sub reveal-blur delay-3">期待与您共同探索数字未来</p>
+            <div class="grad-line reveal delay-4" style="margin: 0 auto;"></div>
             <div class="end-contacts reveal delay-5">
-                <span>📧 metaverse@example.com</span>
+                <span>metaverse@example.com</span>
                 <span class="sep">·</span>
-                <span>🌐 www.example.com</span>
+                <span>www.example.com</span>
             </div>
         </section>
 
     </div>
 
-    <!-- 进度条 -->
-    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <!-- Progress (minimal visual, kept for API) -->
+    <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+        <div class="progress-fill" id="progressFill"></div>
+    </div>
 
-    <!-- 页码 -->
-    <div class="slide-counter">
+    <!-- Dot Navigation -->
+    <nav class="nav-dots" role="tablist" aria-label="幻灯片导航" id="navDots"></nav>
+
+    <!-- Counter -->
+    <div class="slide-counter" aria-live="polite">
         <span class="current" id="counterCurrent">01</span>
         <span> / </span>
-        <span id="counterTotal">14</span>
+        <span id="counterTotal">18</span>
     </div>
 
     <script>
@@ -1382,22 +1604,41 @@
             this.current = 0;
             this.isTransitioning = false;
             this.transitionDuration = 650;
-            this.wheelThreshold = 50;
+            this.wheelThreshold = 120;
             this.wheelAccumulator = 0;
             this.wheelTimer = null;
+            this.wheelCooldown = false;
             this.touchStartY = 0;
             this.touchStartX = 0;
             this.swipeThreshold = 50;
             this.overviewActive = false;
+            this.direction = 'forward';
 
             this.progressFill = document.getElementById('progressFill');
             this.counterCurrent = document.getElementById('counterCurrent');
             this.counterTotal = document.getElementById('counterTotal');
+            this.navDotsContainer = document.getElementById('navDots');
+            this.progressBar = document.querySelector('.progress-bar');
 
             if (this.counterTotal) this.counterTotal.textContent = String(this.total).padStart(2, '0');
 
+            this.createDotNav();
             this.bindEvents();
             this.updateUI();
+        }
+
+        createDotNav() {
+            if (!this.navDotsContainer) return;
+            for (let i = 0; i < this.total; i++) {
+                const dot = document.createElement('button');
+                dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+                dot.setAttribute('role', 'tab');
+                dot.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
+                dot.setAttribute('aria-label', `第${i + 1}页`);
+                dot.addEventListener('click', () => this.goTo(i));
+                this.navDotsContainer.appendChild(dot);
+            }
+            this.dots = Array.from(this.navDotsContainer.querySelectorAll('.nav-dot'));
         }
 
         bindEvents() {
@@ -1408,6 +1649,7 @@
         }
 
         handleKeyboard(e) {
+            if (this.overviewActive && e.key !== 'Escape' && e.key !== 'o' && e.key !== 'O') return;
             const map = {
                 'ArrowRight': 'next', 'ArrowDown': 'next', ' ': 'next', 'PageDown': 'next',
                 'ArrowLeft': 'prev', 'ArrowUp': 'prev', 'PageUp': 'prev',
@@ -1429,36 +1671,35 @@
 
         handleWheel(e) {
             e.preventDefault();
-            if (this.isTransitioning) return;
+            if (this.isTransitioning || this.wheelCooldown) return;
             this.wheelAccumulator += e.deltaY;
             clearTimeout(this.wheelTimer);
             this.wheelTimer = setTimeout(() => { this.wheelAccumulator = 0; }, 200);
             if (Math.abs(this.wheelAccumulator) >= this.wheelThreshold) {
                 this.wheelAccumulator > 0 ? this.next() : this.prev();
                 this.wheelAccumulator = 0;
+                this.wheelCooldown = true;
+                setTimeout(() => { this.wheelCooldown = false; }, 400);
             }
         }
 
         handleTouchStart(e) {
-            const touch = e.changedTouches[0];
-            this.touchStartY = touch.clientY;
-            this.touchStartX = touch.clientX;
+            const t = e.changedTouches[0];
+            this.touchStartY = t.clientY;
+            this.touchStartX = t.clientX;
         }
 
         handleTouchEnd(e) {
-            const touch = e.changedTouches[0];
-            const dy = this.touchStartY - touch.clientY;
-            const dx = this.touchStartX - touch.clientX;
+            const t = e.changedTouches[0];
+            const dy = this.touchStartY - t.clientY;
+            const dx = this.touchStartX - t.clientX;
             if (Math.abs(dy) < this.swipeThreshold && Math.abs(dx) < this.swipeThreshold) return;
-            if (Math.abs(dy) > Math.abs(dx)) {
-                dy > 0 ? this.next() : this.prev();
-            } else {
-                dx > 0 ? this.next() : this.prev();
-            }
+            if (Math.abs(dy) > Math.abs(dx)) { dy > 0 ? this.next() : this.prev(); }
+            else { dx > 0 ? this.next() : this.prev(); }
         }
 
-        next() { this.goTo(this.current + 1); }
-        prev() { this.goTo(this.current - 1); }
+        next() { this.direction = 'forward'; this.goTo(this.current + 1); }
+        prev() { this.direction = 'backward'; this.goTo(this.current - 1); }
 
         goTo(index) {
             if (this.isTransitioning) return;
@@ -1466,21 +1707,46 @@
             if (target === this.current) return;
 
             this.isTransitioning = true;
-            this.slides[this.current].classList.remove('active');
-            this.current = target;
-            this.slides[this.current].classList.add('active');
+            const outgoing = this.slides[this.current];
+            const incoming = this.slides[target];
 
-            this.updateUI();
-            this.triggerEffects();
-            setTimeout(() => { this.isTransitioning = false; }, this.transitionDuration);
+            this.direction = target > this.current ? 'forward' : 'backward';
+
+            outgoing.classList.add('exiting');
+            outgoing.classList.remove('active');
+            outgoing.removeAttribute('aria-current');
+
+            if (this.direction === 'backward') {
+                incoming.classList.add('enter-backward');
+            }
+
+            requestAnimationFrame(() => {
+                incoming.classList.add('active');
+                incoming.setAttribute('aria-current', 'true');
+                this.current = target;
+                this.updateUI();
+                this.triggerEffects();
+            });
+
+            setTimeout(() => {
+                outgoing.classList.remove('exiting');
+                incoming.classList.remove('enter-backward');
+                this.isTransitioning = false;
+            }, this.transitionDuration);
         }
 
         updateUI() {
-            const progress = this.total > 1
-                ? ((this.current) / (this.total - 1)) * 100
-                : 100;
+            const progress = this.total > 1 ? (this.current / (this.total - 1)) * 100 : 100;
             if (this.progressFill) this.progressFill.style.width = progress + '%';
+            if (this.progressBar) this.progressBar.setAttribute('aria-valuenow', Math.round(progress));
             if (this.counterCurrent) this.counterCurrent.textContent = String(this.current + 1).padStart(2, '0');
+            if (this.dots) {
+                this.dots.forEach((dot, i) => {
+                    const isActive = i === this.current;
+                    dot.classList.toggle('active', isActive);
+                    dot.setAttribute('aria-selected', isActive ? 'true' : 'false');
+                });
+            }
         }
 
         triggerEffects() {
@@ -1490,25 +1756,26 @@
                 el.dataset.counted = 'true';
                 const target = parseFloat(el.dataset.count);
                 if (isNaN(target)) return;
+                const suffix = el.dataset.suffix || '';
                 const isFloat = String(target).includes('.');
                 const decimals = isFloat ? (String(target).split('.')[1] || '').length : 0;
-                const duration = 1200;
+                const duration = 1400;
                 const start = performance.now();
                 const tick = (now) => {
                     const elapsed = now - start;
                     const p = Math.min(elapsed / duration, 1);
-                    const eased = 1 - Math.pow(1 - p, 3);
+                    const eased = 1 - Math.pow(1 - p, 4);
                     const value = eased * target;
-                    el.textContent = isFloat ? value.toFixed(decimals) : Math.round(value);
+                    el.textContent = (isFloat ? value.toFixed(decimals) : Math.round(value)) + suffix;
                     if (p < 1) requestAnimationFrame(tick);
-                    else el.textContent = isFloat ? target.toFixed(decimals) : target;
+                    else el.textContent = (isFloat ? target.toFixed(decimals) : target) + suffix;
                 };
-                el.textContent = isFloat ? (0).toFixed(decimals) : '0';
-                setTimeout(() => requestAnimationFrame(tick), 300);
+                el.textContent = (isFloat ? (0).toFixed(decimals) : '0') + suffix;
+                setTimeout(() => requestAnimationFrame(tick), 400);
             });
             slide.querySelectorAll('.chart-fill[data-percent]').forEach(el => {
                 if (!el.dataset.filled) {
-                    setTimeout(() => { el.style.width = el.dataset.percent + '%'; }, 300);
+                    setTimeout(() => { el.style.width = el.dataset.percent + '%'; }, 400);
                     el.dataset.filled = 'true';
                 }
             });
@@ -1537,7 +1804,7 @@
                 const inner = document.createElement('div');
                 inner.className = 'ov-inner';
                 const clone = slide.cloneNode(true);
-                clone.style.cssText = 'position:absolute;inset:0;width:100vw;height:100vh;opacity:1;visibility:visible;transform:none;pointer-events:none;';
+                clone.style.cssText = 'position:absolute;inset:0;width:100vw;height:100vh;opacity:1;visibility:visible;transform:none;filter:none;pointer-events:none;content-visibility:visible;';
                 clone.classList.add('active');
                 inner.appendChild(clone);
                 const num = document.createElement('span');
