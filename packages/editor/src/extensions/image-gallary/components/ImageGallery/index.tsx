@@ -291,6 +291,7 @@ const ImageGallery = (props: IImageGalleryProps) => {
           onCancel={onCancel}
           onOk={onOk}
           themeColors={themeColors}
+          bodyClassName="max-h-[calc(100vh-12rem)] overflow-y-auto"
         >
           <ImageGallerySetting setting={setting} onSettingChange={setSetting} />
         </CustomModal>

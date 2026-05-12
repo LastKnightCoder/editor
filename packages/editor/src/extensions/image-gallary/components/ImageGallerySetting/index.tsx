@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { produce } from "immer";
 import {
@@ -353,13 +353,16 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
     );
   };
 
-  const onAddImage = (values: ImageGalleryItem[]) => {
-    onSettingChange(
-      produce(setting, (draft) => {
-        draft.images = draft.images.concat(values);
-      }),
-    );
-  };
+  const onAddImage = useCallback(
+    (values: ImageGalleryItem[]) => {
+      onSettingChange(
+        produce(setting, (draft) => {
+          draft.images = draft.images.concat(values);
+        }),
+      );
+    },
+    [setting, onSettingChange],
+  );
 
   const onDropImage = (
     dragImageItem: ImageGalleryItem,
@@ -382,75 +385,100 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
     );
   };
 
-  const uploadFile = async (file: File) => {
-    if (!uploadResource) {
-      return null;
-    }
-    try {
-      const result = await Promise.race([
-        uploadResource(file),
-        timeoutPromise(10000),
-      ]);
-      if (!result) return null;
-      return typeof result === "string"
-        ? result
-        : ((result as { url?: string }).url ?? null);
-    } catch (e) {
-      return null;
-    }
-  };
+  const uploadFile = useCallback(
+    async (file: File) => {
+      if (!uploadResource) {
+        return null;
+      }
+      try {
+        const result = await Promise.race([
+          uploadResource(file),
+          timeoutPromise(10000),
+        ]);
+        if (!result) return null;
+        return typeof result === "string"
+          ? result
+          : ((result as { url?: string }).url ?? null);
+      } catch (e) {
+        return null;
+      }
+    },
+    [uploadResource],
+  );
+
+  const handleUploadFiles = useCallback(
+    async (files: FileList | File[]) => {
+      if (!files.length) return;
+      setShowUploadOptions(false);
+      setUploading(true);
+      setTotalCount(files.length);
+      setSuccessCount(0);
+      setErrorCount(0);
+
+      const promises: Promise<string | null>[] = [];
+      for (const file of Array.from(files)) {
+        promises.push(uploadFile(file));
+      }
+      const successUrls: string[] = [];
+      let doneCount = 0;
+      for (const promise of promises) {
+        promise
+          .then((url) => {
+            if (url) {
+              successUrls.push(url);
+              setSuccessCount((c) => c + 1);
+            } else {
+              setErrorCount((c) => c + 1);
+            }
+          })
+          .catch(() => {
+            setErrorCount((c) => c + 1);
+          })
+          .finally(() => {
+            doneCount++;
+            if (doneCount === files.length) {
+              onAddImage(
+                successUrls.map((url) => ({
+                  id: getUuid(),
+                  url,
+                })),
+              );
+              setUploading(false);
+            }
+          });
+      }
+    },
+    [uploadFile, onAddImage],
+  );
 
   const handleUploadFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const files = event.target.files;
-    if (!files) {
-      return;
-    }
-    setShowUploadOptions(false);
-    setUploading(true);
-    setTotalCount(files.length);
-    setSuccessCount(0);
-    setErrorCount(0);
-
-    const promises: Promise<string | null>[] = [];
-    for (const file of files) {
-      promises.push(uploadFile(file));
-    }
-    const successUrls: string[] = [];
-    for (const promise of promises) {
-      promise
-        .then((url) => {
-          if (url) {
-            successUrls.push(url);
-            setSuccessCount((successCount) => {
-              return successCount + 1;
-            });
-          } else {
-            setErrorCount((errorCount) => {
-              return errorCount + 1;
-            });
-          }
-        })
-        .catch(() => {
-          setErrorCount((errorCount) => {
-            return errorCount + 1;
-          });
-        })
-        .finally(() => {
-          if (successCount + errorCount === totalCount) {
-            onAddImage(
-              successUrls.map((url) => ({
-                id: getUuid(),
-                url,
-              })),
-            );
-            setUploading(false);
-          }
-          event.target.value = "";
-        });
-    }
+    if (!files) return;
+    await handleUploadFiles(files);
+    event.target.value = "";
   };
+
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const imageFiles: File[] = [];
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) imageFiles.push(file);
+        }
+      }
+      if (imageFiles.length > 0) {
+        e.preventDefault();
+        handleUploadFiles(imageFiles);
+      }
+    };
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, [handleUploadFiles]);
 
   const handleAddLink = () => {
     if (linkUrl.trim()) {
