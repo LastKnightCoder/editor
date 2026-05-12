@@ -1,7 +1,6 @@
 import { useShallow } from "zustand/react/shallow";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import { useState, useMemo } from "react";
-import { FloatButton } from "antd";
 import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
 import EditDocumentModal from "./EditDocumentModal";
 import useTabStore from "@/stores/useTabStore";
@@ -55,18 +54,16 @@ const DocumentsView = () => {
           setCreateOpen(true);
         }}
       />
-      <FloatButton
-        icon={<PlusOutlined />}
-        tooltip={"新建知识库"}
+      <button
+        type="button"
+        className={styles.addActionButton}
+        aria-label="新建知识库"
         onClick={() => {
           setCreateOpen(true);
         }}
-        style={{
-          position: "absolute",
-          bottom: 20,
-          right: 20,
-        }}
-      />
+      >
+        <PlusOutlined />
+      </button>
       <EditDocumentModal
         open={createOpen}
         title={"创建知识库"}

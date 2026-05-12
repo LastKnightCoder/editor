@@ -1,6 +1,6 @@
 import { useState, memo } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { FloatButton, Empty, Button } from "antd";
+import { Empty, Button } from "antd";
 import classnames from "classnames";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore.ts";
 import { useMemoizedFn } from "ahooks";
@@ -107,13 +107,16 @@ const WhiteBoardView = memo(() => {
     <div className={styles.container}>
       <div className={classnames(styles.viewContainer)}>
         <WhiteBoardList whiteBoards={whiteBoards} onClick={onClick} />
-        <FloatButton
-          icon={<PlusOutlined />}
-          tooltip={"新建白板"}
+        <button
+          type="button"
+          className={styles.addActionButton}
+          aria-label="新建白板"
           onClick={() => {
             setCreateWhiteBoardModalOpen(true);
           }}
-        />
+        >
+          <PlusOutlined />
+        </button>
         <WhiteBoardModal
           open={createWhiteBoardModalOpen}
           onCancel={() => setCreateWhiteBoardModalOpen(false)}
