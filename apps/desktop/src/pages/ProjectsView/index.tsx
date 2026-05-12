@@ -1,14 +1,21 @@
 import { useState, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useMemoizedFn } from "ahooks";
-import { FloatButton, message } from "antd";
-import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
+import { message } from "antd";
+import {
+  LoadingOutlined,
+  PlusOutlined,
+  FileTextOutlined,
+  TableOutlined,
+  ExperimentOutlined,
+} from "@ant-design/icons";
 import { CaretRightOutlined } from "@ant-design/icons";
 import useProjectsStore from "@/stores/useProjectsStore.ts";
 import EditProjectInfoModal from "./EditProjectInfoModal";
 import ProjectList from "./ProjectList";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
+import For from "@/components/For";
 
 import styles from "./index.module.less";
 import { Descendant } from "slate";
@@ -25,6 +32,12 @@ const EMPTY_DESC: Descendant[] = [
 
 const ProjectsView = () => {
   const [createOpen, setCreateOpen] = useState(false);
+  const [isAddMenuHovered, setIsAddMenuHovered] = useState(false);
+  const [selectedProjectType, setSelectedProjectType] = useState<EProjectType>(
+    EProjectType.DocumentTree,
+  );
+
+  const isAddMenuOpen = isAddMenuHovered;
 
   const navigateTo = useTabStore((state) => state.navigateTo);
 
@@ -59,6 +72,36 @@ const ProjectsView = () => {
 
   const handleToggleArchived = useMemoizedFn((checked: boolean) => {
     useProjectsStore.setState({ showArchived: checked });
+  });
+
+  const addActionItems = useMemo(
+    () => [
+      {
+        key: EProjectType.DocumentTree,
+        label: "文档树项目",
+        description: "以文档树形式组织内容",
+        icon: <FileTextOutlined />,
+      },
+      {
+        key: EProjectType.DataTable,
+        label: "数据表格项目",
+        description: "使用表格管理结构化数据",
+        icon: <TableOutlined />,
+      },
+      {
+        key: EProjectType.VibeLearning,
+        label: "Vibe Learning",
+        description: "沉浸式学习项目",
+        icon: <ExperimentOutlined />,
+      },
+    ],
+    [],
+  );
+
+  const handleAddMenuAction = useMemoizedFn((projectType: EProjectType) => {
+    setIsAddMenuHovered(false);
+    setSelectedProjectType(projectType);
+    setCreateOpen(true);
   });
 
   const handleCreateProject = useMemoizedFn(
@@ -143,22 +186,61 @@ const ProjectsView = () => {
           </div>
         )}
       </div>
-      <FloatButton
-        icon={<PlusOutlined />}
-        tooltip={"新建项目"}
-        onClick={() => {
-          setCreateOpen(true);
-        }}
-        style={{
-          position: "absolute",
-          right: 20,
-          bottom: 20,
-        }}
-      />
+      <div
+        className={`${styles.addActionDock} ${
+          isAddMenuOpen ? styles.addActionDockOpen : ""
+        }`}
+        onMouseEnter={() => setIsAddMenuHovered(true)}
+        onMouseLeave={() => setIsAddMenuHovered(false)}
+      >
+        <div
+          className={`${styles.addActionMenu} ${
+            isAddMenuOpen ? styles.addActionMenuOpen : ""
+          }`}
+          role="menu"
+          aria-hidden={!isAddMenuOpen}
+        >
+          <For
+            data={addActionItems}
+            renderItem={(item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={styles.addActionItem}
+                onClick={() => handleAddMenuAction(item.key)}
+                role="menuitem"
+              >
+                <span className={styles.addActionItemIcon}>{item.icon}</span>
+                <span className={styles.addActionItemBody}>
+                  <span className={styles.addActionItemTitle}>
+                    {item.label}
+                  </span>
+                  <span className={styles.addActionItemDescription}>
+                    {item.description}
+                  </span>
+                </span>
+              </button>
+            )}
+          />
+        </div>
+
+        <button
+          type="button"
+          className={`${styles.addActionButton} ${
+            isAddMenuOpen ? styles.addActionButtonActive : ""
+          }`}
+          aria-label="新建项目"
+          aria-haspopup="menu"
+          aria-expanded={isAddMenuOpen}
+        >
+          <PlusOutlined />
+        </button>
+      </div>
       <EditProjectInfoModal
         open={createOpen}
         title={""}
         desc={EMPTY_DESC}
+        defaultProjectType={selectedProjectType}
         onOk={handleCreateProject}
         onCancel={() => setCreateOpen(false)}
       />
