@@ -140,7 +140,6 @@
             font-weight: 700;
             line-height: 1.35;
             color: var(--primary);
-            max-width: clamp(500px, 70vw, 900px);
             margin-bottom: var(--space-md);
         }
 
@@ -215,7 +214,6 @@
             font-size: var(--fs-body);
             color: var(--text-dim);
             margin-top: var(--space-sm);
-            max-width: clamp(300px, 50vw, 600px);
             line-height: 1.8;
         }
 
@@ -267,11 +265,11 @@
         /* ========== DEFINITION BOX ========== */
 
         .definition-box {
-            background: var(--bg-alt);
-            border-left: 3px solid var(--accent);
+            background: var(--accent-light);
+            border: 1px solid var(--border-light);
             padding: var(--space-md) var(--space-md);
             margin: var(--space-md) 0;
-            border-radius: 0 4px 4px 0;
+            border-radius: 4px;
         }
 
         .definition-term {
@@ -419,7 +417,8 @@
             line-height: 1.7;
             color: var(--text-dim);
             padding: var(--space-md) var(--space-lg);
-            border-left: 3px solid var(--accent);
+            background: var(--accent-light);
+            border-radius: 4px;
             margin: var(--space-md) 0;
         }
 
@@ -619,9 +618,9 @@
 
         .summary-item {
             padding: var(--space-md);
-            background: var(--bg-alt);
+            background: var(--accent-light);
             border-radius: 4px;
-            border-left: 3px solid var(--accent);
+            border: 1px solid var(--border-light);
         }
 
         .summary-item h4 {
@@ -652,7 +651,6 @@
             font-weight: 700;
             line-height: 1.45;
             color: var(--primary);
-            max-width: clamp(500px, 65vw, 820px);
         }
 
         .statement-text .accent {
@@ -667,7 +665,6 @@
             font-size: var(--fs-body);
             font-style: italic;
             color: var(--text-dim);
-            max-width: clamp(400px, 55vw, 680px);
             line-height: 1.9;
         }
 
@@ -757,10 +754,10 @@
         }
 
         .matrix-cell {
-            background: var(--bg-alt);
+            background: var(--accent-light);
             padding: var(--space-md);
-            border-left: 3px solid var(--accent);
-            border-radius: 0 4px 4px 0;
+            border: 1px solid var(--border-light);
+            border-radius: 4px;
         }
 
         .cell-quadrant {
@@ -797,10 +794,10 @@
         }
 
         .split-visual {
-            background: var(--bg-alt);
-            border-left: 3px solid var(--accent);
+            background: var(--accent-light);
+            border: 1px solid var(--border-light);
             padding: var(--space-md);
-            border-radius: 0 4px 4px 0;
+            border-radius: 4px;
             text-align: center;
         }
 
@@ -1282,7 +1279,7 @@
                 "我们自以为根据理性做出判断，实际上只是在为直觉的结论寻找理由。<br>真正的理性，始于承认自身的非理性。"
                 <cite>— Daniel Kahneman，诺贝尔经济学奖得主（2002）</cite>
             </blockquote>
-            <p class="body-text reveal d2" style="max-width: clamp(400px, 60vw, 720px); margin-top: var(--space-md);">
+            <p class="body-text reveal d2" style="margin-top: var(--space-md);">
                 Kahneman 与 Tversky 的合作开创了<span class="highlight">行为经济学</span>这一学科，彻底改变了经济学对"理性人"假设的依赖。其核心洞见——人类决策在可预测的方向上偏离理性——已成为现代政策设计的理论基石。<a class="cite-mark" title="Kahneman, 2011">[2]</a>
             </p>
         </section>

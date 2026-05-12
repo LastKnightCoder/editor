@@ -15,7 +15,7 @@
             --bg-card-hover: rgba(255, 255, 255, 0.07);
             --line: #1a4880;
             --line-bright: rgba(255, 255, 255, 0.15);
-            --white: #ffffff;
+            --white: #f0f4fa;
             --text: #d0e4f8;
             --text-mid: rgba(208, 228, 248, 0.55);
             --text-light: rgba(208, 228, 248, 0.25);
@@ -305,7 +305,6 @@
         .cover-sub {
             font-size: var(--fs-body);
             color: var(--text-mid);
-            max-width: clamp(300px, 50vw, 600px);
             line-height: 1.8;
         }
 
@@ -603,7 +602,6 @@
             font-weight: 400;
             line-height: 1.5;
             color: var(--white);
-            max-width: clamp(400px, 65vw, 800px);
             letter-spacing: 0.5px;
         }
 
@@ -798,7 +796,6 @@
             border-left: 2px solid var(--yellow);
             padding: var(--space-md);
             background: var(--bg-card);
-            max-width: clamp(500px, 65vw, 800px);
             position: relative;
         }
 
@@ -820,21 +817,20 @@
            ═══════════════════════════════ */
 
         .versus {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: var(--space-lg);
+            align-items: start;
             margin-top: var(--space-md);
-            max-width: clamp(480px, 70vw, 860px);
+            position: relative;
+        }
+
+        .versus::before {
+            display: none;
         }
 
         .versus-mid {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: var(--space-xs);
-            align-self: stretch;
+            display: none;
         }
 
         .versus-mid span {
@@ -851,6 +847,10 @@
             min-height: 32px;
             max-height: clamp(40px, 10vh, 80px);
             background: linear-gradient(180deg, transparent, var(--border), transparent);
+        }
+
+        .versus-side {
+            padding: 0 var(--space-md);
         }
 
         .versus-side h3 {
@@ -872,13 +872,11 @@
             padding: var(--space-xs) 0;
             font-size: var(--fs-small);
             color: var(--text-mid);
+            border-bottom: 1px solid var(--border);
         }
 
         .vs-yellow h3 { color: var(--yellow); }
         .vs-cyan h3 { color: var(--cyan); }
-
-        .versus > .versus-side:first-child { text-align: left; }
-        .versus > .versus-side:last-child { text-align: right; }
 
         /* ═══════════════════════════════
            CODE BLOCK
@@ -967,8 +965,8 @@
             .card-grid--3 { grid-template-columns: 1fr 1fr; }
             .stats-grid { grid-template-columns: 1fr 1fr; }
             .split, .split-detail { grid-template-columns: 1fr; }
-            .versus { flex-direction: column; align-items: flex-start; max-width: 100%; }
-            .versus-mid { display: none; }
+            .versus { grid-template-columns: 1fr; }
+            .versus::before { display: none; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -1338,26 +1336,27 @@
     <div class="slide">
         <div class="slide-label reveal">DEEP DIVE</div>
         <h2 class="title-main reveal delay-1">可观测性三支柱</h2>
-        <div class="split-detail reveal delay-2">
-            <div style="text-align: center; padding: var(--space-md); border: 1px solid var(--border); background: var(--bg-card);">
-                <div style="font-family: var(--font-tech); font-size: clamp(2.5rem, 6vw, 7rem); color: var(--cyan); line-height: 1;">O11y</div>
-                <div style="width: 40px; height: 1px; background: var(--cyan); margin: var(--space-sm) auto;"></div>
-                <div style="font-family: var(--font-mono); font-size: var(--fs-label); color: var(--text-mid); letter-spacing: 2px;">OBSERVABILITY</div>
+        <div class="card-grid card-grid--3">
+            <div class="card reveal delay-1" style="border-top: 2px solid var(--yellow);">
+                <div class="card-num">PILLAR 01</div>
+                <div class="card-title">Logging</div>
+                <div class="card-desc">结构化日志：事件记录，可搜索查询，问题回溯的第一手证据</div>
             </div>
-            <ul class="point-list" style="gap: var(--space-xs);">
-                <li style="padding: var(--space-xs) var(--space-sm); font-size: var(--fs-small); border-left-color: var(--yellow);">
-                    <strong style="color: var(--yellow);">[LOG]</strong>&nbsp; 结构化日志：事件记录，可搜索查询
-                </li>
-                <li style="padding: var(--space-xs) var(--space-sm); font-size: var(--fs-small); border-left-color: var(--cyan);">
-                    <strong style="color: var(--cyan);">[METRIC]</strong>&nbsp; 时序指标：CPU/内存/QPS 实时监控
-                </li>
-                <li style="padding: var(--space-xs) var(--space-sm); font-size: var(--fs-small); border-left-color: var(--yellow);">
-                    <strong style="color: var(--yellow);">[TRACE]</strong>&nbsp; 分布式追踪：跨服务请求链路
-                </li>
-                <li style="padding: var(--space-xs) var(--space-sm); font-size: var(--fs-small);">
-                    三者结合实现：快速定位根因 &lt; 5 分钟
-                </li>
-            </ul>
+            <div class="card reveal delay-2" style="border-top: 2px solid var(--cyan);">
+                <div class="card-num">PILLAR 02</div>
+                <div class="card-title">Metrics</div>
+                <div class="card-desc">时序指标：CPU/内存/QPS 实时监控，异常趋势的预警哨兵</div>
+            </div>
+            <div class="card reveal delay-3" style="border-top: 2px solid var(--yellow);">
+                <div class="card-num">PILLAR 03</div>
+                <div class="card-title">Tracing</div>
+                <div class="card-desc">分布式追踪：跨服务请求链路，性能瓶颈的精确定位</div>
+            </div>
+        </div>
+        <div class="reveal delay-4" style="margin-top: var(--space-md); display: flex; align-items: center; gap: var(--space-md); padding: var(--space-sm) var(--space-md); border: 1px solid var(--border); background: var(--bg-card);">
+            <div style="font-family: var(--font-tech); font-size: clamp(1.5rem, 3vw, 2.5rem); color: var(--cyan); line-height: 1;">&lt; 5 min</div>
+            <div style="width: 1px; height: 24px; background: var(--border-bright);"></div>
+            <div style="font-size: var(--fs-small); color: var(--text-mid);">三者结合实现：快速定位根因，从告警到修复的平均时间</div>
         </div>
     </div>
 

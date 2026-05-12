@@ -6,33 +6,66 @@
     <title>创意写作入门</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Nunito:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Patrick+Hand&family=Ma+Shan+Zheng&family=Architects+Daughter&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #faf8f5;
-            --paper: #fffef9;
-            --ink: #2d2d2d;
-            --ink-light: #4a4a4a;
-            --ink-muted: #8b8b8b;
-            --accent: #d4956a;
-            --accent-light: rgba(212, 149, 106, 0.15);
-            --accent-2: #6ba3b5;
-            --accent-2-light: rgba(107, 163, 181, 0.12);
-            --sticky: #fff9c4;
-            --sticky-alt: #ffe0b2;
-            --sticky-green: #c8e6c9;
-            --sticky-blue: #bbdefb;
-            --pencil: #8b8b8b;
-            --font-hand: "Caveat", "ZCOOL KuaiLe", cursive;
-            --font-body: "Nunito", "PingFang SC", "Microsoft YaHei", sans-serif;
-            --ease: cubic-bezier(0.4, 0, 0.2, 1);
-            --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
-            --dur: 0.6s;
-            --dur-fast: 0.35s;
-            --radius-sketch: 8px 20px 8px 20px;
-            --radius-blob: 30% 70% 70% 30% / 30% 30% 70% 70%;
-            --shadow-paper: 3px 3px 12px rgba(0, 0, 0, 0.06);
-            --shadow-sticky: 4px 4px 0 rgba(0, 0, 0, 0.05);
+            --paper: #fdf8f0;
+            --paper-lines: rgba(180, 210, 230, 0.25);
+            --paper-margin: rgba(230, 130, 130, 0.2);
+            --ink: #3d2c2c;
+            --ink-mid: rgba(61, 44, 44, 0.65);
+            --ink-dim: rgba(61, 44, 44, 0.35);
+            --ink-ghost: rgba(61, 44, 44, 0.08);
+
+            --pink: #f4a0b0;
+            --pink-soft: rgba(244, 160, 176, 0.2);
+            --pink-wash: rgba(244, 160, 176, 0.5);
+            --mint: #a0dcc8;
+            --mint-soft: rgba(160, 220, 200, 0.2);
+            --mint-wash: rgba(160, 220, 200, 0.5);
+            --sky: #a8c8e8;
+            --sky-soft: rgba(168, 200, 232, 0.2);
+            --sky-wash: rgba(168, 200, 232, 0.5);
+            --butter: #fdf5d6;
+            --butter-soft: rgba(248, 236, 180, 0.2);
+            --butter-wash: rgba(248, 236, 180, 0.45);
+            --lavender: #c8b0e0;
+            --lavender-soft: rgba(200, 176, 224, 0.2);
+            --peach: #f8c8a0;
+            --peach-soft: rgba(248, 200, 160, 0.25);
+
+            --font-display: "ZCOOL KuaiLe", "Architects Daughter", cursive;
+            --font-hand: "Ma Shan Zheng", "Patrick Hand", cursive;
+            --font-body: "Patrick Hand", "Ma Shan Zheng", cursive, sans-serif;
+
+            --fs-hero: clamp(2.8rem, 7vw, 6.5rem);
+            --fs-chapter-num: clamp(5rem, 16vw, 16rem);
+            --fs-chapter: clamp(1.8rem, 4.5vw, 4rem);
+            --fs-title: clamp(1.6rem, 3.5vw, 3.2rem);
+            --fs-subtitle: clamp(1.2rem, 2.2vw, 2rem);
+            --fs-body: clamp(1.05rem, 1.4vw, 1.4rem);
+            --fs-small: clamp(0.9rem, 1.1vw, 1.1rem);
+            --fs-label: clamp(0.78rem, 0.9vw, 0.92rem);
+            --fs-stat: clamp(2.2rem, 5.5vw, 5rem);
+            --fs-quote: clamp(1.4rem, 3vw, 3rem);
+
+            --space-xs: clamp(0.3rem, 0.5vw, 0.5rem);
+            --space-sm: clamp(0.6rem, 1.2vw, 1.2rem);
+            --space-md: clamp(1.2rem, 2.5vw, 2.5rem);
+            --space-lg: clamp(1.8rem, 3.5vw, 4rem);
+            --space-xl: clamp(2.5rem, 5vw, 5.5rem);
+
+            --pad-x: clamp(3rem, 9vw, 11vw);
+            --pad-y: clamp(2.5rem, 6vh, 6.5rem);
+
+            --ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+            --dur: 550ms;
+            --dur-fast: 380ms;
+
+            --line-height: clamp(24px, 3.2vh, 32px);
+            --radius-soft: 12px;
+            --radius-round: 20px;
         }
 
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -44,1385 +77,1655 @@
         }
 
         body {
-            background: var(--bg);
+            background: var(--paper);
             color: var(--ink);
             font-family: var(--font-body);
-            font-size: clamp(14px, 1.6vh, 18px);
-            line-height: 1.6;
+            font-size: var(--fs-body);
+            line-height: 1.7;
             -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
         }
 
-        .doodle-float {
+        /* notebook paper lines texture */
+        body::before {
+            content: '';
             position: fixed;
-            font-size: clamp(2rem, 4vh, 3.5rem);
-            opacity: 0.07;
+            inset: 0;
             z-index: 0;
             pointer-events: none;
+            background:
+                repeating-linear-gradient(
+                    to bottom,
+                    transparent,
+                    transparent calc(var(--line-height) - 1px),
+                    var(--paper-lines) calc(var(--line-height) - 1px),
+                    var(--paper-lines) var(--line-height)
+                );
+            background-position: 0 clamp(60px, 10vh, 100px);
+            opacity: 0.5;
         }
-        .doodle-float.tl { top: clamp(20px, 4vh, 60px); left: clamp(20px, 3vw, 60px); }
-        .doodle-float.tr { top: clamp(30px, 5vh, 80px); right: clamp(30px, 4vw, 80px); }
-        .doodle-float.bl { bottom: clamp(30px, 5vh, 80px); left: clamp(30px, 4vw, 80px); }
-        .doodle-float.br { bottom: clamp(20px, 4vh, 60px); right: clamp(20px, 3vw, 60px); }
+
+        /* margin doodles */
+        .doodle {
+            position: fixed;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.06;
+            font-size: clamp(3rem, 6vw, 5rem);
+        }
+        .doodle-tl { top: clamp(20px, 4vh, 50px); left: clamp(16px, 3vw, 40px); transform: rotate(-12deg); }
+        .doodle-tr { top: clamp(30px, 5vh, 70px); right: clamp(20px, 4vw, 50px); transform: rotate(8deg); }
+        .doodle-bl { bottom: clamp(30px, 5vh, 70px); left: clamp(20px, 3vw, 40px); transform: rotate(15deg); }
+        .doodle-br { bottom: clamp(20px, 4vh, 50px); right: clamp(16px, 3vw, 40px); transform: rotate(-8deg); }
+
+        /* ═══════════════════════════════
+           SLIDE CORE
+           ═══════════════════════════════ */
 
         .slide {
             position: absolute;
             inset: 0;
+            width: 100vw;
             height: 100vh;
             height: 100dvh;
             overflow: hidden;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            padding: clamp(36px, 7vh, 90px) clamp(48px, 10vw, 140px);
+            padding: var(--pad-y) var(--pad-x);
             opacity: 0;
             visibility: hidden;
-            transform: translateY(clamp(20px, 3vh, 40px)) rotate(0.5deg);
-            transition: opacity var(--dur) var(--ease),
-                        transform var(--dur) var(--ease-bounce),
-                        visibility var(--dur);
-            will-change: opacity, transform;
+            transition: opacity var(--dur) var(--ease), visibility var(--dur);
             z-index: 1;
         }
 
         .slide.active {
             opacity: 1;
             visibility: visible;
-            transform: translateY(0) rotate(0deg);
         }
 
-        .slide .reveal {
+        /* ═══════════════════════════════
+           REVEAL SYSTEM
+           ═══════════════════════════════ */
+
+        .reveal {
             opacity: 0;
-            transform: translateY(clamp(12px, 2vh, 24px));
-            transition: opacity var(--dur-fast) var(--ease),
-                        transform var(--dur-fast) var(--ease-bounce);
+            transform: translateY(clamp(10px, 1.5vh, 18px));
+            transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease-out);
         }
-        .slide.active .reveal { opacity: 1; transform: translateY(0); }
-        .slide.active .reveal.d1 { transition-delay: 0.1s; }
-        .slide.active .reveal.d2 { transition-delay: 0.2s; }
-        .slide.active .reveal.d3 { transition-delay: 0.3s; }
-        .slide.active .reveal.d4 { transition-delay: 0.4s; }
-        .slide.active .reveal.d5 { transition-delay: 0.5s; }
-        .slide.active .reveal.d6 { transition-delay: 0.6s; }
-        .slide.active .reveal.d7 { transition-delay: 0.7s; }
-        .slide.active .reveal.d8 { transition-delay: 0.8s; }
 
-        /* ── 封面 ── */
+        .reveal-scale {
+            opacity: 0;
+            transform: scale(0.92);
+            transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease-out);
+        }
+
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(clamp(-20px, -2.5vw, -10px));
+            transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease-out);
+        }
+
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(clamp(10px, 2.5vw, 20px));
+            transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease-out);
+        }
+
+        .slide.active .reveal,
+        .slide.active .reveal-scale,
+        .slide.active .reveal-left,
+        .slide.active .reveal-right {
+            opacity: 1;
+            transform: none;
+        }
+
+        .delay-1 { transition-delay: 120ms; }
+        .delay-2 { transition-delay: 240ms; }
+        .delay-3 { transition-delay: 360ms; }
+        .delay-4 { transition-delay: 480ms; }
+        .delay-5 { transition-delay: 600ms; }
+        .delay-6 { transition-delay: 720ms; }
+        .delay-7 { transition-delay: 840ms; }
+
+        /* ═══════════════════════════════
+           PROGRESS & COUNTER
+           ═══════════════════════════════ */
+
+        .progress-wrap {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: clamp(4px, 0.5vh, 6px);
+            background: var(--ink-ghost);
+            z-index: 9999;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--pink), var(--mint), var(--sky));
+            width: 0%;
+            transition: width 0.5s var(--ease);
+            border-radius: 0 3px 3px 0;
+        }
+
+        .page-num {
+            position: fixed;
+            bottom: clamp(12px, 2.5vh, 28px);
+            right: clamp(16px, 3vw, 40px);
+            font-family: var(--font-display);
+            font-size: var(--fs-label);
+            color: var(--ink-dim);
+            z-index: 9999;
+        }
+
+        /* ═══════════════════════════════
+           WASHI TAPE
+           ═══════════════════════════════ */
+
+        .washi {
+            display: inline-block;
+            padding: clamp(3px, 0.4vh, 5px) clamp(12px, 2vw, 24px);
+            transform: rotate(-2deg);
+            font-family: var(--font-display);
+            font-size: var(--fs-label);
+            color: var(--ink);
+            letter-spacing: 0.05em;
+            position: relative;
+        }
+
+        .washi::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 2px;
+            opacity: 0.6;
+        }
+
+        .washi-pink::before { background: var(--pink-wash); }
+        .washi-mint::before { background: var(--mint-wash); }
+        .washi-sky::before { background: var(--sky-wash); }
+        .washi-butter::before { background: var(--butter-wash); }
+        .washi-lavender::before { background: var(--lavender); opacity: 0.35; }
+
+        .washi span { position: relative; z-index: 1; }
+
+        /* ═══════════════════════════════
+           SCOTCH TAPE
+           ═══════════════════════════════ */
+
+        .tape {
+            position: absolute;
+            width: clamp(50px, 7vw, 80px);
+            height: clamp(18px, 2.5vh, 26px);
+            background: rgba(255, 255, 240, 0.55);
+            border: 1px solid rgba(200, 200, 180, 0.3);
+            z-index: 5;
+        }
+
+        .tape-tl { top: clamp(-10px, -1.5vh, -6px); left: clamp(10px, 2vw, 30px); transform: rotate(-5deg); }
+        .tape-tr { top: clamp(-10px, -1.5vh, -6px); right: clamp(10px, 2vw, 30px); transform: rotate(4deg); }
+        .tape-center { top: clamp(-12px, -1.8vh, -8px); left: 50%; transform: translateX(-50%) rotate(-2deg); }
+
+        /* ═══════════════════════════════
+           TITLE & LABELS
+           ═══════════════════════════════ */
+
+        .slide-label {
+            font-family: var(--font-display);
+            font-size: var(--fs-small);
+            color: var(--pink);
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-xs);
+            margin-bottom: var(--space-xs);
+        }
+
+        .title-main {
+            font-family: var(--font-display);
+            font-size: var(--fs-title);
+            color: var(--ink);
+            line-height: 1.3;
+            margin-bottom: var(--space-md);
+        }
+
+        .underline-doodle {
+            position: relative;
+            display: inline-block;
+        }
+
+        .underline-doodle::after {
+            content: '';
+            position: absolute;
+            left: -2px; right: -2px;
+            bottom: clamp(-4px, -0.6vh, -2px);
+            height: clamp(6px, 1vh, 10px);
+            background: var(--pink-soft);
+            border-radius: 50%;
+            z-index: -1;
+        }
+
+        .body-text {
+            font-family: var(--font-hand);
+            font-size: var(--fs-body);
+            color: var(--ink-mid);
+            line-height: 1.9;
+        }
+
+        .highlight-pink {
+            background: linear-gradient(180deg, transparent 60%, var(--pink-soft) 60%);
+            padding: 0 2px;
+        }
+
+        .highlight-mint {
+            background: linear-gradient(180deg, transparent 60%, var(--mint-soft) 60%);
+            padding: 0 2px;
+        }
+
+        .highlight-sky {
+            background: linear-gradient(180deg, transparent 60%, var(--sky-soft) 60%);
+            padding: 0 2px;
+        }
+
+        /* ═══════════════════════════════
+           COVER
+           ═══════════════════════════════ */
+
         .slide-cover {
             align-items: center;
             text-align: center;
-        }
-        .slide-cover .cover-emoji {
-            font-size: clamp(3rem, 7vh, 5.5rem);
-            animation: wiggle 3s ease-in-out infinite;
-            margin-bottom: clamp(10px, 2vh, 24px);
-        }
-        @keyframes wiggle {
-            0%, 100% { transform: rotate(-5deg) scale(1); }
-            25% { transform: rotate(3deg) scale(1.05); }
-            50% { transform: rotate(-3deg) scale(1); }
-            75% { transform: rotate(5deg) scale(1.02); }
-        }
-        .slide-cover h1 {
-            font-family: var(--font-hand);
-            font-size: clamp(2.8rem, 7vw, 5.5rem);
-            font-weight: 700;
-            color: var(--ink);
-            transform: rotate(-2deg);
-            line-height: 1.2;
-        }
-        .slide-cover .wavy-line {
-            width: clamp(120px, 20vw, 260px);
-            height: clamp(8px, 1.2vh, 14px);
-            margin: clamp(8px, 1.5vh, 20px) auto;
-        }
-        .slide-cover .wavy-line svg { width: 100%; height: 100%; }
-        .slide-cover .subtitle {
-            font-family: var(--font-hand);
-            font-size: clamp(1.1rem, 2.5vh, 1.8rem);
-            color: var(--ink-light);
-            transform: rotate(1deg);
-        }
-        .slide-cover .author {
-            font-family: var(--font-hand);
-            font-size: clamp(0.8rem, 1.4vh, 1rem);
-            color: var(--ink-muted);
-            margin-top: clamp(16px, 3vh, 40px);
-            letter-spacing: 0.05em;
+            background:
+                radial-gradient(ellipse 60% 40% at 30% 20%, var(--pink-soft) 0%, transparent 70%),
+                radial-gradient(ellipse 50% 35% at 70% 75%, var(--mint-soft) 0%, transparent 70%);
         }
 
-        /* ── 章节过渡 ── */
+        .cover-stickers {
+            display: flex;
+            gap: clamp(8px, 1.5vw, 16px);
+            margin-bottom: var(--space-sm);
+        }
+
+        .sticker {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: clamp(4px, 0.6vh, 6px) clamp(10px, 1.5vw, 16px);
+            border-radius: var(--radius-round);
+            font-family: var(--font-display);
+            font-size: var(--fs-label);
+        }
+
+        .sticker-pink { background: var(--pink-soft); color: #c06070; }
+        .sticker-mint { background: var(--mint-soft); color: #508070; }
+        .sticker-sky { background: var(--sky-soft); color: #5070a0; }
+
+        .cover-title {
+            font-family: var(--font-display);
+            font-size: var(--fs-hero);
+            color: var(--ink);
+            line-height: 1.2;
+            margin-bottom: var(--space-sm);
+            transform: rotate(-1deg);
+        }
+
+        .cover-sub {
+            font-family: var(--font-hand);
+            font-size: var(--fs-subtitle);
+            color: var(--ink-mid);
+            transform: rotate(0.5deg);
+        }
+
+        .cover-deco {
+            margin-top: var(--space-md);
+            font-size: clamp(1.2rem, 2vw, 1.8rem);
+            color: var(--ink-dim);
+            letter-spacing: 0.4em;
+        }
+
+        /* ═══════════════════════════════
+           CHAPTER TRANSITION
+           ═══════════════════════════════ */
+
         .slide-chapter {
             align-items: center;
             text-align: center;
         }
-        .slide-chapter .chapter-num {
-            font-family: var(--font-hand);
-            font-size: clamp(4rem, 12vh, 9rem);
-            font-weight: 700;
-            color: var(--accent);
-            opacity: 0.2;
-            line-height: 1;
-            transform: rotate(-3deg);
+
+        .chapter-num {
+            font-family: var(--font-display);
+            font-size: var(--fs-chapter-num);
+            color: var(--pink-soft);
+            line-height: 0.9;
+            pointer-events: none;
         }
-        .slide-chapter h2 {
-            font-family: var(--font-hand);
-            font-size: clamp(2rem, 5vw, 3.8rem);
-            font-weight: 600;
+
+        .chapter-title {
+            font-family: var(--font-display);
+            font-size: var(--fs-chapter);
             color: var(--ink);
-            transform: rotate(1deg);
-            margin-top: clamp(-10px, -1.5vh, -5px);
-        }
-        .slide-chapter .chapter-emoji {
-            font-size: clamp(1.5rem, 3vh, 2.5rem);
-            margin-top: clamp(8px, 1.5vh, 20px);
-        }
-        .slide-chapter .squiggle {
-            width: clamp(60px, 10vw, 120px);
-            height: clamp(12px, 2vh, 24px);
-            margin-top: clamp(8px, 1.5vh, 16px);
-        }
-        .slide-chapter .squiggle svg { width: 100%; height: 100%; }
-
-        /* ── 通用标签与标题 ── */
-        .slide-label {
-            font-family: var(--font-hand);
-            font-size: clamp(1rem, 2vh, 1.4rem);
-            color: var(--accent);
-            margin-bottom: clamp(4px, 0.8vh, 10px);
-            transform: rotate(-1deg);
-            display: inline-block;
-        }
-        .slide-title {
-            font-family: var(--font-hand);
-            font-size: clamp(1.8rem, 4vw, 3rem);
-            font-weight: 600;
-            line-height: 1.3;
-            margin-bottom: clamp(16px, 3vh, 36px);
-            transform: rotate(-0.5deg);
-        }
-        .slide-title .wavy-underline {
-            display: inline-block;
+            margin-top: calc(-0.5 * var(--space-lg));
             position: relative;
-        }
-        .slide-title .wavy-underline::after {
-            content: '';
-            position: absolute;
-            left: 0; right: 0;
-            bottom: clamp(-4px, -0.6vh, -2px);
-            height: clamp(6px, 1vh, 10px);
-            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8'%3E%3Cpath d='M0,4 Q25,0 50,4 T100,4 T150,4 T200,4' stroke='%23d4956a' stroke-width='2.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") repeat-x;
-            background-size: clamp(80px, 12vw, 160px) 100%;
-        }
-        .body-text {
-            font-family: var(--font-body);
-            font-size: clamp(0.95rem, 1.9vh, 1.2rem);
-            color: var(--ink-light);
-            line-height: 1.8;
-            max-width: 680px;
-        }
-        .highlight {
-            background: linear-gradient(180deg, transparent 55%, var(--accent-light) 55%);
-            padding: 0 clamp(2px, 0.3vw, 5px);
-        }
-        .highlight-blue {
-            background: linear-gradient(180deg, transparent 55%, var(--accent-2-light) 55%);
-            padding: 0 clamp(2px, 0.3vw, 5px);
+            z-index: 1;
         }
 
-        /* ── 议程清单 (笔记本风格) ── */
+        .chapter-deco {
+            margin-top: var(--space-sm);
+            font-size: clamp(1.5rem, 3vh, 2.5rem);
+        }
+
+        /* ═══════════════════════════════
+           NOTEBOOK LIST (AGENDA)
+           ═══════════════════════════════ */
+
         .notebook-list {
             list-style: none;
-            margin-top: clamp(8px, 1.5vh, 16px);
+            width: 100%;
+            margin-top: var(--space-sm);
         }
+
         .notebook-list li {
             display: flex;
-            align-items: baseline;
+            align-items: center;
             gap: clamp(10px, 1.5vw, 20px);
-            padding: clamp(10px, 1.8vh, 20px) 0;
-            font-family: var(--font-hand);
-            font-size: clamp(1.2rem, 2.5vh, 1.7rem);
-            border-bottom: 1px dashed var(--pencil);
+            padding: clamp(10px, 1.5vh, 16px) 0;
+            border-bottom: 1.5px dashed var(--ink-ghost);
+            font-family: var(--font-display);
+            font-size: clamp(1.2rem, 2.2vh, 1.7rem);
             color: var(--ink);
-            opacity: 0;
-            transform: translateX(clamp(-15px, -2vw, -8px));
-            transition: opacity var(--dur-fast) var(--ease),
-                        transform var(--dur-fast) var(--ease-bounce);
         }
-        .notebook-list li .check {
-            color: var(--accent);
-            font-size: clamp(1rem, 2vh, 1.4rem);
+
+        .notebook-list .item-num {
+            width: clamp(28px, 3.5vw, 36px);
+            height: clamp(28px, 3.5vw, 36px);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: var(--fs-small);
+            font-weight: 700;
             flex-shrink: 0;
         }
-        .notebook-list li .num {
-            font-weight: 700;
-            color: var(--accent-2);
-            min-width: clamp(20px, 3vw, 32px);
-        }
-        .slide.active .notebook-list li {
-            opacity: 1;
-            transform: translateX(0);
-        }
-        .slide.active .notebook-list li:nth-child(1) { transition-delay: 0.15s; }
-        .slide.active .notebook-list li:nth-child(2) { transition-delay: 0.25s; }
-        .slide.active .notebook-list li:nth-child(3) { transition-delay: 0.35s; }
-        .slide.active .notebook-list li:nth-child(4) { transition-delay: 0.45s; }
-        .slide.active .notebook-list li:nth-child(5) { transition-delay: 0.55s; }
-        .slide.active .notebook-list li:nth-child(6) { transition-delay: 0.65s; }
 
-        /* ── 便签卡片 ── */
-        .sticky-note {
-            background: var(--sticky);
+        .notebook-list li:nth-child(1) .item-num { background: var(--pink-soft); color: #c06070; }
+        .notebook-list li:nth-child(2) .item-num { background: var(--mint-soft); color: #508070; }
+        .notebook-list li:nth-child(3) .item-num { background: var(--sky-soft); color: #5070a0; }
+        .notebook-list li:nth-child(4) .item-num { background: var(--butter-soft); color: #907030; }
+        .notebook-list li:nth-child(5) .item-num { background: var(--lavender-soft); color: #705090; }
+        .notebook-list li:nth-child(6) .item-num { background: var(--peach-soft); color: #a06030; }
+
+        /* ═══════════════════════════════
+           STICKY NOTE
+           ═══════════════════════════════ */
+
+        .sticky {
             padding: clamp(20px, 3.5vh, 40px) clamp(20px, 3vw, 36px);
             position: relative;
-            box-shadow: var(--shadow-sticky);
-            border: none;
-            transform: rotate(1.5deg);
-            max-width: clamp(300px, 50vw, 520px);
+            box-shadow: 3px 3px 0 var(--ink-ghost);
         }
-        .sticky-note::before {
-            content: '📌';
-            position: absolute;
-            top: clamp(-12px, -2vh, -8px);
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: clamp(1.2rem, 2.5vh, 2rem);
-        }
-        .sticky-note.alt { background: var(--sticky-alt); transform: rotate(-1deg); }
-        .sticky-note.green { background: var(--sticky-green); transform: rotate(0.5deg); }
-        .sticky-note.blue { background: var(--sticky-blue); transform: rotate(-1.5deg); }
 
-        .sticky-note h3 {
-            font-family: var(--font-hand);
+        .sticky-yellow { background: #fefaed; }
+        .sticky-pink { background: #fef2f4; }
+        .sticky-mint { background: #f0faf7; }
+        .sticky-sky { background: #f0f7fd; }
+
+        .sticky h3 {
+            font-family: var(--font-display);
             font-size: clamp(1.3rem, 2.8vh, 2rem);
-            font-weight: 600;
-            margin-bottom: clamp(6px, 1vh, 12px);
             color: var(--ink);
-        }
-        .sticky-note p,
-        .sticky-note blockquote {
-            font-family: var(--font-hand);
-            font-size: clamp(1rem, 2vh, 1.4rem);
-            line-height: 1.6;
-            color: var(--ink-light);
-        }
-        .sticky-note blockquote {
-            font-size: clamp(1.2rem, 2.5vh, 1.8rem);
-            color: var(--ink);
-            font-style: normal;
+            margin-bottom: var(--space-sm);
         }
 
-        /* ── 涂鸦边框卡片 ── */
-        .sketch-grid {
+        .sticky p {
+            font-family: var(--font-hand);
+            font-size: clamp(1.1rem, 2vh, 1.5rem);
+            color: var(--ink-mid);
+            line-height: 1.8;
+        }
+
+        /* ═══════════════════════════════
+           INDEX CARDS (GRID)
+           ═══════════════════════════════ */
+
+        .card-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: clamp(14px, 2vw, 28px);
+            gap: clamp(12px, 2vw, 24px);
+            margin-top: var(--space-md);
+            width: 100%;
         }
-        .sketch-card {
+
+        .index-card {
             background: var(--paper);
-            padding: clamp(16px, 2.5vh, 32px) clamp(14px, 2vw, 24px);
-            border: 2px dashed var(--pencil);
-            border-radius: var(--radius-sketch);
-            transition: transform var(--dur-fast) var(--ease-bounce);
+            border: 2px dashed var(--ink-ghost);
+            border-radius: var(--radius-soft);
+            padding: clamp(14px, 2.2vh, 28px) clamp(12px, 1.8vw, 22px);
+            position: relative;
+            transition: transform var(--dur-fast) var(--ease-out);
         }
-        .sketch-card:nth-child(odd) { transform: rotate(-1deg); }
-        .sketch-card:nth-child(even) { transform: rotate(1deg); }
-        .sketch-card:hover { transform: rotate(0deg) scale(1.03); }
-        .sketch-card .card-emoji {
-            font-size: clamp(1.8rem, 3.5vh, 2.8rem);
-            margin-bottom: clamp(6px, 1vh, 12px);
+
+        .index-card:nth-child(odd) { transform: rotate(-0.8deg); }
+        .index-card:nth-child(even) { transform: rotate(0.8deg); }
+        .index-card:hover { transform: rotate(0deg) scale(1.02); }
+
+        .index-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: clamp(4px, 0.6vh, 6px);
+            border-radius: var(--radius-soft) var(--radius-soft) 0 0;
         }
-        .sketch-card h4 {
-            font-family: var(--font-hand);
-            font-size: clamp(1.1rem, 2.2vh, 1.6rem);
-            font-weight: 600;
-            margin-bottom: clamp(4px, 0.6vh, 8px);
+
+        .index-card:nth-child(1)::before { background: var(--pink); }
+        .index-card:nth-child(2)::before { background: var(--mint); }
+        .index-card:nth-child(3)::before { background: var(--sky); }
+        .index-card:nth-child(4)::before { background: var(--butter); }
+        .index-card:nth-child(5)::before { background: var(--lavender); }
+        .index-card:nth-child(6)::before { background: var(--peach); }
+
+        .index-card .card-icon {
+            font-size: clamp(1.6rem, 3vh, 2.5rem);
+            margin-bottom: var(--space-xs);
+        }
+
+        .index-card h4 {
+            font-family: var(--font-display);
+            font-size: clamp(1.1rem, 2vh, 1.5rem);
             color: var(--ink);
+            margin-bottom: var(--space-xs);
         }
-        .sketch-card p {
+
+        .index-card p {
             font-family: var(--font-hand);
-            font-size: clamp(0.8rem, 1.5vh, 1.05rem);
-            color: var(--ink-light);
+            font-size: clamp(0.9rem, 1.2vw, 1.1rem);
+            color: var(--ink-mid);
             line-height: 1.6;
         }
 
-        /* ── 复选框列表 ── */
-        .checkbox-list {
+        /* ═══════════════════════════════
+           CHECKBOX LIST
+           ═══════════════════════════════ */
+
+        .check-list {
             list-style: none;
             display: flex;
             flex-direction: column;
-            gap: clamp(8px, 1.4vh, 16px);
+            gap: clamp(8px, 1.2vh, 14px);
         }
-        .checkbox-list li {
-            display: flex;
-            align-items: baseline;
-            gap: clamp(8px, 1.2vw, 16px);
-            font-family: var(--font-hand);
-            font-size: clamp(1.15rem, 2.3vh, 1.65rem);
-            color: var(--ink);
-            opacity: 0;
-            transform: translateX(clamp(-12px, -1.5vw, -6px));
-            transition: opacity var(--dur-fast) var(--ease),
-                        transform var(--dur-fast) var(--ease-bounce);
-        }
-        .checkbox-list li .cb {
-            font-size: clamp(1rem, 2vh, 1.3rem);
-            flex-shrink: 0;
-        }
-        .checkbox-list li .tip {
-            font-family: var(--font-hand);
-            font-size: clamp(0.75rem, 1.3vh, 0.9rem);
-            color: var(--ink-muted);
-            display: block;
-            margin-top: clamp(2px, 0.3vh, 4px);
-        }
-        .slide.active .checkbox-list li {
-            opacity: 1;
-            transform: translateX(0);
-        }
-        .slide.active .checkbox-list li:nth-child(1) { transition-delay: 0.1s; }
-        .slide.active .checkbox-list li:nth-child(2) { transition-delay: 0.2s; }
-        .slide.active .checkbox-list li:nth-child(3) { transition-delay: 0.3s; }
-        .slide.active .checkbox-list li:nth-child(4) { transition-delay: 0.35s; }
-        .slide.active .checkbox-list li:nth-child(5) { transition-delay: 0.4s; }
-        .slide.active .checkbox-list li:nth-child(6) { transition-delay: 0.45s; }
 
-        /* ── 对比布局 ── */
-        .compare-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: clamp(16px, 3vw, 40px);
-        }
-        .compare-col {
-            padding: clamp(16px, 2.5vh, 32px) clamp(14px, 2vw, 28px);
-            border: 2px dashed var(--pencil);
-            border-radius: var(--radius-sketch);
-            position: relative;
-        }
-        .compare-col.good {
-            border-color: var(--accent-2);
-            background: rgba(107, 163, 181, 0.06);
-            transform: rotate(-0.8deg);
-        }
-        .compare-col.bad {
-            border-color: var(--accent);
-            background: rgba(212, 149, 106, 0.06);
-            transform: rotate(0.8deg);
-        }
-        .compare-col .col-tag {
-            position: absolute;
-            top: clamp(-12px, -1.8vh, -8px);
-            left: clamp(12px, 2vw, 24px);
-            font-family: var(--font-hand);
-            font-size: clamp(0.9rem, 1.6vh, 1.2rem);
-            font-weight: 600;
-            padding: clamp(2px, 0.4vh, 4px) clamp(8px, 1.2vw, 14px);
-            border-radius: 4px;
-        }
-        .compare-col.good .col-tag { background: var(--accent-2); color: #fff; }
-        .compare-col.bad .col-tag { background: var(--accent); color: #fff; }
-        .compare-col h4 {
-            font-family: var(--font-hand);
+        .check-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: clamp(8px, 1.2vw, 14px);
+            font-family: var(--font-display);
             font-size: clamp(1.1rem, 2vh, 1.5rem);
-            margin-top: clamp(6px, 1vh, 12px);
-            margin-bottom: clamp(8px, 1.2vh, 14px);
-        }
-        .compare-col p, .compare-col ul {
-            font-family: var(--font-hand);
-            font-size: clamp(0.85rem, 1.5vh, 1.05rem);
-            color: var(--ink-light);
-            line-height: 1.7;
-        }
-        .compare-col ul { list-style: none; }
-        .compare-col ul li::before {
-            content: '→ ';
-            color: var(--pencil);
+            color: var(--ink);
         }
 
-        /* ── 流程步骤 ── */
-        .process-steps {
+        .check-list .cb {
+            width: clamp(18px, 2.5vh, 22px);
+            height: clamp(18px, 2.5vh, 22px);
+            border: 2px solid var(--pink);
+            border-radius: 4px;
+            flex-shrink: 0;
+            margin-top: 2px;
             display: flex;
             align-items: center;
-            gap: clamp(6px, 1vw, 14px);
-            flex-wrap: wrap;
             justify-content: center;
-        }
-        .step-item {
-            background: var(--paper);
-            border: 2px dashed var(--pencil);
-            border-radius: var(--radius-sketch);
-            padding: clamp(12px, 2vh, 24px) clamp(12px, 1.8vw, 22px);
-            text-align: center;
-            min-width: clamp(80px, 12vw, 130px);
-            transition: transform var(--dur-fast) var(--ease-bounce);
-        }
-        .step-item:nth-child(odd) { transform: rotate(-1deg); }
-        .step-item:nth-child(even) { transform: rotate(1deg); }
-        .step-item:hover { transform: rotate(0deg) scale(1.05); }
-        .step-item .step-emoji {
-            font-size: clamp(1.5rem, 3vh, 2.5rem);
-        }
-        .step-item .step-label {
-            font-family: var(--font-hand);
-            font-size: clamp(0.95rem, 1.8vh, 1.3rem);
-            font-weight: 600;
-            margin-top: clamp(4px, 0.6vh, 8px);
-            color: var(--ink);
-        }
-        .step-item .step-desc {
-            font-family: var(--font-hand);
-            font-size: clamp(0.75rem, 1.3vh, 0.9rem);
-            color: var(--ink-muted);
-            margin-top: clamp(2px, 0.3vh, 4px);
-        }
-        .step-arrow {
-            font-family: var(--font-hand);
-            font-size: clamp(1.5rem, 3vh, 2.5rem);
-            color: var(--accent);
-            transform: rotate(-5deg);
-            flex-shrink: 0;
+            font-size: clamp(10px, 1.5vh, 14px);
+            color: var(--pink);
         }
 
-        /* ── 创意提示卡片 ── */
-        .prompt-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: clamp(12px, 1.8vw, 24px);
-        }
-        .prompt-card {
-            padding: clamp(14px, 2.2vh, 28px) clamp(12px, 1.6vw, 22px);
-            border-radius: 12px;
-            position: relative;
-            box-shadow: var(--shadow-sticky);
-            transition: transform var(--dur-fast) var(--ease-bounce);
-        }
-        .prompt-card:nth-child(1) { background: var(--sticky); transform: rotate(-1.5deg); }
-        .prompt-card:nth-child(2) { background: var(--sticky-green); transform: rotate(1deg); }
-        .prompt-card:nth-child(3) { background: var(--sticky-blue); transform: rotate(-0.5deg); }
-        .prompt-card:nth-child(4) { background: var(--sticky-alt); transform: rotate(1.5deg); }
-        .prompt-card:nth-child(5) { background: var(--sticky-green); transform: rotate(-1deg); }
-        .prompt-card:nth-child(6) { background: var(--sticky); transform: rotate(0.8deg); }
-        .prompt-card:hover { transform: rotate(0deg) scale(1.04); z-index: 2; }
-        .prompt-card .prompt-emoji {
-            font-size: clamp(1.3rem, 2.5vh, 2rem);
-            margin-bottom: clamp(4px, 0.6vh, 8px);
-        }
-        .prompt-card h4 {
-            font-family: var(--font-hand);
-            font-size: clamp(0.95rem, 1.8vh, 1.3rem);
-            font-weight: 600;
-            margin-bottom: clamp(4px, 0.5vh, 6px);
-        }
-        .prompt-card p {
-            font-family: var(--font-hand);
-            font-size: clamp(0.75rem, 1.3vh, 0.95rem);
-            color: var(--ink-light);
-            line-height: 1.5;
-        }
+        .check-list .cb.checked { background: var(--pink-soft); }
 
-        /* ── 引用页 ── */
-        .quote-block {
-            max-width: clamp(360px, 60vw, 600px);
-            margin: 0 auto;
-            text-align: center;
-            position: relative;
-        }
-        .quote-block .quote-mark {
-            font-family: var(--font-hand);
-            font-size: clamp(4rem, 10vh, 8rem);
-            color: var(--accent);
-            opacity: 0.15;
-            line-height: 0.6;
+        .check-list .tip {
             display: block;
-        }
-        .quote-block blockquote {
             font-family: var(--font-hand);
-            font-size: clamp(1.4rem, 3vh, 2.2rem);
-            color: var(--ink);
-            line-height: 1.5;
-            transform: rotate(-1deg);
-        }
-        .quote-block .quote-author {
-            font-family: var(--font-body);
-            font-size: clamp(0.85rem, 1.5vh, 1.1rem);
-            color: var(--ink-muted);
-            margin-top: clamp(12px, 2vh, 24px);
-            transform: rotate(0.5deg);
-            display: inline-block;
+            font-size: var(--fs-small);
+            color: var(--ink-dim);
+            margin-top: 2px;
         }
 
-        /* ── 总结便签网格 ── */
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: clamp(12px, 1.8vw, 24px);
-        }
-        .summary-sticky {
-            padding: clamp(14px, 2.2vh, 26px) clamp(12px, 1.5vw, 20px);
-            position: relative;
-            box-shadow: var(--shadow-sticky);
-        }
-        .summary-sticky:nth-child(1) { background: var(--sticky); transform: rotate(-1.5deg); }
-        .summary-sticky:nth-child(2) { background: var(--sticky-alt); transform: rotate(1deg); }
-        .summary-sticky:nth-child(3) { background: var(--sticky-green); transform: rotate(-0.5deg); }
-        .summary-sticky:nth-child(4) { background: var(--sticky-blue); transform: rotate(1.2deg); }
-        .summary-sticky:nth-child(5) { background: var(--sticky); transform: rotate(-0.8deg); }
-        .summary-sticky:nth-child(6) { background: var(--sticky-alt); transform: rotate(1.5deg); }
-        .summary-sticky::before {
-            content: '📌';
-            position: absolute;
-            top: clamp(-10px, -1.5vh, -6px);
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: clamp(0.9rem, 1.6vh, 1.3rem);
-        }
-        .summary-sticky h4 {
-            font-family: var(--font-hand);
-            font-size: clamp(1rem, 1.8vh, 1.3rem);
-            font-weight: 600;
-            margin-bottom: clamp(4px, 0.5vh, 8px);
-        }
-        .summary-sticky p {
-            font-family: var(--font-hand);
-            font-size: clamp(0.75rem, 1.3vh, 0.95rem);
-            color: var(--ink-light);
-            line-height: 1.5;
-        }
-
-        /* ── 大字声明页 ── */
-        .slide-statement { text-align: center; align-items: center; justify-content: center; }
-        .statement-text {
-            font-family: var(--font-hand); font-size: clamp(2.5rem, 8vw, 7rem);
-            font-weight: 700; line-height: 1.2; color: var(--ink); max-width: 16em;
-            transform: rotate(-1deg);
-        }
-        .statement-text .accent { color: var(--accent); }
-        .statement-sub { margin-top: clamp(12px, 2vh, 24px); font-size: clamp(14px, 1.6vh, 18px); color: var(--ink-muted); max-width: 36em; line-height: 1.8; font-family: var(--font-body); }
-
-        /* ── 图表/进度条页 ── */
-        .chart-list { display: flex; flex-direction: column; gap: clamp(12px, 2vh, 24px); margin-top: clamp(20px, 3.5vh, 40px); width: 100%; }
-        .chart-item { display: grid; grid-template-columns: clamp(7rem, 12vw, 10rem) 1fr clamp(2.5rem, 4vw, 3.5rem); gap: clamp(8px, 1.5vh, 16px); align-items: center; }
-        .chart-label { font-family: var(--font-hand); font-size: clamp(15px, 1.8vh, 20px); color: var(--ink); text-align: right; }
-        .chart-bar { height: clamp(10px, 1.5vh, 14px); background: var(--accent-light); border: 2px dashed var(--accent); border-radius: 100px; overflow: hidden; }
-        .chart-fill { height: 100%; width: 0%; background: var(--accent); border-radius: 100px; transition: width 1s var(--ease-bounce); }
-        .chart-fill.blue { background: var(--accent-2); }
-        .chart-value { font-family: var(--font-hand); font-size: clamp(14px, 1.6vh, 18px); font-weight: 700; color: var(--accent); }
-
-        /* ── 矩阵/象限页 ── */
-        .matrix-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: clamp(12px, 2vh, 20px); margin-top: clamp(20px, 3.5vh, 40px); width: 100%; position: relative; }
-        .matrix-grid::before, .matrix-grid::after { content: ''; position: absolute; pointer-events: none; z-index: 1; }
-        .matrix-grid::before { left: 50%; top: 5%; bottom: 5%; width: 2px; transform: translateX(-1px); border-left: 2px dashed var(--pencil); opacity: 0.3; }
-        .matrix-grid::after { top: 50%; left: 5%; right: 5%; height: 2px; transform: translateY(-1px); border-top: 2px dashed var(--pencil); opacity: 0.3; }
-        .matrix-cell {
-            background: var(--sticky); padding: clamp(12px, 2vh, 24px); border-radius: var(--radius-sketch);
-            box-shadow: var(--shadow-sticky); transform: rotate(-1deg); transition: transform var(--dur) var(--ease-bounce);
-        }
-        .matrix-cell:nth-child(2) { background: var(--sticky-alt); transform: rotate(1deg); }
-        .matrix-cell:nth-child(3) { background: var(--sticky-green); transform: rotate(0.5deg); }
-        .matrix-cell:nth-child(4) { background: var(--sticky-blue); transform: rotate(-0.5deg); }
-        .matrix-cell:hover { transform: rotate(0deg) scale(1.02); }
-        .cell-icon { font-size: clamp(1.2rem, 2vh, 1.6rem); margin-bottom: clamp(4px, 0.8vh, 8px); }
-        .cell-title { font-family: var(--font-hand); font-size: clamp(1rem, 1.8vh, 1.3rem); font-weight: 700; color: var(--ink); margin-bottom: clamp(4px, 0.6vh, 6px); }
-        .cell-desc { font-size: clamp(12px, 1.3vh, 15px); color: var(--ink-light); line-height: 1.6; }
-
-        /* ── 双栏详情页 ── */
-        .split-detail { display: grid; grid-template-columns: 2fr 3fr; gap: clamp(20px, 4vw, 40px); margin-top: clamp(20px, 3.5vh, 40px); width: 100%; align-items: center; }
-        .split-visual {
-            display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
-            padding: clamp(16px, 3vh, 32px); border: 3px dashed var(--accent); border-radius: var(--radius-blob);
-            background: var(--accent-light);
-        }
-        .split-visual-icon { font-size: clamp(2.5rem, 5vw, 4rem); margin-bottom: clamp(8px, 1vh, 12px); }
-        .split-visual-num { font-family: var(--font-hand); font-size: clamp(2rem, 4.5vh, 3.5rem); font-weight: 700; color: var(--accent); line-height: 1; }
-        .split-visual-label { font-family: var(--font-hand); font-size: clamp(12px, 1.3vh, 15px); color: var(--ink-muted); margin-top: clamp(4px, 0.6vh, 8px); }
-        .split-info h3 { font-family: var(--font-hand); font-size: clamp(1.1rem, 2vh, 1.5rem); font-weight: 700; color: var(--ink); margin-bottom: clamp(12px, 2vh, 20px); }
-        .split-info-list { list-style: none; display: flex; flex-direction: column; gap: clamp(8px, 1.2vh, 14px); }
-        .split-info-list li { padding: clamp(6px, 1vh, 10px) 0; border-bottom: 2px dashed rgba(0,0,0,0.08); font-size: clamp(14px, 1.5vh, 17px); color: var(--ink-light); line-height: 1.7; padding-left: clamp(16px, 2.5vh, 24px); position: relative; }
-        .split-info-list li::before { content: '📌'; position: absolute; left: 0; top: clamp(6px, 1vh, 10px); font-size: clamp(12px, 1.2vh, 14px); }
-
-        /* ── 结束页 ── */
-        .slide-end {
-            align-items: center;
-            text-align: center;
-        }
-        .slide-end .end-emoji {
-            font-size: clamp(3rem, 7vh, 5.5rem);
-            animation: spin-star 4s ease-in-out infinite;
-        }
-        @keyframes spin-star {
-            0%, 100% { transform: rotate(0deg) scale(1); }
-            25% { transform: rotate(10deg) scale(1.1); }
-            50% { transform: rotate(-5deg) scale(1); }
-            75% { transform: rotate(8deg) scale(1.05); }
-        }
-        .slide-end h2 {
-            font-family: var(--font-hand);
-            font-size: clamp(2.4rem, 6vw, 4.5rem);
-            font-weight: 700;
-            color: var(--ink);
-            transform: rotate(-2deg);
-            margin-top: clamp(8px, 1.5vh, 20px);
-        }
-        .slide-end .end-sub {
-            font-family: var(--font-hand);
-            font-size: clamp(1rem, 2vh, 1.5rem);
-            color: var(--ink-light);
-            margin-top: clamp(8px, 1.5vh, 16px);
-            transform: rotate(1deg);
-        }
-        .slide-end .end-doodle {
-            margin-top: clamp(16px, 3vh, 36px);
-            font-size: clamp(1rem, 2vh, 1.5rem);
-            color: var(--ink-muted);
-            letter-spacing: 0.3em;
-        }
-
-        /* ── 进度条 ── */
-        .progress-bar {
-            position: fixed;
-            top: 0; left: 0;
-            height: clamp(3px, 0.4vh, 5px);
-            background: linear-gradient(90deg, var(--accent), var(--accent-2));
-            z-index: 100;
-            transition: width var(--dur) var(--ease);
-            border-radius: 0 2px 2px 0;
-        }
-
-        /* ── 页码 ── */
-        .page-counter {
-            position: fixed;
-            bottom: clamp(16px, 3vh, 36px);
-            right: clamp(20px, 3vw, 48px);
-            font-family: var(--font-hand);
-            font-size: clamp(0.9rem, 1.6vh, 1.2rem);
-            color: var(--pencil);
-            z-index: 100;
-        }
-
-        /* ── 弹跳动画 ── */
-        @keyframes bounce-in {
-            0% { transform: scale(0.8) rotate(-3deg); opacity: 0; }
-            60% { transform: scale(1.05) rotate(1deg); }
-            100% { transform: scale(1) rotate(0deg); opacity: 1; }
-        }
-        .slide.active .bounce { animation: bounce-in 0.5s var(--ease-bounce) both; }
-        .slide.active .bounce.bd1 { animation-delay: 0.1s; }
-        .slide.active .bounce.bd2 { animation-delay: 0.2s; }
-        .slide.active .bounce.bd3 { animation-delay: 0.3s; }
-        .slide.active .bounce.bd4 { animation-delay: 0.4s; }
-        .slide.active .bounce.bd5 { animation-delay: 0.5s; }
-        .slide.active .bounce.bd6 { animation-delay: 0.6s; }
-
-        /* ── 两列布局辅助 ── */
         .two-col {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: clamp(20px, 3vw, 44px);
+            gap: clamp(20px, 3.5vw, 44px);
             align-items: start;
+            width: 100%;
         }
-        .two-col .col-text { display: flex; flex-direction: column; gap: clamp(8px, 1.2vh, 16px); }
 
-        /* ── 响应式: 高度 ── */
+        /* ═══════════════════════════════
+           COMPARE
+           ═══════════════════════════════ */
+
+        .compare-wrap {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(16px, 3vw, 36px);
+            margin-top: var(--space-md);
+            width: 100%;
+        }
+
+        .compare-side {
+            padding: clamp(16px, 2.5vh, 28px) clamp(14px, 2vw, 24px);
+            border-radius: var(--radius-soft);
+            position: relative;
+        }
+
+        .compare-side.good {
+            background: var(--mint-soft);
+            border: 2px dashed var(--mint);
+            transform: rotate(-0.5deg);
+        }
+
+        .compare-side.bad {
+            background: var(--pink-soft);
+            border: 2px dashed var(--pink);
+            transform: rotate(0.5deg);
+        }
+
+        .compare-tag {
+            position: absolute;
+            top: clamp(-12px, -1.8vh, -8px);
+            left: clamp(12px, 2vw, 20px);
+            padding: clamp(2px, 0.3vh, 4px) clamp(10px, 1.5vw, 16px);
+            border-radius: var(--radius-round);
+            font-family: var(--font-display);
+            font-size: var(--fs-label);
+            color: white;
+        }
+
+        .good .compare-tag { background: #60b090; }
+        .bad .compare-tag { background: #d07080; }
+
+        .compare-side h4 {
+            font-family: var(--font-display);
+            font-size: clamp(1rem, 1.8vh, 1.4rem);
+            color: var(--ink);
+            margin-top: var(--space-sm);
+            margin-bottom: var(--space-sm);
+        }
+
+        .compare-side ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xs);
+        }
+
+        .compare-side ul li {
+            font-family: var(--font-hand);
+            font-size: clamp(0.9rem, 1.2vw, 1.1rem);
+            color: var(--ink-mid);
+            padding-left: clamp(14px, 2vw, 20px);
+            position: relative;
+        }
+
+        .good ul li::before { content: '~ '; color: var(--mint); font-weight: 700; position: absolute; left: 0; }
+        .bad ul li::before { content: 'x '; color: var(--pink); font-weight: 700; position: absolute; left: 0; }
+
+        /* ═══════════════════════════════
+           PROCESS STEPS
+           ═══════════════════════════════ */
+
+        .steps-flow {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 0.8vw, 10px);
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: var(--space-md);
+        }
+
+        .step-bubble {
+            background: var(--paper);
+            border: 2px dashed var(--ink-ghost);
+            border-radius: var(--radius-round);
+            padding: clamp(16px, 3vh, 32px) clamp(16px, 2.5vw, 28px);
+            text-align: center;
+            min-width: clamp(100px, 14vw, 150px);
+            transition: transform var(--dur-fast) var(--ease-out);
+        }
+
+        .step-bubble:hover { transform: scale(1.04); }
+
+        .step-bubble:nth-child(1) { border-color: var(--pink); }
+        .step-bubble:nth-child(3) { border-color: var(--mint); }
+        .step-bubble:nth-child(5) { border-color: var(--sky); }
+        .step-bubble:nth-child(7) { border-color: var(--peach); }
+        .step-bubble:nth-child(9) { border-color: var(--lavender); }
+
+        .step-bubble .step-icon { font-size: clamp(1.8rem, 3.5vh, 2.8rem); }
+        .step-bubble .step-name {
+            font-family: var(--font-display);
+            font-size: clamp(1rem, 1.8vh, 1.4rem);
+            color: var(--ink);
+            margin-top: var(--space-xs);
+        }
+        .step-bubble .step-desc {
+            font-family: var(--font-hand);
+            font-size: clamp(0.85rem, 1.1vw, 1rem);
+            color: var(--ink-dim);
+            margin-top: 2px;
+        }
+
+        .step-arrow {
+            font-family: var(--font-display);
+            font-size: clamp(1.4rem, 2.5vh, 2rem);
+            color: var(--ink-dim);
+            transform: rotate(-5deg);
+        }
+
+        /* ═══════════════════════════════
+           CHART BARS
+           ═══════════════════════════════ */
+
+        .chart-list {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(12px, 2vh, 20px);
+            margin-top: var(--space-md);
+            width: 100%;
+        }
+
+        .chart-row {
+            display: grid;
+            grid-template-columns: clamp(6rem, 11vw, 9rem) 1fr clamp(2.5rem, 4vw, 3.5rem);
+            gap: var(--space-sm);
+            align-items: center;
+        }
+
+        .chart-label {
+            font-family: var(--font-display);
+            font-size: var(--fs-small);
+            color: var(--ink);
+            text-align: right;
+        }
+
+        .chart-track {
+            height: clamp(12px, 1.8vh, 16px);
+            background: var(--ink-ghost);
+            border-radius: 100px;
+            overflow: hidden;
+            border: 1.5px dashed var(--ink-ghost);
+        }
+
+        .chart-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 100px;
+            transition: width 1s var(--ease-out);
+        }
+
+        .chart-fill-pink { background: linear-gradient(90deg, var(--pink-soft), var(--pink)); }
+        .chart-fill-mint { background: linear-gradient(90deg, var(--mint-soft), var(--mint)); }
+        .chart-fill-sky { background: linear-gradient(90deg, var(--sky-soft), var(--sky)); }
+        .chart-fill-butter { background: linear-gradient(90deg, var(--butter-soft), var(--butter)); }
+        .chart-fill-lavender { background: linear-gradient(90deg, var(--lavender-soft), var(--lavender)); }
+
+        .chart-val {
+            font-family: var(--font-display);
+            font-size: var(--fs-small);
+            color: var(--pink);
+            font-weight: 700;
+        }
+
+        /* ═══════════════════════════════
+           MATRIX / QUADRANT
+           ═══════════════════════════════ */
+
+        .matrix {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: clamp(10px, 1.5vw, 18px);
+            margin-top: var(--space-md);
+            width: 100%;
+            position: relative;
+        }
+
+        .matrix::before,
+        .matrix::after {
+            content: '';
+            position: absolute;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .matrix::before {
+            left: 50%; top: 8%; bottom: 8%;
+            width: 2px;
+            transform: translateX(-1px);
+            background: linear-gradient(to bottom, transparent, var(--ink-ghost) 20%, var(--ink-ghost) 80%, transparent);
+            border-left: 2px dashed var(--ink-ghost);
+        }
+
+        .matrix::after {
+            top: 50%; left: 8%; right: 8%;
+            height: 2px;
+            transform: translateY(-1px);
+            border-top: 2px dashed var(--ink-ghost);
+        }
+
+        .matrix-cell {
+            padding: clamp(12px, 2vh, 22px) clamp(12px, 1.8vw, 20px);
+            border-radius: var(--radius-soft);
+            transition: transform var(--dur-fast) var(--ease-out);
+        }
+
+        .matrix-cell:nth-child(1) { background: var(--pink-soft); }
+        .matrix-cell:nth-child(2) { background: var(--sky-soft); }
+        .matrix-cell:nth-child(3) { background: var(--butter-soft); }
+        .matrix-cell:nth-child(4) { background: var(--mint-soft); }
+
+        .matrix-cell:hover { transform: scale(1.02); }
+
+        .matrix-cell .cell-icon { font-size: clamp(1.3rem, 2.2vh, 1.8rem); margin-bottom: var(--space-xs); }
+        .matrix-cell .cell-title {
+            font-family: var(--font-display);
+            font-size: clamp(0.95rem, 1.6vh, 1.2rem);
+            color: var(--ink);
+            margin-bottom: var(--space-xs);
+        }
+        .matrix-cell .cell-desc {
+            font-family: var(--font-hand);
+            font-size: var(--fs-small);
+            color: var(--ink-mid);
+            line-height: 1.6;
+        }
+
+        /* ═══════════════════════════════
+           SPLIT DETAIL
+           ═══════════════════════════════ */
+
+        .split-detail {
+            display: grid;
+            grid-template-columns: 2fr 3fr;
+            gap: clamp(20px, 4vw, 40px);
+            margin-top: var(--space-md);
+            width: 100%;
+            align-items: center;
+        }
+
+        .split-visual {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: var(--space-md);
+            border: 3px dashed var(--pink);
+            border-radius: 50%;
+            aspect-ratio: 1;
+            justify-content: center;
+        }
+
+        .split-visual-icon { font-size: clamp(2rem, 4vw, 3.5rem); margin-bottom: var(--space-xs); }
+        .split-visual-num {
+            font-family: var(--font-display);
+            font-size: var(--fs-stat);
+            color: var(--pink);
+            line-height: 1;
+        }
+        .split-visual-label {
+            font-family: var(--font-hand);
+            font-size: var(--fs-label);
+            color: var(--ink-dim);
+            margin-top: var(--space-xs);
+        }
+
+        .split-info h3 {
+            font-family: var(--font-display);
+            font-size: clamp(1.1rem, 2vh, 1.5rem);
+            color: var(--ink);
+            margin-bottom: var(--space-sm);
+        }
+
+        .split-info-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+
+        .split-info-list li {
+            font-family: var(--font-hand);
+            font-size: var(--fs-body);
+            color: var(--ink-mid);
+            line-height: 1.7;
+            padding-left: clamp(18px, 2.5vw, 24px);
+            position: relative;
+            border-bottom: 1px dashed var(--ink-ghost);
+            padding-bottom: var(--space-sm);
+        }
+
+        .split-info-list li::before {
+            content: '\2661';
+            position: absolute;
+            left: 0;
+            top: 0;
+            color: var(--pink);
+            font-size: var(--fs-body);
+        }
+
+        /* ═══════════════════════════════
+           PROMPT CARDS (CORKBOARD)
+           ═══════════════════════════════ */
+
+        .prompt-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: clamp(10px, 1.5vw, 20px);
+            margin-top: var(--space-md);
+            width: 100%;
+        }
+
+        .prompt-card {
+            padding: clamp(12px, 2vh, 24px) clamp(10px, 1.5vw, 18px);
+            border-radius: var(--radius-soft);
+            position: relative;
+            box-shadow: 2px 2px 0 var(--ink-ghost);
+            transition: transform var(--dur-fast) var(--ease-out);
+        }
+
+        .prompt-card:nth-child(1) { background: #fff9c4; transform: rotate(-1.5deg); }
+        .prompt-card:nth-child(2) { background: #e8f5e9; transform: rotate(1deg); }
+        .prompt-card:nth-child(3) { background: #e3f2fd; transform: rotate(-0.5deg); }
+        .prompt-card:nth-child(4) { background: #fce4ec; transform: rotate(1.2deg); }
+        .prompt-card:nth-child(5) { background: #f3e5f5; transform: rotate(-0.8deg); }
+        .prompt-card:nth-child(6) { background: #fff3e0; transform: rotate(0.8deg); }
+
+        .prompt-card:hover { transform: rotate(0deg) scale(1.03); z-index: 2; }
+
+        .prompt-card .prompt-icon { font-size: clamp(1.2rem, 2.2vh, 1.8rem); margin-bottom: var(--space-xs); }
+        .prompt-card h4 {
+            font-family: var(--font-display);
+            font-size: clamp(1rem, 1.7vh, 1.3rem);
+            color: var(--ink);
+            margin-bottom: var(--space-xs);
+        }
+        .prompt-card p {
+            font-family: var(--font-hand);
+            font-size: clamp(0.85rem, 1.1vw, 1.05rem);
+            color: var(--ink-mid);
+            line-height: 1.5;
+        }
+
+        /* ═══════════════════════════════
+           QUOTE
+           ═══════════════════════════════ */
+
+        .slide-quote {
+            align-items: center;
+            text-align: center;
+        }
+
+        .quote-mark {
+            font-family: var(--font-display);
+            font-size: clamp(5rem, 12vh, 10rem);
+            color: var(--lavender-soft);
+            line-height: 0.5;
+        }
+
+        .quote-text {
+            font-family: var(--font-display);
+            font-size: var(--fs-quote);
+            color: var(--ink);
+            line-height: 1.5;
+            transform: rotate(-0.5deg);
+            max-width: 20em;
+        }
+
+        .quote-source {
+            font-family: var(--font-hand);
+            font-size: var(--fs-small);
+            color: var(--ink-dim);
+            margin-top: var(--space-md);
+        }
+
+        /* ═══════════════════════════════
+           STATEMENT
+           ═══════════════════════════════ */
+
+        .slide-statement {
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .statement-text {
+            font-family: var(--font-display);
+            font-size: clamp(2.5rem, 8vw, 7rem);
+            color: var(--ink);
+            line-height: 1.2;
+            transform: rotate(-1deg);
+        }
+
+        .statement-text .accent { color: var(--pink); }
+
+        .statement-sub {
+            font-family: var(--font-hand);
+            font-size: var(--fs-body);
+            color: var(--ink-mid);
+            margin-top: var(--space-md);
+            max-width: 36em;
+            line-height: 1.9;
+        }
+
+        /* ═══════════════════════════════
+           SUMMARY GRID
+           ═══════════════════════════════ */
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: clamp(10px, 1.5vw, 20px);
+            margin-top: var(--space-md);
+            width: 100%;
+        }
+
+        .summary-note {
+            padding: clamp(14px, 2vh, 24px) clamp(12px, 1.5vw, 18px);
+            position: relative;
+            box-shadow: 2px 2px 0 var(--ink-ghost);
+        }
+
+        .summary-note:nth-child(1) { background: #fff9c4; transform: rotate(-1deg); }
+        .summary-note:nth-child(2) { background: #fce4ec; transform: rotate(0.8deg); }
+        .summary-note:nth-child(3) { background: #e8f5e9; transform: rotate(-0.5deg); }
+        .summary-note:nth-child(4) { background: #e3f2fd; transform: rotate(1deg); }
+        .summary-note:nth-child(5) { background: #f3e5f5; transform: rotate(-0.8deg); }
+        .summary-note:nth-child(6) { background: #fff3e0; transform: rotate(1.2deg); }
+
+        .summary-note::before {
+            content: '';
+            position: absolute;
+            top: clamp(-8px, -1.2vh, -5px);
+            left: 50%;
+            transform: translateX(-50%) rotate(-3deg);
+            width: clamp(40px, 5vw, 60px);
+            height: clamp(14px, 2vh, 20px);
+            background: rgba(255, 255, 240, 0.6);
+            border: 1px solid rgba(200, 200, 180, 0.3);
+        }
+
+        .summary-note h4 {
+            font-family: var(--font-display);
+            font-size: clamp(0.9rem, 1.5vh, 1.1rem);
+            color: var(--ink);
+            margin-bottom: var(--space-xs);
+        }
+
+        .summary-note p {
+            font-family: var(--font-hand);
+            font-size: var(--fs-small);
+            color: var(--ink-mid);
+            line-height: 1.5;
+        }
+
+        /* ═══════════════════════════════
+           END SLIDE
+           ═══════════════════════════════ */
+
+        .slide-end {
+            align-items: center;
+            text-align: center;
+            background:
+                radial-gradient(ellipse 50% 40% at 50% 50%, var(--butter-soft) 0%, transparent 70%);
+        }
+
+        .end-emoji {
+            font-size: clamp(3rem, 7vh, 5.5rem);
+            margin-bottom: var(--space-sm);
+        }
+
+        .end-title {
+            font-family: var(--font-display);
+            font-size: clamp(2.2rem, 5.5vw, 4.5rem);
+            color: var(--ink);
+            transform: rotate(-1.5deg);
+        }
+
+        .end-sub {
+            font-family: var(--font-hand);
+            font-size: var(--fs-subtitle);
+            color: var(--ink-mid);
+            margin-top: var(--space-sm);
+            transform: rotate(0.5deg);
+        }
+
+        .end-deco {
+            margin-top: var(--space-md);
+            font-size: clamp(1rem, 2vh, 1.5rem);
+            letter-spacing: 0.4em;
+            color: var(--ink-dim);
+        }
+
+        /* ═══════════════════════════════
+           RESPONSIVE
+           ═══════════════════════════════ */
+
         @media (max-height: 750px) {
-            .slide { padding: clamp(24px, 5vh, 60px) clamp(32px, 7vw, 100px); }
-            .slide-cover h1 { font-size: clamp(2.2rem, 6vw, 4rem); }
-            .slide-chapter .chapter-num { font-size: clamp(3rem, 9vh, 6rem); }
-            .slide-title { font-size: clamp(1.5rem, 3.5vw, 2.4rem); }
-            .sketch-grid, .prompt-grid, .summary-grid { gap: clamp(8px, 1.2vw, 16px); }
-            .sketch-card, .prompt-card, .summary-sticky {
-                padding: clamp(10px, 1.8vh, 20px) clamp(10px, 1.4vw, 18px);
+            :root {
+                --pad-y: clamp(1.8rem, 4vh, 4rem);
+                --space-md: clamp(1rem, 2vw, 2rem);
             }
         }
 
         @media (max-height: 650px) {
-            .slide { padding: clamp(16px, 3vh, 40px) clamp(24px, 5vw, 80px); }
-            .slide-cover h1 { font-size: clamp(1.8rem, 5vw, 3rem); }
-            .slide-cover .cover-emoji { font-size: clamp(2rem, 4.5vh, 3.5rem); }
-            .slide-chapter .chapter-num { font-size: clamp(2.5rem, 7vh, 5rem); }
-            .slide-title { font-size: clamp(1.3rem, 3vw, 2rem); margin-bottom: clamp(8px, 1.5vh, 20px); }
-            .body-text { font-size: clamp(0.8rem, 1.4vh, 1rem); }
-            .notebook-list li { padding: clamp(6px, 1vh, 12px) 0; font-size: clamp(1rem, 1.8vh, 1.3rem); }
-            .checkbox-list li { font-size: clamp(0.95rem, 1.6vh, 1.2rem); }
-            .sketch-grid { grid-template-columns: repeat(3, 1fr); }
-            .prompt-grid { grid-template-columns: repeat(3, 1fr); }
-            .summary-grid { grid-template-columns: repeat(3, 1fr); }
-            .step-item { min-width: clamp(60px, 10vw, 100px); padding: clamp(8px, 1.4vh, 16px) clamp(8px, 1.2vw, 14px); }
-            .compare-col { padding: clamp(10px, 1.6vh, 20px) clamp(10px, 1.4vw, 18px); }
-            .sticky-note { padding: clamp(14px, 2vh, 28px) clamp(14px, 2vw, 24px); }
+            :root {
+                --pad-y: clamp(1rem, 2.5vh, 2rem);
+                --space-md: clamp(0.8rem, 1.5vw, 1.5rem);
+                --space-sm: clamp(0.4rem, 0.8vw, 0.8rem);
+                --fs-hero: clamp(2rem, 5vw, 4rem);
+                --fs-chapter: clamp(1.4rem, 3.5vw, 2.8rem);
+                --fs-title: clamp(1.2rem, 2.5vw, 2rem);
+                --fs-quote: clamp(1.1rem, 2.2vw, 2rem);
+            }
+            body::before { opacity: 0.25; }
         }
 
         @media (max-height: 500px) and (orientation: landscape) {
-            .slide { padding: clamp(10px, 2vh, 24px) clamp(32px, 6vw, 80px); flex-direction: row; gap: clamp(16px, 3vw, 32px); }
-            .slide-cover, .slide-chapter, .slide-end { flex-direction: column; }
-            .slide-cover h1 { font-size: clamp(1.5rem, 4vw, 2.5rem); }
-            .slide-chapter .chapter-num { font-size: clamp(2rem, 5vh, 4rem); }
-            .slide-title { font-size: clamp(1.1rem, 2.5vw, 1.6rem); }
-            .sketch-grid, .prompt-grid, .summary-grid {
-                grid-template-columns: repeat(3, 1fr);
-                gap: clamp(6px, 1vw, 12px);
+            :root {
+                --pad-y: clamp(0.5rem, 1.5vh, 1rem);
+                --pad-x: clamp(2rem, 6vw, 6vw);
+                --space-md: clamp(0.5rem, 1vw, 1rem);
+                --fs-hero: clamp(1.6rem, 4vw, 3rem);
+                --fs-chapter-num: clamp(4rem, 12vw, 10rem);
             }
-            .compare-row { gap: clamp(8px, 1.5vw, 20px); }
-            .process-steps { gap: clamp(4px, 0.8vw, 8px); }
-            .step-item .step-desc { display: none; }
+            body::before { display: none; }
+            .card-grid, .prompt-grid, .summary-grid { grid-template-columns: repeat(3, 1fr); gap: clamp(6px, 1vw, 12px); }
+            .step-bubble .step-desc { display: none; }
         }
 
-        /* ── 响应式: 宽度 ── */
         @media (max-width: 768px) {
-            .slide { padding: clamp(24px, 5vh, 60px) clamp(20px, 5vw, 40px); }
-            .sketch-grid, .prompt-grid { grid-template-columns: repeat(2, 1fr); }
+            .card-grid, .prompt-grid { grid-template-columns: repeat(2, 1fr); }
             .summary-grid { grid-template-columns: repeat(2, 1fr); }
-            .compare-row { grid-template-columns: 1fr; gap: clamp(12px, 2vh, 24px); }
+            .compare-wrap { grid-template-columns: 1fr; }
             .two-col { grid-template-columns: 1fr; }
-            .process-steps { flex-wrap: wrap; }
-            .step-arrow { font-size: clamp(1rem, 2vh, 1.5rem); }
-            .matrix-grid { grid-template-columns: 1fr; }
-            .matrix-grid::before, .matrix-grid::after { display: none; }
+            .matrix { grid-template-columns: 1fr; }
+            .matrix::before, .matrix::after { display: none; }
             .split-detail { grid-template-columns: 1fr; }
-            .chart-item { grid-template-columns: clamp(5rem, 10vw, 8rem) 1fr clamp(2.5rem, 4vw, 3.5rem); }
+            .steps-flow { gap: clamp(4px, 0.8vw, 8px); }
+            .chart-row { grid-template-columns: clamp(4.5rem, 9vw, 7rem) 1fr clamp(2.5rem, 4vw, 3.5rem); }
         }
 
-        /* ── 减少动效 ── */
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
                 transition-duration: 0.01ms !important;
+                animation-duration: 0.01ms !important;
             }
-            .slide { transition: none; }
-            .slide .reveal,
-            .notebook-list li,
-            .checkbox-list li {
+            .reveal, .reveal-scale, .reveal-left, .reveal-right {
                 opacity: 1 !important;
                 transform: none !important;
-                transition: none !important;
             }
         }
 
-        /* ── 全览模式 ── */
-        .ov-grid{position:fixed;inset:0;z-index:10000;background:rgba(10,10,15,.97);overflow:auto;padding:clamp(20px,3vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:clamp(10px,1.5vw,16px);align-content:start;opacity:0;transition:opacity .3s ease}
+        /* ═══════════════════════════════
+           OVERVIEW MODE
+           ═══════════════════════════════ */
+
+        .ov-grid{position:fixed;inset:0;z-index:10000;background:rgba(253,248,240,.97);overflow:auto;padding:clamp(20px,3vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:clamp(10px,1.5vw,16px);align-content:start;opacity:0;transition:opacity .3s ease}
         .ov-grid.ov-visible{opacity:1}
-        .ov-card{position:relative;aspect-ratio:16/10;overflow:hidden;border:2px solid rgba(255,255,255,.08);border-radius:8px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;background:var(--bg,#111);box-shadow:0 2px 8px rgba(0,0,0,.18)}
-        .ov-card:hover{border-color:rgba(100,160,255,.35);transform:scale(1.03);box-shadow:0 4px 16px rgba(0,0,0,.25)}
-        .ov-card.ov-current{border-color:rgba(100,170,255,.5);box-shadow:0 0 16px rgba(100,170,255,.12)}
+        .ov-card{position:relative;aspect-ratio:16/10;overflow:hidden;border:2px dashed rgba(61,44,44,.12);border-radius:12px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;background:var(--paper);box-shadow:2px 2px 8px rgba(61,44,44,.06)}
+        .ov-card:hover{border-color:var(--pink);transform:scale(1.03);box-shadow:3px 3px 12px rgba(61,44,44,.1)}
+        .ov-card.ov-current{border-color:var(--pink);box-shadow:0 0 0 3px var(--pink-soft)}
         .ov-inner{position:absolute;top:0;left:0;width:100vw;height:100vh;transform-origin:top left;pointer-events:none;overflow:hidden}
         .ov-inner *{transition:none !important;animation:none !important}
-        .ov-inner .reveal,.ov-inner .reveal-scale,.ov-inner .reveal-left,.ov-inner .reveal-right,.ov-inner .reveal-blur{opacity:1 !important;transform:none !important;filter:none !important}
-        .ov-num{position:absolute;top:6px;right:8px;font-size:12px;color:rgba(255,255,255,.5);background:rgba(0,0,0,.6);padding:2px 8px;border-radius:4px;z-index:2;font-family:system-ui,monospace}
-        .ov-close{position:fixed;top:16px;right:20px;z-index:10001;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
-        .ov-close:hover{background:rgba(255,255,255,.2)}
+        .ov-inner .reveal,.ov-inner .reveal-scale,.ov-inner .reveal-left,.ov-inner .reveal-right{opacity:1 !important;transform:none !important}
+        .ov-num{position:absolute;top:6px;right:8px;font-size:11px;color:var(--ink-mid);background:rgba(255,255,255,.8);padding:2px 8px;border-radius:10px;z-index:2;font-family:var(--font-display)}
+        .ov-close{position:fixed;top:16px;right:20px;z-index:10001;width:36px;height:36px;border-radius:50%;border:2px dashed var(--ink-ghost);background:white;color:var(--ink);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;box-shadow:2px 2px 6px rgba(61,44,44,.08)}
+        .ov-close:hover{background:var(--pink-soft)}
     </style>
 </head>
 <body>
 
-    <div class="doodle-float tl">✏️</div>
-    <div class="doodle-float tr">⭐</div>
-    <div class="doodle-float bl">📝</div>
-    <div class="doodle-float br">💡</div>
-    <div class="progress-bar" id="progressBar"></div>
-    <div class="page-counter" id="pageCounter">1 / 12</div>
+    <div class="doodle doodle-tl">🌸</div>
+    <div class="doodle doodle-tr">✨</div>
+    <div class="doodle doodle-bl">🎀</div>
+    <div class="doodle doodle-br">🌿</div>
 
-    <div class="presentation">
+    <div class="progress-wrap"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="page-num" id="pageNum">1 / 17</div>
 
-        <!-- S1: 封面 -->
-        <section class="slide slide-cover active">
-            <div class="cover-emoji reveal d1">✏️</div>
-            <h1 class="reveal d2">创意写作入门</h1>
-            <div class="wavy-line reveal d3">
-                <svg viewBox="0 0 200 8" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-                    <path d="M0,4 Q25,0 50,4 T100,4 T150,4 T200,4" stroke="#d4956a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-                </svg>
-            </div>
-            <p class="subtitle reveal d4">释放你的文字力量 🌟</p>
-            <p class="author reveal d5">用文字描绘世界的无限可能</p>
-        </section>
+    <!-- ══════ S1: COVER ══════ -->
+    <section class="slide slide-cover active">
+        <div class="cover-stickers reveal delay-1">
+            <span class="sticker sticker-pink">✏️ 写作</span>
+            <span class="sticker sticker-mint">🌱 成长</span>
+            <span class="sticker sticker-sky">💡 创意</span>
+        </div>
+        <h1 class="cover-title reveal delay-2">创意写作入门</h1>
+        <div class="washi washi-pink reveal delay-3"><span>~ 释放你的文字力量 ~</span></div>
+        <p class="cover-sub reveal delay-4">用文字描绘世界的无限可能</p>
+        <p class="cover-deco reveal delay-5">✿ ✧ ♡ ✧ ✿</p>
+    </section>
 
-        <!-- S2: 议程 -->
-        <section class="slide">
-            <span class="slide-label reveal d1">📝 今日议程</span>
-            <h2 class="slide-title reveal d2">我们将一起探索……</h2>
-            <ul class="notebook-list">
-                <li><span class="check">☑</span> 什么是创意写作？</li>
-                <li><span class="check">☐</span> 写作的核心要素</li>
-                <li><span class="check">☐</span> 好文章 vs 平庸文章</li>
-                <li><span class="check">☐</span> 创作流程与技巧</li>
-                <li><span class="check">☐</span> 动手练习：创意提示</li>
-                <li><span class="check">☐</span> 总结与行动指南</li>
-            </ul>
-        </section>
+    <!-- ══════ S2: AGENDA ══════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-1">我们将一起探索……</h2>
+        <ul class="notebook-list">
+            <li class="reveal delay-1"><span class="item-num">1</span> 什么是创意写作？</li>
+            <li class="reveal delay-2"><span class="item-num">2</span> 写作的核心要素</li>
+            <li class="reveal delay-3"><span class="item-num">3</span> 好文章 vs 平庸文章</li>
+            <li class="reveal delay-4"><span class="item-num">4</span> 创作流程与技巧</li>
+            <li class="reveal delay-5"><span class="item-num">5</span> 动手练习：创意提示</li>
+            <li class="reveal delay-6"><span class="item-num">6</span> 总结与行动指南</li>
+        </ul>
+    </section>
 
-        <!-- S3: 章节过渡 — 认识创意写作 -->
-        <section class="slide slide-chapter">
-            <div class="chapter-num reveal d1">01</div>
-            <h2 class="reveal d2">认识创意写作</h2>
-            <div class="chapter-emoji reveal d3">📖</div>
-            <div class="squiggle reveal d4">
-                <svg viewBox="0 0 100 20" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-                    <path d="M0,10 Q25,2 50,10 T100,10" stroke="#6ba3b5" stroke-width="2" fill="none" stroke-linecap="round"/>
-                </svg>
-            </div>
-        </section>
+    <!-- ══════ S3: CHAPTER 01 ══════ -->
+    <section class="slide slide-chapter">
+        <div class="chapter-num reveal-scale delay-1">01</div>
+        <h2 class="chapter-title reveal delay-2">认识创意写作</h2>
+        <div class="chapter-deco reveal delay-3">📖 ✿</div>
+    </section>
 
-        <!-- S4: 定义（便签） -->
-        <section class="slide" style="align-items: center;">
-            <span class="slide-label reveal d1">💡 核心概念</span>
-            <h2 class="slide-title reveal d2" style="text-align: center;">
-                什么是<span class="wavy-underline">创意写作</span>？
-            </h2>
-            <div class="sticky-note reveal d3" style="margin: 0 auto;">
-                <h3>📌 简单来说……</h3>
-                <p>创意写作是运用想象力和创造力，<br>通过文字表达思想、情感和故事的艺术。</p>
-                <p style="margin-top: clamp(8px, 1.2vh, 14px); font-weight: 600; color: var(--accent);">
-                    它不仅仅是"写东西"，<br>而是用文字创造一个世界 🌍
-                </p>
-            </div>
-            <p class="body-text reveal d4" style="text-align: center; margin-top: clamp(12px, 2vh, 24px);">
-                包括小说、诗歌、散文、剧本、创意非虚构……形式无限！
+    <!-- ══════ S4: DEFINITION ══════ -->
+    <section class="slide" style="align-items: center;">
+        <h2 class="title-main reveal delay-2" style="text-align: center;">
+            什么是<span class="underline-doodle">创意写作</span>？
+        </h2>
+        <div class="sticky sticky-yellow reveal delay-3" style="margin: 0 auto; max-width: 36em; position: relative;">
+            <div class="tape tape-center"></div>
+            <h3>简单来说……</h3>
+            <p>创意写作是运用想象力和创造力，通过文字表达思想、情感和故事的艺术。</p>
+            <p style="margin-top: var(--space-sm); color: var(--pink); font-family: var(--font-display);">
+                它不仅仅是"写东西"，而是用文字创造一个世界 ♡
             </p>
-        </section>
+        </div>
+        <p class="body-text reveal delay-4" style="text-align: center; margin-top: var(--space-md);">
+            包括小说、诗歌、散文、剧本、创意非虚构……形式无限！
+        </p>
+    </section>
 
-        <!-- S5: 写作小贴士（复选框） -->
-        <section class="slide">
-            <span class="slide-label reveal d1">✅ 写作小贴士</span>
-            <h2 class="slide-title reveal d2">成为好作者的<span class="wavy-underline">六个习惯</span></h2>
-            <div class="two-col">
-                <ul class="checkbox-list">
-                    <li>
-                        <span class="cb">☑</span>
-                        <div>每天坚持写作<span class="tip">哪怕只写 200 字，积少成多</span></div>
-                    </li>
-                    <li>
-                        <span class="cb">☑</span>
-                        <div>广泛阅读<span class="tip">好的输出离不开大量输入</span></div>
-                    </li>
-                    <li>
-                        <span class="cb">☐</span>
-                        <div>观察生活细节<span class="tip">灵感藏在日常的角落里</span></div>
-                    </li>
+    <!-- ══════ S5: CHECKLIST ══════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">成为好作者的<span class="underline-doodle">六个习惯</span></h2>
+        <div class="two-col">
+            <ul class="check-list">
+                <li class="reveal delay-1">
+                    <span class="cb checked">~</span>
+                    <div>每天坚持写作<span class="tip">哪怕只写 200 字，积少成多</span></div>
+                </li>
+                <li class="reveal delay-2">
+                    <span class="cb checked">~</span>
+                    <div>广泛阅读<span class="tip">好的输出离不开大量输入</span></div>
+                </li>
+                <li class="reveal delay-3">
+                    <span class="cb"></span>
+                    <div>观察生活细节<span class="tip">灵感藏在日常的角落里</span></div>
+                </li>
+            </ul>
+            <ul class="check-list">
+                <li class="reveal delay-3">
+                    <span class="cb"></span>
+                    <div>勇敢写下第一稿<span class="tip">完美是修改出来的，不是写出来的</span></div>
+                </li>
+                <li class="reveal delay-4">
+                    <span class="cb"></span>
+                    <div>接受反馈与修改<span class="tip">好文章是改出来的</span></div>
+                </li>
+                <li class="reveal delay-5">
+                    <span class="cb"></span>
+                    <div>保持好奇心<span class="tip">对世界始终保持"为什么"的追问</span></div>
+                </li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- ══════ S6: CHAPTER 02 ══════ -->
+    <section class="slide slide-chapter" style="background: radial-gradient(ellipse 60% 50% at 50% 50%, var(--mint-soft) 0%, transparent 70%);">
+        <div class="chapter-num reveal-scale delay-1" style="color: var(--mint-soft);">02</div>
+        <h2 class="chapter-title reveal delay-2">故事的核心要素</h2>
+        <div class="chapter-deco reveal delay-3">🧩 ✧</div>
+    </section>
+
+    <!-- ══════ S7: CARD GRID ══════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">一个好故事需要什么？</h2>
+        <div class="card-grid">
+            <div class="index-card reveal delay-1">
+                <div class="card-icon">👤</div>
+                <h4>人物</h4>
+                <p>有血有肉的角色让读者产生共鸣，是故事的灵魂所在</p>
+            </div>
+            <div class="index-card reveal delay-2">
+                <div class="card-icon">🌍</div>
+                <h4>场景</h4>
+                <p>时间、地点和氛围构成故事发生的舞台背景</p>
+            </div>
+            <div class="index-card reveal delay-3">
+                <div class="card-icon">⚡</div>
+                <h4>冲突</h4>
+                <p>没有矛盾就没有故事，冲突推动情节向前发展</p>
+            </div>
+            <div class="index-card reveal delay-3">
+                <div class="card-icon">📈</div>
+                <h4>情节</h4>
+                <p>起承转合的叙事结构，引导读者走完整个旅程</p>
+            </div>
+            <div class="index-card reveal delay-4">
+                <div class="card-icon">🎨</div>
+                <h4>主题</h4>
+                <p>故事想要传达的核心思想，是作品的精神内核</p>
+            </div>
+            <div class="index-card reveal delay-5">
+                <div class="card-icon">🗣️</div>
+                <h4>叙述视角</h4>
+                <p>第一人称、第三人称……视角决定了读者看世界的方式</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════ S8: CHART ══════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">创意写作核心能力评估</h2>
+        <div class="chart-list">
+            <div class="chart-row reveal delay-1">
+                <div class="chart-label">✏️ 叙事能力</div>
+                <div class="chart-track"><div class="chart-fill chart-fill-pink" data-percent="82"></div></div>
+                <div class="chart-val">82%</div>
+            </div>
+            <div class="chart-row reveal delay-2">
+                <div class="chart-label">👤 人物塑造</div>
+                <div class="chart-track"><div class="chart-fill chart-fill-sky" data-percent="68"></div></div>
+                <div class="chart-val" style="color: var(--sky);">68%</div>
+            </div>
+            <div class="chart-row reveal delay-3">
+                <div class="chart-label">🌍 场景描写</div>
+                <div class="chart-track"><div class="chart-fill chart-fill-mint" data-percent="75"></div></div>
+                <div class="chart-val" style="color: var(--mint);">75%</div>
+            </div>
+            <div class="chart-row reveal delay-4">
+                <div class="chart-label">💬 对话功力</div>
+                <div class="chart-track"><div class="chart-fill chart-fill-lavender" data-percent="58"></div></div>
+                <div class="chart-val" style="color: var(--lavender);">58%</div>
+            </div>
+            <div class="chart-row reveal delay-5">
+                <div class="chart-label">🔍 修改润色</div>
+                <div class="chart-track"><div class="chart-fill chart-fill-butter" data-percent="90"></div></div>
+                <div class="chart-val" style="color: #b09030;">90%</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ══════ S9: COMPARE ══════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">好文章 vs 平庸文章</h2>
+        <div class="compare-wrap">
+            <div class="compare-side good reveal delay-3">
+                <span class="compare-tag">✨ 好文章</span>
+                <h4>有灵魂、有温度</h4>
+                <ul>
+                    <li>用具体细节代替抽象描述</li>
+                    <li>"展示"而非"告诉"读者</li>
+                    <li>人物有独特的声音和个性</li>
+                    <li>每个段落都有存在的理由</li>
+                    <li>结尾让人回味无穷</li>
                 </ul>
-                <ul class="checkbox-list">
-                    <li>
-                        <span class="cb">☐</span>
-                        <div>勇敢写下第一稿<span class="tip">完美是修改出来的，不是写出来的</span></div>
-                    </li>
-                    <li>
-                        <span class="cb">☐</span>
-                        <div>接受反馈与修改<span class="tip">好文章是改出来的</span></div>
-                    </li>
-                    <li>
-                        <span class="cb">☐</span>
-                        <div>保持好奇心<span class="tip">对世界始终保持"为什么"的追问</span></div>
-                    </li>
+            </div>
+            <div class="compare-side bad reveal delay-4">
+                <span class="compare-tag">💤 平庸文章</span>
+                <h4>缺乏生命力</h4>
+                <ul>
+                    <li>充斥着陈词滥调和空洞描述</li>
+                    <li>直接"告诉"读者应该怎么感受</li>
+                    <li>所有角色说话方式一模一样</li>
+                    <li>大量无关的信息堆砌</li>
+                    <li>结尾草草收场或过于刻意</li>
                 </ul>
             </div>
-        </section>
+        </div>
+    </section>
 
-        <!-- S6: 章节过渡 — 故事的要素 -->
-        <section class="slide slide-chapter">
-            <div class="chapter-num reveal d1">02</div>
-            <h2 class="reveal d2">故事的核心要素</h2>
-            <div class="chapter-emoji reveal d3">🧩</div>
-            <div class="squiggle reveal d4">
-                <svg viewBox="0 0 100 20" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-                    <path d="M0,10 Q25,2 50,10 T100,10" stroke="#d4956a" stroke-width="2" fill="none" stroke-linecap="round"/>
-                </svg>
-            </div>
-        </section>
+    <!-- ══════ S10: STATEMENT ══════ -->
+    <section class="slide slide-statement">
+        <div class="statement-text reveal delay-2">
+            先写完<br><span class="accent">再写好</span>
+        </div>
+        <p class="statement-sub reveal delay-3">完美主义是创意写作最大的敌人。第一稿的使命不是完美，而是存在。修改才是真正的写作。</p>
+    </section>
 
-        <!-- S7: 故事要素卡片 -->
-        <section class="slide">
-            <span class="slide-label reveal d1">🧩 构建你的故事</span>
-            <h2 class="slide-title reveal d2">一个好故事需要什么？</h2>
-            <div class="sketch-grid">
-                <div class="sketch-card bounce bd1">
-                    <div class="card-emoji">👤</div>
-                    <h4>人物</h4>
-                    <p>有血有肉的角色让读者产生共鸣，是故事的灵魂所在</p>
-                </div>
-                <div class="sketch-card bounce bd2">
-                    <div class="card-emoji">🌍</div>
-                    <h4>场景</h4>
-                    <p>时间、地点和氛围构成故事发生的舞台背景</p>
-                </div>
-                <div class="sketch-card bounce bd3">
-                    <div class="card-emoji">⚡</div>
-                    <h4>冲突</h4>
-                    <p>没有矛盾就没有故事，冲突推动情节向前发展</p>
-                </div>
-                <div class="sketch-card bounce bd4">
-                    <div class="card-emoji">📈</div>
-                    <h4>情节</h4>
-                    <p>起承转合的叙事结构，引导读者走完整个旅程</p>
-                </div>
-                <div class="sketch-card bounce bd5">
-                    <div class="card-emoji">🎨</div>
-                    <h4>主题</h4>
-                    <p>故事想要传达的核心思想，是作品的精神内核</p>
-                </div>
-                <div class="sketch-card bounce bd6">
-                    <div class="card-emoji">🗣️</div>
-                    <h4>叙述视角</h4>
-                    <p>第一人称、第三人称……视角决定了读者看世界的方式</p>
-                </div>
+    <!-- ══════ S11: PROCESS FLOW ══════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2" style="text-align: center;">从灵感到成品的<span class="underline-doodle">五个步骤</span></h2>
+        <div class="steps-flow">
+            <div class="step-bubble reveal delay-1">
+                <div class="step-icon">💡</div>
+                <div class="step-name">灵感收集</div>
+                <div class="step-desc">随时记录想法</div>
             </div>
-        </section>
+            <div class="step-arrow reveal delay-2">~></div>
+            <div class="step-bubble reveal delay-2">
+                <div class="step-icon">📋</div>
+                <div class="step-name">大纲规划</div>
+                <div class="step-desc">梳理故事骨架</div>
+            </div>
+            <div class="step-arrow reveal delay-3">~></div>
+            <div class="step-bubble reveal delay-3">
+                <div class="step-icon">✍️</div>
+                <div class="step-name">初稿写作</div>
+                <div class="step-desc">先完成再完美</div>
+            </div>
+            <div class="step-arrow reveal delay-4">~></div>
+            <div class="step-bubble reveal delay-4">
+                <div class="step-icon">🔍</div>
+                <div class="step-name">修改润色</div>
+                <div class="step-desc">打磨每个细节</div>
+            </div>
+            <div class="step-arrow reveal delay-5">~></div>
+            <div class="step-bubble reveal delay-5">
+                <div class="step-icon">🎉</div>
+                <div class="step-name">分享发布</div>
+                <div class="step-desc">让文字遇见读者</div>
+            </div>
+        </div>
+    </section>
 
-        <!-- S: 图表/进度条 -->
-        <section class="slide">
-            <span class="slide-label reveal d1">📊 写作技能雷达</span>
-            <h2 class="slide-title reveal d2">创意写作核心能力评估</h2>
-            <div class="chart-list">
-                <div class="chart-item reveal d1">
-                    <div class="chart-label">✏️ 叙事能力</div>
-                    <div class="chart-bar"><div class="chart-fill" data-percent="82"></div></div>
-                    <div class="chart-value">82%</div>
-                </div>
-                <div class="chart-item reveal d2">
-                    <div class="chart-label">👤 人物塑造</div>
-                    <div class="chart-bar"><div class="chart-fill blue" data-percent="68"></div></div>
-                    <div class="chart-value" style="color: var(--accent-2);">68%</div>
-                </div>
-                <div class="chart-item reveal d3">
-                    <div class="chart-label">🌍 场景描写</div>
-                    <div class="chart-bar"><div class="chart-fill" data-percent="75"></div></div>
-                    <div class="chart-value">75%</div>
-                </div>
-                <div class="chart-item reveal d4">
-                    <div class="chart-label">💬 对话功力</div>
-                    <div class="chart-bar"><div class="chart-fill blue" data-percent="58"></div></div>
-                    <div class="chart-value" style="color: var(--accent-2);">58%</div>
-                </div>
-                <div class="chart-item reveal d5">
-                    <div class="chart-label">🔍 修改润色</div>
-                    <div class="chart-bar"><div class="chart-fill" data-percent="90"></div></div>
-                    <div class="chart-value">90%</div>
-                </div>
+    <!-- ══════ S12: SPLIT DETAIL ══════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">"展示，别告诉"原则</h2>
+        <div class="split-detail">
+            <div class="split-visual reveal-left delay-3">
+                <div class="split-visual-icon">👁️</div>
+                <div class="split-visual-num">Show</div>
+                <div class="split-visual-label">Don't Tell</div>
             </div>
-        </section>
+            <div class="split-info reveal-right delay-4">
+                <h3>让读者自己感受，而非直接陈述</h3>
+                <ul class="split-info-list">
+                    <li>用感官细节（视觉、听觉、触觉）代替形容词堆砌</li>
+                    <li>通过人物的动作和对话展现性格，而非旁白解释</li>
+                    <li>让场景的氛围自然流露情绪，不要直接告诉读者该怎么感觉</li>
+                    <li>例：不说"她很伤心"，而写"她用指甲抠着杯壁上的图案"</li>
+                </ul>
+            </div>
+        </div>
+    </section>
 
-        <!-- S8: 对比 — 好文章 vs 平庸文章 -->
-        <section class="slide">
-            <span class="slide-label reveal d1">⚖️ 写作对比</span>
-            <h2 class="slide-title reveal d2">好文章 vs 平庸文章</h2>
-            <div class="compare-row">
-                <div class="compare-col good reveal d3">
-                    <span class="col-tag">✨ 好文章</span>
-                    <h4>有灵魂、有温度</h4>
-                    <ul>
-                        <li>用具体细节代替抽象描述</li>
-                        <li>"展示"而非"告诉"读者</li>
-                        <li>人物有独特的声音和个性</li>
-                        <li>每个段落都有存在的理由</li>
-                        <li>结尾让人回味无穷</li>
-                    </ul>
-                </div>
-                <div class="compare-col bad reveal d4">
-                    <span class="col-tag">😐 平庸文章</span>
-                    <h4>缺乏生命力</h4>
-                    <ul>
-                        <li>充斥着陈词滥调和空洞描述</li>
-                        <li>直接"告诉"读者应该怎么感受</li>
-                        <li>所有角色说话方式一模一样</li>
-                        <li>大量无关的信息堆砌</li>
-                        <li>结尾草草收场或过于刻意</li>
-                    </ul>
-                </div>
+    <!-- ══════ S13: PROMPT CARDS ══════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">创意写作提示卡</h2>
+        <div class="prompt-grid">
+            <div class="prompt-card reveal delay-1">
+                <div class="prompt-icon">🚪</div>
+                <h4>神秘的门</h4>
+                <p>你发现了一扇从未见过的门，打开它之后……</p>
             </div>
-        </section>
+            <div class="prompt-card reveal delay-2">
+                <div class="prompt-icon">✉️</div>
+                <h4>未寄出的信</h4>
+                <p>在旧书里发现了一封写于三十年前的信</p>
+            </div>
+            <div class="prompt-card reveal delay-3">
+                <div class="prompt-icon">🌧️</div>
+                <h4>雨中的陌生人</h4>
+                <p>暴雨中，一个陌生人递给你一把伞，说了一句奇怪的话</p>
+            </div>
+            <div class="prompt-card reveal delay-3">
+                <div class="prompt-icon">⏰</div>
+                <h4>时间倒流</h4>
+                <p>如果可以回到过去改变一件事，你会选择什么？</p>
+            </div>
+            <div class="prompt-card reveal delay-4">
+                <div class="prompt-icon">🏠</div>
+                <h4>老房子的秘密</h4>
+                <p>搬进新家后，你在墙壁里发现了一个隐藏的房间</p>
+            </div>
+            <div class="prompt-card reveal delay-5">
+                <div class="prompt-icon">🌌</div>
+                <h4>最后一个地球人</h4>
+                <p>你是地球上最后一个人，突然听到了敲门声</p>
+            </div>
+        </div>
+    </section>
 
-        <!-- S: 大字声明 -->
-        <section class="slide slide-statement">
-            <span class="slide-label reveal d1">💡 核心理念</span>
-            <div class="statement-text reveal d2">
-                先写完<br><span class="accent">再写好</span>
+    <!-- ══════ S14: MATRIX ══════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">四种叙事风格象限</h2>
+        <div class="matrix">
+            <div class="matrix-cell reveal delay-1">
+                <div class="cell-icon">🔥</div>
+                <div class="cell-title">热烈抒情型</div>
+                <div class="cell-desc">情感充沛、语言华丽，适合诗歌和散文</div>
             </div>
-            <p class="statement-sub reveal d3">完美主义是创意写作最大的敌人。第一稿的使命不是完美，而是存在。修改才是真正的写作。</p>
-        </section>
+            <div class="matrix-cell reveal delay-2">
+                <div class="cell-icon">🧊</div>
+                <div class="cell-title">冷静克制型</div>
+                <div class="cell-desc">海明威式极简，用最少的字表达最多的意思</div>
+            </div>
+            <div class="matrix-cell reveal delay-3">
+                <div class="cell-icon">😂</div>
+                <div class="cell-title">幽默讽刺型</div>
+                <div class="cell-desc">以轻松笔触揭示深刻真相，引人思考</div>
+            </div>
+            <div class="matrix-cell reveal delay-4">
+                <div class="cell-icon">🔮</div>
+                <div class="cell-title">魔幻实验型</div>
+                <div class="cell-desc">打破叙事常规，意识流或非线性结构</div>
+            </div>
+        </div>
+    </section>
 
-        <!-- S9: 创作流程 -->
-        <section class="slide">
-            <span class="slide-label reveal d1">🔄 创作流程</span>
-            <h2 class="slide-title reveal d2" style="text-align: center;">从灵感到成品的<span class="wavy-underline">五个步骤</span></h2>
-            <div class="process-steps">
-                <div class="step-item bounce bd1">
-                    <div class="step-emoji">💡</div>
-                    <div class="step-label">灵感收集</div>
-                    <div class="step-desc">随时记录想法</div>
-                </div>
-                <div class="step-arrow bounce bd2">➜</div>
-                <div class="step-item bounce bd2">
-                    <div class="step-emoji">📋</div>
-                    <div class="step-label">大纲规划</div>
-                    <div class="step-desc">梳理故事骨架</div>
-                </div>
-                <div class="step-arrow bounce bd3">➜</div>
-                <div class="step-item bounce bd3">
-                    <div class="step-emoji">✍️</div>
-                    <div class="step-label">初稿写作</div>
-                    <div class="step-desc">先完成再完美</div>
-                </div>
-                <div class="step-arrow bounce bd4">➜</div>
-                <div class="step-item bounce bd4">
-                    <div class="step-emoji">🔍</div>
-                    <div class="step-label">修改润色</div>
-                    <div class="step-desc">打磨每个细节</div>
-                </div>
-                <div class="step-arrow bounce bd5">➜</div>
-                <div class="step-item bounce bd5">
-                    <div class="step-emoji">🎉</div>
-                    <div class="step-label">分享发布</div>
-                    <div class="step-desc">让文字遇见读者</div>
-                </div>
+    <!-- ══════ S15: QUOTE ══════ -->
+    <section class="slide slide-quote">
+        <div class="quote-mark reveal delay-1">"</div>
+        <blockquote class="quote-text reveal delay-2">
+            写作是把网撒向大海，<br>
+            然后看看你能捞起什么。
+        </blockquote>
+        <p class="quote-source reveal delay-3">—— 纳塔莉·戈德堡《写出我心》</p>
+        <div class="reveal delay-4" style="margin-top: var(--space-lg);">
+            <div class="sticky sticky-sky" style="margin: 0 auto; max-width: 28em; text-align: center; position: relative;">
+                <div class="tape tape-center"></div>
+                <p style="color: var(--ink); font-family: var(--font-display);">✨ 记住：每个伟大的作家，都曾是一个害怕动笔的初学者。</p>
             </div>
-        </section>
+        </div>
+    </section>
 
-        <!-- S: 双栏详情 -->
-        <section class="slide">
-            <span class="slide-label reveal d1">📝 深入学习</span>
-            <h2 class="slide-title reveal d2">"展示，别告诉"原则</h2>
-            <div class="split-detail">
-                <div class="split-visual reveal-left d3">
-                    <div class="split-visual-icon">👁️</div>
-                    <div class="split-visual-num">Show</div>
-                    <div class="split-visual-label">Don't Tell</div>
-                </div>
-                <div class="split-info reveal-right d4">
-                    <h3>让读者自己感受，而非直接陈述</h3>
-                    <ul class="split-info-list">
-                        <li>用感官细节（视觉、听觉、触觉）代替形容词堆砌</li>
-                        <li>通过人物的动作和对话展现性格，而非旁白解释</li>
-                        <li>让场景的氛围自然流露情绪，不要直接告诉读者该怎么感觉</li>
-                        <li>例：不说"她很伤心"，而写"她用指甲抠着杯壁上的图案"</li>
-                    </ul>
-                </div>
+    <!-- ══════ S16: SUMMARY ══════ -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-2">今天我们学到了……</h2>
+        <div class="summary-grid">
+            <div class="summary-note reveal delay-1">
+                <h4>📖 创意写作是什么</h4>
+                <p>运用想象力和创造力，通过文字表达内心世界</p>
             </div>
-        </section>
+            <div class="summary-note reveal delay-2">
+                <h4>🧩 故事六要素</h4>
+                <p>人物、场景、冲突、情节、主题、叙述视角</p>
+            </div>
+            <div class="summary-note reveal delay-3">
+                <h4>✅ 六个好习惯</h4>
+                <p>每日写作、广泛阅读、观察生活、勇敢动笔、接受反馈、保持好奇</p>
+            </div>
+            <div class="summary-note reveal delay-3">
+                <h4>⚖️ 好文章的标准</h4>
+                <p>具体、生动、有细节，"展示"而非"告诉"</p>
+            </div>
+            <div class="summary-note reveal delay-4">
+                <h4>🔄 五步创作法</h4>
+                <p>灵感 → 大纲 → 初稿 → 修改 → 分享</p>
+            </div>
+            <div class="summary-note reveal delay-5">
+                <h4>🎲 动手实践</h4>
+                <p>用今天的创意提示卡，立刻开始你的第一个故事！</p>
+            </div>
+        </div>
+    </section>
 
-        <!-- S10: 创意提示 -->
-        <section class="slide">
-            <span class="slide-label reveal d1">🎲 动手试试</span>
-            <h2 class="slide-title reveal d2">创意写作提示卡</h2>
-            <div class="prompt-grid">
-                <div class="prompt-card bounce bd1">
-                    <div class="prompt-emoji">🚪</div>
-                    <h4>神秘的门</h4>
-                    <p>你发现了一扇从未见过的门，打开它之后……</p>
-                </div>
-                <div class="prompt-card bounce bd2">
-                    <div class="prompt-emoji">✉️</div>
-                    <h4>未寄出的信</h4>
-                    <p>在旧书里发现了一封写于三十年前的信</p>
-                </div>
-                <div class="prompt-card bounce bd3">
-                    <div class="prompt-emoji">🌧️</div>
-                    <h4>雨中的陌生人</h4>
-                    <p>暴雨中，一个陌生人递给你一把伞，说了一句奇怪的话</p>
-                </div>
-                <div class="prompt-card bounce bd4">
-                    <div class="prompt-emoji">⏰</div>
-                    <h4>时间倒流</h4>
-                    <p>如果可以回到过去改变一件事，你会选择什么？</p>
-                </div>
-                <div class="prompt-card bounce bd5">
-                    <div class="prompt-emoji">🏠</div>
-                    <h4>老房子的秘密</h4>
-                    <p>搬进新家后，你在墙壁里发现了一个隐藏的房间</p>
-                </div>
-                <div class="prompt-card bounce bd6">
-                    <div class="prompt-emoji">🌌</div>
-                    <h4>最后一个地球人</h4>
-                    <p>你是地球上最后一个人，突然听到了敲门声</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- S: 矩阵/象限 -->
-        <section class="slide">
-            <span class="slide-label reveal d1">🎯 写作风格</span>
-            <h2 class="slide-title reveal d2">四种叙事风格象限</h2>
-            <div class="matrix-grid">
-                <div class="matrix-cell reveal d1">
-                    <div class="cell-icon">🔥</div>
-                    <div class="cell-title">热烈抒情型</div>
-                    <div class="cell-desc">情感充沛、语言华丽，适合诗歌和散文</div>
-                </div>
-                <div class="matrix-cell reveal d2">
-                    <div class="cell-icon">🧊</div>
-                    <div class="cell-title">冷静克制型</div>
-                    <div class="cell-desc">海明威式极简，用最少的字表达最多的意思</div>
-                </div>
-                <div class="matrix-cell reveal d3">
-                    <div class="cell-icon">😂</div>
-                    <div class="cell-title">幽默讽刺型</div>
-                    <div class="cell-desc">以轻松笔触揭示深刻真相，引人思考</div>
-                </div>
-                <div class="matrix-cell reveal d4">
-                    <div class="cell-icon">🔮</div>
-                    <div class="cell-title">魔幻实验型</div>
-                    <div class="cell-desc">打破叙事常规，意识流或非线性结构</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- S11: 引用 -->
-        <section class="slide" style="align-items: center;">
-            <div class="quote-block reveal d1">
-                <span class="quote-mark">"</span>
-                <blockquote>
-                    写作是把网撒向大海，<br>
-                    然后看看你能捞起什么。
-                </blockquote>
-            </div>
-            <div class="reveal d2">
-                <span class="quote-block">
-                    <span class="quote-author">—— 纳塔莉·戈德堡《写出我心》</span>
-                </span>
-            </div>
-            <div class="reveal d3" style="margin-top: clamp(20px, 4vh, 40px);">
-                <div class="sticky-note blue" style="margin: 0 auto; text-align: center; max-width: clamp(260px, 40vw, 400px);">
-                    <p style="font-weight: 600; color: var(--ink);">✨ 记住：每个伟大的作家，都曾是一个害怕动笔的初学者。</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- S12: 总结 -->
-        <section class="slide">
-            <span class="slide-label reveal d1">📋 课程总结</span>
-            <h2 class="slide-title reveal d2">今天我们学到了……</h2>
-            <div class="summary-grid">
-                <div class="summary-sticky bounce bd1">
-                    <h4>📖 创意写作是什么</h4>
-                    <p>运用想象力和创造力，通过文字表达内心世界</p>
-                </div>
-                <div class="summary-sticky bounce bd2">
-                    <h4>🧩 故事六要素</h4>
-                    <p>人物、场景、冲突、情节、主题、叙述视角</p>
-                </div>
-                <div class="summary-sticky bounce bd3">
-                    <h4>✅ 六个好习惯</h4>
-                    <p>每日写作、广泛阅读、观察生活、勇敢动笔、接受反馈、保持好奇</p>
-                </div>
-                <div class="summary-sticky bounce bd4">
-                    <h4>⚖️ 好文章的标准</h4>
-                    <p>具体、生动、有细节，"展示"而非"告诉"</p>
-                </div>
-                <div class="summary-sticky bounce bd5">
-                    <h4>🔄 五步创作法</h4>
-                    <p>灵感→大纲→初稿→修改→分享</p>
-                </div>
-                <div class="summary-sticky bounce bd6">
-                    <h4>🎲 动手实践</h4>
-                    <p>用今天的创意提示卡，立刻开始你的第一个故事！</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- S13: 结束 -->
-        <section class="slide slide-end">
-            <div class="end-emoji reveal d1">🌟</div>
-            <h2 class="reveal d2">开始写作吧！</h2>
-            <p class="end-sub reveal d3">每一个文字，都是通往新世界的入口 ✨</p>
-            <p class="end-doodle reveal d4">✏️ 📝 ⭐ 💡 📖</p>
-        </section>
-
-    </div>
+    <!-- ══════ S17: END ══════ -->
+    <section class="slide slide-end">
+        <div class="end-emoji reveal delay-1">🌟</div>
+        <h2 class="end-title reveal delay-2">开始写作吧！</h2>
+        <p class="end-sub reveal delay-3">每一个文字，都是通往新世界的入口 ✨</p>
+        <p class="end-deco reveal delay-4">✿ ♡ ✧ ♡ ✿</p>
+    </section>
 
     <script>
-        class SlidePresentation {
-            constructor() {
-                this.slides = Array.from(document.querySelectorAll('.slide'));
-                this.total = this.slides.length;
-                this.current = 0;
-                this.locked = false;
-                this.lockDuration = 700;
-                this.progressBar = document.getElementById('progressBar');
-                this.pageCounter = document.getElementById('pageCounter');
-
-                this.touchStartX = 0;
-                this.touchStartY = 0;
-                this.swipeThreshold = 50;
-                this.overviewActive = false;
-
-                this.init();
-            }
-
-            init() {
-                this.update();
-                this.bindKeyboard();
-                this.bindWheel();
-                this.bindTouch();
-            }
-
-            lock() {
-                this.locked = true;
-                setTimeout(() => { this.locked = false; }, this.lockDuration);
-            }
-
-            go(index) {
-                if (this.locked) return;
-                const target = Math.max(0, Math.min(this.total - 1, index));
-                if (target === this.current) return;
-                this.lock();
-                this.current = target;
-                this.update();
-            }
-
-            next() { this.go(this.current + 1); }
-            prev() { this.go(this.current - 1); }
-
-            update() {
-                this.slides.forEach((s, i) => {
-                    s.classList.toggle('active', i === this.current);
-                });
-                const pct = ((this.current + 1) / this.total) * 100;
-                this.progressBar.style.width = pct + '%';
-                this.pageCounter.textContent = (this.current + 1) + ' / ' + this.total;
-                const slide = this.slides[this.current];
-                slide.querySelectorAll('.chart-fill[data-percent]').forEach(el => {
-                    if (!el.dataset.filled) {
-                        setTimeout(() => { el.style.width = el.dataset.percent + '%'; }, 300);
-                        el.dataset.filled = 'true';
-                    }
-                });
-            }
-
-            bindKeyboard() {
-                document.addEventListener('keydown', (e) => {
-                    switch (e.key) {
-                        case 'ArrowRight':
-                        case 'ArrowDown':
-                        case ' ':
-                        case 'PageDown':
-                            e.preventDefault();
-                            this.next();
-                            break;
-                        case 'ArrowLeft':
-                        case 'ArrowUp':
-                        case 'PageUp':
-                            e.preventDefault();
-                            this.prev();
-                            break;
-                        case 'Home':
-                            e.preventDefault();
-                            this.go(0);
-                            break;
-                        case 'End':
-                            e.preventDefault();
-                            this.go(this.total - 1);
-                            break;
-                        case 'f':
-                        case 'F':
-                            e.preventDefault();
-                            this.toggleFullscreen();
-                            break;
-                        case 'o':
-                        case 'O':
-                            e.preventDefault();
-                            this.toggleOverview();
-                            break;
-                        case 'Escape':
-                            this.closeOverview();
-                            break;
-                    }
-                });
-            }
-
-            bindWheel() {
-                let wheelAccum = 0;
-                const wheelThreshold = 60;
-
-                document.addEventListener('wheel', (e) => {
-                    e.preventDefault();
-                    wheelAccum += e.deltaY;
-
-                    if (Math.abs(wheelAccum) >= wheelThreshold) {
-                        if (wheelAccum > 0) this.next();
-                        else this.prev();
-                        wheelAccum = 0;
-                    }
-
-                    clearTimeout(this._wheelTimer);
-                    this._wheelTimer = setTimeout(() => { wheelAccum = 0; }, 200);
-                }, { passive: false });
-            }
-
-            bindTouch() {
-                document.addEventListener('touchstart', (e) => {
-                    this.touchStartX = e.touches[0].clientX;
-                    this.touchStartY = e.touches[0].clientY;
-                }, { passive: true });
-
-                document.addEventListener('touchend', (e) => {
-                    const dx = e.changedTouches[0].clientX - this.touchStartX;
-                    const dy = e.changedTouches[0].clientY - this.touchStartY;
-
-                    if (Math.abs(dx) < this.swipeThreshold && Math.abs(dy) < this.swipeThreshold) return;
-
-                    if (Math.abs(dx) > Math.abs(dy)) {
-                        if (dx < -this.swipeThreshold) this.next();
-                        else if (dx > this.swipeThreshold) this.prev();
-                    } else {
-                        if (dy < -this.swipeThreshold) this.next();
-                        else if (dy > this.swipeThreshold) this.prev();
-                    }
-                }, { passive: true });
-            }
-
-            toggleFullscreen() {
-                if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
-                else document.exitFullscreen().catch(() => {});
-            }
-
-            toggleOverview() {
-                if (this.overviewActive) { this.closeOverview(); return; }
-                this.overviewActive = true;
-                const ov = document.createElement('div');
-                ov.className = 'ov-grid';
-                const close = document.createElement('button');
-                close.className = 'ov-close';
-                close.innerHTML = '&times;';
-                close.onclick = () => this.closeOverview();
-                ov.appendChild(close);
-                const vpAR = (window.innerWidth / window.innerHeight).toFixed(4);
-                Array.from(this.slides).forEach((slide, i) => {
-                    const card = document.createElement('div');
-                    card.className = 'ov-card' + (i === this.current ? ' ov-current' : '');
-                    card.style.aspectRatio = vpAR;
-                    const inner = document.createElement('div');
-                    inner.className = 'ov-inner';
-                    const clone = slide.cloneNode(true);
-                    clone.style.cssText = 'position:absolute;inset:0;width:100vw;height:100vh;opacity:1;visibility:visible;transform:none;pointer-events:none;';
-                    clone.classList.add('active');
-                    inner.appendChild(clone);
-                    const num = document.createElement('span');
-                    num.className = 'ov-num';
-                    num.textContent = i + 1;
-                    card.appendChild(inner);
-                    card.appendChild(num);
-                    card.onclick = () => { this.go(i); this.closeOverview(); };
-                    ov.appendChild(card);
-                });
-                document.body.appendChild(ov);
-                this._ovEl = ov;
-                requestAnimationFrame(() => {
-                    ov.querySelectorAll('.ov-inner').forEach(inner => {
-                        const card = inner.parentElement;
-                        const sx = card.offsetWidth / window.innerWidth;
-                        const sy = card.offsetHeight / window.innerHeight;
-                        inner.style.transform = 'scale(' + Math.min(sx, sy) + ')';
-                    });
-                    ov.classList.add('ov-visible');
-                });
-            }
-
-            closeOverview() {
-                this.overviewActive = false;
-                if (this._ovEl) { this._ovEl.remove(); this._ovEl = null; }
-            }
+    class SlidePresentation {
+        constructor() {
+            this.slides = document.querySelectorAll('.slide');
+            this.totalSlides = this.slides.length;
+            this.currentSlide = 0;
+            this.isLocked = false;
+            this.overviewActive = false;
+            this.lockDuration = 600;
+            this.progressFill = document.getElementById('progressFill');
+            this.pageNum = document.getElementById('pageNum');
+            this.updateUI();
+            this.bindKeyboard();
+            this.bindWheel();
+            this.bindTouch();
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            new SlidePresentation();
-        });
+        bindKeyboard() {
+            window.addEventListener('keydown', (e) => {
+                switch (e.key) {
+                    case 'ArrowRight': case 'ArrowDown': case ' ': case 'PageDown':
+                        e.preventDefault(); this.next(); break;
+                    case 'ArrowLeft': case 'ArrowUp': case 'PageUp':
+                        e.preventDefault(); this.prev(); break;
+                    case 'Home': e.preventDefault(); this.goTo(0); break;
+                    case 'End': e.preventDefault(); this.goTo(this.totalSlides - 1); break;
+                    case 'f': case 'F': e.preventDefault(); this.toggleFullscreen(); break;
+                    case 'o': case 'O': e.preventDefault(); this.toggleOverview(); break;
+                    case 'Escape': this.closeOverview(); break;
+                }
+            });
+        }
+
+        bindWheel() {
+            let acc = 0;
+            window.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                acc += e.deltaY;
+                if (Math.abs(acc) >= 50) {
+                    acc > 0 ? this.next() : this.prev();
+                    acc = 0;
+                }
+                clearTimeout(this._wt);
+                this._wt = setTimeout(() => { acc = 0; }, 200);
+            }, { passive: false });
+        }
+
+        bindTouch() {
+            let sx = 0, sy = 0;
+            window.addEventListener('touchstart', (e) => {
+                sx = e.touches[0].clientX;
+                sy = e.touches[0].clientY;
+            }, { passive: true });
+            window.addEventListener('touchend', (e) => {
+                const dx = sx - e.changedTouches[0].clientX;
+                const dy = sy - e.changedTouches[0].clientY;
+                if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+                    dx > 0 ? this.next() : this.prev();
+                } else if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 50) {
+                    dy > 0 ? this.next() : this.prev();
+                }
+            }, { passive: true });
+        }
+
+        next() { this.goTo(this.currentSlide + 1); }
+        prev() { this.goTo(this.currentSlide - 1); }
+
+        goTo(index) {
+            if (this.isLocked || index < 0 || index >= this.totalSlides || index === this.currentSlide) return;
+            this.isLocked = true;
+            this.slides[this.currentSlide].classList.remove('active');
+            this.currentSlide = index;
+            this.slides[this.currentSlide].classList.add('active');
+            this.updateUI();
+            this.triggerEffects(index);
+            setTimeout(() => { this.isLocked = false; }, this.lockDuration);
+        }
+
+        updateUI() {
+            const pct = this.totalSlides > 1 ? (this.currentSlide / (this.totalSlides - 1)) * 100 : 100;
+            if (this.progressFill) this.progressFill.style.width = pct + '%';
+            if (this.pageNum) this.pageNum.textContent = (this.currentSlide + 1) + ' / ' + this.totalSlides;
+        }
+
+        triggerEffects(index) {
+            const slide = this.slides[index];
+            slide.querySelectorAll('.chart-fill[data-percent]').forEach(el => {
+                if (!el.dataset.filled) {
+                    setTimeout(() => { el.style.width = el.dataset.percent + '%'; }, 300);
+                    el.dataset.filled = 'true';
+                }
+            });
+            slide.querySelectorAll('[data-count]').forEach(el => {
+                if (!el.dataset.counted) {
+                    el.dataset.counted = 'true';
+                    this.animateCount(el, parseInt(el.dataset.count, 10));
+                }
+            });
+        }
+
+        animateCount(el, target) {
+            const duration = 1800, start = performance.now();
+            const suffix = el.dataset.suffix || '';
+            function tick(now) {
+                const p = Math.min((now - start) / duration, 1);
+                const eased = 1 - Math.pow(1 - p, 3);
+                el.textContent = Math.round(eased * target) + suffix;
+                if (p < 1) requestAnimationFrame(tick);
+                else el.textContent = target + suffix;
+            }
+            setTimeout(() => requestAnimationFrame(tick), 350);
+        }
+
+        toggleFullscreen() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+            else document.exitFullscreen().catch(() => {});
+        }
+
+        toggleOverview() {
+            if (this.overviewActive) { this.closeOverview(); return; }
+            this.overviewActive = true;
+            const ov = document.createElement('div');
+            ov.className = 'ov-grid';
+            const close = document.createElement('button');
+            close.className = 'ov-close';
+            close.innerHTML = '&times;';
+            close.onclick = () => this.closeOverview();
+            ov.appendChild(close);
+            const vpAR = (window.innerWidth / window.innerHeight).toFixed(4);
+            this.slides.forEach((slide, i) => {
+                const card = document.createElement('div');
+                card.className = 'ov-card' + (i === this.currentSlide ? ' ov-current' : '');
+                card.style.aspectRatio = vpAR;
+                const inner = document.createElement('div');
+                inner.className = 'ov-inner';
+                const clone = slide.cloneNode(true);
+                clone.style.cssText = 'position:absolute;inset:0;width:100vw;height:100vh;opacity:1;visibility:visible;transform:none;pointer-events:none;';
+                clone.classList.add('active');
+                inner.appendChild(clone);
+                const num = document.createElement('span');
+                num.className = 'ov-num';
+                num.textContent = i + 1;
+                card.appendChild(inner);
+                card.appendChild(num);
+                card.onclick = () => { this.goTo(i); this.closeOverview(); };
+                ov.appendChild(card);
+            });
+            document.body.appendChild(ov);
+            this._ovEl = ov;
+            requestAnimationFrame(() => {
+                ov.querySelectorAll('.ov-inner').forEach(inner => {
+                    const card = inner.parentElement;
+                    const sx = card.offsetWidth / window.innerWidth;
+                    const sy = card.offsetHeight / window.innerHeight;
+                    inner.style.transform = 'scale(' + Math.min(sx, sy) + ')';
+                });
+                ov.classList.add('ov-visible');
+            });
+        }
+
+        closeOverview() {
+            this.overviewActive = false;
+            if (this._ovEl) { this._ovEl.remove(); this._ovEl = null; }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => { new SlidePresentation(); });
     </script>
 </body>
 </html>
