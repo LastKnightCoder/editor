@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2024 创意产业趋势报告</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;0,900;1,700;1,800&family=Noto+Serif+SC:wght@400;600;700&family=Lato:wght@300;400&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --bg: #fdfbf7;
+            --text: #1a1a1a;
+            --text-secondary: #5a5a5a;
+            --accent: #c23616;
+            --accent-dim: rgba(194, 54, 22, 0.08);
+            --border: rgba(26, 26, 26, 0.12);
+            --display: "Playfair Display", Georgia, serif;
+            --serif: "Noto Serif SC", "Source Han Serif CN", "Songti SC", serif;
+            --sans: "Lato", "PingFang SC", sans-serif;
+            --title-size: clamp(3.2rem, 7vw, 5.5rem);
+            --h1-size: clamp(2rem, 4vw, 3rem);
+            --h2-size: clamp(1.5rem, 2.8vw, 2.2rem);
+            --body-size: clamp(0.95rem, 1.1vw, 1.08rem);
+            --small-size: clamp(0.78rem, 0.9vw, 0.88rem);
+            --caption-size: clamp(0.72rem, 0.82vw, 0.82rem);
+            --container-max: 1200px;
+            --section-gap: clamp(5rem, 10vw, 10rem);
+            --pad-x: clamp(2rem, 4vw, 4rem);
+            --reveal-duration: 0.6s;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--serif);
+            font-size: var(--body-size);
+            line-height: 1.9;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ═══ Scroll Progress ═══ */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 1px;
+            background: var(--accent);
+            z-index: 1000;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        /* ═══ Running Header ═══ */
+        .running-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 0.75rem 2rem;
+            font-family: var(--sans);
+            font-size: var(--caption-size);
+            font-weight: 300;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            z-index: 999;
+            background: rgba(253, 251, 247, 0.92);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            text-align: center;
+        }
+
+        .running-header.visible {
+            opacity: 1;
+        }
+
+        /* ═══ Container ═══ */
+        .magazine-container {
+            max-width: var(--container-max);
+            margin: 0 auto;
+            padding: 0 var(--pad-x);
+        }
+
+        /* ═══ Cover ═══ */
+        .cover {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 4rem var(--pad-x);
+        }
+
+        .cover-title {
+            font-family: var(--display);
+            font-size: var(--title-size);
+            font-weight: 900;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+            color: var(--text);
+            margin-bottom: 1.5rem;
+        }
+
+        .cover-subtitle {
+            font-family: var(--serif);
+            font-size: clamp(1.1rem, 1.8vw, 1.5rem);
+            font-weight: 400;
+            color: var(--text-secondary);
+            margin-bottom: 3rem;
+            max-width: 600px;
+        }
+
+        .cover-line {
+            width: 80px;
+            height: 1px;
+            background: var(--accent);
+            margin-bottom: 2.5rem;
+        }
+
+        .cover-meta {
+            font-family: var(--sans);
+            font-size: var(--small-size);
+            font-weight: 300;
+            color: var(--text-secondary);
+            letter-spacing: 0.1em;
+        }
+
+        .cover-meta span {
+            margin: 0 1rem;
+        }
+
+        /* ═══ Sections ═══ */
+        .magazine-section {
+            padding: var(--section-gap) 0;
+        }
+
+        .section-divider {
+            width: 100%;
+            height: 1px;
+            background: var(--border);
+            margin: 0;
+            border: none;
+        }
+
+        /* Section Header — asymmetric */
+        .section-header {
+            display: flex;
+            align-items: baseline;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .section-number {
+            font-family: var(--display);
+            font-size: clamp(3rem, 5vw, 4.5rem);
+            font-weight: 900;
+            color: var(--accent);
+            line-height: 1;
+            opacity: 0.25;
+        }
+
+        .section-title {
+            font-family: var(--display);
+            font-size: var(--h1-size);
+            font-weight: 700;
+            line-height: 1.2;
+            color: var(--text);
+        }
+
+        /* ═══ Multi-column Body ═══ */
+        .columns-2 {
+            column-count: 2;
+            column-gap: 3rem;
+            column-rule: 1px solid rgba(26, 26, 26, 0.06);
+        }
+
+        .columns-2 p {
+            margin-bottom: 1.2em;
+            text-align: justify;
+            hyphens: auto;
+        }
+
+        /* ═══ Drop Cap ═══ */
+        .drop-cap::first-letter {
+            font-family: var(--display);
+            font-size: 4em;
+            float: left;
+            line-height: 0.8;
+            padding-right: 0.12em;
+            padding-top: 0.05em;
+            color: var(--accent);
+            font-weight: 900;
+        }
+
+        /* ═══ Pull Quote ═══ */
+        .pull-quote {
+            column-span: all;
+            text-align: center;
+            padding: 3rem 2rem;
+            margin: 2.5rem 0;
+            position: relative;
+        }
+
+        .pull-quote::before {
+            content: "\201C";
+            font-family: var(--display);
+            font-size: clamp(4rem, 6vw, 6rem);
+            color: var(--accent);
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            line-height: 1;
+            opacity: 0.6;
+        }
+
+        .pull-quote p {
+            font-family: var(--display);
+            font-style: italic;
+            font-size: clamp(1.3rem, 2.2vw, 1.8rem);
+            line-height: 1.5;
+            color: var(--text);
+            max-width: 700px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .pull-quote .attribution {
+            font-family: var(--sans);
+            font-size: var(--small-size);
+            font-weight: 300;
+            color: var(--text-secondary);
+            margin-top: 1rem;
+            letter-spacing: 0.08em;
+        }
+
+        /* ═══ Editor's Note ═══ */
+        .editors-note {
+            border-top: 2px solid var(--accent);
+            border-bottom: 2px solid var(--accent);
+            padding: 2.5rem 0;
+            margin: 3rem 0;
+        }
+
+        .editors-note-label {
+            font-family: var(--sans);
+            font-size: var(--caption-size);
+            font-weight: 400;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 1rem;
+        }
+
+        .editors-note p {
+            font-family: var(--serif);
+            font-style: italic;
+            font-size: clamp(1rem, 1.2vw, 1.15rem);
+            line-height: 1.9;
+            color: var(--text-secondary);
+        }
+
+        /* ═══ Chart / Exhibit ═══ */
+        .exhibit {
+            column-span: all;
+            margin: 3rem 0;
+            width: 100%;
+        }
+
+        .exhibit-chart {
+            width: 100%;
+            height: 380px;
+        }
+
+        .exhibit-caption {
+            font-family: var(--sans);
+            font-size: var(--caption-size);
+            font-style: italic;
+            color: var(--text-secondary);
+            margin-top: 0.75rem;
+            font-weight: 300;
+        }
+
+        .exhibit-caption::before {
+            content: "图 | ";
+            color: var(--accent);
+            font-style: normal;
+            font-weight: 400;
+        }
+
+        /* ═══ Metric Strip ═══ */
+        .metric-strip {
+            display: flex;
+            justify-content: space-between;
+            padding: 3rem 0;
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            column-span: all;
+        }
+
+        .metric-item {
+            text-align: center;
+            flex: 1;
+        }
+
+        .metric-value {
+            font-family: var(--display);
+            font-size: clamp(2rem, 3.5vw, 3rem);
+            font-weight: 800;
+            color: var(--text);
+            line-height: 1.2;
+        }
+
+        .metric-label {
+            font-family: var(--sans);
+            font-size: var(--caption-size);
+            font-weight: 300;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+            letter-spacing: 0.05em;
+        }
+
+        /* ═══ Trend Block ═══ */
+        .trend-block {
+            margin-bottom: 4rem;
+        }
+
+        .trend-block:last-child {
+            margin-bottom: 0;
+        }
+
+        .trend-title {
+            font-family: var(--display);
+            font-size: var(--h2-size);
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--text);
+        }
+
+        /* ═══ Expert Quote ═══ */
+        .expert-block {
+            margin-bottom: 3rem;
+            padding-bottom: 3rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .expert-block:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .expert-quote {
+            font-family: var(--display);
+            font-style: italic;
+            font-size: clamp(1.15rem, 1.6vw, 1.4rem);
+            line-height: 1.6;
+            color: var(--text);
+            margin-bottom: 1rem;
+            position: relative;
+            padding-left: 2rem;
+        }
+
+        .expert-quote::before {
+            content: "\201C";
+            font-family: var(--display);
+            font-size: 3rem;
+            color: var(--accent);
+            position: absolute;
+            left: 0;
+            top: -0.3rem;
+            line-height: 1;
+        }
+
+        .expert-name {
+            font-family: var(--sans);
+            font-size: var(--small-size);
+            font-weight: 400;
+            color: var(--text-secondary);
+            letter-spacing: 0.05em;
+        }
+
+        /* ═══ Back to Top ═══ */
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: var(--text);
+            background: var(--bg);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            z-index: 900;
+            font-family: var(--sans);
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .back-to-top:hover {
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        /* ═══ Footer ═══ */
+        .magazine-footer {
+            text-align: center;
+            padding: 4rem 0;
+            border-top: 1px solid var(--border);
+            margin-top: var(--section-gap);
+        }
+
+        .footer-page {
+            font-family: var(--sans);
+            font-size: var(--caption-size);
+            font-weight: 300;
+            color: var(--text-secondary);
+            letter-spacing: 0.3em;
+        }
+
+        .footer-page::before,
+        .footer-page::after {
+            content: "—";
+            margin: 0 1rem;
+            color: var(--border);
+        }
+
+        /* ═══ Reveal Animation ═══ */
+        .reveal {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity var(--reveal-duration) ease, transform var(--reveal-duration) ease;
+        }
+
+        .reveal.revealed {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ═══ Responsive ═══ */
+        @media (max-width: 900px) {
+            .columns-2 {
+                column-count: 1;
+            }
+
+            .section-header {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .section-number {
+                font-size: 2.5rem;
+            }
+
+            .metric-strip {
+                flex-wrap: wrap;
+                gap: 2rem;
+            }
+
+            .metric-item {
+                flex: 0 0 45%;
+            }
+
+            .cover-title {
+                font-size: clamp(2.2rem, 8vw, 3.5rem);
+            }
+
+            .exhibit-chart {
+                height: 280px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .metric-item {
+                flex: 0 0 100%;
+            }
+
+            .pull-quote {
+                padding: 2rem 0.5rem;
+            }
+
+            .expert-quote {
+                padding-left: 1.5rem;
+            }
+        }
+
+        /* ═══ Print ═══ */
+        @media print {
+            .scroll-progress,
+            .running-header,
+            .back-to-top {
+                display: none !important;
+            }
+
+            body {
+                background: white;
+                font-size: 10pt;
+            }
+
+            .cover {
+                min-height: auto;
+                page-break-after: always;
+            }
+
+            .magazine-section {
+                page-break-inside: avoid;
+            }
+
+            .columns-2 {
+                column-count: 2;
+            }
+
+            .exhibit-chart {
+                height: 250px;
+            }
+
+            .reveal {
+                opacity: 1 !important;
+                transform: none !important;
+            }
+        }
+
+        /* ═══ Reduced Motion ═══ */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+
+            html {
+                scroll-behavior: auto;
+            }
+
+            .reveal {
+                opacity: 1;
+                transform: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Scroll Progress -->
+    <div class="scroll-progress" id="scrollProgress"></div>
+
+    <!-- Running Header -->
+    <div class="running-header" id="runningHeader">2024 创意产业趋势报告</div>
+
+    <!-- Back to Top -->
+    <button class="back-to-top" id="backToTop" aria-label="Back to top">↑</button>
+
+    <!-- Cover -->
+    <section class="cover" id="cover">
+        <h1 class="cover-title reveal">Creative Industry<br>Trends 2024</h1>
+        <p class="cover-subtitle reveal">探索创意经济的未来脉络，洞察数字化浪潮下的产业变革与机遇</p>
+        <div class="cover-line reveal"></div>
+        <div class="cover-meta reveal">
+            <span>编辑部</span>
+            <span>·</span>
+            <span>2024 年度特刊</span>
+            <span>·</span>
+            <span>第 VII 期</span>
+        </div>
+    </section>
+
+    <div class="magazine-container">
+        <!-- Editor's Note -->
+        <hr class="section-divider">
+        <section class="magazine-section reveal">
+            <div class="editors-note">
+                <div class="editors-note-label">Editor's Note</div>
+                <p class="drop-cap">当我们回顾过去一年的创意产业发展轨迹，最显著的变化并非某一项技术的突破，而是整个行业对于"创造力"本身的重新定义。人工智能的深度介入、全球化协作模式的成熟、以及新一代创作者对可持续发展的执着追求，共同塑造了一个前所未有的产业新格局。本报告试图捕捉这些变化的核心脉络，为从业者提供前瞻性的思考框架。</p>
+            </div>
+        </section>
+
+        <!-- Section 1: Industry Overview -->
+        <hr class="section-divider">
+        <section class="magazine-section">
+            <div class="section-header reveal">
+                <span class="section-number">01</span>
+                <h2 class="section-title">Industry Overview</h2>
+            </div>
+
+            <div class="columns-2 reveal">
+                <p class="drop-cap">全球创意产业在 2024 年实现了令人瞩目的增长，总产值突破 2.8 万亿美元大关。这一数字不仅代表着产业规模的持续扩张，更折射出创意经济在全球 GDP 中占比的稳步提升。从传统设计到数字内容，从独立工作室到跨国创意集团，整个产业链都展现出强劲的生命力。</p>
+                <p>值得注意的是，亚太地区的增速首次超过北美市场，中国创意产业的年增长率达到 18.7%，远高于全球平均水平的 11.3%。这一趋势的背后，是数字基础设施的完善、新消费群体的崛起以及政策环境的持续优化。</p>
+                <p>数字化转型加速是推动增长的核心引擎。云端协作工具的普及使得创意生产不再受地域限制，AI 辅助设计工具的成熟大幅降低了创作门槛，而区块链技术则为数字资产的确权与交易提供了可靠的基础设施。</p>
+                <p>同时，我们观察到创意产业与其他行业的融合正在加深。制造业对工业设计的投入增长了 23%，金融科技领域的用户体验设计需求翻了一番，健康医疗行业的服务设计岗位增长了 47%。创意正在成为所有行业的核心竞争力。</p>
+            </div>
+
+            <!-- Chart: Industry Growth -->
+            <div class="exhibit reveal">
+                <div class="exhibit-chart" id="chartIndustryGrowth"></div>
+                <p class="exhibit-caption">2019-2024 全球创意产业规模及增速变化趋势</p>
+            </div>
+        </section>
+
+        <!-- Section 2: Key Trends -->
+        <hr class="section-divider">
+        <section class="magazine-section">
+            <div class="section-header reveal">
+                <span class="section-number">02</span>
+                <h2 class="section-title">Key Trends</h2>
+            </div>
+
+            <!-- Trend 1 -->
+            <div class="trend-block reveal">
+                <h3 class="trend-title">AI 共创时代的到来</h3>
+                <div class="pull-quote">
+                    <p>AI 不是取代创意，而是解放创意。真正的突破在于人机协作的化学反应。</p>
+                    <div class="attribution">— 某科技公司首席创意官</div>
+                </div>
+                <div class="columns-2">
+                    <p>生成式 AI 在 2024 年从实验性工具升级为创意工作流的核心组件。超过 67% 的设计团队已将 AI 工具纳入日常生产流程，平均创作效率提升了 3.2 倍。然而，这并不意味着人类创造力的边缘化——相反，AI 承担了大量重复性的执行工作，使得创意人员得以将更多精力投入到概念创新和情感表达之中。</p>
+                    <p>在品牌设计领域，AI 辅助的视觉探索使得方案迭代速度提升了 5 倍。在动态影像制作中，AI 驱动的预览和合成技术将后期制作周期从数周缩短至数天。在文案创作中，AI 生成的初稿为创意人员提供了更丰富的起点，而最终的创意判断和情感把控仍然牢牢握在人类手中。</p>
+                </div>
+            </div>
+
+            <!-- Trend 2 -->
+            <div class="trend-block reveal">
+                <h3 class="trend-title">可持续设计成为标配</h3>
+                <div class="pull-quote">
+                    <p>可持续不再是一种选择，而是创意产业的基本素养。每一个设计决策都承载着环境责任。</p>
+                    <div class="attribution">— 全球设计协会年度宣言</div>
+                </div>
+                <div class="columns-2">
+                    <p>2024 年标志着可持续设计从理念到实践的全面转化。环保材料在产品设计中的使用率达到 42%，较上年增长了 15 个百分点。循环设计原则被纳入超过 60% 的设计院校课程体系。与此同时，品牌方对可持续包装的需求同比增长了 58%，推动了一批专注于环保材料创新的设计工作室的快速崛起。</p>
+                    <p>数字设计领域同样在响应可持续发展的号召。低碳网页设计实践日益普及，暗色模式的广泛采用不仅提升了用户体验，更有效降低了设备能耗。多家头部设计工具宣布实现碳中和运营，并为用户提供设计方案的碳足迹评估功能。</p>
+                </div>
+            </div>
+
+            <!-- Trend 3 -->
+            <div class="trend-block reveal">
+                <h3 class="trend-title">去中心化创意经济</h3>
+                <div class="pull-quote">
+                    <p>每个创作者都是一个微型品牌，每个社区都是一个创意孵化器。</p>
+                    <div class="attribution">— 独立创作者平台年度报告</div>
+                </div>
+                <div class="columns-2">
+                    <p>创意经济的权力结构正在经历深刻变革。独立创作者群体在 2024 年贡献了行业总产值的 28%，这一比例在三年前仅为 14%。去中心化平台的兴起使得个人创作者能够直接触达全球受众，绕过传统中介机构。DAO（去中心化自治组织）模式在创意协作中的应用日趋成熟。</p>
+                    <p>这一趋势的核心驱动力是技术平权。低代码工具、云端创作平台和自动化发行渠道使得个人创作者具备了与机构竞争的能力。同时，社区驱动的创意生态正在形成——创作者们围绕特定风格、文化或价值观自发聚集，形成独特的创意集群。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Data Spotlight -->
+        <hr class="section-divider">
+        <section class="magazine-section">
+            <div class="section-header reveal">
+                <span class="section-number">03</span>
+                <h2 class="section-title">Data Spotlight</h2>
+            </div>
+
+            <div class="metric-strip reveal">
+                <div class="metric-item">
+                    <div class="metric-value" data-target="2.8" data-suffix="万亿">0</div>
+                    <div class="metric-label">全球创意产业总产值（美元）</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" data-target="67" data-suffix="%">0</div>
+                    <div class="metric-label">已采用 AI 工具的设计团队</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" data-target="18.7" data-suffix="%">0</div>
+                    <div class="metric-label">中国市场年增长率</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" data-target="340" data-suffix="万">0</div>
+                    <div class="metric-label">全球活跃独立创作者</div>
+                </div>
+            </div>
+
+            <!-- Chart: Regional Growth -->
+            <div class="exhibit reveal">
+                <div class="exhibit-chart" id="chartRegionalGrowth"></div>
+                <p class="exhibit-caption">2024 各区域创意产业增速对比及细分领域贡献</p>
+            </div>
+        </section>
+
+        <!-- Section 4: Case Study -->
+        <hr class="section-divider">
+        <section class="magazine-section">
+            <div class="section-header reveal">
+                <span class="section-number">04</span>
+                <h2 class="section-title">Case Study</h2>
+            </div>
+
+            <div class="columns-2 reveal">
+                <p class="drop-cap">以某知名创意集团的数字化转型为例，该集团在 2024 年完成了从传统广告代理向综合创意科技公司的战略升级。通过引入 AI 驱动的创意工作流、建设跨时区的分布式团队、以及开发自有的创意资产管理平台，该集团实现了营收 45% 的增长，同时将项目交付周期缩短了 60%。</p>
+                <p>该集团的业务结构也发生了显著变化。传统广告业务占比从 65% 下降至 38%，而数字体验设计、品牌策略咨询和技术创新服务分别贡献了 27%、20% 和 15% 的收入。这种多元化的业务布局不仅增强了抗风险能力，也为创意人才提供了更广阔的发展空间。</p>
+                <p>在人才结构方面，该集团新增了"AI 创意训练师""可持续设计顾问"和"社区运营架构师"等全新岗位。技术背景人才在创意团队中的占比从 12% 提升至 34%，跨学科协作成为日常工作常态。</p>
+                <p>更值得关注的是其开放生态策略。该集团与超过 200 位独立创作者建立了长期合作关系，通过灵活的项目制协作模式，既保持了创作的多元性，又实现了品质的一致性控制。</p>
+            </div>
+
+            <!-- Chart: Business Breakdown -->
+            <div class="exhibit reveal">
+                <div class="exhibit-chart" id="chartBreakdown"></div>
+                <p class="exhibit-caption">某创意集团 2024 年业务收入结构分布</p>
+            </div>
+        </section>
+
+        <!-- Section 5: Expert Perspectives -->
+        <hr class="section-divider">
+        <section class="magazine-section">
+            <div class="section-header reveal">
+                <span class="section-number">05</span>
+                <h2 class="section-title">Expert Perspectives</h2>
+            </div>
+
+            <div class="expert-block reveal">
+                <p class="expert-quote">未来五年，能够驾驭 AI 工具的创意人将获得前所未有的生产力，但真正稀缺的依然是那些能够提出好问题、讲述好故事的人。技术永远是手段，洞察才是核心。</p>
+                <p class="expert-name">张明远 — 清华大学美术学院教授</p>
+            </div>
+
+            <div class="expert-block reveal">
+                <p class="expert-quote">我们正在见证创意民主化的黄金时代。当工具不再是门槛，文化理解和情感共鸣将成为区分优秀创意的关键。本土文化的深度挖掘是中国创意产业最大的机会。</p>
+                <p class="expert-name">李思涵 — 独立品牌策略顾问</p>
+            </div>
+
+            <div class="expert-block reveal">
+                <p class="expert-quote">可持续发展不是约束创意的枷锁，而是激发创新的催化剂。当我们为设计设定环境边界时，往往能催生出最具突破性的解决方案。限制产生优雅。</p>
+                <p class="expert-name">Maria Chen — 可持续设计实验室创始人</p>
+            </div>
+
+            <div class="expert-block reveal">
+                <p class="expert-quote">去中心化不是混乱，而是一种新的秩序。独立创作者之间的自发协作正在形成比传统机构更灵活、更有创造力的生产网络。这是创意产业的未来组织形态。</p>
+                <p class="expert-name">王浩然 — 创意社区平台 CEO</p>
+            </div>
+        </section>
+
+        <!-- Section 6: Outlook -->
+        <hr class="section-divider">
+        <section class="magazine-section">
+            <div class="section-header reveal">
+                <span class="section-number">06</span>
+                <h2 class="section-title">Outlook</h2>
+            </div>
+
+            <div class="columns-2 reveal">
+                <p class="drop-cap">展望未来三年，创意产业将进入一个更加复杂而充满可能的新阶段。我们预期全球创意产业规模将在 2027 年突破 4 万亿美元，年均复合增长率保持在 13% 以上。技术融合、市场扩展和人才结构升级将是驱动增长的三大核心力量。</p>
+                <p>在技术层面，多模态 AI、空间计算和脑机接口等前沿技术将为创意表达开辟全新维度。在市场层面，新兴经济体的创意消费需求将呈现爆发式增长，尤其是东南亚和非洲市场。在人才层面，跨学科复合型创意人才将成为最具竞争力的群体。</p>
+                <p>然而，挑战同样不容忽视。AI 生成内容的版权归属问题亟待明确的法律框架，创意产业的知识产权保护在全球化语境下面临新的复杂性。同时，技术变革带来的焦虑感正在影响创意从业者的心理健康，行业需要建立更完善的支持体系。</p>
+                <p>我们相信，创意产业的本质从未改变——它关乎人类对美的追求、对意义的探索、以及对更好未来的想象。技术的进步只是为这些永恒的追求提供了更多的可能性。那些能够坚守创意本心，同时拥抱变化的从业者，将在未来的产业版图中占据最有利的位置。</p>
+            </div>
+
+            <!-- Chart: Projections -->
+            <div class="exhibit reveal">
+                <div class="exhibit-chart" id="chartProjections"></div>
+                <p class="exhibit-caption">2024-2027 创意产业规模预测及细分领域增长趋势</p>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="magazine-footer">
+            <p class="footer-page">FIN</p>
+        </footer>
+    </div>
+
+    <script>
+    class ReportPresentation {
+        constructor() {
+            this.charts = {};
+            this.counterAnimated = false;
+            this.init();
+        }
+
+        init() {
+            this.setupScrollProgress();
+            this.setupRunningHeader();
+            this.setupRevealAnimations();
+            this.setupBackToTop();
+            this.setupCounters();
+            this.initCharts();
+            window.addEventListener('resize', () => this.resizeCharts());
+        }
+
+        /* ═══ Scroll Progress ═══ */
+        setupScrollProgress() {
+            const bar = document.getElementById('scrollProgress');
+            window.addEventListener('scroll', () => {
+                const scrollTop = window.scrollY;
+                const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+                bar.style.width = progress + '%';
+            }, { passive: true });
+        }
+
+        /* ═══ Running Header ═══ */
+        setupRunningHeader() {
+            const header = document.getElementById('runningHeader');
+            const cover = document.getElementById('cover');
+            window.addEventListener('scroll', () => {
+                const coverBottom = cover.offsetTop + cover.offsetHeight;
+                if (window.scrollY > coverBottom - 100) {
+                    header.classList.add('visible');
+                } else {
+                    header.classList.remove('visible');
+                }
+            }, { passive: true });
+        }
+
+        /* ═══ Reveal Animations ═══ */
+        setupRevealAnimations() {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('revealed');
+                    }
+                });
+            }, {
+                threshold: 0.1,
+                rootMargin: '0px 0px -40px 0px'
+            });
+
+            document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+        }
+
+        /* ═══ Back to Top ═══ */
+        setupBackToTop() {
+            const btn = document.getElementById('backToTop');
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > window.innerHeight) {
+                    btn.classList.add('visible');
+                } else {
+                    btn.classList.remove('visible');
+                }
+            }, { passive: true });
+
+            btn.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        }
+
+        /* ═══ Counter Animation ═══ */
+        setupCounters() {
+            const strip = document.querySelector('.metric-strip');
+            if (!strip) return;
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && !this.counterAnimated) {
+                        this.counterAnimated = true;
+                        this.animateCounters();
+                    }
+                });
+            }, { threshold: 0.3 });
+
+            observer.observe(strip);
+        }
+
+        animateCounters() {
+            const counters = document.querySelectorAll('.metric-value[data-target]');
+            counters.forEach(counter => {
+                const target = parseFloat(counter.dataset.target);
+                const suffix = counter.dataset.suffix || '';
+                const duration = 1500;
+                const startTime = performance.now();
+                const isDecimal = target % 1 !== 0;
+
+                const animate = (currentTime) => {
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const eased = 1 - Math.pow(1 - progress, 3);
+                    const current = target * eased;
+
+                    if (isDecimal) {
+                        counter.textContent = current.toFixed(1) + suffix;
+                    } else {
+                        counter.textContent = Math.round(current) + suffix;
+                    }
+
+                    if (progress < 1) {
+                        requestAnimationFrame(animate);
+                    }
+                };
+
+                requestAnimationFrame(animate);
+            });
+        }
+
+        /* ═══ Charts ═══ */
+        initCharts() {
+            this.initIndustryGrowthChart();
+            this.initRegionalGrowthChart();
+            this.initBreakdownChart();
+            this.initProjectionsChart();
+        }
+
+        initIndustryGrowthChart() {
+            const dom = document.getElementById('chartIndustryGrowth');
+            if (!dom) return;
+            const chart = echarts.init(dom);
+            this.charts.industryGrowth = chart;
+
+            const option = {
+                backgroundColor: 'transparent',
+                grid: {
+                    top: 50,
+                    right: 60,
+                    bottom: 40,
+                    left: 60
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: '#fdfbf7',
+                    borderColor: 'rgba(26,26,26,0.12)',
+                    textStyle: {
+                        color: '#1a1a1a',
+                        fontFamily: 'Lato, sans-serif',
+                        fontSize: 12
+                    }
+                },
+                legend: {
+                    top: 10,
+                    textStyle: {
+                        fontFamily: 'Lato, sans-serif',
+                        fontSize: 11,
+                        color: '#5a5a5a'
+                    }
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['2019', '2020', '2021', '2022', '2023', '2024'],
+                    axisLine: { lineStyle: { color: 'rgba(26,26,26,0.12)' } },
+                    axisLabel: {
+                        fontFamily: 'Lato, sans-serif',
+                        fontSize: 11,
+                        color: '#5a5a5a'
+                    }
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: '产值（万亿美元）',
+                        nameTextStyle: { fontFamily: 'Lato, sans-serif', fontSize: 10, color: '#5a5a5a' },
+                        axisLine: { show: false },
+                        splitLine: { lineStyle: { color: 'rgba(26,26,26,0.05)' } },
+                        axisLabel: { fontFamily: 'Lato, sans-serif', fontSize: 11, color: '#5a5a5a' }
+                    },
+                    {
+                        type: 'value',
+                        name: '增速（%）',
+                        nameTextStyle: { fontFamily: 'Lato, sans-serif', fontSize: 10, color: '#5a5a5a' },
+                        axisLine: { show: false },
+                        splitLine: { show: false },
+                        axisLabel: { fontFamily: 'Lato, sans-serif', fontSize: 11, color: '#5a5a5a' }
+                    }
+                ],
+                series: [
+                    {
+                        name: '产业规模',
+                        type: 'line',
+                        data: [1.6, 1.5, 1.8, 2.1, 2.4, 2.8],
+                        smooth: true,
+                        lineStyle: { color: '#c23616', width: 2 },
+                        itemStyle: { color: '#c23616' },
+                        areaStyle: {
+                            color: {
+                                type: 'linear',
+                                x: 0, y: 0, x2: 0, y2: 1,
+                                colorStops: [
+                                    { offset: 0, color: 'rgba(194,54,22,0.15)' },
+                                    { offset: 1, color: 'rgba(194,54,22,0)' }
+                                ]
+                            }
+                        },
+                        symbol: 'circle',
+                        symbolSize: 6
+                    },
+                    {
+                        name: '增长率',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: [8.2, -5.1, 12.5, 14.8, 12.1, 11.3],
+                        smooth: true,
+                        lineStyle: { color: '#b8860b', width: 1.5, type: 'dashed' },
+                        itemStyle: { color: '#b8860b' },
+                        symbol: 'diamond',
+                        symbolSize: 5
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+        }
+
+        initRegionalGrowthChart() {
+            const dom = document.getElementById('chartRegionalGrowth');
+            if (!dom) return;
+            const chart = echarts.init(dom);
+            this.charts.regionalGrowth = chart;
+
+            const option = {
+                backgroundColor: 'transparent',
+                grid: {
+                    top: 50,
+                    right: 30,
+                    bottom: 40,
+                    left: 60
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: '#fdfbf7',
+                    borderColor: 'rgba(26,26,26,0.12)',
+                    textStyle: {
+                        color: '#1a1a1a',
+                        fontFamily: 'Lato, sans-serif',
+                        fontSize: 12
+                    }
+                },
+                legend: {
+                    top: 10,
+                    textStyle: {
+                        fontFamily: 'Lato, sans-serif',
+                        fontSize: 11,
+                        color: '#5a5a5a'
+                    }
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['北美', '欧洲', '亚太', '中国', '中东', '拉美'],
+                    axisLine: { lineStyle: { color: 'rgba(26,26,26,0.12)' } },
+                    axisLabel: {
+                        fontFamily: 'Lato, sans-serif',
+                        fontSize: 11,
+                        color: '#5a5a5a'
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '增长率（%）',
+                    nameTextStyle: { fontFamily: 'Lato, sans-serif', fontSize: 10, color: '#5a5a5a' },
+                    axisLine: { show: false },
+                    splitLine: { lineStyle: { color: 'rgba(26,26,26,0.05)' } },
+                    axisLabel: { fontFamily: 'Lato, sans-serif', fontSize: 11, color: '#5a5a5a' }
+                },
+                series: [
+                    {
+                        name: '数字内容',
+                        type: 'bar',
+                        barWidth: '18%',
+                        itemStyle: { color: '#c23616', borderRadius: [2, 2, 0, 0] },
+                        data: [9.2, 8.5, 16.4, 22.3, 12.1, 10.8]
+                    },
+                    {
+                        name: '设计服务',
+                        type: 'bar',
+                        barWidth: '18%',
+                        itemStyle: { color: '#b8860b', borderRadius: [2, 2, 0, 0] },
+                        data: [7.8, 7.2, 14.1, 17.5, 9.6, 8.4]
+                    },
+                    {
+                        name: '品牌与广告',
+                        type: 'bar',
+                        barWidth: '18%',
+                        itemStyle: { color: '#5a5a5a', borderRadius: [2, 2, 0, 0] },
+                        data: [5.4, 4.8, 11.2, 15.8, 8.3, 7.1]
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+        }
+
+        initBreakdownChart() {
+            const dom = document.getElementById('chartBreakdown');
+            if (!dom) return;
+            const chart = echarts.init(dom);
+            this.charts.breakdown = chart;
+
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'item',
+                    backgroundColor: '#fdfbf7',
+                    borderColor: 'rgba(26,26,26,0.12)',
+                    textStyle: {
+                        color: '#1a1a1a',
+                        fontFamily: 'Lato, sans-serif',
+                        fontSize: 12
+                    }
+                },
+                legend: {
+                    orient: 'vertical',
+                    right: '5%',
+                    top: 'center',
+                    textStyle: {
+                        fontFamily: 'Lato, sans-serif',
+                        fontSize: 11,
+                        color: '#5a5a5a'
+                    }
+                },
+                series: [
+                    {
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        center: ['40%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: {
+                            borderRadius: 2,
+                            borderColor: '#fdfbf7',
+                            borderWidth: 2
+                        },
+                        label: {
+                            show: false
+                        },
+                        emphasis: {
+                            label: {
+                                show: true,
+                                fontFamily: 'Lato, sans-serif',
+                                fontSize: 13,
+                                fontWeight: '400'
+                            }
+                        },
+                        data: [
+                            { value: 38, name: '传统广告', itemStyle: { color: '#5a5a5a' } },
+                            { value: 27, name: '数字体验设计', itemStyle: { color: '#c23616' } },
+                            { value: 20, name: '品牌策略咨询', itemStyle: { color: '#b8860b' } },
+                            { value: 15, name: '技术创新服务', itemStyle: { color: '#8b7355' } }
+                        ]
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+        }
+
+        initProjectionsChart() {
+            const dom = document.getElementById('chartProjections');
+            if (!dom) return;
+            const chart = echarts.init(dom);
+            this.charts.projections = chart;
+
+            const option = {
+                backgroundColor: 'transparent',
+                grid: {
+                    top: 50,
+                    right: 30,
+                    bottom: 40,
+                    left: 60
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: '#fdfbf7',
+                    borderColor: 'rgba(26,26,26,0.12)',
+                    textStyle: {
+                        color: '#1a1a1a',
+                        fontFamily: 'Lato, sans-serif',
+                        fontSize: 12
+                    }
+                },
+                legend: {
+                    top: 10,
+                    textStyle: {
+                        fontFamily: 'Lato, sans-serif',
+                        fontSize: 11,
+                        color: '#5a5a5a'
+                    }
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['2024', '2025E', '2026E', '2027E'],
+                    axisLine: { lineStyle: { color: 'rgba(26,26,26,0.12)' } },
+                    axisLabel: {
+                        fontFamily: 'Lato, sans-serif',
+                        fontSize: 11,
+                        color: '#5a5a5a'
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '规模（万亿美元）',
+                    nameTextStyle: { fontFamily: 'Lato, sans-serif', fontSize: 10, color: '#5a5a5a' },
+                    axisLine: { show: false },
+                    splitLine: { lineStyle: { color: 'rgba(26,26,26,0.05)' } },
+                    axisLabel: { fontFamily: 'Lato, sans-serif', fontSize: 11, color: '#5a5a5a' }
+                },
+                series: [
+                    {
+                        name: '数字体验',
+                        type: 'line',
+                        data: [0.76, 0.95, 1.18, 1.48],
+                        smooth: true,
+                        lineStyle: { color: '#c23616', width: 2 },
+                        itemStyle: { color: '#c23616' },
+                        symbol: 'circle',
+                        symbolSize: 5
+                    },
+                    {
+                        name: '品牌与广告',
+                        type: 'line',
+                        data: [1.06, 1.15, 1.24, 1.35],
+                        smooth: true,
+                        lineStyle: { color: '#b8860b', width: 2 },
+                        itemStyle: { color: '#b8860b' },
+                        symbol: 'circle',
+                        symbolSize: 5
+                    },
+                    {
+                        name: '技术创新',
+                        type: 'line',
+                        data: [0.42, 0.58, 0.78, 1.02],
+                        smooth: true,
+                        lineStyle: { color: '#5a5a5a', width: 2 },
+                        itemStyle: { color: '#5a5a5a' },
+                        symbol: 'circle',
+                        symbolSize: 5
+                    },
+                    {
+                        name: '独立创作',
+                        type: 'line',
+                        data: [0.56, 0.72, 0.90, 1.15],
+                        smooth: true,
+                        lineStyle: { color: '#8b7355', width: 1.5, type: 'dashed' },
+                        itemStyle: { color: '#8b7355' },
+                        symbol: 'diamond',
+                        symbolSize: 5
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+        }
+
+        resizeCharts() {
+            Object.values(this.charts).forEach(chart => {
+                if (chart && chart.resize) {
+                    chart.resize();
+                }
+            });
+        }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        new ReportPresentation();
+    });
+    </script>
+</body>
+</html>

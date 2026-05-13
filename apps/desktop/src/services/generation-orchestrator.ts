@@ -6,6 +6,7 @@ import type {
   ToolCallExecutionState,
 } from "@/types/llm";
 import type { PPTTemplate } from "@/constants/ppt-templates";
+import type { ReportTemplate } from "@/constants/report-templates";
 import type { PodcastSpeaker } from "@/types/podcast";
 import { chatLLMStream } from "@/hooks/useChatLLM";
 import toolRegistry, { ensureToolingReady } from "@/tools";
@@ -40,6 +41,14 @@ import {
   buildPPTEditUserPrompt,
   getPPTEditPrompt,
 } from "@/constants/prompts/ppt-edit";
+import {
+  getReportGenerationPrompt,
+  getReportGenerationUserPrompt,
+} from "@/constants/prompts/report-generation";
+import {
+  getReportEditPrompt,
+  buildReportEditUserPrompt,
+} from "@/constants/prompts/report-edit";
 import { PROVIDED_CONTENT_GENERATION_RULES } from "@/constants/prompts/provided-content-generation";
 import {
   buildPodcastProvidedContentSystemPrompt,
@@ -60,7 +69,9 @@ export type GenerationTaskType =
   | "quiz"
   | "ppt"
   | "ppt_edit"
-  | "podcast";
+  | "podcast"
+  | "report"
+  | "report_edit";
 
 export type GenerationSourceType = "vibe_learning" | "provided_content";
 
@@ -90,6 +101,8 @@ export interface GenerationTaskPayloadMap {
     durationMin?: number;
     durationMax?: number;
   };
+  report: { template: ReportTemplate };
+  report_edit: { currentHtml: string };
 }
 
 export interface GenerationSourcePayloadMap {
@@ -288,6 +301,45 @@ function buildVibeLearningGenerationRequest(
         enableTools: true,
       };
     }
+    case "report": {
+      const payload = taskPayload as GenerationTaskPayloadMap["report"];
+      return {
+        messages: [
+          createTextMessage(
+            Role.System,
+            getReportGenerationPrompt(payload.template),
+          ),
+          createTextMessage(
+            Role.User,
+            getReportGenerationUserPrompt(
+              sourcePayload.resourceNames,
+              payload.template.name,
+              sourcePayload.userPrompt,
+            ),
+          ),
+        ],
+        enableTools: true,
+      };
+    }
+    case "report_edit": {
+      const payload = taskPayload as GenerationTaskPayloadMap["report_edit"];
+      return {
+        messages: [
+          createTextMessage(
+            Role.System,
+            getReportEditPrompt(payload.currentHtml),
+          ),
+          createTextMessage(
+            Role.User,
+            buildReportEditUserPrompt(
+              sourcePayload.userPrompt || "",
+              sourcePayload.resourceNames,
+            ),
+          ),
+        ],
+        enableTools: true,
+      };
+    }
     case "podcast": {
       const payload = taskPayload as GenerationTaskPayloadMap["podcast"];
       return {
@@ -391,6 +443,8 @@ function buildProvidedContentGenerationRequest(
     case "article":
     case "ppt":
     case "ppt_edit":
+    case "report":
+    case "report_edit":
       throw new Error(
         `任务 ${taskType} 当前未接入 provided_content 数据源，请改用对应专用入口`,
       );

@@ -1,0 +1,1577 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2024 可持续发展报告</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;600;700&family=Nunito+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --bg: #f9f6f0;
+            --bg-panel: #faf8f3;
+            --forest: #2d5a27;
+            --forest-light: #3a7232;
+            --sage: #7c9a6e;
+            --sage-light: #a3bf96;
+            --earth: #8b6914;
+            --earth-light: #b8932e;
+            --stream: #4a8b9e;
+            --stream-light: #6baabb;
+            --charcoal: #2f2f2f;
+            --text: #2f2f2f;
+            --text-secondary: #5a5a4e;
+            --text-dim: #8a8a7a;
+            --border: rgba(45, 90, 39, 0.15);
+            --border-light: rgba(45, 90, 39, 0.08);
+            --shadow-sm: 0 2px 8px rgba(139, 105, 20, 0.06);
+            --shadow-md: 0 4px 16px rgba(139, 105, 20, 0.08);
+            --shadow-lg: 0 8px 32px rgba(139, 105, 20, 0.1);
+            --shadow-warm: 0 2px 12px rgba(139, 105, 20, 0.08);
+            --serif: "Bitter", "Source Han Serif SC", "Songti SC", Georgia, serif;
+            --sans: "Nunito Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+            --ease-organic: cubic-bezier(0.25, 0.8, 0.25, 1);
+            --title-size: clamp(2.4rem, 5vw, 4rem);
+            --h1-size: clamp(1.8rem, 3.5vw, 2.6rem);
+            --h2-size: clamp(1.4rem, 2.5vw, 1.9rem);
+            --h3-size: clamp(1.15rem, 1.8vw, 1.4rem);
+            --body-size: clamp(0.95rem, 1.1vw, 1.08rem);
+            --small-size: clamp(0.82rem, 0.95vw, 0.9rem);
+            --stat-size: clamp(2rem, 3.5vw, 3rem);
+            --section-gap: clamp(4rem, 7vw, 7rem);
+            --content-gap: clamp(1.5rem, 3vw, 3rem);
+            --container-max: 1000px;
+            --pad-x: clamp(1.5rem, 4vw, 4rem);
+            --radius: 16px;
+            --radius-sm: 10px;
+            --reveal-duration: 0.6s;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            font-size: var(--body-size);
+            font-weight: 400;
+            line-height: 1.8;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ═══ Scroll Progress ═══ */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 3px;
+            background: linear-gradient(90deg, var(--forest), var(--sage));
+            border-radius: 0 3px 3px 0;
+            z-index: 9999;
+            transition: width 0.1s linear;
+        }
+
+        /* ═══ Back to Top ═══ */
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--forest);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-md);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.4s var(--ease-organic), transform 0.4s var(--ease-organic);
+            z-index: 999;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .back-to-top:hover {
+            background: var(--forest-light);
+            transform: translateY(-2px);
+        }
+
+        .back-to-top svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* ═══ Layout ═══ */
+        .report-container {
+            min-height: 100vh;
+        }
+
+        .report-main {
+            max-width: var(--container-max);
+            margin: 0 auto;
+            padding: var(--section-gap) var(--pad-x);
+        }
+
+        /* ═══ Cover ═══ */
+        .report-cover {
+            text-align: center;
+            padding: clamp(3rem, 8vw, 6rem) var(--pad-x);
+            margin-bottom: var(--section-gap);
+        }
+
+        .cover-botanical {
+            margin-bottom: 2rem;
+        }
+
+        .cover-botanical svg {
+            width: clamp(120px, 20vw, 200px);
+            height: auto;
+        }
+
+        .cover-title {
+            font-family: var(--serif);
+            font-size: var(--title-size);
+            font-weight: 700;
+            color: var(--forest);
+            line-height: 1.2;
+            margin-bottom: 1rem;
+            letter-spacing: -0.02em;
+        }
+
+        .cover-subtitle {
+            font-family: var(--sans);
+            font-size: var(--h3-size);
+            font-weight: 300;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .cover-year {
+            font-family: var(--serif);
+            font-size: var(--h2-size);
+            font-weight: 500;
+            color: var(--earth);
+            letter-spacing: 0.05em;
+        }
+
+        /* ═══ Section Divider ═══ */
+        .section-divider {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: var(--section-gap) 0;
+            overflow: hidden;
+        }
+
+        .section-divider svg {
+            width: 100%;
+            max-width: 600px;
+            height: 40px;
+        }
+
+        /* ═══ Sections ═══ */
+        .report-section {
+            margin-bottom: var(--section-gap);
+        }
+
+        .section-header {
+            margin-bottom: var(--content-gap);
+        }
+
+        .section-label {
+            font-family: var(--sans);
+            font-size: var(--small-size);
+            font-weight: 600;
+            color: var(--sage);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            margin-bottom: 0.5rem;
+        }
+
+        .section-title {
+            font-family: var(--serif);
+            font-size: var(--h1-size);
+            font-weight: 700;
+            color: var(--forest);
+            line-height: 1.3;
+        }
+
+        .section-subtitle {
+            font-family: var(--sans);
+            font-size: var(--body-size);
+            font-weight: 300;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+            max-width: 600px;
+        }
+
+        /* ═══ Drop Cap ═══ */
+        .drop-cap::first-letter {
+            font-family: var(--serif);
+            font-size: clamp(3rem, 5vw, 4.5rem);
+            font-weight: 700;
+            color: var(--forest);
+            float: left;
+            line-height: 0.8;
+            margin-right: 0.1em;
+            margin-top: 0.05em;
+        }
+
+        /* ═══ Data Panels — Scandinavian Organic ═══ */
+        .data-panel {
+            position: relative;
+            padding: clamp(2rem, 4vw, 3rem);
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            z-index: 1;
+        }
+
+        .data-panel::before {
+            content: '';
+            position: absolute;
+            inset: -0.5rem;
+            background: linear-gradient(135deg,
+                var(--blob-from, rgba(74, 139, 158, 0.07)),
+                var(--blob-to, rgba(124, 154, 110, 0.04)));
+            border-radius: 60% 40% 55% 45% / 45% 55% 45% 55%;
+            z-index: -1;
+            transform: rotate(-1.5deg);
+            transition: border-radius 0.8s var(--ease-organic), transform 0.8s var(--ease-organic);
+        }
+
+        .data-panel:hover::before {
+            border-radius: 45% 55% 40% 60% / 55% 45% 55% 45%;
+            transform: rotate(0.5deg);
+        }
+
+        .data-panel::after {
+            content: '';
+            position: absolute;
+            width: 40%;
+            height: 40%;
+            bottom: -5%;
+            right: -3%;
+            background: radial-gradient(ellipse, rgba(124, 154, 110, 0.06), transparent 70%);
+            border-radius: 50% 50% 40% 60% / 60% 40% 50% 50%;
+            z-index: -1;
+        }
+
+        .data-panel-soft {
+            position: relative;
+            padding: clamp(2rem, 4vw, 3rem);
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            z-index: 1;
+        }
+
+        .data-panel-soft::before {
+            content: '';
+            position: absolute;
+            inset: -0.5rem;
+            background: linear-gradient(150deg,
+                var(--blob-from, rgba(124, 154, 110, 0.06)),
+                var(--blob-to, rgba(163, 191, 150, 0.04)));
+            border-radius: 45% 55% 40% 60% / 55% 40% 60% 40%;
+            z-index: -1;
+            transform: rotate(1deg);
+            transition: border-radius 0.8s var(--ease-organic), transform 0.8s var(--ease-organic);
+        }
+
+        .data-panel-soft:hover::before {
+            border-radius: 55% 45% 60% 40% / 40% 60% 40% 60%;
+            transform: rotate(-1deg);
+        }
+
+        .data-panel-soft::after {
+            content: '';
+            position: absolute;
+            width: 35%;
+            height: 35%;
+            top: -3%;
+            left: -2%;
+            background: radial-gradient(ellipse, rgba(74, 139, 158, 0.05), transparent 70%);
+            border-radius: 40% 60% 50% 50% / 50% 50% 60% 40%;
+            z-index: -1;
+        }
+
+        /* ═══ Circle Indicators ═══ */
+        .circle-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: clamp(1.5rem, 3vw, 2.5rem);
+        }
+
+        .circle-metric {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .circle-indicator {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        .circle-indicator::before {
+            content: '';
+            position: absolute;
+            inset: 18%;
+            border-radius: 50%;
+            background: var(--bg);
+        }
+
+        .circle-indicator .circle-value {
+            font-family: var(--serif);
+            font-size: var(--h2-size);
+            font-weight: 700;
+            color: var(--forest);
+            position: relative;
+        }
+
+        .circle-indicator .circle-unit {
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            position: relative;
+        }
+
+        .circle-metric-label {
+            font-family: var(--sans);
+            font-size: var(--small-size);
+            font-weight: 500;
+            color: var(--text-secondary);
+            max-width: 140px;
+        }
+
+        /* ═══ Progress Bars (Vine) ═══ */
+        .vine-progress {
+            margin-bottom: 1.5rem;
+        }
+
+        .vine-progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 0.5rem;
+        }
+
+        .vine-progress-label {
+            font-family: var(--sans);
+            font-size: var(--body-size);
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .vine-progress-value {
+            font-family: var(--serif);
+            font-size: var(--body-size);
+            font-weight: 600;
+            color: var(--forest);
+        }
+
+        .vine-progress-track {
+            width: 100%;
+            height: 12px;
+            background: rgba(124, 154, 110, 0.15);
+            border-radius: 6px;
+            overflow: visible;
+            position: relative;
+        }
+
+        .vine-progress-fill {
+            height: 100%;
+            border-radius: 6px;
+            background: linear-gradient(90deg, var(--sage), var(--forest));
+            position: relative;
+            transition: width 1.2s var(--ease-organic);
+            width: 0%;
+        }
+
+        .vine-progress-fill::after {
+            content: "🌿";
+            position: absolute;
+            right: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+        }
+
+        /* ═══ Leaf List ═══ */
+        .leaf-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .leaf-list li {
+            position: relative;
+            padding-left: 2rem;
+            margin-bottom: 0.75rem;
+            line-height: 1.7;
+        }
+
+        .leaf-list li::before {
+            content: "🌿";
+            position: absolute;
+            left: 0;
+            top: 0.1em;
+            font-size: 0.9em;
+        }
+
+        /* ═══ Callout Box ═══ */
+        .callout-box {
+            border-left: 4px solid var(--earth);
+            background: rgba(139, 105, 20, 0.04);
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            padding: clamp(1.2rem, 2.5vw, 2rem);
+            margin: var(--content-gap) 0;
+        }
+
+        .callout-box-title {
+            font-family: var(--serif);
+            font-size: var(--h3-size);
+            font-weight: 600;
+            color: var(--earth);
+            margin-bottom: 0.5rem;
+        }
+
+        .callout-box p {
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        /* ═══ Soil Layer Visualization ═══ */
+        .soil-layers {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .soil-layer {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.2rem;
+            border-radius: var(--radius-sm);
+            color: #fff;
+            font-weight: 500;
+            font-size: var(--small-size);
+            transition: transform 0.3s var(--ease-organic);
+        }
+
+        .soil-layer:hover {
+            transform: scaleX(1.02);
+        }
+
+        .soil-layer-value {
+            margin-left: auto;
+            font-family: var(--serif);
+            font-weight: 700;
+        }
+
+        /* ═══ Two Column Asymmetric ═══ */
+        .asymmetric-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: clamp(1.5rem, 3vw, 3rem);
+            align-items: stretch;
+        }
+
+        .asymmetric-grid.reverse {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        /* ═══ Stats Row ═══ */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1.5rem;
+            margin: var(--content-gap) 0;
+        }
+
+        .stat-card {
+            position: relative;
+            background: transparent;
+            border: none;
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: none;
+            z-index: 1;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            inset: -0.3rem;
+            background: linear-gradient(145deg, rgba(124, 154, 110, 0.06), rgba(163, 191, 150, 0.03));
+            border-radius: 50% 50% 45% 55% / 55% 45% 50% 50%;
+            z-index: -1;
+            transform: rotate(-0.5deg);
+            transition: border-radius 0.8s var(--ease-organic), transform 0.8s var(--ease-organic);
+        }
+
+        .stat-card:hover::before {
+            border-radius: 45% 55% 50% 50% / 50% 50% 55% 45%;
+            transform: rotate(1deg);
+        }
+
+        .stat-number {
+            font-family: var(--serif);
+            font-size: var(--stat-size);
+            font-weight: 700;
+            color: var(--forest);
+            line-height: 1.2;
+        }
+
+        .stat-label {
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            margin-top: 0.3rem;
+            font-weight: 400;
+        }
+
+        /* ═══ Table ═══ */
+        .eco-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            border-radius: var(--radius);
+            overflow: hidden;
+            border: 1px solid var(--border);
+            margin: var(--content-gap) 0;
+        }
+
+        .eco-table thead th {
+            background: var(--forest);
+            color: #fff;
+            font-family: var(--sans);
+            font-weight: 600;
+            font-size: var(--small-size);
+            padding: 1rem 1.2rem;
+            text-align: left;
+        }
+
+        .eco-table tbody td {
+            padding: 0.9rem 1.2rem;
+            border-bottom: 1px solid var(--border-light);
+            font-size: var(--small-size);
+        }
+
+        .eco-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .eco-table tbody tr:nth-child(even) {
+            background: rgba(124, 154, 110, 0.04);
+        }
+
+        .eco-table tbody tr:hover {
+            background: rgba(124, 154, 110, 0.08);
+        }
+
+        /* ═══ Chart Container ═══ */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 320px;
+            border-radius: var(--radius);
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            padding: 1rem;
+            z-index: 1;
+        }
+
+        .chart-container::before {
+            content: '';
+            position: absolute;
+            inset: -0.4rem;
+            background: linear-gradient(160deg, rgba(74, 139, 158, 0.05), rgba(124, 154, 110, 0.03));
+            border-radius: 48% 52% 55% 45% / 45% 50% 50% 55%;
+            z-index: -1;
+            transform: rotate(0.5deg);
+            transition: border-radius 0.8s var(--ease-organic);
+        }
+
+        .chart-container:hover::before {
+            border-radius: 52% 48% 45% 55% / 55% 50% 50% 45%;
+        }
+
+        /* ═══ Reveal Animation ═══ */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity var(--reveal-duration) var(--ease-organic),
+                        transform var(--reveal-duration) var(--ease-organic);
+        }
+
+        .reveal.revealed {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ═══ Responsive ═══ */
+        @media (max-width: 768px) {
+            .asymmetric-grid,
+            .asymmetric-grid.reverse {
+                grid-template-columns: 1fr;
+            }
+
+            .circle-metrics {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .stats-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .circle-indicator {
+                width: 100px;
+                height: 100px;
+            }
+
+            .eco-table {
+                font-size: var(--small-size);
+            }
+
+            .eco-table thead th,
+            .eco-table tbody td {
+                padding: 0.6rem 0.8rem;
+            }
+
+            .report-cover {
+                padding: 2rem var(--pad-x);
+            }
+        }
+
+        /* ═══ Print ═══ */
+        @media print {
+            .scroll-progress,
+            .back-to-top {
+                display: none !important;
+            }
+
+            .report-main {
+                padding: 0;
+            }
+
+            .reveal {
+                opacity: 1 !important;
+                transform: none !important;
+            }
+
+            body {
+                background: #fff;
+                font-size: 10pt;
+            }
+
+            .report-section {
+                page-break-inside: avoid;
+            }
+
+            .section-divider {
+                margin: 2rem 0;
+            }
+
+            .chart-container {
+                page-break-inside: avoid;
+            }
+        }
+
+        /* ═══ Reduced Motion ═══ */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+
+            .reveal {
+                opacity: 1;
+                transform: none;
+            }
+
+            html {
+                scroll-behavior: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="scroll-progress" id="scrollProgress"></div>
+
+    <button class="back-to-top" id="backToTop" aria-label="回到顶部">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="18 15 12 9 6 15"></polyline>
+        </svg>
+    </button>
+
+    <div class="report-container">
+        <!-- Cover -->
+        <header class="report-cover reveal">
+            <div class="cover-botanical">
+                <svg viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M100 110 C100 110 100 60 100 40" stroke="#2d5a27" stroke-width="1.5" stroke-linecap="round"/>
+                    <path d="M100 80 C85 75 70 65 65 50 C65 50 80 55 100 80" stroke="#2d5a27" stroke-width="1" fill="rgba(124,154,110,0.2)"/>
+                    <path d="M100 65 C115 60 130 48 133 35 C133 35 118 42 100 65" stroke="#2d5a27" stroke-width="1" fill="rgba(124,154,110,0.15)"/>
+                    <path d="M100 50 C88 45 78 35 75 22 C75 22 87 30 100 50" stroke="#2d5a27" stroke-width="1" fill="rgba(124,154,110,0.2)"/>
+                    <path d="M100 38 C110 33 120 24 122 15 C122 15 112 21 100 38" stroke="#2d5a27" stroke-width="1" fill="rgba(124,154,110,0.15)"/>
+                    <circle cx="100" cy="12" r="3" fill="#7c9a6e" opacity="0.6"/>
+                    <path d="M60 95 C60 95 70 88 80 92" stroke="#7c9a6e" stroke-width="0.8" stroke-linecap="round" opacity="0.5"/>
+                    <path d="M140 95 C140 95 130 88 120 92" stroke="#7c9a6e" stroke-width="0.8" stroke-linecap="round" opacity="0.5"/>
+                </svg>
+            </div>
+            <h1 class="cover-title">2024 可持续发展报告</h1>
+            <p class="cover-subtitle">绿源生态科技集团</p>
+            <p class="cover-year">Annual Sustainability Report</p>
+        </header>
+
+        <div class="report-main">
+            <!-- Section Divider -->
+            <div class="section-divider">
+                <svg viewBox="0 0 600 40" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+                    <path d="M0 20 C100 8, 200 32, 300 20 C400 8, 500 32, 600 20" stroke="#7c9a6e" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+                    <path d="M0 20 C150 30, 250 10, 300 20 C350 30, 450 10, 600 20" stroke="#2d5a27" stroke-width="0.8" stroke-linecap="round" opacity="0.2"/>
+                    <circle cx="300" cy="20" r="3" fill="#7c9a6e" opacity="0.5"/>
+                    <circle cx="150" cy="22" r="2" fill="#7c9a6e" opacity="0.3"/>
+                    <circle cx="450" cy="18" r="2" fill="#7c9a6e" opacity="0.3"/>
+                </svg>
+            </div>
+
+            <!-- Mission Statement -->
+            <section class="report-section reveal">
+                <div class="section-header">
+                    <p class="section-label">Our Mission</p>
+                    <h2 class="section-title">使命宣言</h2>
+                </div>
+                <p class="drop-cap" style="max-width: 680px; font-weight: 300; font-size: clamp(1rem, 1.2vw, 1.15rem); line-height: 2;">
+                    我们相信，企业的发展不应以牺牲自然为代价。绿源生态科技集团致力于将可持续理念融入每一个业务决策，从原材料采购到产品交付，从社区建设到生态保护。我们的目标是在创造商业价值的同时，守护这片土地上的每一条河流、每一片森林、每一个生命。2024年，我们以更大的决心和更具体的行动，回应自然的召唤。
+                </p>
+            </section>
+
+            <!-- Section Divider -->
+            <div class="section-divider">
+                <svg viewBox="0 0 600 40" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+                    <path d="M0 25 C80 10, 180 35, 300 20 C420 5, 520 30, 600 15" stroke="#7c9a6e" stroke-width="1.2" stroke-linecap="round" opacity="0.35"/>
+                    <path d="M280 18 L290 14 L300 20 L290 20 Z" fill="#7c9a6e" opacity="0.3"/>
+                    <path d="M300 20 L310 14 L320 18 L310 20 Z" fill="#2d5a27" opacity="0.2"/>
+                </svg>
+            </div>
+
+            <!-- Environmental Impact -->
+            <section class="report-section reveal">
+                <div class="section-header">
+                    <p class="section-label">Environmental Impact</p>
+                    <h2 class="section-title">环境影响</h2>
+                    <p class="section-subtitle">以科学手段量化我们的碳足迹，并持续推进碳中和目标</p>
+                </div>
+
+                <div class="circle-metrics" style="margin-bottom: var(--content-gap);">
+                    <div class="circle-metric reveal">
+                        <div class="circle-indicator" style="background: conic-gradient(var(--forest) 0% 42%, rgba(124,154,110,0.15) 42% 100%);">
+                            <div>
+                                <span class="circle-value counter" data-target="42">0</span><span class="circle-unit">%</span>
+                            </div>
+                        </div>
+                        <p class="circle-metric-label">碳排放较基准年减少</p>
+                    </div>
+                    <div class="circle-metric reveal">
+                        <div class="circle-indicator" style="background: conic-gradient(var(--sage) 0% 78%, rgba(124,154,110,0.15) 78% 100%);">
+                            <div>
+                                <span class="circle-value counter" data-target="78">0</span><span class="circle-unit">%</span>
+                            </div>
+                        </div>
+                        <p class="circle-metric-label">可再生能源使用占比</p>
+                    </div>
+                    <div class="circle-metric reveal">
+                        <div class="circle-indicator" style="background: conic-gradient(var(--stream) 0% 95%, rgba(124,154,110,0.15) 95% 100%);">
+                            <div>
+                                <span class="circle-value counter" data-target="95">0</span><span class="circle-unit">%</span>
+                            </div>
+                        </div>
+                        <p class="circle-metric-label">废弃物回收再利用率</p>
+                    </div>
+                    <div class="circle-metric reveal">
+                        <div class="circle-indicator" style="background: conic-gradient(var(--earth) 0% 63%, rgba(124,154,110,0.15) 63% 100%);">
+                            <div>
+                                <span class="circle-value counter" data-target="63">0</span><span class="circle-unit">%</span>
+                            </div>
+                        </div>
+                        <p class="circle-metric-label">供应链绿色认证比例</p>
+                    </div>
+                </div>
+
+                <div class="chart-container" id="carbonChart"></div>
+            </section>
+
+            <!-- Section Divider -->
+            <div class="section-divider">
+                <svg viewBox="0 0 600 40" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+                    <path d="M0 20 C50 30, 100 10, 200 22 C300 34, 400 8, 500 18 C550 22, 580 20, 600 20" stroke="#7c9a6e" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+                    <circle cx="200" cy="22" r="2.5" fill="#7c9a6e" opacity="0.4"/>
+                    <circle cx="500" cy="18" r="2.5" fill="#2d5a27" opacity="0.3"/>
+                </svg>
+            </div>
+
+            <!-- Resource Conservation -->
+            <section class="report-section reveal">
+                <div class="section-header">
+                    <p class="section-label">Resource Conservation</p>
+                    <h2 class="section-title">资源保护</h2>
+                    <p class="section-subtitle">珍惜每一滴水、每一度电，推动循环经济模式</p>
+                </div>
+
+                <div class="asymmetric-grid">
+                    <div>
+                        <div class="data-panel">
+                            <h3 style="font-family: var(--serif); font-weight: 600; color: var(--forest); margin-bottom: 1rem; font-size: var(--h3-size);">水资源管理</h3>
+                            <ul class="leaf-list">
+                                <li>工业用水循环利用率达到 <strong>89%</strong></li>
+                                <li>全年节约淡水 <strong>240 万吨</strong></li>
+                                <li>雨水收集系统覆盖 <strong>12 个</strong>生产基地</li>
+                                <li>废水处理达标排放率 <strong>100%</strong></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="chart-container" id="resourceChart" style="height: 100%;min-height: 280px;"></div>
+                    </div>
+                </div>
+
+                <div class="data-panel-soft" style="margin-top: var(--content-gap);">
+                    <h3 style="font-family: var(--serif); font-weight: 600; color: var(--forest); margin-bottom: 1rem; font-size: var(--h3-size);">能源转型</h3>
+                    <ul class="leaf-list">
+                        <li>新增光伏装机 <strong>45MW</strong></li>
+                        <li>全年清洁能源发电 <strong>6800 万度</strong></li>
+                        <li>能耗强度同比下降 <strong>15%</strong></li>
+                        <li>绿电采购比例提升至 <strong>78%</strong></li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Section Divider -->
+            <div class="section-divider">
+                <svg viewBox="0 0 600 40" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+                    <path d="M0 18 C120 30, 180 10, 300 22 C420 34, 480 12, 600 22" stroke="#8b6914" stroke-width="1" stroke-linecap="round" opacity="0.3"/>
+                    <path d="M0 22 C100 12, 250 30, 300 18 C350 6, 500 28, 600 18" stroke="#7c9a6e" stroke-width="1.2" stroke-linecap="round" opacity="0.35"/>
+                </svg>
+            </div>
+
+            <!-- Community Impact -->
+            <section class="report-section reveal">
+                <div class="section-header">
+                    <p class="section-label">Community Impact</p>
+                    <h2 class="section-title">社区影响</h2>
+                    <p class="section-subtitle">扎根社区，回馈自然，共建人与自然的和谐共生</p>
+                </div>
+
+                <div class="stats-row">
+                    <div class="stat-card reveal">
+                        <p class="stat-number"><span class="counter" data-target="156">0</span></p>
+                        <p class="stat-label">社区公益项目</p>
+                    </div>
+                    <div class="stat-card reveal">
+                        <p class="stat-number"><span class="counter" data-target="3200">0</span>+</p>
+                        <p class="stat-label">志愿者参与人次</p>
+                    </div>
+                    <div class="stat-card reveal">
+                        <p class="stat-number"><span class="counter" data-target="28">0</span></p>
+                        <p class="stat-label">合作社区数量</p>
+                    </div>
+                    <div class="stat-card reveal">
+                        <p class="stat-number"><span class="counter" data-target="860">0</span>万</p>
+                        <p class="stat-label">公益投入金额 (元)</p>
+                    </div>
+                </div>
+
+                <table class="eco-table">
+                    <thead>
+                        <tr>
+                            <th>项目名称</th>
+                            <th>覆盖区域</th>
+                            <th>受益人数</th>
+                            <th>投入资金</th>
+                            <th>状态</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>绿色校园计划</td>
+                            <td>华东地区 12 所学校</td>
+                            <td>8,500+</td>
+                            <td>¥120万</td>
+                            <td style="color: var(--forest); font-weight: 600;">持续中</td>
+                        </tr>
+                        <tr>
+                            <td>清洁水源行动</td>
+                            <td>西南山区 5 个村落</td>
+                            <td>3,200+</td>
+                            <td>¥280万</td>
+                            <td style="color: var(--forest); font-weight: 600;">持续中</td>
+                        </tr>
+                        <tr>
+                            <td>生态修复工程</td>
+                            <td>长江流域 3 个站点</td>
+                            <td>间接受益 5万+</td>
+                            <td>¥350万</td>
+                            <td style="color: var(--sage); font-weight: 600;">第二阶段</td>
+                        </tr>
+                        <tr>
+                            <td>有机农业培训</td>
+                            <td>华中农村 8 个乡镇</td>
+                            <td>1,800+</td>
+                            <td>¥85万</td>
+                            <td style="color: var(--earth); font-weight: 600;">已完成</td>
+                        </tr>
+                        <tr>
+                            <td>可持续就业扶持</td>
+                            <td>全国 15 个城市</td>
+                            <td>2,400+</td>
+                            <td>¥125万</td>
+                            <td style="color: var(--forest); font-weight: 600;">持续中</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Section Divider -->
+            <div class="section-divider">
+                <svg viewBox="0 0 600 40" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+                    <path d="M0 20 C75 10, 150 30, 225 18 C300 6, 375 32, 450 20 C525 8, 575 25, 600 20" stroke="#7c9a6e" stroke-width="1.5" stroke-linecap="round" opacity="0.35"/>
+                    <ellipse cx="225" cy="18" rx="3" ry="2" fill="#7c9a6e" opacity="0.4"/>
+                    <ellipse cx="450" cy="20" rx="3" ry="2" fill="#7c9a6e" opacity="0.4"/>
+                </svg>
+            </div>
+
+            <!-- Supply Chain -->
+            <section class="report-section reveal">
+                <div class="section-header">
+                    <p class="section-label">Supply Chain</p>
+                    <h2 class="section-title">供应链管理</h2>
+                    <p class="section-subtitle">构建透明、可追溯的绿色供应链体系</p>
+                </div>
+
+                <div class="asymmetric-grid reverse">
+                    <div>
+                        <div class="chart-container" id="supplyChart" style="height: 100%; min-height: 320px;"></div>
+                    </div>
+                    <div>
+                        <div class="data-panel-soft" style="--blob-from: rgba(139, 105, 20, 0.06); --blob-to: rgba(184, 147, 46, 0.03);">
+                            <h3 style="font-family: var(--serif); font-weight: 600; color: var(--forest); margin-bottom: 1rem; font-size: var(--h3-size);">可持续采购亮点</h3>
+                            <ul class="leaf-list">
+                                <li>一级供应商 ESG 审核覆盖率 <strong>100%</strong></li>
+                                <li>可再生材料采购占比 <strong>63%</strong></li>
+                                <li>本地化采购率 <strong>72%</strong>，减少运输碳排</li>
+                                <li>淘汰不合规供应商 <strong>23 家</strong></li>
+                                <li>新增绿色认证供应商 <strong>45 家</strong></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="soil-layers" style="margin-top: var(--content-gap);">
+                    <div class="soil-layer" style="background: var(--forest); width: 100%;">
+                        <span>可再生材料</span>
+                        <span class="soil-layer-value">63%</span>
+                    </div>
+                    <div class="soil-layer" style="background: var(--sage); width: 85%;">
+                        <span>本地化采购</span>
+                        <span class="soil-layer-value">72%</span>
+                    </div>
+                    <div class="soil-layer" style="background: var(--stream); width: 70%;">
+                        <span>绿色认证供应商</span>
+                        <span class="soil-layer-value">58%</span>
+                    </div>
+                    <div class="soil-layer" style="background: var(--earth); width: 55%;">
+                        <span>碳足迹追溯</span>
+                        <span class="soil-layer-value">45%</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section Divider -->
+            <div class="section-divider">
+                <svg viewBox="0 0 600 40" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+                    <path d="M0 22 C100 10, 200 30, 300 18 C400 6, 500 28, 600 20" stroke="#2d5a27" stroke-width="1" stroke-linecap="round" opacity="0.25"/>
+                    <path d="M0 18 C150 28, 300 12, 450 24 C525 30, 575 18, 600 20" stroke="#7c9a6e" stroke-width="1.3" stroke-linecap="round" opacity="0.4"/>
+                    <circle cx="300" cy="18" r="2" fill="#2d5a27" opacity="0.35"/>
+                </svg>
+            </div>
+
+            <!-- Goals & Progress -->
+            <section class="report-section reveal">
+                <div class="section-header">
+                    <p class="section-label">Goals & Progress</p>
+                    <h2 class="section-title">目标与进展</h2>
+                    <p class="section-subtitle">稳步推进 2030 可持续发展愿景路线图</p>
+                </div>
+
+                <div class="data-panel" style="--blob-from: rgba(45, 90, 39, 0.06); --blob-to: rgba(124, 154, 110, 0.03); margin-bottom: var(--content-gap);">
+                    <div class="vine-progress">
+                        <div class="vine-progress-header">
+                            <span class="vine-progress-label">碳中和目标</span>
+                            <span class="vine-progress-value">42% / 100%</span>
+                        </div>
+                        <div class="vine-progress-track">
+                            <div class="vine-progress-fill" data-width="42"></div>
+                        </div>
+                    </div>
+
+                    <div class="vine-progress">
+                        <div class="vine-progress-header">
+                            <span class="vine-progress-label">100% 可再生能源</span>
+                            <span class="vine-progress-value">78% / 100%</span>
+                        </div>
+                        <div class="vine-progress-track">
+                            <div class="vine-progress-fill" data-width="78"></div>
+                        </div>
+                    </div>
+
+                    <div class="vine-progress">
+                        <div class="vine-progress-header">
+                            <span class="vine-progress-label">零废弃物填埋</span>
+                            <span class="vine-progress-value">85% / 100%</span>
+                        </div>
+                        <div class="vine-progress-track">
+                            <div class="vine-progress-fill" data-width="85"></div>
+                        </div>
+                    </div>
+
+                    <div class="vine-progress">
+                        <div class="vine-progress-header">
+                            <span class="vine-progress-label">供应链全面绿色认证</span>
+                            <span class="vine-progress-value">63% / 100%</span>
+                        </div>
+                        <div class="vine-progress-track">
+                            <div class="vine-progress-fill" data-width="63"></div>
+                        </div>
+                    </div>
+
+                    <div class="vine-progress">
+                        <div class="vine-progress-header">
+                            <span class="vine-progress-label">水资源零浪费</span>
+                            <span class="vine-progress-value">89% / 100%</span>
+                        </div>
+                        <div class="vine-progress-track">
+                            <div class="vine-progress-fill" data-width="89"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section Divider -->
+            <div class="section-divider">
+                <svg viewBox="0 0 600 40" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+                    <path d="M0 20 C60 28, 120 12, 200 22 C280 32, 320 10, 400 18 C480 26, 540 14, 600 20" stroke="#4a8b9e" stroke-width="1.2" stroke-linecap="round" opacity="0.35"/>
+                    <path d="M0 20 C100 14, 200 26, 300 20 C400 14, 500 26, 600 20" stroke="#7c9a6e" stroke-width="0.8" stroke-linecap="round" opacity="0.25"/>
+                </svg>
+            </div>
+
+            <!-- Biodiversity -->
+            <section class="report-section reveal">
+                <div class="section-header">
+                    <p class="section-label">Biodiversity</p>
+                    <h2 class="section-title">生物多样性</h2>
+                    <p class="section-subtitle">守护生命的多样之美，维护生态系统的完整与稳定</p>
+                </div>
+
+                <div class="stats-row" style="margin-bottom: var(--content-gap);">
+                    <div class="stat-card reveal">
+                        <p class="stat-number"><span class="counter" data-target="12">0</span></p>
+                        <p class="stat-label">生态保护区合作</p>
+                    </div>
+                    <div class="stat-card reveal">
+                        <p class="stat-number"><span class="counter" data-target="340">0</span>+</p>
+                        <p class="stat-label">监测物种数量</p>
+                    </div>
+                    <div class="stat-card reveal">
+                        <p class="stat-number"><span class="counter" data-target="5600">0</span></p>
+                        <p class="stat-label">植树造林 (亩)</p>
+                    </div>
+                </div>
+
+                <div class="chart-container" id="biodiversityChart" style="height: 300px;"></div>
+            </section>
+
+            <!-- Section Divider -->
+            <div class="section-divider">
+                <svg viewBox="0 0 600 40" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+                    <path d="M0 20 C150 8, 250 32, 350 16 C450 0, 550 28, 600 20" stroke="#7c9a6e" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+                    <circle cx="350" cy="16" r="3" fill="#8b6914" opacity="0.35"/>
+                </svg>
+            </div>
+
+            <!-- Looking Forward -->
+            <section class="report-section reveal">
+                <div class="section-header">
+                    <p class="section-label">Looking Forward</p>
+                    <h2 class="section-title">展望未来</h2>
+                </div>
+
+                <div class="callout-box">
+                    <p class="callout-box-title">2025 年核心目标</p>
+                    <p>面向未来，我们将继续深化可持续发展战略，以更高标准要求自己，以更创新的方式回馈自然与社会。</p>
+                </div>
+
+                <ul class="leaf-list" style="margin-top: var(--content-gap);">
+                    <li>碳排放再降低 15%，累计减排达到基准年的 <strong>57%</strong></li>
+                    <li>实现 3 个生产基地 <strong>零碳运营</strong></li>
+                    <li>可再生能源使用占比提升至 <strong>90%</strong></li>
+                    <li>启动 <strong>海洋生态修复</strong> 专项计划，覆盖 5 个沿海城市</li>
+                    <li>建立行业首个 <strong>碳足迹区块链追溯平台</strong></li>
+                    <li>员工可持续发展培训覆盖率达到 <strong>100%</strong></li>
+                    <li>发布首份 <strong>自然相关财务信息披露</strong> (TNFD) 报告</li>
+                </ul>
+
+                <div class="callout-box" style="margin-top: var(--content-gap); border-left-color: var(--forest);">
+                    <p class="callout-box-title" style="color: var(--forest);">我们的承诺</p>
+                    <p>「让每一次商业决策都成为自然的盟友，让每一件产品都承载着对地球的敬意。到 2030 年，我们将实现全面碳中和，成为行业可持续发展的标杆。」</p>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+    class ReportPresentation {
+        constructor() {
+            this.init();
+        }
+
+        init() {
+            this.setupScrollProgress();
+            this.setupBackToTop();
+            this.setupRevealAnimations();
+            this.setupCounterAnimations();
+            this.setupVineProgress();
+            this.initCharts();
+        }
+
+        // Scroll Progress
+        setupScrollProgress() {
+            const progressBar = document.getElementById('scrollProgress');
+            window.addEventListener('scroll', () => {
+                const scrollTop = window.scrollY;
+                const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                const progress = (scrollTop / docHeight) * 100;
+                progressBar.style.width = progress + '%';
+            });
+        }
+
+        // Back to Top
+        setupBackToTop() {
+            const btn = document.getElementById('backToTop');
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 400) {
+                    btn.classList.add('visible');
+                } else {
+                    btn.classList.remove('visible');
+                }
+            });
+            btn.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        }
+
+        // Reveal Animations
+        setupRevealAnimations() {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('revealed');
+                    }
+                });
+            }, {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            });
+
+            document.querySelectorAll('.reveal').forEach(el => {
+                observer.observe(el);
+            });
+        }
+
+        // Counter Animation
+        setupCounterAnimations() {
+            const counters = document.querySelectorAll('.counter');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && !entry.target.dataset.animated) {
+                        entry.target.dataset.animated = 'true';
+                        this.animateCounter(entry.target);
+                    }
+                });
+            }, { threshold: 0.5 });
+
+            counters.forEach(counter => observer.observe(counter));
+        }
+
+        animateCounter(el) {
+            const target = parseInt(el.dataset.target);
+            const duration = 1500;
+            const startTime = performance.now();
+
+            const animate = (currentTime) => {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = Math.round(target * eased);
+                el.textContent = current.toLocaleString();
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                }
+            };
+
+            requestAnimationFrame(animate);
+        }
+
+        // Vine Progress Bars
+        setupVineProgress() {
+            const fills = document.querySelectorAll('.vine-progress-fill');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const width = entry.target.dataset.width;
+                        entry.target.style.width = width + '%';
+                    }
+                });
+            }, { threshold: 0.3 });
+
+            fills.forEach(fill => observer.observe(fill));
+        }
+
+        // Charts
+        initCharts() {
+            this.initCarbonChart();
+            this.initResourceChart();
+            this.initSupplyChart();
+            this.initBiodiversityChart();
+        }
+
+        getNatureColors() {
+            return ['#2d5a27', '#7c9a6e', '#4a8b9e', '#8b6914', '#a3bf96', '#6baabb'];
+        }
+
+        initCarbonChart() {
+            const el = document.getElementById('carbonChart');
+            if (!el) return;
+            const chart = echarts.init(el);
+
+            const option = {
+                backgroundColor: 'transparent',
+                title: {
+                    text: '年度碳排放变化趋势',
+                    left: 'center',
+                    top: 10,
+                    textStyle: {
+                        fontFamily: 'Bitter, serif',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: '#2f2f2f'
+                    }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: '#f9f6f0',
+                    borderColor: '#7c9a6e',
+                    textStyle: { color: '#2f2f2f' }
+                },
+                grid: {
+                    left: '8%',
+                    right: '5%',
+                    top: '18%',
+                    bottom: '12%'
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['2019', '2020', '2021', '2022', '2023', '2024'],
+                    axisLine: { lineStyle: { color: '#7c9a6e' } },
+                    axisLabel: { color: '#5a5a4e' }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '万吨 CO₂e',
+                    nameTextStyle: { color: '#5a5a4e', fontSize: 11 },
+                    axisLine: { show: false },
+                    splitLine: { lineStyle: { color: 'rgba(124,154,110,0.15)' } },
+                    axisLabel: { color: '#5a5a4e' }
+                },
+                series: [{
+                    name: '碳排放量',
+                    type: 'line',
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 8,
+                    lineStyle: {
+                        color: '#2d5a27',
+                        width: 3
+                    },
+                    itemStyle: { color: '#2d5a27' },
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: 'rgba(45,90,39,0.25)' },
+                            { offset: 1, color: 'rgba(45,90,39,0.02)' }
+                        ])
+                    },
+                    data: [120, 112, 98, 85, 76, 70]
+                }]
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', () => chart.resize());
+        }
+
+        initResourceChart() {
+            const el = document.getElementById('resourceChart');
+            if (!el) return;
+            const chart = echarts.init(el);
+
+            const option = {
+                backgroundColor: 'transparent',
+                title: {
+                    text: '资源节约成效',
+                    left: 'center',
+                    top: 10,
+                    textStyle: {
+                        fontFamily: 'Bitter, serif',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: '#2f2f2f'
+                    }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: '#f9f6f0',
+                    borderColor: '#7c9a6e',
+                    textStyle: { color: '#2f2f2f' }
+                },
+                legend: {
+                    bottom: 5,
+                    textStyle: { color: '#5a5a4e' }
+                },
+                grid: {
+                    left: '8%',
+                    right: '5%',
+                    top: '18%',
+                    bottom: '18%'
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['Q1', 'Q2', 'Q3', 'Q4'],
+                    axisLine: { lineStyle: { color: '#7c9a6e' } },
+                    axisLabel: { color: '#5a5a4e' }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '节约量',
+                    nameTextStyle: { color: '#5a5a4e', fontSize: 11 },
+                    axisLine: { show: false },
+                    splitLine: { lineStyle: { color: 'rgba(124,154,110,0.15)' } },
+                    axisLabel: { color: '#5a5a4e' }
+                },
+                series: [
+                    {
+                        name: '水资源 (万吨)',
+                        type: 'bar',
+                        barWidth: '25%',
+                        itemStyle: {
+                            color: '#4a8b9e',
+                            borderRadius: [6, 6, 0, 0]
+                        },
+                        data: [52, 58, 65, 65]
+                    },
+                    {
+                        name: '电力 (万度)',
+                        type: 'bar',
+                        barWidth: '25%',
+                        itemStyle: {
+                            color: '#7c9a6e',
+                            borderRadius: [6, 6, 0, 0]
+                        },
+                        data: [1500, 1650, 1780, 1870]
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', () => chart.resize());
+        }
+
+        initSupplyChart() {
+            const el = document.getElementById('supplyChart');
+            if (!el) return;
+            const chart = echarts.init(el);
+
+            const option = {
+                backgroundColor: 'transparent',
+                title: {
+                    text: '供应链可持续采购构成',
+                    left: 'center',
+                    top: 10,
+                    textStyle: {
+                        fontFamily: 'Bitter, serif',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: '#2f2f2f'
+                    }
+                },
+                tooltip: {
+                    trigger: 'item',
+                    backgroundColor: '#f9f6f0',
+                    borderColor: '#7c9a6e',
+                    textStyle: { color: '#2f2f2f' }
+                },
+                legend: {
+                    bottom: 10,
+                    textStyle: { color: '#5a5a4e', fontSize: 12 },
+                    itemGap: 16
+                },
+                series: [{
+                    type: 'pie',
+                    radius: ['35%', '60%'],
+                    center: ['50%', '45%'],
+                    avoidLabelOverlap: true,
+                    itemStyle: {
+                        borderRadius: 8,
+                        borderColor: '#f9f6f0',
+                        borderWidth: 2
+                    },
+                    label: {
+                        show: false
+                    },
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: '#2f2f2f'
+                        }
+                    },
+                    data: [
+                        { value: 63, name: '可再生材料', itemStyle: { color: '#2d5a27' } },
+                        { value: 15, name: '低碳材料', itemStyle: { color: '#7c9a6e' } },
+                        { value: 12, name: '回收再造', itemStyle: { color: '#4a8b9e' } },
+                        { value: 10, name: '传统材料', itemStyle: { color: '#8b6914' } }
+                    ]
+                }]
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', () => chart.resize());
+        }
+
+        initBiodiversityChart() {
+            const el = document.getElementById('biodiversityChart');
+            if (!el) return;
+            const chart = echarts.init(el);
+
+            const option = {
+                backgroundColor: 'transparent',
+                title: {
+                    text: '保护区物种监测数量变化',
+                    left: 'center',
+                    top: 10,
+                    textStyle: {
+                        fontFamily: 'Bitter, serif',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: '#2f2f2f'
+                    }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: '#f9f6f0',
+                    borderColor: '#7c9a6e',
+                    textStyle: { color: '#2f2f2f' }
+                },
+                legend: {
+                    bottom: 5,
+                    textStyle: { color: '#5a5a4e' }
+                },
+                grid: {
+                    left: '8%',
+                    right: '5%',
+                    top: '18%',
+                    bottom: '18%'
+                },
+                xAxis: {
+                    type: 'category',
+                    boundaryGap: false,
+                    data: ['2019', '2020', '2021', '2022', '2023', '2024'],
+                    axisLine: { lineStyle: { color: '#7c9a6e' } },
+                    axisLabel: { color: '#5a5a4e' }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '物种数',
+                    nameTextStyle: { color: '#5a5a4e', fontSize: 11 },
+                    axisLine: { show: false },
+                    splitLine: { lineStyle: { color: 'rgba(124,154,110,0.15)' } },
+                    axisLabel: { color: '#5a5a4e' }
+                },
+                series: [
+                    {
+                        name: '植物',
+                        type: 'line',
+                        smooth: true,
+                        symbol: 'none',
+                        lineStyle: { width: 2, color: '#2d5a27' },
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(45,90,39,0.3)' },
+                                { offset: 1, color: 'rgba(45,90,39,0.02)' }
+                            ])
+                        },
+                        data: [180, 195, 210, 235, 268, 295]
+                    },
+                    {
+                        name: '动物',
+                        type: 'line',
+                        smooth: true,
+                        symbol: 'none',
+                        lineStyle: { width: 2, color: '#4a8b9e' },
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(74,139,158,0.25)' },
+                                { offset: 1, color: 'rgba(74,139,158,0.02)' }
+                            ])
+                        },
+                        data: [85, 92, 105, 118, 132, 148]
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', () => chart.resize());
+        }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        new ReportPresentation();
+    });
+    </script>
+</body>
+</html>

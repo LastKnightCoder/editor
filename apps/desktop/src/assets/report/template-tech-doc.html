@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>技术架构设计文档</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --bg-alt: #161b22;
+            --bg-card: rgba(22, 27, 34, 0.8);
+            --bg-card-hover: rgba(33, 38, 45, 0.9);
+            --text: #c9d1d9;
+            --text-secondary: rgba(201, 209, 217, 0.7);
+            --text-dim: rgba(201, 209, 217, 0.4);
+            --accent: #58a6ff;
+            --accent-dim: rgba(88, 166, 255, 0.12);
+            --green: #3fb950;
+            --green-dim: rgba(63, 185, 80, 0.12);
+            --orange: #d29922;
+            --orange-dim: rgba(210, 153, 34, 0.12);
+            --red: #f85149;
+            --red-dim: rgba(248, 81, 73, 0.12);
+            --purple: #bc8cff;
+            --purple-dim: rgba(188, 140, 255, 0.12);
+            --border: rgba(48, 54, 61, 0.8);
+            --border-accent: rgba(88, 166, 255, 0.3);
+            --mono: "JetBrains Mono", "SF Mono", "Fira Code", "Cascadia Code", monospace;
+            --sans: "Inter", -apple-system, "PingFang SC", sans-serif;
+            --ease: cubic-bezier(0.16, 1, 0.3, 1);
+            --title-size: clamp(2rem, 4vw, 3.5rem);
+            --h1-size: clamp(1.6rem, 3vw, 2.4rem);
+            --h2-size: clamp(1.3rem, 2.5vw, 1.8rem);
+            --h3-size: clamp(1.05rem, 1.5vw, 1.3rem);
+            --body-size: clamp(0.85rem, 1vw, 0.95rem);
+            --small-size: clamp(0.72rem, 0.85vw, 0.82rem);
+            --stat-size: clamp(1.8rem, 4vw, 3rem);
+            --section-gap: clamp(2.5rem, 5vw, 5rem);
+            --content-gap: clamp(1.2rem, 2.5vw, 2.5rem);
+            --container-max: 960px;
+            --pad-x: clamp(1.5rem, 3vw, 3rem);
+            --reveal-duration: 0.5s;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            font-size: var(--body-size);
+            line-height: 1.7;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ═══ 布局 ═══ */
+        .report-container { min-height: 100vh; }
+
+        .report-main {
+            flex: 1;
+            max-width: var(--container-max);
+            margin: 0 auto;
+            padding: var(--section-gap) var(--pad-x);
+        }
+
+        /* ═══ 章节 ═══ */
+        .report-section {
+            padding-bottom: var(--section-gap);
+            margin-bottom: var(--section-gap);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .report-section:last-child { border-bottom: none; margin-bottom: 0; }
+
+        .section-label {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--text-dim);
+            margin-bottom: 0.5rem;
+        }
+
+        .section-label::before {
+            content: '/// ';
+            color: var(--green);
+        }
+
+        .section-title {
+            font-family: var(--mono);
+            font-size: var(--h1-size);
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: var(--content-gap);
+            line-height: 1.3;
+        }
+
+        .section-title::before {
+            content: '> ';
+            color: var(--accent);
+        }
+
+        .section-subtitle {
+            font-size: var(--body-size);
+            color: var(--text-secondary);
+            margin-bottom: var(--content-gap);
+            max-width: 65ch;
+            line-height: 1.8;
+        }
+
+        /* ═══ 封面 ═══ */
+        .report-cover {
+            padding: clamp(3rem, 8vh, 8rem) 0;
+            border-bottom: 1px dashed var(--border);
+        }
+
+        .cover-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--green);
+            background: var(--green-dim);
+            padding: 0.3rem 0.8rem;
+            border-radius: 3px;
+            border: 1px solid rgba(63, 185, 80, 0.2);
+            margin-bottom: 1.5rem;
+        }
+
+        .cover-badge::before { content: '●'; font-size: 0.5rem; }
+
+        .cover-title {
+            font-family: var(--mono);
+            font-size: var(--title-size);
+            font-weight: 600;
+            color: var(--text);
+            line-height: 1.2;
+            margin-bottom: 1rem;
+        }
+
+        .cover-subtitle {
+            font-size: var(--h3-size);
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+            font-family: var(--sans);
+        }
+
+        .cover-meta {
+            display: flex;
+            gap: 1.5rem;
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--text-dim);
+            flex-wrap: wrap;
+        }
+
+        .cover-meta span {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .cover-meta .label { color: var(--text-dim); }
+        .cover-meta .value { color: var(--text-secondary); }
+
+        /* ═══ 指标 ═══ */
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: clamp(0.75rem, 1.5vw, 1.25rem);
+            margin: var(--content-gap) 0;
+        }
+
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: clamp(1rem, 1.5vw, 1.5rem);
+            transition: border-color 0.2s;
+        }
+
+        .metric-card:hover { border-color: var(--border-accent); }
+
+        .metric-value {
+            font-family: var(--mono);
+            font-size: var(--stat-size);
+            font-weight: 600;
+            color: var(--accent);
+            line-height: 1.2;
+            margin-bottom: 0.3rem;
+            white-space: nowrap;
+        }
+
+        .metric-label {
+            font-size: var(--small-size);
+            color: var(--text-dim);
+            font-family: var(--mono);
+        }
+
+        .metric-tag {
+            display: inline-block;
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            margin-top: 0.5rem;
+        }
+
+        .metric-tag.up { color: var(--green); background: var(--green-dim); }
+        .metric-tag.down { color: var(--red); background: var(--red-dim); }
+
+        /* ═══ 图表 ═══ */
+        .chart-container {
+            width: 100%;
+            height: clamp(250px, 35vh, 380px);
+            margin: var(--content-gap) 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: clamp(0.75rem, 1.5vw, 1.25rem);
+        }
+
+        .chart-title {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+        }
+
+        .chart-title::before {
+            content: '$ ';
+            color: var(--green);
+        }
+
+        /* ═══ 表格 ═══ */
+        .table-styled {
+            width: 100%;
+            border-collapse: collapse;
+            margin: var(--content-gap) 0;
+            font-family: var(--mono);
+            font-size: var(--small-size);
+        }
+
+        .table-styled thead th {
+            text-align: left;
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-dim);
+            font-weight: 500;
+        }
+
+        .table-styled tbody td {
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid rgba(48, 54, 61, 0.4);
+        }
+
+        .table-styled tbody tr:hover { background: var(--accent-dim); }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.7rem;
+        }
+
+        .status-badge.active { color: var(--green); background: var(--green-dim); }
+        .status-badge.warning { color: var(--orange); background: var(--orange-dim); }
+        .status-badge.error { color: var(--red); background: var(--red-dim); }
+        .status-badge.info { color: var(--purple); background: var(--purple-dim); }
+
+        /* ═══ 代码块 ═══ */
+        .code-block {
+            background: var(--bg-alt);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin: var(--content-gap) 0;
+            overflow: hidden;
+        }
+
+        .code-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid var(--border);
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--text-dim);
+        }
+
+        .code-header .lang-badge {
+            color: var(--accent);
+            background: var(--accent-dim);
+            padding: 0.1rem 0.4rem;
+            border-radius: 3px;
+            font-size: 0.68rem;
+        }
+
+        .code-block pre {
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            line-height: 1.8;
+            color: var(--text);
+        }
+
+        .code-block .comment { color: #8b949e; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .function { color: #d2a8ff; }
+        .code-block .type { color: #79c0ff; }
+        .code-block .number { color: #79c0ff; }
+
+        /* ═══ 时间轴 ═══ */
+        .timeline {
+            position: relative;
+            padding-left: 1.75rem;
+            margin: var(--content-gap) 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 5px;
+            top: 4px;
+            bottom: 4px;
+            width: 1px;
+            background: var(--border);
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-bottom: clamp(1.2rem, 2vw, 2rem);
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -1.75rem;
+            top: 7px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 2px solid var(--bg);
+            box-shadow: 0 0 0 2px var(--accent-dim);
+        }
+
+        .timeline-date {
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            margin-bottom: 0.2rem;
+        }
+
+        .timeline-title {
+            font-family: var(--mono);
+            font-weight: 500;
+            margin-bottom: 0.2rem;
+            font-size: var(--body-size);
+        }
+
+        .timeline-desc {
+            color: var(--text-secondary);
+            font-size: var(--small-size);
+        }
+
+        /* ═══ 卡片网格 ═══ */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: clamp(0.75rem, 1.5vw, 1.25rem);
+            margin: var(--content-gap) 0;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: clamp(1.2rem, 2vw, 1.75rem);
+            transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .card:hover {
+            border-color: var(--border-accent);
+            transform: translateY(-2px);
+        }
+
+        .card-icon {
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            color: var(--accent);
+            background: var(--accent-dim);
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            display: inline-block;
+            margin-bottom: 0.75rem;
+        }
+
+        .card-title {
+            font-family: var(--mono);
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            font-size: var(--body-size);
+        }
+
+        .card-desc {
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        /* ═══ 提示框 ═══ */
+        .callout {
+            padding: clamp(0.75rem, 1.5vw, 1.25rem);
+            border-radius: 6px;
+            margin: var(--content-gap) 0;
+            border: 1px solid;
+            font-size: var(--small-size);
+        }
+
+        .callout-info { background: var(--accent-dim); border-color: rgba(88,166,255,0.2); }
+        .callout-success { background: var(--green-dim); border-color: rgba(63,185,80,0.2); }
+        .callout-warning { background: var(--orange-dim); border-color: rgba(210,153,34,0.2); }
+        .callout-danger { background: var(--red-dim); border-color: rgba(248,81,73,0.2); }
+
+        .callout-title {
+            font-family: var(--mono);
+            font-weight: 500;
+            margin-bottom: 0.4rem;
+        }
+
+        .callout-info .callout-title { color: var(--accent); }
+        .callout-success .callout-title { color: var(--green); }
+        .callout-warning .callout-title { color: var(--orange); }
+        .callout-danger .callout-title { color: var(--red); }
+
+        .callout-content { color: var(--text-secondary); line-height: 1.7; }
+
+        /* ═══ 对比 ═══ */
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(1rem, 2vw, 2rem);
+            margin: var(--content-gap) 0;
+        }
+
+        .comparison-col {
+            padding: clamp(1rem, 1.5vw, 1.5rem);
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+        }
+
+        .comparison-col.positive { border-top: 2px solid var(--green); }
+        .comparison-col.negative { border-top: 2px solid var(--red); }
+
+        .comparison-title {
+            font-family: var(--mono);
+            font-weight: 500;
+            margin-bottom: 0.75rem;
+            font-size: var(--small-size);
+        }
+
+        .positive .comparison-title { color: var(--green); }
+        .negative .comparison-title { color: var(--red); }
+
+        .comparison-list { list-style: none; }
+
+        .comparison-list li {
+            padding: 0.3rem 0;
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            padding-left: 1rem;
+            position: relative;
+        }
+
+        .comparison-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.6rem;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+        }
+
+        .positive .comparison-list li::before { background: var(--green); }
+        .negative .comparison-list li::before { background: var(--red); }
+
+        /* ═══ 进度条 ═══ */
+        .progress-list { margin: var(--content-gap) 0; }
+
+        .progress-item { margin-bottom: 1rem; }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.35rem;
+            font-family: var(--mono);
+            font-size: var(--small-size);
+        }
+
+        .progress-label { color: var(--text-secondary); }
+        .progress-value { color: var(--accent); }
+
+        .progress-bar {
+            height: 4px;
+            background: rgba(48, 54, 61, 0.8);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 2px;
+            width: 0;
+            transition: width 1s var(--ease);
+        }
+
+        /* ═══ 滚动触发动画 ═══ */
+        .reveal {
+            opacity: 0;
+            transform: translateY(15px);
+            transition: opacity var(--reveal-duration) var(--ease), transform var(--reveal-duration) var(--ease);
+        }
+
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-20px);
+            transition: opacity var(--reveal-duration) var(--ease), transform var(--reveal-duration) var(--ease);
+        }
+
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(20px);
+            transition: opacity var(--reveal-duration) var(--ease), transform var(--reveal-duration) var(--ease);
+        }
+
+        .reveal.visible, .reveal-left.visible, .reveal-right.visible {
+            opacity: 1;
+            transform: translateY(0) translateX(0);
+        }
+
+        .delay-1 { transition-delay: 0.08s; }
+        .delay-2 { transition-delay: 0.16s; }
+        .delay-3 { transition-delay: 0.24s; }
+        .delay-4 { transition-delay: 0.32s; }
+        .delay-5 { transition-delay: 0.4s; }
+
+        /* ═══ 滚动进度 ═══ */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 2px;
+            background: var(--accent);
+            z-index: 9998;
+            transition: width 0.1s linear;
+        }
+
+        .back-to-top {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            background: var(--bg-alt);
+            border: 1px solid var(--border);
+            color: var(--accent);
+            font-family: var(--mono);
+            font-size: 0.8rem;
+            cursor: pointer;
+            opacity: 0;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .back-to-top.visible { opacity: 1; }
+        .back-to-top:hover { background: var(--accent-dim); border-color: var(--accent); }
+
+        /* ═══ 打印 ═══ */
+        @media print {
+            body { background: white; color: #1a1a1a; }
+            .scroll-progress, .back-to-top { display: none; }
+            .report-main { max-width: 100%; padding: 0; }
+            .report-section { break-inside: avoid; border-bottom: 1px solid #e5e5e5; }
+            .chart-container, .metric-grid { break-inside: avoid; }
+            .code-block { border: 1px solid #e5e5e5; }
+            * { animation: none !important; transition: none !important; }
+            .reveal, .reveal-left, .reveal-right { opacity: 1 !important; transform: none !important; }
+        }
+
+        /* ═══ 响应式 ═══ */
+        @media (max-width: 768px) {
+            .metric-grid { grid-template-columns: 1fr 1fr; }
+            .card-grid { grid-template-columns: 1fr; }
+            .comparison { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 480px) {
+            .metric-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .reveal, .reveal-left, .reveal-right {
+                transition: opacity 0.2s ease;
+                transform: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="scroll-progress" id="scrollProgress"></div>
+
+    <div class="report-container">
+        <main class="report-main">
+            <!-- 封面 -->
+            <section class="report-section report-cover" id="sec-cover">
+                <div class="cover-badge reveal">v3.2.0-stable</div>
+                <h1 class="cover-title reveal delay-1">微服务架构<br>技术设计文档</h1>
+                <p class="cover-subtitle reveal delay-2">面向高并发场景的分布式系统架构设计，涵盖服务网格、事件驱动与可观测性体系</p>
+                <div class="cover-meta reveal delay-3">
+                    <span><span class="label">author:</span> <span class="value">Platform Team</span></span>
+                    <span><span class="label">updated:</span> <span class="value">2024-12-15</span></span>
+                    <span><span class="label">status:</span> <span class="value" style="color:var(--green)">approved</span></span>
+                </div>
+            </section>
+
+            <!-- 架构概览 -->
+            <section class="report-section" id="sec-arch">
+                <div class="section-label reveal">架构概览</div>
+                <h2 class="section-title reveal delay-1">系统架构</h2>
+                <p class="section-subtitle reveal delay-2">基于领域驱动设计（DDD）拆分的微服务架构，通过服务网格实现流量治理，事件总线解耦服务依赖。</p>
+
+                <div class="card-grid">
+                    <div class="card reveal delay-1">
+                        <div class="card-icon">gateway</div>
+                        <div class="card-title">API Gateway</div>
+                        <div class="card-desc">基于 Envoy 的统一入口，支持限流、熔断、灰度路由。QPS 峰值承载 50K+。</div>
+                    </div>
+                    <div class="card reveal delay-2">
+                        <div class="card-icon">mesh</div>
+                        <div class="card-title">Service Mesh</div>
+                        <div class="card-desc">Istio 服务网格控制面，实现零信任安全、流量镜像、故障注入测试。</div>
+                    </div>
+                    <div class="card reveal delay-3">
+                        <div class="card-icon">event</div>
+                        <div class="card-title">Event Bus</div>
+                        <div class="card-desc">Kafka 事件总线 + Schema Registry，支持 exactly-once 语义，日消息量 12 亿条。</div>
+                    </div>
+                    <div class="card reveal delay-4">
+                        <div class="card-icon">observe</div>
+                        <div class="card-title">Observability</div>
+                        <div class="card-desc">OpenTelemetry 全链路追踪 + Prometheus 指标 + Loki 日志聚合。</div>
+                    </div>
+                </div>
+
+                <div class="code-block reveal delay-3">
+                    <div class="code-header">
+                        <span class="lang-badge">yaml</span>
+                        <span>service-mesh-config.yaml</span>
+                    </div>
+                    <pre><code><span class="comment"># Istio VirtualService 配置</span>
+<span class="keyword">apiVersion:</span> networking.istio.io/v1beta1
+<span class="keyword">kind:</span> VirtualService
+<span class="keyword">metadata:</span>
+  <span class="keyword">name:</span> <span class="string">user-service</span>
+<span class="keyword">spec:</span>
+  <span class="keyword">hosts:</span>
+    - <span class="string">user-service.prod.svc.cluster.local</span>
+  <span class="keyword">http:</span>
+    - <span class="keyword">route:</span>
+        - <span class="keyword">destination:</span>
+            <span class="keyword">host:</span> <span class="string">user-service</span>
+            <span class="keyword">subset:</span> <span class="string">stable</span>
+          <span class="keyword">weight:</span> <span class="number">90</span>
+        - <span class="keyword">destination:</span>
+            <span class="keyword">host:</span> <span class="string">user-service</span>
+            <span class="keyword">subset:</span> <span class="string">canary</span>
+          <span class="keyword">weight:</span> <span class="number">10</span>
+      <span class="keyword">retries:</span>
+        <span class="keyword">attempts:</span> <span class="number">3</span>
+        <span class="keyword">perTryTimeout:</span> <span class="string">2s</span></code></pre>
+                </div>
+            </section>
+
+            <!-- 性能指标 -->
+            <section class="report-section" id="sec-perf">
+                <div class="section-label reveal">性能指标</div>
+                <h2 class="section-title reveal delay-1">性能指标</h2>
+
+                <div class="metric-grid">
+                    <div class="metric-card reveal delay-1">
+                        <div class="metric-value" data-count="50" data-suffix="K">0K</div>
+                        <div class="metric-label">peak_qps</div>
+                        <div class="metric-tag up">↑ 3x vs v2</div>
+                    </div>
+                    <div class="metric-card reveal delay-2">
+                        <div class="metric-value" data-count="12" data-suffix="ms">0ms</div>
+                        <div class="metric-label">p99_latency</div>
+                        <div class="metric-tag up">↓ 65%</div>
+                    </div>
+                    <div class="metric-card reveal delay-3">
+                        <div class="metric-value" data-count="99" data-suffix=".99%">0%</div>
+                        <div class="metric-label">availability</div>
+                        <div class="metric-tag up">4-nines</div>
+                    </div>
+                    <div class="metric-card reveal delay-4">
+                        <div class="metric-value" data-count="12" data-suffix="亿/d">0</div>
+                        <div class="metric-label">event_throughput</div>
+                        <div class="metric-tag up">↑ 180%</div>
+                    </div>
+                </div>
+
+                <div class="chart-container reveal delay-2">
+                    <div class="chart-title">延迟分布 (ms) — 近 7 日滚动</div>
+                    <div id="chart-latency" style="width:100%;height:calc(100% - 2rem);"></div>
+                </div>
+
+                <div class="progress-list reveal delay-3">
+                    <div class="progress-item">
+                        <div class="progress-header">
+                            <span class="progress-label">CPU utilization (avg)</span>
+                            <span class="progress-value">42%</span>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill" data-percent="42"></div></div>
+                    </div>
+                    <div class="progress-item">
+                        <div class="progress-header">
+                            <span class="progress-label">Memory usage (avg)</span>
+                            <span class="progress-value">68%</span>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill" data-percent="68"></div></div>
+                    </div>
+                    <div class="progress-item">
+                        <div class="progress-header">
+                            <span class="progress-label">Cache hit rate</span>
+                            <span class="progress-value">94%</span>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill" data-percent="94"></div></div>
+                    </div>
+                    <div class="progress-item">
+                        <div class="progress-header">
+                            <span class="progress-label">Connection pool usage</span>
+                            <span class="progress-value">57%</span>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill" data-percent="57"></div></div>
+                    </div>
+                </div>
+
+                <div class="callout callout-success reveal delay-4">
+                    <div class="callout-title">✓ SLO 达标</div>
+                    <div class="callout-content">全部核心 SLO 指标连续 90 天达标：可用性 > 99.95%，P99 延迟 < 50ms，错误率 < 0.1%。</div>
+                </div>
+            </section>
+
+            <!-- 技术栈 -->
+            <section class="report-section" id="sec-stack">
+                <div class="section-label reveal">技术选型</div>
+                <h2 class="section-title reveal delay-1">技术选型</h2>
+
+                <table class="table-styled reveal delay-2">
+                    <thead>
+                        <tr>
+                            <th>Layer</th>
+                            <th>Technology</th>
+                            <th>Version</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Runtime</td>
+                            <td>Go / Rust</td>
+                            <td>1.22 / 1.75</td>
+                            <td><span class="status-badge active">● stable</span></td>
+                        </tr>
+                        <tr>
+                            <td>Orchestration</td>
+                            <td>Kubernetes</td>
+                            <td>1.29</td>
+                            <td><span class="status-badge active">● stable</span></td>
+                        </tr>
+                        <tr>
+                            <td>Service Mesh</td>
+                            <td>Istio</td>
+                            <td>1.20</td>
+                            <td><span class="status-badge active">● stable</span></td>
+                        </tr>
+                        <tr>
+                            <td>Event Streaming</td>
+                            <td>Apache Kafka</td>
+                            <td>3.6</td>
+                            <td><span class="status-badge active">● stable</span></td>
+                        </tr>
+                        <tr>
+                            <td>Database</td>
+                            <td>CockroachDB</td>
+                            <td>23.2</td>
+                            <td><span class="status-badge active">● stable</span></td>
+                        </tr>
+                        <tr>
+                            <td>Cache</td>
+                            <td>Dragonfly</td>
+                            <td>1.14</td>
+                            <td><span class="status-badge warning">● evaluating</span></td>
+                        </tr>
+                        <tr>
+                            <td>Observability</td>
+                            <td>OpenTelemetry</td>
+                            <td>1.3</td>
+                            <td><span class="status-badge active">● stable</span></td>
+                        </tr>
+                        <tr>
+                            <td>CI/CD</td>
+                            <td>ArgoCD + Tekton</td>
+                            <td>2.10 / 0.54</td>
+                            <td><span class="status-badge active">● stable</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="comparison reveal delay-3">
+                    <div class="comparison-col positive">
+                        <div class="comparison-title">选型优势</div>
+                        <ul class="comparison-list">
+                            <li>Go/Rust 性能优势，低内存开销</li>
+                            <li>CockroachDB 原生分布式，强一致性</li>
+                            <li>Istio 零侵入的流量治理</li>
+                            <li>OTel 供应商中立的可观测标准</li>
+                        </ul>
+                    </div>
+                    <div class="comparison-col negative">
+                        <div class="comparison-title">已知限制</div>
+                        <ul class="comparison-list">
+                            <li>Dragonfly 社区生态待成熟</li>
+                            <li>Istio 控制面资源开销较大</li>
+                            <li>Rust 学习曲线影响招聘</li>
+                            <li>Kafka 运维复杂度高</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- API 设计 -->
+            <section class="report-section" id="sec-api">
+                <div class="section-label reveal">接口规范</div>
+                <h2 class="section-title reveal delay-1">接口规范</h2>
+
+                <div class="callout callout-info reveal delay-2">
+                    <div class="callout-title">ℹ API 设计原则</div>
+                    <div class="callout-content">遵循 Google API Design Guide，采用 gRPC + HTTP/JSON 双协议。内部服务间通信使用 gRPC，对外网关暴露 RESTful HTTP 接口。</div>
+                </div>
+
+                <div class="code-block reveal delay-3">
+                    <div class="code-header">
+                        <span class="lang-badge">proto</span>
+                        <span>user_service.proto</span>
+                    </div>
+                    <pre><code><span class="keyword">syntax</span> = <span class="string">"proto3"</span>;
+
+<span class="keyword">package</span> api.user.v1;
+
+<span class="keyword">service</span> <span class="type">UserService</span> {
+  <span class="comment">// 获取用户信息</span>
+  <span class="keyword">rpc</span> <span class="function">GetUser</span>(<span class="type">GetUserRequest</span>) <span class="keyword">returns</span> (<span class="type">User</span>) {
+    <span class="keyword">option</span> (google.api.http) = {
+      <span class="keyword">get:</span> <span class="string">"/v1/users/{user_id}"</span>
+    };
+  }
+
+  <span class="comment">// 批量查询用户</span>
+  <span class="keyword">rpc</span> <span class="function">BatchGetUsers</span>(<span class="type">BatchGetUsersRequest</span>) <span class="keyword">returns</span> (<span class="type">BatchGetUsersResponse</span>) {
+    <span class="keyword">option</span> (google.api.http) = {
+      <span class="keyword">post:</span> <span class="string">"/v1/users:batchGet"</span>
+      <span class="keyword">body:</span> <span class="string">"*"</span>
+    };
+  }
+}
+
+<span class="keyword">message</span> <span class="type">GetUserRequest</span> {
+  <span class="type">string</span> user_id = <span class="number">1</span>;
+  <span class="type">FieldMask</span> read_mask = <span class="number">2</span>;
+}</code></pre>
+                </div>
+
+                <div class="chart-container reveal delay-4">
+                    <div class="chart-title">各服务 API 调用量 — 24 小时分布</div>
+                    <div id="chart-api" style="width:100%;height:calc(100% - 2rem);"></div>
+                </div>
+            </section>
+
+            <!-- 部署 -->
+            <section class="report-section" id="sec-deploy">
+                <div class="section-label reveal">部署架构</div>
+                <h2 class="section-title reveal delay-1">部署架构</h2>
+
+                <div class="timeline reveal delay-2">
+                    <div class="timeline-item">
+                        <div class="timeline-date">Stage 1: Build</div>
+                        <div class="timeline-title">CI Pipeline (Tekton)</div>
+                        <div class="timeline-desc">代码扫描 → 单元测试 → 构建镜像 → 安全扫描 → 推送 Registry</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-date">Stage 2: Deploy</div>
+                        <div class="timeline-title">GitOps (ArgoCD)</div>
+                        <div class="timeline-desc">Manifest 变更 → 自动同步 → Canary 发布 → 验证 → 全量推进</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-date">Stage 3: Verify</div>
+                        <div class="timeline-title">Post-deploy Validation</div>
+                        <div class="timeline-desc">冒烟测试 → SLO 监控 → 自动回滚触发器 → 告警确认</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-date">Stage 4: Observe</div>
+                        <div class="timeline-title">Continuous Monitoring</div>
+                        <div class="timeline-desc">全链路追踪 → 异常检测 → 容量预警 → 周期性混沌测试</div>
+                    </div>
+                </div>
+
+                <div class="metric-grid reveal delay-3">
+                    <div class="metric-card">
+                        <div class="metric-value" data-count="847" data-suffix="">0</div>
+                        <div class="metric-label">deploys/month</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" data-count="4" data-suffix="min">0min</div>
+                        <div class="metric-label">avg_deploy_time</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" data-count="0" data-suffix=".2%">0%</div>
+                        <div class="metric-label">rollback_rate</div>
+                    </div>
+                </div>
+
+                <div class="callout callout-warning reveal delay-4">
+                    <div class="callout-title">⚠ 注意事项</div>
+                    <div class="callout-content">Canary 发布期间（默认 30min），若错误率 > 1% 或 P99 延迟 > 100ms，系统将自动触发回滚。手动发布需 oncall 批准。</div>
+                </div>
+            </section>
+
+            <!-- 路线图 -->
+            <section class="report-section" id="sec-roadmap">
+                <div class="section-label reveal">技术路线图</div>
+                <h2 class="section-title reveal delay-1">技术路线图</h2>
+
+                <div class="chart-container reveal delay-2">
+                    <div class="chart-title">季度重点规划 — 2025 年度</div>
+                    <div id="chart-roadmap" style="width:100%;height:calc(100% - 2rem);"></div>
+                </div>
+
+                <div class="card-grid reveal delay-3">
+                    <div class="card">
+                        <div class="card-icon">Q1</div>
+                        <div class="card-title">eBPF 可观测升级</div>
+                        <div class="card-desc">引入 Cilium/eBPF 实现内核级网络可观测，减少 sidecar 开销 40%。</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">Q2</div>
+                        <div class="card-title">Serverless 混合调度</div>
+                        <div class="card-desc">低频服务迁移至 Knative，实现 scale-to-zero，预计节省 30% 计算资源。</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">Q3</div>
+                        <div class="card-title">AI-Ops 智能运维</div>
+                        <div class="card-desc">基于 LLM 的异常根因分析，告警降噪 80%+，MTTR 缩短至 5min 内。</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">Q4</div>
+                        <div class="card-title">多活架构演进</div>
+                        <div class="card-desc">实现双地域多活（Active-Active），RPO=0，RTO < 30s，满足金融级容灾要求。</div>
+                    </div>
+                </div>
+
+                <div class="callout callout-info reveal delay-4">
+                    <div class="callout-title">ℹ 决策记录</div>
+                    <div class="callout-content">完整的 ADR（Architecture Decision Records）存储在 /docs/adr/ 目录，所有重大技术决策均有对应文档。</div>
+                </div>
+            </section>
+
+            <!-- 总结 -->
+            <section class="report-section" id="sec-summary">
+                <div class="section-label reveal">总结与展望</div>
+                <h2 class="section-title reveal delay-1">总结</h2>
+                <p class="section-subtitle reveal delay-2">本文档系统性地梳理了微服务架构的设计理念、技术选型与演进方向，为后续开发和运维提供统一参考。</p>
+
+                <div class="card-grid reveal delay-3">
+                    <div class="card">
+                        <div class="card-icon">核心成果</div>
+                        <div class="card-title">高可用架构落地</div>
+                        <div class="card-desc">实现 99.99% 可用性，P99 延迟 12ms，日处理 12 亿事件，满足业务高速增长需求。</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">效能提升</div>
+                        <div class="card-title">研发效率翻倍</div>
+                        <div class="card-desc">月均 847 次部署，平均部署 4 分钟，回滚率 0.2%，GitOps 流程实现全自动化。</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">下一步</div>
+                        <div class="card-title">持续演进方向</div>
+                        <div class="card-desc">2025 年聚焦 eBPF 可观测性、Serverless 混合调度、AI-Ops 及多活容灾四大方向。</div>
+                    </div>
+                </div>
+
+                <div class="callout callout-success reveal delay-4">
+                    <div class="callout-title">✓ 关键结论</div>
+                    <div class="callout-content">当前架构已具备承载 10 倍流量增长的弹性能力。建议下一阶段优先推进 eBPF 可观测升级以降低 sidecar 开销，同时启动多活架构 POC 以满足金融级容灾合规要求。</div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <button class="back-to-top" id="backToTop">↑</button>
+
+    <script>
+        class ReportPresentation {
+            constructor() {
+                this.sections = document.querySelectorAll('.report-section');
+                this.scrollProgress = document.getElementById('scrollProgress');
+                this.backToTop = document.getElementById('backToTop');
+                this.initRevealAnimations();
+                this.initCharts();
+                this.initCounters();
+                this.initProgressBars();
+                this.initBackToTop();
+                this.initScrollProgress();
+            }
+
+            initRevealAnimations() {
+                const reveals = document.querySelectorAll('.reveal, .reveal-left, .reveal-right');
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) entry.target.classList.add('visible');
+                    });
+                }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+                reveals.forEach(el => observer.observe(el));
+            }
+
+            initCharts() {
+                // Latency distribution
+                const latencyChart = echarts.init(document.getElementById('chart-latency'));
+                latencyChart.setOption({
+                    backgroundColor: 'transparent',
+                    grid: { top: 20, right: 20, bottom: 35, left: 45 },
+                    xAxis: {
+                        type: 'category',
+                        data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                        axisLine: { lineStyle: { color: 'rgba(48,54,61,0.8)' } },
+                        axisLabel: { color: 'rgba(201,209,217,0.5)', fontSize: 10, fontFamily: 'JetBrains Mono' }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        axisLine: { show: false },
+                        splitLine: { lineStyle: { color: 'rgba(48,54,61,0.4)' } },
+                        axisLabel: { color: 'rgba(201,209,217,0.5)', fontSize: 10, fontFamily: 'JetBrains Mono' }
+                    },
+                    series: [
+                        {
+                            name: 'P50',
+                            data: [3, 4, 3, 5, 4, 2, 3],
+                            type: 'line',
+                            smooth: true,
+                            lineStyle: { color: '#3fb950', width: 1.5 },
+                            itemStyle: { color: '#3fb950' },
+                            symbol: 'none'
+                        },
+                        {
+                            name: 'P95',
+                            data: [8, 9, 7, 11, 9, 6, 7],
+                            type: 'line',
+                            smooth: true,
+                            lineStyle: { color: '#d29922', width: 1.5 },
+                            itemStyle: { color: '#d29922' },
+                            symbol: 'none'
+                        },
+                        {
+                            name: 'P99',
+                            data: [12, 15, 11, 18, 14, 9, 12],
+                            type: 'line',
+                            smooth: true,
+                            lineStyle: { color: '#f85149', width: 1.5 },
+                            itemStyle: { color: '#f85149' },
+                            symbol: 'none'
+                        }
+                    ],
+                    legend: {
+                        right: 0,
+                        top: 0,
+                        textStyle: { color: 'rgba(201,209,217,0.6)', fontSize: 10, fontFamily: 'JetBrains Mono' }
+                    },
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: '#161b22',
+                        borderColor: 'rgba(48,54,61,0.8)',
+                        textStyle: { color: '#c9d1d9', fontSize: 11, fontFamily: 'JetBrains Mono' }
+                    }
+                });
+
+                // API calls bar chart
+                const apiChart = echarts.init(document.getElementById('chart-api'));
+                apiChart.setOption({
+                    backgroundColor: 'transparent',
+                    grid: { top: 20, right: 20, bottom: 60, left: 50 },
+                    xAxis: {
+                        type: 'category',
+                        data: ['user-svc', 'order-svc', 'payment-svc', 'notify-svc', 'search-svc', 'auth-svc'],
+                        axisLine: { lineStyle: { color: 'rgba(48,54,61,0.8)' } },
+                        axisLabel: { color: 'rgba(201,209,217,0.5)', fontSize: 9, fontFamily: 'JetBrains Mono', rotate: 15 }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: 'calls/s',
+                        nameTextStyle: { color: 'rgba(201,209,217,0.4)', fontSize: 9, fontFamily: 'JetBrains Mono' },
+                        axisLine: { show: false },
+                        splitLine: { lineStyle: { color: 'rgba(48,54,61,0.4)' } },
+                        axisLabel: { color: 'rgba(201,209,217,0.5)', fontSize: 10, fontFamily: 'JetBrains Mono' }
+                    },
+                    series: [{
+                        data: [12400, 8900, 6200, 4800, 3500, 15600],
+                        type: 'bar',
+                        barWidth: '50%',
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: '#58a6ff' },
+                                { offset: 1, color: 'rgba(88,166,255,0.2)' }
+                            ]),
+                            borderRadius: [3, 3, 0, 0]
+                        }
+                    }],
+                    tooltip: {
+                        backgroundColor: '#161b22',
+                        borderColor: 'rgba(48,54,61,0.8)',
+                        textStyle: { color: '#c9d1d9', fontSize: 11, fontFamily: 'JetBrains Mono' }
+                    }
+                });
+
+                // Roadmap gantt-like chart
+                const roadmapChart = echarts.init(document.getElementById('chart-roadmap'));
+                roadmapChart.setOption({
+                    backgroundColor: 'transparent',
+                    grid: { top: 20, right: 30, bottom: 30, left: 120 },
+                    xAxis: {
+                        type: 'value',
+                        min: 0, max: 12,
+                        interval: 3,
+                        axisLabel: {
+                            color: 'rgba(201,209,217,0.5)',
+                            fontSize: 10,
+                            fontFamily: 'JetBrains Mono',
+                            formatter: v => ['Jan', 'Apr', 'Jul', 'Oct', 'Dec'][v/3]
+                        },
+                        splitLine: { lineStyle: { color: 'rgba(48,54,61,0.3)' } },
+                        axisLine: { lineStyle: { color: 'rgba(48,54,61,0.8)' } }
+                    },
+                    yAxis: {
+                        type: 'category',
+                        data: ['Multi-active', 'AI-Ops', 'Serverless', 'eBPF Observ.'],
+                        axisLine: { lineStyle: { color: 'rgba(48,54,61,0.8)' } },
+                        axisLabel: { color: 'rgba(201,209,217,0.6)', fontSize: 10, fontFamily: 'JetBrains Mono' }
+                    },
+                    series: [{
+                        type: 'bar',
+                        data: [
+                            { value: [0, 3], itemStyle: { color: '#58a6ff' } },
+                            { value: [3, 6], itemStyle: { color: '#3fb950' } },
+                            { value: [6, 9], itemStyle: { color: '#bc8cff' } },
+                            { value: [9, 12], itemStyle: { color: '#d29922' } }
+                        ].map((d, i) => ({
+                            value: d.value[1] - d.value[0],
+                            itemStyle: d.itemStyle
+                        })),
+                        barWidth: '40%',
+                        itemStyle: { borderRadius: [0, 3, 3, 0] }
+                    }],
+                    tooltip: { show: false }
+                });
+
+                window.addEventListener('resize', () => {
+                    latencyChart.resize();
+                    apiChart.resize();
+                    roadmapChart.resize();
+                });
+            }
+
+            initCounters() {
+                const counters = document.querySelectorAll('[data-count]');
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting && !entry.target.dataset.counted) {
+                            entry.target.dataset.counted = 'true';
+                            this.animateCounter(entry.target);
+                        }
+                    });
+                }, { threshold: 0.5 });
+                counters.forEach(el => observer.observe(el));
+            }
+
+            animateCounter(el) {
+                const target = parseInt(el.dataset.count, 10);
+                const suffix = el.dataset.suffix || '';
+                const duration = 1200;
+                const start = performance.now();
+                const tick = (now) => {
+                    const p = Math.min((now - start) / duration, 1);
+                    const eased = 1 - Math.pow(1 - p, 3);
+                    el.textContent = Math.round(eased * target) + suffix;
+                    if (p < 1) requestAnimationFrame(tick);
+                    else el.textContent = target + suffix;
+                };
+                requestAnimationFrame(tick);
+            }
+
+            initProgressBars() {
+                const fills = document.querySelectorAll('.progress-fill[data-percent]');
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting && !entry.target.dataset.filled) {
+                            entry.target.dataset.filled = 'true';
+                            setTimeout(() => { entry.target.style.width = entry.target.dataset.percent + '%'; }, 150);
+                        }
+                    });
+                }, { threshold: 0.3 });
+                fills.forEach(el => observer.observe(el));
+            }
+
+            initBackToTop() {
+                window.addEventListener('scroll', () => {
+                    this.backToTop.classList.toggle('visible', window.scrollY > 400);
+                });
+                this.backToTop.addEventListener('click', () => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                });
+            }
+
+            initScrollProgress() {
+                window.addEventListener('scroll', () => {
+                    const scrollTop = window.scrollY;
+                    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                    const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+                    this.scrollProgress.style.width = progress + '%';
+                });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => { new ReportPresentation(); });
+    </script>
+</body>
+</html>

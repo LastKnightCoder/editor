@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>复古年报 — ANNUAL REPORT MMXXIV</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Lato:wght@300;400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --parchment: #f5f0e8;
+            --brown: #3d2b1f;
+            --copper: #b87333;
+            --copper-light: rgba(184, 115, 51, 0.15);
+            --copper-dim: rgba(184, 115, 51, 0.08);
+            --dark-red: #8b2500;
+            --navy: #1b3a5c;
+            --gold: #c9a227;
+            --burgundy: #6b1d2e;
+            --cream: #faf6ef;
+            --serif: "Playfair Display", "Source Han Serif SC", "Songti SC", Georgia, serif;
+            --body: "Lato", "PingFang SC", "Microsoft YaHei", sans-serif;
+            --mono: "Courier Prime", "Courier New", monospace;
+            --title-size: clamp(2.8rem, 5.5vw, 4.8rem);
+            --h1-size: clamp(2rem, 4vw, 3rem);
+            --h2-size: clamp(1.5rem, 3vw, 2.2rem);
+            --h3-size: clamp(1.2rem, 2vw, 1.5rem);
+            --body-size: clamp(0.95rem, 1.15vw, 1.1rem);
+            --small-size: clamp(0.8rem, 0.95vw, 0.9rem);
+            --stat-size: clamp(1.8rem, 3.5vw, 2.8rem);
+            --section-gap: clamp(4rem, 8vw, 7rem);
+            --content-gap: clamp(2rem, 4vw, 3.5rem);
+            --container-max: 1000px;
+            --pad-x: clamp(2rem, 5vw, 5rem);
+            --reveal-duration: 0.7s;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--parchment);
+            color: var(--brown);
+            font-family: var(--body);
+            font-size: var(--body-size);
+            font-weight: 300;
+            line-height: 1.8;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ═══ SCROLL PROGRESS ═══ */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 2px;
+            background: var(--copper);
+            z-index: 9999;
+            transition: width 0.1s linear;
+        }
+
+        /* ═══ BACK TO TOP ═══ */
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--copper);
+            color: var(--cream);
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s, transform 0.3s;
+            box-shadow: 0 4px 12px rgba(184, 115, 51, 0.3);
+            z-index: 999;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .back-to-top:hover {
+            background: var(--dark-red);
+            transform: translateY(-2px);
+        }
+
+        /* ═══ LAYOUT ═══ */
+        .report-container {
+            min-height: 100vh;
+        }
+
+        .report-main {
+            max-width: var(--container-max);
+            margin: 0 auto;
+            padding: var(--section-gap) var(--pad-x);
+        }
+
+        /* ═══ TITLE PAGE ═══ */
+        .title-page {
+            text-align: center;
+            padding: clamp(4rem, 10vw, 8rem) 0;
+            margin-bottom: var(--section-gap);
+        }
+
+        .title-page .decorative-rule-top {
+            display: block;
+            width: 60%;
+            margin: 0 auto 3rem;
+            height: 0;
+            border: none;
+            border-top: 3px double var(--copper);
+            position: relative;
+        }
+
+        .title-page .decorative-rule-top::before {
+            content: "\2756";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--parchment);
+            padding: 0 1rem;
+            color: var(--copper);
+            font-size: 1.2rem;
+        }
+
+        .title-page .company-name {
+            font-family: var(--serif);
+            font-size: var(--h2-size);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--brown);
+            margin-bottom: 1.5rem;
+        }
+
+        .title-page .report-title {
+            font-family: var(--serif);
+            font-size: var(--title-size);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--copper);
+            margin-bottom: 0.5rem;
+            line-height: 1.1;
+        }
+
+        .title-page .report-subtitle {
+            font-family: var(--serif);
+            font-size: var(--h2-size);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.25em;
+            color: var(--brown);
+            margin-bottom: 2rem;
+        }
+
+        .title-page .report-year {
+            font-family: var(--mono);
+            font-size: var(--h3-size);
+            color: var(--copper);
+            letter-spacing: 0.3em;
+            margin-bottom: 3rem;
+        }
+
+        .title-page .decorative-rule-bottom {
+            display: block;
+            width: 60%;
+            margin: 0 auto;
+            height: 0;
+            border: none;
+            border-top: 3px double var(--copper);
+            position: relative;
+        }
+
+        .title-page .decorative-rule-bottom::before {
+            content: "\2756";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--parchment);
+            padding: 0 1rem;
+            color: var(--copper);
+            font-size: 1.2rem;
+        }
+
+        /* ═══ DECORATIVE SEPARATOR ═══ */
+        .decorative-separator {
+            text-align: center;
+            margin: var(--content-gap) 0;
+            color: var(--copper);
+            font-size: 0.9rem;
+            letter-spacing: 0.3em;
+        }
+
+        /* ═══ SECTION STYLES ═══ */
+        .report-section {
+            padding-bottom: var(--section-gap);
+            margin-bottom: var(--section-gap);
+            position: relative;
+        }
+
+        .report-section::after {
+            content: "";
+            display: block;
+            width: 40%;
+            margin: var(--section-gap) auto 0;
+            border-bottom: 1px solid var(--copper);
+        }
+
+        .report-section:last-child::after {
+            display: none;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: baseline;
+            gap: 1.5rem;
+            margin-bottom: var(--content-gap);
+        }
+
+        .roman-numeral {
+            font-family: var(--serif);
+            font-size: var(--h1-size);
+            font-weight: 900;
+            color: var(--copper);
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        .section-title {
+            font-family: var(--serif);
+            font-size: var(--h2-size);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--brown);
+            border-bottom: 2px solid var(--copper);
+            padding-bottom: 0.5rem;
+        }
+
+        /* ═══ CHAIRMAN'S LETTER ═══ */
+        .chairmans-letter {
+            margin-bottom: var(--section-gap);
+        }
+
+        .chairmans-letter .letter-title {
+            font-family: var(--serif);
+            font-size: var(--h2-size);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            text-align: center;
+            color: var(--brown);
+            margin-bottom: 0.5rem;
+        }
+
+        .chairmans-letter .letter-subtitle {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            text-align: center;
+            color: var(--copper);
+            letter-spacing: 0.1em;
+            margin-bottom: 2.5rem;
+        }
+
+        .drop-cap::first-letter {
+            font-family: var(--serif);
+            font-size: 4.5em;
+            float: left;
+            line-height: 0.8;
+            margin-right: 0.1em;
+            margin-top: 0.05em;
+            color: var(--copper);
+            font-weight: 900;
+        }
+
+        .letter-body p {
+            margin-bottom: 1.5rem;
+            text-align: justify;
+        }
+
+        /* ═══ FRAMED BOX ═══ */
+        .framed-box {
+            border: 3px double var(--copper);
+            padding: 2.5rem;
+            margin: var(--content-gap) 0;
+            position: relative;
+            background: var(--cream);
+        }
+
+        .framed-box::before,
+        .framed-box::after {
+            content: "";
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-color: var(--copper);
+            border-style: solid;
+        }
+
+        .framed-box::before {
+            top: 8px;
+            left: 8px;
+            border-width: 2px 0 0 2px;
+        }
+
+        .framed-box::after {
+            bottom: 8px;
+            right: 8px;
+            border-width: 0 2px 2px 0;
+        }
+
+        .framed-box-title {
+            font-family: var(--serif);
+            font-size: var(--h3-size);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--copper);
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        /* ═══ METRICS GRID ═══ */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+        }
+
+        .metric-item {
+            text-align: center;
+            padding: 1.5rem 1rem;
+            border: 1px solid var(--copper);
+        }
+
+        .metric-value {
+            font-family: var(--mono);
+            font-size: var(--stat-size);
+            font-weight: 700;
+            color: var(--dark-red);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-label {
+            font-family: var(--body);
+            font-size: var(--small-size);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--brown);
+        }
+
+        /* ═══ TABLES ═══ */
+        .vintage-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: var(--content-gap) 0;
+            font-family: var(--mono);
+            font-size: var(--small-size);
+        }
+
+        .vintage-table thead th {
+            background: var(--copper);
+            color: var(--cream);
+            padding: 1rem 1.2rem;
+            text-align: left;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 700;
+            border: 1px solid var(--copper);
+        }
+
+        .vintage-table tbody td {
+            padding: 0.9rem 1.2rem;
+            border: 1px solid rgba(184, 115, 51, 0.3);
+            background: var(--cream);
+        }
+
+        .vintage-table tbody tr:nth-child(even) td {
+            background: var(--copper-dim);
+        }
+
+        .vintage-table tbody tr:hover td {
+            background: var(--copper-light);
+        }
+
+        .vintage-table tfoot td {
+            padding: 1rem 1.2rem;
+            border: 1px solid var(--copper);
+            background: var(--copper-dim);
+            font-weight: 700;
+            color: var(--dark-red);
+        }
+
+        /* ═══ PULL QUOTE ═══ */
+        .pull-quote {
+            text-align: center;
+            padding: 3rem 2rem;
+            margin: var(--content-gap) 0;
+            position: relative;
+        }
+
+        .pull-quote::before {
+            content: "\201C";
+            font-family: var(--serif);
+            font-size: 6rem;
+            color: var(--copper);
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            line-height: 1;
+            opacity: 0.6;
+        }
+
+        .pull-quote p {
+            font-family: var(--serif);
+            font-size: var(--h3-size);
+            font-style: italic;
+            font-weight: 700;
+            color: var(--brown);
+            line-height: 1.6;
+            margin-top: 2rem;
+        }
+
+        .pull-quote .attribution {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--copper);
+            margin-top: 1rem;
+            font-style: normal;
+            letter-spacing: 0.1em;
+        }
+
+        /* ═══ CHARTS ═══ */
+        .chart-container {
+            width: 100%;
+            height: 380px;
+            margin: var(--content-gap) 0;
+            border: 1px solid rgba(184, 115, 51, 0.2);
+            padding: 1rem;
+            background: var(--cream);
+        }
+
+        /* ═══ PROGRESS INDICATORS ═══ */
+        .progress-list {
+            list-style: none;
+            margin: var(--content-gap) 0;
+        }
+
+        .progress-item {
+            margin-bottom: 1.5rem;
+        }
+
+        .progress-item .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .progress-item .progress-bar {
+            height: 12px;
+            background: var(--copper-dim);
+            border: 1px solid rgba(184, 115, 51, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-item .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--copper), var(--gold));
+            transition: width 1.2s ease;
+            width: 0;
+        }
+
+        /* ═══ TIMELINE ═══ */
+        .timeline {
+            margin: var(--content-gap) 0;
+            position: relative;
+            padding-left: 3rem;
+        }
+
+        .timeline::before {
+            content: "";
+            position: absolute;
+            left: 0.75rem;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--copper);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 2.5rem;
+            padding-left: 1rem;
+        }
+
+        .timeline-item::before {
+            content: "";
+            position: absolute;
+            left: -2.6rem;
+            top: 0.5rem;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--copper);
+            border: 2px solid var(--parchment);
+            box-shadow: 0 0 0 2px var(--copper);
+        }
+
+        .timeline-item .timeline-date {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--copper);
+            margin-bottom: 0.3rem;
+            letter-spacing: 0.05em;
+        }
+
+        .timeline-item .timeline-title {
+            font-family: var(--serif);
+            font-size: var(--h3-size);
+            font-weight: 700;
+            color: var(--brown);
+            margin-bottom: 0.3rem;
+        }
+
+        .timeline-item .timeline-desc {
+            font-size: var(--body-size);
+            color: var(--brown);
+            opacity: 0.8;
+        }
+
+        /* ═══ FOOTER ═══ */
+        .report-footer {
+            text-align: center;
+            padding: 3rem 0;
+            border-top: 2px solid var(--copper);
+            margin-top: var(--section-gap);
+        }
+
+        .report-footer .footer-company {
+            font-family: var(--serif);
+            font-size: var(--h3-size);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--copper);
+            margin-bottom: 0.5rem;
+        }
+
+        .report-footer .footer-year {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--brown);
+            letter-spacing: 0.15em;
+        }
+
+        /* ═══ REVEAL ANIMATION ═══ */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity var(--reveal-duration) ease, transform var(--reveal-duration) ease;
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ═══ RESPONSIVE ═══ */
+        @media (max-width: 768px) {
+            .framed-box {
+                border-width: 1px;
+                border-style: solid;
+                padding: 1.5rem;
+            }
+
+            .framed-box::before,
+            .framed-box::after {
+                display: none;
+            }
+
+            .section-header {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .metrics-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .chart-container {
+                height: 280px;
+            }
+
+            .title-page .decorative-rule-top,
+            .title-page .decorative-rule-bottom {
+                width: 90%;
+                border-top-width: 1px;
+                border-top-style: solid;
+            }
+
+            .vintage-table {
+                font-size: 0.75rem;
+            }
+
+            .vintage-table thead th,
+            .vintage-table tbody td {
+                padding: 0.6rem 0.8rem;
+            }
+
+            .timeline {
+                padding-left: 2rem;
+            }
+
+            .pull-quote {
+                padding: 2rem 1rem;
+            }
+
+            .pull-quote::before {
+                font-size: 4rem;
+            }
+        }
+
+        /* ═══ PRINT STYLES ═══ */
+        @media print {
+            .scroll-progress,
+            .back-to-top {
+                display: none !important;
+            }
+
+            body {
+                background: #fff;
+                color: #000;
+                font-size: 11pt;
+            }
+
+            .report-main {
+                padding: 0;
+                max-width: 100%;
+            }
+
+            .report-section {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            .title-page {
+                page-break-after: always;
+            }
+
+            .chart-container {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            .framed-box {
+                border-color: #333;
+            }
+
+            .vintage-table thead th {
+                background: #333 !important;
+                color: #fff !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .reveal {
+                opacity: 1 !important;
+                transform: none !important;
+            }
+
+            .progress-fill {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+
+        /* ═══ REDUCED MOTION ═══ */
+        @media (prefers-reduced-motion: reduce) {
+            .reveal {
+                opacity: 1;
+                transform: none;
+                transition: none;
+            }
+
+            .progress-fill {
+                transition: none;
+            }
+
+            html {
+                scroll-behavior: auto;
+            }
+
+            .back-to-top {
+                transition: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="scroll-progress" id="scrollProgress"></div>
+    <button class="back-to-top" id="backToTop" aria-label="返回顶部">&uarr;</button>
+
+    <div class="report-container">
+        <div class="report-main">
+
+            <!-- ═══ TITLE PAGE ═══ -->
+            <header class="title-page reveal">
+                <span class="decorative-rule-top"></span>
+                <div class="company-name">华锦集团控股有限公司</div>
+                <h1 class="report-title">年度报告</h1>
+                <div class="report-subtitle">ANNUAL REPORT</div>
+                <div class="report-year">MMXXIV &mdash; 2024</div>
+                <span class="decorative-rule-bottom"></span>
+            </header>
+
+            <!-- ═══ CHAIRMAN'S LETTER ═══ -->
+            <section class="chairmans-letter report-section reveal">
+                <h2 class="letter-title">致全体股东书</h2>
+                <p class="letter-subtitle">CHAIRMAN'S LETTER TO SHAREHOLDERS</p>
+                <div class="decorative-separator">&mdash;&mdash; &#10070; &mdash;&mdash;</div>
+                <div class="letter-body">
+                    <p class="drop-cap">回首二〇二四财年，本集团在全球经济格局深刻变革的背景下，凭借稳健的战略部署与卓越的执行能力，实现了各项业务的全面增长。在全体同仁的不懈努力下，集团总营收突破历史新高，达到人民币叁佰捌拾贰亿元，较上年同期增长百分之二十三点五。这一成绩的取得，是集团长期坚持技术创新与市场深耕双轮驱动战略的丰硕成果。</p>
+                    <p>展望未来，我们将持续加大在人工智能、清洁能源及先进材料三大核心赛道的投入力度，以技术引领产业升级，以创新驱动价值创造。集团已明确"科技立企、全球布局"的五年发展纲要，力争在二〇二八年前将海外营收占比提升至总营收的百分之四十五。本集团有信心在新的历史机遇中，为全体股东创造更加卓越的长期回报。</p>
+                </div>
+            </section>
+
+            <!-- ═══ I. FINANCIAL HIGHLIGHTS ═══ -->
+            <section class="report-section reveal">
+                <div class="section-header">
+                    <span class="roman-numeral">I</span>
+                    <h2 class="section-title">财务概览</h2>
+                </div>
+
+                <div class="framed-box">
+                    <h3 class="framed-box-title">FINANCIAL HIGHLIGHTS</h3>
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <span class="metric-value" data-target="382" data-suffix="亿">0</span>
+                            <span class="metric-label">总营收 (RMB)</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-value" data-target="23.5" data-suffix="%" data-decimal="1">0</span>
+                            <span class="metric-label">营收增长率</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-value" data-target="67.8" data-suffix="亿" data-decimal="1">0</span>
+                            <span class="metric-label">净利润 (RMB)</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-value" data-target="18.2" data-suffix="%" data-decimal="1">0</span>
+                            <span class="metric-label">利润率</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-container" id="chartFinancial"></div>
+            </section>
+
+            <!-- ═══ II. REVENUE ANALYSIS ═══ -->
+            <section class="report-section reveal">
+                <div class="section-header">
+                    <span class="roman-numeral">II</span>
+                    <h2 class="section-title">营收分析</h2>
+                </div>
+
+                <div class="chart-container" id="chartRevenue"></div>
+
+                <table class="vintage-table">
+                    <thead>
+                        <tr>
+                            <th>业务板块</th>
+                            <th>2022 (亿元)</th>
+                            <th>2023 (亿元)</th>
+                            <th>2024 (亿元)</th>
+                            <th>增长率</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>智能制造</td>
+                            <td>78.5</td>
+                            <td>98.2</td>
+                            <td>128.6</td>
+                            <td>+31.0%</td>
+                        </tr>
+                        <tr>
+                            <td>新能源材料</td>
+                            <td>52.3</td>
+                            <td>71.8</td>
+                            <td>95.4</td>
+                            <td>+32.9%</td>
+                        </tr>
+                        <tr>
+                            <td>数字服务</td>
+                            <td>45.1</td>
+                            <td>62.5</td>
+                            <td>86.3</td>
+                            <td>+38.1%</td>
+                        </tr>
+                        <tr>
+                            <td>医疗健康</td>
+                            <td>38.7</td>
+                            <td>48.9</td>
+                            <td>56.2</td>
+                            <td>+14.9%</td>
+                        </tr>
+                        <tr>
+                            <td>投资与其他</td>
+                            <td>12.8</td>
+                            <td>14.2</td>
+                            <td>15.5</td>
+                            <td>+9.2%</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td>合计</td>
+                            <td>227.4</td>
+                            <td>295.6</td>
+                            <td>382.0</td>
+                            <td>+29.2%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </section>
+
+            <!-- ═══ III. MARKET POSITION ═══ -->
+            <section class="report-section reveal">
+                <div class="section-header">
+                    <span class="roman-numeral">III</span>
+                    <h2 class="section-title">市场地位</h2>
+                </div>
+
+                <div class="chart-container" id="chartRadar"></div>
+
+                <table class="vintage-table">
+                    <thead>
+                        <tr>
+                            <th>竞争维度</th>
+                            <th>华锦集团</th>
+                            <th>行业均值</th>
+                            <th>领先优势</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>市场份额</td>
+                            <td>18.5%</td>
+                            <td>8.2%</td>
+                            <td>+10.3pp</td>
+                        </tr>
+                        <tr>
+                            <td>研发投入占比</td>
+                            <td>12.8%</td>
+                            <td>6.5%</td>
+                            <td>+6.3pp</td>
+                        </tr>
+                        <tr>
+                            <td>客户满意度</td>
+                            <td>94.2分</td>
+                            <td>82.5分</td>
+                            <td>+11.7</td>
+                        </tr>
+                        <tr>
+                            <td>品牌价值指数</td>
+                            <td>87.6</td>
+                            <td>65.3</td>
+                            <td>+22.3</td>
+                        </tr>
+                        <tr>
+                            <td>人才竞争力</td>
+                            <td>91.0</td>
+                            <td>72.8</td>
+                            <td>+18.2</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- ═══ IV. OPERATIONAL REVIEW ═══ -->
+            <section class="report-section reveal">
+                <div class="section-header">
+                    <span class="roman-numeral">IV</span>
+                    <h2 class="section-title">运营回顾</h2>
+                </div>
+
+                <ul class="progress-list">
+                    <li class="progress-item">
+                        <div class="progress-label">
+                            <span>产能利用率</span>
+                            <span>92%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" data-width="92"></div>
+                        </div>
+                    </li>
+                    <li class="progress-item">
+                        <div class="progress-label">
+                            <span>数字化转型完成度</span>
+                            <span>78%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" data-width="78"></div>
+                        </div>
+                    </li>
+                    <li class="progress-item">
+                        <div class="progress-label">
+                            <span>供应链韧性指数</span>
+                            <span>85%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" data-width="85"></div>
+                        </div>
+                    </li>
+                    <li class="progress-item">
+                        <div class="progress-label">
+                            <span>ESG 合规达标率</span>
+                            <span>96%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" data-width="96"></div>
+                        </div>
+                    </li>
+                    <li class="progress-item">
+                        <div class="progress-label">
+                            <span>海外市场渗透率</span>
+                            <span>34%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" data-width="34"></div>
+                        </div>
+                    </li>
+                </ul>
+
+                <div class="chart-container" id="chartPie"></div>
+            </section>
+
+            <!-- ═══ V. STRATEGIC INITIATIVES ═══ -->
+            <section class="report-section reveal">
+                <div class="section-header">
+                    <span class="roman-numeral">V</span>
+                    <h2 class="section-title">战略举措</h2>
+                </div>
+
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-date">Q1 2024</div>
+                        <div class="timeline-title">AI 研究院成立</div>
+                        <div class="timeline-desc">投资12亿元建立集团人工智能研究院，聚焦大模型与具身智能</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-date">Q2 2024</div>
+                        <div class="timeline-title">东南亚生产基地投产</div>
+                        <div class="timeline-desc">越南河内智能制造中心正式投产，年产能达50万台套</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-date">Q3 2024</div>
+                        <div class="timeline-title">战略并购完成</div>
+                        <div class="timeline-desc">完成对欧洲新能源技术公司 SolarTech GmbH 的全资收购</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-date">Q4 2024</div>
+                        <div class="timeline-title">碳中和里程碑</div>
+                        <div class="timeline-desc">集团总部及国内生产基地率先实现运营碳中和目标</div>
+                    </div>
+                </div>
+
+                <table class="vintage-table">
+                    <thead>
+                        <tr>
+                            <th>战略项目</th>
+                            <th>投资额</th>
+                            <th>状态</th>
+                            <th>预期回报</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>AI 研究院</td>
+                            <td>12.0 亿</td>
+                            <td>运营中</td>
+                            <td>3-5年回本</td>
+                        </tr>
+                        <tr>
+                            <td>东南亚基地</td>
+                            <td>28.5 亿</td>
+                            <td>已投产</td>
+                            <td>年营收 45 亿</td>
+                        </tr>
+                        <tr>
+                            <td>SolarTech 收购</td>
+                            <td>18.2 亿</td>
+                            <td>整合中</td>
+                            <td>技术协同</td>
+                        </tr>
+                        <tr>
+                            <td>碳中和工程</td>
+                            <td>6.8 亿</td>
+                            <td>已达标</td>
+                            <td>ESG 提升</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- ═══ VI. OUTLOOK ═══ -->
+            <section class="report-section reveal">
+                <div class="section-header">
+                    <span class="roman-numeral">VI</span>
+                    <h2 class="section-title">未来展望</h2>
+                </div>
+
+                <div class="pull-quote">
+                    <p>我们正站在新一轮科技革命的潮头。以技术为矛、以信念为盾，华锦集团将在全球化浪潮中书写属于中国企业的崭新篇章。</p>
+                    <div class="attribution">&mdash; 董事长 陈明远</div>
+                </div>
+
+                <div class="framed-box">
+                    <h3 class="framed-box-title">2025 STRATEGIC TARGETS</h3>
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <span class="metric-value" data-target="460" data-suffix="亿">0</span>
+                            <span class="metric-label">目标营收</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-value" data-target="45" data-suffix="%">0</span>
+                            <span class="metric-label">海外营收占比目标</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-value" data-target="15" data-suffix="%">0</span>
+                            <span class="metric-label">研发投入占比</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-value" data-target="50000" data-suffix="+">0</span>
+                            <span class="metric-label">全球员工规模</span>
+                        </div>
+                    </div>
+                </div>
+
+                <p style="margin-top: var(--content-gap); text-align: justify;">本集团将继续秉持"创新驱动、全球视野、社会担当"的核心理念，在巩固国内领先地位的同时，积极拓展国际市场。二〇二五年，我们将重点推进三大战略：第一，深化人工智能在全产业链的应用；第二，完善全球供应链布局，提升抗风险能力；第三，持续践行ESG理念，争取在2028年实现全集团碳中和。</p>
+            </section>
+
+            <!-- ═══ FOOTER ═══ -->
+            <footer class="report-footer">
+                <div class="footer-company">华锦集团控股有限公司</div>
+                <div class="footer-year">HUAJIN GROUP HOLDINGS &mdash; MMXXIV</div>
+            </footer>
+
+        </div>
+    </div>
+
+    <script>
+    class ReportPresentation {
+        constructor() {
+            this.charts = {};
+            this.countersAnimated = new Set();
+            this.progressAnimated = new Set();
+            this.init();
+        }
+
+        init() {
+            this.setupScrollProgress();
+            this.setupBackToTop();
+            this.setupRevealAnimations();
+            this.setupCounterAnimations();
+            this.setupProgressAnimations();
+            this.initCharts();
+            window.addEventListener('resize', () => this.resizeCharts());
+        }
+
+        /* ═══ SCROLL PROGRESS ═══ */
+        setupScrollProgress() {
+            const progressBar = document.getElementById('scrollProgress');
+            window.addEventListener('scroll', () => {
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+                const progress = (scrollTop / scrollHeight) * 100;
+                progressBar.style.width = progress + '%';
+            });
+        }
+
+        /* ═══ BACK TO TOP ═══ */
+        setupBackToTop() {
+            const btn = document.getElementById('backToTop');
+            window.addEventListener('scroll', () => {
+                if (window.pageYOffset > 400) {
+                    btn.classList.add('visible');
+                } else {
+                    btn.classList.remove('visible');
+                }
+            });
+            btn.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        }
+
+        /* ═══ REVEAL ANIMATIONS ═══ */
+        setupRevealAnimations() {
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (prefersReducedMotion) {
+                document.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
+                return;
+            }
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+            document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+        }
+
+        /* ═══ COUNTER ANIMATIONS ═══ */
+        setupCounterAnimations() {
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && !this.countersAnimated.has(entry.target)) {
+                        this.countersAnimated.add(entry.target);
+                        this.animateCounter(entry.target, prefersReducedMotion);
+                    }
+                });
+            }, { threshold: 0.5 });
+
+            document.querySelectorAll('.metric-value[data-target]').forEach(el => observer.observe(el));
+        }
+
+        animateCounter(el, instant) {
+            const target = parseFloat(el.dataset.target);
+            const suffix = el.dataset.suffix || '';
+            const decimal = parseInt(el.dataset.decimal) || 0;
+
+            if (instant) {
+                el.textContent = (decimal > 0 ? target.toFixed(decimal) : Math.round(target)) + suffix;
+                return;
+            }
+
+            const duration = 1500;
+            const startTime = performance.now();
+
+            const update = (currentTime) => {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = target * eased;
+
+                el.textContent = (decimal > 0 ? current.toFixed(decimal) : Math.round(current)) + suffix;
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            };
+
+            requestAnimationFrame(update);
+        }
+
+        /* ═══ PROGRESS BAR ANIMATIONS ═══ */
+        setupProgressAnimations() {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && !this.progressAnimated.has(entry.target)) {
+                        this.progressAnimated.add(entry.target);
+                        const width = entry.target.dataset.width;
+                        entry.target.style.width = width + '%';
+                    }
+                });
+            }, { threshold: 0.3 });
+
+            document.querySelectorAll('.progress-fill').forEach(el => observer.observe(el));
+        }
+
+        /* ═══ CHARTS ═══ */
+        initCharts() {
+            this.initFinancialChart();
+            this.initRevenueChart();
+            this.initRadarChart();
+            this.initPieChart();
+        }
+
+        getVintageColors() {
+            return ['#b87333', '#1b3a5c', '#6b1d2e', '#c9a227', '#8b2500'];
+        }
+
+        initFinancialChart() {
+            const dom = document.getElementById('chartFinancial');
+            if (!dom) return;
+            const chart = echarts.init(dom);
+            this.charts.financial = chart;
+
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: '#f5f0e8',
+                    borderColor: '#b87333',
+                    textStyle: { color: '#3d2b1f', fontFamily: 'Courier Prime' }
+                },
+                legend: {
+                    data: ['营收', '净利润'],
+                    top: 10,
+                    textStyle: { color: '#3d2b1f', fontFamily: 'Lato' }
+                },
+                grid: { left: '8%', right: '8%', bottom: '12%', top: '18%' },
+                xAxis: {
+                    type: 'category',
+                    data: ['2020', '2021', '2022', '2023', '2024'],
+                    axisLine: { lineStyle: { color: '#b87333', width: 2 } },
+                    axisLabel: { color: '#3d2b1f', fontFamily: 'Courier Prime' }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '亿元',
+                    nameTextStyle: { color: '#3d2b1f', fontFamily: 'Courier Prime' },
+                    axisLine: { lineStyle: { color: '#b87333', width: 2 } },
+                    axisLabel: { color: '#3d2b1f', fontFamily: 'Courier Prime' },
+                    splitLine: { lineStyle: { color: 'rgba(184,115,51,0.15)', type: 'dashed' } }
+                },
+                series: [
+                    {
+                        name: '营收',
+                        type: 'bar',
+                        data: [165, 198, 227, 296, 382],
+                        itemStyle: { color: '#b87333', borderRadius: [2, 2, 0, 0] },
+                        barWidth: '30%'
+                    },
+                    {
+                        name: '净利润',
+                        type: 'bar',
+                        data: [28, 35, 42, 55, 68],
+                        itemStyle: { color: '#1b3a5c', borderRadius: [2, 2, 0, 0] },
+                        barWidth: '30%'
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+        }
+
+        initRevenueChart() {
+            const dom = document.getElementById('chartRevenue');
+            if (!dom) return;
+            const chart = echarts.init(dom);
+            this.charts.revenue = chart;
+
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: '#f5f0e8',
+                    borderColor: '#b87333',
+                    textStyle: { color: '#3d2b1f', fontFamily: 'Courier Prime' }
+                },
+                legend: {
+                    data: ['智能制造', '新能源材料', '数字服务', '医疗健康'],
+                    top: 10,
+                    textStyle: { color: '#3d2b1f', fontFamily: 'Lato', fontSize: 12 }
+                },
+                grid: { left: '8%', right: '8%', bottom: '12%', top: '18%' },
+                xAxis: {
+                    type: 'category',
+                    data: ['2020', '2021', '2022', '2023', '2024'],
+                    axisLine: { lineStyle: { color: '#b87333', width: 2 } },
+                    axisLabel: { color: '#3d2b1f', fontFamily: 'Courier Prime' }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '亿元',
+                    nameTextStyle: { color: '#3d2b1f', fontFamily: 'Courier Prime' },
+                    axisLine: { lineStyle: { color: '#b87333', width: 2 } },
+                    axisLabel: { color: '#3d2b1f', fontFamily: 'Courier Prime' },
+                    splitLine: { lineStyle: { color: 'rgba(184,115,51,0.15)', type: 'dashed' } }
+                },
+                series: [
+                    {
+                        name: '智能制造',
+                        type: 'line',
+                        data: [52, 65, 78, 98, 129],
+                        lineStyle: { width: 3, color: '#b87333' },
+                        itemStyle: { color: '#b87333' },
+                        symbol: 'circle',
+                        symbolSize: 8
+                    },
+                    {
+                        name: '新能源材料',
+                        type: 'line',
+                        data: [32, 41, 52, 72, 95],
+                        lineStyle: { width: 3, color: '#1b3a5c' },
+                        itemStyle: { color: '#1b3a5c' },
+                        symbol: 'circle',
+                        symbolSize: 8
+                    },
+                    {
+                        name: '数字服务',
+                        type: 'line',
+                        data: [28, 36, 45, 63, 86],
+                        lineStyle: { width: 3, color: '#6b1d2e' },
+                        itemStyle: { color: '#6b1d2e' },
+                        symbol: 'circle',
+                        symbolSize: 8
+                    },
+                    {
+                        name: '医疗健康',
+                        type: 'line',
+                        data: [25, 32, 39, 49, 56],
+                        lineStyle: { width: 3, color: '#c9a227' },
+                        itemStyle: { color: '#c9a227' },
+                        symbol: 'circle',
+                        symbolSize: 8
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+        }
+
+        initRadarChart() {
+            const dom = document.getElementById('chartRadar');
+            if (!dom) return;
+            const chart = echarts.init(dom);
+            this.charts.radar = chart;
+
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    backgroundColor: '#f5f0e8',
+                    borderColor: '#b87333',
+                    textStyle: { color: '#3d2b1f', fontFamily: 'Courier Prime' }
+                },
+                legend: {
+                    data: ['华锦集团', '行业均值'],
+                    top: 10,
+                    textStyle: { color: '#3d2b1f', fontFamily: 'Lato' }
+                },
+                radar: {
+                    indicator: [
+                        { name: '市场份额', max: 100 },
+                        { name: '研发实力', max: 100 },
+                        { name: '客户满意度', max: 100 },
+                        { name: '品牌价值', max: 100 },
+                        { name: '人才竞争力', max: 100 },
+                        { name: '全球布局', max: 100 }
+                    ],
+                    shape: 'polygon',
+                    splitNumber: 4,
+                    axisName: { color: '#3d2b1f', fontFamily: 'Lato', fontSize: 12 },
+                    splitLine: { lineStyle: { color: 'rgba(184,115,51,0.2)' } },
+                    splitArea: { areaStyle: { color: ['rgba(184,115,51,0.02)', 'rgba(184,115,51,0.05)'] } },
+                    axisLine: { lineStyle: { color: 'rgba(184,115,51,0.3)' } }
+                },
+                series: [{
+                    type: 'radar',
+                    data: [
+                        {
+                            value: [85, 92, 94, 88, 91, 72],
+                            name: '华锦集团',
+                            lineStyle: { width: 3, color: '#b87333' },
+                            itemStyle: { color: '#b87333' },
+                            areaStyle: { color: 'rgba(184,115,51,0.15)' }
+                        },
+                        {
+                            value: [55, 60, 82, 65, 73, 48],
+                            name: '行业均值',
+                            lineStyle: { width: 3, color: '#1b3a5c', type: 'dashed' },
+                            itemStyle: { color: '#1b3a5c' },
+                            areaStyle: { color: 'rgba(27,58,92,0.08)' }
+                        }
+                    ]
+                }]
+            };
+
+            chart.setOption(option);
+        }
+
+        initPieChart() {
+            const dom = document.getElementById('chartPie');
+            if (!dom) return;
+            const chart = echarts.init(dom);
+            this.charts.pie = chart;
+
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'item',
+                    backgroundColor: '#f5f0e8',
+                    borderColor: '#b87333',
+                    textStyle: { color: '#3d2b1f', fontFamily: 'Courier Prime' },
+                    formatter: '{b}: {c}% ({d}%)'
+                },
+                legend: {
+                    orient: 'vertical',
+                    right: '5%',
+                    top: 'center',
+                    textStyle: { color: '#3d2b1f', fontFamily: 'Lato', fontSize: 12 }
+                },
+                series: [{
+                    type: 'pie',
+                    radius: ['35%', '65%'],
+                    center: ['40%', '50%'],
+                    avoidLabelOverlap: true,
+                    itemStyle: {
+                        borderColor: '#f5f0e8',
+                        borderWidth: 3
+                    },
+                    label: {
+                        show: false
+                    },
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontFamily: 'Courier Prime',
+                            fontSize: 14,
+                            fontWeight: 'bold',
+                            color: '#3d2b1f'
+                        }
+                    },
+                    data: [
+                        { value: 34, name: '智能制造', itemStyle: { color: '#b87333' } },
+                        { value: 25, name: '新能源材料', itemStyle: { color: '#1b3a5c' } },
+                        { value: 23, name: '数字服务', itemStyle: { color: '#6b1d2e' } },
+                        { value: 14, name: '医疗健康', itemStyle: { color: '#c9a227' } },
+                        { value: 4, name: '投资与其他', itemStyle: { color: '#8b2500' } }
+                    ]
+                }]
+            };
+
+            chart.setOption(option);
+        }
+
+        resizeCharts() {
+            Object.values(this.charts).forEach(chart => {
+                if (chart && chart.resize) chart.resize();
+            });
+        }
+    }
+
+    /* ═══ INITIALIZE ═══ */
+    document.addEventListener('DOMContentLoaded', () => {
+        new ReportPresentation();
+    });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1955 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中国传统美学概论</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai:wght@300;400;700&family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@300;400;600;900&family=Zhi+Mang+Xing&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --paper: #f5f0e8;
+            --paper-warm: #f2ece0;
+            --paper-edge: #ebe5d8;
+
+            --ink-nong: #0d0d0d;
+            --ink-dan: rgba(20,20,20,0.5);
+            --ink-gan: #2a2520;
+            --ink-shi: rgba(15,15,15,0.35);
+            --ink-jiao: #000000;
+
+            --ink: #1a1a1a;
+            --ink-90: rgba(26,26,26,0.9);
+            --ink-80: rgba(26,26,26,0.8);
+            --ink-70: rgba(26,26,26,0.7);
+            --ink-60: rgba(26,26,26,0.6);
+            --ink-50: rgba(26,26,26,0.5);
+            --ink-40: rgba(26,26,26,0.4);
+            --ink-30: rgba(26,26,26,0.3);
+            --ink-20: rgba(26,26,26,0.2);
+            --ink-15: rgba(26,26,26,0.15);
+            --ink-10: rgba(26,26,26,0.1);
+            --ink-08: rgba(26,26,26,0.08);
+            --ink-05: rgba(26,26,26,0.05);
+            --ink-03: rgba(26,26,26,0.03);
+
+            --vermillion: #bf3a2b;
+            --vermillion-dim: rgba(191,58,43,0.7);
+            --vermillion-wash: rgba(191,58,43,0.08);
+            --vermillion-light: rgba(191,58,43,0.15);
+
+            --kai: "LXGW WenKai", "KaiTi", serif;
+            --xingshu: "Ma Shan Zheng", cursive;
+            --caoshu: "Zhi Mang Xing", cursive;
+            --serif: "Noto Serif SC", "Songti SC", serif;
+
+            --max-width: 960px;
+            --body-size: clamp(1rem, 1.1vw, 1.1rem);
+            --section-gap-large: clamp(8rem, 12vh, 14rem);
+            --section-gap-medium: clamp(5rem, 8vh, 8rem);
+        }
+
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--paper);
+            color: var(--ink);
+            font-family: var(--serif);
+            font-size: var(--body-size);
+            font-weight: 400;
+            line-height: 2;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overflow-x: hidden;
+        }
+
+        /* ═══════ SCROLL PROGRESS ═══════ */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 1px;
+            background: var(--ink-40);
+            z-index: 1000;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        /* ═══════ CONTAINER ═══════ */
+        .container {
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 0 clamp(1.5rem, 5vw, 4rem);
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ═══════ REVEAL ANIMATION ═══════ */
+        .reveal {
+            opacity: 0;
+            transform: scale(0.97);
+            filter: blur(2px);
+            transition: opacity 1.2s ease, transform 1.2s ease, filter 1s ease 0.1s;
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: scale(1);
+            filter: blur(0);
+        }
+
+        .reveal.visible .stagger-1 { transition-delay: 0.15s; }
+        .reveal.visible .stagger-2 { transition-delay: 0.3s; }
+        .reveal.visible .stagger-3 { transition-delay: 0.45s; }
+        .reveal.visible .stagger-4 { transition-delay: 0.6s; }
+
+        /* ═══════ SEAL STAMPS ═══════ */
+        .seal {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            background: var(--vermillion);
+            color: var(--paper);
+            font-family: var(--kai);
+            font-weight: 700;
+            font-size: 0.8rem;
+            line-height: 1;
+            letter-spacing: 0.05em;
+            transform: rotate(-2deg);
+            filter: url(#seal-wear);
+            position: relative;
+            box-shadow:
+                inset 0 0 0 1px rgba(191,58,43,0.4),
+                0 0 12px rgba(191,58,43,0.12);
+        }
+
+        .seal--large {
+            width: 60px;
+            height: 60px;
+            font-size: 1rem;
+        }
+
+        .seal--animated {
+            opacity: 0;
+            transform: rotate(-2deg) scale(1.3);
+        }
+
+        .seal--animated.stamped {
+            animation: sealStamp 0.6s ease forwards;
+        }
+
+        @keyframes sealStamp {
+            0% { opacity: 0; transform: rotate(-2deg) scale(1.3); }
+            40% { opacity: 1; transform: rotate(-2deg) scale(0.94); }
+            65% { transform: rotate(-2deg) scale(1.03); }
+            100% { opacity: 1; transform: rotate(-2deg) scale(1); }
+        }
+
+        /* ═══════ BRUSH STROKE DIVIDERS ═══════ */
+        .brush-divider {
+            display: block;
+            margin: 3rem auto;
+            width: clamp(120px, 30vw, 240px);
+            height: 20px;
+            overflow: visible;
+        }
+
+        .brush-divider--wide {
+            width: clamp(180px, 40vw, 320px);
+        }
+
+        .brush-divider path {
+            fill: none;
+            stroke: var(--ink-50);
+            stroke-linecap: round;
+        }
+
+        /* ═══════ INK SPLATTER ═══════ */
+        .ink-splatter {
+            position: absolute;
+            pointer-events: none;
+            opacity: 0.04;
+            z-index: 0;
+        }
+
+        /* ═══════ SECTION HEADER ═══════ */
+        .section-header {
+            text-align: center;
+            margin-bottom: 3.5rem;
+        }
+
+        .section-header__seal {
+            margin-bottom: 1.5rem;
+        }
+
+        .section-header__title {
+            font-family: var(--kai);
+            font-weight: 700;
+            font-size: clamp(1.6rem, 2.5vw, 2.2rem);
+            letter-spacing: 0.2em;
+            margin-bottom: 0.5rem;
+            color: var(--ink-nong);
+        }
+
+        .section-header__subtitle {
+            font-family: var(--kai);
+            font-weight: 300;
+            font-size: 0.85rem;
+            color: var(--ink-30);
+            letter-spacing: 0.4em;
+        }
+
+        /* ═══════ BLOCKQUOTE ═══════ */
+        .ink-quote {
+            font-family: var(--xingshu);
+            font-size: clamp(1.4rem, 2.2vw, 1.8rem);
+            line-height: 2.2;
+            color: var(--ink-70);
+            text-align: center;
+            padding: 2.5rem 1rem;
+            position: relative;
+        }
+
+        .ink-quote__source {
+            display: block;
+            margin-top: 1.2rem;
+            font-family: var(--kai);
+            font-size: 0.8rem;
+            color: var(--ink-20);
+            letter-spacing: 0.15em;
+        }
+
+        /* ═══════ VERTICAL TEXT ═══════ */
+        .vertical-text {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            font-family: var(--xingshu);
+            letter-spacing: 0.4em;
+            line-height: 2.5;
+        }
+
+        .vertical-poem {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            font-family: var(--caoshu);
+            font-size: clamp(1.4rem, 2.5vw, 2rem);
+            color: var(--ink-60);
+            line-height: 2.8;
+            letter-spacing: 0.2em;
+        }
+
+        .side-annotation {
+            position: absolute;
+            right: -2.5rem;
+            top: 3rem;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            font-family: var(--kai);
+            font-size: 0.7rem;
+            color: var(--ink-10);
+            letter-spacing: 0.6em;
+            line-height: 1;
+        }
+
+        /* ═══════ BODY TEXT ═══════ */
+        .body-text {
+            color: var(--ink-80);
+            text-align: justify;
+            text-indent: 2em;
+            margin-bottom: 1.5rem;
+        }
+
+        .body-text:last-child {
+            margin-bottom: 0;
+        }
+
+        /* ═══════ PAPER TEXTURE OVERLAY ═══════ */
+        .paper-texture {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ═══════ MOUNTAIN BACKGROUND ═══════ */
+        .mountain-bg {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 45vh;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.6;
+        }
+
+        /* ═══════════════════════════════════
+           COVER
+        ═══════════════════════════════════ */
+        .cover {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 6rem 2rem;
+            position: relative;
+        }
+
+        .cover__wash {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .cover__wash svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .cover__seal {
+            margin-bottom: 2.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .cover__title {
+            font-family: var(--caoshu);
+            font-size: clamp(3.5rem, 9vw, 6.5rem);
+            line-height: 1.3;
+            color: var(--ink-nong);
+            margin-bottom: 1.5rem;
+            letter-spacing: 0.08em;
+            position: relative;
+            z-index: 1;
+        }
+
+        .cover__subtitle {
+            font-family: var(--kai);
+            font-weight: 300;
+            font-size: clamp(0.95rem, 1.4vw, 1.15rem);
+            color: var(--ink-40);
+            letter-spacing: 0.6em;
+            margin-bottom: 3.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .cover__meta {
+            font-family: var(--kai);
+            font-weight: 300;
+            font-size: 0.85rem;
+            color: var(--ink-20);
+            letter-spacing: 0.25em;
+            position: relative;
+            z-index: 1;
+        }
+
+        .cover__meta span {
+            display: block;
+            margin-bottom: 0.4rem;
+        }
+
+        .cover__cloud {
+            position: absolute;
+            top: 8%;
+            right: 5%;
+            opacity: 0.06;
+            pointer-events: none;
+        }
+
+        .cover__drip {
+            position: absolute;
+            left: 8%;
+            top: 0;
+            bottom: 0;
+            width: 40px;
+            pointer-events: none;
+            opacity: 0.04;
+        }
+
+        /* ═══════════════════════════════════
+           INTRODUCTION
+        ═══════════════════════════════════ */
+        .introduction {
+            padding: var(--section-gap-medium) 0;
+            position: relative;
+        }
+
+        .introduction__content {
+            max-width: 750px;
+            margin: 0 auto;
+        }
+
+        /* ═══════════════════════════════════
+           YIJING (意境)
+        ═══════════════════════════════════ */
+        .yijing {
+            padding: var(--section-gap-large) 0;
+            position: relative;
+        }
+
+        .yijing__content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .yijing__verse-area {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 3rem 0;
+            position: relative;
+        }
+
+        .yijing__verse-area .vertical-poem {
+            height: 220px;
+            padding: 0 1rem;
+        }
+
+        .yijing__examples {
+            margin-top: 3rem;
+        }
+
+        .yijing__example-featured {
+            padding: 2.5rem;
+            background: var(--ink-03);
+            border-left: 3px solid var(--ink-10);
+            margin-bottom: 2rem;
+        }
+
+        .yijing__example-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .yijing__example {
+            padding: 1.5rem;
+            border-left: 2px solid var(--ink-08);
+            transition: border-color 0.4s ease;
+        }
+
+        .yijing__example:hover {
+            border-color: var(--ink-20);
+        }
+
+        .yijing__example-title {
+            font-family: var(--kai);
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 0.6rem;
+            color: var(--ink-90);
+        }
+
+        .yijing__example-text {
+            font-size: 0.9rem;
+            color: var(--ink-60);
+            line-height: 1.9;
+        }
+
+        .yijing__bamboo {
+            position: absolute;
+            left: -4rem;
+            top: 20%;
+            height: 60%;
+            width: 60px;
+            pointer-events: none;
+            opacity: 0.08;
+        }
+
+        /* ═══════════════════════════════════
+           LIUBAI (留白)
+        ═══════════════════════════════════ */
+        .liubai {
+            padding: var(--section-gap-medium) 0;
+        }
+
+        .liubai__content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .liubai__demo {
+            margin: 5rem auto;
+            text-align: center;
+            padding: 6rem 2rem;
+            position: relative;
+        }
+
+        .liubai__demo-text {
+            font-family: var(--caoshu);
+            font-size: clamp(2.2rem, 5vw, 3.5rem);
+            color: var(--ink-nong);
+            letter-spacing: 0.3em;
+        }
+
+        .liubai__demo-caption {
+            margin-top: 2.5rem;
+            font-family: var(--kai);
+            font-size: 0.8rem;
+            color: var(--ink-20);
+            letter-spacing: 0.2em;
+        }
+
+        .liubai__stats {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 2.5rem;
+            margin-top: 4rem;
+            text-align: center;
+            align-items: end;
+        }
+
+        .liubai__stat-value {
+            font-family: var(--caoshu);
+            font-size: clamp(2.2rem, 4.5vw, 3.2rem);
+            color: var(--ink-nong);
+            line-height: 1.2;
+        }
+
+        .liubai__stat-label {
+            font-family: var(--kai);
+            font-weight: 300;
+            font-size: 0.75rem;
+            color: var(--ink-40);
+            letter-spacing: 0.2em;
+            margin-top: 0.5rem;
+        }
+
+        /* ═══════════════════════════════════
+           QIYUN (气韵)
+        ═══════════════════════════════════ */
+        .qiyun {
+            padding: var(--section-gap-medium) 0;
+            position: relative;
+        }
+
+        .qiyun__content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .qiyun__principles {
+            margin-top: 3rem;
+        }
+
+        .qiyun__principle {
+            display: flex;
+            align-items: flex-start;
+            gap: 2rem;
+            padding: 1.8rem 0;
+            border-bottom: 1px solid var(--ink-05);
+        }
+
+        .qiyun__principle:last-child {
+            border-bottom: none;
+        }
+
+        .qiyun__principle-num {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .qiyun__principle-num svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .qiyun__principle-content {
+            flex: 1;
+        }
+
+        .qiyun__principle-term {
+            font-family: var(--kai);
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: var(--ink);
+            margin-bottom: 0.3rem;
+        }
+
+        .qiyun__principle-desc {
+            font-size: 0.95rem;
+            color: var(--ink-60);
+            line-height: 1.95;
+        }
+
+        .qiyun__chart {
+            width: 100%;
+            height: 350px;
+            margin-top: 3rem;
+        }
+
+        .qiyun__plum {
+            position: absolute;
+            right: -3rem;
+            top: 30%;
+            width: 80px;
+            height: 200px;
+            pointer-events: none;
+            opacity: 0.07;
+        }
+
+        /* ═══════════════════════════════════
+           BIMO (笔墨)
+        ═══════════════════════════════════ */
+        .bimo {
+            padding: 4rem 0;
+        }
+
+        .bimo__content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .bimo__comparison {
+            margin-top: 3rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+        }
+
+        .bimo__style {
+            padding: 2rem;
+            position: relative;
+            border: 1px solid var(--ink-05);
+            margin: -0.5px;
+        }
+
+        .bimo__style--nong {
+            border-left: 3px solid var(--ink-nong);
+        }
+
+        .bimo__style--dan {
+            border-left: 3px solid var(--ink-dan);
+        }
+
+        .bimo__style--shi {
+            border-left: 3px solid var(--ink-shi);
+        }
+
+        .bimo__style--jiao {
+            border-left: 3px solid var(--ink-jiao);
+        }
+
+        .bimo__style-name {
+            font-family: var(--kai);
+            font-weight: 700;
+            font-size: 1.05rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .bimo__style-desc {
+            font-size: 0.88rem;
+            color: var(--ink-60);
+            line-height: 1.85;
+        }
+
+        .bimo__style-bar {
+            margin-top: 1.2rem;
+            height: 3px;
+            background: var(--ink-05);
+            position: relative;
+            border-radius: 2px;
+        }
+
+        .bimo__style-bar-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: var(--ink-50);
+            border-radius: 2px;
+            transition: width 1.5s ease;
+        }
+
+        .bimo__style-bar-fill--vermillion {
+            background: var(--vermillion-dim);
+        }
+
+        /* ═══════════════════════════════════
+           HERITAGE (传承)
+        ═══════════════════════════════════ */
+        .heritage {
+            padding: var(--section-gap-large) 0;
+        }
+
+        .heritage__content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .heritage__timeline {
+            margin-top: 3rem;
+            position: relative;
+            padding-left: 2.5rem;
+        }
+
+        .heritage__timeline-line {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 30px;
+            overflow: visible;
+        }
+
+        .heritage__timeline-line path {
+            fill: none;
+            stroke: var(--ink-15);
+            stroke-width: 1.5;
+        }
+
+        .heritage__era {
+            position: relative;
+            padding: 1.5rem 0 2.5rem 2rem;
+        }
+
+        .heritage__era::before {
+            content: '';
+            position: absolute;
+            left: -2.5rem;
+            top: 1.9rem;
+            width: 8px;
+            height: 8px;
+            background: var(--ink-20);
+            transform: rotate(45deg) translateX(-1px);
+        }
+
+        .heritage__era--highlight::before {
+            background: var(--vermillion);
+            box-shadow: 0 0 8px var(--vermillion-wash);
+        }
+
+        .heritage__era-name {
+            font-family: var(--kai);
+            font-weight: 700;
+            font-size: 1.05rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .heritage__era-period {
+            font-size: 0.78rem;
+            color: var(--ink-30);
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.1em;
+            font-family: var(--kai);
+            font-weight: 300;
+        }
+
+        .heritage__era-desc {
+            font-size: 0.92rem;
+            color: var(--ink-60);
+            line-height: 1.95;
+        }
+
+        .heritage__chart {
+            width: 100%;
+            height: 350px;
+            margin-top: 3rem;
+        }
+
+        /* ═══════════════════════════════════
+           CONCLUSION
+        ═══════════════════════════════════ */
+        .conclusion {
+            padding: var(--section-gap-large) 0 8rem;
+            text-align: center;
+        }
+
+        .conclusion__content {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .conclusion__text {
+            color: var(--ink-80);
+            text-align: justify;
+            text-indent: 2em;
+            margin-bottom: 1.5rem;
+        }
+
+        .conclusion__verse {
+            display: flex;
+            justify-content: center;
+            padding: 3rem 0;
+        }
+
+        .conclusion__verse .vertical-poem {
+            height: 240px;
+        }
+
+        .conclusion__final-seal {
+            margin-top: 3.5rem;
+        }
+
+        .conclusion__date {
+            margin-top: 2rem;
+            font-family: var(--kai);
+            font-weight: 300;
+            font-size: 0.82rem;
+            color: var(--ink-20);
+            letter-spacing: 0.35em;
+        }
+
+        .conclusion__cloud {
+            margin-top: 4rem;
+            opacity: 0.06;
+        }
+
+        /* ═══════ BACK TO TOP ═══════ */
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            font-family: var(--kai);
+            font-size: 0.72rem;
+            color: var(--ink-20);
+            text-decoration: none;
+            letter-spacing: 0.15em;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            z-index: 100;
+            cursor: pointer;
+            background: none;
+            border: none;
+            writing-mode: vertical-rl;
+            padding: 0.8rem 0.4rem;
+        }
+
+        .back-to-top:hover {
+            color: var(--ink-50);
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+        }
+
+        /* ═══════ SVG PATH ANIMATION ═══════ */
+        .animate-stroke {
+            transition: stroke-dashoffset 2s ease;
+        }
+
+        /* ═══════════════════════════════════
+           RESPONSIVE
+        ═══════════════════════════════════ */
+        @media (max-width: 768px) {
+            :root {
+                --section-gap-large: 5rem;
+                --section-gap-medium: 3.5rem;
+            }
+
+            .cover {
+                min-height: 85vh;
+                padding: 3rem 1.5rem;
+            }
+
+            .cover__drip,
+            .cover__cloud { display: none; }
+
+            .vertical-poem,
+            .side-annotation { display: none; }
+
+            .yijing__bamboo,
+            .qiyun__plum { display: none; }
+
+            .yijing__verse-area { display: none; }
+
+            .yijing__example-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .liubai__stats {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+
+            .liubai__demo {
+                padding: 4rem 1rem;
+                margin: 3rem auto;
+            }
+
+            .bimo__comparison {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                padding: 0 1.5rem;
+            }
+
+            .ink-splatter { opacity: 0.02; }
+
+            .brush-divider { width: 60%; }
+
+            .conclusion__verse { display: none; }
+        }
+
+        /* ═══════════════════════════════════
+           PRINT
+        ═══════════════════════════════════ */
+        @media print {
+            .paper-texture,
+            .ink-splatter,
+            .mountain-bg,
+            .cover__wash,
+            .cover__drip,
+            .cover__cloud,
+            .yijing__bamboo,
+            .qiyun__plum { display: none !important; }
+
+            .scroll-progress,
+            .back-to-top { display: none !important; }
+
+            .reveal {
+                opacity: 1 !important;
+                transform: none !important;
+                filter: none !important;
+            }
+
+            .animate-stroke { stroke-dashoffset: 0 !important; }
+
+            .seal { filter: none; }
+
+            .seal--animated {
+                opacity: 1 !important;
+                transform: rotate(-2deg) scale(1) !important;
+            }
+
+            .cover { min-height: auto; page-break-after: always; }
+
+            body { background: white; font-size: 11pt; }
+
+            .section-header { page-break-after: avoid; }
+
+            .qiyun__chart,
+            .heritage__chart { page-break-inside: avoid; }
+
+            .vertical-poem,
+            .side-annotation { display: none; }
+
+            .conclusion__verse { display: none; }
+        }
+
+        /* ═══════════════════════════════════
+           REDUCED MOTION
+        ═══════════════════════════════════ */
+        @media (prefers-reduced-motion: reduce) {
+            .reveal {
+                opacity: 1;
+                transform: none;
+                filter: none;
+                transition: none;
+            }
+
+            .animate-stroke {
+                stroke-dashoffset: 0 !important;
+                transition: none !important;
+            }
+
+            .seal--animated {
+                opacity: 1;
+                transform: rotate(-2deg) scale(1);
+                animation: none;
+            }
+
+            html { scroll-behavior: auto; }
+
+            .bimo__style-bar-fill { transition: none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- SVG DEFS: Filters & Symbols -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+        <!-- Paper texture filter -->
+        <filter id="paper-texture" x="0%" y="0%" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" seed="2" result="noise"/>
+            <feColorMatrix type="saturate" values="0" in="noise" result="gray"/>
+            <feComponentTransfer in="gray" result="faint">
+                <feFuncA type="linear" slope="0.06" intercept="0"/>
+            </feComponentTransfer>
+            <feBlend mode="multiply" in="SourceGraphic" in2="faint"/>
+        </filter>
+
+        <!-- Ink bleed/diffusion -->
+        <filter id="ink-bleed" x="-5%" y="-5%" width="110%" height="110%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="3" seed="5" result="warp"/>
+            <feDisplacementMap in="SourceGraphic" in2="warp" scale="3.5" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+
+        <!-- Seal wear/aging -->
+        <filter id="seal-wear" x="-3%" y="-3%" width="106%" height="106%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="3" seed="8" result="rough"/>
+            <feDisplacementMap in="SourceGraphic" in2="rough" scale="2" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
+            <feGaussianBlur in="displaced" stdDeviation="0.2"/>
+        </filter>
+
+        <!-- Background ink wash -->
+        <filter id="ink-wash" x="-10%" y="-10%" width="120%" height="120%">
+            <feGaussianBlur stdDeviation="18" in="SourceGraphic" result="blur"/>
+            <feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="12" result="noise"/>
+            <feDisplacementMap in="blur" in2="noise" scale="25" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+
+        <!-- Brush stroke roughness -->
+        <filter id="brush-rough" x="-5%" y="-15%" width="110%" height="130%">
+            <feTurbulence type="fractalNoise" baseFrequency="1.5" numOctaves="2" seed="3" result="grain"/>
+            <feDisplacementMap in="SourceGraphic" in2="grain" scale="1.2"/>
+        </filter>
+    </defs>
+</svg>
+
+<!-- Paper texture overlay -->
+<svg class="paper-texture" aria-hidden="true">
+    <rect width="100%" height="100%" filter="url(#paper-texture)" fill="transparent"/>
+</svg>
+
+<!-- Mountain silhouette background -->
+<svg class="mountain-bg" viewBox="0 0 1200 500" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0,500 L0,380 C100,360 200,320 350,340 C500,360 550,280 700,300 C850,320 950,350 1100,330 L1200,340 L1200,500 Z" fill="rgba(26,26,26,0.025)"/>
+    <path d="M0,500 L0,420 C150,400 250,370 400,390 C550,410 650,350 800,370 C950,390 1050,410 1200,395 L1200,500 Z" fill="rgba(26,26,26,0.018)"/>
+    <path d="M0,500 L0,450 C200,440 350,420 500,435 C650,450 800,430 950,445 C1050,455 1150,460 1200,455 L1200,500 Z" fill="rgba(26,26,26,0.012)"/>
+</svg>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+<button class="back-to-top" id="backToTop" aria-label="回到顶部">回顶</button>
+
+<!-- ═══════════════════════════════════
+     卷首 COVER
+═══════════════════════════════════ -->
+<section class="cover reveal">
+    <!-- Ink wash background -->
+    <div class="cover__wash">
+        <svg viewBox="0 0 1000 800" preserveAspectRatio="xMidYMid slice">
+            <ellipse cx="500" cy="250" rx="350" ry="200" fill="rgba(26,26,26,0.025)" filter="url(#ink-wash)"/>
+            <ellipse cx="300" cy="500" rx="200" ry="150" fill="rgba(26,26,26,0.02)" filter="url(#ink-wash)"/>
+            <ellipse cx="750" cy="550" rx="180" ry="130" fill="rgba(26,26,26,0.018)" filter="url(#ink-wash)"/>
+        </svg>
+    </div>
+
+    <!-- Decorative cloud -->
+    <svg class="cover__cloud" width="120" height="80" viewBox="0 0 120 80" aria-hidden="true">
+        <path d="M20,50 C20,50 25,35 40,35 C40,35 42,25 55,25 C68,25 70,35 70,35 C85,35 90,45 85,55 C80,65 65,65 60,60 C55,65 40,68 35,60 C30,65 18,60 20,50 Z" fill="none" stroke="currentColor" stroke-width="0.8" class="animate-stroke"/>
+        <path d="M50,45 C50,45 55,35 65,38 C75,41 72,50 72,50" fill="none" stroke="currentColor" stroke-width="0.5" class="animate-stroke"/>
+    </svg>
+
+    <!-- Ink drip on left -->
+    <svg class="cover__drip" viewBox="0 0 40 800" aria-hidden="true">
+        <path d="M20,0 C20,0 18,100 20,200 C22,300 19,350 20,400 C21,450 20,500 20,550 C20,600 21,650 20,700" fill="none" stroke="rgba(26,26,26,0.5)" stroke-width="1.5" filter="url(#ink-bleed)" class="animate-stroke"/>
+        <circle cx="20" cy="720" r="4" fill="rgba(26,26,26,0.3)" filter="url(#ink-bleed)"/>
+        <circle cx="22" cy="740" r="2" fill="rgba(26,26,26,0.2)" filter="url(#ink-bleed)"/>
+    </svg>
+
+    <div class="cover__seal">
+        <span class="seal seal--large seal--animated">美学</span>
+    </div>
+
+    <h1 class="cover__title">中国传统美学概论</h1>
+    <p class="cover__subtitle">意境 · 留白 · 气韵 · 笔墨 · 传承</p>
+
+    <div class="cover__meta">
+        <span>华夏文化研究丛书</span>
+        <span>撰文 / 林墨轩</span>
+        <span>丙午年春</span>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════
+     引言 INTRODUCTION
+═══════════════════════════════════ -->
+<section class="introduction container reveal">
+    <!-- Brush stroke divider -->
+    <svg class="brush-divider brush-divider--wide" viewBox="0 0 400 20" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M5,10 C20,8 60,6 100,8 C150,10 180,12 200,11 C220,10 260,8 300,9 C340,10 370,11 395,10" stroke-width="2.5" filter="url(#brush-rough)" class="animate-stroke"/>
+        <path d="M30,10 C80,9 130,11 180,10 C230,9 280,11 350,10" stroke-width="1" opacity="0.4" filter="url(#brush-rough)"/>
+    </svg>
+
+    <div class="section-header">
+        <div class="section-header__seal">
+            <span class="seal seal--animated">引</span>
+        </div>
+        <h2 class="section-header__title">引言</h2>
+        <p class="section-header__subtitle">关于中国美学的基本认知</p>
+    </div>
+
+    <div class="introduction__content" style="position:relative">
+        <span class="side-annotation">中国美学导论</span>
+
+        <p class="body-text">中国传统美学是一个博大精深的思想体系，它植根于数千年的文明沃土，融合了儒、释、道三家的哲学智慧，形成了独具东方特色的审美理论。与西方美学注重逻辑分析和形式研究不同，中国美学更强调感悟体验与生命境界的统一，追求"天人合一"的最高理想。</p>
+
+        <p class="body-text">从先秦时期孔子论"兴观群怨"、老庄倡"大音希声"，到魏晋南北朝的"气韵生动"之说，再到唐宋诗画一律的理论自觉，中国美学走过了一条独特的演进之路。它不是孤立的学术构建，而是与诗词、书画、园林、音乐等艺术实践紧密交织的生命美学。</p>
+
+        <p class="body-text">本文选取意境、留白、气韵、笔墨、传承五个核心命题，试图勾勒中国传统美学的基本面貌。这五个维度既各自独立，又相互贯通，共同构成了一幅完整的东方美学地图。它们不仅是理解传统艺术的钥匙，也为当代设计与创作提供了深厚的思想资源。</p>
+    </div>
+
+    <svg class="brush-divider" viewBox="0 0 400 20" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M80,10 C120,8 160,11 200,10 C240,9 280,12 320,10" stroke-width="2" filter="url(#brush-rough)" class="animate-stroke"/>
+    </svg>
+</section>
+
+<!-- ═══════════════════════════════════
+     壹 · 意境 YIJING
+═══════════════════════════════════ -->
+<section class="yijing container reveal">
+    <!-- Bamboo decoration -->
+    <svg class="yijing__bamboo" viewBox="0 0 60 400" aria-hidden="true">
+        <path d="M30,0 L30,400" stroke="currentColor" stroke-width="2" fill="none" class="animate-stroke"/>
+        <path d="M30,80 L30,82" stroke="currentColor" stroke-width="4"/>
+        <path d="M30,160 L30,162" stroke="currentColor" stroke-width="4"/>
+        <path d="M30,240 L30,242" stroke="currentColor" stroke-width="4"/>
+        <path d="M30,80 C30,80 15,60 8,50" stroke="currentColor" stroke-width="1" fill="none"/>
+        <path d="M30,80 C30,80 12,75 5,80" stroke="currentColor" stroke-width="1" fill="none"/>
+        <path d="M30,160 C30,160 45,145 52,135" stroke="currentColor" stroke-width="1" fill="none"/>
+        <path d="M30,240 C30,240 15,225 5,220" stroke="currentColor" stroke-width="1" fill="none"/>
+        <path d="M30,240 C30,240 10,235 3,245" stroke="currentColor" stroke-width="1" fill="none"/>
+    </svg>
+
+    <div class="section-header">
+        <div class="section-header__seal">
+            <span class="seal seal--animated">壹</span>
+        </div>
+        <h2 class="section-header__title">意境</h2>
+        <p class="section-header__subtitle">ARTISTIC CONCEPTION</p>
+    </div>
+
+    <div class="yijing__content">
+        <p class="body-text">意境是中国美学的核心范畴，也是中国艺术区别于其他文化传统的根本标志。王国维在《人间词话》中将其概括为"境非独谓景物也，喜怒哀乐亦人心中之一境界"，强调意境是主观情感与客观物象的交融统一。</p>
+
+        <p class="body-text">意境的营造并非简单的情景叠加，而是通过"虚实相生"的手法，在有限的形象中开拓无限的想象空间。优秀的艺术作品总是言有尽而意无穷，给观者留下反复品味的余地。这正是中国美学"象外之象、景外之景"的追求所在。</p>
+
+        <!-- Vertical poem area -->
+        <div class="yijing__verse-area">
+            <div class="vertical-poem">境生于象外　意在言外　韵在笔先</div>
+            <div style="margin-left: 2rem; font-family: var(--kai); font-size: 0.75rem; color: var(--ink-20); writing-mode: vertical-rl; letter-spacing: 0.3em;">司空图《二十四诗品》</div>
+        </div>
+
+        <p class="body-text">宗白华先生将意境分为三个层次：直观感相之美（形式层）、活跃生命之美（生气层）和最高灵境之美（精神层）。这三个层次层层递进，从表象深入本质，最终达到"澄怀味象"的审美至境。</p>
+
+        <div class="yijing__examples">
+            <div class="yijing__example-featured stagger-1">
+                <div class="yijing__example-title">诗中意境</div>
+                <div class="yijing__example-text">王维"大漠孤烟直，长河落日圆"，十字之中，无一字写情，而苍凉壮阔之情自在言外。景即是情，情即是景。此为意境之最高表达——不着一字，尽得风流。</div>
+            </div>
+            <div class="yijing__example-grid">
+                <div class="yijing__example stagger-2">
+                    <div class="yijing__example-title">画中意境</div>
+                    <div class="yijing__example-text">马远"寒江独钓图"，一叶扁舟、一根钓竿，四周皆为空白。江水的浩渺、天地的空寂，全在不画之中体现。</div>
+                </div>
+                <div class="yijing__example stagger-3">
+                    <div class="yijing__example-title">园林意境</div>
+                    <div class="yijing__example-text">苏州拙政园"与谁同坐轩"，借月色、清风、柳影三者为伴，将苏轼词意化为空间体验。</div>
+                </div>
+                <div class="yijing__example stagger-4">
+                    <div class="yijing__example-title">音乐意境</div>
+                    <div class="yijing__example-text">古琴曲《平沙落雁》以极简旋律写秋江暮色、雁阵横空。音符的停顿处，正是意境最浓之所在。</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <svg class="brush-divider" viewBox="0 0 400 20" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M20,12 C60,10 100,8 150,9 C200,10 250,12 300,11 C350,10 380,9 395,10" stroke-width="2.2" filter="url(#brush-rough)" class="animate-stroke"/>
+    </svg>
+</section>
+
+<!-- ═══════════════════════════════════
+     贰 · 留白 LIUBAI
+═══════════════════════════════════ -->
+<section class="liubai container reveal">
+    <div class="section-header">
+        <div class="section-header__seal">
+            <span class="seal seal--animated">贰</span>
+        </div>
+        <h2 class="section-header__title">留白</h2>
+        <p class="section-header__subtitle">THE ART OF NEGATIVE SPACE</p>
+    </div>
+
+    <div class="liubai__content">
+        <p class="body-text">留白是中国艺术中最具哲学深度的表现手法。它源于老子"大音希声、大象无形"的思想，以"不画"为"画"，以"无"生"有"。在中国美学看来，空白不是内容的缺失，而是意义的另一种存在方式——它是气韵流动的通道，是想象力生发的空间。</p>
+
+        <p class="body-text">南宋画家马远、夏圭被称为"马一角、夏半边"，正是因为他们大胆地将画面的大部分留白，仅以一角山水传达无限意蕴。这种构图法看似简约，实则需要极高的艺术修养——画家必须精确判断哪里该下笔、哪里该留空，使空白本身成为画面不可分割的有机组成部分。</p>
+
+        <div class="liubai__demo">
+            <div class="liubai__demo-text">此处无墨 · 胜有墨</div>
+            <div class="liubai__demo-caption">—— 留白本身即是表达</div>
+        </div>
+
+        <p class="body-text">留白的智慧不仅体现在绘画中。书法的"计白当黑"、诗词的"言外之意"、音乐的"此时无声胜有声"、建筑的"虚实相间"，都是留白精神的不同表达。现代设计中的"少即是多"理念，与中国传统留白思想有着深刻的共鸣。</p>
+
+        <div class="liubai__stats">
+            <div>
+                <div class="liubai__stat-value"><span class="counter" data-target="70">0</span>%</div>
+                <div class="liubai__stat-label">经典画作留白比例</div>
+            </div>
+            <div>
+                <div class="liubai__stat-value"><span class="counter" data-target="1200">0</span></div>
+                <div class="liubai__stat-label">年审美积淀</div>
+            </div>
+            <div>
+                <div class="liubai__stat-value"><span class="counter" data-target="6">0</span></div>
+                <div class="liubai__stat-label">大法（谢赫六法）</div>
+            </div>
+        </div>
+    </div>
+
+    <svg class="brush-divider brush-divider--wide" viewBox="0 0 400 20" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M10,10 C50,8 90,11 140,10 C190,9 230,12 270,10 C310,8 350,10 390,9" stroke-width="1.8" filter="url(#brush-rough)" class="animate-stroke"/>
+    </svg>
+</section>
+
+<!-- ═══════════════════════════════════
+     叁 · 气韵 QIYUN
+═══════════════════════════════════ -->
+<section class="qiyun container reveal">
+    <!-- Plum blossom decoration -->
+    <svg class="qiyun__plum" viewBox="0 0 80 200" aria-hidden="true">
+        <path d="M40,200 C40,200 38,150 42,120 C46,90 35,70 40,50 C45,30 38,10 42,0" fill="none" stroke="currentColor" stroke-width="1.5" class="animate-stroke"/>
+        <path d="M42,80 C42,80 55,70 65,65" fill="none" stroke="currentColor" stroke-width="1"/>
+        <path d="M40,50 C40,50 25,40 18,35" fill="none" stroke="currentColor" stroke-width="1"/>
+        <circle cx="65" cy="65" r="4" fill="none" stroke="currentColor" stroke-width="0.8"/>
+        <circle cx="18" cy="35" r="3.5" fill="none" stroke="currentColor" stroke-width="0.8"/>
+        <circle cx="42" cy="15" r="3" fill="none" stroke="currentColor" stroke-width="0.8"/>
+    </svg>
+
+    <div class="section-header">
+        <div class="section-header__seal">
+            <span class="seal seal--animated">叁</span>
+        </div>
+        <h2 class="section-header__title">气韵</h2>
+        <p class="section-header__subtitle">SPIRIT RESONANCE</p>
+    </div>
+
+    <div class="qiyun__content">
+        <p class="body-text">气韵生动是南朝谢赫"六法"之首，也是中国绘画品评的最高标准。"气"指作品内在的生命力和精神气质，"韵"指由此产生的审美韵味和情调。二者合一，便是艺术作品所呈现的那种超越形式的生命律动感。</p>
+
+        <p class="body-text">张彦远在《历代名画记》中指出："以气韵求其画，则形似在其间矣。"这句话揭示了一个重要原理：真正有气韵的作品不需要刻意追求形似，因为当精神气质到位时，形象自然生动。反之，仅有形似而无气韵，则为"谨毛而失貌"。</p>
+
+        <div class="ink-quote">
+            气韵生动，非师可传<br>
+            生而知之，自然天授
+            <span class="ink-quote__source">——郭若虚《图画见闻志》</span>
+        </div>
+
+        <div class="qiyun__principles">
+            <div class="qiyun__principle stagger-1">
+                <div class="qiyun__principle-num">
+                    <svg viewBox="0 0 36 36"><text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" font-family="Ma Shan Zheng, cursive" font-size="28" fill="rgba(26,26,26,0.15)">一</text></svg>
+                </div>
+                <div class="qiyun__principle-content">
+                    <div class="qiyun__principle-term">气韵生动</div>
+                    <div class="qiyun__principle-desc">六法之首，指作品整体呈现的生命力。不可学而致，需要画家本身的精神修养达到一定境界。</div>
+                </div>
+            </div>
+            <div class="qiyun__principle stagger-2">
+                <div class="qiyun__principle-num">
+                    <svg viewBox="0 0 36 36"><text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" font-family="Ma Shan Zheng, cursive" font-size="28" fill="rgba(26,26,26,0.15)">二</text></svg>
+                </div>
+                <div class="qiyun__principle-content">
+                    <div class="qiyun__principle-term">骨法用笔</div>
+                    <div class="qiyun__principle-desc">以书法入画，强调笔力的骨力感。每一笔都应有内在的力度和节奏，如同文字的筋骨。</div>
+                </div>
+            </div>
+            <div class="qiyun__principle stagger-3">
+                <div class="qiyun__principle-num">
+                    <svg viewBox="0 0 36 36"><text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" font-family="Ma Shan Zheng, cursive" font-size="28" fill="rgba(26,26,26,0.15)">三</text></svg>
+                </div>
+                <div class="qiyun__principle-content">
+                    <div class="qiyun__principle-term">应物象形</div>
+                    <div class="qiyun__principle-desc">依据对象的特征来描绘形象。但形似只是起点，最终目的是通过形象传达精神。</div>
+                </div>
+            </div>
+            <div class="qiyun__principle stagger-4">
+                <div class="qiyun__principle-num">
+                    <svg viewBox="0 0 36 36"><text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" font-family="Ma Shan Zheng, cursive" font-size="28" fill="rgba(26,26,26,0.15)">四</text></svg>
+                </div>
+                <div class="qiyun__principle-content">
+                    <div class="qiyun__principle-term">随类赋彩</div>
+                    <div class="qiyun__principle-desc">根据对象的类别施加色彩。中国画不求光影写实，而追求"随类"的意象化表达。</div>
+                </div>
+            </div>
+            <div class="qiyun__principle">
+                <div class="qiyun__principle-num">
+                    <svg viewBox="0 0 36 36"><text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" font-family="Ma Shan Zheng, cursive" font-size="28" fill="rgba(26,26,26,0.15)">五</text></svg>
+                </div>
+                <div class="qiyun__principle-content">
+                    <div class="qiyun__principle-term">经营位置</div>
+                    <div class="qiyun__principle-desc">即构图布局。中国画的构图是宇宙观的缩影，讲究"远近高低各不同"的多重视点。</div>
+                </div>
+            </div>
+            <div class="qiyun__principle">
+                <div class="qiyun__principle-num">
+                    <svg viewBox="0 0 36 36"><text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" font-family="Ma Shan Zheng, cursive" font-size="28" fill="rgba(26,26,26,0.15)">六</text></svg>
+                </div>
+                <div class="qiyun__principle-content">
+                    <div class="qiyun__principle-term">传移模写</div>
+                    <div class="qiyun__principle-desc">临摹前人佳作以学习技法。这是入门之径，但最终要"师古人之心，不师古人之迹"。</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="qiyun__chart" id="qiyunChart"></div>
+    </div>
+
+    <svg class="brush-divider" viewBox="0 0 400 20" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M40,10 C80,8 130,12 180,10 C230,8 280,11 340,10" stroke-width="2.8" filter="url(#brush-rough)" class="animate-stroke"/>
+        <path d="M60,11 C110,10 160,9 210,10 C260,11 310,10 360,10" stroke-width="0.8" opacity="0.3" filter="url(#brush-rough)"/>
+    </svg>
+</section>
+
+<!-- ═══════════════════════════════════
+     肆 · 笔墨 BIMO
+═══════════════════════════════════ -->
+<section class="bimo container reveal">
+    <!-- Ink splatter decoration -->
+    <svg class="ink-splatter" style="right: -2rem; top: 2rem; width: 100px; height: 100px;" viewBox="0 0 100 100" aria-hidden="true">
+        <ellipse cx="50" cy="45" rx="25" ry="20" fill="currentColor" filter="url(#ink-bleed)"/>
+        <ellipse cx="35" cy="60" rx="10" ry="8" fill="currentColor" filter="url(#ink-bleed)"/>
+        <circle cx="70" cy="35" r="5" fill="currentColor" filter="url(#ink-bleed)"/>
+        <circle cx="55" cy="70" r="3" fill="currentColor" filter="url(#ink-bleed)"/>
+        <circle cx="42" cy="30" r="2" fill="currentColor" filter="url(#ink-bleed)"/>
+    </svg>
+
+    <div class="section-header">
+        <div class="section-header__seal">
+            <span class="seal seal--animated">肆</span>
+        </div>
+        <h2 class="section-header__title">笔墨</h2>
+        <p class="section-header__subtitle">BRUSH AND INK</p>
+    </div>
+
+    <div class="bimo__content">
+        <p class="body-text">笔墨是中国画的核心语言。"笔"指用笔的方法，包括中锋、侧锋、顺锋、逆锋等各种笔法，产生不同的线条质感；"墨"指用墨的技巧，古人将墨分为浓、淡、干、湿、焦五色，以一色墨而表现万物色彩。</p>
+
+        <p class="body-text">黄宾虹先生总结笔法有"五笔"之说：平、圆、留、重、变。"平"如锥画沙，笔力均匀；"圆"如折钗股，圆浑有力；"留"如屋漏痕，积点成线；"重"如高山坠石，力透纸背；"变"则因时而异，不拘一法。</p>
+
+        <p class="body-text">墨法同样讲究变化。泼墨大写意以水破墨，水墨淋漓；积墨法层层皴染，厚重华滋；宿墨法以隔夜之墨写出苍茫气象。笔与墨的关系如同骨与肉，笔为墨骨，墨为笔肉，二者不可偏废。</p>
+
+        <div class="bimo__comparison">
+            <div class="bimo__style bimo__style--nong stagger-1">
+                <div class="bimo__style-name">工笔</div>
+                <div class="bimo__style-desc">精细描绘，三矾九染。以线条勾勒形态，以层层渲染表现色彩深浅。代表画家：张萱、周昉、赵佶。</div>
+                <div class="bimo__style-bar"><div class="bimo__style-bar-fill" data-width="90"></div></div>
+            </div>
+            <div class="bimo__style bimo__style--dan stagger-2">
+                <div class="bimo__style-name">写意</div>
+                <div class="bimo__style-desc">纵笔挥洒，不求形似。以最简练的笔墨捕捉对象的神韵精神。代表画家：梁楷、徐渭、八大山人。</div>
+                <div class="bimo__style-bar"><div class="bimo__style-bar-fill" data-width="65"></div></div>
+            </div>
+            <div class="bimo__style bimo__style--shi stagger-3">
+                <div class="bimo__style-name">没骨</div>
+                <div class="bimo__style-desc">不用墨线勾勒，直接以色彩点染。融合了工笔的精致与写意的灵动。代表画家：恽寿平、任伯年。</div>
+                <div class="bimo__style-bar"><div class="bimo__style-bar-fill bimo__style-bar-fill--vermillion" data-width="55"></div></div>
+            </div>
+            <div class="bimo__style bimo__style--jiao stagger-4">
+                <div class="bimo__style-name">泼墨</div>
+                <div class="bimo__style-desc">以大量水墨泼洒纸面，半控制半天然地形成山水意象。代表画家：王洽、张大千（晚期）。</div>
+                <div class="bimo__style-bar"><div class="bimo__style-bar-fill" data-width="45"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <svg class="brush-divider" viewBox="0 0 400 20" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M15,10 C55,9 95,11 150,10 C205,9 255,11 310,10 C350,9 380,10 390,10" stroke-width="2" filter="url(#brush-rough)" class="animate-stroke"/>
+    </svg>
+</section>
+
+<!-- ═══════════════════════════════════
+     伍 · 传承 HERITAGE
+═══════════════════════════════════ -->
+<section class="heritage container reveal">
+    <div class="section-header">
+        <div class="section-header__seal">
+            <span class="seal seal--animated">伍</span>
+        </div>
+        <h2 class="section-header__title">传承</h2>
+        <p class="section-header__subtitle">HERITAGE AND EVOLUTION</p>
+    </div>
+
+    <div class="heritage__content">
+        <p class="body-text">中国美学的发展并非一条直线，而是如同长河奔流，时而激越、时而平缓，在不同历史阶段呈现出不同的面貌。每一个时代都在前人基础上有所创新，同时又保持着与传统的内在联系。</p>
+
+        <p class="body-text">从先秦的百家争鸣到魏晋的人物品藻，从唐宋的诗画一律到明清的集大成式总结，每一次美学思想的飞跃都伴随着社会文化的深层变革。理解这一演进脉络，对于把握中国美学的整体精神至关重要。</p>
+
+        <div class="heritage__timeline">
+            <!-- Organic timeline line -->
+            <svg class="heritage__timeline-line" viewBox="0 0 30 600" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M15,0 C15,0 14,60 15,120 C16,180 14,240 15,300 C16,360 14,420 15,480 C16,540 15,600 15,600" class="animate-stroke"/>
+            </svg>
+
+            <div class="heritage__era stagger-1">
+                <div class="heritage__era-name">先秦</div>
+                <div class="heritage__era-period">公元前770年 — 公元前221年</div>
+                <div class="heritage__era-desc">美学思想的奠基时期。孔子提出"兴观群怨"说，确立诗教传统；老庄以"道法自然"开启超功利审美观；《乐记》系统论述音乐美学，奠定礼乐文明基础。</div>
+            </div>
+            <div class="heritage__era heritage__era--highlight stagger-2">
+                <div class="heritage__era-name">魏晋南北朝</div>
+                <div class="heritage__era-period">220年 — 589年</div>
+                <div class="heritage__era-desc">美学的自觉时代。人物品藻之风催生审美意识独立；顾恺之"传神写照"、谢赫"六法"确立绘画美学核心范畴；刘勰《文心雕龙》集文学美学大成。</div>
+            </div>
+            <div class="heritage__era heritage__era--highlight stagger-3">
+                <div class="heritage__era-name">唐宋</div>
+                <div class="heritage__era-period">618年 — 1279年</div>
+                <div class="heritage__era-desc">美学的高峰期。诗画一律成为时代共识；苏轼提出"论画以形似，见与儿童邻"；山水画论全面成熟，郭熙《林泉高致》系统论述"三远法"。意境理论达到顶峰。</div>
+            </div>
+            <div class="heritage__era stagger-4">
+                <div class="heritage__era-name">元代</div>
+                <div class="heritage__era-period">1271年 — 1368年</div>
+                <div class="heritage__era-desc">文人画的确立。赵孟頫倡"古意"，强调书画同源；倪瓒以"逸笔草草，不求形似"成为文人画典范。水墨取代青绿成为主流表达。</div>
+            </div>
+            <div class="heritage__era">
+                <div class="heritage__era-name">明清</div>
+                <div class="heritage__era-period">1368年 — 1911年</div>
+                <div class="heritage__era-desc">传统的集大成与突破。董其昌"南北宗论"建构绘画史观；石涛"一画论"以哲学高度统摄技法；王国维《人间词话》以"境界说"总结千年诗学。</div>
+            </div>
+            <div class="heritage__era">
+                <div class="heritage__era-name">近现代</div>
+                <div class="heritage__era-period">1911年 — 至今</div>
+                <div class="heritage__era-desc">传统与现代的对话。齐白石"妙在似与不似之间"、黄宾虹"内美"说延续传统命脉；宗白华、朱光潜引入西方美学框架重新阐释中国传统，开创比较美学新视野。</div>
+            </div>
+        </div>
+
+        <div class="heritage__chart" id="heritageChart"></div>
+    </div>
+
+    <svg class="brush-divider brush-divider--wide" viewBox="0 0 400 20" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M5,10 C40,8 80,12 130,10 C180,8 230,11 270,10 C310,9 360,11 395,10" stroke-width="2.5" filter="url(#brush-rough)" class="animate-stroke"/>
+        <path d="M20,11 C70,10 120,10 170,10 C220,10 270,10 320,10 C370,10 390,10 395,10" stroke-width="0.6" opacity="0.25"/>
+    </svg>
+</section>
+
+<!-- ═══════════════════════════════════
+     跋 CONCLUSION
+═══════════════════════════════════ -->
+<section class="conclusion container reveal">
+    <div class="section-header">
+        <div class="section-header__seal">
+            <span class="seal seal--animated">跋</span>
+        </div>
+        <h2 class="section-header__title">跋</h2>
+        <p class="section-header__subtitle">AFTERWORD</p>
+    </div>
+
+    <div class="conclusion__content">
+        <p class="conclusion__text">中国传统美学的精神，归根结底是一种生命哲学。它不仅仅是关于艺术创作的技术规范，更是关于人如何与天地万物和谐相处的生存智慧。意境的营造教人超越现实的有限，留白的精神教人在纷繁中保持清明，气韵的追求教人涵养内在的生命力，笔墨的锤炼教人在实践中精进功夫。</p>
+
+        <p class="conclusion__text">当我们回望这一绵延数千年的美学传统，会发现它并不是博物馆中的陈列品，而是一泓活水，至今仍在滋养着我们的精神世界。在信息过载的当代社会，中国美学所强调的简约、含蓄、自然、意境，或许比以往任何时候都更具有现实意义。</p>
+
+        <p class="conclusion__text">如宗白华先生所言："中国文化的美丽精神，往深处看，可以说是一种深沉静默地与大自然精神往还的态度。"愿这份古老的审美智慧，能在新的时代语境中，继续启发我们对美的感知与创造。</p>
+
+        <!-- Vertical final verse -->
+        <div class="conclusion__verse">
+            <div class="vertical-poem">天地有大美而不言　四时有明法而不议　万物有成理而不说</div>
+            <div style="margin-left: 1.5rem; font-family: var(--kai); font-size: 0.7rem; color: var(--ink-15); writing-mode: vertical-rl; letter-spacing: 0.3em;">庄子·知北游</div>
+        </div>
+
+        <div class="conclusion__final-seal">
+            <span class="seal seal--large seal--animated">静观</span>
+        </div>
+
+        <div class="conclusion__date">丙午年 癸巳月 谨识</div>
+
+        <!-- Cloud pattern footer -->
+        <svg class="conclusion__cloud" width="160" height="50" viewBox="0 0 160 50" aria-hidden="true">
+            <path d="M30,35 C30,35 35,20 50,22 C50,22 55,12 70,14 C85,16 82,25 82,25 C95,22 100,30 95,38 C90,46 75,44 70,40 C65,45 50,46 45,40 C40,45 28,42 30,35 Z" fill="none" stroke="currentColor" stroke-width="0.6"/>
+            <path d="M90,38 C90,38 95,28 108,30 C108,30 112,22 122,24 C132,26 130,33 130,33 C140,31 143,37 139,42 C135,47 123,46 120,43 C116,46 105,47 102,42 C98,45 88,43 90,38 Z" fill="none" stroke="currentColor" stroke-width="0.6"/>
+        </svg>
+    </div>
+</section>
+
+<script>
+(function () {
+    'use strict';
+
+    class ReportPresentation {
+        constructor() {
+            this.scrollProgress = document.getElementById('scrollProgress');
+            this.backToTop = document.getElementById('backToTop');
+            this.countersAnimated = new Set();
+            this.barsAnimated = new Set();
+            this.pathsAnimated = new Set();
+            this.sealsAnimated = new Set();
+            this.init();
+        }
+
+        init() {
+            this.initRevealAnimations();
+            this.initScrollProgress();
+            this.initBackToTop();
+            this.initCounters();
+            this.initBars();
+            this.initCharts();
+            this.initPathAnimations();
+            this.initSealAnimations();
+        }
+
+        initRevealAnimations() {
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            if (prefersReducedMotion) {
+                document.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
+                return;
+            }
+
+            const observer = new IntersectionObserver(
+                (entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('visible');
+                        }
+                    });
+                },
+                { threshold: 0.06, rootMargin: '0px 0px -30px 0px' }
+            );
+
+            document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+        }
+
+        initScrollProgress() {
+            if (!this.scrollProgress) return;
+
+            const update = () => {
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+                const progress = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+                this.scrollProgress.style.width = progress + '%';
+            };
+
+            window.addEventListener('scroll', update, { passive: true });
+            update();
+        }
+
+        initBackToTop() {
+            if (!this.backToTop) return;
+
+            const toggle = () => {
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                this.backToTop.classList.toggle('visible', scrollTop > window.innerHeight);
+            };
+
+            window.addEventListener('scroll', toggle, { passive: true });
+            this.backToTop.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+            toggle();
+        }
+
+        initCounters() {
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const counters = document.querySelectorAll('.counter');
+
+            if (prefersReducedMotion) {
+                counters.forEach(c => { c.textContent = c.dataset.target; });
+                return;
+            }
+
+            const observer = new IntersectionObserver(
+                (entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting && !this.countersAnimated.has(entry.target)) {
+                            this.countersAnimated.add(entry.target);
+                            this.animateCounter(entry.target);
+                        }
+                    });
+                },
+                { threshold: 0.5 }
+            );
+
+            counters.forEach(c => observer.observe(c));
+        }
+
+        animateCounter(el) {
+            const target = parseInt(el.dataset.target, 10);
+            const duration = 1800;
+            const start = performance.now();
+            const ease = t => 1 - Math.pow(1 - t, 3);
+
+            const tick = (now) => {
+                const p = Math.min((now - start) / duration, 1);
+                el.textContent = Math.round(ease(p) * target);
+                if (p < 1) requestAnimationFrame(tick);
+                else el.textContent = target;
+            };
+
+            requestAnimationFrame(tick);
+        }
+
+        initBars() {
+            const bars = document.querySelectorAll('.bimo__style-bar-fill');
+
+            const observer = new IntersectionObserver(
+                (entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting && !this.barsAnimated.has(entry.target)) {
+                            this.barsAnimated.add(entry.target);
+                            const width = entry.target.dataset.width || 50;
+                            entry.target.style.width = width + '%';
+                        }
+                    });
+                },
+                { threshold: 0.3 }
+            );
+
+            bars.forEach(bar => {
+                bar.style.width = '0%';
+                observer.observe(bar);
+            });
+        }
+
+        initPathAnimations() {
+            const paths = document.querySelectorAll('.animate-stroke');
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            paths.forEach(path => {
+                try {
+                    const length = path.getTotalLength();
+                    path.style.strokeDasharray = length;
+                    path.style.strokeDashoffset = prefersReducedMotion ? '0' : String(length);
+                } catch (e) {
+                    // text elements don't support getTotalLength
+                }
+            });
+
+            if (prefersReducedMotion) return;
+
+            const observer = new IntersectionObserver(
+                (entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting && !this.pathsAnimated.has(entry.target)) {
+                            this.pathsAnimated.add(entry.target);
+                            const animPaths = entry.target.querySelectorAll
+                                ? entry.target.querySelectorAll('.animate-stroke')
+                                : [entry.target];
+
+                            animPaths.forEach((p, i) => {
+                                setTimeout(() => {
+                                    p.style.strokeDashoffset = '0';
+                                }, i * 200);
+                            });
+                        }
+                    });
+                },
+                { threshold: 0.2 }
+            );
+
+            document.querySelectorAll('.brush-divider, .cover__drip, .cover__cloud, .yijing__bamboo, .qiyun__plum, .heritage__timeline-line').forEach(el => {
+                observer.observe(el);
+            });
+        }
+
+        initSealAnimations() {
+            const seals = document.querySelectorAll('.seal--animated');
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            if (prefersReducedMotion) {
+                seals.forEach(s => {
+                    s.style.opacity = '1';
+                    s.style.transform = 'rotate(-2deg) scale(1)';
+                });
+                return;
+            }
+
+            const observer = new IntersectionObserver(
+                (entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting && !this.sealsAnimated.has(entry.target)) {
+                            this.sealsAnimated.add(entry.target);
+                            setTimeout(() => {
+                                entry.target.classList.add('stamped');
+                            }, 300);
+                        }
+                    });
+                },
+                { threshold: 0.5 }
+            );
+
+            seals.forEach(s => observer.observe(s));
+        }
+
+        initCharts() {
+            this.initQiyunChart();
+            this.initHeritageChart();
+        }
+
+        initQiyunChart() {
+            const container = document.getElementById('qiyunChart');
+            if (!container) return;
+
+            const observer = new IntersectionObserver(
+                (entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            observer.unobserve(entry.target);
+                            this.renderQiyunChart(container);
+                        }
+                    });
+                },
+                { threshold: 0.2 }
+            );
+
+            observer.observe(container);
+        }
+
+        renderQiyunChart(container) {
+            const chart = echarts.init(container);
+
+            const option = {
+                backgroundColor: 'transparent',
+                title: {
+                    text: '历代画论对"六法"权重的演变',
+                    left: 'center',
+                    top: 0,
+                    textStyle: {
+                        fontFamily: 'LXGW WenKai, serif',
+                        fontSize: 13,
+                        fontWeight: 400,
+                        color: 'rgba(26,26,26,0.5)'
+                    }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: '#f5f0e8',
+                    borderColor: 'rgba(26,26,26,0.08)',
+                    textStyle: {
+                        color: '#1a1a1a',
+                        fontFamily: 'Noto Serif SC, serif',
+                        fontSize: 12
+                    }
+                },
+                legend: {
+                    bottom: 0,
+                    textStyle: {
+                        fontFamily: 'LXGW WenKai, serif',
+                        fontSize: 11,
+                        color: 'rgba(26,26,26,0.4)'
+                    },
+                    itemWidth: 16,
+                    itemHeight: 2
+                },
+                grid: {
+                    left: '8%',
+                    right: '5%',
+                    top: '15%',
+                    bottom: '18%'
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['魏晋', '唐', '宋', '元', '明', '清'],
+                    axisLine: { lineStyle: { color: 'rgba(26,26,26,0.08)' } },
+                    axisTick: { show: false },
+                    axisLabel: {
+                        color: 'rgba(26,26,26,0.4)',
+                        fontFamily: 'LXGW WenKai, serif',
+                        fontSize: 12
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    max: 100,
+                    axisLine: { show: false },
+                    axisTick: { show: false },
+                    splitLine: { lineStyle: { color: 'rgba(26,26,26,0.03)' } },
+                    axisLabel: { show: false }
+                },
+                series: [
+                    {
+                        name: '气韵生动',
+                        type: 'line',
+                        data: [75, 85, 95, 90, 88, 92],
+                        smooth: 0.4,
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        lineStyle: { color: '#bf3a2b', width: 2 },
+                        itemStyle: { color: '#bf3a2b' }
+                    },
+                    {
+                        name: '骨法用笔',
+                        type: 'line',
+                        data: [80, 78, 70, 82, 75, 80],
+                        smooth: 0.4,
+                        symbol: 'circle',
+                        symbolSize: 5,
+                        lineStyle: { color: 'rgba(26,26,26,0.55)', width: 1.5 },
+                        itemStyle: { color: 'rgba(26,26,26,0.55)' }
+                    },
+                    {
+                        name: '经营位置',
+                        type: 'line',
+                        data: [50, 60, 80, 75, 85, 70],
+                        smooth: 0.4,
+                        symbol: 'circle',
+                        symbolSize: 5,
+                        lineStyle: { color: 'rgba(26,26,26,0.25)', width: 1.5, type: 'dashed' },
+                        itemStyle: { color: 'rgba(26,26,26,0.25)' }
+                    }
+                ],
+                animationDuration: 1500,
+                animationEasing: 'cubicOut'
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', () => chart.resize());
+        }
+
+        initHeritageChart() {
+            const container = document.getElementById('heritageChart');
+            if (!container) return;
+
+            const observer = new IntersectionObserver(
+                (entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            observer.unobserve(entry.target);
+                            this.renderHeritageChart(container);
+                        }
+                    });
+                },
+                { threshold: 0.2 }
+            );
+
+            observer.observe(container);
+        }
+
+        renderHeritageChart(container) {
+            const chart = echarts.init(container);
+
+            const option = {
+                backgroundColor: 'transparent',
+                title: {
+                    text: '中国绘画各时期代表作品数量与美学影响力',
+                    left: 'center',
+                    top: 0,
+                    textStyle: {
+                        fontFamily: 'LXGW WenKai, serif',
+                        fontSize: 13,
+                        fontWeight: 400,
+                        color: 'rgba(26,26,26,0.5)'
+                    }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: '#f5f0e8',
+                    borderColor: 'rgba(26,26,26,0.08)',
+                    textStyle: {
+                        color: '#1a1a1a',
+                        fontFamily: 'Noto Serif SC, serif',
+                        fontSize: 12
+                    }
+                },
+                grid: {
+                    left: '8%',
+                    right: '8%',
+                    top: '18%',
+                    bottom: '12%'
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['先秦', '汉', '魏晋', '隋唐', '五代', '北宋', '南宋', '元', '明', '清'],
+                    axisLine: { lineStyle: { color: 'rgba(26,26,26,0.08)' } },
+                    axisTick: { show: false },
+                    axisLabel: {
+                        color: 'rgba(26,26,26,0.4)',
+                        fontFamily: 'LXGW WenKai, serif',
+                        fontSize: 11
+                    }
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: '存世作品',
+                        nameTextStyle: {
+                            fontFamily: 'LXGW WenKai, serif',
+                            fontSize: 11,
+                            color: 'rgba(26,26,26,0.3)'
+                        },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                        splitLine: { lineStyle: { color: 'rgba(26,26,26,0.03)' } },
+                        axisLabel: {
+                            color: 'rgba(26,26,26,0.25)',
+                            fontSize: 10
+                        }
+                    },
+                    {
+                        type: 'value',
+                        name: '影响力',
+                        nameTextStyle: {
+                            fontFamily: 'LXGW WenKai, serif',
+                            fontSize: 11,
+                            color: 'rgba(26,26,26,0.3)'
+                        },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                        splitLine: { show: false },
+                        axisLabel: {
+                            color: 'rgba(26,26,26,0.25)',
+                            fontSize: 10
+                        }
+                    }
+                ],
+                series: [
+                    {
+                        name: '代表作品',
+                        type: 'bar',
+                        data: [5, 12, 25, 60, 35, 85, 70, 55, 90, 120],
+                        barWidth: '40%',
+                        itemStyle: {
+                            color: 'rgba(26,26,26,0.15)',
+                            borderRadius: [2, 2, 0, 0]
+                        },
+                        emphasis: {
+                            itemStyle: { color: 'rgba(26,26,26,0.35)' }
+                        }
+                    },
+                    {
+                        name: '美学影响力',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: [60, 50, 85, 90, 75, 95, 88, 82, 70, 65],
+                        smooth: 0.4,
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        lineStyle: { color: '#bf3a2b', width: 2 },
+                        itemStyle: { color: '#bf3a2b' }
+                    }
+                ],
+                animationDuration: 1500,
+                animationEasing: 'cubicOut'
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', () => chart.resize());
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => new ReportPresentation());
+    } else {
+        new ReportPresentation();
+    }
+})();
+</script>
+
+</body>
+</html>

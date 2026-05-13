@@ -118,7 +118,10 @@
       "Read(//tmp/**)",
       "Bash(npx eslint *)",
       "Bash(sed -i '' '/backdrop-filter: var\\(--glass-blur/d' template-gradient.html)",
-      "Bash(sed -i '' '/-webkit-backdrop-filter: var\\(--glass-blur/d' template-gradient.html)"
+      "Bash(sed -i '' '/-webkit-backdrop-filter: var\\(--glass-blur/d' template-gradient.html)",
+      "Bash(npx --package=typescript tsc --noEmit --project apps/desktop/tsconfig.json)",
+      "Bash(npx vue-tsc *)",
+      "Bash(awk '{print $5, $9}')"
     ],
     "deny": [],
     "ask": []

@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基于深度强化学习的多智能体协同决策研究</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Libre+Franklin:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --bg: #fffef9;
+            --ink: #2c3e50;
+            --accent: #1a5f7a;
+            --citation: #6c757d;
+            --rule: #d4d0c8;
+            --serif: "Crimson Pro", "Noto Serif SC", "Source Han Serif SC", Georgia, serif;
+            --sans: "Libre Franklin", "PingFang SC", "Noto Sans SC", sans-serif;
+            --mono: "JetBrains Mono", "SF Mono", monospace;
+            --title-size: clamp(1.8rem, 3.5vw, 2.6rem);
+            --h1-size: clamp(1.4rem, 2.5vw, 1.85rem);
+            --h2-size: clamp(1.15rem, 2vw, 1.45rem);
+            --body-size: clamp(1rem, 1.2vw, 1.1rem);
+            --small-size: clamp(0.82rem, 0.95vw, 0.9rem);
+            --caption-size: clamp(0.8rem, 0.9vw, 0.88rem);
+            --margin-note-size: clamp(0.75rem, 0.85vw, 0.82rem);
+            --content-max: 720px;
+            --section-gap: clamp(2.5rem, 5vw, 4rem);
+            --reveal-duration: 0.4s;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--ink);
+            font-family: var(--serif);
+            font-size: var(--body-size);
+            line-height: 1.85;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Scroll progress */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 1px;
+            background: var(--accent);
+            z-index: 1000;
+            transition: width 0.1s linear;
+        }
+
+        /* Container */
+        .report-container {
+            max-width: var(--content-max);
+            margin: 0 auto;
+            padding: clamp(2rem, 4vw, 4rem) clamp(1.5rem, 3vw, 2rem);
+            position: relative;
+        }
+
+        /* Header / Title block */
+        .paper-header {
+            text-align: center;
+            margin-bottom: var(--section-gap);
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--rule);
+        }
+
+        .paper-title {
+            font-family: var(--sans);
+            font-size: var(--title-size);
+            font-weight: 700;
+            line-height: 1.3;
+            color: var(--ink);
+            margin-bottom: 1.2rem;
+            letter-spacing: -0.02em;
+        }
+
+        .paper-authors {
+            font-family: var(--sans);
+            font-size: var(--body-size);
+            font-weight: 500;
+            color: var(--ink);
+            margin-bottom: 0.4rem;
+        }
+
+        .paper-affiliation {
+            font-family: var(--serif);
+            font-size: var(--small-size);
+            font-style: italic;
+            color: var(--citation);
+            margin-bottom: 1rem;
+        }
+
+        .paper-dates {
+            font-family: var(--mono);
+            font-size: var(--margin-note-size);
+            color: var(--citation);
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .paper-dates span {
+            white-space: nowrap;
+        }
+
+        /* Abstract section — two column */
+        .abstract-section {
+            margin-bottom: var(--section-gap);
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--rule);
+        }
+
+        .abstract-grid {
+            display: grid;
+            grid-template-columns: 1fr 200px;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        .abstract-content {
+            text-align: justify;
+        }
+
+        .abstract-label {
+            font-family: var(--sans);
+            font-size: var(--small-size);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent);
+            margin-bottom: 0.6rem;
+        }
+
+        .abstract-text {
+            font-size: var(--small-size);
+            line-height: 1.75;
+            text-align: justify;
+        }
+
+        .abstract-meta .keywords-label {
+            font-family: var(--sans);
+            font-size: var(--margin-note-size);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--accent);
+            margin-bottom: 0.4rem;
+        }
+
+        .abstract-meta .keywords-list {
+            font-size: var(--margin-note-size);
+            line-height: 1.7;
+            color: var(--citation);
+        }
+
+        .abstract-meta .keywords-list span {
+            display: inline-block;
+            margin-right: 0.3rem;
+        }
+
+        .abstract-meta .meta-block {
+            margin-top: 1.2rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--rule);
+        }
+
+        .abstract-meta .meta-item {
+            font-family: var(--mono);
+            font-size: var(--margin-note-size);
+            color: var(--citation);
+            margin-bottom: 0.3rem;
+        }
+
+        /* Sections */
+        .paper-section {
+            margin-bottom: var(--section-gap);
+            position: relative;
+        }
+
+        .paper-section + .paper-section::before {
+            content: "";
+            display: block;
+            width: 100%;
+            height: 1px;
+            background: var(--rule);
+            margin-bottom: var(--section-gap);
+        }
+
+        .section-heading {
+            font-family: var(--sans);
+            font-size: var(--h1-size);
+            font-weight: 700;
+            color: var(--ink);
+            margin-bottom: 1.2rem;
+            line-height: 1.3;
+        }
+
+        .subsection-heading {
+            font-family: var(--sans);
+            font-size: var(--h2-size);
+            font-weight: 600;
+            color: var(--ink);
+            margin-top: 2rem;
+            margin-bottom: 0.8rem;
+            line-height: 1.4;
+        }
+
+        /* Body paragraphs */
+        .paper-section p {
+            text-align: justify;
+            margin-bottom: 1rem;
+            hyphens: auto;
+        }
+
+        /* Citations */
+        .cite {
+            color: var(--accent);
+            cursor: pointer;
+            text-decoration: none;
+            font-family: var(--mono);
+            font-size: 0.85em;
+            vertical-align: super;
+            line-height: 0;
+        }
+
+        .cite:hover {
+            text-decoration: underline;
+        }
+
+        /* Margin notes */
+        .margin-note {
+            position: absolute;
+            right: -220px;
+            width: 180px;
+            font-size: var(--margin-note-size);
+            line-height: 1.5;
+            color: var(--citation);
+            border-left: 2px solid var(--rule);
+            padding-left: 0.8rem;
+            font-style: italic;
+        }
+
+        .margin-note-inline {
+            display: none;
+            background: rgba(26, 95, 122, 0.04);
+            border-left: 2px solid var(--accent);
+            padding: 0.6rem 1rem;
+            margin: 1rem 0;
+            font-size: var(--small-size);
+            font-style: italic;
+            color: var(--citation);
+        }
+
+        /* Footnotes */
+        .footnote-ref {
+            font-size: 0.75em;
+            vertical-align: super;
+            line-height: 0;
+            color: var(--accent);
+            text-decoration: none;
+            font-family: var(--mono);
+        }
+
+        .footnote-ref:hover {
+            text-decoration: underline;
+        }
+
+        /* Block quotations */
+        blockquote {
+            margin: 1.5rem 0 1.5rem 4rem;
+            font-size: var(--small-size);
+            line-height: 1.7;
+            color: var(--citation);
+            font-style: italic;
+            position: relative;
+        }
+
+        blockquote::before {
+            content: "";
+            position: absolute;
+            left: -2rem;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--rule);
+        }
+
+        /* Figures */
+        .figure-block {
+            margin: 2rem 0;
+            text-align: center;
+        }
+
+        .figure-chart {
+            width: 100%;
+            height: 360px;
+            margin-bottom: 0.8rem;
+        }
+
+        .figure-caption {
+            font-size: var(--caption-size);
+            color: var(--citation);
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        .figure-caption .fig-label {
+            font-family: var(--sans);
+            font-weight: 600;
+            color: var(--ink);
+        }
+
+        .figure-caption .fig-desc {
+            font-style: italic;
+        }
+
+        /* Tables */
+        .table-block {
+            margin: 2rem 0;
+            overflow-x: auto;
+        }
+
+        .table-caption {
+            font-size: var(--caption-size);
+            color: var(--citation);
+            margin-bottom: 0.6rem;
+            text-align: center;
+        }
+
+        .table-caption .table-label {
+            font-family: var(--sans);
+            font-weight: 600;
+            color: var(--ink);
+        }
+
+        .table-caption .table-desc {
+            font-style: italic;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: var(--small-size);
+            line-height: 1.6;
+        }
+
+        .data-table thead {
+            border-bottom: 2px solid var(--ink);
+        }
+
+        .data-table th {
+            font-family: var(--sans);
+            font-weight: 600;
+            padding: 0.6rem 1rem;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        .data-table tbody tr {
+            border-bottom: 1px solid var(--rule);
+        }
+
+        .data-table td {
+            padding: 0.5rem 1rem;
+            font-family: var(--mono);
+            font-size: 0.9em;
+        }
+
+        .data-table td:first-child {
+            font-family: var(--serif);
+            font-size: 1em;
+        }
+
+        /* Statistics counters */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin: 2rem 0;
+            padding: 1.5rem 0;
+            border-top: 1px solid var(--rule);
+            border-bottom: 1px solid var(--rule);
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-family: var(--mono);
+            font-size: clamp(1.6rem, 3vw, 2.2rem);
+            font-weight: 500;
+            color: var(--accent);
+            line-height: 1.2;
+        }
+
+        .stat-value .stat-suffix {
+            font-size: 0.6em;
+            color: var(--citation);
+        }
+
+        .stat-label {
+            font-family: var(--sans);
+            font-size: var(--margin-note-size);
+            color: var(--citation);
+            margin-top: 0.3rem;
+        }
+
+        /* References */
+        .references-section {
+            margin-top: var(--section-gap);
+            padding-top: 2rem;
+            border-top: 1px solid var(--rule);
+        }
+
+        .references-section .section-heading {
+            margin-bottom: 1.5rem;
+        }
+
+        .reference-list {
+            list-style: none;
+        }
+
+        .reference-list li {
+            font-size: var(--small-size);
+            line-height: 1.7;
+            margin-bottom: 0.8rem;
+            padding-left: 2.5rem;
+            text-indent: -2.5rem;
+            color: var(--ink);
+        }
+
+        .reference-list .ref-number {
+            font-family: var(--mono);
+            font-size: 0.85em;
+            color: var(--accent);
+            margin-right: 0.3rem;
+        }
+
+        .reference-list .ref-authors {
+            font-weight: 500;
+        }
+
+        .reference-list .ref-title {
+            font-style: italic;
+        }
+
+        .reference-list .ref-venue {
+            color: var(--citation);
+        }
+
+        /* Back to top */
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            font-family: var(--sans);
+            font-size: var(--margin-note-size);
+            color: var(--accent);
+            text-decoration: none;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            pointer-events: none;
+            background: var(--bg);
+            padding: 0.4rem 0.8rem;
+            border: 1px solid var(--rule);
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .back-to-top:hover {
+            color: var(--ink);
+            border-color: var(--accent);
+        }
+
+        /* Reveal animation */
+        .reveal {
+            opacity: 0;
+            transition: opacity var(--reveal-duration) ease;
+        }
+
+        .reveal.revealed {
+            opacity: 1;
+        }
+
+        /* Responsive */
+        @media (max-width: 1100px) {
+            .margin-note {
+                display: none;
+            }
+            .margin-note-inline {
+                display: block;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .margin-note {
+                display: none;
+            }
+            .margin-note-inline {
+                display: block;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .abstract-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-row {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            blockquote {
+                margin-left: 1.5rem;
+            }
+
+            blockquote::before {
+                left: -1rem;
+            }
+
+            .paper-dates {
+                flex-direction: column;
+                gap: 0.3rem;
+            }
+
+            .figure-chart {
+                height: 280px;
+            }
+        }
+
+        /* Print styles */
+        @media print {
+            .scroll-progress,
+            .back-to-top {
+                display: none !important;
+            }
+
+            body {
+                font-size: 10pt;
+                line-height: 1.6;
+                color: #000;
+                background: #fff;
+            }
+
+            .report-container {
+                max-width: 100%;
+                padding: 0;
+            }
+
+            .paper-section {
+                break-inside: avoid;
+            }
+
+            .figure-block {
+                break-inside: avoid;
+            }
+
+            .table-block {
+                break-inside: avoid;
+            }
+
+            .references-section {
+                break-before: page;
+            }
+
+            .margin-note {
+                display: none;
+            }
+
+            .margin-note-inline {
+                display: block;
+                background: none;
+                border-left: 1px solid #999;
+            }
+
+            .reveal {
+                opacity: 1 !important;
+            }
+
+            a {
+                color: #000;
+                text-decoration: none;
+            }
+
+            .cite {
+                color: #000;
+            }
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            .reveal {
+                opacity: 1;
+                transition: none;
+            }
+
+            .scroll-progress {
+                transition: none;
+            }
+
+            .back-to-top {
+                transition: none;
+            }
+
+            html {
+                scroll-behavior: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="scroll-progress" id="scrollProgress"></div>
+
+    <div class="report-container">
+        <!-- Header -->
+        <header class="paper-header reveal">
+            <h1 class="paper-title">基于深度强化学习的多智能体协同决策研究</h1>
+            <div class="paper-authors">张明远<sup>1</sup>，李思涵<sup>1,2</sup>，王子轩<sup>2</sup>，陈雨桐<sup>1</sup></div>
+            <div class="paper-affiliation">
+                <sup>1</sup> 清华大学计算机科学与技术系，北京 100084<br>
+                <sup>2</sup> 中国科学院自动化研究所，北京 100190
+            </div>
+            <div class="paper-dates">
+                <span>收稿日期：2025-09-15</span>
+                <span>修回日期：2025-12-20</span>
+                <span>刊出日期：2026-03-01</span>
+            </div>
+        </header>
+
+        <!-- Abstract -->
+        <section class="abstract-section reveal">
+            <div class="abstract-grid">
+                <div class="abstract-content">
+                    <div class="abstract-label">摘要</div>
+                    <p class="abstract-text">
+                        多智能体协同决策是人工智能领域的核心挑战之一。本文提出了一种基于深度强化学习的多智能体协同框架（MACD-RL），通过引入注意力机制和图神经网络实现智能体间的高效通信与协作。实验在StarCraft II多智能体挑战（SMAC）和城市交通信号控制两个基准环境中进行验证，结果表明MACD-RL在协同效率方面较现有最优方法QMIX提升18.7%，在通信开销方面降低34.2%。消融实验进一步证实了注意力通信模块和动态拓扑结构的有效性。本研究为大规模多智能体系统的部署提供了新的理论基础与实践路径。
+                    </p>
+                </div>
+                <div class="abstract-meta">
+                    <div class="keywords-label">关键词</div>
+                    <div class="keywords-list">
+                        <span>深度强化学习；</span>
+                        <span>多智能体系统；</span>
+                        <span>协同决策；</span>
+                        <span>注意力机制；</span>
+                        <span>图神经网络</span>
+                    </div>
+                    <div class="meta-block">
+                        <div class="meta-item">DOI: 10.xxxx/ai.2026.001</div>
+                        <div class="meta-item">中图分类号: TP181</div>
+                        <div class="meta-item">文献标志码: A</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 1. Introduction -->
+        <section class="paper-section reveal">
+            <h2 class="section-heading">1. 引言</h2>
+            <p>
+                随着人工智能技术的快速发展，多智能体系统（Multi-Agent Systems, MAS）在自动驾驶、智能交通、机器人编队和分布式资源管理等领域展现出巨大的应用潜力<a href="#ref1" class="cite">[1]</a>。相比单智能体环境，多智能体场景面临着环境非平稳性、信用分配困难和通信约束等独特挑战<a href="#ref2" class="cite">[2]</a>。
+            </p>
+            <p>
+                深度强化学习（Deep Reinforcement Learning, DRL）近年来在多智能体协同领域取得了显著进展。从独立学习的IQL<a href="#ref3" class="cite">[3]</a>到集中训练分散执行（CTDE）范式下的QMIX<a href="#ref4" class="cite">[4]</a>和MAPPO<a href="#ref5" class="cite">[5]</a>，研究者不断探索更高效的协同机制。然而，现有方法在以下方面仍存在不足：（1）智能体间通信效率低下，冗余信息传递导致计算开销增大；（2）固定的通信拓扑难以适应动态变化的任务需求；（3）在大规模智能体场景下，方法的可扩展性受限。
+            </p>
+            <p>
+                针对上述问题，本文提出了一种基于注意力机制和图神经网络的多智能体协同决策框架（Multi-Agent Cooperative Decision via Reinforcement Learning, MACD-RL）。该框架的核心创新包括：首先，设计了自适应注意力通信模块，通过动态权重分配实现信息的选择性传递；其次，引入可学习的图拓扑结构，使通信网络能够根据任务需求自适应调整；最后，提出了分层信用分配机制，解决了大规模场景下的奖励稀疏问题。
+            </p>
+            <blockquote>
+                "The key challenge in multi-agent reinforcement learning is not just learning optimal individual policies, but learning to coordinate — knowing when to communicate, what to communicate, and with whom."<br>
+                — Foerster et al., 2018
+            </blockquote>
+        </section>
+
+        <!-- 2. Related Work -->
+        <section class="paper-section reveal">
+            <h2 class="section-heading">2. 相关工作</h2>
+
+            <h3 class="subsection-heading">2.1 多智能体强化学习</h3>
+            <p>
+                多智能体强化学习（MARL）的研究可追溯至博弈论与分布式人工智能的交叉领域。早期的独立Q学习方法<a href="#ref3" class="cite">[3]</a>将每个智能体视为独立的学习者，忽略了智能体间的交互关系。Lowe等人<a href="#ref6" class="cite">[6]</a>提出的MADDPG首次将Actor-Critic框架扩展至多智能体场景，通过集中式Critic实现了对其他智能体策略的建模。QMIX<a href="#ref4" class="cite">[4]</a>则通过单调性约束实现了联合动作值函数的分解，在保证可扩展性的同时维持了一定的表示能力。
+            </p>
+
+            <h3 class="subsection-heading">2.2 智能体通信学习</h3>
+            <p>
+                智能体间的通信是实现协同的关键机制。CommNet<a href="#ref7" class="cite">[7]</a>和IC3Net<a href="#ref8" class="cite">[8]</a>通过连续向量实现了可微分的通信，但其广播式通信在智能体数量增大时效率急剧下降。TarMAC<a href="#ref9" class="cite">[9]</a>引入注意力机制实现了目标化通信，但固定的通信轮次限制了其灵活性。近期，基于图神经网络的方法<a href="#ref10" class="cite">[10]</a>为通信拓扑建模提供了新思路，但如何在保证通信质量的前提下降低通信开销仍是开放问题。
+            </p>
+
+            <h3 class="subsection-heading">2.3 注意力机制在强化学习中的应用</h3>
+            <p>
+                Transformer架构<a href="#ref11" class="cite">[11]</a>的成功激发了其在强化学习中的广泛应用。Decision Transformer<a href="#ref12" class="cite">[12]</a>将强化学习建模为序列决策问题，Multi-Agent Transformer<a href="#ref13" class="cite">[13]</a>则将自注意力机制引入多智能体价值分解。然而，标准Transformer的二次复杂度在大规模智能体场景下仍是瓶颈，本文通过稀疏注意力和动态图结构有效缓解了这一问题。
+            </p>
+        </section>
+
+        <!-- 3. Methodology -->
+        <section class="paper-section reveal">
+            <h2 class="section-heading">3. 方法论</h2>
+
+            <h3 class="subsection-heading">3.1 问题建模</h3>
+            <p>
+                本文将多智能体协同决策建模为去中心化部分可观测马尔可夫决策过程（Dec-POMDP），定义为元组 \(\langle \mathcal{N}, \mathcal{S}, \mathcal{A}, \mathcal{O}, T, R, \gamma \rangle\)，其中 \(\mathcal{N}\) 为智能体集合，\(\mathcal{S}\) 为全局状态空间，\(\mathcal{A} = \mathcal{A}_1 \times \cdots \times \mathcal{A}_n\) 为联合动作空间，\(\mathcal{O}\) 为观测函数，\(T: \mathcal{S} \times \mathcal{A} \rightarrow \mathcal{S}\) 为状态转移函数，\(R: \mathcal{S} \times \mathcal{A} \rightarrow \mathbb{R}\) 为共享奖励函数，\(\gamma \in [0,1)\) 为折扣因子。每个智能体 \(i\) 的目标是学习策略 \(\pi_i\) 以最大化期望累积回报：
+            </p>
+            <p style="text-align: center; margin: 1.5rem 0;">
+                \[J(\boldsymbol{\pi}) = \mathbb{E}\left[\sum_{t=0}^{\infty} \gamma^t R(s_t, \boldsymbol{a}_t) \mid \boldsymbol{a}_t \sim \boldsymbol{\pi}(\cdot | \boldsymbol{o}_t)\right]\]
+            </p>
+            <p>
+                其中 \(\boldsymbol{\pi} = (\pi_1, \ldots, \pi_n)\) 为联合策略，\(\boldsymbol{o}_t = (o_1^t, \ldots, o_n^t)\) 为联合观测。
+            </p>
+
+            <h3 class="subsection-heading">3.2 MACD-RL框架设计</h3>
+            <p>
+                MACD-RL框架由三个核心模块组成：（1）局部观测编码器，基于卷积神经网络提取每个智能体的局部特征表示；（2）自适应注意力通信模块，通过多头注意力和门控机制实现选择性信息传递；（3）策略网络与价值分解模块，采用改进的QMIX结构实现分布式决策。
+            </p>
+            <p>
+                自适应注意力通信模块的核心机制如下：对于智能体 \(i\)，其通信权重 \(\alpha_{ij}\) 由查询-键匹配和距离衰减因子共同决定：
+            </p>
+            <p style="text-align: center; margin: 1.5rem 0;">
+                \[\alpha_{ij} = \frac{\exp\left(\frac{q_i^T k_j}{\sqrt{d_k}} \cdot \phi(\|p_i - p_j\|)\right)}{\sum_{l \in \mathcal{N}_i} \exp\left(\frac{q_i^T k_l}{\sqrt{d_k}} \cdot \phi(\|p_i - p_l\|)\right)}\]
+            </p>
+            <p>
+                其中 \(q_i = W_Q h_i\)，\(k_j = W_K h_j\) 分别为查询向量和键向量，\(\phi(\cdot)\) 为距离衰减核函数，\(\mathcal{N}_i\) 为智能体 \(i\) 的通信邻域。聚合消息通过注意力加权求和得到：
+            </p>
+            <p style="text-align: center; margin: 1.5rem 0;">
+                \[m_i = \sum_{j \in \mathcal{N}_i} \alpha_{ij} \cdot W_V h_j\]
+            </p>
+            <p>
+                通过引入Gumbel-Softmax采样<a href="#ref14" class="cite">[14]</a>，实现了离散通信拓扑的端到端学习。图结构在每个决策步动态更新，允许智能体根据当前态势选择最优通信对象。
+            </p>
+
+            <!-- Figure 1: Experimental Design -->
+            <div class="figure-block">
+                <div class="figure-chart" id="chartMethodology"></div>
+                <div class="figure-caption">
+                    <span class="fig-label">图 1：</span>
+                    <span class="fig-desc">不同模块在两个实验环境中的参数量与计算开销对比</span>
+                </div>
+            </div>
+
+            <h3 class="subsection-heading">3.3 分层信用分配</h3>
+            <p>
+                为解决大规模场景下的信用分配问题，本文设计了两级分层机制：在全局层面，通过反事实基线估计每个智能体对团队奖励的边际贡献<a href="#ref15" class="cite">[15]</a>：
+            </p>
+            <p style="text-align: center; margin: 1.5rem 0;">
+                \[A_i(s, \boldsymbol{a}) = Q(s, \boldsymbol{a}) - \sum_{a_i'} \pi_i(a_i' | o_i) \cdot Q(s, (a_i', \boldsymbol{a}_{-i}))\]
+            </p>
+            <p>
+                在局部层面，通过时间差分学习为每个时间步的决策提供即时反馈信号：
+            </p>
+            <p style="text-align: center; margin: 1.5rem 0;">
+                \[\delta_t^i = r_t^{\text{local}} + \gamma V_i(o_{t+1}^i) - V_i(o_t^i)\]
+            </p>
+            <p>
+                最终的策略梯度结合两级优势函数进行更新：
+            </p>
+            <p style="text-align: center; margin: 1.5rem 0;">
+                \[\nabla_{\theta_i} J = \mathbb{E}\left[\sum_t \nabla_{\theta_i} \log \pi_{\theta_i}(a_t^i | o_t^i) \cdot \left(\lambda A_i(s_t, \boldsymbol{a}_t) + (1-\lambda)\delta_t^i\right)\right]\]
+            </p>
+            <p>
+                这一设计有效缓解了奖励延迟和奖励稀疏问题。
+            </p>
+        </section>
+
+        <!-- 4. Results -->
+        <section class="paper-section reveal">
+            <h2 class="section-heading">4. 实验结果</h2>
+
+            <h3 class="subsection-heading">4.1 实验设置</h3>
+            <p>
+                实验在两个基准环境中进行：（1）StarCraft II多智能体挑战（SMAC）<a href="#ref16" class="cite">[16]</a>，选取了3s5z、5m_vs_6m和corridor三个高难度地图；（2）城市交通信号控制环境CityFlow<a href="#ref17" class="cite">[17]</a>，模拟了包含48个交叉口的真实路网。所有实验在NVIDIA A100 GPU集群上运行，每个配置独立运行5次取平均值。
+            </p>
+
+            <!-- Key statistics -->
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-value"><span class="counter" data-target="18.7">0</span><span class="stat-suffix">%</span></div>
+                    <div class="stat-label">胜率提升 (vs QMIX)</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value"><span class="counter" data-target="34.2">0</span><span class="stat-suffix">%</span></div>
+                    <div class="stat-label">通信开销降低</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value"><span class="counter" data-target="2.3">0</span><span class="stat-suffix">×</span></div>
+                    <div class="stat-label">收敛速度提升</div>
+                </div>
+            </div>
+
+            <h3 class="subsection-heading">4.2 主要结果对比</h3>
+
+            <!-- Table 1 -->
+            <div class="table-block">
+                <div class="table-caption">
+                    <span class="table-label">表 1：</span>
+                    <span class="table-desc">SMAC环境中各方法的测试胜率对比（%，均值±标准差）</span>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>方法</th>
+                            <th>3s5z</th>
+                            <th>5m_vs_6m</th>
+                            <th>corridor</th>
+                            <th>平均</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>IQL</td>
+                            <td>67.3 ± 4.2</td>
+                            <td>52.1 ± 6.8</td>
+                            <td>31.5 ± 8.1</td>
+                            <td>50.3</td>
+                        </tr>
+                        <tr>
+                            <td>QMIX</td>
+                            <td>89.2 ± 2.1</td>
+                            <td>73.8 ± 3.4</td>
+                            <td>68.4 ± 5.2</td>
+                            <td>77.1</td>
+                        </tr>
+                        <tr>
+                            <td>MAPPO</td>
+                            <td>91.5 ± 1.8</td>
+                            <td>76.2 ± 2.9</td>
+                            <td>72.1 ± 4.3</td>
+                            <td>79.9</td>
+                        </tr>
+                        <tr>
+                            <td>TarMAC</td>
+                            <td>88.7 ± 2.5</td>
+                            <td>74.5 ± 3.1</td>
+                            <td>70.8 ± 4.7</td>
+                            <td>78.0</td>
+                        </tr>
+                        <tr>
+                            <td>MACD-RL (ours)</td>
+                            <td>95.8 ± 1.2</td>
+                            <td>84.6 ± 2.0</td>
+                            <td>82.3 ± 3.1</td>
+                            <td>87.6</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Figure 2: Training curves -->
+            <div class="figure-block">
+                <div class="figure-chart" id="chartTraining"></div>
+                <div class="figure-caption">
+                    <span class="fig-label">图 2：</span>
+                    <span class="fig-desc">5m_vs_6m 场景中各方法的训练胜率曲线（阴影区域表示标准差）</span>
+                </div>
+            </div>
+
+            <h3 class="subsection-heading">4.3 通信分析</h3>
+            <p>
+                为深入理解MACD-RL的通信机制，我们分析了不同训练阶段的通信模式变化。图3展示了训练完成后各类通信消息的占比分布。结果表明，经过训练，智能体学会了根据态势动态调整通信内容：在需要协调的关键时刻（如包围敌方单位）增加战术信息的传递，而在常规移动阶段减少冗余通信。
+            </p>
+
+            <!-- Figure 3: Communication distribution -->
+            <div class="figure-block">
+                <div class="figure-chart" id="chartDistribution"></div>
+                <div class="figure-caption">
+                    <span class="fig-label">图 3：</span>
+                    <span class="fig-desc">MACD-RL学习到的通信消息类型分布</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. Discussion -->
+        <section class="paper-section reveal" style="position: relative;">
+            <h2 class="section-heading">5. 讨论</h2>
+
+            <p>
+                实验结果表明，MACD-RL在多个维度上优于现有方法。首先，自适应注意力通信模块有效降低了通信冗余<sup class="footnote-ref" id="fnref1"><a href="#fn1">1</a></sup>，使得智能体能够在信息量和通信成本之间取得更好的平衡。其次，动态图拓扑结构的引入使得通信网络能够随任务进展自适应调整，这在corridor等需要复杂协调策略的场景中尤为重要。
+            </p>
+
+            <div class="margin-note" style="top: 0;">
+                注意力权重的可视化分析表明，在关键决策点处，智能体倾向于与空间邻近且角色互补的队友建立通信连接。
+            </div>
+            <div class="margin-note-inline">
+                注意力权重的可视化分析表明，在关键决策点处，智能体倾向于与空间邻近且角色互补的队友建立通信连接。
+            </div>
+
+            <p>
+                值得注意的是，分层信用分配机制对稀疏奖励场景的改善尤为显著。在corridor地图中，智能体需要经过长序列决策才能获得最终奖励，传统方法在此场景下往往难以有效学习<a href="#ref18" class="cite">[18]</a>。MACD-RL通过分解全局奖励为局部子目标，为每一步决策提供了更丰富的监督信号。
+            </p>
+
+            <div class="margin-note" style="top: 12rem;">
+                在48个交叉口的交通场景中，MACD-RL的平均等待时间较QMIX降低22.4%，同时通信量仅为TarMAC的41%。
+            </div>
+            <div class="margin-note-inline">
+                在48个交叉口的交通场景中，MACD-RL的平均等待时间较QMIX降低22.4%，同时通信量仅为TarMAC的41%。
+            </div>
+
+            <p>
+                在可扩展性方面，MACD-RL展现出优越的性能。当智能体数量从8增加至64时，MACD-RL的计算开销呈近似线性增长（\(O(n \log n)\)），而基于全连接注意力的方法则呈二次增长（\(O(n^2)\)）。这得益于稀疏注意力机制和动态图结构的结合，有效限制了每个智能体的通信邻域规模。
+            </p>
+
+            <p>
+                本研究的局限性在于：（1）当前框架假设通信信道完全可靠，未考虑消息丢失和延迟情况；（2）实验环境中智能体数量上限为64，对于百级甚至千级智能体场景的有效性仍需进一步验证；（3）框架的超参数敏感性分析表明，注意力头数和图更新频率对性能有显著影响，自动化调参机制是未来的重要研究方向。
+            </p>
+        </section>
+
+        <!-- 6. Conclusion -->
+        <section class="paper-section reveal">
+            <h2 class="section-heading">6. 结论</h2>
+            <p>
+                本文提出了基于深度强化学习的多智能体协同决策框架MACD-RL，通过自适应注意力通信、动态图拓扑和分层信用分配三个核心模块，实现了高效且可扩展的多智能体协同。在SMAC和CityFlow两个基准环境中的大量实验验证了方法的有效性：相比现有最优方法，MACD-RL在胜率上提升18.7%，通信开销降低34.2%，收敛速度提升2.3倍。
+            </p>
+            <p>
+                未来工作将从以下三个方向展开：（1）引入异构智能体建模，支持具有不同能力和角色的智能体协同<sup class="footnote-ref" id="fnref2"><a href="#fn2">2</a></sup>；（2）研究不可靠通信条件下的鲁棒协同策略；（3）探索MACD-RL在真实机器人编队和自动驾驶场景中的迁移应用。
+            </p>
+        </section>
+
+        <!-- Footnotes -->
+        <aside class="paper-section" style="padding-top: 1.5rem; margin-top: 2rem;">
+            <p id="fn1" style="font-size: var(--small-size); color: var(--citation); margin-bottom: 0.5rem;">
+                <sup>1</sup> 通信冗余定义为传输信息量与有效信息量的比值。在本文中，通过互信息估计方法量化有效信息量。
+            </p>
+            <p id="fn2" style="font-size: var(--small-size); color: var(--citation);">
+                <sup>2</sup> 初步实验表明，MACD-RL的注意力机制可自然扩展至异构场景，仅需为不同类型智能体设计独立的编码器。
+            </p>
+        </aside>
+
+        <!-- References -->
+        <section class="references-section reveal">
+            <h2 class="section-heading">参考文献</h2>
+            <ol class="reference-list">
+                <li id="ref1">
+                    <span class="ref-number">[1]</span>
+                    <span class="ref-authors">Dorri A, Kanhere S S, Jurdak R.</span>
+                    <span class="ref-title">Multi-agent systems: A survey.</span>
+                    <span class="ref-venue">IEEE Access, 2018, 6: 28573-28593.</span>
+                </li>
+                <li id="ref2">
+                    <span class="ref-number">[2]</span>
+                    <span class="ref-authors">Zhang K, Yang Z, Başar T.</span>
+                    <span class="ref-title">Multi-agent reinforcement learning: A selective overview of theories and algorithms.</span>
+                    <span class="ref-venue">Handbook of Reinforcement Learning and Control, 2021: 321-384.</span>
+                </li>
+                <li id="ref3">
+                    <span class="ref-number">[3]</span>
+                    <span class="ref-authors">Tan M.</span>
+                    <span class="ref-title">Multi-agent reinforcement learning: Independent vs. cooperative agents.</span>
+                    <span class="ref-venue">Proceedings of ICML, 1993: 330-337.</span>
+                </li>
+                <li id="ref4">
+                    <span class="ref-number">[4]</span>
+                    <span class="ref-authors">Rashid T, Samvelyan M, Schroeder C, et al.</span>
+                    <span class="ref-title">QMIX: Monotonic value function factorisation for deep multi-agent reinforcement learning.</span>
+                    <span class="ref-venue">Proceedings of ICML, 2018: 4295-4304.</span>
+                </li>
+                <li id="ref5">
+                    <span class="ref-number">[5]</span>
+                    <span class="ref-authors">Yu C, Velu A, Vinitsky E, et al.</span>
+                    <span class="ref-title">The surprising effectiveness of PPO in cooperative multi-agent games.</span>
+                    <span class="ref-venue">NeurIPS, 2022.</span>
+                </li>
+                <li id="ref6">
+                    <span class="ref-number">[6]</span>
+                    <span class="ref-authors">Lowe R, Wu Y, Tamar A, et al.</span>
+                    <span class="ref-title">Multi-agent actor-critic for mixed cooperative-competitive environments.</span>
+                    <span class="ref-venue">NeurIPS, 2017: 6379-6390.</span>
+                </li>
+                <li id="ref7">
+                    <span class="ref-number">[7]</span>
+                    <span class="ref-authors">Sukhbaatar S, Szlam A, Fergus R.</span>
+                    <span class="ref-title">Learning multiagent communication with backpropagation.</span>
+                    <span class="ref-venue">NeurIPS, 2016: 2244-2252.</span>
+                </li>
+                <li id="ref8">
+                    <span class="ref-number">[8]</span>
+                    <span class="ref-authors">Singh A, Jain T, Sukhbaatar S.</span>
+                    <span class="ref-title">Individualized controlled continuous communication model for multiagent cooperative and competitive tasks.</span>
+                    <span class="ref-venue">ICLR, 2019.</span>
+                </li>
+                <li id="ref9">
+                    <span class="ref-number">[9]</span>
+                    <span class="ref-authors">Das A, Gerber T, Levine S, et al.</span>
+                    <span class="ref-title">TarMAC: Targeted multi-agent communication.</span>
+                    <span class="ref-venue">ICML, 2019: 1538-1546.</span>
+                </li>
+                <li id="ref10">
+                    <span class="ref-number">[10]</span>
+                    <span class="ref-authors">Jiang J, Lu Z.</span>
+                    <span class="ref-title">Learning attentional communication for multi-agent cooperation.</span>
+                    <span class="ref-venue">NeurIPS, 2018: 7254-7264.</span>
+                </li>
+                <li id="ref11">
+                    <span class="ref-number">[11]</span>
+                    <span class="ref-authors">Vaswani A, Shazeer N, Parmar N, et al.</span>
+                    <span class="ref-title">Attention is all you need.</span>
+                    <span class="ref-venue">NeurIPS, 2017: 5998-6008.</span>
+                </li>
+                <li id="ref12">
+                    <span class="ref-number">[12]</span>
+                    <span class="ref-authors">Chen L, Lu K, Rajeswaran A, et al.</span>
+                    <span class="ref-title">Decision Transformer: Reinforcement learning via sequence modeling.</span>
+                    <span class="ref-venue">NeurIPS, 2021.</span>
+                </li>
+                <li id="ref13">
+                    <span class="ref-number">[13]</span>
+                    <span class="ref-authors">Wen M, Kuba J, Lin R, et al.</span>
+                    <span class="ref-title">Multi-Agent Reinforcement Learning is a sequence modeling problem.</span>
+                    <span class="ref-venue">NeurIPS, 2022.</span>
+                </li>
+                <li id="ref14">
+                    <span class="ref-number">[14]</span>
+                    <span class="ref-authors">Jang E, Gu S, Poole B.</span>
+                    <span class="ref-title">Categorical reparameterization with Gumbel-Softmax.</span>
+                    <span class="ref-venue">ICLR, 2017.</span>
+                </li>
+                <li id="ref15">
+                    <span class="ref-number">[15]</span>
+                    <span class="ref-authors">Foerster J, Farquhar G, Afouras T, et al.</span>
+                    <span class="ref-title">Counterfactual multi-agent policy gradients.</span>
+                    <span class="ref-venue">AAAI, 2018: 2974-2982.</span>
+                </li>
+                <li id="ref16">
+                    <span class="ref-number">[16]</span>
+                    <span class="ref-authors">Samvelyan M, Rashid T, de Witt C S, et al.</span>
+                    <span class="ref-title">The StarCraft multi-agent challenge.</span>
+                    <span class="ref-venue">AAMAS, 2019: 2186-2188.</span>
+                </li>
+                <li id="ref17">
+                    <span class="ref-number">[17]</span>
+                    <span class="ref-authors">Zhang H, Feng S, Liu C, et al.</span>
+                    <span class="ref-title">CityFlow: A multi-agent reinforcement learning environment for large scale city traffic signal control.</span>
+                    <span class="ref-venue">The Web Conference, 2019: 3620-3624.</span>
+                </li>
+                <li id="ref18">
+                    <span class="ref-number">[18]</span>
+                    <span class="ref-authors">Mahajan A, Rashid T, Samvelyan M, et al.</span>
+                    <span class="ref-title">MAVEN: Multi-agent variational exploration.</span>
+                    <span class="ref-venue">NeurIPS, 2019: 7611-7622.</span>
+                </li>
+            </ol>
+        </section>
+    </div>
+
+    <a href="#" class="back-to-top" id="backToTop">&#8593; 回到顶部</a>
+
+    <script>
+    class ReportPresentation {
+        constructor() {
+            this.charts = [];
+            this.init();
+        }
+
+        init() {
+            this.setupScrollProgress();
+            this.setupRevealAnimations();
+            this.setupCounterAnimations();
+            this.setupBackToTop();
+            this.initCharts();
+            this.setupResize();
+        }
+
+        // Scroll progress bar
+        setupScrollProgress() {
+            const progressBar = document.getElementById('scrollProgress');
+            window.addEventListener('scroll', () => {
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+                progressBar.style.width = progress + '%';
+            });
+        }
+
+        // IntersectionObserver for reveal animations
+        setupRevealAnimations() {
+            const revealElements = document.querySelectorAll('.reveal');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('revealed');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            });
+
+            revealElements.forEach(el => observer.observe(el));
+        }
+
+        // Counter animations
+        setupCounterAnimations() {
+            const counters = document.querySelectorAll('.counter');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        this.animateCounter(entry.target);
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.5 });
+
+            counters.forEach(counter => observer.observe(counter));
+        }
+
+        animateCounter(element) {
+            const target = parseFloat(element.getAttribute('data-target'));
+            const duration = 1500;
+            const startTime = performance.now();
+            const isDecimal = target % 1 !== 0;
+
+            const update = (currentTime) => {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = target * eased;
+
+                if (isDecimal) {
+                    element.textContent = current.toFixed(1);
+                } else {
+                    element.textContent = current.toFixed(1);
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    element.textContent = isDecimal ? target.toFixed(1) : target.toFixed(1);
+                }
+            };
+
+            requestAnimationFrame(update);
+        }
+
+        // Back to top
+        setupBackToTop() {
+            const btn = document.getElementById('backToTop');
+            window.addEventListener('scroll', () => {
+                if (window.pageYOffset > 600) {
+                    btn.classList.add('visible');
+                } else {
+                    btn.classList.remove('visible');
+                }
+            });
+
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        }
+
+        // Chart initialization
+        initCharts() {
+            this.initMethodologyChart();
+            this.initTrainingChart();
+            this.initDistributionChart();
+        }
+
+        // Figure 1: Grouped bar chart — module comparison
+        initMethodologyChart() {
+            const el = document.getElementById('chartMethodology');
+            if (!el) return;
+            const chart = echarts.init(el);
+            this.charts.push(chart);
+
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    backgroundColor: '#fff',
+                    borderColor: '#1a5f7a',
+                    borderWidth: 1,
+                    textStyle: { color: '#2c3e50', fontFamily: 'Libre Franklin' }
+                },
+                legend: {
+                    data: ['参数量 (M)', '计算开销 (GFLOPs)'],
+                    top: 10,
+                    textStyle: { fontFamily: 'Libre Franklin', color: '#2c3e50', fontSize: 12 }
+                },
+                grid: {
+                    left: '4%',
+                    right: '4%',
+                    bottom: '10%',
+                    top: '18%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['观测编码器', '注意力通信', '图拓扑更新', '策略网络', '价值分解'],
+                    axisLabel: { fontFamily: 'Libre Franklin', color: '#6c757d', fontSize: 11 },
+                    axisLine: { lineStyle: { color: '#d4d0c8' } },
+                    axisTick: { show: false }
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: '参数量 (M)',
+                        nameTextStyle: { fontFamily: 'Libre Franklin', color: '#6c757d', fontSize: 11 },
+                        axisLabel: { fontFamily: 'JetBrains Mono', color: '#6c757d', fontSize: 10 },
+                        axisLine: { show: false },
+                        splitLine: { lineStyle: { color: '#f0ede6' } }
+                    },
+                    {
+                        type: 'value',
+                        name: 'GFLOPs',
+                        nameTextStyle: { fontFamily: 'Libre Franklin', color: '#6c757d', fontSize: 11 },
+                        axisLabel: { fontFamily: 'JetBrains Mono', color: '#6c757d', fontSize: 10 },
+                        axisLine: { show: false },
+                        splitLine: { show: false }
+                    }
+                ],
+                series: [
+                    {
+                        name: '参数量 (M)',
+                        type: 'bar',
+                        data: [2.4, 5.8, 1.2, 3.6, 2.1],
+                        itemStyle: { color: '#1a5f7a' },
+                        barWidth: '30%'
+                    },
+                    {
+                        name: '计算开销 (GFLOPs)',
+                        type: 'bar',
+                        yAxisIndex: 1,
+                        data: [1.8, 4.2, 0.9, 2.7, 1.5],
+                        itemStyle: { color: '#6c757d' },
+                        barWidth: '30%'
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+        }
+
+        // Figure 2: Training curves — line chart
+        initTrainingChart() {
+            const el = document.getElementById('chartTraining');
+            if (!el) return;
+            const chart = echarts.init(el);
+            this.charts.push(chart);
+
+            // Generate training data
+            const steps = [];
+            for (let i = 0; i <= 20; i++) steps.push(i * 100);
+
+            const generateCurve = (maxVal, speed, noise) => {
+                return steps.map(s => {
+                    const base = maxVal * (1 - Math.exp(-s * speed / 1000));
+                    return Math.max(0, base + (Math.random() - 0.5) * noise).toFixed(1);
+                });
+            };
+
+            const macdrl = steps.map(s => {
+                const base = 84.6 * (1 - Math.exp(-s * 2.3 / 1000));
+                return Math.min(84.6, base).toFixed(1);
+            });
+            const qmix = steps.map(s => {
+                const base = 73.8 * (1 - Math.exp(-s * 1.5 / 1000));
+                return Math.min(73.8, base).toFixed(1);
+            });
+            const mappo = steps.map(s => {
+                const base = 76.2 * (1 - Math.exp(-s * 1.8 / 1000));
+                return Math.min(76.2, base).toFixed(1);
+            });
+            const tarmac = steps.map(s => {
+                const base = 74.5 * (1 - Math.exp(-s * 1.6 / 1000));
+                return Math.min(74.5, base).toFixed(1);
+            });
+            const iql = steps.map(s => {
+                const base = 52.1 * (1 - Math.exp(-s * 1.2 / 1000));
+                return Math.min(52.1, base).toFixed(1);
+            });
+
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: '#fff',
+                    borderColor: '#1a5f7a',
+                    borderWidth: 1,
+                    textStyle: { color: '#2c3e50', fontFamily: 'Libre Franklin' }
+                },
+                legend: {
+                    data: ['MACD-RL', 'QMIX', 'MAPPO', 'TarMAC', 'IQL'],
+                    top: 10,
+                    textStyle: { fontFamily: 'Libre Franklin', color: '#2c3e50', fontSize: 11 }
+                },
+                grid: {
+                    left: '4%',
+                    right: '4%',
+                    bottom: '10%',
+                    top: '18%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: steps.map(s => s + 'K'),
+                    name: '训练步数',
+                    nameLocation: 'center',
+                    nameGap: 30,
+                    nameTextStyle: { fontFamily: 'Libre Franklin', color: '#6c757d', fontSize: 11 },
+                    axisLabel: { fontFamily: 'JetBrains Mono', color: '#6c757d', fontSize: 10, interval: 3 },
+                    axisLine: { lineStyle: { color: '#d4d0c8' } },
+                    axisTick: { show: false }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '测试胜率 (%)',
+                    nameTextStyle: { fontFamily: 'Libre Franklin', color: '#6c757d', fontSize: 11 },
+                    axisLabel: { fontFamily: 'JetBrains Mono', color: '#6c757d', fontSize: 10 },
+                    axisLine: { show: false },
+                    splitLine: { lineStyle: { color: '#f0ede6' } },
+                    min: 0,
+                    max: 100
+                },
+                series: [
+                    {
+                        name: 'MACD-RL',
+                        type: 'line',
+                        data: macdrl,
+                        smooth: true,
+                        lineStyle: { width: 2.5, color: '#1a5f7a' },
+                        itemStyle: { color: '#1a5f7a' },
+                        symbol: 'none'
+                    },
+                    {
+                        name: 'QMIX',
+                        type: 'line',
+                        data: qmix,
+                        smooth: true,
+                        lineStyle: { width: 1.5, color: '#6c757d' },
+                        itemStyle: { color: '#6c757d' },
+                        symbol: 'none'
+                    },
+                    {
+                        name: 'MAPPO',
+                        type: 'line',
+                        data: mappo,
+                        smooth: true,
+                        lineStyle: { width: 1.5, color: '#8b4513' },
+                        itemStyle: { color: '#8b4513' },
+                        symbol: 'none'
+                    },
+                    {
+                        name: 'TarMAC',
+                        type: 'line',
+                        data: tarmac,
+                        smooth: true,
+                        lineStyle: { width: 1.5, color: '#b8860b', type: 'dashed' },
+                        itemStyle: { color: '#b8860b' },
+                        symbol: 'none'
+                    },
+                    {
+                        name: 'IQL',
+                        type: 'line',
+                        data: iql,
+                        smooth: true,
+                        lineStyle: { width: 1.5, color: '#d4d0c8' },
+                        itemStyle: { color: '#d4d0c8' },
+                        symbol: 'none'
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+        }
+
+        // Figure 3: Pie chart — communication distribution
+        initDistributionChart() {
+            const el = document.getElementById('chartDistribution');
+            if (!el) return;
+            const chart = echarts.init(el);
+            this.charts.push(chart);
+
+            const option = {
+                tooltip: {
+                    trigger: 'item',
+                    backgroundColor: '#fff',
+                    borderColor: '#1a5f7a',
+                    borderWidth: 1,
+                    textStyle: { color: '#2c3e50', fontFamily: 'Libre Franklin' },
+                    formatter: '{b}: {d}%'
+                },
+                legend: {
+                    orient: 'vertical',
+                    right: '5%',
+                    top: 'center',
+                    textStyle: { fontFamily: 'Libre Franklin', color: '#2c3e50', fontSize: 11 }
+                },
+                series: [
+                    {
+                        type: 'pie',
+                        radius: ['35%', '65%'],
+                        center: ['40%', '50%'],
+                        avoidLabelOverlap: true,
+                        itemStyle: {
+                            borderRadius: 4,
+                            borderColor: '#fffef9',
+                            borderWidth: 2
+                        },
+                        label: {
+                            show: false
+                        },
+                        emphasis: {
+                            label: {
+                                show: true,
+                                fontFamily: 'Libre Franklin',
+                                fontSize: 13,
+                                fontWeight: 600
+                            }
+                        },
+                        data: [
+                            { value: 31.2, name: '位置信息', itemStyle: { color: '#1a5f7a' } },
+                            { value: 24.8, name: '战术意图', itemStyle: { color: '#2c7a94' } },
+                            { value: 18.5, name: '目标分配', itemStyle: { color: '#4a9bb0' } },
+                            { value: 14.3, name: '威胁预警', itemStyle: { color: '#7bbcc9' } },
+                            { value: 11.2, name: '状态同步', itemStyle: { color: '#b0d8e0' } }
+                        ]
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+        }
+
+        // Resize handler
+        setupResize() {
+            let resizeTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    this.charts.forEach(chart => {
+                        if (chart && !chart.isDisposed()) {
+                            chart.resize();
+                        }
+                    });
+                }, 200);
+            });
+        }
+    }
+
+    // Initialize on DOM ready
+    document.addEventListener('DOMContentLoaded', () => {
+        new ReportPresentation();
+
+        // Render math formulas with KaTeX
+        renderMathInElement(document.body, {
+            delimiters: [
+                {left: '\\[', right: '\\]', display: true},
+                {left: '\\(', right: '\\)', display: false}
+            ]
+        });
+    });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>创业融资报告</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --bg-section: #0e0e15;
+            --text: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-dim: #64748b;
+            --gradient: linear-gradient(135deg, #7c3aed, #ec4899, #06b6d4);
+            --gradient-reverse: linear-gradient(135deg, #06b6d4, #ec4899, #7c3aed);
+            --violet: #7c3aed;
+            --pink: #ec4899;
+            --cyan: #06b6d4;
+            --border: rgba(124, 58, 237, 0.15);
+            --heading: "Sora", sans-serif;
+            --body: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+            --ease: cubic-bezier(0.16, 1, 0.3, 1);
+            --hero-size: clamp(4rem, 10vw, 8rem);
+            --metric-size: clamp(3rem, 6vw, 5rem);
+            --h1-size: clamp(2.2rem, 5vw, 4rem);
+            --h2-size: clamp(1.4rem, 3vw, 2rem);
+            --body-size: clamp(0.9rem, 1.1vw, 1.05rem);
+            --small-size: clamp(0.75rem, 0.9vw, 0.875rem);
+            --container: 1200px;
+            --pad-x: clamp(1.5rem, 4vw, 4rem);
+            --section-pad: clamp(6rem, 12vh, 10rem);
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--body);
+            font-size: var(--body-size);
+            font-weight: 300;
+            line-height: 1.85;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overflow-x: hidden;
+        }
+
+        /* Scroll Progress Bar */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 3px;
+            background: var(--gradient);
+            z-index: 9999;
+            transition: width 0.1s linear;
+        }
+
+        /* Back to Top */
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--gradient);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s var(--ease), transform 0.3s var(--ease);
+            z-index: 1000;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .back-to-top svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        /* Container */
+        .report-container {
+            max-width: var(--container);
+            margin: 0 auto;
+            padding: 0 var(--pad-x);
+        }
+
+        /* Section Base */
+        .report-section {
+            min-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: var(--section-pad) 0;
+            position: relative;
+        }
+
+        .section-label {
+            font-family: var(--heading);
+            font-size: var(--small-size);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--text-dim);
+            margin-bottom: 1.5rem;
+        }
+
+        .section-title {
+            font-family: var(--heading);
+            font-size: var(--h1-size);
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 1rem;
+            line-height: 1.2;
+        }
+
+        .section-desc {
+            color: var(--text-secondary);
+            max-width: 600px;
+            line-height: 1.85;
+        }
+
+        /* Gradient Text */
+        .gradient-text {
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* ═══ HERO SECTION ═══ */
+        .hero-section {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            padding: var(--section-pad) 0;
+        }
+
+        .hero-company {
+            font-family: var(--heading);
+            font-size: var(--hero-size);
+            font-weight: 800;
+            line-height: 1.05;
+            margin-bottom: 1.5rem;
+        }
+
+        .hero-mission {
+            font-family: var(--body);
+            font-size: var(--h2-size);
+            font-weight: 300;
+            color: var(--text-secondary);
+            margin-bottom: 4rem;
+        }
+
+        .hero-metric {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .hero-metric-value {
+            font-family: var(--heading);
+            font-size: var(--hero-size);
+            font-weight: 800;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            white-space: nowrap;
+        }
+
+        .hero-metric-label {
+            font-size: var(--h2-size);
+            font-weight: 300;
+            color: var(--text-dim);
+        }
+
+        /* ═══ TAM/SAM/SOM BARS ═══ */
+        .market-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            margin-top: 3rem;
+            width: 100%;
+        }
+
+        .market-bar-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .market-bar-header {
+            display: flex;
+            align-items: baseline;
+            gap: 1rem;
+        }
+
+        .market-bar-label {
+            font-family: var(--heading);
+            font-size: var(--small-size);
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            min-width: 3.5rem;
+        }
+
+        .market-bar-item:nth-child(1) .market-bar-label { color: var(--violet); }
+        .market-bar-item:nth-child(2) .market-bar-label { color: var(--pink); }
+        .market-bar-item:nth-child(3) .market-bar-label { color: var(--cyan); }
+
+        .market-bar-value {
+            font-family: var(--heading);
+            font-size: clamp(1.6rem, 3vw, 2.4rem);
+            font-weight: 700;
+            color: var(--text);
+            white-space: nowrap;
+        }
+
+        .market-bar-track {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .market-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 1.5s var(--ease);
+        }
+
+        .market-bar-item:nth-child(1) .market-bar-fill {
+            width: 100%;
+            background: linear-gradient(90deg, var(--violet), #a855f7);
+        }
+
+        .market-bar-item:nth-child(2) .market-bar-fill {
+            width: 15%;
+            background: linear-gradient(90deg, var(--pink), #f472b6);
+        }
+
+        .market-bar-item:nth-child(3) .market-bar-fill {
+            width: 1.875%;
+            background: linear-gradient(90deg, var(--cyan), #22d3ee);
+        }
+
+        /* ═══ KEY METRICS (3-across) ═══ */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 3rem;
+            text-align: center;
+        }
+
+        .metric-card {
+            padding: 3rem 1rem;
+        }
+
+        .metric-value {
+            font-family: var(--heading);
+            font-size: var(--metric-size);
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 1rem;
+            white-space: nowrap;
+        }
+
+        .metric-value.gradient-text {
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .metric-label {
+            font-size: var(--h2-size);
+            font-weight: 300;
+            color: var(--text-secondary);
+        }
+
+        .metric-sub {
+            font-size: var(--small-size);
+            color: var(--text-dim);
+            margin-top: 0.5rem;
+        }
+
+        /* ═══ CHART SECTIONS ═══ */
+        .chart-full {
+            width: 100%;
+            height: clamp(350px, 45vh, 500px);
+            margin-top: 2rem;
+        }
+
+        /* ═══ UNIT ECONOMICS ═══ */
+        .economics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .econ-card {
+            text-align: center;
+            padding: 2.5rem 1.5rem;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .econ-value {
+            font-family: var(--heading);
+            font-size: clamp(2rem, 4vw, 3.5rem);
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+        }
+
+        .econ-label {
+            font-size: var(--body-size);
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .econ-chart {
+            width: 100%;
+            height: clamp(280px, 35vh, 400px);
+            margin-top: 3rem;
+        }
+
+        /* ═══ FUNNEL ═══ */
+        .funnel-chart {
+            width: 100%;
+            height: clamp(350px, 45vh, 500px);
+            margin-top: 2rem;
+        }
+
+        /* ═══ TIMELINE / MILESTONES ═══ */
+        .timeline-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            padding: 3rem 0;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .timeline-wrapper::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .timeline-wrapper::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+            border-radius: 2px;
+        }
+
+        .timeline-wrapper::-webkit-scrollbar-thumb {
+            background: var(--gradient);
+            border-radius: 2px;
+        }
+
+        .timeline-track {
+            display: flex;
+            align-items: flex-start;
+            gap: 0;
+            min-width: max-content;
+            position: relative;
+            padding: 0 2rem;
+        }
+
+        .timeline-track::before {
+            content: '';
+            position: absolute;
+            top: 16px;
+            left: 2rem;
+            right: 2rem;
+            height: 2px;
+            background: var(--gradient);
+            opacity: 0.4;
+        }
+
+        .timeline-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 180px;
+            padding: 0 1rem;
+            position: relative;
+        }
+
+        .timeline-dot {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--gradient);
+            margin-bottom: 1.5rem;
+            position: relative;
+            z-index: 2;
+            flex-shrink: 0;
+        }
+
+        .timeline-dot::after {
+            content: '';
+            position: absolute;
+            inset: 4px;
+            border-radius: 50%;
+            background: var(--bg);
+        }
+
+        .timeline-item.completed .timeline-dot::after {
+            background: var(--gradient);
+        }
+
+        .timeline-date {
+            font-family: var(--heading);
+            font-size: var(--small-size);
+            font-weight: 600;
+            color: var(--violet);
+            margin-bottom: 0.5rem;
+        }
+
+        .timeline-title {
+            font-family: var(--heading);
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text);
+            text-align: center;
+            margin-bottom: 0.35rem;
+        }
+
+        .timeline-desc {
+            font-size: var(--small-size);
+            color: var(--text-dim);
+            text-align: center;
+            max-width: 160px;
+        }
+
+        /* ═══ THE ASK ═══ */
+        .ask-section {
+            text-align: center;
+            min-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ask-amount {
+            font-family: var(--heading);
+            font-size: var(--hero-size);
+            font-weight: 800;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 2rem 0;
+        }
+
+        .ask-subtitle {
+            font-size: var(--h2-size);
+            font-weight: 300;
+            color: var(--text-secondary);
+            margin-bottom: 3rem;
+        }
+
+        .ask-uses {
+            display: flex;
+            gap: 3rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .ask-use-item {
+            text-align: center;
+        }
+
+        .ask-use-pct {
+            font-family: var(--heading);
+            font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .ask-use-label {
+            font-size: var(--small-size);
+            color: var(--text-dim);
+            margin-top: 0.25rem;
+        }
+
+        /* ═══ REVEAL ANIMATION ═══ */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px) scale(0.95);
+            transition: opacity 0.8s var(--ease), transform 0.8s var(--ease);
+        }
+
+        .reveal.revealed {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        .reveal-metric {
+            opacity: 0;
+            transform: scale(0.9);
+            transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+        }
+
+        .reveal-metric.revealed {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* ═══ RESPONSIVE ═══ */
+        @media (max-width: 1024px) {
+            .metrics-grid {
+                gap: 2rem;
+            }
+
+            .economics-grid {
+                gap: 1.5rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .report-section {
+                min-height: auto;
+                padding: clamp(3rem, 8vh, 5rem) 0;
+            }
+
+            .hero-section {
+                min-height: 90vh;
+            }
+
+            .metrics-grid {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+
+            .economics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .ask-uses {
+                gap: 2rem;
+            }
+        }
+
+        /* ═══ PRINT ═══ */
+        @media print {
+            :root {
+                --bg: #ffffff;
+                --text: #111111;
+                --text-secondary: #444444;
+                --text-dim: #777777;
+            }
+
+            body {
+                background: white;
+                color: #111;
+            }
+
+            .scroll-progress,
+            .back-to-top {
+                display: none !important;
+            }
+
+            .report-section {
+                min-height: auto;
+                padding: 2rem 0;
+                page-break-inside: avoid;
+            }
+
+            .gradient-text,
+            .hero-company,
+            .hero-metric-value,
+            .ask-amount {
+                -webkit-text-fill-color: #7c3aed;
+                color: #7c3aed;
+            }
+
+            .market-bar-fill {
+                background: #333 !important;
+            }
+
+            .chart-full,
+            .econ-chart,
+            .funnel-chart {
+                height: 300px;
+            }
+        }
+
+        /* ═══ REDUCED MOTION ═══ */
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+
+            .reveal,
+            .reveal-metric {
+                opacity: 1;
+                transform: none;
+                transition: none;
+            }
+
+            .scroll-progress {
+                transition: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<button class="back-to-top" id="backToTop" aria-label="回到顶部">
+    <svg viewBox="0 0 24 24"><path d="M12 4l-8 8h5v8h6v-8h5z"/></svg>
+</button>
+
+<div class="report-container">
+
+    <!-- HERO -->
+    <section class="hero-section report-section">
+        <div class="section-label reveal">B2B SaaS / B 轮融资</div>
+        <h1 class="hero-company gradient-text reveal">CloudFlow</h1>
+        <p class="hero-mission reveal">用 AI 重新定义企业工作流自动化，让每个团队提效 10 倍</p>
+        <div class="hero-metric reveal-metric">
+            <span class="hero-metric-value" data-counter="2800000" data-prefix="¥" data-suffix="">¥0</span>
+            <span class="hero-metric-label">月经常性收入 (MRR)</span>
+        </div>
+        <p class="section-desc reveal" style="margin-top: 2.5rem;">CloudFlow 成立 24 个月即实现 ¥280 万 MRR，年化经常性收入突破 ¥3300 万。产品已服务超过 200 家中大型企业客户，覆盖制造、金融、零售三大核心行业，平均为客户节省 62% 的流程处理时间。本轮融资将推动产品国际化与 AI 能力的深度升级，目标在 18 个月内实现 ARR ¥1.2 亿。</p>
+    </section>
+
+    <!-- THE OPPORTUNITY: TAM / SAM / SOM -->
+    <section class="report-section">
+        <div class="section-label reveal">市场机会</div>
+        <h2 class="section-title reveal">市场规模足够大</h2>
+        <p class="section-desc reveal">中国企业级 SaaS 市场正经历结构性增长，AI 驱动的工作流自动化是增速最快的细分赛道。据 IDC 预测，2025-2028 年该细分市场年复合增长率将达 34%，远超传统 SaaS 的 18% 增速。政策层面，"十四五"数字经济规划将智能流程自动化列为重点方向，头部央国企的数字化转型预算同比增加 45%。CloudFlow 所聚焦的 SAM（¥1200 亿）涵盖年收入 5000 万以上的中大型企业，这些企业对合规性和数据安全有刚性需求，愿意为本土化 AI 方案支付溢价。</p>
+        <div class="market-bars reveal">
+            <div class="market-bar-item">
+                <div class="market-bar-header">
+                    <span class="market-bar-label">TAM</span>
+                    <span class="market-bar-value" data-counter="8000" data-prefix="¥" data-suffix="亿">¥0亿</span>
+                </div>
+                <div class="market-bar-track"><div class="market-bar-fill"></div></div>
+            </div>
+            <div class="market-bar-item">
+                <div class="market-bar-header">
+                    <span class="market-bar-label">SAM</span>
+                    <span class="market-bar-value" data-counter="1200" data-prefix="¥" data-suffix="亿">¥0亿</span>
+                </div>
+                <div class="market-bar-track"><div class="market-bar-fill"></div></div>
+            </div>
+            <div class="market-bar-item">
+                <div class="market-bar-header">
+                    <span class="market-bar-label">SOM</span>
+                    <span class="market-bar-value" data-counter="150" data-prefix="¥" data-suffix="亿">¥0亿</span>
+                </div>
+                <div class="market-bar-track"><div class="market-bar-fill"></div></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TRACTION: MRR GROWTH CHART -->
+    <section class="report-section">
+        <div class="section-label reveal">增长牵引力</div>
+        <h2 class="section-title reveal">指数级增长曲线</h2>
+        <p class="section-desc reveal">连续 18 个月 MRR 环比增长 22%+，产品 PMF 强劲验证。增长动力主要来自三个方面：一是老客户持续扩席带来的自然增长（NDR 140%），二是口碑推荐占新签客户的 38%，三是企业级销售团队在 Q3 扩编后产能释放。值得注意的是，即使在 2024 年 SaaS 行业整体融资遇冷的背景下，CloudFlow 仍保持了远超行业中位数（8%）的增速，充分证明了产品的不可替代性和客户价值交付能力。</p>
+        <div class="chart-full reveal" id="chartMRR"></div>
+    </section>
+
+    <!-- KEY METRICS (3-across) -->
+    <section class="report-section">
+        <div class="section-label reveal">核心指标</div>
+        <div class="metrics-grid">
+            <div class="metric-card reveal-metric">
+                <div class="metric-value gradient-text" data-counter="280" data-prefix="¥" data-suffix="万">¥0万</div>
+                <div class="metric-label">MRR</div>
+                <div class="metric-sub">月经常性收入</div>
+            </div>
+            <div class="metric-card reveal-metric">
+                <div class="metric-value gradient-text" data-counter="140" data-prefix="" data-suffix="%">0%</div>
+                <div class="metric-label">NDR</div>
+                <div class="metric-sub">净收入留存率</div>
+            </div>
+            <div class="metric-card reveal-metric">
+                <div class="metric-value gradient-text" data-counter="8.2" data-prefix="" data-suffix="x" data-decimals="1">0x</div>
+                <div class="metric-label">LTV/CAC</div>
+                <div class="metric-sub">客户终身价值比</div>
+            </div>
+        </div>
+        <p class="section-desc reveal" style="margin-top: 3rem; max-width: 800px;">MRR 在过去 6 个月实现了 3.2 倍增长，主要驱动力来自企业客户的快速扩展。当前 Top 20 客户贡献了总收入的 45%，客户集中度风险正在通过 SMB 渠道的拓展逐步缓解。140% 的 NDR 意味着即使不获取任何新客户，现有收入基础仍在自然膨胀——这得益于产品的模块化定价策略和跨部门扩展能力。8.2x 的 LTV/CAC 比率远超行业健康线（3x），表明获客效率极高且客户生命周期价值持续攀升。</p>
+    </section>
+
+    <!-- UNIT ECONOMICS -->
+    <section class="report-section">
+        <div class="section-label reveal">单位经济模型</div>
+        <h2 class="section-title reveal">单位经济模型健康</h2>
+        <p class="section-desc reveal">高效获客与强劲留存构成飞轮效应，Payback 周期行业领先。CAC 在过去两个季度下降了 18%，主要归因于内容营销和客户推荐渠道占比的提升——这两个渠道的获客成本仅为付费投放的 1/4。4.2 个月的回本周期意味着每一笔获客投入在首年即可产生 2.8 倍回报，为激进扩张提供了坚实的财务基础。随着品牌认知度和行业口碑的持续积累，我们预计 CAC 将在未来 12 个月进一步降低 20-25%。</p>
+        <div class="economics-grid">
+            <div class="econ-card reveal-metric">
+                <div class="econ-value" data-counter="1.2" data-prefix="¥" data-suffix="万" data-decimals="1">¥0万</div>
+                <div class="econ-label">CAC 获客成本</div>
+            </div>
+            <div class="econ-card reveal-metric">
+                <div class="econ-value" data-counter="9.8" data-prefix="¥" data-suffix="万" data-decimals="1">¥0万</div>
+                <div class="econ-label">LTV 客户终身价值</div>
+            </div>
+            <div class="econ-card reveal-metric">
+                <div class="econ-value" data-counter="4.2" data-prefix="" data-suffix="个月" data-decimals="1">0个月</div>
+                <div class="econ-label">Payback 回本周期</div>
+            </div>
+        </div>
+        <div class="econ-chart reveal" id="chartEconomics"></div>
+    </section>
+
+    <!-- GROWTH CHANNELS: FUNNEL -->
+    <section class="report-section">
+        <div class="section-label reveal">增长渠道</div>
+        <h2 class="section-title reveal">增长漏斗</h2>
+        <p class="section-desc reveal">从触达到成交，每一环节的转化率均优于行业基准。注册到激活的 61% 转化率得益于产品的"开箱即用"设计——新用户平均 15 分钟内即可完成首个自动化流程的搭建。商务洽谈到签约的 64% 转化率远超 B2B SaaS 行业均值（35%），这反映出产品演示阶段的 ROI 可视化能力极强，客户决策周期平均仅需 23 天。当前漏斗最大的优化空间在"激活到商务"环节，团队正通过 PLG 驱动的自动化 upsell 策略将该转化率从 58% 提升至 70%。</p>
+        <div class="funnel-chart reveal" id="chartFunnel"></div>
+    </section>
+
+    <!-- MILESTONES & ROADMAP -->
+    <section class="report-section">
+        <div class="section-label reveal">里程碑与路线图</div>
+        <h2 class="section-title reveal">已验证路径，加速前进</h2>
+        <p class="section-desc reveal" style="margin-bottom: 1rem;">从 MVP 到规模化增长仅用 20 个月，团队展现了极强的执行力和战略纪律性。每一轮融资节点都伴随着关键业务指标的超额完成——Series A 时 MRR 超预期 40%，当前 Series B 启动时客户数已是上轮承诺目标的 2.5 倍。下一阶段的国际化扩张将聚焦东南亚市场，该区域企业数字化渗透率仅为中国的 1/3，存在巨大的增量空间。</p>
+        <div class="timeline-wrapper reveal">
+            <div class="timeline-track">
+                <div class="timeline-item completed">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">2024 Q1</div>
+                    <div class="timeline-title">产品上线</div>
+                    <div class="timeline-desc">MVP 发布，首批 20 家付费客户</div>
+                </div>
+                <div class="timeline-item completed">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">2024 Q3</div>
+                    <div class="timeline-title">PMF 验证</div>
+                    <div class="timeline-desc">MRR 突破 ¥50万，NPS 72</div>
+                </div>
+                <div class="timeline-item completed">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">2025 Q1</div>
+                    <div class="timeline-title">Series A</div>
+                    <div class="timeline-desc">融资 ¥2000万，团队扩至 45 人</div>
+                </div>
+                <div class="timeline-item completed">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">2025 Q4</div>
+                    <div class="timeline-title">规模化增长</div>
+                    <div class="timeline-desc">MRR ¥280万，200+ 付费企业</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">2026 Q2</div>
+                    <div class="timeline-title">Series B</div>
+                    <div class="timeline-desc">融资 ¥5000万，国际化启动</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">2026 Q4</div>
+                    <div class="timeline-title">出海东南亚</div>
+                    <div class="timeline-desc">新加坡办公室，首批海外客户</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">2027 Q2</div>
+                    <div class="timeline-title">¥1000万 MRR</div>
+                    <div class="timeline-desc">ARR ¥1.2亿，筹备 Series C</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- THE ASK -->
+    <section class="report-section ask-section">
+        <div class="section-label reveal">融资计划</div>
+        <h2 class="section-title reveal">B 轮融资</h2>
+        <div class="ask-amount reveal-metric" data-counter="5000" data-prefix="¥" data-suffix="万">¥0万</div>
+        <p class="ask-subtitle reveal">加速增长，拓展国际市场</p>
+        <p class="section-desc reveal" style="text-align: center; max-width: 800px; margin-bottom: 3rem;">本轮融资 ¥5000 万将在 18 个月内部署完毕，核心目标是将 MRR 从 ¥280 万提升至 ¥1000 万。产品研发投入将重点用于大模型深度集成和行业垂直解决方案开发，预计新增 3 个行业模板包可覆盖 60% 的中大型企业标准化需求。市场拓展预算将支撑销售团队从 15 人扩展至 40 人，并建立华南、华东双区域中心。国际化预算优先投入新加坡市场验证，目标 6 个月内获取首批 20 家海外付费客户。</p>
+        <div class="ask-uses reveal">
+            <div class="ask-use-item">
+                <div class="ask-use-pct" data-counter="45" data-prefix="" data-suffix="%">0%</div>
+                <div class="ask-use-label">产品研发</div>
+            </div>
+            <div class="ask-use-item">
+                <div class="ask-use-pct" data-counter="30" data-prefix="" data-suffix="%">0%</div>
+                <div class="ask-use-label">市场拓展</div>
+            </div>
+            <div class="ask-use-item">
+                <div class="ask-use-pct" data-counter="15" data-prefix="" data-suffix="%">0%</div>
+                <div class="ask-use-label">国际化</div>
+            </div>
+            <div class="ask-use-item">
+                <div class="ask-use-pct" data-counter="10" data-prefix="" data-suffix="%">0%</div>
+                <div class="ask-use-label">运营储备</div>
+            </div>
+        </div>
+    </section>
+
+</div>
+
+<script>
+class ReportPresentation {
+    constructor() {
+        this.countersAnimated = new Set();
+        this.init();
+    }
+
+    init() {
+        this.setupScrollProgress();
+        this.setupBackToTop();
+        this.setupRevealObserver();
+        this.setupCharts();
+    }
+
+    // ═══ SCROLL PROGRESS ═══
+    setupScrollProgress() {
+        const bar = document.getElementById('scrollProgress');
+        window.addEventListener('scroll', () => {
+            const scrollTop = window.scrollY;
+            const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+            bar.style.width = progress + '%';
+        }, { passive: true });
+    }
+
+    // ═══ BACK TO TOP ═══
+    setupBackToTop() {
+        const btn = document.getElementById('backToTop');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 600) {
+                btn.classList.add('visible');
+            } else {
+                btn.classList.remove('visible');
+            }
+        }, { passive: true });
+        btn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
+
+    // ═══ REVEAL + COUNTER OBSERVER ═══
+    setupRevealObserver() {
+        const options = { threshold: 0.15, rootMargin: '0px 0px -50px 0px' };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('revealed');
+                    // Trigger counters within this element
+                    this.triggerCounters(entry.target);
+                }
+            });
+        }, options);
+
+        document.querySelectorAll('.reveal, .reveal-metric').forEach(el => {
+            observer.observe(el);
+        });
+    }
+
+    triggerCounters(container) {
+        const counters = container.querySelectorAll('[data-counter]');
+        if (container.hasAttribute('data-counter')) {
+            this.animateCounter(container);
+        }
+        counters.forEach(el => this.animateCounter(el));
+    }
+
+    animateCounter(el) {
+        if (this.countersAnimated.has(el)) return;
+        this.countersAnimated.add(el);
+
+        const target = parseFloat(el.getAttribute('data-counter'));
+        const prefix = el.getAttribute('data-prefix') || '';
+        const suffix = el.getAttribute('data-suffix') || '';
+        const decimals = parseInt(el.getAttribute('data-decimals')) || 0;
+        const duration = 2000;
+        const startTime = performance.now();
+
+        const animate = (now) => {
+            const elapsed = now - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            // Ease out cubic
+            const eased = 1 - Math.pow(1 - progress, 3);
+            const current = target * eased;
+
+            if (decimals > 0) {
+                el.textContent = prefix + current.toFixed(decimals) + suffix;
+            } else {
+                el.textContent = prefix + Math.round(current).toLocaleString() + suffix;
+            }
+
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                if (decimals > 0) {
+                    el.textContent = prefix + target.toFixed(decimals) + suffix;
+                } else {
+                    el.textContent = prefix + target.toLocaleString() + suffix;
+                }
+            }
+        };
+
+        requestAnimationFrame(animate);
+    }
+
+    // ═══ CHARTS ═══
+    setupCharts() {
+        this.initMRRChart();
+        this.initEconomicsChart();
+        this.initFunnelChart();
+
+        window.addEventListener('resize', () => {
+            this.charts.forEach(chart => chart.resize());
+        });
+    }
+
+    initMRRChart() {
+        this.charts = this.charts || [];
+        const dom = document.getElementById('chartMRR');
+        if (!dom) return;
+        const chart = echarts.init(dom, null, { renderer: 'canvas' });
+        this.charts.push(chart);
+
+        const months = ['2024/01','2024/03','2024/05','2024/07','2024/09','2024/11','2025/01','2025/03','2025/05','2025/07','2025/09','2025/11','2026/01','2026/03'];
+        const mrrData = [12, 18, 28, 42, 58, 78, 95, 120, 148, 180, 215, 248, 265, 280];
+
+        const option = {
+            backgroundColor: 'transparent',
+            grid: { top: 40, right: 30, bottom: 50, left: 70 },
+            xAxis: {
+                type: 'category',
+                data: months,
+                axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
+                axisLabel: { color: '#64748b', fontSize: 11 },
+                axisTick: { show: false }
+            },
+            yAxis: {
+                type: 'value',
+                name: 'MRR (万元)',
+                nameTextStyle: { color: '#64748b', fontSize: 11 },
+                axisLine: { show: false },
+                axisLabel: { color: '#64748b', fontSize: 11 },
+                splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }
+            },
+            tooltip: {
+                trigger: 'axis',
+                backgroundColor: '#1e1b4b',
+                borderColor: '#7c3aed',
+                textStyle: { color: '#f8fafc' },
+                formatter: function(params) {
+                    return params[0].name + '<br/>MRR: ¥' + params[0].value + '万';
+                }
+            },
+            series: [{
+                type: 'line',
+                data: mrrData,
+                smooth: true,
+                symbol: 'circle',
+                symbolSize: 6,
+                lineStyle: {
+                    width: 3,
+                    color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                        { offset: 0, color: '#7c3aed' },
+                        { offset: 0.5, color: '#ec4899' },
+                        { offset: 1, color: '#06b6d4' }
+                    ])
+                },
+                itemStyle: {
+                    color: '#ec4899',
+                    borderColor: '#ec4899'
+                },
+                areaStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: 'rgba(124, 58, 237, 0.35)' },
+                        { offset: 0.5, color: 'rgba(236, 72, 153, 0.15)' },
+                        { offset: 1, color: 'rgba(6, 182, 212, 0.02)' }
+                    ])
+                }
+            }]
+        };
+
+        chart.setOption(option);
+    }
+
+    initEconomicsChart() {
+        this.charts = this.charts || [];
+        const dom = document.getElementById('chartEconomics');
+        if (!dom) return;
+        const chart = echarts.init(dom, null, { renderer: 'canvas' });
+        this.charts.push(chart);
+
+        const option = {
+            backgroundColor: 'transparent',
+            grid: { top: 40, right: 30, bottom: 50, left: 70 },
+            xAxis: {
+                type: 'category',
+                data: ['CAC', 'LTV', '毛利/客户', 'ARR/客户'],
+                axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
+                axisLabel: { color: '#94a3b8', fontSize: 12 },
+                axisTick: { show: false }
+            },
+            yAxis: {
+                type: 'value',
+                name: '万元',
+                nameTextStyle: { color: '#64748b', fontSize: 11 },
+                axisLine: { show: false },
+                axisLabel: { color: '#64748b', fontSize: 11 },
+                splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }
+            },
+            tooltip: {
+                trigger: 'axis',
+                backgroundColor: '#1e1b4b',
+                borderColor: '#7c3aed',
+                textStyle: { color: '#f8fafc' },
+                formatter: function(params) {
+                    return params[0].name + ': ¥' + params[0].value + '万';
+                }
+            },
+            series: [{
+                type: 'bar',
+                data: [
+                    { value: 1.2, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#7c3aed' }, { offset: 1, color: '#4c1d95' }]) } },
+                    { value: 9.8, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#ec4899' }, { offset: 1, color: '#9d174d' }]) } },
+                    { value: 7.2, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#06b6d4' }, { offset: 1, color: '#155e75' }]) } },
+                    { value: 3.6, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#8b5cf6' }, { offset: 1, color: '#4c1d95' }]) } }
+                ],
+                barWidth: '45%',
+                borderRadius: [8, 8, 0, 0]
+            }]
+        };
+
+        chart.setOption(option);
+    }
+
+    initFunnelChart() {
+        this.charts = this.charts || [];
+        const dom = document.getElementById('chartFunnel');
+        if (!dom) return;
+        const chart = echarts.init(dom, null, { renderer: 'canvas' });
+        this.charts.push(chart);
+
+        const option = {
+            backgroundColor: 'transparent',
+            tooltip: {
+                trigger: 'item',
+                backgroundColor: '#1e1b4b',
+                borderColor: '#7c3aed',
+                textStyle: { color: '#f8fafc' },
+                formatter: function(params) {
+                    return params.name + ': ' + params.value + '%';
+                }
+            },
+            series: [{
+                type: 'funnel',
+                left: '10%',
+                top: 40,
+                bottom: 40,
+                width: '80%',
+                min: 0,
+                max: 100,
+                minSize: '15%',
+                maxSize: '100%',
+                sort: 'descending',
+                gap: 4,
+                label: {
+                    show: true,
+                    position: 'inside',
+                    color: '#f8fafc',
+                    fontSize: 13,
+                    fontFamily: 'Sora',
+                    fontWeight: 600,
+                    formatter: function(params) {
+                        return params.name + '  ' + params.value + '%';
+                    }
+                },
+                itemStyle: {
+                    borderColor: 'transparent',
+                    borderWidth: 0
+                },
+                data: [
+                    { value: 100, name: '网站访问', itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: '#7c3aed' }, { offset: 1, color: '#8b5cf6' }]) } },
+                    { value: 62, name: '注册试用', itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: '#a855f7' }, { offset: 1, color: '#c084fc' }]) } },
+                    { value: 38, name: '激活使用', itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: '#d946ef' }, { offset: 1, color: '#ec4899' }]) } },
+                    { value: 22, name: '商务洽谈', itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: '#ec4899' }, { offset: 1, color: '#f472b6' }]) } },
+                    { value: 14, name: '签约付费', itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: '#06b6d4' }, { offset: 1, color: '#22d3ee' }]) } }
+                ]
+            }]
+        };
+
+        chart.setOption(option);
+    }
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    new ReportPresentation();
+});
+</script>
+
+</body>
+</html>

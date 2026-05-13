@@ -1,0 +1,1724 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据分析仪表盘</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Source+Code+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --bg: oklch(0.13 0.008 250);
+            --surface: oklch(0.16 0.01 250);
+            --surface-alt: oklch(0.19 0.012 250);
+            --border: oklch(0.25 0.01 250);
+            --border-hover: oklch(0.35 0.015 250);
+            --text: oklch(0.93 0.008 250);
+            --text-secondary: oklch(0.65 0.01 250);
+            --text-dim: oklch(0.45 0.01 250);
+            --accent: oklch(0.75 0.18 55);
+            --accent-hover: oklch(0.82 0.16 55);
+            --accent-dim: oklch(0.75 0.18 55 / 0.12);
+            --accent-glow: oklch(0.75 0.18 55 / 0.25);
+            --success: oklch(0.72 0.17 155);
+            --success-dim: oklch(0.72 0.17 155 / 0.12);
+            --warning: oklch(0.75 0.15 80);
+            --warning-dim: oklch(0.75 0.15 80 / 0.12);
+            --danger: oklch(0.65 0.2 25);
+            --danger-dim: oklch(0.65 0.2 25 / 0.12);
+            --sans: "Manrope", -apple-system, "PingFang SC", sans-serif;
+            --mono: "Source Code Pro", "SF Mono", monospace;
+            --title-size: clamp(1.8rem, 3.5vw, 2.6rem);
+            --h1-size: clamp(1.3rem, 2.2vw, 1.7rem);
+            --h2-size: clamp(1.05rem, 1.6vw, 1.25rem);
+            --h3-size: clamp(0.88rem, 1.2vw, 1rem);
+            --body-size: clamp(0.8rem, 0.92vw, 0.88rem);
+            --small-size: clamp(0.68rem, 0.78vw, 0.75rem);
+            --stat-size: clamp(1.6rem, 3vw, 2.4rem);
+            --section-gap: clamp(2.5rem, 5vw, 4rem);
+            --content-gap: clamp(1rem, 1.8vw, 1.5rem);
+            --container-max: 1180px;
+            --radius: 6px;
+            --radius-lg: 10px;
+            --ease: cubic-bezier(0.16, 1, 0.3, 1);
+            --reveal-duration: 0.5s;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            font-size: var(--body-size);
+            line-height: 1.65;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Dot matrix background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            background-image: radial-gradient(circle, oklch(0.35 0.01 250) 1px, transparent 1px);
+            background-size: 32px 32px;
+            opacity: 0.3;
+        }
+
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 2px;
+            background: var(--accent);
+            z-index: 9998;
+            box-shadow: 0 0 8px var(--accent-glow);
+        }
+
+        .report-container {
+            min-height: 100vh;
+            padding: clamp(1.5rem, 3vw, 2.5rem);
+            position: relative;
+            z-index: 1;
+        }
+
+        .report-main {
+            max-width: var(--container-max);
+            margin: 0 auto;
+        }
+
+        /* Section nav (left dots) */
+        .section-nav {
+            position: fixed;
+            left: clamp(1rem, 2vw, 2rem);
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 100;
+        }
+
+        .section-nav-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--border);
+            cursor: pointer;
+            transition: all 0.3s var(--ease);
+            position: relative;
+        }
+
+        .section-nav-dot.active {
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent-glow);
+        }
+
+        .section-nav-dot::after {
+            content: attr(data-label);
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+        }
+
+        .section-nav-dot:hover::after { opacity: 1; }
+
+        /* Cover */
+        .report-cover {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: clamp(2.5rem, 5vw, 4rem) clamp(2rem, 4vw, 3rem);
+            margin-bottom: var(--section-gap);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .report-cover::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--accent);
+        }
+
+        .cover-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .cover-pulse {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            position: relative;
+        }
+
+        .cover-pulse::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            border: 1px solid var(--accent);
+            animation: pulse 2.5s var(--ease) infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.6; }
+            100% { transform: scale(2.2); opacity: 0; }
+        }
+
+        .cover-label {
+            font-size: var(--small-size);
+            font-weight: 600;
+            color: var(--accent);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-family: var(--mono);
+        }
+
+        .cover-title {
+            font-size: var(--title-size);
+            font-weight: 800;
+            color: var(--text);
+            line-height: 1.15;
+            margin-bottom: 0.6rem;
+            letter-spacing: -0.02em;
+        }
+
+        .cover-desc {
+            font-size: var(--h3-size);
+            color: var(--text-secondary);
+            max-width: 55ch;
+            margin-bottom: 2.5rem;
+            line-height: 1.7;
+        }
+
+        .cover-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1px;
+            background: var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .cover-stat {
+            background: var(--bg);
+            padding: clamp(1rem, 2vw, 1.5rem) clamp(1rem, 1.5vw, 1.5rem);
+        }
+
+        .cover-stat-value {
+            font-size: var(--h1-size);
+            font-weight: 700;
+            color: var(--text);
+            font-family: var(--mono);
+            letter-spacing: -0.02em;
+        }
+
+        .cover-stat-label {
+            font-size: var(--small-size);
+            color: var(--text-dim);
+            margin-top: 0.2rem;
+        }
+
+        /* Sections */
+        .report-section {
+            margin-bottom: var(--section-gap);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: var(--content-gap);
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+            position: relative;
+        }
+
+        .section-header::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background: var(--accent);
+            transition: width 0.6s var(--ease);
+        }
+
+        .section-header.in-view::after { width: 60px; }
+
+        .section-title {
+            font-size: var(--h1-size);
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.01em;
+        }
+
+        .section-badge {
+            font-size: var(--small-size);
+            font-weight: 500;
+            padding: 0.25rem 0.6rem;
+            border-radius: 20px;
+            font-family: var(--mono);
+            margin-left: auto;
+        }
+
+        .section-badge.live {
+            color: var(--success);
+            background: var(--success-dim);
+        }
+
+        /* Metric grid: asymmetric 6-col */
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: clamp(0.6rem, 1vw, 0.85rem);
+            margin-bottom: var(--content-gap);
+        }
+
+        .metric-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: clamp(1.2rem, 1.8vw, 1.5rem);
+            transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card.span-2 { grid-column: span 2; }
+        .metric-card.span-1 { grid-column: span 1; }
+
+        .metric-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px oklch(0.75 0.18 55 / 0.08);
+            transform: translateY(-2px);
+        }
+
+        .metric-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-bottom: 0.75rem;
+        }
+
+        .metric-dot.amber { background: var(--accent); }
+        .metric-dot.teal { background: var(--success); }
+        .metric-dot.gold { background: var(--warning); }
+        .metric-dot.coral { background: var(--danger); }
+
+        .metric-label {
+            font-size: var(--small-size);
+            color: var(--text-dim);
+            margin-bottom: 0.3rem;
+        }
+
+        .metric-value {
+            font-size: var(--stat-size);
+            font-weight: 700;
+            color: var(--text);
+            font-family: var(--mono);
+            letter-spacing: -0.03em;
+            line-height: 1.1;
+        }
+
+        .metric-trend {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.2rem;
+            font-size: var(--small-size);
+            font-weight: 500;
+            margin-top: 0.6rem;
+            padding: 0.15rem 0.45rem;
+            border-radius: 3px;
+            font-family: var(--mono);
+        }
+
+        .metric-trend.up { color: var(--success); background: var(--success-dim); }
+        .metric-trend.down { color: var(--danger); background: var(--danger-dim); }
+
+        .metric-sparkline {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            width: 60px;
+            height: 24px;
+            opacity: 0.5;
+        }
+
+        /* Charts */
+        .chart-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: clamp(1.2rem, 2vw, 1.75rem);
+            margin-bottom: var(--content-gap);
+        }
+
+        .chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .chart-title {
+            font-size: var(--h3-size);
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .chart-legend {
+            display: flex;
+            gap: 1rem;
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+        }
+
+        .chart-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .chart-legend-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .chart-body {
+            width: 100%;
+            height: clamp(220px, 28vh, 320px);
+        }
+
+        /* Asymmetric chart row */
+        .chart-row {
+            display: grid;
+            grid-template-columns: 3fr 2fr;
+            gap: clamp(0.6rem, 1vw, 0.85rem);
+            margin-bottom: var(--content-gap);
+        }
+
+        /* Insight row (horizontal) */
+        .insight-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: clamp(0.6rem, 1vw, 0.85rem);
+            margin-bottom: var(--content-gap);
+        }
+
+        /* Tables */
+        .table-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin-bottom: var(--content-gap);
+        }
+
+        .table-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .table-title {
+            font-size: var(--h3-size);
+            font-weight: 600;
+        }
+
+        .table-styled {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: var(--small-size);
+        }
+
+        .table-styled thead th {
+            text-align: left;
+            padding: 0.65rem 1.5rem;
+            font-weight: 600;
+            color: var(--text-dim);
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            background: var(--bg);
+        }
+
+        .table-styled tbody td {
+            padding: 0.65rem 1.5rem;
+            border-top: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .table-styled tbody tr {
+            transition: background 0.15s ease;
+        }
+
+        .table-styled tbody tr:hover {
+            background: var(--surface-alt);
+        }
+
+        .table-styled .cell-primary {
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .table-styled .cell-mono {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+        }
+
+        .table-styled .cell-right {
+            text-align: right;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.65rem;
+            font-weight: 500;
+            font-family: var(--mono);
+        }
+
+        .badge-success { color: var(--success); background: var(--success-dim); }
+        .badge-warning { color: var(--warning); background: var(--warning-dim); }
+        .badge-danger { color: var(--danger); background: var(--danger-dim); }
+        .badge-accent { color: var(--accent); background: var(--accent-dim); }
+
+        /* Insight cards */
+        .insight-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: clamp(1rem, 1.5vw, 1.25rem);
+            transition: border-color 0.25s ease;
+        }
+
+        .insight-card:hover { border-color: var(--border-hover); }
+
+        .insight-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            margin-bottom: 0.6rem;
+        }
+
+        .insight-indicator.amber { background: var(--accent); }
+        .insight-indicator.teal { background: var(--success); }
+        .insight-indicator.coral { background: var(--danger); }
+
+        .insight-title {
+            font-size: var(--body-size);
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.35rem;
+        }
+
+        .insight-desc {
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        /* Progress */
+        .progress-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: clamp(1.2rem, 2vw, 1.75rem);
+            margin-bottom: var(--content-gap);
+        }
+
+        .progress-item { margin-bottom: 1.1rem; }
+        .progress-item:last-child { margin-bottom: 0; }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.35rem;
+            font-size: var(--small-size);
+        }
+
+        .progress-label { color: var(--text-secondary); font-weight: 500; }
+        .progress-value { color: var(--text); font-weight: 600; font-family: var(--mono); }
+
+        .progress-bar {
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 2px;
+            width: 0;
+            transition: width 1.2s var(--ease);
+            position: relative;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: -1px;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: inherit;
+            filter: brightness(1.3);
+            box-shadow: 0 0 6px currentColor;
+            opacity: 0;
+            transition: opacity 0.3s ease 1s;
+        }
+
+        .progress-fill.filled::after { opacity: 1; }
+
+        .progress-fill.amber { background: var(--accent); color: var(--accent); }
+        .progress-fill.teal { background: var(--success); color: var(--success); }
+        .progress-fill.gold { background: var(--warning); color: var(--warning); }
+
+        /* Narrative block: image + text */
+        .narrative-block {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(1.2rem, 2vw, 2rem);
+            margin-bottom: var(--content-gap);
+            align-items: start;
+        }
+
+        .narrative-visual {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            aspect-ratio: 4/3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .narrative-visual img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .narrative-visual-placeholder {
+            width: 100%;
+            height: 100%;
+            background:
+                linear-gradient(135deg, var(--surface-alt) 25%, transparent 25%),
+                linear-gradient(225deg, var(--surface-alt) 25%, transparent 25%),
+                linear-gradient(315deg, var(--surface-alt) 25%, transparent 25%),
+                linear-gradient(45deg, var(--surface-alt) 25%, transparent 25%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .narrative-visual-label {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius);
+            font-size: var(--small-size);
+            color: var(--text-dim);
+            font-family: var(--mono);
+        }
+
+        .narrative-text {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .narrative-title {
+            font-size: var(--h2-size);
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.01em;
+        }
+
+        .narrative-body {
+            font-size: var(--body-size);
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+
+        .narrative-body p {
+            margin-bottom: 0.8rem;
+        }
+
+        .narrative-body p:last-child { margin-bottom: 0; }
+
+        .narrative-highlight {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .narrative-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 0.5rem;
+        }
+
+        .narrative-list li {
+            position: relative;
+            padding-left: 1rem;
+            margin-bottom: 0.5rem;
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .narrative-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.55em;
+            width: 4px;
+            height: 4px;
+            border-radius: 1px;
+            background: var(--accent);
+        }
+
+        /* Prose section */
+        .prose-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: clamp(1.5rem, 2.5vw, 2.5rem);
+            margin-bottom: var(--content-gap);
+        }
+
+        .prose-panel h3 {
+            font-size: var(--h3-size);
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.75rem;
+        }
+
+        .prose-panel p {
+            font-size: var(--body-size);
+            color: var(--text-secondary);
+            line-height: 1.85;
+            margin-bottom: 0.75rem;
+            max-width: 65ch;
+        }
+
+        .prose-panel p:last-child { margin-bottom: 0; }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+            margin-bottom: var(--content-gap);
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 5px;
+            top: 8px;
+            bottom: 8px;
+            width: 1px;
+            background: var(--border);
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-bottom: 2rem;
+        }
+
+        .timeline-item:last-child { padding-bottom: 0; }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -2rem;
+            top: 6px;
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            background: var(--bg);
+            border: 2px solid var(--border);
+            transition: border-color 0.3s ease, background 0.3s ease;
+            z-index: 1;
+        }
+
+        .timeline-item.active::before {
+            border-color: var(--accent);
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent-glow);
+        }
+
+        .timeline-date {
+            font-size: var(--small-size);
+            font-family: var(--mono);
+            color: var(--text-dim);
+            margin-bottom: 0.3rem;
+        }
+
+        .timeline-title {
+            font-size: var(--body-size);
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.3rem;
+        }
+
+        .timeline-desc {
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            line-height: 1.7;
+            max-width: 55ch;
+        }
+
+        /* Comparison columns */
+        .comparison-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(0.6rem, 1vw, 0.85rem);
+            margin-bottom: var(--content-gap);
+        }
+
+        .comparison-col {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: clamp(1.2rem, 2vw, 1.75rem);
+        }
+
+        .comparison-col-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .comparison-col-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+        }
+
+        .comparison-col-title {
+            font-size: var(--h3-size);
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .comparison-col p {
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin-bottom: 0.6rem;
+        }
+
+        .comparison-col p:last-child { margin-bottom: 0; }
+
+        @media (max-width: 768px) {
+            .narrative-block { grid-template-columns: 1fr; }
+            .comparison-row { grid-template-columns: 1fr; }
+        }
+
+        /* Callout */
+        .callout {
+            padding: clamp(1rem, 1.5vw, 1.25rem) clamp(1.2rem, 2vw, 1.5rem);
+            border-radius: var(--radius);
+            margin-bottom: var(--content-gap);
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-start;
+            background: var(--surface);
+            border: 1px solid var(--border);
+        }
+
+        .callout-indicator {
+            width: 3px;
+            height: 100%;
+            min-height: 20px;
+            border-radius: 2px;
+            flex-shrink: 0;
+            align-self: stretch;
+        }
+
+        .callout-indicator.amber { background: var(--accent); }
+        .callout-indicator.teal { background: var(--success); }
+        .callout-indicator.gold { background: var(--warning); }
+
+        .callout-content {
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .callout-content strong { color: var(--text); }
+
+        /* Reveal animations */
+        .reveal {
+            opacity: 0;
+            transform: translateY(16px);
+            transition: opacity var(--reveal-duration) var(--ease), transform var(--reveal-duration) var(--ease);
+        }
+
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-20px);
+            transition: opacity var(--reveal-duration) var(--ease), transform var(--reveal-duration) var(--ease);
+        }
+
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(20px);
+            transition: opacity var(--reveal-duration) var(--ease), transform var(--reveal-duration) var(--ease);
+        }
+
+        .reveal.visible, .reveal-left.visible, .reveal-right.visible {
+            opacity: 1;
+            transform: translate(0);
+        }
+
+        .delay-1 { transition-delay: 0.06s; }
+        .delay-2 { transition-delay: 0.12s; }
+        .delay-3 { transition-delay: 0.18s; }
+        .delay-4 { transition-delay: 0.24s; }
+        .delay-5 { transition-delay: 0.3s; }
+
+        /* Back to top */
+        .back-to-top {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            width: 34px;
+            height: 34px;
+            border-radius: var(--radius);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--accent);
+            font-size: 0.9rem;
+            cursor: pointer;
+            opacity: 0;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .back-to-top.visible { opacity: 1; }
+        .back-to-top:hover {
+            background: var(--accent);
+            color: var(--bg);
+            border-color: var(--accent);
+        }
+
+        /* Print */
+        @media print {
+            .scroll-progress, .back-to-top, .section-nav { display: none; }
+            body::before { display: none; }
+            .report-container { padding: 0; }
+            .report-main { max-width: 100%; }
+            .report-section { break-inside: avoid; }
+            * { animation: none !important; transition: none !important; }
+            .reveal, .reveal-left, .reveal-right { opacity: 1 !important; transform: none !important; }
+            .metric-card, .chart-panel, .table-panel, .insight-card { box-shadow: none; }
+            body { background: #fff; color: #111; }
+            .cover-pulse::after { animation: none; }
+        }
+
+        @media (max-width: 1024px) {
+            .metric-grid { grid-template-columns: repeat(4, 1fr); }
+            .metric-card.span-2 { grid-column: span 2; }
+            .metric-card.span-1 { grid-column: span 1; }
+            .chart-row { grid-template-columns: 1fr 1fr; }
+            .section-nav { display: none; }
+        }
+
+        @media (max-width: 768px) {
+            .metric-grid { grid-template-columns: 1fr 1fr; }
+            .metric-card.span-2, .metric-card.span-1 { grid-column: span 1; }
+            .chart-row { grid-template-columns: 1fr; }
+            .cover-stats { grid-template-columns: repeat(2, 1fr); }
+            .insight-row { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 480px) {
+            .metric-grid { grid-template-columns: 1fr; }
+            .cover-stats { grid-template-columns: 1fr; }
+            .report-container { padding: 1rem; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .reveal, .reveal-left, .reveal-right {
+                transition: opacity 0.3s ease;
+                transform: none !important;
+            }
+            .cover-pulse::after { animation: none; }
+            .progress-fill { transition: width 0.3s ease; }
+        }
+    </style>
+</head>
+<body>
+    <div class="scroll-progress" id="scrollProgress"></div>
+
+    <nav class="section-nav" id="sectionNav">
+        <div class="section-nav-dot active" data-target="sec-overview" data-label="总览"></div>
+        <div class="section-nav-dot" data-target="sec-revenue" data-label="营收"></div>
+        <div class="section-nav-dot" data-target="sec-users" data-label="用户"></div>
+        <div class="section-nav-dot" data-target="sec-product" data-label="产品"></div>
+        <div class="section-nav-dot" data-target="sec-channels" data-label="渠道"></div>
+        <div class="section-nav-dot" data-target="sec-milestones" data-label="里程碑"></div>
+        <div class="section-nav-dot" data-target="sec-forecast" data-label="预测"></div>
+    </nav>
+
+    <div class="report-container">
+        <main class="report-main">
+            <!-- Cover -->
+            <section class="report-cover reveal" id="sec-overview">
+                <div class="cover-meta reveal delay-1">
+                    <div class="cover-pulse"></div>
+                    <span class="cover-label">Weekly Analytics</span>
+                </div>
+                <h1 class="cover-title reveal delay-2">产品运营数据分析报告</h1>
+                <p class="cover-desc reveal delay-3">2024 年 12 月第 2 周核心业务指标总览，覆盖营收、用户增长、产品使用及渠道效果四大维度</p>
+                <div class="cover-stats reveal delay-4">
+                    <div class="cover-stat">
+                        <div class="cover-stat-value">¥2.8M</div>
+                        <div class="cover-stat-label">本周营收</div>
+                    </div>
+                    <div class="cover-stat">
+                        <div class="cover-stat-value">+12.4%</div>
+                        <div class="cover-stat-label">周环比增长</div>
+                    </div>
+                    <div class="cover-stat">
+                        <div class="cover-stat-value">48.2K</div>
+                        <div class="cover-stat-label">活跃用户</div>
+                    </div>
+                    <div class="cover-stat">
+                        <div class="cover-stat-value">94.2%</div>
+                        <div class="cover-stat-label">留存率</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Revenue -->
+            <section class="report-section" id="sec-revenue">
+                <div class="section-header reveal">
+                    <h2 class="section-title">营收分析</h2>
+                    <span class="section-badge live">LIVE</span>
+                </div>
+
+                <div class="metric-grid">
+                    <div class="metric-card span-2 reveal delay-1">
+                        <div class="metric-dot amber"></div>
+                        <div class="metric-label">本周总营收</div>
+                        <div class="metric-value" data-count="280" data-suffix="万">0万</div>
+                        <div class="metric-trend up">+12.4%</div>
+                        <div class="metric-sparkline" id="spark-revenue"></div>
+                    </div>
+                    <div class="metric-card span-1 reveal delay-2">
+                        <div class="metric-dot teal"></div>
+                        <div class="metric-label">付费转化</div>
+                        <div class="metric-value" data-count="1860" data-suffix="">0</div>
+                        <div class="metric-trend up">+8.7%</div>
+                    </div>
+                    <div class="metric-card span-1 reveal delay-3">
+                        <div class="metric-dot gold"></div>
+                        <div class="metric-label">ARPU</div>
+                        <div class="metric-value" data-count="156" data-suffix="元">0元</div>
+                        <div class="metric-trend up">+3.2%</div>
+                    </div>
+                    <div class="metric-card span-2 reveal delay-4">
+                        <div class="metric-dot coral"></div>
+                        <div class="metric-label">续费率</div>
+                        <div class="metric-value" data-count="82" data-suffix="%">0%</div>
+                        <div class="metric-trend down">-1.2%</div>
+                        <div class="metric-sparkline" id="spark-retention"></div>
+                    </div>
+                </div>
+
+                <div class="chart-panel reveal">
+                    <div class="chart-header">
+                        <div class="chart-title">日营收趋势</div>
+                        <div class="chart-legend">
+                            <div class="chart-legend-item"><div class="chart-legend-dot" style="background:var(--accent)"></div> 本周</div>
+                            <div class="chart-legend-item"><div class="chart-legend-dot" style="background:var(--text-dim)"></div> 上周</div>
+                        </div>
+                    </div>
+                    <div class="chart-body" id="chart-revenue"></div>
+                </div>
+            </section>
+
+            <!-- Users -->
+            <section class="report-section" id="sec-users">
+                <div class="section-header reveal">
+                    <h2 class="section-title">用户增长</h2>
+                </div>
+
+                <div class="chart-row">
+                    <div class="chart-panel reveal-left delay-1">
+                        <div class="chart-header">
+                            <div class="chart-title">新增 vs 流失</div>
+                        </div>
+                        <div class="chart-body" id="chart-users"></div>
+                    </div>
+                    <div class="chart-panel reveal-right delay-2">
+                        <div class="chart-header">
+                            <div class="chart-title">用户来源</div>
+                        </div>
+                        <div class="chart-body" id="chart-source"></div>
+                    </div>
+                </div>
+
+                <div class="progress-panel reveal">
+                    <div class="progress-item">
+                        <div class="progress-header">
+                            <span class="progress-label">注册转化率</span>
+                            <span class="progress-value">34.2%</span>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill amber" data-percent="34"></div></div>
+                    </div>
+                    <div class="progress-item">
+                        <div class="progress-header">
+                            <span class="progress-label">次日留存</span>
+                            <span class="progress-value">62.8%</span>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill teal" data-percent="63"></div></div>
+                    </div>
+                    <div class="progress-item">
+                        <div class="progress-header">
+                            <span class="progress-label">7 日留存</span>
+                            <span class="progress-value">41.5%</span>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill gold" data-percent="42"></div></div>
+                    </div>
+                </div>
+
+                <div class="callout reveal">
+                    <div class="callout-indicator teal"></div>
+                    <div class="callout-content"><strong>洞察：</strong>自然搜索流量本周增长 23%，与上周发布的 SEO 优化策略相关。建议继续加大长尾关键词布局。</div>
+                </div>
+            </section>
+
+            <!-- Product -->
+            <section class="report-section" id="sec-product">
+                <div class="section-header reveal">
+                    <h2 class="section-title">产品使用数据</h2>
+                </div>
+
+                <div class="table-panel reveal">
+                    <div class="table-header">
+                        <div class="table-title">功能使用排行</div>
+                    </div>
+                    <table class="table-styled">
+                        <thead>
+                            <tr>
+                                <th>功能模块</th>
+                                <th>日均使用</th>
+                                <th>周环比</th>
+                                <th>覆盖率</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="cell-primary">AI 写作助手</td>
+                                <td class="cell-mono">28,400</td>
+                                <td class="cell-mono" style="color:var(--success)">+18.3%</td>
+                                <td class="cell-mono">72%</td>
+                                <td><span class="badge badge-success">热门</span></td>
+                            </tr>
+                            <tr>
+                                <td class="cell-primary">文档协作</td>
+                                <td class="cell-mono">22,100</td>
+                                <td class="cell-mono" style="color:var(--success)">+5.1%</td>
+                                <td class="cell-mono">65%</td>
+                                <td><span class="badge badge-success">稳定</span></td>
+                            </tr>
+                            <tr>
+                                <td class="cell-primary">数据可视化</td>
+                                <td class="cell-mono">15,800</td>
+                                <td class="cell-mono" style="color:var(--success)">+12.7%</td>
+                                <td class="cell-mono">48%</td>
+                                <td><span class="badge badge-accent">增长</span></td>
+                            </tr>
+                            <tr>
+                                <td class="cell-primary">自动化工作流</td>
+                                <td class="cell-mono">8,200</td>
+                                <td class="cell-mono" style="color:var(--danger)">-3.2%</td>
+                                <td class="cell-mono">24%</td>
+                                <td><span class="badge badge-warning">关注</span></td>
+                            </tr>
+                            <tr>
+                                <td class="cell-primary">知识库搜索</td>
+                                <td class="cell-mono">19,600</td>
+                                <td class="cell-mono" style="color:var(--success)">+8.9%</td>
+                                <td class="cell-mono">58%</td>
+                                <td><span class="badge badge-success">稳定</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="insight-row">
+                    <div class="insight-card reveal delay-1">
+                        <div class="insight-indicator amber"></div>
+                        <div class="insight-title">最受欢迎</div>
+                        <div class="insight-desc">AI 写作助手连续 4 周蝉联榜首，用户满意度 4.7/5.0，成为核心留存因子。</div>
+                    </div>
+                    <div class="insight-card reveal delay-2">
+                        <div class="insight-indicator coral"></div>
+                        <div class="insight-title">需要关注</div>
+                        <div class="insight-desc">自动化工作流下降 3.2%，用户反馈配置复杂，建议简化向导流程。</div>
+                    </div>
+                    <div class="insight-card reveal delay-3">
+                        <div class="insight-indicator teal"></div>
+                        <div class="insight-title">增长亮点</div>
+                        <div class="insight-desc">数据可视化增长 12.7%，AI 自动图表生成使操作步骤减少 60%。</div>
+                    </div>
+                </div>
+
+                <!-- Narrative: image + analysis text -->
+                <div class="narrative-block reveal">
+                    <div class="narrative-visual">
+                        <div class="narrative-visual-placeholder">
+                            <span class="narrative-visual-label">用户行为热力图</span>
+                        </div>
+                    </div>
+                    <div class="narrative-text">
+                        <div class="narrative-title">AI 写作助手使用行为分析</div>
+                        <div class="narrative-body">
+                            <p>用户使用呈<span class="narrative-highlight">双峰模式</span>：上午 9-11 点为创作高峰，下午 14-16 点为编辑润色高峰，两时段贡献全天 67% 的使用量。高频用户（日均 5 次以上）留存率 96.3%，远超低频用户的 71.2%。</p>
+                            <ul class="narrative-list">
+                                <li>长文本生成（>500字）占比 34%，周增长 8pp</li>
+                                <li>改写润色占比 28%，满意度最高 4.8/5.0</li>
+                                <li>摘要总结占比 22%，平均耗时 3.2 秒</li>
+                                <li>翻译场景占比 16%，多语言需求持续增长</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="prose-panel reveal">
+                    <h3>产品策略建议</h3>
+                    <p>AI 写作助手已确立为核心竞争力，用户反馈集中在输出质量一致性和长文档上下文记忆能力两方面，建议优先投入研发资源。自动化工作流中 42% 用户在第三步（条件分支）放弃，下版本引入模板市场和可视化配置器，预计使用率可回升 15-20%。</p>
+                </div>
+            </section>
+
+            <!-- Channels -->
+            <section class="report-section" id="sec-channels">
+                <div class="section-header reveal">
+                    <h2 class="section-title">渠道表现</h2>
+                </div>
+
+                <div class="chart-panel reveal">
+                    <div class="chart-header">
+                        <div class="chart-title">各渠道转化漏斗</div>
+                    </div>
+                    <div class="chart-body" id="chart-funnel"></div>
+                </div>
+
+                <div class="table-panel reveal">
+                    <div class="table-header">
+                        <div class="table-title">渠道 ROI 排名</div>
+                    </div>
+                    <table class="table-styled">
+                        <thead>
+                            <tr>
+                                <th>渠道</th>
+                                <th>投入</th>
+                                <th>获客数</th>
+                                <th>CAC</th>
+                                <th class="cell-right">ROI</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="cell-primary">自然搜索</td>
+                                <td class="cell-mono">¥0</td>
+                                <td class="cell-mono">4,200</td>
+                                <td class="cell-mono">¥0</td>
+                                <td class="cell-right"><span class="badge badge-success">∞</span></td>
+                            </tr>
+                            <tr>
+                                <td class="cell-primary">内容营销</td>
+                                <td class="cell-mono">¥85K</td>
+                                <td class="cell-mono">2,800</td>
+                                <td class="cell-mono">¥30</td>
+                                <td class="cell-right"><span class="badge badge-success">5.2x</span></td>
+                            </tr>
+                            <tr>
+                                <td class="cell-primary">SEM 投放</td>
+                                <td class="cell-mono">¥220K</td>
+                                <td class="cell-mono">3,100</td>
+                                <td class="cell-mono">¥71</td>
+                                <td class="cell-right"><span class="badge badge-accent">2.1x</span></td>
+                            </tr>
+                            <tr>
+                                <td class="cell-primary">社交媒体</td>
+                                <td class="cell-mono">¥120K</td>
+                                <td class="cell-mono">1,600</td>
+                                <td class="cell-mono">¥75</td>
+                                <td class="cell-right"><span class="badge badge-warning">1.8x</span></td>
+                            </tr>
+                            <tr>
+                                <td class="cell-primary">KOL 合作</td>
+                                <td class="cell-mono">¥300K</td>
+                                <td class="cell-mono">2,100</td>
+                                <td class="cell-mono">¥143</td>
+                                <td class="cell-right"><span class="badge badge-danger">0.9x</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="callout reveal">
+                    <div class="callout-indicator gold"></div>
+                    <div class="callout-content"><strong>建议：</strong>KOL 合作渠道 ROI 低于 1x，本月需评估合作效果，建议暂停效果不佳的合作，将预算转移至内容营销。</div>
+                </div>
+
+                <!-- Channel strategy narrative -->
+                <div class="comparison-row">
+                    <div class="comparison-col reveal-left delay-1">
+                        <div class="comparison-col-header">
+                            <div class="comparison-col-dot" style="background:var(--success)"></div>
+                            <div class="comparison-col-title">高效渠道</div>
+                        </div>
+                        <p>自然搜索零成本获客依托 120+ 篇高排名文章，内容营销 CAC 仅 ¥30 且用户 30 日留存率达 58%，高于均值 12pp。建议将预算占比从 20% 提升至 35%。</p>
+                    </div>
+                    <div class="comparison-col reveal-right delay-2">
+                        <div class="comparison-col-header">
+                            <div class="comparison-col-dot" style="background:var(--danger)"></div>
+                            <div class="comparison-col-title">待优化渠道</div>
+                        </div>
+                        <p>KOL 合作问题在于选择偏差：头部 KOL 转化率仅 0.3%，腰部 KOL 达 2.1%。建议将 70% 预算转向垂直领域腰部 KOL，预计 ROI 可提升至 1.8x。</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Milestones -->
+            <section class="report-section" id="sec-milestones">
+                <div class="section-header reveal">
+                    <h2 class="section-title">关键里程碑</h2>
+                </div>
+
+                <div class="narrative-block reveal">
+                    <div class="timeline">
+                        <div class="timeline-item active">
+                            <div class="timeline-date">12/09 周一</div>
+                            <div class="timeline-title">AI 写作助手 2.0 上线</div>
+                            <div class="timeline-desc">新增长文档编辑模式与上下文记忆功能，上线首日使用量即突破 3 万次，用户好评率 92%。</div>
+                        </div>
+                        <div class="timeline-item active">
+                            <div class="timeline-date">12/10 周二</div>
+                            <div class="timeline-title">SEO 优化成效显现</div>
+                            <div class="timeline-desc">长尾关键词策略见效，自然搜索流量单日突破 6,000 UV，较策略实施前增长 43%。新增收录页面 28 篇。</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-date">12/11 周三</div>
+                            <div class="timeline-title">数据可视化 AI 图表生成公测</div>
+                            <div class="timeline-desc">向 30% 用户开放 AI 自动图表生成功能。公测期间用户平均操作步骤从 8 步降至 3 步，NPS 评分达 72。</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-date">12/12 周四</div>
+                            <div class="timeline-title">付费转化率创新高</div>
+                            <div class="timeline-desc">单日付费转化达 312 笔，创近三个月新高。归因分析显示 45% 来自试用期结束自动提醒，32% 来自功能限制触发。</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-date">12/13 周五</div>
+                            <div class="timeline-title">自动化工作流 V2 方案评审</div>
+                            <div class="timeline-desc">产品团队完成工作流简化方案设计，预计将配置步骤从 7 步压缩至 3 步，引入模板市场，计划 Q1 上线。</div>
+                        </div>
+                    </div>
+                    <div class="narrative-text">
+                        <div class="narrative-title">本周复盘</div>
+                        <div class="narrative-body">
+                            <p>AI 写作助手 2.0 上线验证了<span class="narrative-highlight">上下文记忆</span>是真实高频需求。数据可视化的 AI 图表公测数据超预期，对非技术用户吸引力尤为突出，78% 新用户通过 AI 完成首张图表。</p>
+                            <p>付费转化创新高但未做促销，说明<span class="narrative-highlight">功能价值感知</span>已成为核心转化驱动力，为明年定价策略优化提供了重要依据。</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Forecast -->
+            <section class="report-section" id="sec-forecast">
+                <div class="section-header reveal">
+                    <h2 class="section-title">预测与建议</h2>
+                </div>
+
+                <div class="chart-panel reveal">
+                    <div class="chart-header">
+                        <div class="chart-title">营收预测（未来 4 周）</div>
+                        <div class="chart-legend">
+                            <div class="chart-legend-item"><div class="chart-legend-dot" style="background:var(--accent)"></div> 实际</div>
+                            <div class="chart-legend-item"><div class="chart-legend-dot" style="background:var(--accent);opacity:0.4"></div> 预测</div>
+                        </div>
+                    </div>
+                    <div class="chart-body" id="chart-forecast"></div>
+                </div>
+
+                <div class="prose-panel reveal">
+                    <h3>Q1 营收展望</h3>
+                    <p>基于 12.4% 周环比增长率并考虑季节性衰减，基准情景下 Q1 累计营收预计达 ¥38.5M，超出目标 8%。核心驱动力来自 AI 写作助手渗透率提升（每增 1pp 贡献 ¥200K MRR）和内容营销规模化（Q1 目标日均 8,000 UV）。</p>
+                </div>
+
+                <div class="chart-row" style="grid-template-columns: 1fr 1fr;">
+                    <div class="insight-card reveal delay-1">
+                        <div class="insight-indicator amber"></div>
+                        <div class="insight-title">增长预测</div>
+                        <div class="insight-desc">基于当前趋势，预计下月营收达 ¥12.8M，季度目标完成率 108%。</div>
+                    </div>
+                    <div class="insight-card reveal delay-2">
+                        <div class="insight-indicator teal"></div>
+                        <div class="insight-title">重点行动</div>
+                        <div class="insight-desc">优化工作流体验、加大内容营销投入、启动用户召回计划，预计额外贡献 ¥1.2M。</div>
+                    </div>
+                </div>
+
+                <!-- Action plan -->
+                <div class="narrative-block reveal">
+                    <div class="narrative-text" style="grid-column: 1 / -1;">
+                        <div class="narrative-title">下周行动计划</div>
+                        <div class="narrative-body">
+                            <ul class="narrative-list">
+                                <li><span class="narrative-highlight">自动化工作流简化</span> — 完成低代码配置器原型，目标：新用户 5 分钟内完成首个配置</li>
+                                <li><span class="narrative-highlight">内容营销扩量</span> — 产出 15 篇 SEO 文章，覆盖"AI 协作办公"关键词簇，目标收录率 >70%</li>
+                                <li><span class="narrative-highlight">用户召回实验</span> — 对 30 日未活跃用户分层召回，目标召回率 >8%</li>
+                                <li><span class="narrative-highlight">KOL 策略调整</span> — 暂停 3 个低效头部合作，新签 10 个垂直腰部 KOL</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="callout reveal">
+                    <div class="callout-indicator teal"></div>
+                    <div class="callout-content"><strong>总结：</strong>本周整体数据表现积极，营收和用户增长均超预期。AI 能力的持续强化正在形成产品护城河。下周需重点推进自动化工作流的体验优化、内容营销扩量和 KOL 渠道策略调整三件事。</div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <button class="back-to-top" id="backToTop">↑</button>
+
+    <script>
+        class ReportPresentation {
+            constructor() {
+                this.scrollProgress = document.getElementById('scrollProgress');
+                this.backToTop = document.getElementById('backToTop');
+                this.sectionNav = document.getElementById('sectionNav');
+                this.initRevealAnimations();
+                this.initSectionNav();
+                this.initCharts();
+                this.initSparklines();
+                this.initCounters();
+                this.initProgressBars();
+                this.initBackToTop();
+                this.initScrollProgress();
+                this.initSectionHeaders();
+            }
+
+            initRevealAnimations() {
+                const reveals = document.querySelectorAll('.reveal, .reveal-left, .reveal-right');
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) entry.target.classList.add('visible');
+                    });
+                }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+                reveals.forEach(el => observer.observe(el));
+            }
+
+            initSectionNav() {
+                const dots = this.sectionNav.querySelectorAll('.section-nav-dot');
+                const sections = document.querySelectorAll('[id^="sec-"]');
+
+                dots.forEach(dot => {
+                    dot.addEventListener('click', () => {
+                        const target = document.getElementById(dot.dataset.target);
+                        if (target) target.scrollIntoView({ behavior: 'smooth' });
+                    });
+                });
+
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            dots.forEach(d => d.classList.remove('active'));
+                            const activeDot = this.sectionNav.querySelector(`[data-target="${entry.target.id}"]`);
+                            if (activeDot) activeDot.classList.add('active');
+                        }
+                    });
+                }, { threshold: 0.3, rootMargin: '-20% 0px -60% 0px' });
+
+                sections.forEach(s => observer.observe(s));
+            }
+
+            initSectionHeaders() {
+                const headers = document.querySelectorAll('.section-header');
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) entry.target.classList.add('in-view');
+                    });
+                }, { threshold: 0.5 });
+                headers.forEach(h => observer.observe(h));
+            }
+
+            initCharts() {
+                const accent = '#d4890a';
+                const accentLight = 'rgba(212, 137, 10, 0.15)';
+                const dimLine = '#3a4050';
+                const gridColor = '#1e2330';
+                const textColor = '#7a8599';
+                const successColor = '#2db88a';
+                const dangerLight = '#f87171';
+
+                const axisCommon = {
+                    axisLine: { lineStyle: { color: gridColor } },
+                    axisLabel: { color: textColor, fontSize: 10, fontFamily: 'Source Code Pro' },
+                    splitLine: { lineStyle: { color: gridColor, type: 'dashed' } }
+                };
+
+                const tooltipCommon = {
+                    backgroundColor: '#1a1f2e',
+                    borderColor: '#2a3040',
+                    textStyle: { color: '#e8ecf4', fontSize: 11, fontFamily: 'Manrope' }
+                };
+
+                // Revenue chart
+                const revenueChart = echarts.init(document.getElementById('chart-revenue'));
+                revenueChart.setOption({
+                    backgroundColor: 'transparent',
+                    grid: { top: 20, right: 20, bottom: 30, left: 50 },
+                    xAxis: { type: 'category', data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'], ...axisCommon },
+                    yAxis: { type: 'value', axisLine: { show: false }, splitLine: axisCommon.splitLine, axisLabel: axisCommon.axisLabel },
+                    series: [
+                        {
+                            name: '本周', data: [35, 42, 38, 45, 40, 38, 42], type: 'line', smooth: true,
+                            lineStyle: { color: accent, width: 2.5 },
+                            itemStyle: { color: accent },
+                            areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: accentLight }, { offset: 1, color: 'transparent' }]) }
+                        },
+                        {
+                            name: '上周', data: [30, 35, 32, 38, 36, 34, 37], type: 'line', smooth: true,
+                            lineStyle: { color: dimLine, width: 1.5, type: 'dashed' },
+                            itemStyle: { color: dimLine }, symbol: 'none'
+                        }
+                    ],
+                    tooltip: { trigger: 'axis', ...tooltipCommon },
+                    animationDuration: 1200, animationEasing: 'cubicOut'
+                });
+
+                // Users chart
+                const usersChart = echarts.init(document.getElementById('chart-users'));
+                usersChart.setOption({
+                    backgroundColor: 'transparent',
+                    grid: { top: 20, right: 20, bottom: 30, left: 45 },
+                    xAxis: { type: 'category', data: ['W1', 'W2', 'W3', 'W4', 'W5', 'W6', 'W7', 'W8'], ...axisCommon },
+                    yAxis: { type: 'value', axisLine: { show: false }, splitLine: axisCommon.splitLine, axisLabel: axisCommon.axisLabel },
+                    series: [
+                        { name: '新增', data: [820, 932, 901, 1034, 1290, 1330, 1420, 1580], type: 'bar', barWidth: '35%', itemStyle: { color: accent, borderRadius: [3, 3, 0, 0] } },
+                        { name: '流失', data: [-120, -150, -130, -180, -160, -140, -130, -110], type: 'bar', barWidth: '35%', itemStyle: { color: dangerLight, borderRadius: [0, 0, 3, 3] } }
+                    ],
+                    tooltip: { trigger: 'axis', ...tooltipCommon },
+                    animationDuration: 1200, animationEasing: 'cubicOut'
+                });
+
+                // Source chart
+                const sourceChart = echarts.init(document.getElementById('chart-source'));
+                sourceChart.setOption({
+                    backgroundColor: 'transparent',
+                    series: [{
+                        type: 'pie', radius: ['45%', '72%'], center: ['50%', '50%'],
+                        data: [
+                            { value: 35, name: '自然搜索', itemStyle: { color: accent } },
+                            { value: 25, name: '内容营销', itemStyle: { color: successColor } },
+                            { value: 22, name: 'SEM', itemStyle: { color: '#d4a017' } },
+                            { value: 18, name: '其他', itemStyle: { color: dimLine } }
+                        ],
+                        label: { color: textColor, fontSize: 10, fontFamily: 'Manrope' },
+                        labelLine: { lineStyle: { color: gridColor } },
+                        emphasis: { itemStyle: { shadowBlur: 12, shadowColor: 'rgba(0,0,0,0.3)' } }
+                    }],
+                    tooltip: { ...tooltipCommon },
+                    animationDuration: 1200, animationEasing: 'cubicOut'
+                });
+
+                // Funnel chart
+                const funnelChart = echarts.init(document.getElementById('chart-funnel'));
+                funnelChart.setOption({
+                    backgroundColor: 'transparent',
+                    series: [{
+                        type: 'funnel', left: '10%', width: '80%', top: 15, bottom: 15,
+                        min: 0, max: 100, sort: 'descending', gap: 4,
+                        label: { show: true, position: 'inside', fontSize: 10, color: '#fff', fontFamily: 'Manrope' },
+                        labelLine: { show: false },
+                        data: [
+                            { value: 100, name: '访问 48.2K', itemStyle: { color: accent } },
+                            { value: 62, name: '注册 29.9K', itemStyle: { color: '#c07a08' } },
+                            { value: 34, name: '激活 16.4K', itemStyle: { color: successColor } },
+                            { value: 18, name: '付费 8.7K', itemStyle: { color: '#d4a017' } },
+                            { value: 12, name: '续费 5.8K', itemStyle: { color: dimLine } }
+                        ]
+                    }],
+                    tooltip: { ...tooltipCommon },
+                    animationDuration: 1200, animationEasing: 'cubicOut'
+                });
+
+                // Forecast chart
+                const forecastChart = echarts.init(document.getElementById('chart-forecast'));
+                forecastChart.setOption({
+                    backgroundColor: 'transparent',
+                    grid: { top: 20, right: 20, bottom: 30, left: 55 },
+                    xAxis: { type: 'category', data: ['W-4', 'W-3', 'W-2', 'W-1', '本周', 'W+1', 'W+2', 'W+3', 'W+4'], ...axisCommon },
+                    yAxis: {
+                        type: 'value', axisLine: { show: false }, splitLine: axisCommon.splitLine,
+                        axisLabel: { ...axisCommon.axisLabel, formatter: v => (v / 10000).toFixed(0) + '万' }
+                    },
+                    series: [
+                        {
+                            name: '实际', data: [220, 235, 248, 255, 280, null, null, null, null], type: 'line', smooth: true,
+                            lineStyle: { color: accent, width: 2.5 }, itemStyle: { color: accent }
+                        },
+                        {
+                            name: '预测', data: [null, null, null, null, 280, 295, 310, 320, 335], type: 'line', smooth: true,
+                            lineStyle: { color: accent, width: 2, type: 'dashed' },
+                            itemStyle: { color: accent, borderWidth: 2, borderColor: '#1a1f2e' },
+                            areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(212,137,10,0.08)' }, { offset: 1, color: 'transparent' }]) }
+                        }
+                    ],
+                    tooltip: { trigger: 'axis', ...tooltipCommon },
+                    animationDuration: 1200, animationEasing: 'cubicOut'
+                });
+
+                window.addEventListener('resize', () => {
+                    revenueChart.resize();
+                    usersChart.resize();
+                    sourceChart.resize();
+                    funnelChart.resize();
+                    forecastChart.resize();
+                });
+            }
+
+            initSparklines() {
+                const sparkData1 = [22, 25, 23, 28, 32, 30, 35];
+                const sparkData2 = [88, 86, 84, 85, 83, 82, 82];
+
+                this.drawSparkline('spark-revenue', sparkData1, '#d4890a');
+                this.drawSparkline('spark-retention', sparkData2, '#f87171');
+            }
+
+            drawSparkline(id, data, color) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const chart = echarts.init(el);
+                chart.setOption({
+                    backgroundColor: 'transparent',
+                    grid: { top: 2, right: 2, bottom: 2, left: 2 },
+                    xAxis: { type: 'category', show: false, data: data.map((_, i) => i) },
+                    yAxis: { type: 'value', show: false, min: Math.min(...data) * 0.9 },
+                    series: [{
+                        data, type: 'line', smooth: true, symbol: 'none',
+                        lineStyle: { color, width: 1.5 },
+                        areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: color.replace(')', ',0.2)').replace('rgb', 'rgba') }, { offset: 1, color: 'transparent' }]) }
+                    }]
+                });
+                window.addEventListener('resize', () => chart.resize());
+            }
+
+            initCounters() {
+                const counters = document.querySelectorAll('[data-count]');
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting && !entry.target.dataset.counted) {
+                            entry.target.dataset.counted = 'true';
+                            this.animateCounter(entry.target);
+                        }
+                    });
+                }, { threshold: 0.5 });
+                counters.forEach(el => observer.observe(el));
+            }
+
+            animateCounter(el) {
+                const target = parseInt(el.dataset.count, 10);
+                const suffix = el.dataset.suffix || '';
+                const duration = 1200;
+                const start = performance.now();
+                const tick = (now) => {
+                    const p = Math.min((now - start) / duration, 1);
+                    const eased = 1 - Math.pow(1 - p, 4);
+                    el.textContent = Math.round(eased * target) + suffix;
+                    if (p < 1) requestAnimationFrame(tick);
+                    else el.textContent = target + suffix;
+                };
+                requestAnimationFrame(tick);
+            }
+
+            initProgressBars() {
+                const fills = document.querySelectorAll('.progress-fill[data-percent]');
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting && !entry.target.dataset.filled) {
+                            entry.target.dataset.filled = 'true';
+                            setTimeout(() => {
+                                entry.target.style.width = entry.target.dataset.percent + '%';
+                                setTimeout(() => entry.target.classList.add('filled'), 1200);
+                            }, 150);
+                        }
+                    });
+                }, { threshold: 0.3 });
+                fills.forEach(el => observer.observe(el));
+            }
+
+            initBackToTop() {
+                window.addEventListener('scroll', () => {
+                    this.backToTop.classList.toggle('visible', window.scrollY > 500);
+                });
+                this.backToTop.addEventListener('click', () => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                });
+            }
+
+            initScrollProgress() {
+                window.addEventListener('scroll', () => {
+                    const scrollTop = window.scrollY;
+                    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                    const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+                    this.scrollProgress.style.width = progress + '%';
+                });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => { new ReportPresentation(); });
+    </script>
+</body>
+</html>
