@@ -1,0 +1,2103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>快速排序算法详解与优化</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --bg: #1a1b26;
+            --bg-code: #13141b;
+            --bg-annotation: #1e1f2e;
+            --text: #a9b1d6;
+            --text-heading: #c0caf5;
+            --accent-blue: #7aa2f7;
+            --accent-green: #9ece6a;
+            --accent-magenta: #bb9af7;
+            --accent-orange: #ff9e64;
+            --accent-red: #f7768e;
+            --accent-cyan: #7dcfff;
+            --border: rgba(42, 46, 66, 0.8);
+            --line-highlight: rgba(122, 162, 247, 0.1);
+            --mono: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+            --sans: "Inter", -apple-system, "PingFang SC", sans-serif;
+            --ease: cubic-bezier(0.16, 1, 0.3, 1);
+            --title-size: clamp(2.2rem, 5vw, 3.8rem);
+            --h1-size: clamp(1.6rem, 3vw, 2.4rem);
+            --h2-size: clamp(1.3rem, 2.5vw, 1.8rem);
+            --h3-size: clamp(1.05rem, 1.5vw, 1.3rem);
+            --body-size: clamp(0.88rem, 1vw, 1rem);
+            --small-size: clamp(0.75rem, 0.85vw, 0.85rem);
+            --code-size: clamp(0.78rem, 0.9vw, 0.88rem);
+            --section-gap: clamp(3rem, 6vw, 6rem);
+            --content-gap: clamp(1.2rem, 2.5vw, 2.5rem);
+            --container-max: 1200px;
+            --pad-x: clamp(1.5rem, 3vw, 3rem);
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            font-size: var(--body-size);
+            line-height: 1.75;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        /* ═══ Scroll Progress Bar ═══ */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
+            z-index: 9999;
+            transition: width 0.1s linear;
+        }
+
+        /* ═══ Back to Top ═══ */
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: var(--bg-annotation);
+            border: 1px solid var(--border);
+            color: var(--accent-blue);
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s var(--ease);
+            z-index: 999;
+            backdrop-filter: blur(10px);
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .back-to-top:hover {
+            background: var(--accent-blue);
+            color: var(--bg);
+            border-color: var(--accent-blue);
+        }
+
+        /* ═══ Container ═══ */
+        .report-container {
+            min-height: 100vh;
+        }
+
+        .report-main {
+            max-width: var(--container-max);
+            margin: 0 auto;
+            padding: 0 var(--pad-x);
+        }
+
+        /* ═══ Token Colors (Syntax Highlighting) ═══ */
+        .token-keyword { color: #bb9af7; }
+        .token-string { color: #9ece6a; }
+        .token-function { color: #7aa2f7; }
+        .token-number { color: #ff9e64; }
+        .token-comment { color: #565f89; font-style: italic; }
+        .token-type { color: #7dcfff; }
+        .token-operator { color: #89ddff; }
+        .token-punctuation { color: #a9b1d6; }
+        .token-variable { color: #c0caf5; }
+        .token-property { color: #73daca; }
+        .token-param { color: #e0af68; }
+
+        /* ═══ Reveal Animation ═══ */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+        }
+
+        .reveal.revealed {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .reveal {
+                opacity: 1;
+                transform: none;
+                transition: none;
+            }
+            .code-line {
+                transition: none !important;
+            }
+        }
+
+        /* ═══ Cover Section ═══ */
+        .cover-section {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding: 4rem var(--pad-x);
+            overflow: hidden;
+        }
+
+        .cover-bg-code {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: var(--mono);
+            font-size: clamp(0.6rem, 1vw, 0.9rem);
+            color: rgba(122, 162, 247, 0.06);
+            white-space: pre;
+            line-height: 1.8;
+            pointer-events: none;
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        .cover-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            max-width: 800px;
+        }
+
+        .cover-prompt {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--accent-green);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .cover-prompt::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .cover-title {
+            font-family: var(--mono);
+            font-size: var(--title-size);
+            font-weight: 700;
+            color: var(--text-heading);
+            line-height: 1.2;
+            margin-bottom: 1.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .cover-title .highlight {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .cover-subtitle {
+            font-size: clamp(1rem, 1.5vw, 1.2rem);
+            color: var(--text);
+            opacity: 0.7;
+            margin-bottom: 2.5rem;
+            font-weight: 300;
+        }
+
+        .cover-meta {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .cover-meta-item {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--text);
+            opacity: 0.5;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .cover-meta-item .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-magenta);
+        }
+
+        /* ═══ Section Styling ═══ */
+        .report-section {
+            padding: var(--section-gap) 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .report-section:last-child {
+            border-bottom: none;
+        }
+
+        .section-label {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--accent-blue);
+            margin-bottom: 0.75rem;
+            opacity: 0.7;
+        }
+
+        .section-label::before {
+            content: '// ';
+            color: var(--accent-green);
+        }
+
+        .section-title {
+            font-family: var(--mono);
+            font-size: var(--h1-size);
+            font-weight: 600;
+            color: var(--text-heading);
+            margin-bottom: var(--content-gap);
+            line-height: 1.3;
+        }
+
+        /* ═══ Overview Section ═══ */
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.2rem;
+            margin-top: 2rem;
+        }
+
+        .metric-card {
+            background: var(--bg-annotation);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: transform 0.3s var(--ease), border-color 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent-blue);
+        }
+
+        .metric-value {
+            font-family: var(--mono);
+            font-size: clamp(1.5rem, 3vw, 2.2rem);
+            font-weight: 700;
+            color: var(--accent-cyan);
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-value.green { color: var(--accent-green); }
+        .metric-value.orange { color: var(--accent-orange); }
+        .metric-value.magenta { color: var(--accent-magenta); }
+        .metric-value.red { color: var(--accent-red); }
+
+        .metric-label {
+            font-size: var(--small-size);
+            color: var(--text);
+            opacity: 0.6;
+        }
+
+        .overview-description {
+            font-size: var(--body-size);
+            line-height: 1.9;
+            color: var(--text);
+            margin-top: 2rem;
+        }
+
+        .overview-description code {
+            font-family: var(--mono);
+            font-size: 0.85em;
+            background: rgba(122, 162, 247, 0.1);
+            color: var(--accent-cyan);
+            padding: 0.15em 0.45em;
+            border-radius: 4px;
+            border: 1px solid rgba(122, 162, 247, 0.2);
+        }
+
+        /* ═══ CodeHike Scrollytelling Section ═══ */
+        .codehike-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: start;
+            padding: 2rem 0;
+        }
+
+        .codehike-code {
+            position: sticky;
+            top: 2rem;
+            z-index: 10;
+        }
+
+        .code-panel {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            font-family: var(--mono);
+            font-size: var(--code-size);
+            line-height: 1.8;
+        }
+
+        .code-panel-header {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: rgba(19, 20, 27, 0.9);
+            border-bottom: 1px solid var(--border);
+            gap: 0.5rem;
+        }
+
+        .code-panel-dots {
+            display: flex;
+            gap: 6px;
+        }
+
+        .code-panel-dots span {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .code-panel-dots span:nth-child(1) { background: var(--accent-red); }
+        .code-panel-dots span:nth-child(2) { background: var(--accent-orange); }
+        .code-panel-dots span:nth-child(3) { background: var(--accent-green); }
+
+        .code-panel-filename {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--text);
+            opacity: 0.6;
+            margin-left: 0.75rem;
+        }
+
+        .code-panel-body {
+            padding: 1rem 0;
+            overflow-x: auto;
+        }
+
+        .code-line {
+            display: flex;
+            padding: 0 1.25rem;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+            border-left: 3px solid transparent;
+            min-height: 1.8em;
+        }
+
+        .code-line.highlighted {
+            background: var(--line-highlight);
+            border-left-color: var(--accent-blue);
+        }
+
+        .code-line-number {
+            display: inline-block;
+            width: 2.5em;
+            text-align: right;
+            margin-right: 1.5em;
+            color: #565f89;
+            user-select: none;
+            flex-shrink: 0;
+            opacity: 0.5;
+        }
+
+        .code-line.highlighted .code-line-number {
+            opacity: 1;
+            color: var(--accent-blue);
+        }
+
+        .code-line-content {
+            white-space: pre;
+            flex: 1;
+        }
+
+        /* Annotations panel */
+        .codehike-annotations {
+            padding: 4rem 0;
+        }
+
+        .annotation-step {
+            padding: 2.5rem 2rem;
+            margin-bottom: 3rem;
+            background: var(--bg-annotation);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            border-left: 3px solid transparent;
+            transition: all 0.3s var(--ease);
+            opacity: 0.5;
+        }
+
+        .annotation-step.active {
+            opacity: 1;
+            border-left-color: var(--accent-blue);
+            background: rgba(30, 31, 46, 0.9);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .annotation-step h3 {
+            font-family: var(--mono);
+            font-size: var(--h3-size);
+            color: var(--text-heading);
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .annotation-step p {
+            color: var(--text);
+            line-height: 1.8;
+            margin-bottom: 0.75rem;
+        }
+
+        .annotation-step p:last-child {
+            margin-bottom: 0;
+        }
+
+        .annotation-step code {
+            font-family: var(--mono);
+            font-size: 0.85em;
+            background: rgba(122, 162, 247, 0.1);
+            color: var(--accent-cyan);
+            padding: 0.15em 0.4em;
+            border-radius: 4px;
+        }
+
+        .annotation-step .step-badge {
+            display: inline-block;
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--accent-blue);
+            background: rgba(122, 162, 247, 0.1);
+            padding: 0.2em 0.7em;
+            border-radius: 4px;
+            margin-bottom: 0.75rem;
+            font-weight: 500;
+        }
+
+        /* ═══ Architecture Section ═══ */
+        .arch-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .arch-card {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.3s var(--ease), border-color 0.3s ease;
+        }
+
+        .arch-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--accent-magenta);
+        }
+
+        .arch-card-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .arch-card-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--mono);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .arch-card-icon.blue { background: rgba(122, 162, 247, 0.15); color: var(--accent-blue); }
+        .arch-card-icon.green { background: rgba(158, 206, 106, 0.15); color: var(--accent-green); }
+        .arch-card-icon.magenta { background: rgba(187, 154, 247, 0.15); color: var(--accent-magenta); }
+        .arch-card-icon.orange { background: rgba(255, 158, 100, 0.15); color: var(--accent-orange); }
+
+        .arch-card-title {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--text-heading);
+            font-weight: 500;
+        }
+
+        .arch-card-body {
+            padding: 1rem 1.25rem;
+            font-family: var(--mono);
+            font-size: var(--code-size);
+            line-height: 1.8;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .arch-card-body::-webkit-scrollbar { display: none; }
+
+        .arch-card-body .code-line {
+            padding: 0 0.5rem;
+            border-left: none;
+        }
+
+        .arch-connector {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem 0;
+            color: var(--accent-blue);
+            opacity: 0.4;
+            font-family: var(--mono);
+            font-size: 1.5rem;
+        }
+
+        /* ═══ API Section ═══ */
+        .api-block {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .api-block-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .api-method {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            font-weight: 600;
+            padding: 0.2em 0.6em;
+            border-radius: 4px;
+        }
+
+        .api-method.get { background: rgba(122, 162, 247, 0.15); color: var(--accent-blue); }
+        .api-method.post { background: rgba(158, 206, 106, 0.15); color: var(--accent-green); }
+        .api-method.fn { background: rgba(187, 154, 247, 0.15); color: var(--accent-magenta); }
+
+        .api-path {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--text);
+        }
+
+        .api-block-body {
+            padding: 1.25rem 1.5rem;
+            font-family: var(--mono);
+            font-size: var(--code-size);
+            line-height: 1.8;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .api-block-body::-webkit-scrollbar { display: none; }
+
+        .api-block-body .code-line {
+            padding: 0 0.25rem;
+            border-left: none;
+        }
+
+        .api-pair {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .api-pair-label {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--accent-green);
+            margin-bottom: 0.75rem;
+            opacity: 0.7;
+        }
+
+        /* ═══ Performance Section ═══ */
+        .chart-container {
+            width: 100%;
+            height: 400px;
+            margin-top: 2rem;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        #performanceChart {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ═══ Complexity Analysis Section ═══ */
+        .complexity-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 2rem;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            font-family: var(--mono);
+            font-size: var(--code-size);
+        }
+
+        .complexity-table th,
+        .complexity-table td {
+            padding: 1rem 1.25rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .complexity-table th {
+            background: rgba(19, 20, 27, 0.9);
+            color: var(--text-heading);
+            font-weight: 600;
+            font-size: var(--small-size);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .complexity-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .complexity-table td {
+            color: var(--text);
+        }
+
+        .complexity-table .complexity-good {
+            color: var(--accent-green);
+            font-weight: 500;
+        }
+
+        .complexity-table .complexity-avg {
+            color: var(--accent-cyan);
+            font-weight: 500;
+        }
+
+        .complexity-table .complexity-bad {
+            color: var(--accent-red);
+            font-weight: 500;
+        }
+
+        .bar-chart-container {
+            margin-top: 2.5rem;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+        }
+
+        .bar-chart-title {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--text-heading);
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+        }
+
+        .bar-chart-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            gap: 1rem;
+        }
+
+        .bar-chart-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .bar-chart-label {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--text);
+            width: 80px;
+            flex-shrink: 0;
+            text-align: right;
+        }
+
+        .bar-chart-track {
+            flex: 1;
+            height: 28px;
+            background: rgba(42, 46, 66, 0.3);
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bar-chart-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 1.2s var(--ease);
+            position: relative;
+            display: flex;
+            align-items: center;
+            padding-left: 0.75rem;
+        }
+
+        .bar-chart-fill.best {
+            background: linear-gradient(90deg, rgba(158, 206, 106, 0.3), rgba(158, 206, 106, 0.6));
+            border: 1px solid rgba(158, 206, 106, 0.4);
+        }
+
+        .bar-chart-fill.average {
+            background: linear-gradient(90deg, rgba(122, 162, 247, 0.3), rgba(122, 162, 247, 0.6));
+            border: 1px solid rgba(122, 162, 247, 0.4);
+        }
+
+        .bar-chart-fill.worst {
+            background: linear-gradient(90deg, rgba(247, 118, 142, 0.3), rgba(247, 118, 142, 0.6));
+            border: 1px solid rgba(247, 118, 142, 0.4);
+        }
+
+        .bar-chart-value {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--text-heading);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .scenario-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .scenario-card {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .scenario-card-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .scenario-card-badge {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            font-weight: 600;
+            padding: 0.2em 0.6em;
+            border-radius: 4px;
+        }
+
+        .scenario-card-badge.best {
+            background: rgba(158, 206, 106, 0.15);
+            color: var(--accent-green);
+        }
+
+        .scenario-card-badge.worst {
+            background: rgba(247, 118, 142, 0.15);
+            color: var(--accent-red);
+        }
+
+        .scenario-card-title {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--text-heading);
+            font-weight: 500;
+        }
+
+        .scenario-card-body {
+            padding: 1rem 1.25rem;
+            font-family: var(--mono);
+            font-size: var(--code-size);
+            line-height: 1.8;
+        }
+
+        .scenario-card-body .code-line {
+            padding: 0 0.5rem;
+            border-left: none;
+        }
+
+        /* ═══ Optimization Strategies Section ═══ */
+        .optimization-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .optimization-card {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.3s var(--ease), border-color 0.3s ease;
+        }
+
+        .optimization-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--accent-cyan);
+        }
+
+        .optimization-card-header {
+            padding: 1.25rem 1.25rem 0.75rem;
+        }
+
+        .optimization-card-number {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--accent-magenta);
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+        }
+
+        .optimization-card-title {
+            font-family: var(--mono);
+            font-size: var(--h3-size);
+            color: var(--text-heading);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .optimization-card-desc {
+            font-size: var(--small-size);
+            color: var(--text);
+            line-height: 1.7;
+            padding: 0 1.25rem 0.75rem;
+            opacity: 0.8;
+        }
+
+        .optimization-card-code {
+            border-top: 1px solid var(--border);
+            padding: 1rem 1.25rem;
+            font-family: var(--mono);
+            font-size: var(--code-size);
+            line-height: 1.8;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .optimization-card-code::-webkit-scrollbar { display: none; }
+
+        .optimization-card-code .code-line {
+            padding: 0 0.5rem;
+            border-left: none;
+        }
+
+        /* ═══ Real-world Usage Section ═══ */
+        .realworld-cards {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .realworld-card {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            transition: border-color 0.3s ease;
+        }
+
+        .realworld-card:hover {
+            border-color: var(--accent-blue);
+        }
+
+        .realworld-card-info {
+            padding: 1.5rem;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .realworld-card-lang {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            font-weight: 600;
+            padding: 0.2em 0.6em;
+            border-radius: 4px;
+            display: inline-block;
+            width: fit-content;
+            margin-bottom: 0.75rem;
+        }
+
+        .realworld-card-lang.js {
+            background: rgba(255, 158, 100, 0.15);
+            color: var(--accent-orange);
+        }
+
+        .realworld-card-lang.python {
+            background: rgba(122, 162, 247, 0.15);
+            color: var(--accent-blue);
+        }
+
+        .realworld-card-lang.rust {
+            background: rgba(247, 118, 142, 0.15);
+            color: var(--accent-red);
+        }
+
+        .realworld-card-name {
+            font-family: var(--mono);
+            font-size: var(--h3-size);
+            color: var(--text-heading);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .realworld-card-desc {
+            font-size: var(--small-size);
+            color: var(--text);
+            line-height: 1.7;
+            opacity: 0.8;
+        }
+
+        .realworld-card-code {
+            padding: 1.25rem;
+            font-family: var(--mono);
+            font-size: var(--code-size);
+            line-height: 1.8;
+            overflow-x: auto;
+        }
+
+        .realworld-card-code .code-line {
+            padding: 0 0.5rem;
+            border-left: none;
+        }
+
+        .callout-box {
+            margin-top: 2rem;
+            background: var(--bg-annotation);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--accent-cyan);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+        }
+
+        .callout-box-title {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--accent-cyan);
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .callout-box-content {
+            font-size: var(--body-size);
+            color: var(--text);
+            line-height: 1.8;
+        }
+
+        .callout-box-content code {
+            font-family: var(--mono);
+            font-size: 0.85em;
+            background: rgba(122, 162, 247, 0.1);
+            color: var(--accent-cyan);
+            padding: 0.15em 0.45em;
+            border-radius: 4px;
+            border: 1px solid rgba(122, 162, 247, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .scenario-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .optimization-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .realworld-card {
+                grid-template-columns: 1fr;
+            }
+
+            .realworld-card-info {
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+        }
+
+        /* ═══ Counter Animation ═══ */
+        .counter {
+            display: inline-block;
+        }
+
+        /* ═══ Responsive ═══ */
+        @media (max-width: 768px) {
+            .codehike-section {
+                grid-template-columns: 1fr;
+            }
+
+            .codehike-code {
+                position: relative;
+                top: 0;
+            }
+
+            .annotation-step {
+                margin-bottom: 1.5rem;
+                padding: 1.5rem;
+            }
+
+            .api-pair {
+                grid-template-columns: 1fr;
+            }
+
+            .cover-meta {
+                flex-direction: column;
+                align-items: center;
+                gap: 0.75rem;
+            }
+
+            .overview-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .arch-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ═══ Print Styles ═══ */
+        @media print {
+            body {
+                background: #ffffff;
+                color: #1a1a1a;
+            }
+
+            .scroll-progress,
+            .back-to-top {
+                display: none;
+            }
+
+            .cover-section {
+                min-height: auto;
+                padding: 2rem 0;
+            }
+
+            .cover-bg-code {
+                display: none;
+            }
+
+            .cover-title,
+            .section-title,
+            .annotation-step h3 {
+                color: #1a1a1a;
+            }
+
+            .code-panel {
+                background: #f5f5f5;
+                border-color: #ddd;
+            }
+
+            .token-keyword { color: #7c3aed; }
+            .token-string { color: #059669; }
+            .token-function { color: #2563eb; }
+            .token-number { color: #d97706; }
+            .token-comment { color: #6b7280; }
+            .token-type { color: #0891b2; }
+
+            .annotation-step {
+                opacity: 1;
+                background: #f9fafb;
+                border-color: #e5e7eb;
+            }
+
+            .metric-card {
+                background: #f9fafb;
+                border-color: #e5e7eb;
+            }
+
+            .codehike-code {
+                position: relative;
+                top: 0;
+            }
+
+            .reveal {
+                opacity: 1;
+                transform: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Scroll Progress Bar -->
+    <div class="scroll-progress" id="scrollProgress"></div>
+
+    <!-- Back to Top -->
+    <button class="back-to-top" id="backToTop" aria-label="Back to top">&#8593;</button>
+
+    <div class="report-container">
+        <!-- ═══ Cover Section ═══ -->
+        <section class="cover-section">
+            <div class="cover-bg-code" aria-hidden="true">function quickSort(arr, lo, hi) {
+    if (lo >= hi) return;
+    const pivot = partition(arr, lo, hi);
+    quickSort(arr, lo, pivot - 1);
+    quickSort(arr, pivot + 1, hi);
+}
+
+function partition(arr, lo, hi) {
+    const pivot = arr[hi];
+    let i = lo - 1;
+    for (let j = lo; j < hi; j++) {
+        if (arr[j] <= pivot) {
+            i++;
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+    }
+    [arr[i + 1], arr[hi]] = [arr[hi], arr[i + 1]];
+    return i + 1;
+}
+
+function randomPartition(arr, lo, hi) {
+    const rand = lo + Math.floor(Math.random() * (hi - lo + 1));
+    [arr[rand], arr[hi]] = [arr[hi], arr[rand]];
+    return partition(arr, lo, hi);
+}
+
+function threeWayPartition(arr, lo, hi) {
+    let lt = lo, gt = hi, i = lo;
+    const pivot = arr[lo];
+    while (i <= gt) {
+        if (arr[i] < pivot) swap(arr, lt++, i++);
+        else if (arr[i] > pivot) swap(arr, i, gt--);
+        else i++;
+    }
+    return [lt, gt];
+}</div>
+            <div class="cover-content">
+                <div class="cover-prompt">~/algorithms $ node quicksort.ts</div>
+                <h1 class="cover-title">
+                    <span class="highlight">快速排序</span><br>算法详解与优化
+                </h1>
+                <p class="cover-subtitle">从基础实现到工程级优化，深入理解分治思想的精髓</p>
+                <div class="cover-meta">
+                    <span class="cover-meta-item"><span class="dot"></span>TypeScript</span>
+                    <span class="cover-meta-item"><span class="dot"></span>算法与数据结构</span>
+                    <span class="cover-meta-item"><span class="dot"></span>2024.01</span>
+                </div>
+            </div>
+        </section>
+
+        <main class="report-main">
+            <!-- ═══ Overview Section ═══ -->
+            <section class="report-section">
+                <div class="reveal">
+                    <div class="section-label">概览</div>
+                    <h2 class="section-title">算法核心指标</h2>
+                </div>
+
+                <div class="overview-grid reveal">
+                    <div class="metric-card">
+                        <div class="metric-value green"><span class="counter" data-target="O(n log n)">O(n log n)</span></div>
+                        <div class="metric-label">平均时间复杂度</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value orange"><span class="counter" data-target="O(n²)">O(n&sup2;)</span></div>
+                        <div class="metric-label">最坏时间复杂度</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value magenta"><span class="counter" data-target="O(log n)">O(log n)</span></div>
+                        <div class="metric-label">空间复杂度</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value red">In-place</div>
+                        <div class="metric-label">原地排序</div>
+                    </div>
+                </div>
+
+                <div class="overview-description reveal">
+                    <p>快速排序（QuickSort）是由 Tony Hoare 于 1960 年提出的一种高效排序算法。它基于<code>分治法</code>的思想，通过选取一个<code>pivot</code>（基准值），将数组分为两个子数组——小于基准的元素和大于基准的元素，然后递归地对子数组进行排序。</p>
+                    <p style="margin-top: 1rem;">本文将从基础的 <code>Lomuto 分区方案</code>出发，逐步优化到<code>随机化选取</code>和<code>三路分区</code>方案，最终达到工程级的实现质量。</p>
+                </div>
+            </section>
+
+            <!-- ═══ CodeHike Scrollytelling Section ═══ -->
+            <section class="report-section">
+                <div class="reveal">
+                    <div class="section-label">逐步解析</div>
+                    <h2 class="section-title">算法演进：从基础到优化</h2>
+                </div>
+
+                <div class="codehike-section">
+                    <div class="codehike-code">
+                        <div class="code-panel">
+                            <div class="code-panel-header">
+                                <div class="code-panel-dots">
+                                    <span></span><span></span><span></span>
+                                </div>
+                                <span class="code-panel-filename">quicksort.ts</span>
+                            </div>
+                            <div class="code-panel-body">
+                                <div class="code-line" data-line="1"><span class="code-line-number">1</span><span class="code-line-content"><span class="token-keyword">function</span> <span class="token-function">quickSort</span><span class="token-punctuation">(</span><span class="token-param">arr</span><span class="token-operator">:</span> <span class="token-type">number</span><span class="token-punctuation">[]</span><span class="token-punctuation">,</span> <span class="token-param">lo</span><span class="token-operator">:</span> <span class="token-type">number</span><span class="token-punctuation">,</span> <span class="token-param">hi</span><span class="token-operator">:</span> <span class="token-type">number</span><span class="token-punctuation">)</span> <span class="token-punctuation">{</span></span></div>
+                                <div class="code-line" data-line="2"><span class="code-line-number">2</span><span class="code-line-content">  <span class="token-keyword">if</span> <span class="token-punctuation">(</span><span class="token-variable">lo</span> <span class="token-operator">>=</span> <span class="token-variable">hi</span><span class="token-punctuation">)</span> <span class="token-keyword">return</span><span class="token-punctuation">;</span></span></div>
+                                <div class="code-line" data-line="3"><span class="code-line-number">3</span><span class="code-line-content"></span></div>
+                                <div class="code-line" data-line="4"><span class="code-line-number">4</span><span class="code-line-content">  <span class="token-keyword">const</span> <span class="token-variable">pivotIdx</span> <span class="token-operator">=</span> <span class="token-function">partition</span><span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">,</span> <span class="token-variable">lo</span><span class="token-punctuation">,</span> <span class="token-variable">hi</span><span class="token-punctuation">);</span></span></div>
+                                <div class="code-line" data-line="5"><span class="code-line-number">5</span><span class="code-line-content">  <span class="token-function">quickSort</span><span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">,</span> <span class="token-variable">lo</span><span class="token-punctuation">,</span> <span class="token-variable">pivotIdx</span> <span class="token-operator">-</span> <span class="token-number">1</span><span class="token-punctuation">);</span></span></div>
+                                <div class="code-line" data-line="6"><span class="code-line-number">6</span><span class="code-line-content">  <span class="token-function">quickSort</span><span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">,</span> <span class="token-variable">pivotIdx</span> <span class="token-operator">+</span> <span class="token-number">1</span><span class="token-punctuation">,</span> <span class="token-variable">hi</span><span class="token-punctuation">);</span></span></div>
+                                <div class="code-line" data-line="7"><span class="code-line-number">7</span><span class="code-line-content"><span class="token-punctuation">}</span></span></div>
+                                <div class="code-line" data-line="8"><span class="code-line-number">8</span><span class="code-line-content"></span></div>
+                                <div class="code-line" data-line="9"><span class="code-line-number">9</span><span class="code-line-content"><span class="token-keyword">function</span> <span class="token-function">partition</span><span class="token-punctuation">(</span><span class="token-param">arr</span><span class="token-operator">:</span> <span class="token-type">number</span><span class="token-punctuation">[]</span><span class="token-punctuation">,</span> <span class="token-param">lo</span><span class="token-operator">:</span> <span class="token-type">number</span><span class="token-punctuation">,</span> <span class="token-param">hi</span><span class="token-operator">:</span> <span class="token-type">number</span><span class="token-punctuation">)</span><span class="token-operator">:</span> <span class="token-type">number</span> <span class="token-punctuation">{</span></span></div>
+                                <div class="code-line" data-line="10"><span class="code-line-number">10</span><span class="code-line-content">  <span class="token-keyword">const</span> <span class="token-variable">pivot</span> <span class="token-operator">=</span> <span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">hi</span><span class="token-punctuation">];</span>  <span class="token-comment">// 选择最后一个元素作为基准</span></span></div>
+                                <div class="code-line" data-line="11"><span class="code-line-number">11</span><span class="code-line-content">  <span class="token-keyword">let</span> <span class="token-variable">i</span> <span class="token-operator">=</span> <span class="token-variable">lo</span> <span class="token-operator">-</span> <span class="token-number">1</span><span class="token-punctuation">;</span>          <span class="token-comment">// 小于区域的边界</span></span></div>
+                                <div class="code-line" data-line="12"><span class="code-line-number">12</span><span class="code-line-content"></span></div>
+                                <div class="code-line" data-line="13"><span class="code-line-number">13</span><span class="code-line-content">  <span class="token-keyword">for</span> <span class="token-punctuation">(</span><span class="token-keyword">let</span> <span class="token-variable">j</span> <span class="token-operator">=</span> <span class="token-variable">lo</span><span class="token-punctuation">;</span> <span class="token-variable">j</span> <span class="token-operator">&lt;</span> <span class="token-variable">hi</span><span class="token-punctuation">;</span> <span class="token-variable">j</span><span class="token-operator">++</span><span class="token-punctuation">)</span> <span class="token-punctuation">{</span></span></div>
+                                <div class="code-line" data-line="14"><span class="code-line-number">14</span><span class="code-line-content">    <span class="token-keyword">if</span> <span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">j</span><span class="token-punctuation">]</span> <span class="token-operator">&lt;=</span> <span class="token-variable">pivot</span><span class="token-punctuation">)</span> <span class="token-punctuation">{</span></span></div>
+                                <div class="code-line" data-line="15"><span class="code-line-number">15</span><span class="code-line-content">      <span class="token-variable">i</span><span class="token-operator">++</span><span class="token-punctuation">;</span></span></div>
+                                <div class="code-line" data-line="16"><span class="code-line-number">16</span><span class="code-line-content">      <span class="token-punctuation">[</span><span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">i</span><span class="token-punctuation">]</span><span class="token-punctuation">,</span> <span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">j</span><span class="token-punctuation">]]</span> <span class="token-operator">=</span> <span class="token-punctuation">[</span><span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">j</span><span class="token-punctuation">]</span><span class="token-punctuation">,</span> <span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">i</span><span class="token-punctuation">]];</span></span></div>
+                                <div class="code-line" data-line="17"><span class="code-line-number">17</span><span class="code-line-content">    <span class="token-punctuation">}</span></span></div>
+                                <div class="code-line" data-line="18"><span class="code-line-number">18</span><span class="code-line-content">  <span class="token-punctuation">}</span></span></div>
+                                <div class="code-line" data-line="19"><span class="code-line-number">19</span><span class="code-line-content"></span></div>
+                                <div class="code-line" data-line="20"><span class="code-line-number">20</span><span class="code-line-content">  <span class="token-punctuation">[</span><span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">i</span> <span class="token-operator">+</span> <span class="token-number">1</span><span class="token-punctuation">]</span><span class="token-punctuation">,</span> <span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">hi</span><span class="token-punctuation">]]</span> <span class="token-operator">=</span> <span class="token-punctuation">[</span><span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">hi</span><span class="token-punctuation">]</span><span class="token-punctuation">,</span> <span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">i</span> <span class="token-operator">+</span> <span class="token-number">1</span><span class="token-punctuation">]];</span></span></div>
+                                <div class="code-line" data-line="21"><span class="code-line-number">21</span><span class="code-line-content">  <span class="token-keyword">return</span> <span class="token-variable">i</span> <span class="token-operator">+</span> <span class="token-number">1</span><span class="token-punctuation">;</span></span></div>
+                                <div class="code-line" data-line="22"><span class="code-line-number">22</span><span class="code-line-content"><span class="token-punctuation">}</span></span></div>
+                                <div class="code-line" data-line="23"><span class="code-line-number">23</span><span class="code-line-content"></span></div>
+                                <div class="code-line" data-line="24"><span class="code-line-number">24</span><span class="code-line-content"><span class="token-comment">// 优化1: 随机化基准选择</span></span></div>
+                                <div class="code-line" data-line="25"><span class="code-line-number">25</span><span class="code-line-content"><span class="token-keyword">function</span> <span class="token-function">randomPartition</span><span class="token-punctuation">(</span><span class="token-param">arr</span><span class="token-operator">:</span> <span class="token-type">number</span><span class="token-punctuation">[]</span><span class="token-punctuation">,</span> <span class="token-param">lo</span><span class="token-operator">:</span> <span class="token-type">number</span><span class="token-punctuation">,</span> <span class="token-param">hi</span><span class="token-operator">:</span> <span class="token-type">number</span><span class="token-punctuation">)</span> <span class="token-punctuation">{</span></span></div>
+                                <div class="code-line" data-line="26"><span class="code-line-number">26</span><span class="code-line-content">  <span class="token-keyword">const</span> <span class="token-variable">rand</span> <span class="token-operator">=</span> <span class="token-variable">lo</span> <span class="token-operator">+</span> Math.<span class="token-function">floor</span><span class="token-punctuation">(</span>Math.<span class="token-function">random</span><span class="token-punctuation">()</span> <span class="token-operator">*</span> <span class="token-punctuation">(</span><span class="token-variable">hi</span> <span class="token-operator">-</span> <span class="token-variable">lo</span> <span class="token-operator">+</span> <span class="token-number">1</span><span class="token-punctuation">));</span></span></div>
+                                <div class="code-line" data-line="27"><span class="code-line-number">27</span><span class="code-line-content">  <span class="token-punctuation">[</span><span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">rand</span><span class="token-punctuation">]</span><span class="token-punctuation">,</span> <span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">hi</span><span class="token-punctuation">]]</span> <span class="token-operator">=</span> <span class="token-punctuation">[</span><span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">hi</span><span class="token-punctuation">]</span><span class="token-punctuation">,</span> <span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">rand</span><span class="token-punctuation">]];</span></span></div>
+                                <div class="code-line" data-line="28"><span class="code-line-number">28</span><span class="code-line-content">  <span class="token-keyword">return</span> <span class="token-function">partition</span><span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">,</span> <span class="token-variable">lo</span><span class="token-punctuation">,</span> <span class="token-variable">hi</span><span class="token-punctuation">);</span></span></div>
+                                <div class="code-line" data-line="29"><span class="code-line-number">29</span><span class="code-line-content"><span class="token-punctuation">}</span></span></div>
+                                <div class="code-line" data-line="30"><span class="code-line-number">30</span><span class="code-line-content"></span></div>
+                                <div class="code-line" data-line="31"><span class="code-line-number">31</span><span class="code-line-content"><span class="token-comment">// 优化2: 三路分区 (Dutch National Flag)</span></span></div>
+                                <div class="code-line" data-line="32"><span class="code-line-number">32</span><span class="code-line-content"><span class="token-keyword">function</span> <span class="token-function">threeWaySort</span><span class="token-punctuation">(</span><span class="token-param">arr</span><span class="token-operator">:</span> <span class="token-type">number</span><span class="token-punctuation">[]</span><span class="token-punctuation">,</span> <span class="token-param">lo</span><span class="token-operator">:</span> <span class="token-type">number</span><span class="token-punctuation">,</span> <span class="token-param">hi</span><span class="token-operator">:</span> <span class="token-type">number</span><span class="token-punctuation">)</span> <span class="token-punctuation">{</span></span></div>
+                                <div class="code-line" data-line="33"><span class="code-line-number">33</span><span class="code-line-content">  <span class="token-keyword">if</span> <span class="token-punctuation">(</span><span class="token-variable">lo</span> <span class="token-operator">>=</span> <span class="token-variable">hi</span><span class="token-punctuation">)</span> <span class="token-keyword">return</span><span class="token-punctuation">;</span></span></div>
+                                <div class="code-line" data-line="34"><span class="code-line-number">34</span><span class="code-line-content">  <span class="token-keyword">let</span> <span class="token-variable">lt</span> <span class="token-operator">=</span> <span class="token-variable">lo</span><span class="token-punctuation">,</span> <span class="token-variable">gt</span> <span class="token-operator">=</span> <span class="token-variable">hi</span><span class="token-punctuation">,</span> <span class="token-variable">i</span> <span class="token-operator">=</span> <span class="token-variable">lo</span><span class="token-punctuation">;</span></span></div>
+                                <div class="code-line" data-line="35"><span class="code-line-number">35</span><span class="code-line-content">  <span class="token-keyword">const</span> <span class="token-variable">pivot</span> <span class="token-operator">=</span> <span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">lo</span><span class="token-punctuation">];</span></span></div>
+                                <div class="code-line" data-line="36"><span class="code-line-number">36</span><span class="code-line-content"></span></div>
+                                <div class="code-line" data-line="37"><span class="code-line-number">37</span><span class="code-line-content">  <span class="token-keyword">while</span> <span class="token-punctuation">(</span><span class="token-variable">i</span> <span class="token-operator">&lt;=</span> <span class="token-variable">gt</span><span class="token-punctuation">)</span> <span class="token-punctuation">{</span></span></div>
+                                <div class="code-line" data-line="38"><span class="code-line-number">38</span><span class="code-line-content">    <span class="token-keyword">if</span> <span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">i</span><span class="token-punctuation">]</span> <span class="token-operator">&lt;</span> <span class="token-variable">pivot</span><span class="token-punctuation">)</span> <span class="token-punctuation">{</span></span></div>
+                                <div class="code-line" data-line="39"><span class="code-line-number">39</span><span class="code-line-content">      <span class="token-punctuation">[</span><span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">lt</span><span class="token-punctuation">]</span><span class="token-punctuation">,</span> <span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">i</span><span class="token-punctuation">]]</span> <span class="token-operator">=</span> <span class="token-punctuation">[</span><span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">i</span><span class="token-punctuation">]</span><span class="token-punctuation">,</span> <span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">lt</span><span class="token-punctuation">]];</span></span></div>
+                                <div class="code-line" data-line="40"><span class="code-line-number">40</span><span class="code-line-content">      <span class="token-variable">lt</span><span class="token-operator">++</span><span class="token-punctuation">;</span> <span class="token-variable">i</span><span class="token-operator">++</span><span class="token-punctuation">;</span></span></div>
+                                <div class="code-line" data-line="41"><span class="code-line-number">41</span><span class="code-line-content">    <span class="token-punctuation">}</span> <span class="token-keyword">else if</span> <span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">i</span><span class="token-punctuation">]</span> <span class="token-operator">></span> <span class="token-variable">pivot</span><span class="token-punctuation">)</span> <span class="token-punctuation">{</span></span></div>
+                                <div class="code-line" data-line="42"><span class="code-line-number">42</span><span class="code-line-content">      <span class="token-punctuation">[</span><span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">i</span><span class="token-punctuation">]</span><span class="token-punctuation">,</span> <span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">gt</span><span class="token-punctuation">]]</span> <span class="token-operator">=</span> <span class="token-punctuation">[</span><span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">gt</span><span class="token-punctuation">]</span><span class="token-punctuation">,</span> <span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">i</span><span class="token-punctuation">]];</span></span></div>
+                                <div class="code-line" data-line="43"><span class="code-line-number">43</span><span class="code-line-content">      <span class="token-variable">gt</span><span class="token-operator">--</span><span class="token-punctuation">;</span></span></div>
+                                <div class="code-line" data-line="44"><span class="code-line-number">44</span><span class="code-line-content">    <span class="token-punctuation">}</span> <span class="token-keyword">else</span> <span class="token-punctuation">{</span></span></div>
+                                <div class="code-line" data-line="45"><span class="code-line-number">45</span><span class="code-line-content">      <span class="token-variable">i</span><span class="token-operator">++</span><span class="token-punctuation">;</span></span></div>
+                                <div class="code-line" data-line="46"><span class="code-line-number">46</span><span class="code-line-content">    <span class="token-punctuation">}</span></span></div>
+                                <div class="code-line" data-line="47"><span class="code-line-number">47</span><span class="code-line-content">  <span class="token-punctuation">}</span></span></div>
+                                <div class="code-line" data-line="48"><span class="code-line-number">48</span><span class="code-line-content"></span></div>
+                                <div class="code-line" data-line="49"><span class="code-line-number">49</span><span class="code-line-content">  <span class="token-function">threeWaySort</span><span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">,</span> <span class="token-variable">lo</span><span class="token-punctuation">,</span> <span class="token-variable">lt</span> <span class="token-operator">-</span> <span class="token-number">1</span><span class="token-punctuation">);</span></span></div>
+                                <div class="code-line" data-line="50"><span class="code-line-number">50</span><span class="code-line-content">  <span class="token-function">threeWaySort</span><span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">,</span> <span class="token-variable">gt</span> <span class="token-operator">+</span> <span class="token-number">1</span><span class="token-punctuation">,</span> <span class="token-variable">hi</span><span class="token-punctuation">);</span></span></div>
+                                <div class="code-line" data-line="51"><span class="code-line-number">51</span><span class="code-line-content"><span class="token-punctuation">}</span></span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="codehike-annotations">
+                        <div class="annotation-step active" data-step="1" data-lines="1-7">
+                            <span class="step-badge">Step 01</span>
+                            <h3>递归框架</h3>
+                            <p>快速排序的主函数采用经典的分治递归结构。接收数组及左右边界 <code>lo</code> 和 <code>hi</code>，通过 <code>partition</code> 函数将数组一分为二，然后对两个子数组递归排序。</p>
+                            <p>递归终止条件为 <code>lo >= hi</code>，即子数组长度为 0 或 1 时自然有序。</p>
+                        </div>
+
+                        <div class="annotation-step" data-step="2" data-lines="9-12">
+                            <span class="step-badge">Step 02</span>
+                            <h3>Lomuto 分区：初始化</h3>
+                            <p>Lomuto 分区方案选择数组<strong>最后一个元素</strong>作为基准值（pivot）。变量 <code>i</code> 维护"小于等于 pivot 区域"的右边界。</p>
+                            <p>这种方案实现简单直观，但在已排序数组上会退化为 O(n&sup2;)。</p>
+                        </div>
+
+                        <div class="annotation-step" data-step="3" data-lines="13-18">
+                            <span class="step-badge">Step 03</span>
+                            <h3>Lomuto 分区：扫描与交换</h3>
+                            <p>指针 <code>j</code> 从左向右扫描。遇到小于等于 pivot 的元素时，将 <code>i</code> 右移并与 <code>j</code> 位置交换。这确保了 <code>[lo..i]</code> 区间内所有元素都不大于 pivot。</p>
+                            <p>循环不变量：<code>arr[lo..i] &lt;= pivot</code>，<code>arr[i+1..j-1] > pivot</code>。</p>
+                        </div>
+
+                        <div class="annotation-step" data-step="4" data-lines="20-22">
+                            <span class="step-badge">Step 04</span>
+                            <h3>Lomuto 分区：放置基准</h3>
+                            <p>扫描完成后，将 pivot 从末尾交换到 <code>i+1</code> 位置。此时 pivot 左侧所有元素 &lt;= pivot，右侧所有元素 > pivot。分区完成，返回 pivot 的最终索引。</p>
+                        </div>
+
+                        <div class="annotation-step" data-step="5" data-lines="24-29">
+                            <span class="step-badge">Step 05</span>
+                            <h3>优化：随机化 Pivot</h3>
+                            <p>基础版本在有序输入上性能极差。通过随机选取 pivot 并与末尾交换，可以将最坏情况的概率降至极低。期望时间复杂度始终为 <code>O(n log n)</code>。</p>
+                            <p>这是工程实现中最常用的优化手段之一。</p>
+                        </div>
+
+                        <div class="annotation-step" data-step="6" data-lines="31-51">
+                            <span class="step-badge">Step 06</span>
+                            <h3>优化：三路分区</h3>
+                            <p>当数组中存在大量重复元素时，二路分区会产生不平衡的划分。三路分区（荷兰国旗问题）将数组分为三段：<code>&lt; pivot</code>、<code>== pivot</code>、<code>> pivot</code>。</p>
+                            <p>三个指针 <code>lt</code>、<code>i</code>、<code>gt</code> 协同工作，只对 <code>&lt; pivot</code> 和 <code>> pivot</code> 的部分递归，等于 pivot 的部分已在正确位置。这在含大量重复元素的数组上性能显著提升。</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══ Architecture Section ═══ -->
+            <section class="report-section">
+                <div class="reveal">
+                    <div class="section-label">架构设计</div>
+                    <h2 class="section-title">排序库模块结构</h2>
+                </div>
+
+                <div class="arch-grid reveal">
+                    <div class="arch-card">
+                        <div class="arch-card-header">
+                            <div class="arch-card-icon blue">IF</div>
+                            <span class="arch-card-title">types/index.ts - 类型定义</span>
+                        </div>
+                        <div class="arch-card-body">
+                            <div class="code-line"><span class="code-line-content"><span class="token-keyword">export interface</span> <span class="token-type">SortOptions</span><span class="token-operator">&lt;</span><span class="token-type">T</span><span class="token-operator">&gt;</span> <span class="token-punctuation">{</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-property">compareFn</span><span class="token-operator">?:</span> <span class="token-type">CompareFn</span><span class="token-operator">&lt;</span><span class="token-type">T</span><span class="token-operator">&gt;</span><span class="token-punctuation">;</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-property">threshold</span><span class="token-operator">?:</span> <span class="token-type">number</span><span class="token-punctuation">;</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-property">strategy</span><span class="token-operator">?:</span> <span class="token-type">PivotStrategy</span><span class="token-punctuation">;</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-punctuation">}</span></span></div>
+                        </div>
+                    </div>
+
+                    <div class="arch-card">
+                        <div class="arch-card-header">
+                            <div class="arch-card-icon green">FN</div>
+                            <span class="arch-card-title">core/partition.ts - 分区策略</span>
+                        </div>
+                        <div class="arch-card-body">
+                            <div class="code-line"><span class="code-line-content"><span class="token-keyword">export const</span> <span class="token-variable">strategies</span> <span class="token-operator">=</span> <span class="token-punctuation">{</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-property">lomuto</span><span class="token-punctuation">:</span>    <span class="token-function">lomutoPartition</span><span class="token-punctuation">,</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-property">hoare</span><span class="token-punctuation">:</span>     <span class="token-function">hoarePartition</span><span class="token-punctuation">,</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-property">threeWay</span><span class="token-punctuation">:</span>  <span class="token-function">threeWayPartition</span><span class="token-punctuation">,</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-property">median3</span><span class="token-punctuation">:</span>   <span class="token-function">medianOfThree</span><span class="token-punctuation">,</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-punctuation">};</span></span></div>
+                        </div>
+                    </div>
+
+                    <div class="arch-card">
+                        <div class="arch-card-header">
+                            <div class="arch-card-icon magenta">CL</div>
+                            <span class="arch-card-title">core/sorter.ts - 排序引擎</span>
+                        </div>
+                        <div class="arch-card-body">
+                            <div class="code-line"><span class="code-line-content"><span class="token-keyword">export class</span> <span class="token-type">QuickSorter</span><span class="token-operator">&lt;</span><span class="token-type">T</span><span class="token-operator">&gt;</span> <span class="token-punctuation">{</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-keyword">private</span> <span class="token-property">opts</span><span class="token-operator">:</span> <span class="token-type">Required</span><span class="token-operator">&lt;</span><span class="token-type">SortOptions</span><span class="token-operator">&lt;</span><span class="token-type">T</span><span class="token-operator">&gt;&gt;</span><span class="token-punctuation">;</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-function">sort</span><span class="token-punctuation">(</span><span class="token-param">arr</span><span class="token-operator">:</span> <span class="token-type">T</span><span class="token-punctuation">[]</span><span class="token-punctuation">)</span><span class="token-operator">:</span> <span class="token-type">T</span><span class="token-punctuation">[]</span> <span class="token-punctuation">{</span> <span class="token-comment">/* ... */</span> <span class="token-punctuation">}</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-function">benchmark</span><span class="token-punctuation">(</span><span class="token-param">n</span><span class="token-operator">:</span> <span class="token-type">number</span><span class="token-punctuation">)</span><span class="token-operator">:</span> <span class="token-type">Metrics</span> <span class="token-punctuation">{</span> <span class="token-comment">/* ... */</span> <span class="token-punctuation">}</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-punctuation">}</span></span></div>
+                        </div>
+                    </div>
+
+                    <div class="arch-card">
+                        <div class="arch-card-header">
+                            <div class="arch-card-icon orange">UT</div>
+                            <span class="arch-card-title">utils/helpers.ts - 工具函数</span>
+                        </div>
+                        <div class="arch-card-body">
+                            <div class="code-line"><span class="code-line-content"><span class="token-keyword">export function</span> <span class="token-function">swap</span><span class="token-operator">&lt;</span><span class="token-type">T</span><span class="token-operator">&gt;</span><span class="token-punctuation">(</span><span class="token-param">a</span><span class="token-punctuation">,</span> <span class="token-param">i</span><span class="token-punctuation">,</span> <span class="token-param">j</span><span class="token-punctuation">)</span><span class="token-operator">:</span> <span class="token-type">void</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-keyword">export function</span> <span class="token-function">isSorted</span><span class="token-operator">&lt;</span><span class="token-type">T</span><span class="token-operator">&gt;</span><span class="token-punctuation">(</span><span class="token-param">a</span><span class="token-punctuation">)</span><span class="token-operator">:</span> <span class="token-type">boolean</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-keyword">export function</span> <span class="token-function">shuffle</span><span class="token-operator">&lt;</span><span class="token-type">T</span><span class="token-operator">&gt;</span><span class="token-punctuation">(</span><span class="token-param">a</span><span class="token-punctuation">)</span><span class="token-operator">:</span> <span class="token-type">T</span><span class="token-punctuation">[]</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-keyword">export function</span> <span class="token-function">generateArray</span><span class="token-punctuation">(</span><span class="token-param">n</span><span class="token-punctuation">)</span><span class="token-operator">:</span> <span class="token-type">number</span><span class="token-punctuation">[]</span></span></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══ API Reference Section ═══ -->
+            <section class="report-section">
+                <div class="reveal">
+                    <div class="section-label">接口文档</div>
+                    <h2 class="section-title">公开 API 参考</h2>
+                </div>
+
+                <div class="reveal">
+                    <div class="api-block">
+                        <div class="api-block-header">
+                            <span class="api-method fn">fn</span>
+                            <span class="api-path">quickSort&lt;T&gt;(arr: T[], options?: SortOptions&lt;T&gt;): T[]</span>
+                        </div>
+                        <div class="api-block-body">
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">/**</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment"> * 对数组进行快速排序（原地修改并返回引用）</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment"> * @param arr - 待排序数组</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment"> * @param options - 可选配置项</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment"> * @returns 排序后的数组引用</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment"> */</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-keyword">export function</span> <span class="token-function">quickSort</span><span class="token-operator">&lt;</span><span class="token-type">T</span><span class="token-operator">&gt;</span><span class="token-punctuation">(</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-param">arr</span><span class="token-operator">:</span> <span class="token-type">T</span><span class="token-punctuation">[]</span><span class="token-punctuation">,</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-param">options</span><span class="token-operator">?:</span> <span class="token-type">SortOptions</span><span class="token-operator">&lt;</span><span class="token-type">T</span><span class="token-operator">&gt;</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-punctuation">)</span><span class="token-operator">:</span> <span class="token-type">T</span><span class="token-punctuation">[]</span></span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="api-pair reveal">
+                    <div>
+                        <div class="api-pair-label">// Request: 调用示例</div>
+                        <div class="api-block" style="margin-bottom: 0;">
+                            <div class="api-block-body">
+                                <div class="code-line"><span class="code-line-content"><span class="token-keyword">import</span> <span class="token-punctuation">{</span> <span class="token-variable">quickSort</span> <span class="token-punctuation">}</span> <span class="token-keyword">from</span> <span class="token-string">'@algo/sort'</span><span class="token-punctuation">;</span></span></div>
+                                <div class="code-line"><span class="code-line-content"></span></div>
+                                <div class="code-line"><span class="code-line-content"><span class="token-keyword">const</span> <span class="token-variable">data</span> <span class="token-operator">=</span> <span class="token-punctuation">[</span><span class="token-number">38</span><span class="token-punctuation">,</span> <span class="token-number">27</span><span class="token-punctuation">,</span> <span class="token-number">43</span><span class="token-punctuation">,</span> <span class="token-number">3</span><span class="token-punctuation">,</span> <span class="token-number">9</span><span class="token-punctuation">,</span> <span class="token-number">82</span><span class="token-punctuation">,</span> <span class="token-number">10</span><span class="token-punctuation">];</span></span></div>
+                                <div class="code-line"><span class="code-line-content"></span></div>
+                                <div class="code-line"><span class="code-line-content"><span class="token-keyword">const</span> <span class="token-variable">sorted</span> <span class="token-operator">=</span> <span class="token-function">quickSort</span><span class="token-punctuation">(</span><span class="token-variable">data</span><span class="token-punctuation">,</span> <span class="token-punctuation">{</span></span></div>
+                                <div class="code-line"><span class="code-line-content">  <span class="token-property">strategy</span><span class="token-punctuation">:</span> <span class="token-string">'threeWay'</span><span class="token-punctuation">,</span></span></div>
+                                <div class="code-line"><span class="code-line-content">  <span class="token-property">threshold</span><span class="token-punctuation">:</span> <span class="token-number">16</span><span class="token-punctuation">,</span></span></div>
+                                <div class="code-line"><span class="code-line-content"><span class="token-punctuation">}</span><span class="token-punctuation">)</span><span class="token-punctuation">;</span></span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="api-pair-label">// Response: 返回结果</div>
+                        <div class="api-block" style="margin-bottom: 0;">
+                            <div class="api-block-body">
+                                <div class="code-line"><span class="code-line-content"><span class="token-comment">// sorted === data (原地排序)</span></span></div>
+                                <div class="code-line"><span class="code-line-content"><span class="token-variable">console</span><span class="token-punctuation">.</span><span class="token-function">log</span><span class="token-punctuation">(</span><span class="token-variable">sorted</span><span class="token-punctuation">);</span></span></div>
+                                <div class="code-line"><span class="code-line-content"><span class="token-comment">// [3, 9, 10, 27, 38, 43, 82]</span></span></div>
+                                <div class="code-line"><span class="code-line-content"></span></div>
+                                <div class="code-line"><span class="code-line-content"><span class="token-variable">console</span><span class="token-punctuation">.</span><span class="token-function">log</span><span class="token-punctuation">(</span><span class="token-variable">sorted</span> <span class="token-operator">===</span> <span class="token-variable">data</span><span class="token-punctuation">);</span></span></div>
+                                <div class="code-line"><span class="code-line-content"><span class="token-comment">// true</span></span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="reveal">
+                    <div class="api-block">
+                        <div class="api-block-header">
+                            <span class="api-method fn">fn</span>
+                            <span class="api-path">benchmark(algorithm: string, sizes: number[]): BenchmarkResult[]</span>
+                        </div>
+                        <div class="api-block-body">
+                            <div class="code-line"><span class="code-line-content"><span class="token-keyword">interface</span> <span class="token-type">BenchmarkResult</span> <span class="token-punctuation">{</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-property">algorithm</span><span class="token-operator">:</span> <span class="token-type">string</span><span class="token-punctuation">;</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-property">size</span><span class="token-operator">:</span> <span class="token-type">number</span><span class="token-punctuation">;</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-property">timeMs</span><span class="token-operator">:</span> <span class="token-type">number</span><span class="token-punctuation">;</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-property">comparisons</span><span class="token-operator">:</span> <span class="token-type">number</span><span class="token-punctuation">;</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-property">swaps</span><span class="token-operator">:</span> <span class="token-type">number</span><span class="token-punctuation">;</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-punctuation">}</span></span></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══ Complexity Analysis Section ═══ -->
+            <section class="report-section">
+                <div class="reveal">
+                    <div class="section-label">复杂度分析</div>
+                    <h2 class="section-title">时间与空间复杂度全景</h2>
+                </div>
+
+                <div class="overview-description reveal">
+                    <p>理解快速排序的复杂度特征是正确使用它的前提。与归并排序不同，快速排序的性能<strong>高度依赖</strong>基准值（pivot）的选取质量。一个好的 pivot 能将数组均匀分割，而最差的 pivot 则让递归树退化为线性链表。</p>
+                </div>
+
+                <div class="reveal delay-1">
+                    <table class="complexity-table">
+                        <thead>
+                            <tr>
+                                <th>场景</th>
+                                <th>时间复杂度</th>
+                                <th>递归深度</th>
+                                <th>触发条件</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>最佳情况</td>
+                                <td class="complexity-good">O(n log n)</td>
+                                <td class="complexity-good">O(log n)</td>
+                                <td>每次 pivot 恰好是中位数，数组均匀二分</td>
+                            </tr>
+                            <tr>
+                                <td>平均情况</td>
+                                <td class="complexity-avg">O(n log n)</td>
+                                <td class="complexity-avg">O(log n)</td>
+                                <td>随机输入，pivot 随机选取</td>
+                            </tr>
+                            <tr>
+                                <td>最坏情况</td>
+                                <td class="complexity-bad">O(n&sup2;)</td>
+                                <td class="complexity-bad">O(n)</td>
+                                <td>输入已排序 + 选择首/末元素作为 pivot</td>
+                            </tr>
+                            <tr>
+                                <td>空间复杂度</td>
+                                <td class="complexity-avg">O(log n)</td>
+                                <td>-</td>
+                                <td>递归栈空间（尾递归优化后）</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="reveal delay-2">
+                    <div class="bar-chart-container">
+                        <div class="bar-chart-title">比较次数对比（n = 10,000 个元素）</div>
+                        <div class="bar-chart-row">
+                            <span class="bar-chart-label">Best</span>
+                            <div class="bar-chart-track">
+                                <div class="bar-chart-fill best" style="width: 25%;">
+                                    <span class="bar-chart-value">~133,000</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bar-chart-row">
+                            <span class="bar-chart-label">Average</span>
+                            <div class="bar-chart-track">
+                                <div class="bar-chart-fill average" style="width: 45%;">
+                                    <span class="bar-chart-value">~230,000</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bar-chart-row">
+                            <span class="bar-chart-label">Worst</span>
+                            <div class="bar-chart-track">
+                                <div class="bar-chart-fill worst" style="width: 95%;">
+                                    <span class="bar-chart-value">~50,000,000</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bar-chart-row">
+                            <span class="bar-chart-label">n=100K</span>
+                            <div class="bar-chart-track">
+                                <div class="bar-chart-fill average" style="width: 60%;">
+                                    <span class="bar-chart-value">~2,660,000 (avg)</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bar-chart-row">
+                            <span class="bar-chart-label">n=1M</span>
+                            <div class="bar-chart-track">
+                                <div class="bar-chart-fill average" style="width: 80%;">
+                                    <span class="bar-chart-value">~33,200,000 (avg)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="scenario-cards reveal delay-3">
+                    <div class="scenario-card">
+                        <div class="scenario-card-header">
+                            <span class="scenario-card-badge best">BEST CASE</span>
+                            <span class="scenario-card-title">均匀分割 - O(n log n)</span>
+                        </div>
+                        <div class="scenario-card-body">
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// 理想情况：pivot 总是中位数</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// 递归树深度 = log2(n)</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-keyword">const</span> <span class="token-variable">ideal</span> <span class="token-operator">=</span> <span class="token-punctuation">[</span><span class="token-number">4</span><span class="token-punctuation">,</span> <span class="token-number">2</span><span class="token-punctuation">,</span> <span class="token-number">6</span><span class="token-punctuation">,</span> <span class="token-number">1</span><span class="token-punctuation">,</span> <span class="token-number">3</span><span class="token-punctuation">,</span> <span class="token-number">5</span><span class="token-punctuation">,</span> <span class="token-number">7</span><span class="token-punctuation">];</span></span></div>
+                            <div class="code-line"><span class="code-line-content"></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// Level 0: pivot=4 -> [2,1,3] [5,6,7]</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// Level 1: pivot=2 -> [1] [3]</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">//           pivot=6 -> [5] [7]</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// Total: 3 levels = log2(7)</span></span></div>
+                        </div>
+                    </div>
+                    <div class="scenario-card">
+                        <div class="scenario-card-header">
+                            <span class="scenario-card-badge worst">WORST CASE</span>
+                            <span class="scenario-card-title">极端不平衡 - O(n&sup2;)</span>
+                        </div>
+                        <div class="scenario-card-body">
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// 最坏情况：已排序输入 + 末尾pivot</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// 递归树深度 = n - 1</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-keyword">const</span> <span class="token-variable">worst</span> <span class="token-operator">=</span> <span class="token-punctuation">[</span><span class="token-number">1</span><span class="token-punctuation">,</span> <span class="token-number">2</span><span class="token-punctuation">,</span> <span class="token-number">3</span><span class="token-punctuation">,</span> <span class="token-number">4</span><span class="token-punctuation">,</span> <span class="token-number">5</span><span class="token-punctuation">,</span> <span class="token-number">6</span><span class="token-punctuation">,</span> <span class="token-number">7</span><span class="token-punctuation">];</span></span></div>
+                            <div class="code-line"><span class="code-line-content"></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// Level 0: pivot=7 -> [1,2,3,4,5,6] []</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// Level 1: pivot=6 -> [1,2,3,4,5] []</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// Level 2: pivot=5 -> [1,2,3,4] []</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// ... Total: 6 levels = n - 1</span></span></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══ Optimization Strategies Section ═══ -->
+            <section class="report-section">
+                <div class="reveal">
+                    <div class="section-label">优化策略</div>
+                    <h2 class="section-title">工程级优化技巧</h2>
+                </div>
+
+                <div class="overview-description reveal">
+                    <p>在实际工程中，朴素的快速排序无法满足生产环境的性能要求。现代排序库通常会组合多种优化策略，将快速排序的<strong>常数因子</strong>降到最低，同时规避最坏情况。以下是四种关键优化手段。</p>
+                </div>
+
+                <div class="optimization-grid reveal delay-1">
+                    <div class="optimization-card">
+                        <div class="optimization-card-header">
+                            <div class="optimization-card-number">Strategy 01</div>
+                            <div class="optimization-card-title">小数组插入排序</div>
+                        </div>
+                        <div class="optimization-card-desc">
+                            当子数组长度小于阈值（通常 8-16）时，切换为插入排序。插入排序在小规模数据上因低开销和缓存友好性表现优于递归式快排。
+                        </div>
+                        <div class="optimization-card-code">
+                            <div class="code-line"><span class="code-line-content"><span class="token-keyword">const</span> <span class="token-variable">THRESHOLD</span> <span class="token-operator">=</span> <span class="token-number">16</span><span class="token-punctuation">;</span></span></div>
+                            <div class="code-line"><span class="code-line-content"></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-keyword">function</span> <span class="token-function">hybridSort</span><span class="token-punctuation">(</span><span class="token-param">arr</span><span class="token-punctuation">,</span> <span class="token-param">lo</span><span class="token-punctuation">,</span> <span class="token-param">hi</span><span class="token-punctuation">)</span> <span class="token-punctuation">{</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-keyword">if</span> <span class="token-punctuation">(</span><span class="token-variable">hi</span> <span class="token-operator">-</span> <span class="token-variable">lo</span> <span class="token-operator">&lt;</span> <span class="token-variable">THRESHOLD</span><span class="token-punctuation">)</span> <span class="token-punctuation">{</span></span></div>
+                            <div class="code-line"><span class="code-line-content">    <span class="token-function">insertionSort</span><span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">,</span> <span class="token-variable">lo</span><span class="token-punctuation">,</span> <span class="token-variable">hi</span><span class="token-punctuation">);</span></span></div>
+                            <div class="code-line"><span class="code-line-content">    <span class="token-keyword">return</span><span class="token-punctuation">;</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-punctuation">}</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-comment">// ... quicksort logic</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-punctuation">}</span></span></div>
+                        </div>
+                    </div>
+
+                    <div class="optimization-card">
+                        <div class="optimization-card-header">
+                            <div class="optimization-card-number">Strategy 02</div>
+                            <div class="optimization-card-title">三数取中法</div>
+                        </div>
+                        <div class="optimization-card-desc">
+                            从子数组的首、中、末三个元素中选取中位数作为 pivot。这能有效避免已排序输入的退化，且开销极小（仅 3 次比较）。
+                        </div>
+                        <div class="optimization-card-code">
+                            <div class="code-line"><span class="code-line-content"><span class="token-keyword">function</span> <span class="token-function">medianOfThree</span><span class="token-punctuation">(</span><span class="token-param">arr</span><span class="token-punctuation">,</span> <span class="token-param">lo</span><span class="token-punctuation">,</span> <span class="token-param">hi</span><span class="token-punctuation">)</span> <span class="token-punctuation">{</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-keyword">const</span> <span class="token-variable">mid</span> <span class="token-operator">=</span> <span class="token-punctuation">(</span><span class="token-variable">lo</span> <span class="token-operator">+</span> <span class="token-variable">hi</span><span class="token-punctuation">)</span> <span class="token-operator">&gt;&gt;&gt;</span> <span class="token-number">1</span><span class="token-punctuation">;</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-keyword">if</span> <span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">mid</span><span class="token-punctuation">]</span> <span class="token-operator">&lt;</span> <span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">lo</span><span class="token-punctuation">])</span></span></div>
+                            <div class="code-line"><span class="code-line-content">    <span class="token-function">swap</span><span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">,</span> <span class="token-variable">lo</span><span class="token-punctuation">,</span> <span class="token-variable">mid</span><span class="token-punctuation">);</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-keyword">if</span> <span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">hi</span><span class="token-punctuation">]</span> <span class="token-operator">&lt;</span> <span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">lo</span><span class="token-punctuation">])</span></span></div>
+                            <div class="code-line"><span class="code-line-content">    <span class="token-function">swap</span><span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">,</span> <span class="token-variable">lo</span><span class="token-punctuation">,</span> <span class="token-variable">hi</span><span class="token-punctuation">);</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-keyword">if</span> <span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">mid</span><span class="token-punctuation">]</span> <span class="token-operator">&lt;</span> <span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">hi</span><span class="token-punctuation">])</span></span></div>
+                            <div class="code-line"><span class="code-line-content">    <span class="token-function">swap</span><span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">,</span> <span class="token-variable">mid</span><span class="token-punctuation">,</span> <span class="token-variable">hi</span><span class="token-punctuation">);</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-keyword">return</span> <span class="token-variable">arr</span><span class="token-punctuation">[</span><span class="token-variable">hi</span><span class="token-punctuation">];</span> <span class="token-comment">// median as pivot</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-punctuation">}</span></span></div>
+                        </div>
+                    </div>
+
+                    <div class="optimization-card">
+                        <div class="optimization-card-header">
+                            <div class="optimization-card-number">Strategy 03</div>
+                            <div class="optimization-card-title">尾递归消除</div>
+                        </div>
+                        <div class="optimization-card-desc">
+                            通过将较大的子数组用循环处理（仅递归较小的那一半），将最坏情况的栈深度从 O(n) 降至 O(log n)，防止栈溢出。
+                        </div>
+                        <div class="optimization-card-code">
+                            <div class="code-line"><span class="code-line-content"><span class="token-keyword">function</span> <span class="token-function">quickSortTailOpt</span><span class="token-punctuation">(</span><span class="token-param">arr</span><span class="token-punctuation">,</span> <span class="token-param">lo</span><span class="token-punctuation">,</span> <span class="token-param">hi</span><span class="token-punctuation">)</span> <span class="token-punctuation">{</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-keyword">while</span> <span class="token-punctuation">(</span><span class="token-variable">lo</span> <span class="token-operator">&lt;</span> <span class="token-variable">hi</span><span class="token-punctuation">)</span> <span class="token-punctuation">{</span></span></div>
+                            <div class="code-line"><span class="code-line-content">    <span class="token-keyword">const</span> <span class="token-variable">p</span> <span class="token-operator">=</span> <span class="token-function">partition</span><span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">,</span> <span class="token-variable">lo</span><span class="token-punctuation">,</span> <span class="token-variable">hi</span><span class="token-punctuation">);</span></span></div>
+                            <div class="code-line"><span class="code-line-content">    <span class="token-comment">// 递归较小的分区</span></span></div>
+                            <div class="code-line"><span class="code-line-content">    <span class="token-keyword">if</span> <span class="token-punctuation">(</span><span class="token-variable">p</span> <span class="token-operator">-</span> <span class="token-variable">lo</span> <span class="token-operator">&lt;</span> <span class="token-variable">hi</span> <span class="token-operator">-</span> <span class="token-variable">p</span><span class="token-punctuation">)</span> <span class="token-punctuation">{</span></span></div>
+                            <div class="code-line"><span class="code-line-content">      <span class="token-function">quickSortTailOpt</span><span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">,</span> <span class="token-variable">lo</span><span class="token-punctuation">,</span> <span class="token-variable">p</span> <span class="token-operator">-</span> <span class="token-number">1</span><span class="token-punctuation">);</span></span></div>
+                            <div class="code-line"><span class="code-line-content">      <span class="token-variable">lo</span> <span class="token-operator">=</span> <span class="token-variable">p</span> <span class="token-operator">+</span> <span class="token-number">1</span><span class="token-punctuation">;</span> <span class="token-comment">// 尾递归优化</span></span></div>
+                            <div class="code-line"><span class="code-line-content">    <span class="token-punctuation">}</span> <span class="token-keyword">else</span> <span class="token-punctuation">{</span></span></div>
+                            <div class="code-line"><span class="code-line-content">      <span class="token-function">quickSortTailOpt</span><span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">,</span> <span class="token-variable">p</span> <span class="token-operator">+</span> <span class="token-number">1</span><span class="token-punctuation">,</span> <span class="token-variable">hi</span><span class="token-punctuation">);</span></span></div>
+                            <div class="code-line"><span class="code-line-content">      <span class="token-variable">hi</span> <span class="token-operator">=</span> <span class="token-variable">p</span> <span class="token-operator">-</span> <span class="token-number">1</span><span class="token-punctuation">;</span></span></div>
+                            <div class="code-line"><span class="code-line-content">    <span class="token-punctuation">}</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-punctuation">}</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-punctuation">}</span></span></div>
+                        </div>
+                    </div>
+
+                    <div class="optimization-card">
+                        <div class="optimization-card-header">
+                            <div class="optimization-card-number">Strategy 04</div>
+                            <div class="optimization-card-title">并行快速排序</div>
+                        </div>
+                        <div class="optimization-card-desc">
+                            利用 Web Workers 或多线程将两个子数组的递归排序并行化。当数据量超过百万级时，可获得接近线性的加速比。
+                        </div>
+                        <div class="optimization-card-code">
+                            <div class="code-line"><span class="code-line-content"><span class="token-keyword">async function</span> <span class="token-function">parallelSort</span><span class="token-punctuation">(</span><span class="token-param">arr</span><span class="token-punctuation">,</span> <span class="token-param">lo</span><span class="token-punctuation">,</span> <span class="token-param">hi</span><span class="token-punctuation">,</span> <span class="token-param">depth</span><span class="token-punctuation">)</span> <span class="token-punctuation">{</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-keyword">if</span> <span class="token-punctuation">(</span><span class="token-variable">hi</span> <span class="token-operator">-</span> <span class="token-variable">lo</span> <span class="token-operator">&lt;</span> <span class="token-number">10000</span> <span class="token-operator">||</span> <span class="token-variable">depth</span> <span class="token-operator">&gt;</span> <span class="token-number">3</span><span class="token-punctuation">)</span> <span class="token-punctuation">{</span></span></div>
+                            <div class="code-line"><span class="code-line-content">    <span class="token-function">quickSort</span><span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">,</span> <span class="token-variable">lo</span><span class="token-punctuation">,</span> <span class="token-variable">hi</span><span class="token-punctuation">);</span> <span class="token-keyword">return</span><span class="token-punctuation">;</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-punctuation">}</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-keyword">const</span> <span class="token-variable">p</span> <span class="token-operator">=</span> <span class="token-function">partition</span><span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">,</span> <span class="token-variable">lo</span><span class="token-punctuation">,</span> <span class="token-variable">hi</span><span class="token-punctuation">);</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-keyword">await</span> Promise.<span class="token-function">all</span><span class="token-punctuation">([</span></span></div>
+                            <div class="code-line"><span class="code-line-content">    <span class="token-function">parallelSort</span><span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">,</span> <span class="token-variable">lo</span><span class="token-punctuation">,</span> <span class="token-variable">p</span><span class="token-operator">-</span><span class="token-number">1</span><span class="token-punctuation">,</span> <span class="token-variable">depth</span><span class="token-operator">+</span><span class="token-number">1</span><span class="token-punctuation">),</span></span></div>
+                            <div class="code-line"><span class="code-line-content">    <span class="token-function">parallelSort</span><span class="token-punctuation">(</span><span class="token-variable">arr</span><span class="token-punctuation">,</span> <span class="token-variable">p</span><span class="token-operator">+</span><span class="token-number">1</span><span class="token-punctuation">,</span> <span class="token-variable">hi</span><span class="token-punctuation">,</span> <span class="token-variable">depth</span><span class="token-operator">+</span><span class="token-number">1</span><span class="token-punctuation">),</span></span></div>
+                            <div class="code-line"><span class="code-line-content">  <span class="token-punctuation">]);</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-punctuation">}</span></span></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══ Real-world Usage Section ═══ -->
+            <section class="report-section">
+                <div class="reveal">
+                    <div class="section-label">实际应用</div>
+                    <h2 class="section-title">主流语言的排序实现</h2>
+                </div>
+
+                <div class="overview-description reveal">
+                    <p>现代编程语言的标准库排序函数几乎都不是"纯"快速排序，而是结合了多种算法的<strong>混合排序</strong>。它们吸取了快速排序的高性能特征，同时通过回退机制规避其最坏情况。理解这些实现有助于我们在算法选择和性能调优中做出更明智的决策。</p>
+                </div>
+
+                <div class="realworld-cards reveal delay-1">
+                    <div class="realworld-card">
+                        <div class="realworld-card-info">
+                            <span class="realworld-card-lang js">JavaScript / V8</span>
+                            <div class="realworld-card-name">TimSort</div>
+                            <div class="realworld-card-desc">V8 引擎（Chrome/Node.js）自 2019 年起使用 TimSort 替代了原有的快速排序实现。TimSort 是一种稳定的混合排序，结合了归并排序和插入排序，擅长处理部分有序数据。</div>
+                        </div>
+                        <div class="realworld-card-code">
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// V8 的 Array.prototype.sort 使用 TimSort</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-keyword">const</span> <span class="token-variable">arr</span> <span class="token-operator">=</span> <span class="token-punctuation">[</span><span class="token-number">3</span><span class="token-punctuation">,</span> <span class="token-number">1</span><span class="token-punctuation">,</span> <span class="token-number">4</span><span class="token-punctuation">,</span> <span class="token-number">1</span><span class="token-punctuation">,</span> <span class="token-number">5</span><span class="token-punctuation">,</span> <span class="token-number">9</span><span class="token-punctuation">,</span> <span class="token-number">2</span><span class="token-punctuation">,</span> <span class="token-number">6</span><span class="token-punctuation">];</span></span></div>
+                            <div class="code-line"><span class="code-line-content"></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// 稳定排序，保证相等元素的相对顺序</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-variable">arr</span>.<span class="token-function">sort</span><span class="token-punctuation">((</span><span class="token-param">a</span><span class="token-punctuation">,</span> <span class="token-param">b</span><span class="token-punctuation">)</span> <span class="token-operator">=></span> <span class="token-variable">a</span> <span class="token-operator">-</span> <span class="token-variable">b</span><span class="token-punctuation">);</span></span></div>
+                            <div class="code-line"><span class="code-line-content"></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// 内部流程：</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// 1. 找到自然有序的 "run"</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// 2. 短 run 用插入排序扩展到 minRun</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// 3. 用归并合并相邻 run</span></span></div>
+                        </div>
+                    </div>
+
+                    <div class="realworld-card">
+                        <div class="realworld-card-info">
+                            <span class="realworld-card-lang python">Python</span>
+                            <div class="realworld-card-name">TimSort (原创)</div>
+                            <div class="realworld-card-desc">Python 是 TimSort 的发源地（2002 年由 Tim Peters 设计）。CPython 的 <code>list.sort()</code> 和 <code>sorted()</code> 均使用此算法。它对现实世界中常见的"几乎有序"数据表现极佳。</div>
+                        </div>
+                        <div class="realworld-card-code">
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment"># Python 的排序保证稳定且自适应</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-variable">data</span> <span class="token-operator">=</span> <span class="token-punctuation">[</span><span class="token-punctuation">(</span><span class="token-string">'Alice'</span><span class="token-punctuation">,</span> <span class="token-number">85</span><span class="token-punctuation">),</span> <span class="token-punctuation">(</span><span class="token-string">'Bob'</span><span class="token-punctuation">,</span> <span class="token-number">92</span><span class="token-punctuation">),</span> <span class="token-punctuation">(</span><span class="token-string">'Carol'</span><span class="token-punctuation">,</span> <span class="token-number">85</span><span class="token-punctuation">)]</span></span></div>
+                            <div class="code-line"><span class="code-line-content"></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment"># key 参数 + 稳定排序 = 多键排序</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-variable">result</span> <span class="token-operator">=</span> <span class="token-function">sorted</span><span class="token-punctuation">(</span><span class="token-variable">data</span><span class="token-punctuation">,</span> <span class="token-variable">key</span><span class="token-operator">=</span><span class="token-keyword">lambda</span> <span class="token-param">x</span><span class="token-punctuation">:</span> <span class="token-variable">x</span><span class="token-punctuation">[</span><span class="token-number">1</span><span class="token-punctuation">],</span> <span class="token-variable">reverse</span><span class="token-operator">=</span><span class="token-keyword">True</span><span class="token-punctuation">)</span></span></div>
+                            <div class="code-line"><span class="code-line-content"></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment"># 对已排序数据：O(n) 时间</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment"># 对随机数据：O(n log n) 时间</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment"># 最坏情况：O(n log n) 时间（有保证）</span></span></div>
+                        </div>
+                    </div>
+
+                    <div class="realworld-card">
+                        <div class="realworld-card-info">
+                            <span class="realworld-card-lang rust">Rust</span>
+                            <div class="realworld-card-name">pdqsort</div>
+                            <div class="realworld-card-desc">Rust 标准库的不稳定排序使用 pdqsort（Pattern-defeating Quicksort），由 Orson Peters 设计。它是 Introsort 的现代改进版，能自动检测输入模式并选择最优策略。</div>
+                        </div>
+                        <div class="realworld-card-code">
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// Rust 的 sort_unstable 使用 pdqsort</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-keyword">let mut</span> <span class="token-variable">vec</span> <span class="token-operator">=</span> <span class="token-function">vec!</span><span class="token-punctuation">[</span><span class="token-number">5</span><span class="token-punctuation">,</span> <span class="token-number">2</span><span class="token-punctuation">,</span> <span class="token-number">8</span><span class="token-punctuation">,</span> <span class="token-number">1</span><span class="token-punctuation">,</span> <span class="token-number">9</span><span class="token-punctuation">,</span> <span class="token-number">3</span><span class="token-punctuation">];</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-variable">vec</span>.<span class="token-function">sort_unstable</span><span class="token-punctuation">();</span></span></div>
+                            <div class="code-line"><span class="code-line-content"></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// pdqsort 的策略选择：</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// - 小数组 -> 插入排序</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// - 检测到不良 pivot -> 切换到 heapsort</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// - 检测到已排序 -> 线性扫描确认</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// - 大量重复 -> 三路分区</span></span></div>
+                            <div class="code-line"><span class="code-line-content"><span class="token-comment">// 最坏情况保证 O(n log n)</span></span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="callout-box reveal delay-2">
+                    <div class="callout-box-title">&#9671; 工程启示</div>
+                    <div class="callout-box-content">
+                        <p>现代排序实现的核心设计哲学是<strong>"自适应"</strong>——算法会在运行时检测输入数据的特征，动态切换策略。这启示我们：在实际项目中，不要追求单一算法的极致优化，而应该根据数据规模和分布特征选择合适的策略组合。</p>
+                        <p style="margin-top: 0.75rem;">关键对比：<code>TimSort</code> 是稳定排序（保证相等元素的顺序），适合需要多键排序的场景；<code>pdqsort</code> 是不稳定排序，但常数因子更小，适合对性能要求极致的场景。JavaScript 在 ECMAScript 2019 后规范要求 <code>Array.sort</code> 必须稳定。</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══ Performance Section ═══ -->
+            <section class="report-section">
+                <div class="reveal">
+                    <div class="section-label">性能对比</div>
+                    <h2 class="section-title">排序算法基准测试</h2>
+                    <p style="color: var(--text); opacity: 0.7; margin-top: -1rem;">不同规模下的执行时间对比（随机数据，单位：毫秒）</p>
+                </div>
+
+                <div class="chart-container reveal">
+                    <div id="performanceChart"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+    // ═══ ReportPresentation Class ═══
+    class ReportPresentation {
+        constructor() {
+            this.initRevealAnimations();
+            this.initCodeHike();
+            this.initCharts();
+            this.initCounters();
+            this.initBackToTop();
+            this.initScrollProgress();
+        }
+
+        // ── Reveal Animations ──
+        initRevealAnimations() {
+            const reveals = document.querySelectorAll('.reveal');
+            if (!reveals.length) return;
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('revealed');
+                    }
+                });
+            }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+            reveals.forEach(el => observer.observe(el));
+        }
+
+        // ── CodeHike Scrollytelling ──
+        initCodeHike() {
+            const sections = document.querySelectorAll('.codehike-section');
+            sections.forEach(section => new CodeHikeController(section));
+        }
+
+        // ── ECharts Performance Chart ──
+        initCharts() {
+            const chartDom = document.getElementById('performanceChart');
+            if (!chartDom) return;
+
+            const chart = echarts.init(chartDom, null, { renderer: 'canvas' });
+
+            const sizes = [1000, 5000, 10000, 50000, 100000, 500000];
+            const sizeLabels = ['1K', '5K', '10K', '50K', '100K', '500K'];
+
+            const option = {
+                backgroundColor: 'transparent',
+                textStyle: { color: '#a9b1d6', fontFamily: 'Inter, sans-serif' },
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: '#1e1f2e',
+                    borderColor: 'rgba(42, 46, 66, 0.8)',
+                    textStyle: { color: '#a9b1d6', fontSize: 12 },
+                    formatter: function(params) {
+                        let res = '<div style="font-family: JetBrains Mono, monospace; font-size: 12px;">';
+                        res += '<strong style="color: #c0caf5;">' + params[0].axisValue + ' elements</strong><br/>';
+                        params.forEach(p => {
+                            res += '<span style="color:' + p.color + ';">&#9679;</span> ' + p.seriesName + ': <strong>' + p.value + ' ms</strong><br/>';
+                        });
+                        res += '</div>';
+                        return res;
+                    }
+                },
+                legend: {
+                    data: ['QuickSort', 'MergeSort', 'HeapSort'],
+                    textStyle: { color: '#a9b1d6', fontFamily: 'JetBrains Mono, monospace', fontSize: 11 },
+                    top: 0,
+                    itemGap: 24
+                },
+                grid: {
+                    left: '4%',
+                    right: '4%',
+                    bottom: '8%',
+                    top: '14%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: sizeLabels,
+                    axisLine: { lineStyle: { color: 'rgba(42, 46, 66, 0.8)' } },
+                    axisLabel: {
+                        color: '#565f89',
+                        fontFamily: 'JetBrains Mono, monospace',
+                        fontSize: 11
+                    },
+                    splitLine: { show: false }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: 'Time (ms)',
+                    nameTextStyle: { color: '#565f89', fontFamily: 'JetBrains Mono, monospace', fontSize: 11 },
+                    axisLine: { lineStyle: { color: 'rgba(42, 46, 66, 0.8)' } },
+                    axisLabel: {
+                        color: '#565f89',
+                        fontFamily: 'JetBrains Mono, monospace',
+                        fontSize: 11
+                    },
+                    splitLine: { lineStyle: { color: 'rgba(42, 46, 66, 0.4)', type: 'dashed' } }
+                },
+                series: [
+                    {
+                        name: 'QuickSort',
+                        type: 'line',
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        lineStyle: { width: 2.5, color: '#7aa2f7' },
+                        itemStyle: { color: '#7aa2f7' },
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(122, 162, 247, 0.15)' },
+                                { offset: 1, color: 'rgba(122, 162, 247, 0)' }
+                            ])
+                        },
+                        data: [0.8, 4.2, 9.1, 52, 112, 620]
+                    },
+                    {
+                        name: 'MergeSort',
+                        type: 'line',
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        lineStyle: { width: 2.5, color: '#9ece6a' },
+                        itemStyle: { color: '#9ece6a' },
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(158, 206, 106, 0.1)' },
+                                { offset: 1, color: 'rgba(158, 206, 106, 0)' }
+                            ])
+                        },
+                        data: [1.1, 5.8, 12.4, 68, 145, 790]
+                    },
+                    {
+                        name: 'HeapSort',
+                        type: 'line',
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        lineStyle: { width: 2.5, color: '#bb9af7' },
+                        itemStyle: { color: '#bb9af7' },
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(187, 154, 247, 0.1)' },
+                                { offset: 1, color: 'rgba(187, 154, 247, 0)' }
+                            ])
+                        },
+                        data: [1.3, 7.1, 15.8, 89, 192, 1050]
+                    }
+                ],
+                animationDuration: 1500,
+                animationEasing: 'cubicOut'
+            };
+
+            chart.setOption(option);
+
+            window.addEventListener('resize', () => chart.resize());
+        }
+
+        // ── Counter Animation ──
+        initCounters() {
+            // For this template, counters display complexity notation (not numeric)
+            // so we just ensure they are visible with a fade-in tied to reveal
+        }
+
+        // ── Back to Top ──
+        initBackToTop() {
+            const btn = document.getElementById('backToTop');
+            if (!btn) return;
+
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 600) {
+                    btn.classList.add('visible');
+                } else {
+                    btn.classList.remove('visible');
+                }
+            });
+
+            btn.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        }
+
+        // ── Scroll Progress ──
+        initScrollProgress() {
+            const progress = document.getElementById('scrollProgress');
+            if (!progress) return;
+
+            window.addEventListener('scroll', () => {
+                const scrollTop = window.scrollY;
+                const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                const scrollPercent = (scrollTop / docHeight) * 100;
+                progress.style.width = scrollPercent + '%';
+            });
+        }
+    }
+
+    // ═══ CodeHikeController Class ═══
+    class CodeHikeController {
+        constructor(section) {
+            this.section = section;
+            this.codePanel = section.querySelector('.code-panel');
+            this.steps = section.querySelectorAll('.annotation-step');
+            this.codeLines = this.codePanel.querySelectorAll('.code-line');
+            this.currentStep = null;
+            this.initObserver();
+        }
+
+        initObserver() {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        this.activateStep(entry.target);
+                    }
+                });
+            }, { threshold: 0.6, rootMargin: '-20% 0px -20% 0px' });
+
+            this.steps.forEach(step => observer.observe(step));
+        }
+
+        activateStep(step) {
+            if (this.currentStep === step) return;
+            this.currentStep = step;
+
+            // Remove all active states
+            this.steps.forEach(s => s.classList.remove('active'));
+            this.codeLines.forEach(l => l.classList.remove('highlighted'));
+
+            // Activate current step
+            step.classList.add('active');
+
+            // Highlight relevant lines
+            const lines = step.dataset.lines;
+            if (lines) {
+                const [start, end] = lines.split('-').map(Number);
+                for (let i = start; i <= end; i++) {
+                    const line = this.section.querySelector(`.code-line[data-line="${i}"]`);
+                    if (line) line.classList.add('highlighted');
+                }
+
+                // Scroll code panel to show highlighted lines
+                const firstHighlighted = this.section.querySelector(`.code-line[data-line="${start}"]`);
+                if (firstHighlighted) {
+                    const panelBody = this.codePanel.querySelector('.code-panel-body');
+                    const lineTop = firstHighlighted.offsetTop - panelBody.offsetTop;
+                    panelBody.scrollTo({ top: Math.max(0, lineTop - 40), behavior: 'smooth' });
+                }
+            }
+        }
+    }
+
+    // ═══ Initialize ═══
+    document.addEventListener('DOMContentLoaded', () => {
+        new ReportPresentation();
+    });
+    </script>
+</body>
+</html>

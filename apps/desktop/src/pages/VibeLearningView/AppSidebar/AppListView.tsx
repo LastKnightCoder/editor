@@ -14,6 +14,7 @@ import {
   FileText,
   Network,
   Presentation,
+  FileBarChart,
   CircleHelp,
   Mic,
   Plus,
@@ -73,10 +74,12 @@ interface AppListViewProps {
   onOpenQuiz: () => void;
   onOpenMindMap: () => void;
   onOpenPPT: () => void;
+  onOpenReport: () => void;
   onOpenPodcast: () => void;
   onCreateNote: () => void;
   onEditNote: (note: VLNote) => void;
   onEditPPT?: (note: VLNote) => void;
+  onEditReport?: (note: VLNote) => void;
 }
 
 const AppListView = memo(
@@ -91,10 +94,12 @@ const AppListView = memo(
       onOpenQuiz,
       onOpenMindMap,
       onOpenPPT,
+      onOpenReport,
       onOpenPodcast,
       onCreateNote,
       onEditNote,
       onEditPPT,
+      onEditReport,
     } = props;
     const { modal, message } = App.useApp();
     const themeColors = useThemeColors();
@@ -356,6 +361,14 @@ const AppListView = memo(
         onClick: onOpenPPT,
       },
       {
+        key: "report",
+        icon: <FileBarChart className="w-5 h-5" />,
+        title: "报告",
+        description: "数据分析报告",
+        available: true,
+        onClick: onOpenReport,
+      },
+      {
         key: "quiz",
         icon: <CircleHelp className="w-5 h-5" />,
         title: "测验",
@@ -532,6 +545,7 @@ const AppListView = memo(
                       )}
                       onDelete={(e) => handleDeleteNote(e, note)}
                       onEditPPT={onEditPPT}
+                      onEditReport={onEditReport}
                     />
                   ))}
                 </AnimatePresence>
@@ -961,6 +975,7 @@ interface NoteListItemProps {
   addingToResources: boolean;
   onDelete: (e: React.MouseEvent) => void;
   onEditPPT?: (note: VLNote) => void;
+  onEditReport?: (note: VLNote) => void;
 }
 
 const NoteListItem = memo((props: NoteListItemProps) => {
@@ -972,11 +987,15 @@ const NoteListItem = memo((props: NoteListItemProps) => {
     addingToResources,
     onDelete,
     onEditPPT,
+    onEditReport,
   } = props;
   const themeColors = useThemeColors();
 
   // 检查是否是 PPT 类型
   const isPPT = note.type === "ppt";
+
+  // 检查是否是报告类型
+  const isReport = note.type === "report";
 
   // 检查是否正在生成
   const isGenerating = useOutlineGenerationStore((state) =>
@@ -1007,6 +1026,8 @@ const NoteListItem = memo((props: NoteListItemProps) => {
         return Network;
       case "ppt":
         return Presentation;
+      case "report":
+        return FileBarChart;
       case "podcast":
         return Mic;
       default:
@@ -1156,11 +1177,28 @@ const NoteListItem = memo((props: NoteListItemProps) => {
               AI 编辑
             </button>
           )}
+          {/* 报告类型显示 AI 编辑按钮 */}
+          {isReport && onEditReport && !isGenerating && (
+            <button
+              type="button"
+              className="flex items-center justify-center px-2 h-6 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-500/10 text-gray-400 hover:text-emerald-500 transition-all opacity-0 group-hover:opacity-100 border-none bg-transparent cursor-pointer text-xs font-medium"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditReport(note);
+              }}
+              title="AI 编辑"
+            >
+              <Sparkles className="w-3.5 h-3.5 mr-1" />
+              AI 编辑
+            </button>
+          )}
           <span
             className={classNames(
               "text-xs transition-opacity",
               themeColors.secondaryTextClass,
-              isPPT && onEditPPT ? "group-hover:opacity-0" : "",
+              (isPPT && onEditPPT) || (isReport && onEditReport)
+                ? "group-hover:opacity-0"
+                : "",
             )}
           >
             {formatDate(note.updateTime, true)}

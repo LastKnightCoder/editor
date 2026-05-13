@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>年度业务分析报告</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --bg: #faf9f6;
+            --bg-alt: #f5f3ef;
+            --bg-card: linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(245,243,239,0.4) 100%);
+            --bg-card-solid: rgba(255,255,255,0.5);
+            --text: #1a1a1a;
+            --text-secondary: #5c5c5c;
+            --text-dim: #999999;
+            --accent: #a67c00;
+            --accent-light: #c9a227;
+            --accent-dim: rgba(166, 124, 0, 0.06);
+            --success: #1a7a4c;
+            --danger: #b91c1c;
+            --info: #1e5f8a;
+            --border: rgba(0, 0, 0, 0.06);
+            --border-accent: rgba(166, 124, 0, 0.2);
+            --shadow-sm: 0 1px 4px rgba(0,0,0,0.03), 0 0 0 1px rgba(0,0,0,0.02);
+            --shadow-md: 0 4px 20px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.03);
+            --shadow-lg: 0 12px 40px rgba(0,0,0,0.08);
+            --glass: saturate(1.2) blur(12px);
+            --serif: "Playfair Display", "Source Han Serif SC", "Songti SC", Georgia, serif;
+            --sans: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+            --mono: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+            --ease: cubic-bezier(0.16, 1, 0.3, 1);
+            --title-size: clamp(2.8rem, 5.5vw, 5rem);
+            --h1-size: clamp(2.2rem, 4.5vw, 3.2rem);
+            --h2-size: clamp(1.6rem, 3vw, 2.4rem);
+            --h3-size: clamp(1.25rem, 2vw, 1.6rem);
+            --body-size: clamp(0.95rem, 1.15vw, 1.1rem);
+            --small-size: clamp(0.8rem, 0.95vw, 0.9rem);
+            --stat-size: clamp(1.8rem, 3.5vw, 2.8rem);
+            --section-gap: clamp(4rem, 8vw, 8rem);
+            --content-gap: clamp(2rem, 4vw, 4rem);
+            --container-max: 1100px;
+            --pad-x: clamp(2.5rem, 5vw, 5rem);
+            --reveal-duration: 0.7s;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            font-size: var(--body-size);
+            line-height: 1.75;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ═══ 布局 ═══ */
+        .report-container {
+            min-height: 100vh;
+        }
+
+        .report-main {
+            max-width: var(--container-max);
+            margin: 0 auto;
+            padding: var(--section-gap) var(--pad-x);
+        }
+
+        /* ═══ 章节 ═══ */
+        .report-section {
+            padding-bottom: var(--section-gap);
+            margin-bottom: var(--section-gap);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .report-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .section-label {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.75rem;
+        }
+
+        .section-title {
+            font-family: var(--serif);
+            font-size: var(--h1-size);
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: var(--content-gap);
+            line-height: 1.2;
+        }
+
+        .section-subtitle {
+            font-size: var(--h3-size);
+            color: var(--text-secondary);
+            margin-bottom: var(--content-gap);
+            max-width: 65ch;
+        }
+
+        /* ═══ 封面 ═══ */
+        .report-cover {
+            text-align: center;
+            padding: clamp(4rem, 10vh, 10rem) 0;
+            border-bottom: none;
+        }
+
+        .cover-label {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--accent);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-bottom: 1.5rem;
+        }
+
+        .cover-title {
+            font-family: var(--serif);
+            font-size: var(--title-size);
+            font-weight: 700;
+            color: var(--text);
+            line-height: 1.15;
+            margin-bottom: 1.5rem;
+        }
+
+        .cover-subtitle {
+            font-size: var(--h3-size);
+            color: var(--text-secondary);
+            max-width: 50ch;
+            margin: 0 auto 2rem;
+        }
+
+        .cover-meta {
+            font-size: var(--small-size);
+            color: var(--text-dim);
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+        }
+
+        .cover-divider {
+            width: clamp(40px, 8vw, 80px);
+            height: 2px;
+            background: var(--accent);
+            margin: 2rem auto;
+        }
+
+        /* ═══ 指标卡片 ═══ */
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: clamp(1rem, 2vw, 1.5rem);
+            margin: var(--content-gap) 0;
+        }
+
+        .metric-card {
+            background: none;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            border: none;
+            border-radius: 0;
+            padding: clamp(1.2rem, 2vw, 2rem) 0;
+            border-bottom: 1px solid var(--border);
+            box-shadow: none;
+            transition: none;
+        }
+
+        .metric-card:hover {
+            box-shadow: none;
+            transform: none;
+            border-color: var(--border);
+        }
+
+        .metric-value {
+            font-family: var(--serif);
+            font-size: var(--stat-size);
+            font-weight: 700;
+            color: var(--text);
+            line-height: 1.1;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-label {
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+        }
+
+        .metric-change {
+            font-size: var(--small-size);
+            margin-top: 0.5rem;
+            font-family: var(--mono);
+        }
+
+        .metric-change.up { color: var(--success); }
+        .metric-change.down { color: var(--danger); }
+
+        /* ═══ 图表 ═══ */
+        .chart-container {
+            width: 100%;
+            height: clamp(380px, 50vh, 560px);
+            margin: var(--content-gap) 0;
+            background: none;
+            border: none;
+            border-radius: 0;
+            padding: clamp(1.5rem, 3vw, 2.5rem) 0;
+            box-shadow: none;
+        }
+
+        .chart-title {
+            font-family: var(--serif);
+            font-size: var(--h3-size);
+            margin-bottom: 1rem;
+        }
+
+        /* ═══ 表格 ═══ */
+        .table-styled {
+            width: 100%;
+            border-collapse: collapse;
+            margin: var(--content-gap) 0;
+            font-size: var(--body-size);
+        }
+
+        .table-styled thead th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 2px solid var(--accent);
+            font-weight: 600;
+            font-size: var(--small-size);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+        }
+
+        .table-styled tbody td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .table-styled tbody tr:hover {
+            background: var(--accent-dim);
+        }
+
+        /* ═══ 时间轴 ═══ */
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+            margin: var(--content-gap) 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 7px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--accent), var(--border));
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-bottom: clamp(1.5rem, 3vw, 2.5rem);
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -2rem;
+            top: 6px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--bg);
+            border: 2px solid var(--accent);
+        }
+
+        .timeline-date {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--accent);
+            margin-bottom: 0.25rem;
+        }
+
+        .timeline-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .timeline-desc {
+            color: var(--text-secondary);
+            font-size: var(--small-size);
+        }
+
+        /* ═══ 卡片网格 ═══ */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: clamp(1rem, 2vw, 1.5rem);
+            margin: var(--content-gap) 0;
+        }
+
+        .card {
+            background: none;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            border: none;
+            border-radius: 0;
+            padding: clamp(1.5rem, 2.5vw, 2rem) 0;
+            border-bottom: 1px solid var(--border);
+            box-shadow: none;
+            transition: none;
+        }
+
+        .card:hover {
+            transform: none;
+            border-color: var(--border);
+            box-shadow: none;
+        }
+
+        .card-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .card-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-desc {
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* ═══ 代码块 ═══ */
+        .code-block {
+            background: #1a1a1a;
+            border: none;
+            border-radius: 16px;
+            margin: var(--content-gap) 0;
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .code-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: rgba(255,255,255,0.6);
+        }
+
+        .code-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .code-dot:nth-child(1) { background: #ff5f56; }
+        .code-dot:nth-child(2) { background: #ffbd2e; }
+        .code-dot:nth-child(3) { background: #27c93f; }
+
+        .code-block pre {
+            padding: 1.25rem;
+            overflow-x: auto;
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            line-height: 1.7;
+            color: #c9d1d9;
+        }
+
+        /* ═══ 对比栏 ═══ */
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(1.5rem, 3vw, 3rem);
+            margin: var(--content-gap) 0;
+        }
+
+        .comparison-col {
+            padding: clamp(1.5rem, 2.5vw, 2rem);
+            border-radius: 0;
+            border: none;
+            border-top: 2px solid var(--border);
+            background: none;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+
+        .comparison-col.positive { border-top-color: var(--success); }
+        .comparison-col.negative { border-top-color: var(--danger); }
+
+        .comparison-title {
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .comparison-list {
+            list-style: none;
+        }
+
+        .comparison-list li {
+            padding: 0.4rem 0;
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            padding-left: 1.2rem;
+            position: relative;
+        }
+
+        .comparison-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.7rem;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .positive .comparison-list li::before { background: var(--success); }
+        .negative .comparison-list li::before { background: var(--danger); }
+
+        /* ═══ 进度条 ═══ */
+        .progress-list {
+            margin: var(--content-gap) 0;
+        }
+
+        .progress-item {
+            margin-bottom: 1.25rem;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: var(--small-size);
+        }
+
+        .progress-label { color: var(--text-secondary); }
+        .progress-value { color: var(--text); font-family: var(--mono); font-weight: 500; }
+
+        .progress-bar {
+            height: 6px;
+            background: #f0ede8;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent-light));
+            border-radius: 3px;
+            width: 0;
+            transition: width 1.2s var(--ease);
+        }
+
+        /* ═══ 提示框 ═══ */
+        .callout {
+            padding: clamp(1.2rem, 2.5vw, 1.8rem) 0;
+            border-radius: 0;
+            margin: var(--content-gap) 0;
+            border-left: none;
+            border-top: 1px solid var(--border);
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+
+        .callout-info { background: none; border-color: var(--border); }
+        .callout-success { background: none; border-color: var(--border); }
+        .callout-warning { background: none; border-color: var(--border); }
+        .callout-danger { background: none; border-color: var(--border); }
+
+        .callout-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .callout-content {
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* ═══ 引用块 ═══ */
+        .quote-block {
+            position: relative;
+            padding: clamp(2rem, 4vw, 3rem);
+            margin: var(--section-gap) 0;
+            text-align: center;
+        }
+
+        .quote-block::before {
+            content: '"';
+            position: absolute;
+            top: -0.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: var(--serif);
+            font-size: clamp(4rem, 8vw, 8rem);
+            color: var(--border);
+            line-height: 1;
+        }
+
+        .quote-text {
+            font-family: var(--serif);
+            font-size: var(--h2-size);
+            font-style: italic;
+            line-height: 1.5;
+            color: var(--text);
+            max-width: 50ch;
+            margin: 0 auto;
+        }
+
+        .quote-source {
+            margin-top: 1.5rem;
+            font-size: var(--small-size);
+            color: var(--text-dim);
+        }
+
+        /* ═══ 摘要框 ═══ */
+        .summary-box {
+            background: none;
+            border: none;
+            border-top: 1px solid var(--border);
+            border-radius: 0;
+            padding: clamp(2rem, 3.5vw, 3rem) 0;
+            margin: var(--content-gap) 0;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+
+        .summary-box .summary-title {
+            font-family: var(--serif);
+            font-size: var(--h3-size);
+            color: var(--text);
+            margin-bottom: 1rem;
+        }
+
+        .summary-box ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .summary-box li {
+            padding: 0.4rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+            color: var(--text-secondary);
+        }
+
+        .summary-box li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--text-dim);
+        }
+
+        /* ═══ 滚动触发动画 ═══ */
+        .reveal {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity var(--reveal-duration) var(--ease), transform var(--reveal-duration) var(--ease);
+        }
+
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-30px);
+            transition: opacity var(--reveal-duration) var(--ease), transform var(--reveal-duration) var(--ease);
+        }
+
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(30px);
+            transition: opacity var(--reveal-duration) var(--ease), transform var(--reveal-duration) var(--ease);
+        }
+
+        .reveal-scale {
+            opacity: 0;
+            transform: scale(0.95);
+            transition: opacity var(--reveal-duration) var(--ease), transform var(--reveal-duration) var(--ease);
+        }
+
+        .reveal.visible,
+        .reveal-left.visible,
+        .reveal-right.visible,
+        .reveal-scale.visible {
+            opacity: 1;
+            transform: translateY(0) translateX(0) scale(1);
+        }
+
+        .delay-1 { transition-delay: 0.1s; }
+        .delay-2 { transition-delay: 0.2s; }
+        .delay-3 { transition-delay: 0.3s; }
+        .delay-4 { transition-delay: 0.4s; }
+        .delay-5 { transition-delay: 0.5s; }
+
+        /* ═══ 滚动进度条 ═══ */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent), var(--accent-light));
+            z-index: 9998;
+            transition: width 0.1s linear;
+        }
+
+        /* ═══ 回到顶部 ═══ */
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--accent);
+            font-size: 1.2rem;
+            cursor: pointer;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-md);
+            z-index: 100;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .back-to-top:hover {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+        }
+
+        /* ═══ 打印 ═══ */
+        @media print {
+            .scroll-progress { display: none; }
+            .back-to-top { display: none; }
+            .report-main { max-width: 100%; padding: 0; }
+            .report-section { break-inside: avoid; }
+            .chart-container { break-inside: avoid; box-shadow: none; }
+            .metric-card, .card { box-shadow: none; }
+            * { animation: none !important; transition: none !important; }
+            .reveal, .reveal-left, .reveal-right, .reveal-scale {
+                opacity: 1 !important;
+                transform: none !important;
+            }
+        }
+
+        /* ═══ 响应式 ═══ */
+        @media (max-width: 768px) {
+            .metric-grid { grid-template-columns: 1fr; }
+            .card-grid { grid-template-columns: 1fr; }
+            .comparison { grid-template-columns: 1fr; }
+            .cover-meta { flex-direction: column; gap: 0.5rem; }
+        }
+
+        @media (max-width: 480px) {
+            .metric-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .reveal, .reveal-left, .reveal-right, .reveal-scale {
+                transition: opacity 0.3s ease;
+                transform: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="scroll-progress" id="scrollProgress"></div>
+
+    <div class="report-container">
+        <main class="report-main">
+            <!-- 封面 -->
+            <section class="report-section report-cover" id="sec-cover">
+                <div class="cover-label reveal">年度业务分析</div>
+                <h1 class="cover-title reveal delay-1">数字化转型战略<br>执行评估报告</h1>
+                <div class="cover-divider reveal delay-2"></div>
+                <p class="cover-subtitle reveal delay-3">全面评估 2024 年度各业务线的数字化转型进展，识别增长机遇与潜在风险</p>
+                <div class="cover-meta reveal delay-4">
+                    <span>发布日期：2024.12</span>
+                    <span>版本：v2.1</span>
+                    <span>密级：内部</span>
+                </div>
+            </section>
+
+            <!-- 执行摘要 -->
+            <section class="report-section" id="sec-summary">
+                <div class="section-label reveal">01 / Executive Summary</div>
+                <h2 class="section-title reveal delay-1">执行摘要</h2>
+                <p class="section-subtitle reveal delay-2">本年度数字化转型取得显著突破，核心业务指标全面超越预期目标</p>
+
+                <div class="summary-box reveal delay-3">
+                    <div class="summary-title">关键发现</div>
+                    <ul>
+                        <li>全年营收同比增长 34%，超出年初目标 12 个百分点</li>
+                        <li>用户活跃度提升 67%，月活突破 2000 万里程碑</li>
+                        <li>技术基础设施完成云原生迁移，系统可用性达 99.97%</li>
+                        <li>AI 驱动功能贡献了 28% 的新增收入来源</li>
+                    </ul>
+                </div>
+
+                <div class="callout callout-info reveal delay-4">
+                    <div class="callout-title">报告范围</div>
+                    <div class="callout-content">本报告涵盖 2024 年 Q1-Q4 全部业务数据，数据截止日期为 2024 年 11 月 30 日。所有财务数据均经过审计确认。</div>
+                </div>
+            </section>
+
+            <!-- 核心指标 -->
+            <section class="report-section" id="sec-metrics">
+                <div class="section-label reveal">02 / Key Metrics</div>
+                <h2 class="section-title reveal delay-1">核心业务指标</h2>
+
+                <div class="metric-grid">
+                    <div class="metric-card reveal delay-1">
+                        <div class="metric-value" data-count="34" data-suffix="%">0%</div>
+                        <div class="metric-label">营收增长率</div>
+                        <div class="metric-change up">↑ 同比提升 12pp</div>
+                    </div>
+                    <div class="metric-card reveal delay-2">
+                        <div class="metric-value" data-count="2180" data-suffix="万">0万</div>
+                        <div class="metric-label">月活跃用户</div>
+                        <div class="metric-change up">↑ 较去年 +67%</div>
+                    </div>
+                    <div class="metric-card reveal delay-3">
+                        <div class="metric-value" data-count="99" data-suffix=".97%">0%</div>
+                        <div class="metric-label">系统可用性</div>
+                        <div class="metric-change up">↑ 超过 SLA 目标</div>
+                    </div>
+                    <div class="metric-card reveal delay-4">
+                        <div class="metric-value" data-count="156" data-suffix="">0</div>
+                        <div class="metric-label">新增企业客户</div>
+                        <div class="metric-change up">↑ 季度环比 +23%</div>
+                    </div>
+                </div>
+
+                <div class="chart-container reveal delay-2">
+                    <div class="chart-title">季度营收趋势（亿元）</div>
+                    <div id="chart-revenue" style="width:100%;height:calc(100% - 2.5rem);"></div>
+                </div>
+
+                <div class="progress-list reveal delay-3">
+                    <div class="progress-item">
+                        <div class="progress-header">
+                            <span class="progress-label">云原生迁移进度</span>
+                            <span class="progress-value">92%</span>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill" data-percent="92"></div></div>
+                    </div>
+                    <div class="progress-item">
+                        <div class="progress-header">
+                            <span class="progress-label">AI 功能覆盖率</span>
+                            <span class="progress-value">78%</span>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill" data-percent="78"></div></div>
+                    </div>
+                    <div class="progress-item">
+                        <div class="progress-header">
+                            <span class="progress-label">用户满意度 (NPS)</span>
+                            <span class="progress-value">85%</span>
+                        </div>
+                        <div class="progress-bar"><div class="progress-fill" data-percent="85"></div></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 业务分析 -->
+            <section class="report-section" id="sec-analysis">
+                <div class="section-label reveal">03 / Business Analysis</div>
+                <h2 class="section-title reveal delay-1">业务深度分析</h2>
+
+                <div class="card-grid">
+                    <div class="card reveal delay-1">
+                        <div class="card-icon">📊</div>
+                        <div class="card-title">数据中台建设</div>
+                        <div class="card-desc">完成统一数据湖架构，实现跨部门数据打通，数据查询效率提升 400%，支撑实时决策场景。</div>
+                    </div>
+                    <div class="card reveal delay-2">
+                        <div class="card-icon">🤖</div>
+                        <div class="card-title">AI 智能化</div>
+                        <div class="card-desc">上线 12 个 AI 功能模块，覆盖智能客服、推荐引擎、风控预警三大场景，用户体验评分提升 42%。</div>
+                    </div>
+                    <div class="card reveal delay-3">
+                        <div class="card-icon">☁️</div>
+                        <div class="card-title">云原生架构</div>
+                        <div class="card-desc">完成 92% 服务容器化改造，部署频率从月级提升至日级，故障恢复时间缩短 85%。</div>
+                    </div>
+                    <div class="card reveal delay-4">
+                        <div class="card-icon">🔒</div>
+                        <div class="card-title">安全合规</div>
+                        <div class="card-desc">通过 SOC 2 Type II 审计，获得 ISO 27001 认证，零重大安全事件，漏洞修复平均时长 < 4h。</div>
+                    </div>
+                </div>
+
+                <div class="chart-container reveal delay-2">
+                    <div class="chart-title">各业务线收入构成</div>
+                    <div id="chart-business" style="width:100%;height:calc(100% - 2.5rem);"></div>
+                </div>
+
+                <div class="callout callout-warning reveal delay-3">
+                    <div class="callout-title">需要关注</div>
+                    <div class="callout-content">国际业务线虽增速最快（+89%），但获客成本偏高（CAC 较国内高 2.3 倍），需在 Q1 优化渠道投放策略。</div>
+                </div>
+            </section>
+
+            <!-- 里程碑 -->
+            <section class="report-section" id="sec-timeline">
+                <div class="section-label reveal">04 / Milestones</div>
+                <h2 class="section-title reveal delay-1">年度里程碑</h2>
+
+                <div class="timeline">
+                    <div class="timeline-item reveal delay-1">
+                        <div class="timeline-date">2024.Q1</div>
+                        <div class="timeline-title">数据中台 1.0 上线</div>
+                        <div class="timeline-desc">统一数据湖架构完成，支持实时 + 离线双模处理，首批 8 个部门接入。</div>
+                    </div>
+                    <div class="timeline-item reveal delay-2">
+                        <div class="timeline-date">2024.Q2</div>
+                        <div class="timeline-title">AI 推荐引擎全量发布</div>
+                        <div class="timeline-desc">基于大模型的个性化推荐系统上线，CTR 提升 35%，GMV 贡献提升 18%。</div>
+                    </div>
+                    <div class="timeline-item reveal delay-3">
+                        <div class="timeline-date">2024.Q3</div>
+                        <div class="timeline-title">国际版正式发布</div>
+                        <div class="timeline-desc">覆盖东南亚 5 国市场，首月注册用户突破 50 万，留存率 41%。</div>
+                    </div>
+                    <div class="timeline-item reveal delay-4">
+                        <div class="timeline-date">2024.Q4</div>
+                        <div class="timeline-title">月活突破 2000 万</div>
+                        <div class="timeline-desc">用户增长飞轮效应显现，自然流量占比提升至 62%，获客成本下降 28%。</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 竞争对比 -->
+            <section class="report-section" id="sec-comparison">
+                <div class="section-label reveal">05 / Competitive Analysis</div>
+                <h2 class="section-title reveal delay-1">竞争格局分析</h2>
+
+                <div class="comparison reveal delay-2">
+                    <div class="comparison-col positive">
+                        <div class="comparison-title">✓ 我们的优势</div>
+                        <ul class="comparison-list">
+                            <li>技术架构领先，全面云原生</li>
+                            <li>AI 功能覆盖度行业第一</li>
+                            <li>用户体验评分持续领先</li>
+                            <li>数据安全合规体系完善</li>
+                            <li>研发效率（迭代速度快 2.5x）</li>
+                        </ul>
+                    </div>
+                    <div class="comparison-col negative">
+                        <div class="comparison-title">✗ 需要改进</div>
+                        <ul class="comparison-list">
+                            <li>国际化运营经验不足</li>
+                            <li>品牌知名度低于头部竞品</li>
+                            <li>大客户销售周期偏长</li>
+                            <li>部分老旧系统尚未迁移</li>
+                            <li>中台能力对外输出不足</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="chart-container reveal delay-3">
+                    <div class="chart-title">核心能力雷达图</div>
+                    <div id="chart-radar" style="width:100%;height:calc(100% - 2.5rem);"></div>
+                </div>
+
+                <table class="table-styled reveal delay-4">
+                    <thead>
+                        <tr>
+                            <th>维度</th>
+                            <th>我们</th>
+                            <th>竞品 A</th>
+                            <th>竞品 B</th>
+                            <th>行业均值</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>用户增长率</td>
+                            <td style="color:var(--success)">67%</td>
+                            <td>45%</td>
+                            <td>38%</td>
+                            <td>32%</td>
+                        </tr>
+                        <tr>
+                            <td>NPS 评分</td>
+                            <td style="color:var(--success)">72</td>
+                            <td>65</td>
+                            <td>58</td>
+                            <td>52</td>
+                        </tr>
+                        <tr>
+                            <td>产品迭代频率</td>
+                            <td style="color:var(--success)">日级</td>
+                            <td>周级</td>
+                            <td>双周</td>
+                            <td>月级</td>
+                        </tr>
+                        <tr>
+                            <td>AI 功能数量</td>
+                            <td style="color:var(--success)">12</td>
+                            <td>8</td>
+                            <td>5</td>
+                            <td>4</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- 战略建议 -->
+            <section class="report-section" id="sec-strategy">
+                <div class="section-label reveal">06 / Strategy</div>
+                <h2 class="section-title reveal delay-1">战略建议</h2>
+
+                <div class="quote-block reveal delay-2">
+                    <div class="quote-text">技术驱动的增长飞轮已经形成，下一阶段的关键是将技术优势转化为持续的商业壁垒。</div>
+                    <div class="quote-source">— CTO 年度战略报告</div>
+                </div>
+
+                <div class="card-grid">
+                    <div class="card reveal delay-2">
+                        <div class="card-icon">🎯</div>
+                        <div class="card-title">聚焦大客户战略</div>
+                        <div class="card-desc">建立专属解决方案团队，缩短销售周期至 45 天内，目标 Q1 签约 20+ 头部企业。</div>
+                    </div>
+                    <div class="card reveal delay-3">
+                        <div class="card-icon">🌏</div>
+                        <div class="card-title">深化国际布局</div>
+                        <div class="card-desc">在新加坡设立区域总部，建设本地化团队，优化东南亚市场获客模型。</div>
+                    </div>
+                    <div class="card reveal delay-4">
+                        <div class="card-icon">🧠</div>
+                        <div class="card-title">AI 产品化加速</div>
+                        <div class="card-desc">将内部 AI 能力封装为 SaaS 产品对外输出，目标覆盖 3 个垂直行业。</div>
+                    </div>
+                </div>
+
+                <div class="code-block reveal delay-3">
+                    <div class="code-header">
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                        <span style="margin-left: auto;">2025 OKR Framework</span>
+                    </div>
+                    <pre><code>OKR 2025 - 数字化转型深水区
+├── O1: 营收规模突破 50 亿
+│   ├── KR1: 大客户贡献占比 > 40%
+│   ├── KR2: 国际业务收入达 8 亿
+│   └── KR3: AI SaaS 产品 ARR > 3 亿
+├── O2: 技术平台化
+│   ├── KR1: 中台能力对外 API 调用 > 1亿次/月
+│   ├── KR2: 开放平台合作伙伴 > 200家
+│   └── KR3: 平台 NPS > 75
+└── O3: 组织能力升级
+    ├── KR1: 核心岗位人才储备 > 120%
+    ├── KR2: 工程效能提升 30%
+    └── KR3: 员工 eNPS > 60</code></pre>
+                </div>
+            </section>
+
+            <!-- 总结 -->
+            <section class="report-section" id="sec-conclusion">
+                <div class="section-label reveal">07 / Conclusion</div>
+                <h2 class="section-title reveal delay-1">总结与展望</h2>
+
+                <div class="summary-box reveal delay-2">
+                    <div class="summary-title">2024 年度核心成就</div>
+                    <ul>
+                        <li>营收增长 34%，用户规模突破 2000 万</li>
+                        <li>完成云原生架构转型，系统可用性 99.97%</li>
+                        <li>AI 能力全面赋能业务，贡献 28% 新增收入</li>
+                        <li>国际化业务成功起步，覆盖 5 国市场</li>
+                        <li>安全合规体系获国际认证</li>
+                    </ul>
+                </div>
+
+                <p class="reveal delay-3" style="color: var(--text-secondary); max-width: 65ch; margin-top: var(--content-gap);">
+                    2025 年将是数字化转型从"建设期"进入"收获期"的关键年份。我们已经构建了坚实的技术基座，下一步的核心是将技术能力转化为可规模化的商业价值，在大客户、国际化和 AI 产品化三个方向实现突破性增长。
+                </p>
+
+                <div class="cover-meta reveal delay-4" style="justify-content: flex-start; margin-top: 3rem;">
+                    <span>报告编制：战略发展部</span>
+                    <span>审核：CEO Office</span>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <button class="back-to-top" id="backToTop">↑</button>
+
+    <script>
+        class ReportPresentation {
+            constructor() {
+                this.sections = document.querySelectorAll('.report-section');
+                this.scrollProgress = document.getElementById('scrollProgress');
+                this.backToTop = document.getElementById('backToTop');
+                this.initRevealAnimations();
+                this.initCharts();
+                this.initCounters();
+                this.initProgressBars();
+                this.initBackToTop();
+                this.initScrollProgress();
+            }
+
+            initRevealAnimations() {
+                const reveals = document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale');
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('visible');
+                        }
+                    });
+                }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+                reveals.forEach(el => observer.observe(el));
+            }
+
+            initCharts() {
+                // 营收趋势图
+                const revenueChart = echarts.init(document.getElementById('chart-revenue'));
+                revenueChart.setOption({
+                    backgroundColor: 'transparent',
+                    grid: { top: 30, right: 30, bottom: 40, left: 50 },
+                    xAxis: {
+                        type: 'category',
+                        data: ['Q1 2023', 'Q2 2023', 'Q3 2023', 'Q4 2023', 'Q1 2024', 'Q2 2024', 'Q3 2024', 'Q4 2024'],
+                        axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
+                        axisLabel: { color: '#999', fontSize: 11 }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        axisLine: { show: false },
+                        splitLine: { lineStyle: { color: 'rgba(0,0,0,0.04)' } },
+                        axisLabel: { color: '#999', fontSize: 11 }
+                    },
+                    series: [{
+                        data: [6.2, 7.1, 7.8, 8.5, 9.2, 10.4, 11.1, 12.3],
+                        type: 'line',
+                        smooth: true,
+                        lineStyle: { color: '#a67c00', width: 2.5 },
+                        itemStyle: { color: '#a67c00' },
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(166,124,0,0.15)' },
+                                { offset: 1, color: 'rgba(166,124,0,0)' }
+                            ])
+                        }
+                    }],
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: 'rgba(255,255,255,0.95)',
+                        borderColor: 'rgba(0,0,0,0.06)',
+                        textStyle: { color: '#1a1a1a' }
+                    }
+                });
+
+                // 业务构成饼图
+                const businessChart = echarts.init(document.getElementById('chart-business'));
+                businessChart.setOption({
+                    backgroundColor: 'transparent',
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        center: ['50%', '50%'],
+                        data: [
+                            { value: 42, name: '企业服务', itemStyle: { color: '#a67c00' } },
+                            { value: 28, name: 'AI SaaS', itemStyle: { color: '#1e5f8a' } },
+                            { value: 18, name: '数据产品', itemStyle: { color: '#1a7a4c' } },
+                            { value: 12, name: '国际业务', itemStyle: { color: '#b91c1c' } }
+                        ],
+                        label: { color: '#5c5c5c', fontSize: 12 },
+                        labelLine: { lineStyle: { color: '#ccc' } }
+                    }],
+                    tooltip: {
+                        backgroundColor: 'rgba(255,255,255,0.95)',
+                        borderColor: 'rgba(0,0,0,0.06)',
+                        textStyle: { color: '#1a1a1a' },
+                        formatter: '{b}: {c}%'
+                    },
+                    legend: {
+                        bottom: 10,
+                        textStyle: { color: '#5c5c5c', fontSize: 11 }
+                    }
+                });
+
+                // 雷达图
+                const radarChart = echarts.init(document.getElementById('chart-radar'));
+                radarChart.setOption({
+                    backgroundColor: 'transparent',
+                    radar: {
+                        radius: '60%',
+                        center: ['50%', '45%'],
+                        indicator: [
+                            { name: '技术能力', max: 100 },
+                            { name: '用户体验', max: 100 },
+                            { name: '市场份额', max: 100 },
+                            { name: '品牌影响', max: 100 },
+                            { name: '生态建设', max: 100 },
+                            { name: '创新速度', max: 100 }
+                        ],
+                        shape: 'polygon',
+                        axisName: { color: '#5c5c5c', fontSize: 11 },
+                        splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } },
+                        splitArea: { show: false },
+                        axisLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } }
+                    },
+                    series: [{
+                        type: 'radar',
+                        data: [
+                            {
+                                value: [92, 88, 65, 58, 72, 90],
+                                name: '我们',
+                                lineStyle: { color: '#a67c00', width: 2 },
+                                itemStyle: { color: '#a67c00' },
+                                areaStyle: { color: 'rgba(166,124,0,0.08)' }
+                            },
+                            {
+                                value: [78, 72, 82, 85, 68, 65],
+                                name: '竞品 A',
+                                lineStyle: { color: '#1e5f8a', width: 1.5 },
+                                itemStyle: { color: '#1e5f8a' },
+                                areaStyle: { color: 'rgba(30,95,138,0.05)' }
+                            }
+                        ]
+                    }],
+                    legend: {
+                        bottom: 0,
+                        itemGap: 24,
+                        textStyle: { color: '#5c5c5c', fontSize: 11 }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(255,255,255,0.95)',
+                        borderColor: 'rgba(0,0,0,0.06)',
+                        textStyle: { color: '#1a1a1a' }
+                    }
+                });
+
+                window.addEventListener('resize', () => {
+                    revenueChart.resize();
+                    businessChart.resize();
+                    radarChart.resize();
+                });
+            }
+
+            initCounters() {
+                const counters = document.querySelectorAll('[data-count]');
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting && !entry.target.dataset.counted) {
+                            entry.target.dataset.counted = 'true';
+                            this.animateCounter(entry.target);
+                        }
+                    });
+                }, { threshold: 0.5 });
+
+                counters.forEach(el => observer.observe(el));
+            }
+
+            animateCounter(el) {
+                const target = parseInt(el.dataset.count, 10);
+                const suffix = el.dataset.suffix || '';
+                const duration = 1800;
+                const start = performance.now();
+
+                const tick = (now) => {
+                    const p = Math.min((now - start) / duration, 1);
+                    const eased = 1 - Math.pow(1 - p, 3);
+                    el.textContent = Math.round(eased * target) + suffix;
+                    if (p < 1) requestAnimationFrame(tick);
+                    else el.textContent = target + suffix;
+                };
+
+                requestAnimationFrame(tick);
+            }
+
+            initProgressBars() {
+                const fills = document.querySelectorAll('.progress-fill[data-percent]');
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting && !entry.target.dataset.filled) {
+                            entry.target.dataset.filled = 'true';
+                            setTimeout(() => {
+                                entry.target.style.width = entry.target.dataset.percent + '%';
+                            }, 200);
+                        }
+                    });
+                }, { threshold: 0.3 });
+
+                fills.forEach(el => observer.observe(el));
+            }
+
+            initBackToTop() {
+                window.addEventListener('scroll', () => {
+                    this.backToTop.classList.toggle('visible', window.scrollY > 500);
+                });
+                this.backToTop.addEventListener('click', () => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                });
+            }
+
+            initScrollProgress() {
+                window.addEventListener('scroll', () => {
+                    const scrollTop = window.scrollY;
+                    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                    const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+                    this.scrollProgress.style.width = progress + '%';
+                });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            new ReportPresentation();
+        });
+    </script>
+</body>
+</html>

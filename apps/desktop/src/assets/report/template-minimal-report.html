@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Q4 2024 季度运营报告</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=Manrope:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #f8f5f0;
+            --text: #1a1a18;
+            --accent: #9a9590;
+            --accent-light: #d4cfc8;
+            --highlight: #c8553d;
+            --font-display: 'Playfair Display', serif;
+            --font-body: 'Manrope', sans-serif;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font-body);
+            font-weight: 400;
+            font-size: 0.875rem;
+            line-height: 2.0;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Scroll progress — vertical right side */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            right: 2.5rem;
+            width: 1px;
+            height: 0%;
+            background: var(--accent);
+            z-index: 1000;
+        }
+
+        /* Back to top */
+        .back-to-top {
+            position: fixed;
+            bottom: 3rem;
+            right: 2.5rem;
+            font-family: var(--font-body);
+            font-size: 0.65rem;
+            font-weight: 300;
+            color: var(--accent);
+            text-decoration: none;
+            opacity: 0;
+            transition: opacity 0.8s ease;
+            z-index: 100;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            writing-mode: vertical-rl;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+        }
+
+        .back-to-top:hover {
+            color: var(--text);
+        }
+
+        /* Main grid */
+        .report {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 3rem;
+            column-gap: 1.5rem;
+        }
+
+        /* Sections */
+        section {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: subgrid;
+            padding-top: 15vh;
+            padding-bottom: 8vh;
+        }
+
+        /* Title page */
+        .title-section {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: flex-end;
+            padding-bottom: 12vh;
+            position: relative;
+        }
+
+        .title-date {
+            position: absolute;
+            top: 3rem;
+            right: 0;
+            font-family: var(--font-body);
+            font-size: 0.7rem;
+            font-weight: 300;
+            color: var(--accent);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        .title-label {
+            font-family: var(--font-body);
+            font-size: 0.7rem;
+            font-weight: 400;
+            color: var(--accent);
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            margin-bottom: 1.5rem;
+        }
+
+        .title-main {
+            font-family: var(--font-display);
+            font-size: clamp(5.5rem, 16vw, 13rem);
+            font-weight: 400;
+            font-style: italic;
+            line-height: 0.9;
+            letter-spacing: -0.03em;
+            color: var(--text);
+        }
+
+        .title-sub {
+            font-family: var(--font-body);
+            font-size: 0.8rem;
+            font-weight: 300;
+            color: var(--accent);
+            margin-top: 2.5rem;
+            letter-spacing: 0.05em;
+        }
+
+        /* Section marker */
+        .section-marker {
+            grid-column: 1 / 3;
+            font-family: var(--font-body);
+            font-size: 0.65rem;
+            font-weight: 400;
+            color: var(--accent);
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            padding-top: 0.4rem;
+        }
+
+        /* Section title */
+        .section-title {
+            grid-column: 3 / 10;
+            font-family: var(--font-display);
+            font-size: clamp(2.2rem, 5vw, 3.8rem);
+            font-weight: 400;
+            line-height: 1.15;
+            letter-spacing: -0.02em;
+            margin-bottom: 4rem;
+        }
+
+        /* Body text */
+        .text-block {
+            grid-column: 4 / 10;
+        }
+
+        .text-block p {
+            font-family: var(--font-body);
+            font-size: 0.875rem;
+            font-weight: 400;
+            line-height: 2.0;
+            margin-bottom: 1.8rem;
+            color: var(--text);
+        }
+
+        /* Stats row */
+        .stats-row {
+            grid-column: 3 / 11;
+            display: flex;
+            gap: 4rem;
+            padding: 5vh 0;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            flex: 1;
+            min-width: 160px;
+        }
+
+        .stat-number {
+            font-family: var(--font-display);
+            font-size: clamp(3rem, 8vw, 5.5rem);
+            font-weight: 400;
+            font-style: italic;
+            line-height: 1.0;
+            letter-spacing: -0.03em;
+        }
+
+        .stat-number .stat-suffix {
+            font-family: var(--font-body);
+            font-size: 0.32em;
+            font-style: normal;
+            font-weight: 300;
+            letter-spacing: 0.05em;
+            margin-left: 0.15em;
+            vertical-align: baseline;
+        }
+
+        .stat-divider {
+            width: 2rem;
+            height: 1px;
+            background: var(--accent-light);
+            margin: 1rem 0 0.75rem;
+        }
+
+        .stat-label {
+            font-family: var(--font-body);
+            font-size: 0.65rem;
+            font-weight: 400;
+            color: var(--accent);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+        }
+
+        /* Chart container */
+        .chart-wrap {
+            grid-column: 2 / 12;
+            padding: 3vh 0;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 320px;
+        }
+
+        /* Table */
+        .table-wrap {
+            grid-column: 4 / 11;
+            padding: 2vh 0;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-body);
+            font-size: 0.8rem;
+            font-weight: 400;
+        }
+
+        .data-table th {
+            font-weight: 400;
+            text-align: left;
+            padding: 0 2rem 0.75rem 0;
+            border-bottom: 1px solid var(--accent-light);
+            color: var(--accent);
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        .data-table td {
+            padding: 1.2rem 2rem 1.2rem 0;
+            vertical-align: top;
+            color: var(--text);
+        }
+
+        .data-table .highlight {
+            color: var(--highlight);
+            font-weight: 500;
+        }
+
+        /* Blockquote */
+        .quote-block {
+            grid-column: 5 / 12;
+            padding: 5vh 0;
+        }
+
+        .quote-block blockquote {
+            position: relative;
+            font-family: var(--font-display);
+            font-size: 1.15rem;
+            font-weight: 400;
+            font-style: italic;
+            line-height: 2.2;
+            color: var(--text);
+            padding-top: 2rem;
+        }
+
+        .quote-block blockquote::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 2.5rem;
+            height: 1px;
+            background: var(--accent-light);
+        }
+
+        /* Priority list */
+        .list-block {
+            grid-column: 4 / 11;
+        }
+
+        .priority-list {
+            list-style: none;
+            padding: 0;
+            counter-reset: priority;
+        }
+
+        .priority-list li {
+            counter-increment: priority;
+            padding: 2rem 0;
+            font-family: var(--font-body);
+            font-size: 0.875rem;
+            line-height: 2.0;
+            font-weight: 400;
+            border-bottom: 1px solid var(--accent-light);
+        }
+
+        .priority-list li:last-child {
+            border-bottom: none;
+        }
+
+        .priority-list li::before {
+            content: counter(priority, decimal-leading-zero);
+            display: block;
+            font-size: 0.65rem;
+            color: var(--accent);
+            letter-spacing: 0.15em;
+            margin-bottom: 0.75rem;
+            font-weight: 300;
+        }
+
+        /* Inline stats */
+        .inline-stats {
+            grid-column: 4 / 10;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 3rem;
+            padding: 4vh 0;
+        }
+
+        .inline-stat-item .inline-stat-value {
+            font-family: var(--font-display);
+            font-size: clamp(1.8rem, 4vw, 2.8rem);
+            font-weight: 400;
+            font-style: italic;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+        }
+
+        .inline-stat-item .inline-stat-value .stat-suffix {
+            font-family: var(--font-body);
+            font-size: 0.4em;
+            font-style: normal;
+            font-weight: 300;
+            letter-spacing: 0.05em;
+            margin-left: 0.1em;
+        }
+
+        .inline-stat-item .inline-stat-divider {
+            width: 1.5rem;
+            height: 1px;
+            background: var(--accent-light);
+            margin: 0.75rem 0 0.5rem;
+        }
+
+        .inline-stat-item .inline-stat-label {
+            font-size: 0.6rem;
+            font-weight: 400;
+            color: var(--accent);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+        }
+
+        /* Closing */
+        .closing-section {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20vh 0;
+        }
+
+        .closing-section p {
+            font-family: var(--font-display);
+            font-size: 1.1rem;
+            font-weight: 400;
+            font-style: italic;
+            color: var(--accent);
+            letter-spacing: 0.02em;
+        }
+
+        /* Reveal animation */
+        .reveal {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 1s cubic-bezier(0.16, 1, 0.3, 1), transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .reveal-delay-1 { transition-delay: 0.1s; }
+        .reveal-delay-2 { transition-delay: 0.2s; }
+        .reveal-delay-3 { transition-delay: 0.3s; }
+        .reveal-delay-4 { transition-delay: 0.4s; }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .report {
+                padding: 0 2rem;
+            }
+
+            .section-marker {
+                grid-column: 1 / -1;
+                margin-bottom: 0.5rem;
+            }
+
+            .section-title {
+                grid-column: 1 / -1;
+            }
+
+            .text-block {
+                grid-column: 1 / 11;
+            }
+
+            .stats-row {
+                grid-column: 1 / -1;
+            }
+
+            .chart-wrap {
+                grid-column: 1 / -1;
+            }
+
+            .table-wrap {
+                grid-column: 1 / -1;
+            }
+
+            .quote-block {
+                grid-column: 2 / -1;
+            }
+
+            .list-block {
+                grid-column: 1 / -1;
+            }
+
+            .inline-stats {
+                grid-column: 1 / -1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .report {
+                display: block;
+                padding: 0 1.5rem;
+            }
+
+            section {
+                display: block;
+                padding-top: 10vh;
+                padding-bottom: 6vh;
+            }
+
+            .title-main {
+                font-size: clamp(3.5rem, 14vw, 6rem);
+            }
+
+            .section-marker {
+                margin-bottom: 1rem;
+            }
+
+            .section-title {
+                margin-bottom: 3rem;
+            }
+
+            .stats-row {
+                flex-direction: column;
+                gap: 3rem;
+            }
+
+            .inline-stats {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+
+            .scroll-progress {
+                top: 0;
+                left: 0;
+                right: unset;
+                width: 0%;
+                height: 1px;
+            }
+
+            .back-to-top {
+                writing-mode: horizontal-tb;
+                bottom: 2rem;
+                right: 1.5rem;
+            }
+        }
+
+        /* Print */
+        @media print {
+            .scroll-progress,
+            .back-to-top {
+                display: none;
+            }
+
+            body {
+                font-size: 9pt;
+                background: white;
+                color: black;
+            }
+
+            .report {
+                display: block;
+                max-width: 100%;
+                padding: 0;
+            }
+
+            section {
+                display: block;
+                padding-top: 3rem;
+                page-break-inside: avoid;
+            }
+
+            .title-section {
+                min-height: auto;
+                padding: 4rem 0;
+            }
+
+            .title-main {
+                font-size: 4rem;
+            }
+
+            .stat-number {
+                font-size: 2.5rem;
+            }
+
+            .section-title {
+                font-size: 1.8rem;
+            }
+
+            .chart-container {
+                page-break-inside: avoid;
+            }
+
+            .reveal {
+                opacity: 1;
+                transform: none;
+            }
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            .reveal {
+                opacity: 1;
+                transform: none;
+                transition: none;
+            }
+
+            html {
+                scroll-behavior: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="scroll-progress" id="scrollProgress"></div>
+    <a href="#top" class="back-to-top" id="backToTop">Top</a>
+
+    <div class="report" id="top">
+
+        <!-- Title -->
+        <section class="title-section reveal">
+            <div class="title-date">2024.10 — 12</div>
+            <div class="title-label">季度运营报告</div>
+            <h1 class="title-main">Q4</h1>
+            <p class="title-sub">第四季度业务回顾与战略展望</p>
+        </section>
+
+        <!-- 01 Executive Summary -->
+        <section>
+            <div class="section-marker reveal">01 — 概述</div>
+            <h2 class="section-title reveal reveal-delay-1">执行摘要</h2>
+
+            <div class="stats-row reveal reveal-delay-2">
+                <div class="stat-item">
+                    <div class="stat-number" data-target="2.8" data-suffix="亿" data-decimal="1">0</div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-label">季度营收</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" data-target="34" data-suffix="%" data-decimal="0">0</div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-label">同比增长率</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" data-target="126" data-suffix="万" data-decimal="0">0</div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-label">月活跃用户</div>
+                </div>
+            </div>
+
+            <div class="text-block reveal reveal-delay-3">
+                <p>第四季度是公司历史上表现最强劲的单季度。营收同比增长34%，达到2.8亿元，超出内部目标12个百分点。增长并非来自单一爆发点，而是各业务线协同提升的结果——企业服务续约率从78%提升至89%，数据平台新签客户数环比增长52%，海外业务贡献首次突破15%。</p>
+                <p>更值得关注的是增长质量的改善。客户获取成本（CAC）下降了18%，而客户生命周期价值（LTV）提升了23%，LTV/CAC比值从3.2优化至4.8。这意味着我们的增长正在变得更健康、更可持续。净收入留存率（NRR）达到132%，表明现有客户的扩展收入已远超流失。</p>
+            </div>
+        </section>
+
+        <!-- 02 Revenue Analysis -->
+        <section>
+            <div class="section-marker reveal">02 — 财务</div>
+            <h2 class="section-title reveal reveal-delay-1">营收分析</h2>
+
+            <div class="text-block reveal reveal-delay-2">
+                <p>全年营收轨迹呈现稳健的阶梯式增长。Q1至Q4依次为1.8亿、2.1亿、2.4亿、2.8亿，季度复合增长率达15.8%。这一节奏反映了产品迭代与市场拓展的双重推动力。</p>
+                <p>从收入结构来看，企业服务贡献了62%的营收（1.74亿），同比增长41%，是绝对的主力引擎。该业务的增长主要受益于两个因素：一是大客户ACV（年合同价值）从86万提升至112万，二是中型客户（年付费10-50万区间）数量增长了67%。</p>
+            </div>
+
+            <div class="chart-wrap reveal">
+                <div class="chart-container" id="revenueChart"></div>
+            </div>
+
+            <div class="table-wrap reveal">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>业务线</th>
+                            <th>Q4 营收</th>
+                            <th>营收占比</th>
+                            <th>同比增长</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>企业服务</td>
+                            <td>1.74亿</td>
+                            <td>62%</td>
+                            <td class="highlight">+41%</td>
+                        </tr>
+                        <tr>
+                            <td>数据平台</td>
+                            <td>0.62亿</td>
+                            <td>22%</td>
+                            <td class="highlight">+28%</td>
+                        </tr>
+                        <tr>
+                            <td>开发工具</td>
+                            <td>0.31亿</td>
+                            <td>11%</td>
+                            <td class="highlight">+19%</td>
+                        </tr>
+                        <tr>
+                            <td>海外市场</td>
+                            <td>0.13亿</td>
+                            <td>5%</td>
+                            <td class="highlight">+84%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 03 User Metrics -->
+        <section>
+            <div class="section-marker reveal">03 — 用户</div>
+            <h2 class="section-title reveal reveal-delay-1">用户指标</h2>
+
+            <div class="text-block reveal reveal-delay-2">
+                <p>月活跃用户在10月正式突破百万，12月底达到126万。更重要的是用户质量指标的全面改善：7日留存率从Q3的61%提升至68%，日均使用时长增加了4.2分钟，付费转化率从2.1%提升至3.4%。这些提升与Q3末上线的个性化推荐引擎高度相关。</p>
+                <p>用户增长的渠道结构也在优化。自然流量占比从44%提升至58%，付费获客占比相应下降。口碑传播系数（K-factor）从0.31提升至0.47，意味着每100个用户平均能带来47个新注册。</p>
+            </div>
+
+            <div class="chart-wrap reveal">
+                <div class="chart-container" id="userChart"></div>
+            </div>
+
+            <div class="inline-stats reveal">
+                <div class="inline-stat-item">
+                    <div class="inline-stat-value" data-target="68" data-suffix="%" data-decimal="0">0</div>
+                    <div class="inline-stat-divider"></div>
+                    <div class="inline-stat-label">7日留存率</div>
+                </div>
+                <div class="inline-stat-item">
+                    <div class="inline-stat-value" data-target="23" data-suffix="min" data-decimal="0">0</div>
+                    <div class="inline-stat-divider"></div>
+                    <div class="inline-stat-label">日均使用时长</div>
+                </div>
+                <div class="inline-stat-item">
+                    <div class="inline-stat-value" data-target="3.4" data-suffix="%" data-decimal="1">0</div>
+                    <div class="inline-stat-divider"></div>
+                    <div class="inline-stat-label">付费转化率</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 04 Product Performance -->
+        <section>
+            <div class="section-marker reveal">04 — 产品</div>
+            <h2 class="section-title reveal reveal-delay-1">产品表现</h2>
+
+            <div class="text-block reveal reveal-delay-2">
+                <p>本季度共完成3个大版本迭代和14次小版本更新。最具影响力的是企业服务平台1.8版本中引入的自动化工作流引擎——上线首月即有340家企业客户启用，平均每家创建了7.2个自动化流程，直接推动了客户活跃度提升22%。</p>
+                <p>数据平台的实时查询能力从概念验证推进到生产就绪。P95查询延迟从1.2秒降至380毫秒，支持的并发查询数从200提升至1500。这一能力直接打开了金融和电商两个对实时性有刚性需求的垂直市场。</p>
+            </div>
+
+            <div class="table-wrap reveal">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>产品指标</th>
+                            <th>Q3</th>
+                            <th>Q4</th>
+                            <th>变化</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>系统可用性</td>
+                            <td>99.92%</td>
+                            <td>99.97%</td>
+                            <td class="highlight">+0.05pp</td>
+                        </tr>
+                        <tr>
+                            <td>API平均响应时间</td>
+                            <td>142ms</td>
+                            <td>98ms</td>
+                            <td class="highlight">-31%</td>
+                        </tr>
+                        <tr>
+                            <td>工单解决时效</td>
+                            <td>4.2小时</td>
+                            <td>2.8小时</td>
+                            <td class="highlight">-33%</td>
+                        </tr>
+                        <tr>
+                            <td>NPS评分</td>
+                            <td>52</td>
+                            <td>61</td>
+                            <td class="highlight">+9</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="text-block reveal">
+                <p>客户满意度方面，NPS从52分跃升至61分，创下历史新高。主要驱动因素是响应速度的提升和产品稳定性的改善。技术支持团队的首次响应时间从23分钟缩短到8分钟，工单一次性解决率达到76%。</p>
+            </div>
+        </section>
+
+        <!-- 05 Strategic Priorities -->
+        <section>
+            <div class="section-marker reveal">05 — 战略</div>
+            <h2 class="section-title reveal reveal-delay-1">下季度优先事项</h2>
+
+            <div class="text-block reveal reveal-delay-2">
+                <p>基于Q4的业务表现和市场反馈，管理层确定了以下五个战略优先级。每项均已分配明确的负责人、预算和里程碑节点。</p>
+            </div>
+
+            <div class="list-block reveal reveal-delay-3">
+                <ol class="priority-list">
+                    <li>完成企业服务平台2.0版本迭代。重点方向是大客户私有化部署能力和开放API生态建设。目标：部署时间从14天缩短至3天，API覆盖率从60%提升至95%。</li>
+                    <li>海外市场正式进入东南亚三国（新加坡、印尼、马来西亚）。已完成本地化团队搭建和合规审查，Q1目标是获取首批50家付费企业客户。</li>
+                    <li>数据平台引入实时流式分析能力，将端到端延迟降至200ms以内。这是打入金融垂直市场的关键门槛。</li>
+                    <li>用户增长目标：月活跃用户达到150万。策略重心从付费投放转向产品驱动增长（PLG），目标K-factor提升至0.6以上。</li>
+                    <li>启动B轮融资准备。基于当前业务轨迹和市场对标，目标估值25亿，重点打磨Unit Economics和增长可持续性叙事。</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- 06 Outlook -->
+        <section>
+            <div class="section-marker reveal">06 — 展望</div>
+            <h2 class="section-title reveal reveal-delay-1">2025年展望</h2>
+
+            <div class="text-block reveal reveal-delay-2">
+                <p>展望2025年，我们预计全年营收将达到14-16亿元区间，对应50-70%的同比增长。上半年的增长将主要由企业服务的大客户扩展和海外市场的初步贡献驱动；下半年则期待数据平台的实时能力释放后带来第二增长曲线。</p>
+                <p>我们同时关注到几个结构性风险：企业IT预算在宏观不确定性下可能收紧，海外拓展的本地化成本高于预期，以及AI技术快速迭代对现有产品形态的潜在颠覆。为此，我们已将年度研发预算的20%定向投入AI原生产品探索，在保持核心业务稳健增长的同时建立面向下一代的技术储备。</p>
+            </div>
+
+            <div class="quote-block reveal">
+                <blockquote>保持专注，追求确定性增长中的结构性突破。以客户价值为锚点，在克制中寻找杠杆。</blockquote>
+            </div>
+        </section>
+
+        <!-- Closing -->
+        <section class="closing-section reveal">
+            <p>保持专注，持续创造价值。</p>
+        </section>
+
+    </div>
+
+    <script>
+    class ReportPresentation {
+        constructor() {
+            this.initScrollProgress();
+            this.initBackToTop();
+            this.initRevealAnimations();
+            this.initCounterAnimations();
+            this.initCharts();
+        }
+
+        initScrollProgress() {
+            const bar = document.getElementById('scrollProgress');
+            const isMobile = window.innerWidth <= 768;
+
+            window.addEventListener('scroll', () => {
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                const progress = (scrollTop / docHeight) * 100;
+
+                if (isMobile) {
+                    bar.style.width = progress + '%';
+                    bar.style.height = '1px';
+                } else {
+                    bar.style.height = progress + '%';
+                }
+            });
+        }
+
+        initBackToTop() {
+            const btn = document.getElementById('backToTop');
+            window.addEventListener('scroll', () => {
+                if (window.pageYOffset > window.innerHeight * 0.5) {
+                    btn.classList.add('visible');
+                } else {
+                    btn.classList.remove('visible');
+                }
+            });
+        }
+
+        initRevealAnimations() {
+            const reveals = document.querySelectorAll('.reveal');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                    }
+                });
+            }, {
+                threshold: 0.15,
+                rootMargin: '0px 0px -60px 0px'
+            });
+
+            reveals.forEach(el => observer.observe(el));
+        }
+
+        initCounterAnimations() {
+            const counters = document.querySelectorAll('[data-target]');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        this.animateCounter(entry.target);
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.3 });
+
+            counters.forEach(el => observer.observe(el));
+        }
+
+        animateCounter(el) {
+            const target = parseFloat(el.dataset.target);
+            const suffix = el.dataset.suffix || '';
+            const decimal = parseInt(el.dataset.decimal) || 0;
+            const duration = 1800;
+            const start = performance.now();
+
+            const animate = (now) => {
+                const elapsed = now - start;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 4);
+                const current = target * eased;
+
+                el.innerHTML = current.toFixed(decimal) + (suffix ? '<span class="stat-suffix">' + suffix + '</span>' : '');
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                }
+            };
+
+            requestAnimationFrame(animate);
+        }
+
+        initCharts() {
+            this.initRevenueChart();
+            this.initUserChart();
+        }
+
+        initRevenueChart() {
+            const container = document.getElementById('revenueChart');
+            if (!container) return;
+
+            const chart = echarts.init(container);
+            const option = {
+                backgroundColor: 'transparent',
+                grid: {
+                    top: 20,
+                    right: 20,
+                    bottom: 40,
+                    left: 50
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+                    axisLine: {
+                        lineStyle: { color: '#d4cfc8', width: 1 }
+                    },
+                    axisTick: { show: false },
+                    axisLabel: {
+                        color: '#9a9590',
+                        fontFamily: 'Manrope',
+                        fontSize: 10,
+                        fontWeight: 300
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLine: { show: false },
+                    axisTick: { show: false },
+                    splitLine: { show: false },
+                    axisLabel: {
+                        color: '#9a9590',
+                        fontFamily: 'Manrope',
+                        fontSize: 10,
+                        fontWeight: 300,
+                        formatter: function(value) {
+                            return (value / 1000).toFixed(1) + '亿';
+                        }
+                    }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: '#f8f5f0',
+                    borderColor: '#d4cfc8',
+                    borderWidth: 1,
+                    textStyle: {
+                        color: '#1a1a18',
+                        fontFamily: 'Manrope',
+                        fontSize: 11,
+                        fontWeight: 400
+                    },
+                    formatter: function(params) {
+                        return params[0].name + ' · ' + params[0].value + '万元';
+                    }
+                },
+                series: [{
+                    type: 'line',
+                    data: [5800, 6100, 6200, 6600, 7000, 7400, 7600, 7900, 8200, 8800, 9300, 9900],
+                    smooth: 0.3,
+                    symbol: 'none',
+                    showSymbol: false,
+                    endLabel: {
+                        show: true,
+                        formatter: '{c}万',
+                        color: '#1a1a18',
+                        fontFamily: 'Manrope',
+                        fontSize: 10
+                    },
+                    lineStyle: {
+                        color: '#1a1a18',
+                        width: 1.5
+                    },
+                    areaStyle: {
+                        color: {
+                            type: 'linear',
+                            x: 0, y: 0, x2: 0, y2: 1,
+                            colorStops: [
+                                { offset: 0, color: 'rgba(26, 26, 24, 0.04)' },
+                                { offset: 1, color: 'rgba(26, 26, 24, 0)' }
+                            ]
+                        }
+                    }
+                }]
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', () => chart.resize());
+        }
+
+        initUserChart() {
+            const container = document.getElementById('userChart');
+            if (!container) return;
+
+            const chart = echarts.init(container);
+            const option = {
+                backgroundColor: 'transparent',
+                grid: {
+                    top: 20,
+                    right: 50,
+                    bottom: 40,
+                    left: 50
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+                    axisLine: {
+                        lineStyle: { color: '#d4cfc8', width: 1 }
+                    },
+                    axisTick: { show: false },
+                    axisLabel: {
+                        color: '#9a9590',
+                        fontFamily: 'Manrope',
+                        fontSize: 10,
+                        fontWeight: 300
+                    }
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                        splitLine: { show: false },
+                        axisLabel: {
+                            color: '#9a9590',
+                            fontFamily: 'Manrope',
+                            fontSize: 10,
+                            fontWeight: 300,
+                            formatter: '{value}万'
+                        }
+                    },
+                    {
+                        type: 'value',
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                        splitLine: { show: false },
+                        axisLabel: {
+                            color: '#9a9590',
+                            fontFamily: 'Manrope',
+                            fontSize: 10,
+                            fontWeight: 300,
+                            formatter: '{value}%'
+                        }
+                    }
+                ],
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: '#f8f5f0',
+                    borderColor: '#d4cfc8',
+                    borderWidth: 1,
+                    textStyle: {
+                        color: '#1a1a18',
+                        fontFamily: 'Manrope',
+                        fontSize: 11,
+                        fontWeight: 400
+                    }
+                },
+                legend: { show: false },
+                series: [
+                    {
+                        name: '月活用户',
+                        type: 'line',
+                        data: [72, 76, 79, 84, 88, 91, 95, 98, 103, 110, 118, 126],
+                        smooth: 0.3,
+                        symbol: 'none',
+                        showSymbol: false,
+                        lineStyle: {
+                            color: '#1a1a18',
+                            width: 1.5
+                        },
+                        areaStyle: {
+                            color: {
+                                type: 'linear',
+                                x: 0, y: 0, x2: 0, y2: 1,
+                                colorStops: [
+                                    { offset: 0, color: 'rgba(26, 26, 24, 0.04)' },
+                                    { offset: 1, color: 'rgba(26, 26, 24, 0)' }
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        name: '7日留存率',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: [55, 56, 57, 58, 59, 60, 61, 62, 63, 65, 67, 68],
+                        smooth: 0.3,
+                        symbol: 'none',
+                        showSymbol: false,
+                        lineStyle: {
+                            color: '#d4cfc8',
+                            width: 1.5
+                        }
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', () => chart.resize());
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        new ReportPresentation();
+    });
+    </script>
+</body>
+</html>

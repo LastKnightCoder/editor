@@ -1,0 +1,1951 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>产品设计系统建设方案</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --bg: #FFFDF5;
+            --bg-alt: #F0ECE2;
+            --black: #1A1A1A;
+            --yellow: #FFE600;
+            --red: #FF3333;
+            --blue: #2E4CFF;
+            --green: #00CC66;
+            --shadow: 6px 6px 0px #1A1A1A;
+            --shadow-sm: 4px 4px 0px #1A1A1A;
+            --border: 4px solid #1A1A1A;
+            --border-thin: 3px solid #1A1A1A;
+            --font-display: "Space Grotesk", -apple-system, sans-serif;
+            --font-body: "Inter", -apple-system, sans-serif;
+            --font-mono: "Space Mono", "SF Mono", monospace;
+            --title-size: clamp(2.5rem, 6vw, 4.5rem);
+            --h1-size: clamp(1.8rem, 3.5vw, 2.8rem);
+            --h2-size: clamp(1.2rem, 2vw, 1.6rem);
+            --h3-size: clamp(1rem, 1.5vw, 1.2rem);
+            --body-size: clamp(0.9rem, 1.1vw, 1.05rem);
+            --small-size: clamp(0.75rem, 0.9vw, 0.85rem);
+            --stat-size: clamp(2rem, 4vw, 3.5rem);
+            --section-gap: clamp(4rem, 8vw, 8rem);
+            --container-max: 1000px;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--black);
+            font-family: var(--font-body);
+            font-size: var(--body-size);
+            font-weight: 400;
+            line-height: 1.75;
+            -webkit-font-smoothing: antialiased;
+            position: relative;
+            min-height: 100vh;
+        }
+
+        /* Grid texture background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            background-image:
+                linear-gradient(rgba(26, 26, 26, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(26, 26, 26, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        /* Scroll progress bar */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: var(--black);
+            z-index: 10000;
+            transition: width 0.1s linear;
+            width: 0%;
+        }
+
+        /* Back to top */
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 48px;
+            height: 48px;
+            background: var(--yellow);
+            border: var(--border-thin);
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 9999;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s, transform 0.3s;
+            font-family: var(--font-display);
+            font-weight: 900;
+            font-size: 1.2rem;
+        }
+        .back-to-top.visible {
+            opacity: 1;
+            transform: none;
+        }
+        .back-to-top:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 8px 8px 0px #1A1A1A;
+        }
+        .back-to-top:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px #1A1A1A;
+        }
+
+        /* Layout */
+        .report-container {
+            position: relative;
+            z-index: 1;
+            padding: clamp(1.5rem, 3vw, 3rem);
+        }
+
+        .report-main {
+            max-width: var(--container-max);
+            margin: 0 auto;
+        }
+
+        /* Sections */
+        .section {
+            margin-bottom: var(--section-gap);
+        }
+
+        .section-title {
+            font-family: var(--font-display);
+            font-size: var(--h1-size);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -0.02em;
+            margin-bottom: 2rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 4px solid var(--black);
+            position: relative;
+        }
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 80px;
+            height: 4px;
+            background: var(--yellow);
+        }
+
+        /* Reveal animations */
+        .reveal {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+        }
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-20px);
+            transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+        }
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(20px);
+            transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+        }
+        .reveal.visible, .reveal-left.visible, .reveal-right.visible {
+            opacity: 1;
+            transform: none;
+        }
+        .delay-1 { transition-delay: 0.1s; }
+        .delay-2 { transition-delay: 0.2s; }
+        .delay-3 { transition-delay: 0.3s; }
+        .delay-4 { transition-delay: 0.4s; }
+        .delay-5 { transition-delay: 0.5s; }
+
+        /* Cover section */
+        .cover {
+            min-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 4rem 0;
+        }
+        .cover-frame {
+            border: var(--border);
+            box-shadow: var(--shadow);
+            padding: clamp(2rem, 4vw, 4rem);
+            background: var(--bg);
+            position: relative;
+        }
+        .cover-frame::before {
+            content: '';
+            position: absolute;
+            top: -12px;
+            left: -12px;
+            right: 12px;
+            bottom: 12px;
+            border: 3px solid var(--black);
+            z-index: -1;
+        }
+        .cover-label {
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            font-weight: 700;
+            text-transform: uppercase;
+            background: var(--yellow);
+            padding: 0.3rem 0.8rem;
+            border: 2px solid var(--black);
+            display: inline-block;
+            margin-bottom: 1.5rem;
+        }
+        .cover-title {
+            font-family: var(--font-display);
+            font-size: var(--title-size);
+            font-weight: 900;
+            line-height: 1.05;
+            text-transform: uppercase;
+            letter-spacing: -0.03em;
+            margin-bottom: 1.5rem;
+        }
+        .cover-subtitle {
+            font-family: var(--font-body);
+            font-size: var(--h3-size);
+            font-weight: 300;
+            color: var(--black);
+            opacity: 0.7;
+            margin-bottom: 2rem;
+            max-width: 600px;
+        }
+        .cover-meta {
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            color: var(--black);
+            opacity: 0.6;
+        }
+
+        /* Brutal cards */
+        .brutal-card {
+            border: var(--border);
+            box-shadow: var(--shadow);
+            padding: clamp(1.2rem, 2vw, 2rem);
+            background: var(--bg);
+            position: relative;
+        }
+        .brutal-card--yellow { border-top: 8px solid var(--yellow); }
+        .brutal-card--red { border-top: 8px solid var(--red); }
+        .brutal-card--blue { border-top: 8px solid var(--blue); }
+        .brutal-card--green { border-top: 8px solid var(--green); }
+
+        .brutal-card:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 8px 8px 0px #1A1A1A;
+        }
+
+        /* Metrics grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+        .metric-value {
+            font-family: var(--font-mono);
+            font-size: var(--stat-size);
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 0.5rem;
+        }
+        .metric-label {
+            font-family: var(--font-body);
+            font-size: var(--small-size);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            opacity: 0.7;
+        }
+        .metric-underline {
+            width: 40px;
+            height: 4px;
+            margin-top: 0.75rem;
+        }
+        .metric-underline--yellow { background: var(--yellow); }
+        .metric-underline--red { background: var(--red); }
+        .metric-underline--blue { background: var(--blue); }
+        .metric-underline--green { background: var(--green); }
+
+        /* Concept boxes */
+        .concepts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+        .concept-box {
+            border: var(--border-thin);
+            box-shadow: var(--shadow-sm);
+            padding: 1.5rem;
+            background: var(--bg);
+        }
+        .concept-term {
+            font-family: var(--font-display);
+            font-size: var(--h3-size);
+            font-weight: 800;
+            text-transform: uppercase;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--yellow);
+            margin-bottom: 1rem;
+        }
+        .concept-desc {
+            font-family: var(--font-body);
+            font-size: var(--body-size);
+            font-weight: 300;
+            line-height: 1.7;
+            margin-bottom: 1rem;
+        }
+        .tag-pill {
+            display: inline-block;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 0.2rem 0.6rem;
+            border: 2px solid var(--black);
+            margin-right: 0.4rem;
+            margin-bottom: 0.4rem;
+            background: var(--bg-alt);
+        }
+
+        /* Horizontal bar chart (CSS) */
+        .bar-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .bar-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .bar-label {
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            font-weight: 700;
+            min-width: 100px;
+            text-align: right;
+        }
+        .bar-track {
+            flex: 1;
+            height: 32px;
+            border: 3px solid var(--black);
+            background: var(--bg-alt);
+            position: relative;
+        }
+        .bar-fill {
+            height: 100%;
+            width: 0%;
+            transition: width 1s ease-out;
+        }
+        .bar-fill--yellow { background: var(--yellow); }
+        .bar-fill--red { background: var(--red); }
+        .bar-fill--blue { background: var(--blue); }
+        .bar-fill--green { background: var(--green); }
+        .bar-value {
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            font-weight: 700;
+            min-width: 50px;
+        }
+
+        /* Stats grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1.5rem;
+        }
+        .stat-card {
+            border: var(--border-thin);
+            box-shadow: var(--shadow-sm);
+            padding: 1.5rem;
+            background: var(--bg);
+            text-align: center;
+        }
+        .stat-number {
+            font-family: var(--font-mono);
+            font-size: var(--stat-size);
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+        .stat-label {
+            font-family: var(--font-body);
+            font-size: var(--small-size);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .stat-underline {
+            width: 50px;
+            height: 4px;
+            margin: 0.75rem auto 0;
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 3rem;
+            border-left: 4px solid var(--black);
+        }
+        .timeline-item {
+            position: relative;
+            padding-bottom: 2.5rem;
+        }
+        .timeline-item:last-child { padding-bottom: 0; }
+        .timeline-node {
+            position: absolute;
+            left: -3rem;
+            top: 0;
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--black);
+            transform: translateX(calc(-50% + 2px));
+        }
+        .timeline-node--yellow { background: var(--yellow); }
+        .timeline-node--red { background: var(--red); }
+        .timeline-node--blue { background: var(--blue); }
+        .timeline-node--green { background: var(--green); }
+        .timeline-date {
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+            text-transform: uppercase;
+        }
+        .timeline-title {
+            font-family: var(--font-display);
+            font-size: var(--h3-size);
+            font-weight: 800;
+            margin-bottom: 0.3rem;
+        }
+        .timeline-desc {
+            font-family: var(--font-body);
+            font-size: var(--body-size);
+            font-weight: 300;
+            opacity: 0.8;
+        }
+
+        /* Comparison */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        .comparison-card {
+            border: var(--border);
+            padding: 2rem;
+            background: var(--bg);
+        }
+        .comparison-card--before {
+            box-shadow: 6px 6px 0px var(--red);
+        }
+        .comparison-card--after {
+            box-shadow: 6px 6px 0px var(--green);
+        }
+        .comparison-label {
+            font-family: var(--font-display);
+            font-size: var(--h3-size);
+            font-weight: 900;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--black);
+        }
+        .comparison-list {
+            list-style: none;
+        }
+        .comparison-list li {
+            font-family: var(--font-body);
+            font-size: var(--body-size);
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(26, 26, 26, 0.1);
+            padding-left: 1.2rem;
+            position: relative;
+        }
+        .comparison-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 8px;
+            height: 8px;
+            background: var(--black);
+        }
+
+        /* Action plan */
+        .action-list {
+            list-style: none;
+            border-left: 4px solid var(--black);
+            padding-left: 1.5rem;
+        }
+        .action-item {
+            padding: 1rem 0;
+            border-bottom: 2px solid rgba(26, 26, 26, 0.08);
+            position: relative;
+            padding-left: 1.5rem;
+        }
+        .action-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 1.3rem;
+            width: 12px;
+            height: 12px;
+        }
+        .action-item:nth-child(1)::before { background: var(--yellow); }
+        .action-item:nth-child(2)::before { background: var(--red); }
+        .action-item:nth-child(3)::before { background: var(--blue); }
+        .action-item:nth-child(4)::before { background: var(--green); }
+        .action-item:nth-child(5)::before { background: var(--yellow); }
+        .action-item:nth-child(6)::before { background: var(--red); }
+        .action-title {
+            font-family: var(--font-display);
+            font-size: var(--h3-size);
+            font-weight: 800;
+            margin-bottom: 0.3rem;
+        }
+        .action-desc {
+            font-family: var(--font-body);
+            font-size: var(--body-size);
+            font-weight: 300;
+            opacity: 0.8;
+        }
+
+        /* Text highlights */
+        .highlight {
+            background: var(--yellow);
+            padding: 0.1em 0.3em;
+            font-weight: 500;
+        }
+        .highlight--red {
+            background: var(--red);
+            color: #fff;
+            padding: 0.1em 0.3em;
+            font-weight: 500;
+        }
+        .highlight--blue {
+            background: var(--blue);
+            color: #fff;
+            padding: 0.1em 0.3em;
+            font-weight: 500;
+        }
+
+        /* ECharts container */
+        .chart-container {
+            width: 100%;
+            height: 360px;
+            border: var(--border);
+            box-shadow: var(--shadow);
+            background: var(--bg);
+            margin-top: 2rem;
+        }
+
+        /* Data cards row */
+        .data-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        .data-card {
+            border: 3px solid var(--black);
+            box-shadow: var(--shadow-sm);
+            padding: 1rem;
+            background: var(--bg-alt);
+        }
+        .data-card-title {
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 0.3rem;
+        }
+        .data-card-value {
+            font-family: var(--font-display);
+            font-size: var(--h2-size);
+            font-weight: 900;
+        }
+
+        /* Design Tokens Section */
+        .tokens-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+        .token-category {
+            border: var(--border);
+            box-shadow: var(--shadow);
+            padding: 1.5rem;
+            background: var(--bg);
+        }
+        .token-category-title {
+            font-family: var(--font-display);
+            font-size: var(--h3-size);
+            font-weight: 900;
+            text-transform: uppercase;
+            margin-bottom: 1.2rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--black);
+        }
+        .color-swatches {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+        .color-swatch {
+            border: 3px solid var(--black);
+            box-shadow: var(--shadow-sm);
+            padding: 0.6rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .color-swatch-block {
+            width: 32px;
+            height: 32px;
+            border: 2px solid var(--black);
+            flex-shrink: 0;
+        }
+        .color-swatch-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .color-swatch-name {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .color-swatch-value {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            opacity: 0.6;
+        }
+        .type-scale {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .type-scale-item {
+            border: 2px solid var(--black);
+            padding: 0.5rem 0.75rem;
+            display: flex;
+            align-items: baseline;
+            gap: 0.75rem;
+            background: var(--bg-alt);
+        }
+        .type-scale-sample {
+            font-family: var(--font-display);
+            font-weight: 700;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+        .type-scale-label {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            font-weight: 700;
+            opacity: 0.6;
+            margin-left: auto;
+            white-space: nowrap;
+        }
+        .spacing-scale {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+        .spacing-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .spacing-block {
+            height: 24px;
+            background: var(--yellow);
+            border: 2px solid var(--black);
+        }
+        .spacing-label {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 700;
+            min-width: 60px;
+        }
+        .spacing-value {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            opacity: 0.6;
+        }
+        .border-width-scale {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .border-width-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 0;
+        }
+        .border-width-sample {
+            width: 80px;
+            background: var(--black);
+            flex-shrink: 0;
+        }
+        .border-width-info {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        .border-width-val {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            opacity: 0.6;
+        }
+
+        /* Component State Matrix */
+        .state-matrix-wrapper {
+            overflow-x: auto;
+            border: var(--border);
+            box-shadow: var(--shadow);
+            background: var(--bg);
+        }
+        .state-matrix {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-body);
+            font-size: var(--small-size);
+            min-width: 700px;
+        }
+        .state-matrix th {
+            font-family: var(--font-display);
+            font-size: var(--small-size);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            padding: 1rem 0.75rem;
+            border: 3px solid var(--black);
+            background: var(--bg-alt);
+            text-align: center;
+        }
+        .state-matrix th:first-child {
+            text-align: left;
+            min-width: 120px;
+        }
+        .state-matrix td {
+            padding: 0.75rem;
+            border: 3px solid var(--black);
+            text-align: center;
+            vertical-align: middle;
+        }
+        .state-matrix tbody tr:hover {
+            background: var(--bg-alt);
+        }
+        .state-matrix .component-name {
+            font-family: var(--font-display);
+            font-weight: 800;
+            text-transform: uppercase;
+            text-align: left;
+            font-size: var(--small-size);
+        }
+        .state-indicator {
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            border: 2px solid var(--black);
+        }
+        .state-indicator--active {
+            background: var(--green);
+            box-shadow: 3px 3px 0px var(--black);
+        }
+        .state-indicator--partial {
+            background: var(--yellow);
+            box-shadow: 3px 3px 0px var(--black);
+        }
+        .state-indicator--missing {
+            background: var(--red);
+            box-shadow: 3px 3px 0px var(--black);
+        }
+        .state-indicator--na {
+            background: var(--bg-alt);
+        }
+        .matrix-legend {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .matrix-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .matrix-legend-swatch {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--black);
+        }
+
+        /* Gantt / Delivery Milestones */
+        .gantt-wrapper {
+            border: var(--border);
+            box-shadow: var(--shadow);
+            background: var(--bg);
+            padding: clamp(1.2rem, 2vw, 2rem);
+            overflow-x: auto;
+        }
+        .gantt-header {
+            display: grid;
+            grid-template-columns: 140px repeat(12, 1fr);
+            gap: 0;
+            margin-bottom: 0.5rem;
+            min-width: 700px;
+        }
+        .gantt-header-label {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            text-align: center;
+            padding: 0.4rem 0;
+            border-bottom: 3px solid var(--black);
+        }
+        .gantt-header-label:first-child {
+            text-align: left;
+        }
+        .gantt-row {
+            display: grid;
+            grid-template-columns: 140px repeat(12, 1fr);
+            gap: 0;
+            align-items: center;
+            min-height: 52px;
+            border-bottom: 2px solid rgba(26, 26, 26, 0.1);
+            min-width: 700px;
+        }
+        .gantt-row-label {
+            font-family: var(--font-display);
+            font-size: var(--small-size);
+            font-weight: 800;
+            text-transform: uppercase;
+            padding-right: 0.75rem;
+        }
+        .gantt-bar-area {
+            grid-column: 2 / -1;
+            position: relative;
+            height: 36px;
+        }
+        .gantt-bar {
+            position: absolute;
+            height: 28px;
+            top: 4px;
+            border: 3px solid var(--black);
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 0.5rem;
+        }
+        .gantt-bar-label {
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+            font-weight: 700;
+            color: var(--black);
+        }
+        .gantt-bar--yellow { background: var(--yellow); }
+        .gantt-bar--red { background: var(--red); }
+        .gantt-bar--blue { background: var(--blue); }
+        .gantt-bar--green { background: var(--green); }
+        .gantt-bar--blue .gantt-bar-label,
+        .gantt-bar--red .gantt-bar-label {
+            color: #fff;
+        }
+        .gantt-months-grid {
+            display: grid;
+            grid-template-columns: 140px repeat(12, 1fr);
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            min-width: 700px;
+        }
+        .gantt-month-line {
+            border-left: 1px solid rgba(26, 26, 26, 0.08);
+        }
+        .gantt-chart-area {
+            position: relative;
+        }
+        .gantt-progress-note {
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            font-weight: 700;
+            margin-top: 1.5rem;
+            padding: 0.75rem 1rem;
+            background: var(--bg-alt);
+            border: 3px solid var(--black);
+            display: inline-block;
+        }
+
+        /* Prefers reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            .reveal, .reveal-left, .reveal-right {
+                opacity: 1;
+                transform: none;
+                transition: none;
+            }
+            .bar-fill { transition: none; }
+            .back-to-top { transition: none; }
+            html { scroll-behavior: auto; }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+            .cover {
+                min-height: 60vh;
+                padding: 2rem 0;
+            }
+            .cover-frame::before {
+                display: none;
+            }
+            .metrics-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .bar-label {
+                min-width: 70px;
+                font-size: 0.65rem;
+            }
+            .tokens-grid {
+                grid-template-columns: 1fr;
+            }
+            .gantt-wrapper {
+                padding: 1rem;
+            }
+            .state-matrix th,
+            .state-matrix td {
+                padding: 0.5rem 0.4rem;
+            }
+            .state-indicator {
+                width: 22px;
+                height: 22px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .concepts-grid {
+                grid-template-columns: 1fr;
+            }
+            .cover-frame {
+                padding: 1.5rem;
+            }
+            .back-to-top {
+                bottom: 1rem;
+                right: 1rem;
+                width: 40px;
+                height: 40px;
+            }
+        }
+
+        /* Print styles */
+        @media print {
+            body::before { display: none; }
+            .scroll-progress { display: none; }
+            .back-to-top { display: none; }
+            .reveal, .reveal-left, .reveal-right {
+                opacity: 1 !important;
+                transform: none !important;
+            }
+            .section { page-break-inside: avoid; }
+            .brutal-card, .concept-box, .stat-card, .comparison-card {
+                box-shadow: none;
+                border: 2px solid #000;
+            }
+            .bar-fill { width: var(--target-width) !important; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Scroll progress -->
+    <div class="scroll-progress" id="scrollProgress"></div>
+
+    <!-- Back to top -->
+    <button class="back-to-top" id="backToTop" aria-label="Back to top">&uarr;</button>
+
+    <div class="report-container">
+        <div class="report-main">
+
+            <!-- Section 1: Cover -->
+            <section class="section cover">
+                <div class="cover-frame reveal">
+                    <div class="cover-label">DESIGN SYSTEM</div>
+                    <h1 class="cover-title">产品设计系统<br>建设方案</h1>
+                    <p class="cover-subtitle">构建统一、高效、可扩展的设计语言体系，驱动产品体验一致性与研发效能跃升</p>
+                    <div class="cover-meta">2026.05 // V2.0 // 产品设计中心</div>
+                </div>
+            </section>
+
+            <!-- Section 2: Executive Overview -->
+            <section class="section">
+                <h2 class="section-title reveal">项目概览</h2>
+                <p class="reveal delay-1" style="margin-bottom: 2rem; font-weight: 300;">
+                    本方案旨在建立一套<span class="highlight">覆盖全产品线</span>的设计系统，解决当前设计碎片化、组件复用率低、
+                    设计研发协同效率不足等核心痛点。通过系统化的设计规范与组件库建设，实现
+                    <span class="highlight--blue">降本增效</span>与<span class="highlight--red">体验一致</span>的双重目标。
+                </p>
+                <div class="metrics-grid">
+                    <div class="brutal-card brutal-card--yellow reveal delay-1">
+                        <div class="metric-value" data-count="156">0</div>
+                        <div class="metric-label">基础组件数</div>
+                        <div class="metric-underline metric-underline--yellow"></div>
+                    </div>
+                    <div class="brutal-card brutal-card--blue reveal delay-2">
+                        <div class="metric-value" data-count="89">0</div>
+                        <div class="metric-label">覆盖业务场景</div>
+                        <div class="metric-underline metric-underline--blue"></div>
+                    </div>
+                    <div class="brutal-card brutal-card--green reveal delay-3">
+                        <div class="metric-value">42%</div>
+                        <div class="metric-label">研发效率提升</div>
+                        <div class="metric-underline metric-underline--green"></div>
+                    </div>
+                    <div class="brutal-card brutal-card--red reveal delay-4">
+                        <div class="metric-value" data-count="12">0</div>
+                        <div class="metric-label">产品线接入</div>
+                        <div class="metric-underline metric-underline--red"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 3: Design Principles -->
+            <section class="section">
+                <h2 class="section-title reveal">设计原则</h2>
+                <div class="concepts-grid">
+                    <div class="concept-box reveal delay-1">
+                        <div class="concept-term">一致性</div>
+                        <p class="concept-desc">确保所有产品线的视觉语言和交互模式统一，用户在不同模块间无缝切换时感知连贯。</p>
+                        <span class="tag-pill">视觉统一</span>
+                        <span class="tag-pill">交互规范</span>
+                        <span class="tag-pill">品牌一致</span>
+                    </div>
+                    <div class="concept-box reveal delay-2">
+                        <div class="concept-term">可复用</div>
+                        <p class="concept-desc">组件遵循原子设计理论，从基础原子到复杂模板层层组合，最大化复用效率。</p>
+                        <span class="tag-pill">原子设计</span>
+                        <span class="tag-pill">组合模式</span>
+                        <span class="tag-pill">模板化</span>
+                    </div>
+                    <div class="concept-box reveal delay-3">
+                        <div class="concept-term">可扩展</div>
+                        <p class="concept-desc">设计 Token 与主题系统支持多品牌、多终端适配，业务线可在规范框架内灵活定制。</p>
+                        <span class="tag-pill">Token系统</span>
+                        <span class="tag-pill">多主题</span>
+                        <span class="tag-pill">弹性架构</span>
+                    </div>
+                    <div class="concept-box reveal delay-4">
+                        <div class="concept-term">可度量</div>
+                        <p class="concept-desc">通过数据埋点和使用分析追踪组件采纳率、覆盖率及用户满意度，数据驱动迭代优化。</p>
+                        <span class="tag-pill">数据驱动</span>
+                        <span class="tag-pill">埋点分析</span>
+                        <span class="tag-pill">持续优化</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 4: Design Tokens -->
+            <section class="section">
+                <h2 class="section-title reveal">设计令牌</h2>
+                <p class="reveal delay-1" style="margin-bottom: 2rem; font-weight: 300;">
+                    设计令牌（Design Tokens）是设计系统的<span class="highlight">原子级基础</span>，定义了颜色、字体、间距、边框等视觉属性的标准化变量。
+                    所有组件均基于令牌构建，确保全局一致性与主题切换能力。当前已定义 <span class="highlight--blue">320+ 个令牌变量</span>，覆盖 4 大类别。
+                </p>
+                <div class="tokens-grid">
+                    <!-- Color Tokens -->
+                    <div class="token-category reveal delay-1">
+                        <div class="token-category-title">色彩令牌</div>
+                        <div class="color-swatches">
+                            <div class="color-swatch">
+                                <div class="color-swatch-block" style="background: #1A1A1A;"></div>
+                                <div class="color-swatch-info">
+                                    <span class="color-swatch-name">Primary</span>
+                                    <span class="color-swatch-value">#1A1A1A</span>
+                                </div>
+                            </div>
+                            <div class="color-swatch">
+                                <div class="color-swatch-block" style="background: #FFE600;"></div>
+                                <div class="color-swatch-info">
+                                    <span class="color-swatch-name">Accent</span>
+                                    <span class="color-swatch-value">#FFE600</span>
+                                </div>
+                            </div>
+                            <div class="color-swatch">
+                                <div class="color-swatch-block" style="background: #FF3333;"></div>
+                                <div class="color-swatch-info">
+                                    <span class="color-swatch-name">Danger</span>
+                                    <span class="color-swatch-value">#FF3333</span>
+                                </div>
+                            </div>
+                            <div class="color-swatch">
+                                <div class="color-swatch-block" style="background: #2E4CFF;"></div>
+                                <div class="color-swatch-info">
+                                    <span class="color-swatch-name">Info</span>
+                                    <span class="color-swatch-value">#2E4CFF</span>
+                                </div>
+                            </div>
+                            <div class="color-swatch">
+                                <div class="color-swatch-block" style="background: #00CC66;"></div>
+                                <div class="color-swatch-info">
+                                    <span class="color-swatch-name">Success</span>
+                                    <span class="color-swatch-value">#00CC66</span>
+                                </div>
+                            </div>
+                            <div class="color-swatch">
+                                <div class="color-swatch-block" style="background: #F0ECE2;"></div>
+                                <div class="color-swatch-info">
+                                    <span class="color-swatch-name">Surface</span>
+                                    <span class="color-swatch-value">#F0ECE2</span>
+                                </div>
+                            </div>
+                            <div class="color-swatch">
+                                <div class="color-swatch-block" style="background: #FFFDF5;"></div>
+                                <div class="color-swatch-info">
+                                    <span class="color-swatch-name">Background</span>
+                                    <span class="color-swatch-value">#FFFDF5</span>
+                                </div>
+                            </div>
+                            <div class="color-swatch">
+                                <div class="color-swatch-block" style="background: #FF9500;"></div>
+                                <div class="color-swatch-info">
+                                    <span class="color-swatch-name">Warning</span>
+                                    <span class="color-swatch-value">#FF9500</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Typography Tokens -->
+                    <div class="token-category reveal delay-2">
+                        <div class="token-category-title">字体令牌</div>
+                        <div class="type-scale">
+                            <div class="type-scale-item">
+                                <span class="type-scale-sample" style="font-size: 2rem;">标题一</span>
+                                <span class="type-scale-label">H1 / 32px / 900</span>
+                            </div>
+                            <div class="type-scale-item">
+                                <span class="type-scale-sample" style="font-size: 1.5rem;">标题二</span>
+                                <span class="type-scale-label">H2 / 24px / 800</span>
+                            </div>
+                            <div class="type-scale-item">
+                                <span class="type-scale-sample" style="font-size: 1.2rem;">标题三</span>
+                                <span class="type-scale-label">H3 / 20px / 700</span>
+                            </div>
+                            <div class="type-scale-item">
+                                <span class="type-scale-sample" style="font-size: 1rem;">正文内容</span>
+                                <span class="type-scale-label">Body / 16px / 400</span>
+                            </div>
+                            <div class="type-scale-item">
+                                <span class="type-scale-sample" style="font-size: 0.85rem;">辅助文字</span>
+                                <span class="type-scale-label">Caption / 14px / 400</span>
+                            </div>
+                            <div class="type-scale-item">
+                                <span class="type-scale-sample" style="font-size: 0.75rem; font-family: var(--font-mono);">DATA_LABEL</span>
+                                <span class="type-scale-label">Mono / 12px / 700</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Spacing Tokens -->
+                    <div class="token-category reveal delay-3">
+                        <div class="token-category-title">间距令牌</div>
+                        <div class="spacing-scale">
+                            <div class="spacing-item">
+                                <span class="spacing-label">space-xs</span>
+                                <div class="spacing-block" style="width: 8px;"></div>
+                                <span class="spacing-value">4px</span>
+                            </div>
+                            <div class="spacing-item">
+                                <span class="spacing-label">space-sm</span>
+                                <div class="spacing-block" style="width: 16px;"></div>
+                                <span class="spacing-value">8px</span>
+                            </div>
+                            <div class="spacing-item">
+                                <span class="spacing-label">space-md</span>
+                                <div class="spacing-block" style="width: 32px;"></div>
+                                <span class="spacing-value">16px</span>
+                            </div>
+                            <div class="spacing-item">
+                                <span class="spacing-label">space-lg</span>
+                                <div class="spacing-block" style="width: 48px;"></div>
+                                <span class="spacing-value">24px</span>
+                            </div>
+                            <div class="spacing-item">
+                                <span class="spacing-label">space-xl</span>
+                                <div class="spacing-block" style="width: 64px;"></div>
+                                <span class="spacing-value">32px</span>
+                            </div>
+                            <div class="spacing-item">
+                                <span class="spacing-label">space-2xl</span>
+                                <div class="spacing-block" style="width: 96px;"></div>
+                                <span class="spacing-value">48px</span>
+                            </div>
+                            <div class="spacing-item">
+                                <span class="spacing-label">space-3xl</span>
+                                <div class="spacing-block" style="width: 128px;"></div>
+                                <span class="spacing-value">64px</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Border Width Tokens -->
+                    <div class="token-category reveal delay-4">
+                        <div class="token-category-title">边框令牌</div>
+                        <div class="border-width-scale">
+                            <div class="border-width-item">
+                                <div class="border-width-sample" style="height: 1px;"></div>
+                                <div>
+                                    <div class="border-width-info">border-thin</div>
+                                    <div class="border-width-val">1px solid</div>
+                                </div>
+                            </div>
+                            <div class="border-width-item">
+                                <div class="border-width-sample" style="height: 2px;"></div>
+                                <div>
+                                    <div class="border-width-info">border-default</div>
+                                    <div class="border-width-val">2px solid</div>
+                                </div>
+                            </div>
+                            <div class="border-width-item">
+                                <div class="border-width-sample" style="height: 3px;"></div>
+                                <div>
+                                    <div class="border-width-info">border-medium</div>
+                                    <div class="border-width-val">3px solid</div>
+                                </div>
+                            </div>
+                            <div class="border-width-item">
+                                <div class="border-width-sample" style="height: 4px;"></div>
+                                <div>
+                                    <div class="border-width-info">border-thick</div>
+                                    <div class="border-width-val">4px solid</div>
+                                </div>
+                            </div>
+                            <div class="border-width-item">
+                                <div class="border-width-sample" style="height: 6px;"></div>
+                                <div>
+                                    <div class="border-width-info">border-heavy</div>
+                                    <div class="border-width-val">6px solid</div>
+                                </div>
+                            </div>
+                            <div class="border-width-item">
+                                <div class="border-width-sample" style="height: 8px;"></div>
+                                <div>
+                                    <div class="border-width-info">border-accent</div>
+                                    <div class="border-width-val">8px solid</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="data-cards reveal delay-5">
+                    <div class="data-card">
+                        <div class="data-card-title">全局令牌</div>
+                        <div class="data-card-value">86</div>
+                    </div>
+                    <div class="data-card">
+                        <div class="data-card-title">语义别名</div>
+                        <div class="data-card-value">142</div>
+                    </div>
+                    <div class="data-card">
+                        <div class="data-card-title">组件令牌</div>
+                        <div class="data-card-value">92</div>
+                    </div>
+                    <div class="data-card">
+                        <div class="data-card-title">主题变体</div>
+                        <div class="data-card-value">3</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 5: Component Inventory -->
+            <section class="section">
+                <h2 class="section-title reveal">组件清单</h2>
+                <p class="reveal delay-1" style="margin-bottom: 2rem; font-weight: 300;">
+                    当前组件库包含 <span class="highlight">156 个基础组件</span>，覆盖表单、导航、数据展示、反馈、布局五大类别。
+                    以下为各类别组件数量分布：
+                </p>
+                <div class="bar-chart reveal delay-2">
+                    <div class="bar-item">
+                        <span class="bar-label">表单组件</span>
+                        <div class="bar-track">
+                            <div class="bar-fill bar-fill--yellow" data-percent="85"></div>
+                        </div>
+                        <span class="bar-value">42 个</span>
+                    </div>
+                    <div class="bar-item">
+                        <span class="bar-label">导航组件</span>
+                        <div class="bar-track">
+                            <div class="bar-fill bar-fill--blue" data-percent="55"></div>
+                        </div>
+                        <span class="bar-value">28 个</span>
+                    </div>
+                    <div class="bar-item">
+                        <span class="bar-label">数据展示</span>
+                        <div class="bar-track">
+                            <div class="bar-fill bar-fill--green" data-percent="70"></div>
+                        </div>
+                        <span class="bar-value">36 个</span>
+                    </div>
+                    <div class="bar-item">
+                        <span class="bar-label">反馈组件</span>
+                        <div class="bar-track">
+                            <div class="bar-fill bar-fill--red" data-percent="48"></div>
+                        </div>
+                        <span class="bar-value">24 个</span>
+                    </div>
+                    <div class="bar-item">
+                        <span class="bar-label">布局组件</span>
+                        <div class="bar-track">
+                            <div class="bar-fill bar-fill--yellow" data-percent="52"></div>
+                        </div>
+                        <span class="bar-value">26 个</span>
+                    </div>
+                </div>
+                <div class="data-cards reveal delay-3">
+                    <div class="data-card">
+                        <div class="data-card-title">Token 变量</div>
+                        <div class="data-card-value">320+</div>
+                    </div>
+                    <div class="data-card">
+                        <div class="data-card-title">图标资源</div>
+                        <div class="data-card-value">1,200+</div>
+                    </div>
+                    <div class="data-card">
+                        <div class="data-card-title">交互模式</div>
+                        <div class="data-card-value">48</div>
+                    </div>
+                    <div class="data-card">
+                        <div class="data-card-title">页面模板</div>
+                        <div class="data-card-value">36</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 6: Component State Matrix -->
+            <section class="section">
+                <h2 class="section-title reveal">组件状态矩阵</h2>
+                <p class="reveal delay-1" style="margin-bottom: 2rem; font-weight: 300;">
+                    以下矩阵展示核心组件在各交互状态下的<span class="highlight">实现完成度</span>。
+                    绿色表示已完成并通过验收，黄色为部分完成（缺少动效或适配），红色为尚未实现。
+                    当前整体状态覆盖率达 <span class="highlight--blue">87%</span>。
+                </p>
+                <div class="state-matrix-wrapper reveal delay-2">
+                    <table class="state-matrix">
+                        <thead>
+                            <tr>
+                                <th>组件</th>
+                                <th>默认态</th>
+                                <th>悬停态</th>
+                                <th>激活态</th>
+                                <th>聚焦态</th>
+                                <th>禁用态</th>
+                                <th>错误态</th>
+                                <th>加载态</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="component-name">Button</td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--na"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                            </tr>
+                            <tr>
+                                <td class="component-name">Input</td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--partial"></span></td>
+                            </tr>
+                            <tr>
+                                <td class="component-name">Select</td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--partial"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--partial"></span></td>
+                            </tr>
+                            <tr>
+                                <td class="component-name">Card</td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--partial"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--na"></span></td>
+                                <td><span class="state-indicator state-indicator--na"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                            </tr>
+                            <tr>
+                                <td class="component-name">Modal</td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--na"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--missing"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                            </tr>
+                            <tr>
+                                <td class="component-name">Tooltip</td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--na"></span></td>
+                                <td><span class="state-indicator state-indicator--partial"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--na"></span></td>
+                                <td><span class="state-indicator state-indicator--missing"></span></td>
+                            </tr>
+                            <tr>
+                                <td class="component-name">Table</td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--partial"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                            </tr>
+                            <tr>
+                                <td class="component-name">Tabs</td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--active"></span></td>
+                                <td><span class="state-indicator state-indicator--na"></span></td>
+                                <td><span class="state-indicator state-indicator--missing"></span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="matrix-legend reveal delay-3">
+                    <div class="matrix-legend-item">
+                        <div class="matrix-legend-swatch" style="background: var(--green); box-shadow: 2px 2px 0 var(--black);"></div>
+                        <span>已完成</span>
+                    </div>
+                    <div class="matrix-legend-item">
+                        <div class="matrix-legend-swatch" style="background: var(--yellow); box-shadow: 2px 2px 0 var(--black);"></div>
+                        <span>部分完成</span>
+                    </div>
+                    <div class="matrix-legend-item">
+                        <div class="matrix-legend-swatch" style="background: var(--red); box-shadow: 2px 2px 0 var(--black);"></div>
+                        <span>未实现</span>
+                    </div>
+                    <div class="matrix-legend-item">
+                        <div class="matrix-legend-swatch" style="background: var(--bg-alt);"></div>
+                        <span>不适用</span>
+                    </div>
+                </div>
+                <div class="data-cards reveal delay-4">
+                    <div class="data-card">
+                        <div class="data-card-title">已完成状态</div>
+                        <div class="data-card-value" style="font-family: var(--font-mono);">41</div>
+                    </div>
+                    <div class="data-card">
+                        <div class="data-card-title">部分完成</div>
+                        <div class="data-card-value" style="font-family: var(--font-mono);">6</div>
+                    </div>
+                    <div class="data-card">
+                        <div class="data-card-title">未实现</div>
+                        <div class="data-card-value" style="font-family: var(--font-mono);">3</div>
+                    </div>
+                    <div class="data-card">
+                        <div class="data-card-title">覆盖率</div>
+                        <div class="data-card-value" style="font-family: var(--font-mono);">87%</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 7: Adoption Metrics (original Section 5) -->
+            <section class="section">
+                <h2 class="section-title reveal">采纳指标</h2>
+                <p class="reveal delay-1" style="margin-bottom: 2rem; font-weight: 300;">
+                    设计系统上线 6 个月以来，各产品线采纳率稳步增长。
+                    核心指标表现<span class="highlight--blue">超出预期</span>，平均组件复用率达到 78%。
+                </p>
+                <div class="stats-grid">
+                    <div class="stat-card reveal delay-1">
+                        <div class="stat-number" data-count="78">0</div>
+                        <div class="stat-label">组件复用率 %</div>
+                        <div class="stat-underline metric-underline--yellow"></div>
+                    </div>
+                    <div class="stat-card reveal delay-2">
+                        <div class="stat-number" data-count="92">0</div>
+                        <div class="stat-label">设计规范覆盖 %</div>
+                        <div class="stat-underline metric-underline--blue"></div>
+                    </div>
+                    <div class="stat-card reveal delay-3">
+                        <div class="stat-number" data-count="65">0</div>
+                        <div class="stat-label">研发工时节省 %</div>
+                        <div class="stat-underline metric-underline--green"></div>
+                    </div>
+                    <div class="stat-card reveal delay-4">
+                        <div class="stat-number" data-count="4.6">0</div>
+                        <div class="stat-label">满意度评分 /5</div>
+                        <div class="stat-underline metric-underline--red"></div>
+                    </div>
+                </div>
+                <!-- ECharts line chart -->
+                <div class="chart-container reveal delay-5" id="adoptionChart"></div>
+            </section>
+
+            <!-- Section 8: Timeline -->
+            <section class="section">
+                <h2 class="section-title reveal">里程碑计划</h2>
+                <div class="timeline">
+                    <div class="timeline-item reveal delay-1">
+                        <div class="timeline-node timeline-node--yellow"></div>
+                        <div class="timeline-date">2026 Q1</div>
+                        <div class="timeline-title">基础搭建阶段</div>
+                        <div class="timeline-desc">完成设计 Token 体系定义、核心组件库 V1.0 发布、Figma 组件库同步上线</div>
+                    </div>
+                    <div class="timeline-item reveal delay-2">
+                        <div class="timeline-node timeline-node--blue"></div>
+                        <div class="timeline-date">2026 Q2</div>
+                        <div class="timeline-title">规模扩展阶段</div>
+                        <div class="timeline-desc">业务组件库建设、主题系统上线、3 条产品线试点接入、设计研发协同流程打通</div>
+                    </div>
+                    <div class="timeline-item reveal delay-3">
+                        <div class="timeline-node timeline-node--green"></div>
+                        <div class="timeline-date">2026 Q3</div>
+                        <div class="timeline-title">全面推广阶段</div>
+                        <div class="timeline-desc">全产品线覆盖、组件使用数据平台上线、自动化质量检测工具集成</div>
+                    </div>
+                    <div class="timeline-item reveal delay-4">
+                        <div class="timeline-node timeline-node--red"></div>
+                        <div class="timeline-date">2026 Q4</div>
+                        <div class="timeline-title">生态完善阶段</div>
+                        <div class="timeline-desc">开放贡献机制、跨团队组件治理、AI 辅助设计能力集成、国际化适配</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 9: Delivery Milestones Gantt -->
+            <section class="section">
+                <h2 class="section-title reveal">交付里程碑</h2>
+                <p class="reveal delay-1" style="margin-bottom: 2rem; font-weight: 300;">
+                    以下甘特图展示设计系统各工作流的<span class="highlight">交付排期</span>与当前进度。
+                    5 条核心工作流并行推进，整体进度 <span class="highlight--blue">68%</span>，预计 Q4 全面收官。
+                </p>
+                <div class="gantt-wrapper reveal delay-2">
+                    <!-- Month headers -->
+                    <div class="gantt-header">
+                        <div class="gantt-header-label">工作流</div>
+                        <div class="gantt-header-label">1月</div>
+                        <div class="gantt-header-label">2月</div>
+                        <div class="gantt-header-label">3月</div>
+                        <div class="gantt-header-label">4月</div>
+                        <div class="gantt-header-label">5月</div>
+                        <div class="gantt-header-label">6月</div>
+                        <div class="gantt-header-label">7月</div>
+                        <div class="gantt-header-label">8月</div>
+                        <div class="gantt-header-label">9月</div>
+                        <div class="gantt-header-label">10月</div>
+                        <div class="gantt-header-label">11月</div>
+                        <div class="gantt-header-label">12月</div>
+                    </div>
+                    <!-- Gantt rows -->
+                    <div class="gantt-chart-area">
+                        <div class="gantt-row">
+                            <div class="gantt-row-label">Token 体系</div>
+                            <div class="gantt-bar-area">
+                                <div class="gantt-bar gantt-bar--yellow" style="left: 0%; width: 33.3%;">
+                                    <span class="gantt-bar-label">100%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="gantt-row">
+                            <div class="gantt-row-label">基础组件</div>
+                            <div class="gantt-bar-area">
+                                <div class="gantt-bar gantt-bar--blue" style="left: 8.3%; width: 41.7%;">
+                                    <span class="gantt-bar-label">92%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="gantt-row">
+                            <div class="gantt-row-label">业务组件</div>
+                            <div class="gantt-bar-area">
+                                <div class="gantt-bar gantt-bar--green" style="left: 25%; width: 41.7%;">
+                                    <span class="gantt-bar-label">65%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="gantt-row">
+                            <div class="gantt-row-label">工具链建设</div>
+                            <div class="gantt-bar-area">
+                                <div class="gantt-bar gantt-bar--red" style="left: 33.3%; width: 50%;">
+                                    <span class="gantt-bar-label">48%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="gantt-row">
+                            <div class="gantt-row-label">文档与培训</div>
+                            <div class="gantt-bar-area">
+                                <div class="gantt-bar gantt-bar--yellow" style="left: 41.7%; width: 50%;">
+                                    <span class="gantt-bar-label">35%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="gantt-progress-note">
+                        截至 2026.05 // 整体进度 68% // 按计划推进中
+                    </div>
+                </div>
+                <div class="data-cards reveal delay-3">
+                    <div class="data-card">
+                        <div class="data-card-title">工作流总数</div>
+                        <div class="data-card-value" style="font-family: var(--font-mono);">5</div>
+                    </div>
+                    <div class="data-card">
+                        <div class="data-card-title">已完成</div>
+                        <div class="data-card-value" style="font-family: var(--font-mono);">1</div>
+                    </div>
+                    <div class="data-card">
+                        <div class="data-card-title">进行中</div>
+                        <div class="data-card-value" style="font-family: var(--font-mono);">4</div>
+                    </div>
+                    <div class="data-card">
+                        <div class="data-card-title">预计收官</div>
+                        <div class="data-card-value" style="font-family: var(--font-mono);">Q4</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 10: Comparison -->
+            <section class="section">
+                <h2 class="section-title reveal">前后对比</h2>
+                <p class="reveal delay-1" style="margin-bottom: 2rem; font-weight: 300;">
+                    设计系统落地前后，团队在效率、质量和协同等维度均取得<span class="highlight">显著改善</span>。
+                </p>
+                <div class="comparison-grid">
+                    <div class="comparison-card comparison-card--before reveal-left delay-2">
+                        <div class="comparison-label">建设前</div>
+                        <ul class="comparison-list">
+                            <li>组件散落在各项目中，无统一管理</li>
+                            <li>设计稿与代码实现偏差大</li>
+                            <li>新页面开发周期 5-7 天</li>
+                            <li>视觉一致性依赖人工 Review</li>
+                            <li>跨团队协作靠口头约定</li>
+                            <li>设计资产重复建设严重</li>
+                        </ul>
+                    </div>
+                    <div class="comparison-card comparison-card--after reveal-right delay-3">
+                        <div class="comparison-label">建设后</div>
+                        <ul class="comparison-list">
+                            <li>统一组件库，版本化管理与发布</li>
+                            <li>Design Token 确保设计-代码一致</li>
+                            <li>新页面开发周期缩短至 1-2 天</li>
+                            <li>自动化 lint 检测视觉规范</li>
+                            <li>标准化协同流程与工具链</li>
+                            <li>组件复用率提升至 78%</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 11: Action Plan -->
+            <section class="section">
+                <h2 class="section-title reveal">行动计划</h2>
+                <p class="reveal delay-1" style="margin-bottom: 2rem; font-weight: 300;">
+                    以下为下一阶段的<span class="highlight--red">重点行动项</span>，明确责任人和时间节点，确保设计系统持续演进。
+                </p>
+                <ul class="action-list reveal delay-2">
+                    <li class="action-item">
+                        <div class="action-title">完善 Token 体系的语义化层级</div>
+                        <div class="action-desc">梳理全量 Token 变量，建立 Global / Alias / Component 三层语义模型，支撑多主题切换</div>
+                    </li>
+                    <li class="action-item">
+                        <div class="action-title">建立组件贡献与治理机制</div>
+                        <div class="action-desc">制定组件提案、评审、合入标准流程，鼓励业务团队贡献通用组件回馈设计系统</div>
+                    </li>
+                    <li class="action-item">
+                        <div class="action-title">搭建组件使用数据看板</div>
+                        <div class="action-desc">通过埋点采集组件调用频次、覆盖率、异常率等数据，驱动优先级决策与质量优化</div>
+                    </li>
+                    <li class="action-item">
+                        <div class="action-title">推进设计-研发自动化协同</div>
+                        <div class="action-desc">打通 Figma 到代码的自动同步链路，实现 Token 变更自动触发 CI/CD 更新</div>
+                    </li>
+                    <li class="action-item">
+                        <div class="action-title">集成 AI 辅助设计能力</div>
+                        <div class="action-desc">探索 AI 生成布局方案、智能配色、自动适配等能力，提升设计师生产力</div>
+                    </li>
+                    <li class="action-item">
+                        <div class="action-title">国际化与无障碍支持</div>
+                        <div class="action-desc">组件库全面支持 RTL 布局、多语言文本适配、WCAG 2.1 AA 级无障碍标准</div>
+                    </li>
+                </ul>
+            </section>
+
+        </div>
+    </div>
+
+    <script>
+    class ReportPresentation {
+        constructor() {
+            this.init();
+        }
+
+        init() {
+            this.initRevealAnimations();
+            this.initScrollProgress();
+            this.initBackToTop();
+            this.initProgressBars();
+            this.initCounters();
+            this.initCharts();
+        }
+
+        initRevealAnimations() {
+            const reveals = document.querySelectorAll('.reveal, .reveal-left, .reveal-right');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                    }
+                });
+            }, {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            });
+            reveals.forEach(el => observer.observe(el));
+        }
+
+        initScrollProgress() {
+            const progressBar = document.getElementById('scrollProgress');
+            window.addEventListener('scroll', () => {
+                const scrollTop = window.scrollY;
+                const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                const progress = (scrollTop / docHeight) * 100;
+                progressBar.style.width = progress + '%';
+            });
+        }
+
+        initBackToTop() {
+            const btn = document.getElementById('backToTop');
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 400) {
+                    btn.classList.add('visible');
+                } else {
+                    btn.classList.remove('visible');
+                }
+            });
+            btn.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        }
+
+        initProgressBars() {
+            const bars = document.querySelectorAll('.bar-fill[data-percent]');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const percent = entry.target.getAttribute('data-percent');
+                        entry.target.style.width = percent + '%';
+                        entry.target.style.setProperty('--target-width', percent + '%');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.3 });
+            bars.forEach(bar => observer.observe(bar));
+        }
+
+        initCounters() {
+            const counters = document.querySelectorAll('[data-count]');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const el = entry.target;
+                        const target = parseFloat(el.getAttribute('data-count'));
+                        const isFloat = target % 1 !== 0;
+                        const duration = 1200;
+                        const start = performance.now();
+
+                        const animate = (now) => {
+                            const elapsed = now - start;
+                            const progress = Math.min(elapsed / duration, 1);
+                            const eased = 1 - Math.pow(1 - progress, 3);
+                            const current = target * eased;
+
+                            if (isFloat) {
+                                el.textContent = current.toFixed(1);
+                            } else {
+                                el.textContent = Math.round(current);
+                            }
+
+                            if (progress < 1) {
+                                requestAnimationFrame(animate);
+                            }
+                        };
+                        requestAnimationFrame(animate);
+                        observer.unobserve(el);
+                    }
+                });
+            }, { threshold: 0.5 });
+            counters.forEach(counter => observer.observe(counter));
+        }
+
+        initCharts() {
+            const chartDom = document.getElementById('adoptionChart');
+            if (!chartDom) return;
+
+            const chart = echarts.init(chartDom);
+            const option = {
+                backgroundColor: '#FFFDF5',
+                grid: {
+                    top: 60,
+                    right: 40,
+                    bottom: 40,
+                    left: 60
+                },
+                title: {
+                    text: '组件采纳率趋势',
+                    left: 20,
+                    top: 15,
+                    textStyle: {
+                        fontFamily: 'Space Grotesk',
+                        fontSize: 16,
+                        fontWeight: 900,
+                        color: '#1A1A1A'
+                    }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: '#FFFDF5',
+                    borderColor: '#1A1A1A',
+                    borderWidth: 3,
+                    textStyle: {
+                        fontFamily: 'Space Mono',
+                        color: '#1A1A1A'
+                    }
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['1月', '2月', '3月', '4月', '5月', '6月'],
+                    axisLine: { lineStyle: { color: '#1A1A1A', width: 3 } },
+                    axisTick: { lineStyle: { color: '#1A1A1A', width: 2 } },
+                    axisLabel: {
+                        fontFamily: 'Space Mono',
+                        fontSize: 11,
+                        color: '#1A1A1A'
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    max: 100,
+                    axisLine: { show: true, lineStyle: { color: '#1A1A1A', width: 3 } },
+                    axisTick: { show: true, lineStyle: { color: '#1A1A1A', width: 2 } },
+                    splitLine: { lineStyle: { color: 'rgba(26,26,26,0.1)', width: 1 } },
+                    axisLabel: {
+                        fontFamily: 'Space Mono',
+                        fontSize: 11,
+                        color: '#1A1A1A',
+                        formatter: '{value}%'
+                    }
+                },
+                series: [
+                    {
+                        name: '组件复用率',
+                        type: 'line',
+                        data: [32, 45, 56, 63, 72, 78],
+                        step: 'middle',
+                        lineStyle: { color: '#1A1A1A', width: 3 },
+                        itemStyle: {
+                            color: '#FFE600',
+                            borderColor: '#1A1A1A',
+                            borderWidth: 3
+                        },
+                        symbolSize: 10,
+                        symbol: 'rect'
+                    },
+                    {
+                        name: '设计规范覆盖率',
+                        type: 'line',
+                        data: [40, 55, 68, 76, 85, 92],
+                        step: 'middle',
+                        lineStyle: { color: '#2E4CFF', width: 3 },
+                        itemStyle: {
+                            color: '#2E4CFF',
+                            borderColor: '#1A1A1A',
+                            borderWidth: 3
+                        },
+                        symbolSize: 10,
+                        symbol: 'rect'
+                    }
+                ],
+                legend: {
+                    data: ['组件复用率', '设计规范覆盖率'],
+                    top: 15,
+                    right: 20,
+                    textStyle: {
+                        fontFamily: 'Space Mono',
+                        fontSize: 11,
+                        color: '#1A1A1A'
+                    }
+                }
+            };
+            chart.setOption(option);
+
+            window.addEventListener('resize', () => chart.resize());
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        new ReportPresentation();
+    });
+    </script>
+</body>
+</html>

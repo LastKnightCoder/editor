@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>蓝图规格 — 系统架构技术规格书</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500&family=Inter:wght@600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --bp-blue: #1a3a5c;
+            --bp-grid-major: #2a4a7c;
+            --bp-grid-minor: #223f6a;
+            --bp-yellow: #ffd700;
+            --bp-text: #e8f0fe;
+            --bp-white: #ffffff;
+            --bp-dim: rgba(232, 240, 254, 0.5);
+            --bp-border: #2a4a7c;
+            --mono: "Source Code Pro", "SF Mono", "Fira Code", monospace;
+            --label: "Inter", -apple-system, sans-serif;
+            --fs-xs: clamp(0.6rem, 0.7vw, 0.7rem);
+            --fs-sm: clamp(0.7rem, 0.8vw, 0.8rem);
+            --fs-base: clamp(0.78rem, 0.9vw, 0.88rem);
+            --fs-md: clamp(0.9rem, 1vw, 1rem);
+            --fs-lg: clamp(1rem, 1.2vw, 1.15rem);
+            --fs-xl: clamp(1.2rem, 1.5vw, 1.4rem);
+            --fs-title: clamp(1.4rem, 2vw, 1.8rem);
+            --grid-unit: 20px;
+            --grid-major: 80px;
+            --max-w: 1100px;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background-color: var(--bp-blue);
+            background-image:
+                repeating-linear-gradient(0deg, transparent, transparent 79px, var(--bp-grid-major) 79px, var(--bp-grid-major) 80px),
+                repeating-linear-gradient(90deg, transparent, transparent 79px, var(--bp-grid-major) 79px, var(--bp-grid-major) 80px),
+                repeating-linear-gradient(0deg, transparent, transparent 19px, var(--bp-grid-minor) 19px, var(--bp-grid-minor) 20px),
+                repeating-linear-gradient(90deg, transparent, transparent 19px, var(--bp-grid-minor) 19px, var(--bp-grid-minor) 20px);
+            color: var(--bp-text);
+            font-family: var(--mono);
+            font-size: var(--fs-base);
+            font-weight: 300;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+        }
+
+        /* ═══ Scroll Progress ═══ */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 2px;
+            background: var(--bp-yellow);
+            z-index: 9999;
+            transition: width 0.1s linear;
+        }
+
+        /* ═══ Back to Top ═══ */
+        .back-to-top {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--bp-yellow);
+            background: var(--bp-blue);
+            color: var(--bp-yellow);
+            font-family: var(--mono);
+            font-size: var(--fs-md);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s, transform 0.3s;
+            z-index: 999;
+        }
+        .back-to-top.visible { opacity: 1; transform: translateY(0); }
+        .back-to-top:hover { background: var(--bp-yellow); color: var(--bp-blue); }
+
+        /* ═══ Layout Container ═══ */
+        .blueprint-container {
+            max-width: var(--max-w);
+            margin: 0 auto;
+            padding: 40px var(--grid-unit);
+            position: relative;
+        }
+
+        /* ═══ Drawing Header ═══ */
+        .drawing-header {
+            border: 1px solid var(--bp-text);
+            padding: var(--grid-unit);
+            margin-bottom: 60px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: var(--grid-unit);
+            align-items: start;
+        }
+        .drawing-header__left { }
+        .drawing-header__project {
+            font-size: var(--fs-title);
+            font-weight: 500;
+            color: var(--bp-white);
+            letter-spacing: 0.05em;
+        }
+        .drawing-header__meta {
+            font-size: var(--fs-sm);
+            color: var(--bp-dim);
+            margin-top: 4px;
+        }
+        .drawing-header__right {
+            text-align: right;
+            font-size: var(--fs-sm);
+            color: var(--bp-dim);
+        }
+        .drawing-header__right span {
+            display: block;
+        }
+
+        /* ═══ Section Styling ═══ */
+        .bp-section {
+            margin-bottom: 80px;
+            position: relative;
+        }
+
+        .section-coord {
+            font-family: var(--label);
+            font-weight: 600;
+            font-size: var(--fs-xs);
+            color: var(--bp-yellow);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            display: inline-block;
+            border: 1px solid var(--bp-yellow);
+            padding: 2px 8px;
+        }
+
+        .section-title {
+            font-family: var(--mono);
+            font-size: var(--fs-xl);
+            font-weight: 500;
+            color: var(--bp-white);
+            margin-bottom: 20px;
+            letter-spacing: 0.02em;
+        }
+
+        /* ═══ Dimension Lines ═══ */
+        .dimension-line {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin: 40px 0;
+            color: var(--bp-dim);
+            font-size: var(--fs-xs);
+        }
+        .dimension-line__cap {
+            width: 1px;
+            height: 12px;
+            background: var(--bp-dim);
+        }
+        .dimension-line__bar {
+            flex: 1;
+            height: 1px;
+            background: var(--bp-dim);
+        }
+        .dimension-line__label {
+            padding: 0 8px;
+            white-space: nowrap;
+        }
+
+        /* ═══ Callout Boxes ═══ */
+        .callout {
+            border: 1px solid var(--bp-yellow);
+            padding: 12px 16px;
+            margin: 20px 0;
+            position: relative;
+            background: rgba(255, 215, 0, 0.03);
+            font-size: var(--fs-sm);
+        }
+        .callout::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: 30px;
+            width: 1px;
+            height: 20px;
+            background: var(--bp-yellow);
+        }
+        .callout::after {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: 27px;
+            width: 7px;
+            height: 7px;
+            border: 1px solid var(--bp-yellow);
+            border-radius: 50%;
+            background: var(--bp-blue);
+        }
+        .callout__label {
+            font-family: var(--label);
+            font-weight: 600;
+            font-size: var(--fs-xs);
+            color: var(--bp-yellow);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .callout--right {
+            margin-left: auto;
+            max-width: 400px;
+        }
+        .callout--right::before {
+            left: auto;
+            right: 30px;
+        }
+        .callout--right::after {
+            left: auto;
+            right: 27px;
+        }
+
+        /* ═══ Specification Format ═══ */
+        .spec-item {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            padding: 6px 0;
+            border-bottom: 1px dashed var(--bp-border);
+            font-size: var(--fs-sm);
+        }
+        .spec-item:last-child { border-bottom: none; }
+        .spec-item__key {
+            color: var(--bp-dim);
+            min-width: 180px;
+            flex-shrink: 0;
+        }
+        .spec-item__value {
+            color: var(--bp-white);
+            font-weight: 400;
+        }
+        .spec-item__tolerance {
+            color: var(--bp-yellow);
+            font-size: var(--fs-xs);
+        }
+
+        /* ═══ Spec Tables ═══ */
+        .spec-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: var(--fs-sm);
+            margin: 20px 0;
+        }
+        .spec-table th,
+        .spec-table td {
+            border: 1px solid var(--bp-border);
+            padding: 8px 12px;
+            text-align: left;
+            font-family: var(--mono);
+            font-weight: 300;
+        }
+        .spec-table th {
+            color: var(--bp-yellow);
+            font-weight: 400;
+            font-size: var(--fs-xs);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            background: rgba(42, 74, 124, 0.3);
+        }
+        .spec-table td {
+            color: var(--bp-text);
+        }
+        .spec-table tr:hover td {
+            background: rgba(42, 74, 124, 0.15);
+        }
+
+        /* ═══ Badges ═══ */
+        .badge {
+            display: inline-block;
+            font-family: var(--label);
+            font-weight: 600;
+            font-size: var(--fs-xs);
+            letter-spacing: 0.08em;
+            padding: 2px 8px;
+            text-transform: uppercase;
+        }
+        .badge--warning {
+            border: 1px solid var(--bp-yellow);
+            color: var(--bp-yellow);
+        }
+        .badge--note {
+            border: 1px solid var(--bp-text);
+            color: var(--bp-text);
+        }
+        .badge--pass {
+            border: 1px solid #4caf50;
+            color: #4caf50;
+        }
+        .badge--fail {
+            border: 1px solid #f44336;
+            color: #f44336;
+        }
+
+        /* ═══ Chart Containers ═══ */
+        .chart-container {
+            width: 100%;
+            height: 320px;
+            margin: 20px 0;
+            border: 1px solid var(--bp-border);
+            padding: 10px;
+        }
+
+        /* ═══ Measurement Annotation ═══ */
+        .measurement {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin: 12px 0;
+            font-size: var(--fs-xs);
+            color: var(--bp-yellow);
+        }
+        .measurement__end {
+            width: 1px;
+            height: 10px;
+            background: var(--bp-yellow);
+        }
+        .measurement__line {
+            flex: 1;
+            height: 1px;
+            background: var(--bp-yellow);
+            max-width: 200px;
+        }
+        .measurement__value {
+            padding: 0 6px;
+        }
+
+        /* ═══ Title Block ═══ */
+        .title-block {
+            border: 2px solid var(--bp-text);
+            margin-top: 80px;
+            margin-left: auto;
+            max-width: 440px;
+        }
+        .title-block__row {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            border-bottom: 1px solid var(--bp-border);
+            font-size: var(--fs-sm);
+        }
+        .title-block__row:last-child { border-bottom: none; }
+        .title-block__key {
+            padding: 6px 12px;
+            color: var(--bp-dim);
+            border-right: 1px solid var(--bp-border);
+            font-size: var(--fs-xs);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .title-block__val {
+            padding: 6px 12px;
+            color: var(--bp-white);
+            font-weight: 400;
+        }
+        .title-block__header {
+            padding: 10px 12px;
+            text-align: center;
+            border-bottom: 1px solid var(--bp-border);
+            font-family: var(--label);
+            font-weight: 600;
+            font-size: var(--fs-sm);
+            color: var(--bp-yellow);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        /* ═══ Reveal Animation ═══ */
+        .reveal {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.3s linear, transform 0.3s linear;
+        }
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ═══ Counter ═══ */
+        .counter-value {
+            font-size: var(--fs-lg);
+            font-weight: 500;
+            color: var(--bp-white);
+        }
+
+        /* ═══ Compliance Marks ═══ */
+        .check-pass { color: #4caf50; }
+        .check-fail { color: #f44336; }
+
+        /* ═══ Responsive ═══ */
+        @media (max-width: 768px) {
+            body {
+                background-image:
+                    repeating-linear-gradient(0deg, transparent, transparent 79px, var(--bp-grid-major) 79px, var(--bp-grid-major) 80px),
+                    repeating-linear-gradient(90deg, transparent, transparent 79px, var(--bp-grid-major) 79px, var(--bp-grid-major) 80px);
+            }
+            .blueprint-container { padding: 20px 10px; }
+            .drawing-header { grid-template-columns: 1fr; }
+            .drawing-header__right { text-align: left; margin-top: 10px; }
+            .callout::before, .callout::after { display: none; }
+            .callout { margin-left: 0; max-width: 100%; }
+            .spec-item { flex-direction: column; gap: 2px; }
+            .spec-item__key { min-width: auto; }
+            .title-block { max-width: 100%; }
+            .title-block__row { grid-template-columns: 100px 1fr; }
+            .chart-container { height: 240px; }
+            .dimension-line { display: none; }
+        }
+
+        /* ═══ Print ═══ */
+        @media print {
+            body {
+                background: #ffffff;
+                background-image: none;
+                color: #1a3a5c;
+            }
+            .scroll-progress, .back-to-top { display: none; }
+            .drawing-header { border-color: var(--bp-blue); }
+            .section-coord { border-color: var(--bp-blue); color: var(--bp-blue); }
+            .section-title { color: var(--bp-blue); }
+            .callout { border-color: var(--bp-blue); background: transparent; }
+            .callout::before { background: var(--bp-blue); }
+            .callout::after { border-color: var(--bp-blue); background: #fff; }
+            .callout__label { color: var(--bp-blue); }
+            .spec-table th { color: var(--bp-blue); background: rgba(26, 58, 92, 0.05); }
+            .spec-table th, .spec-table td { border-color: var(--bp-blue); }
+            .title-block { border-color: var(--bp-blue); }
+            .title-block__key { border-color: var(--bp-blue); color: #666; }
+            .title-block__val { color: var(--bp-blue); }
+            .title-block__header { color: var(--bp-blue); border-color: var(--bp-blue); }
+            .title-block__row { border-color: var(--bp-blue); }
+            .badge--warning { border-color: var(--bp-blue); color: var(--bp-blue); }
+            .dimension-line__cap, .dimension-line__bar { background: #ccc; }
+            .bp-section { page-break-inside: avoid; }
+            .reveal { opacity: 1; transform: none; }
+        }
+
+        /* ═══ Reduced Motion ═══ */
+        @media (prefers-reduced-motion: reduce) {
+            .reveal { transition: none; opacity: 1; transform: none; }
+            .scroll-progress { transition: none; }
+            .back-to-top { transition: none; }
+            html { scroll-behavior: auto; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+<button class="back-to-top" id="backToTop" aria-label="返回顶部">↑</button>
+
+<div class="blueprint-container">
+
+    <!-- ═══ Drawing Header ═══ -->
+    <header class="drawing-header reveal">
+        <div class="drawing-header__left">
+            <div class="drawing-header__project">NEXUS-9 平台</div>
+            <div class="drawing-header__meta">系统架构技术规格书</div>
+        </div>
+        <div class="drawing-header__right">
+            <span>图号: NX9-ARCH-2024-001</span>
+            <span>版本: C</span>
+            <span>日期: 2024-11-15</span>
+            <span>比例: 非等比</span>
+        </div>
+    </header>
+
+    <!-- ═══ §A1 System Overview ═══ -->
+    <section class="bp-section reveal">
+        <div class="section-coord">§A1</div>
+        <h2 class="section-title">系统概述</h2>
+
+        <div class="callout">
+            <div class="callout__label">注意</div>
+            本规格书定义 Nexus-9 分布式平台的核心架构参数与性能边界。所有子系统须满足以下规格方可通过验收。
+        </div>
+
+        <div class="spec-item">
+            <span class="spec-item__key">规格: 架构类型</span>
+            <span class="spec-item__value">分布式微服务</span>
+        </div>
+        <div class="spec-item">
+            <span class="spec-item__key">规格: 服务数量</span>
+            <span class="spec-item__value counter-value" data-target="47">0</span>
+            <span class="spec-item__tolerance">± 3 (弹性伸缩)</span>
+        </div>
+        <div class="spec-item">
+            <span class="spec-item__key">规格: 最大延迟 (P99)</span>
+            <span class="spec-item__value"><span class="counter-value" data-target="120">0</span> ms</span>
+            <span class="spec-item__tolerance">± 15 ms</span>
+        </div>
+        <div class="spec-item">
+            <span class="spec-item__key">规格: 可用性 SLA</span>
+            <span class="spec-item__value">99.95%</span>
+            <span class="spec-item__tolerance">最低阈值</span>
+        </div>
+        <div class="spec-item">
+            <span class="spec-item__key">规格: 数据区域</span>
+            <span class="spec-item__value counter-value" data-target="6">0</span>
+            <span class="spec-item__tolerance">地理分布</span>
+        </div>
+        <div class="spec-item">
+            <span class="spec-item__key">规格: 吞吐量</span>
+            <span class="spec-item__value"><span class="counter-value" data-target="250000">0</span> 请求/秒</span>
+            <span class="spec-item__tolerance">± 10%</span>
+        </div>
+
+        <div class="measurement">
+            <span class="measurement__end"></span>
+            <span class="measurement__line"></span>
+            <span class="measurement__value">|←— 47 个服务 —→|</span>
+            <span class="measurement__line"></span>
+            <span class="measurement__end"></span>
+        </div>
+
+        <div class="chart-container" id="chartArchitecture"></div>
+    </section>
+
+    <div class="dimension-line">
+        <span class="dimension-line__cap"></span>
+        <span class="dimension-line__bar"></span>
+        <span class="dimension-line__label">区域分界线 A→B</span>
+        <span class="dimension-line__bar"></span>
+        <span class="dimension-line__cap"></span>
+    </div>
+
+    <!-- ═══ §A2 Performance Specifications ═══ -->
+    <section class="bp-section reveal">
+        <div class="section-coord">§A2</div>
+        <h2 class="section-title">性能规格</h2>
+
+        <table class="spec-table">
+            <thead>
+                <tr>
+                    <th>指标</th>
+                    <th>规格值</th>
+                    <th>容差</th>
+                    <th>单位</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>响应时间 (P50)</td>
+                    <td>45</td>
+                    <td>± 5</td>
+                    <td>ms</td>
+                </tr>
+                <tr>
+                    <td>响应时间 (P95)</td>
+                    <td>85</td>
+                    <td>± 10</td>
+                    <td>ms</td>
+                </tr>
+                <tr>
+                    <td>响应时间 (P99)</td>
+                    <td>120</td>
+                    <td>± 15</td>
+                    <td>ms</td>
+                </tr>
+                <tr>
+                    <td>CPU 利用率 (峰值)</td>
+                    <td>72</td>
+                    <td>最大 85</td>
+                    <td>%</td>
+                </tr>
+                <tr>
+                    <td>内存占用</td>
+                    <td>4.2</td>
+                    <td>最大 6.0</td>
+                    <td>GB/节点</td>
+                </tr>
+                <tr>
+                    <td>错误率</td>
+                    <td>0.02</td>
+                    <td>最大 0.05</td>
+                    <td>%</td>
+                </tr>
+                <tr>
+                    <td>冷启动时间</td>
+                    <td>1.8</td>
+                    <td>最大 3.0</td>
+                    <td>秒</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="callout callout--right">
+            <div class="callout__label">警告</div>
+            P99 延迟超过 135ms 时自动触发扩容策略。连续 3 次超限将发送 PagerDuty 告警。
+        </div>
+
+        <div class="chart-container" id="chartPerformance"></div>
+    </section>
+
+    <!-- ═══ §B1 Component Breakdown ═══ -->
+    <section class="bp-section reveal">
+        <div class="section-coord">§B1</div>
+        <h2 class="section-title">组件分解</h2>
+
+        <table class="spec-table">
+            <thead>
+                <tr>
+                    <th>组件</th>
+                    <th>实例数</th>
+                    <th>CPU (核)</th>
+                    <th>内存 (GB)</th>
+                    <th>状态</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>API 网关</td>
+                    <td>8</td>
+                    <td>4</td>
+                    <td>8</td>
+                    <td><span class="badge badge--pass">正常</span></td>
+                </tr>
+                <tr>
+                    <td>认证服务</td>
+                    <td>6</td>
+                    <td>2</td>
+                    <td>4</td>
+                    <td><span class="badge badge--pass">正常</span></td>
+                </tr>
+                <tr>
+                    <td>数据管道</td>
+                    <td>12</td>
+                    <td>8</td>
+                    <td>16</td>
+                    <td><span class="badge badge--warning">扩容中</span></td>
+                </tr>
+                <tr>
+                    <td>缓存层</td>
+                    <td>6</td>
+                    <td>4</td>
+                    <td>32</td>
+                    <td><span class="badge badge--pass">正常</span></td>
+                </tr>
+                <tr>
+                    <td>搜索引擎</td>
+                    <td>4</td>
+                    <td>8</td>
+                    <td>24</td>
+                    <td><span class="badge badge--pass">正常</span></td>
+                </tr>
+                <tr>
+                    <td>消息队列</td>
+                    <td>5</td>
+                    <td>4</td>
+                    <td>12</td>
+                    <td><span class="badge badge--pass">正常</span></td>
+                </tr>
+                <tr>
+                    <td>ML 推理</td>
+                    <td>3</td>
+                    <td>16</td>
+                    <td>64</td>
+                    <td><span class="badge badge--warning">扩容中</span></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="measurement">
+            <span class="measurement__end"></span>
+            <span class="measurement__line"></span>
+            <span class="measurement__value">|←— 共 44 个实例 —→|</span>
+            <span class="measurement__line"></span>
+            <span class="measurement__end"></span>
+        </div>
+
+        <div class="chart-container" id="chartComponents"></div>
+    </section>
+
+    <div class="dimension-line">
+        <span class="dimension-line__cap"></span>
+        <span class="dimension-line__bar"></span>
+        <span class="dimension-line__label">区域分界线 B→C</span>
+        <span class="dimension-line__bar"></span>
+        <span class="dimension-line__cap"></span>
+    </div>
+
+    <!-- ═══ §B2 Network Topology ═══ -->
+    <section class="bp-section reveal">
+        <div class="section-coord">§B2</div>
+        <h2 class="section-title">网络拓扑</h2>
+
+        <div class="callout">
+            <div class="callout__label">注意</div>
+            拓扑图展示各子系统间的通信链路与带宽分配。所有内部通信使用 mTLS 加密，外部流量经 WAF 过滤。
+        </div>
+
+        <div class="spec-item">
+            <span class="spec-item__key">规格: 内部带宽</span>
+            <span class="spec-item__value">10 Gbps</span>
+            <span class="spec-item__tolerance">每链路</span>
+        </div>
+        <div class="spec-item">
+            <span class="spec-item__key">规格: 跨区域延迟</span>
+            <span class="spec-item__value">&lt; 80 ms</span>
+            <span class="spec-item__tolerance">平均 RTT</span>
+        </div>
+        <div class="spec-item">
+            <span class="spec-item__key">规格: 加密方式</span>
+            <span class="spec-item__value">mTLS / TLS 1.3</span>
+        </div>
+
+        <div class="chart-container" id="chartTopology" style="height: 360px;"></div>
+    </section>
+
+    <!-- ═══ §C1 Capacity Planning ═══ -->
+    <section class="bp-section reveal">
+        <div class="section-coord">§C1</div>
+        <h2 class="section-title">容量规划</h2>
+
+        <table class="spec-table">
+            <thead>
+                <tr>
+                    <th>资源</th>
+                    <th>当前</th>
+                    <th>Q1 预测</th>
+                    <th>Q2 预测</th>
+                    <th>Q3 预测</th>
+                    <th>Q4 预测</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>计算 (vCPU)</td>
+                    <td>384</td>
+                    <td>420</td>
+                    <td>480</td>
+                    <td>540</td>
+                    <td>620</td>
+                </tr>
+                <tr>
+                    <td>内存 (TB)</td>
+                    <td>1.2</td>
+                    <td>1.4</td>
+                    <td>1.6</td>
+                    <td>1.9</td>
+                    <td>2.2</td>
+                </tr>
+                <tr>
+                    <td>存储 (TB)</td>
+                    <td>48</td>
+                    <td>56</td>
+                    <td>68</td>
+                    <td>82</td>
+                    <td>100</td>
+                </tr>
+                <tr>
+                    <td>带宽 (Gbps)</td>
+                    <td>40</td>
+                    <td>48</td>
+                    <td>55</td>
+                    <td>65</td>
+                    <td>80</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="callout callout--right">
+            <div class="callout__label">警告</div>
+            Q3 预计存储容量达到 80% 阈值，需在 Q2 末前完成存储扩容审批。
+        </div>
+
+        <div class="chart-container" id="chartCapacity"></div>
+    </section>
+
+    <!-- ═══ §C2 Compliance Matrix ═══ -->
+    <section class="bp-section reveal">
+        <div class="section-coord">§C2</div>
+        <h2 class="section-title">合规矩阵</h2>
+
+        <table class="spec-table">
+            <thead>
+                <tr>
+                    <th>要求</th>
+                    <th>标准</th>
+                    <th>状态</th>
+                    <th>上次审计</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>静态数据加密</td>
+                    <td>AES-256-GCM</td>
+                    <td><span class="check-pass">■ 通过</span></td>
+                    <td>2024-10-28</td>
+                </tr>
+                <tr>
+                    <td>传输数据加密</td>
+                    <td>TLS 1.3</td>
+                    <td><span class="check-pass">■ 通过</span></td>
+                    <td>2024-10-28</td>
+                </tr>
+                <tr>
+                    <td>访问控制 (RBAC)</td>
+                    <td>ISO 27001</td>
+                    <td><span class="check-pass">■ 通过</span></td>
+                    <td>2024-09-15</td>
+                </tr>
+                <tr>
+                    <td>审计日志</td>
+                    <td>SOC 2 Type II</td>
+                    <td><span class="check-pass">■ 通过</span></td>
+                    <td>2024-10-01</td>
+                </tr>
+                <tr>
+                    <td>灾难恢复 (RPO)</td>
+                    <td>&lt; 1 小时</td>
+                    <td><span class="check-pass">■ 通过</span></td>
+                    <td>2024-11-01</td>
+                </tr>
+                <tr>
+                    <td>灾难恢复 (RTO)</td>
+                    <td>&lt; 4 小时</td>
+                    <td><span class="check-pass">■ 通过</span></td>
+                    <td>2024-11-01</td>
+                </tr>
+                <tr>
+                    <td>渗透测试</td>
+                    <td>每年</td>
+                    <td><span class="check-pass">■ 通过</span></td>
+                    <td>2024-08-20</td>
+                </tr>
+                <tr>
+                    <td>GDPR 数据驻留</td>
+                    <td>仅限欧盟区域</td>
+                    <td><span class="check-fail">■ 未通过</span></td>
+                    <td>2024-10-15</td>
+                </tr>
+                <tr>
+                    <td>容器镜像扫描</td>
+                    <td>零严重 CVE</td>
+                    <td><span class="check-pass">■ 通过</span></td>
+                    <td>2024-11-10</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="callout">
+            <div class="callout__label">需要处理</div>
+            GDPR 数据驻留未通过：EU 用户数据存在跨区域复制至 US-WEST-2 的情况。修复工单 #OPS-4471 已创建，目标完成日期 2024-12-01。
+        </div>
+    </section>
+
+    <div class="dimension-line">
+        <span class="dimension-line__cap"></span>
+        <span class="dimension-line__bar"></span>
+        <span class="dimension-line__label">区域分界线 C→D</span>
+        <span class="dimension-line__bar"></span>
+        <span class="dimension-line__cap"></span>
+    </div>
+
+    <!-- ═══ §D1 Revision History ═══ -->
+    <section class="bp-section reveal">
+        <div class="section-coord">§D1</div>
+        <h2 class="section-title">修订历史</h2>
+
+        <table class="spec-table">
+            <thead>
+                <tr>
+                    <th>版本</th>
+                    <th>日期</th>
+                    <th>作者</th>
+                    <th>描述</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>A</td>
+                    <td>2024-06-10</td>
+                    <td>陈磊</td>
+                    <td>初稿 — 基线架构</td>
+                </tr>
+                <tr>
+                    <td>B</td>
+                    <td>2024-08-22</td>
+                    <td>王凯</td>
+                    <td>新增 ML 推理子系统；更新容量预测</td>
+                </tr>
+                <tr>
+                    <td>B1</td>
+                    <td>2024-09-05</td>
+                    <td>陈磊</td>
+                    <td>审计后更新合规矩阵</td>
+                </tr>
+                <tr>
+                    <td>C</td>
+                    <td>2024-11-15</td>
+                    <td>张明</td>
+                    <td>修订性能规格；重新设计网络拓扑；记录 GDPR 问题</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- ═══ Title Block ═══ -->
+    <div class="title-block reveal">
+        <div class="title-block__header">标题栏</div>
+        <div class="title-block__row">
+            <span class="title-block__key">公司</span>
+            <span class="title-block__val">Nexus 系统有限公司</span>
+        </div>
+        <div class="title-block__row">
+            <span class="title-block__key">项目</span>
+            <span class="title-block__val">Nexus-9 平台</span>
+        </div>
+        <div class="title-block__row">
+            <span class="title-block__key">图纸标题</span>
+            <span class="title-block__val">系统架构规格书</span>
+        </div>
+        <div class="title-block__row">
+            <span class="title-block__key">图号</span>
+            <span class="title-block__val">NX9-ARCH-2024-001</span>
+        </div>
+        <div class="title-block__row">
+            <span class="title-block__key">版本</span>
+            <span class="title-block__val">C</span>
+        </div>
+        <div class="title-block__row">
+            <span class="title-block__key">日期</span>
+            <span class="title-block__val">2024-11-15</span>
+        </div>
+        <div class="title-block__row">
+            <span class="title-block__key">绘制</span>
+            <span class="title-block__val">张明</span>
+        </div>
+        <div class="title-block__row">
+            <span class="title-block__key">审核</span>
+            <span class="title-block__val">陈磊</span>
+        </div>
+        <div class="title-block__row">
+            <span class="title-block__key">批准</span>
+            <span class="title-block__val">工程总监</span>
+        </div>
+    </div>
+
+</div><!-- /blueprint-container -->
+
+<script>
+class ReportPresentation {
+    constructor() {
+        this.initScrollProgress();
+        this.initBackToTop();
+        this.initRevealAnimations();
+        this.initCounters();
+        this.initCharts();
+    }
+
+    // ═══ Scroll Progress ═══
+    initScrollProgress() {
+        const bar = document.getElementById('scrollProgress');
+        window.addEventListener('scroll', () => {
+            const scrollTop = window.scrollY;
+            const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+            bar.style.width = progress + '%';
+        });
+    }
+
+    // ═══ Back to Top ═══
+    initBackToTop() {
+        const btn = document.getElementById('backToTop');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 400) {
+                btn.classList.add('visible');
+            } else {
+                btn.classList.remove('visible');
+            }
+        });
+        btn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
+
+    // ═══ Reveal Animations ═══
+    initRevealAnimations() {
+        const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (prefersReduced) {
+            document.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
+            return;
+        }
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.1 });
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    }
+
+    // ═══ Counter Animation ═══
+    initCounters() {
+        const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const counters = document.querySelectorAll('.counter-value[data-target]');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const el = entry.target;
+                    const target = parseInt(el.dataset.target);
+                    if (prefersReduced) {
+                        el.textContent = target.toLocaleString();
+                    } else {
+                        this.animateCounter(el, target);
+                    }
+                    observer.unobserve(el);
+                }
+            });
+        }, { threshold: 0.5 });
+        counters.forEach(c => observer.observe(c));
+    }
+
+    animateCounter(el, target) {
+        const duration = 800;
+        const start = performance.now();
+        const step = (now) => {
+            const elapsed = now - start;
+            const progress = Math.min(elapsed / duration, 1);
+            const current = Math.round(target * progress);
+            el.textContent = current.toLocaleString();
+            if (progress < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+    }
+
+    // ═══ Charts ═══
+    initCharts() {
+        this.chartArchitecture();
+        this.chartPerformance();
+        this.chartComponents();
+        this.chartTopology();
+        this.chartCapacity();
+
+        window.addEventListener('resize', () => {
+            document.querySelectorAll('.chart-container').forEach(container => {
+                const instance = echarts.getInstanceByDom(container);
+                if (instance) instance.resize();
+            });
+        });
+    }
+
+    getBaseOption() {
+        return {
+            backgroundColor: 'transparent',
+            textStyle: {
+                fontFamily: '"Source Code Pro", monospace',
+                color: '#e8f0fe',
+                fontSize: 11
+            },
+            grid: {
+                top: 40,
+                right: 20,
+                bottom: 40,
+                left: 50,
+                containLabel: true
+            }
+        };
+    }
+
+    chartArchitecture() {
+        const dom = document.getElementById('chartArchitecture');
+        if (!dom) return;
+        const chart = echarts.init(dom);
+        const option = {
+            ...this.getBaseOption(),
+            title: {
+                text: '服务依赖关系图',
+                left: 0,
+                textStyle: { color: '#e8f0fe', fontSize: 11, fontFamily: '"Source Code Pro", monospace', fontWeight: 400 }
+            },
+            series: [{
+                type: 'tree',
+                data: [{
+                    name: 'API 网关',
+                    children: [
+                        {
+                            name: '认证',
+                            children: [
+                                { name: '用户数据库' },
+                                { name: '令牌缓存' }
+                            ]
+                        },
+                        {
+                            name: '核心服务',
+                            children: [
+                                { name: '数据管道' },
+                                { name: '缓存' },
+                                { name: '搜索' }
+                            ]
+                        },
+                        {
+                            name: 'ML 服务',
+                            children: [
+                                { name: '模型仓库' },
+                                { name: '特征库' }
+                            ]
+                        },
+                        {
+                            name: '消息队列',
+                            children: [
+                                { name: '工作进程' },
+                                { name: '死信队列' }
+                            ]
+                        }
+                    ]
+                }],
+                top: '5%',
+                left: '10%',
+                bottom: '5%',
+                right: '20%',
+                symbol: 'rect',
+                symbolSize: [60, 20],
+                orient: 'LR',
+                label: {
+                    position: 'inside',
+                    color: '#e8f0fe',
+                    fontSize: 9,
+                    fontFamily: '"Source Code Pro", monospace'
+                },
+                lineStyle: {
+                    color: '#ffd700',
+                    width: 1
+                },
+                itemStyle: {
+                    color: 'transparent',
+                    borderColor: '#e8f0fe',
+                    borderWidth: 1
+                }
+            }]
+        };
+        chart.setOption(option);
+    }
+
+    chartPerformance() {
+        const dom = document.getElementById('chartPerformance');
+        if (!dom) return;
+        const chart = echarts.init(dom);
+        const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0') + ':00');
+        const option = {
+            ...this.getBaseOption(),
+            title: {
+                text: '响应时间 (24小时窗口)',
+                left: 0,
+                textStyle: { color: '#e8f0fe', fontSize: 11, fontFamily: '"Source Code Pro", monospace', fontWeight: 400 }
+            },
+            xAxis: {
+                type: 'category',
+                data: hours,
+                axisLine: { lineStyle: { color: '#2a4a7c' } },
+                axisLabel: { color: '#e8f0fe', fontSize: 9, interval: 3 },
+                splitLine: { show: true, lineStyle: { color: '#223f6a', type: 'dashed' } }
+            },
+            yAxis: {
+                type: 'value',
+                name: 'ms',
+                nameTextStyle: { color: '#e8f0fe', fontSize: 9 },
+                axisLine: { lineStyle: { color: '#2a4a7c' } },
+                axisLabel: { color: '#e8f0fe', fontSize: 9 },
+                splitLine: { lineStyle: { color: '#223f6a', type: 'dashed' } }
+            },
+            series: [
+                {
+                    name: 'P50',
+                    type: 'line',
+                    data: [42,40,38,36,35,34,38,45,52,48,46,44,43,44,46,50,55,52,48,46,44,43,42,41],
+                    lineStyle: { color: '#ffffff', width: 1.5 },
+                    itemStyle: { color: '#ffffff' },
+                    symbol: 'none',
+                    areaStyle: null
+                },
+                {
+                    name: 'P95',
+                    type: 'line',
+                    data: [78,74,70,68,66,65,72,85,95,88,82,80,78,80,84,90,98,94,88,82,78,76,74,72],
+                    lineStyle: { color: '#ffd700', width: 1.5 },
+                    itemStyle: { color: '#ffd700' },
+                    symbol: 'none',
+                    areaStyle: null
+                },
+                {
+                    name: 'P99',
+                    type: 'line',
+                    data: [110,105,98,95,92,90,100,118,130,122,115,112,108,112,118,125,135,128,120,115,110,108,105,102],
+                    lineStyle: { color: '#ff6b6b', width: 1.5, type: 'dashed' },
+                    itemStyle: { color: '#ff6b6b' },
+                    symbol: 'none',
+                    areaStyle: null
+                }
+            ],
+            legend: {
+                data: ['P50', 'P95', 'P99'],
+                top: 0,
+                right: 0,
+                textStyle: { color: '#e8f0fe', fontSize: 9, fontFamily: '"Source Code Pro", monospace' }
+            },
+            tooltip: {
+                trigger: 'axis',
+                backgroundColor: '#1a3a5c',
+                borderColor: '#2a4a7c',
+                textStyle: { color: '#e8f0fe', fontSize: 10, fontFamily: '"Source Code Pro", monospace' }
+            }
+        };
+        chart.setOption(option);
+    }
+
+    chartComponents() {
+        const dom = document.getElementById('chartComponents');
+        if (!dom) return;
+        const chart = echarts.init(dom);
+        const option = {
+            ...this.getBaseOption(),
+            title: {
+                text: '各组件资源分配',
+                left: 0,
+                textStyle: { color: '#e8f0fe', fontSize: 11, fontFamily: '"Source Code Pro", monospace', fontWeight: 400 }
+            },
+            xAxis: {
+                type: 'value',
+                axisLine: { lineStyle: { color: '#2a4a7c' } },
+                axisLabel: { color: '#e8f0fe', fontSize: 9 },
+                splitLine: { lineStyle: { color: '#223f6a', type: 'dashed' } }
+            },
+            yAxis: {
+                type: 'category',
+                data: ['API 网关', '认证', '数据管道', '缓存', '搜索', '消息队列', 'ML 推理'],
+                axisLine: { lineStyle: { color: '#2a4a7c' } },
+                axisLabel: { color: '#e8f0fe', fontSize: 9 }
+            },
+            series: [
+                {
+                    name: 'CPU (核)',
+                    type: 'bar',
+                    data: [32, 12, 96, 24, 32, 20, 48],
+                    barWidth: 8,
+                    itemStyle: { color: 'transparent', borderColor: '#ffffff', borderWidth: 1 }
+                },
+                {
+                    name: '内存 (GB)',
+                    type: 'bar',
+                    data: [64, 24, 192, 192, 96, 60, 192],
+                    barWidth: 8,
+                    itemStyle: { color: 'transparent', borderColor: '#ffd700', borderWidth: 1 }
+                }
+            ],
+            legend: {
+                data: ['CPU (核)', '内存 (GB)'],
+                top: 0,
+                right: 0,
+                textStyle: { color: '#e8f0fe', fontSize: 9, fontFamily: '"Source Code Pro", monospace' }
+            },
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' },
+                backgroundColor: '#1a3a5c',
+                borderColor: '#2a4a7c',
+                textStyle: { color: '#e8f0fe', fontSize: 10, fontFamily: '"Source Code Pro", monospace' }
+            }
+        };
+        chart.setOption(option);
+    }
+
+    chartTopology() {
+        const dom = document.getElementById('chartTopology');
+        if (!dom) return;
+        const chart = echarts.init(dom);
+        const option = {
+            ...this.getBaseOption(),
+            title: {
+                text: '子系统连通性雷达图',
+                left: 0,
+                textStyle: { color: '#e8f0fe', fontSize: 11, fontFamily: '"Source Code Pro", monospace', fontWeight: 400 }
+            },
+            radar: {
+                indicator: [
+                    { name: '带宽', max: 100 },
+                    { name: '延迟', max: 100 },
+                    { name: '可靠性', max: 100 },
+                    { name: '安全性', max: 100 },
+                    { name: '可扩展性', max: 100 },
+                    { name: '冗余性', max: 100 }
+                ],
+                shape: 'polygon',
+                axisName: { color: '#e8f0fe', fontSize: 9, fontFamily: '"Source Code Pro", monospace' },
+                splitArea: { show: false },
+                axisLine: { lineStyle: { color: '#2a4a7c' } },
+                splitLine: { lineStyle: { color: '#2a4a7c' } }
+            },
+            series: [{
+                type: 'radar',
+                data: [
+                    {
+                        value: [85, 92, 95, 98, 78, 88],
+                        name: '主链路',
+                        lineStyle: { color: '#ffffff', width: 1.5 },
+                        itemStyle: { color: '#ffffff' },
+                        areaStyle: { color: 'rgba(255,255,255,0.05)' }
+                    },
+                    {
+                        value: [70, 80, 90, 95, 85, 72],
+                        name: '备用链路',
+                        lineStyle: { color: '#ffd700', width: 1.5 },
+                        itemStyle: { color: '#ffd700' },
+                        areaStyle: { color: 'rgba(255,215,0,0.05)' }
+                    }
+                ]
+            }],
+            legend: {
+                data: ['主链路', '备用链路'],
+                bottom: 0,
+                textStyle: { color: '#e8f0fe', fontSize: 9, fontFamily: '"Source Code Pro", monospace' }
+            }
+        };
+        chart.setOption(option);
+    }
+
+    chartCapacity() {
+        const dom = document.getElementById('chartCapacity');
+        if (!dom) return;
+        const chart = echarts.init(dom);
+        const quarters = ['当前', 'Q1', 'Q2', 'Q3', 'Q4'];
+        const option = {
+            ...this.getBaseOption(),
+            title: {
+                text: '容量增长预测',
+                left: 0,
+                textStyle: { color: '#e8f0fe', fontSize: 11, fontFamily: '"Source Code Pro", monospace', fontWeight: 400 }
+            },
+            xAxis: {
+                type: 'category',
+                data: quarters,
+                axisLine: { lineStyle: { color: '#2a4a7c' } },
+                axisLabel: { color: '#e8f0fe', fontSize: 9 },
+                splitLine: { show: false }
+            },
+            yAxis: {
+                type: 'value',
+                name: '最大容量占比 %',
+                nameTextStyle: { color: '#e8f0fe', fontSize: 9 },
+                max: 100,
+                axisLine: { lineStyle: { color: '#2a4a7c' } },
+                axisLabel: { color: '#e8f0fe', fontSize: 9 },
+                splitLine: { lineStyle: { color: '#223f6a', type: 'dashed' } }
+            },
+            series: [
+                {
+                    name: '计算',
+                    type: 'line',
+                    data: [48, 53, 60, 68, 78],
+                    lineStyle: { color: '#ffffff', width: 1.5 },
+                    itemStyle: { color: '#ffffff' },
+                    symbol: 'circle',
+                    symbolSize: 6,
+                    areaStyle: { color: 'rgba(255,255,255,0.03)' }
+                },
+                {
+                    name: '存储',
+                    type: 'line',
+                    data: [52, 60, 72, 85, 95],
+                    lineStyle: { color: '#ffd700', width: 1.5 },
+                    itemStyle: { color: '#ffd700' },
+                    symbol: 'circle',
+                    symbolSize: 6,
+                    areaStyle: { color: 'rgba(255,215,0,0.03)' }
+                },
+                {
+                    name: '带宽',
+                    type: 'line',
+                    data: [40, 48, 55, 65, 80],
+                    lineStyle: { color: '#4caf50', width: 1.5 },
+                    itemStyle: { color: '#4caf50' },
+                    symbol: 'circle',
+                    symbolSize: 6,
+                    areaStyle: { color: 'rgba(76,175,80,0.03)' }
+                }
+            ],
+            legend: {
+                data: ['计算', '存储', '带宽'],
+                top: 0,
+                right: 0,
+                textStyle: { color: '#e8f0fe', fontSize: 9, fontFamily: '"Source Code Pro", monospace' }
+            },
+            tooltip: {
+                trigger: 'axis',
+                backgroundColor: '#1a3a5c',
+                borderColor: '#2a4a7c',
+                textStyle: { color: '#e8f0fe', fontSize: 10, fontFamily: '"Source Code Pro", monospace' }
+            },
+            markLine: {
+                data: [{ yAxis: 80, label: { formatter: '阈值', color: '#ff6b6b', fontSize: 9 } }],
+                lineStyle: { color: '#ff6b6b', type: 'dashed', width: 1 }
+            }
+        };
+
+        // Add threshold line to series
+        option.series[0].markLine = {
+            silent: true,
+            data: [{ yAxis: 80 }],
+            label: { formatter: '阈值 80%', position: 'end', color: '#ff6b6b', fontSize: 9, fontFamily: '"Source Code Pro", monospace' },
+            lineStyle: { color: '#ff6b6b', type: 'dashed', width: 1 }
+        };
+
+        chart.setOption(option);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    new ReportPresentation();
+});
+</script>
+</body>
+</html>

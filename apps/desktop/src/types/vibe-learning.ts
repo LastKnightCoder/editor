@@ -225,6 +225,7 @@ export type VLNoteType =
   | "article"
   | "mindmap"
   | "ppt"
+  | "report"
   | "podcast";
 
 export interface VLNote {

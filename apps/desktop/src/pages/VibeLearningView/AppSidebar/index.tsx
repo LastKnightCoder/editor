@@ -18,6 +18,8 @@ import ArticleGenerateModal from "./apps/ArticleGenerateModal";
 import MindMapGenerateModal from "./apps/MindMapGenerateModal";
 import PPTGenerateModal from "./apps/PPTGenerateModal";
 import PPTEditModal from "./apps/PPTEditModal";
+import ReportGenerateModal from "./apps/ReportGenerateModal";
+import ReportEditModal from "./apps/ReportEditModal";
 import PodcastGenerateModal from "./apps/PodcastGenerateModal";
 
 export type AppSidebarView =
@@ -52,6 +54,12 @@ const AppSidebar = memo(
     const [showPPTGenerateModal, setShowPPTGenerateModal] = useState(false);
     const [showPPTEditModal, setShowPPTEditModal] = useState(false);
     const [editingPPTNote, setEditingPPTNote] = useState<VLNote | null>(null);
+    const [showReportGenerateModal, setShowReportGenerateModal] =
+      useState(false);
+    const [showReportEditModal, setShowReportEditModal] = useState(false);
+    const [editingReportNote, setEditingReportNote] = useState<VLNote | null>(
+      null,
+    );
     const [showPodcastGenerateModal, setShowPodcastGenerateModal] =
       useState(false);
     const appListViewRef = useRef<AppListViewRef>(null);
@@ -214,6 +222,43 @@ const AppSidebar = memo(
       appListViewRef.current?.refreshNotes();
     }, []);
 
+    // 打开报告生成弹窗
+    const handleOpenReport = useCallback(() => {
+      setShowReportGenerateModal(true);
+    }, []);
+
+    // 关闭报告生成弹窗
+    const handleCloseReportGenerate = useCallback(() => {
+      setShowReportGenerateModal(false);
+      setTimeout(() => {
+        appListViewRef.current?.refreshNotes?.();
+      }, 100);
+    }, []);
+
+    // 报告生成创建了笔记的回调 - 自动打开该笔记
+    const handleReportNoteCreated = useCallback((note: VLNote) => {
+      appListViewRef.current?.refreshNotes();
+      setEditingNote(note);
+      setCurrentView("note-editor");
+    }, []);
+
+    // 打开报告编辑弹窗
+    const handleEditReport = useCallback((note: VLNote) => {
+      setEditingReportNote(note);
+      setShowReportEditModal(true);
+    }, []);
+
+    // 关闭报告编辑弹窗
+    const handleCloseReportEdit = useCallback(() => {
+      setShowReportEditModal(false);
+      setEditingReportNote(null);
+    }, []);
+
+    // 报告编辑更新了笔记的回调
+    const handleReportNoteUpdated = useCallback(() => {
+      appListViewRef.current?.refreshNotes();
+    }, []);
+
     // 打开播客生成弹窗
     const handleOpenPodcast = useCallback(() => {
       setShowPodcastGenerateModal(true);
@@ -278,10 +323,12 @@ const AppSidebar = memo(
             onOpenQuiz={handleOpenQuiz}
             onOpenMindMap={handleOpenMindMap}
             onOpenPPT={handleOpenPPT}
+            onOpenReport={handleOpenReport}
             onOpenPodcast={handleOpenPodcast}
             onCreateNote={handleCreateNote}
             onEditNote={handleEditNote}
             onEditPPT={handleEditPPT}
+            onEditReport={handleEditReport}
           />
         )}
 
@@ -356,6 +403,25 @@ const AppSidebar = memo(
           mainDbName={mainDbName}
           onClose={handleClosePPTEdit}
           onNoteUpdated={handlePPTNoteUpdated}
+        />
+
+        {/* 报告生成弹窗 */}
+        <ReportGenerateModal
+          open={showReportGenerateModal}
+          projectId={projectId}
+          mainDbName={mainDbName}
+          onClose={handleCloseReportGenerate}
+          onNoteCreated={handleReportNoteCreated}
+        />
+
+        {/* 报告编辑弹窗 */}
+        <ReportEditModal
+          open={showReportEditModal}
+          note={editingReportNote}
+          projectId={projectId}
+          mainDbName={mainDbName}
+          onClose={handleCloseReportEdit}
+          onNoteUpdated={handleReportNoteUpdated}
         />
 
         {/* 播客生成弹窗 */}

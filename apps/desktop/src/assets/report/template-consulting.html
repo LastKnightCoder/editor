@@ -1,0 +1,1616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数字化转型战略咨询报告</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --bg-deep: #0f0f1a;
+            --bg-base: #16162a;
+            --bg-elevated: #1e1e38;
+            --bg-hover: #262645;
+            --border: rgba(255, 255, 255, 0.06);
+            --border-accent: rgba(78, 205, 196, 0.2);
+
+            --text-primary: #e8e6e3;
+            --text-secondary: #8a8a9a;
+            --text-dim: #5a5a6e;
+
+            --accent: #4ecdc4;
+            --accent-glow: rgba(78, 205, 196, 0.15);
+            --accent-warm: #f0b866;
+            --accent-warm-glow: rgba(240, 184, 102, 0.1);
+            --danger: #ff6b6b;
+
+            --font-heading: "Manrope", "PingFang SC", "Source Han Sans SC", system-ui, sans-serif;
+            --font-body: "Manrope", "PingFang SC", "Source Han Sans SC", system-ui, sans-serif;
+            --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+
+            --container-max: 1100px;
+            --pad-x: clamp(1.5rem, 4vw, 4rem);
+            --section-gap: clamp(5rem, 10vw, 9rem);
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: clamp(0.9rem, 1.1vw, 1.05rem);
+            font-weight: 300;
+            line-height: 1.8;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        ::selection {
+            background: rgba(78, 205, 196, 0.3);
+            color: var(--text-primary);
+        }
+
+        /* ═══ Scroll Progress ═══ */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent), var(--accent-warm));
+            z-index: 9999;
+            transition: width 0.1s linear;
+        }
+
+        /* ═══ Back to Top ═══ */
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 40px;
+            height: 40px;
+            background: var(--bg-elevated);
+            color: var(--accent);
+            border: 1px solid var(--border-accent);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.4s, transform 0.4s;
+            z-index: 9998;
+        }
+        .back-to-top.visible { opacity: 1; transform: translateY(0); }
+        .back-to-top:hover { background: var(--bg-hover); }
+        .back-to-top svg { width: 18px; height: 18px; }
+
+        /* ═══ Header ═══ */
+        .report-header {
+            position: relative;
+            padding: clamp(6rem, 12vw, 10rem) var(--pad-x) clamp(4rem, 8vw, 7rem);
+            overflow: hidden;
+            background: var(--bg-deep);
+        }
+        .report-header::before {
+            content: "";
+            position: absolute;
+            top: -20%;
+            left: -10%;
+            width: 60%;
+            height: 140%;
+            background: radial-gradient(ellipse at center, rgba(78, 205, 196, 0.08) 0%, transparent 60%);
+            pointer-events: none;
+        }
+        .report-header::after {
+            content: "";
+            position: absolute;
+            top: 10%;
+            right: -5%;
+            width: 40%;
+            height: 80%;
+            background: radial-gradient(ellipse at center, rgba(240, 184, 102, 0.04) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        .report-header-inner {
+            max-width: var(--container-max);
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+        .report-header-number {
+            font-family: var(--font-mono);
+            font-size: clamp(5rem, 12vw, 9rem);
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.03);
+            position: absolute;
+            top: -2rem;
+            right: 0;
+            line-height: 1;
+            pointer-events: none;
+            user-select: none;
+        }
+        .report-header-title {
+            font-family: var(--font-heading);
+            font-size: clamp(2.4rem, 5.5vw, 4.2rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            line-height: 1.1;
+            color: var(--text-primary);
+            margin-bottom: 2rem;
+        }
+        .report-header-subtitle {
+            font-family: var(--font-mono);
+            font-size: clamp(0.72rem, 0.9vw, 0.82rem);
+            font-weight: 400;
+            color: var(--text-secondary);
+            letter-spacing: 0.08em;
+            margin-bottom: 3rem;
+            text-transform: uppercase;
+        }
+        .report-header-meta {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            font-size: clamp(0.8rem, 1vw, 0.9rem);
+            color: var(--text-secondary);
+        }
+        .report-header-meta .client {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: clamp(0.9rem, 1.1vw, 1rem);
+        }
+        .report-header-meta .meta-date {
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+        }
+        .report-header-meta .confidential {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--accent);
+            padding: 0.2rem 0.5rem;
+            border: 1px solid var(--border-accent);
+            border-radius: 2px;
+        }
+        .header-divider {
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, var(--border-accent), var(--border) 50%, transparent);
+            margin-top: 4rem;
+        }
+
+        /* ═══ Container ═══ */
+        .report-container { width: 100%; overflow-x: hidden; }
+        .container {
+            max-width: var(--container-max);
+            margin: 0 auto;
+            padding: 0 var(--pad-x);
+        }
+
+        /* ═══ Sections ═══ */
+        .section {
+            padding: var(--section-gap) 0;
+            position: relative;
+        }
+        .section + .section::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: var(--pad-x);
+            right: var(--pad-x);
+            max-width: var(--container-max);
+            margin: 0 auto;
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* ═══ Section Headers ═══ */
+        .section-header {
+            position: relative;
+            margin-bottom: 3rem;
+        }
+        .section-header-number {
+            font-family: var(--font-mono);
+            font-size: clamp(4rem, 8vw, 6rem);
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.03);
+            position: absolute;
+            top: -1.5rem;
+            left: -0.5rem;
+            line-height: 1;
+            pointer-events: none;
+            user-select: none;
+        }
+        .section-header-label {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 500;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 0.6rem;
+            display: block;
+        }
+        .section-header h2 {
+            font-family: var(--font-heading);
+            font-size: clamp(1.6rem, 3vw, 2.4rem);
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+        }
+
+        /* ═══ Key Insight ═══ */
+        .key-insight {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-left: 2px solid var(--accent);
+            padding: 1.5rem 2rem;
+            margin-bottom: 3rem;
+            border-radius: 0 6px 6px 0;
+            font-weight: 400;
+            font-size: clamp(0.92rem, 1.15vw, 1.05rem);
+            line-height: 1.8;
+            color: var(--text-primary);
+            position: relative;
+        }
+        .key-insight::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -2px;
+            bottom: 0;
+            width: 2px;
+            background: var(--accent);
+            box-shadow: 0 0 12px var(--accent-glow), 0 0 4px var(--accent);
+        }
+
+        /* ═══ Two Column ═══ */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(2.5rem, 5vw, 4rem);
+            align-items: center;
+        }
+
+        /* ═══ Exhibit ═══ */
+        .exhibit { position: relative; }
+        .exhibit-label {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            letter-spacing: 0.03em;
+        }
+        .exhibit-chart {
+            width: 100%;
+            height: 360px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-base);
+        }
+        .exhibit-source {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            margin-top: 0.6rem;
+            font-style: italic;
+        }
+
+        /* ═══ MECE Lists ═══ */
+        .mece-list { list-style: none; padding: 0; }
+        .mece-list > li {
+            position: relative;
+            padding-left: 1.5rem;
+            margin-bottom: 1rem;
+            line-height: 1.8;
+        }
+        .mece-list > li::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0.7rem;
+            width: 6px;
+            height: 6px;
+            background: var(--accent);
+            border-radius: 50%;
+            opacity: 0.7;
+        }
+        .mece-list > li > ul {
+            list-style: none;
+            padding-left: 1.5rem;
+            margin-top: 0.5rem;
+        }
+        .mece-list > li > ul > li {
+            position: relative;
+            padding-left: 1rem;
+            margin-bottom: 0.4rem;
+            font-size: 0.9em;
+            color: var(--text-secondary);
+        }
+        .mece-list > li > ul > li::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0.7rem;
+            width: 4px;
+            height: 1px;
+            background: var(--text-dim);
+        }
+
+        /* ═══ Content Headings ═══ */
+        .content-heading {
+            font-family: var(--font-heading);
+            font-weight: 600;
+            font-size: clamp(1.1rem, 1.5vw, 1.3rem);
+            color: var(--text-primary);
+            margin-bottom: 1.2rem;
+        }
+
+        /* ═══ Implication Box ═══ */
+        .implication-box {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-top: 2px solid var(--accent-warm);
+            padding: 1.5rem 2rem;
+            margin-top: 3rem;
+            border-radius: 0 0 6px 6px;
+        }
+        .implication-box-title {
+            font-family: var(--font-heading);
+            font-weight: 700;
+            font-size: clamp(1rem, 1.3vw, 1.15rem);
+            color: var(--accent-warm);
+            margin-bottom: 0.75rem;
+        }
+        .implication-box p {
+            color: var(--text-primary);
+            font-weight: 300;
+        }
+
+        /* ═══ 2x2 Matrix ═══ */
+        .matrix-container { position: relative; margin: 2rem 0; }
+        .matrix-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 1px;
+            background: var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+            min-height: 420px;
+        }
+        .matrix-cell {
+            padding: 2rem;
+            background: var(--bg-base);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .matrix-cell--priority {
+            background: var(--bg-elevated);
+            box-shadow: inset 0 0 30px var(--accent-glow);
+        }
+        .matrix-cell-title {
+            font-family: var(--font-heading);
+            font-weight: 700;
+            font-size: clamp(1rem, 1.4vw, 1.2rem);
+            margin-bottom: 0.5rem;
+        }
+        .matrix-cell--priority .matrix-cell-title { color: var(--accent); }
+        .matrix-cell-desc {
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            margin-bottom: 0.75rem;
+            font-weight: 400;
+        }
+        .matrix-cell-items { list-style: none; padding: 0; }
+        .matrix-cell-items li {
+            font-size: 0.88em;
+            margin-bottom: 0.35rem;
+            padding-left: 1rem;
+            position: relative;
+            color: var(--text-secondary);
+        }
+        .matrix-cell-items li::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0.6rem;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--text-dim);
+        }
+        .matrix-cell--priority .matrix-cell-items li::before { background: var(--accent); opacity: 0.6; }
+        .matrix-axis-label {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            font-weight: 500;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .matrix-axis-x { text-align: center; margin-top: 1rem; }
+        .matrix-axis-y {
+            position: absolute;
+            left: -2.5rem;
+            top: 50%;
+            transform: rotate(-90deg) translateX(-50%);
+            transform-origin: left center;
+            white-space: nowrap;
+        }
+
+        /* ═══ Data Table ═══ */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88em;
+            margin: 1rem 0;
+        }
+        .data-table thead th {
+            padding: 0.8rem 1rem;
+            text-align: left;
+            font-family: var(--font-mono);
+            font-weight: 500;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .data-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-primary);
+            font-weight: 300;
+        }
+        .data-table tbody tr:hover { background: var(--bg-hover); }
+        .data-table .highlight-cell {
+            color: var(--accent);
+            font-weight: 600;
+            font-family: var(--font-mono);
+            text-shadow: 0 0 8px var(--accent-glow);
+        }
+
+        /* ═══ Gantt ═══ */
+        .gantt { margin: 2rem 0; }
+        .gantt-header {
+            display: grid;
+            grid-template-columns: 140px repeat(12, 1fr);
+            gap: 0;
+            margin-bottom: 0.5rem;
+        }
+        .gantt-header-label {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            text-align: center;
+            padding: 0.3rem 0;
+        }
+        .gantt-row {
+            display: grid;
+            grid-template-columns: 140px repeat(12, 1fr);
+            gap: 0;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            min-height: 40px;
+        }
+        .gantt-label {
+            font-family: var(--font-heading);
+            font-weight: 500;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            padding-right: 1rem;
+        }
+        .gantt-bar-container {
+            position: relative;
+            height: 28px;
+            display: flex;
+            align-items: center;
+        }
+        .gantt-bar {
+            height: 24px;
+            border-radius: 4px;
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            color: var(--text-primary);
+            font-weight: 500;
+            font-family: var(--font-mono);
+        }
+        .gantt-bar--phase1 { background: linear-gradient(90deg, var(--accent), rgba(78, 205, 196, 0.6)); }
+        .gantt-bar--phase2 { background: linear-gradient(90deg, rgba(78, 205, 196, 0.5), rgba(120, 100, 200, 0.6)); }
+        .gantt-bar--phase3 { background: linear-gradient(90deg, rgba(120, 100, 200, 0.5), rgba(240, 184, 102, 0.5)); }
+        .gantt-bar--milestone {
+            background: var(--accent-warm);
+            width: 10px !important;
+            height: 10px;
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-warm-glow), 0 0 4px var(--accent-warm);
+        }
+
+        /* ═══ Stats ═══ */
+        .stat-value {
+            font-family: var(--font-mono);
+            font-size: clamp(2.2rem, 4.5vw, 3.4rem);
+            font-weight: 700;
+            color: var(--accent);
+            line-height: 1.1;
+            text-shadow: 0 0 20px var(--accent-glow);
+        }
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.4rem;
+            font-weight: 400;
+        }
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 2.5rem;
+            margin: 3rem 0;
+            padding: 2rem;
+            background: var(--bg-base);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        /* ═══ Executive Summary ═══ */
+        .exec-summary {
+            background: var(--bg-base);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 2.5rem;
+            margin: 2rem 0;
+        }
+        .exec-summary h3 {
+            font-family: var(--font-heading);
+            font-weight: 700;
+            font-size: clamp(1.3rem, 2vw, 1.7rem);
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+        }
+        .exec-finding {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.2rem;
+            align-items: flex-start;
+        }
+        .exec-finding-number {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--accent);
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border-accent);
+            border-radius: 4px;
+            flex-shrink: 0;
+            margin-top: 0.15rem;
+        }
+        .exec-finding-text {
+            font-weight: 300;
+            line-height: 1.7;
+            color: var(--text-primary);
+        }
+        .exec-recommendation {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+        .exec-recommendation-label {
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            letter-spacing: 0.12em;
+            color: var(--accent-warm);
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+        }
+        .exec-recommendation p {
+            font-weight: 400;
+            color: var(--text-primary);
+            line-height: 1.8;
+        }
+
+        /* ═══ Action Table ═══ */
+        .action-table { width: 100%; border-collapse: collapse; }
+        .action-table th {
+            padding: 0.8rem 1rem;
+            text-align: left;
+            font-family: var(--font-mono);
+            font-weight: 500;
+            font-size: 0.72rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .action-table td {
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.88em;
+            font-weight: 300;
+            color: var(--text-primary);
+        }
+        .action-table tbody tr:hover { background: var(--bg-hover); }
+        .action-priority {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            font-family: var(--font-mono);
+        }
+        .action-priority--high {
+            background: rgba(255, 107, 107, 0.12);
+            color: var(--danger);
+        }
+        .action-priority--medium {
+            background: var(--accent-glow);
+            color: var(--accent);
+        }
+        .action-priority--low {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+        }
+
+        /* ═══ Reveal Animations ═══ */
+        .reveal {
+            opacity: 0;
+            transform: translateY(12px) scale(0.99);
+            transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .reveal.revealed {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        /* ═══ Contact Box ═══ */
+        .contact-box {
+            margin-top: 3rem;
+            padding: 2rem;
+            background: var(--bg-base);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .contact-box-title {
+            font-family: var(--font-heading);
+            font-weight: 700;
+            color: var(--text-primary);
+            font-size: clamp(1rem, 1.3vw, 1.15rem);
+            margin-bottom: 0.75rem;
+        }
+        .contact-box p {
+            color: var(--text-secondary);
+            line-height: 1.9;
+            font-weight: 300;
+        }
+
+        /* ═══ Print ═══ */
+        @media print {
+            :root {
+                --bg-deep: #ffffff;
+                --bg-base: #ffffff;
+                --bg-elevated: #f8f8f8;
+                --text-primary: #1a1a1a;
+                --text-secondary: #666666;
+                --accent: #2a7d8c;
+                --accent-warm: #b8860b;
+            }
+            .scroll-progress, .back-to-top { display: none !important; }
+            .reveal { opacity: 1 !important; transform: none !important; }
+            .section { page-break-inside: avoid; padding: 2rem 0; }
+            body { font-size: 10pt; }
+            .report-header { background: #1a1a2e !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+
+        /* ═══ Reduced Motion ═══ */
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            .reveal { opacity: 1; transform: none; transition: none; }
+        }
+
+        /* ═══ Responsive ═══ */
+        @media (max-width: 768px) {
+            .two-col { grid-template-columns: 1fr; }
+            .matrix-grid { grid-template-columns: 1fr; min-height: auto; }
+            .matrix-axis-y { display: none; }
+            .gantt-header, .gantt-row { grid-template-columns: 100px repeat(12, 1fr); }
+            .gantt-label { font-size: 0.72rem; }
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .report-header-meta { flex-wrap: wrap; gap: 1rem; }
+            .exec-summary { padding: 1.5rem; }
+            .report-header-number, .section-header-number { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="scroll-progress" id="scrollProgress"></div>
+
+    <button class="back-to-top" id="backToTop" aria-label="回到顶部">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="18 15 12 9 6 15"></polyline>
+        </svg>
+    </button>
+
+    <div class="report-container">
+        <!-- ═══ HEADER ═══ -->
+        <header class="report-header">
+            <div class="report-header-inner">
+                <div class="report-header-number">DX</div>
+                <p class="report-header-subtitle">Digital Transformation Strategy</p>
+                <h1 class="report-header-title">数字化转型战略咨询报告</h1>
+                <div class="report-header-meta">
+                    <span class="client">华信集团</span>
+                    <span class="meta-date">2024.12</span>
+                    <span class="confidential">Confidential</span>
+                </div>
+                <div class="header-divider"></div>
+            </div>
+        </header>
+
+        <!-- ═══ EXECUTIVE SUMMARY ═══ -->
+        <section class="section">
+            <div class="container">
+                <div class="section-header reveal">
+                    <div class="section-header-number">01</div>
+                    <span class="section-header-label">Executive Summary</span>
+                    <h2>执行摘要</h2>
+                </div>
+
+                <div class="exec-summary reveal">
+                    <h3>核心发现</h3>
+                    <div class="exec-finding">
+                        <span class="exec-finding-number">1</span>
+                        <p class="exec-finding-text">当前数字化成熟度评分为 2.3/5.0，显著低于行业领先者（4.1），在数据治理和智能决策两个维度差距最为突出，亟需系统性重塑数字化能力体系。</p>
+                    </div>
+                    <div class="exec-finding">
+                        <span class="exec-finding-number">2</span>
+                        <p class="exec-finding-text">市场窗口期仅剩 18-24 个月：竞争对手数字化投入年均增长 35%，若不加速转型，预计 3 年内市场份额将被侵蚀 8-12 个百分点。</p>
+                    </div>
+                    <div class="exec-finding">
+                        <span class="exec-finding-number">3</span>
+                        <p class="exec-finding-text">全面数字化转型预计释放年化价值 ¥2.8-3.5 亿，其中运营效率提升贡献 45%，新业务模式贡献 35%，客户体验优化贡献 20%。</p>
+                    </div>
+                    <div class="exec-recommendation">
+                        <div class="exec-recommendation-label">战略建议</div>
+                        <p>建议采用"双速IT"架构，以 18 个月为周期分三阶段推进转型：第一阶段夯实数据基座与核心系统上云（6个月），第二阶段构建智能中台与场景化应用（6个月），第三阶段实现生态化运营与模式创新（6个月）。总投入预算 ¥1.2 亿，预计投资回收期 2.5 年。</p>
+                    </div>
+                </div>
+
+                <div class="stats-row reveal">
+                    <div>
+                        <div class="stat-value" data-count="2.8">0</div>
+                        <div class="stat-label">预计年化价值（亿元）</div>
+                    </div>
+                    <div>
+                        <div class="stat-value" data-count="18">0</div>
+                        <div class="stat-label">转型周期（月）</div>
+                    </div>
+                    <div>
+                        <div class="stat-value" data-count="2.5">0</div>
+                        <div class="stat-label">投资回收期（年）</div>
+                    </div>
+                    <div>
+                        <div class="stat-value" data-count="35">0</div>
+                        <div class="stat-label">运营效率提升（%）</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ MARKET CONTEXT ═══ -->
+        <section class="section">
+            <div class="container">
+                <div class="section-header reveal">
+                    <div class="section-header-number">02</div>
+                    <span class="section-header-label">Market Analysis</span>
+                    <h2>市场环境分析</h2>
+                </div>
+
+                <div class="key-insight reveal">
+                    行业数字化转型投入以年均 32% 的速度增长，头部企业已完成从"数字化试点"到"全面智能化运营"的跨越，后发者面临加速追赶或被淘汰的二元选择。
+                </div>
+
+                <div class="two-col">
+                    <div class="reveal">
+                        <h3 class="content-heading">市场趋势</h3>
+                        <ul class="mece-list">
+                            <li>宏观驱动：政策推动"数字中国"建设，企业数字化转型已从可选项变为生存必选项
+                                <ul>
+                                    <li>十四五规划明确数字经济核心产业增加值占GDP比重目标</li>
+                                    <li>行业监管加速数据合规要求落地</li>
+                                </ul>
+                            </li>
+                            <li>竞争格局：Top 5 竞争对手数字化投入占营收比已达 4.2%，集团当前仅 1.8%
+                                <ul>
+                                    <li>A 公司已实现全链路数字化，效率领先 40%</li>
+                                    <li>B 公司 AI 驱动决策系统上线，客户满意度提升 22%</li>
+                                </ul>
+                            </li>
+                            <li>技术拐点：GenAI、大模型技术成熟度达到商业化临界点，重塑价值链各环节</li>
+                        </ul>
+                    </div>
+                    <div class="exhibit reveal">
+                        <div class="exhibit-label">Exhibit 1: 行业数字化投入增长趋势</div>
+                        <div class="exhibit-chart" id="chartMarketGrowth"></div>
+                        <p class="exhibit-source">来源：IDC中国数字化转型支出指南, 2024Q3; 团队分析</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ CURRENT STATE ASSESSMENT ═══ -->
+        <section class="section">
+            <div class="container">
+                <div class="section-header reveal">
+                    <div class="section-header-number">03</div>
+                    <span class="section-header-label">Assessment</span>
+                    <h2>现状评估</h2>
+                </div>
+
+                <div class="key-insight reveal">
+                    集团在六大数字化能力维度中，"数据治理"与"智能决策"得分最低（均低于2.0），是制约整体转型的核心瓶颈；但"基础设施"和"人才储备"具备良好基础，可作为转型加速的支点。
+                </div>
+
+                <div class="two-col">
+                    <div class="exhibit reveal">
+                        <div class="exhibit-label">Exhibit 2: 数字化能力成熟度评估</div>
+                        <div class="exhibit-chart" id="chartRadar"></div>
+                        <p class="exhibit-source">来源：项目团队调研（N=86 高管访谈 + 系统审计）</p>
+                    </div>
+                    <div class="reveal">
+                        <h3 class="content-heading">能力差距详解</h3>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>能力维度</th>
+                                    <th>当前评分</th>
+                                    <th>行业标杆</th>
+                                    <th>差距</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>数据治理</td>
+                                    <td class="highlight-cell">1.8</td>
+                                    <td>4.3</td>
+                                    <td>-2.5</td>
+                                </tr>
+                                <tr>
+                                    <td>智能决策</td>
+                                    <td class="highlight-cell">1.9</td>
+                                    <td>4.0</td>
+                                    <td>-2.1</td>
+                                </tr>
+                                <tr>
+                                    <td>客户体验</td>
+                                    <td>2.4</td>
+                                    <td>4.5</td>
+                                    <td>-2.1</td>
+                                </tr>
+                                <tr>
+                                    <td>流程自动化</td>
+                                    <td>2.5</td>
+                                    <td>4.2</td>
+                                    <td>-1.7</td>
+                                </tr>
+                                <tr>
+                                    <td>基础设施</td>
+                                    <td>3.0</td>
+                                    <td>4.1</td>
+                                    <td>-1.1</td>
+                                </tr>
+                                <tr>
+                                    <td>人才储备</td>
+                                    <td>2.8</td>
+                                    <td>3.8</td>
+                                    <td>-1.0</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p class="exhibit-source">评分标准：1.0-5.0 量表，基于 Gartner 数字化成熟度框架</p>
+                    </div>
+                </div>
+
+                <div class="implication-box reveal">
+                    <div class="implication-box-title">关键启示</div>
+                    <p>数据治理能力的严重不足将制约所有上层应用的效果。建议将"数据基座建设"作为转型第一阶段的首要任务，在 6 个月内完成主数据标准制定、数据资产目录搭建和数据质量治理机制建立。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ STRATEGIC OPTIONS ═══ -->
+        <section class="section">
+            <div class="container">
+                <div class="section-header reveal">
+                    <div class="section-header-number">04</div>
+                    <span class="section-header-label">Strategic Options</span>
+                    <h2>战略选项评估</h2>
+                </div>
+
+                <div class="key-insight reveal">
+                    通过 "影响力-可行性" 矩阵评估，识别出 4 项高优先级举措，建议集中资源优先突破右上象限，确保 Quick Wins 与长期战略价值兼顾。
+                </div>
+
+                <div class="matrix-container reveal">
+                    <div class="exhibit-label">Exhibit 3: 战略举措优先级矩阵</div>
+                    <div class="matrix-axis-y matrix-axis-label">业务影响力 →</div>
+                    <div class="matrix-grid">
+                        <div class="matrix-cell matrix-cell--priority">
+                            <div class="matrix-cell-title">优先推进</div>
+                            <p class="matrix-cell-desc">高影响 + 高可行性</p>
+                            <ul class="matrix-cell-items">
+                                <li>数据中台建设</li>
+                                <li>核心系统云迁移</li>
+                                <li>客户360视图构建</li>
+                                <li>RPA流程自动化</li>
+                            </ul>
+                        </div>
+                        <div class="matrix-cell">
+                            <div class="matrix-cell-title">战略投资</div>
+                            <p class="matrix-cell-desc">高影响 + 低可行性</p>
+                            <ul class="matrix-cell-items">
+                                <li>AI驱动智能决策系统</li>
+                                <li>数字孪生运营体系</li>
+                                <li>生态平台化转型</li>
+                            </ul>
+                        </div>
+                        <div class="matrix-cell">
+                            <div class="matrix-cell-title">Quick Wins</div>
+                            <p class="matrix-cell-desc">低影响 + 高可行性</p>
+                            <ul class="matrix-cell-items">
+                                <li>办公协同数字化</li>
+                                <li>报表自动化</li>
+                                <li>移动端员工体验</li>
+                            </ul>
+                        </div>
+                        <div class="matrix-cell">
+                            <div class="matrix-cell-title">监控观察</div>
+                            <p class="matrix-cell-desc">低影响 + 低可行性</p>
+                            <ul class="matrix-cell-items">
+                                <li>区块链溯源</li>
+                                <li>元宇宙场景</li>
+                                <li>量子计算预研</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="matrix-axis-x matrix-axis-label">实施可行性 →</div>
+                    <p class="exhibit-source">来源：项目团队综合评估；影响力基于3年NPV模型，可行性综合技术、组织、资源就绪度</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ FINANCIAL IMPACT ═══ -->
+        <section class="section">
+            <div class="container">
+                <div class="section-header reveal">
+                    <div class="section-header-number">05</div>
+                    <span class="section-header-label">Financial Impact</span>
+                    <h2>财务影响分析</h2>
+                </div>
+
+                <div class="key-insight reveal">
+                    转型总投入 ¥1.2 亿，预计第 3 年实现完全回收；净现值(NPV)达 ¥4.6 亿（折现率 10%），内部收益率(IRR) 42%，显著高于集团资本成本。
+                </div>
+
+                <div class="two-col">
+                    <div class="exhibit reveal">
+                        <div class="exhibit-label">Exhibit 4: 价值创造瀑布图（单位：百万元）</div>
+                        <div class="exhibit-chart" id="chartWaterfall"></div>
+                        <p class="exhibit-source">来源：项目团队财务模型；基于保守假设情景</p>
+                    </div>
+                    <div class="exhibit reveal">
+                        <div class="exhibit-label">Exhibit 5: 三年财务预测</div>
+                        <div class="exhibit-chart" id="chartProjection"></div>
+                        <p class="exhibit-source">来源：项目团队预测模型；含 ±15% 置信区间</p>
+                    </div>
+                </div>
+
+                <div class="implication-box reveal">
+                    <div class="implication-box-title">投资建议</div>
+                    <p>建议将 ¥1.2 亿总预算按 40/35/25 比例分配至三个阶段。第一阶段重点投入基础设施和数据平台，第二阶段侧重应用开发和AI能力建设，第三阶段聚焦生态拓展和模式创新。设置 3 个投资决策门禁点（Gate），根据阶段成效动态调整后续投入。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ IMPLEMENTATION ROADMAP ═══ -->
+        <section class="section">
+            <div class="container">
+                <div class="section-header reveal">
+                    <div class="section-header-number">06</div>
+                    <span class="section-header-label">Roadmap</span>
+                    <h2>实施路线图</h2>
+                </div>
+
+                <div class="key-insight reveal">
+                    采用"三阶段递进式"推进策略：基座先行（M1-6）→ 能力构建（M7-12）→ 价值释放（M13-18），每阶段设置明确交付里程碑和 Go/No-Go 决策点。
+                </div>
+
+                <div class="exhibit reveal">
+                    <div class="exhibit-label">Exhibit 6: 18个月实施路线图</div>
+                    <div class="gantt">
+                        <div class="gantt-header">
+                            <div></div>
+                            <div class="gantt-header-label">M1</div>
+                            <div class="gantt-header-label">M2</div>
+                            <div class="gantt-header-label">M3</div>
+                            <div class="gantt-header-label">M4</div>
+                            <div class="gantt-header-label">M5</div>
+                            <div class="gantt-header-label">M6</div>
+                            <div class="gantt-header-label">M7</div>
+                            <div class="gantt-header-label">M8</div>
+                            <div class="gantt-header-label">M9</div>
+                            <div class="gantt-header-label">M10</div>
+                            <div class="gantt-header-label">M11</div>
+                            <div class="gantt-header-label">M12</div>
+                        </div>
+                        <div class="gantt-row">
+                            <div class="gantt-label">数据治理体系</div>
+                            <div class="gantt-bar-container" style="grid-column: 2 / 7;">
+                                <div class="gantt-bar gantt-bar--phase1" style="width: 100%; left: 0;">P1</div>
+                            </div>
+                        </div>
+                        <div class="gantt-row">
+                            <div class="gantt-label">核心系统上云</div>
+                            <div class="gantt-bar-container" style="grid-column: 2 / 8;">
+                                <div class="gantt-bar gantt-bar--phase1" style="width: 100%; left: 0;">P1</div>
+                            </div>
+                        </div>
+                        <div class="gantt-row">
+                            <div class="gantt-label">数据中台建设</div>
+                            <div class="gantt-bar-container" style="grid-column: 4 / 10;">
+                                <div class="gantt-bar gantt-bar--phase2" style="width: 100%; left: 0;">P2</div>
+                            </div>
+                        </div>
+                        <div class="gantt-row">
+                            <div class="gantt-label">AI能力平台</div>
+                            <div class="gantt-bar-container" style="grid-column: 7 / 12;">
+                                <div class="gantt-bar gantt-bar--phase2" style="width: 100%; left: 0;">P2</div>
+                            </div>
+                        </div>
+                        <div class="gantt-row">
+                            <div class="gantt-label">场景化应用</div>
+                            <div class="gantt-bar-container" style="grid-column: 8 / 13;">
+                                <div class="gantt-bar gantt-bar--phase3" style="width: 100%; left: 0;">P3</div>
+                            </div>
+                        </div>
+                        <div class="gantt-row">
+                            <div class="gantt-label">生态平台化</div>
+                            <div class="gantt-bar-container" style="grid-column: 10 / 13;">
+                                <div class="gantt-bar gantt-bar--phase3" style="width: 100%; left: 0;">P3</div>
+                            </div>
+                        </div>
+                        <div class="gantt-row">
+                            <div class="gantt-label" style="color: var(--accent-warm); font-weight: 700;">决策门禁</div>
+                            <div class="gantt-bar-container" style="grid-column: 2 / 13; position: relative;">
+                                <div class="gantt-bar gantt-bar--milestone" style="left: calc(45.5% - 5px); position: absolute;" title="Gate 1: M6"></div>
+                                <div class="gantt-bar gantt-bar--milestone" style="left: calc(81.8% - 5px); position: absolute;" title="Gate 2: M10"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="exhibit-source">注：实际推进节奏将根据 Gate 审查结果动态调整；M = Month</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ RISK & MITIGATION ═══ -->
+        <section class="section">
+            <div class="container">
+                <div class="section-header reveal">
+                    <div class="section-header-number">07</div>
+                    <span class="section-header-label">Risk Management</span>
+                    <h2>风险与缓释</h2>
+                </div>
+
+                <div class="key-insight reveal">
+                    识别 5 项关键风险，其中"组织变革阻力"和"数据安全合规"为最高风险等级。建议建立专项PMO并引入外部变革管理顾问，确保转型平稳推进。
+                </div>
+
+                <div class="reveal">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>风险类别</th>
+                                <th>风险描述</th>
+                                <th>影响</th>
+                                <th>概率</th>
+                                <th>缓释措施</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>组织变革阻力</strong></td>
+                                <td>业务部门对新系统、新流程接受度低</td>
+                                <td class="highlight-cell">高</td>
+                                <td class="highlight-cell">高</td>
+                                <td>设立变革管理办公室(CMO)，分层培训+激励机制</td>
+                            </tr>
+                            <tr>
+                                <td><strong>数据安全合规</strong></td>
+                                <td>数据集中化增加泄露风险，法规合规压力</td>
+                                <td class="highlight-cell">高</td>
+                                <td>中</td>
+                                <td>引入零信任架构，建立数据分类分级制度</td>
+                            </tr>
+                            <tr>
+                                <td><strong>技术选型风险</strong></td>
+                                <td>技术栈选择失误导致返工或锁定</td>
+                                <td>中</td>
+                                <td>中</td>
+                                <td>采用开放架构+多云策略，预留技术替换空间</td>
+                            </tr>
+                            <tr>
+                                <td><strong>人才短缺</strong></td>
+                                <td>核心数字化人才招聘困难，留存率低</td>
+                                <td>中</td>
+                                <td>高</td>
+                                <td>内培+外引结合，建立数字化人才专项激励</td>
+                            </tr>
+                            <tr>
+                                <td><strong>预算超支</strong></td>
+                                <td>范围蔓延导致投入超出预算</td>
+                                <td>中</td>
+                                <td>中</td>
+                                <td>严格 Gate 机制+敏捷交付+阶段性投资评审</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="implication-box reveal">
+                    <div class="implication-box-title">风险管理建议</div>
+                    <p>建议在项目启动阶段即组建由 CTO 牵头的风险管理委员会，每月审视风险热力图，对红色风险实施专项攻关。同时建立"风险准备金"（占总预算 15%），确保应对能力充足。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ NEXT STEPS ═══ -->
+        <section class="section">
+            <div class="container">
+                <div class="section-header reveal">
+                    <div class="section-header-number">08</div>
+                    <span class="section-header-label">Next Steps</span>
+                    <h2>下一步行动</h2>
+                </div>
+
+                <div class="key-insight reveal">
+                    未来 30 天内需完成 5 项关键决策和行动，确保转型在 Q1 正式启动。核心前提是管理层对战略方向和资源投入的明确承诺。
+                </div>
+
+                <div class="reveal">
+                    <table class="action-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>行动项</th>
+                                <th>责任人</th>
+                                <th>时间节点</th>
+                                <th>优先级</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-family: var(--font-mono); font-weight: 700; color: var(--text-dim);">01</td>
+                                <td>召开董事会专题会议，审批转型战略和预算方案</td>
+                                <td>CEO / CFO</td>
+                                <td>第 1 周</td>
+                                <td><span class="action-priority action-priority--high">P0</span></td>
+                            </tr>
+                            <tr>
+                                <td style="font-family: var(--font-mono); font-weight: 700; color: var(--text-dim);">02</td>
+                                <td>组建数字化转型PMO，任命CDO（首席数字官）</td>
+                                <td>CEO / CHRO</td>
+                                <td>第 2 周</td>
+                                <td><span class="action-priority action-priority--high">P0</span></td>
+                            </tr>
+                            <tr>
+                                <td style="font-family: var(--font-mono); font-weight: 700; color: var(--text-dim);">03</td>
+                                <td>启动云平台和数据治理工具选型（RFP流程）</td>
+                                <td>CTO / PMO</td>
+                                <td>第 2-3 周</td>
+                                <td><span class="action-priority action-priority--high">P0</span></td>
+                            </tr>
+                            <tr>
+                                <td style="font-family: var(--font-mono); font-weight: 700; color: var(--text-dim);">04</td>
+                                <td>启动组织变革沟通计划，开展高管层 Alignment Workshop</td>
+                                <td>CMO / HR</td>
+                                <td>第 3 周</td>
+                                <td><span class="action-priority action-priority--medium">P1</span></td>
+                            </tr>
+                            <tr>
+                                <td style="font-family: var(--font-mono); font-weight: 700; color: var(--text-dim);">05</td>
+                                <td>制定详细实施计划（含里程碑、KPI、预算分解）</td>
+                                <td>PMO / 咨询团队</td>
+                                <td>第 4 周</td>
+                                <td><span class="action-priority action-priority--medium">P1</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="contact-box reveal">
+                    <p class="contact-box-title">联络信息</p>
+                    <p>
+                        项目负责人：张明远（合伙人）| zhang.my@consulting.com<br>
+                        项目经理：李思远 | li.sy@consulting.com<br>
+                        如有任何疑问，请随时联系项目团队。
+                    </p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        class ReportPresentation {
+            constructor() {
+                this.scrollProgress = document.getElementById('scrollProgress');
+                this.backToTop = document.getElementById('backToTop');
+                this.reveals = document.querySelectorAll('.reveal');
+                this.counters = document.querySelectorAll('[data-count]');
+                this.countersAnimated = new Set();
+                this.init();
+            }
+
+            init() {
+                this.setupScrollProgress();
+                this.setupBackToTop();
+                this.setupIntersectionObserver();
+                this.setupCounterObserver();
+                this.initCharts();
+                window.addEventListener('resize', this.debounce(() => this.resizeCharts(), 250));
+            }
+
+            setupScrollProgress() {
+                window.addEventListener('scroll', () => {
+                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                    const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+                    const progress = (scrollTop / scrollHeight) * 100;
+                    this.scrollProgress.style.width = progress + '%';
+                });
+            }
+
+            setupBackToTop() {
+                window.addEventListener('scroll', () => {
+                    if (window.pageYOffset > 400) {
+                        this.backToTop.classList.add('visible');
+                    } else {
+                        this.backToTop.classList.remove('visible');
+                    }
+                });
+                this.backToTop.addEventListener('click', () => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                });
+            }
+
+            setupIntersectionObserver() {
+                const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                if (prefersReducedMotion) {
+                    this.reveals.forEach(el => el.classList.add('revealed'));
+                    return;
+                }
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('revealed');
+                            observer.unobserve(entry.target);
+                        }
+                    });
+                }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+                this.reveals.forEach(el => observer.observe(el));
+            }
+
+            setupCounterObserver() {
+                const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting && !this.countersAnimated.has(entry.target)) {
+                            this.countersAnimated.add(entry.target);
+                            this.animateCounter(entry.target, prefersReducedMotion);
+                        }
+                    });
+                }, { threshold: 0.5 });
+                this.counters.forEach(el => observer.observe(el));
+            }
+
+            animateCounter(el, skipAnimation) {
+                const target = parseFloat(el.getAttribute('data-count'));
+                const isDecimal = target % 1 !== 0;
+                if (skipAnimation) {
+                    el.textContent = isDecimal ? target.toFixed(1) : target;
+                    return;
+                }
+                const duration = 1800;
+                const startTime = performance.now();
+                const update = (currentTime) => {
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const eased = 1 - Math.pow(1 - progress, 4);
+                    const current = target * eased;
+                    el.textContent = isDecimal ? current.toFixed(1) : Math.round(current);
+                    if (progress < 1) requestAnimationFrame(update);
+                };
+                requestAnimationFrame(update);
+            }
+
+            initCharts() {
+                this.charts = [];
+                this.initMarketGrowthChart();
+                this.initRadarChart();
+                this.initWaterfallChart();
+                this.initProjectionChart();
+            }
+
+            resizeCharts() {
+                this.charts.forEach(chart => chart && chart.resize());
+            }
+
+            getTheme() {
+                return {
+                    backgroundColor: 'transparent',
+                    textStyle: { fontFamily: 'Manrope, PingFang SC, system-ui, sans-serif', color: '#8a8a9a' },
+                    title: { textStyle: { color: '#e8e6e3' } },
+                    legend: { textStyle: { color: '#8a8a9a', fontSize: 11 } },
+                    tooltip: {
+                        backgroundColor: '#1e1e38',
+                        borderColor: 'rgba(255,255,255,0.06)',
+                        textStyle: { color: '#e8e6e3', fontSize: 12 }
+                    }
+                };
+            }
+
+            initMarketGrowthChart() {
+                const dom = document.getElementById('chartMarketGrowth');
+                if (!dom) return;
+                const chart = echarts.init(dom);
+                this.charts.push(chart);
+
+                const option = {
+                    ...this.getTheme(),
+                    tooltip: { ...this.getTheme().tooltip, trigger: 'axis' },
+                    grid: { top: 40, right: 30, bottom: 40, left: 50 },
+                    xAxis: {
+                        type: 'category',
+                        data: ['2020', '2021', '2022', '2023', '2024E', '2025E'],
+                        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+                        axisLabel: { color: '#8a8a9a', fontSize: 11, fontFamily: 'JetBrains Mono' }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '投入（亿元）',
+                        nameTextStyle: { color: '#5a5a6e', fontSize: 10 },
+                        axisLine: { show: false },
+                        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)', type: 'dashed' } },
+                        axisLabel: { color: '#8a8a9a', fontSize: 11, fontFamily: 'JetBrains Mono' }
+                    },
+                    series: [
+                        {
+                            name: '行业总投入',
+                            type: 'line',
+                            data: [320, 425, 580, 760, 1020, 1350],
+                            smooth: true,
+                            lineStyle: { width: 2.5, color: '#4ecdc4' },
+                            itemStyle: { color: '#4ecdc4' },
+                            areaStyle: {
+                                color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(78,205,196,0.15)' }, { offset: 1, color: 'rgba(78,205,196,0)' }] }
+                            },
+                            symbol: 'circle', symbolSize: 5
+                        },
+                        {
+                            name: '华信集团',
+                            type: 'line',
+                            data: [45, 52, 58, 65, 78, null],
+                            smooth: true,
+                            lineStyle: { width: 2, color: '#f0b866', type: 'dashed' },
+                            itemStyle: { color: '#f0b866' },
+                            symbol: 'diamond', symbolSize: 5
+                        }
+                    ],
+                    legend: { ...this.getTheme().legend, top: 5, right: 10 }
+                };
+                chart.setOption(option);
+            }
+
+            initRadarChart() {
+                const dom = document.getElementById('chartRadar');
+                if (!dom) return;
+                const chart = echarts.init(dom);
+                this.charts.push(chart);
+
+                const option = {
+                    ...this.getTheme(),
+                    tooltip: this.getTheme().tooltip,
+                    legend: { ...this.getTheme().legend, bottom: 5 },
+                    radar: {
+                        indicator: [
+                            { name: '数据治理', max: 5 },
+                            { name: '智能决策', max: 5 },
+                            { name: '客户体验', max: 5 },
+                            { name: '流程自动化', max: 5 },
+                            { name: '基础设施', max: 5 },
+                            { name: '人才储备', max: 5 }
+                        ],
+                        radius: '62%',
+                        axisName: { color: '#8a8a9a', fontSize: 11 },
+                        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+                        splitArea: { areaStyle: { color: ['transparent', 'rgba(255,255,255,0.02)'] } },
+                        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }
+                    },
+                    series: [{
+                        type: 'radar',
+                        data: [
+                            {
+                                value: [1.8, 1.9, 2.4, 2.5, 3.0, 2.8],
+                                name: '华信集团',
+                                lineStyle: { color: '#4ecdc4', width: 2 },
+                                itemStyle: { color: '#4ecdc4' },
+                                areaStyle: { color: 'rgba(78,205,196,0.12)' }
+                            },
+                            {
+                                value: [4.3, 4.0, 4.5, 4.2, 4.1, 3.8],
+                                name: '行业标杆',
+                                lineStyle: { color: '#f0b866', width: 1.5, type: 'dashed' },
+                                itemStyle: { color: '#f0b866' },
+                                areaStyle: { color: 'rgba(240,184,102,0.06)' }
+                            }
+                        ]
+                    }]
+                };
+                chart.setOption(option);
+            }
+
+            initWaterfallChart() {
+                const dom = document.getElementById('chartWaterfall');
+                if (!dom) return;
+                const chart = echarts.init(dom);
+                this.charts.push(chart);
+
+                const categories = ['当前营收', '运营效率', '新业务', '客户体验', '总投入', '净增值'];
+                const invisible = [0, 1200, 1326, 1424, 1360, 0];
+                const actual = [1200, 126, 98, 56, 120, 1360];
+
+                const option = {
+                    ...this.getTheme(),
+                    tooltip: {
+                        ...this.getTheme().tooltip,
+                        trigger: 'axis',
+                        axisPointer: { type: 'shadow' },
+                        formatter: function(params) {
+                            const idx = params[0].dataIndex;
+                            const val = idx === 4 ? '-120M' : '+' + actual[idx] + 'M';
+                            return categories[idx] + '<br/>' + (idx === 0 || idx === 5 ? actual[idx] + 'M' : val);
+                        }
+                    },
+                    grid: { top: 30, right: 20, bottom: 40, left: 50 },
+                    xAxis: {
+                        type: 'category',
+                        data: categories,
+                        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+                        axisLabel: { color: '#8a8a9a', fontSize: 10, rotate: 15 }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        axisLine: { show: false },
+                        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)', type: 'dashed' } },
+                        axisLabel: { color: '#8a8a9a', fontSize: 10, fontFamily: 'JetBrains Mono' }
+                    },
+                    series: [
+                        {
+                            name: 'invisible',
+                            type: 'bar',
+                            stack: 'waterfall',
+                            itemStyle: { color: 'transparent' },
+                            data: invisible,
+                            emphasis: { itemStyle: { color: 'transparent' } }
+                        },
+                        {
+                            name: 'value',
+                            type: 'bar',
+                            stack: 'waterfall',
+                            data: actual.map((val, idx) => ({
+                                value: val,
+                                itemStyle: { color: idx === 4 ? '#ff6b6b' : (idx === 0 || idx === 5) ? '#4ecdc4' : 'rgba(78,205,196,0.6)' }
+                            })),
+                            label: {
+                                show: true, position: 'top',
+                                formatter: function(params) {
+                                    const idx = params.dataIndex;
+                                    if (idx === 4) return '-120';
+                                    if (idx === 0 || idx === 5) return params.value;
+                                    return '+' + params.value;
+                                },
+                                fontSize: 10, fontFamily: 'JetBrains Mono', color: '#8a8a9a'
+                            },
+                            barWidth: '40%'
+                        }
+                    ]
+                };
+                chart.setOption(option);
+            }
+
+            initProjectionChart() {
+                const dom = document.getElementById('chartProjection');
+                if (!dom) return;
+                const chart = echarts.init(dom);
+                this.charts.push(chart);
+
+                const option = {
+                    ...this.getTheme(),
+                    tooltip: { ...this.getTheme().tooltip, trigger: 'axis' },
+                    legend: { ...this.getTheme().legend, top: 5, right: 10 },
+                    grid: { top: 45, right: 30, bottom: 40, left: 50 },
+                    xAxis: {
+                        type: 'category',
+                        data: ['Year 1', 'Year 2', 'Year 3'],
+                        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+                        axisLabel: { color: '#8a8a9a', fontSize: 11, fontFamily: 'JetBrains Mono' }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '百万元',
+                        nameTextStyle: { color: '#5a5a6e', fontSize: 10 },
+                        axisLine: { show: false },
+                        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)', type: 'dashed' } },
+                        axisLabel: { color: '#8a8a9a', fontSize: 11, fontFamily: 'JetBrains Mono' }
+                    },
+                    series: [
+                        {
+                            name: '投入',
+                            type: 'bar',
+                            data: [48, 42, 30],
+                            itemStyle: { color: 'rgba(255,255,255,0.15)' },
+                            barWidth: '25%'
+                        },
+                        {
+                            name: '收益',
+                            type: 'bar',
+                            data: [35, 150, 280],
+                            itemStyle: { color: '#4ecdc4' },
+                            barWidth: '25%'
+                        },
+                        {
+                            name: '累计净值',
+                            type: 'line',
+                            data: [-13, 95, 345],
+                            lineStyle: { width: 2, color: '#f0b866', type: 'dashed' },
+                            itemStyle: { color: '#f0b866' },
+                            symbol: 'circle', symbolSize: 7
+                        }
+                    ]
+                };
+                chart.setOption(option);
+            }
+
+            debounce(fn, delay) {
+                let timer;
+                return function() { clearTimeout(timer); timer = setTimeout(fn, delay); };
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => new ReportPresentation());
+        } else {
+            new ReportPresentation();
+        }
+    })();
+    </script>
+</body>
+</html>

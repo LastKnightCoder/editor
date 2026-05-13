@@ -45,6 +45,7 @@ import {
   getMarkdown,
 } from "@/utils";
 import { cleanPPTHtmlContent } from "@/constants/prompts/ppt-generation";
+import { cleanReportHtmlContent } from "@/constants/prompts/report-generation";
 import {
   buildDefaultEpubMetadata,
   exportSlateToEpubWithDialog,
@@ -181,6 +182,9 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   // 是否是 PPT 类型笔记
   const isPPT = currentNote?.type === "ppt";
 
+  // 是否是报告类型笔记
+  const isReport = currentNote?.type === "report";
+
   // 是否是播客类型笔记
   const isPodcast = currentNote?.type === "podcast";
 
@@ -225,6 +229,24 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       return URL.createObjectURL(blob);
     }
   }, [pptHtmlContent, isElectron]);
+
+  // 报告的 HTML 内容（从代码块中提取并清理）
+  const reportHtmlContent = useMemo(() => {
+    if (!isReport) return "";
+    const markdown = getMarkdown(content);
+    return cleanReportHtmlContent(markdown);
+  }, [isReport, content]);
+
+  // 报告预览 URL
+  const reportPreviewUrl = useMemo(() => {
+    if (!reportHtmlContent) return "";
+    if (isElectron) {
+      return `data:text/html;charset=utf-8,${encodeURIComponent(reportHtmlContent)}`;
+    } else {
+      const blob = new Blob([reportHtmlContent], { type: "text/html" });
+      return URL.createObjectURL(blob);
+    }
+  }, [reportHtmlContent, isElectron]);
 
   const mindMapExportRef = useRef<HTMLDivElement>(null);
   const mindMapFullscreenExportRef = useRef<HTMLDivElement>(null);
@@ -504,6 +526,16 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     message.success("PPT 已下载");
   });
 
+  const handleDownloadReport = useMemoizedFn(() => {
+    if (!reportHtmlContent.trim()) {
+      message.error("没有可下载的报告内容");
+      return;
+    }
+    const filename = `${sanitizeFilename(title, "报告")}.html`;
+    downloadTextFile(reportHtmlContent, filename, "text/html;charset=utf-8");
+    message.success("报告已下载");
+  });
+
   // 下载当前笔记为 Markdown（思维导图/大纲/重点提炼/普通笔记/播客等）
   const handleDownloadMarkdown = useMemoizedFn(() => {
     const markdown = getMarkdown(content);
@@ -692,7 +724,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   }
 
   const moreMenuItems: MenuItem[] =
-    isMindMap || isPPT
+    isMindMap || isPPT || isReport
       ? [
           {
             key: "fullscreen",
@@ -717,6 +749,22 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                   icon: <DownloadOutlined />,
                   label: "下载 HTML",
                   onClick: handleDownloadPPT,
+                },
+              ]
+            : []),
+          ...(isReport
+            ? [
+                {
+                  key: "add-to-resources",
+                  icon: <ImportOutlined />,
+                  label: "添加到资源列表",
+                  onClick: handleAddToResourceList,
+                },
+                {
+                  key: "download-html",
+                  icon: <DownloadOutlined />,
+                  label: "下载 HTML",
+                  onClick: handleDownloadReport,
                 },
               ]
             : []),
@@ -1041,6 +1089,29 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                 />
               )}
             </div>
+          ) : isReport ? (
+            <div className="h-full bg-white dark:bg-zinc-900">
+              {isElectron ? (
+                <webview
+                  src={reportPreviewUrl}
+                  partition="persist:report-preview"
+                  webpreferences="sandbox=true,contextIsolation=true,nodeIntegration=false"
+                  allowpopups={false}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    border: "none",
+                  }}
+                />
+              ) : (
+                <iframe
+                  src={reportPreviewUrl}
+                  className="w-full h-full border-0"
+                  sandbox="allow-scripts allow-same-origin"
+                  title="Report Preview"
+                />
+              )}
+            </div>
           ) : isPodcast ? (
             <div className="space-y-4">
               {/* 播客播放器 */}
@@ -1154,6 +1225,44 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                 className="w-full h-full border-0"
                 sandbox="allow-scripts allow-same-origin"
                 title="PPT Fullscreen"
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {isReport && isFullscreen && (
+        <div className="fixed top-12 left-0 right-0 bottom-0 z-50 bg-white dark:bg-zinc-900 flex flex-col">
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-[#2a2a2a] shrink-0 flex items-center justify-between bg-white dark:bg-[#1a1a1a]">
+            <h3 className="text-base font-medium text-gray-800 dark:text-[#e0e0e0] m-0">
+              {title || "无标题报告"}
+            </h3>
+            <button
+              className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-gray-100 dark:hover:bg-[#2a2a2a] text-gray-600 dark:text-[#e0e0e0] transition-colors cursor-pointer border-none bg-transparent"
+              onClick={handleToggleFullscreen}
+            >
+              <FullscreenExitOutlined />
+            </button>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            {isElectron ? (
+              <webview
+                src={reportPreviewUrl}
+                partition="persist:report-preview-fullscreen"
+                webpreferences="sandbox=true,contextIsolation=true,nodeIntegration=false"
+                allowpopups={false}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  border: "none",
+                }}
+              />
+            ) : (
+              <iframe
+                src={reportPreviewUrl}
+                className="w-full h-full border-0"
+                sandbox="allow-scripts allow-same-origin"
+                title="Report Fullscreen"
               />
             )}
           </div>

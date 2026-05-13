@@ -1,0 +1,2158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的年度阅读报告</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Ma+Shan+Zheng&family=Patrick+Hand&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.min.js"></script>
+    <style>
+        :root {
+            --paper: #fdf8f0;
+            --ink: #3d2c2c;
+            --pink: #f4a0b0;
+            --pink-light: #fde8ec;
+            --mint: #7ecbb0;
+            --mint-light: #e4f6ef;
+            --sky: #7cb5d4;
+            --sky-light: #e4f0f8;
+            --butter: #e8c84a;
+            --butter-light: #fdf5d6;
+            --lavender: #b088d4;
+            --lavender-light: #f0e8f8;
+            --font-display: "ZCOOL KuaiLe", cursive;
+            --font-body: "Patrick Hand", cursive;
+            --font-decorative: "Ma Shan Zheng", cursive;
+            --title-size: clamp(2.8rem, 7vw, 4.5rem);
+            --h1-size: clamp(1.8rem, 4vw, 2.6rem);
+            --body-size: clamp(1rem, 1.2vw, 1.15rem);
+            --stat-size: clamp(2.4rem, 5vw, 3.5rem);
+            --section-gap: clamp(4rem, 8vw, 7rem);
+            --container-max: 850px;
+            --line-height: 30px;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--paper);
+            color: var(--ink);
+            font-family: var(--font-body), var(--font-decorative), sans-serif;
+            font-size: var(--body-size);
+            font-weight: 400;
+            line-height: 1.8;
+            -webkit-font-smoothing: antialiased;
+            position: relative;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Notebook lined paper background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            background-image:
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 29px,
+                    rgba(120, 160, 200, 0.09) 29px,
+                    rgba(120, 160, 200, 0.09) 30px
+                );
+            background-size: 100% var(--line-height);
+        }
+
+        /* Left margin line like a real notebook */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 60px;
+            width: 2px;
+            height: 100%;
+            background: rgba(220, 80, 80, 0.12);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Scroll progress */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--pink), var(--mint), var(--sky), var(--lavender));
+            z-index: 10000;
+            transition: width 0.1s linear;
+            width: 0%;
+        }
+
+        /* Back to top */
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 44px;
+            height: 44px;
+            background: var(--paper);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            z-index: 9999;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .back-to-top canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .back-to-top svg {
+            width: 20px;
+            height: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Container */
+        .container {
+            max-width: var(--container-max);
+            margin: 0 auto;
+            padding: 0 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Section spacing */
+        .section {
+            padding: var(--section-gap) 0;
+            position: relative;
+        }
+
+        /* Section divider canvas */
+        .section-divider {
+            width: 100%;
+            height: 40px;
+            display: block;
+            margin: 0 auto;
+            max-width: var(--container-max);
+        }
+
+        /* Reveal animations */
+        .reveal {
+            opacity: 0;
+            transform: translateY(25px);
+            transition: opacity 0.7s ease, transform 0.7s ease;
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .reveal:nth-child(2) { transition-delay: 0.1s; }
+        .reveal:nth-child(3) { transition-delay: 0.2s; }
+        .reveal:nth-child(4) { transition-delay: 0.3s; }
+
+        /* Section headings */
+        .section-title {
+            font-family: var(--font-display);
+            font-size: var(--h1-size);
+            color: var(--ink);
+            margin-bottom: 0.5rem;
+            position: relative;
+            display: inline-block;
+        }
+
+        .section-subtitle {
+            font-family: var(--font-decorative);
+            font-size: 1.1rem;
+            color: rgba(61, 44, 44, 0.6);
+            margin-bottom: 2rem;
+        }
+
+        /* Underline canvas for titles */
+        .title-underline {
+            display: block;
+            width: 100%;
+            height: 12px;
+            margin-top: -4px;
+        }
+
+        /* Cover section */
+        .cover {
+            min-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 4rem 2rem;
+            position: relative;
+        }
+
+        .cover-decoration {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .cover-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .cover-year {
+            font-family: var(--font-body);
+            font-size: 1.3rem;
+            color: var(--pink);
+            margin-bottom: 0.8rem;
+            letter-spacing: 2px;
+        }
+
+        .cover-title {
+            font-family: var(--font-display);
+            font-size: var(--title-size);
+            color: var(--ink);
+            margin-bottom: 1rem;
+            line-height: 1.3;
+        }
+
+        .cover-subtitle {
+            font-family: var(--font-decorative);
+            font-size: 1.4rem;
+            color: rgba(61, 44, 44, 0.7);
+            margin-bottom: 2rem;
+        }
+
+        .cover-book-icon {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 2rem;
+        }
+
+        /* Metric cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .metric-card {
+            position: relative;
+            text-align: center;
+            padding: 2rem 1.2rem;
+            background: #fff;
+        }
+
+        .metric-card canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .metric-card-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .metric-value {
+            font-family: var(--font-display);
+            font-size: var(--stat-size);
+            color: var(--ink);
+            line-height: 1.2;
+            margin-bottom: 0.3rem;
+        }
+
+        .metric-label {
+            font-family: var(--font-decorative);
+            font-size: 1.1rem;
+            color: rgba(61, 44, 44, 0.65);
+        }
+
+        /* Chart container */
+        .chart-wrapper {
+            position: relative;
+            margin: 2rem 0;
+        }
+
+        .chart-wrapper canvas.rough-border {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 320px;
+            background: rgba(255, 255, 255, 0.5);
+            padding: 1rem;
+        }
+
+        /* Book cards */
+        .book-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.8rem;
+            margin-top: 2rem;
+        }
+
+        .book-card {
+            position: relative;
+            display: flex;
+            gap: 1.2rem;
+            padding: 1.5rem 1.5rem 1.5rem 2rem;
+            background: #fff;
+        }
+
+        .book-card canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .book-card-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            gap: 1.2rem;
+            width: 100%;
+        }
+
+        .book-rank {
+            font-family: var(--font-display);
+            font-size: 1.8rem;
+            min-width: 36px;
+            display: flex;
+            align-items: flex-start;
+            padding-top: 2px;
+        }
+
+        .book-info { flex: 1; }
+
+        .book-title {
+            font-family: var(--font-display);
+            font-size: 1.2rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .book-author {
+            font-family: var(--font-decorative);
+            font-size: 0.95rem;
+            color: rgba(61, 44, 44, 0.55);
+            margin-bottom: 0.5rem;
+        }
+
+        .book-rating {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 0.5rem;
+        }
+
+        .book-rating canvas {
+            position: static;
+            width: 18px;
+            height: 18px;
+        }
+
+        .book-review {
+            font-family: var(--font-decorative);
+            font-size: 1rem;
+            line-height: 1.7;
+            color: rgba(61, 44, 44, 0.75);
+        }
+
+        /* Pie chart */
+        .pie-chart-container {
+            width: 100%;
+            height: 300px;
+            margin: 2rem 0;
+        }
+
+        /* Quote cards */
+        .quotes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .quote-card {
+            position: relative;
+            padding: 2rem 2.5rem 1.5rem 3rem;
+            background: rgba(255, 255, 255, 0.6);
+        }
+
+        .quote-card canvas.rough-border {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .quote-card-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .quote-mark {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            width: 40px;
+            height: 40px;
+            z-index: 2;
+        }
+
+        .quote-text {
+            font-family: var(--font-decorative);
+            font-size: 1.2rem;
+            line-height: 1.9;
+            color: var(--ink);
+        }
+
+        .quote-author {
+            font-family: var(--font-body);
+            font-size: 0.9rem;
+            color: rgba(61, 44, 44, 0.55);
+            text-align: right;
+            margin-top: 0.8rem;
+        }
+
+        /* Checklist / Goals */
+        .goals-list {
+            margin-top: 2rem;
+        }
+
+        .goal-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            padding: 0.9rem 0;
+            border-bottom: 1px solid rgba(61, 44, 44, 0.05);
+            font-family: var(--font-decorative);
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        .goal-item:last-child { border-bottom: none; }
+
+        .goal-checkbox {
+            width: 22px;
+            height: 22px;
+            min-width: 22px;
+            margin-top: 4px;
+        }
+
+        .goal-text {
+            flex: 1;
+        }
+
+        .highlight-pink {
+            background: linear-gradient(180deg, transparent 60%, rgba(244, 160, 176, 0.3) 60%);
+            padding: 0 3px;
+        }
+
+        .highlight-mint {
+            background: linear-gradient(180deg, transparent 60%, rgba(126, 203, 176, 0.3) 60%);
+            padding: 0 3px;
+        }
+
+        .highlight-sky {
+            background: linear-gradient(180deg, transparent 60%, rgba(124, 181, 212, 0.3) 60%);
+            padding: 0 3px;
+        }
+
+        .highlight-lavender {
+            background: linear-gradient(180deg, transparent 60%, rgba(176, 136, 212, 0.3) 60%);
+            padding: 0 3px;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 3rem 0;
+            font-family: var(--font-decorative);
+            color: rgba(61, 44, 44, 0.5);
+            font-size: 1rem;
+        }
+
+        .footer-line {
+            width: 60px;
+            height: 20px;
+            margin: 1rem auto;
+        }
+
+        /* Timeline */
+        .timeline {
+            margin-top: 2rem;
+            position: relative;
+            padding-left: 3rem;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 9px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: repeating-linear-gradient(
+                to bottom,
+                rgba(61, 44, 44, 0.15) 0px,
+                rgba(61, 44, 44, 0.15) 6px,
+                transparent 6px,
+                transparent 12px
+            );
+        }
+
+        .timeline-item {
+            position: relative;
+            padding: 0.8rem 0 2rem;
+        }
+
+        .timeline-dot-canvas {
+            position: absolute;
+            left: -3rem;
+            top: 1rem;
+            width: 20px;
+            height: 20px;
+        }
+
+        .timeline-content {
+            padding-left: 0.5rem;
+        }
+
+        .timeline-date {
+            font-family: var(--font-body);
+            font-size: 0.85rem;
+            color: rgba(61, 44, 44, 0.5);
+            margin-bottom: 0.2rem;
+        }
+
+        .timeline-title {
+            font-family: var(--font-display);
+            font-size: 1.15rem;
+            color: var(--ink);
+            margin-bottom: 0.3rem;
+        }
+
+        .timeline-desc {
+            font-family: var(--font-decorative);
+            font-size: 1rem;
+            color: rgba(61, 44, 44, 0.7);
+            line-height: 1.6;
+        }
+
+        /* Habit tags */
+        .habit-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 2rem;
+            justify-content: center;
+        }
+
+        .habit-tag {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.6rem 1.2rem;
+        }
+
+        .habit-tag canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .habit-tag span {
+            position: relative;
+            z-index: 1;
+            font-family: var(--font-decorative);
+            font-size: 1rem;
+            color: var(--ink);
+        }
+
+        /* Mood cards */
+        .mood-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .mood-card {
+            position: relative;
+            padding: 1.5rem;
+            background: #fff;
+        }
+
+        .mood-card canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .mood-card-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .mood-card-title {
+            font-family: var(--font-display);
+            font-size: 1.1rem;
+            color: var(--ink);
+            margin-bottom: 0.5rem;
+        }
+
+        .mood-card-text {
+            font-family: var(--font-decorative);
+            font-size: 0.95rem;
+            line-height: 1.8;
+            color: rgba(61, 44, 44, 0.75);
+            margin-bottom: 0.6rem;
+        }
+
+        .mood-card-source {
+            font-family: var(--font-body);
+            font-size: 0.8rem;
+            color: rgba(61, 44, 44, 0.45);
+            text-align: right;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            body::after {
+                left: 30px;
+            }
+
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-container {
+                height: 260px;
+            }
+
+            .container {
+                padding: 0 1.2rem;
+            }
+
+            .quote-card {
+                padding: 1.5rem 1.5rem 1.2rem 2rem;
+            }
+
+            .book-card-content {
+                flex-direction: column;
+            }
+
+            .cover {
+                min-height: 80vh;
+            }
+
+            .pie-chart-container {
+                height: 250px;
+            }
+
+            .mood-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .habit-tags {
+                gap: 0.8rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body::after {
+                display: none;
+            }
+
+            .cover-title {
+                font-size: clamp(2rem, 10vw, 3rem);
+            }
+
+            .chart-container {
+                height: 220px;
+            }
+
+            .pie-chart-container {
+                height: 220px;
+            }
+
+            .cover {
+                padding: 2rem 1rem;
+            }
+        }
+
+        /* Print */
+        @media print {
+            .scroll-progress,
+            .back-to-top {
+                display: none !important;
+            }
+
+            body::before,
+            body::after {
+                display: none;
+            }
+
+            canvas {
+                display: none !important;
+            }
+
+            .reveal {
+                opacity: 1 !important;
+                transform: none !important;
+            }
+
+            .section {
+                page-break-inside: avoid;
+            }
+
+            .metric-card,
+            .book-card,
+            .quote-card {
+                border: 1px solid #ddd;
+            }
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            .reveal {
+                opacity: 1;
+                transform: none;
+                transition: none;
+            }
+
+            .back-to-top {
+                transition: opacity 0.1s;
+            }
+
+            html {
+                scroll-behavior: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Scroll progress bar -->
+    <div class="scroll-progress" id="scrollProgress"></div>
+
+    <!-- Back to top button -->
+    <button class="back-to-top" id="backToTop" aria-label="Back to top">
+        <canvas width="44" height="44"></canvas>
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <path d="M10 16 L10 4 M4 9 L10 3 L16 9"/>
+        </svg>
+    </button>
+
+    <!-- Cover Section -->
+    <section class="cover section">
+        <canvas class="cover-decoration" id="coverDecoration"></canvas>
+        <div class="container">
+            <div class="cover-content reveal">
+                <p class="cover-year">- 2024 -</p>
+                <canvas class="cover-book-icon" id="coverBookIcon" width="120" height="120"></canvas>
+                <h1 class="cover-title">我的年度阅读报告</h1>
+                <p class="cover-subtitle">一整年的书香旅程，翻过的每一页都算数</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Divider -->
+    <canvas class="section-divider" id="divider1"></canvas>
+
+    <!-- Section: Overview -->
+    <section class="section" id="overview">
+        <div class="container">
+            <div class="reveal">
+                <h2 class="section-title">年度概览</h2>
+                <canvas class="title-underline" id="titleUnderline1" height="12"></canvas>
+                <p class="section-subtitle">这一年，我和书的约会从未缺席</p>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card reveal" id="metricCard1">
+                    <canvas></canvas>
+                    <div class="metric-card-content">
+                        <div class="metric-value"><span class="counter-animate" data-count="12">0</span></div>
+                        <div class="metric-label">读完的书</div>
+                    </div>
+                </div>
+
+                <div class="metric-card reveal" id="metricCard2">
+                    <canvas></canvas>
+                    <div class="metric-card-content">
+                        <div class="metric-value"><span class="counter-animate" data-count="3680">0</span></div>
+                        <div class="metric-label">总页数</div>
+                    </div>
+                </div>
+
+                <div class="metric-card reveal" id="metricCard3">
+                    <canvas></canvas>
+                    <div class="metric-card-content">
+                        <div class="metric-value"><span class="counter-animate" data-count="186">0</span></div>
+                        <div class="metric-label">阅读小时</div>
+                    </div>
+                </div>
+
+                <div class="metric-card reveal" id="metricCard4">
+                    <canvas></canvas>
+                    <div class="metric-card-content">
+                        <div class="metric-value">小说</div>
+                        <div class="metric-label">最爱类型</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Divider -->
+    <canvas class="section-divider" id="divider2"></canvas>
+
+    <!-- Section: Monthly Reading -->
+    <section class="section" id="monthly">
+        <div class="container">
+            <div class="reveal">
+                <h2 class="section-title">月度阅读</h2>
+                <canvas class="title-underline" id="titleUnderline2" height="12"></canvas>
+                <p class="section-subtitle">每个月都有新发现，夏天读得最多</p>
+            </div>
+
+            <div class="reveal">
+                <div class="chart-wrapper">
+                    <canvas class="rough-border" id="chartBorder1"></canvas>
+                    <div class="chart-container" id="monthlyChart"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Divider -->
+    <canvas class="section-divider" id="divider3"></canvas>
+
+    <!-- Section: Favorites -->
+    <section class="section" id="favorites">
+        <div class="container">
+            <div class="reveal">
+                <h2 class="section-title">最爱书单</h2>
+                <canvas class="title-underline" id="titleUnderline3" height="12"></canvas>
+                <p class="section-subtitle">Top 5，每一本都值得反复翻看</p>
+            </div>
+
+            <div class="book-list">
+                <div class="book-card reveal" id="bookCard1">
+                    <canvas></canvas>
+                    <div class="book-card-content">
+                        <div class="book-rank" style="color: var(--pink);">#1</div>
+                        <div class="book-info">
+                            <div class="book-title">百年孤独</div>
+                            <div class="book-author">加西亚 &middot; 马尔克斯</div>
+                            <div class="book-rating" data-stars="5"></div>
+                            <div class="book-review">读完整个人都被魔幻现实主义包围了，布恩迪亚家族七代人的故事像是一场漫长的梦境。每一页都有让人屏住呼吸的魔力。</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="book-card reveal" id="bookCard2">
+                    <canvas></canvas>
+                    <div class="book-card-content">
+                        <div class="book-rank" style="color: var(--mint);">#2</div>
+                        <div class="book-info">
+                            <div class="book-title">被讨厌的勇气</div>
+                            <div class="book-author">岸见一郎 / 古贺史健</div>
+                            <div class="book-rating" data-stars="5"></div>
+                            <div class="book-review">阿德勒心理学的入门之作，读完有种豁然开朗的感觉。原来"不被别人认可"也可以是一种自由。</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="book-card reveal" id="bookCard3">
+                    <canvas></canvas>
+                    <div class="book-card-content">
+                        <div class="book-rank" style="color: var(--sky);">#3</div>
+                        <div class="book-info">
+                            <div class="book-title">小王子</div>
+                            <div class="book-author">安托万 &middot; 德 &middot; 圣-埃克苏佩里</div>
+                            <div class="book-rating" data-stars="4"></div>
+                            <div class="book-review">重读了无数遍的书，这一次看到"驯化"那章还是会哭。大人的世界需要这样的童话来提醒自己最重要的东西。</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="book-card reveal" id="bookCard4">
+                    <canvas></canvas>
+                    <div class="book-card-content">
+                        <div class="book-rank" style="color: var(--lavender);">#4</div>
+                        <div class="book-info">
+                            <div class="book-title">认知觉醒</div>
+                            <div class="book-author">周岭</div>
+                            <div class="book-rating" data-stars="4"></div>
+                            <div class="book-review">关于如何对抗拖延、建立深度学习习惯的好书。把复杂的脑科学讲得通俗易懂，实操性很强。</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="book-card reveal" id="bookCard5">
+                    <canvas></canvas>
+                    <div class="book-card-content">
+                        <div class="book-rank" style="color: var(--butter);">#5</div>
+                        <div class="book-info">
+                            <div class="book-title">杀死一只知更鸟</div>
+                            <div class="book-author">哈珀 &middot; 李</div>
+                            <div class="book-rating" data-stars="4"></div>
+                            <div class="book-review">阿提克斯是我心中最好的父亲形象。在那个不公正的年代，保持正直和善良是多么难能可贵的品质。</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Divider -->
+    <canvas class="section-divider" id="divider4"></canvas>
+
+    <!-- Section: Categories -->
+    <section class="section" id="genres">
+        <div class="container">
+            <div class="reveal">
+                <h2 class="section-title">阅读分类</h2>
+                <canvas class="title-underline" id="titleUnderline4" height="12"></canvas>
+                <p class="section-subtitle">我是个什么都想读一点的杂食读者</p>
+            </div>
+
+            <div class="reveal">
+                <div class="chart-wrapper">
+                    <canvas class="rough-border" id="chartBorder2"></canvas>
+                    <div class="pie-chart-container" id="genreChart"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Divider -->
+    <canvas class="section-divider" id="divider5"></canvas>
+
+    <!-- Section: Reading Timeline -->
+    <section class="section" id="timeline">
+        <div class="container">
+            <div class="reveal">
+                <h2 class="section-title">阅读轨迹</h2>
+                <canvas class="title-underline" id="titleUnderline5" height="12"></canvas>
+                <p class="section-subtitle">回顾这一年，每一本书都是一段旅程</p>
+            </div>
+
+            <div class="timeline">
+                <div class="timeline-item reveal" data-color="pink">
+                    <canvas class="timeline-dot-canvas" width="20" height="20"></canvas>
+                    <div class="timeline-content">
+                        <div class="timeline-date">1月</div>
+                        <div class="timeline-title">《百年孤独》</div>
+                        <div class="timeline-desc">新年第一本，被魔幻现实主义震撼</div>
+                    </div>
+                </div>
+                <div class="timeline-item reveal" data-color="mint">
+                    <canvas class="timeline-dot-canvas" width="20" height="20"></canvas>
+                    <div class="timeline-content">
+                        <div class="timeline-date">3月</div>
+                        <div class="timeline-title">《被讨厌的勇气》</div>
+                        <div class="timeline-desc">春天读心理学，课题分离让我释然</div>
+                    </div>
+                </div>
+                <div class="timeline-item reveal" data-color="sky">
+                    <canvas class="timeline-dot-canvas" width="20" height="20"></canvas>
+                    <div class="timeline-content">
+                        <div class="timeline-date">4月</div>
+                        <div class="timeline-title">《小王子》</div>
+                        <div class="timeline-desc">重读经典，在樱花季读这本恰到好处</div>
+                    </div>
+                </div>
+                <div class="timeline-item reveal" data-color="lavender">
+                    <canvas class="timeline-dot-canvas" width="20" height="20"></canvas>
+                    <div class="timeline-content">
+                        <div class="timeline-date">5-6月</div>
+                        <div class="timeline-title">《认知觉醒》《原子习惯》《刻意练习》</div>
+                        <div class="timeline-desc">连读三本自我提升，夏天是充电的好季节</div>
+                    </div>
+                </div>
+                <div class="timeline-item reveal" data-color="butter">
+                    <canvas class="timeline-dot-canvas" width="20" height="20"></canvas>
+                    <div class="timeline-content">
+                        <div class="timeline-date">7-8月</div>
+                        <div class="timeline-title">《杀死一只知更鸟》《追风筝的人》</div>
+                        <div class="timeline-desc">暑假窝在咖啡店读完了两本长篇</div>
+                    </div>
+                </div>
+                <div class="timeline-item reveal" data-color="pink">
+                    <canvas class="timeline-dot-canvas" width="20" height="20"></canvas>
+                    <div class="timeline-content">
+                        <div class="timeline-date">9月</div>
+                        <div class="timeline-title">《设计心理学》《人人都是产品经理》</div>
+                        <div class="timeline-desc">开学季读了两本和工作相关的书</div>
+                    </div>
+                </div>
+                <div class="timeline-item reveal" data-color="mint">
+                    <canvas class="timeline-dot-canvas" width="20" height="20"></canvas>
+                    <div class="timeline-content">
+                        <div class="timeline-date">11月</div>
+                        <div class="timeline-title">《苏菲的世界》</div>
+                        <div class="timeline-desc">哲学入门，冬天适合思考人生大问题</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Divider -->
+    <canvas class="section-divider" id="divider6"></canvas>
+
+    <!-- Section: Reading Habits Radar -->
+    <section class="section" id="habits">
+        <div class="container">
+            <div class="reveal">
+                <h2 class="section-title">阅读画像</h2>
+                <canvas class="title-underline" id="titleUnderline6" height="12"></canvas>
+                <p class="section-subtitle">用数据看看我是什么类型的读者</p>
+            </div>
+
+            <div class="reveal">
+                <div class="chart-wrapper">
+                    <canvas class="rough-border" id="chartBorder3"></canvas>
+                    <div class="chart-container" id="radarChart"></div>
+                </div>
+            </div>
+
+            <div class="habit-tags reveal">
+                <div class="habit-tag" data-color="pink">
+                    <canvas width="100" height="40"></canvas>
+                    <span>夜读党</span>
+                </div>
+                <div class="habit-tag" data-color="mint">
+                    <canvas width="100" height="40"></canvas>
+                    <span>纸质书派</span>
+                </div>
+                <div class="habit-tag" data-color="sky">
+                    <canvas width="100" height="40"></canvas>
+                    <span>做笔记狂魔</span>
+                </div>
+                <div class="habit-tag" data-color="lavender">
+                    <canvas width="120" height="40"></canvas>
+                    <span>一口气读完型</span>
+                </div>
+                <div class="habit-tag" data-color="butter">
+                    <canvas width="100" height="40"></canvas>
+                    <span>咖啡店常客</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Divider -->
+    <canvas class="section-divider" id="divider7"></canvas>
+
+    <!-- Section: Reading Moods -->
+    <section class="section" id="moods">
+        <div class="container">
+            <div class="reveal">
+                <h2 class="section-title">读后感悟</h2>
+                <canvas class="title-underline" id="titleUnderline7" height="12"></canvas>
+                <p class="section-subtitle">每本书都教会了我一些什么</p>
+            </div>
+
+            <div class="mood-cards">
+                <div class="mood-card reveal" id="moodCard1">
+                    <canvas></canvas>
+                    <div class="mood-card-content">
+                        <div class="mood-card-title">关于孤独</div>
+                        <div class="mood-card-text">孤独不是寂寞，是与自己独处的能力。布恩迪亚家族的每个人都在自己的孤独中找到了意义。</div>
+                        <div class="mood-card-source">— 读《百年孤独》有感</div>
+                    </div>
+                </div>
+                <div class="mood-card reveal" id="moodCard2">
+                    <canvas></canvas>
+                    <div class="mood-card-content">
+                        <div class="mood-card-title">关于勇气</div>
+                        <div class="mood-card-text">被讨厌需要勇气，但这种勇气让你自由。不再为别人的期待而活，是一种温柔的反叛。</div>
+                        <div class="mood-card-source">— 读《被讨厌的勇气》有感</div>
+                    </div>
+                </div>
+                <div class="mood-card reveal" id="moodCard3">
+                    <canvas></canvas>
+                    <div class="mood-card-content">
+                        <div class="mood-card-title">关于习惯</div>
+                        <div class="mood-card-text">每天进步1%，一年后就是37倍。小小的原子习惯堆叠起来，就是了不起的改变。</div>
+                        <div class="mood-card-source">— 读《原子习惯》有感</div>
+                    </div>
+                </div>
+                <div class="mood-card reveal" id="moodCard4">
+                    <canvas></canvas>
+                    <div class="mood-card-content">
+                        <div class="mood-card-title">关于善良</div>
+                        <div class="mood-card-text">在不公正的世界坚持做正确的事，这不是天真，而是真正的力量。阿提克斯教会了我这个道理。</div>
+                        <div class="mood-card-source">— 读《杀死一只知更鸟》有感</div>
+                    </div>
+                </div>
+                <div class="mood-card reveal" id="moodCard5">
+                    <canvas></canvas>
+                    <div class="mood-card-content">
+                        <div class="mood-card-title">关于纯真</div>
+                        <div class="mood-card-text">大人的世界太复杂了，偶尔回到小王子的星球上看看，提醒自己最重要的是什么。</div>
+                        <div class="mood-card-source">— 读《小王子》有感</div>
+                    </div>
+                </div>
+                <div class="mood-card reveal" id="moodCard6">
+                    <canvas></canvas>
+                    <div class="mood-card-content">
+                        <div class="mood-card-title">关于专注</div>
+                        <div class="mood-card-text">刻意练习的核心不是时间，是注意力。走出舒适区的那一刻才是成长的开始。</div>
+                        <div class="mood-card-source">— 读《刻意练习》有感</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Divider -->
+    <canvas class="section-divider" id="divider8"></canvas>
+
+    <!-- Section: Quotes -->
+    <section class="section" id="quotes">
+        <div class="container">
+            <div class="reveal">
+                <h2 class="section-title">精彩摘录</h2>
+                <canvas class="title-underline" id="titleUnderline8" height="12"></canvas>
+                <p class="section-subtitle">那些让我停下来反复品味的句子</p>
+            </div>
+
+            <div class="quotes-list">
+                <div class="quote-card reveal" id="quoteCard1">
+                    <canvas class="rough-border"></canvas>
+                    <canvas class="quote-mark"></canvas>
+                    <div class="quote-card-content">
+                        <div class="quote-text">多年以后，面对行刑队，奥雷里亚诺 &middot; 布恩迪亚上校将会回想起父亲带他去见识冰块的那个遥远的下午。</div>
+                        <div class="quote-author">&mdash; 《百年孤独》 加西亚 &middot; 马尔克斯</div>
+                    </div>
+                </div>
+
+                <div class="quote-card reveal" id="quoteCard2">
+                    <canvas class="rough-border"></canvas>
+                    <canvas class="quote-mark"></canvas>
+                    <div class="quote-card-content">
+                        <div class="quote-text">真正的自由，是不再寻求别人的认可，而是按照自己的意志去生活。不是自私，而是课题分离。</div>
+                        <div class="quote-author">&mdash; 《被讨厌的勇气》 岸见一郎</div>
+                    </div>
+                </div>
+
+                <div class="quote-card reveal" id="quoteCard3">
+                    <canvas class="rough-border"></canvas>
+                    <canvas class="quote-mark"></canvas>
+                    <div class="quote-card-content">
+                        <div class="quote-text">只有用心灵才能看清事物的本质，真正重要的东西是肉眼无法看见的。</div>
+                        <div class="quote-author">&mdash; 《小王子》 圣-埃克苏佩里</div>
+                    </div>
+                </div>
+
+                <div class="quote-card reveal" id="quoteCard4">
+                    <canvas class="rough-border"></canvas>
+                    <canvas class="quote-mark"></canvas>
+                    <div class="quote-card-content">
+                        <div class="quote-text">你永远不可能真正了解一个人，除非你穿上他的鞋子走来走去。</div>
+                        <div class="quote-author">&mdash; 《杀死一只知更鸟》 哈珀 &middot; 李</div>
+                    </div>
+                </div>
+
+                <div class="quote-card reveal" id="quoteCard5">
+                    <canvas class="rough-border"></canvas>
+                    <canvas class="quote-mark"></canvas>
+                    <div class="quote-card-content">
+                        <div class="quote-text">成长就是一个不断失去的过程，但同时也是一个不断获得的过程。关键在于，你把注意力放在哪里。</div>
+                        <div class="quote-author">&mdash; 《认知觉醒》 周岭</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Divider -->
+    <canvas class="section-divider" id="divider9"></canvas>
+
+    <!-- Section: Goals -->
+    <section class="section" id="goals">
+        <div class="container">
+            <div class="reveal">
+                <h2 class="section-title">新年计划</h2>
+                <canvas class="title-underline" id="titleUnderline9" height="12"></canvas>
+                <p class="section-subtitle">2025年，我要和更多好书相遇</p>
+            </div>
+
+            <div class="goals-list reveal">
+                <div class="goal-item">
+                    <canvas class="goal-checkbox" width="22" height="22" data-checked="false"></canvas>
+                    <span class="goal-text">读完 <span class="highlight-pink">20本书</span>，比今年多读8本，平均每月1.5本</span>
+                </div>
+                <div class="goal-item">
+                    <canvas class="goal-checkbox" width="22" height="22" data-checked="false"></canvas>
+                    <span class="goal-text">挑战一本 <span class="highlight-mint">英文原版</span> 小说，不怕慢，享受过程</span>
+                </div>
+                <div class="goal-item">
+                    <canvas class="goal-checkbox" width="22" height="22" data-checked="false"></canvas>
+                    <span class="goal-text">每本书写一篇 <span class="highlight-sky">300字以上的读后感</span></span>
+                </div>
+                <div class="goal-item">
+                    <canvas class="goal-checkbox" width="22" height="22" data-checked="false"></canvas>
+                    <span class="goal-text">尝试 <span class="highlight-lavender">3个新领域</span> 的书：经济学、天文学、艺术史</span>
+                </div>
+                <div class="goal-item">
+                    <canvas class="goal-checkbox" width="22" height="22" data-checked="true"></canvas>
+                    <span class="goal-text">坚持早起阅读的习惯，至少每周5天（已经在做了!）</span>
+                </div>
+                <div class="goal-item">
+                    <canvas class="goal-checkbox" width="22" height="22" data-checked="false"></canvas>
+                    <span class="goal-text">参加 <span class="highlight-pink">2次线下读书会</span>，认识更多书友</span>
+                </div>
+                <div class="goal-item">
+                    <canvas class="goal-checkbox" width="22" height="22" data-checked="false"></canvas>
+                    <span class="goal-text">整理一个个人书单推荐，分享给朋友们</span>
+                </div>
+                <div class="goal-item">
+                    <canvas class="goal-checkbox" width="22" height="22" data-checked="false"></canvas>
+                    <span class="goal-text">重读2本旧书，看看自己的理解有没有变化</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer section">
+        <div class="container reveal">
+            <p style="font-size: 1.2rem;">用阅读填满每一天</p>
+            <canvas class="footer-line" id="footerLine" width="60" height="20"></canvas>
+            <p style="font-family: var(--font-body); font-size: 0.85rem; color: rgba(61,44,44,0.4);">Made with love &amp; books &middot; 2024</p>
+        </div>
+    </footer>
+
+    <script>
+    class ReportPresentation {
+        constructor() {
+            this.roughOptions = {
+                roughness: 1.8,
+                bowing: 1.5,
+                stroke: '#3d2c2c',
+                strokeWidth: 2.5
+            };
+            this.colors = {
+                pink: '#f4a0b0',
+                mint: '#7ecbb0',
+                sky: '#7cb5d4',
+                butter: '#e8c84a',
+                lavender: '#b088d4',
+                ink: '#3d2c2c'
+            };
+            this.init();
+        }
+
+        init() {
+            this.initRevealAnimations();
+            this.initScrollProgress();
+            this.initBackToTop();
+            this.initCounters();
+            this.initCharts();
+            this.initRoughDrawings();
+        }
+
+        // IntersectionObserver for reveal animations
+        initRevealAnimations() {
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (prefersReducedMotion) {
+                document.querySelectorAll('.reveal').forEach(el => {
+                    el.classList.add('visible');
+                });
+                return;
+            }
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, {
+                threshold: 0.1,
+                rootMargin: '0px 0px -40px 0px'
+            });
+
+            document.querySelectorAll('.reveal').forEach(el => {
+                observer.observe(el);
+            });
+        }
+
+        // Scroll progress bar
+        initScrollProgress() {
+            const progressBar = document.getElementById('scrollProgress');
+            if (!progressBar) return;
+
+            const updateProgress = () => {
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+                const progress = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+                progressBar.style.width = progress + '%';
+            };
+
+            window.addEventListener('scroll', updateProgress, { passive: true });
+            updateProgress();
+        }
+
+        // Back to top button
+        initBackToTop() {
+            const btn = document.getElementById('backToTop');
+            if (!btn) return;
+
+            // Draw rough circle on button canvas
+            const canvas = btn.querySelector('canvas');
+            if (canvas) {
+                const rc = rough.canvas(canvas);
+                rc.circle(22, 22, 40, {
+                    roughness: 1.5,
+                    stroke: this.colors.pink,
+                    strokeWidth: 2,
+                    fill: '#fde8ec',
+                    fillStyle: 'solid'
+                });
+            }
+
+            const toggleVisibility = () => {
+                if (window.pageYOffset > 400) {
+                    btn.classList.add('visible');
+                } else {
+                    btn.classList.remove('visible');
+                }
+            };
+
+            window.addEventListener('scroll', toggleVisibility, { passive: true });
+            btn.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        }
+
+        // Animated counters
+        initCounters() {
+            const counters = document.querySelectorAll('[data-count]');
+            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            const animateCounter = (el) => {
+                const target = parseInt(el.getAttribute('data-count'));
+                if (prefersReducedMotion) {
+                    el.textContent = target.toLocaleString();
+                    return;
+                }
+
+                const duration = 1500;
+                const startTime = performance.now();
+
+                const update = (currentTime) => {
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const eased = 1 - Math.pow(1 - progress, 3);
+                    const current = Math.floor(eased * target);
+                    el.textContent = current.toLocaleString();
+
+                    if (progress < 1) {
+                        requestAnimationFrame(update);
+                    } else {
+                        el.textContent = target.toLocaleString();
+                    }
+                };
+
+                requestAnimationFrame(update);
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        animateCounter(entry.target);
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.5 });
+
+            counters.forEach(counter => observer.observe(counter));
+        }
+
+        // ECharts
+        initCharts() {
+            this.initMonthlyChart();
+            this.initGenreChart();
+            this.initRadarChart();
+        }
+
+        initMonthlyChart() {
+            const container = document.getElementById('monthlyChart');
+            if (!container) return;
+
+            const chart = echarts.init(container);
+            const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+            const data = [1, 0, 1, 1, 2, 1, 2, 2, 1, 0, 1, 0];
+
+            const option = {
+                grid: { top: 30, right: 20, bottom: 40, left: 40 },
+                xAxis: {
+                    type: 'category',
+                    data: months,
+                    axisLine: { lineStyle: { color: 'rgba(61, 44, 44, 0.2)', type: 'dashed' } },
+                    axisTick: { show: false },
+                    axisLabel: {
+                        color: 'rgba(61, 44, 44, 0.6)',
+                        fontFamily: 'Ma Shan Zheng',
+                        fontSize: 13
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    max: 3,
+                    interval: 1,
+                    axisLine: { show: false },
+                    axisTick: { show: false },
+                    splitLine: {
+                        lineStyle: { color: 'rgba(61, 44, 44, 0.06)', type: 'dashed' }
+                    },
+                    axisLabel: {
+                        color: 'rgba(61, 44, 44, 0.4)',
+                        fontFamily: 'Patrick Hand',
+                        fontSize: 12
+                    }
+                },
+                series: [{
+                    type: 'bar',
+                    data: data.map((value, index) => ({
+                        value: value,
+                        itemStyle: {
+                            color: [
+                                '#f4a0b0', '#7ecbb0', '#7cb5d4', '#b088d4',
+                                '#e8c84a', '#f4a0b0', '#7ecbb0', '#7cb5d4',
+                                '#b088d4', '#e8c84a', '#f4a0b0', '#7ecbb0'
+                            ][index],
+                            borderRadius: [10, 10, 3, 3]
+                        }
+                    })),
+                    barWidth: '50%',
+                    animationDuration: 1200,
+                    animationEasing: 'elasticOut'
+                }],
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: '#fdf8f0',
+                    borderColor: 'rgba(61, 44, 44, 0.15)',
+                    borderWidth: 1,
+                    textStyle: {
+                        color: '#3d2c2c',
+                        fontFamily: 'Ma Shan Zheng',
+                        fontSize: 14
+                    },
+                    formatter: function(params) {
+                        const val = params[0].value;
+                        return params[0].name + '<br/>' + (val > 0 ? '读了 ' + val + ' 本' : '这个月休息了~');
+                    }
+                }
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', () => chart.resize());
+        }
+
+        initGenreChart() {
+            const container = document.getElementById('genreChart');
+            if (!container) return;
+
+            const chart = echarts.init(container);
+
+            const option = {
+                series: [{
+                    type: 'pie',
+                    radius: ['38%', '68%'],
+                    center: ['50%', '50%'],
+                    avoidLabelOverlap: true,
+                    itemStyle: {
+                        borderRadius: 6,
+                        borderColor: '#fdf8f0',
+                        borderWidth: 3
+                    },
+                    label: {
+                        show: true,
+                        fontFamily: 'Ma Shan Zheng',
+                        fontSize: 14,
+                        color: '#3d2c2c'
+                    },
+                    labelLine: {
+                        lineStyle: { color: 'rgba(61, 44, 44, 0.25)' }
+                    },
+                    data: [
+                        { value: 4, name: '小说', itemStyle: { color: '#f4a0b0' } },
+                        { value: 3, name: '非虚构', itemStyle: { color: '#7ecbb0' } },
+                        { value: 2, name: '技术', itemStyle: { color: '#7cb5d4' } },
+                        { value: 2, name: '心理学', itemStyle: { color: '#b088d4' } },
+                        { value: 1, name: '哲学', itemStyle: { color: '#e8c84a' } }
+                    ],
+                    animationType: 'expansion',
+                    animationDuration: 1000,
+                    animationEasing: 'cubicOut'
+                }],
+                tooltip: {
+                    trigger: 'item',
+                    backgroundColor: '#fdf8f0',
+                    borderColor: 'rgba(61, 44, 44, 0.15)',
+                    borderWidth: 1,
+                    textStyle: {
+                        color: '#3d2c2c',
+                        fontFamily: 'Ma Shan Zheng',
+                        fontSize: 14
+                    },
+                    formatter: function(params) {
+                        return params.name + '：' + params.value + '本 (' + params.percent + '%)';
+                    }
+                }
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', () => chart.resize());
+        }
+
+        initRadarChart() {
+            const container = document.getElementById('radarChart');
+            if (!container) return;
+
+            const chart = echarts.init(container);
+
+            const option = {
+                radar: {
+                    indicator: [
+                        { name: '阅读速度', max: 10 },
+                        { name: '理解深度', max: 10 },
+                        { name: '涉猎广度', max: 10 },
+                        { name: '坚持程度', max: 10 },
+                        { name: '笔记习惯', max: 10 },
+                        { name: '分享意愿', max: 10 }
+                    ],
+                    shape: 'polygon',
+                    splitNumber: 4,
+                    axisName: {
+                        color: 'rgba(61, 44, 44, 0.7)',
+                        fontFamily: 'Ma Shan Zheng',
+                        fontSize: 13
+                    },
+                    splitLine: {
+                        lineStyle: { color: 'rgba(61, 44, 44, 0.08)', type: 'dashed' }
+                    },
+                    splitArea: {
+                        show: true,
+                        areaStyle: {
+                            color: ['rgba(253,248,240,0.5)', 'rgba(253,232,236,0.15)', 'rgba(228,246,239,0.15)', 'rgba(228,240,248,0.15)']
+                        }
+                    },
+                    axisLine: {
+                        lineStyle: { color: 'rgba(61, 44, 44, 0.1)' }
+                    }
+                },
+                series: [{
+                    type: 'radar',
+                    data: [{
+                        value: [7, 8, 6, 7, 9, 5],
+                        name: '我的阅读画像',
+                        areaStyle: {
+                            color: 'rgba(176, 136, 212, 0.2)'
+                        },
+                        lineStyle: {
+                            color: '#b088d4',
+                            width: 2.5
+                        },
+                        itemStyle: {
+                            color: '#b088d4'
+                        },
+                        symbol: 'circle',
+                        symbolSize: 6
+                    }],
+                    animationDuration: 1200,
+                    animationEasing: 'cubicOut'
+                }],
+                tooltip: {
+                    trigger: 'item',
+                    backgroundColor: '#fdf8f0',
+                    borderColor: 'rgba(61, 44, 44, 0.15)',
+                    borderWidth: 1,
+                    textStyle: {
+                        color: '#3d2c2c',
+                        fontFamily: 'Ma Shan Zheng',
+                        fontSize: 14
+                    }
+                }
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', () => chart.resize());
+        }
+
+        // Rough.js drawings
+        initRoughDrawings() {
+            this.drawCoverDecoration();
+            this.drawCoverBookIcon();
+            this.drawSectionDividers();
+            this.drawTitleUnderlines();
+            this.drawMetricCards();
+            this.drawChartBorders();
+            this.drawBookCards();
+            this.drawTimelineDots();
+            this.drawHabitTags();
+            this.drawMoodCards();
+            this.drawQuoteCards();
+            this.drawGoalCheckboxes();
+            this.drawBookRatings();
+            this.drawFooterLine();
+        }
+
+        drawCoverDecoration() {
+            const canvas = document.getElementById('coverDecoration');
+            if (!canvas) return;
+
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            const rc = rough.canvas(canvas);
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // Scattered hand-drawn shapes as decoration
+            // Top left corner flourish
+            rc.circle(w * 0.08, h * 0.12, 30, {
+                roughness: 2, stroke: this.colors.pink, strokeWidth: 1.5, fill: 'rgba(244,160,176,0.1)', fillStyle: 'hachure'
+            });
+            rc.circle(w * 0.08, h * 0.12, 18, {
+                roughness: 1.5, stroke: this.colors.pink, strokeWidth: 1
+            });
+
+            // Top right star-like shape
+            rc.polygon([
+                [w * 0.9, h * 0.08], [w * 0.92, h * 0.12], [w * 0.96, h * 0.12],
+                [w * 0.93, h * 0.15], [w * 0.94, h * 0.19], [w * 0.9, h * 0.16],
+                [w * 0.86, h * 0.19], [w * 0.87, h * 0.15], [w * 0.84, h * 0.12],
+                [w * 0.88, h * 0.12]
+            ], { roughness: 1.5, stroke: this.colors.mint, strokeWidth: 1.5 });
+
+            // Bottom left squiggle
+            rc.path(`M ${w * 0.05} ${h * 0.82} C ${w * 0.08} ${h * 0.78}, ${w * 0.12} ${h * 0.85}, ${w * 0.15} ${h * 0.8}`, {
+                roughness: 1.5, stroke: this.colors.sky, strokeWidth: 1.5
+            });
+
+            // Bottom right small shapes
+            rc.rectangle(w * 0.88, h * 0.78, 20, 20, {
+                roughness: 2, stroke: this.colors.lavender, strokeWidth: 1.5
+            });
+            rc.circle(w * 0.92, h * 0.85, 14, {
+                roughness: 2, stroke: this.colors.butter, strokeWidth: 1.5
+            });
+
+            // Small dots scattered
+            const dotPositions = [
+                [w * 0.15, h * 0.25], [w * 0.85, h * 0.3],
+                [w * 0.1, h * 0.6], [w * 0.92, h * 0.55],
+                [w * 0.2, h * 0.85], [w * 0.8, h * 0.9]
+            ];
+            const dotColors = [this.colors.pink, this.colors.mint, this.colors.sky, this.colors.lavender, this.colors.butter, this.colors.pink];
+            dotPositions.forEach((pos, i) => {
+                rc.circle(pos[0], pos[1], 6, {
+                    roughness: 1, stroke: dotColors[i], strokeWidth: 1.5, fill: dotColors[i], fillStyle: 'solid'
+                });
+            });
+        }
+
+        drawCoverBookIcon() {
+            const canvas = document.getElementById('coverBookIcon');
+            if (!canvas) return;
+
+            const rc = rough.canvas(canvas);
+
+            // Draw an open book shape
+            // Left page
+            rc.path('M 60 25 C 45 28, 20 30, 15 35 L 15 95 C 20 90, 45 88, 60 85', {
+                roughness: 1.5, stroke: this.colors.ink, strokeWidth: 2.5, fill: '#fff', fillStyle: 'solid'
+            });
+            // Right page
+            rc.path('M 60 25 C 75 28, 100 30, 105 35 L 105 95 C 100 90, 75 88, 60 85', {
+                roughness: 1.5, stroke: this.colors.ink, strokeWidth: 2.5, fill: '#fff', fillStyle: 'solid'
+            });
+            // Spine
+            rc.line(60, 25, 60, 85, {
+                roughness: 1.2, stroke: this.colors.ink, strokeWidth: 2
+            });
+            // Text lines on left page
+            rc.line(25, 45, 52, 45, { roughness: 1.5, stroke: this.colors.pink, strokeWidth: 1.5 });
+            rc.line(25, 55, 48, 55, { roughness: 1.5, stroke: this.colors.mint, strokeWidth: 1.5 });
+            rc.line(25, 65, 50, 65, { roughness: 1.5, stroke: this.colors.sky, strokeWidth: 1.5 });
+            rc.line(25, 75, 45, 75, { roughness: 1.5, stroke: this.colors.lavender, strokeWidth: 1.5 });
+            // Text lines on right page
+            rc.line(68, 45, 95, 45, { roughness: 1.5, stroke: this.colors.pink, strokeWidth: 1.5 });
+            rc.line(68, 55, 92, 55, { roughness: 1.5, stroke: this.colors.mint, strokeWidth: 1.5 });
+            rc.line(68, 65, 90, 65, { roughness: 1.5, stroke: this.colors.sky, strokeWidth: 1.5 });
+        }
+
+        drawSectionDividers() {
+            const dividers = document.querySelectorAll('.section-divider');
+            const dividerColors = [
+                this.colors.mint, this.colors.pink, this.colors.sky,
+                this.colors.lavender, this.colors.butter, this.colors.pink
+            ];
+
+            dividers.forEach((canvas, i) => {
+                canvas.width = canvas.offsetWidth || 850;
+                canvas.height = 40;
+                const rc = rough.canvas(canvas);
+                const w = canvas.width;
+                const midY = 20;
+
+                // Draw a wavy hand-drawn line
+                const points = [];
+                const segments = 12;
+                for (let s = 0; s <= segments; s++) {
+                    const x = (w * 0.1) + (w * 0.8 * s / segments);
+                    const y = midY + Math.sin(s * 0.8 + i) * 6;
+                    points.push([x, y]);
+                }
+
+                let pathStr = `M ${points[0][0]} ${points[0][1]}`;
+                for (let p = 1; p < points.length; p++) {
+                    pathStr += ` L ${points[p][0]} ${points[p][1]}`;
+                }
+
+                rc.path(pathStr, {
+                    roughness: 2,
+                    stroke: dividerColors[i % dividerColors.length],
+                    strokeWidth: 2,
+                    bowing: 2
+                });
+
+                // Small dot at center
+                rc.circle(w / 2, midY, 8, {
+                    roughness: 1.5,
+                    stroke: dividerColors[i % dividerColors.length],
+                    strokeWidth: 1.5,
+                    fill: dividerColors[i % dividerColors.length],
+                    fillStyle: 'solid'
+                });
+            });
+        }
+
+        drawTitleUnderlines() {
+            const underlines = document.querySelectorAll('.title-underline');
+            const underlineColors = [
+                this.colors.pink, this.colors.mint, this.colors.sky,
+                this.colors.lavender, this.colors.pink, this.colors.butter
+            ];
+
+            underlines.forEach((canvas, i) => {
+                const title = canvas.previousElementSibling;
+                const titleWidth = title ? title.offsetWidth : 200;
+                canvas.width = titleWidth + 20;
+                canvas.height = 12;
+                const rc = rough.canvas(canvas);
+
+                rc.line(0, 6, titleWidth + 10, 8, {
+                    roughness: 2,
+                    stroke: underlineColors[i % underlineColors.length],
+                    strokeWidth: 3,
+                    bowing: 1.5
+                });
+            });
+        }
+
+        drawMetricCards() {
+            const cards = document.querySelectorAll('.metric-card');
+            const cardColors = [this.colors.pink, this.colors.mint, this.colors.sky, this.colors.lavender];
+            const bgColors = ['#fde8ec', '#e4f6ef', '#e4f0f8', '#f0e8f8'];
+
+            cards.forEach((card, i) => {
+                const canvas = card.querySelector('canvas');
+                if (!canvas) return;
+
+                const w = card.offsetWidth;
+                const h = card.offsetHeight;
+                canvas.width = w;
+                canvas.height = h;
+
+                const rc = rough.canvas(canvas);
+
+                // Fill background
+                rc.rectangle(4, 4, w - 8, h - 8, {
+                    roughness: 2,
+                    bowing: 1.5,
+                    stroke: cardColors[i],
+                    strokeWidth: 2.5,
+                    fill: bgColors[i],
+                    fillStyle: 'solid'
+                });
+            });
+        }
+
+        drawChartBorders() {
+            const borders = document.querySelectorAll('.chart-wrapper .rough-border');
+
+            borders.forEach((canvas) => {
+                const wrapper = canvas.parentElement;
+                const w = wrapper.offsetWidth;
+                const h = wrapper.offsetHeight;
+                canvas.width = w;
+                canvas.height = h;
+
+                const rc = rough.canvas(canvas);
+                rc.rectangle(3, 3, w - 6, h - 6, {
+                    roughness: 2,
+                    bowing: 1.5,
+                    stroke: this.colors.ink,
+                    strokeWidth: 2,
+                    fill: 'rgba(255,255,255,0.3)',
+                    fillStyle: 'solid'
+                });
+            });
+        }
+
+        drawBookCards() {
+            const cards = document.querySelectorAll('.book-card');
+            const cardColors = [
+                this.colors.pink, this.colors.mint, this.colors.sky,
+                this.colors.lavender, this.colors.butter
+            ];
+
+            cards.forEach((card, i) => {
+                const canvas = card.querySelector('canvas');
+                if (!canvas) return;
+
+                const w = card.offsetWidth;
+                const h = card.offsetHeight;
+                canvas.width = w;
+                canvas.height = h;
+
+                const rc = rough.canvas(canvas);
+
+                // Draw a slightly tilted rectangle border
+                const offset = 4;
+                rc.rectangle(offset, offset, w - offset * 2, h - offset * 2, {
+                    roughness: 1.8,
+                    bowing: 1.2,
+                    stroke: cardColors[i],
+                    strokeWidth: 2.5
+                });
+
+                // Small corner decoration - a sketchy triangle fold
+                const cornerSize = 18;
+                rc.path(`M ${w - offset} ${offset} L ${w - offset - cornerSize} ${offset} L ${w - offset} ${offset + cornerSize} Z`, {
+                    roughness: 1.5,
+                    stroke: cardColors[i],
+                    strokeWidth: 1.5,
+                    fill: cardColors[i],
+                    fillStyle: 'hachure',
+                    hachureGap: 4
+                });
+            });
+        }
+
+        drawQuoteCards() {
+            const cards = document.querySelectorAll('.quote-card');
+            const cardColors = [
+                this.colors.butter, this.colors.mint, this.colors.pink,
+                this.colors.lavender, this.colors.sky
+            ];
+            const bgColors = [
+                '#fdf5d6', '#e4f6ef', '#fde8ec', '#f0e8f8', '#e4f0f8'
+            ];
+
+            cards.forEach((card, i) => {
+                // Draw border
+                const borderCanvas = card.querySelector('.rough-border');
+                if (borderCanvas) {
+                    const w = card.offsetWidth;
+                    const h = card.offsetHeight;
+                    borderCanvas.width = w;
+                    borderCanvas.height = h;
+
+                    const rc = rough.canvas(borderCanvas);
+                    rc.rectangle(3, 3, w - 6, h - 6, {
+                        roughness: 2,
+                        bowing: 1.5,
+                        stroke: cardColors[i],
+                        strokeWidth: 2,
+                        fill: bgColors[i],
+                        fillStyle: 'solid'
+                    });
+                }
+
+                // Draw quotation mark
+                const quoteCanvas = card.querySelector('.quote-mark');
+                if (quoteCanvas) {
+                    quoteCanvas.width = 40;
+                    quoteCanvas.height = 40;
+                    const rc = rough.canvas(quoteCanvas);
+
+                    // Draw hand-drawn quotation marks (two small curves)
+                    rc.path('M 8 25 C 8 15, 15 10, 18 12 C 15 18, 14 22, 16 25', {
+                        roughness: 1.5,
+                        stroke: cardColors[i],
+                        strokeWidth: 2.5,
+                        bowing: 1
+                    });
+                    rc.path('M 22 25 C 22 15, 29 10, 32 12 C 29 18, 28 22, 30 25', {
+                        roughness: 1.5,
+                        stroke: cardColors[i],
+                        strokeWidth: 2.5,
+                        bowing: 1
+                    });
+                }
+            });
+        }
+
+        drawGoalCheckboxes() {
+            const checkboxes = document.querySelectorAll('.goal-checkbox');
+
+            checkboxes.forEach((canvas) => {
+                const isChecked = canvas.getAttribute('data-checked') === 'true';
+                canvas.width = 22;
+                canvas.height = 22;
+
+                const rc = rough.canvas(canvas);
+
+                // Draw the checkbox square
+                rc.rectangle(2, 2, 18, 18, {
+                    roughness: 2,
+                    stroke: this.colors.ink,
+                    strokeWidth: 2,
+                    bowing: 1.5
+                });
+
+                // Draw checkmark if checked
+                if (isChecked) {
+                    rc.path('M 5 11 L 9 16 L 17 5', {
+                        roughness: 1.2,
+                        stroke: this.colors.mint,
+                        strokeWidth: 2.5,
+                        bowing: 0.5
+                    });
+                }
+            });
+        }
+
+        drawTimelineDots() {
+            const items = document.querySelectorAll('.timeline-item');
+            const colorMap = {
+                pink: this.colors.pink,
+                mint: this.colors.mint,
+                sky: this.colors.sky,
+                lavender: this.colors.lavender,
+                butter: this.colors.butter
+            };
+
+            items.forEach((item) => {
+                const canvas = item.querySelector('.timeline-dot-canvas');
+                if (!canvas) return;
+
+                const color = colorMap[item.getAttribute('data-color')] || this.colors.pink;
+                canvas.width = 20;
+                canvas.height = 20;
+
+                const rc = rough.canvas(canvas);
+                rc.circle(10, 10, 14, {
+                    roughness: 1.5,
+                    stroke: color,
+                    strokeWidth: 2,
+                    fill: color,
+                    fillStyle: 'solid'
+                });
+            });
+        }
+
+        drawHabitTags() {
+            const tags = document.querySelectorAll('.habit-tag');
+            const colorMap = {
+                pink: { stroke: this.colors.pink, fill: '#fde8ec' },
+                mint: { stroke: this.colors.mint, fill: '#e4f6ef' },
+                sky: { stroke: this.colors.sky, fill: '#e4f0f8' },
+                lavender: { stroke: this.colors.lavender, fill: '#f0e8f8' },
+                butter: { stroke: this.colors.butter, fill: '#fdf5d6' }
+            };
+
+            tags.forEach((tag) => {
+                const canvas = tag.querySelector('canvas');
+                if (!canvas) return;
+
+                const colorKey = tag.getAttribute('data-color') || 'pink';
+                const colors = colorMap[colorKey];
+                const w = tag.offsetWidth;
+                const h = tag.offsetHeight;
+                canvas.width = w;
+                canvas.height = h;
+
+                const rc = rough.canvas(canvas);
+                rc.rectangle(3, 3, w - 6, h - 6, {
+                    roughness: 2.2,
+                    bowing: 1.5,
+                    stroke: colors.stroke,
+                    strokeWidth: 2,
+                    fill: colors.fill,
+                    fillStyle: 'solid'
+                });
+            });
+        }
+
+        drawMoodCards() {
+            const cards = document.querySelectorAll('.mood-card');
+            const cardColors = [
+                this.colors.butter, this.colors.pink, this.colors.mint,
+                this.colors.sky, this.colors.lavender, this.colors.butter
+            ];
+            const bgColors = [
+                '#fdf5d6', '#fde8ec', '#e4f6ef',
+                '#e4f0f8', '#f0e8f8', '#fdf5d6'
+            ];
+
+            cards.forEach((card, i) => {
+                const canvas = card.querySelector('canvas');
+                if (!canvas) return;
+
+                const w = card.offsetWidth;
+                const h = card.offsetHeight;
+                canvas.width = w;
+                canvas.height = h;
+
+                const rc = rough.canvas(canvas);
+                rc.rectangle(3, 3, w - 6, h - 6, {
+                    roughness: 1.8,
+                    bowing: 1.2,
+                    stroke: cardColors[i % cardColors.length],
+                    strokeWidth: 2,
+                    fill: bgColors[i % bgColors.length],
+                    fillStyle: 'solid'
+                });
+            });
+        }
+
+        drawBookRatings() {
+            const ratingContainers = document.querySelectorAll('.book-rating');
+
+            ratingContainers.forEach((container) => {
+                const stars = parseInt(container.getAttribute('data-stars')) || 0;
+
+                for (let i = 0; i < 5; i++) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 18;
+                    canvas.height = 18;
+                    container.appendChild(canvas);
+
+                    const rc = rough.canvas(canvas);
+                    const filled = i < stars;
+
+                    // Draw a star shape
+                    const cx = 9, cy = 9, outerR = 7, innerR = 3;
+                    const starPoints = [];
+                    for (let p = 0; p < 10; p++) {
+                        const angle = (Math.PI / 2 * -1) + (p * Math.PI / 5);
+                        const r = p % 2 === 0 ? outerR : innerR;
+                        starPoints.push([cx + r * Math.cos(angle), cy + r * Math.sin(angle)]);
+                    }
+
+                    rc.polygon(starPoints, {
+                        roughness: 1.2,
+                        stroke: this.colors.butter,
+                        strokeWidth: 1.5,
+                        fill: filled ? this.colors.butter : 'transparent',
+                        fillStyle: filled ? 'solid' : 'hachure'
+                    });
+                }
+            });
+        }
+
+        drawFooterLine() {
+            const canvas = document.getElementById('footerLine');
+            if (!canvas) return;
+
+            canvas.width = 60;
+            canvas.height = 20;
+            const rc = rough.canvas(canvas);
+
+            // Small hand-drawn heart
+            rc.path('M 30 15 C 30 15, 22 5, 17 8 C 12 11, 15 17, 30 19 C 45 17, 48 11, 43 8 C 38 5, 30 15, 30 15', {
+                roughness: 1.5,
+                stroke: this.colors.pink,
+                strokeWidth: 1.5,
+                fill: this.colors.pink,
+                fillStyle: 'solid'
+            });
+        }
+    }
+
+    // Initialize when DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+        // Small delay to ensure layout is settled before drawing rough.js canvases
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                new ReportPresentation();
+            });
+        });
+    });
+
+    // Redraw rough canvases on resize
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            // Clear and redraw all canvases
+            document.querySelectorAll('canvas').forEach(c => {
+                const ctx = c.getContext('2d');
+                if (ctx) ctx.clearRect(0, 0, c.width, c.height);
+            });
+            new ReportPresentation();
+        }, 300);
+    });
+    </script>
+</body>
+</html>

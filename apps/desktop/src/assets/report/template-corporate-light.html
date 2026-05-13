@@ -1,0 +1,1683 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商务白皮书 — 中国企业数字化转型市场分析报告</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Work+Sans:wght@300;400;500&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --text: #1a2b4a;
+            --text-secondary: #6b7280;
+            --accent: #2563eb;
+            --accent-light: #3b82f6;
+            --border: #1a2b4a;
+            --border-light: #e5e7eb;
+            --serif: "Source Serif 4", "Source Han Serif SC", "Songti SC", Georgia, serif;
+            --sans: "Work Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+            --mono: "Fira Code", "SF Mono", monospace;
+            --title-size: clamp(2.4rem, 5vw, 3.6rem);
+            --h1-size: clamp(1.8rem, 3.5vw, 2.6rem);
+            --h2-size: clamp(1.4rem, 2.5vw, 1.8rem);
+            --h3-size: clamp(1.1rem, 1.8vw, 1.4rem);
+            --body-size: clamp(0.9rem, 1.1vw, 1.05rem);
+            --small-size: clamp(0.78rem, 0.9vw, 0.88rem);
+            --stat-size: clamp(1.6rem, 3vw, 2.4rem);
+            --container-max: 900px;
+            --pad-x: clamp(2rem, 4vw, 4rem);
+            --section-gap: clamp(2rem, 4vw, 3.5rem);
+            --content-gap: clamp(1.5rem, 3vw, 3rem);
+            --reveal-duration: 0.5s;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            font-size: var(--body-size);
+            font-weight: 400;
+            line-height: 1.8;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Scroll Progress */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 2px;
+            background: var(--border);
+            z-index: 9999;
+            transition: width 0.1s linear;
+        }
+
+        /* Back to Top */
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            z-index: 1000;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .back-to-top:hover {
+            background: var(--text);
+            color: var(--bg);
+        }
+
+        /* Container */
+        .report-container {
+            max-width: var(--container-max);
+            margin: 0 auto;
+            padding: 0 var(--pad-x);
+        }
+
+        /* Cover / Header */
+        .report-cover {
+            padding: clamp(4rem, 10vw, 8rem) 0;
+            margin-bottom: var(--section-gap);
+        }
+
+        .report-cover__classification {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-bottom: 2rem;
+        }
+
+        .report-cover__title {
+            font-family: var(--serif);
+            font-size: var(--title-size);
+            font-weight: 700;
+            line-height: 1.2;
+            color: var(--text);
+            margin-bottom: 1.5rem;
+        }
+
+        .report-cover__subtitle {
+            font-family: var(--sans);
+            font-size: var(--h3-size);
+            font-weight: 300;
+            color: var(--text-secondary);
+            margin-bottom: 3rem;
+        }
+
+        .report-cover__meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1.5rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .report-cover__meta-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .report-cover__meta-label {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.25rem;
+        }
+
+        .report-cover__meta-value {
+            font-family: var(--sans);
+            font-size: var(--body-size);
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        /* Table of Contents */
+        .toc {
+            padding-bottom: var(--section-gap);
+            margin-bottom: var(--section-gap);
+        }
+
+        .toc__heading {
+            font-family: var(--serif);
+            font-size: var(--h2-size);
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 2rem;
+        }
+
+        .toc__list {
+            list-style: none;
+        }
+
+        .toc__item {
+            display: flex;
+            align-items: baseline;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .toc__item:last-child {
+            border-bottom: none;
+        }
+
+        .toc__number {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--accent);
+            min-width: 3rem;
+            flex-shrink: 0;
+        }
+
+        .toc__title {
+            font-family: var(--sans);
+            font-size: var(--body-size);
+            font-weight: 400;
+            color: var(--text);
+            flex: 1;
+        }
+
+        .toc__page {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            margin-left: 1rem;
+        }
+
+        /* Sections */
+        .report-section {
+            padding-bottom: var(--section-gap);
+            margin-bottom: 0;
+            position: relative;
+        }
+
+        .report-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-header {
+            position: relative;
+            margin-bottom: var(--content-gap);
+            padding-top: 1rem;
+        }
+
+        .section-header__number {
+            position: absolute;
+            top: -0.5rem;
+            left: -0.5rem;
+            font-family: var(--serif);
+            font-size: clamp(4rem, 8vw, 7rem);
+            font-weight: 700;
+            color: rgba(26, 43, 74, 0.04);
+            line-height: 1;
+            pointer-events: none;
+            user-select: none;
+            z-index: 0;
+        }
+
+        .section-header__label {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--accent);
+            letter-spacing: 0.1em;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .section-header__title {
+            font-family: var(--serif);
+            font-size: var(--h1-size);
+            font-weight: 600;
+            color: var(--text);
+            line-height: 1.3;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Content Elements */
+        .content-paragraph {
+            margin-bottom: 1.5rem;
+            color: var(--text);
+            line-height: 1.8;
+        }
+
+        .content-paragraph strong {
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        /* Summary Box */
+        .summary-box {
+            border: 1px solid var(--border);
+            padding: 1.5rem 2rem;
+            margin: 2rem 0;
+        }
+
+        .summary-box__title {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 1rem;
+        }
+
+        .summary-box__content {
+            color: var(--text);
+            line-height: 1.8;
+        }
+
+        .summary-box__content ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .summary-box__content li {
+            padding: 0.4rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .summary-box__content li::before {
+            content: "\2014";
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+        }
+
+        /* Key Takeaway */
+        .key-takeaway {
+            position: relative;
+            margin: 3rem 0;
+            padding: 2.25rem 2.5rem;
+            background: oklch(0.98 0.006 250);
+        }
+
+        .key-takeaway::before,
+        .key-takeaway::after {
+            content: "";
+            position: absolute;
+            width: 20px;
+            height: 20px;
+        }
+
+        .key-takeaway::before {
+            top: 0;
+            left: 0;
+            border-top: 2px solid var(--accent);
+            border-left: 2px solid var(--accent);
+        }
+
+        .key-takeaway::after {
+            bottom: 0;
+            right: 0;
+            border-bottom: 2px solid var(--accent);
+            border-right: 2px solid var(--accent);
+        }
+
+        .key-takeaway__label {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-bottom: 1rem;
+        }
+
+        .key-takeaway__text {
+            font-family: var(--serif);
+            font-size: var(--h3-size);
+            font-weight: 600;
+            color: var(--text);
+            line-height: 1.55;
+            letter-spacing: -0.01em;
+        }
+
+        /* Pull Quote */
+        .pull-quote {
+            margin: 2.5rem 0;
+            padding-left: 3rem;
+        }
+
+        .pull-quote__text {
+            font-family: var(--serif);
+            font-style: italic;
+            font-size: var(--h3-size);
+            font-weight: 400;
+            color: var(--text);
+            line-height: 1.6;
+            margin-bottom: 0.75rem;
+        }
+
+        .pull-quote__attribution {
+            font-family: var(--sans);
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+        }
+
+        /* Two Column Grid */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .two-col__item {
+            padding: 0;
+        }
+
+        .two-col__label {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.5rem;
+        }
+
+        .two-col__value {
+            font-family: var(--serif);
+            font-size: var(--stat-size);
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 0.25rem;
+        }
+
+        .two-col__desc {
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+        }
+
+        /* Data Table */
+        .data-table-wrapper {
+            margin: 2rem 0;
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: var(--body-size);
+        }
+
+        .data-table thead {
+            border-bottom: 2px solid var(--border);
+        }
+
+        .data-table th {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            text-align: left;
+            padding: 0.75rem 1rem;
+        }
+
+        .data-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-light);
+            color: var(--text);
+            vertical-align: top;
+        }
+
+        .data-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table .text-right {
+            text-align: right;
+        }
+
+        .data-table .text-center {
+            text-align: center;
+        }
+
+        .data-table .highlight {
+            color: var(--accent);
+            font-weight: 500;
+        }
+
+        /* Chart Container */
+        .chart-container {
+            width: 100%;
+            height: 360px;
+            margin: 2rem 0;
+        }
+
+        /* Stat Counters */
+        .stat-value {
+            font-family: var(--serif);
+            font-size: var(--stat-size);
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        /* Numbered List */
+        .numbered-list {
+            counter-reset: item;
+            list-style: none;
+            padding: 0;
+            margin: 2rem 0;
+        }
+
+        .numbered-list__item {
+            counter-increment: item;
+            padding: 1.25rem 0;
+            padding-left: 3rem;
+            border-bottom: 1px solid var(--border-light);
+            position: relative;
+        }
+
+        .numbered-list__item:last-child {
+            border-bottom: none;
+        }
+
+        .numbered-list__item::before {
+            content: counter(item, decimal-leading-zero);
+            position: absolute;
+            left: 0;
+            top: 1.25rem;
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--accent);
+        }
+
+        .numbered-list__title {
+            font-family: var(--sans);
+            font-weight: 500;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+        }
+
+        .numbered-list__desc {
+            font-size: var(--body-size);
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        /* Footnotes */
+        .footnotes {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: none;
+        }
+
+        .footnotes__title {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.75rem;
+        }
+
+        .footnotes__list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .footnotes__item {
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            padding: 0.3rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .footnotes__item::before {
+            content: attr(data-num);
+            position: absolute;
+            left: 0;
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            vertical-align: super;
+            color: var(--accent);
+        }
+
+        /* Risk Matrix */
+        .risk-high {
+            color: #b91c1c;
+            font-weight: 500;
+        }
+
+        .risk-medium {
+            color: #d97706;
+            font-weight: 500;
+        }
+
+        .risk-low {
+            color: #059669;
+            font-weight: 500;
+        }
+
+        /* Appendix */
+        .appendix-block {
+            margin: 1.5rem 0;
+        }
+
+        .appendix-block__title {
+            font-family: var(--mono);
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.5rem;
+        }
+
+        .appendix-block__content {
+            font-size: var(--body-size);
+            color: var(--text);
+            line-height: 1.8;
+        }
+
+        .appendix-block__content ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .appendix-block__content li {
+            padding: 0.3rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .appendix-block__content li::before {
+            content: "\2022";
+            position: absolute;
+            left: 0.25rem;
+            color: var(--text-secondary);
+        }
+
+        /* Page Break Indicator */
+        .page-break {
+            border: none;
+            margin: 0;
+            padding: 0;
+            height: 0;
+            position: relative;
+        }
+
+        .page-break::after {
+            display: none;
+        }
+
+        /* Reveal Animation */
+        .reveal {
+            opacity: 0;
+            transition: opacity var(--reveal-duration) ease;
+        }
+
+        .reveal.revealed {
+            opacity: 1;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .two-col {
+                grid-template-columns: 1fr;
+            }
+
+            .report-cover__meta {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .section-header__number {
+                font-size: clamp(3rem, 15vw, 5rem);
+            }
+
+            .pull-quote {
+                padding-left: 1.5rem;
+            }
+
+            .chart-container {
+                height: 280px;
+            }
+
+            .data-table {
+                font-size: var(--small-size);
+            }
+
+            .data-table th,
+            .data-table td {
+                padding: 0.5rem 0.6rem;
+            }
+        }
+
+        /* Print Styles */
+        @media print {
+            .scroll-progress,
+            .back-to-top {
+                display: none !important;
+            }
+
+            body {
+                font-size: 10pt;
+                line-height: 1.6;
+                color: #000;
+            }
+
+            .report-container {
+                max-width: 100%;
+                padding: 0;
+            }
+
+            .report-section {
+                page-break-inside: avoid;
+            }
+
+            .page-break {
+                page-break-after: always;
+                border: none;
+                margin: 0;
+            }
+
+            .page-break::after {
+                display: none;
+            }
+
+            .chart-container {
+                page-break-inside: avoid;
+            }
+
+            .reveal {
+                opacity: 1 !important;
+            }
+
+            .section-header__number {
+                color: rgba(0, 0, 0, 0.04);
+            }
+        }
+
+        /* Reduced Motion */
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+
+            .reveal {
+                opacity: 1;
+                transition: none;
+            }
+
+            .scroll-progress {
+                transition: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="scroll-progress" id="scrollProgress"></div>
+    <button class="back-to-top" id="backToTop" aria-label="Back to top">&uarr;</button>
+
+    <div class="report-container">
+        <!-- Cover -->
+        <header class="report-cover">
+            <div class="report-cover__classification">Confidential / Internal Use Only</div>
+            <h1 class="report-cover__title">中国企业数字化转型<br>市场分析报告</h1>
+            <p class="report-cover__subtitle">2024-2028 行业趋势、竞争格局与战略机遇</p>
+            <div class="report-cover__meta">
+                <div class="report-cover__meta-item">
+                    <span class="report-cover__meta-label">Author</span>
+                    <span class="report-cover__meta-value">战略研究部</span>
+                </div>
+                <div class="report-cover__meta-item">
+                    <span class="report-cover__meta-label">Date</span>
+                    <span class="report-cover__meta-value">2024 年 12 月</span>
+                </div>
+                <div class="report-cover__meta-item">
+                    <span class="report-cover__meta-label">Version</span>
+                    <span class="report-cover__meta-value">v2.1</span>
+                </div>
+                <div class="report-cover__meta-item">
+                    <span class="report-cover__meta-label">Classification</span>
+                    <span class="report-cover__meta-value">内部机密</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Table of Contents -->
+        <nav class="toc reveal">
+            <h2 class="toc__heading">目录</h2>
+            <ol class="toc__list">
+                <li class="toc__item">
+                    <span class="toc__number">01</span>
+                    <span class="toc__title">执行摘要</span>
+                    <span class="toc__page">3</span>
+                </li>
+                <li class="toc__item">
+                    <span class="toc__number">02</span>
+                    <span class="toc__title">市场概览</span>
+                    <span class="toc__page">5</span>
+                </li>
+                <li class="toc__item">
+                    <span class="toc__number">03</span>
+                    <span class="toc__title">竞争格局</span>
+                    <span class="toc__page">9</span>
+                </li>
+                <li class="toc__item">
+                    <span class="toc__number">04</span>
+                    <span class="toc__title">财务分析</span>
+                    <span class="toc__page">13</span>
+                </li>
+                <li class="toc__item">
+                    <span class="toc__number">05</span>
+                    <span class="toc__title">风险评估</span>
+                    <span class="toc__page">17</span>
+                </li>
+                <li class="toc__item">
+                    <span class="toc__number">06</span>
+                    <span class="toc__title">战略建议</span>
+                    <span class="toc__page">20</span>
+                </li>
+                <li class="toc__item">
+                    <span class="toc__number">07</span>
+                    <span class="toc__title">附录</span>
+                    <span class="toc__page">24</span>
+                </li>
+            </ol>
+        </nav>
+
+        <hr class="page-break">
+
+        <!-- Section 01: Executive Summary -->
+        <section class="report-section reveal" id="section-01">
+            <div class="section-header">
+                <span class="section-header__number">01</span>
+                <div class="section-header__label">01 / 执行摘要</div>
+                <h2 class="section-header__title">执行摘要</h2>
+            </div>
+
+            <p class="content-paragraph">
+                本报告基于对 <strong>326 家中国企业</strong>的深度调研和市场数据分析，全面评估了 2024-2028 年企业数字化转型市场的发展态势。研究覆盖制造业、金融服务、零售消费及医疗健康四大核心行业。
+            </p>
+
+            <div class="summary-box">
+                <div class="summary-box__title">Core Findings</div>
+                <div class="summary-box__content">
+                    <ul>
+                        <li>中国企业数字化转型市场规模预计在 2028 年突破 <strong>4.2 万亿元</strong>，年复合增长率达 18.6%</li>
+                        <li>AI 与大模型应用成为增长核心驱动力，贡献增量市场的 <strong>42%</strong></li>
+                        <li>中小企业数字化渗透率由 2023 年的 31% 提升至预期的 <strong>58%</strong>，SaaS 模式为主要推动因素</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="key-takeaway">
+                <div class="key-takeaway__label">Key Takeaway</div>
+                <p class="key-takeaway__text">数字化不再是"是否"的问题，而是"如何更快"的问题。领先企业与落后企业的数字化投入差距正在拉大到 3.7 倍。</p>
+            </div>
+
+            <div class="two-col">
+                <div class="two-col__item">
+                    <div class="two-col__label">Market Size 2024</div>
+                    <div class="two-col__value"><span class="stat-value" data-count="2.1">0</span>万亿</div>
+                    <div class="two-col__desc">较上年增长 21.3%</div>
+                </div>
+                <div class="two-col__item">
+                    <div class="two-col__label">CAGR 2024-2028</div>
+                    <div class="two-col__value"><span class="stat-value" data-count="18.6">0</span>%</div>
+                    <div class="two-col__desc">高于全球平均水平 5.2 个百分点</div>
+                </div>
+                <div class="two-col__item">
+                    <div class="two-col__label">Enterprise Coverage</div>
+                    <div class="two-col__value"><span class="stat-value" data-count="326">0</span>家</div>
+                    <div class="two-col__desc">涵盖四大核心行业</div>
+                </div>
+                <div class="two-col__item">
+                    <div class="two-col__label">AI Adoption Rate</div>
+                    <div class="two-col__value"><span class="stat-value" data-count="67">0</span>%</div>
+                    <div class="two-col__desc">大型企业已部署或规划 AI 战略</div>
+                </div>
+            </div>
+
+            <div class="footnotes">
+                <div class="footnotes__title">Notes</div>
+                <ul class="footnotes__list">
+                    <li class="footnotes__item" data-num="1">市场规模数据基于 IDC、Gartner 及自有调研模型交叉验证</li>
+                    <li class="footnotes__item" data-num="2">CAGR 计算周期为 2024 财年至 2028 财年</li>
+                </ul>
+            </div>
+        </section>
+
+        <hr class="page-break">
+
+        <!-- Section 02: Market Overview -->
+        <section class="report-section reveal" id="section-02">
+            <div class="section-header">
+                <span class="section-header__number">02</span>
+                <div class="section-header__label">02 / 市场概览</div>
+                <h2 class="section-header__title">市场概览</h2>
+            </div>
+
+            <p class="content-paragraph">
+                中国数字化转型市场在政策驱动与技术创新的双重推动下，保持了强劲的增长势头。2024 年市场总规模达到 2.1 万亿元，同比增长 21.3%。从细分领域看，云计算基础设施、企业级 SaaS 应用、AI/大模型解决方案三大板块贡献了 78% 的市场份额。
+            </p>
+
+            <p class="content-paragraph">
+                值得关注的是，产业互联网的深化推动了 B2B 数字化服务的需求激增。制造业数字化投入连续三年位列各行业之首，年增速达 <strong>24.8%</strong>，主要受智能制造和工业互联网平台的拉动。
+            </p>
+
+            <div class="two-col">
+                <div class="two-col__item">
+                    <div class="two-col__label">Cloud Infrastructure</div>
+                    <div class="two-col__value"><span class="stat-value" data-count="8200">0</span>亿</div>
+                    <div class="two-col__desc">公有云 + 混合云市场</div>
+                </div>
+                <div class="two-col__item">
+                    <div class="two-col__label">Enterprise SaaS</div>
+                    <div class="two-col__value"><span class="stat-value" data-count="4600">0</span>亿</div>
+                    <div class="two-col__desc">同比增长 28.5%</div>
+                </div>
+            </div>
+
+            <!-- ECharts Line Chart: Market Growth -->
+            <div class="chart-container" id="chartMarketGrowth"></div>
+
+            <div class="key-takeaway">
+                <div class="key-takeaway__label">Key Takeaway</div>
+                <p class="key-takeaway__text">市场增长动力正在从"基础设施补课"向"智能化升级"切换，AI 相关支出增速是整体市场的 2.3 倍。</p>
+            </div>
+
+            <div class="footnotes">
+                <div class="footnotes__title">Sources</div>
+                <ul class="footnotes__list">
+                    <li class="footnotes__item" data-num="1">IDC China Digital Transformation Spending Guide, 2024H2</li>
+                    <li class="footnotes__item" data-num="2">中国信通院《中国数字经济发展研究报告（2024 年）》</li>
+                    <li class="footnotes__item" data-num="3">企业调研样本 N=326，置信区间 95%，误差 &plusmn;4.2%</li>
+                </ul>
+            </div>
+        </section>
+
+        <hr class="page-break">
+
+        <!-- Section 03: Competitive Landscape -->
+        <section class="report-section reveal" id="section-03">
+            <div class="section-header">
+                <span class="section-header__number">03</span>
+                <div class="section-header__label">03 / 竞争格局</div>
+                <h2 class="section-header__title">竞争格局</h2>
+            </div>
+
+            <p class="content-paragraph">
+                数字化转型服务市场呈现"一超多强"的格局。头部厂商凭借生态优势和技术积累占据主导地位，但垂直行业解决方案商正在快速崛起，在特定赛道形成差异化竞争力。
+            </p>
+
+            <div class="data-table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>厂商</th>
+                            <th>市场份额</th>
+                            <th>核心优势</th>
+                            <th>YoY 增速</th>
+                            <th class="text-center">评级</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>华为云</strong></td>
+                            <td>18.2%</td>
+                            <td>全栈技术 + 政企资源</td>
+                            <td class="highlight">+32.1%</td>
+                            <td class="text-center">Leader</td>
+                        </tr>
+                        <tr>
+                            <td><strong>阿里云</strong></td>
+                            <td>16.8%</td>
+                            <td>电商生态 + 数据智能</td>
+                            <td>+18.7%</td>
+                            <td class="text-center">Leader</td>
+                        </tr>
+                        <tr>
+                            <td><strong>腾讯云</strong></td>
+                            <td>12.4%</td>
+                            <td>连接能力 + SaaS 生态</td>
+                            <td>+15.3%</td>
+                            <td class="text-center">Strong</td>
+                        </tr>
+                        <tr>
+                            <td><strong>百度智能云</strong></td>
+                            <td>8.6%</td>
+                            <td>AI 原生 + 大模型平台</td>
+                            <td class="highlight">+41.2%</td>
+                            <td class="text-center">Strong</td>
+                        </tr>
+                        <tr>
+                            <td><strong>用友网络</strong></td>
+                            <td>6.3%</td>
+                            <td>企业管理 + 行业深耕</td>
+                            <td>+12.8%</td>
+                            <td class="text-center">Challenger</td>
+                        </tr>
+                        <tr>
+                            <td><strong>金蝶国际</strong></td>
+                            <td>4.7%</td>
+                            <td>中小企业 SaaS 转型</td>
+                            <td>+22.4%</td>
+                            <td class="text-center">Challenger</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- ECharts Radar Chart: Competitive Comparison -->
+            <div class="chart-container" id="chartCompetitive"></div>
+
+            <div class="key-takeaway">
+                <div class="key-takeaway__label">Key Takeaway</div>
+                <p class="key-takeaway__text">AI 能力正在重塑竞争格局。百度智能云凭借大模型先发优势增速领先，而华为云通过全栈自研实现了最均衡的能力布局。</p>
+            </div>
+
+            <div class="footnotes">
+                <div class="footnotes__title">Notes</div>
+                <ul class="footnotes__list">
+                    <li class="footnotes__item" data-num="1">市场份额基于 2024 年 Q1-Q3 营收数据估算</li>
+                    <li class="footnotes__item" data-num="2">评级标准参照 IDC MarketScape 方法论</li>
+                </ul>
+            </div>
+        </section>
+
+        <hr class="page-break">
+
+        <!-- Section 04: Financial Analysis -->
+        <section class="report-section reveal" id="section-04">
+            <div class="section-header">
+                <span class="section-header__number">04</span>
+                <div class="section-header__label">04 / 财务分析</div>
+                <h2 class="section-header__title">财务分析</h2>
+            </div>
+
+            <p class="content-paragraph">
+                对标杆企业的财务数据分析显示，数字化转型投入与企业营收增长呈显著正相关（r=0.72, p&lt;0.01）。领先企业的数字化投入占营收比重平均达到 <strong>4.8%</strong>，远高于行业中位数的 2.1%。
+            </p>
+
+            <p class="content-paragraph">
+                从投资回报来看，完成数字化转型第一阶段的企业，平均 ROI 在 2-3 年内达到 <strong>187%</strong>，运营效率提升 23%-35%，客户获取成本降低 18%-27%。
+            </p>
+
+            <div class="two-col">
+                <div class="two-col__item">
+                    <div class="two-col__label">Avg. Digital Investment</div>
+                    <div class="two-col__value"><span class="stat-value" data-count="4.8">0</span>%</div>
+                    <div class="two-col__desc">领先企业占营收比重</div>
+                </div>
+                <div class="two-col__item">
+                    <div class="two-col__label">3-Year ROI</div>
+                    <div class="two-col__value"><span class="stat-value" data-count="187">0</span>%</div>
+                    <div class="two-col__desc">数字化一期投资回报</div>
+                </div>
+            </div>
+
+            <!-- ECharts Bar Chart: Revenue Projections -->
+            <div class="chart-container" id="chartRevenue"></div>
+
+            <div class="data-table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>行业</th>
+                            <th class="text-right">2024 投入（亿元）</th>
+                            <th class="text-right">2026 预测（亿元）</th>
+                            <th class="text-right">2028 预测（亿元）</th>
+                            <th class="text-right">CAGR</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>制造业</td>
+                            <td class="text-right">5,840</td>
+                            <td class="text-right">8,200</td>
+                            <td class="text-right">11,600</td>
+                            <td class="text-right highlight">18.7%</td>
+                        </tr>
+                        <tr>
+                            <td>金融服务</td>
+                            <td class="text-right">4,620</td>
+                            <td class="text-right">6,100</td>
+                            <td class="text-right">8,400</td>
+                            <td class="text-right">16.1%</td>
+                        </tr>
+                        <tr>
+                            <td>零售消费</td>
+                            <td class="text-right">3,180</td>
+                            <td class="text-right">4,800</td>
+                            <td class="text-right">7,200</td>
+                            <td class="text-right highlight">22.6%</td>
+                        </tr>
+                        <tr>
+                            <td>医疗健康</td>
+                            <td class="text-right">2,160</td>
+                            <td class="text-right">3,400</td>
+                            <td class="text-right">5,800</td>
+                            <td class="text-right highlight">26.8%</td>
+                        </tr>
+                        <tr>
+                            <td>其他</td>
+                            <td class="text-right">5,200</td>
+                            <td class="text-right">7,500</td>
+                            <td class="text-right">9,000</td>
+                            <td class="text-right">14.7%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="key-takeaway">
+                <div class="key-takeaway__label">Key Takeaway</div>
+                <p class="key-takeaway__text">医疗健康行业虽然当前基数较小，但以 26.8% 的年复合增长率领跑所有行业，AI 辅助诊疗和数字化管理是核心驱动力。</p>
+            </div>
+
+            <div class="footnotes">
+                <div class="footnotes__title">Notes</div>
+                <ul class="footnotes__list">
+                    <li class="footnotes__item" data-num="1">预测数据基于线性回归 + 行业专家修正模型</li>
+                    <li class="footnotes__item" data-num="2">CAGR 均为 2024-2028 复合年增长率</li>
+                </ul>
+            </div>
+        </section>
+
+        <hr class="page-break">
+
+        <!-- Section 05: Risk Assessment -->
+        <section class="report-section reveal" id="section-05">
+            <div class="section-header">
+                <span class="section-header__number">05</span>
+                <div class="section-header__label">05 / 风险评估</div>
+                <h2 class="section-header__title">风险评估</h2>
+            </div>
+
+            <p class="content-paragraph">
+                尽管数字化转型市场前景广阔，但企业在实施过程中面临多维度风险。本节基于风险影响程度和发生概率，构建风险评估矩阵，为战略决策提供参考。
+            </p>
+
+            <div class="data-table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>风险类别</th>
+                            <th>风险描述</th>
+                            <th class="text-center">影响程度</th>
+                            <th class="text-center">发生概率</th>
+                            <th class="text-center">风险等级</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>技术路线风险</strong></td>
+                            <td>技术选型失误导致系统重构</td>
+                            <td class="text-center">5/5</td>
+                            <td class="text-center">3/5</td>
+                            <td class="text-center risk-high">HIGH</td>
+                        </tr>
+                        <tr>
+                            <td><strong>数据安全风险</strong></td>
+                            <td>数据泄露引发合规处罚与品牌损失</td>
+                            <td class="text-center">5/5</td>
+                            <td class="text-center">2/5</td>
+                            <td class="text-center risk-high">HIGH</td>
+                        </tr>
+                        <tr>
+                            <td><strong>人才短缺风险</strong></td>
+                            <td>复合型数字化人才供给不足</td>
+                            <td class="text-center">4/5</td>
+                            <td class="text-center">4/5</td>
+                            <td class="text-center risk-high">HIGH</td>
+                        </tr>
+                        <tr>
+                            <td><strong>供应商锁定</strong></td>
+                            <td>过度依赖单一云厂商的生态绑定</td>
+                            <td class="text-center">3/5</td>
+                            <td class="text-center">4/5</td>
+                            <td class="text-center risk-medium">MEDIUM</td>
+                        </tr>
+                        <tr>
+                            <td><strong>组织变革阻力</strong></td>
+                            <td>传统业务部门抵制数字化流程</td>
+                            <td class="text-center">3/5</td>
+                            <td class="text-center">3/5</td>
+                            <td class="text-center risk-medium">MEDIUM</td>
+                        </tr>
+                        <tr>
+                            <td><strong>政策合规风险</strong></td>
+                            <td>数据跨境、AI 监管政策变动</td>
+                            <td class="text-center">4/5</td>
+                            <td class="text-center">2/5</td>
+                            <td class="text-center risk-medium">MEDIUM</td>
+                        </tr>
+                        <tr>
+                            <td><strong>投资回报不确定</strong></td>
+                            <td>转型周期长导致 ROI 不达预期</td>
+                            <td class="text-center">2/5</td>
+                            <td class="text-center">3/5</td>
+                            <td class="text-center risk-low">LOW</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="key-takeaway">
+                <div class="key-takeaway__label">Key Takeaway</div>
+                <p class="key-takeaway__text">人才风险是当前最难缓解的系统性风险。67% 的受访企业表示"找不到合适的人"是数字化转型最大瓶颈，超过预算和技术因素。</p>
+            </div>
+
+            <div class="footnotes">
+                <div class="footnotes__title">Notes</div>
+                <ul class="footnotes__list">
+                    <li class="footnotes__item" data-num="1">风险评估基于德尔菲法，15 位行业专家参与评分</li>
+                    <li class="footnotes__item" data-num="2">影响程度和发生概率均采用 1-5 Likert 量表</li>
+                </ul>
+            </div>
+        </section>
+
+        <hr class="page-break">
+
+        <!-- Section 06: Strategic Recommendations -->
+        <section class="report-section reveal" id="section-06">
+            <div class="section-header">
+                <span class="section-header__number">06</span>
+                <div class="section-header__label">06 / 战略建议</div>
+                <h2 class="section-header__title">战略建议</h2>
+            </div>
+
+            <p class="content-paragraph">
+                基于前述分析，我们针对不同发展阶段的企业提出以下战略建议。核心原则是"以终为始"——从业务价值出发规划数字化路径，而非为技术而技术。
+            </p>
+
+            <div class="pull-quote">
+                <p class="pull-quote__text">"数字化转型的本质不是技术升级，而是以客户价值为中心的商业模式重构。"</p>
+                <span class="pull-quote__attribution">——某头部制造企业 CDO 访谈</span>
+            </div>
+
+            <ol class="numbered-list">
+                <li class="numbered-list__item">
+                    <div class="numbered-list__title">构建 AI-First 技术底座</div>
+                    <div class="numbered-list__desc">将大模型能力作为基础设施统一建设，避免各业务线重复投入。建议采用"1+N"模式：1 个企业级 AI 中台 + N 个场景化应用。</div>
+                </li>
+                <li class="numbered-list__item">
+                    <div class="numbered-list__title">推进多云混合架构</div>
+                    <div class="numbered-list__desc">降低单一供应商依赖风险，核心数据保持私有化部署，弹性负载选择公有云。建议关键系统保持至少 2 家云厂商可切换能力。</div>
+                </li>
+                <li class="numbered-list__item">
+                    <div class="numbered-list__title">建立数据资产管理体系</div>
+                    <div class="numbered-list__desc">数据是数字化转型的核心资产。建议设立 Chief Data Officer 角色，建立数据分类分级制度，明确数据权属与流通机制。</div>
+                </li>
+                <li class="numbered-list__item">
+                    <div class="numbered-list__title">打造数字化人才梯队</div>
+                    <div class="numbered-list__desc">采用"外引+内培"双轨策略。外部引进技术带头人，内部通过轮岗和培训培养复合型人才。建议数字化团队占比不低于总员工的 8%。</div>
+                </li>
+                <li class="numbered-list__item">
+                    <div class="numbered-list__title">实施敏捷试点、规模推广</div>
+                    <div class="numbered-list__desc">避免"大规划、大投入、大失败"模式。建议选择 2-3 个高价值场景快速验证，6 个月内产出 MVP，成功后再横向复制。</div>
+                </li>
+            </ol>
+
+            <div class="pull-quote">
+                <p class="pull-quote__text">"未来三年，没有完成数字化基础建设的企业将面临'要么转型，要么被淘汰'的战略抉择。"</p>
+                <span class="pull-quote__attribution">——本报告研究团队结论</span>
+            </div>
+
+            <div class="key-takeaway">
+                <div class="key-takeaway__label">Key Takeaway</div>
+                <p class="key-takeaway__text">成功的数字化转型需要"三位一体"：顶层战略引领、中层组织适配、基层工具赋能。缺少任何一环都将导致转型停滞。</p>
+            </div>
+        </section>
+
+        <hr class="page-break">
+
+        <!-- Section 07: Appendix -->
+        <section class="report-section reveal" id="section-07">
+            <div class="section-header">
+                <span class="section-header__number">07</span>
+                <div class="section-header__label">07 / 附录</div>
+                <h2 class="section-header__title">附录</h2>
+            </div>
+
+            <div class="appendix-block">
+                <div class="appendix-block__title">A. 数据来源</div>
+                <div class="appendix-block__content">
+                    <ul>
+                        <li>IDC China Digital Transformation Spending Guide, 2024H2 Edition</li>
+                        <li>Gartner Market Guide for Cloud Infrastructure, Asia Pacific 2024</li>
+                        <li>中国信通院《中国数字经济发展研究报告（2024 年）》</li>
+                        <li>工业和信息化部《中国中小企业数字化水平评估报告》</li>
+                        <li>企业自有调研数据（2024 年 6-9 月执行）</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="appendix-block">
+                <div class="appendix-block__title">B. 研究方法论</div>
+                <div class="appendix-block__content">
+                    <ul>
+                        <li>定量研究：326 家企业在线问卷调查（有效回收率 89.4%）</li>
+                        <li>定性研究：42 位 CIO/CDO 深度访谈（每人 60-90 分钟）</li>
+                        <li>财务建模：基于公开财报数据的多变量回归分析</li>
+                        <li>专家评审：德尔菲法三轮迭代（15 位行业专家）</li>
+                        <li>置信水平 95%，抽样误差 &plusmn;4.2%</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="appendix-block">
+                <div class="appendix-block__title">C. 样本分布</div>
+                <div class="appendix-block__content">
+                    <ul>
+                        <li>制造业：98 家（30.1%）</li>
+                        <li>金融服务：82 家（25.2%）</li>
+                        <li>零售消费：76 家（23.3%）</li>
+                        <li>医疗健康：70 家（21.5%）</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="appendix-block">
+                <div class="appendix-block__title">D. 免责声明</div>
+                <div class="appendix-block__content">
+                    <p>本报告仅供内部参考使用。报告中的预测和推断基于现有数据和假设条件，实际结果可能因市场环境变化而有所不同。未经授权不得对外发布或转载。</p>
+                </div>
+            </div>
+
+            <div class="footnotes">
+                <div class="footnotes__title">Citation</div>
+                <ul class="footnotes__list">
+                    <li class="footnotes__item" data-num="*">引用格式：战略研究部. 中国企业数字化转型市场分析报告 (v2.1). 2024年12月.</li>
+                </ul>
+            </div>
+        </section>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        class ReportPresentation {
+            constructor() {
+                this.charts = [];
+                this.init();
+            }
+
+            init() {
+                this.setupScrollProgress();
+                this.setupBackToTop();
+                this.setupRevealAnimations();
+                this.setupCounterAnimations();
+                this.setupCharts();
+                this.setupResizeHandler();
+            }
+
+            // Scroll Progress Bar
+            setupScrollProgress() {
+                const progressBar = document.getElementById('scrollProgress');
+                window.addEventListener('scroll', () => {
+                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                    const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+                    const progress = (scrollTop / scrollHeight) * 100;
+                    progressBar.style.width = progress + '%';
+                }, { passive: true });
+            }
+
+            // Back to Top Button
+            setupBackToTop() {
+                const btn = document.getElementById('backToTop');
+                window.addEventListener('scroll', () => {
+                    if (window.pageYOffset > 600) {
+                        btn.classList.add('visible');
+                    } else {
+                        btn.classList.remove('visible');
+                    }
+                }, { passive: true });
+
+                btn.addEventListener('click', () => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                });
+            }
+
+            // IntersectionObserver for Reveal Animations
+            setupRevealAnimations() {
+                const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                if (prefersReducedMotion) {
+                    document.querySelectorAll('.reveal').forEach(el => el.classList.add('revealed'));
+                    return;
+                }
+
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('revealed');
+                            observer.unobserve(entry.target);
+                        }
+                    });
+                }, { threshold: 0.1 });
+
+                document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+            }
+
+            // Counter Animations
+            setupCounterAnimations() {
+                const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                const counters = document.querySelectorAll('[data-count]');
+
+                const animateCounter = (el) => {
+                    const target = parseFloat(el.getAttribute('data-count'));
+                    const isDecimal = target % 1 !== 0;
+                    const duration = 1500;
+                    const startTime = performance.now();
+
+                    if (prefersReducedMotion) {
+                        el.textContent = isDecimal ? target.toFixed(1) : Math.round(target).toLocaleString();
+                        return;
+                    }
+
+                    const update = (currentTime) => {
+                        const elapsed = currentTime - startTime;
+                        const progress = Math.min(elapsed / duration, 1);
+                        const eased = 1 - Math.pow(1 - progress, 3);
+                        const current = target * eased;
+
+                        if (isDecimal) {
+                            el.textContent = current.toFixed(1);
+                        } else {
+                            el.textContent = Math.round(current).toLocaleString();
+                        }
+
+                        if (progress < 1) {
+                            requestAnimationFrame(update);
+                        }
+                    };
+
+                    requestAnimationFrame(update);
+                };
+
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            animateCounter(entry.target);
+                            observer.unobserve(entry.target);
+                        }
+                    });
+                }, { threshold: 0.3 });
+
+                counters.forEach(el => observer.observe(el));
+            }
+
+            // ECharts Setup
+            setupCharts() {
+                this.initMarketGrowthChart();
+                this.initCompetitiveChart();
+                this.initRevenueChart();
+            }
+
+            // Market Growth Line Chart
+            initMarketGrowthChart() {
+                const dom = document.getElementById('chartMarketGrowth');
+                if (!dom) return;
+                const chart = echarts.init(dom);
+                this.charts.push(chart);
+
+                const option = {
+                    backgroundColor: 'transparent',
+                    grid: {
+                        top: 60,
+                        right: 30,
+                        bottom: 40,
+                        left: 60
+                    },
+                    legend: {
+                        top: 10,
+                        textStyle: { color: '#6b7280', fontFamily: 'Work Sans' }
+                    },
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: '#1a2b4a',
+                        borderColor: '#1a2b4a',
+                        textStyle: { color: '#ffffff', fontFamily: 'Work Sans' }
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: ['2020', '2021', '2022', '2023', '2024', '2025E', '2026E', '2027E', '2028E'],
+                        axisLine: { lineStyle: { color: '#e5e7eb' } },
+                        axisLabel: { color: '#6b7280', fontFamily: 'Fira Code', fontSize: 11 },
+                        axisTick: { show: false }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '万亿元',
+                        nameTextStyle: { color: '#6b7280', fontFamily: 'Work Sans', fontSize: 11 },
+                        axisLine: { show: false },
+                        axisLabel: { color: '#6b7280', fontFamily: 'Fira Code', fontSize: 11 },
+                        splitLine: { lineStyle: { color: '#f3f4f6', type: 'dashed' } }
+                    },
+                    series: [
+                        {
+                            name: '市场总规模',
+                            type: 'line',
+                            data: [0.8, 1.0, 1.3, 1.7, 2.1, 2.5, 3.0, 3.6, 4.2],
+                            smooth: true,
+                            lineStyle: { color: '#1a2b4a', width: 2 },
+                            itemStyle: { color: '#1a2b4a' },
+                            areaStyle: {
+                                color: {
+                                    type: 'linear',
+                                    x: 0, y: 0, x2: 0, y2: 1,
+                                    colorStops: [
+                                        { offset: 0, color: 'rgba(26, 43, 74, 0.08)' },
+                                        { offset: 1, color: 'rgba(26, 43, 74, 0)' }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            name: 'AI 相关支出',
+                            type: 'line',
+                            data: [0.05, 0.08, 0.15, 0.28, 0.48, 0.72, 1.05, 1.42, 1.76],
+                            smooth: true,
+                            lineStyle: { color: '#2563eb', width: 2 },
+                            itemStyle: { color: '#2563eb' },
+                            areaStyle: {
+                                color: {
+                                    type: 'linear',
+                                    x: 0, y: 0, x2: 0, y2: 1,
+                                    colorStops: [
+                                        { offset: 0, color: 'rgba(37, 99, 235, 0.06)' },
+                                        { offset: 1, color: 'rgba(37, 99, 235, 0)' }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                };
+
+                chart.setOption(option);
+            }
+
+            // Competitive Radar Chart
+            initCompetitiveChart() {
+                const dom = document.getElementById('chartCompetitive');
+                if (!dom) return;
+                const chart = echarts.init(dom);
+                this.charts.push(chart);
+
+                const option = {
+                    backgroundColor: 'transparent',
+                    legend: {
+                        top: 10,
+                        textStyle: { color: '#6b7280', fontFamily: 'Work Sans' }
+                    },
+                    tooltip: {
+                        backgroundColor: '#1a2b4a',
+                        borderColor: '#1a2b4a',
+                        textStyle: { color: '#ffffff', fontFamily: 'Work Sans' }
+                    },
+                    radar: {
+                        indicator: [
+                            { name: '技术能力', max: 100 },
+                            { name: '市场份额', max: 100 },
+                            { name: '生态体系', max: 100 },
+                            { name: 'AI 能力', max: 100 },
+                            { name: '行业深耕', max: 100 },
+                            { name: '价格竞争力', max: 100 }
+                        ],
+                        shape: 'polygon',
+                        axisName: { color: '#6b7280', fontFamily: 'Work Sans', fontSize: 11 },
+                        splitArea: { areaStyle: { color: ['rgba(26, 43, 74, 0.01)', 'rgba(26, 43, 74, 0.03)'] } },
+                        splitLine: { lineStyle: { color: '#e5e7eb' } },
+                        axisLine: { lineStyle: { color: '#e5e7eb' } }
+                    },
+                    series: [
+                        {
+                            type: 'radar',
+                            data: [
+                                {
+                                    name: '华为云',
+                                    value: [92, 88, 85, 82, 90, 65],
+                                    lineStyle: { color: '#1a2b4a', width: 2 },
+                                    itemStyle: { color: '#1a2b4a' },
+                                    areaStyle: { color: 'rgba(26, 43, 74, 0.08)' }
+                                },
+                                {
+                                    name: '阿里云',
+                                    value: [88, 85, 92, 78, 75, 72],
+                                    lineStyle: { color: '#2563eb', width: 2 },
+                                    itemStyle: { color: '#2563eb' },
+                                    areaStyle: { color: 'rgba(37, 99, 235, 0.06)' }
+                                },
+                                {
+                                    name: '百度智能云',
+                                    value: [75, 62, 68, 95, 65, 78],
+                                    lineStyle: { color: '#6b7280', width: 2 },
+                                    itemStyle: { color: '#6b7280' },
+                                    areaStyle: { color: 'rgba(107, 114, 128, 0.06)' }
+                                }
+                            ]
+                        }
+                    ]
+                };
+
+                chart.setOption(option);
+            }
+
+            // Revenue Projections Bar Chart
+            initRevenueChart() {
+                const dom = document.getElementById('chartRevenue');
+                if (!dom) return;
+                const chart = echarts.init(dom);
+                this.charts.push(chart);
+
+                const option = {
+                    backgroundColor: 'transparent',
+                    grid: {
+                        top: 60,
+                        right: 30,
+                        bottom: 40,
+                        left: 60
+                    },
+                    legend: {
+                        top: 10,
+                        textStyle: { color: '#6b7280', fontFamily: 'Work Sans' }
+                    },
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: '#1a2b4a',
+                        borderColor: '#1a2b4a',
+                        textStyle: { color: '#ffffff', fontFamily: 'Work Sans' }
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: ['制造业', '金融服务', '零售消费', '医疗健康'],
+                        axisLine: { lineStyle: { color: '#e5e7eb' } },
+                        axisLabel: { color: '#6b7280', fontFamily: 'Work Sans', fontSize: 11 },
+                        axisTick: { show: false }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '亿元',
+                        nameTextStyle: { color: '#6b7280', fontFamily: 'Work Sans', fontSize: 11 },
+                        axisLine: { show: false },
+                        axisLabel: { color: '#6b7280', fontFamily: 'Fira Code', fontSize: 11 },
+                        splitLine: { lineStyle: { color: '#f3f4f6', type: 'dashed' } }
+                    },
+                    series: [
+                        {
+                            name: '2024',
+                            type: 'bar',
+                            data: [5840, 4620, 3180, 2160],
+                            itemStyle: { color: '#1a2b4a' },
+                            barWidth: '20%'
+                        },
+                        {
+                            name: '2026E',
+                            type: 'bar',
+                            data: [8200, 6100, 4800, 3400],
+                            itemStyle: { color: '#2563eb' },
+                            barWidth: '20%'
+                        },
+                        {
+                            name: '2028E',
+                            type: 'bar',
+                            data: [11600, 8400, 7200, 5800],
+                            itemStyle: { color: '#93c5fd' },
+                            barWidth: '20%'
+                        }
+                    ]
+                };
+
+                chart.setOption(option);
+            }
+
+            // Resize Handler
+            setupResizeHandler() {
+                let resizeTimeout;
+                window.addEventListener('resize', () => {
+                    clearTimeout(resizeTimeout);
+                    resizeTimeout = setTimeout(() => {
+                        this.charts.forEach(chart => {
+                            if (chart && !chart.isDisposed()) {
+                                chart.resize();
+                            }
+                        });
+                    }, 200);
+                });
+            }
+        }
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => new ReportPresentation());
+        } else {
+            new ReportPresentation();
+        }
+    })();
+    </script>
+</body>
+</html>
