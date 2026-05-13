@@ -150,7 +150,6 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
       {
         key: "set-top",
         label: article.isTop ? "取消置顶" : "置顶",
-        icon: <PushpinOutlined />,
         onClick: () => handleToggleTop(article),
       },
       {
