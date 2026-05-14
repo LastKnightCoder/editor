@@ -69,11 +69,16 @@ const QuickOpenLayout = ({ title }: QuickOpenLayoutProps) => {
       >
         {showTitlebar && (
           <GlobalTitlebar title={title}>
-            <TitlebarIcon tip={isDark ? "浅色" : "深色"} onClick={toggleTheme}>
+            <TitlebarIcon
+              tip={isDark ? "浅色" : "深色"}
+              placement="bottom"
+              onClick={toggleTheme}
+            >
               {isDark ? <SunOutlined /> : <MoonOutlined />}
             </TitlebarIcon>
             <TitlebarIcon
               tip={alwaysOnTop ? "取消置顶" : "置顶"}
+              placement="left"
               onClick={toggleAlwaysOnTop}
             >
               <PushpinOutlined

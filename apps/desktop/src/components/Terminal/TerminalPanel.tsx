@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { useMemoizedFn } from "ahooks";
 import useTerminalStore from "@/stores/useTerminalStore";
 import { initTerminalModule } from "@/commands/terminal";
 import TerminalTabs from "./TerminalTabs";
@@ -37,7 +38,7 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ cwd }) => {
     }
   }, [moduleInitialized, setModuleInitialized]);
 
-  const handleNewTerminal = useCallback(async () => {
+  const handleNewTerminal = useMemoizedFn(async () => {
     await ensureModuleReady();
     const id = `inst-${Date.now()}`;
     addInstance({
@@ -46,7 +47,7 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ cwd }) => {
       cwd,
       isAlive: true,
     });
-  }, [cwd, ensureModuleReady, addInstance]);
+  });
 
   const handleClosePanel = useCallback(() => {
     setPanelOpen(false);
@@ -93,33 +94,14 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ cwd }) => {
     [panelPosition, panelHeight, panelWidth, setPanelHeight, setPanelWidth],
   );
 
-  // Auto-create first terminal when panel opens with no instances
+  // Auto-create first terminal only on initial mount when panel is open
   const hasAutoCreated = useRef(false);
   useEffect(() => {
     if (panelOpen && instances.length === 0 && !hasAutoCreated.current) {
       hasAutoCreated.current = true;
       handleNewTerminal();
     }
-    if (instances.length > 0) {
-      hasAutoCreated.current = false;
-    }
   }, [panelOpen, instances.length, handleNewTerminal]);
-
-  // Panel is hidden via CSS, not unmounted
-  if (!panelOpen) {
-    return (
-      <div style={{ display: "none" }}>
-        {instances.map((instance) => (
-          <TerminalInstance
-            key={instance.id}
-            instanceId={instance.id}
-            cwd={instance.cwd}
-            visible={false}
-          />
-        ))}
-      </div>
-    );
-  }
 
   if (instances.length === 0) {
     return null;
@@ -133,7 +115,10 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ cwd }) => {
   return (
     <div
       className={`${styles.terminalPanel} ${isBottom ? styles.bottom : styles.right}`}
-      style={panelStyle}
+      style={{
+        ...panelStyle,
+        display: panelOpen ? undefined : "none",
+      }}
     >
       <div
         className={`${styles.resizeHandle} ${isBottom ? styles.horizontal : styles.vertical}`}
@@ -149,7 +134,7 @@ const TerminalPanel: React.FC<TerminalPanelProps> = ({ cwd }) => {
             key={instance.id}
             instanceId={instance.id}
             cwd={instance.cwd}
-            visible={instance.id === activeId}
+            visible={instance.id === activeId && panelOpen}
           />
         ))}
       </div>

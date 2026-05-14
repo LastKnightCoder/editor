@@ -3,7 +3,7 @@ import type { ITheme } from "@xterm/xterm";
 import useTheme from "@/hooks/useTheme";
 
 const DARK_THEME: ITheme = {
-  background: "#1a1a1a",
+  background: "#1f1f1f",
   foreground: "#d4d4d4",
   cursor: "#aeafad",
   cursorAccent: "#1a1a1a",
