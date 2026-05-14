@@ -48,7 +48,10 @@
       "slate-dom": "0.123.0",
       "slate-react": "0.123.0",
       "slate-history": "0.113.1"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "node-pty"
+    ]
   },
   "commitlint": {
     "extends": [
