@@ -74,7 +74,10 @@ import {
   ExportOutlined,
   ColumnWidthOutlined,
 } from "@ant-design/icons";
+import { TerminalSquare } from "lucide-react";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
+import { TerminalPanel } from "@/components/Terminal";
+import useTerminalStore from "@/stores/useTerminalStore";
 import FileTree from "./FileTree";
 import { fileAttachmentExtension } from "@/editor-extensions";
 import EpubExportModal from "@/components/EpubExportModal";
@@ -246,6 +249,11 @@ const SingleMarkdownEditor = () => {
   const { onDarkModeChange } = useSettingStore((state) => ({
     onDarkModeChange: state.onDarkModeChange,
   }));
+  const {
+    panelOpen: terminalOpen,
+    panelPosition: terminalPosition,
+    togglePanel: toggleTerminal,
+  } = useTerminalStore();
 
   const editorRef = useRef<EditorRef>(null);
   const sourceEditorRef = useRef<CodeMirrorEditor | null>(null);
@@ -1192,6 +1200,12 @@ const SingleMarkdownEditor = () => {
         event.preventDefault();
         toggleMode();
       }
+
+      // 切换终端: Ctrl+` 或 Command+`
+      if (isHotkey("mod+`", event)) {
+        event.preventDefault();
+        toggleTerminal();
+      }
     };
 
     document.addEventListener("keydown", handleKeyDown);
@@ -1199,7 +1213,7 @@ const SingleMarkdownEditor = () => {
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [saveMarkdownFile, toggleMode]);
+  }, [saveMarkdownFile, toggleMode, toggleTerminal]);
 
   useEffect(() => {
     const init = async () => {
@@ -1342,85 +1356,96 @@ const SingleMarkdownEditor = () => {
         [styles.dark]: isDark,
       })}
     >
-      <div className={styles.mainContent}>
-        <ResizableAndHideableSidebar
-          width={fileTreeWidth ?? 240}
-          open={fileTreeOpen}
-          onWidthChange={(width) => setFileTreeWidth(width)}
-          className={styles.fileTreeSidebar}
-          minWidth={200}
-          maxWidth={400}
-          side="right"
-        >
-          <div className={styles.fileTreeContainer}>
-            {rootPath && (
-              <FileTree
-                currentFilePath={currentFilePath}
-                onFileClick={onFileClick}
-                rootPath={rootPath}
-              />
+      <div
+        className={classnames(styles.editorAndTerminal, {
+          [styles.terminalRight]: terminalOpen && terminalPosition === "right",
+        })}
+      >
+        <div className={styles.mainContent}>
+          <ResizableAndHideableSidebar
+            width={fileTreeWidth ?? 240}
+            open={fileTreeOpen}
+            onWidthChange={(width) => setFileTreeWidth(width)}
+            className={styles.fileTreeSidebar}
+            minWidth={200}
+            maxWidth={400}
+            side="right"
+          >
+            <div className={styles.fileTreeContainer}>
+              {rootPath && (
+                <FileTree
+                  currentFilePath={currentFilePath}
+                  onFileClick={onFileClick}
+                  rootPath={rootPath}
+                />
+              )}
+            </div>
+          </ResizableAndHideableSidebar>
+
+          <div className={styles.editorContainer} ref={editorContainerRef}>
+            {currentFilePath ? (
+              <>
+                <div
+                  className={classnames(styles.sourceEditor, {
+                    [styles.hidden]: !isSourceMode,
+                    [styles.sourceEditorWide]:
+                      resolvedEditorViewMode === "wide",
+                  })}
+                >
+                  <MarkdownSourceEditor
+                    value={currentSourceText.current}
+                    onChange={onSourceTextChange}
+                    editorDidMount={onSourceEditorDidMount}
+                    isDark={isDark}
+                    readonly={isReadonly}
+                  />
+                </div>
+                <If condition={!isSourceMode}>
+                  <div className={styles.contentEditor}>
+                    <ErrorBoundary>
+                      <EditorServicesProvider
+                        services={singleMarkdownEditorServices}
+                      >
+                        <Editor
+                          key={currentFilePath}
+                          className={classnames(styles.editor, {
+                            [styles.editorWide]:
+                              resolvedEditorViewMode === "wide",
+                          })}
+                          ref={editorRef}
+                          initValue={content}
+                          onChange={onContentChange}
+                          readonly={isReadonly}
+                          theme={isDark ? "dark" : "light"}
+                          extensions={customExtensions}
+                        />
+                      </EditorServicesProvider>
+                    </ErrorBoundary>
+                    <div className={styles.outlineContainer}>
+                      <EditorOutline
+                        className={styles.outline}
+                        content={content}
+                        show={true}
+                        onClickHeader={onClickHeader}
+                      />
+                    </div>
+                  </div>
+                </If>
+              </>
+            ) : (
+              <div className={styles.emptyEditor}>
+                <div className={styles.emptyContent}>
+                  <FileMarkdownOutlined
+                    style={{ fontSize: 64, color: "#999" }}
+                  />
+                  <p>请从左侧文件树选择一个 Markdown 文件</p>
+                </div>
+              </div>
             )}
           </div>
-        </ResizableAndHideableSidebar>
-
-        <div className={styles.editorContainer} ref={editorContainerRef}>
-          {currentFilePath ? (
-            <>
-              <div
-                className={classnames(styles.sourceEditor, {
-                  [styles.hidden]: !isSourceMode,
-                  [styles.sourceEditorWide]: resolvedEditorViewMode === "wide",
-                })}
-              >
-                <MarkdownSourceEditor
-                  value={currentSourceText.current}
-                  onChange={onSourceTextChange}
-                  editorDidMount={onSourceEditorDidMount}
-                  isDark={isDark}
-                  readonly={isReadonly}
-                />
-              </div>
-              <If condition={!isSourceMode}>
-                <div className={styles.contentEditor}>
-                  <ErrorBoundary>
-                    <EditorServicesProvider
-                      services={singleMarkdownEditorServices}
-                    >
-                      <Editor
-                        key={currentFilePath}
-                        className={classnames(styles.editor, {
-                          [styles.editorWide]:
-                            resolvedEditorViewMode === "wide",
-                        })}
-                        ref={editorRef}
-                        initValue={content}
-                        onChange={onContentChange}
-                        readonly={isReadonly}
-                        theme={isDark ? "dark" : "light"}
-                        extensions={customExtensions}
-                      />
-                    </EditorServicesProvider>
-                  </ErrorBoundary>
-                  <div className={styles.outlineContainer}>
-                    <EditorOutline
-                      className={styles.outline}
-                      content={content}
-                      show={true}
-                      onClickHeader={onClickHeader}
-                    />
-                  </div>
-                </div>
-              </If>
-            </>
-          ) : (
-            <div className={styles.emptyEditor}>
-              <div className={styles.emptyContent}>
-                <FileMarkdownOutlined style={{ fontSize: 64, color: "#999" }} />
-                <p>请从左侧文件树选择一个 Markdown 文件</p>
-              </div>
-            </div>
-          )}
         </div>
+
+        {rootPath && <TerminalPanel cwd={rootPath} />}
       </div>
 
       <div className={styles.statusBar}>
@@ -1468,6 +1493,14 @@ const SingleMarkdownEditor = () => {
               type="text"
               icon={<ColumnWidthOutlined />}
               onClick={toggleEditorViewMode}
+            />
+          </Tooltip>
+
+          <Tooltip title={terminalOpen ? "关闭终端" : "打开终端"}>
+            <Button
+              type="text"
+              icon={<TerminalSquare size={14} />}
+              onClick={toggleTerminal}
             />
           </Tooltip>
         </div>
