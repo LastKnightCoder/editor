@@ -1,6 +1,6 @@
 import React, { forwardRef, useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { message, Button, Input, App } from "antd";
+import { message, App } from "antd";
 import { Transforms, Path } from "slate";
 import {
   ReactEditor,
@@ -731,6 +731,59 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     { direction: "sw", cursor: "nesw-resize" },
   ];
 
+  const handleUploadReference = useMemoizedFn(async (action: ImageAIAction) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      if (!uploadResource) {
+        message.warning("尚未配置图床，无法上传参考图");
+        return;
+      }
+      try {
+        const uploadedUrl = await uploadResource(file);
+        if (uploadedUrl) {
+          const pendingRef: PendingAIImage = {
+            id: getUuid(),
+            url: uploadedUrl,
+            prompt: "",
+            label: `参考 ${(action === "generate" ? generatedCandidates : editedCandidates).length + 1}`,
+          };
+          if (action === "generate") {
+            setGeneratedCandidates((prev) => [...prev, pendingRef]);
+            setSelectedGenerateReference(pendingRef.id);
+          } else {
+            setEditedCandidates((prev) => [...prev, pendingRef]);
+            setSelectedEditReference(pendingRef.id);
+          }
+        }
+      } catch (error) {
+        console.error("上传参考图失败:", error);
+        message.error("参考图上传失败");
+      }
+    };
+    input.click();
+  });
+
+  const handleRemoveReference = useMemoizedFn(
+    (action: ImageAIAction, id: string) => {
+      const isGenerate = action === "generate";
+      if (isGenerate) {
+        setGeneratedCandidates((prev) => prev.filter((item) => item.id !== id));
+        if (selectedGenerateReference === id) {
+          setSelectedGenerateReference("empty");
+        }
+      } else {
+        setEditedCandidates((prev) => prev.filter((item) => item.id !== id));
+        if (selectedEditReference === id) {
+          setSelectedEditReference("original");
+        }
+      }
+    },
+  );
+
   const renderAIReferencePicker = (action: ImageAIAction) => {
     const isGenerate = action === "generate";
     const items = getAIReferenceItems(action);
@@ -742,43 +795,69 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       : setSelectedEditReference;
 
     return (
-      <div className={styles.aiReferenceSection}>
-        <div className={styles.aiReferenceTitle}>参考图</div>
-        <div className={styles.aiReferenceList}>
+      <div className="flex flex-col gap-[0.5em]">
+        <div className="flex items-center justify-between">
+          <span className="text-[0.75em] font-medium text-gray-500 dark:text-zinc-400">
+            参考图
+          </span>
+          <button
+            type="button"
+            className="text-[0.6875em] text-gray-500 dark:text-zinc-400 cursor-pointer border-none bg-transparent hover:text-gray-800 dark:hover:text-zinc-200 transition-colors duration-150 flex items-center gap-[0.25em]"
+            onClick={() => handleUploadReference(action)}
+            disabled={aiSubmitting}
+          >
+            <span className="text-[1.1em]">+</span>
+            上传参考图
+          </button>
+        </div>
+        <div className="flex gap-[0.5em] overflow-x-auto pb-[0.25em]">
           {items.map((item) => {
             const selected = item.id === selectedId;
+            const canRemove = item.kind === "result" && !aiSubmitting;
             return (
-              <button
-                key={item.id}
-                type="button"
-                className={classnames(styles.aiReferenceCard, {
-                  [styles.selected]: selected,
-                })}
-                onClick={() => {
-                  if (selected && item.url) {
-                    showAIReferenceOverview(item);
-                    return;
-                  }
-                  setSelectedId(item.id);
-                }}
-                disabled={aiSubmitting}
-                title={selected && item.url ? "点击放大查看" : "选择为参考图"}
-              >
-                {item.url ? (
-                  <LocalImageComponent
-                    className={styles.aiReferenceImage}
-                    url={item.url}
-                    alt={item.label}
-                  />
-                ) : (
-                  <div className={styles.aiReferenceEmpty}>
-                    <PictureOutlined />
-                  </div>
+              <div key={item.id} className="relative shrink-0">
+                <button
+                  type="button"
+                  className={classnames(
+                    "relative w-[3.5em] h-[3.5em] p-0 overflow-hidden rounded-[0.5em] cursor-pointer transition-all duration-150 border-[0.125em]",
+                    selected
+                      ? "border-[var(--th-btn-bg)]"
+                      : "border-gray-200 dark:border-zinc-700 hover:border-gray-400 dark:hover:border-zinc-500",
+                    "disabled:cursor-not-allowed disabled:opacity-70",
+                  )}
+                  onClick={() => {
+                    if (selected && item.url) {
+                      showAIReferenceOverview(item);
+                      return;
+                    }
+                    setSelectedId(item.id);
+                  }}
+                  disabled={aiSubmitting}
+                  title={selected && item.url ? "点击放大查看" : item.label}
+                >
+                  {item.url ? (
+                    <LocalImageComponent
+                      className="w-full h-full object-cover block"
+                      url={item.url}
+                      alt={item.label}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gray-50 dark:bg-zinc-900 text-gray-400 dark:text-zinc-500 text-[0.875em]">
+                      <PictureOutlined />
+                    </div>
+                  )}
+                </button>
+                {canRemove && (
+                  <button
+                    type="button"
+                    className="absolute -top-[0.25em] -right-[0.25em] w-[1.125em] h-[1.125em] rounded-full bg-gray-600 dark:bg-zinc-600 text-white text-[0.625em] border-none cursor-pointer flex items-center justify-center leading-none hover:bg-red-500 transition-colors duration-150 z-10"
+                    onClick={() => handleRemoveReference(action, item.id)}
+                    title="移除"
+                  >
+                    ×
+                  </button>
                 )}
-                <span className={styles.aiReferenceLabel}>
-                  {selected && item.url ? "查看" : item.label}
-                </span>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -796,16 +875,16 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     const selectedResult = getSelectedResult(action);
     const selectedReference = getSelectedReference(action);
     const actionText = selectedReference?.url
-      ? "基于所选图片生成"
+      ? "基于参考图生成"
       : isGenerate
-        ? "生成预览"
-        : "编辑预览";
+        ? "生成"
+        : "编辑";
 
     return (
-      <div className={styles.aiInlinePanel}>
+      <div className="flex flex-col gap-[0.875em]">
         {renderAIReferencePicker(action)}
         <textarea
-          className={styles.aiPromptInput}
+          className="w-full min-h-[7.5em] resize-y px-[1em] py-[0.875em] rounded-[0.75em] border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-950 text-gray-800 dark:text-white text-[0.875em] leading-[1.6] outline-none transition-all duration-200 shadow-inner placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:border-[var(--th-border-focus)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_var(--th-border-focus)/20] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_var(--th-border-focus)/25] disabled:cursor-not-allowed disabled:opacity-60"
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
           placeholder={
@@ -814,37 +893,34 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
               : "描述你想如何调整这张图片，例如：改成透明背景，并增强主体光影"
           }
           disabled={aiSubmitting}
-          rows={4}
+          rows={3}
         />
-        <div className={styles.aiPreviewPanel}>
-          {aiSubmitting ? (
-            <div className={styles.aiPreviewEmpty}>
-              <LoadingOutlined />
-              <span>正在处理图片，请稍候...</span>
-            </div>
-          ) : selectedResult ? (
-            <>
-              <LocalImageComponent
-                className={styles.aiPreviewImage}
-                url={selectedResult.url}
-                alt={selectedResult.prompt}
-              />
-              <div className={styles.aiPreviewMeta}>
-                当前候选确认后才会{isGenerate ? "插入" : "替换"}。
+        {(aiSubmitting || selectedResult) && (
+          <div className="flex flex-col items-center gap-[0.5em] p-[1em] rounded-[0.75em] border border-gray-200 dark:border-zinc-700">
+            {aiSubmitting ? (
+              <div className="flex items-center gap-[0.5em] text-text-3 text-[0.8125em]">
+                <LoadingOutlined />
+                <span>正在生成...</span>
               </div>
-            </>
-          ) : (
-            <div className={styles.aiPreviewEmpty}>
-              <PictureOutlined />
-              <span>生成结果会先显示在这里，不会立即修改文档。</span>
-            </div>
-          )}
-        </div>
+            ) : selectedResult ? (
+              <>
+                <LocalImageComponent
+                  className="max-w-full max-h-[16em] object-contain rounded-[0.5em]"
+                  url={selectedResult.url}
+                  alt={selectedResult.prompt}
+                />
+                <div className="text-text-3 text-[0.75em]">
+                  确认后{isGenerate ? "插入" : "替换"}
+                </div>
+              </>
+            ) : null}
+          </div>
+        )}
         {!options.hideActions && (
-          <div className={styles.aiActions}>
+          <div className="flex items-center justify-end gap-[0.5em] pt-[0.5em] border-t border-gray-200 dark:border-zinc-700/50">
             <button
               type="button"
-              className={styles.aiSecondaryButton}
+              className="px-[1.25em] py-[0.625em] rounded-[0.75em] text-[0.875em] font-semibold cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 hover:bg-gray-200 dark:hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed"
               disabled={!prompt.trim() || aiSubmitting}
               onClick={() => handleRunAIImage(action)}
             >
@@ -852,7 +928,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
             </button>
             <button
               type="button"
-              className={styles.aiPrimaryButton}
+              className="px-[1.25em] py-[0.625em] rounded-[0.75em] border-none text-[0.875em] font-semibold cursor-pointer transition-all bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-[var(--th-btn-hover)] disabled:opacity-40 disabled:cursor-not-allowed"
               disabled={!selectedResult || aiSubmitting}
               onClick={handleConfirmAIImage}
             >
@@ -867,42 +943,20 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const renderPlaceholder = () => {
     if (readOnly) return null;
     return (
-      <div
-        className={classnames(styles.sourcePanel, {
-          [styles.dark]: isDark,
-        })}
-      >
-        <div className={styles.panelHeader}>
-          <h4>插入图片</h4>
-          <p>选择一个来源来上传或引用图片，支持 JPG、PNG、WebP。</p>
-        </div>
+      <div className="rounded-[0.75em] p-[1.25em] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
         <ModernTabs
           isDark={isDark}
+          variant="flat"
           items={[
-            ...(imageGenerationAvailable
-              ? [
-                  {
-                    key: "ai",
-                    label: "AI 生成",
-                    children: (
-                      <div className={styles.tabCard}>
-                        <p className={styles.tabHint}>
-                          输入图片要求，先生成预览，确认后再插入文档。
-                        </p>
-                        {renderAIImagePanel("generate")}
-                      </div>
-                    ),
-                  },
-                ]
-              : []),
             {
               key: "upload",
               label: "本地上传",
               children: (
-                <div ref={uploadTabRef} className={styles.tabCard} tabIndex={0}>
-                  <p className={styles.tabHint}>
-                    支持拖拽或点击上传，也可以直接粘贴图片。
-                  </p>
+                <div
+                  ref={uploadTabRef}
+                  className="flex flex-col gap-[1em]"
+                  tabIndex={0}
+                >
                   <ImageUploader
                     loading={uploading || pasteUploading}
                     onUploadSuccess={(link) => setLink(link)}
@@ -916,28 +970,31 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
               key: "url",
               label: "网络图片",
               children: (
-                <div className={styles.tabCard}>
-                  <p className={styles.tabHint}>
-                    粘贴图片直链，我们会立即在编辑器中展示。
-                  </p>
-                  <div className={styles.inputRow}>
-                    <div className={styles.inputWrapper}>
-                      <Input
-                        prefix={<LinkOutlined className={styles.inputIcon} />}
+                <div className="flex flex-col gap-[1em]">
+                  <div className="flex gap-[0.75em] flex-wrap items-center">
+                    <div className="flex-1 relative">
+                      <span className="absolute left-[0.75em] top-1/2 -translate-y-1/2 text-gray-400 dark:text-zinc-500 pointer-events-none">
+                        <LinkOutlined />
+                      </span>
+                      <input
+                        type="text"
+                        className="w-full px-[1em] py-[0.875em] pl-[2.25em] rounded-[0.75em] border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-950 text-gray-800 dark:text-white text-[0.875em] outline-none transition-all duration-200 shadow-inner placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:border-[var(--th-border-focus)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_var(--th-border-focus)/20] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_var(--th-border-focus)/25]"
                         placeholder="https://example.com/awesome-image.png"
                         value={networkImageUrl}
                         onChange={(e) => setNetworkImageUrl(e.target.value)}
-                        onPressEnter={handleApplyNetworkUrl}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleApplyNetworkUrl();
+                        }}
                       />
                     </div>
-                    <Button
-                      type="primary"
-                      className={styles.primaryButton}
-                      loading={linkSubmitting}
+                    <button
+                      type="button"
+                      className="px-[1.25em] py-[0.75em] rounded-[0.75em] border-none text-[0.875em] font-semibold bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] cursor-pointer transition-all duration-200 hover:bg-[var(--th-btn-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={linkSubmitting}
                       onClick={handleApplyNetworkUrl}
                     >
-                      插入
-                    </Button>
+                      {linkSubmitting ? "插入中..." : "插入"}
+                    </button>
                   </div>
                 </div>
               ),
@@ -946,21 +1003,32 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
               key: "library",
               label: "资源库",
               children: (
-                <div className={styles.tabCard}>
-                  <p className={styles.tabHint}>
-                    从资源库中选择已上传的图片并插入到文档。
-                  </p>
-                  <div className={styles.actionsRow}>
-                    <Button
-                      className={styles.secondaryButton}
+                <div className="flex flex-col gap-[1em]">
+                  <div className="flex justify-start">
+                    <button
+                      type="button"
+                      className="px-[1.25em] py-[0.75em] rounded-[0.75em] text-[0.875em] font-semibold cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 hover:bg-gray-200 dark:hover:bg-zinc-700"
                       onClick={() => setResourcePickerOpen(true)}
                     >
                       打开资源库
-                    </Button>
+                    </button>
                   </div>
                 </div>
               ),
             },
+            ...(imageGenerationAvailable
+              ? [
+                  {
+                    key: "ai",
+                    label: "AI 生成",
+                    children: (
+                      <div className="flex flex-col gap-[1em]">
+                        {renderAIImagePanel("generate")}
+                      </div>
+                    ),
+                  },
+                ]
+              : []),
           ]}
         />
       </div>
@@ -1177,12 +1245,12 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       {previewingReference?.url && (
         <PortalToBody>
           <div
-            className={styles.aiReferencePreviewOverlay}
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-[0.125em]"
             onClick={() => setPreviewingReference(null)}
           >
             <button
               type="button"
-              className={styles.aiReferencePreviewClose}
+              className="absolute top-[1.5em] right-[1.5em] w-[2.5em] h-[2.5em] rounded-full bg-white/10 text-white text-[1.5em] border-none cursor-pointer flex items-center justify-center hover:bg-white/20 transition-colors duration-150"
               onClick={() => setPreviewingReference(null)}
               aria-label="关闭预览"
             >
@@ -1190,12 +1258,12 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
             </button>
             <button
               type="button"
-              className={styles.aiReferencePreviewImageWrap}
+              className="border-none bg-transparent p-0 cursor-pointer"
               onClick={() => setPreviewingReference(null)}
               aria-label="关闭预览"
             >
               <LocalImageComponent
-                className={styles.aiReferencePreviewImage}
+                className="max-w-[90vw] max-h-[85vh] object-contain rounded-[0.5em]"
                 url={previewingReference.url}
                 alt={previewingReference.label}
               />
@@ -1215,13 +1283,13 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
         subtitle="输入调整要求，先生成预览，确认后再替换当前图片"
         width={720}
         destroyOnClose
-        className={classnames(styles.aiEditModal, { [styles.dark]: isDark })}
-        bodyClassName={styles.aiEditModalBody}
+        className="max-h-[90vh]"
+        bodyClassName="max-h-[calc(90vh-10.625em)] overflow-y-auto pr-[0.25em]"
         footer={
-          <div className={styles.aiActions}>
+          <div className="flex justify-end gap-[0.625em] flex-wrap">
             <button
               type="button"
-              className={styles.aiSecondaryButton}
+              className="h-[2.25em] px-[1em] rounded-[0.625em] border border-[var(--color-border-primary)] text-[0.875em] font-medium cursor-pointer bg-bg-elevated text-text-1 transition-all duration-200 hover:border-[var(--th-border-hover)] hover:bg-bg-container disabled:opacity-45 disabled:cursor-not-allowed"
               disabled={aiSubmitting}
               onClick={() => {
                 setAiEditModalOpen(false);
@@ -1234,7 +1302,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
             </button>
             <button
               type="button"
-              className={styles.aiSecondaryButton}
+              className="h-[2.25em] px-[1em] rounded-[0.625em] border border-[var(--color-border-primary)] text-[0.875em] font-medium cursor-pointer bg-bg-elevated text-text-1 transition-all duration-200 hover:border-[var(--th-border-hover)] hover:bg-bg-container disabled:opacity-45 disabled:cursor-not-allowed"
               disabled={!editPrompt.trim() || aiSubmitting}
               onClick={() => handleRunAIImage("edit")}
             >
@@ -1246,7 +1314,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
             </button>
             <button
               type="button"
-              className={styles.aiPrimaryButton}
+              className="h-[2.25em] px-[1em] rounded-[0.625em] border-none text-[0.875em] font-medium cursor-pointer bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] transition-all duration-200 hover:bg-[var(--th-btn-hover)] disabled:opacity-45 disabled:cursor-not-allowed"
               disabled={!getSelectedResult("edit") || aiSubmitting}
               onClick={handleConfirmAIImage}
             >
@@ -1255,7 +1323,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
           </div>
         }
       >
-        <div className={styles.aiEditModalContent}>
+        <div className="flex flex-col gap-[1em]">
           {renderAIImagePanel("edit", { hideActions: true })}
         </div>
       </CustomModal>
