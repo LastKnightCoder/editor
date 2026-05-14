@@ -82,6 +82,9 @@ import FileTree from "./FileTree";
 import { fileAttachmentExtension } from "@/editor-extensions";
 import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
+import { getFileCategory } from "./fileTypes";
+import CodeFileEditor from "./CodeFileEditor";
+import MediaPreview from "./MediaPreview";
 
 import styles from "./index.module.less";
 import classnames from "classnames";
@@ -96,6 +99,13 @@ import type { IResource } from "@tau/editor/src/types/services";
 
 const customExtensions = [fileAttachmentExtension];
 type EditorViewMode = "standard" | "wide";
+type ActiveFileType =
+  | "markdown"
+  | "code"
+  | "image"
+  | "video"
+  | "audio"
+  | "none";
 
 const getFileTitleFromPath = (filePath: string) => {
   const normalizedPath = (filePath || "").replace(/\\/g, "/");
@@ -230,6 +240,9 @@ const SingleMarkdownEditor = () => {
   const [isReadonly, setIsReadonly] = useState(false);
   const [wordCount, setWordCount] = useState(0);
   const [fileTreeOpen, setFileTreeOpen] = useState(true);
+  const [activeFileType, setActiveFileType] = useState<ActiveFileType>(
+    initialFilePath ? "markdown" : "none",
+  );
   const [focusRequestId, setFocusRequestId] = useState(0);
   const [epubExportModalOpen, setEpubExportModalOpen] = useState(false);
   const [pdfExportModalOpen, setPdfExportModalOpen] = useState(false);
@@ -1117,9 +1130,27 @@ const SingleMarkdownEditor = () => {
   });
 
   const onFileClick = useMemoizedFn(async (newFilePath: string) => {
-    if (newFilePath === currentFilePathRef.current) return;
+    const category = getFileCategory(newFilePath);
 
-    await switchMarkdownFile(newFilePath);
+    if (category === "external") {
+      await openFileWithDefaultApp(newFilePath);
+      return;
+    }
+
+    if (category === "markdown") {
+      if (
+        newFilePath === currentFilePathRef.current &&
+        activeFileType === "markdown"
+      )
+        return;
+      setActiveFileType("markdown");
+      await switchMarkdownFile(newFilePath);
+      return;
+    }
+
+    setActiveFileType(category as ActiveFileType);
+    setCurrentFilePath(newFilePath);
+    currentFilePathRef.current = newFilePath;
   });
 
   const uploadLocalImageToCurrentDocumentDir = useMemoizedFn(
@@ -1383,7 +1414,7 @@ const SingleMarkdownEditor = () => {
           </ResizableAndHideableSidebar>
 
           <div className={styles.editorContainer} ref={editorContainerRef}>
-            {currentFilePath ? (
+            {activeFileType === "markdown" && currentFilePath ? (
               <>
                 <div
                   className={classnames(styles.sourceEditor, {
@@ -1432,13 +1463,30 @@ const SingleMarkdownEditor = () => {
                   </div>
                 </If>
               </>
+            ) : activeFileType === "code" && currentFilePath ? (
+              <div className={styles.sourceEditor}>
+                <CodeFileEditor
+                  key={currentFilePath}
+                  filePath={currentFilePath}
+                  isDark={isDark}
+                />
+              </div>
+            ) : (activeFileType === "image" ||
+                activeFileType === "video" ||
+                activeFileType === "audio") &&
+              currentFilePath ? (
+              <MediaPreview
+                key={currentFilePath}
+                filePath={currentFilePath}
+                type={activeFileType}
+              />
             ) : (
               <div className={styles.emptyEditor}>
                 <div className={styles.emptyContent}>
                   <FileMarkdownOutlined
                     style={{ fontSize: 64, color: "#999" }}
                   />
-                  <p>请从左侧文件树选择一个 Markdown 文件</p>
+                  <p>请从左侧文件树选择一个文件</p>
                 </div>
               </div>
             )}
@@ -1458,41 +1506,47 @@ const SingleMarkdownEditor = () => {
             />
           </Tooltip>
 
-          <Tooltip title={isReadonly ? "切换到编辑模式" : "切换到只读模式"}>
-            <Button
-              type="text"
-              icon={isReadonly ? <EditOutlined /> : <EyeOutlined />}
-              onClick={() => setIsReadonly(!isReadonly)}
-            />
-          </Tooltip>
+          {activeFileType === "markdown" && (
+            <>
+              <Tooltip title={isReadonly ? "切换到编辑模式" : "切换到只读模式"}>
+                <Button
+                  type="text"
+                  icon={isReadonly ? <EditOutlined /> : <EyeOutlined />}
+                  onClick={() => setIsReadonly(!isReadonly)}
+                />
+              </Tooltip>
+
+              <Tooltip
+                title={isSourceMode ? "切换到编辑模式" : "切换到源码模式"}
+              >
+                <Button
+                  type="text"
+                  icon={isSourceMode ? <FormOutlined /> : <CodeOutlined />}
+                  onClick={toggleMode}
+                />
+              </Tooltip>
+
+              <Tooltip
+                title={
+                  resolvedEditorViewMode === "wide"
+                    ? "当前为宽屏视图，点击切换到标准视图"
+                    : "当前为标准视图，点击切换到宽屏视图"
+                }
+              >
+                <Button
+                  type="text"
+                  icon={<ColumnWidthOutlined />}
+                  onClick={toggleEditorViewMode}
+                />
+              </Tooltip>
+            </>
+          )}
 
           <Tooltip title={isDark ? "切换到浅色模式" : "切换到深色模式"}>
             <Button
               type="text"
               icon={<BgColorsOutlined />}
               onClick={toggleTheme}
-            />
-          </Tooltip>
-
-          <Tooltip title={isSourceMode ? "切换到编辑模式" : "切换到源码模式"}>
-            <Button
-              type="text"
-              icon={isSourceMode ? <FormOutlined /> : <CodeOutlined />}
-              onClick={toggleMode}
-            />
-          </Tooltip>
-
-          <Tooltip
-            title={
-              resolvedEditorViewMode === "wide"
-                ? "当前为宽屏视图，点击切换到标准视图"
-                : "当前为标准视图，点击切换到宽屏视图"
-            }
-          >
-            <Button
-              type="text"
-              icon={<ColumnWidthOutlined />}
-              onClick={toggleEditorViewMode}
             />
           </Tooltip>
 
@@ -1506,48 +1560,52 @@ const SingleMarkdownEditor = () => {
         </div>
 
         <div className={styles.statusBarRight}>
-          <div className={styles.statusBarActions}>
-            <Dropdown
-              disabled={!currentFilePath}
-              trigger={["click"]}
-              menu={{
-                items: [
-                  { key: "copy-markdown", label: "Markdown" },
-                  { key: "copy-wechat", label: "微信公众号" },
-                ],
-                onClick: handleCopyMenuClick,
-              }}
-            >
-              <Tooltip title="复制">
-                <Button
-                  type="text"
-                  icon={<CopyOutlined />}
+          {activeFileType === "markdown" && (
+            <>
+              <div className={styles.statusBarActions}>
+                <Dropdown
                   disabled={!currentFilePath}
-                />
-              </Tooltip>
-            </Dropdown>
-            <Dropdown
-              disabled={!currentFilePath}
-              trigger={["click"]}
-              menu={{
-                items: [
-                  { key: "export-markdown", label: "Markdown" },
-                  { key: "export-pdf", label: "PDF" },
-                  { key: "export-epub", label: "EPUB" },
-                ],
-                onClick: handleExportMenuClick,
-              }}
-            >
-              <Tooltip title="导出">
-                <Button
-                  type="text"
-                  icon={<ExportOutlined />}
+                  trigger={["click"]}
+                  menu={{
+                    items: [
+                      { key: "copy-markdown", label: "Markdown" },
+                      { key: "copy-wechat", label: "微信公众号" },
+                    ],
+                    onClick: handleCopyMenuClick,
+                  }}
+                >
+                  <Tooltip title="复制">
+                    <Button
+                      type="text"
+                      icon={<CopyOutlined />}
+                      disabled={!currentFilePath}
+                    />
+                  </Tooltip>
+                </Dropdown>
+                <Dropdown
                   disabled={!currentFilePath}
-                />
-              </Tooltip>
-            </Dropdown>
-          </div>
-          <span className={styles.wordCount}>{wordCount} 字</span>
+                  trigger={["click"]}
+                  menu={{
+                    items: [
+                      { key: "export-markdown", label: "Markdown" },
+                      { key: "export-pdf", label: "PDF" },
+                      { key: "export-epub", label: "EPUB" },
+                    ],
+                    onClick: handleExportMenuClick,
+                  }}
+                >
+                  <Tooltip title="导出">
+                    <Button
+                      type="text"
+                      icon={<ExportOutlined />}
+                      disabled={!currentFilePath}
+                    />
+                  </Tooltip>
+                </Dropdown>
+              </div>
+              <span className={styles.wordCount}>{wordCount} 字</span>
+            </>
+          )}
         </div>
       </div>
 

@@ -5,10 +5,16 @@ import {
   FolderOutlined,
   FolderOpenOutlined,
   FileMarkdownOutlined,
+  FileImageOutlined,
+  FileTextOutlined,
+  SoundOutlined,
+  VideoCameraOutlined,
+  FilePdfOutlined,
   RightOutlined,
   DownOutlined,
 } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
+import { getFileCategory, type FileCategory } from "../fileTypes";
 
 import styles from "./index.module.less";
 
@@ -62,6 +68,24 @@ const TreeNode = memo(
     const isActive = !node.isDirectory && node.path === currentFilePath;
     const hasChildren = node.children && node.children.length > 0;
 
+    const getFileIcon = (category: FileCategory) => {
+      switch (category) {
+        case "markdown":
+          return <FileMarkdownOutlined />;
+        case "image":
+          return <FileImageOutlined />;
+        case "video":
+          return <VideoCameraOutlined />;
+        case "audio":
+          return <SoundOutlined />;
+        case "external":
+          return <FilePdfOutlined />;
+        case "code":
+        default:
+          return <FileTextOutlined />;
+      }
+    };
+
     return (
       <div className={styles.treeNodeContainer}>
         <div
@@ -88,7 +112,7 @@ const TreeNode = memo(
                 <FolderOutlined />
               )
             ) : (
-              <FileMarkdownOutlined />
+              getFileIcon(getFileCategory(node.name))
             )}
           </span>
           <span className={styles.name}>{node.name}</span>

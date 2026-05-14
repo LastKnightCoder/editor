@@ -4,6 +4,7 @@ import { readDirectory } from "@/commands/file";
 import { useMemoizedFn } from "ahooks";
 import TreeNode from "./TreeNode";
 import { LoadingOutlined } from "@ant-design/icons";
+import { isSupportedFile } from "../fileTypes";
 
 import styles from "./index.module.less";
 
@@ -12,14 +13,6 @@ interface FileTreeProps {
   onFileClick: (filePath: string) => void;
   rootPath: string;
 }
-
-const MARKDOWN_EXTENSIONS = [".md", ".markdown"];
-
-const isMarkdownFile = (fileName: string): boolean => {
-  return MARKDOWN_EXTENSIONS.some((ext) =>
-    fileName.toLowerCase().endsWith(ext),
-  );
-};
 
 const FileTree = memo(
   ({ currentFilePath, onFileClick, rootPath }: FileTreeProps) => {
@@ -33,9 +26,8 @@ const FileTree = memo(
         try {
           const entries = await readDirectory(dirPath);
 
-          // 过滤并排序：只保留 Markdown 文件和文件夹
           const nodes: FileTreeNode[] = entries
-            .filter((entry) => entry.isDirectory || isMarkdownFile(entry.name))
+            .filter((entry) => entry.isDirectory || isSupportedFile(entry.name))
             .map((entry) => ({
               ...entry,
               loaded: false, // 文件夹初始状态未加载
@@ -201,7 +193,7 @@ const FileTree = memo(
     }
 
     if (treeData.length === 0) {
-      return <div className={styles.empty}>当前目录无 Markdown 文件</div>;
+      return <div className={styles.empty}>当前目录无可打开的文件</div>;
     }
 
     return <div className={styles.fileTree}>{renderTree(treeData)}</div>;
