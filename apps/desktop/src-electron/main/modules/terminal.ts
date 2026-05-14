@@ -79,7 +79,11 @@ class TerminalModule implements Module {
       cols: opts.cols || 80,
       rows: opts.rows || 24,
       cwd: opts.cwd,
-      env: process.env as Record<string, string>,
+      env: {
+        ...process.env,
+        LANG: process.env.LANG || "zh_CN.UTF-8",
+        LC_ALL: process.env.LC_ALL || "zh_CN.UTF-8",
+      } as Record<string, string>,
     });
 
     const registration: PtyRegistration = {
