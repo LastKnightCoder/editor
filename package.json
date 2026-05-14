@@ -1,7 +1,7 @@
 {
   "name": "tau",
   "private": true,
-  "version": "0.44.0",
+  "version": "0.46.0",
   "scripts": {
     "start:win": "chcp 65001 && pnpm --filter desktop dev",
     "dev": "pnpm --filter desktop dev",
@@ -48,10 +48,7 @@
       "slate-dom": "0.123.0",
       "slate-react": "0.123.0",
       "slate-history": "0.113.1"
-    },
-    "onlyBuiltDependencies": [
-      "node-pty"
-    ]
+    }
   },
   "commitlint": {
     "extends": [

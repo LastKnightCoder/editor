@@ -1,0 +1,112 @@
+.CodeMirrorContainer {
+  width: 100%;
+
+  :global(.CodeMirror) {
+    height: auto;
+    line-height: 1.8;
+    font-size: 0.9em;
+    font-family: var(--mono-font, "'Maple Mono', '楷体'");
+    background-color: transparent;
+  }
+
+  :global(.CodeMirror pre.CodeMirror-line),
+  :global(.CodeMirror pre.CodeMirror-line-like) {
+    padding: 0 1.2em;
+  }
+
+  :global(.CodeMirror-scroll, .CodeMirror-hscrollbar) {
+    overflow: hidden;
+  }
+
+  :global(.CodeMirror-gutters) {
+    background-color: transparent;
+    border-right: none;
+  }
+
+  :global(.CodeMirror-linenumber) {
+    cursor: pointer;
+  }
+
+  :global(.CodeMirror.cm-s-one-light) {
+    background: transparent;
+    color: #383a42;
+
+    :global(.cm-string),
+    :global(.cm-string-2) {
+      color: #50a14f;
+    }
+
+    :global(.cm-comment) {
+      color: #a0a1a7;
+    }
+
+    :global(.cm-keyword) {
+      color: #a626a4;
+    }
+
+    :global(.cm-variable) {
+      color: #e06c75;
+    }
+
+    :global(.cm-variable-2) {
+      color: #e45649;
+    }
+
+    :global(.cm-variable-3) {
+      color: #e06c75;
+    }
+
+    :global(.cm-number) {
+      color: #986801;
+    }
+
+    :global(.cm-property) {
+      color: #4078f2;
+    }
+
+    :global(.cm-def) {
+      color: #4078f2;
+    }
+
+    :global(.cm-meta) {
+      color: #383a42;
+    }
+
+    :global(.cm-operator) {
+      color: #0184bc;
+    }
+
+    :global(.cm-attribute) {
+      color: #d19a66;
+    }
+
+    :global(.cm-tag) {
+      color: #e45649;
+    }
+
+    :global(.cm-atom) {
+      color: #986801;
+    }
+
+    :global(.cm-type) {
+      color: #c18401;
+    }
+
+    :global(.cm-builtin) {
+      color: #c18401;
+    }
+  }
+}
+
+.codeMirror {
+  height: auto;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #999;
+  font-size: 14px;
+}
