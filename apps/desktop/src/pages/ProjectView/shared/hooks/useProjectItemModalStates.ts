@@ -13,6 +13,10 @@ export const useProjectItemModalStates = () => {
     [ModalKey.RemoteEpub]: false,
     [ModalKey.SelectPdf]: false,
     [ModalKey.SelectEpub]: false,
+    [ModalKey.RemoteAudio]: false,
+    [ModalKey.XiaoyuzhouPodcast]: false,
+    [ModalKey.BilibiliAudio]: false,
+    [ModalKey.YoutubeAudio]: false,
   });
 
   const openModal = useCallback((key: ModalKey) => {

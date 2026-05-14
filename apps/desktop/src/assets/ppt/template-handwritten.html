@@ -10,34 +10,25 @@
     <style>
         :root {
             --paper: #fdf8f0;
-            --paper-lines: rgba(180, 210, 230, 0.25);
-            --paper-margin: rgba(230, 130, 130, 0.2);
             --ink: #3d2c2c;
             --ink-mid: rgba(61, 44, 44, 0.65);
             --ink-dim: rgba(61, 44, 44, 0.35);
             --ink-ghost: rgba(61, 44, 44, 0.08);
-
             --pink: #f4a0b0;
-            --pink-soft: rgba(244, 160, 176, 0.2);
-            --pink-wash: rgba(244, 160, 176, 0.5);
-            --mint: #a0dcc8;
-            --mint-soft: rgba(160, 220, 200, 0.2);
-            --mint-wash: rgba(160, 220, 200, 0.5);
-            --sky: #a8c8e8;
-            --sky-soft: rgba(168, 200, 232, 0.2);
-            --sky-wash: rgba(168, 200, 232, 0.5);
-            --butter: #fdf5d6;
-            --butter-soft: rgba(248, 236, 180, 0.2);
-            --butter-wash: rgba(248, 236, 180, 0.45);
-            --lavender: #c8b0e0;
-            --lavender-soft: rgba(200, 176, 224, 0.2);
+            --pink-light: #fde8ec;
+            --mint: #7ecbb0;
+            --mint-light: #e4f6ef;
+            --sky: #7cb5d4;
+            --sky-light: #e4f0f8;
+            --butter: #e8c84a;
+            --butter-light: #fdf5d6;
+            --lavender: #b088d4;
+            --lavender-light: #f0e8f8;
             --peach: #f8c8a0;
-            --peach-soft: rgba(248, 200, 160, 0.25);
-
+            --peach-light: #fff3e0;
             --font-display: "ZCOOL KuaiLe", "Architects Daughter", cursive;
             --font-hand: "Ma Shan Zheng", "Patrick Hand", cursive;
             --font-body: "Patrick Hand", "Ma Shan Zheng", cursive, sans-serif;
-
             --fs-hero: clamp(2.8rem, 7vw, 6.5rem);
             --fs-chapter-num: clamp(5rem, 16vw, 16rem);
             --fs-chapter: clamp(1.8rem, 4.5vw, 4rem);
@@ -46,35 +37,22 @@
             --fs-body: clamp(1.05rem, 1.4vw, 1.4rem);
             --fs-small: clamp(0.9rem, 1.1vw, 1.1rem);
             --fs-label: clamp(0.78rem, 0.9vw, 0.92rem);
-            --fs-stat: clamp(2.2rem, 5.5vw, 5rem);
             --fs-quote: clamp(1.4rem, 3vw, 3rem);
-
             --space-xs: clamp(0.3rem, 0.5vw, 0.5rem);
             --space-sm: clamp(0.6rem, 1.2vw, 1.2rem);
             --space-md: clamp(1.2rem, 2.5vw, 2.5rem);
             --space-lg: clamp(1.8rem, 3.5vw, 4rem);
-            --space-xl: clamp(2.5rem, 5vw, 5.5rem);
-
             --pad-x: clamp(3rem, 9vw, 11vw);
             --pad-y: clamp(2.5rem, 6vh, 6.5rem);
-
             --ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
             --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
             --dur: 550ms;
             --dur-fast: 380ms;
-
-            --line-height: clamp(24px, 3.2vh, 32px);
-            --radius-soft: 12px;
-            --radius-round: 20px;
+            --line-height: 30px;
         }
 
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
-        html, body {
-            height: 100%;
-            overflow: hidden;
-            -webkit-text-size-adjust: 100%;
-        }
+        html, body { height: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; }
 
         body {
             background: var(--paper);
@@ -85,1481 +63,870 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* notebook paper lines texture */
         body::before {
             content: '';
             position: fixed;
             inset: 0;
-            z-index: 0;
             pointer-events: none;
-            background:
-                repeating-linear-gradient(
-                    to bottom,
-                    transparent,
-                    transparent calc(var(--line-height) - 1px),
-                    var(--paper-lines) calc(var(--line-height) - 1px),
-                    var(--paper-lines) var(--line-height)
-                );
-            background-position: 0 clamp(60px, 10vh, 100px);
-            opacity: 0.5;
+            z-index: 0;
+            background-image: repeating-linear-gradient(0deg, transparent, transparent 29px, rgba(120,160,200,0.09) 29px, rgba(120,160,200,0.09) 30px);
+            background-size: 100% var(--line-height);
         }
 
-        /* margin doodles */
-        .doodle {
+        body::after {
+            content: '';
             position: fixed;
+            top: 0; left: 60px;
+            width: 2px; height: 100%;
+            background: rgba(220,80,80,0.12);
             pointer-events: none;
             z-index: 0;
-            opacity: 0.06;
-            font-size: clamp(3rem, 6vw, 5rem);
         }
-        .doodle-tl { top: clamp(20px, 4vh, 50px); left: clamp(16px, 3vw, 40px); transform: rotate(-12deg); }
-        .doodle-tr { top: clamp(30px, 5vh, 70px); right: clamp(20px, 4vw, 50px); transform: rotate(8deg); }
-        .doodle-bl { bottom: clamp(30px, 5vh, 70px); left: clamp(20px, 3vw, 40px); transform: rotate(15deg); }
-        .doodle-br { bottom: clamp(20px, 4vh, 50px); right: clamp(16px, 3vw, 40px); transform: rotate(-8deg); }
-
-        /* ═══════════════════════════════
-           SLIDE CORE
-           ═══════════════════════════════ */
 
         .slide {
             position: absolute;
             inset: 0;
-            width: 100vw;
-            height: 100vh;
-            height: 100dvh;
+            width: 100vw; height: 100vh; height: 100dvh;
             overflow: hidden;
             display: flex;
             flex-direction: column;
             justify-content: center;
             padding: var(--pad-y) var(--pad-x);
-            opacity: 0;
-            visibility: hidden;
+            opacity: 0; visibility: hidden;
             transition: opacity var(--dur) var(--ease), visibility var(--dur);
             z-index: 1;
         }
-
-        .slide.active {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        /* ═══════════════════════════════
-           REVEAL SYSTEM
-           ═══════════════════════════════ */
-
-        .reveal {
-            opacity: 0;
-            transform: translateY(clamp(10px, 1.5vh, 18px));
-            transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease-out);
-        }
-
-        .reveal-scale {
-            opacity: 0;
-            transform: scale(0.92);
-            transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease-out);
-        }
-
-        .reveal-left {
-            opacity: 0;
-            transform: translateX(clamp(-20px, -2.5vw, -10px));
-            transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease-out);
-        }
-
-        .reveal-right {
-            opacity: 0;
-            transform: translateX(clamp(10px, 2.5vw, 20px));
-            transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease-out);
-        }
-
-        .slide.active .reveal,
-        .slide.active .reveal-scale,
-        .slide.active .reveal-left,
-        .slide.active .reveal-right {
-            opacity: 1;
-            transform: none;
-        }
-
-        .delay-1 { transition-delay: 120ms; }
-        .delay-2 { transition-delay: 240ms; }
-        .delay-3 { transition-delay: 360ms; }
-        .delay-4 { transition-delay: 480ms; }
-        .delay-5 { transition-delay: 600ms; }
-        .delay-6 { transition-delay: 720ms; }
-        .delay-7 { transition-delay: 840ms; }
-
-        /* ═══════════════════════════════
-           PROGRESS & COUNTER
-           ═══════════════════════════════ */
-
-        .progress-wrap {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            height: clamp(4px, 0.5vh, 6px);
-            background: var(--ink-ghost);
-            z-index: 9999;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--pink), var(--mint), var(--sky));
-            width: 0%;
-            transition: width 0.5s var(--ease);
-            border-radius: 0 3px 3px 0;
-        }
-
-        .page-num {
-            position: fixed;
-            bottom: clamp(12px, 2.5vh, 28px);
-            right: clamp(16px, 3vw, 40px);
-            font-family: var(--font-display);
-            font-size: var(--fs-label);
-            color: var(--ink-dim);
-            z-index: 9999;
-        }
-
-        /* ═══════════════════════════════
-           WASHI TAPE
-           ═══════════════════════════════ */
-
-        .washi {
-            display: inline-block;
-            padding: clamp(3px, 0.4vh, 5px) clamp(12px, 2vw, 24px);
-            transform: rotate(-2deg);
-            font-family: var(--font-display);
-            font-size: var(--fs-label);
-            color: var(--ink);
-            letter-spacing: 0.05em;
-            position: relative;
-        }
-
-        .washi::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: 2px;
-            opacity: 0.6;
-        }
-
-        .washi-pink::before { background: var(--pink-wash); }
-        .washi-mint::before { background: var(--mint-wash); }
-        .washi-sky::before { background: var(--sky-wash); }
-        .washi-butter::before { background: var(--butter-wash); }
-        .washi-lavender::before { background: var(--lavender); opacity: 0.35; }
-
-        .washi span { position: relative; z-index: 1; }
-
-        /* ═══════════════════════════════
-           SCOTCH TAPE
-           ═══════════════════════════════ */
-
-        .tape {
-            position: absolute;
-            width: clamp(50px, 7vw, 80px);
-            height: clamp(18px, 2.5vh, 26px);
-            background: rgba(255, 255, 240, 0.55);
-            border: 1px solid rgba(200, 200, 180, 0.3);
-            z-index: 5;
-        }
-
-        .tape-tl { top: clamp(-10px, -1.5vh, -6px); left: clamp(10px, 2vw, 30px); transform: rotate(-5deg); }
-        .tape-tr { top: clamp(-10px, -1.5vh, -6px); right: clamp(10px, 2vw, 30px); transform: rotate(4deg); }
-        .tape-center { top: clamp(-12px, -1.8vh, -8px); left: 50%; transform: translateX(-50%) rotate(-2deg); }
-
-        /* ═══════════════════════════════
-           TITLE & LABELS
-           ═══════════════════════════════ */
-
-        .slide-label {
-            font-family: var(--font-display);
-            font-size: var(--fs-small);
-            color: var(--pink);
-            display: inline-flex;
-            align-items: center;
-            gap: var(--space-xs);
-            margin-bottom: var(--space-xs);
-        }
-
-        .title-main {
-            font-family: var(--font-display);
-            font-size: var(--fs-title);
-            color: var(--ink);
-            line-height: 1.3;
-            margin-bottom: var(--space-md);
-        }
-
-        .underline-doodle {
-            position: relative;
-            display: inline-block;
-        }
-
-        .underline-doodle::after {
-            content: '';
-            position: absolute;
-            left: -2px; right: -2px;
-            bottom: clamp(-4px, -0.6vh, -2px);
-            height: clamp(6px, 1vh, 10px);
-            background: var(--pink-soft);
-            border-radius: 50%;
-            z-index: -1;
-        }
-
-        .body-text {
-            font-family: var(--font-hand);
-            font-size: var(--fs-body);
-            color: var(--ink-mid);
-            line-height: 1.9;
-        }
-
-        .highlight-pink {
-            background: linear-gradient(180deg, transparent 60%, var(--pink-soft) 60%);
-            padding: 0 2px;
-        }
-
-        .highlight-mint {
-            background: linear-gradient(180deg, transparent 60%, var(--mint-soft) 60%);
-            padding: 0 2px;
-        }
-
-        .highlight-sky {
-            background: linear-gradient(180deg, transparent 60%, var(--sky-soft) 60%);
-            padding: 0 2px;
-        }
-
-        /* ═══════════════════════════════
-           COVER
-           ═══════════════════════════════ */
-
-        .slide-cover {
-            align-items: center;
-            text-align: center;
-            background:
-                radial-gradient(ellipse 60% 40% at 30% 20%, var(--pink-soft) 0%, transparent 70%),
-                radial-gradient(ellipse 50% 35% at 70% 75%, var(--mint-soft) 0%, transparent 70%);
-        }
-
-        .cover-stickers {
-            display: flex;
-            gap: clamp(8px, 1.5vw, 16px);
-            margin-bottom: var(--space-sm);
-        }
-
-        .sticker {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: clamp(4px, 0.6vh, 6px) clamp(10px, 1.5vw, 16px);
-            border-radius: var(--radius-round);
-            font-family: var(--font-display);
-            font-size: var(--fs-label);
-        }
-
-        .sticker-pink { background: var(--pink-soft); color: #c06070; }
-        .sticker-mint { background: var(--mint-soft); color: #508070; }
-        .sticker-sky { background: var(--sky-soft); color: #5070a0; }
-
-        .cover-title {
-            font-family: var(--font-display);
-            font-size: var(--fs-hero);
-            color: var(--ink);
-            line-height: 1.2;
-            margin-bottom: var(--space-sm);
-            transform: rotate(-1deg);
-        }
-
-        .cover-sub {
-            font-family: var(--font-hand);
-            font-size: var(--fs-subtitle);
-            color: var(--ink-mid);
-            transform: rotate(0.5deg);
-        }
-
-        .cover-deco {
-            margin-top: var(--space-md);
-            font-size: clamp(1.2rem, 2vw, 1.8rem);
-            color: var(--ink-dim);
-            letter-spacing: 0.4em;
-        }
-
-        /* ═══════════════════════════════
-           CHAPTER TRANSITION
-           ═══════════════════════════════ */
-
-        .slide-chapter {
-            align-items: center;
-            text-align: center;
-        }
-
-        .chapter-num {
-            font-family: var(--font-display);
-            font-size: var(--fs-chapter-num);
-            color: var(--pink-soft);
-            line-height: 0.9;
-            pointer-events: none;
-        }
-
-        .chapter-title {
-            font-family: var(--font-display);
-            font-size: var(--fs-chapter);
-            color: var(--ink);
-            margin-top: calc(-0.5 * var(--space-lg));
-            position: relative;
-            z-index: 1;
-        }
-
-        .chapter-deco {
-            margin-top: var(--space-sm);
-            font-size: clamp(1.5rem, 3vh, 2.5rem);
-        }
-
-        /* ═══════════════════════════════
-           NOTEBOOK LIST (AGENDA)
-           ═══════════════════════════════ */
-
-        .notebook-list {
-            list-style: none;
-            width: 100%;
-            margin-top: var(--space-sm);
-        }
-
-        .notebook-list li {
-            display: flex;
-            align-items: center;
-            gap: clamp(10px, 1.5vw, 20px);
-            padding: clamp(10px, 1.5vh, 16px) 0;
-            border-bottom: 1.5px dashed var(--ink-ghost);
-            font-family: var(--font-display);
-            font-size: clamp(1.2rem, 2.2vh, 1.7rem);
-            color: var(--ink);
-        }
-
-        .notebook-list .item-num {
-            width: clamp(28px, 3.5vw, 36px);
-            height: clamp(28px, 3.5vw, 36px);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: var(--fs-small);
-            font-weight: 700;
-            flex-shrink: 0;
-        }
-
-        .notebook-list li:nth-child(1) .item-num { background: var(--pink-soft); color: #c06070; }
-        .notebook-list li:nth-child(2) .item-num { background: var(--mint-soft); color: #508070; }
-        .notebook-list li:nth-child(3) .item-num { background: var(--sky-soft); color: #5070a0; }
-        .notebook-list li:nth-child(4) .item-num { background: var(--butter-soft); color: #907030; }
-        .notebook-list li:nth-child(5) .item-num { background: var(--lavender-soft); color: #705090; }
-        .notebook-list li:nth-child(6) .item-num { background: var(--peach-soft); color: #a06030; }
-
-        /* ═══════════════════════════════
-           STICKY NOTE
-           ═══════════════════════════════ */
-
-        .sticky {
-            padding: clamp(20px, 3.5vh, 40px) clamp(20px, 3vw, 36px);
-            position: relative;
-            box-shadow: 3px 3px 0 var(--ink-ghost);
-        }
-
-        .sticky-yellow { background: #fefaed; }
-        .sticky-pink { background: #fef2f4; }
-        .sticky-mint { background: #f0faf7; }
-        .sticky-sky { background: #f0f7fd; }
-
-        .sticky h3 {
-            font-family: var(--font-display);
-            font-size: clamp(1.3rem, 2.8vh, 2rem);
-            color: var(--ink);
-            margin-bottom: var(--space-sm);
-        }
-
-        .sticky p {
-            font-family: var(--font-hand);
-            font-size: clamp(1.1rem, 2vh, 1.5rem);
-            color: var(--ink-mid);
-            line-height: 1.8;
-        }
-
-        /* ═══════════════════════════════
-           INDEX CARDS (GRID)
-           ═══════════════════════════════ */
-
-        .card-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: clamp(12px, 2vw, 24px);
-            margin-top: var(--space-md);
-            width: 100%;
-        }
-
-        .index-card {
-            background: var(--paper);
-            border: 2px dashed var(--ink-ghost);
-            border-radius: var(--radius-soft);
-            padding: clamp(14px, 2.2vh, 28px) clamp(12px, 1.8vw, 22px);
-            position: relative;
-            transition: transform var(--dur-fast) var(--ease-out);
-        }
-
-        .index-card:nth-child(odd) { transform: rotate(-0.8deg); }
-        .index-card:nth-child(even) { transform: rotate(0.8deg); }
-        .index-card:hover { transform: rotate(0deg) scale(1.02); }
-
-        .index-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: clamp(4px, 0.6vh, 6px);
-            border-radius: var(--radius-soft) var(--radius-soft) 0 0;
-        }
-
-        .index-card:nth-child(1)::before { background: var(--pink); }
-        .index-card:nth-child(2)::before { background: var(--mint); }
-        .index-card:nth-child(3)::before { background: var(--sky); }
-        .index-card:nth-child(4)::before { background: var(--butter); }
-        .index-card:nth-child(5)::before { background: var(--lavender); }
-        .index-card:nth-child(6)::before { background: var(--peach); }
-
-        .index-card .card-icon {
-            font-size: clamp(1.6rem, 3vh, 2.5rem);
-            margin-bottom: var(--space-xs);
-        }
-
-        .index-card h4 {
-            font-family: var(--font-display);
-            font-size: clamp(1.1rem, 2vh, 1.5rem);
-            color: var(--ink);
-            margin-bottom: var(--space-xs);
-        }
-
-        .index-card p {
-            font-family: var(--font-hand);
-            font-size: clamp(0.9rem, 1.2vw, 1.1rem);
-            color: var(--ink-mid);
-            line-height: 1.6;
-        }
-
-        /* ═══════════════════════════════
-           CHECKBOX LIST
-           ═══════════════════════════════ */
-
-        .check-list {
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: clamp(8px, 1.2vh, 14px);
-        }
-
-        .check-list li {
-            display: flex;
-            align-items: flex-start;
-            gap: clamp(8px, 1.2vw, 14px);
-            font-family: var(--font-display);
-            font-size: clamp(1.1rem, 2vh, 1.5rem);
-            color: var(--ink);
-        }
-
-        .check-list .cb {
-            width: clamp(18px, 2.5vh, 22px);
-            height: clamp(18px, 2.5vh, 22px);
-            border: 2px solid var(--pink);
-            border-radius: 4px;
-            flex-shrink: 0;
-            margin-top: 2px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: clamp(10px, 1.5vh, 14px);
-            color: var(--pink);
-        }
-
-        .check-list .cb.checked { background: var(--pink-soft); }
-
-        .check-list .tip {
-            display: block;
-            font-family: var(--font-hand);
-            font-size: var(--fs-small);
-            color: var(--ink-dim);
-            margin-top: 2px;
-        }
-
-        .two-col {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: clamp(20px, 3.5vw, 44px);
-            align-items: start;
-            width: 100%;
-        }
-
-        /* ═══════════════════════════════
-           COMPARE
-           ═══════════════════════════════ */
-
-        .compare-wrap {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: clamp(16px, 3vw, 36px);
-            margin-top: var(--space-md);
-            width: 100%;
-        }
-
-        .compare-side {
-            padding: clamp(16px, 2.5vh, 28px) clamp(14px, 2vw, 24px);
-            border-radius: var(--radius-soft);
-            position: relative;
-        }
-
-        .compare-side.good {
-            background: var(--mint-soft);
-            border: 2px dashed var(--mint);
-            transform: rotate(-0.5deg);
-        }
-
-        .compare-side.bad {
-            background: var(--pink-soft);
-            border: 2px dashed var(--pink);
-            transform: rotate(0.5deg);
-        }
-
-        .compare-tag {
-            position: absolute;
-            top: clamp(-12px, -1.8vh, -8px);
-            left: clamp(12px, 2vw, 20px);
-            padding: clamp(2px, 0.3vh, 4px) clamp(10px, 1.5vw, 16px);
-            border-radius: var(--radius-round);
-            font-family: var(--font-display);
-            font-size: var(--fs-label);
-            color: white;
-        }
-
-        .good .compare-tag { background: #60b090; }
-        .bad .compare-tag { background: #d07080; }
-
-        .compare-side h4 {
-            font-family: var(--font-display);
-            font-size: clamp(1rem, 1.8vh, 1.4rem);
-            color: var(--ink);
-            margin-top: var(--space-sm);
-            margin-bottom: var(--space-sm);
-        }
-
-        .compare-side ul {
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-xs);
-        }
-
-        .compare-side ul li {
-            font-family: var(--font-hand);
-            font-size: clamp(0.9rem, 1.2vw, 1.1rem);
-            color: var(--ink-mid);
-            padding-left: clamp(14px, 2vw, 20px);
-            position: relative;
-        }
-
-        .good ul li::before { content: '~ '; color: var(--mint); font-weight: 700; position: absolute; left: 0; }
-        .bad ul li::before { content: 'x '; color: var(--pink); font-weight: 700; position: absolute; left: 0; }
-
-        /* ═══════════════════════════════
-           PROCESS STEPS
-           ═══════════════════════════════ */
-
-        .steps-flow {
-            display: flex;
-            align-items: center;
-            gap: clamp(4px, 0.8vw, 10px);
-            flex-wrap: wrap;
-            justify-content: center;
-            margin-top: var(--space-md);
-        }
-
-        .step-bubble {
-            background: var(--paper);
-            border: 2px dashed var(--ink-ghost);
-            border-radius: var(--radius-round);
-            padding: clamp(16px, 3vh, 32px) clamp(16px, 2.5vw, 28px);
-            text-align: center;
-            min-width: clamp(100px, 14vw, 150px);
-            transition: transform var(--dur-fast) var(--ease-out);
-        }
-
-        .step-bubble:hover { transform: scale(1.04); }
-
-        .step-bubble:nth-child(1) { border-color: var(--pink); }
-        .step-bubble:nth-child(3) { border-color: var(--mint); }
-        .step-bubble:nth-child(5) { border-color: var(--sky); }
-        .step-bubble:nth-child(7) { border-color: var(--peach); }
-        .step-bubble:nth-child(9) { border-color: var(--lavender); }
-
-        .step-bubble .step-icon { font-size: clamp(1.8rem, 3.5vh, 2.8rem); }
-        .step-bubble .step-name {
-            font-family: var(--font-display);
-            font-size: clamp(1rem, 1.8vh, 1.4rem);
-            color: var(--ink);
-            margin-top: var(--space-xs);
-        }
-        .step-bubble .step-desc {
-            font-family: var(--font-hand);
-            font-size: clamp(0.85rem, 1.1vw, 1rem);
-            color: var(--ink-dim);
-            margin-top: 2px;
-        }
-
-        .step-arrow {
-            font-family: var(--font-display);
-            font-size: clamp(1.4rem, 2.5vh, 2rem);
-            color: var(--ink-dim);
-            transform: rotate(-5deg);
-        }
-
-        /* ═══════════════════════════════
-           CHART BARS
-           ═══════════════════════════════ */
-
-        .chart-list {
-            display: flex;
-            flex-direction: column;
-            gap: clamp(12px, 2vh, 20px);
-            margin-top: var(--space-md);
-            width: 100%;
-        }
-
-        .chart-row {
-            display: grid;
-            grid-template-columns: clamp(6rem, 11vw, 9rem) 1fr clamp(2.5rem, 4vw, 3.5rem);
-            gap: var(--space-sm);
-            align-items: center;
-        }
-
-        .chart-label {
-            font-family: var(--font-display);
-            font-size: var(--fs-small);
-            color: var(--ink);
-            text-align: right;
-        }
-
-        .chart-track {
-            height: clamp(12px, 1.8vh, 16px);
-            background: var(--ink-ghost);
-            border-radius: 100px;
-            overflow: hidden;
-            border: 1.5px dashed var(--ink-ghost);
-        }
-
-        .chart-fill {
-            height: 100%;
-            width: 0%;
-            border-radius: 100px;
-            transition: width 1s var(--ease-out);
-        }
-
-        .chart-fill-pink { background: linear-gradient(90deg, var(--pink-soft), var(--pink)); }
-        .chart-fill-mint { background: linear-gradient(90deg, var(--mint-soft), var(--mint)); }
-        .chart-fill-sky { background: linear-gradient(90deg, var(--sky-soft), var(--sky)); }
-        .chart-fill-butter { background: linear-gradient(90deg, var(--butter-soft), var(--butter)); }
-        .chart-fill-lavender { background: linear-gradient(90deg, var(--lavender-soft), var(--lavender)); }
-
-        .chart-val {
-            font-family: var(--font-display);
-            font-size: var(--fs-small);
-            color: var(--pink);
-            font-weight: 700;
-        }
-
-        /* ═══════════════════════════════
-           MATRIX / QUADRANT
-           ═══════════════════════════════ */
-
-        .matrix {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: 1fr 1fr;
-            gap: clamp(10px, 1.5vw, 18px);
-            margin-top: var(--space-md);
-            width: 100%;
-            position: relative;
-        }
-
-        .matrix::before,
-        .matrix::after {
-            content: '';
-            position: absolute;
-            pointer-events: none;
-            z-index: 1;
-        }
-
-        .matrix::before {
-            left: 50%; top: 8%; bottom: 8%;
-            width: 2px;
-            transform: translateX(-1px);
-            background: linear-gradient(to bottom, transparent, var(--ink-ghost) 20%, var(--ink-ghost) 80%, transparent);
-            border-left: 2px dashed var(--ink-ghost);
-        }
-
-        .matrix::after {
-            top: 50%; left: 8%; right: 8%;
-            height: 2px;
-            transform: translateY(-1px);
-            border-top: 2px dashed var(--ink-ghost);
-        }
-
-        .matrix-cell {
-            padding: clamp(12px, 2vh, 22px) clamp(12px, 1.8vw, 20px);
-            border-radius: var(--radius-soft);
-            transition: transform var(--dur-fast) var(--ease-out);
-        }
-
-        .matrix-cell:nth-child(1) { background: var(--pink-soft); }
-        .matrix-cell:nth-child(2) { background: var(--sky-soft); }
-        .matrix-cell:nth-child(3) { background: var(--butter-soft); }
-        .matrix-cell:nth-child(4) { background: var(--mint-soft); }
-
-        .matrix-cell:hover { transform: scale(1.02); }
-
-        .matrix-cell .cell-icon { font-size: clamp(1.3rem, 2.2vh, 1.8rem); margin-bottom: var(--space-xs); }
-        .matrix-cell .cell-title {
-            font-family: var(--font-display);
-            font-size: clamp(0.95rem, 1.6vh, 1.2rem);
-            color: var(--ink);
-            margin-bottom: var(--space-xs);
-        }
-        .matrix-cell .cell-desc {
-            font-family: var(--font-hand);
-            font-size: var(--fs-small);
-            color: var(--ink-mid);
-            line-height: 1.6;
-        }
-
-        /* ═══════════════════════════════
-           SPLIT DETAIL
-           ═══════════════════════════════ */
-
-        .split-detail {
-            display: grid;
-            grid-template-columns: 2fr 3fr;
-            gap: clamp(20px, 4vw, 40px);
-            margin-top: var(--space-md);
-            width: 100%;
-            align-items: center;
-        }
-
-        .split-visual {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            padding: var(--space-md);
-            border: 3px dashed var(--pink);
-            border-radius: 50%;
-            aspect-ratio: 1;
-            justify-content: center;
-        }
-
-        .split-visual-icon { font-size: clamp(2rem, 4vw, 3.5rem); margin-bottom: var(--space-xs); }
-        .split-visual-num {
-            font-family: var(--font-display);
-            font-size: var(--fs-stat);
-            color: var(--pink);
-            line-height: 1;
-        }
-        .split-visual-label {
-            font-family: var(--font-hand);
-            font-size: var(--fs-label);
-            color: var(--ink-dim);
-            margin-top: var(--space-xs);
-        }
-
-        .split-info h3 {
-            font-family: var(--font-display);
-            font-size: clamp(1.1rem, 2vh, 1.5rem);
-            color: var(--ink);
-            margin-bottom: var(--space-sm);
-        }
-
-        .split-info-list {
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-sm);
-        }
-
-        .split-info-list li {
-            font-family: var(--font-hand);
-            font-size: var(--fs-body);
-            color: var(--ink-mid);
-            line-height: 1.7;
-            padding-left: clamp(18px, 2.5vw, 24px);
-            position: relative;
-            border-bottom: 1px dashed var(--ink-ghost);
-            padding-bottom: var(--space-sm);
-        }
-
-        .split-info-list li::before {
-            content: '\2661';
-            position: absolute;
-            left: 0;
-            top: 0;
-            color: var(--pink);
-            font-size: var(--fs-body);
-        }
-
-        /* ═══════════════════════════════
-           PROMPT CARDS (CORKBOARD)
-           ═══════════════════════════════ */
-
-        .prompt-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: clamp(10px, 1.5vw, 20px);
-            margin-top: var(--space-md);
-            width: 100%;
-        }
-
-        .prompt-card {
-            padding: clamp(12px, 2vh, 24px) clamp(10px, 1.5vw, 18px);
-            border-radius: var(--radius-soft);
-            position: relative;
-            box-shadow: 2px 2px 0 var(--ink-ghost);
-            transition: transform var(--dur-fast) var(--ease-out);
-        }
-
-        .prompt-card:nth-child(1) { background: #fff9c4; transform: rotate(-1.5deg); }
-        .prompt-card:nth-child(2) { background: #e8f5e9; transform: rotate(1deg); }
-        .prompt-card:nth-child(3) { background: #e3f2fd; transform: rotate(-0.5deg); }
-        .prompt-card:nth-child(4) { background: #fce4ec; transform: rotate(1.2deg); }
-        .prompt-card:nth-child(5) { background: #f3e5f5; transform: rotate(-0.8deg); }
-        .prompt-card:nth-child(6) { background: #fff3e0; transform: rotate(0.8deg); }
-
-        .prompt-card:hover { transform: rotate(0deg) scale(1.03); z-index: 2; }
-
-        .prompt-card .prompt-icon { font-size: clamp(1.2rem, 2.2vh, 1.8rem); margin-bottom: var(--space-xs); }
-        .prompt-card h4 {
-            font-family: var(--font-display);
-            font-size: clamp(1rem, 1.7vh, 1.3rem);
-            color: var(--ink);
-            margin-bottom: var(--space-xs);
-        }
-        .prompt-card p {
-            font-family: var(--font-hand);
-            font-size: clamp(0.85rem, 1.1vw, 1.05rem);
-            color: var(--ink-mid);
-            line-height: 1.5;
-        }
-
-        /* ═══════════════════════════════
-           QUOTE
-           ═══════════════════════════════ */
-
-        .slide-quote {
-            align-items: center;
-            text-align: center;
-        }
-
-        .quote-mark {
-            font-family: var(--font-display);
-            font-size: clamp(5rem, 12vh, 10rem);
-            color: var(--lavender-soft);
-            line-height: 0.5;
-        }
-
-        .quote-text {
-            font-family: var(--font-display);
-            font-size: var(--fs-quote);
-            color: var(--ink);
-            line-height: 1.5;
-            transform: rotate(-0.5deg);
-            max-width: 20em;
-        }
-
-        .quote-source {
-            font-family: var(--font-hand);
-            font-size: var(--fs-small);
-            color: var(--ink-dim);
-            margin-top: var(--space-md);
-        }
-
-        /* ═══════════════════════════════
-           STATEMENT
-           ═══════════════════════════════ */
-
-        .slide-statement {
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-        }
-
-        .statement-text {
-            font-family: var(--font-display);
-            font-size: clamp(2.5rem, 8vw, 7rem);
-            color: var(--ink);
-            line-height: 1.2;
-            transform: rotate(-1deg);
-        }
-
+        .slide.active { opacity: 1; visibility: visible; }
+
+        .reveal { opacity: 0; transform: translateY(16px); transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease-out); }
+        .reveal-scale { opacity: 0; transform: scale(0.92); transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease-out); }
+        .reveal-left { opacity: 0; transform: translateX(-20px); transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease-out); }
+        .reveal-right { opacity: 0; transform: translateX(20px); transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease-out); }
+        .slide.active .reveal, .slide.active .reveal-scale, .slide.active .reveal-left, .slide.active .reveal-right { opacity: 1; transform: none; }
+        .delay-1 { transition-delay: 120ms; } .delay-2 { transition-delay: 240ms; }
+        .delay-3 { transition-delay: 360ms; } .delay-4 { transition-delay: 480ms; }
+        .delay-5 { transition-delay: 600ms; } .delay-6 { transition-delay: 720ms; }
+
+        .progress-wrap { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 9999; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--pink), var(--mint), var(--sky), var(--lavender)); width: 0%; transition: width 0.5s var(--ease); }
+        .page-num { position: fixed; bottom: clamp(12px,2.5vh,28px); right: clamp(16px,3vw,40px); font-family: var(--font-display); font-size: var(--fs-label); color: var(--ink-dim); z-index: 9999; }
+
+        .title-main { font-family: var(--font-display); font-size: var(--fs-title); color: var(--ink); line-height: 1.3; margin-bottom: var(--space-xs); display: inline-block; }
+        .title-underline { display: block; height: 12px; margin-top: -2px; }
+        .section-sub { font-family: var(--font-hand); font-size: var(--fs-small); color: var(--ink-dim); margin-top: var(--space-xs); margin-bottom: var(--space-sm); }
+
+        .highlight-pink { background: linear-gradient(180deg, transparent 60%, rgba(244,160,176,0.3) 60%); padding: 0 3px; }
+        .highlight-mint { background: linear-gradient(180deg, transparent 60%, rgba(126,203,176,0.3) 60%); padding: 0 3px; }
+        .highlight-sky { background: linear-gradient(180deg, transparent 60%, rgba(124,181,212,0.3) 60%); padding: 0 3px; }
+
+        /* Cover */
+        .slide-cover { align-items: center; text-align: center; }
+        .cover-decoration { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+        .cover-content { position: relative; z-index: 1; }
+        .cover-book-icon { width: 100px; height: 100px; margin: 0 auto var(--space-sm); }
+        .cover-title { font-family: var(--font-display); font-size: var(--fs-hero); color: var(--ink); line-height: 1.2; margin-bottom: var(--space-sm); }
+        .cover-sub { font-family: var(--font-hand); font-size: var(--fs-subtitle); color: var(--ink-mid); }
+
+        /* Chapter */
+        .slide-chapter { align-items: center; text-align: center; }
+        .chapter-num { font-family: var(--font-display); font-size: var(--fs-chapter-num); color: rgba(244,160,176,0.15); line-height: 0.9; }
+        .chapter-title { font-family: var(--font-display); font-size: var(--fs-chapter); color: var(--ink); margin-top: calc(-0.5 * var(--space-lg)); position: relative; z-index: 1; }
+        .chapter-deco { width: 80px; height: 30px; margin-top: var(--space-sm); }
+
+        /* Agenda */
+        .agenda-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+        .agenda-wrap { position: relative; width: 100%; margin-top: var(--space-sm); }
+        .agenda-list { list-style: none; padding-left: clamp(40px, 5vw, 60px); }
+        .agenda-list li { font-family: var(--font-display); font-size: clamp(1.2rem, 2.2vh, 1.7rem); color: var(--ink); padding: clamp(12px, 2vh, 20px) 0; position: relative; }
+
+        /* Sticky note with pin */
+        .pinned-note { position: relative; max-width: 38em; margin: var(--space-md) auto 0; padding: clamp(24px, 4vh, 40px) clamp(24px, 3vw, 36px); background: #fff; }
+        .pinned-note canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+        .pinned-note-content { position: relative; z-index: 1; }
+        .pinned-note h3 { font-family: var(--font-display); font-size: clamp(1.3rem, 2.8vh, 2rem); color: var(--ink); margin-bottom: var(--space-sm); }
+        .pinned-note p { font-family: var(--font-hand); font-size: clamp(1.1rem, 2vh, 1.5rem); color: var(--ink-mid); line-height: 1.8; }
+
+        /* Checklist */
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(20px, 3.5vw, 44px); width: 100%; margin-top: var(--space-md); }
+        .check-list { list-style: none; display: flex; flex-direction: column; gap: clamp(8px, 1.2vh, 14px); }
+        .check-list li { display: flex; align-items: flex-start; gap: clamp(8px, 1.2vw, 14px); font-family: var(--font-display); font-size: clamp(1.1rem, 2vh, 1.5rem); color: var(--ink); }
+        .check-list .cb { width: 22px; height: 22px; min-width: 22px; margin-top: 4px; }
+        .check-list .tip { display: block; font-family: var(--font-hand); font-size: var(--fs-small); color: var(--ink-dim); margin-top: 2px; }
+
+        /* Mind map */
+        .mind-map { position: relative; width: 100%; height: clamp(320px, 55vh, 500px); margin-top: var(--space-sm); }
+        .mind-map canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+        .mind-map-labels { position: absolute; inset: 0; }
+        .mind-map-labels .mm-label { position: absolute; font-family: var(--font-display); font-size: clamp(0.9rem, 1.5vw, 1.2rem); color: var(--ink); text-align: center; transform: translate(-50%, -50%); }
+        .mind-map-labels .mm-desc { display: block; font-family: var(--font-hand); font-size: clamp(0.75rem, 1vw, 0.9rem); color: var(--ink-mid); margin-top: 2px; }
+
+        /* Hand-drawn bar chart */
+        .hand-chart { position: relative; width: 100%; flex: 1; min-height: clamp(260px, 45vh, 380px); margin-top: var(--space-sm); }
+        .hand-chart canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+        /* Torn compare */
+        .torn-compare { position: relative; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-top: var(--space-sm); }
+        .torn-compare canvas.torn-line { position: absolute; top: 0; left: 50%; width: 40px; height: 100%; transform: translateX(-50%); z-index: 2; pointer-events: none; }
+        .torn-side { padding: clamp(16px, 2.5vh, 28px) clamp(20px, 3vw, 36px); display: flex; flex-direction: column; }
+        .torn-side h4 { font-family: var(--font-display); font-size: clamp(1.3rem, 2.5vh, 1.8rem); color: var(--ink); margin-bottom: var(--space-sm); }
+        .torn-side ul { list-style: none; display: flex; flex-direction: column; gap: var(--space-sm); }
+        .torn-side ul li { font-family: var(--font-hand); font-size: clamp(1rem, 1.5vw, 1.2rem); color: var(--ink-mid); padding-left: 28px; position: relative; line-height: 1.7; }
+        .torn-side ul li canvas { position: absolute; left: 0; top: 3px; width: 20px; height: 20px; }
+        .torn-left { background: rgba(126,203,176,0.08); }
+        .torn-right { background: rgba(244,160,176,0.08); }
+
+        /* Statement */
+        .slide-statement { align-items: center; text-align: center; }
+        .statement-text { font-family: var(--font-display); font-size: clamp(2.5rem, 8vw, 7rem); color: var(--ink); line-height: 1.2; }
         .statement-text .accent { color: var(--pink); }
+        .statement-sub { font-family: var(--font-hand); font-size: var(--fs-body); color: var(--ink-mid); margin-top: var(--space-md); max-width: 36em; line-height: 1.9; }
 
-        .statement-sub {
-            font-family: var(--font-hand);
-            font-size: var(--fs-body);
-            color: var(--ink-mid);
-            margin-top: var(--space-md);
-            max-width: 36em;
-            line-height: 1.9;
-        }
+        /* Winding path */
+        .path-wrap { position: relative; width: 100%; height: clamp(280px, 50vh, 420px); margin-top: var(--space-sm); }
+        .path-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+        .path-labels { position: absolute; inset: 0; }
+        .path-labels .pl { position: absolute; text-align: center; transform: translate(-50%, -50%); }
+        .path-labels .pl-name { font-family: var(--font-display); font-size: clamp(0.9rem, 1.5vw, 1.2rem); color: var(--ink); }
+        .path-labels .pl-desc { font-family: var(--font-hand); font-size: clamp(0.75rem, 1vw, 0.9rem); color: var(--ink-dim); }
 
-        /* ═══════════════════════════════
-           SUMMARY GRID
-           ═══════════════════════════════ */
+        /* Show don't tell - annotation style */
+        .annotate-wrap { display: grid; grid-template-columns: 1fr auto 1fr; gap: clamp(12px, 2vw, 24px); align-items: center; width: 100%; margin-top: var(--space-md); }
+        .annotate-block { position: relative; padding: clamp(16px, 2.5vh, 28px); }
+        .annotate-block canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+        .annotate-block-content { position: relative; z-index: 1; }
+        .annotate-block h4 { font-family: var(--font-display); font-size: clamp(1.1rem, 2vh, 1.5rem); color: var(--ink); margin-bottom: var(--space-xs); }
+        .annotate-block p, .annotate-block li { font-family: var(--font-hand); font-size: clamp(0.95rem, 1.3vw, 1.15rem); color: var(--ink-mid); line-height: 1.7; }
+        .annotate-block ul { list-style: none; display: flex; flex-direction: column; gap: var(--space-xs); }
+        .annotate-arrow { width: 60px; height: 40px; }
 
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: clamp(10px, 1.5vw, 20px);
-            margin-top: var(--space-md);
-            width: 100%;
-        }
+        /* Prompt scattered */
+        .prompt-scatter { position: relative; width: 100%; height: clamp(300px, 52vh, 440px); margin-top: var(--space-sm); }
+        .prompt-scatter canvas.scatter-bg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+        .prompt-item { position: absolute; max-width: clamp(180px, 26vw, 260px); transform: translate(-50%, -50%); text-align: center; }
+        .prompt-item h4 { font-family: var(--font-display); font-size: clamp(0.95rem, 1.5vw, 1.2rem); color: var(--ink); margin-bottom: 2px; }
+        .prompt-item p { font-family: var(--font-hand); font-size: clamp(0.8rem, 1.1vw, 1rem); color: var(--ink-mid); line-height: 1.5; }
 
-        .summary-note {
-            padding: clamp(14px, 2vh, 24px) clamp(12px, 1.5vw, 18px);
-            position: relative;
-            box-shadow: 2px 2px 0 var(--ink-ghost);
-        }
+        /* Quadrant */
+        .quadrant-wrap { position: relative; width: 100%; height: clamp(300px, 55vh, 460px); margin-top: var(--space-sm); }
+        .quadrant-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+        .quad-labels { position: absolute; inset: 0; }
+        .quad-labels .ql { position: absolute; transform: translate(-50%, -50%); text-align: center; max-width: clamp(160px, 22vw, 240px); }
+        .quad-labels .ql-title { display: block; font-family: var(--font-display); font-size: clamp(1rem, 1.6vw, 1.3rem); color: var(--ink); }
+        .quad-labels .ql-desc { display: block; font-family: var(--font-hand); font-size: clamp(0.8rem, 1.1vw, 1rem); color: var(--ink-mid); margin-top: 4px; line-height: 1.5; }
+        .quad-labels .axis-label { position: absolute; font-family: var(--font-hand); font-size: var(--fs-small); color: var(--ink-dim); }
 
-        .summary-note:nth-child(1) { background: #fff9c4; transform: rotate(-1deg); }
-        .summary-note:nth-child(2) { background: #fce4ec; transform: rotate(0.8deg); }
-        .summary-note:nth-child(3) { background: #e8f5e9; transform: rotate(-0.5deg); }
-        .summary-note:nth-child(4) { background: #e3f2fd; transform: rotate(1deg); }
-        .summary-note:nth-child(5) { background: #f3e5f5; transform: rotate(-0.8deg); }
-        .summary-note:nth-child(6) { background: #fff3e0; transform: rotate(1.2deg); }
+        /* Quote */
+        .slide-quote { align-items: center; text-align: center; }
+        .quote-mark-canvas { width: 60px; height: 50px; margin: 0 auto; }
+        .quote-text { font-family: var(--font-display); font-size: var(--fs-quote); color: var(--ink); line-height: 1.5; max-width: 20em; }
+        .quote-source { font-family: var(--font-hand); font-size: var(--fs-small); color: var(--ink-dim); margin-top: var(--space-md); }
+        .quote-card { position: relative; padding: clamp(14px, 2vh, 24px) clamp(16px, 2.5vw, 28px); background: rgba(255,255,255,0.6); margin-top: var(--space-lg); max-width: 28em; margin-left: auto; margin-right: auto; text-align: center; }
+        .quote-card canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+        .quote-card p { position: relative; z-index: 1; font-family: var(--font-display); font-size: clamp(0.95rem, 1.4vw, 1.15rem); color: var(--ink); }
 
-        .summary-note::before {
-            content: '';
-            position: absolute;
-            top: clamp(-8px, -1.2vh, -5px);
-            left: 50%;
-            transform: translateX(-50%) rotate(-3deg);
-            width: clamp(40px, 5vw, 60px);
-            height: clamp(14px, 2vh, 20px);
-            background: rgba(255, 255, 240, 0.6);
-            border: 1px solid rgba(200, 200, 180, 0.3);
-        }
+        /* Summary notebook */
+        .summary-page { position: relative; width: 100%; margin: var(--space-sm) 0 0; padding: clamp(24px, 4vh, 40px) clamp(28px, 4vw, 48px); text-align: left; }
+        .summary-page canvas.page-border { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+        .summary-page-content { position: relative; z-index: 1; }
+        .summary-list { list-style: none; display: flex; flex-direction: column; gap: 0; }
+        .summary-list li { display: flex; align-items: flex-start; gap: clamp(10px, 1.5vw, 16px); padding: clamp(8px, 1.2vh, 14px) 0; border-bottom: none; position: relative; }
+        .summary-list li canvas.sep-line { position: absolute; bottom: 0; left: 0; width: 100%; height: 6px; }
+        .summary-list li:last-child canvas.sep-line { display: none; }
+        .summary-list .sum-num { font-family: var(--font-display); font-size: clamp(1.1rem, 1.8vh, 1.4rem); min-width: 24px; }
+        .summary-list .sum-text { flex: 1; }
+        .summary-list .sum-title { font-family: var(--font-display); font-size: clamp(1rem, 1.6vh, 1.3rem); color: var(--ink); }
+        .summary-list .sum-desc { font-family: var(--font-hand); font-size: var(--fs-small); color: var(--ink-mid); margin-top: 2px; }
 
-        .summary-note h4 {
-            font-family: var(--font-display);
-            font-size: clamp(0.9rem, 1.5vh, 1.1rem);
-            color: var(--ink);
-            margin-bottom: var(--space-xs);
-        }
+        /* End */
+        .slide-end { align-items: center; text-align: center; }
+        .end-icon { width: 100px; height: 100px; margin: 0 auto var(--space-sm); }
+        .end-title { font-family: var(--font-display); font-size: clamp(2.2rem, 5.5vw, 4.5rem); color: var(--ink); }
+        .end-sub { font-family: var(--font-hand); font-size: var(--fs-subtitle); color: var(--ink-mid); margin-top: var(--space-sm); }
+        .end-deco { width: 120px; height: 30px; margin: var(--space-md) auto 0; }
 
-        .summary-note p {
-            font-family: var(--font-hand);
-            font-size: var(--fs-small);
-            color: var(--ink-mid);
-            line-height: 1.5;
-        }
-
-        /* ═══════════════════════════════
-           END SLIDE
-           ═══════════════════════════════ */
-
-        .slide-end {
-            align-items: center;
-            text-align: center;
-            background:
-                radial-gradient(ellipse 50% 40% at 50% 50%, var(--butter-soft) 0%, transparent 70%);
-        }
-
-        .end-emoji {
-            font-size: clamp(3rem, 7vh, 5.5rem);
-            margin-bottom: var(--space-sm);
-        }
-
-        .end-title {
-            font-family: var(--font-display);
-            font-size: clamp(2.2rem, 5.5vw, 4.5rem);
-            color: var(--ink);
-            transform: rotate(-1.5deg);
-        }
-
-        .end-sub {
-            font-family: var(--font-hand);
-            font-size: var(--fs-subtitle);
-            color: var(--ink-mid);
-            margin-top: var(--space-sm);
-            transform: rotate(0.5deg);
-        }
-
-        .end-deco {
-            margin-top: var(--space-md);
-            font-size: clamp(1rem, 2vh, 1.5rem);
-            letter-spacing: 0.4em;
-            color: var(--ink-dim);
-        }
-
-        /* ═══════════════════════════════
-           RESPONSIVE
-           ═══════════════════════════════ */
-
-        @media (max-height: 750px) {
-            :root {
-                --pad-y: clamp(1.8rem, 4vh, 4rem);
-                --space-md: clamp(1rem, 2vw, 2rem);
-            }
-        }
-
+        /* Responsive */
         @media (max-height: 650px) {
-            :root {
-                --pad-y: clamp(1rem, 2.5vh, 2rem);
-                --space-md: clamp(0.8rem, 1.5vw, 1.5rem);
-                --space-sm: clamp(0.4rem, 0.8vw, 0.8rem);
-                --fs-hero: clamp(2rem, 5vw, 4rem);
-                --fs-chapter: clamp(1.4rem, 3.5vw, 2.8rem);
-                --fs-title: clamp(1.2rem, 2.5vw, 2rem);
-                --fs-quote: clamp(1.1rem, 2.2vw, 2rem);
-            }
+            :root { --pad-y: clamp(1rem, 2.5vh, 2rem); --space-md: clamp(0.8rem, 1.5vw, 1.5rem); --fs-hero: clamp(2rem, 5vw, 4rem); --fs-chapter: clamp(1.4rem, 3.5vw, 2.8rem); --fs-title: clamp(1.2rem, 2.5vw, 2rem); }
             body::before { opacity: 0.25; }
         }
-
-        @media (max-height: 500px) and (orientation: landscape) {
-            :root {
-                --pad-y: clamp(0.5rem, 1.5vh, 1rem);
-                --pad-x: clamp(2rem, 6vw, 6vw);
-                --space-md: clamp(0.5rem, 1vw, 1rem);
-                --fs-hero: clamp(1.6rem, 4vw, 3rem);
-                --fs-chapter-num: clamp(4rem, 12vw, 10rem);
-            }
-            body::before { display: none; }
-            .card-grid, .prompt-grid, .summary-grid { grid-template-columns: repeat(3, 1fr); gap: clamp(6px, 1vw, 12px); }
-            .step-bubble .step-desc { display: none; }
-        }
-
         @media (max-width: 768px) {
-            .card-grid, .prompt-grid { grid-template-columns: repeat(2, 1fr); }
-            .summary-grid { grid-template-columns: repeat(2, 1fr); }
-            .compare-wrap { grid-template-columns: 1fr; }
+            body::after { left: 30px; }
             .two-col { grid-template-columns: 1fr; }
-            .matrix { grid-template-columns: 1fr; }
-            .matrix::before, .matrix::after { display: none; }
-            .split-detail { grid-template-columns: 1fr; }
-            .steps-flow { gap: clamp(4px, 0.8vw, 8px); }
-            .chart-row { grid-template-columns: clamp(4.5rem, 9vw, 7rem) 1fr clamp(2.5rem, 4vw, 3.5rem); }
+            .torn-compare { grid-template-columns: 1fr; min-height: auto; }
+            .torn-compare canvas.torn-line { display: none; }
+            .annotate-wrap { grid-template-columns: 1fr; }
+            .annotate-arrow { display: none; }
         }
-
+        @media (max-width: 480px) { body::after { display: none; } }
         @media (prefers-reduced-motion: reduce) {
-            *, *::before, *::after {
-                transition-duration: 0.01ms !important;
-                animation-duration: 0.01ms !important;
-            }
-            .reveal, .reveal-scale, .reveal-left, .reveal-right {
-                opacity: 1 !important;
-                transform: none !important;
-            }
+            .reveal, .reveal-scale, .reveal-left, .reveal-right { opacity: 1 !important; transform: none !important; transition: none !important; }
         }
 
-        /* ═══════════════════════════════
-           OVERVIEW MODE
-           ═══════════════════════════════ */
-
+        /* Overview */
         .ov-grid{position:fixed;inset:0;z-index:10000;background:rgba(253,248,240,.97);overflow:auto;padding:clamp(20px,3vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:clamp(10px,1.5vw,16px);align-content:start;opacity:0;transition:opacity .3s ease}
         .ov-grid.ov-visible{opacity:1}
-        .ov-card{position:relative;aspect-ratio:16/10;overflow:hidden;border:2px dashed rgba(61,44,44,.12);border-radius:12px;cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;background:var(--paper);box-shadow:2px 2px 8px rgba(61,44,44,.06)}
-        .ov-card:hover{border-color:var(--pink);transform:scale(1.03);box-shadow:3px 3px 12px rgba(61,44,44,.1)}
-        .ov-card.ov-current{border-color:var(--pink);box-shadow:0 0 0 3px var(--pink-soft)}
+        .ov-card{position:relative;aspect-ratio:16/10;overflow:hidden;border:2px dashed rgba(61,44,44,.12);border-radius:12px;cursor:pointer;transition:border-color .2s,transform .15s;background:var(--paper);box-shadow:2px 2px 8px rgba(61,44,44,.06)}
+        .ov-card:hover{border-color:var(--pink);transform:scale(1.03)}
+        .ov-card.ov-current{border-color:var(--pink);box-shadow:0 0 0 3px rgba(244,160,176,.3)}
         .ov-inner{position:absolute;top:0;left:0;width:100vw;height:100vh;transform-origin:top left;pointer-events:none;overflow:hidden}
-        .ov-inner *{transition:none !important;animation:none !important}
+        .ov-inner *{transition:none !important}
         .ov-inner .reveal,.ov-inner .reveal-scale,.ov-inner .reveal-left,.ov-inner .reveal-right{opacity:1 !important;transform:none !important}
         .ov-num{position:absolute;top:6px;right:8px;font-size:11px;color:var(--ink-mid);background:rgba(255,255,255,.8);padding:2px 8px;border-radius:10px;z-index:2;font-family:var(--font-display)}
-        .ov-close{position:fixed;top:16px;right:20px;z-index:10001;width:36px;height:36px;border-radius:50%;border:2px dashed var(--ink-ghost);background:white;color:var(--ink);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;box-shadow:2px 2px 6px rgba(61,44,44,.08)}
-        .ov-close:hover{background:var(--pink-soft)}
+        .ov-close{position:fixed;top:16px;right:20px;z-index:10001;width:36px;height:36px;border-radius:50%;border:none;background:white;color:var(--ink);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:2px 2px 6px rgba(61,44,44,.08)}
+        .ov-close:hover{background:var(--pink-light)}
     </style>
 </head>
 <body>
-
-    <div class="doodle doodle-tl">🌸</div>
-    <div class="doodle doodle-tr">✨</div>
-    <div class="doodle doodle-bl">🎀</div>
-    <div class="doodle doodle-br">🌿</div>
-
     <div class="progress-wrap"><div class="progress-fill" id="progressFill"></div></div>
     <div class="page-num" id="pageNum">1 / 17</div>
 
-    <!-- ══════ S1: COVER ══════ -->
+    <!-- S1: COVER -->
     <section class="slide slide-cover active">
-        <div class="cover-stickers reveal delay-1">
-            <span class="sticker sticker-pink">✏️ 写作</span>
-            <span class="sticker sticker-mint">🌱 成长</span>
-            <span class="sticker sticker-sky">💡 创意</span>
+        <canvas class="cover-decoration" id="coverDecoration"></canvas>
+        <div class="cover-content">
+            <canvas class="cover-book-icon" id="coverBookIcon"></canvas>
+            <h1 class="cover-title reveal delay-1">创意写作入门</h1>
+            <canvas class="title-underline reveal delay-2" id="coverUnderline" height="12"></canvas>
+            <p class="cover-sub reveal delay-3">释放你的文字力量，用文字描绘世界的无限可能</p>
         </div>
-        <h1 class="cover-title reveal delay-2">创意写作入门</h1>
-        <div class="washi washi-pink reveal delay-3"><span>~ 释放你的文字力量 ~</span></div>
-        <p class="cover-sub reveal delay-4">用文字描绘世界的无限可能</p>
-        <p class="cover-deco reveal delay-5">✿ ✧ ♡ ✧ ✿</p>
     </section>
 
-    <!-- ══════ S2: AGENDA ══════ -->
+    <!-- S2: AGENDA -->
     <section class="slide">
         <h2 class="title-main reveal delay-1">我们将一起探索……</h2>
-        <ul class="notebook-list">
-            <li class="reveal delay-1"><span class="item-num">1</span> 什么是创意写作？</li>
-            <li class="reveal delay-2"><span class="item-num">2</span> 写作的核心要素</li>
-            <li class="reveal delay-3"><span class="item-num">3</span> 好文章 vs 平庸文章</li>
-            <li class="reveal delay-4"><span class="item-num">4</span> 创作流程与技巧</li>
-            <li class="reveal delay-5"><span class="item-num">5</span> 动手练习：创意提示</li>
-            <li class="reveal delay-6"><span class="item-num">6</span> 总结与行动指南</li>
-        </ul>
+        <canvas class="title-underline" height="12"></canvas>
+        <div class="agenda-wrap reveal delay-2">
+            <canvas class="agenda-canvas" id="agendaCanvas"></canvas>
+            <ul class="agenda-list">
+                <li class="reveal delay-1">什么是创意写作？</li>
+                <li class="reveal delay-2">写作的核心要素</li>
+                <li class="reveal delay-3">好文章 vs 平庸文章</li>
+                <li class="reveal delay-4">创作流程与技巧</li>
+                <li class="reveal delay-5">动手练习：创意提示</li>
+                <li class="reveal delay-6">总结与行动指南</li>
+            </ul>
+        </div>
     </section>
 
-    <!-- ══════ S3: CHAPTER 01 ══════ -->
+    <!-- S3: CHAPTER 01 -->
     <section class="slide slide-chapter">
         <div class="chapter-num reveal-scale delay-1">01</div>
         <h2 class="chapter-title reveal delay-2">认识创意写作</h2>
-        <div class="chapter-deco reveal delay-3">📖 ✿</div>
+        <canvas class="chapter-deco" id="chapterDeco1"></canvas>
     </section>
 
-    <!-- ══════ S4: DEFINITION ══════ -->
+    <!-- S4: DEFINITION -->
     <section class="slide" style="align-items: center;">
-        <h2 class="title-main reveal delay-2" style="text-align: center;">
-            什么是<span class="underline-doodle">创意写作</span>？
-        </h2>
-        <div class="sticky sticky-yellow reveal delay-3" style="margin: 0 auto; max-width: 36em; position: relative;">
-            <div class="tape tape-center"></div>
-            <h3>简单来说……</h3>
-            <p>创意写作是运用想象力和创造力，通过文字表达思想、情感和故事的艺术。</p>
-            <p style="margin-top: var(--space-sm); color: var(--pink); font-family: var(--font-display);">
-                它不仅仅是"写东西"，而是用文字创造一个世界 ♡
-            </p>
+        <h2 class="title-main reveal delay-1" style="text-align: center;">什么是<span class="highlight-pink">创意写作</span>？</h2>
+        <canvas class="title-underline" height="12"></canvas>
+        <div class="pinned-note reveal delay-2" id="pinnedNote">
+            <canvas></canvas>
+            <div class="pinned-note-content">
+                <h3>简单来说……</h3>
+                <p>创意写作是运用想象力和创造力，通过文字表达思想、情感和故事的艺术。它不仅仅是"写东西"，而是用文字创造一个世界。</p>
+                <p style="margin-top: var(--space-sm); color: var(--pink); font-family: var(--font-display);">包括小说、诗歌、散文、剧本、创意非虚构……形式无限！</p>
+            </div>
         </div>
-        <p class="body-text reveal delay-4" style="text-align: center; margin-top: var(--space-md);">
-            包括小说、诗歌、散文、剧本、创意非虚构……形式无限！
-        </p>
     </section>
 
-    <!-- ══════ S5: CHECKLIST ══════ -->
+    <!-- S5: CHECKLIST -->
     <section class="slide">
-        <h2 class="title-main reveal delay-2">成为好作者的<span class="underline-doodle">六个习惯</span></h2>
+        <h2 class="title-main reveal delay-1">成为好作者的<span class="highlight-mint">六个习惯</span></h2>
+        <canvas class="title-underline" height="12"></canvas>
         <div class="two-col">
             <ul class="check-list">
-                <li class="reveal delay-1">
-                    <span class="cb checked">~</span>
-                    <div>每天坚持写作<span class="tip">哪怕只写 200 字，积少成多</span></div>
-                </li>
-                <li class="reveal delay-2">
-                    <span class="cb checked">~</span>
-                    <div>广泛阅读<span class="tip">好的输出离不开大量输入</span></div>
-                </li>
-                <li class="reveal delay-3">
-                    <span class="cb"></span>
-                    <div>观察生活细节<span class="tip">灵感藏在日常的角落里</span></div>
-                </li>
+                <li class="reveal delay-1"><canvas class="cb" data-checked="true"></canvas><div>每天坚持写作<span class="tip">哪怕只写 200 字，积少成多</span></div></li>
+                <li class="reveal delay-2"><canvas class="cb" data-checked="true"></canvas><div>广泛阅读<span class="tip">好的输出离不开大量输入</span></div></li>
+                <li class="reveal delay-3"><canvas class="cb" data-checked="false"></canvas><div>观察生活细节<span class="tip">灵感藏在日常的角落里</span></div></li>
             </ul>
             <ul class="check-list">
-                <li class="reveal delay-3">
-                    <span class="cb"></span>
-                    <div>勇敢写下第一稿<span class="tip">完美是修改出来的，不是写出来的</span></div>
-                </li>
-                <li class="reveal delay-4">
-                    <span class="cb"></span>
-                    <div>接受反馈与修改<span class="tip">好文章是改出来的</span></div>
-                </li>
-                <li class="reveal delay-5">
-                    <span class="cb"></span>
-                    <div>保持好奇心<span class="tip">对世界始终保持"为什么"的追问</span></div>
-                </li>
+                <li class="reveal delay-3"><canvas class="cb" data-checked="false"></canvas><div>勇敢写下第一稿<span class="tip">完美是修改出来的</span></div></li>
+                <li class="reveal delay-4"><canvas class="cb" data-checked="false"></canvas><div>接受反馈与修改<span class="tip">好文章是改出来的</span></div></li>
+                <li class="reveal delay-5"><canvas class="cb" data-checked="false"></canvas><div>保持好奇心<span class="tip">始终保持"为什么"的追问</span></div></li>
             </ul>
         </div>
     </section>
 
-    <!-- ══════ S6: CHAPTER 02 ══════ -->
-    <section class="slide slide-chapter" style="background: radial-gradient(ellipse 60% 50% at 50% 50%, var(--mint-soft) 0%, transparent 70%);">
-        <div class="chapter-num reveal-scale delay-1" style="color: var(--mint-soft);">02</div>
+    <!-- S6: CHAPTER 02 -->
+    <section class="slide slide-chapter">
+        <div class="chapter-num reveal-scale delay-1" style="color: rgba(126,203,176,0.15);">02</div>
         <h2 class="chapter-title reveal delay-2">故事的核心要素</h2>
-        <div class="chapter-deco reveal delay-3">🧩 ✧</div>
+        <canvas class="chapter-deco" id="chapterDeco2"></canvas>
     </section>
 
-    <!-- ══════ S7: CARD GRID ══════ -->
+    <!-- S7: MIND MAP -->
     <section class="slide">
-        <h2 class="title-main reveal delay-2">一个好故事需要什么？</h2>
-        <div class="card-grid">
-            <div class="index-card reveal delay-1">
-                <div class="card-icon">👤</div>
-                <h4>人物</h4>
-                <p>有血有肉的角色让读者产生共鸣，是故事的灵魂所在</p>
-            </div>
-            <div class="index-card reveal delay-2">
-                <div class="card-icon">🌍</div>
-                <h4>场景</h4>
-                <p>时间、地点和氛围构成故事发生的舞台背景</p>
-            </div>
-            <div class="index-card reveal delay-3">
-                <div class="card-icon">⚡</div>
-                <h4>冲突</h4>
-                <p>没有矛盾就没有故事，冲突推动情节向前发展</p>
-            </div>
-            <div class="index-card reveal delay-3">
-                <div class="card-icon">📈</div>
-                <h4>情节</h4>
-                <p>起承转合的叙事结构，引导读者走完整个旅程</p>
-            </div>
-            <div class="index-card reveal delay-4">
-                <div class="card-icon">🎨</div>
-                <h4>主题</h4>
-                <p>故事想要传达的核心思想，是作品的精神内核</p>
-            </div>
-            <div class="index-card reveal delay-5">
-                <div class="card-icon">🗣️</div>
-                <h4>叙述视角</h4>
-                <p>第一人称、第三人称……视角决定了读者看世界的方式</p>
+        <h2 class="title-main reveal delay-1">一个好故事需要什么？</h2>
+        <canvas class="title-underline" height="12"></canvas>
+        <div class="mind-map reveal delay-2">
+            <canvas id="mindMapCanvas"></canvas>
+            <div class="mind-map-labels">
+                <div class="mm-label" style="top:50%;left:50%;">故事</div>
+                <div class="mm-label" style="top:15%;left:25%;">人物<span class="mm-desc">有血有肉的角色</span></div>
+                <div class="mm-label" style="top:15%;left:75%;">场景<span class="mm-desc">时间地点与氛围</span></div>
+                <div class="mm-label" style="top:50%;left:10%;">冲突<span class="mm-desc">推动情节的矛盾</span></div>
+                <div class="mm-label" style="top:50%;left:90%;">情节<span class="mm-desc">起承转合的结构</span></div>
+                <div class="mm-label" style="top:85%;left:25%;">主题<span class="mm-desc">作品的精神内核</span></div>
+                <div class="mm-label" style="top:85%;left:75%;">视角<span class="mm-desc">读者看世界的方式</span></div>
             </div>
         </div>
     </section>
 
-    <!-- ══════ S8: CHART ══════ -->
+    <!-- S8: HAND-DRAWN CHART -->
     <section class="slide">
-        <h2 class="title-main reveal delay-2">创意写作核心能力评估</h2>
-        <div class="chart-list">
-            <div class="chart-row reveal delay-1">
-                <div class="chart-label">✏️ 叙事能力</div>
-                <div class="chart-track"><div class="chart-fill chart-fill-pink" data-percent="82"></div></div>
-                <div class="chart-val">82%</div>
-            </div>
-            <div class="chart-row reveal delay-2">
-                <div class="chart-label">👤 人物塑造</div>
-                <div class="chart-track"><div class="chart-fill chart-fill-sky" data-percent="68"></div></div>
-                <div class="chart-val" style="color: var(--sky);">68%</div>
-            </div>
-            <div class="chart-row reveal delay-3">
-                <div class="chart-label">🌍 场景描写</div>
-                <div class="chart-track"><div class="chart-fill chart-fill-mint" data-percent="75"></div></div>
-                <div class="chart-val" style="color: var(--mint);">75%</div>
-            </div>
-            <div class="chart-row reveal delay-4">
-                <div class="chart-label">💬 对话功力</div>
-                <div class="chart-track"><div class="chart-fill chart-fill-lavender" data-percent="58"></div></div>
-                <div class="chart-val" style="color: var(--lavender);">58%</div>
-            </div>
-            <div class="chart-row reveal delay-5">
-                <div class="chart-label">🔍 修改润色</div>
-                <div class="chart-track"><div class="chart-fill chart-fill-butter" data-percent="90"></div></div>
-                <div class="chart-val" style="color: #b09030;">90%</div>
-            </div>
+        <h2 class="title-main reveal delay-1">创意写作核心能力</h2>
+        <canvas class="title-underline" height="12"></canvas>
+        <p class="section-sub reveal delay-1">—— 五大写作维度自评参考</p>
+        <div class="hand-chart reveal delay-2">
+            <canvas id="handChartCanvas"></canvas>
         </div>
+        <p class="section-sub reveal delay-3" style="text-align:center; margin-top:var(--space-xs); color:var(--pink);">修改润色能力往往是区分好文章与普通文章的关键</p>
     </section>
 
-    <!-- ══════ S9: COMPARE ══════ -->
+    <!-- S9: TORN COMPARE -->
     <section class="slide">
-        <h2 class="title-main reveal delay-2">好文章 vs 平庸文章</h2>
-        <div class="compare-wrap">
-            <div class="compare-side good reveal delay-3">
-                <span class="compare-tag">✨ 好文章</span>
-                <h4>有灵魂、有温度</h4>
+        <h2 class="title-main reveal delay-1">好文章 vs 平庸文章</h2>
+        <canvas class="title-underline" height="12"></canvas>
+        <div class="torn-compare reveal delay-2">
+            <canvas class="torn-line" id="tornLine"></canvas>
+            <div class="torn-side torn-left">
+                <h4 class="highlight-mint">好文章</h4>
                 <ul>
-                    <li>用具体细节代替抽象描述</li>
-                    <li>"展示"而非"告诉"读者</li>
-                    <li>人物有独特的声音和个性</li>
-                    <li>每个段落都有存在的理由</li>
-                    <li>结尾让人回味无穷</li>
+                    <li><canvas data-type="check"></canvas>用具体细节代替抽象描述</li>
+                    <li><canvas data-type="check"></canvas>"展示"而非"告诉"读者</li>
+                    <li><canvas data-type="check"></canvas>人物有独特的声音和个性</li>
+                    <li><canvas data-type="check"></canvas>每个段落都有存在的理由</li>
+                    <li><canvas data-type="check"></canvas>结尾让人回味无穷</li>
                 </ul>
             </div>
-            <div class="compare-side bad reveal delay-4">
-                <span class="compare-tag">💤 平庸文章</span>
-                <h4>缺乏生命力</h4>
+            <div class="torn-side torn-right">
+                <h4 class="highlight-pink">平庸文章</h4>
                 <ul>
-                    <li>充斥着陈词滥调和空洞描述</li>
-                    <li>直接"告诉"读者应该怎么感受</li>
-                    <li>所有角色说话方式一模一样</li>
-                    <li>大量无关的信息堆砌</li>
-                    <li>结尾草草收场或过于刻意</li>
+                    <li><canvas data-type="cross"></canvas>充斥着陈词滥调和空洞描述</li>
+                    <li><canvas data-type="cross"></canvas>直接"告诉"读者怎么感受</li>
+                    <li><canvas data-type="cross"></canvas>所有角色说话方式一样</li>
+                    <li><canvas data-type="cross"></canvas>大量无关的信息堆砌</li>
+                    <li><canvas data-type="cross"></canvas>结尾草草收场或过于刻意</li>
                 </ul>
             </div>
         </div>
     </section>
 
-    <!-- ══════ S10: STATEMENT ══════ -->
+    <!-- S10: STATEMENT -->
     <section class="slide slide-statement">
-        <div class="statement-text reveal delay-2">
-            先写完<br><span class="accent">再写好</span>
-        </div>
+        <div class="statement-text reveal delay-2">先写完<br><span class="accent">再写好</span></div>
         <p class="statement-sub reveal delay-3">完美主义是创意写作最大的敌人。第一稿的使命不是完美，而是存在。修改才是真正的写作。</p>
     </section>
 
-    <!-- ══════ S11: PROCESS FLOW ══════ -->
+    <!-- S11: WINDING PATH -->
     <section class="slide">
-        <h2 class="title-main reveal delay-2" style="text-align: center;">从灵感到成品的<span class="underline-doodle">五个步骤</span></h2>
-        <div class="steps-flow">
-            <div class="step-bubble reveal delay-1">
-                <div class="step-icon">💡</div>
-                <div class="step-name">灵感收集</div>
-                <div class="step-desc">随时记录想法</div>
-            </div>
-            <div class="step-arrow reveal delay-2">~></div>
-            <div class="step-bubble reveal delay-2">
-                <div class="step-icon">📋</div>
-                <div class="step-name">大纲规划</div>
-                <div class="step-desc">梳理故事骨架</div>
-            </div>
-            <div class="step-arrow reveal delay-3">~></div>
-            <div class="step-bubble reveal delay-3">
-                <div class="step-icon">✍️</div>
-                <div class="step-name">初稿写作</div>
-                <div class="step-desc">先完成再完美</div>
-            </div>
-            <div class="step-arrow reveal delay-4">~></div>
-            <div class="step-bubble reveal delay-4">
-                <div class="step-icon">🔍</div>
-                <div class="step-name">修改润色</div>
-                <div class="step-desc">打磨每个细节</div>
-            </div>
-            <div class="step-arrow reveal delay-5">~></div>
-            <div class="step-bubble reveal delay-5">
-                <div class="step-icon">🎉</div>
-                <div class="step-name">分享发布</div>
-                <div class="step-desc">让文字遇见读者</div>
+        <h2 class="title-main reveal delay-1" style="text-align:center;display:block;">从灵感到成品的<span class="highlight-sky">五个步骤</span></h2>
+        <canvas class="title-underline" height="12" style="margin:0 auto;"></canvas>
+        <div class="path-wrap reveal delay-2">
+            <canvas id="pathCanvas"></canvas>
+            <div class="path-labels">
+                <div class="pl" style="top:50%;left:8%;"><span class="pl-name">灵感收集</span><br><span class="pl-desc">随时记录想法</span></div>
+                <div class="pl" style="top:22%;left:28%;"><span class="pl-name">大纲规划</span><br><span class="pl-desc">梳理故事骨架</span></div>
+                <div class="pl" style="top:50%;left:50%;"><span class="pl-name">初稿写作</span><br><span class="pl-desc">先完成再完美</span></div>
+                <div class="pl" style="top:78%;left:72%;"><span class="pl-name">修改润色</span><br><span class="pl-desc">打磨每个细节</span></div>
+                <div class="pl" style="top:50%;left:92%;"><span class="pl-name">分享发布</span><br><span class="pl-desc">让文字遇见读者</span></div>
             </div>
         </div>
     </section>
 
-    <!-- ══════ S12: SPLIT DETAIL ══════ -->
+    <!-- S12: SHOW DON'T TELL -->
     <section class="slide">
-        <h2 class="title-main reveal delay-2">"展示，别告诉"原则</h2>
-        <div class="split-detail">
-            <div class="split-visual reveal-left delay-3">
-                <div class="split-visual-icon">👁️</div>
-                <div class="split-visual-num">Show</div>
-                <div class="split-visual-label">Don't Tell</div>
+        <h2 class="title-main reveal delay-1">"展示，别告诉"原则</h2>
+        <canvas class="title-underline" height="12"></canvas>
+        <div class="annotate-wrap">
+            <div class="annotate-block reveal-left delay-2" id="tellBlock">
+                <canvas></canvas>
+                <div class="annotate-block-content">
+                    <h4>Tell（告诉）</h4>
+                    <p>"她很伤心。"</p>
+                    <p>"他是个善良的人。"</p>
+                    <p>"天气很热。"</p>
+                </div>
             </div>
-            <div class="split-info reveal-right delay-4">
-                <h3>让读者自己感受，而非直接陈述</h3>
-                <ul class="split-info-list">
-                    <li>用感官细节（视觉、听觉、触觉）代替形容词堆砌</li>
-                    <li>通过人物的动作和对话展现性格，而非旁白解释</li>
-                    <li>让场景的氛围自然流露情绪，不要直接告诉读者该怎么感觉</li>
-                    <li>例：不说"她很伤心"，而写"她用指甲抠着杯壁上的图案"</li>
+            <canvas class="annotate-arrow reveal delay-3" id="annotateArrow"></canvas>
+            <div class="annotate-block reveal-right delay-4" id="showBlock">
+                <canvas></canvas>
+                <div class="annotate-block-content">
+                    <h4>Show（展示）</h4>
+                    <p>"她用指甲抠着杯壁上的图案。"</p>
+                    <p>"他把最后一块面包递给了流浪猫。"</p>
+                    <p>"柏油路面泛起一层黏腻的光。"</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- S13: PROMPT SCATTER -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-1">创意写作提示卡</h2>
+        <canvas class="title-underline" height="12"></canvas>
+        <div class="prompt-scatter reveal delay-2">
+            <canvas class="scatter-bg" id="scatterCanvas"></canvas>
+            <div class="prompt-item" style="top:20%;left:18%;"><h4>神秘的门</h4><p>你发现了一扇从未见过的门，打开它之后……</p></div>
+            <div class="prompt-item" style="top:18%;left:52%;"><h4>未寄出的信</h4><p>在旧书里发现了一封三十年前的信</p></div>
+            <div class="prompt-item" style="top:22%;left:84%;"><h4>雨中的陌生人</h4><p>暴雨中，一个陌生人递来一把伞</p></div>
+            <div class="prompt-item" style="top:68%;left:15%;"><h4>时间倒流</h4><p>如果可以回到过去改变一件事</p></div>
+            <div class="prompt-item" style="top:72%;left:50%;"><h4>老房子的秘密</h4><p>墙壁里发现了一个隐藏的房间</p></div>
+            <div class="prompt-item" style="top:70%;left:85%;"><h4>最后一个地球人</h4><p>你是最后一个人，突然听到敲门声</p></div>
+        </div>
+    </section>
+
+    <!-- S14: QUADRANT -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-1">四种叙事风格</h2>
+        <canvas class="title-underline" height="12"></canvas>
+        <div class="quadrant-wrap reveal delay-2">
+            <canvas id="quadrantCanvas"></canvas>
+            <div class="quad-labels">
+                <div class="axis-label" style="top:5%;left:50%;transform:translateX(-50%);">华丽</div>
+                <div class="axis-label" style="bottom:5%;left:50%;transform:translateX(-50%);">极简</div>
+                <div class="axis-label" style="top:50%;left:3%;transform:translateY(-50%);">感性</div>
+                <div class="axis-label" style="top:50%;right:3%;transform:translateY(-50%);">理性</div>
+                <div class="ql" style="top:28%;left:28%;"><span class="ql-title">热烈抒情型</span><span class="ql-desc">情感充沛、语言华丽，适合诗歌和散文</span></div>
+                <div class="ql" style="top:28%;left:72%;"><span class="ql-title">冷静克制型</span><span class="ql-desc">海明威式极简，用最少的字表达最多</span></div>
+                <div class="ql" style="top:72%;left:28%;"><span class="ql-title">幽默讽刺型</span><span class="ql-desc">轻松笔触揭示深刻真相</span></div>
+                <div class="ql" style="top:72%;left:72%;"><span class="ql-title">魔幻实验型</span><span class="ql-desc">打破常规，意识流或非线性结构</span></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- S15: QUOTE -->
+    <section class="slide slide-quote">
+        <canvas class="quote-mark-canvas" id="quoteMark"></canvas>
+        <blockquote class="quote-text reveal delay-2">写作是把网撒向大海，<br>然后看看你能捞起什么。</blockquote>
+        <p class="quote-source reveal delay-3">—— 纳塔莉·戈德堡《写出我心》</p>
+        <div class="quote-card reveal delay-4" id="quoteCard">
+            <canvas></canvas>
+            <p>记住：每个伟大的作家，都曾是一个害怕动笔的初学者。</p>
+        </div>
+    </section>
+
+    <!-- S16: SUMMARY -->
+    <section class="slide">
+        <h2 class="title-main reveal delay-1">今天我们学到了……</h2>
+        <canvas class="title-underline" height="12"></canvas>
+        <div class="summary-page reveal delay-2">
+            <canvas class="page-border" id="summaryBorder"></canvas>
+            <div class="summary-page-content">
+                <ul class="summary-list">
+                    <li><span class="sum-num" style="color:var(--pink);">1.</span><div class="sum-text"><span class="sum-title">创意写作是什么</span><span class="sum-desc">运用想象力和创造力，通过文字表达内心世界</span></div><canvas class="sep-line"></canvas></li>
+                    <li><span class="sum-num" style="color:var(--mint);">2.</span><div class="sum-text"><span class="sum-title">故事六要素</span><span class="sum-desc">人物、场景、冲突、情节、主题、叙述视角</span></div><canvas class="sep-line"></canvas></li>
+                    <li><span class="sum-num" style="color:var(--sky);">3.</span><div class="sum-text"><span class="sum-title">六个好习惯</span><span class="sum-desc">每日写作、广泛阅读、观察生活、勇敢动笔、接受反馈、保持好奇</span></div><canvas class="sep-line"></canvas></li>
+                    <li><span class="sum-num" style="color:var(--lavender);">4.</span><div class="sum-text"><span class="sum-title">好文章的标准</span><span class="sum-desc">具体、生动、有细节，"展示"而非"告诉"</span></div><canvas class="sep-line"></canvas></li>
+                    <li><span class="sum-num" style="color:var(--butter);">5.</span><div class="sum-text"><span class="sum-title">五步创作法</span><span class="sum-desc">灵感 → 大纲 → 初稿 → 修改 → 分享</span></div><canvas class="sep-line"></canvas></li>
+                    <li><span class="sum-num" style="color:var(--peach);">6.</span><div class="sum-text"><span class="sum-title">动手实践</span><span class="sum-desc">用创意提示卡，立刻开始你的第一个故事！</span></div></li>
                 </ul>
             </div>
         </div>
     </section>
 
-    <!-- ══════ S13: PROMPT CARDS ══════ -->
-    <section class="slide">
-        <h2 class="title-main reveal delay-2">创意写作提示卡</h2>
-        <div class="prompt-grid">
-            <div class="prompt-card reveal delay-1">
-                <div class="prompt-icon">🚪</div>
-                <h4>神秘的门</h4>
-                <p>你发现了一扇从未见过的门，打开它之后……</p>
-            </div>
-            <div class="prompt-card reveal delay-2">
-                <div class="prompt-icon">✉️</div>
-                <h4>未寄出的信</h4>
-                <p>在旧书里发现了一封写于三十年前的信</p>
-            </div>
-            <div class="prompt-card reveal delay-3">
-                <div class="prompt-icon">🌧️</div>
-                <h4>雨中的陌生人</h4>
-                <p>暴雨中，一个陌生人递给你一把伞，说了一句奇怪的话</p>
-            </div>
-            <div class="prompt-card reveal delay-3">
-                <div class="prompt-icon">⏰</div>
-                <h4>时间倒流</h4>
-                <p>如果可以回到过去改变一件事，你会选择什么？</p>
-            </div>
-            <div class="prompt-card reveal delay-4">
-                <div class="prompt-icon">🏠</div>
-                <h4>老房子的秘密</h4>
-                <p>搬进新家后，你在墙壁里发现了一个隐藏的房间</p>
-            </div>
-            <div class="prompt-card reveal delay-5">
-                <div class="prompt-icon">🌌</div>
-                <h4>最后一个地球人</h4>
-                <p>你是地球上最后一个人，突然听到了敲门声</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- ══════ S14: MATRIX ══════ -->
-    <section class="slide">
-        <h2 class="title-main reveal delay-2">四种叙事风格象限</h2>
-        <div class="matrix">
-            <div class="matrix-cell reveal delay-1">
-                <div class="cell-icon">🔥</div>
-                <div class="cell-title">热烈抒情型</div>
-                <div class="cell-desc">情感充沛、语言华丽，适合诗歌和散文</div>
-            </div>
-            <div class="matrix-cell reveal delay-2">
-                <div class="cell-icon">🧊</div>
-                <div class="cell-title">冷静克制型</div>
-                <div class="cell-desc">海明威式极简，用最少的字表达最多的意思</div>
-            </div>
-            <div class="matrix-cell reveal delay-3">
-                <div class="cell-icon">😂</div>
-                <div class="cell-title">幽默讽刺型</div>
-                <div class="cell-desc">以轻松笔触揭示深刻真相，引人思考</div>
-            </div>
-            <div class="matrix-cell reveal delay-4">
-                <div class="cell-icon">🔮</div>
-                <div class="cell-title">魔幻实验型</div>
-                <div class="cell-desc">打破叙事常规，意识流或非线性结构</div>
-            </div>
-        </div>
-    </section>
-
-    <!-- ══════ S15: QUOTE ══════ -->
-    <section class="slide slide-quote">
-        <div class="quote-mark reveal delay-1">"</div>
-        <blockquote class="quote-text reveal delay-2">
-            写作是把网撒向大海，<br>
-            然后看看你能捞起什么。
-        </blockquote>
-        <p class="quote-source reveal delay-3">—— 纳塔莉·戈德堡《写出我心》</p>
-        <div class="reveal delay-4" style="margin-top: var(--space-lg);">
-            <div class="sticky sticky-sky" style="margin: 0 auto; max-width: 28em; text-align: center; position: relative;">
-                <div class="tape tape-center"></div>
-                <p style="color: var(--ink); font-family: var(--font-display);">✨ 记住：每个伟大的作家，都曾是一个害怕动笔的初学者。</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- ══════ S16: SUMMARY ══════ -->
-    <section class="slide">
-        <h2 class="title-main reveal delay-2">今天我们学到了……</h2>
-        <div class="summary-grid">
-            <div class="summary-note reveal delay-1">
-                <h4>📖 创意写作是什么</h4>
-                <p>运用想象力和创造力，通过文字表达内心世界</p>
-            </div>
-            <div class="summary-note reveal delay-2">
-                <h4>🧩 故事六要素</h4>
-                <p>人物、场景、冲突、情节、主题、叙述视角</p>
-            </div>
-            <div class="summary-note reveal delay-3">
-                <h4>✅ 六个好习惯</h4>
-                <p>每日写作、广泛阅读、观察生活、勇敢动笔、接受反馈、保持好奇</p>
-            </div>
-            <div class="summary-note reveal delay-3">
-                <h4>⚖️ 好文章的标准</h4>
-                <p>具体、生动、有细节，"展示"而非"告诉"</p>
-            </div>
-            <div class="summary-note reveal delay-4">
-                <h4>🔄 五步创作法</h4>
-                <p>灵感 → 大纲 → 初稿 → 修改 → 分享</p>
-            </div>
-            <div class="summary-note reveal delay-5">
-                <h4>🎲 动手实践</h4>
-                <p>用今天的创意提示卡，立刻开始你的第一个故事！</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- ══════ S17: END ══════ -->
+    <!-- S17: END -->
     <section class="slide slide-end">
-        <div class="end-emoji reveal delay-1">🌟</div>
-        <h2 class="end-title reveal delay-2">开始写作吧！</h2>
-        <p class="end-sub reveal delay-3">每一个文字，都是通往新世界的入口 ✨</p>
-        <p class="end-deco reveal delay-4">✿ ♡ ✧ ♡ ✿</p>
+        <canvas class="cover-decoration" id="endDecoration"></canvas>
+        <div class="cover-content">
+            <canvas class="end-icon" id="endIcon"></canvas>
+            <h2 class="end-title reveal delay-2">开始写作吧！</h2>
+            <p class="end-sub reveal delay-3">每一个文字，都是通往新世界的入口</p>
+            <canvas class="end-deco" id="endDeco"></canvas>
+        </div>
     </section>
 
-    <script>
+    <script type="module">
+    import rough from 'https://esm.sh/roughjs@4.6.6?bundle-deps';
+
+    class RoughDecorations {
+        constructor() {
+            this.C = { pink:'#f4a0b0', mint:'#7ecbb0', sky:'#7cb5d4', butter:'#e8c84a', lavender:'#b088d4', peach:'#f8c8a0', ink:'#3d2c2c' };
+            this.BG = { pink:'#fde8ec', mint:'#e4f6ef', sky:'#e4f0f8', butter:'#fdf5d6', lavender:'#f0e8f8', peach:'#fff3e0' };
+            this.dpr = window.devicePixelRatio || 1;
+            this.init();
+        }
+
+        setupCanvas(canvas, w, h) {
+            canvas.width = w * this.dpr;
+            canvas.height = h * this.dpr;
+            canvas.style.width = w + 'px';
+            canvas.style.height = h + 'px';
+            const ctx = canvas.getContext('2d');
+            ctx.scale(this.dpr, this.dpr);
+            return rough.canvas(canvas);
+        }
+
+        init() {
+            this.drawCoverDecoration();
+            this.drawCoverBookIcon();
+            this.drawTitleUnderlines();
+            this.drawChapterDecos();
+            this.drawAgenda();
+            this.drawPinnedNote();
+            this.drawCheckboxes();
+            this.drawMindMap();
+            this.drawHandChart();
+            this.drawTornCompare();
+            this.drawWindingPath();
+            this.drawAnnotateBlocks();
+            this.drawPromptScatter();
+            this.drawQuadrant();
+            this.drawQuoteMark();
+            this.drawQuoteCard();
+            this.drawSummaryPage();
+            this.drawEndDecoration();
+            this.drawEndIcon();
+            this.drawEndDeco();
+        }
+
+        drawCoverDecoration() {
+            const canvas = document.getElementById('coverDecoration');
+            if (!canvas) return;
+            const w = canvas.offsetWidth || window.innerWidth;
+            const h = canvas.offsetHeight || window.innerHeight;
+            const rc = this.setupCanvas(canvas, w, h);
+            rc.circle(w*0.08, h*0.12, 30, { roughness:2, stroke:this.C.pink, strokeWidth:1.5, fill:'rgba(244,160,176,0.1)', fillStyle:'hachure' });
+            rc.circle(w*0.08, h*0.12, 18, { roughness:1.5, stroke:this.C.pink, strokeWidth:1 });
+            rc.polygon([[w*0.9,h*0.08],[w*0.92,h*0.12],[w*0.96,h*0.12],[w*0.93,h*0.15],[w*0.94,h*0.19],[w*0.9,h*0.16],[w*0.86,h*0.19],[w*0.87,h*0.15],[w*0.84,h*0.12],[w*0.88,h*0.12]], { roughness:1.5, stroke:this.C.mint, strokeWidth:1.5 });
+            rc.path(`M ${w*0.05} ${h*0.82} C ${w*0.08} ${h*0.78}, ${w*0.12} ${h*0.85}, ${w*0.15} ${h*0.8}`, { roughness:1.5, stroke:this.C.sky, strokeWidth:1.5 });
+            rc.rectangle(w*0.88, h*0.78, 20, 20, { roughness:2, stroke:this.C.lavender, strokeWidth:1.5 });
+            rc.circle(w*0.92, h*0.85, 14, { roughness:2, stroke:this.C.butter, strokeWidth:1.5 });
+            [[w*0.15,h*0.25],[w*0.85,h*0.3],[w*0.1,h*0.6],[w*0.92,h*0.55],[w*0.2,h*0.85],[w*0.8,h*0.9]].forEach((p,i) => {
+                const c = [this.C.pink,this.C.mint,this.C.sky,this.C.lavender,this.C.butter,this.C.pink][i];
+                rc.circle(p[0],p[1],6,{roughness:1,stroke:c,strokeWidth:1.5,fill:c,fillStyle:'solid'});
+            });
+        }
+
+        drawCoverBookIcon() {
+            const canvas = document.getElementById('coverBookIcon');
+            if (!canvas) return;
+            const rc = this.setupCanvas(canvas, 100, 100);
+            rc.path('M 50 15 C 35 18, 10 20, 5 25 L 5 85 C 10 80, 35 78, 50 75', { roughness:1.5, stroke:this.C.ink, strokeWidth:2.5, fill:'#fff', fillStyle:'solid' });
+            rc.path('M 50 15 C 65 18, 90 20, 95 25 L 95 85 C 90 80, 65 78, 50 75', { roughness:1.5, stroke:this.C.ink, strokeWidth:2.5, fill:'#fff', fillStyle:'solid' });
+            rc.line(50,15,50,75, { roughness:1.2, stroke:this.C.ink, strokeWidth:2 });
+            rc.line(15,35,42,35, { roughness:1.5, stroke:this.C.pink, strokeWidth:1.5 });
+            rc.line(15,45,38,45, { roughness:1.5, stroke:this.C.mint, strokeWidth:1.5 });
+            rc.line(15,55,40,55, { roughness:1.5, stroke:this.C.sky, strokeWidth:1.5 });
+            rc.line(58,35,85,35, { roughness:1.5, stroke:this.C.lavender, strokeWidth:1.5 });
+            rc.line(58,45,82,45, { roughness:1.5, stroke:this.C.butter, strokeWidth:1.5 });
+            rc.line(58,55,80,55, { roughness:1.5, stroke:this.C.peach, strokeWidth:1.5 });
+        }
+
+        drawTitleUnderlines() {
+            const colors = [this.C.pink,this.C.mint,this.C.pink,this.C.sky,this.C.mint,this.C.lavender,this.C.sky,this.C.pink,this.C.mint,this.C.butter,this.C.lavender,this.C.pink,this.C.mint];
+            document.querySelectorAll('.title-underline').forEach((canvas, i) => {
+                const title = canvas.previousElementSibling;
+                const w = title ? title.offsetWidth + 20 : 200;
+                const rc = this.setupCanvas(canvas, w, 12);
+                rc.line(0,6,w-10,8, { roughness:2, stroke:colors[i%colors.length], strokeWidth:3, bowing:1.5 });
+            });
+        }
+
+        drawChapterDecos() {
+            ['chapterDeco1','chapterDeco2'].forEach((id,i) => {
+                const canvas = document.getElementById(id);
+                if (!canvas) return;
+                const rc = this.setupCanvas(canvas, 80, 30);
+                const color = i===0 ? this.C.pink : this.C.mint;
+                let path = 'M 5 15';
+                for (let s=1; s<=8; s++) path += ` L ${5+s*9} ${15+Math.sin(s*0.7+i)*5}`;
+                rc.path(path, { roughness:2, stroke:color, strokeWidth:2, bowing:2 });
+                rc.circle(40,15,6, { roughness:1.5, stroke:color, strokeWidth:1.5, fill:color, fillStyle:'solid' });
+            });
+        }
+
+        drawAgenda() {
+            const canvas = document.getElementById('agendaCanvas');
+            if (!canvas) return;
+            const wrap = canvas.parentElement;
+            const w = wrap.offsetWidth, h = wrap.offsetHeight;
+            const rc = this.setupCanvas(canvas, w, h);
+            const items = wrap.querySelectorAll('li');
+            const colors = [this.C.pink,this.C.mint,this.C.sky,this.C.lavender,this.C.butter,this.C.peach];
+            items.forEach((li, i) => {
+                const y = li.offsetTop + li.offsetHeight/2;
+                const x = 20;
+                rc.circle(x, y, 18, { roughness:1.8, stroke:colors[i], strokeWidth:2, fill:colors[i], fillStyle:'solid' });
+                if (i < items.length - 1) {
+                    const nextY = items[i+1].offsetTop + items[i+1].offsetHeight/2;
+                    rc.line(x, y+11, x, nextY-11, { roughness:1.5, stroke:'rgba(61,44,44,0.15)', strokeWidth:1.5 });
+                }
+                const ctx = canvas.getContext('2d');
+                ctx.font = '12px "ZCOOL KuaiLe"';
+                ctx.fillStyle = '#fff';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(String(i+1), x, y+1);
+            });
+        }
+
+        drawPinnedNote() {
+            const note = document.getElementById('pinnedNote');
+            if (!note) return;
+            const canvas = note.querySelector('canvas');
+            const w = note.offsetWidth, h = note.offsetHeight;
+            const rc = this.setupCanvas(canvas, w, h);
+            rc.rectangle(4,4,w-8,h-8, { roughness:2, bowing:1.5, stroke:this.C.butter, strokeWidth:2.5, fill:this.BG.butter, fillStyle:'solid' });
+            rc.circle(w/2, 8, 12, { roughness:1.5, stroke:this.C.pink, strokeWidth:2, fill:this.C.pink, fillStyle:'solid' });
+            rc.line(w/2, 14, w/2, 22, { roughness:1, stroke:this.C.ink, strokeWidth:2 });
+        }
+
+        drawCheckboxes() {
+            document.querySelectorAll('.check-list .cb').forEach(canvas => {
+                const checked = canvas.getAttribute('data-checked') === 'true';
+                const rc = this.setupCanvas(canvas, 22, 22);
+                rc.rectangle(2,2,18,18, { roughness:2, stroke:this.C.ink, strokeWidth:2, bowing:1.5 });
+                if (checked) rc.path('M 5 11 L 9 16 L 17 5', { roughness:1.2, stroke:this.C.mint, strokeWidth:2.5, bowing:0.5 });
+            });
+        }
+
+        drawMindMap() {
+            const canvas = document.getElementById('mindMapCanvas');
+            if (!canvas) return;
+            const container = canvas.parentElement;
+            const w = container.offsetWidth, h = container.offsetHeight;
+            const rc = this.setupCanvas(canvas, w, h);
+            const cx = w*0.5, cy = h*0.5;
+            rc.circle(cx, cy, 60, { roughness:2, stroke:this.C.ink, strokeWidth:2.5, fill:'rgba(253,248,240,0.8)', fillStyle:'solid' });
+            const labels = container.querySelectorAll('.mm-label');
+            const colors = [this.C.pink,this.C.mint,this.C.sky,this.C.lavender,this.C.butter,this.C.peach];
+            const bgKeys = Object.keys(this.BG);
+            // Skip the first label (center "故事")
+            for (let i = 1; i < labels.length; i++) {
+                const label = labels[i];
+                const rect = label.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                const lx = rect.left - containerRect.left + rect.width / 2;
+                const ly = rect.top - containerRect.top + rect.height / 2;
+                const color = colors[(i-1) % colors.length];
+                rc.line(cx, cy, lx, ly, { roughness:2, stroke:color, strokeWidth:1.5, strokeLineDash:[6,4] });
+                const padX = 24, padY = 14;
+                const ellipseW = rect.width + padX * 2;
+                const ellipseH = rect.height + padY * 2;
+                rc.ellipse(lx, ly, ellipseW, ellipseH, { roughness:2, stroke:color, strokeWidth:2, fill:this.BG[bgKeys[(i-1) % bgKeys.length]], fillStyle:'solid' });
+            }
+        }
+
+        drawHandChart() {
+            const canvas = document.getElementById('handChartCanvas');
+            if (!canvas) return;
+            const w = canvas.parentElement.offsetWidth, h = canvas.parentElement.offsetHeight;
+            const rc = this.setupCanvas(canvas, w, h);
+            const data = [{label:'叙事能力',val:82,color:'pink'},{label:'人物塑造',val:68,color:'sky'},{label:'场景描写',val:75,color:'mint'},{label:'对话功力',val:58,color:'lavender'},{label:'修改润色',val:90,color:'butter'}];
+            const marginLeft = w*0.12, marginRight = w*0.06, top = 30, barH = (h-60)/data.length;
+            // Axis
+            rc.line(marginLeft-10, top-10, marginLeft-10, h-20, { roughness:1.5, stroke:this.C.ink, strokeWidth:2 });
+            rc.line(marginLeft-10, h-20, w-marginRight, h-20, { roughness:1.5, stroke:this.C.ink, strokeWidth:2 });
+            const ctx = canvas.getContext('2d');
+            ctx.font = `${Math.min(14, w*0.018)}px "ZCOOL KuaiLe"`;
+            ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+            data.forEach((d,i) => {
+                const y = top + i*barH + barH*0.3;
+                const barW = (w - marginLeft - marginRight) * d.val / 100;
+                ctx.fillStyle = '#3d2c2c';
+                ctx.fillText(d.label, marginLeft-18, y+barH*0.2);
+                rc.rectangle(marginLeft, y, barW, barH*0.4, { roughness:1.8, stroke:this.C[d.color], strokeWidth:2, fill:this.C[d.color], fillStyle:'hachure', hachureGap:5, hachureAngle:60 });
+                ctx.textAlign = 'left';
+                ctx.fillStyle = this.C[d.color];
+                ctx.fillText(d.val+'%', marginLeft+barW+8, y+barH*0.2);
+                ctx.textAlign = 'right';
+            });
+        }
+
+        drawTornCompare() {
+            const canvas = document.getElementById('tornLine');
+            if (!canvas) return;
+            const parent = canvas.parentElement;
+            const rc = this.setupCanvas(canvas, 40, parent.offsetHeight);
+            const h = parent.offsetHeight;
+            let path = `M 20 0`;
+            for (let y = 0; y < h; y += 8) {
+                const x = 20 + (Math.random()-0.5)*16;
+                path += ` L ${x} ${y}`;
+            }
+            path += ` L 20 ${h}`;
+            rc.path(path, { roughness:0.5, stroke:'rgba(61,44,44,0.2)', strokeWidth:2 });
+            parent.querySelectorAll('.torn-side ul li canvas').forEach(c => {
+                const r = this.setupCanvas(c, 20, 20);
+                if (c.getAttribute('data-type') === 'check') {
+                    r.path('M 3 10 L 8 15 L 17 4', { roughness:1.2, stroke:this.C.mint, strokeWidth:2.5 });
+                } else {
+                    r.line(4,4,16,16, { roughness:1.5, stroke:this.C.pink, strokeWidth:2.5 });
+                    r.line(16,4,4,16, { roughness:1.5, stroke:this.C.pink, strokeWidth:2.5 });
+                }
+            });
+        }
+
+        drawWindingPath() {
+            const canvas = document.getElementById('pathCanvas');
+            if (!canvas) return;
+            const w = canvas.parentElement.offsetWidth, h = canvas.parentElement.offsetHeight;
+            const rc = this.setupCanvas(canvas, w, h);
+            const points = [[w*0.08,h*0.5],[w*0.28,h*0.22],[w*0.5,h*0.5],[w*0.72,h*0.78],[w*0.92,h*0.5]];
+            const colors = [this.C.pink,this.C.mint,this.C.sky,this.C.lavender,this.C.butter];
+            // Draw path
+            let pathStr = `M ${points[0][0]} ${points[0][1]}`;
+            for (let i = 1; i < points.length; i++) {
+                const prev = points[i-1], cur = points[i];
+                const cpx = (prev[0]+cur[0])/2;
+                pathStr += ` Q ${cpx} ${prev[1]}, ${cur[0]} ${cur[1]}`;
+            }
+            rc.path(pathStr, { roughness:1.5, stroke:'rgba(61,44,44,0.2)', strokeWidth:3, bowing:1 });
+            // Milestone dots
+            points.forEach((p,i) => {
+                rc.circle(p[0],p[1],28, { roughness:1.8, stroke:colors[i], strokeWidth:2.5, fill:colors[i], fillStyle:'solid' });
+            });
+        }
+
+        drawAnnotateBlocks() {
+            const tellBlock = document.getElementById('tellBlock');
+            const showBlock = document.getElementById('showBlock');
+            if (tellBlock) {
+                const c = tellBlock.querySelector('canvas'), w=tellBlock.offsetWidth, h=tellBlock.offsetHeight;
+                const rc = this.setupCanvas(c, w, h);
+                rc.rectangle(4,4,w-8,h-8, { roughness:2, stroke:this.C.pink, strokeWidth:2, fill:this.BG.pink, fillStyle:'solid' });
+                for (let y = h*0.35; y < h*0.85; y += h*0.18) {
+                    rc.line(w*0.15, y, w*0.85, y, { roughness:2, stroke:'rgba(244,160,176,0.5)', strokeWidth:2 });
+                }
+            }
+            if (showBlock) {
+                const c = showBlock.querySelector('canvas'), w=showBlock.offsetWidth, h=showBlock.offsetHeight;
+                const rc = this.setupCanvas(c, w, h);
+                rc.rectangle(4,4,w-8,h-8, { roughness:2, stroke:this.C.mint, strokeWidth:2, fill:this.BG.mint, fillStyle:'solid' });
+                for (let y = h*0.4; y < h*0.9; y += h*0.18) {
+                    rc.line(w*0.1, y, w*0.9, y, { roughness:2, stroke:'rgba(126,203,176,0.4)', strokeWidth:4 });
+                }
+            }
+            const arrow = document.getElementById('annotateArrow');
+            if (arrow) {
+                const rc = this.setupCanvas(arrow, 60, 40);
+                rc.line(5,20,45,20, { roughness:1.5, stroke:this.C.ink, strokeWidth:2.5 });
+                rc.line(38,13,50,20, { roughness:1.2, stroke:this.C.ink, strokeWidth:2.5 });
+                rc.line(38,27,50,20, { roughness:1.2, stroke:this.C.ink, strokeWidth:2.5 });
+            }
+        }
+
+        drawPromptScatter() {
+            const canvas = document.getElementById('scatterCanvas');
+            if (!canvas) return;
+            const container = canvas.parentElement;
+            const w = container.offsetWidth, h = container.offsetHeight;
+            const rc = this.setupCanvas(canvas, w, h);
+            const items = container.querySelectorAll('.prompt-item');
+            const colors = [this.C.butter,this.C.mint,this.C.sky,this.C.pink,this.C.lavender,this.C.peach];
+            const bgs = [this.BG.butter,this.BG.mint,this.BG.sky,this.BG.pink,this.BG.lavender,this.BG.peach];
+            const shapes = ['rect','ellipse','rect','ellipse','rect','ellipse'];
+            items.forEach((item, i) => {
+                const rect = item.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                const cx = rect.left - containerRect.left + rect.width / 2;
+                const cy = rect.top - containerRect.top + rect.height / 2;
+                const padX = 28, padY = 20;
+                const shapeW = rect.width + padX * 2;
+                const shapeH = rect.height + padY * 2;
+                if (shapes[i] === 'rect') {
+                    rc.rectangle(cx - shapeW/2, cy - shapeH/2, shapeW, shapeH, { roughness:2, stroke:colors[i], strokeWidth:2, fill:bgs[i], fillStyle:'solid' });
+                } else {
+                    rc.ellipse(cx, cy, shapeW + 16, shapeH + 12, { roughness:2, stroke:colors[i], strokeWidth:2, fill:bgs[i], fillStyle:'solid' });
+                }
+                rc.circle(cx, cy - shapeH/2 - 2, 8, { roughness:1.5, stroke:colors[i], strokeWidth:1.5, fill:colors[i], fillStyle:'solid' });
+            });
+        }
+
+        drawQuadrant() {
+            const canvas = document.getElementById('quadrantCanvas');
+            if (!canvas) return;
+            const container = canvas.parentElement;
+            const w = container.offsetWidth, h = container.offsetHeight;
+            const rc = this.setupCanvas(canvas, w, h);
+            rc.line(w*0.5, h*0.08, w*0.5, h*0.92, { roughness:1.5, stroke:this.C.ink, strokeWidth:2, strokeLineDash:[8,5] });
+            rc.line(w*0.08, h*0.5, w*0.92, h*0.5, { roughness:1.5, stroke:this.C.ink, strokeWidth:2, strokeLineDash:[8,5] });
+            const qColors = [this.C.pink,this.C.sky,this.C.butter,this.C.lavender];
+            const qBgs = [this.BG.pink,this.BG.sky,this.BG.butter,this.BG.lavender];
+            const labels = container.querySelectorAll('.ql');
+            labels.forEach((label, i) => {
+                const rect = label.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                const lx = rect.left - containerRect.left + rect.width / 2;
+                const ly = rect.top - containerRect.top + rect.height / 2;
+                const padX = 30, padY = 20;
+                rc.ellipse(lx, ly, rect.width + padX * 2, rect.height + padY * 2, { roughness:2, stroke:qColors[i], strokeWidth:2, fill:qBgs[i], fillStyle:'solid' });
+            });
+        }
+
+        drawQuoteMark() {
+            const canvas = document.getElementById('quoteMark');
+            if (!canvas) return;
+            const rc = this.setupCanvas(canvas, 60, 50);
+            rc.path('M 10 40 C 10 20, 20 10, 25 14 C 20 22, 18 32, 22 40', { roughness:1.5, stroke:this.C.lavender, strokeWidth:3 });
+            rc.path('M 32 40 C 32 20, 42 10, 47 14 C 42 22, 40 32, 44 40', { roughness:1.5, stroke:this.C.lavender, strokeWidth:3 });
+        }
+
+        drawQuoteCard() {
+            const card = document.getElementById('quoteCard');
+            if (!card) return;
+            const c = card.querySelector('canvas'), w=card.offsetWidth, h=card.offsetHeight;
+            const rc = this.setupCanvas(c, w, h);
+            rc.rectangle(3,3,w-6,h-6, { roughness:2, stroke:this.C.sky, strokeWidth:2, fill:this.BG.sky, fillStyle:'solid' });
+        }
+
+        drawSummaryPage() {
+            const canvas = document.getElementById('summaryBorder');
+            if (!canvas) return;
+            const page = canvas.parentElement;
+            const w = page.offsetWidth, h = page.offsetHeight;
+            const rc = this.setupCanvas(canvas, w, h);
+            rc.rectangle(4,4,w-8,h-8, { roughness:2, bowing:1.5, stroke:this.C.ink, strokeWidth:2 });
+            for (let y = 30; y < h-20; y += 35) {
+                rc.circle(16, y, 10, { roughness:1.5, stroke:this.C.ink, strokeWidth:1.5 });
+            }
+            document.querySelectorAll('.summary-list .sep-line').forEach((c,i) => {
+                const li = c.parentElement;
+                const lw = li.offsetWidth;
+                const r = this.setupCanvas(c, lw, 6);
+                const colors = [this.C.pink,this.C.mint,this.C.sky,this.C.lavender,this.C.butter];
+                r.line(0,3,lw,3, { roughness:2, stroke:colors[i%colors.length], strokeWidth:1.5, strokeLineDash:[4,4] });
+            });
+        }
+
+        drawEndDecoration() {
+            const canvas = document.getElementById('endDecoration');
+            if (!canvas) return;
+            const w = canvas.offsetWidth || window.innerWidth;
+            const h = canvas.offsetHeight || window.innerHeight;
+            const rc = this.setupCanvas(canvas, w, h);
+            const colors = [this.C.pink,this.C.mint,this.C.sky,this.C.lavender,this.C.butter,this.C.peach];
+            [[w*0.1,h*0.15],[w*0.9,h*0.2],[w*0.05,h*0.7],[w*0.95,h*0.75],[w*0.15,h*0.9],[w*0.85,h*0.85]].forEach((p,i) => {
+                rc.circle(p[0],p[1],8+Math.random()*6, { roughness:1.5, stroke:colors[i], strokeWidth:1.5, fill:colors[i], fillStyle:'solid' });
+            });
+            rc.path(`M ${w*0.05} ${h*0.45} C ${w*0.08} ${h*0.42}, ${w*0.11} ${h*0.48}, ${w*0.14} ${h*0.44}`, { roughness:2, stroke:this.C.mint, strokeWidth:1.5 });
+            rc.path(`M ${w*0.86} ${h*0.55} C ${w*0.89} ${h*0.52}, ${w*0.92} ${h*0.58}, ${w*0.95} ${h*0.54}`, { roughness:2, stroke:this.C.pink, strokeWidth:1.5 });
+        }
+
+        drawEndIcon() {
+            const canvas = document.getElementById('endIcon');
+            if (!canvas) return;
+            const rc = this.setupCanvas(canvas, 100, 100);
+            // Pen with heart
+            rc.line(50, 20, 50, 70, { roughness:1.5, stroke:this.C.ink, strokeWidth:3 });
+            rc.line(44, 20, 56, 20, { roughness:1, stroke:this.C.ink, strokeWidth:2 });
+            rc.polygon([[47,70],[53,70],[50,80]], { roughness:1.5, stroke:this.C.ink, strokeWidth:2, fill:this.C.ink, fillStyle:'solid' });
+            // Heart around
+            rc.path('M 50 35 C 50 35, 35 20, 25 30 C 15 40, 25 55, 50 65 C 75 55, 85 40, 75 30 C 65 20, 50 35, 50 35', { roughness:1.8, stroke:this.C.pink, strokeWidth:2, fill:'rgba(244,160,176,0.15)', fillStyle:'hachure', hachureGap:6 });
+        }
+
+        drawEndDeco() {
+            const canvas = document.getElementById('endDeco');
+            if (!canvas) return;
+            const rc = this.setupCanvas(canvas, 120, 30);
+            let path = 'M 10 15';
+            for (let s=1; s<=10; s++) path += ` L ${10+s*10} ${15+Math.sin(s*0.6)*5}`;
+            rc.path(path, { roughness:2, stroke:this.C.pink, strokeWidth:2, bowing:2 });
+            rc.circle(60,15,8, { roughness:1.5, stroke:this.C.pink, strokeWidth:1.5, fill:this.C.pink, fillStyle:'solid' });
+        }
+    }
+
     class SlidePresentation {
         constructor() {
             this.slides = document.querySelectorAll('.slide');
@@ -1575,157 +942,43 @@
             this.bindWheel();
             this.bindTouch();
         }
-
         bindKeyboard() {
-            window.addEventListener('keydown', (e) => {
-                switch (e.key) {
-                    case 'ArrowRight': case 'ArrowDown': case ' ': case 'PageDown':
-                        e.preventDefault(); this.next(); break;
-                    case 'ArrowLeft': case 'ArrowUp': case 'PageUp':
-                        e.preventDefault(); this.prev(); break;
+            window.addEventListener('keydown', e => {
+                switch(e.key) {
+                    case 'ArrowRight':case 'ArrowDown':case ' ':case 'PageDown': e.preventDefault(); this.next(); break;
+                    case 'ArrowLeft':case 'ArrowUp':case 'PageUp': e.preventDefault(); this.prev(); break;
                     case 'Home': e.preventDefault(); this.goTo(0); break;
-                    case 'End': e.preventDefault(); this.goTo(this.totalSlides - 1); break;
-                    case 'f': case 'F': e.preventDefault(); this.toggleFullscreen(); break;
-                    case 'o': case 'O': e.preventDefault(); this.toggleOverview(); break;
+                    case 'End': e.preventDefault(); this.goTo(this.totalSlides-1); break;
+                    case 'f':case 'F': e.preventDefault(); this.toggleFullscreen(); break;
+                    case 'o':case 'O': e.preventDefault(); this.toggleOverview(); break;
                     case 'Escape': this.closeOverview(); break;
                 }
             });
         }
-
         bindWheel() {
-            let acc = 0;
-            window.addEventListener('wheel', (e) => {
-                e.preventDefault();
-                acc += e.deltaY;
-                if (Math.abs(acc) >= 50) {
-                    acc > 0 ? this.next() : this.prev();
-                    acc = 0;
-                }
-                clearTimeout(this._wt);
-                this._wt = setTimeout(() => { acc = 0; }, 200);
-            }, { passive: false });
+            let acc=0;
+            window.addEventListener('wheel', e => { e.preventDefault(); acc+=e.deltaY; if(Math.abs(acc)>=50){acc>0?this.next():this.prev();acc=0;} clearTimeout(this._wt); this._wt=setTimeout(()=>{acc=0;},200); }, {passive:false});
         }
-
         bindTouch() {
-            let sx = 0, sy = 0;
-            window.addEventListener('touchstart', (e) => {
-                sx = e.touches[0].clientX;
-                sy = e.touches[0].clientY;
-            }, { passive: true });
-            window.addEventListener('touchend', (e) => {
-                const dx = sx - e.changedTouches[0].clientX;
-                const dy = sy - e.changedTouches[0].clientY;
-                if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
-                    dx > 0 ? this.next() : this.prev();
-                } else if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 50) {
-                    dy > 0 ? this.next() : this.prev();
-                }
-            }, { passive: true });
+            let sx=0,sy=0;
+            window.addEventListener('touchstart', e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;},{passive:true});
+            window.addEventListener('touchend', e=>{const dx=sx-e.changedTouches[0].clientX,dy=sy-e.changedTouches[0].clientY;if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>50){dx>0?this.next():this.prev();}else if(Math.abs(dy)>Math.abs(dx)&&Math.abs(dy)>50){dy>0?this.next():this.prev();}},{passive:true});
         }
-
-        next() { this.goTo(this.currentSlide + 1); }
-        prev() { this.goTo(this.currentSlide - 1); }
-
-        goTo(index) {
-            if (this.isLocked || index < 0 || index >= this.totalSlides || index === this.currentSlide) return;
-            this.isLocked = true;
-            this.slides[this.currentSlide].classList.remove('active');
-            this.currentSlide = index;
-            this.slides[this.currentSlide].classList.add('active');
-            this.updateUI();
-            this.triggerEffects(index);
-            setTimeout(() => { this.isLocked = false; }, this.lockDuration);
-        }
-
-        updateUI() {
-            const pct = this.totalSlides > 1 ? (this.currentSlide / (this.totalSlides - 1)) * 100 : 100;
-            if (this.progressFill) this.progressFill.style.width = pct + '%';
-            if (this.pageNum) this.pageNum.textContent = (this.currentSlide + 1) + ' / ' + this.totalSlides;
-        }
-
-        triggerEffects(index) {
-            const slide = this.slides[index];
-            slide.querySelectorAll('.chart-fill[data-percent]').forEach(el => {
-                if (!el.dataset.filled) {
-                    setTimeout(() => { el.style.width = el.dataset.percent + '%'; }, 300);
-                    el.dataset.filled = 'true';
-                }
-            });
-            slide.querySelectorAll('[data-count]').forEach(el => {
-                if (!el.dataset.counted) {
-                    el.dataset.counted = 'true';
-                    this.animateCount(el, parseInt(el.dataset.count, 10));
-                }
-            });
-        }
-
-        animateCount(el, target) {
-            const duration = 1800, start = performance.now();
-            const suffix = el.dataset.suffix || '';
-            function tick(now) {
-                const p = Math.min((now - start) / duration, 1);
-                const eased = 1 - Math.pow(1 - p, 3);
-                el.textContent = Math.round(eased * target) + suffix;
-                if (p < 1) requestAnimationFrame(tick);
-                else el.textContent = target + suffix;
-            }
-            setTimeout(() => requestAnimationFrame(tick), 350);
-        }
-
-        toggleFullscreen() {
-            if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
-            else document.exitFullscreen().catch(() => {});
-        }
-
-        toggleOverview() {
-            if (this.overviewActive) { this.closeOverview(); return; }
-            this.overviewActive = true;
-            const ov = document.createElement('div');
-            ov.className = 'ov-grid';
-            const close = document.createElement('button');
-            close.className = 'ov-close';
-            close.innerHTML = '&times;';
-            close.onclick = () => this.closeOverview();
-            ov.appendChild(close);
-            const vpAR = (window.innerWidth / window.innerHeight).toFixed(4);
-            this.slides.forEach((slide, i) => {
-                const card = document.createElement('div');
-                card.className = 'ov-card' + (i === this.currentSlide ? ' ov-current' : '');
-                card.style.aspectRatio = vpAR;
-                const inner = document.createElement('div');
-                inner.className = 'ov-inner';
-                const clone = slide.cloneNode(true);
-                clone.style.cssText = 'position:absolute;inset:0;width:100vw;height:100vh;opacity:1;visibility:visible;transform:none;pointer-events:none;';
-                clone.classList.add('active');
-                inner.appendChild(clone);
-                const num = document.createElement('span');
-                num.className = 'ov-num';
-                num.textContent = i + 1;
-                card.appendChild(inner);
-                card.appendChild(num);
-                card.onclick = () => { this.goTo(i); this.closeOverview(); };
-                ov.appendChild(card);
-            });
-            document.body.appendChild(ov);
-            this._ovEl = ov;
-            requestAnimationFrame(() => {
-                ov.querySelectorAll('.ov-inner').forEach(inner => {
-                    const card = inner.parentElement;
-                    const sx = card.offsetWidth / window.innerWidth;
-                    const sy = card.offsetHeight / window.innerHeight;
-                    inner.style.transform = 'scale(' + Math.min(sx, sy) + ')';
-                });
-                ov.classList.add('ov-visible');
-            });
-        }
-
-        closeOverview() {
-            this.overviewActive = false;
-            if (this._ovEl) { this._ovEl.remove(); this._ovEl = null; }
-        }
+        next(){this.goTo(this.currentSlide+1);}
+        prev(){this.goTo(this.currentSlide-1);}
+        goTo(i){if(this.isLocked||i<0||i>=this.totalSlides||i===this.currentSlide)return;this.isLocked=true;this.slides[this.currentSlide].classList.remove('active');this.currentSlide=i;this.slides[this.currentSlide].classList.add('active');this.updateUI();this.triggerEffects(i);setTimeout(()=>{this.isLocked=false;},this.lockDuration);}
+        updateUI(){const pct=this.totalSlides>1?(this.currentSlide/(this.totalSlides-1))*100:100;if(this.progressFill)this.progressFill.style.width=pct+'%';if(this.pageNum)this.pageNum.textContent=(this.currentSlide+1)+' / '+this.totalSlides;}
+        triggerEffects(i){const slide=this.slides[i];slide.querySelectorAll('.chart-fill[data-percent]').forEach(el=>{if(!el.dataset.filled){setTimeout(()=>{el.style.width=el.dataset.percent+'%';},300);el.dataset.filled='true';}});}
+        toggleFullscreen(){if(!document.fullscreenElement)document.documentElement.requestFullscreen().catch(()=>{});else document.exitFullscreen().catch(()=>{});}
+        toggleOverview(){if(this.overviewActive){this.closeOverview();return;}this.overviewActive=true;const ov=document.createElement('div');ov.className='ov-grid';const close=document.createElement('button');close.className='ov-close';close.innerHTML='&times;';close.onclick=()=>this.closeOverview();ov.appendChild(close);this.slides.forEach((slide,i)=>{const card=document.createElement('div');card.className='ov-card'+(i===this.currentSlide?' ov-current':'');const inner=document.createElement('div');inner.className='ov-inner';const clone=slide.cloneNode(true);clone.style.cssText='position:absolute;inset:0;width:100vw;height:100vh;opacity:1;visibility:visible;';clone.classList.add('active');inner.appendChild(clone);const num=document.createElement('span');num.className='ov-num';num.textContent=i+1;card.appendChild(inner);card.appendChild(num);card.onclick=()=>{this.goTo(i);this.closeOverview();};ov.appendChild(card);});document.body.appendChild(ov);this._ovEl=ov;requestAnimationFrame(()=>{ov.querySelectorAll('.ov-inner').forEach(inner=>{const card=inner.parentElement;inner.style.transform='scale('+Math.min(card.offsetWidth/window.innerWidth,card.offsetHeight/window.innerHeight)+')';});ov.classList.add('ov-visible');});}
+        closeOverview(){this.overviewActive=false;if(this._ovEl){this._ovEl.remove();this._ovEl=null;}}
     }
 
-    document.addEventListener('DOMContentLoaded', () => { new SlidePresentation(); });
+    document.addEventListener('DOMContentLoaded', () => {
+        requestAnimationFrame(() => { requestAnimationFrame(() => { new RoughDecorations(); new SlidePresentation(); }); });
+    });
+    let resizeTimeout;
+    window.addEventListener('resize', () => { clearTimeout(resizeTimeout); resizeTimeout = setTimeout(() => { document.querySelectorAll('canvas').forEach(c=>{const ctx=c.getContext('2d');if(ctx){ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,c.width,c.height);}}); new RoughDecorations(); }, 300); });
     </script>
 </body>
 </html>

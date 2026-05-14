@@ -179,6 +179,41 @@ CREATE TABLE IF NOT EXISTS video_note_chats (
         branch_index INTEGER DEFAULT 0,
         message_schema_version INTEGER DEFAULT 2
       );
+CREATE TABLE IF NOT EXISTS audio_notes (
+        id INTEGER PRIMARY KEY,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        meta_info TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        transcript TEXT DEFAULT '',
+        transcript_segments TEXT DEFAULT '',
+        transcript_word_segments TEXT DEFAULT '',
+        summary TEXT DEFAULT '',
+        highlights TEXT DEFAULT '[]',
+        insights TEXT DEFAULT '',
+        speakers TEXT DEFAULT '[]',
+        chapters TEXT DEFAULT '[]'
+      );
+CREATE TABLE IF NOT EXISTS audio_note_item (
+        id INTEGER PRIMARY KEY,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        audio_note_id INTEGER NOT NULL,
+        content_id INTEGER NOT NULL,
+        title TEXT NOT NULL DEFAULT ''
+      );
+CREATE TABLE IF NOT EXISTS audio_note_chats (
+        id INTEGER PRIMARY KEY,
+        audio_note_id INTEGER NOT NULL,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        messages TEXT,
+        title TEXT,
+        archived INTEGER DEFAULT 0,
+        parent_chat_id INTEGER,
+        branch_index INTEGER DEFAULT 0,
+        message_schema_version INTEGER DEFAULT 2
+      );
 
 -- 内容组织域表
 CREATE TABLE IF NOT EXISTS chat_group (
@@ -841,6 +876,12 @@ CREATE INDEX IF NOT EXISTS idx_pdf_chat_pdf_id
       ON pdf_chats(pdf_id);
 CREATE INDEX IF NOT EXISTS idx_pdf_chat_parent_chat_id
       ON pdf_chats(parent_chat_id);
+CREATE INDEX IF NOT EXISTS idx_audio_note_item_audio
+      ON audio_note_item(audio_note_id);
+CREATE INDEX IF NOT EXISTS idx_an_chat_audio_note_id
+      ON audio_note_chats(audio_note_id);
+CREATE INDEX IF NOT EXISTS idx_an_chat_parent_chat_id
+      ON audio_note_chats(parent_chat_id);
 CREATE INDEX IF NOT EXISTS idx_vl_note_project ON vl_note(project_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_set_project ON vl_quiz_set(project_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_item_set ON vl_quiz_item(quiz_set_id);

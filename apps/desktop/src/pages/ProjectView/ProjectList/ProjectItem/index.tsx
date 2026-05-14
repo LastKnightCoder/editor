@@ -13,6 +13,7 @@ import {
   updateProjectItem,
   openProjectItemInNewWindow,
   createEmptyVideoNote,
+  createEmptyAudioNote,
   createWhiteBoardContent,
   addChildProjectItem,
   removeRootProjectItem,
@@ -56,6 +57,10 @@ import {
   createChildEpubStrategy,
   createProjectItemFromEpub,
 } from "../../shared/hooks/useEpubHandlers";
+import {
+  useAudioHandlers,
+  createChildAudioStrategy,
+} from "../../shared/hooks/useAudioHandlers";
 import { useNotionSyncHandlers } from "../../shared/hooks/useNotionSyncHandlers";
 import { ADD_MENU_ITEMS } from "../../shared/constants/menuItems";
 import { ModalKey } from "../../shared/constants/modalKeys";
@@ -100,7 +105,6 @@ import {
 } from "@/utils";
 import whiteBoardIcon from "@/assets/icons/white-board.svg";
 
-import { isValid } from "@/components/WhiteBoard/utils";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import PresentationMode from "@/components/PresentationMode";
 import ContentExportModal from "@/components/ContentExportModal";
@@ -125,12 +129,15 @@ import NotionVideoSelectModal from "@/components/NotionVideoSelectModal";
 import RemoteVideoSelectModal from "@/components/RemoteVideoSelectModal";
 import RemotePdfSelectModal from "@/components/RemotePdfSelectModal";
 import RemoteEpubSelectModal from "@/components/RemoteEpubSelectModal";
+import RemoteAudioSelectModal from "@/components/RemoteAudioSelectModal";
+import XiaoyuzhouInput from "@/pages/ProjectView/AudioNoteView/components/XiaoyuzhouInput";
 import WebViewSelectModal, {
   type WebViewSelectResult,
 } from "@/components/WebViewSelectModal";
 import EditTitleModal from "@/components/EditTitleModal";
 
 import { createProjectCardListExtension } from "@/editor-extensions";
+import { getProjectItemMoreMenuItems } from "./projectItemMoreMenuItems";
 
 const TOP_DROP_INDICATOR_CLASS = [
   "before:content-['']",
@@ -298,6 +305,28 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const { handleRemoteEpubConfirm, handleSelectEpubConfirm } = useEpubHandlers({
     closeModal,
     strategy: epubStrategy,
+  });
+
+  const audioStrategy = useMemo(
+    () =>
+      createChildAudioStrategy({
+        projectItem,
+        projectId,
+        addChildProjectItem,
+        setProjectItem,
+        projectItemEventBus,
+      }),
+    [projectItem, projectId, projectItemEventBus],
+  );
+
+  const {
+    handleRemoteAudioConfirm,
+    handleXiaoyuzhouConfirm,
+    handleBilibiliAudioConfirm,
+    handleYoutubeAudioConfirm,
+  } = useAudioHandlers({
+    closeModal,
+    strategy: audioStrategy,
   });
 
   const { handleNotionSyncModalOk } = useNotionSyncHandlers({
@@ -723,170 +752,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     parentChildren,
   });
 
-  const moreMenuItems: MenuProps["items"] = useMemo(() => {
-    if (projectItem?.projectItemType === EProjectItemType.Document) {
-      return [
-        projectItem?.refType !== "card"
-          ? {
-              key: "to-card",
-              label: "建立卡片",
-            }
-          : undefined,
-        {
-          key: "create-flashcard",
-          label: "制作闪卡",
-          children: [
-            { key: "manual-flashcard", label: "手动制卡" },
-            { key: "ai-flashcard", label: "AI 制卡" },
-          ],
-        },
-        {
-          key: "generate-podcast",
-          label: projectItem?.podcast ? "编辑播客" : "生成播客",
-        },
-        {
-          key: "presentation-mode",
-          label: "演示模式",
-        },
-        {
-          key: "copy",
-          label: "复制文档",
-          children: [
-            {
-              key: "copy-markdown",
-              label: "Markdown",
-            },
-            {
-              key: "copy-wechat",
-              label: "微信公众号",
-            },
-          ],
-        },
-        {
-          key: "export",
-          label: "导出文档",
-          children: [
-            {
-              key: "export-markdown",
-              label: "Markdown",
-            },
-            {
-              key: "export-image",
-              label: "图片",
-            },
-            {
-              key: "export-epub",
-              label: "EPUB",
-            },
-            {
-              key: "export-pdf",
-              label: "PDF",
-            },
-          ],
-        },
-        {
-          key: "open-in-new-window",
-          label: "窗口打开",
-        },
-        {
-          key: "open-in-right-sidebar",
-          label: "右侧打开",
-        },
-        {
-          key: "remove",
-          label: "删除文档",
-        },
-      ].filter(isValid);
-    }
-
-    if (projectItem?.projectItemType === EProjectItemType.WhiteBoard) {
-      return [
-        projectItem?.refType !== "white-board"
-          ? {
-              key: "to-white-board",
-              label: "建立白板",
-            }
-          : undefined,
-        {
-          key: "remove",
-          label: "删除白板",
-        },
-        {
-          key: "edit-title",
-          label: "编辑标题",
-        },
-      ].filter(isValid);
-    }
-
-    if (projectItem?.projectItemType === EProjectItemType.VideoNote) {
-      return [
-        {
-          key: "remove",
-          label: "删除视频",
-        },
-        {
-          key: "edit-title",
-          label: "编辑标题",
-        },
-      ].filter(isValid);
-    }
-
-    if (projectItem?.projectItemType === EProjectItemType.WebView) {
-      return [
-        {
-          key: "remove",
-          label: "删除网页",
-        },
-        {
-          key: "edit-title",
-          label: "编辑标题",
-        },
-        {
-          key: "open-in-new-tab",
-          label: "新 Tab 打开",
-        },
-      ].filter(isValid);
-    }
-
-    if (projectItem?.projectItemType === EProjectItemType.TableView) {
-      return [
-        {
-          key: "remove",
-          label: "删除表格",
-        },
-      ].filter(isValid);
-    }
-
-    if (projectItem?.projectItemType === EProjectItemType.Pdf) {
-      return [
-        {
-          key: "remove",
-          label: "删除 PDF",
-        },
-        {
-          key: "edit-title",
-          label: "编辑标题",
-        },
-      ].filter(isValid);
-    }
-
-    if (projectItem?.projectItemType === EProjectItemType.Epub) {
-      return [
-        {
-          key: "remove",
-          label: "删除电子书",
-        },
-        {
-          key: "edit-title",
-          label: "编辑标题",
-        },
-      ].filter(isValid);
-    }
-  }, [
-    projectItem?.projectItemType,
-    projectItem?.refType,
-    projectItem?.podcast,
-  ]);
+  const moreMenuItems: MenuProps["items"] = useMemo(
+    () => getProjectItemMoreMenuItems(projectItem),
+    [projectItem?.projectItemType, projectItem?.refType, projectItem?.podcast],
+  );
 
   // 处理编辑标题确认
   const handleEditTitleConfirm = useMemoizedFn(
@@ -1204,6 +1073,55 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         openModal(ModalKey.Youtube);
       } else if (key === "add-notion-video-note-project-item") {
         openModal(ModalKey.Notion);
+      } else if (key === "add-local-audio-note-project-item") {
+        const filePath = await selectFile({
+          properties: ["openFile"],
+          filters: [
+            {
+              name: "Audio",
+              extensions: ["mp3", "wav", "m4a", "flac", "ogg", "aac", "wma"],
+            },
+          ],
+        });
+        if (!filePath) return;
+        const audioNote = await createEmptyAudioNote({
+          type: "local",
+          filePath: filePath[0],
+        });
+        if (!audioNote) {
+          message.error("创建音频笔记失败");
+          return;
+        }
+        const audioFileName = await getFileBaseName(filePath[0], true);
+        const createAudioProjectItem: CreateProjectItem = {
+          title: audioFileName,
+          content: [],
+          children: [],
+          refType: "audio-note",
+          refId: audioNote.id,
+          projectItemType: EProjectItemType.AudioNote,
+          count: 0,
+          whiteBoardContentId: 0,
+        };
+        const [parentItem] = await addChildProjectItem(
+          projectItemId,
+          createAudioProjectItem,
+        );
+        if (parentItem) {
+          setProjectItem(parentItem);
+          projectItemEventBus.publishProjectItemEvent(
+            "project-item:updated",
+            parentItem,
+          );
+        }
+      } else if (key === "add-remote-audio-note-project-item") {
+        openModal(ModalKey.RemoteAudio);
+      } else if (key === "add-xiaoyuzhou-audio-note-project-item") {
+        openModal(ModalKey.XiaoyuzhouPodcast);
+      } else if (key === "add-bilibili-audio-note-project-item") {
+        openModal(ModalKey.BilibiliAudio);
+      } else if (key === "add-youtube-audio-note-project-item") {
+        openModal(ModalKey.YoutubeAudio);
       } else if (key === "add-webview-project-item") {
         openModal(ModalKey.Webview);
       } else if (key === "add-table-project-item") {
@@ -1680,6 +1598,30 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         token={setting.integration.notion.token}
         onOk={handleNotionSyncModalOk}
         onCancel={() => closeModal(ModalKey.NotionSync)}
+      />
+
+      <RemoteAudioSelectModal
+        open={modalStates.remoteAudio}
+        onCancel={() => closeModal(ModalKey.RemoteAudio)}
+        onConfirm={handleRemoteAudioConfirm}
+      />
+
+      <XiaoyuzhouInput
+        open={modalStates.xiaoyuzhouPodcast}
+        onClose={() => closeModal(ModalKey.XiaoyuzhouPodcast)}
+        onConfirm={handleXiaoyuzhouConfirm}
+      />
+
+      <BilibiliVideoSelectModal
+        open={modalStates.bilibiliAudio}
+        onCancel={() => closeModal(ModalKey.BilibiliAudio)}
+        onConfirm={handleBilibiliAudioConfirm}
+      />
+
+      <YoutubeVideoSelectModal
+        open={modalStates.youtubeAudio}
+        onCancel={() => closeModal(ModalKey.YoutubeAudio)}
+        onConfirm={handleYoutubeAudioConfirm}
       />
 
       <EditTitleModal

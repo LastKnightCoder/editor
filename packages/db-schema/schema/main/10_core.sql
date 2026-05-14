@@ -172,3 +172,38 @@ CREATE TABLE IF NOT EXISTS video_note_chats (
         branch_index INTEGER DEFAULT 0,
         message_schema_version INTEGER DEFAULT 2
       );
+CREATE TABLE IF NOT EXISTS audio_notes (
+        id INTEGER PRIMARY KEY,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        meta_info TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        transcript TEXT DEFAULT '',
+        transcript_segments TEXT DEFAULT '',
+        transcript_word_segments TEXT DEFAULT '',
+        summary TEXT DEFAULT '',
+        highlights TEXT DEFAULT '[]',
+        insights TEXT DEFAULT '',
+        speakers TEXT DEFAULT '[]',
+        chapters TEXT DEFAULT '[]'
+      );
+CREATE TABLE IF NOT EXISTS audio_note_item (
+        id INTEGER PRIMARY KEY,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        audio_note_id INTEGER NOT NULL,
+        content_id INTEGER NOT NULL,
+        title TEXT NOT NULL DEFAULT ''
+      );
+CREATE TABLE IF NOT EXISTS audio_note_chats (
+        id INTEGER PRIMARY KEY,
+        audio_note_id INTEGER NOT NULL,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        messages TEXT,
+        title TEXT,
+        archived INTEGER DEFAULT 0,
+        parent_chat_id INTEGER,
+        branch_index INTEGER DEFAULT 0,
+        message_schema_version INTEGER DEFAULT 2
+      );

@@ -23,6 +23,10 @@ import FtsTable from "./tables/fts";
 import VideoNoteTable from "./tables/video-note";
 import VideoNoteItemTable from "./tables/video-note-item";
 import VideoNoteChatTable from "./tables/video-note-chat";
+import AudioNoteTable from "./tables/audio-note";
+import AudioNoteItemTable from "./tables/audio-note-item";
+import AudioNoteChatTable from "./tables/audio-note-chat";
+import { getXiaoyuzhouListenEvents } from "./xiaoyuzhou";
 import ContentTable from "./tables/content";
 import QuestionTable from "./tables/question";
 import WhiteBoardContentTable from "./tables/white-board-content";
@@ -66,6 +70,7 @@ import VibeLearningResourceTable from "./tables/vibe-learning-resource";
 import VibeLearningChatTable from "./tables/vibe-learning-chat";
 import VLNoteTable from "./tables/vl-note";
 import VLQuizTable from "./tables/vl-quiz";
+import { shouldWrapDatabaseEventInTransaction } from "./database-event-transaction";
 import mainContentIndexDBManager, {
   EnsureIndexReadyResult,
   IndexRebuildState,
@@ -204,6 +209,9 @@ class DatabaseModule implements Module {
       VideoNoteItemTable, // Must be before VideoNoteTable for migration
       VideoNoteTable,
       VideoNoteChatTable,
+      AudioNoteItemTable,
+      AudioNoteTable,
+      AudioNoteChatTable,
       QuestionGroupTable,
       QuestionTable,
       GoalHardCleanupTable,
@@ -256,6 +264,7 @@ class DatabaseModule implements Module {
       },
       {} as Record<string, (args: any) => Promise<any>>,
     );
+    Object.assign(this.eventAndHandlers, getXiaoyuzhouListenEvents());
     this.indexEventAndHandlers = {
       ...FtsTable.getListenEvents(),
       ...VecDocumentTable.getListenEvents(),
@@ -576,17 +585,24 @@ class DatabaseModule implements Module {
         if (!db) throw new Error("No database found");
 
         log.info(`database ${dbName} event ${eventName}`);
+        const useTransaction = shouldWrapDatabaseEventInTransaction(eventName);
         try {
-          db.exec("BEGIN");
+          if (useTransaction) {
+            db.exec("BEGIN");
+          }
           const res = await this.eventAndHandlers[eventName](db, ...args, win);
-          db.exec("COMMIT");
+          if (useTransaction) {
+            db.exec("COMMIT");
+          }
           return res;
         } catch (e) {
           log.error(
             `[database] event failed: db=${dbName}, event=${eventName}`,
             e,
           );
-          db.exec("ROLLBACK");
+          if (useTransaction) {
+            db.exec("ROLLBACK");
+          }
         }
       });
     });

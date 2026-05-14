@@ -41,6 +41,10 @@ import {
   createRootVideoStrategy,
 } from "../shared/hooks/useVideoHandlers";
 import {
+  useAudioHandlers,
+  createRootAudioStrategy,
+} from "../shared/hooks/useAudioHandlers";
+import {
   usePdfHandlers,
   createRootPdfStrategy,
   createProjectItemFromPdf,
@@ -61,6 +65,7 @@ import {
   getAllWhiteBoards,
   getAllCards,
   createEmptyVideoNote,
+  createEmptyAudioNote,
   createWhiteBoardContent,
   addRootProjectItem,
   createDataTable,
@@ -75,6 +80,8 @@ import NotionVideoSelectModal from "@/components/NotionVideoSelectModal";
 import RemoteVideoSelectModal from "@/components/RemoteVideoSelectModal";
 import RemotePdfSelectModal from "@/components/RemotePdfSelectModal";
 import RemoteEpubSelectModal from "@/components/RemoteEpubSelectModal";
+import RemoteAudioSelectModal from "@/components/RemoteAudioSelectModal";
+import XiaoyuzhouInput from "@/pages/ProjectView/AudioNoteView/components/XiaoyuzhouInput";
 import NotionSyncModal from "@/components/NotionSyncModal";
 import WebViewSelectModal, {
   type WebViewSelectResult,
@@ -184,6 +191,28 @@ const Project = () => {
   const { handleRemoteEpubConfirm, handleSelectEpubConfirm } = useEpubHandlers({
     closeModal,
     strategy: epubStrategy,
+  });
+
+  const audioStrategy = useMemo(
+    () =>
+      createRootAudioStrategy({
+        project,
+        addRootProjectItem,
+        setProject,
+        navigateTo: (_tabType, params, title) =>
+          navigateTo(TabType.ProjectDetail, params, title),
+      }),
+    [project, navigateTo],
+  );
+
+  const {
+    handleRemoteAudioConfirm,
+    handleXiaoyuzhouConfirm,
+    handleBilibiliAudioConfirm,
+    handleYoutubeAudioConfirm,
+  } = useAudioHandlers({
+    closeModal,
+    strategy: audioStrategy,
   });
 
   const { handleNotionSyncModalOk } = useNotionSyncHandlers({
@@ -527,6 +556,59 @@ const Project = () => {
         openModal(ModalKey.Youtube);
       } else if (key === "add-notion-video-note-project-item") {
         openModal(ModalKey.Notion);
+      } else if (key === "add-local-audio-note-project-item") {
+        const filePath = await selectFile({
+          properties: ["openFile"],
+          filters: [
+            {
+              name: "Audio",
+              extensions: ["mp3", "wav", "m4a", "flac", "ogg", "aac", "wma"],
+            },
+          ],
+        });
+        if (!filePath) return;
+        const audioNote = await createEmptyAudioNote({
+          type: "local",
+          filePath: filePath[0],
+        });
+        if (!audioNote) {
+          message.error("创建音频笔记失败");
+          return;
+        }
+        const fileName = await getFileBaseName(filePath[0], true);
+        const createProjectItem: CreateProjectItem = {
+          title: fileName,
+          content: [],
+          children: [],
+          refType: "audio-note",
+          refId: audioNote.id,
+          projectItemType: EProjectItemType.AudioNote,
+          count: 0,
+          whiteBoardContentId: 0,
+        };
+        const [newProject2, projectItem2] = await addRootProjectItem(
+          project.id,
+          createProjectItem,
+        );
+        if (projectItem2) {
+          navigateTo(
+            TabType.ProjectDetail,
+            {
+              id: newProject2.id,
+              itemId: projectItem2.id,
+            },
+            `项目 - ${projectItem2.title || `#${projectItem2.id}`}`,
+          );
+        }
+        setProject(newProject2);
+      } else if (key === "add-remote-audio-note-project-item") {
+        openModal(ModalKey.RemoteAudio);
+      } else if (key === "add-xiaoyuzhou-audio-note-project-item") {
+        openModal(ModalKey.XiaoyuzhouPodcast);
+      } else if (key === "add-bilibili-audio-note-project-item") {
+        openModal(ModalKey.BilibiliAudio);
+      } else if (key === "add-youtube-audio-note-project-item") {
+        openModal(ModalKey.YoutubeAudio);
       } else if (key === "add-webview-project-item") {
         openModal(ModalKey.Webview);
       } else if (key === "add-table-project-item") {
@@ -812,6 +894,30 @@ const Project = () => {
             token={setting.integration.notion.token}
             onOk={handleNotionSyncModalOk}
             onCancel={() => closeModal(ModalKey.NotionSync)}
+          />
+
+          <RemoteAudioSelectModal
+            open={modalStates.remoteAudio}
+            onCancel={() => closeModal(ModalKey.RemoteAudio)}
+            onConfirm={handleRemoteAudioConfirm}
+          />
+
+          <XiaoyuzhouInput
+            open={modalStates.xiaoyuzhouPodcast}
+            onClose={() => closeModal(ModalKey.XiaoyuzhouPodcast)}
+            onConfirm={handleXiaoyuzhouConfirm}
+          />
+
+          <BilibiliVideoSelectModal
+            open={modalStates.bilibiliAudio}
+            onCancel={() => closeModal(ModalKey.BilibiliAudio)}
+            onConfirm={handleBilibiliAudioConfirm}
+          />
+
+          <YoutubeVideoSelectModal
+            open={modalStates.youtubeAudio}
+            onCancel={() => closeModal(ModalKey.YoutubeAudio)}
+            onConfirm={handleYoutubeAudioConfirm}
           />
         </div>
       </ResizeableAndHideableSidebar>
