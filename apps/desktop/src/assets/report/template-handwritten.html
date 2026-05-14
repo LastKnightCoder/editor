@@ -7,8 +7,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Ma+Shan+Zheng&family=Patrick+Hand&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.min.js"></script>
     <style>
         :root {
             --paper: #fdf8f0;
@@ -1277,7 +1275,10 @@
         </div>
     </footer>
 
-    <script>
+    <script type="module">
+    import rough from 'https://esm.sh/roughjs@4.6.6?bundle-deps';
+    import * as echarts from 'https://esm.sh/echarts@5?bundle-deps';
+
     class ReportPresentation {
         constructor() {
             this.roughOptions = {

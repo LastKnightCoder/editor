@@ -148,10 +148,7 @@ const ResizablePanel = ({
     return (
       <div
         ref={containerRef}
-        className={classNames(
-          "flex h-full w-full select-none overflow-hidden",
-          className,
-        )}
+        className={classNames("flex h-full w-full overflow-hidden", className)}
       >
         <div className={classNames("h-full w-full", leftClassName)}>
           {leftContent}
@@ -172,7 +169,8 @@ const ResizablePanel = ({
     <div
       ref={containerRef}
       className={classNames(
-        "flex h-full w-full select-none overflow-hidden",
+        "flex h-full w-full overflow-hidden",
+        isDragging && "select-none",
         className,
       )}
     >

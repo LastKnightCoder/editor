@@ -35,7 +35,11 @@ const RemoteAudioSelectModal: React.FC<RemoteAudioSelectModalProps> = ({
     }
 
     try {
-      new URL(url);
+      const parsed = new URL(url);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        setError("仅支持 http/https 协议的音频链接");
+        return;
+      }
     } catch {
       setError("请输入有效的音频链接");
       return;

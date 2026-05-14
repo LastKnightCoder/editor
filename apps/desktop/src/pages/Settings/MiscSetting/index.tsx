@@ -32,6 +32,18 @@ import {
   type RemoteAudioCacheEntry,
 } from "@/commands/remote-audio-cache";
 import {
+  listYoutubeAudioCache,
+  deleteYoutubeAudioCache,
+  clearYoutubeAudioCache,
+  type YoutubeAudioCacheEntry,
+} from "@/commands/youtube-audio-cache";
+import {
+  listBilibiliAudioCache,
+  deleteBilibiliAudioCache,
+  clearBilibiliAudioCache,
+  type BilibiliAudioCacheEntry,
+} from "@/commands/bilibili-audio-cache";
+import {
   listYoutubeCache,
   deleteYoutubeCache,
   clearYoutubeCache,
@@ -57,7 +69,9 @@ type CacheSectionKey =
   | "bilibili"
   | "notion"
   | "image"
-  | "audio";
+  | "audio"
+  | "youtubeAudio"
+  | "bilibiliAudio";
 
 interface CacheRow<TPayload = unknown> {
   id: string;
@@ -93,6 +107,14 @@ interface RemoteImageCacheItem extends RemoteImageCacheEntry {
 }
 
 interface RemoteAudioCacheItem extends RemoteAudioCacheEntry {
+  previewUrl: string | null;
+}
+
+interface YoutubeAudioCacheItem extends YoutubeAudioCacheEntry {
+  previewUrl: string | null;
+}
+
+interface BilibiliAudioCacheItem extends BilibiliAudioCacheEntry {
   previewUrl: string | null;
 }
 
@@ -134,6 +156,12 @@ const MiscSetting = () => {
   const [remoteCache, setRemoteCache] = useState<RemoteCacheItem[]>([]);
   const [imageCache, setImageCache] = useState<RemoteImageCacheItem[]>([]);
   const [audioCache, setAudioCache] = useState<RemoteAudioCacheItem[]>([]);
+  const [youtubeAudioCache, setYoutubeAudioCache] = useState<
+    YoutubeAudioCacheItem[]
+  >([]);
+  const [bilibiliAudioCache, setBilibiliAudioCache] = useState<
+    BilibiliAudioCacheItem[]
+  >([]);
   const [youtubeCache, setYoutubeCache] = useState<YoutubeCacheWithPreview[]>(
     [],
   );
@@ -145,6 +173,8 @@ const MiscSetting = () => {
     remote: false,
     image: false,
     audio: false,
+    youtubeAudio: false,
+    bilibiliAudio: false,
     youtube: false,
     bilibili: false,
     notion: false,
@@ -156,6 +186,8 @@ const MiscSetting = () => {
     remote: false,
     image: false,
     audio: false,
+    youtubeAudio: false,
+    bilibiliAudio: false,
     youtube: false,
     bilibili: false,
     notion: false,
@@ -166,6 +198,8 @@ const MiscSetting = () => {
     remote: false,
     image: false,
     audio: false,
+    youtubeAudio: false,
+    bilibiliAudio: false,
     youtube: false,
     bilibili: false,
     notion: false,
@@ -176,6 +210,8 @@ const MiscSetting = () => {
     remote: new Set(),
     image: new Set(),
     audio: new Set(),
+    youtubeAudio: new Set(),
+    bilibiliAudio: new Set(),
     youtube: new Set(),
     bilibili: new Set(),
     notion: new Set(),
@@ -318,6 +354,54 @@ const MiscSetting = () => {
     }
   }, [message]);
 
+  const refreshYoutubeAudioCache = useCallback(async () => {
+    try {
+      const data = await listYoutubeAudioCache();
+      const enhanced = await Promise.all(
+        data.map(async (item) => {
+          let previewUrl: string | null = null;
+          try {
+            previewUrl = await convertFileSrc(item.localPath);
+          } catch (error) {
+            console.error("生成 YouTube 音频缓存预览失败:", error);
+          }
+          return {
+            ...item,
+            previewUrl,
+          };
+        }),
+      );
+      setYoutubeAudioCache(enhanced);
+    } catch (error) {
+      console.error("加载 YouTube 音频缓存失败:", error);
+      message.error("加载 YouTube 音频缓存失败");
+    }
+  }, [message]);
+
+  const refreshBilibiliAudioCache = useCallback(async () => {
+    try {
+      const data = await listBilibiliAudioCache();
+      const enhanced = await Promise.all(
+        data.map(async (item) => {
+          let previewUrl: string | null = null;
+          try {
+            previewUrl = await convertFileSrc(item.localPath);
+          } catch (error) {
+            console.error("生成 Bilibili 音频缓存预览失败:", error);
+          }
+          return {
+            ...item,
+            previewUrl,
+          };
+        }),
+      );
+      setBilibiliAudioCache(enhanced);
+    } catch (error) {
+      console.error("加载 Bilibili 音频缓存失败:", error);
+      message.error("加载 Bilibili 音频缓存失败");
+    }
+  }, [message]);
+
   const refreshYoutubeCache = useCallback(async () => {
     try {
       const data = await listYoutubeCache();
@@ -396,6 +480,8 @@ const MiscSetting = () => {
         refreshRemoteCache(),
         refreshImageCache(),
         refreshAudioCache(),
+        refreshYoutubeAudioCache(),
+        refreshBilibiliAudioCache(),
         refreshYoutubeCache(),
         refreshBilibiliCache(),
         refreshNotionCache(),
@@ -405,6 +491,8 @@ const MiscSetting = () => {
     refreshRemoteCache,
     refreshImageCache,
     refreshAudioCache,
+    refreshYoutubeAudioCache,
+    refreshBilibiliAudioCache,
     refreshYoutubeCache,
     refreshBilibiliCache,
     refreshNotionCache,
@@ -451,6 +539,34 @@ const MiscSetting = () => {
       setClearingState("audio", false);
     }
   }, [message, refreshAudioCache, setClearingState]);
+
+  const handleClearYoutubeAudioCache = useCallback(async () => {
+    setClearingState("youtubeAudio", true);
+    try {
+      await clearYoutubeAudioCache();
+      await refreshYoutubeAudioCache();
+      message.success("已清空 YouTube 音频缓存");
+    } catch (error) {
+      console.error("清除 YouTube 音频缓存失败:", error);
+      message.error("清除 YouTube 音频缓存失败");
+    } finally {
+      setClearingState("youtubeAudio", false);
+    }
+  }, [message, refreshYoutubeAudioCache, setClearingState]);
+
+  const handleClearBilibiliAudioCache = useCallback(async () => {
+    setClearingState("bilibiliAudio", true);
+    try {
+      await clearBilibiliAudioCache();
+      await refreshBilibiliAudioCache();
+      message.success("已清空 Bilibili 音频缓存");
+    } catch (error) {
+      console.error("清除 Bilibili 音频缓存失败:", error);
+      message.error("清除 Bilibili 音频缓存失败");
+    } finally {
+      setClearingState("bilibiliAudio", false);
+    }
+  }, [message, refreshBilibiliAudioCache, setClearingState]);
 
   const handleClearYoutubeCache = useCallback(async () => {
     setClearingState("youtube", true);
@@ -560,6 +676,53 @@ const MiscSetting = () => {
     [message, refreshAudioCache],
   );
 
+  const handleDeleteYoutubeAudioRow = useCallback(
+    async (row: CacheRow<YoutubeAudioCacheItem>) => {
+      const key = `youtubeAudio:${row.id}`;
+      setDeletingKey(key);
+      try {
+        const removed = await deleteYoutubeAudioCache(row.payload.url);
+        if (removed) {
+          message.success("已删除该 YouTube 音频缓存");
+        } else {
+          message.warning("未找到该 YouTube 音频缓存记录");
+        }
+        await refreshYoutubeAudioCache();
+      } catch (error) {
+        console.error("删除 YouTube 音频缓存失败:", error);
+        message.error("删除 YouTube 音频缓存失败");
+      } finally {
+        setDeletingKey((prev) => (prev === key ? null : prev));
+      }
+    },
+    [message, refreshYoutubeAudioCache],
+  );
+
+  const handleDeleteBilibiliAudioRow = useCallback(
+    async (row: CacheRow<BilibiliAudioCacheItem>) => {
+      const key = `bilibiliAudio:${row.id}`;
+      setDeletingKey(key);
+      try {
+        const removed = await deleteBilibiliAudioCache(
+          row.payload.bvid,
+          row.payload.cid,
+        );
+        if (removed) {
+          message.success("已删除该 Bilibili 音频缓存");
+        } else {
+          message.warning("未找到该 Bilibili 音频缓存记录");
+        }
+        await refreshBilibiliAudioCache();
+      } catch (error) {
+        console.error("删除 Bilibili 音频缓存失败:", error);
+        message.error("删除 Bilibili 音频缓存失败");
+      } finally {
+        setDeletingKey((prev) => (prev === key ? null : prev));
+      }
+    },
+    [message, refreshBilibiliAudioCache],
+  );
+
   const handleDeleteYoutubeRow = useCallback(
     async (row: CacheRow<YoutubeCacheWithPreview>) => {
       const key = `youtube:${row.id}`;
@@ -660,6 +823,26 @@ const MiscSetting = () => {
     }));
   }, [audioCache]);
 
+  const youtubeAudioRows = useMemo<CacheRow<YoutubeAudioCacheItem>[]>(() => {
+    return youtubeAudioCache.map((item) => ({
+      id: item.url,
+      name: item.title || item.url,
+      subtitle: item.url,
+      sizeLabel: formatBytes(item.fileSize),
+      payload: item,
+    }));
+  }, [youtubeAudioCache]);
+
+  const bilibiliAudioRows = useMemo<CacheRow<BilibiliAudioCacheItem>[]>(() => {
+    return bilibiliAudioCache.map((item) => ({
+      id: `${item.bvid}-${item.cid}`,
+      name: item.title || `Bilibili ${item.bvid}`,
+      subtitle: `BVID: ${item.bvid} · CID: ${item.cid}`,
+      sizeLabel: formatBytes(item.fileSize),
+      payload: item,
+    }));
+  }, [bilibiliAudioCache]);
+
   const youtubeRows = useMemo<CacheRow<YoutubeCacheWithPreview>[]>(() => {
     return youtubeCache.map((item) => ({
       id: item.url,
@@ -696,6 +879,8 @@ const MiscSetting = () => {
         ["remote", remoteRows],
         ["image", imageRows],
         ["audio", audioRows],
+        ["youtubeAudio", youtubeAudioRows],
+        ["bilibiliAudio", bilibiliAudioRows],
         ["youtube", youtubeRows],
         ["bilibili", bilibiliRows],
         ["notion", notionRows],
@@ -714,7 +899,16 @@ const MiscSetting = () => {
       });
       return changed ? next : prev;
     });
-  }, [remoteRows, imageRows, audioRows, youtubeRows, bilibiliRows, notionRows]);
+  }, [
+    remoteRows,
+    imageRows,
+    audioRows,
+    youtubeAudioRows,
+    bilibiliAudioRows,
+    youtubeRows,
+    bilibiliRows,
+    notionRows,
+  ]);
 
   const handleBatchDelete = useCallback(
     async (
@@ -1129,6 +1323,23 @@ const MiscSetting = () => {
     },
   );
 
+  const renderYoutubeAudioRows = renderVideoRowsFactory<YoutubeAudioCacheItem>(
+    (row) => [`缓存路径：${row.payload.localPath}`],
+    {
+      label: "试听音频",
+      onPreview: (row, src) => openAudioPreview(row.name, src),
+    },
+  );
+
+  const renderBilibiliAudioRows =
+    renderVideoRowsFactory<BilibiliAudioCacheItem>(
+      (row) => [`缓存路径：${row.payload.localPath}`],
+      {
+        label: "试听音频",
+        onPreview: (row, src) => openAudioPreview(row.name, src),
+      },
+    );
+
   return (
     <>
       <SettingContainer>
@@ -1238,6 +1449,30 @@ const MiscSetting = () => {
             {
               renderRows: renderAudioRows,
               emptyHint: "暂无音频缓存",
+            },
+          )}
+          {renderCacheSection(
+            "youtubeAudio",
+            "YouTube 音频缓存",
+            "YouTube 音频解析下载的本地缓存文件",
+            youtubeAudioRows,
+            handleDeleteYoutubeAudioRow,
+            handleClearYoutubeAudioCache,
+            {
+              renderRows: renderYoutubeAudioRows,
+              emptyHint: "暂无 YouTube 音频缓存",
+            },
+          )}
+          {renderCacheSection(
+            "bilibiliAudio",
+            "Bilibili 音频缓存",
+            "Bilibili 音频解析下载的本地缓存文件",
+            bilibiliAudioRows,
+            handleDeleteBilibiliAudioRow,
+            handleClearBilibiliAudioCache,
+            {
+              renderRows: renderBilibiliAudioRows,
+              emptyHint: "暂无 Bilibili 音频缓存",
             },
           )}
         </SettingSection>
