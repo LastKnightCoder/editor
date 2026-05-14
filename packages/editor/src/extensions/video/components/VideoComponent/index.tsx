@@ -2,7 +2,7 @@
 import { useMemoizedFn } from "ahooks";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
 import { Transforms, Path } from "slate";
-import { Button, Input, Spin, App } from "antd";
+import { Spin, App } from "antd";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
 
@@ -527,15 +527,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const renderEmpty = () => {
     if (readOnly) return null;
     return (
-      <div
-        className={classnames(styles.sourcePanel, {
-          [styles.dark]: isDark,
-        })}
-      >
-        <div className={styles.panelHeader}>
-          <h4>插入视频</h4>
-          <p>支持本地上传、网络直链以及 Bilibili / YouTube / Notion 等来源。</p>
-        </div>
+      <div className="rounded-[0.75em] p-[1.25em] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
         <ModernTabs
           variant="flat"
           isDark={isDark}
@@ -544,18 +536,19 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
               key: "local",
               label: "本地上传",
               children: (
-                <div className={styles.tabCard}>
-                  <p className={styles.tabHint}>
-                    上传 MP4、WebM、MOV 等格式，单个文件建议不超过 200 MB。
+                <div className="flex flex-col gap-[1em]">
+                  <p className="m-0 text-[0.8125em] text-gray-500 dark:text-zinc-400">
+                    支持 MP4、WebM、MOV 等格式，单个文件建议不超过 200 MB。
                   </p>
-                  <div className={styles.actionsRow}>
-                    <Button
-                      className={styles.primaryButton}
-                      icon={<FolderOpenOutlined />}
+                  <div className="flex justify-start">
+                    <button
+                      type="button"
+                      className="px-[1.25em] py-[0.625em] rounded-[0.75em] border-none text-[0.875em] font-semibold cursor-pointer transition-all bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-[var(--th-btn-hover)] flex items-center gap-[0.5em]"
                       onClick={() => uploadRef.current?.click()}
                     >
+                      <FolderOpenOutlined />
                       选择文件
-                    </Button>
+                    </button>
                   </div>
                 </div>
               ),
@@ -564,17 +557,18 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
               key: "library",
               label: "资源库",
               children: (
-                <div className={styles.tabCard}>
-                  <p className={styles.tabHint}>
+                <div className="flex flex-col gap-[1em]">
+                  <p className="m-0 text-[0.8125em] text-gray-500 dark:text-zinc-400">
                     引用资源库中已上传的视频，可多选插入到文稿。
                   </p>
-                  <div className={styles.actionsRow}>
-                    <Button
-                      className={styles.secondaryButton}
+                  <div className="flex justify-start">
+                    <button
+                      type="button"
+                      className="px-[1.25em] py-[0.625em] rounded-[0.75em] text-[0.875em] font-semibold cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 hover:bg-gray-200 dark:hover:bg-zinc-700"
                       onClick={() => setResourcePickerOpen(true)}
                     >
                       打开资源库
-                    </Button>
+                    </button>
                   </div>
                 </div>
               ),
@@ -583,26 +577,34 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
               key: "url",
               label: "网络地址",
               children: (
-                <div className={styles.tabCard}>
-                  <p className={styles.tabHint}>
+                <div className="flex flex-col gap-[1em]">
+                  <p className="m-0 text-[0.8125em] text-gray-500 dark:text-zinc-400">
                     支持直接嵌入公网直链视频，建议使用 MP4 或流媒体链接。
                   </p>
-                  <div className={styles.inputRow}>
-                    <div className={styles.inputWrapper}>
-                      <Input
-                        prefix={<LinkOutlined className={styles.inputIcon} />}
+                  <div className="flex gap-[0.75em] flex-wrap items-center">
+                    <div className="flex-1 relative">
+                      <span className="absolute left-[0.75em] top-1/2 -translate-y-1/2 text-gray-400 dark:text-zinc-500 pointer-events-none">
+                        <LinkOutlined />
+                      </span>
+                      <input
+                        type="text"
+                        className="w-full px-[1em] py-[0.875em] pl-[2.25em] rounded-[0.75em] border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-950 text-gray-800 dark:text-white text-[0.875em] outline-none transition-all duration-200 shadow-inner placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:border-[var(--th-border-focus)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_var(--th-border-focus)/20] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_var(--th-border-focus)/25]"
                         placeholder="https://example.com/video.mp4"
                         value={networkUrl}
                         onChange={(e) => setNetworkUrl(e.target.value)}
-                        onPressEnter={handleOnNetworkUrlInputFinish}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter")
+                            handleOnNetworkUrlInputFinish();
+                        }}
                       />
                     </div>
-                    <Button
-                      className={styles.primaryButton}
+                    <button
+                      type="button"
+                      className="px-[1.25em] py-[0.75em] rounded-[0.75em] border-none text-[0.875em] font-semibold bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] cursor-pointer transition-all duration-200 hover:bg-[var(--th-btn-hover)]"
                       onClick={handleOnNetworkUrlInputFinish}
                     >
                       插入
-                    </Button>
+                    </button>
                   </div>
                 </div>
               ),
@@ -611,17 +613,18 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
               key: "bilibili",
               label: "Bilibili",
               children: (
-                <div className={styles.tabCard}>
-                  <p className={styles.tabHint}>
+                <div className="flex flex-col gap-[1em]">
+                  <p className="m-0 text-[0.8125em] text-gray-500 dark:text-zinc-400">
                     从 Bilibili 解析视频并选择清晰度
                   </p>
-                  <div className={styles.actionsRow}>
-                    <Button
-                      className={styles.primaryButton}
+                  <div className="flex justify-start">
+                    <button
+                      type="button"
+                      className="px-[1.25em] py-[0.625em] rounded-[0.75em] border-none text-[0.875em] font-semibold cursor-pointer transition-all bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-[var(--th-btn-hover)]"
                       onClick={() => setBiliModalOpen(true)}
                     >
                       打开 Bilibili 视频选择器
-                    </Button>
+                    </button>
                   </div>
                 </div>
               ),
@@ -630,17 +633,18 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
               key: "youtube",
               label: "YouTube",
               children: (
-                <div className={styles.tabCard}>
-                  <p className={styles.tabHint}>
+                <div className="flex flex-col gap-[1em]">
+                  <p className="m-0 text-[0.8125em] text-gray-500 dark:text-zinc-400">
                     从 YouTube 解析视频并选择清晰度
                   </p>
-                  <div className={styles.actionsRow}>
-                    <Button
-                      className={styles.primaryButton}
+                  <div className="flex justify-start">
+                    <button
+                      type="button"
+                      className="px-[1.25em] py-[0.625em] rounded-[0.75em] border-none text-[0.875em] font-semibold cursor-pointer transition-all bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-[var(--th-btn-hover)]"
                       onClick={() => setYoutubeModalOpen(true)}
                     >
                       打开 YouTube 视频选择器
-                    </Button>
+                    </button>
                   </div>
                 </div>
               ),
@@ -649,17 +653,18 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
               key: "notion",
               label: "Notion",
               children: (
-                <div className={styles.tabCard}>
-                  <p className={styles.tabHint}>
+                <div className="flex flex-col gap-[1em]">
+                  <p className="m-0 text-[0.8125em] text-gray-500 dark:text-zinc-400">
                     从 Notion 添加视频块，可选是否缓存到本地
                   </p>
-                  <div className={styles.actionsRow}>
-                    <Button
-                      className={styles.primaryButton}
+                  <div className="flex justify-start">
+                    <button
+                      type="button"
+                      className="px-[1.25em] py-[0.625em] rounded-[0.75em] border-none text-[0.875em] font-semibold cursor-pointer transition-all bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-[var(--th-btn-hover)]"
                       onClick={() => setNotionModalOpen(true)}
                     >
                       打开 Notion 视频选择器
-                    </Button>
+                    </button>
                   </div>
                 </div>
               ),

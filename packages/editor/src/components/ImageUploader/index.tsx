@@ -307,9 +307,13 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   // 块级图片上传界面
   return (
     <div
-      className={classnames(styles.container, styles.uploaderContainer, {
-        [styles.dark]: isDark,
-      })}
+      className={
+        showTabs
+          ? classnames(styles.container, styles.uploaderContainer, {
+              [styles.dark]: isDark,
+            })
+          : undefined
+      }
     >
       <input
         type="file"
@@ -319,7 +323,9 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         onChange={handleFileChange}
       />
       {loading ? (
-        <LoadingOutlined spin />
+        <div className="flex items-center justify-center min-h-[11.25em]">
+          <LoadingOutlined spin />
+        </div>
       ) : showTabs ? (
         <Tabs
           defaultActiveKey="upload"
@@ -358,23 +364,24 @@ const UploadArea = ({
   handleDragLeave,
   handleDrop,
   isDragging,
-  isDark,
 }: UploadAreaProps) => (
-  <div className={styles.uploadTabContent}>
-    <div
-      className={classnames(styles.uploadArea, {
-        [styles.dragging]: isDragging,
-        [styles.dark]: isDark,
-      })}
-      onClick={triggerFileSelect}
-      onDragEnter={handleDragEnter}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
-      <InboxOutlined className={styles.uploadIcon} />
-      <p className={styles.uploadText}>点击或拖拽图片到此处上传</p>
-    </div>
+  <div
+    className={classnames(
+      "flex flex-col items-center justify-center text-center p-[1em] w-full min-h-[11.25em] rounded-[0.75em] cursor-pointer transition-all duration-200",
+      isDragging
+        ? "border-[0.125em] border-[var(--th-border-focus)] bg-[oklch(0.95_0.03_var(--th-h))]"
+        : "border border-dashed border-gray-300 dark:border-zinc-600 bg-gray-50 dark:bg-zinc-950 hover:border-gray-400 dark:hover:border-zinc-500",
+    )}
+    onClick={triggerFileSelect}
+    onDragEnter={handleDragEnter}
+    onDragOver={handleDragOver}
+    onDragLeave={handleDragLeave}
+    onDrop={handleDrop}
+  >
+    <InboxOutlined className="text-[3em] text-gray-300 dark:text-zinc-600 mb-[0.5em]" />
+    <p className="text-gray-500 dark:text-zinc-400 text-[0.875em] m-0">
+      点击或拖拽图片到此处上传
+    </p>
   </div>
 );
 
