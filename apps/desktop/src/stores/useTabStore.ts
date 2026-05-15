@@ -157,7 +157,7 @@ const initialState: IState = {
 
 initialState.activePaneId = initialState.panes[0].id;
 
-const TAB_STORE_VERSION = 3;
+const TAB_STORE_VERSION = 4;
 
 const createHomeTab = (): ITab<TabType.Home> => ({
   id: uuidv4(),
@@ -184,10 +184,22 @@ const migrateTabStoreState = (persistedState: unknown): IState => {
   const migratedPanes = rawPanes.map((pane) => {
     const paneId = typeof pane.id === "string" && pane.id ? pane.id : uuidv4();
     const rawTabs = Array.isArray(pane.tabs) ? pane.tabs : [];
-    const tabs = rawTabs.filter((tab) => {
-      const type = tab.type as string;
-      return type !== "goals" && type !== "slides" && type !== "slideDetail";
-    });
+    const tabs = rawTabs
+      .filter((tab) => {
+        const type = tab.type as string;
+        return type !== "goals" && type !== "slides" && type !== "slideDetail";
+      })
+      .map((tab) => {
+        const type = tab.type as string;
+        if (type === "rssSubscription" || type === "readLater") {
+          return {
+            ...tab,
+            type: TabType.Feed,
+            title: TAB_TITLES[TabType.Feed],
+          };
+        }
+        return tab;
+      });
 
     if (tabs.length === 0) {
       const homeTab = createHomeTab();

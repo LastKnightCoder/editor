@@ -56,6 +56,10 @@ import WebClipTable from "./tables/web-clip";
 import WebNoteTable from "./tables/web-note";
 import WebViewPreferenceTable from "./tables/web-view-preference";
 import ContentLinkTable from "./tables/content-link";
+import RssFeedTable from "./tables/rss-feed";
+import RssSubscriptionTable from "./tables/rss-subscription";
+import RssEntryTable from "./tables/rss-entry";
+import ReadLaterTable from "./tables/read-later";
 import WeReadNotebookTable from "./tables/weread-notebook";
 import WeReadViewTable from "./tables/weread-view";
 import WeReadConfigTable from "./tables/weread-config";
@@ -238,6 +242,10 @@ class DatabaseModule implements Module {
       WebNoteTable,
       WebViewPreferenceTable,
       ContentLinkTable,
+      RssFeedTable,
+      RssSubscriptionTable,
+      RssEntryTable,
+      ReadLaterTable,
       WeReadNotebookTable,
       WeReadViewTable,
       WeReadConfigTable,

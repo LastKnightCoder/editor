@@ -1,0 +1,288 @@
+import { invoke } from "@/electron";
+import {
+  CreateRssFeedPayload,
+  UpdateRssFeedPayload,
+  RssFeed,
+  CreateRssSubscriptionPayload,
+  UpdateRssSubscriptionPayload,
+  RssSubscription,
+  RssEntry,
+  UpdateRssEntryPayload,
+  CreateReadLaterPayload,
+  UpdateReadLaterPayload,
+  ReadLaterItem,
+} from "@/types";
+
+// === RSS Feed ===
+
+export const createRssFeed = async (
+  payload: CreateRssFeedPayload,
+): Promise<RssFeed> => {
+  return await invoke("rss-feed:create", payload);
+};
+
+export const updateRssFeed = async (
+  payload: UpdateRssFeedPayload,
+): Promise<RssFeed> => {
+  return await invoke("rss-feed:update", payload);
+};
+
+export const getRssFeedById = async (id: number): Promise<RssFeed | null> => {
+  return await invoke("rss-feed:get", id);
+};
+
+export const getRssFeedByUrl = async (url: string): Promise<RssFeed | null> => {
+  return await invoke("rss-feed:get-by-url", url);
+};
+
+export const listRssFeeds = async (): Promise<RssFeed[]> => {
+  return await invoke("rss-feed:list");
+};
+
+export const listActiveRssFeeds = async (): Promise<RssFeed[]> => {
+  return await invoke("rss-feed:list-active");
+};
+
+export const deleteRssFeed = async (id: number): Promise<number> => {
+  return await invoke("rss-feed:delete", id);
+};
+
+// === RSS Subscription ===
+
+export const createRssSubscription = async (
+  payload: CreateRssSubscriptionPayload,
+): Promise<RssSubscription> => {
+  return await invoke("rss-subscription:create", payload);
+};
+
+export const updateRssSubscription = async (
+  payload: UpdateRssSubscriptionPayload,
+): Promise<RssSubscription> => {
+  return await invoke("rss-subscription:update", payload);
+};
+
+export const getRssSubscriptionById = async (
+  id: number,
+): Promise<RssSubscription | null> => {
+  return await invoke("rss-subscription:get", id);
+};
+
+export const listRssSubscriptions = async (): Promise<RssSubscription[]> => {
+  return await invoke("rss-subscription:list");
+};
+
+export const listRssSubscriptionsByCategory = async (
+  category: string,
+): Promise<RssSubscription[]> => {
+  return await invoke("rss-subscription:list-by-category", category);
+};
+
+export const getRssCategories = async (): Promise<string[]> => {
+  return await invoke("rss-subscription:get-categories");
+};
+
+export const deleteRssSubscription = async (id: number): Promise<number> => {
+  return await invoke("rss-subscription:delete", id);
+};
+
+// === RSS Entry ===
+
+export const getRssEntryById = async (id: number): Promise<RssEntry | null> => {
+  return await invoke("rss-entry:get", id);
+};
+
+export const listRssEntriesByFeed = async (
+  feedId: number,
+  limit = 50,
+  offset = 0,
+): Promise<RssEntry[]> => {
+  return await invoke("rss-entry:list-by-feed", feedId, limit, offset);
+};
+
+export const listRssEntriesBySubscription = async (
+  subscriptionId: number,
+  limit = 50,
+  offset = 0,
+): Promise<RssEntry[]> => {
+  return await invoke(
+    "rss-entry:list-by-subscription",
+    subscriptionId,
+    limit,
+    offset,
+  );
+};
+
+export const listUnreadRssEntries = async (
+  limit = 50,
+  offset = 0,
+): Promise<RssEntry[]> => {
+  return await invoke("rss-entry:list-unread", limit, offset);
+};
+
+export const listStarredRssEntries = async (
+  limit = 50,
+  offset = 0,
+): Promise<RssEntry[]> => {
+  return await invoke("rss-entry:list-starred", limit, offset);
+};
+
+export const listAllRssEntries = async (
+  limit = 100,
+  offset = 0,
+): Promise<RssEntry[]> => {
+  return await invoke("rss-entry:list-all", limit, offset);
+};
+
+export const listRssEntriesByCategory = async (
+  category: string,
+  limit = 100,
+  offset = 0,
+): Promise<RssEntry[]> => {
+  return await invoke("rss-entry:list-by-category", category, limit, offset);
+};
+
+export const markRssEntryRead = async (id: number): Promise<number> => {
+  return await invoke("rss-entry:mark-read", id);
+};
+
+export const markAllRssEntriesReadByFeed = async (
+  feedId: number,
+): Promise<number> => {
+  return await invoke("rss-entry:mark-all-read-by-feed", feedId);
+};
+
+export const toggleRssEntryStar = async (
+  id: number,
+): Promise<RssEntry | null> => {
+  return await invoke("rss-entry:toggle-star", id);
+};
+
+export const updateRssEntry = async (
+  payload: UpdateRssEntryPayload,
+): Promise<RssEntry> => {
+  return await invoke("rss-entry:update", payload);
+};
+
+export const getUnreadCounts = async (): Promise<
+  { feedId: number; count: number }[]
+> => {
+  return await invoke("rss-entry:get-unread-counts");
+};
+
+// === RSS Service ===
+
+export const refreshRssFeed = async (
+  feedId: number,
+): Promise<{ feedId: number; newCount: number; error?: string }> => {
+  return await invoke("rss:refresh-feed", feedId);
+};
+
+export const refreshAllRssFeeds = async (): Promise<
+  { feedId: number; newCount: number; error?: string }[]
+> => {
+  return await invoke("rss:refresh-all");
+};
+
+export const discoverFeeds = async (
+  url: string,
+): Promise<{ url: string; title: string; type: string }[]> => {
+  return await invoke("rss:discover-feeds", url);
+};
+
+export const extractContent = async (
+  url: string,
+): Promise<{
+  title: string;
+  content: string;
+  textContent: string;
+  excerpt: string;
+  byline: string | null;
+  siteName: string | null;
+  length: number;
+} | null> => {
+  return await invoke("rss:extract-content", url);
+};
+
+// === Read Later ===
+
+export const addToReadLater = async (
+  payload: CreateReadLaterPayload,
+): Promise<ReadLaterItem> => {
+  return await invoke("read-later:add", payload);
+};
+
+export const updateReadLater = async (
+  payload: UpdateReadLaterPayload,
+): Promise<ReadLaterItem> => {
+  return await invoke("read-later:update", payload);
+};
+
+export const getReadLaterById = async (
+  id: number,
+): Promise<ReadLaterItem | null> => {
+  return await invoke("read-later:get", id);
+};
+
+export const listReadLater = async (
+  limit = 50,
+  offset = 0,
+): Promise<ReadLaterItem[]> => {
+  return await invoke("read-later:list", limit, offset);
+};
+
+export const listStarredReadLater = async (
+  limit = 50,
+  offset = 0,
+): Promise<ReadLaterItem[]> => {
+  return await invoke("read-later:list-starred", limit, offset);
+};
+
+export const listArchivedReadLater = async (
+  limit = 50,
+  offset = 0,
+): Promise<ReadLaterItem[]> => {
+  return await invoke("read-later:list-archived", limit, offset);
+};
+
+export const starReadLater = async (id: number): Promise<number> => {
+  return await invoke("read-later:star", id);
+};
+
+export const unstarReadLater = async (id: number): Promise<number> => {
+  return await invoke("read-later:unstar", id);
+};
+
+export const archiveReadLater = async (id: number): Promise<number> => {
+  return await invoke("read-later:archive", id);
+};
+
+export const unarchiveReadLater = async (id: number): Promise<number> => {
+  return await invoke("read-later:unarchive", id);
+};
+
+export const removeReadLater = async (id: number): Promise<number> => {
+  return await invoke("read-later:remove", id);
+};
+
+export const checkReadLaterExists = async (
+  sourceType: string,
+  sourceId: number,
+): Promise<boolean> => {
+  return await invoke("read-later:check-exists", sourceType, sourceId);
+};
+
+// === OPML ===
+
+export const importOpml = async (): Promise<{
+  imported: number;
+  errors: string[];
+}> => {
+  return await invoke("rss:import-opml");
+};
+
+export const exportOpml = async (): Promise<{
+  success: boolean;
+  path?: string;
+}> => {
+  return await invoke("rss:export-opml");
+};
