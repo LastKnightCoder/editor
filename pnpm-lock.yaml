@@ -359,9 +359,6 @@ importers:
       '@tau/db-schema':
         specifier: workspace:*
         version: link:../../packages/db-schema
-      '@tau/slate-markdown':
-        specifier: workspace:*
-        version: link:../../packages/slate-markdown
       ali-oss:
         specifier: ^6.21.0
         version: 6.23.0
@@ -377,6 +374,9 @@ importers:
       react:
         specifier: 19.1.0
         version: 19.1.0
+      shiki:
+        specifier: ^3.22.0
+        version: 3.22.0
       sqlite-vec:
         specifier: 0.1.7-alpha.2
         version: 0.1.7-alpha.2

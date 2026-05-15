@@ -8,6 +8,7 @@ import { registerDocumentCommands } from "./commands/document/index.js";
 import { registerSearchCommand } from "./commands/search/index.js";
 import { registerTodoCommands } from "./commands/todo/index.js";
 import { registerQuestionCommands } from "./commands/question/index.js";
+import { initHighlighter } from "./ui/slate-renderer/highlight.js";
 
 const program = new Command();
 
@@ -26,6 +27,7 @@ registerTodoCommands(program);
 registerQuestionCommands(program);
 registerTuiCommand(program);
 
+await initHighlighter();
 await program.parseAsync(process.argv);
 
 if (process.stdout.writable && !process.stdout.writableEnded) {
