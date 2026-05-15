@@ -2,7 +2,11 @@ import React, { useState, useEffect } from "react";
 import { Box, Text, useInput } from "ink";
 import { getDataAccess } from "../../../data-access/index.js";
 import { getActiveDbName } from "../../../utils/path.js";
-import { getMarkdown } from "@tau/slate-markdown";
+import { SlateRenderer } from "../../../ui/slate-renderer/index.js";
+import {
+  parseSlateContent,
+  type ParseResult,
+} from "../../../ui/slate-renderer/parse.js";
 import { runDocumentItemEdit } from "../../document-item/edit.js";
 import { formatDate } from "../../../utils/text.js";
 import { buildTreeLines, TreeNode } from "../../../utils/tree.js";
@@ -35,7 +39,9 @@ export function DocumentItemDetailView({
   onShowDocumentItem?: (id: number) => void;
 }) {
   const [item, setItem] = useState<DocumentItemRow | null>(null);
-  const [markdown, setMarkdown] = useState("");
+  const [contentResult, setContentResult] = useState<ParseResult>({
+    status: "empty",
+  });
   const [treeLines, setTreeLines] = useState<{ text: string; id: number }[]>(
     [],
   );
@@ -63,15 +69,7 @@ export function DocumentItemDetailView({
       }
 
       setItem(row);
-
-      if (row.content) {
-        try {
-          const nodes = JSON.parse(row.content);
-          setMarkdown(getMarkdown(nodes));
-        } catch {
-          setMarkdown("(failed to parse content)");
-        }
-      }
+      setContentResult(parseSlateContent(row.content));
 
       let childIds: number[] = [];
       try {
@@ -205,11 +203,15 @@ export function DocumentItemDetailView({
           <Text dimColor>{formatDate(item.update_time)}</Text>
         </Box>
       </Box>
-      {markdown && (
+      {contentResult.status !== "empty" && (
         <>
           <Text dimColor>{"─".repeat(60)}</Text>
           <Box marginTop={1} marginBottom={1} flexDirection="column">
-            <Text>{markdown}</Text>
+            {contentResult.status === "ok" ? (
+              <SlateRenderer nodes={contentResult.nodes} />
+            ) : (
+              <Text color="red">({contentResult.message})</Text>
+            )}
           </Box>
         </>
       )}

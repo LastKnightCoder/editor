@@ -2,7 +2,11 @@ import React, { useState, useEffect } from "react";
 import { Box, Text, useInput } from "ink";
 import { getDataAccess, closeDataAccess } from "../../../data-access/index.js";
 import { getActiveDbName } from "../../../utils/path.js";
-import { getMarkdown } from "@tau/slate-markdown";
+import { SlateRenderer } from "../../../ui/slate-renderer/index.js";
+import {
+  parseSlateContent,
+  type ParseResult,
+} from "../../../ui/slate-renderer/parse.js";
 import { runCardEdit } from "../../card/edit.js";
 
 interface CardRow {
@@ -29,7 +33,9 @@ export function CardDetailView({
   onBack: () => void;
 }) {
   const [card, setCard] = useState<CardRow | null>(null);
-  const [markdown, setMarkdown] = useState("");
+  const [contentResult, setContentResult] = useState<ParseResult>({
+    status: "empty",
+  });
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -52,15 +58,7 @@ export function CardDetailView({
       }
 
       setCard(row);
-
-      if (row.content) {
-        try {
-          const nodes = JSON.parse(row.content);
-          setMarkdown(getMarkdown(nodes));
-        } catch {
-          setMarkdown("(failed to parse content)");
-        }
-      }
+      setContentResult(parseSlateContent(row.content));
     } catch (e: any) {
       setError(e.message);
     }
@@ -164,7 +162,13 @@ export function CardDetailView({
       </Box>
       <Text dimColor>{"─".repeat(60)}</Text>
       <Box marginTop={1} flexDirection="column">
-        <Text>{markdown || "(empty content)"}</Text>
+        {contentResult.status === "ok" ? (
+          <SlateRenderer nodes={contentResult.nodes} />
+        ) : contentResult.status === "invalid" ? (
+          <Text color="red">({contentResult.message})</Text>
+        ) : (
+          <Text dimColor>(empty content)</Text>
+        )}
       </Box>
       <Box marginTop={1}>
         <Text dimColor>{"─".repeat(60)}</Text>

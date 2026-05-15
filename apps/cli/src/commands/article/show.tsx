@@ -2,7 +2,8 @@ import React from "react";
 import { render, Box, Text } from "ink";
 import { getDataAccess, closeDataAccess } from "../../data-access/index.js";
 import { getActiveDbName } from "../../utils/path.js";
-import { getMarkdown } from "@tau/slate-markdown";
+import { SlateRenderer } from "../../ui/slate-renderer/index.js";
+import { parseSlateContent } from "../../ui/slate-renderer/parse.js";
 import { Header, Divider } from "../../ui/components.js";
 import { formatDate } from "../../utils/text.js";
 
@@ -24,10 +25,10 @@ interface ArticleRow {
 
 function ArticleShowView({
   article,
-  markdown,
+  nodes,
 }: {
   article: ArticleRow;
-  markdown: string;
+  nodes: any[] | null;
 }) {
   const tags = (() => {
     try {
@@ -104,7 +105,11 @@ function ArticleShowView({
       </Box>
       <Divider width={60} />
       <Box marginTop={1}>
-        <Text>{markdown || "(empty content)"}</Text>
+        {nodes ? (
+          <SlateRenderer nodes={nodes} />
+        ) : (
+          <Text dimColor>(empty content)</Text>
+        )}
       </Box>
     </Box>
   );
@@ -135,15 +140,18 @@ export async function runArticleShow(articleId: number) {
     return;
   }
 
-  let markdown = "";
-  if (article.content) {
-    try {
-      const nodes = JSON.parse(article.content);
-      markdown = getMarkdown(nodes);
-    } catch {
-      markdown = "(failed to parse content)";
-    }
+  const result = parseSlateContent(article.content);
+  const nodes = result.status === "ok" ? result.nodes : null;
+
+  if (result.status === "invalid") {
+    render(
+      <Box paddingX={1} flexDirection="column">
+        <Header>{article.title || "(untitled)"}</Header>
+        <Text color="red">({result.message})</Text>
+      </Box>,
+    );
+    return;
   }
 
-  render(<ArticleShowView article={article} markdown={markdown} />);
+  render(<ArticleShowView article={article} nodes={nodes} />);
 }
