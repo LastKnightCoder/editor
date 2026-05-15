@@ -2,7 +2,8 @@ import React from "react";
 import { render, Box, Text } from "ink";
 import { getDataAccess, closeDataAccess } from "../../data-access/index.js";
 import { getActiveDbName } from "../../utils/path.js";
-import { getMarkdown } from "@tau/slate-markdown";
+import { SlateRenderer } from "../../ui/slate-renderer/index.js";
+import { parseSlateContent } from "../../ui/slate-renderer/parse.js";
 import { Header, Divider } from "../../ui/components.js";
 import { formatDate } from "../../utils/text.js";
 
@@ -19,7 +20,7 @@ interface CardRow {
   content_id: number;
 }
 
-function CardShowView({ card, markdown }: { card: CardRow; markdown: string }) {
+function CardShowView({ card, nodes }: { card: CardRow; nodes: any[] | null }) {
   const tags = (() => {
     try {
       return JSON.parse(card.tags);
@@ -87,7 +88,11 @@ function CardShowView({ card, markdown }: { card: CardRow; markdown: string }) {
       </Box>
       <Divider width={60} />
       <Box marginTop={1}>
-        <Text>{markdown || "(empty content)"}</Text>
+        {nodes ? (
+          <SlateRenderer nodes={nodes} />
+        ) : (
+          <Text dimColor>(empty content)</Text>
+        )}
       </Box>
     </Box>
   );
@@ -117,15 +122,18 @@ export async function runCardShow(cardId: number) {
     return;
   }
 
-  let markdown = "";
-  if (card.content) {
-    try {
-      const nodes = JSON.parse(card.content);
-      markdown = getMarkdown(nodes);
-    } catch {
-      markdown = "(failed to parse content)";
-    }
+  const result = parseSlateContent(card.content);
+  const nodes = result.status === "ok" ? result.nodes : null;
+
+  if (result.status === "invalid") {
+    render(
+      <Box paddingX={1} flexDirection="column">
+        <Header>Card #{card.id}</Header>
+        <Text color="red">({result.message})</Text>
+      </Box>,
+    );
+    return;
   }
 
-  render(<CardShowView card={card} markdown={markdown} />);
+  render(<CardShowView card={card} nodes={nodes} />);
 }
