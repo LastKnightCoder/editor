@@ -1,0 +1,76 @@
+import { CheckOutlined, ReloadOutlined } from "@ant-design/icons";
+import useThemeColors from "@/hooks/useThemeColors";
+import useRssStore from "@/stores/useRssStore";
+import type { SidebarSelection } from "../../types";
+
+interface ArticleListHeaderProps {
+  selection: SidebarSelection;
+  onMarkAllRead: () => void;
+  onRefresh: () => void;
+}
+
+export default function ArticleListHeader({
+  selection,
+  onMarkAllRead,
+  onRefresh,
+}: ArticleListHeaderProps) {
+  const themeColors = useThemeColors();
+  const feeds = useRssStore((s) => s.feeds);
+  const subscriptions = useRssStore((s) => s.subscriptions);
+  const isRefreshing = useRssStore((s) => s.isRefreshing);
+
+  const getTitle = () => {
+    if (selection.kind === "smart") {
+      switch (selection.group) {
+        case "all":
+          return "全部";
+        case "unread":
+          return "未读";
+        case "starred":
+          return "收藏";
+        case "readlater":
+          return "稍后读";
+      }
+    }
+    if (selection.kind === "subscription") {
+      const sub = subscriptions.find((s) => s.id === selection.subscriptionId);
+      const feed = sub ? feeds.find((f) => f.id === sub.feedId) : null;
+      return sub?.title || feed?.title || "文章";
+    }
+    if (selection.kind === "category") {
+      return selection.category;
+    }
+    return "";
+  };
+
+  const showRssActions =
+    selection.kind !== "smart" || selection.group !== "readlater";
+
+  return (
+    <div
+      className={`flex items-center justify-between px-3 py-2 border-b ${themeColors.borderClass}`}
+    >
+      <span className="text-[13px] font-medium truncate">{getTitle()}</span>
+      {showRssActions && (
+        <div className="flex items-center gap-0.5">
+          {selection.kind === "subscription" && (
+            <button
+              className={`flex h-6 w-6 items-center justify-center rounded border-none cursor-pointer bg-transparent text-xs ${themeColors.secondaryTextClass} ${themeColors.hoverClass} transition-colors duration-150`}
+              title="全部已读"
+              onClick={onMarkAllRead}
+            >
+              <CheckOutlined />
+            </button>
+          )}
+          <button
+            className={`flex h-6 w-6 items-center justify-center rounded border-none cursor-pointer bg-transparent text-xs ${themeColors.secondaryTextClass} ${themeColors.hoverClass} transition-colors duration-150`}
+            title="刷新"
+            onClick={onRefresh}
+          >
+            <ReloadOutlined spin={isRefreshing} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

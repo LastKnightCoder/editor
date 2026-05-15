@@ -393,6 +393,78 @@ CREATE TABLE IF NOT EXISTS transcriptions (
         ref_count INTEGER DEFAULT 1
       );
 
+-- RSS 订阅与稍后读域表
+
+CREATE TABLE IF NOT EXISTS rss_feed (
+    id INTEGER PRIMARY KEY,
+    create_time INTEGER NOT NULL,
+    update_time INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    url TEXT NOT NULL UNIQUE,
+    site_url TEXT,
+    image_url TEXT,
+    feed_type TEXT NOT NULL DEFAULT 'rss' CHECK(feed_type IN ('rss', 'atom', 'json')),
+    last_fetched_at INTEGER,
+    last_entry_at INTEGER,
+    fetch_interval INTEGER DEFAULT 1800000,
+    error_count INTEGER DEFAULT 0,
+    last_error TEXT,
+    is_active INTEGER DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS rss_subscription (
+    id INTEGER PRIMARY KEY,
+    create_time INTEGER NOT NULL,
+    update_time INTEGER NOT NULL,
+    feed_id INTEGER NOT NULL,
+    title TEXT,
+    category TEXT,
+    view_type TEXT DEFAULT 'article' CHECK(view_type IN ('article', 'podcast', 'video', 'picture', 'notification')),
+    is_muted INTEGER DEFAULT 0,
+    FOREIGN KEY(feed_id) REFERENCES rss_feed(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS rss_entry (
+    id INTEGER PRIMARY KEY,
+    create_time INTEGER NOT NULL,
+    update_time INTEGER NOT NULL,
+    feed_id INTEGER NOT NULL,
+    guid TEXT NOT NULL,
+    title TEXT,
+    url TEXT,
+    author TEXT,
+    description TEXT,
+    content TEXT,
+    readability_content TEXT,
+    published_at INTEGER,
+    media TEXT,
+    categories TEXT,
+    enclosure_url TEXT,
+    enclosure_type TEXT,
+    enclosure_length INTEGER,
+    is_read INTEGER DEFAULT 0,
+    is_starred INTEGER DEFAULT 0,
+    FOREIGN KEY(feed_id) REFERENCES rss_feed(id) ON DELETE CASCADE,
+    UNIQUE(feed_id, guid)
+);
+
+CREATE TABLE IF NOT EXISTS read_later (
+    id INTEGER PRIMARY KEY,
+    create_time INTEGER NOT NULL,
+    update_time INTEGER NOT NULL,
+    source_type TEXT NOT NULL CHECK(source_type IN ('rss_entry', 'web_clip', 'web_link', 'article', 'url')),
+    source_id INTEGER,
+    title TEXT NOT NULL,
+    url TEXT,
+    excerpt TEXT,
+    content TEXT,
+    is_archived INTEGER DEFAULT 0,
+    is_starred INTEGER DEFAULT 0,
+    tags TEXT,
+    reading_progress REAL DEFAULT 0
+);
+
 -- 学习与任务域表
 CREATE TABLE IF NOT EXISTS todo_group (
         id INTEGER PRIMARY KEY,
@@ -887,3 +959,12 @@ CREATE INDEX IF NOT EXISTS idx_vl_quiz_set_project ON vl_quiz_set(project_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_item_set ON vl_quiz_item(quiz_set_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_record_set ON vl_quiz_record(quiz_set_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_record_project ON vl_quiz_record(project_id);
+CREATE INDEX IF NOT EXISTS idx_rss_feed_active ON rss_feed(is_active);
+CREATE INDEX IF NOT EXISTS idx_rss_subscription_feed ON rss_subscription(feed_id);
+CREATE INDEX IF NOT EXISTS idx_rss_subscription_category ON rss_subscription(category);
+CREATE INDEX IF NOT EXISTS idx_rss_entry_feed_published ON rss_entry(feed_id, published_at DESC);
+CREATE INDEX IF NOT EXISTS idx_rss_entry_guid ON rss_entry(feed_id, guid);
+CREATE INDEX IF NOT EXISTS idx_rss_entry_starred ON rss_entry(is_starred);
+CREATE INDEX IF NOT EXISTS idx_rss_entry_read ON rss_entry(is_read);
+CREATE INDEX IF NOT EXISTS idx_read_later_source ON read_later(source_type, source_id);
+CREATE INDEX IF NOT EXISTS idx_read_later_create_time ON read_later(create_time);

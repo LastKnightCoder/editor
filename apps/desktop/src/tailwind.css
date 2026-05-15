@@ -325,4 +325,37 @@
 
 @custom-variant dark (.dark &);
 
+@layer components {
+  .prose-reader img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin: 12px 0;
+  }
+
+  .prose-reader a {
+    color: var(--th-active-text, oklch(0.55 0.15 250));
+    text-decoration: none;
+  }
+
+  .prose-reader a:hover {
+    text-decoration: underline;
+  }
+
+  .prose-reader pre {
+    background: var(--th-input-bg, oklch(0.96 0.005 250));
+    padding: 12px 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 13px;
+  }
+
+  .prose-reader blockquote {
+    border-left: 2px solid var(--th-border, oklch(0.88 0.01 250));
+    padding-left: 14px;
+    margin-left: 0;
+    opacity: 0.85;
+  }
+}
+
 @import "./node.css";
