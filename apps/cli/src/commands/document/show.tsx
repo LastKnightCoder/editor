@@ -2,7 +2,8 @@ import React from "react";
 import { render, Box, Text } from "ink";
 import { getDataAccess, closeDataAccess } from "../../data-access/index.js";
 import { getActiveDbName } from "../../utils/path.js";
-import { getMarkdown } from "@tau/slate-markdown";
+import { SlateRenderer } from "../../ui/slate-renderer/index.js";
+import { parseSlateContent } from "../../ui/slate-renderer/parse.js";
 import { Header, Divider } from "../../ui/components.js";
 import { formatDate } from "../../utils/text.js";
 import { buildTreeLines, TreeNode } from "../../utils/tree.js";
@@ -27,11 +28,11 @@ interface DocumentItemRow {
 
 function DocumentShowView({
   doc,
-  markdown,
+  nodes,
   treeLines,
 }: {
   doc: DocumentRow;
-  markdown: string;
+  nodes: any[] | null;
   treeLines: { text: string; id: number }[];
 }) {
   return (
@@ -66,11 +67,11 @@ function DocumentShowView({
           <Text dimColor>{formatDate(doc.update_time)}</Text>
         </Box>
       </Box>
-      {markdown && (
+      {nodes && (
         <>
           <Divider width={60} />
           <Box marginTop={1} marginBottom={1}>
-            <Text>{markdown}</Text>
+            <SlateRenderer nodes={nodes} />
           </Box>
         </>
       )}
@@ -146,17 +147,20 @@ export async function runDocumentShow(docId: number) {
 
   const treeLines = buildTreeLines(rootIds, nodeMap);
 
-  let markdown = "";
-  if (doc.content) {
-    try {
-      const nodes = JSON.parse(doc.content);
-      markdown = getMarkdown(nodes);
-    } catch {
-      markdown = "(failed to parse content)";
-    }
+  const result = parseSlateContent(doc.content);
+  const nodes = result.status === "ok" ? result.nodes : null;
+
+  if (result.status === "invalid") {
+    render(
+      <Box paddingX={1} flexDirection="column">
+        <Header>
+          Document #{doc.id}: {doc.title}
+        </Header>
+        <Text color="red">({result.message})</Text>
+      </Box>,
+    );
+    return;
   }
 
-  render(
-    <DocumentShowView doc={doc} markdown={markdown} treeLines={treeLines} />,
-  );
+  render(<DocumentShowView doc={doc} nodes={nodes} treeLines={treeLines} />);
 }
