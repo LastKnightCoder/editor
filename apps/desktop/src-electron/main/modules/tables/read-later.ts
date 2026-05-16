@@ -42,6 +42,8 @@ export default class ReadLaterTable {
       "read-later:unarchive": this.unarchive.bind(this),
       "read-later:remove": this.remove.bind(this),
       "read-later:check-exists": this.checkExists.bind(this),
+      "read-later:remove-by-source": this.removeBySource.bind(this),
+      "read-later:get-count": this.getCount.bind(this),
     };
   }
 
@@ -200,5 +202,22 @@ export default class ReadLaterTable {
       )
       .get(sourceType, sourceId);
     return !!row;
+  }
+
+  static removeBySource(
+    db: Database.Database,
+    sourceType: string,
+    sourceId: number,
+  ): number {
+    return db
+      .prepare(`DELETE FROM read_later WHERE source_type = ? AND source_id = ?`)
+      .run(sourceType, sourceId).changes;
+  }
+
+  static getCount(db: Database.Database): number {
+    const row = db
+      .prepare(`SELECT COUNT(*) as count FROM read_later WHERE is_archived = 0`)
+      .get() as Record<string, unknown>;
+    return row.count as number;
   }
 }

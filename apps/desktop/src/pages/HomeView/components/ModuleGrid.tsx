@@ -17,6 +17,7 @@ import {
   CheckSquare,
   HelpCircle,
   BookMarked,
+  Rss,
   LucideIcon,
   ChevronDown,
   ChevronUp,
@@ -136,6 +137,11 @@ const MODULE_CONFIG: Record<string, ModuleConfig> = {
     tabType: TabType.WeRead,
     icon: BookMarked,
     key: "weread",
+  },
+  feed: {
+    tabType: TabType.Feed,
+    icon: Rss,
+    key: "feed",
   },
   webview: {
     tabType: TabType.WebView,

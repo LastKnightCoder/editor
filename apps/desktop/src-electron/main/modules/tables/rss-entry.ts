@@ -51,6 +51,7 @@ export default class RssEntryTable {
       "rss-entry:toggle-star": this.toggleStar.bind(this),
       "rss-entry:delete-by-feed": this.deleteByFeed.bind(this),
       "rss-entry:get-unread-counts": this.getUnreadCounts.bind(this),
+      "rss-entry:get-starred-count": this.getStarredCount.bind(this),
     };
   }
 
@@ -308,5 +309,12 @@ export default class RssEntryTable {
       feedId: row.feed_id as number,
       count: row.count as number,
     }));
+  }
+
+  static getStarredCount(db: Database.Database): number {
+    const row = db
+      .prepare(`SELECT COUNT(*) as count FROM rss_entry WHERE is_starred = 1`)
+      .get() as Record<string, unknown>;
+    return row.count as number;
   }
 }

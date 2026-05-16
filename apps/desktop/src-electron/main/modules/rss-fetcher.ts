@@ -2,6 +2,7 @@ import { BrowserWindow, ipcMain, net } from "electron";
 import log from "electron-log";
 import { Module } from "../types/module";
 import databaseModule from "./database";
+import { parseFeedXml } from "./rss-parser-lite";
 
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
@@ -131,6 +132,10 @@ class RssFetcherModule implements Module {
       .get(feedId) as Record<string, unknown> | undefined;
     if (!feed) return { feedId, newCount: 0, error: "Feed not found" };
 
+    console.log("[RSS] manual refresh requested", {
+      feedId,
+      url: feed.url as string,
+    });
     return this.fetchSingleFeed(feedId, feed.url as string);
   }
 
@@ -169,31 +174,21 @@ class RssFetcherModule implements Module {
     }
 
     try {
+      console.log("[RSS] fetch start", { feedId, url });
       const xml = await fetchUrl(url);
-      const { extract } = await import("@extractus/feed-extractor");
-      const feed = await extract(xml, {
-        useISODateFormat: false,
-        getExtraEntryFields: (raw: Record<string, unknown>) => {
-          const extra: Record<string, unknown> = {};
-          if (raw["content:encoded"] || raw["content"]) {
-            extra.contentHtml = (raw["content:encoded"] ||
-              raw["content"]) as string;
-          }
-          if (raw["dc:creator"] || raw["author"]) {
-            extra.creator = (raw["dc:creator"] || raw["author"]) as string;
-          }
-          if (raw["category"]) {
-            extra.categories = Array.isArray(raw["category"])
-              ? raw["category"]
-              : [raw["category"]];
-          }
-          return extra;
-        },
+      console.log("[RSS] fetch response received", {
+        feedId,
+        url,
+        bytes: Buffer.byteLength(xml),
       });
+      const feed = parseFeedXml(xml);
 
-      if (!feed || !feed.entries) {
-        throw new Error("Failed to parse feed or no entries");
-      }
+      console.log("[RSS] feed parsed", {
+        feedId,
+        url,
+        title: feed.title,
+        entries: feed.entries.length,
+      });
 
       let newCount = 0;
       const now = Date.now();
@@ -210,8 +205,7 @@ class RssFetcherModule implements Module {
       let latestEntryAt: number | null = null;
 
       for (const entry of feed.entries) {
-        const e = entry as unknown as Record<string, unknown>;
-        const guid = (entry.id || entry.link || entry.title || "") as string;
+        const guid = entry.id || entry.link || entry.title || "";
         if (!guid) continue;
 
         const publishedAt = entry.published
@@ -229,12 +223,12 @@ class RssFetcherModule implements Module {
           guid,
           entry.title ?? null,
           entry.link ?? null,
-          (e.creator as string) ?? null,
+          entry.creator,
           entry.description ?? null,
-          (e.contentHtml as string) ?? null,
+          entry.contentHtml,
           publishedAt,
           null,
-          e.categories ? JSON.stringify(e.categories) : null,
+          entry.categories.length > 0 ? JSON.stringify(entry.categories) : null,
           null,
           null,
           null,
@@ -268,10 +262,12 @@ class RssFetcherModule implements Module {
       log.info(
         `[RssFetcher] Feed ${feedId} refreshed: ${newCount} new entries`,
       );
+      console.log("[RSS] fetch success", { feedId, url, newCount });
       return { feedId, newCount };
     } catch (error: any) {
       const errorMsg = error?.message || "Unknown error";
       log.error(`[RssFetcher] Feed ${feedId} failed: ${errorMsg}`);
+      console.log("[RSS] fetch failed", { feedId, url, error: errorMsg });
 
       const now = Date.now();
       db.prepare(

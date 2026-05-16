@@ -35,7 +35,7 @@ export default function ArticleListHeader({
     if (selection.kind === "subscription") {
       const sub = subscriptions.find((s) => s.id === selection.subscriptionId);
       const feed = sub ? feeds.find((f) => f.id === sub.feedId) : null;
-      return sub?.title || feed?.title || "文章";
+      return getDisplayName(sub?.title ?? null, feed?.title, feed?.url);
     }
     if (selection.kind === "category") {
       return selection.category;
@@ -73,4 +73,23 @@ export default function ArticleListHeader({
       )}
     </div>
   );
+}
+
+function getDisplayName(
+  subTitle: string | null,
+  feedTitle: string | undefined,
+  feedUrl: string | undefined,
+): string {
+  if (subTitle && !/^https?:\/\//i.test(subTitle)) return subTitle;
+  if (feedTitle && !/^https?:\/\//i.test(feedTitle)) return feedTitle;
+  const raw = subTitle || feedTitle || feedUrl;
+  if (!raw) return "文章";
+  try {
+    const u = new URL(raw);
+    const host = u.hostname.replace(/^www\./, "");
+    const path = u.pathname.replace(/\/$/, "");
+    return path && path !== "/" ? `${host}${path}` : host;
+  } catch {
+    return raw;
+  }
 }

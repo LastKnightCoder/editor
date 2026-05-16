@@ -13,6 +13,8 @@ import {
   unarchiveReadLater,
   updateReadLater,
   checkReadLaterExists,
+  removeReadLaterBySource,
+  getReadLaterCount,
 } from "@/commands/rss";
 import type { CreateReadLaterPayload, UpdateReadLaterPayload } from "@/types";
 
@@ -20,6 +22,7 @@ export type ReadLaterFilterMode = "all" | "starred" | "archived";
 
 interface IState {
   items: ReadLaterItem[];
+  totalCount: number;
   loading: boolean;
   filterMode: ReadLaterFilterMode;
   selectedItemId: number | null;
@@ -28,6 +31,7 @@ interface IState {
 interface IAction {
   init: () => Promise<void>;
   loadItems: () => Promise<void>;
+  loadCount: () => Promise<void>;
   addItem: (payload: CreateReadLaterPayload) => Promise<ReadLaterItem>;
   removeItem: (id: number) => Promise<void>;
   starItem: (id: number) => Promise<void>;
@@ -36,6 +40,7 @@ interface IAction {
   unarchiveItem: (id: number) => Promise<void>;
   updateItem: (payload: UpdateReadLaterPayload) => Promise<void>;
   checkExists: (sourceType: string, sourceId: number) => Promise<boolean>;
+  removeBySource: (sourceType: string, sourceId: number) => Promise<void>;
   setFilterMode: (mode: ReadLaterFilterMode) => void;
   setSelectedItem: (id: number | null) => void;
 }
@@ -44,12 +49,13 @@ const useReadLaterStore = create<IState & IAction>()(
   persist(
     (set, get) => ({
       items: [],
+      totalCount: 0,
       loading: false,
       filterMode: "all",
       selectedItemId: null,
 
       init: async () => {
-        await get().loadItems();
+        await Promise.all([get().loadItems(), get().loadCount()]);
       },
 
       loadItems: async () => {
@@ -74,9 +80,14 @@ const useReadLaterStore = create<IState & IAction>()(
         }
       },
 
+      loadCount: async () => {
+        const totalCount = await getReadLaterCount();
+        set({ totalCount });
+      },
+
       addItem: async (payload: CreateReadLaterPayload) => {
         const item = await addToReadLater(payload);
-        await get().loadItems();
+        await Promise.all([get().loadItems(), get().loadCount()]);
         return item;
       },
 
@@ -86,6 +97,7 @@ const useReadLaterStore = create<IState & IAction>()(
         if (get().selectedItemId === id) {
           set({ selectedItemId: null });
         }
+        await get().loadCount();
       },
 
       starItem: async (id: number) => {
@@ -117,6 +129,7 @@ const useReadLaterStore = create<IState & IAction>()(
             ),
           });
         }
+        await get().loadCount();
       },
 
       unarchiveItem: async (id: number) => {
@@ -124,6 +137,7 @@ const useReadLaterStore = create<IState & IAction>()(
         if (get().filterMode === "archived") {
           set({ items: get().items.filter((i) => i.id !== id) });
         }
+        await get().loadCount();
       },
 
       updateItem: async (payload: UpdateReadLaterPayload) => {
@@ -133,6 +147,17 @@ const useReadLaterStore = create<IState & IAction>()(
 
       checkExists: async (sourceType: string, sourceId: number) => {
         return await checkReadLaterExists(sourceType, sourceId);
+      },
+
+      removeBySource: async (sourceType: string, sourceId: number) => {
+        await removeReadLaterBySource(sourceType, sourceId);
+        set({
+          items: get().items.filter(
+            (i) =>
+              !(i.sourceType === sourceType && i.sourceId === Number(sourceId)),
+          ),
+        });
+        await get().loadCount();
       },
 
       setFilterMode: (mode: ReadLaterFilterMode) => {
