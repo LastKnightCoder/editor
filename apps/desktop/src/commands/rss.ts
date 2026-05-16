@@ -7,6 +7,7 @@ import {
   UpdateRssSubscriptionPayload,
   RssSubscription,
   RssEntry,
+  RssFeedPreviewResult,
   UpdateRssEntryPayload,
   CreateReadLaterPayload,
   UpdateReadLaterPayload,
@@ -169,6 +170,10 @@ export const getUnreadCounts = async (): Promise<
   return await invoke("rss-entry:get-unread-counts");
 };
 
+export const getStarredCount = async (): Promise<number> => {
+  return await invoke("rss-entry:get-starred-count");
+};
+
 // === RSS Service ===
 
 export const refreshRssFeed = async (
@@ -187,6 +192,12 @@ export const discoverFeeds = async (
   url: string,
 ): Promise<{ url: string; title: string; type: string }[]> => {
   return await invoke("rss:discover-feeds", url);
+};
+
+export const previewFeed = async (
+  url: string,
+): Promise<RssFeedPreviewResult> => {
+  return await invoke("rss:preview-feed", url);
 };
 
 export const extractContent = async (
@@ -269,6 +280,17 @@ export const checkReadLaterExists = async (
   sourceId: number,
 ): Promise<boolean> => {
   return await invoke("read-later:check-exists", sourceType, sourceId);
+};
+
+export const removeReadLaterBySource = async (
+  sourceType: string,
+  sourceId: number,
+): Promise<number> => {
+  return await invoke("read-later:remove-by-source", sourceType, sourceId);
+};
+
+export const getReadLaterCount = async (): Promise<number> => {
+  return await invoke("read-later:get-count");
 };
 
 // === OPML ===

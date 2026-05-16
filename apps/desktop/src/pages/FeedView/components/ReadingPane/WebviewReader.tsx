@@ -1,5 +1,14 @@
 import { useState, useRef, useCallback } from "react";
-import { LoadingOutlined, ReloadOutlined } from "@ant-design/icons";
+import {
+  LoadingOutlined,
+  ReloadOutlined,
+  StarOutlined,
+  StarFilled,
+  BookOutlined,
+  InboxOutlined,
+  UndoOutlined,
+  DeleteOutlined,
+} from "@ant-design/icons";
 import { App, Tooltip } from "antd";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
@@ -30,9 +39,23 @@ const DEFAULT_CONTENT: Descendant[] = [
 
 interface WebviewReaderProps {
   article: UnifiedArticleItem;
+  onToggleStar?: () => void;
+  isInReadLater?: boolean;
+  onToggleReadLater?: () => void;
+  onArchive?: () => void;
+  onUnarchive?: () => void;
+  onDelete?: () => void;
 }
 
-export default function WebviewReader({ article }: WebviewReaderProps) {
+export default function WebviewReader({
+  article,
+  onToggleStar,
+  isInReadLater,
+  onToggleReadLater,
+  onArchive,
+  onUnarchive,
+  onDelete,
+}: WebviewReaderProps) {
   const { message } = App.useApp();
   const themeColors = useThemeColors();
   const dynamicExtensions = useDynamicExtensionsStore(
@@ -224,6 +247,61 @@ export default function WebviewReader({ article }: WebviewReaderProps) {
           {article.title}
         </h1>
         <div className="flex items-center gap-1 ml-2">
+          {onToggleStar && (
+            <Tooltip title={article.isStarred ? "取消收藏" : "收藏"}>
+              <button
+                className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${getActiveButtonClass(article.isStarred)}`}
+                onClick={onToggleStar}
+              >
+                {article.isStarred ? (
+                  <StarFilled className="text-amber-500" />
+                ) : (
+                  <StarOutlined />
+                )}
+              </button>
+            </Tooltip>
+          )}
+          {onToggleReadLater && (
+            <Tooltip title={isInReadLater ? "从稍后读移除" : "稍后读"}>
+              <button
+                className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${getActiveButtonClass(!!isInReadLater)}`}
+                onClick={onToggleReadLater}
+              >
+                <BookOutlined className="text-sm" />
+              </button>
+            </Tooltip>
+          )}
+          {article.source === "readlater" && (
+            <>
+              {article.isArchived ? (
+                <Tooltip title="取消归档">
+                  <button
+                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-all"
+                    onClick={onUnarchive}
+                  >
+                    <UndoOutlined className="text-sm" />
+                  </button>
+                </Tooltip>
+              ) : (
+                <Tooltip title="归档">
+                  <button
+                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-all"
+                    onClick={onArchive}
+                  >
+                    <InboxOutlined className="text-sm" />
+                  </button>
+                </Tooltip>
+              )}
+              <Tooltip title="从稍后读删除">
+                <button
+                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all"
+                  onClick={onDelete}
+                >
+                  <DeleteOutlined className="text-sm" />
+                </button>
+              </Tooltip>
+            </>
+          )}
           {hasClipResult && (
             <Tooltip title={viewMode === "document" ? "查看网页" : "查看文档"}>
               <button

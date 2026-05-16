@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   InboxOutlined,
   StarOutlined,
@@ -5,6 +6,7 @@ import {
   BookOutlined,
 } from "@ant-design/icons";
 import useRssStore from "@/stores/useRssStore";
+import useReadLaterStore from "@/stores/useReadLaterStore";
 import useThemeColors from "@/hooks/useThemeColors";
 import type { SidebarSelection } from "../../types";
 
@@ -23,14 +25,36 @@ const GROUPS = [
 export default function SmartGroups({ selection, onSelect }: SmartGroupsProps) {
   const themeColors = useThemeColors();
   const unreadCounts = useRssStore((s) => s.unreadCounts);
+  const starredCount = useRssStore((s) => s.starredCount);
+  const readLaterCount = useReadLaterStore((s) => s.totalCount);
+  const loadReadLaterCount = useReadLaterStore((s) => s.loadCount);
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
+
+  useEffect(() => {
+    loadReadLaterCount();
+  }, []);
+
+  const getCount = (group: string): number => {
+    switch (group) {
+      case "all":
+        return totalUnread;
+      case "unread":
+        return totalUnread;
+      case "starred":
+        return starredCount;
+      case "readlater":
+        return readLaterCount;
+      default:
+        return 0;
+    }
+  };
 
   return (
     <div className="flex flex-col gap-0.5 px-2 py-2">
       {GROUPS.map(({ group, label, icon: Icon }) => {
         const isActive =
           selection.kind === "smart" && selection.group === group;
-        const count = group === "unread" ? totalUnread : 0;
+        const count = getCount(group);
 
         return (
           <button

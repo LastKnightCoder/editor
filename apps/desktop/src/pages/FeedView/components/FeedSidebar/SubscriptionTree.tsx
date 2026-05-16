@@ -1,8 +1,16 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { FolderOutlined } from "@ant-design/icons";
+import { App } from "antd";
 import useRssStore from "@/stores/useRssStore";
 import useThemeColors from "@/hooks/useThemeColors";
 import type { SidebarSelection } from "../../types";
+
+interface ContextMenuState {
+  visible: boolean;
+  x: number;
+  y: number;
+  subscriptionId: number;
+}
 
 interface SubscriptionTreeProps {
   selection: SidebarSelection;
@@ -14,12 +22,61 @@ export default function SubscriptionTree({
   onSelect,
 }: SubscriptionTreeProps) {
   const themeColors = useThemeColors();
+  const { modal } = App.useApp();
   const feeds = useRssStore((s) => s.feeds);
   const subscriptions = useRssStore((s) => s.subscriptions);
   const unreadCounts = useRssStore((s) => s.unreadCounts);
+  const unsubscribe = useRssStore((s) => s.unsubscribe);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
     new Set(),
   );
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const closeMenu = useCallback(() => setContextMenu(null), []);
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        closeMenu();
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [contextMenu, closeMenu]);
+
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent, subscriptionId: number) => {
+      e.preventDefault();
+      setContextMenu({
+        visible: true,
+        x: e.clientX,
+        y: e.clientY,
+        subscriptionId,
+      });
+    },
+    [],
+  );
+
+  const handleUnsubscribe = useCallback(async () => {
+    if (!contextMenu) return;
+    const sub = subscriptions.find((s) => s.id === contextMenu.subscriptionId);
+    const feed = sub ? feeds.find((f) => f.id === sub.feedId) : null;
+    const name = sub?.title || feed?.title || "此订阅";
+    closeMenu();
+
+    modal.confirm({
+      title: "取消订阅",
+      content: `确定要取消订阅「${name}」吗？相关文章数据也会被删除。`,
+      okText: "取消订阅",
+      okButtonProps: { danger: true },
+      cancelText: "保留",
+      onOk: async () => {
+        await unsubscribe(contextMenu.subscriptionId);
+      },
+    });
+  }, [contextMenu, subscriptions, feeds, unsubscribe, closeMenu, modal]);
 
   const grouped: Record<string, typeof subscriptions> = {};
   for (const sub of subscriptions) {
@@ -84,9 +141,10 @@ export default function SubscriptionTree({
                       feedId: sub.feedId,
                     })
                   }
+                  onContextMenu={(e) => handleContextMenu(e, sub.id)}
                 >
                   <span className="flex-1 truncate">
-                    {sub.title || feed?.title || "未命名"}
+                    {getDisplayName(sub.title, feed?.title, feed?.url)}
                   </span>
                   {unread > 0 && (
                     <span
@@ -100,6 +158,49 @@ export default function SubscriptionTree({
             })}
         </div>
       ))}
+
+      {contextMenu && (
+        <div
+          ref={menuRef}
+          className={`fixed z-50 min-w-[140px] rounded-lg border py-1 shadow-lg ${themeColors.borderClass} ${themeColors.modalPanelBg}`}
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <button
+            className={`flex w-full items-center gap-2 px-3 py-1.5 text-xs border-none cursor-pointer bg-transparent text-red-500 ${themeColors.hoverClass} transition-colors duration-150`}
+            onClick={handleUnsubscribe}
+          >
+            取消订阅
+          </button>
+        </div>
+      )}
     </div>
   );
+}
+
+function getDisplayName(
+  subTitle: string | null,
+  feedTitle: string | undefined,
+  feedUrl: string | undefined,
+): string {
+  if (subTitle && !looksLikeUrl(subTitle)) return subTitle;
+  if (feedTitle && !looksLikeUrl(feedTitle)) return feedTitle;
+  if (subTitle) return prettifyUrl(subTitle);
+  if (feedTitle) return prettifyUrl(feedTitle);
+  if (feedUrl) return prettifyUrl(feedUrl);
+  return "未命名";
+}
+
+function looksLikeUrl(s: string): boolean {
+  return /^https?:\/\//i.test(s);
+}
+
+function prettifyUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, "");
+    const path = u.pathname.replace(/\/$/, "");
+    return path && path !== "/" ? `${host}${path}` : host;
+  } catch {
+    return url;
+  }
 }

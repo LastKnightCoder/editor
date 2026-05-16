@@ -1,6 +1,5 @@
 import { memo } from "react";
 import ResizablePanel from "@/components/ResizablePanel";
-import useThemeColors from "@/hooks/useThemeColors";
 import useFeedViewState from "./hooks/useFeedViewState";
 import FeedSidebar from "./components/FeedSidebar";
 import ArticleList from "./components/ArticleList";
@@ -8,7 +7,6 @@ import ReadingPane from "./components/ReadingPane";
 import AddFeedDialog from "./components/AddFeedDialog";
 
 const FeedView: React.FC = memo(() => {
-  const themeColors = useThemeColors();
   const state = useFeedViewState();
 
   return (
@@ -16,7 +14,7 @@ const FeedView: React.FC = memo(() => {
       <ResizablePanel
         id="feed-view-outer"
         className="h-full w-full"
-        leftClassName={`h-full overflow-hidden border-r ${themeColors.borderClass}`}
+        leftClassName="h-full overflow-hidden"
         rightClassName="h-full overflow-hidden"
         defaultLeftWidth={220}
         minLeft={180}
@@ -32,7 +30,7 @@ const FeedView: React.FC = memo(() => {
           <ResizablePanel
             id="feed-view-inner"
             className="h-full w-full"
-            leftClassName={`h-full overflow-hidden border-r ${themeColors.borderClass}`}
+            leftClassName="h-full overflow-hidden"
             rightClassName="h-full overflow-hidden"
             defaultLeftWidth={300}
             minLeft={240}
@@ -49,7 +47,11 @@ const FeedView: React.FC = memo(() => {
               />
             }
             right={
-              <ReadingPane article={state.selectedArticle} actions={state} />
+              <ReadingPane
+                article={state.selectedArticle}
+                isInReadLater={state.isSelectedInReadLater}
+                actions={state}
+              />
             }
           />
         }

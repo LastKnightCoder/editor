@@ -26,6 +26,39 @@ export interface CreateRssFeedPayload {
   fetchInterval?: number;
 }
 
+export interface RssFeedPreviewEntry {
+  title: string;
+  url: string | null;
+  publishedAt: number | null;
+}
+
+export type RssFeedPreviewErrorCode =
+  | "invalid_url"
+  | "unsafe_url"
+  | "timeout"
+  | "http_error"
+  | "not_feed"
+  | "parse_failed"
+  | "network_error";
+
+export type RssFeedPreviewResult =
+  | {
+      valid: true;
+      url: string;
+      finalUrl: string;
+      title: string;
+      siteUrl: string | null;
+      description: string | null;
+      feedType: "rss" | "atom" | "json";
+      entriesPreview: RssFeedPreviewEntry[];
+    }
+  | {
+      valid: false;
+      url: string;
+      errorCode: RssFeedPreviewErrorCode;
+      message: string;
+    };
+
 export interface UpdateRssFeedPayload {
   id: number;
   title?: string;

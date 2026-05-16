@@ -20,9 +20,11 @@ import {
   markAllRssEntriesReadByFeed,
   toggleRssEntryStar,
   getUnreadCounts,
+  getStarredCount,
   refreshRssFeed,
   refreshAllRssFeeds,
   discoverFeeds,
+  previewFeed,
   extractContent,
   getRssFeedByUrl,
 } from "@/commands/rss";
@@ -42,6 +44,7 @@ interface IState {
   categories: string[];
   entries: RssEntry[];
   unreadCounts: Record<number, number>;
+  starredCount: number;
   status: RssStatus;
   entriesStatus: RssStatus;
   selectedSubscriptionId: number | null;
@@ -56,6 +59,7 @@ interface IAction {
   loadSubscriptions: () => Promise<void>;
   loadCategories: () => Promise<void>;
   loadUnreadCounts: () => Promise<void>;
+  loadStarredCount: () => Promise<void>;
   loadEntries: (feedId: number) => Promise<void>;
   loadUnreadEntries: () => Promise<void>;
   loadStarredEntries: () => Promise<void>;
@@ -75,6 +79,7 @@ interface IAction {
   discoverFeeds: (
     url: string,
   ) => Promise<{ url: string; title: string; type: string }[]>;
+  previewFeed: typeof previewFeed;
   extractContent: (url: string) => Promise<string | null>;
   setSelectedSubscription: (id: number | null) => void;
   setSelectedEntry: (id: number | null) => void;
@@ -89,6 +94,7 @@ const useRssStore = create<IState & IAction>()(
       categories: [],
       entries: [],
       unreadCounts: {},
+      starredCount: 0,
       status: RssStatus.UN_INIT,
       entriesStatus: RssStatus.UN_INIT,
       selectedSubscriptionId: null,
@@ -104,6 +110,7 @@ const useRssStore = create<IState & IAction>()(
             get().loadSubscriptions(),
             get().loadCategories(),
             get().loadUnreadCounts(),
+            get().loadStarredCount(),
           ]);
           set({ status: RssStatus.SUCCESS });
 
@@ -137,6 +144,11 @@ const useRssStore = create<IState & IAction>()(
           map[feedId] = count;
         }
         set({ unreadCounts: map });
+      },
+
+      loadStarredCount: async () => {
+        const starredCount = await getStarredCount();
+        set({ starredCount });
       },
 
       loadEntries: async (feedId: number) => {
@@ -190,22 +202,56 @@ const useRssStore = create<IState & IAction>()(
       },
 
       subscribe: async (url: string, category?: string, title?: string) => {
-        let feed = await getRssFeedByUrl(url);
+        const preview = await previewFeed(url);
+        if (!preview.valid) {
+          throw new Error(preview.message);
+        }
+
+        const feedUrl = preview.finalUrl || preview.url;
+        let feed =
+          (await getRssFeedByUrl(feedUrl)) ||
+          (feedUrl !== url ? await getRssFeedByUrl(url) : null);
+        const isNewFeed = !feed;
         if (!feed) {
           feed = await createRssFeed({
-            title: title || url,
-            url,
+            title: title || preview.title || feedUrl,
+            description: preview.description ?? undefined,
+            url: feedUrl,
+            siteUrl: preview.siteUrl ?? undefined,
+            feedType: preview.feedType,
           });
         }
-        await createRssSubscription({
+        const subscription = await createRssSubscription({
           feedId: feed.id,
           category,
           title,
         });
+        const result = await refreshRssFeed(feed.id);
+        if (result.error) {
+          await deleteRssSubscription(subscription.id);
+          if (isNewFeed) {
+            await deleteRssFeed(feed.id);
+          }
+          throw new Error(result.error);
+        }
+        await get().loadFeeds();
         await get().loadSubscriptions();
         await get().loadCategories();
-        await refreshRssFeed(feed.id);
         await get().loadUnreadCounts();
+
+        const { selectedSubscriptionId, subscriptions, filterMode } = get();
+        const selectedSubscription = subscriptions.find(
+          (subscription) => subscription.id === selectedSubscriptionId,
+        );
+        if (selectedSubscription?.feedId === feed.id) {
+          await get().loadEntries(feed.id);
+        } else if (!selectedSubscriptionId && filterMode === "all") {
+          await get().loadAllEntries();
+        } else if (!selectedSubscriptionId && filterMode === "unread") {
+          await get().loadUnreadEntries();
+        } else if (!selectedSubscriptionId && filterMode === "starred") {
+          await get().loadStarredEntries();
+        }
       },
 
       unsubscribe: async (subscriptionId: number) => {
@@ -261,13 +307,17 @@ const useRssStore = create<IState & IAction>()(
               e.id === entryId ? { ...e, isStarred: result.isStarred } : e,
             ),
           });
+          await get().loadStarredCount();
         }
       },
 
       refreshFeed: async (feedId: number) => {
         set({ isRefreshing: true });
         try {
-          await refreshRssFeed(feedId);
+          const result = await refreshRssFeed(feedId);
+          if (result.error) {
+            throw new Error(result.error);
+          }
           await get().loadUnreadCounts();
           const { selectedSubscriptionId, subscriptions } = get();
           if (selectedSubscriptionId) {
@@ -295,6 +345,10 @@ const useRssStore = create<IState & IAction>()(
 
       discoverFeeds: async (url: string) => {
         return await discoverFeeds(url);
+      },
+
+      previewFeed: async (url: string) => {
+        return await previewFeed(url);
       },
 
       extractContent: async (url: string) => {

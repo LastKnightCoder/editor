@@ -199,6 +199,21 @@ const Icons = {
       />
     </svg>
   ),
+  Rss: () => (
+    <svg
+      className="w-6 h-6"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M6 18h.01M6 6a12 12 0 0112 12M6 12a6 6 0 016 6"
+      />
+    </svg>
+  ),
   FolderOpen: () => (
     <svg
       className="w-6 h-6"
@@ -287,6 +302,11 @@ const MODULE_CONFIG: Record<
   weread: {
     icon: "Book",
     description: "同步微信读书笔记",
+    category: "knowledge",
+  },
+  feed: {
+    icon: "Rss",
+    description: "聚合 RSS 与稍后读内容",
     category: "knowledge",
   },
   vecDocuments: {

@@ -6,13 +6,22 @@ import HtmlReader from "./HtmlReader";
 
 interface ReadingPaneProps {
   article: UnifiedArticleItem | null;
+  isInReadLater: boolean;
   actions: Pick<
     FeedViewActions,
-    "toggleStar" | "archiveItem" | "unarchiveItem" | "deleteItem"
+    | "toggleStar"
+    | "toggleReadLater"
+    | "archiveItem"
+    | "unarchiveItem"
+    | "deleteItem"
   >;
 }
 
-export default function ReadingPane({ article, actions }: ReadingPaneProps) {
+export default function ReadingPane({
+  article,
+  isInReadLater,
+  actions,
+}: ReadingPaneProps) {
   const themeColors = useThemeColors();
 
   if (!article) {
@@ -25,17 +34,40 @@ export default function ReadingPane({ article, actions }: ReadingPaneProps) {
     );
   }
 
+  const readLaterToggleProps =
+    article.source === "rss"
+      ? {
+          isInReadLater,
+          onToggleReadLater: () => actions.toggleReadLater(article),
+        }
+      : {};
+
+  const readLaterManageProps =
+    article.source === "readlater"
+      ? {
+          onArchive: () => actions.archiveItem(article),
+          onUnarchive: () => actions.unarchiveItem(article),
+          onDelete: () => actions.deleteItem(article),
+        }
+      : {};
+
   if (article.url) {
-    return <WebviewReader article={article} />;
+    return (
+      <WebviewReader
+        article={article}
+        onToggleStar={() => actions.toggleStar(article)}
+        {...readLaterToggleProps}
+        {...readLaterManageProps}
+      />
+    );
   }
 
   return (
     <HtmlReader
       article={article}
       onToggleStar={() => actions.toggleStar(article)}
-      onArchive={() => actions.archiveItem(article)}
-      onUnarchive={() => actions.unarchiveItem(article)}
-      onDelete={() => actions.deleteItem(article)}
+      {...readLaterToggleProps}
+      {...readLaterManageProps}
     />
   );
 }

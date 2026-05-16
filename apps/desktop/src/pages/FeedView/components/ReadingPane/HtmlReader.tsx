@@ -4,6 +4,7 @@ import {
   DeleteOutlined,
   InboxOutlined,
   UndoOutlined,
+  BookOutlined,
 } from "@ant-design/icons";
 import DOMPurify from "dompurify";
 import useThemeColors from "@/hooks/useThemeColors";
@@ -12,6 +13,8 @@ import type { UnifiedArticleItem } from "../../types";
 interface HtmlReaderProps {
   article: UnifiedArticleItem;
   onToggleStar: () => void;
+  isInReadLater?: boolean;
+  onToggleReadLater?: () => void;
   onArchive?: () => void;
   onUnarchive?: () => void;
   onDelete?: () => void;
@@ -20,6 +23,8 @@ interface HtmlReaderProps {
 export default function HtmlReader({
   article,
   onToggleStar,
+  isInReadLater,
+  onToggleReadLater,
   onArchive,
   onUnarchive,
   onDelete,
@@ -75,6 +80,16 @@ export default function HtmlReader({
                 <StarOutlined />
               )}
             </IconBtn>
+            {onToggleReadLater && (
+              <IconBtn
+                onClick={onToggleReadLater}
+                title={isInReadLater ? "从稍后读移除" : "稍后读"}
+              >
+                <BookOutlined
+                  className={isInReadLater ? "text-blue-500" : ""}
+                />
+              </IconBtn>
+            )}
             {article.source === "readlater" && (
               <>
                 {article.isArchived ? (

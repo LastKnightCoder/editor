@@ -15,6 +15,7 @@ export interface FeedViewState {
   isLoading: boolean;
   isRefreshing: boolean;
   addDialogOpen: boolean;
+  isSelectedInReadLater: boolean;
 }
 
 export interface FeedViewActions {
@@ -23,6 +24,7 @@ export interface FeedViewActions {
   toggleStar: (article: UnifiedArticleItem) => void;
   markRead: (article: UnifiedArticleItem) => void;
   markAllRead: () => void;
+  toggleReadLater: (article: UnifiedArticleItem) => Promise<void>;
   archiveItem: (article: UnifiedArticleItem) => void;
   unarchiveItem: (article: UnifiedArticleItem) => void;
   deleteItem: (article: UnifiedArticleItem) => void;
@@ -40,6 +42,7 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
     null,
   );
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [isSelectedInReadLater, setIsSelectedInReadLater] = useState(false);
 
   const rssStore = useRssStore();
   const readLaterStore = useReadLaterStore();
@@ -91,6 +94,16 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
     [articles, selectedArticleId],
   );
 
+  useEffect(() => {
+    if (selectedArticle?.source === "rss") {
+      readLaterStore
+        .checkExists("rss_entry", selectedArticle.sourceId)
+        .then(setIsSelectedInReadLater);
+    } else {
+      setIsSelectedInReadLater(false);
+    }
+  }, [selectedArticle?.id]);
+
   const isLoading = isReadLaterMode
     ? readLaterStore.loading
     : rssStore.entriesStatus === RssStatus.LOADING;
@@ -141,6 +154,28 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
     }
   });
 
+  const toggleReadLater = useMemoizedFn(async (article: UnifiedArticleItem) => {
+    if (article.source !== "rss") return;
+    const exists = await readLaterStore.checkExists(
+      "rss_entry",
+      article.sourceId,
+    );
+    if (exists) {
+      await readLaterStore.removeBySource("rss_entry", article.sourceId);
+      setIsSelectedInReadLater(false);
+    } else {
+      await readLaterStore.addItem({
+        sourceType: "rss_entry",
+        sourceId: article.sourceId,
+        title: article.title,
+        url: article.url || undefined,
+        excerpt: article.excerpt || undefined,
+        content: article.content || undefined,
+      });
+      setIsSelectedInReadLater(true);
+    }
+  });
+
   const deleteItem = useMemoizedFn((article: UnifiedArticleItem) => {
     if (article.source === "readlater") {
       readLaterStore.removeItem(article.sourceId);
@@ -166,11 +201,13 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
     isLoading,
     isRefreshing: rssStore.isRefreshing,
     addDialogOpen,
+    isSelectedInReadLater,
     setSelection,
     selectArticle,
     toggleStar,
     markRead,
     markAllRead,
+    toggleReadLater,
     archiveItem,
     unarchiveItem,
     deleteItem,

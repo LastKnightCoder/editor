@@ -121,7 +121,9 @@
       "Bash(sed -i '' '/-webkit-backdrop-filter: var\\(--glass-blur/d' template-gradient.html)",
       "Bash(npx --package=typescript tsc --noEmit --project apps/desktop/tsconfig.json)",
       "Bash(npx vue-tsc *)",
-      "Bash(awk '{print $5, $9}')"
+      "Bash(awk '{print $5, $9}')",
+      "Bash(PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install chromium --dry-run)",
+      "Bash(awk '{print length, $0}')"
     ],
     "deny": [],
     "ask": []
