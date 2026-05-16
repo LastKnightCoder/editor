@@ -176,7 +176,7 @@ const ResizablePanel = ({
     >
       <div
         className={classNames(
-          "h-full min-w-0 shrink-0",
+          "h-full min-w-0",
           isDragging && "pointer-events-none",
           leftClassName,
         )}
@@ -186,7 +186,7 @@ const ResizablePanel = ({
       </div>
       <div
         className={classNames(
-          "mx-1 flex h-full w-[6px] cursor-col-resize items-center justify-center",
+          "flex h-full w-[6px] shrink-0 cursor-col-resize items-center justify-center",
           handleClassName,
         )}
         onMouseDown={handleMouseDown}
@@ -194,7 +194,7 @@ const ResizablePanel = ({
         <div className="h-full w-[2px] rounded-full bg-gray-200 dark:bg-zinc-700" />
       </div>
       <div
-        className={classNames("h-full min-w-0 shrink-0", rightClassName)}
+        className={classNames("h-full min-w-0", rightClassName)}
         style={rightStyle}
       >
         {rightContent}
