@@ -179,7 +179,7 @@ export interface ImageGenerationService {
   generateImage: (params: { prompt: string }) => Promise<ImageGenerationResult>;
   editImage: (params: {
     prompt: string;
-    imageUrl: string;
+    images: string[];
   }) => Promise<ImageGenerationResult>;
 }
 

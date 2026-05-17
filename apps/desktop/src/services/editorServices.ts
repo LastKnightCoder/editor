@@ -827,18 +827,26 @@ export function createEditorServices(): EditorServices {
         return uploadFirstGeneratedImage(results);
       },
 
-      editImage: async ({ prompt, imageUrl }) => {
+      editImage: async ({ prompt, images }) => {
         const config = useSettingStore.getState().setting.imageGeneration;
         if (!isImageGenerationConfigValid(config)) {
           throw new Error(
             "图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称",
           );
         }
-        const imageFile = await resolveImageInputFile(imageUrl);
+        const normalizedImageUrls = images
+          .map((item) => item.trim())
+          .filter(Boolean);
+        if (normalizedImageUrls.length === 0) {
+          throw new Error("图片编辑至少需要一张输入图片");
+        }
+        const imageFiles = await Promise.all(
+          normalizedImageUrls.map((item) => resolveImageInputFile(item)),
+        );
         const results = await editOpenAIImages({
           config,
           prompt,
-          imageFiles: [imageFile],
+          imageFiles,
         });
         return uploadFirstGeneratedImage(results);
       },

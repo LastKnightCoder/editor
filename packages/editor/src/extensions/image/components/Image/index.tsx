@@ -73,6 +73,11 @@ type AIReferenceItem = {
   kind: "empty" | "original" | "result";
 };
 
+type AIReferenceSelection = {
+  ids: string[];
+  items: AIReferenceItem[];
+};
+
 interface IImageProps {
   attributes: RenderElementProps["attributes"];
   element: ImageElement;
@@ -140,13 +145,20 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const [generatedCandidates, setGeneratedCandidates] = useState<
     PendingAIImage[]
   >([]);
+  const [editReferenceCandidates, setEditReferenceCandidates] = useState<
+    PendingAIImage[]
+  >([]);
   const [editedCandidates, setEditedCandidates] = useState<PendingAIImage[]>(
     [],
   );
   const [selectedGenerateReference, setSelectedGenerateReference] =
     useState("empty");
-  const [selectedEditReference, setSelectedEditReference] =
-    useState("original");
+  const [selectedEditReferenceIds, setSelectedEditReferenceIds] = useState([
+    "original",
+  ]);
+  const [selectedEditResultId, setSelectedEditResultId] = useState<
+    string | null
+  >(null);
   const [previewingReference, setPreviewingReference] =
     useState<AIReferenceItem | null>(null);
   const uploadTabRef = useRef<HTMLDivElement>(null);
@@ -292,8 +304,10 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     setAiAction(action);
     setAiEditModalOpen(true);
     setEditPrompt("");
+    setEditReferenceCandidates([]);
     setEditedCandidates([]);
-    setSelectedEditReference("original");
+    setSelectedEditReferenceIds(["original"]);
+    setSelectedEditResultId(null);
   });
 
   const getAIReferenceItems = (action: ImageAIAction): AIReferenceItem[] => {
@@ -316,7 +330,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
         url: previewUrl || url,
         kind: "original",
       },
-      ...editedCandidates.map((item) => ({
+      ...editReferenceCandidates.map((item) => ({
         id: item.id,
         label: item.label,
         url: item.url,
@@ -325,18 +339,37 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     ];
   };
 
-  const getSelectedReference = (action: ImageAIAction) => {
-    const selectedId =
-      action === "generate" ? selectedGenerateReference : selectedEditReference;
-    return getAIReferenceItems(action).find((item) => item.id === selectedId);
+  const getSelectedReference = (
+    action: ImageAIAction,
+  ): AIReferenceSelection => {
+    const items = getAIReferenceItems(action);
+    if (action === "generate") {
+      const selectedItem = items.find(
+        (item) => item.id === selectedGenerateReference,
+      );
+      return {
+        ids: selectedItem ? [selectedItem.id] : [],
+        items: selectedItem ? [selectedItem] : [],
+      };
+    }
+
+    const selectedItems = items.filter((item) =>
+      selectedEditReferenceIds.includes(item.id),
+    );
+    return {
+      ids: selectedItems.map((item) => item.id),
+      items: selectedItems,
+    };
   };
 
   const getSelectedResult = (action: ImageAIAction) => {
     const selectedId =
-      action === "generate" ? selectedGenerateReference : selectedEditReference;
+      action === "generate" ? selectedGenerateReference : selectedEditResultId;
     const candidates =
       action === "generate" ? generatedCandidates : editedCandidates;
-    return candidates.find((item) => item.id === selectedId) ?? null;
+    return selectedId
+      ? (candidates.find((item) => item.id === selectedId) ?? null)
+      : null;
   };
 
   const handleRunAIImage = useMemoizedFn(
@@ -353,13 +386,16 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       }
 
       const selectedReference = getSelectedReference(action);
+      const selectedReferenceUrls = selectedReference.items
+        .map((item) => item.url)
+        .filter((item): item is string => Boolean(item));
       setAiSubmitting(true);
       try {
         setAiAction(action);
-        const result = selectedReference?.url
+        const result = selectedReferenceUrls.length
           ? await imageGeneration.editImage({
               prompt,
-              imageUrl: selectedReference.url,
+              images: selectedReferenceUrls,
             })
           : await imageGeneration.generateImage({ prompt });
         const candidates = isGenerate ? generatedCandidates : editedCandidates;
@@ -376,7 +412,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
           setSelectedGenerateReference(pendingImage.id);
         } else {
           setEditedCandidates((prev) => [...prev, pendingImage]);
-          setSelectedEditReference(pendingImage.id);
+          setSelectedEditResultId(pendingImage.id);
         }
       } catch (error) {
         console.error("AI 图片处理失败:", error);
@@ -407,8 +443,10 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       setGeneratePrompt("");
     } else {
       setAiEditModalOpen(false);
+      setEditReferenceCandidates([]);
       setEditedCandidates([]);
-      setSelectedEditReference("original");
+      setSelectedEditReferenceIds(["original"]);
+      setSelectedEditResultId(null);
       setEditPrompt("");
     }
     messageApi.success(aiAction === "generate" ? "图片已插入" : "图片已替换");
@@ -735,29 +773,49 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
+    input.multiple = action === "edit";
     input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
+      const files = Array.from((e.target as HTMLInputElement).files ?? []);
+      if (files.length === 0) return;
       if (!uploadResource) {
         message.warning("尚未配置图床，无法上传参考图");
         return;
       }
       try {
-        const uploadedUrl = await uploadResource(file);
-        if (uploadedUrl) {
-          const pendingRef: PendingAIImage = {
+        const uploadedUrls = await Promise.all(
+          files.map((file) => uploadResource(file)),
+        );
+        const validUrls = uploadedUrls.filter((item): item is string =>
+          Boolean(item),
+        );
+        if (validUrls.length === 0) {
+          return;
+        }
+        if (action === "generate") {
+          const pendingRefs = validUrls.map((uploadedUrl, index) => ({
             id: getUuid(),
             url: uploadedUrl,
             prompt: "",
-            label: `参考 ${(action === "generate" ? generatedCandidates : editedCandidates).length + 1}`,
-          };
-          if (action === "generate") {
-            setGeneratedCandidates((prev) => [...prev, pendingRef]);
-            setSelectedGenerateReference(pendingRef.id);
-          } else {
-            setEditedCandidates((prev) => [...prev, pendingRef]);
-            setSelectedEditReference(pendingRef.id);
-          }
+            label: `参考 ${generatedCandidates.length + index + 1}`,
+          }));
+          setGeneratedCandidates((prev) => [...prev, ...pendingRefs]);
+          setSelectedGenerateReference(
+            pendingRefs[pendingRefs.length - 1]?.id ?? "empty",
+          );
+        } else {
+          setEditReferenceCandidates((prev) => {
+            const pendingRefs = validUrls.map((uploadedUrl, index) => ({
+              id: getUuid(),
+              url: uploadedUrl,
+              prompt: "",
+              label: `参考 ${prev.length + index + 1}`,
+            }));
+            setSelectedEditReferenceIds((current) => [
+              ...current,
+              ...pendingRefs.map((item) => item.id),
+            ]);
+            return [...prev, ...pendingRefs];
+          });
         }
       } catch (error) {
         console.error("上传参考图失败:", error);
@@ -776,10 +834,13 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
           setSelectedGenerateReference("empty");
         }
       } else {
-        setEditedCandidates((prev) => prev.filter((item) => item.id !== id));
-        if (selectedEditReference === id) {
-          setSelectedEditReference("original");
-        }
+        setEditReferenceCandidates((prev) =>
+          prev.filter((item) => item.id !== id),
+        );
+        setSelectedEditReferenceIds((prev) => {
+          const nextIds = prev.filter((item) => item !== id);
+          return nextIds.length > 0 ? nextIds : ["original"];
+        });
       }
     },
   );
@@ -787,19 +848,24 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const renderAIReferencePicker = (action: ImageAIAction) => {
     const isGenerate = action === "generate";
     const items = getAIReferenceItems(action);
-    const selectedId = isGenerate
-      ? selectedGenerateReference
-      : selectedEditReference;
-    const setSelectedId = isGenerate
-      ? setSelectedGenerateReference
-      : setSelectedEditReference;
+    const selectedIds = isGenerate
+      ? [selectedGenerateReference]
+      : selectedEditReferenceIds;
 
     return (
       <div className="flex flex-col gap-[0.5em]">
         <div className="flex items-center justify-between">
-          <span className="text-[0.75em] font-medium text-gray-500 dark:text-zinc-400">
-            参考图
-          </span>
+          <div className="flex flex-col gap-[0.125em]">
+            <span className="text-[0.75em] font-medium text-gray-500 dark:text-zinc-400">
+              参考图
+            </span>
+            {!isGenerate && (
+              <span className="text-[0.6875em] text-gray-400 dark:text-zinc-500">
+                Ctrl/Command +
+                点击可多选或取消，普通点击单选，点击已选中图片可放大
+              </span>
+            )}
+          </div>
           <button
             type="button"
             className="text-[0.6875em] text-gray-500 dark:text-zinc-400 cursor-pointer border-none bg-transparent hover:text-gray-800 dark:hover:text-zinc-200 transition-colors duration-150 flex items-center gap-[0.25em]"
@@ -812,7 +878,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
         </div>
         <div className="flex gap-[0.5em] overflow-x-auto pb-[0.25em]">
           {items.map((item) => {
-            const selected = item.id === selectedId;
+            const selected = selectedIds.includes(item.id);
             const canRemove = item.kind === "result" && !aiSubmitting;
             return (
               <div key={item.id} className="relative shrink-0">
@@ -825,12 +891,32 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
                       : "border-gray-200 dark:border-zinc-700 hover:border-gray-400 dark:hover:border-zinc-500",
                     "disabled:cursor-not-allowed disabled:opacity-70",
                   )}
-                  onClick={() => {
-                    if (selected && item.url) {
+                  onClick={(event) => {
+                    if (isGenerate) {
+                      if (selected && item.url) {
+                        showAIReferenceOverview(item);
+                        return;
+                      }
+                      setSelectedGenerateReference(item.id);
+                      return;
+                    }
+
+                    const isMultiSelect = event.ctrlKey || event.metaKey;
+                    if (!isMultiSelect && selected && item.url) {
                       showAIReferenceOverview(item);
                       return;
                     }
-                    setSelectedId(item.id);
+
+                    if (!isMultiSelect) {
+                      setSelectedEditReferenceIds([item.id]);
+                      return;
+                    }
+
+                    setSelectedEditReferenceIds((prev) => {
+                      return prev.includes(item.id)
+                        ? prev.filter((id) => id !== item.id)
+                        : [...prev, item.id];
+                    });
                   }}
                   disabled={aiSubmitting}
                   title={selected && item.url ? "点击放大查看" : item.label}
@@ -865,6 +951,59 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     );
   };
 
+  const renderAIResultPicker = () => {
+    if (editedCandidates.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="flex flex-col gap-[0.5em]">
+        <span className="text-[0.75em] font-medium text-gray-500 dark:text-zinc-400">
+          候选结果
+        </span>
+        <div className="flex gap-[0.5em] overflow-x-auto pb-[0.25em]">
+          {editedCandidates.map((item) => {
+            const selected = item.id === selectedEditResultId;
+            return (
+              <div key={item.id} className="relative shrink-0">
+                <button
+                  type="button"
+                  className={classnames(
+                    "relative w-[3.5em] h-[3.5em] p-0 overflow-hidden rounded-[0.5em] cursor-pointer transition-all duration-150 border-[0.125em]",
+                    selected
+                      ? "border-[var(--th-btn-bg)]"
+                      : "border-gray-200 dark:border-zinc-700 hover:border-gray-400 dark:hover:border-zinc-500",
+                    "disabled:cursor-not-allowed disabled:opacity-70",
+                  )}
+                  onClick={() => {
+                    if (selected) {
+                      showAIReferenceOverview({
+                        id: item.id,
+                        label: item.label,
+                        url: item.url,
+                        kind: "result",
+                      });
+                      return;
+                    }
+                    setSelectedEditResultId(item.id);
+                  }}
+                  disabled={aiSubmitting}
+                  title={selected ? "点击放大查看" : item.label}
+                >
+                  <LocalImageComponent
+                    className="w-full h-full object-cover block"
+                    url={item.url}
+                    alt={item.label}
+                  />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   const renderAIImagePanel = (
     action: ImageAIAction,
     options: { hideActions?: boolean } = {},
@@ -874,11 +1013,15 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     const setPrompt = isGenerate ? setGeneratePrompt : setEditPrompt;
     const selectedResult = getSelectedResult(action);
     const selectedReference = getSelectedReference(action);
-    const actionText = selectedReference?.url
-      ? "基于参考图生成"
-      : isGenerate
-        ? "生成"
-        : "编辑";
+    const selectedReferenceCount = selectedReference.items.filter((item) =>
+      Boolean(item.url),
+    ).length;
+    const actionText =
+      selectedReferenceCount > 0
+        ? "基于参考图生成"
+        : isGenerate
+          ? "生成"
+          : "编辑";
 
     return (
       <div className="flex flex-col gap-[0.875em]">
@@ -895,7 +1038,8 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
           disabled={aiSubmitting}
           rows={3}
         />
-        {(aiSubmitting || selectedResult) && (
+        {!isGenerate && renderAIResultPicker()}
+        {(aiSubmitting || (isGenerate && selectedResult)) && (
           <div className="flex flex-col items-center gap-[0.5em] p-[1em] rounded-[0.75em] border border-gray-200 dark:border-zinc-700">
             {aiSubmitting ? (
               <div className="flex items-center gap-[0.5em] text-text-3 text-[0.8125em]">
@@ -1276,8 +1420,10 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
         onCancel={() => {
           if (aiSubmitting) return;
           setAiEditModalOpen(false);
+          setEditReferenceCandidates([]);
           setEditedCandidates([]);
-          setSelectedEditReference("original");
+          setSelectedEditReferenceIds(["original"]);
+          setSelectedEditResultId(null);
         }}
         title="AI 编辑图片"
         subtitle="输入调整要求，先生成预览，确认后再替换当前图片"
@@ -1293,8 +1439,10 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
               disabled={aiSubmitting}
               onClick={() => {
                 setAiEditModalOpen(false);
+                setEditReferenceCandidates([]);
                 setEditedCandidates([]);
-                setSelectedEditReference("original");
+                setSelectedEditReferenceIds(["original"]);
+                setSelectedEditResultId(null);
                 setEditPrompt("");
               }}
             >
@@ -1308,7 +1456,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
             >
               {aiSubmitting
                 ? "处理中..."
-                : getSelectedReference("edit")?.url
+                : getSelectedReference("edit").items.some((item) => item.url)
                   ? "基于所选图片生成"
                   : "编辑预览"}
             </button>
