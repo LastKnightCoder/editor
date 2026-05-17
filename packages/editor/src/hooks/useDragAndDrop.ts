@@ -8,6 +8,7 @@ import {
   getColumnWidths,
   updateColumnWidths,
 } from "../utils/multi-columns-layout";
+import { findPathSafely, getNodeAtPathSafely } from "../utils/path";
 import type {
   MultiColumnContainerElement,
   MultiColumnItemElement,
@@ -22,8 +23,9 @@ const EDITOR_DRAG_TYPE = "editor-item";
 const COLUMN_ITEM_DRAG_TYPE = "multi-column-item-reorder";
 
 interface IDragItem {
-  element: Element;
-  editor: Editor;
+  sourceEditor: Editor;
+  dragPath: Path;
+  dragElementSnapshot: Element;
   isColumnDrag?: boolean;
   columnPath?: Path;
   containerPath?: Path;
@@ -95,19 +97,32 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
 
   const [isBefore, setIsBefore] = useState(false);
 
+  const getCurrentElementPath = useCallback(() => {
+    return findPathSafely(editor, element);
+  }, [editor, element]);
+
   // 使用 useCallback 优化 canDrag 函数
   const canDragFn = useCallback(() => {
     if (disableDrag) return false;
-    return Editor.isBlock(editor, element) && !readOnly;
-  }, [disableDrag, editor, element, readOnly]);
+    return (
+      !!getCurrentElementPath() && Editor.isBlock(editor, element) && !readOnly
+    );
+  }, [disableDrag, editor, element, getCurrentElementPath, readOnly]);
 
   // 拖拽相关部分
   const [{ isDragging, canDrag }, dragConnector] = useDrag(
     {
       type: EDITOR_DRAG_TYPE,
-      item: {
-        element,
-        editor,
+      item: () => {
+        const dragPath = getCurrentElementPath();
+        if (!dragPath) {
+          return null;
+        }
+        return {
+          sourceEditor: editor,
+          dragPath,
+          dragElementSnapshot: Node.get(editor, dragPath) as Element,
+        };
       },
       canDrag: canDragFn,
       collect: (monitor) => ({
@@ -124,8 +139,11 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
       if (readOnly) {
         return false;
       }
-      const dropPath = ReactEditor.findPath(editor, element);
-      const dragEditor = item.editor;
+      const dropPath = getCurrentElementPath();
+      if (!dropPath) {
+        return false;
+      }
+      const dragEditor = item.sourceEditor;
       let dropParent;
       if (dropPath.length > 1) {
         try {
@@ -140,7 +158,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         (element.type === "check-list-item" ||
           (element.type === "paragraph" &&
             dropParent?.[0].type === "check-list-item")) &&
-        item.element.type !== "check-list-item"
+        item.dragElementSnapshot.type !== "check-list-item"
       ) {
         return false;
       }
@@ -158,13 +176,14 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         return !isInsideContainer;
       }
 
-      const dragPath = ReactEditor.findPath(editor, item.element);
-      if (editor.isBlock(item.element) && editor.isBlock(element)) {
+      const dragPath = item.dragPath;
+      const dragElement = item.dragElementSnapshot;
+      if (editor.isBlock(dragElement) && editor.isBlock(element)) {
         return editor !== dragEditor || !Path.equals(dragPath, dropPath);
       }
       return false;
     },
-    [editor, element, readOnly],
+    [editor, element, getCurrentElementPath, readOnly],
   );
 
   // 使用 useCallback 优化 hover 函数
@@ -177,7 +196,12 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
       if (!monitorClientOffset) {
         return;
       }
-      const dropDOMNode = ReactEditor.toDOMNode(editor, element);
+      let dropDOMNode;
+      try {
+        dropDOMNode = ReactEditor.toDOMNode(editor, element);
+      } catch {
+        return;
+      }
       const dropRect = dropDOMNode.getBoundingClientRect();
       const isBefore =
         monitorClientOffset.y - dropRect.top < dropRect.height / 2;
@@ -194,10 +218,13 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         return;
       }
       try {
-        const dropPath = ReactEditor.findPath(editor, element);
+        const dropPath = getCurrentElementPath();
+        if (!dropPath) {
+          return;
+        }
 
         if (item.isColumnDrag && item.columnPath && item.containerPath) {
-          if (editor !== item.editor) {
+          if (editor !== item.sourceEditor) {
             return;
           }
           if (
@@ -259,26 +286,37 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
           return;
         }
 
-        const dragEditor = item.editor;
-        const dragElement = item.element;
-        const dragPath = ReactEditor.findPath(dragEditor, dragElement);
+        const dragEditor = item.sourceEditor;
+        const dragElement = item.dragElementSnapshot;
+        const dragPathRef = Editor.pathRef(dragEditor, item.dragPath);
+        const dragPath = dragPathRef.current;
+        if (!dragPath || !Node.has(dragEditor, dragPath)) {
+          dragPathRef.unref();
+          return;
+        }
 
         if (editor !== dragEditor) {
+          const currentDragElement =
+            (getNodeAtPathSafely(dragEditor, dragPath) as
+              | Element
+              | undefined) ?? dragElement;
           Transforms.removeNodes(dragEditor, {
             at: dragPath,
           });
-          Transforms.insertNodes(editor, dragElement, {
+          dragPathRef.unref();
+          Transforms.insertNodes(editor, currentDragElement, {
             at: isBefore ? dropPath : Path.next(dropPath),
           });
           return;
         }
 
         moveNode(editor, dragPath, dropPath, isBefore);
+        dragPathRef.unref();
       } catch (e) {
         console.error(e);
       }
     },
-    [editor, element, isBefore],
+    [editor, element, getCurrentElementPath, isBefore],
   );
 
   // 放置相关部分

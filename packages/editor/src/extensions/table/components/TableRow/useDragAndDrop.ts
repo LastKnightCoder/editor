@@ -2,7 +2,8 @@ import { ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import { useDrag, useDrop } from "react-dnd";
 import type { TableRowElement } from "../../../types";
 import { useState } from "react";
-import { Editor, Path, Transforms } from "slate";
+import { Editor, Node, Path, Transforms } from "slate";
+import { findPathSafely } from "../../../../utils";
 
 const TABLE_ROW_DRAG_TYPE = "editor-table-row";
 
@@ -15,16 +16,21 @@ const useDragAndDrop = (params: IUseDragAndDrop) => {
   const [isBefore, setIsBefore] = useState(false);
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
-  const tableRowPath = ReactEditor.findPath(editor, element);
+  const tableRowPath = findPathSafely(editor, element) ?? [];
   const tablePath = tableRowPath.slice(0, tableRowPath.length - 1);
 
   const [{ isDragging, canDrag }, drag] = useDrag({
     type: TABLE_ROW_DRAG_TYPE,
-    item: {
-      element,
-      tableRowPath,
-      tablePath,
-      editor,
+    item: () => {
+      if (tableRowPath.length === 0) {
+        return null;
+      }
+      return {
+        dragPath: tableRowPath,
+        dragElementSnapshot: Node.get(editor, tableRowPath) as TableRowElement,
+        tablePath,
+        sourceEditor: editor,
+      };
     },
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
@@ -32,16 +38,20 @@ const useDragAndDrop = (params: IUseDragAndDrop) => {
     }),
     canDrag: () => {
       // 标题行不能拖拽
-      return tableRowPath[tableRowPath.length - 1] !== 0 && !readOnly;
+      return (
+        tableRowPath.length > 0 &&
+        tableRowPath[tableRowPath.length - 1] !== 0 &&
+        !readOnly
+      );
     },
   });
 
   const [{ canDrop, isOverCurrent }, drop] = useDrop<
     {
-      element: TableRowElement;
-      tableRowPath: Path;
+      dragElementSnapshot: TableRowElement;
+      dragPath: Path;
       tablePath: Path;
-      editor: Editor;
+      sourceEditor: Editor;
     },
     void,
     {
@@ -53,7 +63,7 @@ const useDragAndDrop = (params: IUseDragAndDrop) => {
     canDrop: (item) => {
       const { tablePath: dragTablePath } = item;
       return (
-        item.editor === editor &&
+        item.sourceEditor === editor &&
         Path.equals(tablePath, dragTablePath) &&
         !readOnly
       );
@@ -71,7 +81,11 @@ const useDragAndDrop = (params: IUseDragAndDrop) => {
       const dropRowRect = dropRowNode.getBoundingClientRect();
       const isBefore =
         hoverBoundingRect.y - dropRowRect.top < dropRowRect.height / 2;
-      const dropPath = ReactEditor.findPath(editor, element);
+      const dropPath = findPathSafely(editor, element);
+      if (!dropPath) {
+        setIsBefore(false);
+        return;
+      }
       setIsBefore(isBefore && dropPath[dropPath.length - 1] !== 0);
     },
     collect: (monitor) => ({
@@ -83,8 +97,11 @@ const useDragAndDrop = (params: IUseDragAndDrop) => {
       if (didDrop) {
         return;
       }
-      const dragPath = ReactEditor.findPath(editor, item.element);
-      const dropPath = ReactEditor.findPath(editor, element);
+      const dragPath = item.dragPath;
+      const dropPath = findPathSafely(editor, element);
+      if (!dropPath || !Node.has(editor, dragPath)) {
+        return;
+      }
       if (Path.isBefore(dragPath, dropPath)) {
         Transforms.moveNodes(editor, {
           at: dragPath,
