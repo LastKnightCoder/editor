@@ -5,12 +5,13 @@ import type {
   MultiColumnContainerElement,
 } from "../../types";
 import { useState } from "react";
-import { Editor, Path, Transforms } from "slate";
+import { Editor, Node, Path, Transforms } from "slate";
 import {
   getColumnWidths,
   calcWidthsAfterReorder,
   updateColumnWidths,
 } from "../../../utils/multi-columns-layout";
+import { findPathSafely } from "../../../utils";
 
 const COLUMN_ITEM_DRAG_TYPE = "multi-column-item-reorder";
 
@@ -28,7 +29,7 @@ const useColumnDragAndDrop = (params: IUseColumnDragAndDrop) => {
   let containerPath: Path;
 
   try {
-    columnPath = ReactEditor.findPath(editor, element);
+    columnPath = findPathSafely(editor, element) ?? [];
     containerPath = columnPath.slice(0, columnPath.length - 1);
   } catch {
     columnPath = [];
@@ -37,13 +38,22 @@ const useColumnDragAndDrop = (params: IUseColumnDragAndDrop) => {
 
   const [{ isDragging, canDrag }, drag] = useDrag({
     type: COLUMN_ITEM_DRAG_TYPE,
-    item: {
-      element,
-      columnPath,
-      containerPath,
-      columnIndex: columnPath[columnPath.length - 1],
-      editor,
-      isColumnDrag: true,
+    item: () => {
+      if (columnPath.length === 0) {
+        return null;
+      }
+      return {
+        dragElementSnapshot: Node.get(
+          editor,
+          columnPath,
+        ) as MultiColumnItemElement,
+        dragPath: columnPath,
+        columnPath,
+        containerPath,
+        columnIndex: columnPath[columnPath.length - 1],
+        sourceEditor: editor,
+        isColumnDrag: true,
+      };
     },
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
@@ -53,7 +63,10 @@ const useColumnDragAndDrop = (params: IUseColumnDragAndDrop) => {
       if (readOnly) return false;
       // 获取父容器，确保至少有2列才能拖拽
       try {
-        const path = ReactEditor.findPath(editor, element);
+        const path = findPathSafely(editor, element);
+        if (!path) {
+          return false;
+        }
         const parentPath = Path.parent(path);
         const [parentNode] = Editor.node(editor, parentPath);
         const container = parentNode as MultiColumnContainerElement;
@@ -66,10 +79,11 @@ const useColumnDragAndDrop = (params: IUseColumnDragAndDrop) => {
 
   const [{ canDrop, isOverCurrent }, drop] = useDrop<
     {
-      element: MultiColumnItemElement;
+      dragElementSnapshot: MultiColumnItemElement;
+      dragPath: Path;
       columnPath: Path;
       containerPath: Path;
-      editor: Editor;
+      sourceEditor: Editor;
     },
     void,
     {
@@ -83,7 +97,8 @@ const useColumnDragAndDrop = (params: IUseColumnDragAndDrop) => {
       // 只允许同一个容器内的列之间拖拽
       const { containerPath: dragContainerPath } = item;
       return (
-        item.editor === editor && Path.equals(containerPath, dragContainerPath)
+        item.sourceEditor === editor &&
+        Path.equals(containerPath, dragContainerPath)
       );
     },
     hover: (_item, monitor) => {
@@ -116,8 +131,11 @@ const useColumnDragAndDrop = (params: IUseColumnDragAndDrop) => {
       }
 
       try {
-        const dragPath = ReactEditor.findPath(editor, item.element);
-        const dropPath = ReactEditor.findPath(editor, element);
+        const dragPath = item.dragPath;
+        const dropPath = findPathSafely(editor, element);
+        if (!dropPath || !Node.has(editor, dragPath)) {
+          return;
+        }
 
         // 如果是同一个元素，不做任何操作
         if (Path.equals(dragPath, dropPath)) {

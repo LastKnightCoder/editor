@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
-import { ReactEditor } from "slate-react";
 import { Element } from "slate";
 
 import {
   UseDragHandlerMenuOptions,
   ContextMenuItem,
 } from "../components/EditorContextMenu/types";
+import { findPathSafely } from "../utils";
 
 export function useDragHandlerMenu<T extends Element>(
   options: UseDragHandlerMenuOptions<T>,
@@ -29,11 +29,11 @@ export function useDragHandlerMenu<T extends Element>(
   };
 
   // 获取当前节点路径
-  const path = ReactEditor.findPath(editor, element);
+  const path = findPathSafely(editor, element);
 
   // 构建菜单项
   const menuItems: ContextMenuItem[] = useMemo(
-    () => buildMenuItems({ element, editor, path }),
+    () => (path ? buildMenuItems({ element, editor, path }) : []),
     [element, editor, path, buildMenuItems],
   );
 

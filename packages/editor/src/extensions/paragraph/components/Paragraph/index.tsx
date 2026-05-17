@@ -20,6 +20,7 @@ import { buildParagraphMenuItems } from "../../utils/menuItems";
 
 import styles from "./index.module.less";
 import { useMemoizedFn } from "ahooks";
+import { findPathSafely } from "../../../../utils";
 
 interface IParagraphProps {
   attributes: RenderElementProps["attributes"];
@@ -64,8 +65,11 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(
 
     const editor = useSlate();
     const readOnly = useReadOnly();
-    const path = ReactEditor.findPath(editor, element);
+    const path = findPathSafely(editor, element);
     const isLast = (() => {
+      if (!path) {
+        return false;
+      }
       if (path.length === 1) {
         return path[0] === editor.children.length - 1;
       }
@@ -107,7 +111,10 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(
         if (!detail) return;
         const { focusElement } = detail;
         if (element === focusElement) {
-          const path = ReactEditor.findPath(editor, element);
+          const path = findPathSafely(editor, element);
+          if (!path) {
+            return;
+          }
           ReactEditor.focus(editor);
           if (start) {
             Transforms.select(editor, {

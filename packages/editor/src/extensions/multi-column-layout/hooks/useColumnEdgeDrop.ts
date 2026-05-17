@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
-import { Editor, Path, Transforms, Element } from "slate";
+import { Editor, Path, Transforms, Element, Node } from "slate";
 import { useDrop, useDragLayer } from "react-dnd";
-import { ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
+import { useSlateStatic, useReadOnly } from "slate-react";
 import type { DropTargetMonitor } from "react-dnd";
 import type {
   MultiColumnItemElement,
@@ -13,12 +13,14 @@ import {
   updateColumnWidths,
   MAX_COLUMNS,
 } from "../../../utils/multi-columns-layout";
+import { getNodeAtPathSafely } from "../../../utils";
 
 const EDITOR_DRAG_TYPE = "editor-item";
 
 interface IDragItem {
-  element: Element;
-  editor: Editor;
+  sourceEditor: Editor;
+  dragPath: Path;
+  dragElementSnapshot: Element;
 }
 
 interface IUseColumnEdgeDropParams {
@@ -41,8 +43,9 @@ const useColumnEdgeDrop = (params: IUseColumnEdgeDropParams) => {
     (
       containerPath: Path,
       atIndex: number,
-      dragElement: Element,
+      dragElementSnapshot: Element,
       dragEditor: Editor,
+      dragPath: Path,
     ) => {
       try {
         // 获取容器和当前列宽
@@ -57,13 +60,17 @@ const useColumnEdgeDrop = (params: IUseColumnEdgeDropParams) => {
           return;
         }
 
-        // 获取拖拽元素的路径
-        const dragPath = ReactEditor.findPath(dragEditor, dragElement);
+        if (!Node.has(dragEditor, dragPath)) {
+          return;
+        }
+        const currentDragElement =
+          (getNodeAtPathSafely(dragEditor, dragPath) as Element | undefined) ??
+          dragElementSnapshot;
 
         // 创建新列
         const newColumn: MultiColumnItemElement = {
           type: "multi-column-item",
-          children: [dragElement as any],
+          children: [currentDragElement as any],
         };
 
         // 如果是同一个编辑器，需要先删除再插入
@@ -100,7 +107,7 @@ const useColumnEdgeDrop = (params: IUseColumnEdgeDropParams) => {
       if (containerPath.length === 0) return false;
 
       try {
-        const dragElement = item.element;
+        const dragElement = item.dragElementSnapshot;
 
         // 不允许拖拽多列布局容器到边缘（会导致嵌套问题）
         if (dragElement.type === "multi-column-container") {
@@ -146,8 +153,8 @@ const useColumnEdgeDrop = (params: IUseColumnEdgeDropParams) => {
       if (!monitor.canDrop()) return;
       if (containerPath.length === 0) return;
 
-      const dragEditor = item.editor;
-      const dragElement = item.element;
+      const dragEditor = item.sourceEditor;
+      const dragElement = item.dragElementSnapshot;
 
       // 根据位置决定插入到哪里
       const insertIndex = position === "left" ? columnIndex : columnIndex + 1;
@@ -157,6 +164,7 @@ const useColumnEdgeDrop = (params: IUseColumnEdgeDropParams) => {
         insertIndex,
         dragElement,
         dragEditor,
+        item.dragPath,
       );
       setIsActive(false);
     },
