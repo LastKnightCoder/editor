@@ -9,8 +9,9 @@ import type {
   SelectOption,
 } from "@/components/Database/types";
 import useSettingStore from "@/stores/useSettingStore";
+import useTabStore from "@/stores/useTabStore";
 import useThemeColors from "@/hooks/useThemeColors";
-import weReadService from "@/services/weread";
+import { TabType } from "@/types/tab";
 import { useWeReadPersistence } from "./hooks/useWeReadPersistence";
 import { useWeReadViews } from "./hooks/useWeReadViews";
 import { WeReadToolbar } from "./components/WeReadToolbar";
@@ -24,18 +25,19 @@ const PUBLISHER_COLORS: Array<
 const WeReadPage: React.FC = memo(() => {
   const { message } = App.useApp();
   const themeColors = useThemeColors();
+  const navigateTo = useTabStore((state) => state.navigateTo);
 
   const { weread } = useSettingStore((state) => ({
     weread: state.setting.integration.weread,
   }));
 
-  const hasStoredSession = weread.cookies.length > 0;
+  const hasStoredSession = Boolean(weread.apiKey.trim());
   const isRestoringStoredSession =
     hasStoredSession &&
-    weread.sessionStatus !== "valid" &&
-    weread.sessionStatus !== "invalid" &&
+    weread.connectionStatus !== "valid" &&
+    weread.connectionStatus !== "invalid" &&
     weread.lastValidatedAt === 0;
-  const isConnected = weread.sessionStatus === "valid" && hasStoredSession;
+  const isConnected = weread.connectionStatus === "valid" && hasStoredSession;
 
   const {
     rows,
@@ -43,6 +45,7 @@ const WeReadPage: React.FC = memo(() => {
     syncing,
     error,
     lastSyncedAt,
+    syncProgress,
     syncBooks,
     fetchBookDetail,
     databaseRefreshKey,
@@ -226,19 +229,8 @@ const WeReadPage: React.FC = memo(() => {
     [rowSignature, viewSignature, activeView, lastSyncedAt, databaseRefreshKey],
   );
 
-  const handleQuickLogin = useMemoizedFn(async () => {
-    try {
-      await weReadService.loginWithQRCode();
-      message.success("微信读书登录成功，请开始同步");
-    } catch (err) {
-      // 用户取消登录不应该显示错误
-      if (err instanceof Error && err.message.includes("取消")) {
-        console.log("[WeRead] 用户取消登录");
-        return;
-      }
-      const msg = err instanceof Error ? err.message : "登录失败，请稍后重试";
-      message.error(msg);
-    }
+  const handleOpenSettings = useMemoizedFn(async () => {
+    navigateTo(TabType.Settings);
   });
 
   const handleRowDetailOpen = useMemoizedFn(async (row: RowData) => {
@@ -264,14 +256,14 @@ const WeReadPage: React.FC = memo(() => {
     <div className="w-full h-full flex flex-col p-6 overflow-hidden">
       <WeReadToolbar
         isConnected={isConnected}
-        isChecking={weread.sessionStatus === "checking"}
+        isChecking={weread.connectionStatus === "checking"}
         hasLocalData={rows.length > 0}
         initializing={initializing || isRestoringStoredSession}
-        hasStoredSession={hasStoredSession}
-        userName={weread.userInfo.name}
+        hasApiKey={hasStoredSession}
         lastSyncedAt={lastSyncedAt}
         syncing={syncing}
-        onQuickLogin={handleQuickLogin}
+        syncProgress={syncProgress}
+        onOpenSettings={handleOpenSettings}
         onSync={syncBooks}
         themeColors={themeColors}
       />
@@ -285,16 +277,17 @@ const WeReadPage: React.FC = memo(() => {
         <WeReadContent
           isConnected={isConnected}
           initializing={initializing || isRestoringStoredSession}
-          hasStoredSession={hasStoredSession}
+          hasApiKey={hasStoredSession}
           error={error}
           syncing={syncing}
+          syncProgress={syncProgress}
           rows={rows}
           columns={columns}
           views={views}
           activeViewId={activeViewId}
           activeViewConfig={activeViewConfig}
           databaseKey={databaseKey}
-          onQuickLogin={handleQuickLogin}
+          onOpenSettings={handleOpenSettings}
           onDataChange={(_data: DatabaseData) => {
             // read only mirror
           }}

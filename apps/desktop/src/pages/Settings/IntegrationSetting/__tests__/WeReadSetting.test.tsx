@@ -42,6 +42,10 @@ vi.mock("@/services/weread", () => ({
   },
 }));
 
+vi.mock("@/commands/extra", () => ({
+  openExternal: vi.fn(),
+}));
+
 describe("WeReadSetting", () => {
   const initialSetting = structuredClone(useSettingStore.getState().setting);
 

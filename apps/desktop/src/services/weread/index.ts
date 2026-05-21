@@ -1,38 +1,137 @@
+import dayjs from "dayjs";
+import useSettingStore from "@/stores/useSettingStore";
+import { nodeFetch } from "@/commands/extra";
 import {
-  parseHighlights,
-  parseChapterResp,
-  parseArticleHighlightReview,
   parseChapterHighlightReview,
-  parseReviews,
+  parseChapterResp,
   parseChapterReviews,
-  getPcUrl,
+  parseHighlights,
+  parseMetadata,
+  parseReviews,
+  getBookWebUrl,
 } from "./parser";
 import {
-  parseCookieString,
-  hasValidWeReadSession,
-  extractWeReadUserInfo,
-} from "./cookies";
-import {
+  WeReadNotLoggedInError,
   WeReadRateLimitError,
   WeReadSessionExpiredError,
-  WeReadNotLoggedInError,
 } from "./errors";
-import useSettingStore from "@/stores/useSettingStore";
 import type {
   Metadata,
   Notebook,
-  WeReadCookie,
-  WeReadHttpRequestPayload,
   WeReadNotebookSummary,
   BookDetailResponse,
   BookProgressResponse,
   HighlightResponse,
   BookReviewResponse,
   ChapterResponse,
+  Chapter,
   ShelfData,
 } from "@/types/weread";
-import { weReadHttpRequest, weReadLoginWithQRCode } from "@/commands/weread";
-import shelfParserService from "./shelf-parser";
+
+const WEREAD_GATEWAY_URL = "https://i.weread.qq.com/api/agent/gateway";
+const SKILL_VERSION = "1.0.3";
+const METADATA_SYNC_CONCURRENCY = 3;
+const METADATA_SYNC_MAX_ATTEMPTS = 3;
+const METADATA_SYNC_BATCH_DELAY_MS = 500;
+const METADATA_SYNC_RETRY_BASE_DELAY_MS = 1000;
+
+type GatewayEnvelope<T> = T & {
+  errcode?: number;
+  errmsg?: string;
+  upgrade_info?: {
+    message?: string;
+  };
+};
+
+type WeReadBookDetail = BookDetailResponse & {
+  wordCount?: number;
+};
+
+type NodeFetchRawResponse<T> = {
+  data: T;
+  status: number;
+  statusText?: string;
+  headers?: Record<string, unknown>;
+};
+
+type ShelfSyncResponse = {
+  books?: Array<{
+    bookId: string;
+    title: string;
+    author: string;
+    cover: string;
+    category?: string;
+    readUpdateTime?: number;
+    finishReading?: number;
+    intro?: string;
+    publishTime?: string;
+    publisher?: string;
+    totalWords?: number;
+  }>;
+  albums?: Array<{
+    albumInfo: {
+      albumId: string;
+      name: string;
+      authorName: string;
+      cover: string;
+      intro?: string;
+      updateTime?: number;
+      trackCount?: number;
+      finish?: number;
+      finishStatus?: string;
+    };
+    albumInfoExtra?: {
+      lectureReadUpdateTime?: number;
+    };
+  }>;
+  mp?: Record<string, unknown> | null;
+  archive?: Array<{
+    archiveId?: number;
+    name: string;
+    bookIds: string[];
+    albumIds?: string[];
+  }>;
+};
+
+type NotebookOverviewResponse = {
+  books: Array<{
+    bookId: string;
+    book: {
+      title: string;
+      author: string;
+      cover: string;
+    };
+    sort: number;
+    reviewCount: number;
+    noteCount: number;
+    bookmarkCount: number;
+    readingProgress?: number;
+    markedStatus?: number;
+  }>;
+  hasMore?: number;
+  totalBookCount?: number;
+  totalNoteCount?: number;
+};
+
+type MyReviewListResponse = {
+  reviews: Array<{
+    review: {
+      reviewId: string;
+      bookId: string;
+      chapterUid: number;
+      chapterName?: string;
+      chapterTitle?: string;
+      content: string;
+      abstract?: string;
+      range?: string;
+      createTime: number;
+      type: number;
+    };
+  }>;
+  totalCount?: number;
+  hasMore?: number;
+  synckey?: number;
+};
 
 export interface MetadataListResult {
   metadataList: Metadata[];
@@ -46,25 +145,123 @@ export interface MetadataListResult {
   >;
 }
 
-// 重新导出错误类，保持向后兼容
+export interface MetadataSyncProgress {
+  completed: number;
+  total: number;
+}
+
+export interface MetadataSyncOptions {
+  onProgress?: (progress: MetadataSyncProgress) => void;
+}
+
 export { WeReadRateLimitError } from "./errors";
 
 class WeReadService {
-  private pendingSessionValidation: {
-    key: string;
-    promise: Promise<boolean>;
-  } | null = null;
+  private validationPromise: Promise<boolean> | null = null;
+  private validationApiKey = "";
 
-  async loginWithQRCode(): Promise<void> {
-    const result = await weReadLoginWithQRCode();
-    this.updateCookies(result.cookies);
-    this.setSessionState("checking");
-    useSettingStore.getState().setWeReadLoginMethod("qr");
-    useSettingStore.getState().setWeReadEnabled(true);
-    const isValid = await this.validateSession();
-    if (!isValid) {
-      this.throwSessionValidationError();
+  async validateSession(): Promise<boolean> {
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      useSettingStore.getState().setWeReadConnectionState({
+        connectionStatus: "unknown",
+        lastValidatedAt: 0,
+        statusReason: "",
+      });
+      useSettingStore.getState().updateWeReadUserInfo({
+        isConnected: false,
+      });
+      return false;
     }
+
+    if (this.validationPromise && this.validationApiKey === apiKey) {
+      return this.validationPromise;
+    }
+
+    useSettingStore.getState().setWeReadConnectionState({
+      connectionStatus: "checking",
+      lastValidatedAt: 0,
+      statusReason: "",
+    });
+
+    this.validationApiKey = apiKey;
+    this.validationPromise = this.runSessionValidation().finally(() => {
+      if (this.validationApiKey === apiKey) {
+        this.validationPromise = null;
+        this.validationApiKey = "";
+      }
+    });
+
+    return this.validationPromise;
+  }
+
+  private async runSessionValidation(): Promise<boolean> {
+    try {
+      await this.gatewayRequest<Record<string, unknown>>("/_list");
+      const validatedAt = Date.now();
+      useSettingStore.getState().setWeReadEnabled(true);
+      useSettingStore.getState().updateWeReadUserInfo({
+        isConnected: true,
+      });
+      useSettingStore.getState().setWeReadConnectionState({
+        connectionStatus: "valid",
+        lastValidatedAt: validatedAt,
+        statusReason: "",
+      });
+      return true;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "微信读书 API Key 校验失败";
+      useSettingStore.getState().updateWeReadUserInfo({
+        isConnected: false,
+      });
+      useSettingStore.getState().setWeReadConnectionState({
+        connectionStatus: "invalid",
+        lastValidatedAt: Date.now(),
+        statusReason: message,
+      });
+      return false;
+    }
+  }
+
+  async getNotebookSummaries(): Promise<WeReadNotebookSummary[]> {
+    const books: WeReadNotebookSummary[] = [];
+    let lastSort: number | undefined;
+    let hasMore = true;
+
+    while (hasMore) {
+      const response = await this.gatewayRequest<NotebookOverviewResponse>(
+        "/user/notebooks",
+        {
+          count: 100,
+          ...(typeof lastSort === "number" ? { lastSort } : {}),
+        },
+      );
+
+      const pageBooks = response.books ?? [];
+      books.push(
+        ...pageBooks.map((book) => ({
+          bookId: book.bookId,
+          book: {
+            title: book.book.title,
+            author: book.book.author,
+            cover: book.book.cover,
+          },
+          sort: book.sort,
+          noteCount: book.noteCount ?? 0,
+          reviewCount: book.reviewCount ?? 0,
+          bookmarkCount: book.bookmarkCount ?? 0,
+          readingProgress: book.readingProgress,
+          markedStatus: book.markedStatus,
+          lastReadDate: dayjs(book.sort * 1000).format("YYYY-MM-DD"),
+        })),
+      );
+
+      hasMore = response.hasMore === 1 && pageBooks.length > 0;
+      lastSort = hasMore ? pageBooks[pageBooks.length - 1]?.sort : undefined;
+    }
+
+    return books;
   }
 
   async fetchMetadataByBookIds(
@@ -73,144 +270,58 @@ class WeReadService {
       string,
       { archiveId?: number; archiveName?: string }
     > = {},
+    options: MetadataSyncOptions = {},
   ): Promise<MetadataListResult> {
-    const archiveMap = new Map<
-      string,
-      { archiveId?: number; archiveName?: string }
-    >(Object.entries(archiveInfo));
-    return this.fetchMetadataForIds(bookIds, archiveMap);
-  }
-
-  async loginWithCookieString(cookieString: string): Promise<void> {
-    const cookies = parseCookieString(cookieString);
-    if (!hasValidWeReadSession(cookies)) {
-      throw new Error("无效的 Cookie，请确认已登录微信读书");
-    }
-    this.updateCookies(cookies);
-    this.setSessionState("checking");
-    useSettingStore.getState().setWeReadLoginMethod("manual");
-    useSettingStore.getState().setWeReadEnabled(true);
-    const isValid = await this.validateSession();
-    if (!isValid) {
-      this.throwSessionValidationError();
-    }
-  }
-
-  logout(): void {
-    useSettingStore.getState().clearWeReadCookies();
-  }
-
-  getCookies(): WeReadCookie[] {
-    return useSettingStore.getState().setting.integration.weread.cookies;
-  }
-
-  async refreshCookie(): Promise<boolean> {
-    const cookies = this.getCookies();
-    if (cookies.length === 0) {
-      return false;
-    }
-    try {
-      const response = await weReadHttpRequest({
-        path: "/",
-        method: "HEAD",
-        cookies,
-        responseType: "none",
-      });
-      this.maybeUpdateCookies(response.cookies);
-      return true;
-    } catch (error) {
-      console.warn("刷新微信读书 Cookie 失败", error);
-      return false;
-    }
-  }
-
-  /**
-   * 验证当前 cookie 是否有效
-   * 通过调用实际 API 来检查登录状态，比 HEAD 请求更可靠
-   */
-  async validateSession(): Promise<boolean> {
-    const cookies = this.getCookies();
-    if (cookies.length === 0) {
-      this.setSessionState("unknown");
-      return false;
-    }
-
-    const validationKey = this.buildCookieSnapshotKey(cookies);
-    if (this.pendingSessionValidation?.key === validationKey) {
-      return this.pendingSessionValidation.promise;
-    }
-
-    this.setSessionState("checking");
-    const validationPromise = this.runSessionValidation(
-      cookies,
-      validationKey,
-    ).finally(() => {
-      if (
-        this.pendingSessionValidation?.key === validationKey &&
-        this.pendingSessionValidation.promise === validationPromise
-      ) {
-        this.pendingSessionValidation = null;
-      }
+    const notebookSummaries = await this.getNotebookSummaries();
+    const summaryMap = new Map(
+      notebookSummaries.map((summary) => [summary.bookId, summary]),
+    );
+    const metadataInputs = bookIds.map((bookId) => {
+      const summary = summaryMap.get(bookId);
+      const baseMeta = summary ? parseMetadata(summary) : null;
+      return { bookId, baseMeta };
     });
-    this.pendingSessionValidation = {
-      key: validationKey,
-      promise: validationPromise,
+
+    const { metadataList, failedBookIds } =
+      await this.enrichMetadataInputsWithProgress(
+        metadataInputs,
+        (bookId) => archiveInfo[bookId],
+        options,
+      );
+
+    return {
+      metadataList,
+      failedBookIds,
+      bookArchiveInfo: archiveInfo,
     };
-
-    return validationPromise;
   }
 
-  async getNotebookSummaries(): Promise<WeReadNotebookSummary[]> {
-    let allBooks: WeReadNotebookSummary[] = [];
-    let synckey = 0;
-    let hasMore = true;
-
-    // 循环获取所有书籍，直到没有更多数据
-    while (hasMore) {
-      const response = await this.request<{
-        errcode?: number;
-        books: WeReadNotebookSummary[];
-        synckey?: number;
-        hasMore?: number;
-      }>({
-        path: `/api/user/notebook?count=999&synckey=${synckey}`,
-      });
-
-      const books = response.books ?? [];
-      allBooks = allBooks.concat(books);
-
-      // 检查是否还有更多数据
-      if (response.synckey && response.synckey > synckey) {
-        synckey = response.synckey;
-      } else {
-        hasMore = false;
-      }
-
-      // 如果返回的书籍数量少于请求数量，说明已经到底了
-      if (books.length < 999) {
-        hasMore = false;
-      }
-
-      console.log(`已获取 ${allBooks.length} 本书籍，synckey: ${synckey}`);
-    }
-
-    console.log(`总共获取 ${allBooks.length} 本书籍`);
-    return allBooks;
-  }
-
-  async getMetadataList(): Promise<MetadataListResult> {
-    const shelfData = await this.getShelfData();
+  async getMetadataList(
+    options: MetadataSyncOptions = {},
+  ): Promise<MetadataListResult> {
+    const [shelfData, notebookSummaries] = await Promise.all([
+      this.getShelfData(),
+      this.getNotebookSummaries(),
+    ]);
+    const shelfBookMap = new Map(
+      shelfData.books.map((book) => [book.bookId, book]),
+    );
+    const notebookSummaryMap = new Map(
+      notebookSummaries.map((summary) => [summary.bookId, summary]),
+    );
     const archiveInfo = new Map<
       string,
-      { archiveId: number; archiveName: string }
+      { archiveId?: number; archiveName?: string }
     >();
-    const allBookIds: string[] = [];
+    const allBookIds = new Set<string>();
+
+    shelfData.books.forEach((book) => {
+      allBookIds.add(book.bookId);
+    });
 
     shelfData.archives.forEach((archive) => {
       archive.bookIds.forEach((bookId) => {
-        if (!archiveInfo.has(bookId)) {
-          allBookIds.push(bookId);
-        }
+        allBookIds.add(bookId);
         archiveInfo.set(bookId, {
           archiveId: archive.archiveId,
           archiveName: archive.name,
@@ -218,10 +329,428 @@ class WeReadService {
       });
     });
 
-    return this.fetchMetadataForIds(allBookIds, archiveInfo);
+    notebookSummaries.forEach((summary) => {
+      allBookIds.add(summary.bookId);
+    });
+
+    const metadataInputs = Array.from(allBookIds).map((bookId) => {
+      const summary = notebookSummaryMap.get(bookId);
+      const shelfBook = shelfBookMap.get(bookId);
+      let metadata = summary ? parseMetadata(summary) : null;
+
+      if (!metadata && shelfBook) {
+        metadata = this.buildMetadataFromShelfBook(shelfBook);
+      }
+      return { bookId, baseMeta: metadata };
+    });
+
+    const { metadataList, failedBookIds } =
+      await this.enrichMetadataInputsWithProgress(
+        metadataInputs,
+        (bookId) => archiveInfo.get(bookId),
+        options,
+      );
+
+    const archiveInfoRecord: Record<
+      string,
+      { archiveId?: number; archiveName?: string }
+    > = {};
+    archiveInfo.forEach((value, key) => {
+      archiveInfoRecord[key] = value;
+    });
+
+    return {
+      metadataList,
+      failedBookIds,
+      bookArchiveInfo: archiveInfoRecord,
+    };
   }
 
   async buildNotebook(metaData: Metadata): Promise<Notebook> {
+    return this.fetchNotebook(metaData);
+  }
+
+  async buildNotebookBasic(metaData: Metadata): Promise<Notebook> {
+    const detail = await this.getBookDetail(metaData.bookId);
+    const progress = await this.getBookProgress(metaData.bookId);
+    return {
+      metaData: this.mergeMetadata(metaData, detail, progress),
+      chapterHighlights: [],
+      bookReview: { chapterReviews: [], bookReviews: [] },
+    };
+  }
+
+  async fetchNotebookDetail(notebook: Notebook): Promise<Notebook> {
+    return this.fetchNotebook(notebook.metaData);
+  }
+
+  async getBookDetail(bookId: string): Promise<WeReadBookDetail | null> {
+    return this.gatewayRequest<WeReadBookDetail>("/book/info", { bookId });
+  }
+
+  async getNotebookHighlights(bookId: string): Promise<HighlightResponse> {
+    const response = await this.gatewayRequest<{
+      updated?: HighlightResponse["updated"];
+      chapters?: HighlightResponse["chapters"];
+      book?: HighlightResponse["book"];
+    }>("/book/bookmarklist", { bookId });
+    return {
+      synckey: 0,
+      updated: response.updated ?? [],
+      removed: [],
+      chapters: response.chapters ?? [],
+      book:
+        response.book ??
+        ({
+          bookId,
+          version: 0,
+          format: "",
+          soldout: 0,
+          bookStatus: 0,
+          cover: "",
+          title: "",
+          author: "",
+        } as HighlightResponse["book"]),
+    };
+  }
+
+  async getNotebookReviews(bookId: string): Promise<BookReviewResponse> {
+    let synckey = 0;
+    let hasMore = true;
+    const reviews: BookReviewResponse["reviews"] = [];
+
+    while (hasMore) {
+      const currentSynckey = synckey;
+      const response = await this.gatewayRequest<MyReviewListResponse>(
+        "/review/list/mine",
+        {
+          bookid: bookId,
+          synckey,
+          count: 100,
+        },
+      );
+
+      reviews.push(
+        ...(response.reviews ?? []).map((item) => ({
+          review: {
+            reviewId: item.review.reviewId,
+            abstract: item.review.abstract ?? "",
+            atUserVids: [],
+            bookId: item.review.bookId,
+            bookVersion: 0,
+            chapterName: item.review.chapterName ?? "",
+            chapterUid: item.review.chapterUid ?? 0,
+            content: item.review.content,
+            contextAbstract: item.review.abstract ?? "",
+            htmlContent: item.review.content,
+            range: item.review.range ?? "",
+            createTime: item.review.createTime,
+            title: "",
+            type: item.review.type ?? 1,
+            userVid: 0,
+            chapterIdx: 0,
+            chapterTitle:
+              item.review.chapterTitle ?? item.review.chapterName ?? "",
+            isLike: 0,
+            isReposted: 0,
+          },
+        })),
+      );
+
+      hasMore = response.hasMore === 1;
+      const nextSynckey = response.synckey ?? currentSynckey;
+      if (!hasMore || nextSynckey <= currentSynckey) {
+        synckey = nextSynckey;
+        break;
+      }
+      synckey = nextSynckey;
+    }
+
+    return {
+      synckey,
+      totalCount: reviews.length,
+      reviews,
+      removed: [],
+      hasMore: 0,
+    };
+  }
+
+  async getChapters(bookId: string): Promise<ChapterResponse> {
+    const response = await this.gatewayRequest<{
+      bookId: string;
+      chapters?: Chapter[];
+      chapterUpdateTime?: number;
+    }>("/book/chapterinfo", { bookId });
+
+    return {
+      data: [
+        {
+          bookId,
+          chapterUpdateTime: response.chapterUpdateTime ?? 0,
+          updated: response.chapters ?? [],
+        },
+      ],
+    };
+  }
+
+  async getBookProgress(bookId: string): Promise<BookProgressResponse | null> {
+    const response = await this.gatewayRequest<{
+      bookId: string;
+      book?: {
+        chapterUid: number;
+        chapterOffset: number;
+        progress: number;
+        updateTime: number;
+        recordReadingTime?: number;
+        readingTime?: number;
+        startReadingTime?: number;
+        finishTime?: number;
+        isStartReading?: number;
+      };
+      progress?: number;
+      chapterUid?: number;
+      chapterOffset?: number;
+      updateTime?: number;
+      recordReadingTime?: number;
+      readingTime?: number;
+      startReadingTime?: number;
+      finishTime?: number;
+      isStartReading?: number;
+      timestamp?: number;
+    }>("/book/getprogress", { bookId });
+    const progressBook = response.book ?? response;
+    const readingTime = this.resolveReadingTime(progressBook);
+    const updateTime = progressBook.updateTime ?? 0;
+    const startReadingTime =
+      progressBook.startReadingTime ??
+      (progressBook.isStartReading === 1 ? updateTime : 0);
+
+    return {
+      bookId,
+      book: {
+        bookVersion: 0,
+        chapterUid: progressBook.chapterUid ?? 0,
+        chapterOffset: progressBook.chapterOffset ?? 0,
+        chapterIdx: 0,
+        updateTime,
+        synckey: 0,
+        readingTime,
+        progress: progressBook.progress ?? 0,
+        startReadingTime,
+        finishTime: progressBook.finishTime ?? 0,
+      },
+      timestamp: response.timestamp ?? 0,
+    };
+  }
+
+  async buildMetadataFromBookId(bookId: string): Promise<Metadata | null> {
+    try {
+      const [detail, progress] = await Promise.all([
+        this.getBookDetail(bookId),
+        this.getBookProgress(bookId),
+      ]);
+      if (!detail) {
+        return null;
+      }
+      return this.mergeMetadata(
+        {
+          bookId,
+          author: detail.author ?? "",
+          title: detail.title ?? "",
+          url: undefined,
+          webUrl: getBookWebUrl(bookId, detail.title),
+          cover: detail.cover ?? "",
+          bookType: detail.type ?? 0,
+          publishTime: detail.publishTime ?? "",
+          noteCount: 0,
+          reviewCount: 0,
+          bookmarkCount: 0,
+          lastReadDate: "",
+        },
+        detail,
+        progress,
+      );
+    } catch (error) {
+      if (error instanceof WeReadRateLimitError) {
+        throw error;
+      }
+      return null;
+    }
+  }
+
+  private async enrichMetadata(metaData: Metadata): Promise<Metadata> {
+    const [detail, progress] = await Promise.all([
+      this.getBookDetail(metaData.bookId),
+      this.getBookProgress(metaData.bookId),
+    ]);
+    return this.mergeMetadata(metaData, detail, progress);
+  }
+
+  private async enrichMetadataInputsWithProgress(
+    inputs: Array<{ bookId: string; baseMeta: Metadata | null }>,
+    getArchive: (
+      bookId: string,
+    ) => { archiveId?: number; archiveName?: string } | undefined,
+    options: MetadataSyncOptions,
+  ): Promise<{ metadataList: Metadata[]; failedBookIds: string[] }> {
+    const total = inputs.length;
+    let completed = 0;
+    const metadataList: Metadata[] = [];
+    const failedBookIds: string[] = [];
+    const concurrency = METADATA_SYNC_CONCURRENCY;
+
+    const reportProgress = () => {
+      options.onProgress?.({ completed, total });
+    };
+    reportProgress();
+
+    const enrichOne = async (input: {
+      bookId: string;
+      baseMeta: Metadata | null;
+    }): Promise<Metadata | null> => {
+      let lastError: unknown = null;
+      for (
+        let attempt = 0;
+        attempt < METADATA_SYNC_MAX_ATTEMPTS;
+        attempt += 1
+      ) {
+        try {
+          const metadata = input.baseMeta
+            ? await this.enrichMetadata(input.baseMeta)
+            : await this.buildMetadataFromBookId(input.bookId);
+          if (metadata) {
+            return metadata;
+          }
+        } catch (error) {
+          lastError = error;
+          if (error instanceof WeReadRateLimitError) {
+            if (attempt < METADATA_SYNC_MAX_ATTEMPTS - 1) {
+              await this.delay(this.getRetryDelayMs(attempt));
+              continue;
+            }
+            break;
+          }
+          if (error instanceof WeReadSessionExpiredError) {
+            throw error;
+          }
+        }
+      }
+
+      if (lastError) {
+        console.warn("[WeRead] metadata enrich failed", {
+          bookId: input.bookId,
+          error: lastError,
+        });
+      }
+      return input.baseMeta;
+    };
+
+    for (let index = 0; index < inputs.length; index += concurrency) {
+      const batch = inputs.slice(index, index + concurrency);
+      const results = await Promise.allSettled(batch.map(enrichOne));
+
+      results.forEach((result, resultIndex) => {
+        const bookId = batch[resultIndex].bookId;
+        if (result.status === "fulfilled" && result.value) {
+          const archive = getArchive(bookId);
+          if (archive) {
+            result.value.archiveId = archive.archiveId;
+            result.value.archiveName = archive.archiveName;
+          }
+          metadataList.push(result.value);
+        } else {
+          failedBookIds.push(bookId);
+        }
+        completed += 1;
+        reportProgress();
+      });
+
+      if (index + concurrency < inputs.length) {
+        await this.delay(METADATA_SYNC_BATCH_DELAY_MS);
+      }
+    }
+
+    return { metadataList, failedBookIds };
+  }
+
+  private getRetryDelayMs(attempt: number): number {
+    return METADATA_SYNC_RETRY_BASE_DELAY_MS * 2 ** attempt;
+  }
+
+  private resolveReadingTime(progressBook: {
+    recordReadingTime?: number;
+    readingTime?: number;
+  }): number {
+    const recordReadingTime = progressBook.recordReadingTime ?? 0;
+    if (recordReadingTime > 0) {
+      return recordReadingTime;
+    }
+    return progressBook.readingTime ?? 0;
+  }
+
+  private async delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  async getShelfData(): Promise<ShelfData> {
+    const response =
+      await this.gatewayRequest<ShelfSyncResponse>("/shelf/sync");
+    const books = [
+      ...(response.books ?? []).map((book) => ({
+        bookId: book.bookId,
+        title: book.title,
+        author: book.author,
+        cover: book.cover,
+        type: 1,
+        category: book.category,
+        publishTime: book.publishTime,
+        readingProgress: book.finishReading === 1 ? 100 : undefined,
+        markedStatus: book.finishReading === 1 ? 1 : 0,
+        lastReadDate: formatUnixDate(book.readUpdateTime),
+        intro: book.intro,
+        publisher: book.publisher,
+        totalWords: book.totalWords,
+      })),
+      ...(response.albums ?? []).map((album) => ({
+        bookId: album.albumInfo.albumId,
+        title: album.albumInfo.name,
+        author: album.albumInfo.authorName,
+        cover: album.albumInfo.cover,
+        type: 2,
+        readingProgress: album.albumInfo.finish === 1 ? 100 : undefined,
+        markedStatus: album.albumInfo.finish === 1 ? 1 : 0,
+        lastReadDate: formatUnixDate(
+          album.albumInfoExtra?.lectureReadUpdateTime ??
+            album.albumInfo.updateTime,
+        ),
+        intro: album.albumInfo.intro,
+      })),
+    ];
+    const archives = (response.archive ?? []).map((archive) => ({
+      archiveId: archive.archiveId,
+      name: archive.name,
+      bookIds: [...(archive.bookIds ?? []), ...(archive.albumIds ?? [])],
+    }));
+    const bookArchiveMap = new Map<string, string>();
+    archives.forEach((archive) => {
+      archive.bookIds.forEach((bookId) => {
+        bookArchiveMap.set(bookId, archive.name);
+      });
+    });
+    return {
+      books,
+      archives,
+      bookArchiveMap,
+    };
+  }
+
+  resolveBookWebLink(
+    book: Pick<Metadata, "bookId" | "title" | "webUrl">,
+  ): string | null {
+    return book.webUrl ?? getBookWebUrl(book.bookId, book.title);
+  }
+
+  private async fetchNotebook(metaData: Metadata): Promise<Notebook> {
     const [detail, progress, highlights, reviews, chapters] = await Promise.all(
       [
         this.getBookDetail(metaData.bookId),
@@ -232,690 +761,174 @@ class WeReadService {
       ],
     );
 
-    // 打印 API 响应数据结构
-    console.log("=== WeRead API Response ===");
-    console.log("Book ID:", metaData.bookId);
-    console.log("Book Detail:", detail);
-    console.log("Book Progress:", progress);
-    console.log("Highlights:", highlights);
-    console.log("Reviews:", reviews);
-    console.log("Chapters:", chapters);
-    console.log("==========================");
-
-    const mutableMeta: Metadata = { ...metaData };
-    if (detail) {
-      const readerUrl = detail.encodeId
-        ? `https://weread.qq.com/web/reader/${detail.encodeId}`
-        : getPcUrl(metaData.bookId);
-      mutableMeta.encodeId = detail.encodeId;
-      mutableMeta.category = detail.category;
-      mutableMeta.publisher = detail.publisher;
-      mutableMeta.isbn = detail.isbn;
-      mutableMeta.intro = detail.intro;
-      mutableMeta.totalWords = detail.totalWords;
-      mutableMeta.pcUrl = readerUrl;
-      mutableMeta.url = readerUrl;
-      // newRating 是整数，例如 849 表示 8.49 分，需要除以 100
-      mutableMeta.rating =
-        detail.newRating > 0
-          ? `${(detail.newRating / 100).toFixed(1)}`
-          : undefined;
-    }
-
-    if (progress?.book) {
-      mutableMeta.readInfo = {
-        readingProgress: progress.book.progress,
-        readingTime: progress.book.readingTime,
-        readingBookDate: progress.book.startReadingTime,
-        finishedDate: progress.book.finishTime,
-      };
-    }
-
-    // 收集 synckey 用于增量同步
-    mutableMeta.synckeys = {
-      highlights: highlights?.synckey,
-      reviews: reviews?.synckey,
-      progress: progress?.book?.synckey,
-    };
-
+    const mergedMeta = this.mergeMetadata(metaData, detail, progress);
     const highlightList = parseHighlights(highlights, reviews);
     const reviewList = parseReviews(reviews);
     const chapterList = parseChapterResp(chapters, highlights);
-
-    const chapterHighlights =
-      mutableMeta.bookType === 3
-        ? parseArticleHighlightReview(chapterList, highlightList, reviewList)
-        : parseChapterHighlightReview(chapterList, highlightList, reviewList);
-
-    const bookReview = parseChapterReviews(reviews);
+    const chapterHighlights = parseChapterHighlightReview(
+      chapterList,
+      highlightList,
+      reviewList,
+    );
 
     return {
-      metaData: mutableMeta,
+      metaData: mergedMeta,
       chapterHighlights,
-      bookReview,
+      bookReview: parseChapterReviews(reviews),
     };
   }
 
-  async buildNotebookBasic(metaData: Metadata): Promise<Notebook> {
-    const [detail, progress] = await Promise.all([
-      this.getBookDetail(metaData.bookId),
-      this.getBookProgress(metaData.bookId),
-    ]);
-
-    const mutableMeta: Metadata = { ...metaData };
-    if (detail) {
-      const readerUrl = detail.encodeId
-        ? `https://weread.qq.com/web/reader/${detail.encodeId}`
-        : getPcUrl(metaData.bookId);
-      mutableMeta.encodeId = detail.encodeId;
-      mutableMeta.category = detail.category;
-      mutableMeta.publisher = detail.publisher;
-      mutableMeta.isbn = detail.isbn;
-      mutableMeta.intro = detail.intro;
-      mutableMeta.totalWords = detail.totalWords;
-      mutableMeta.pcUrl = readerUrl;
-      mutableMeta.url = readerUrl;
-      mutableMeta.rating =
-        detail.newRating > 0
-          ? `${(detail.newRating / 100).toFixed(1)}`
-          : undefined;
-    }
-
-    if (progress?.book) {
-      mutableMeta.readInfo = {
-        readingProgress: progress.book.progress,
-        readingTime: progress.book.readingTime,
-        readingBookDate: progress.book.startReadingTime,
-        finishedDate: progress.book.finishTime,
-      };
-    }
-
-    mutableMeta.synckeys = {
-      progress: progress?.book?.synckey,
-    };
+  private mergeMetadata(
+    metaData: Metadata,
+    detail: WeReadBookDetail | null,
+    progress: BookProgressResponse | null,
+  ): Metadata {
+    const readingProgress = progress?.book?.progress ?? 0;
+    const lastReadDate =
+      progress?.book?.updateTime && progress.book.updateTime > 0
+        ? dayjs(progress.book.updateTime * 1000).format("YYYY-MM-DD")
+        : metaData.lastReadDate;
 
     return {
-      metaData: mutableMeta,
-      chapterHighlights: [],
-      bookReview: { chapterReviews: [], bookReviews: [] },
-    };
-  }
-
-  /**
-   * 获取书籍的高亮和评论详情，并更新 notebook
-   * 用于用户打开详情时延迟加载
-   */
-  async fetchNotebookDetail(notebook: Notebook): Promise<Notebook> {
-    const { metaData } = notebook;
-    const [highlights, reviews, chapters] = await Promise.all([
-      this.getNotebookHighlights(metaData.bookId),
-      this.getNotebookReviews(metaData.bookId),
-      this.getChapters(metaData.bookId),
-    ]);
-
-    // 更新 synckeys
-    const mutableMeta: Metadata = {
       ...metaData,
+      author: detail?.author ?? metaData.author,
+      title: detail?.title ?? metaData.title,
+      cover: detail?.cover ?? metaData.cover,
+      bookType: detail?.type ?? metaData.bookType,
+      publishTime: detail?.publishTime ?? metaData.publishTime,
+      intro: detail?.intro ?? metaData.intro,
+      isbn: detail?.isbn ?? metaData.isbn,
+      category: detail?.category ?? metaData.category,
+      publisher: detail?.publisher ?? metaData.publisher,
+      totalWords:
+        detail?.totalWords ?? detail?.wordCount ?? metaData.totalWords,
+      rating:
+        detail?.newRating && detail.newRating > 0
+          ? (detail.newRating / 100).toFixed(1)
+          : metaData.rating,
+      webUrl:
+        metaData.webUrl ??
+        getBookWebUrl(metaData.bookId, detail?.title ?? metaData.title),
+      lastReadDate,
       synckeys: {
-        ...metaData.synckeys,
-        highlights: highlights?.synckey,
-        reviews: reviews?.synckey,
+        highlights: metaData.synckeys?.highlights ?? 0,
+        reviews: metaData.synckeys?.reviews ?? 0,
+        progress: metaData.synckeys?.progress ?? 0,
+      },
+      readInfo: {
+        markedStatus:
+          readingProgress >= 100 ? 1 : metaData.readInfo?.markedStatus,
+        readingTime:
+          progress?.book?.readingTime ?? metaData.readInfo?.readingTime ?? 0,
+        readingBookDate:
+          progress?.book?.startReadingTime ??
+          metaData.readInfo?.readingBookDate ??
+          0,
+        finishedDate:
+          progress?.book?.finishTime ?? metaData.readInfo?.finishedDate ?? 0,
+        readingProgress,
+        totalReadDay: metaData.readInfo?.totalReadDay,
+        continueReadDays: metaData.readInfo?.continueReadDays,
       },
     };
+  }
 
-    const highlightList = parseHighlights(highlights, reviews);
-    const reviewList = parseReviews(reviews);
-    const chapterList = parseChapterResp(chapters, highlights);
-
-    const chapterHighlights =
-      mutableMeta.bookType === 3
-        ? parseArticleHighlightReview(chapterList, highlightList, reviewList)
-        : parseChapterHighlightReview(chapterList, highlightList, reviewList);
-
-    const bookReview = parseChapterReviews(reviews);
-
+  private buildMetadataFromShelfBook(
+    book: ShelfData["books"][number],
+  ): Metadata {
     return {
-      metaData: mutableMeta,
-      chapterHighlights,
-      bookReview,
+      bookId: book.bookId,
+      author: book.author ?? "",
+      title: book.title ?? "",
+      url: undefined,
+      webUrl: getBookWebUrl(book.bookId, book.title),
+      cover: book.cover ?? "",
+      bookType: book.type ?? 0,
+      publishTime: book.publishTime ?? "",
+      noteCount: 0,
+      reviewCount: 0,
+      bookmarkCount: 0,
+      lastReadDate: book.lastReadDate ?? "",
+      intro: book.intro,
+      category: book.category,
+      publisher: book.publisher,
+      totalWords: book.totalWords,
+      rating: book.rating,
+      readInfo: {
+        markedStatus: book.markedStatus,
+        readingTime: book.readingTime ?? 0,
+        readingBookDate: 0,
+        finishedDate: 0,
+        readingProgress: book.readingProgress ?? 0,
+      },
     };
   }
 
-  async getBookDetail(bookId: string): Promise<BookDetailResponse | null> {
-    const response = await this.request<
-      BookDetailResponse & {
-        errCode?: number;
-      }
-    >({
-      path: `/web/book/info?bookId=${bookId}`,
-    });
-    return response;
+  private getApiKey(): string {
+    return useSettingStore.getState().setting.integration.weread.apiKey.trim();
   }
 
-  async getNotebookHighlights(bookId: string): Promise<HighlightResponse> {
-    // 添加时间戳避免缓存
-    const timestamp = Date.now();
-    return this.request<HighlightResponse>({
-      path: `/web/book/bookmarklist?bookId=${bookId}&_t=${timestamp}`,
-    });
-  }
-
-  async getNotebookReviews(bookId: string): Promise<BookReviewResponse> {
-    // 添加时间戳避免缓存
-    const timestamp = Date.now();
-    const url = `/web/review/list?bookId=${bookId}&listType=11&mine=1&synckey=0&_t=${timestamp}`;
-    return this.request<BookReviewResponse>({
-      path: url,
-    });
-  }
-
-  async getChapters(bookId: string): Promise<ChapterResponse> {
-    return this.request<ChapterResponse>({
-      path: "/web/book/chapterInfos",
-      method: "POST",
-      body: { bookIds: [bookId] },
-    });
-  }
-
-  async getBookProgress(bookId: string): Promise<BookProgressResponse | null> {
-    return this.request<BookProgressResponse>({
-      path: `/web/book/getProgress?bookId=${bookId}`,
-    });
-  }
-
-  private async request<T>(payload: WeReadHttpRequestPayload): Promise<T> {
-    const cookies = this.getCookies();
-    if (cookies.length === 0) {
+  private async gatewayRequest<T>(
+    apiName: string,
+    params: Record<string, unknown> = {},
+  ): Promise<T> {
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
       throw new WeReadNotLoggedInError();
     }
 
-    const mergedPayload: WeReadHttpRequestPayload = {
-      ...payload,
-      cookies,
-    };
+    const response = (await nodeFetch(WEREAD_GATEWAY_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      data: {
+        api_name: apiName,
+        skill_version: SKILL_VERSION,
+        ...params,
+      },
+      isRaw: true,
+      allowHttpErrorStatus: true,
+    })) as NodeFetchRawResponse<GatewayEnvelope<T>>;
 
-    const response = await weReadHttpRequest<T>(mergedPayload);
-    this.maybeUpdateCookies(response.cookies);
-
-    // 检测登录失效（401, 403）
     if (response.status === 401 || response.status === 403) {
-      console.warn("[WeRead] 登录状态已失效，需要重新登录");
-      throw this.handleSessionInvalid();
+      throw new WeReadSessionExpiredError();
     }
-
-    if (!response.ok) {
+    if (response.status === 429 || response.status === 499) {
+      throw new WeReadRateLimitError(`WeRead 请求过快: ${response.status}`);
+    }
+    if (response.status < 200 || response.status >= 300) {
       throw new Error(`WeRead 请求失败: ${response.status}`);
     }
 
-    // 检测 API 错误码
-    const data = response.data as Record<string, unknown>;
-    if (data && typeof data === "object") {
-      const errcode = data.errcode as number | undefined;
-      const errmsg = data.errmsg as string | undefined;
+    const data = response.data;
 
-      // 检测登录过期错误码
-      if (errcode === -2012 || errcode === -2011) {
-        console.warn("[WeRead] 登录状态已过期（errcode: %s）", errcode);
-        throw this.handleSessionInvalid(errmsg);
-      }
-
-      // 检测 API 限流错误
-      if (errcode === -10102) {
-        throw new WeReadRateLimitError(errmsg || "API 调用频率超限");
-      }
+    if (data.upgrade_info?.message) {
+      throw new Error(data.upgrade_info.message);
     }
-
-    return response.data as T;
-  }
-
-  private async runSessionValidation(
-    cookies: WeReadCookie[],
-    validationKey: string,
-  ): Promise<boolean> {
-    try {
-      const response = await weReadHttpRequest<{
-        errcode?: number;
-        errmsg?: string;
-      }>({
-        path: "/web/user",
-        method: "GET",
-        cookies,
-        responseType: "json",
-      });
-
-      if (response.status === 401 || response.status === 403) {
-        console.warn("[WeRead] Session 已失效，需要重新登录");
-        if (!this.isCookieSnapshotCurrent(validationKey)) {
-          return false;
-        }
-        this.handleSessionInvalid();
-        return false;
-      }
-
-      if (!response.ok) {
-        console.warn("[WeRead] Session 验证请求失败:", response.status);
-        if (!this.isCookieSnapshotCurrent(validationKey)) {
-          return false;
-        }
-        this.setSessionState(
-          "unknown",
-          `验证登录状态失败（HTTP ${response.status}）`,
-        );
-        return false;
-      }
-
-      const data = response.data;
-      if (data && typeof data === "object") {
-        const errcode = data.errcode;
-        const errmsg = data.errmsg;
-        if (errcode === -2012 || errcode === -2011) {
-          console.warn("[WeRead] Session 已过期（errcode: %s）", errcode);
-          if (!this.isCookieSnapshotCurrent(validationKey)) {
-            return false;
-          }
-          this.handleSessionInvalid(errmsg);
-          return false;
-        }
-        if (errcode && errcode !== 0) {
-          console.warn("[WeRead] Session 验证返回错误码:", errcode);
-          if (!this.isCookieSnapshotCurrent(validationKey)) {
-            return false;
-          }
-          this.setSessionState(
-            "unknown",
-            errmsg || "验证登录状态失败，请稍后重试",
-          );
-          return false;
-        }
-      }
-
-      if (!this.isCookieSnapshotCurrent(validationKey)) {
-        return false;
-      }
-      this.applyValidatedSession(response.cookies, cookies);
-      return true;
-    } catch (error) {
-      console.error("[WeRead] 验证 session 失败", error);
-      if (!this.isCookieSnapshotCurrent(validationKey)) {
-        return false;
-      }
-      this.setSessionState("unknown", "验证登录状态失败，请检查网络后重试");
-      return false;
+    if (data.errcode === -10102) {
+      throw new WeReadRateLimitError(data.errmsg || "API 调用频率超限");
     }
-  }
-
-  private handleSessionInvalid(message?: string): WeReadSessionExpiredError {
-    const nextMessage = message || "登录状态已过期，请重新登录微信读书";
-    useSettingStore.getState().invalidateWeReadSession(nextMessage);
-    return new WeReadSessionExpiredError(nextMessage);
-  }
-
-  private throwSessionValidationError(): never {
-    const { sessionStatus, statusReason } =
-      useSettingStore.getState().setting.integration.weread;
-    if (sessionStatus === "invalid") {
-      throw new WeReadSessionExpiredError(statusReason);
-    }
-    throw new Error(statusReason || "验证登录状态失败，请稍后重试");
-  }
-
-  private applyValidatedSession(
-    nextCookies: WeReadCookie[],
-    fallbackCookies: WeReadCookie[],
-  ) {
-    const cookiesToUse = nextCookies.length > 0 ? nextCookies : fallbackCookies;
-    this.maybeUpdateCookies(cookiesToUse);
-    const userInfo = extractWeReadUserInfo(cookiesToUse);
-    useSettingStore.getState().updateWeReadUserInfo({
-      ...userInfo,
-      isConnected: true,
-    });
-    this.setSessionState("valid");
-  }
-
-  private setSessionState(
-    status: "checking" | "valid" | "unknown",
-    reason = "",
-  ) {
-    const validatedAt = status === "checking" ? 0 : Date.now();
-    useSettingStore.getState().setWeReadSessionState({
-      sessionStatus: status,
-      lastValidatedAt: validatedAt,
-      statusReason: reason,
-    });
-  }
-
-  private maybeUpdateCookies(nextCookies: WeReadCookie[]) {
-    const current = this.getCookies();
-    if (nextCookies.length === 0) {
-      return; // 不用空 Cookie 覆盖已有的
-    }
-
-    // 使用 Map 比较，避免依赖数组顺序
-    const currentMap = new Map(current.map((c) => [c.name, c.value]));
-    const nextMap = new Map(nextCookies.map((c) => [c.name, c.value]));
-
-    // 检查关键 Cookie 是否变化
-    const keyFields = ["wr_skey", "wr_rt", "wr_vid", "wr_name"];
-    const hasChange = keyFields.some(
-      (key) => currentMap.get(key) !== nextMap.get(key),
-    );
-
-    if (hasChange) {
-      this.updateCookies(nextCookies);
-    }
-  }
-
-  private updateCookies(cookies: WeReadCookie[]) {
-    useSettingStore.getState().updateWeReadCookies(cookies);
-  }
-
-  private isCookieSnapshotCurrent(snapshotKey: string): boolean {
-    return snapshotKey === this.buildCookieSnapshotKey(this.getCookies());
-  }
-
-  private buildCookieSnapshotKey(cookies: WeReadCookie[]): string {
-    return cookies
-      .map(({ name, value }) => `${name}=${value}`)
-      .sort()
-      .join("; ");
-  }
-
-  async addReview(payload: {
-    type: number;
-    bookId: string;
-    chapterUid: number;
-    content: string;
-    bookVersion: number;
-    isPrivate: number;
-    abstract: string;
-    range: string;
-  }): Promise<{ reviewId: string }> {
-    return this.request<{ reviewId: string }>({
-      path: "/web/review/add",
-      method: "POST",
-      body: payload,
-    });
-  }
-
-  async deleteReview(reviewId: string): Promise<void> {
-    return this.request<void>({
-      path: "/web/review/delete",
-      method: "POST",
-      body: { reviewId },
-    });
-  }
-
-  async updateReview(
-    reviewId: string,
-    payload: {
-      type: number;
-      bookId: string;
-      chapterUid: number;
-      content: string;
-      bookVersion: number;
-      isPrivate: number;
-      abstract: string;
-      range: string;
-    },
-  ): Promise<{ reviewId: string }> {
-    await this.deleteReview(reviewId);
-    return this.addReview(payload);
-  }
-
-  async deleteBookmark(bookmarkId: string): Promise<void> {
-    return this.request<void>({
-      path: "/web/book/removeBookmark",
-      method: "POST",
-      body: { bookmarkId },
-    });
-  }
-
-  async updateBookmark(
-    bookmarkId: string,
-    style: number,
-    colorStyle: number,
-  ): Promise<void> {
-    console.log("[WeRead] 更新高亮样式:", { bookmarkId, style, colorStyle });
-    const result = await this.request<{ succ?: number; errcode?: number }>({
-      path: "/web/book/updateBookmark",
-      method: "POST",
-      body: { bookmarkId, style, colorStyle },
-    });
-    console.log("[WeRead] 更新高亮样式结果:", result);
-    // 检查返回结果
-    if (result && typeof result === "object" && result.errcode) {
-      throw new Error(`更新高亮失败: ${result.errcode}`);
-    }
-  }
-
-  /**
-   * 获取书架数据（包含所有书籍和分类信息）
-   * 通过解析书架页面的 SSR HTML 获取
-   */
-  /**
-   * 为没有 metadata 的书籍构建基础元数据
-   * 通过调用 getBookDetail 和 getBookProgress 获取信息
-   */
-  async buildMetadataFromBookId(
-    bookId: string,
-    shelfBook?: {
-      title: string;
-      author: string;
-      cover: string;
-    },
-  ): Promise<Metadata | null> {
-    try {
-      const [detail, progress] = await Promise.all([
-        this.getBookDetail(bookId),
-        this.getBookProgress(bookId),
-      ]);
-
-      if (!detail) {
-        console.warn(`书籍 ${bookId} 详情获取失败`);
-        return null;
-      }
-
-      const readerUrl = detail.encodeId
-        ? `https://weread.qq.com/web/reader/${detail.encodeId}`
-        : getPcUrl(bookId);
-      const metadata: Metadata = {
-        bookId: bookId,
-        encodeId: detail.encodeId,
-        author: shelfBook?.author || detail.author || "",
-        title: shelfBook?.title || detail.title || "",
-        url: readerUrl,
-        pcUrl: readerUrl,
-        cover: shelfBook?.cover || detail.cover || "",
-        bookType: detail.type || 0,
-        publishTime: detail.publishTime || "",
-        noteCount: 0, // 没有笔记
-        reviewCount: 0, // 没有评论
-        lastReadDate: "",
-        category: detail.category,
-        publisher: detail.publisher,
-        isbn: detail.isbn,
-        intro: detail.intro,
-        totalWords: detail.totalWords,
-        rating:
-          detail.newRating > 0
-            ? `${(detail.newRating / 100).toFixed(1)}`
-            : undefined,
-        synckeys: {
-          progress: progress?.book?.synckey,
-        },
-        readInfo: progress?.book
-          ? {
-              readingProgress: progress.book.progress,
-              readingTime: progress.book.readingTime,
-              readingBookDate: progress.book.startReadingTime,
-              finishedDate: progress.book.finishTime,
-            }
-          : undefined,
-      };
-
-      return metadata;
-    } catch (error) {
-      if (error instanceof WeReadRateLimitError) {
-        throw error;
-      }
-      console.error(`构建书籍 ${bookId} 元数据失败`, error);
-      return null;
-    }
-  }
-
-  private async fetchMetadataForIds(
-    bookIds: string[],
-    archiveInfo?: Map<string, { archiveId?: number; archiveName?: string }>,
-  ): Promise<MetadataListResult> {
-    const metadataList: Metadata[] = [];
-    const failedBookIds: string[] = [];
-    const batchSize = 100;
-    const concurrency = 5; // 并发数
-
-    for (let i = 0; i < bookIds.length; i += batchSize) {
-      const chunk = bookIds.slice(i, i + batchSize);
-
-      // 使用并发控制处理每个批次
-      const results = await this.processWithConcurrency(
-        chunk,
-        concurrency,
-        async (bookId) => {
-          try {
-            const meta = await this.fetchMetadataWithRetry(bookId);
-            return { bookId, meta, error: null };
-          } catch (error) {
-            return { bookId, meta: null, error };
-          }
-        },
+    if (data.errcode === -2011 || data.errcode === -2012) {
+      throw new WeReadSessionExpiredError(
+        data.errmsg || "连接状态已失效，请重新检查微信读书 API Key",
       );
-
-      // 处理结果
-      for (const result of results) {
-        if (result.meta) {
-          const info = archiveInfo?.get(result.bookId);
-          if (info) {
-            result.meta.archiveName = info.archiveName;
-            result.meta.archiveId = info.archiveId;
-          }
-          metadataList.push(result.meta);
-        } else {
-          failedBookIds.push(result.bookId);
-        }
-      }
-
-      // 批次间延迟
-      if (i + batchSize < bookIds.length) {
-        await this.delay(2000);
-      }
+    }
+    if (data.errcode && data.errcode !== 0) {
+      throw new Error(data.errmsg || `微信读书请求失败: ${data.errcode}`);
     }
 
-    const archiveInfoRecord: Record<
-      string,
-      { archiveId?: number; archiveName?: string }
-    > = {};
-    if (archiveInfo) {
-      archiveInfo.forEach((value, key) => {
-        archiveInfoRecord[key] = value;
-      });
-    }
-
-    return { metadataList, failedBookIds, bookArchiveInfo: archiveInfoRecord };
-  }
-
-  /**
-   * 并发控制处理函数
-   * @param items 待处理的项目
-   * @param concurrency 并发数
-   * @param processor 处理函数
-   */
-  private async processWithConcurrency<T, R>(
-    items: T[],
-    concurrency: number,
-    processor: (item: T) => Promise<R>,
-  ): Promise<R[]> {
-    const results: R[] = [];
-    const executing: Promise<void>[] = [];
-
-    for (const item of items) {
-      const promise = processor(item).then((result) => {
-        results.push(result);
-      });
-
-      const executingPromise = promise.then(() => {
-        executing.splice(executing.indexOf(executingPromise), 1);
-      });
-      executing.push(executingPromise);
-
-      // 当达到并发上限时，等待最快完成的
-      if (executing.length >= concurrency) {
-        await Promise.race(executing);
-      }
-    }
-
-    // 等待所有剩余的请求完成
-    await Promise.all(executing);
-    return results;
-  }
-
-  private async fetchMetadataWithRetry(
-    bookId: string,
-    retries = 3,
-  ): Promise<Metadata | null> {
-    for (let attempt = 1; attempt <= retries; attempt += 1) {
-      try {
-        const meta = await this.buildMetadataFromBookId(bookId);
-        if (meta) {
-          return meta;
-        }
-        console.warn(
-          `[WeRead] 未获取到 ${bookId} 元数据 (第 ${attempt}/${retries} 次`,
-        );
-      } catch (error) {
-        if (error instanceof WeReadRateLimitError && attempt < retries) {
-          const delayMs = 3000 * attempt;
-          console.warn(
-            `[WeRead] 元数据接口限流，${delayMs}ms 后重试 ${bookId}`,
-          );
-          await this.delay(delayMs);
-          continue;
-        }
-        throw error;
-      }
-    }
-    return null;
-  }
-
-  private async delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  async getShelfData(): Promise<ShelfData> {
-    const cookies = this.getCookies();
-    if (cookies.length === 0) {
-      throw new Error("请先登录微信读书");
-    }
-
-    const response = await weReadHttpRequest({
-      path: "/web/shelf",
-      method: "GET",
-      cookies,
-      responseType: "text",
-    });
-
-    this.maybeUpdateCookies(response.cookies);
-
-    if (!response.ok || !response.data) {
-      throw new Error(`获取书架数据失败: ${response.status}`);
-    }
-
-    // 解析 HTML 提取书架数据
-    const shelfData = shelfParserService.parseShelfHTML(
-      response.data as string,
-    );
-    return shelfData;
+    return data;
   }
 }
+
+const formatUnixDate = (timestamp?: number): string => {
+  if (!timestamp || timestamp <= 0) {
+    return "";
+  }
+  return dayjs(timestamp * 1000).format("YYYY-MM-DD");
+};
 
 const weReadService = new WeReadService();
 export default weReadService;

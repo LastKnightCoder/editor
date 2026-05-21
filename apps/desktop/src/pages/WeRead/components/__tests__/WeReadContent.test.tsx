@@ -64,7 +64,7 @@ describe("WeReadContent", () => {
       <WeReadContent
         isConnected={false}
         initializing={false}
-        hasStoredSession={false}
+        hasApiKey={false}
         error={null}
         syncing={false}
         rows={[{ id: "row-1", title: "缓存书籍" }]}
@@ -73,7 +73,7 @@ describe("WeReadContent", () => {
         activeViewId={1}
         activeViewConfig={null}
         databaseKey="test-db"
-        onQuickLogin={() => {}}
+        onOpenSettings={() => {}}
         onDataChange={() => {}}
         onViewConfigChange={() => {}}
         onCreateView={async () => null}
@@ -98,7 +98,7 @@ describe("WeReadContent", () => {
       <WeReadContent
         isConnected={false}
         initializing={true}
-        hasStoredSession={true}
+        hasApiKey={true}
         error={null}
         syncing={false}
         rows={[]}
@@ -107,7 +107,7 @@ describe("WeReadContent", () => {
         activeViewId={1}
         activeViewConfig={null}
         databaseKey="test-db"
-        onQuickLogin={() => {}}
+        onOpenSettings={() => {}}
         onDataChange={() => {}}
         onViewConfigChange={() => {}}
         onCreateView={async () => null}
@@ -121,9 +121,43 @@ describe("WeReadContent", () => {
       />,
     );
 
-    expect(container.textContent).toContain("正在恢复微信读书状态");
-    expect(container.textContent).not.toContain("扫码登录");
+    expect(container.textContent).toContain("正在校验微信读书 API Key");
+    expect(container.textContent).not.toContain("配置 API Key");
     expect(container.textContent).not.toContain("尚未连接微信读书");
+
+    await unmount(root, container);
+  });
+
+  it("同步中且无缓存时应显示同步进度", async () => {
+    const { root, container } = await mount(
+      <WeReadContent
+        isConnected={true}
+        initializing={false}
+        hasApiKey={true}
+        error={null}
+        syncing={true}
+        syncProgress={{ completed: 3, total: 8 }}
+        rows={[]}
+        columns={[]}
+        views={[]}
+        activeViewId={1}
+        activeViewConfig={null}
+        databaseKey="test-db"
+        onOpenSettings={() => {}}
+        onDataChange={() => {}}
+        onViewConfigChange={() => {}}
+        onCreateView={async () => null}
+        onDeleteView={async () => null}
+        onRenameView={async () => null}
+        onUpdateView={async () => null}
+        onReorderViews={async () => {}}
+        onActiveViewIdChange={() => {}}
+        onRowDetailOpen={() => {}}
+        themeColors={themeColors}
+      />,
+    );
+
+    expect(container.textContent).toContain("正在同步 3/8 · 37%");
 
     await unmount(root, container);
   });

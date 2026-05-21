@@ -1,8 +1,7 @@
-import { memo, useState, useEffect } from "react";
+import { memo, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { MdClose, MdCheck } from "react-icons/md";
+import { MdClose } from "react-icons/md";
 import type { Descendant } from "slate";
-import { useMemoizedFn } from "ahooks";
 import useTheme from "@/hooks/useTheme";
 import { ReviewEditor } from "./ReviewEditor";
 
@@ -11,17 +10,14 @@ interface ReviewModalProps {
   onClose: () => void;
   initialContent: Descendant[];
   markText: string;
-  onSave: (content: Descendant[]) => void;
   containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export const ReviewModal: React.FC<ReviewModalProps> = memo((props) => {
-  const { isOpen, onClose, initialContent, markText, onSave, containerRef } =
-    props;
+  const { isOpen, onClose, initialContent, markText, containerRef } = props;
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
-  const [content, setContent] = useState<Descendant[]>(initialContent);
   const [containerBottom, setContainerBottom] = useState(0);
 
   useEffect(() => {
@@ -30,20 +26,6 @@ export const ReviewModal: React.FC<ReviewModalProps> = memo((props) => {
       setContainerBottom(window.innerHeight - rect.bottom);
     }
   }, [isOpen, containerRef]);
-
-  useEffect(() => {
-    setContent(initialContent);
-  }, [initialContent]);
-
-  const handleSave = useMemoizedFn(() => {
-    onSave(content);
-    onClose();
-  });
-
-  const handleContentChange = useMemoizedFn((newContent: Descendant[]) => {
-    setContent(newContent);
-  });
-
   const bgColor = isDark ? "#1f1f1f" : "#ffffff";
   const borderColor = isDark ? "#404040" : "#e5e5e5";
   const textColor = isDark ? "#e5e5e5" : "#262626";
@@ -90,7 +72,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = memo((props) => {
                 style={{ borderBottom: `1px solid ${borderColor}` }}
               >
                 <span className="font-medium" style={{ color: textColor }}>
-                  编辑想法
+                  查看想法
                 </span>
                 <div className="flex items-center gap-2">
                   <motion.button
@@ -101,19 +83,6 @@ export const ReviewModal: React.FC<ReviewModalProps> = memo((props) => {
                     style={{ color: isDark ? "#a3a3a3" : "#737373" }}
                   >
                     <MdClose size={20} />
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleSave}
-                    className="flex items-center justify-center px-3 h-8 rounded-lg font-medium transition-colors"
-                    style={{
-                      backgroundColor: isDark ? "#3b82f6" : "#2563eb",
-                      color: "#ffffff",
-                    }}
-                  >
-                    <MdCheck size={18} className="mr-1" />
-                    确定
                   </motion.button>
                 </div>
               </div>
@@ -132,11 +101,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = memo((props) => {
 
               {/* 编辑器 */}
               <div className="p-4">
-                <ReviewEditor
-                  content={content}
-                  onSave={handleContentChange}
-                  readOnly={false}
-                />
+                <ReviewEditor content={initialContent} />
               </div>
             </div>
           </motion.div>

@@ -13,19 +13,27 @@ const useWeReadSessionBootstrap = () => {
   useEffect(() => {
     if (
       !inited ||
-      weread.cookies.length === 0 ||
-      wereadModuleStatus !== ModuleStatus.READY
+      !weread.apiKey.trim() ||
+      wereadModuleStatus !== ModuleStatus.READY ||
+      weread.connectionStatus !== "unknown" ||
+      weread.lastValidatedAt !== 0
     ) {
       return;
     }
     console.info("[WeReadDebug] 启动会话校验", {
-      cookies: weread.cookies.length,
-      sessionStatus: weread.sessionStatus,
+      apiKeyConfigured: Boolean(weread.apiKey.trim()),
+      connectionStatus: weread.connectionStatus,
       lastValidatedAt: weread.lastValidatedAt,
       moduleStatus: wereadModuleStatus,
     });
     void weReadService.validateSession();
-  }, [inited, weread.cookies.length, wereadModuleStatus]);
+  }, [
+    inited,
+    weread.apiKey,
+    weread.connectionStatus,
+    weread.lastValidatedAt,
+    wereadModuleStatus,
+  ]);
 };
 
 export default useWeReadSessionBootstrap;

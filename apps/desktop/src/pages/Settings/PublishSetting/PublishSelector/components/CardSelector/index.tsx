@@ -1,4 +1,4 @@
-import React, { memo, useState, useMemo, useCallback } from "react";
+import React, { memo, useState, useMemo, useCallback, useEffect } from "react";
 import classNames from "classnames";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import useThemeColors from "@/hooks/useThemeColors";
@@ -42,7 +42,12 @@ export const CardSelector = memo<CardSelectorProps>(
     // 获取当前标签下所有卡片
     const currentCards = useMemo(() => {
       if (!activeNode) return [];
-      return collectCardsFromTagNode(activeNode);
+      const cards = collectCardsFromTagNode(activeNode);
+      const uniqueCards = new Map<number, CardListItem>();
+      cards.forEach((card) => {
+        uniqueCards.set(card.id, card);
+      });
+      return Array.from(uniqueCards.values());
     }, [activeNode]);
 
     // 搜索过滤
@@ -157,6 +162,8 @@ export const CardSelector = memo<CardSelectorProps>(
                 />
               ) : (
                 <CardList
+                  key={activeNode?.id || "__empty__"}
+                  activeTagId={activeNode?.id || ""}
                   cards={displayCards}
                   isItemSelected={isItemSelected}
                   onToggleCard={onToggleCard}
@@ -264,11 +271,12 @@ TagTreeNode.displayName = "TagTreeNode";
 
 // 卡片列表组件（使用虚拟滚动）
 const CardList = memo<{
+  activeTagId: string;
   cards: CardListItem[];
   isItemSelected: (type: PublishContentType, id: number) => boolean;
   onToggleCard: (cardId: number) => void;
   onPreview: (card: CardListItem) => void;
-}>(({ cards, isItemSelected, onToggleCard, onPreview }) => {
+}>(({ activeTagId, cards, isItemSelected, onToggleCard, onPreview }) => {
   const themeColors = useThemeColors();
   const parentRef = React.useRef<HTMLDivElement>(null);
 
@@ -278,6 +286,11 @@ const CardList = memo<{
     estimateSize: () => 56,
     overscan: 5,
   });
+
+  useEffect(() => {
+    parentRef.current?.scrollTo({ top: 0 });
+    virtualizer.scrollToOffset(0);
+  }, [activeTagId, virtualizer]);
 
   return (
     <div ref={parentRef} className="h-full overflow-y-auto">

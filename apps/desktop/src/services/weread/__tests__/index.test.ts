@@ -2,38 +2,27 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import useSettingStore from "@/stores/useSettingStore";
 import weReadService from "..";
 
-const { weReadHttpRequestMock, weReadLoginWithQRCodeMock } = vi.hoisted(() => ({
-  weReadHttpRequestMock: vi.fn(),
-  weReadLoginWithQRCodeMock: vi.fn(),
+const { nodeFetchMock } = vi.hoisted(() => ({
+  nodeFetchMock: vi.fn(),
 }));
 
-vi.mock("@/commands/weread", () => ({
-  weReadHttpRequest: weReadHttpRequestMock,
-  weReadLoginWithQRCode: weReadLoginWithQRCodeMock,
+vi.mock("@/commands/extra", () => ({
+  nodeFetch: nodeFetchMock,
 }));
 
-const createDeferred = <T>() => {
-  let resolve!: (value: T) => void;
-  let reject!: (reason?: unknown) => void;
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
-};
-
-describe("services/weread session validation", () => {
+describe("services/weread validateSession", () => {
   const initialSetting = structuredClone(useSettingStore.getState().setting);
 
   afterEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
     useSettingStore.setState((state) => ({
       ...state,
       setting: structuredClone(initialSetting),
     }));
   });
 
-  it("应在会话校验成功后标记为可用", async () => {
+  it("API Key 校验成功后应标记为 valid", async () => {
     useSettingStore.setState((state) => ({
       ...state,
       setting: {
@@ -42,39 +31,45 @@ describe("services/weread session validation", () => {
           ...state.setting.integration,
           weread: {
             ...state.setting.integration.weread,
-            cookies: [
-              { name: "wr_name", value: "测试用户" },
-              { name: "wr_vid", value: "vid-1" },
-            ],
+            apiKey: "wrk-test-key",
           },
         },
       },
     }));
 
-    weReadHttpRequestMock.mockResolvedValue({
+    nodeFetchMock.mockResolvedValue({
       status: 200,
-      ok: true,
-      data: { errcode: 0 },
-      cookies: [
-        { name: "wr_name", value: "测试用户" },
-        { name: "wr_vid", value: "vid-1" },
-      ],
+      data: {
+        apis: [],
+      },
     });
 
     await expect(weReadService.validateSession()).resolves.toBe(true);
 
-    const { weread } = useSettingStore.getState().setting.integration;
-    expect(weread.sessionStatus).toBe("valid");
-    expect(weread.userInfo).toEqual({
-      name: "测试用户",
-      vid: "vid-1",
-      isConnected: true,
-    });
-    expect(weread.statusReason).toBe("");
+    expect(nodeFetchMock).toHaveBeenCalledWith(
+      "https://i.weread.qq.com/api/agent/gateway",
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          Authorization: "Bearer wrk-test-key",
+          "Content-Type": "application/json",
+        },
+        data: {
+          api_name: "/_list",
+          skill_version: "1.0.3",
+        },
+        isRaw: true,
+        allowHttpErrorStatus: true,
+      }),
+    );
+
+    const weread = useSettingStore.getState().setting.integration.weread;
+    expect(weread.connectionStatus).toBe("valid");
+    expect(weread.userInfo.isConnected).toBe(true);
     expect(weread.lastValidatedAt).toBeGreaterThan(0);
   });
 
-  it("应在 401 时清空本地状态并标记为失效", async () => {
+  it("API Key 缺失时应返回 false 并重置状态", async () => {
     useSettingStore.setState((state) => ({
       ...state,
       setting: {
@@ -83,13 +78,9 @@ describe("services/weread session validation", () => {
           ...state.setting.integration,
           weread: {
             ...state.setting.integration.weread,
-            cookies: [
-              { name: "wr_name", value: "测试用户" },
-              { name: "wr_vid", value: "vid-1" },
-            ],
+            apiKey: "",
+            connectionStatus: "valid",
             userInfo: {
-              name: "测试用户",
-              vid: "vid-1",
               isConnected: true,
             },
           },
@@ -97,52 +88,53 @@ describe("services/weread session validation", () => {
       },
     }));
 
-    weReadHttpRequestMock.mockResolvedValue({
-      status: 401,
-      ok: false,
-      data: null,
-      cookies: [],
-    });
-
     await expect(weReadService.validateSession()).resolves.toBe(false);
 
-    const { weread } = useSettingStore.getState().setting.integration;
-    expect(weread.sessionStatus).toBe("invalid");
-    expect(weread.cookies).toEqual([]);
-    expect(weread.userInfo).toEqual({
-      name: "",
-      vid: "",
-      isConnected: false,
-    });
-    expect(weread.statusReason).toContain("登录状态已过期");
+    const weread = useSettingStore.getState().setting.integration.weread;
+    expect(weread.connectionStatus).toBe("unknown");
+    expect(weread.userInfo.isConnected).toBe(false);
   });
 
-  it("应在手动输入失效 Cookie 时阻止继续显示可用", async () => {
-    weReadHttpRequestMock.mockResolvedValue({
+  it("同一个 API Key 并发校验时应复用同一次请求", async () => {
+    useSettingStore.setState((state) => ({
+      ...state,
+      setting: {
+        ...state.setting,
+        integration: {
+          ...state.setting.integration,
+          weread: {
+            ...state.setting.integration.weread,
+            apiKey: "wrk-test-key",
+          },
+        },
+      },
+    }));
+
+    let resolveResponse: (value: any) => void = () => {};
+    nodeFetchMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveResponse = resolve;
+      }),
+    );
+
+    const firstValidation = weReadService.validateSession();
+    const secondValidation = weReadService.validateSession();
+
+    expect(nodeFetchMock).toHaveBeenCalledTimes(1);
+
+    resolveResponse({
       status: 200,
-      ok: true,
-      data: { errcode: -2012, errmsg: "登录已过期" },
-      cookies: [],
+      data: {
+        apis: [],
+      },
     });
 
     await expect(
-      weReadService.loginWithCookieString("wr_name=测试用户; wr_vid=vid-1"),
-    ).rejects.toThrow("登录已过期");
-
-    const { weread } = useSettingStore.getState().setting.integration;
-    expect(weread.sessionStatus).toBe("invalid");
-    expect(weread.cookies).toEqual([]);
-    expect(weread.userInfo.isConnected).toBe(false);
+      Promise.all([firstValidation, secondValidation]),
+    ).resolves.toEqual([true, true]);
   });
 
-  it("应忽略登出后的过期校验成功结果", async () => {
-    const deferred = createDeferred<{
-      status: number;
-      ok: boolean;
-      data: { errcode: number };
-      cookies: Array<{ name: string; value: string }>;
-    }>();
-
+  it("应把书架里无笔记的书也纳入 metadata 列表", async () => {
     useSettingStore.setState((state) => ({
       ...state,
       setting: {
@@ -151,56 +143,89 @@ describe("services/weread session validation", () => {
           ...state.setting.integration,
           weread: {
             ...state.setting.integration.weread,
-            cookies: [
-              { name: "wr_name", value: "旧账号" },
-              { name: "wr_vid", value: "old-vid" },
-            ],
+            apiKey: "wrk-test-key",
           },
         },
       },
     }));
 
-    weReadHttpRequestMock.mockReturnValueOnce(deferred.promise);
+    nodeFetchMock
+      .mockResolvedValueOnce({
+        status: 200,
+        data: {
+          books: [
+            {
+              bookId: "shelf-only-book",
+              title: "只有书架里有的书",
+              author: "作者甲",
+              cover: "https://example.com/cover-a.jpg",
+              category: "小说",
+              readUpdateTime: 1710000000,
+            },
+          ],
+          albums: [],
+          archive: [],
+        },
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        data: {
+          books: [],
+          hasMore: 0,
+        },
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        data: {
+          bookId: "shelf-only-book",
+          title: "只有书架里有的书",
+          author: "作者甲",
+          cover: "https://example.com/cover-a.jpg",
+          intro: "这是简介",
+          category: "小说",
+          publisher: "出版社",
+          wordCount: 12345,
+          newRating: 850,
+        },
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        data: {
+          bookId: "shelf-only-book",
+          book: {
+            progress: 45,
+            updateTime: 1710000000,
+            recordReadingTime: 3600,
+            isStartReading: 1,
+          },
+        },
+      });
 
-    const validation = weReadService.validateSession();
-    weReadService.logout();
+    const result = await weReadService.getMetadataList();
 
-    deferred.resolve({
-      status: 200,
-      ok: true,
-      data: { errcode: 0 },
-      cookies: [
-        { name: "wr_name", value: "旧账号" },
-        { name: "wr_vid", value: "old-vid" },
-      ],
+    expect(result.failedBookIds).toEqual([]);
+    expect(result.metadataList).toHaveLength(1);
+    expect(result.metadataList[0]).toMatchObject({
+      bookId: "shelf-only-book",
+      title: "只有书架里有的书",
+      author: "作者甲",
+      noteCount: 0,
+      reviewCount: 0,
+      bookmarkCount: 0,
+      intro: "这是简介",
+      publisher: "出版社",
+      totalWords: 12345,
+      rating: "8.5",
+      readInfo: {
+        readingProgress: 45,
+        readingTime: 3600,
+        readingBookDate: 1710000000,
+        finishedDate: 0,
+      },
     });
-
-    await expect(validation).resolves.toBe(false);
-
-    const { weread } = useSettingStore.getState().setting.integration;
-    expect(weread.cookies).toEqual([]);
-    expect(weread.sessionStatus).toBe("unknown");
-    expect(weread.userInfo.isConnected).toBe(false);
   });
 
-  it("应忽略旧会话校验失败，避免清空新的登录状态", async () => {
-    const oldValidation = createDeferred<{
-      status: number;
-      ok: boolean;
-      data: null;
-      cookies: Array<{ name: string; value: string }>;
-    }>();
-    const newValidation = createDeferred<{
-      status: number;
-      ok: boolean;
-      data: { errcode: number };
-      cookies: Array<{ name: string; value: string }>;
-    }>();
-
-    weReadHttpRequestMock
-      .mockReturnValueOnce(oldValidation.promise)
-      .mockReturnValueOnce(newValidation.promise);
-
+  it("recordReadingTime 为 0 时应使用 readingTime 作为阅读时长", async () => {
     useSettingStore.setState((state) => ({
       ...state,
       setting: {
@@ -209,69 +234,107 @@ describe("services/weread session validation", () => {
           ...state.setting.integration,
           weread: {
             ...state.setting.integration.weread,
-            cookies: [
-              { name: "wr_name", value: "旧账号" },
-              { name: "wr_vid", value: "old-vid" },
-            ],
+            apiKey: "wrk-test-key",
           },
         },
       },
     }));
 
-    const firstValidation = weReadService.validateSession();
-
-    useSettingStore.setState((state) => ({
-      ...state,
-      setting: {
-        ...state.setting,
-        integration: {
-          ...state.setting.integration,
-          weread: {
-            ...state.setting.integration.weread,
-            cookies: [
-              { name: "wr_name", value: "新账号" },
-              { name: "wr_vid", value: "new-vid" },
-            ],
-          },
-        },
-      },
-    }));
-
-    const secondValidation = weReadService.validateSession();
-
-    newValidation.resolve({
+    nodeFetchMock.mockResolvedValue({
       status: 200,
-      ok: true,
-      data: { errcode: 0 },
-      cookies: [
-        { name: "wr_name", value: "新账号" },
-        { name: "wr_vid", value: "new-vid" },
-      ],
-    });
-    oldValidation.resolve({
-      status: 401,
-      ok: false,
-      data: null,
-      cookies: [],
+      data: {
+        bookId: "book-with-reading-time",
+        book: {
+          progress: 42,
+          updateTime: 1710000000,
+          startReadingTime: 1700000000,
+          recordReadingTime: 0,
+          readingTime: 22981,
+          isStartReading: 1,
+        },
+      },
     });
 
-    await expect(secondValidation).resolves.toBe(true);
-    await expect(firstValidation).resolves.toBe(false);
+    const result = await weReadService.getBookProgress(
+      "book-with-reading-time",
+    );
 
-    const { weread } = useSettingStore.getState().setting.integration;
-    expect(weread.sessionStatus).toBe("valid");
-    expect(weread.cookies).toEqual([
-      { name: "wr_name", value: "新账号" },
-      { name: "wr_vid", value: "new-vid" },
+    expect(result?.book.readingTime).toBe(22981);
+    expect(result?.book.startReadingTime).toBe(1700000000);
+  });
+
+  it("补全元数据失败时应保留基础数据并继续上报同步进度", async () => {
+    useSettingStore.setState((state) => ({
+      ...state,
+      setting: {
+        ...state.setting,
+        integration: {
+          ...state.setting.integration,
+          weread: {
+            ...state.setting.integration.weread,
+            apiKey: "wrk-test-key",
+          },
+        },
+      },
+    }));
+
+    const progressUpdates: Array<{ completed: number; total: number }> = [];
+
+    nodeFetchMock
+      .mockResolvedValueOnce({
+        status: 200,
+        data: {
+          books: [],
+          albums: [],
+          archive: [],
+        },
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        data: {
+          books: [
+            {
+              bookId: "notebook-book",
+              book: {
+                title: "有笔记的书",
+                author: "作者乙",
+                cover: "https://example.com/s_cover-b.jpg",
+              },
+              sort: 1710000000,
+              noteCount: 1,
+              reviewCount: 2,
+              bookmarkCount: 3,
+            },
+          ],
+          hasMore: 0,
+        },
+      })
+      .mockResolvedValue({
+        status: 500,
+        data: {},
+      });
+
+    const result = await weReadService.getMetadataList({
+      onProgress: (progress) => progressUpdates.push(progress),
+    });
+
+    expect(result.failedBookIds).toEqual([]);
+    expect(result.metadataList).toHaveLength(1);
+    expect(result.metadataList[0]).toMatchObject({
+      bookId: "notebook-book",
+      title: "有笔记的书",
+      noteCount: 1,
+      reviewCount: 2,
+      bookmarkCount: 3,
+    });
+    expect(progressUpdates).toEqual([
+      { completed: 0, total: 1 },
+      { completed: 1, total: 1 },
     ]);
-    expect(weread.userInfo).toEqual({
-      name: "新账号",
-      vid: "new-vid",
-      isConnected: true,
-    });
   });
 
-  it("应解码响应 Cookie 中的用户名后再写入用户信息", async () => {
+  it("遇到 499 限速时应等待退避后重试", async () => {
+    vi.useFakeTimers();
     useSettingStore.setState((state) => ({
       ...state,
       setting: {
@@ -280,32 +343,133 @@ describe("services/weread session validation", () => {
           ...state.setting.integration,
           weread: {
             ...state.setting.integration.weread,
-            cookies: [
-              { name: "wr_name", value: "God%20is%20a%20girl" },
-              { name: "wr_vid", value: "vid-1" },
-            ],
+            apiKey: "wrk-test-key",
           },
         },
       },
     }));
 
-    weReadHttpRequestMock.mockResolvedValue({
-      status: 200,
-      ok: true,
-      data: { errcode: 0 },
-      cookies: [
-        { name: "wr_name", value: "God%20is%20a%20girl" },
-        { name: "wr_vid", value: "vid-1" },
+    nodeFetchMock
+      .mockResolvedValueOnce({
+        status: 200,
+        data: {
+          books: [
+            {
+              bookId: "rate-limited-book",
+              title: "被限速的书",
+              author: "作者丙",
+              cover: "https://example.com/cover-c.jpg",
+            },
+          ],
+          albums: [],
+          archive: [],
+        },
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        data: {
+          books: [],
+          hasMore: 0,
+        },
+      })
+      .mockResolvedValueOnce({
+        status: 499,
+        data: {},
+      })
+      .mockResolvedValueOnce({
+        status: 499,
+        data: {},
+      })
+      .mockResolvedValueOnce({
+        status: 499,
+        data: {},
+      })
+      .mockResolvedValueOnce({
+        status: 499,
+        data: {},
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        data: {
+          bookId: "rate-limited-book",
+          title: "被限速的书",
+          author: "作者丙",
+          cover: "https://example.com/cover-c.jpg",
+          intro: "重试后成功",
+        },
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        data: {
+          bookId: "rate-limited-book",
+          book: {
+            progress: 12,
+            updateTime: 1710000000,
+            recordReadingTime: 1200,
+          },
+        },
+      });
+
+    const pendingResult = weReadService.getMetadataList();
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(2000);
+
+    await expect(pendingResult).resolves.toMatchObject({
+      failedBookIds: [],
+      metadataList: [
+        {
+          bookId: "rate-limited-book",
+          intro: "重试后成功",
+          readInfo: {
+            readingTime: 1200,
+          },
+        },
       ],
     });
 
-    await expect(weReadService.validateSession()).resolves.toBe(true);
+    expect(nodeFetchMock).toHaveBeenCalledTimes(8);
+  });
 
-    const { weread } = useSettingStore.getState().setting.integration;
-    expect(weread.userInfo).toEqual({
-      name: "God is a girl",
-      vid: "vid-1",
-      isConnected: true,
+  it("评论分页游标不前进时应停止继续请求", async () => {
+    useSettingStore.setState((state) => ({
+      ...state,
+      setting: {
+        ...state.setting,
+        integration: {
+          ...state.setting.integration,
+          weread: {
+            ...state.setting.integration.weread,
+            apiKey: "wrk-test-key",
+          },
+        },
+      },
+    }));
+
+    nodeFetchMock.mockResolvedValue({
+      status: 200,
+      data: {
+        reviews: [
+          {
+            review: {
+              reviewId: "review-1",
+              bookId: "book-1",
+              chapterUid: 1,
+              content: "想法内容",
+              createTime: 1710000000,
+              type: 1,
+            },
+          },
+        ],
+        hasMore: 1,
+        synckey: 0,
+      },
     });
+
+    const result = await weReadService.getNotebookReviews("book-1");
+
+    expect(nodeFetchMock).toHaveBeenCalledTimes(1);
+    expect(result.reviews).toHaveLength(1);
+    expect(result.hasMore).toBe(0);
   });
 });

@@ -197,9 +197,11 @@ const summarizeWeReadSetting = (setting: UserSetting) => {
   }
   return {
     enabled: Boolean(weread.enabled),
-    cookieCount: Array.isArray(weread.cookies) ? weread.cookies.length : 0,
-    sessionStatus:
-      typeof weread.sessionStatus === "string" ? weread.sessionStatus : "",
+    hasApiKey: typeof weread.apiKey === "string" && weread.apiKey.length > 0,
+    connectionStatus:
+      typeof weread.connectionStatus === "string"
+        ? weread.connectionStatus
+        : "",
     lastValidatedAt:
       typeof weread.lastValidatedAt === "number" ? weread.lastValidatedAt : 0,
   };

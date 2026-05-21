@@ -73,7 +73,7 @@ describe("useWeReadSessionBootstrap", () => {
           ...state.setting.integration,
           weread: {
             ...state.setting.integration.weread,
-            cookies: [{ name: "wr_vid", value: "vid-1" }],
+            apiKey: "wrk-test-key",
           },
         },
       },
@@ -102,7 +102,7 @@ describe("useWeReadSessionBootstrap", () => {
           ...state.setting.integration,
           weread: {
             ...state.setting.integration.weread,
-            cookies: [{ name: "wr_vid", value: "vid-1" }],
+            apiKey: "wrk-test-key",
           },
         },
       },
@@ -127,7 +127,7 @@ describe("useWeReadSessionBootstrap", () => {
     expect(validateSessionMock).toHaveBeenCalledTimes(1);
   });
 
-  it("不应因 lastCookieTime 变化重复触发会话校验", async () => {
+  it("不应因无关字段变化重复触发会话校验", async () => {
     validateSessionMock.mockResolvedValue(true);
     useSettingStore.setState((state) => ({
       ...state,
@@ -138,8 +138,9 @@ describe("useWeReadSessionBootstrap", () => {
           ...state.setting.integration,
           weread: {
             ...state.setting.integration.weread,
-            cookies: [{ name: "wr_vid", value: "vid-1" }],
-            lastCookieTime: 100,
+            apiKey: "wrk-test-key",
+            connectionStatus: "unknown",
+            lastValidatedAt: 0,
           },
         },
       },
@@ -164,7 +165,7 @@ describe("useWeReadSessionBootstrap", () => {
             ...state.setting.integration,
             weread: {
               ...state.setting.integration.weread,
-              lastCookieTime: 200,
+              statusReason: "仅更新提示信息",
             },
           },
         },
@@ -172,5 +173,65 @@ describe("useWeReadSessionBootstrap", () => {
     });
 
     expect(validateSessionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("已有运行中的校验状态时不应再次触发会话校验", async () => {
+    validateSessionMock.mockResolvedValue(true);
+    useSettingStore.setState((state) => ({
+      ...state,
+      inited: true,
+      setting: {
+        ...state.setting,
+        integration: {
+          ...state.setting.integration,
+          weread: {
+            ...state.setting.integration.weread,
+            apiKey: "wrk-test-key",
+            connectionStatus: "checking",
+            lastValidatedAt: 0,
+          },
+        },
+      },
+    }));
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(<BootstrapHarness />);
+    });
+
+    expect(validateSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("已有有效连接状态时不应再次触发会话校验", async () => {
+    validateSessionMock.mockResolvedValue(true);
+    useSettingStore.setState((state) => ({
+      ...state,
+      inited: true,
+      setting: {
+        ...state.setting,
+        integration: {
+          ...state.setting.integration,
+          weread: {
+            ...state.setting.integration.weread,
+            apiKey: "wrk-test-key",
+            connectionStatus: "valid",
+            lastValidatedAt: 100,
+          },
+        },
+      },
+    }));
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(<BootstrapHarness />);
+    });
+
+    expect(validateSessionMock).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState, useEffect } from "react";
+import { memo, useMemo } from "react";
 import { createEditor, Descendant } from "slate";
 import {
   Slate,
@@ -7,13 +7,10 @@ import {
   RenderLeafProps,
   RenderElementProps,
 } from "slate-react";
-import { useDebounceFn } from "ahooks";
 import useTheme from "@/hooks/useTheme";
 
 interface ReviewEditorProps {
   content: Descendant[];
-  onSave: (content: Descendant[]) => void;
-  readOnly?: boolean;
 }
 
 // 简单的叶子节点渲染器（支持基本格式）
@@ -104,41 +101,11 @@ const Element = ({ attributes, children, element }: RenderElementProps) => {
 };
 
 export const ReviewEditor: React.FC<ReviewEditorProps> = memo((props) => {
-  const { content: initialContent, onSave, readOnly = false } = props;
+  const { content } = props;
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
-  const [value, setValue] = useState<Descendant[]>(initialContent);
   const editor = useMemo(() => withReact(createEditor()), []);
-
-  // 当外部内容变化时更新
-  useEffect(() => {
-    setValue(initialContent);
-  }, [initialContent]);
-
-  // 防抖保存
-  const { run: debouncedSave } = useDebounceFn(
-    (newValue: Descendant[]) => {
-      onSave(newValue);
-    },
-    { wait: 1000 },
-  );
-
-  const handleChange = useCallback(
-    (newValue: Descendant[]) => {
-      setValue(newValue);
-      if (!readOnly) {
-        debouncedSave(newValue);
-      }
-    },
-    [readOnly, debouncedSave],
-  );
-
-  const handleBlur = useCallback(() => {
-    if (!readOnly) {
-      onSave(value);
-    }
-  }, [readOnly, onSave, value]);
 
   const bgColor = isDark ? "#1a1a1a" : "#f5f5f5";
   const textColor = isDark ? "#e0e0e0" : "#333333";
@@ -148,20 +115,18 @@ export const ReviewEditor: React.FC<ReviewEditorProps> = memo((props) => {
       style={{
         backgroundColor: bgColor,
         color: textColor,
-        padding: readOnly ? "8px 12px" : "12px",
+        padding: "8px 12px",
         borderRadius: "4px",
         fontSize: "14px",
         lineHeight: "1.6",
       }}
       onClick={(e) => e.stopPropagation()}
     >
-      <Slate editor={editor} initialValue={value} onValueChange={handleChange}>
+      <Slate editor={editor} initialValue={content}>
         <Editable
-          readOnly={readOnly}
+          readOnly
           renderLeaf={Leaf}
           renderElement={Element}
-          onBlur={handleBlur}
-          placeholder={readOnly ? "" : "输入你的想法..."}
           style={{ outline: "none" }}
         />
       </Slate>

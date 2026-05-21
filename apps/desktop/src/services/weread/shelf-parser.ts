@@ -85,6 +85,7 @@ export class ShelfParserService {
       });
 
       return {
+        books: [],
         archives: shelfArchives,
         bookArchiveMap,
       };

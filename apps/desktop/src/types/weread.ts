@@ -216,16 +216,16 @@ export type BookType = "book" | "article";
 
 export interface Metadata {
   bookId: string;
-  encodeId?: string;
   author: string;
   title: string;
-  url: string;
-  pcUrl?: string;
+  url?: string;
+  webUrl?: string | null;
   cover: string;
   bookType: number;
   publishTime: string;
   noteCount: number;
   reviewCount: number;
+  bookmarkCount?: number;
   lastReadDate: string;
   duplicate?: boolean;
   intro?: string;
@@ -331,45 +331,23 @@ export interface AnnotationFile {
 }
 
 export interface WeReadNotebookSummary {
+  bookId: string;
   book: {
-    bookId: string;
     title: string;
     author: string;
     cover: string;
-    url: string;
-    publishTime: string;
-    type: number;
   };
   sort: number;
   noteCount: number;
   reviewCount: number;
+  bookmarkCount: number;
+  readingProgress?: number;
+  markedStatus?: number;
   lastReadDate?: string;
 }
 
-export interface WeReadLoginResult {
-  cookies: WeReadCookie[];
-  userName: string;
-  userVid: string;
-}
-
-export interface WeReadHttpRequestPayload {
-  path: string;
-  method?: "GET" | "POST" | "HEAD";
-  body?: unknown;
-  headers?: Record<string, string>;
-  cookies?: WeReadCookie[];
-  responseType?: "json" | "text" | "none";
-}
-
-export interface WeReadHttpResponse<T = unknown> {
-  status: number;
-  ok: boolean;
-  data: T | null;
-  cookies: WeReadCookie[];
-}
-
 export interface ShelfArchive {
-  archiveId: number;
+  archiveId?: number;
   name: string;
   bookIds: string[];
 }
@@ -379,14 +357,24 @@ export interface ShelfBook {
   title: string;
   author: string;
   cover: string;
-  version: number;
-  format: string;
+  version?: number;
+  format?: string;
   type: number;
   category?: string;
+  publishTime?: string;
+  readingProgress?: number;
+  markedStatus?: number;
+  readingTime?: number;
+  lastReadDate?: string;
+  intro?: string;
+  isbn?: string;
+  publisher?: string;
+  rating?: string;
   totalWords?: number;
 }
 
 export interface ShelfData {
+  books: ShelfBook[];
   archives: ShelfArchive[];
   bookArchiveMap: Map<string, string>; // bookId -> archiveName
 }

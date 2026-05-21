@@ -3,8 +3,26 @@ import { Table } from "../../types/table";
 import type { Notebook } from "@/types/weread";
 
 class WeReadNotebookTable implements Table {
-  upgradeTable(_db: Database): void {
-    // 未来版本升级时使用
+  upgradeTable(db: Database): void {
+    const columns = db
+      .prepare("PRAGMA table_info(weread_notebook)")
+      .all() as Array<{
+      name: string;
+    }>;
+    const hasBookmarkCount = columns.some(
+      (column) => column.name === "bookmark_count",
+    );
+    if (!hasBookmarkCount) {
+      db.exec(
+        "ALTER TABLE weread_notebook ADD COLUMN bookmark_count INTEGER DEFAULT 0;",
+      );
+    }
+    const hasArchiveName = columns.some(
+      (column) => column.name === "archive_name",
+    );
+    if (!hasArchiveName) {
+      db.exec("ALTER TABLE weread_notebook ADD COLUMN archive_name TEXT;");
+    }
   }
 
   getListenEvents(): Record<string, (db: Database, ...args: any) => any> {
@@ -20,9 +38,16 @@ class WeReadNotebookTable implements Table {
     // 计算阅读状态
     let readingStatus = 0; // 未开始
     if (readInfo) {
-      if (readInfo.finishedDate && readInfo.finishedDate > 0) {
+      if (
+        (readInfo.finishedDate && readInfo.finishedDate > 0) ||
+        (readInfo.readingProgress ?? 0) >= 100
+      ) {
         readingStatus = 2; // 已完成
-      } else if (readInfo.readingBookDate && readInfo.readingBookDate > 0) {
+      } else if (
+        (readInfo.readingProgress ?? 0) > 0 ||
+        (readInfo.readingTime ?? 0) > 0 ||
+        (readInfo.readingBookDate && readInfo.readingBookDate > 0)
+      ) {
         readingStatus = 1; // 进行中
       }
     }
@@ -30,16 +55,16 @@ class WeReadNotebookTable implements Table {
     const stmt = db.prepare(`
       INSERT INTO weread_notebook (
         book_id, title, author, cover, intro, category, publisher, isbn,
-        total_words, rating, book_type, publish_time, note_count, review_count,
-        last_read_date, url, pc_url,
+        total_words, rating, book_type, publish_time, note_count, review_count, bookmark_count,
+        archive_name, last_read_date, url, pc_url,
         reading_progress, reading_time, reading_book_date, finished_date,
         marked_status, total_read_day, continue_read_days, reading_status,
         synckey_highlights, synckey_reviews, synckey_progress,
         chapter_highlights, book_review, created_at, updated_at
       ) VALUES (
         ?, ?, ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?, ?,
-        ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?,
@@ -57,6 +82,8 @@ class WeReadNotebookTable implements Table {
         rating = excluded.rating,
         note_count = excluded.note_count,
         review_count = excluded.review_count,
+        bookmark_count = excluded.bookmark_count,
+        archive_name = excluded.archive_name,
         last_read_date = excluded.last_read_date,
         reading_progress = excluded.reading_progress,
         reading_time = excluded.reading_time,
@@ -90,9 +117,11 @@ class WeReadNotebookTable implements Table {
       metaData.publishTime,
       metaData.noteCount,
       metaData.reviewCount,
+      metaData.bookmarkCount ?? 0,
+      metaData.archiveName ?? null,
       metaData.lastReadDate,
       metaData.url,
-      metaData.pcUrl,
+      metaData.webUrl ?? null,
       readInfo?.readingProgress,
       readInfo?.readingTime,
       readInfo?.readingBookDate,
@@ -163,9 +192,11 @@ class WeReadNotebookTable implements Table {
         publishTime: row.publish_time,
         noteCount: row.note_count,
         reviewCount: row.review_count,
+        bookmarkCount: row.bookmark_count ?? 0,
+        archiveName: row.archive_name ?? undefined,
         lastReadDate: row.last_read_date,
         url: row.url,
-        pcUrl: row.pc_url,
+        webUrl: row.pc_url,
         synckeys: {
           highlights: row.synckey_highlights,
           reviews: row.synckey_reviews,

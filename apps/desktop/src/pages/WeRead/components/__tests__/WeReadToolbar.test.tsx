@@ -55,18 +55,17 @@ describe("WeReadToolbar", () => {
         isChecking={true}
         hasLocalData={true}
         initializing={false}
-        hasStoredSession={true}
-        userName=""
+        hasApiKey={true}
         lastSyncedAt={1710349920000}
         syncing={false}
-        onQuickLogin={() => {}}
+        onOpenSettings={() => {}}
         onSync={() => {}}
         themeColors={themeColors}
       />,
     );
 
-    expect(container.textContent).toContain("正在校验微信读书登录状态");
-    expect(container.textContent).not.toContain("扫码登录");
+    expect(container.textContent).toContain("正在校验微信读书 API Key");
+    expect(container.textContent).not.toContain("配置 API Key");
 
     await unmount(root, container);
   });
@@ -78,18 +77,39 @@ describe("WeReadToolbar", () => {
         isChecking={false}
         hasLocalData={true}
         initializing={false}
-        hasStoredSession={true}
-        userName=""
+        hasApiKey={true}
         lastSyncedAt={null}
         syncing={false}
-        onQuickLogin={() => {}}
+        onOpenSettings={() => {}}
         onSync={() => {}}
         themeColors={themeColors}
       />,
     );
 
     expect(container.textContent).toContain("当前未连接，可查看本地缓存");
-    expect(container.textContent).toContain("扫码登录");
+    expect(container.textContent).toContain("配置 API Key");
+
+    await unmount(root, container);
+  });
+
+  it("同步中应显示同步数量和百分比", async () => {
+    const { root, container } = await mount(
+      <WeReadToolbar
+        isConnected={true}
+        isChecking={false}
+        hasLocalData={true}
+        initializing={false}
+        hasApiKey={true}
+        lastSyncedAt={null}
+        syncing={true}
+        syncProgress={{ completed: 7, total: 10 }}
+        onOpenSettings={() => {}}
+        onSync={() => {}}
+        themeColors={themeColors}
+      />,
+    );
+
+    expect(container.textContent).toContain("7/10 · 70%");
 
     await unmount(root, container);
   });

@@ -1,10 +1,5 @@
 import { invoke } from "@/electron";
-import type {
-  WeReadHttpRequestPayload,
-  WeReadHttpResponse,
-  WeReadLoginResult,
-  Notebook,
-} from "@/types/weread";
+import type { Notebook } from "@/types/weread";
 import type { DataTableView } from "@/types";
 
 interface ModuleInitResult {
@@ -41,19 +36,6 @@ const invokeWeRead = async <T = any>(
   await ensureWeReadModuleReady();
   return invoke<T>(channel, ...args);
 };
-
-export async function weReadHttpRequest<T = unknown>(
-  payload: WeReadHttpRequestPayload,
-): Promise<WeReadHttpResponse<T>> {
-  return (await invokeWeRead(
-    "weread:http-request",
-    payload,
-  )) as WeReadHttpResponse<T>;
-}
-
-export async function weReadLoginWithQRCode(): Promise<WeReadLoginResult> {
-  return (await invokeWeRead("weread:login-with-qr")) as WeReadLoginResult;
-}
 
 export async function saveWeReadNotebook(notebook: Notebook): Promise<void> {
   return invokeWeRead("weread:save-notebook", notebook);
