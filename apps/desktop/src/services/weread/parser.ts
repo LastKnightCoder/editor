@@ -16,23 +16,23 @@ import {
   WeReadNotebookSummary,
 } from "@/types/weread";
 import { md5 } from "./md5";
-
 export const parseMetadata = (noteBook: WeReadNotebookSummary): Metadata => {
   const book = noteBook.book;
   const cover = book.cover.replace("/s_", "/t7_");
   const lastReadDate = dayjs(noteBook.sort * 1000).format("YYYY-MM-DD");
   return {
-    bookId: book.bookId,
+    bookId: noteBook.bookId,
     author: sanitizeAuthor(book.author),
     title: book.title,
-    url: book.url,
+    url: undefined,
+    webUrl: getBookWebUrl(noteBook.bookId, book.title),
     cover,
-    publishTime: book.publishTime,
+    publishTime: "",
     noteCount: noteBook.noteCount,
     reviewCount: noteBook.reviewCount,
-    bookType: book.type,
+    bookmarkCount: noteBook.bookmarkCount,
+    bookType: 0,
     lastReadDate,
-    pcUrl: getPcUrl(book.bookId),
   };
 };
 
@@ -337,7 +337,7 @@ const extractRangeStart = (range?: string): number => {
   return Number.isNaN(parsed) ? Number.MAX_SAFE_INTEGER : parsed;
 };
 
-export const getPcUrl = (bookId: string): string => {
+const getLegacyPcUrl = (bookId: string): string => {
   const hash = md5(bookId);
   const [prefixFlag, segments] = getFa(bookId);
   let strSub = hash.substring(0, 3);
@@ -359,6 +359,18 @@ export const getPcUrl = (bookId: string): string => {
 
   strSub += md5(strSub).substring(0, 3);
   return `https://weread.qq.com/web/reader/${strSub}`;
+};
+
+export const getBookWebUrl = (
+  bookId: string,
+  title?: string,
+): string | null => {
+  if (title?.trim()) {
+    return `https://weread.qq.com/web/search/books?keyword=${encodeURIComponent(
+      title.trim(),
+    )}`;
+  }
+  return getLegacyPcUrl(bookId);
 };
 
 const getFa = (id: string): [string, string[]] => {

@@ -20,6 +20,11 @@ interface UseWeReadPersistenceOptions {
   onError?: (message: string) => void;
 }
 
+export interface WeReadSyncProgress {
+  completed: number;
+  total: number;
+}
+
 const mergeNotebookLists = (
   base: Notebook[],
   updates: Notebook[],
@@ -79,6 +84,9 @@ export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [databaseRefreshKey, setDatabaseRefreshKey] = useState(0);
   const [initializing, setInitializing] = useState(true);
+  const [syncProgress, setSyncProgress] = useState<WeReadSyncProgress | null>(
+    null,
+  );
 
   const notebooksRef = useRef<Notebook[]>([]);
   const retryQueueRef = useRef<string[]>([]);
@@ -283,7 +291,12 @@ export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
   const syncAllBooks = useMemoizedFn(
     async (syncOptions: { silent?: boolean } = {}) => {
       try {
-        const result = await weReadService.getMetadataList();
+        if (!syncOptions.silent) {
+          setSyncProgress({ completed: 0, total: 0 });
+        }
+        const result = await weReadService.getMetadataList({
+          onProgress: syncOptions.silent ? undefined : setSyncProgress,
+        });
         if (result.metadataList.length === 0) {
           console.warn("[WeRead] metadata list is empty");
           if (!syncOptions.silent) {
@@ -322,13 +335,17 @@ export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
             : "同步失败，请稍后再试";
         setError(msg);
         onError?.(msg);
+      } finally {
+        if (!syncOptions.silent) {
+          setSyncProgress(null);
+        }
       }
     },
   );
 
   const syncFromWeRead = useMemoizedFn(async () => {
     if (!isConnected) {
-      onError?.("请先登录微信读书");
+      onError?.("请先配置微信读书 API Key");
       return;
     }
 
@@ -416,6 +433,7 @@ export const useWeReadPersistence = (options: UseWeReadPersistenceOptions) => {
     notebooks,
     initializing,
     syncing,
+    syncProgress,
     error,
     lastSyncedAt,
     databaseRefreshKey,

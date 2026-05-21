@@ -157,6 +157,8 @@ CREATE TABLE IF NOT EXISTS weread_notebook (
         publish_time TEXT,
         note_count INTEGER DEFAULT 0,
         review_count INTEGER DEFAULT 0,
+        bookmark_count INTEGER DEFAULT 0,
+        archive_name TEXT,
         last_read_date TEXT,
         url TEXT,
         pc_url TEXT,

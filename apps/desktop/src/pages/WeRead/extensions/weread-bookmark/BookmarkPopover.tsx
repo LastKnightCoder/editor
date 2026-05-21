@@ -1,63 +1,22 @@
 import { memo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import {
-  MdContentCopy,
-  MdFormatUnderlined,
-  MdHighlight,
-  MdWaves,
-  MdChat,
-} from "react-icons/md";
-import type {
-  WeReadHighlightStyle,
-  WeReadColorStyle,
-} from "../../types/elements";
-import { wereadColors, highlightStyleNames } from "../../configs";
+import { MdContentCopy, MdChat } from "react-icons/md";
 import useTheme from "@/hooks/useTheme";
 
 interface BookmarkPopoverProps {
   isOpen: boolean;
   onClose: () => void;
   anchorRef: React.RefObject<HTMLDivElement | null>;
-  hasHighlight: boolean;
   hasReview: boolean;
-  currentStyle: WeReadHighlightStyle;
-  currentColor: WeReadColorStyle;
   onCopy: () => void;
-  onStyleChange: (style: WeReadHighlightStyle, color: WeReadColorStyle) => void;
   onOpenReview: () => void;
 }
 
-const styleIcons: Record<WeReadHighlightStyle, React.ReactNode> = {
-  0: <MdFormatUnderlined size={18} />,
-  1: <MdHighlight size={18} />,
-  2: <MdWaves size={18} />,
-};
-
 export const BookmarkPopover: React.FC<BookmarkPopoverProps> = memo((props) => {
-  const {
-    isOpen,
-    onClose,
-    hasHighlight,
-    hasReview,
-    currentStyle,
-    currentColor,
-    onCopy,
-    onStyleChange,
-    onOpenReview,
-  } = props;
+  const { isOpen, onClose, hasReview, onCopy, onOpenReview } = props;
 
   const { theme } = useTheme();
   const isDark = theme === "dark";
-
-  const handleStyleClick = (style: WeReadHighlightStyle) => {
-    // 立即使用当前颜色更新样式
-    onStyleChange(style, currentColor);
-  };
-
-  const handleColorSelect = (color: WeReadColorStyle) => {
-    // 使用当前样式和新颜色更新
-    onStyleChange(currentStyle, color);
-  };
 
   const bgColor = isDark ? "#2a2a2a" : "#ffffff";
   const borderColor = isDark ? "#404040" : "#e5e5e5";
@@ -122,53 +81,6 @@ export const BookmarkPopover: React.FC<BookmarkPopoverProps> = memo((props) => {
                 style={{ backgroundColor: borderColor }}
               />
 
-              {/* 高亮样式按钮 */}
-              {hasHighlight && (
-                <>
-                  {([0, 1, 2] as WeReadHighlightStyle[]).map((style) => (
-                    <motion.button
-                      key={style}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => handleStyleClick(style)}
-                      className="flex items-center justify-center w-8 h-8 rounded-md transition-colors"
-                      style={{
-                        color:
-                          currentStyle === style
-                            ? wereadColors[currentColor]?.[
-                                isDark ? "dark" : "light"
-                              ]?.textColor || textColor
-                            : textColor,
-                        backgroundColor:
-                          currentStyle === style
-                            ? isDark
-                              ? "rgba(255,255,255,0.1)"
-                              : "rgba(0,0,0,0.05)"
-                            : "transparent",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (currentStyle !== style) {
-                          e.currentTarget.style.backgroundColor = hoverBg;
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (currentStyle !== style) {
-                          e.currentTarget.style.backgroundColor = "transparent";
-                        }
-                      }}
-                      title={highlightStyleNames[style]}
-                    >
-                      {styleIcons[style]}
-                    </motion.button>
-                  ))}
-
-                  <div
-                    className="w-px h-5 mx-1"
-                    style={{ backgroundColor: borderColor }}
-                  />
-                </>
-              )}
-
               {/* 想法按钮 */}
               {hasReview && (
                 <motion.button
@@ -186,39 +98,11 @@ export const BookmarkPopover: React.FC<BookmarkPopoverProps> = memo((props) => {
                   onMouseLeave={(e) =>
                     (e.currentTarget.style.backgroundColor = "transparent")
                   }
-                  title="编辑想法"
+                  title="查看想法"
                 >
                   <MdChat size={18} />
                 </motion.button>
               )}
-            </div>
-
-            {/* 颜色选择器 - 始终显示 */}
-            <div
-              className="p-2 flex gap-2"
-              style={{ borderTop: `1px solid ${borderColor}` }}
-            >
-              {([1, 2, 3, 4, 5] as WeReadColorStyle[]).map((color) => {
-                const colorConfig = wereadColors[color];
-                const colorValue = isDark
-                  ? colorConfig.dark.textColor
-                  : colorConfig.light.textColor;
-                return (
-                  <motion.button
-                    key={color}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => handleColorSelect(color)}
-                    className="w-6 h-6 rounded-full border-2 transition-all"
-                    style={{
-                      backgroundColor: colorValue,
-                      borderColor:
-                        currentColor === color ? textColor : "transparent",
-                    }}
-                    title={colorConfig.name}
-                  />
-                );
-              })}
             </div>
           </motion.div>
         </>

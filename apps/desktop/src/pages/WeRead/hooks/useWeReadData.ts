@@ -4,7 +4,6 @@ import type { Descendant } from "slate";
 import type { RowData } from "@/components/Database/types";
 import type { Notebook, Metadata } from "@/types/weread";
 import type { NotebookSnapshot } from "../types";
-import { getPcUrl } from "@/services/weread/parser";
 import { importFromMarkdown } from "@/utils/markdown";
 
 const DEFAULT_DETAIL_CONTENT: Descendant[] = [
@@ -18,6 +17,18 @@ const DEFAULT_DETAIL_CONTENT: Descendant[] = [
     ],
   },
 ];
+
+export const resolveWeReadReadingStatus = (
+  readInfo: Metadata["readInfo"] | undefined,
+): "not_started" | "reading" | "finished" => {
+  const rawProgress = readInfo?.readingProgress ?? 0;
+  const readingTime = readInfo?.readingTime ?? 0;
+  const readingBookDate = readInfo?.readingBookDate ?? 0;
+  const finishedDateValue = readInfo?.finishedDate ?? 0;
+  const isFinished = finishedDateValue > 0 || rawProgress >= 100;
+  const hasStarted = rawProgress > 0 || readingTime > 0 || readingBookDate > 0;
+  return isFinished ? "finished" : hasStarted ? "reading" : "not_started";
+};
 
 export const useWeReadData = () => {
   const createSnapshot = useMemoizedFn(
@@ -33,29 +44,18 @@ export const useWeReadData = () => {
     const { metaData } = notebook;
     const readInfo = metaData.readInfo;
     const rawProgress = readInfo?.readingProgress ?? 0;
-    const resolvedProgress =
-      rawProgress <= 1 ? Math.round(rawProgress * 100) : rawProgress;
+    const resolvedProgress = rawProgress;
 
     const readingTimeMinutes = Math.round((readInfo?.readingTime ?? 0) / 60);
 
-    let readingStatus = "not_started";
-    if (readInfo) {
-      if (readInfo.finishedDate && readInfo.finishedDate > 0) {
-        readingStatus = "finished";
-      } else if (readInfo.readingBookDate && readInfo.readingBookDate > 0) {
-        readingStatus = "reading";
-      }
-    }
+    const finishedDateValue = readInfo?.finishedDate ?? 0;
+    const readingStatus = resolveWeReadReadingStatus(readInfo);
 
-    const wereadLink =
-      metaData.pcUrl ??
-      (metaData.encodeId
-        ? `https://weread.qq.com/web/reader/${metaData.encodeId}`
-        : getPcUrl(metaData.bookId));
+    const wereadLink = metaData.webUrl ?? metaData.url ?? "";
 
     const finishedDate =
-      readInfo?.finishedDate && readInfo.finishedDate > 0
-        ? dayjs(readInfo.finishedDate * 1000).format("YYYY-MM-DD HH:mm")
+      finishedDateValue > 0
+        ? dayjs(finishedDateValue * 1000).format("YYYY-MM-DD HH:mm")
         : "";
 
     const archiveName = metaData.archiveName || "";
@@ -101,11 +101,7 @@ export const useWeReadData = () => {
       lines.push(`- 字数：${metaData.totalWords}`);
     }
     if (readInfo?.readingProgress !== undefined) {
-      const percent =
-        readInfo.readingProgress <= 1
-          ? (readInfo.readingProgress * 100).toFixed(1)
-          : readInfo.readingProgress.toFixed(1);
-      lines.push(`- 阅读进度：${percent}%`);
+      lines.push(`- 阅读进度：${readInfo.readingProgress}%`);
     }
     if (readInfo?.readingTime) {
       const hours = Math.floor(readInfo.readingTime / 3600);

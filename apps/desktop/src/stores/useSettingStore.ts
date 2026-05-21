@@ -5,7 +5,7 @@ import type { MermaidRenderStyle, MermaidThemeName } from "@tau/shared";
 import type { ImageBorderRadiusPreset, ImageShadowPreset } from "@tau/editor";
 
 import { EGithubCDN } from "@/constants/github";
-import type { WeReadCookie, WeReadSessionStatus } from "@/types/weread";
+import type { WeReadSessionStatus } from "@/types/weread";
 import { ETTSProvider } from "@/types/tts";
 import type { EmbeddingProviderType } from "@/types/embedding";
 import type { MinimaxSpeechModel } from "@/types/minimax";
@@ -415,15 +415,11 @@ export interface ISetting {
     };
     weread: {
       enabled: boolean;
-      loginMethod: "qr" | "manual";
-      cookies: WeReadCookie[];
-      lastCookieTime: number;
-      sessionStatus: WeReadSessionStatus;
+      apiKey: string;
+      connectionStatus: WeReadSessionStatus;
       lastValidatedAt: number;
       statusReason: string;
       userInfo: {
-        name: string;
-        vid: string;
         isConnected: boolean;
       };
     };
@@ -516,22 +512,17 @@ interface IActions {
   setNotionEnabled: (enabled: boolean) => void;
   updateMinimaxApiKey: (apiKey: string) => void;
   setMinimaxEnabled: (enabled: boolean) => void;
-  updateWeReadCookies: (cookies: WeReadCookie[]) => void;
-  clearWeReadCookies: () => void;
+  updateWeReadApiKey: (apiKey: string) => void;
   updateWeReadUserInfo: (
     userInfo: ISetting["integration"]["weread"]["userInfo"],
   ) => void;
-  setWeReadSessionState: (
+  setWeReadConnectionState: (
     payload: Pick<
       ISetting["integration"]["weread"],
-      "sessionStatus" | "lastValidatedAt" | "statusReason"
+      "connectionStatus" | "lastValidatedAt" | "statusReason"
     >,
   ) => void;
-  invalidateWeReadSession: (reason: string) => void;
   setWeReadEnabled: (enabled: boolean) => void;
-  setWeReadLoginMethod: (
-    method: ISetting["integration"]["weread"]["loginMethod"],
-  ) => void;
   setWebClipTranslateToChinese: (enabled: boolean) => void;
   setAutoCacheRemoteVideo: (enabled: boolean) => void;
   setAutoCacheRemoteImage: (enabled: boolean) => void;
@@ -566,38 +557,26 @@ const isSettingNotificationPayload = (
 
 const SETTING_CACHE_KEY = "user-setting-cache";
 
-const safeDecodeSettingValue = (value: string): string => {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
-};
-
-const deriveWeReadUserInfoFromCookies = (cookies: WeReadCookie[]) => {
-  const name = safeDecodeSettingValue(
-    cookies.find((cookie) => cookie.name === "wr_name")?.value ?? "",
-  );
-  const vid = safeDecodeSettingValue(
-    cookies.find((cookie) => cookie.name === "wr_vid")?.value ?? "",
-  );
-  return {
-    name,
-    vid,
-    isConnected: Boolean(name && vid),
-  };
-};
-
 const normalizeWeReadTransientState = (
   weread: ISetting["integration"]["weread"],
 ) => {
-  const nextUserInfo = deriveWeReadUserInfoFromCookies(weread.cookies);
-  weread.enabled = weread.enabled || weread.cookies.length > 0;
-  weread.lastCookieTime = 0;
-  weread.sessionStatus = "unknown";
+  weread.enabled = weread.enabled || Boolean(weread.apiKey?.trim());
+  weread.connectionStatus = "unknown";
   weread.lastValidatedAt = 0;
   weread.statusReason = "";
-  weread.userInfo = nextUserInfo;
+  weread.userInfo = {
+    isConnected: false,
+  };
+
+  if (!weread.apiKey?.trim()) {
+    weread.enabled = false;
+    weread.connectionStatus = "unknown";
+    weread.lastValidatedAt = 0;
+    weread.statusReason = "";
+    weread.userInfo = {
+      isConnected: false,
+    };
+  }
 };
 
 const normalizeTransientSettingState = (setting: ISetting) => {
@@ -614,12 +593,10 @@ export const getWeReadSettingDebugSummary = (
 ) => {
   return {
     enabled: weread.enabled,
-    cookies: weread.cookies.length,
-    sessionStatus: weread.sessionStatus,
+    apiKeyConfigured: Boolean(weread.apiKey?.trim()),
+    connectionStatus: weread.connectionStatus,
     lastValidatedAt: weread.lastValidatedAt,
     statusReason: weread.statusReason,
-    userName: weread.userInfo.name,
-    userVid: weread.userInfo.vid,
   };
 };
 
@@ -952,15 +929,11 @@ const initialState: IState = {
       },
       weread: {
         enabled: false,
-        loginMethod: "qr",
-        cookies: [],
-        lastCookieTime: 0,
-        sessionStatus: "unknown",
+        apiKey: "",
+        connectionStatus: "unknown",
         lastValidatedAt: 0,
         statusReason: "",
         userInfo: {
-          name: "",
-          vid: "",
           isConnected: false,
         },
       },
@@ -1240,35 +1213,23 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       }),
     });
   },
-  updateWeReadCookies: (cookies) => {
+  updateWeReadApiKey: (apiKey) => {
     const { setting } = get();
-    console.info("[WeReadDebug] 更新 Cookie", {
-      count: cookies.length,
-      names: cookies.map((cookie) => cookie.name),
+    console.info("[WeReadDebug] 更新 API Key", {
+      configured: Boolean(apiKey.trim()),
     });
     set({
       setting: produce(setting, (draft) => {
-        draft.integration.weread.cookies = cookies;
-        draft.integration.weread.lastCookieTime = Date.now();
-        draft.integration.weread.enabled = cookies.length > 0;
-      }),
-    });
-  },
-  clearWeReadCookies: () => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, (draft) => {
-        draft.integration.weread.cookies = [];
-        draft.integration.weread.lastCookieTime = Date.now();
-        draft.integration.weread.sessionStatus = "unknown";
-        draft.integration.weread.lastValidatedAt = 0;
-        draft.integration.weread.statusReason = "";
-        draft.integration.weread.userInfo = {
-          name: "",
-          vid: "",
-          isConnected: false,
-        };
-        draft.integration.weread.enabled = false;
+        draft.integration.weread.apiKey = apiKey;
+        draft.integration.weread.enabled = Boolean(apiKey.trim());
+        if (!apiKey.trim()) {
+          draft.integration.weread.connectionStatus = "unknown";
+          draft.integration.weread.lastValidatedAt = 0;
+          draft.integration.weread.statusReason = "";
+          draft.integration.weread.userInfo = {
+            isConnected: false,
+          };
+        }
       }),
     });
   },
@@ -1280,42 +1241,19 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       }),
     });
   },
-  setWeReadSessionState: (payload) => {
+  setWeReadConnectionState: (payload) => {
     const { setting } = get();
-    console.info("[WeReadDebug] 更新会话状态", {
-      from: setting.integration.weread.sessionStatus,
-      to: payload.sessionStatus,
+    console.info("[WeReadDebug] 更新连接状态", {
+      from: setting.integration.weread.connectionStatus,
+      to: payload.connectionStatus,
       reason: payload.statusReason,
       lastValidatedAt: payload.lastValidatedAt,
     });
     set({
       setting: produce(setting, (draft) => {
-        draft.integration.weread.sessionStatus = payload.sessionStatus;
+        draft.integration.weread.connectionStatus = payload.connectionStatus;
         draft.integration.weread.lastValidatedAt = payload.lastValidatedAt;
         draft.integration.weread.statusReason = payload.statusReason;
-      }),
-    });
-  },
-  invalidateWeReadSession: (reason) => {
-    const { setting } = get();
-    const invalidatedAt = Date.now();
-    console.info("[WeReadDebug] 登录失效", {
-      reason,
-      cookieCount: setting.integration.weread.cookies.length,
-    });
-    set({
-      setting: produce(setting, (draft) => {
-        draft.integration.weread.cookies = [];
-        draft.integration.weread.lastCookieTime = invalidatedAt;
-        draft.integration.weread.sessionStatus = "invalid";
-        draft.integration.weread.lastValidatedAt = invalidatedAt;
-        draft.integration.weread.statusReason = reason;
-        draft.integration.weread.userInfo = {
-          name: "",
-          vid: "",
-          isConnected: false,
-        };
-        draft.integration.weread.enabled = false;
       }),
     });
   },
@@ -1324,14 +1262,6 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, (draft) => {
         draft.integration.weread.enabled = enabled;
-      }),
-    });
-  },
-  setWeReadLoginMethod: (method) => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, (draft) => {
-        draft.integration.weread.loginMethod = method;
       }),
     });
   },

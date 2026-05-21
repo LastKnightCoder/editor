@@ -4,23 +4,45 @@ import useSettingStore, {
 } from "../useSettingStore";
 
 describe("useSettingStore persistence snapshot", () => {
-  it("应剥离 WeRead 的运行时状态并从 Cookie 派生用户信息", () => {
+  it("应保留 WeRead API Key，并在未配置时重置运行时连接状态", () => {
     const setting = structuredClone(useSettingStore.getState().setting);
     setting.integration.weread = {
       ...setting.integration.weread,
       enabled: true,
-      cookies: [
-        { name: "wr_name", value: "God%20is%20a%20girl" },
-        { name: "wr_vid", value: "vid-1" },
-      ],
-      lastCookieTime: 123,
-      sessionStatus: "valid",
+      apiKey: "",
+      connectionStatus: "valid",
       lastValidatedAt: 456,
       statusReason: "should reset",
       userInfo: {
-        name: "错误名称",
-        vid: "错误 vid",
+        isConnected: true,
+      },
+    };
+
+    const persisted = buildPersistedSettingSnapshot(setting);
+
+    expect(persisted.integration.weread).toEqual({
+      ...setting.integration.weread,
+      enabled: false,
+      connectionStatus: "unknown",
+      lastValidatedAt: 0,
+      statusReason: "",
+      userInfo: {
         isConnected: false,
+      },
+    });
+  });
+
+  it("已配置 API Key 时也不应持久化 WeRead 运行时连接状态", () => {
+    const setting = structuredClone(useSettingStore.getState().setting);
+    setting.integration.weread = {
+      ...setting.integration.weread,
+      enabled: true,
+      apiKey: "wrk-test-key",
+      connectionStatus: "valid",
+      lastValidatedAt: 456,
+      statusReason: "runtime status",
+      userInfo: {
+        isConnected: true,
       },
     };
 
@@ -29,18 +51,11 @@ describe("useSettingStore persistence snapshot", () => {
     expect(persisted.integration.weread).toEqual({
       ...setting.integration.weread,
       enabled: true,
-      cookies: [
-        { name: "wr_name", value: "God%20is%20a%20girl" },
-        { name: "wr_vid", value: "vid-1" },
-      ],
-      lastCookieTime: 0,
-      sessionStatus: "unknown",
+      connectionStatus: "unknown",
       lastValidatedAt: 0,
       statusReason: "",
       userInfo: {
-        name: "God is a girl",
-        vid: "vid-1",
-        isConnected: true,
+        isConnected: false,
       },
     });
   });

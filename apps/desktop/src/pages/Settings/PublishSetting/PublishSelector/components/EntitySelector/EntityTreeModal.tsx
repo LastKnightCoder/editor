@@ -1,4 +1,4 @@
-import { memo, useState, useMemo, useCallback } from "react";
+import { memo, useState, useMemo, useCallback, useEffect } from "react";
 import classNames from "classnames";
 import useThemeColors from "@/hooks/useThemeColors";
 import CustomModal from "@/components/CustomModal";
@@ -50,11 +50,28 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
 
     const [activeNodeId, setActiveNodeId] = useState<number | null>(null);
 
+    useEffect(() => {
+      if (!open) return;
+      if (currentScope?.mode === "partial") {
+        setSelectedIds(new Set(currentScope.nodeIds));
+      } else {
+        setSelectedIds(new Set(totalIds));
+      }
+      setActiveNodeId(null);
+    }, [open, entity.id, currentScope, totalIds]);
+
     // 当前预览的节点
     const previewNode = useMemo(() => {
       if (!activeNodeId) return null;
       return findDocTreeNode(nodes, activeNodeId) || null;
     }, [nodes, activeNodeId]);
+
+    useEffect(() => {
+      if (activeNodeId === null) return;
+      if (!previewNode) {
+        setActiveNodeId(null);
+      }
+    }, [activeNodeId, previewNode]);
 
     // 切换节点选中状态
     const handleToggleNode = useCallback((node: DocTreeNode) => {

@@ -28,7 +28,7 @@ export class WeReadRateLimitError extends WeReadError {
  * 登录过期错误
  */
 export class WeReadSessionExpiredError extends WeReadError {
-  constructor(message = "登录状态已过期，请重新登录微信读书") {
+  constructor(message = "连接状态已失效，请重新检查微信读书 API Key") {
     super(message, -2012, true);
     this.name = "WeReadSessionExpiredError";
   }
@@ -48,7 +48,7 @@ export class WeReadNetworkError extends WeReadError {
  * 未登录错误
  */
 export class WeReadNotLoggedInError extends WeReadError {
-  constructor(message = "请先登录微信读书") {
+  constructor(message = "请先配置微信读书 API Key") {
     super(message, 0, false);
     this.name = "WeReadNotLoggedInError";
   }
@@ -115,9 +115,11 @@ export function handleWeReadError(error: unknown): never {
  * 清除登录状态
  */
 function clearLoginState() {
-  useSettingStore
-    .getState()
-    .invalidateWeReadSession("登录状态已过期，请重新登录微信读书");
+  useSettingStore.getState().setWeReadConnectionState({
+    connectionStatus: "invalid",
+    lastValidatedAt: Date.now(),
+    statusReason: "连接状态已失效，请重新检查微信读书 API Key",
+  });
 }
 
 /**

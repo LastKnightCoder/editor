@@ -1,7 +1,7 @@
 import { memo } from "react";
 import classNames from "classnames";
 import {
-  AiOutlineLogin,
+  AiOutlineSetting,
   AiOutlineInfoCircle,
   AiOutlineWarning,
 } from "react-icons/ai";
@@ -34,16 +34,17 @@ interface ThemeColors {
 interface WeReadContentProps {
   isConnected: boolean;
   initializing: boolean;
-  hasStoredSession: boolean;
+  hasApiKey: boolean;
   error: string | null;
   syncing: boolean;
+  syncProgress?: { completed: number; total: number } | null;
   rows: RowData[];
   columns: ColumnDef[];
   views: DataTableView[];
   activeViewId: number;
   activeViewConfig: any;
   databaseKey: string;
-  onQuickLogin: () => void;
+  onOpenSettings: () => void;
   onDataChange: (data: DatabaseData) => void;
   onViewConfigChange: (config: any) => void;
   onCreateView: (viewData: any) => Promise<DataTableView | null>;
@@ -63,16 +64,17 @@ export const WeReadContent: React.FC<WeReadContentProps> = memo((props) => {
   const {
     isConnected,
     initializing,
-    hasStoredSession,
+    hasApiKey,
     error,
     syncing,
+    syncProgress,
     rows,
     columns,
     views,
     activeViewId,
     activeViewConfig,
     databaseKey,
-    onQuickLogin,
+    onOpenSettings,
     onDataChange,
     onViewConfigChange,
     onCreateView,
@@ -88,6 +90,10 @@ export const WeReadContent: React.FC<WeReadContentProps> = memo((props) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const hasCachedRows = rows.length > 0;
+  const syncPercent =
+    syncProgress && syncProgress.total > 0
+      ? Math.floor((syncProgress.completed / syncProgress.total) * 100)
+      : 0;
 
   if (initializing) {
     return (
@@ -99,8 +105,8 @@ export const WeReadContent: React.FC<WeReadContentProps> = memo((props) => {
           )}
         />
         <p className={classNames("text-sm mt-4", themeColors.textClass)}>
-          {hasStoredSession
-            ? "正在恢复微信读书状态..."
+          {hasApiKey
+            ? "正在校验微信读书 API Key..."
             : "正在加载微信读书数据..."}
         </p>
       </div>
@@ -135,18 +141,20 @@ export const WeReadContent: React.FC<WeReadContentProps> = memo((props) => {
             themeColors.textClass,
           )}
         >
-          请先登录微信读书账号以同步书籍和笔记信息
+          请先配置微信读书 API Key 以同步书籍和笔记信息
+          <br />
+          请在设置中填写微信读书 API Key
         </p>
         <button
-          onClick={onQuickLogin}
+          onClick={onOpenSettings}
           className={classNames(
             "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer",
             themeColors.buttonBg,
             themeColors.buttonTextClass,
           )}
         >
-          <AiOutlineLogin />
-          扫码登录
+          <AiOutlineSetting />
+          打开设置
         </button>
       </div>
     );
@@ -184,7 +192,9 @@ export const WeReadContent: React.FC<WeReadContentProps> = memo((props) => {
           )}
         />
         <p className={classNames("text-sm mt-4", themeColors.textClass)}>
-          正在同步...
+          {syncProgress && syncProgress.total > 0
+            ? `正在同步 ${syncProgress.completed}/${syncProgress.total} · ${syncPercent}%`
+            : "正在同步..."}
         </p>
       </div>
     );

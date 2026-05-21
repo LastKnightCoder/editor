@@ -67,6 +67,7 @@ class Extra implements Module {
       httpProxy?: string;
       isRaw?: boolean;
       timeoutMs?: number;
+      allowHttpErrorStatus?: boolean;
     },
   ) {
     const newOptions = { ...options };
@@ -86,6 +87,10 @@ class Extra implements Module {
     if (typeof newOptions.timeout === "undefined") {
       newOptions.timeout =
         typeof newOptions.timeoutMs === "number" ? newOptions.timeoutMs : 30000;
+    }
+    if (newOptions.allowHttpErrorStatus) {
+      newOptions.validateStatus = () => true;
+      delete newOptions.allowHttpErrorStatus;
     }
 
     // 代理支持（http/https）：如果传入 httpProxy，则注入 agent，并禁用 axios 内置 proxy 选项
