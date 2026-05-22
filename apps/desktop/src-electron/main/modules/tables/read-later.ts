@@ -52,6 +52,33 @@ export default class ReadLaterTable {
     payload: CreateReadLaterPayload,
   ): ReadLaterItem {
     const now = Date.now();
+    if (payload.sourceType === "url" && payload.url) {
+      const existing = db
+        .prepare(
+          `SELECT * FROM read_later WHERE source_type = 'url' AND url = ?`,
+        )
+        .get(payload.url) as Record<string, unknown> | undefined;
+      if (existing) {
+        db.prepare(
+          `UPDATE read_later
+           SET title = ?, excerpt = ?, content = ?, tags = ?, update_time = ?
+           WHERE id = ?`,
+        ).run(
+          payload.title,
+          payload.excerpt ?? existing.excerpt,
+          payload.content ?? existing.content,
+          payload.tags ?? existing.tags,
+          now,
+          existing.id,
+        );
+        const item = this.getById(db, existing.id as number);
+        if (!item) {
+          throw new Error("Failed to update read later item");
+        }
+        return item;
+      }
+    }
+
     const stmt = db.prepare(`
       INSERT INTO read_later (create_time, update_time, source_type, source_id, title, url, excerpt, content, tags)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
