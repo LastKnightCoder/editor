@@ -13,7 +13,7 @@ interface OpmlOutline {
   children?: OpmlOutline[];
 }
 
-function parseOpml(xml: string): OpmlOutline[] {
+export function parseOpml(xml: string): OpmlOutline[] {
   const outlines: OpmlOutline[] = [];
 
   function parseOutlines(
@@ -32,7 +32,7 @@ function parseOpml(xml: string): OpmlOutline[] {
         const attrMatch = attrs.match(
           new RegExp(`${name}=["']([^"']*)["']`, "i"),
         );
-        return attrMatch ? attrMatch[1] : undefined;
+        return attrMatch ? decodeXml(attrMatch[1]) : undefined;
       };
 
       const title = getAttr("title") || getAttr("text") || "";
@@ -61,6 +61,16 @@ function parseOpml(xml: string): OpmlOutline[] {
     return parseOutlines(bodyMatch[1]);
   }
   return outlines;
+}
+
+function decodeXml(str: string): string {
+  return str
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'");
 }
 
 function generateOpml(

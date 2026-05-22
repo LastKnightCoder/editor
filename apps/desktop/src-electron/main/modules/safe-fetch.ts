@@ -10,16 +10,20 @@ const BLOCKED_HOSTS = new Set([
   "localhost",
   "127.0.0.1",
   "0.0.0.0",
+  "::1",
   "[::1]",
   "metadata.google.internal",
   "169.254.169.254",
 ]);
 
 function isPrivateIP(hostname: string): boolean {
-  if (BLOCKED_HOSTS.has(hostname)) return true;
+  const normalized = hostname.toLowerCase().replace(/\.$/, "");
+  if (BLOCKED_HOSTS.has(normalized) || normalized.endsWith(".localhost")) {
+    return true;
+  }
 
   // IPv4 private ranges
-  const ipv4Match = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  const ipv4Match = normalized.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
   if (ipv4Match) {
     const [, a, b] = ipv4Match.map(Number);
     if (a === 10) return true; // 10.0.0.0/8
@@ -68,7 +72,11 @@ export function safeFetchHtml(
     maxBytes = MAX_RESPONSE_BYTES,
   } = options;
 
-  validateUrl(url);
+  try {
+    validateUrl(url);
+  } catch (e) {
+    return Promise.reject(e);
+  }
 
   return new Promise((resolve, reject) => {
     const request = net.request({
