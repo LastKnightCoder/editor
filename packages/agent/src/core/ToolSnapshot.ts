@@ -14,6 +14,17 @@ const safeStringify = (payload: unknown) => {
   }
 };
 
+const summarizeText = (text: string | undefined | null, limit = 180) => {
+  const normalized = text || "";
+  return {
+    length: normalized.length,
+    preview:
+      normalized.length > limit
+        ? `${normalized.slice(0, limit)}...`
+        : normalized,
+  };
+};
+
 export class ToolSnapshot {
   private readonly toolsByName: Map<string, AgentTool>;
 
@@ -62,6 +73,12 @@ export class ToolSnapshot {
             ? JSON.parse(call.function.arguments)
             : {};
       } catch (error) {
+        console.warn("[AgentToolSnapshot] tool arguments parse failed", {
+          toolCallId: call.id,
+          toolName: call.function.name,
+          arguments: summarizeText(call.function.arguments),
+          error: (error as Error).message,
+        });
         return {
           content: `参数解析失败: ${(error as Error).message}`,
           isParameterError: true,
