@@ -4,21 +4,35 @@ import {
   isEmbeddingModelDownloaded,
 } from "@/commands/embedding-model";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
+import useGlobalStateStore from "@/stores/useGlobalStateStore";
+import useSettingStore from "@/stores/useSettingStore";
 import { searchContent } from "@/utils/search";
 
 const SEARCH_WARMUP_QUERY = "__tau_search_warmup__";
 
 const useSearchWarmUp = () => {
   const modelInfo = useEmbeddingConfig();
-  const warmupKeysRef = useRef<Set<string>>(new Set());
+  const activeDatabase = useSettingStore(
+    (state) => state.setting.database.active,
+  );
+  const databaseStatus = useGlobalStateStore((state) =>
+    activeDatabase ? state.databaseStatus[activeDatabase] : undefined,
+  );
+  const warmedKeysRef = useRef<Set<string>>(new Set());
+  const warmingKeysRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
+    if (!activeDatabase || databaseStatus !== "ready") {
+      return;
+    }
+
     const canWarmUpLocalEmbedding =
       !!modelInfo &&
       modelInfo.providerType === "local_python" &&
       !!modelInfo.model;
 
     const warmupKey = [
+      activeDatabase,
       modelInfo?.configId || "",
       modelInfo?.providerType || "",
       modelInfo?.model || "",
@@ -26,10 +40,13 @@ const useSearchWarmUp = () => {
       modelInfo?.localModelDir || "",
     ].join("|");
 
-    if (warmupKeysRef.current.has(warmupKey)) {
+    if (
+      warmedKeysRef.current.has(warmupKey) ||
+      warmingKeysRef.current.has(warmupKey)
+    ) {
       return;
     }
-    warmupKeysRef.current.add(warmupKey);
+    warmingKeysRef.current.add(warmupKey);
 
     let cancelled = false;
 
@@ -65,10 +82,15 @@ const useSearchWarmUp = () => {
           limit: 1,
           ...(searchModelInfo ? { modelInfo: searchModelInfo } : {}),
         });
+        if (!cancelled) {
+          warmedKeysRef.current.add(warmupKey);
+        }
       } catch (error) {
         if (!cancelled) {
           console.warn("[SearchWarmUp] 预热异常:", error);
         }
+      } finally {
+        warmingKeysRef.current.delete(warmupKey);
       }
     };
 
@@ -77,7 +99,7 @@ const useSearchWarmUp = () => {
     return () => {
       cancelled = true;
     };
-  }, [modelInfo]);
+  }, [activeDatabase, databaseStatus, modelInfo]);
 };
 
 export default useSearchWarmUp;

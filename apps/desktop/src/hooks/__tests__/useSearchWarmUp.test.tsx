@@ -7,6 +7,8 @@ import {
   embeddingModelHealth,
   isEmbeddingModelDownloaded,
 } from "@/commands/embedding-model";
+import useGlobalStateStore from "@/stores/useGlobalStateStore";
+import useSettingStore from "@/stores/useSettingStore";
 import { searchContent } from "@/utils/search";
 
 (
@@ -45,6 +47,11 @@ const HookHarness = () => {
 };
 
 describe("useSearchWarmUp", () => {
+  const initialSetting = structuredClone(useSettingStore.getState().setting);
+  const initialDatabaseStatus = {
+    ...useGlobalStateStore.getState().databaseStatus,
+  };
+
   let container: HTMLDivElement;
   let root: Root;
 
@@ -53,6 +60,20 @@ describe("useSearchWarmUp", () => {
     document.body.appendChild(container);
     root = createRoot(container);
     vi.clearAllMocks();
+    useSettingStore.setState((state) => ({
+      ...state,
+      setting: {
+        ...state.setting,
+        database: {
+          ...state.setting.database,
+          active: "data.db",
+        },
+      },
+    }));
+    useGlobalStateStore.setState((state) => ({
+      ...state,
+      databaseStatus: {},
+    }));
   });
 
   afterEach(() => {
@@ -60,11 +81,59 @@ describe("useSearchWarmUp", () => {
       root.unmount();
     });
     container.remove();
+    useSettingStore.setState((state) => ({
+      ...state,
+      setting: structuredClone(initialSetting),
+    }));
+    useGlobalStateStore.setState((state) => ({
+      ...state,
+      databaseStatus: { ...initialDatabaseStatus },
+    }));
   });
 
-  it("本地 embedding 已下载时先预热模型，再执行一次真实搜索", async () => {
+  it("数据库未 ready 时不会提前触发预热搜索", async () => {
+    useGlobalStateStore.setState((state) => ({
+      ...state,
+      databaseStatus: {
+        ...state.databaseStatus,
+        "data.db": "connecting",
+      },
+    }));
+
     await act(async () => {
       root.render(<HookHarness />);
+      await flushPromises();
+    });
+
+    expect(isEmbeddingModelDownloaded).not.toHaveBeenCalled();
+    expect(embeddingModelHealth).not.toHaveBeenCalled();
+    expect(searchContent).not.toHaveBeenCalled();
+  });
+
+  it("数据库 ready 后先预热模型，再执行一次真实搜索", async () => {
+    useGlobalStateStore.setState((state) => ({
+      ...state,
+      databaseStatus: {
+        ...state.databaseStatus,
+        "data.db": "connecting",
+      },
+    }));
+
+    await act(async () => {
+      root.render(<HookHarness />);
+      await flushPromises();
+    });
+
+    expect(searchContent).not.toHaveBeenCalled();
+
+    await act(async () => {
+      useGlobalStateStore.setState((state) => ({
+        ...state,
+        databaseStatus: {
+          ...state.databaseStatus,
+          "data.db": "ready",
+        },
+      }));
       await flushPromises();
     });
 
@@ -80,5 +149,49 @@ describe("useSearchWarmUp", () => {
       vi.mocked(embeddingModelHealth).mock.invocationCallOrder[0];
     const searchOrder = vi.mocked(searchContent).mock.invocationCallOrder[0];
     expect(searchOrder).toBeGreaterThan(healthOrder);
+  });
+
+  it("预热搜索失败后不会标记完成，后续 ready 变化会重试", async () => {
+    vi.mocked(searchContent)
+      .mockRejectedValueOnce(new Error("No database name found"))
+      .mockResolvedValueOnce([]);
+
+    useGlobalStateStore.setState((state) => ({
+      ...state,
+      databaseStatus: {
+        ...state.databaseStatus,
+        "data.db": "ready",
+      },
+    }));
+
+    await act(async () => {
+      root.render(<HookHarness />);
+      await flushPromises();
+    });
+
+    expect(searchContent).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      useGlobalStateStore.setState((state) => ({
+        ...state,
+        databaseStatus: {
+          ...state.databaseStatus,
+          "data.db": "reconnecting",
+        },
+      }));
+    });
+
+    await act(async () => {
+      useGlobalStateStore.setState((state) => ({
+        ...state,
+        databaseStatus: {
+          ...state.databaseStatus,
+          "data.db": "ready",
+        },
+      }));
+      await flushPromises();
+    });
+
+    expect(searchContent).toHaveBeenCalledTimes(2);
   });
 });

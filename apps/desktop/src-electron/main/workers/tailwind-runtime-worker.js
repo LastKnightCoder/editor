@@ -44,6 +44,7 @@ async function runJob(job) {
   const runtimeCss = `${BASE_CSS}\n@source "${normalizedPath}";\n`;
 
   try {
+    await fs.promises.mkdir(tempDir, { recursive: true });
     await fs.promises.writeFile(tempFilePath, content, "utf8");
 
     const builder = await compileTailwind(runtimeCss, {
