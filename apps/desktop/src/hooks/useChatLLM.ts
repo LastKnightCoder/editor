@@ -19,6 +19,7 @@ import { toExternalAgentTools } from "@/agent/externalAgentTools";
 import { getToolRegistryAgentTools } from "@/agent/toolRegistryAgentTools";
 import { SUBAGENT_RESEARCH_TOOL_NAME } from "@/agent/subagentResearch";
 import { getToolExecutionTimeout } from "@/tools/toolRuntimePolicy";
+import { SHOW_WIDGET_TOOL_NAME } from "@/generative-ui/constants";
 
 ensureToolingReady();
 
@@ -186,6 +187,51 @@ const isTransientError = (error: Error): boolean => {
     "504",
   ];
   return transientPatterns.some((p) => msg.includes(p));
+};
+
+const shouldPublishStreamingToolPlan = (toolCalls: ToolCallPayload[]) =>
+  toolCalls.some((call) => call.function.name === SHOW_WIDGET_TOOL_NAME);
+
+const buildToolCallPlaceholders = (
+  toolCalls: ToolCallPayload[],
+): ToolCallPayload[] =>
+  toolCalls.map((call) => ({
+    ...call,
+    function: {
+      ...call.function,
+      arguments: "",
+    },
+  }));
+
+const upsertPendingToolExecutions = (
+  currentExecutions: ToolCallExecutionState[],
+  toolCalls: ToolCallPayload[],
+): ToolCallExecutionState[] => {
+  const nextExecutions = [...currentExecutions];
+  for (const call of toolCalls) {
+    const existingIndex = nextExecutions.findIndex(
+      (execution) => execution.toolCallId === call.id,
+    );
+    const nextExecution: ToolCallExecutionState = {
+      toolCallId: call.id,
+      toolName: call.function.name,
+      status: "pending",
+      input: call.function.arguments || "",
+      timestamp: Date.now(),
+    };
+
+    if (existingIndex >= 0) {
+      nextExecutions[existingIndex] = {
+        ...nextExecutions[existingIndex],
+        toolName: nextExecution.toolName,
+        input: nextExecution.input,
+      };
+      continue;
+    }
+
+    nextExecutions.push(nextExecution);
+  }
+  return nextExecutions;
 };
 
 const mapAgentExecutionToToolState = (
@@ -397,6 +443,7 @@ export const chatStreamCore = async (
   try {
     let toolExecutions: ToolCallExecutionState[] = [];
     let currentTurnToolCalls: ToolCallPayload[] = [];
+    const publishedStreamingToolCallIds = new Set<string>();
 
     const getCurrentTurnExecutions = () => {
       const currentToolCallIds = new Set(
@@ -436,12 +483,43 @@ export const chatStreamCore = async (
       }
 
       if (event.type === "tool-call-planned") {
-        currentTurnToolCalls = event.toolCalls as ToolCallPayload[];
-        toolExecutions = toolIntegrationRegistry.upsertStreamingExecutions(
-          toolExecutions,
-          currentTurnToolCalls,
-          event.phase === "streaming" ? "streaming" : "preview",
-        );
+        const streamingPhase = event.phase === "streaming";
+        const eventToolCalls = event.toolCalls as ToolCallPayload[];
+        const supportsStreamingPreview =
+          shouldPublishStreamingToolPlan(eventToolCalls);
+        const shouldPublishStreamingPlaceholder =
+          streamingPhase &&
+          !supportsStreamingPreview &&
+          eventToolCalls.some(
+            (call) => !publishedStreamingToolCallIds.has(call.id),
+          );
+        const shouldPublishStreamingPlan =
+          !streamingPhase ||
+          supportsStreamingPreview ||
+          shouldPublishStreamingPlaceholder;
+        if (!shouldPublishStreamingPlan) {
+          continue;
+        }
+        currentTurnToolCalls = shouldPublishStreamingPlaceholder
+          ? buildToolCallPlaceholders(eventToolCalls)
+          : eventToolCalls;
+        if (shouldPublishStreamingPlaceholder) {
+          eventToolCalls.forEach((call) =>
+            publishedStreamingToolCallIds.add(call.id),
+          );
+        }
+        const integratedExecutions =
+          toolIntegrationRegistry.upsertStreamingExecutions(
+            toolExecutions,
+            currentTurnToolCalls,
+            streamingPhase ? "streaming" : "preview",
+          );
+        toolExecutions = shouldPublishStreamingPlaceholder
+          ? upsertPendingToolExecutions(
+              integratedExecutions,
+              currentTurnToolCalls,
+            )
+          : integratedExecutions;
         onToolCallsUpdate?.(
           getCurrentTurnExecutions(),
           event.turnId,

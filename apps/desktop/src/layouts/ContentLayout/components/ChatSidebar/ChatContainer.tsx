@@ -920,9 +920,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           },
 
           onError: (error) => {
-            const isAbortError =
-              error.name === "AbortError" ||
-              /aborted|abort|cancelled/i.test(error.message);
+            const isAbortError = error.name === "AbortError";
             const finalizedChat = finalizeActiveAssistantTurn();
             if (finalizedChat) {
               actualCurrentChat = finalizedChat;
