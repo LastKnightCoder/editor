@@ -299,6 +299,236 @@ describe("stream", () => {
     });
   });
 
+  it("Responses 参数 delta 未完成时不应当作可执行工具调用", async () => {
+    fetchEventSourceMock.mockImplementation(async (_url, options) => {
+      await options.onopen(
+        new Response("", {
+          status: 200,
+          headers: {
+            "content-type": "text/event-stream",
+          },
+        }),
+      );
+      options.onmessage({
+        data: JSON.stringify({
+          type: "response.output_item.added",
+          output_index: 0,
+          item: {
+            id: "fc_1",
+            type: "function_call",
+            call_id: "call_1",
+            name: "ask-question",
+            arguments: "",
+          },
+        }),
+      });
+      options.onmessage({
+        data: JSON.stringify({
+          type: "response.function_call_arguments.delta",
+          item_id: "fc_1",
+          output_index: 0,
+          delta: '{"questions":[{"question":"请选择',
+        }),
+      });
+      options.onmessage({ data: "[DONE]" });
+    });
+
+    const result = await stream(
+      "https://example.com/v1/responses",
+      { input: [] },
+      {
+        Authorization: "Bearer test",
+      },
+      new AbortController(),
+      createResponsesStreamParser(),
+      {
+        disableAnimation: true,
+      },
+    );
+
+    expect(result).toEqual({
+      type: "response",
+      finishReason: null,
+    });
+  });
+
+  it("Chat Completions 半截参数且未声明 tool_calls 完成时不应执行工具", async () => {
+    fetchEventSourceMock.mockImplementation(async (_url, options) => {
+      await options.onopen(
+        new Response("", {
+          status: 200,
+          headers: {
+            "content-type": "text/event-stream",
+          },
+        }),
+      );
+      options.onmessage({
+        data: JSON.stringify({
+          choices: [
+            {
+              delta: {
+                content: "我需要确认一下",
+              },
+            },
+          ],
+        }),
+      });
+      options.onmessage({
+        data: JSON.stringify({
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "call-1",
+                    type: "function",
+                    function: {
+                      name: "ask-question",
+                      arguments: '{"questions":[{"question":"请选择',
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+      });
+      options.onmessage({ data: "[DONE]" });
+    });
+
+    const result = await stream(
+      "https://example.com/chat/completions",
+      { messages: [] },
+      {
+        Authorization: "Bearer test",
+      },
+      new AbortController(),
+      {
+        parse: (text) => {
+          const json = JSON.parse(text);
+          const choice = json.choices?.[0];
+          return {
+            delta: choice?.delta,
+            finish_reason: choice?.finish_reason,
+          };
+        },
+      },
+      {
+        disableAnimation: true,
+      },
+    );
+
+    expect(result).toEqual({
+      type: "response",
+      finishReason: null,
+    });
+  });
+
+  it("Claude 风格 tool_use 完成但参数仍是半截 JSON 时不应执行工具", async () => {
+    fetchEventSourceMock.mockImplementation(async (_url, options) => {
+      await options.onopen(
+        new Response("", {
+          status: 200,
+          headers: {
+            "content-type": "text/event-stream",
+          },
+        }),
+      );
+      options.onmessage({
+        data: JSON.stringify({
+          type: "content_block_start",
+          index: 0,
+          content_block: {
+            type: "tool_use",
+            id: "toolu_1",
+            name: "ask-question",
+            input: {},
+          },
+        }),
+      });
+      options.onmessage({
+        data: JSON.stringify({
+          type: "content_block_delta",
+          index: 0,
+          delta: {
+            type: "input_json_delta",
+            partial_json: '{"questions":[{"question":"请选择',
+          },
+        }),
+      });
+      options.onmessage({
+        data: JSON.stringify({
+          type: "message_delta",
+          delta: {
+            stop_reason: "tool_use",
+          },
+        }),
+      });
+      options.onmessage({ data: "[DONE]" });
+    });
+
+    const result = await stream(
+      "https://example.com/v1/messages",
+      { messages: [] },
+      {
+        "x-api-key": "test",
+      },
+      new AbortController(),
+      {
+        parse: (text) => {
+          const json = JSON.parse(text);
+          if (json.type === "content_block_start") {
+            const block = json.content_block;
+            if (block?.type === "tool_use") {
+              return {
+                delta: {
+                  tool_calls: [
+                    {
+                      index: json.index,
+                      id: block.id,
+                      type: "function",
+                      function: { name: block.name, arguments: "" },
+                    },
+                  ],
+                },
+              };
+            }
+          }
+          if (json.type === "content_block_delta") {
+            const delta = json.delta;
+            if (delta?.type === "input_json_delta") {
+              return {
+                delta: {
+                  tool_calls: [
+                    {
+                      index: json.index,
+                      function: { arguments: delta.partial_json },
+                    },
+                  ],
+                },
+              };
+            }
+          }
+          if (json.type === "message_delta") {
+            return json.delta?.stop_reason === "tool_use"
+              ? { finish_reason: "tool_calls" as const }
+              : undefined;
+          }
+          return undefined;
+        },
+      },
+      {
+        disableAnimation: true,
+      },
+    );
+
+    expect(result).toEqual({
+      type: "response",
+      finishReason: "tool_calls",
+    });
+  });
+
   it("应忽略空白 SSE data 帧而不打印 parse error", async () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 

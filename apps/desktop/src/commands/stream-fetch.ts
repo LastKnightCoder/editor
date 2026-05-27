@@ -127,6 +127,47 @@ const buildResponsesToolCallList = (
     }))
     .filter((call) => call.function.name);
 
+const getToolArgumentState = (call: ToolCallPayload) => {
+  const args = call.function.arguments?.trim() ?? "";
+  if (!call.function.name) {
+    return {
+      executable: false,
+      reason: "missing_tool_name",
+    };
+  }
+  if (!args) {
+    return {
+      executable: true,
+      reason: "empty_arguments",
+    };
+  }
+
+  try {
+    JSON.parse(args);
+    return {
+      executable: true,
+      reason: "valid_json",
+    };
+  } catch (error) {
+    return {
+      executable: false,
+      reason: "invalid_json",
+      parseError: (error as Error).message,
+    };
+  }
+};
+
+const summarizeToolCallForDebug = (call: ToolCallPayload) => {
+  const argumentState = getToolArgumentState(call);
+  return {
+    id: call.id,
+    name: call.function.name,
+    argumentLength: call.function.arguments?.length ?? 0,
+    argumentPreview: summarizeText(call.function.arguments, 180),
+    argumentState,
+  };
+};
+
 export const createResponsesStreamParser = () => {
   const functionCalls = new Map<number, ResponsesFunctionCallState>();
   const upsertFunctionCall = (
@@ -150,7 +191,6 @@ export const createResponsesStreamParser = () => {
               },
             })),
           },
-          finish_reason: "tool_calls" as const,
         }
       : undefined;
   };
@@ -200,9 +240,17 @@ export const createResponsesStreamParser = () => {
             id: event.item_id,
             arguments: finalArguments,
           });
-          return missingArguments
-            ? toolCallsDelta(new Map([[outputIndex, missingArguments]]))
-            : { finish_reason: "tool_calls" as const };
+          if (!missingArguments) {
+            return { finish_reason: "tool_calls" as const };
+          }
+
+          const deltaResult = toolCallsDelta(
+            new Map([[outputIndex, missingArguments]]),
+          );
+          return {
+            ...(deltaResult || {}),
+            finish_reason: "tool_calls" as const,
+          };
         }
         case "response.completed": {
           let addedFromCompleted = false;
@@ -589,6 +637,10 @@ export function stream(
       const pendingToolCalls = toolCallBuffer.size
         ? buildToolCallList(toolCallBuffer)
         : [];
+      const toolCallArgumentStates = pendingToolCalls.map((call) => ({
+        call,
+        argumentState: getToolArgumentState(call),
+      }));
 
       emitDebugLog("ChatAPI.stream_finish", {
         finishReason,
@@ -604,18 +656,31 @@ export function stream(
         eventSequence: streamDebugState.eventSequence,
         responseText: summarizeText(responseText + remainText),
         reasoningText: summarizeText(reasoningText + reasoningRemainText),
-        pendingToolCalls: pendingToolCalls.map((call) => ({
-          id: call.id,
-          name: call.function.name,
-          argumentLength: call.function.arguments?.length ?? 0,
-        })),
+        pendingToolCalls: pendingToolCalls.map(summarizeToolCallForDebug),
       });
 
-      if (finishReason === "tool_calls" || pendingToolCalls.length > 0) {
+      const executableToolCalls = toolCallArgumentStates
+        .filter((item) => item.argumentState.executable)
+        .map((item) => item.call);
+
+      if (pendingToolCalls.length > executableToolCalls.length) {
+        emitDebugLog("ChatAPI.skip_incomplete_tool_calls", {
+          skippedCount: pendingToolCalls.length - executableToolCalls.length,
+          skippedToolCalls: toolCallArgumentStates
+            .filter((item) => !item.argumentState.executable)
+            .map((item) => summarizeToolCallForDebug(item.call)),
+        });
+      }
+
+      if (executableToolCalls.length > 0) {
+        emitDebugLog("ChatAPI.execute_tool_calls", {
+          executableCount: executableToolCalls.length,
+          toolCalls: executableToolCalls.map(summarizeToolCallForDebug),
+        });
         resolve({
           type: "tool_calls",
           finishReason: "tool_calls",
-          toolCalls: pendingToolCalls,
+          toolCalls: executableToolCalls,
           content: responseText + remainText,
           reasoning_content: reasoningText + reasoningRemainText,
         });
