@@ -308,7 +308,10 @@ const useFlashcardStore = create<FlashcardState & FlashcardActions>()(
       queueReviews: async (params) => {
         set({ loadingReview: true });
         try {
-          const deckId = params?.deckId ?? get().activeDeckId ?? undefined;
+          const deckId =
+            params && "deckId" in params
+              ? (params.deckId ?? undefined)
+              : (get().activeDeckId ?? undefined);
           const queue = await getFlashcardReviewQueue({
             deckId,
             includeUpcoming: params?.includeUpcoming,

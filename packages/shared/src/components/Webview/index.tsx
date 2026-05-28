@@ -285,11 +285,12 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
     return (
       <div className={className} style={style}>
         <webview
+          key={resolvedSrc}
           ref={webviewRef as any}
           src={resolvedSrc}
           style={{ width: "100%", height: "100%" }}
           preload={preload}
-          allowpopups={allowPopups}
+          {...(allowPopups ? { allowpopups: true } : {})}
           useragent={userAgent}
           webpreferences="sandbox=true,contextIsolation=true,enableRemoteModule=false,nodeIntegration=false"
           partition="persist:main"

@@ -40,6 +40,7 @@ export interface QuestionItemHandlers {
 
 interface QuestionItemProps extends QuestionItemHandlers {
   showBorder?: boolean;
+  editMode?: "inline" | "modal";
   question: IQuestion;
   groups: { id: number; title: string }[];
   allQuestionIds: number[];
@@ -67,6 +68,7 @@ const getTypeIcon = (type?: string) => {
 const QuestionItem = memo(
   ({
     showBorder = true,
+    editMode = "inline",
     question: q,
     groups,
     allQuestionIds,
@@ -247,7 +249,11 @@ const QuestionItem = memo(
               if (clickTimerRef.current) {
                 clearTimeout(clickTimerRef.current);
                 clickTimerRef.current = null;
-                setIsEditing(true);
+                if (editMode === "modal") {
+                  onViewDetails(q.id);
+                } else {
+                  setIsEditing(true);
+                }
                 return;
               }
 

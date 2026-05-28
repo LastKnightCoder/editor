@@ -104,8 +104,7 @@ export interface CreateFlashcardDeckInput {
   meta?: Record<string, unknown> | null;
 }
 
-export interface UpdateFlashcardDeckInput
-  extends Partial<CreateFlashcardDeckInput> {
+export interface UpdateFlashcardDeckInput extends Partial<CreateFlashcardDeckInput> {
   id: number;
 }
 
@@ -141,8 +140,9 @@ export interface CreateFlashcardInput {
   references?: FlashcardReferenceInput[];
 }
 
-export interface UpdateFlashcardInput
-  extends Partial<Omit<CreateFlashcardInput, "deckId">> {
+export interface UpdateFlashcardInput extends Partial<
+  Omit<CreateFlashcardInput, "deckId">
+> {
   id: number;
   deckId?: number;
   status?: FlashcardStatus;
@@ -168,7 +168,7 @@ export interface FlashcardReviewPayload {
 }
 
 export interface FlashcardQueueRequest {
-  deckId?: number;
+  deckId?: number | null;
   limit?: number;
   includeUpcoming?: boolean;
   statuses?: FlashcardStatus[];

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   LoadingOutlined,
   ReloadOutlined,
@@ -207,6 +207,18 @@ export default function WebviewReader({
   const currentContent = isClipping ? clipContent : parsedContent;
   const showWebview = viewMode === "webview" || viewMode === "split";
   const showDocument = viewMode === "document" || viewMode === "split";
+  const webviewKey = `${article.id}:${url}`;
+  const previousWebviewKeyRef = useRef(webviewKey);
+
+  useEffect(() => {
+    if (previousWebviewKeyRef.current === webviewKey) return;
+    previousWebviewKeyRef.current = webviewKey;
+
+    void cancelAnyClip();
+    resetClipState();
+    setParsedContent(DEFAULT_CONTENT);
+    setViewMode("webview");
+  }, [webviewKey, cancelAnyClip, resetClipState]);
 
   const getActiveButtonClass = (isActive: boolean) => {
     if (!isActive) {
@@ -428,6 +440,7 @@ export default function WebviewReader({
             initialLeftRatio={0.5}
             left={
               <Webview
+                key={webviewKey}
                 ref={webviewRef}
                 src={url}
                 className="h-full w-full"
@@ -450,6 +463,7 @@ export default function WebviewReader({
               }`}
             >
               <Webview
+                key={webviewKey}
                 ref={webviewRef}
                 src={url}
                 className="h-full w-full"

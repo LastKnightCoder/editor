@@ -75,16 +75,17 @@ const RightChatSidebar = memo(
     const editTitleRef = useRef<EditTextHandle>(null);
     const chatContainerRef = useRef<ChatContainerHandle>(null);
 
-    const { open, width, currentChatId, setWidth, setCurrentChatId } =
+    const { activePanel, width, currentChatId, setWidth, setCurrentChatId } =
       useRightChatSidebarStore(
         useShallow((state) => ({
-          open: state.open,
+          activePanel: state.activePanel,
           width: state.width,
           currentChatId: state.currentChatId,
           setWidth: state.setWidth,
           setCurrentChatId: state.setCurrentChatId,
         })),
       );
+    const open = activePanel === "chat";
 
     const {
       chats,
