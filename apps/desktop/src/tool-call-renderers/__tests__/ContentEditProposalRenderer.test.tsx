@@ -182,6 +182,7 @@ const resetStores = () => {
 describe("ContentEditProposalRenderer", () => {
   beforeEach(() => {
     resetStores();
+    vi.restoreAllMocks();
   });
 
   it("待审核时应展示完整预览与审阅动作", async () => {
@@ -267,6 +268,8 @@ describe("ContentEditProposalRenderer", () => {
 
     const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
     expect(textarea).toBeTruthy();
+    expect(textarea.className).toContain("[field-sizing:content]");
+    expect(textarea.className).toContain("min-h-28");
     const setValue = Object.getOwnPropertyDescriptor(
       HTMLTextAreaElement.prototype,
       "value",
@@ -289,6 +292,62 @@ describe("ContentEditProposalRenderer", () => {
     expect(updated?.status).toBe("submitted");
     expect(updated?.decision?.action).toBe("feedback");
     expect(updated?.decision?.feedback).toBe("第二段更自然一些");
+
+    await unmount(root, container);
+  });
+
+  it("点击提修改意见时应滚动并聚焦到意见输入框", async () => {
+    const payload = createLongPayload();
+    const proposal = createProposalRecord();
+    useContentEditReviewStore.setState({
+      proposals: {
+        [proposal.proposalId]: proposal,
+      },
+      permissions: {
+        [proposal.conversationKey]: "review_required",
+      },
+    });
+    useContentEditReviewSessionStore.getState().createPending({
+      toolCallId: "content-edit-call-1",
+      toolName: "replace_content_by_text",
+      conversationKey: proposal.conversationKey,
+      rawInput:
+        '{"toolName":"replace_content_by_text","proposalId":"proposal-1"}',
+      proposalId: proposal.proposalId,
+      payload,
+    });
+    const scrollIntoView = vi.fn();
+    const focus = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    HTMLTextAreaElement.prototype.focus = focus;
+
+    const { root, container } = await mount(
+      <ContentEditProposalRenderer
+        execution={createExecution()}
+        isDark={false}
+        parsedInput={null}
+        renderDefault={() => <div>fallback</div>}
+      />,
+    );
+
+    const openFeedbackButton = Array.from(
+      container.querySelectorAll("button"),
+    ).find((button) => button.textContent?.includes("提修改意见"));
+    expect(openFeedbackButton).toBeTruthy();
+    await act(async () => {
+      openFeedbackButton?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    });
+
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "nearest",
+    });
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
 
     await unmount(root, container);
   });
