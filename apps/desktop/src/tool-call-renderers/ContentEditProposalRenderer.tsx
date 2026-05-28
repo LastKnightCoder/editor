@@ -1,5 +1,5 @@
 import { App } from "antd";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
 import { Sparkles } from "lucide-react";
 import type { ToolCallCustomRendererProps } from "./types";
@@ -192,6 +192,8 @@ const ContentEditProposalRenderer = ({
   const [feedbackText, setFeedbackText] = useState("");
   const [showDiffView, setShowDiffView] = useState(true);
   const [expandedPreview, setExpandedPreview] = useState(false);
+  const feedbackSectionRef = useRef<HTMLDivElement | null>(null);
+  const feedbackTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const outputResult =
     getMetadataResult(execution) || parseOutputResult(execution.output);
 
@@ -309,6 +311,22 @@ const ContentEditProposalRenderer = ({
       setBusyAction("");
     }
   };
+
+  useEffect(() => {
+    if (!feedbackOpen) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      feedbackSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+      feedbackTextareaRef.current?.focus({ preventScroll: true });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [feedbackOpen]);
 
   if (!proposal) {
     if (outputResult) {
@@ -590,48 +608,51 @@ const ContentEditProposalRenderer = ({
         ) : null}
 
         {canReview && feedbackOpen ? (
-          <SectionShell isDark={isDark} title="告诉 AI 你想怎么改">
-            <div className="space-y-3">
-              <FeedbackTemplates
-                isDark={isDark}
-                onSelect={(template) =>
-                  setFeedbackText((prev) =>
-                    prev ? `${prev}；${template}` : template,
-                  )
-                }
-              />
-              <textarea
-                value={feedbackText}
-                onChange={(event) => setFeedbackText(event.target.value)}
-                placeholder="例如：语气更自然一些；第二段保留原意但更精炼；不要改标题。"
-                rows={4}
-                className={`w-full resize-y rounded-2xl border px-4 py-3 text-sm outline-none transition ${
-                  isDark
-                    ? "border-white/10 bg-zinc-950/70 text-slate-100 placeholder:text-slate-500 focus:border-sky-400/60"
-                    : "border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:border-sky-500"
-                }`}
-              />
-              <div className="flex flex-wrap gap-2">
-                <PrimaryButton
-                  onClick={() => void handleDecision("feedback")}
-                  disabled={!feedbackText.trim() || busyAction.length > 0}
+          <div ref={feedbackSectionRef}>
+            <SectionShell isDark={isDark} title="告诉 AI 你想怎么改">
+              <div className="space-y-3">
+                <FeedbackTemplates
                   isDark={isDark}
-                >
-                  提交修改意见
-                </PrimaryButton>
-                <SecondaryButton
-                  onClick={() => {
-                    setFeedbackOpen(false);
-                    setFeedbackText("");
-                  }}
-                  disabled={busyAction.length > 0}
-                  isDark={isDark}
-                >
-                  取消
-                </SecondaryButton>
+                  onSelect={(template) =>
+                    setFeedbackText((prev) =>
+                      prev ? `${prev}；${template}` : template,
+                    )
+                  }
+                />
+                <textarea
+                  ref={feedbackTextareaRef}
+                  value={feedbackText}
+                  onChange={(event) => setFeedbackText(event.target.value)}
+                  placeholder="例如：语气更自然一些；第二段保留原意但更精炼；不要改标题。"
+                  rows={4}
+                  className={`min-h-28 w-full resize-y rounded-2xl border px-4 py-3 text-sm outline-none transition [field-sizing:content] ${
+                    isDark
+                      ? "border-white/10 bg-zinc-950/70 text-slate-100 placeholder:text-slate-500 focus:border-sky-400/60"
+                      : "border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:border-sky-500"
+                  }`}
+                />
+                <div className="flex flex-wrap gap-2">
+                  <PrimaryButton
+                    onClick={() => void handleDecision("feedback")}
+                    disabled={!feedbackText.trim() || busyAction.length > 0}
+                    isDark={isDark}
+                  >
+                    提交修改意见
+                  </PrimaryButton>
+                  <SecondaryButton
+                    onClick={() => {
+                      setFeedbackOpen(false);
+                      setFeedbackText("");
+                    }}
+                    disabled={busyAction.length > 0}
+                    isDark={isDark}
+                  >
+                    取消
+                  </SecondaryButton>
+                </div>
               </div>
-            </div>
-          </SectionShell>
+            </SectionShell>
+          </div>
         ) : null}
       </ToolCardBody>
     </ToolCard>
