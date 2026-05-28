@@ -43,6 +43,7 @@ export * from "./bilibili-audio-cache";
 export * from "./youtube-audio-cache";
 export * from "./resource-sync";
 export * from "./data-table";
+export * from "./todo";
 export * from "./typst";
 export * from "./pomodoro";
 export * from "./notion-sync";
@@ -62,6 +63,7 @@ export * from "./web-note";
 export * from "./web-view-preference";
 export * from "./weread";
 export * from "./flashcard";
+export * from "./components-workbench";
 export * from "./resource-sync-blacklist";
 export * from "./publish";
 export type {

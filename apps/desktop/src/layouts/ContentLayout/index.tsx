@@ -2,6 +2,7 @@ import { useEffect, memo } from "react";
 import isHotkey from "is-hotkey";
 import PanesLayout from "./components/PanesLayout";
 import RightChatSidebar from "./components/RightChatSidebar";
+import RightComponentsSidebar from "./components/RightComponentsSidebar";
 
 import Search from "./components/Search";
 import CommandPanel from "@/components/CommandPanel";
@@ -109,6 +110,7 @@ const ShortSidebarLayout = memo(() => {
               </div>
             </div>
           </div>
+          <RightComponentsSidebar isGradient={isGradient} />
           <RightChatSidebar isGradient={isGradient} />
         </div>
 

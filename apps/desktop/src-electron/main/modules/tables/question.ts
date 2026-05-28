@@ -1,4 +1,9 @@
-import { IQuestion, ICreateAnswer, IAnswer } from "@/types";
+import {
+  IQuestion,
+  ICreateAnswer,
+  IAnswer,
+  WorkbenchQuestionPreviewResponse,
+} from "@/types";
 import Database from "better-sqlite3";
 import ContentTable from "./content";
 import { Descendant } from "slate";
@@ -23,6 +28,7 @@ export default class QuestionTable {
       "question:reorder": this.reorderQuestions.bind(this),
       "question:move-to-group": this.moveToGroup.bind(this),
       "question:update-status": this.updateQuestionStatus.bind(this),
+      "workbench:list-question-preview": this.listWorkbenchPreview.bind(this),
     };
   }
 
@@ -488,6 +494,105 @@ export default class QuestionTable {
       status: string;
     }[];
     return rows.map((q) => this.parseQuestion(q));
+  }
+
+  static listWorkbenchPreview(
+    db: Database.Database,
+    payload: {
+      groupId?: number | null;
+      statuses?: Array<"not_started" | "in_progress" | "resolved">;
+      limit?: number;
+      cursor?: number | null;
+    } = {},
+  ): WorkbenchQuestionPreviewResponse {
+    const limit = Math.min(Math.max(payload.limit ?? 10, 1), 50);
+    const offset = Math.max(payload.cursor ?? 0, 0);
+    const statuses =
+      payload.statuses && payload.statuses.length > 0
+        ? payload.statuses
+        : ["not_started", "in_progress"];
+
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (payload.groupId != null) {
+      conditions.push("q.group_id = ?");
+      params.push(payload.groupId);
+    }
+
+    const placeholders = statuses.map(() => "?").join(",");
+    conditions.push(`q.status IN (${placeholders})`);
+    params.push(...statuses);
+
+    const where = `WHERE ${conditions.join(" AND ")}`;
+    const countRow = db
+      .prepare(`SELECT COUNT(*) as total FROM questions q ${where}`)
+      .get(...params) as { total: number };
+
+    const rows = db
+      .prepare(
+        `SELECT q.*
+         FROM questions q
+         ${where}
+         ORDER BY
+           CASE q.status WHEN 'in_progress' THEN 0 WHEN 'not_started' THEN 1 ELSE 2 END,
+           q.update_time DESC,
+           q.sort_index ASC,
+           q.id DESC
+         LIMIT ? OFFSET ?`,
+      )
+      .all(...params, limit + 1, offset) as any[];
+
+    const groupRows = db
+      .prepare(
+        `SELECT
+           qg.id,
+           qg.title,
+           qg.color,
+           qg.is_default,
+           COUNT(q.id) as total,
+           SUM(CASE WHEN q.status = 'not_started' THEN 1 ELSE 0 END) as notStarted,
+           SUM(CASE WHEN q.status = 'in_progress' THEN 1 ELSE 0 END) as inProgress,
+           SUM(CASE WHEN q.status = 'resolved' THEN 1 ELSE 0 END) as resolved
+         FROM question_group qg
+         LEFT JOIN questions q ON q.group_id = qg.id
+         GROUP BY qg.id
+         HAVING notStarted > 0 OR inProgress > 0
+         ORDER BY inProgress DESC, notStarted DESC, qg.sort_index ASC`,
+      )
+      .all() as any[];
+
+    const summary = db
+      .prepare(
+        `SELECT
+           SUM(CASE WHEN status = 'not_started' THEN 1 ELSE 0 END) as notStartedTotal,
+           SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as inProgressTotal
+         FROM questions`,
+      )
+      .get() as {
+      notStartedTotal: number | null;
+      inProgressTotal: number | null;
+    };
+
+    return {
+      items: rows.slice(0, limit).map((q) => this.parseQuestion(q)),
+      groups: groupRows.map((row) => ({
+        group: {
+          id: row.id,
+          title: row.title,
+          color: row.color ?? undefined,
+          isDefault: Boolean(row.is_default),
+        },
+        total: Number(row.total || 0),
+        notStarted: Number(row.notStarted || 0),
+        inProgress: Number(row.inProgress || 0),
+        resolved: Number(row.resolved || 0),
+      })),
+      nextCursor: rows.length > limit ? offset + limit : null,
+      total: Number(countRow.total || 0),
+      notStartedTotal: Number(summary.notStartedTotal || 0),
+      inProgressTotal: Number(summary.inProgressTotal || 0),
+    };
   }
 
   static reorderQuestions(

@@ -66,6 +66,7 @@ export * from "./tool";
 export * from "./mcp";
 export * from "./youtube";
 export * from "./flashcard";
+export * from "./components-workbench";
 export * from "./resource-sync";
 export * from "./vibe-learning";
 export * from "./vl-quiz";

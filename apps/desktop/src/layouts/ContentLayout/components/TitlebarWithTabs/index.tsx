@@ -4,7 +4,7 @@ import type { MenuProps } from "antd";
 import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 import { PlusOutlined } from "@ant-design/icons";
-import { MessageSquare } from "lucide-react";
+import { Component, MessageSquare } from "lucide-react";
 import {
   useDrop,
   useDrag,
@@ -306,6 +306,9 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
   const addToHistory = useNavigationHistoryStore((state) => state.addToHistory);
   const getFrequentItems = useNavigationHistoryStore(
     (state) => state.getFrequentItems,
+  );
+  const activeRightPanel = useRightChatSidebarStore(
+    (state) => state.activePanel,
   );
 
   const { theme } = useTheme();
@@ -1034,6 +1037,22 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
             <button
               className={classnames(
                 "flex items-center justify-center w-7 h-7 cursor-pointer rounded text-sm transition-colors app-region-no-drag bg-transparent text-(--text-color)",
+                activeRightPanel === "components" && themeColors.activeClass,
+                themeColors.hoverClass,
+                themeColors.hoverTextClass,
+              )}
+              onClick={() =>
+                useRightChatSidebarStore.getState().toggleComponentsOpen()
+              }
+              type="button"
+              aria-label="切换组件工作台"
+            >
+              <Component size={16} />
+            </button>
+            <button
+              className={classnames(
+                "flex items-center justify-center w-7 h-7 cursor-pointer rounded text-sm transition-colors app-region-no-drag bg-transparent text-(--text-color)",
+                activeRightPanel === "chat" && themeColors.activeClass,
                 themeColors.hoverClass,
                 themeColors.hoverTextClass,
               )}
