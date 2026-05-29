@@ -1,5 +1,6 @@
 import { app, ipcMain } from "electron";
 import path from "path";
+import log from "electron-log";
 import pythonService from "./python-service";
 import { Module } from "../types/module";
 import { getFriendlyPythonRuntimeErrorMessage } from "../utils/python-runtime-error-message";
@@ -94,6 +95,9 @@ class EmbeddingModelManagerService {
   }
 
   async getModels(): Promise<EmbeddingModelInfo[]> {
+    log.info("[EmbeddingModelManager] Fetch embedding model list", {
+      modelsDir: this.modelsDir,
+    });
     const client = await pythonService.ensureStarted();
     const result = await client.request<{ models?: EmbeddingModelInfo[] }>(
       "list_embedding_models",
@@ -101,6 +105,10 @@ class EmbeddingModelManagerService {
         modelsDir: this.modelsDir,
       },
     );
+    log.info("[EmbeddingModelManager] Fetched embedding model list", {
+      modelsDir: this.modelsDir,
+      count: result.models?.length || 0,
+    });
 
     return result.models || [];
   }
@@ -392,6 +400,12 @@ class EmbeddingModelManagerModule implements Module {
         const models = await this.service.getModels();
         return { success: true, data: models };
       } catch (error) {
+        log.error(
+          "[EmbeddingModelManager] Failed to get embedding model list",
+          {
+            error: error instanceof Error ? error.message : String(error),
+          },
+        );
         return {
           success: false,
           error: getFriendlyPythonRuntimeErrorMessage(

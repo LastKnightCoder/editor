@@ -67,6 +67,14 @@ function commandExists(cmd) {
   }
 }
 
+function getVenvExecutable(command) {
+  if (process.platform === "win32") {
+    return path.join(SCRIPTS_DIR, ".venv", "Scripts", `${command}.exe`);
+  }
+
+  return path.join(SCRIPTS_DIR, ".venv", "bin", command);
+}
+
 /**
  * 获取 Python 命令
  */
@@ -174,9 +182,10 @@ function buildExecutable() {
 
   // 确保依赖已安装
   const venvPath = path.join(SCRIPTS_DIR, ".venv");
-  if (!fs.existsSync(venvPath)) {
+  const pyInstallerPath = getVenvExecutable("pyinstaller");
+  if (!fs.existsSync(venvPath) || !fs.existsSync(pyInstallerPath)) {
     logWarning(
-      "Virtual environment not found, installing dependencies first...",
+      "Virtual environment or PyInstaller not found, installing dependencies first...",
     );
     if (!installDependencies()) {
       return false;
@@ -184,13 +193,10 @@ function buildExecutable() {
   }
 
   try {
-    const isWindows = process.platform === "win32";
-    const uvRun = "uv run";
-
     // 打包统一的 Python 服务器（包含转录和模型下载功能）
     log("Building python-server...");
     execSync(
-      `${uvRun} pyinstaller --onefile --name python-server --collect-data faster_whisper --collect-data magika --collect-all FlagEmbedding --collect-all transformers --collect-all tokenizers --collect-all torch --collect-all mempalace --collect-submodules torch --collect-data torch --collect-binaries torch --distpath "${DIST_DIR}" main.py`,
+      `"${getVenvExecutable("pyinstaller")}" --onefile --name python-server --collect-data faster_whisper --collect-data magika --collect-all FlagEmbedding --collect-all transformers --collect-all tokenizers --collect-all torch --collect-all mempalace --collect-submodules torch --collect-data torch --collect-binaries torch --distpath "${DIST_DIR}" main.py`,
       { cwd: SCRIPTS_DIR, stdio: "inherit" },
     );
 
