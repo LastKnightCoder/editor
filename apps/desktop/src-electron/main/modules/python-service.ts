@@ -10,6 +10,7 @@
 import { app, ipcMain } from "electron";
 import { spawn, ChildProcess } from "child_process";
 import path from "path";
+import log from "electron-log";
 import { Module } from "../types/module";
 import PythonWebSocketClient from "../utils/PythonWebSocketClient";
 import pythonRuntimeManager from "./python-runtime-manager";
@@ -52,27 +53,27 @@ class PythonService implements Module {
     });
 
     ipcMain.handle("python-service-restart", async () => {
+      log.info("[PythonService] Manual restart requested");
       await this.restart();
       return { success: true };
     });
 
     // 注册应用退出处理器，确保 Python 进程被正确关闭
     app.on("before-quit", async () => {
-      console.log("[PythonService] App is quitting, stopping Python server...");
+      log.info("[PythonService] App is quitting, stopping Python server");
       await this.stop();
     });
 
     // 处理窗口全部关闭的情况（macOS 除外）
     app.on("window-all-closed", () => {
       if (process.platform !== "darwin") {
-        console.log(
-          "[PythonService] All windows closed, stopping Python server...",
-        );
+        log.info("[PythonService] All windows closed, stopping Python server");
         this.stop();
       }
     });
 
     if (app.isPackaged) {
+      log.info("[PythonService] Trigger packaged background runtime check");
       pythonRuntimeManager.checkForUpdateInBackground();
     }
   }
@@ -131,7 +132,7 @@ class PythonService implements Module {
     }
 
     if (this.isRunning()) {
-      console.log("[PythonService] Already running");
+      log.info("[PythonService] Already running");
       return;
     }
 
@@ -149,39 +150,38 @@ class PythonService implements Module {
       // 先创建 WebSocket 客户端并连接
       this.client = new PythonWebSocketClient(WS_PORT, {
         onServerReady: () => {
-          console.log("[PythonService] Python server is ready");
+          log.info("[PythonService] Python server is ready");
           this.serverReadyListeners.forEach((listener) => {
             try {
               listener();
             } catch (error) {
-              console.error(
-                "[PythonService] serverReady listener failed:",
-                error,
-              );
+              log.error("[PythonService] serverReady listener failed:", error);
             }
           });
         },
         onServerGone: () => {
-          console.log("[PythonService] Python server is gone");
+          log.warn("[PythonService] Python server is gone");
         },
         onError: (error) => {
-          console.error("[PythonService] WebSocket error:", error);
+          log.error("[PythonService] WebSocket error:", error);
         },
       });
 
       await this.client.connect();
-      console.log("[PythonService] WebSocket client connected");
+      log.info("[PythonService] WebSocket client connected");
 
       // 启动 Python 进程
+      const runtimeStatus = pythonRuntimeManager.getStatus();
       const execPath = await this.getPythonServerPath();
       const args = this.buildArgs();
       const isDev = !app.isPackaged;
 
-      console.log(
-        "[PythonService] Starting Python process:",
+      log.info("[PythonService] Starting Python process", {
         execPath,
-        args.join(" "),
-      );
+        args,
+        isDev,
+        runtimeStatus,
+      });
 
       this.process = spawn(execPath, args, {
         windowsHide: true,
@@ -197,32 +197,32 @@ class PythonService implements Module {
       });
 
       this.process.stdout?.on("data", (data: Buffer) => {
-        console.log("[PythonServer stdout]:", data.toString().trim());
+        log.info("[PythonServer stdout]", data.toString().trim());
       });
 
       this.process.stderr?.on("data", (data: Buffer) => {
-        console.log("[PythonServer stderr]:", data.toString().trim());
+        log.warn("[PythonServer stderr]", data.toString().trim());
       });
 
       this.process.on("close", (code) => {
-        console.log(`[PythonService] Process exited with code ${code}`);
+        log.warn(`[PythonService] Process exited with code ${code}`);
         this.process = null;
       });
 
       this.process.on("error", (error) => {
-        console.error("[PythonService] Process error:", error);
+        log.error("[PythonService] Process error:", error);
         this.process = null;
       });
 
       // 等待服务器就绪
-      console.log("[PythonService] Waiting for Python server to be ready...");
+      log.info("[PythonService] Waiting for Python server to be ready");
       await this.client.waitForServerReady(60000);
-      console.log("[PythonService] Python server is ready");
+      log.info("[PythonService] Python server is ready after wait");
 
       this.starting = false;
     } catch (error) {
       this.starting = false;
-      console.error("[PythonService] Failed to start:", error);
+      log.error("[PythonService] Failed to start:", error);
       await this.stop();
       throw error;
     }
@@ -239,11 +239,11 @@ class PythonService implements Module {
 
     const proc = this.process;
     if (proc) {
-      console.log("[PythonService] Stopping Python process...");
+      log.info("[PythonService] Stopping Python process");
 
       return new Promise((resolve) => {
         const timeout = setTimeout(() => {
-          console.log("[PythonService] Force killing process...");
+          log.warn("[PythonService] Force killing process");
           proc.kill("SIGKILL");
           this.process = null;
           resolve();
@@ -252,7 +252,7 @@ class PythonService implements Module {
         proc.once("close", () => {
           clearTimeout(timeout);
           this.process = null;
-          console.log("[PythonService] Process stopped");
+          log.info("[PythonService] Process stopped");
           resolve();
         });
 
