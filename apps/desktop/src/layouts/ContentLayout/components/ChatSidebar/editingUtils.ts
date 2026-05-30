@@ -1,6 +1,12 @@
 import { produce } from "immer";
-import type { ChatMessage, RequestMessage, TextContent } from "@/types";
+import type {
+  ChatMessage,
+  RequestMessage,
+  ResponseMessage,
+  TextContent,
+} from "@/types";
 import { Role } from "@/constants";
+import { buildAssistantHistoryMessages } from "@/services/assistantMessageBlocks";
 
 export const getRequestMessageText = (message: RequestMessage): string => {
   if (typeof message.content === "string") {
@@ -40,3 +46,24 @@ export const buildResetBaseChat = (
     draft.messages = draft.messages.slice(0, actualIndex);
   });
 };
+
+export const buildFullHistoryMessages = (
+  chat: ChatMessage,
+  options?: {
+    excludeMessageIndex?: number;
+  },
+): RequestMessage[] =>
+  chat.messages
+    .slice(1)
+    .map((message, index) => ({
+      message,
+      originIndex: index + 1,
+    }))
+    .filter(({ originIndex }) => originIndex !== options?.excludeMessageIndex)
+    .flatMap(({ message }): RequestMessage[] => {
+      if (message.role === Role.User || message.role === Role.Tool) {
+        return [message as RequestMessage];
+      }
+
+      return buildAssistantHistoryMessages(message as ResponseMessage);
+    });
