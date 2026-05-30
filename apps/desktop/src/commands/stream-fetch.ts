@@ -4,6 +4,7 @@ import {
   EventStreamContentType,
   fetchEventSource,
 } from "@fortaine/fetch-event-source";
+import { createAbortError } from "@tau/agent";
 
 function prettyObject(msg: any) {
   const obj = msg;
@@ -698,7 +699,14 @@ export function stream(
       });
     };
 
-    controller.signal.onabort = () => finish("cancelled");
+    controller.signal.onabort = () => {
+      if (finished) {
+        return;
+      }
+      flushParser();
+      finished = true;
+      reject(createAbortError("请求已取消"));
+    };
 
     const chatApi = (
       targetPath: string,

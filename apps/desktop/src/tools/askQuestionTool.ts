@@ -1,4 +1,5 @@
 import type { ToolDefinition, ToolExecutionResult } from "@/types";
+import { createAbortError } from "@tau/agent";
 import {
   ASK_QUESTION_TOOL_NAME,
   buildAskQuestionToolResult,
@@ -106,7 +107,7 @@ export const createAskQuestionTool = (): ToolDefinition => ({
 
     if (context.signal?.aborted) {
       store.cancelSession(sessionRecord.sessionId, "会话已中止");
-      throw new Error("ask-question 会话已中止");
+      throw createAbortError("ask-question 会话已中止");
     }
 
     return await new Promise<ToolExecutionResult>((resolve, reject) => {

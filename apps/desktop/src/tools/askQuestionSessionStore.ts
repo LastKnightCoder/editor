@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { createAbortError } from "@tau/agent";
 import type {
   AskQuestionPayload,
   AskQuestionSessionRecord,
@@ -312,7 +313,7 @@ export const useAskQuestionSessionStore = create<AskQuestionSessionState>()(
         const resolver = liveResolvers.get(sessionId);
         if (resolver) {
           liveResolvers.delete(sessionId);
-          resolver.reject(new Error(reason || "ask-question 已取消"));
+          resolver.reject(createAbortError(reason || "ask-question 已取消"));
         }
 
         const record = get().records[sessionId];
