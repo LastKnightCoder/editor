@@ -57,16 +57,15 @@ import {
   applyAssistantReasoningSnapshot,
   applyAssistantTextSnapshot,
   applyAssistantToolCallsSnapshot,
-  buildAssistantHistoryMessages,
   createAssistantMessage,
   ensureAssistantMessage,
   finalizeAssistantTurn,
   getAssistantContentBlocks,
   getAssistantToolExecutions,
-  limitHistoryMessageGroups,
   syncAssistantDerivedFields,
 } from "@/services/assistantMessageBlocks";
 import {
+  buildFullHistoryMessages,
   buildResetBaseChat,
   formatGeneratedChatTitle,
   getLastUserMessageIndex,
@@ -403,31 +402,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         chat: ChatMessage,
         options?: {
           excludeMessageIndex?: number;
-          limit?: number;
         },
-      ) => {
-        const groups = chat.messages
-          .slice(1)
-          .map((message, index) => ({
-            message,
-            originIndex: index + 1,
-          }))
-          .filter(
-            ({ originIndex }) => originIndex !== options?.excludeMessageIndex,
-          )
-          .map(({ message }): RequestMessage[] => {
-            if (message.role === Role.User || message.role === Role.Tool) {
-              return [message as RequestMessage];
-            }
-
-            const responseMsg = message as ResponseMessage;
-            return buildAssistantHistoryMessages(responseMsg);
-          });
-
-        const limited = limitHistoryMessageGroups(groups, options?.limit ?? 20);
-
-        return limited;
-      },
+      ) => buildFullHistoryMessages(chat, options),
     );
 
     // 抽离的公共方法：处理消息发送逻辑

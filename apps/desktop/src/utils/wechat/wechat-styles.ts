@@ -23,6 +23,11 @@ export const wechatBaseStyles = `
   font-family: Optima, 'Microsoft YaHei', PingFangSC-regular, serif;
 }
 
+.wechat-content {
+  padding-left: 1em;
+  padding-right: 1em;
+}
+
 /* 代码块内的元素使用等宽字体 */
 .code-block,
 .code-block * {
@@ -550,29 +555,31 @@ export const wechatBaseStyles = `
 
 .footnotes-section {
   margin: 0;
-  padding: 0;
+  padding: 0 0 0 2.5em;
+  font-family: Georgia, "Times New Roman", "Noto Serif SC", "Songti SC", SimSun, serif;
+  font-size: 13px;
 }
 
 .footnote-item {
   display: flex;
   align-items: flex-start;
-  font-size: 14px;
-  line-height: 1.8em;
+  font-size: 13px;
+  line-height: 1.75em;
   letter-spacing: 0em;
-  font-family: Optima, "Microsoft YaHei", PingFangSC-regular, serif;
+  font-family: Georgia, "Times New Roman", "Noto Serif SC", "Songti SC", SimSun, serif;
   margin: 0 0 0.35em;
 }
 
 .footnote-num {
-  line-height: 1.8em;
+  line-height: 1.75em;
   letter-spacing: 0em;
   color: rgba(0, 0, 0, 0.6);
   display: block;
-  width: 2em;
-  flex: 0 0 2em;
+  width: 2.4em;
+  flex: 0 0 2.4em;
   text-align: left;
-  font-family: Optima, "Microsoft YaHei", PingFangSC-regular, serif;
-  font-size: 14px;
+  font-family: Georgia, "Times New Roman", "Noto Serif SC", "Songti SC", SimSun, serif;
+  font-size: 13px;
 }
 
 .footnote-content {
@@ -587,18 +594,18 @@ export const wechatBaseStyles = `
   word-break: break-word;
   overflow-wrap: anywhere;
   flex: 1;
-  font-size: 14px;
-  line-height: 1.8em;
+  font-size: 13px;
+  line-height: 1.75em;
   letter-spacing: 0em;
-  font-family: Optima, "Microsoft YaHei", PingFangSC-regular, serif;
+  font-family: Georgia, "Times New Roman", "Noto Serif SC", "Songti SC", SimSun, serif;
 }
 
 .footnote-url {
   color: #000;
   font-weight: normal;
   font-style: italic;
-  font-size: 14px;
-  font-family: Optima, "Microsoft YaHei", PingFangSC-regular, serif;
+  font-size: 13px;
+  font-family: Georgia, "Times New Roman", "Noto Serif SC", "Songti SC", SimSun, serif;
 }
 
 /* ========== Highlight Mark ========== */

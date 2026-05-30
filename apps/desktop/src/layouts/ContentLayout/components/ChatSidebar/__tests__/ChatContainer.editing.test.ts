@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildFullHistoryMessages,
   buildResetBaseChat,
   formatGeneratedChatTitle,
   getLastUserMessageIndex,
@@ -18,6 +19,23 @@ const createUserMessage = (
 const createAssistantMessage = (content: string): ResponseMessage => ({
   role: Role.Assistant,
   content,
+});
+
+const createAssistantHistoryMessage = (
+  content: string,
+  turnId: string,
+): ResponseMessage => ({
+  role: Role.Assistant,
+  content,
+  assistant_blocks: [
+    {
+      id: `${turnId}:text`,
+      turnId,
+      type: "text",
+      state: "final",
+      content,
+    },
+  ],
 });
 
 describe("ChatContainer 编辑辅助逻辑", () => {
@@ -78,5 +96,106 @@ describe("ChatContainer 编辑辅助逻辑", () => {
         "\n\n  这是一个超过二十个字符的测试标题用于验证截断行为  ",
       ),
     ).toBe("这是一个超过二十个字符的测试标题用于验证");
+  });
+
+  it("构造请求历史时不应截断超过 20 组的对话", () => {
+    const messages: ChatMessage["messages"] = [
+      { role: Role.System, content: "system" },
+    ];
+    for (let index = 1; index <= 25; index += 1) {
+      messages.push(
+        createUserMessage([{ type: "text", text: `问题 ${index}` }]),
+        createAssistantHistoryMessage(`回答 ${index}`, `turn-${index}`),
+      );
+    }
+    const chat: ChatMessage = {
+      id: 1,
+      createTime: 1,
+      updateTime: 2,
+      title: "长对话",
+      messages,
+    };
+
+    const history = buildFullHistoryMessages(chat);
+
+    expect(history).toHaveLength(50);
+    expect(history[0]).toEqual(
+      createUserMessage([{ type: "text", text: "问题 1" }]),
+    );
+    expect(history.at(-1)).toEqual({
+      role: Role.Assistant,
+      content: [{ type: "text", text: "回答 25" }],
+    });
+  });
+
+  it("构造请求历史时保留 assistant/tool 调用链顺序", () => {
+    const assistantToolCall: ResponseMessage = {
+      role: Role.Assistant,
+      content: "",
+      assistant_blocks: [
+        {
+          id: "call-1",
+          turnId: "turn-1",
+          type: "tool_call",
+          state: "final",
+          toolCall: {
+            id: "call-1",
+            type: "function",
+            function: {
+              name: "search_docs",
+              arguments: '{"q":"cache"}',
+            },
+          },
+          execution: {
+            toolCallId: "call-1",
+            toolName: "search_docs",
+            status: "success",
+            input: '{"q":"cache"}',
+            output: "搜索完成",
+            timestamp: 1000,
+          },
+        },
+      ],
+    };
+    const chat: ChatMessage = {
+      id: 1,
+      createTime: 1,
+      updateTime: 2,
+      title: "工具对话",
+      messages: [
+        { role: Role.System, content: "system" },
+        createUserMessage([{ type: "text", text: "查资料" }]),
+        assistantToolCall,
+        createUserMessage([{ type: "text", text: "继续" }]),
+      ],
+    };
+
+    const history = buildFullHistoryMessages(chat);
+
+    expect(history).toEqual([
+      createUserMessage([{ type: "text", text: "查资料" }]),
+      {
+        role: Role.Assistant,
+        content: "",
+        reasoning_content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: {
+              name: "search_docs",
+              arguments: '{"q":"cache"}',
+            },
+          },
+        ],
+      },
+      {
+        role: Role.Tool,
+        content: [{ type: "text", text: "搜索完成" }],
+        tool_call_id: "call-1",
+        name: "search_docs",
+      },
+      createUserMessage([{ type: "text", text: "继续" }]),
+    ]);
   });
 });

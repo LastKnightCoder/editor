@@ -87,6 +87,17 @@ interface FootnoteLink {
   href: string;
 }
 
+const footnotesSectionStyle =
+  "margin: 0; padding: 0 0 0 2.5em; font-family: Georgia, 'Times New Roman', 'Noto Serif SC', 'Songti SC', SimSun, serif; font-size: 13px;";
+const footnoteItemStyle =
+  "display: flex; align-items: flex-start; margin: 0 0 0.35em; font-family: Georgia, 'Times New Roman', 'Noto Serif SC', 'Songti SC', SimSun, serif; font-size: 13px; line-height: 1.75em; letter-spacing: 0;";
+const footnoteNumStyle =
+  "display: block; flex: 0 0 2.4em; width: 2.4em; line-height: 1.75em; color: rgba(0, 0, 0, 0.6); text-align: left; font-family: Georgia, 'Times New Roman', 'Noto Serif SC', 'Songti SC', SimSun, serif; font-size: 13px; letter-spacing: 0;";
+const footnoteContentStyle =
+  "display: block; flex: 1; min-width: 0; margin: 0; padding: 0; text-align: left; text-indent: 0; color: #000; font-weight: normal; word-break: break-word; overflow-wrap: anywhere; font-family: Georgia, 'Times New Roman', 'Noto Serif SC', 'Songti SC', SimSun, serif; font-size: 13px; line-height: 1.75em; letter-spacing: 0;";
+const footnoteUrlStyle =
+  "color: #000; font-weight: normal; font-style: italic; font-family: Georgia, 'Times New Roman', 'Noto Serif SC', 'Songti SC', SimSun, serif; font-size: 13px;";
+
 /**
  * Generate footnotes section HTML
  * Format: [n] link text: URL
@@ -102,18 +113,18 @@ function generateFootnotesSection(footnotes: FootnoteLink[]): string {
       // If text equals href, just show the URL
       const content =
         footnote.text === footnote.href
-          ? `<em class="footnote-url">${footnote.href}</em>`
-          : `${footnote.text}: <em class="footnote-url">${footnote.href}</em>`;
+          ? `<em class="footnote-url" style="${footnoteUrlStyle}">${footnote.href}</em>`
+          : `${footnote.text}: <em class="footnote-url" style="${footnoteUrlStyle}">${footnote.href}</em>`;
 
-      return `<section id="fn${num}" class="footnote-item">
-        <span class="footnote-num">[${num}] </span>
-        <span class="footnote-content">${content}</span>
+      return `<section id="fn${num}" class="footnote-item" style="${footnoteItemStyle}">
+        <span class="footnote-num" style="${footnoteNumStyle}">[${num}] </span>
+        <span class="footnote-content" style="${footnoteContentStyle}">${content}</span>
       </section>`;
     })
     .join("");
 
   return `<section class="footnotes-sep"><span>参考资料</span></section>
-    <section class="footnotes-section">${footnotesItems}</section>`;
+    <section class="footnotes-section" style="${footnotesSectionStyle}">${footnotesItems}</section>`;
 }
 
 /**
