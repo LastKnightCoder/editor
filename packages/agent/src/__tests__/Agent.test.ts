@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   Agent,
+  createAbortError,
   type AgentEvent,
   type AgentMessage,
   type AgentModelAdapter,
@@ -365,6 +366,75 @@ describe("Agent", () => {
     expect(toolFinished?.execution.metadata).toEqual({
       reason: "user_abort",
     });
+  });
+
+  it("工具执行收到 AbortError 时应终止整轮运行", async () => {
+    let turnCount = 0;
+    const toolCalls: AgentToolCall[] = [
+      {
+        id: "call_abort",
+        function: {
+          name: "abort_tool",
+          arguments: "{}",
+        },
+      },
+    ];
+
+    const model: AgentModelAdapter = {
+      async *streamTurn() {
+        turnCount += 1;
+        yield {
+          type: "turn-complete",
+          result: {
+            type: "tool_calls",
+            content: "",
+            reasoningContent: "",
+            finishReason: "tool_calls",
+            toolCalls,
+          },
+        };
+      },
+    };
+
+    const agent = new Agent({
+      model,
+      tools: [
+        {
+          name: "abort_tool",
+          description: "可中止工具",
+          source: "test-tools",
+          parameters: {
+            type: "object",
+            properties: {},
+            required: [],
+            additionalProperties: false,
+          },
+          async execute() {
+            throw createAbortError("用户已停止");
+          },
+        },
+      ],
+    });
+
+    const events = await collectEvents(
+      agent.run({
+        messages: [createTextMessage("hello")],
+        enableTools: true,
+      }),
+    );
+
+    const runError = events.find(
+      (event): event is Extract<AgentEvent, { type: "run-error" }> =>
+        event.type === "run-error",
+    );
+    expect(runError?.error).toMatchObject({
+      name: "AbortError",
+      message: "用户已停止",
+    });
+    expect(events.some((event) => event.type === "tool-call-finished")).toBe(
+      false,
+    );
+    expect(turnCount).toBe(1);
   });
 
   it("等待用户确认的工具不应套用默认超时", async () => {

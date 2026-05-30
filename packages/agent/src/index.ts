@@ -1,5 +1,6 @@
 export { Agent } from "./core/Agent";
 export { composeAgentModel } from "./core/composeAgentModel";
+export { createAbortError, isAbortError } from "./core/abort";
 export { ConsoleAgentObserver } from "./observers/ConsoleAgentObserver";
 export { PerformanceAgentObserver } from "./observers/PerformanceAgentObserver";
 

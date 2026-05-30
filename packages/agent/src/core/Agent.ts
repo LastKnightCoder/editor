@@ -1,5 +1,6 @@
 import { createBuiltinSkillTools } from "../builtins/skillTools";
 import { createSkillMessageContributor } from "../contributors/SkillMessageContributor";
+import { isAbortError } from "./abort";
 import { createAgentRuntimeAPI } from "./AgentRuntime";
 import { ToolSnapshot } from "./ToolSnapshot";
 import type {
@@ -477,6 +478,11 @@ export class Agent {
           reasoningContent = turnResult.reasoningContent;
         }
       } catch (error) {
+        if (isAbortError(error)) {
+          yield* emitRunError(toErrorPayload(error), runSpan, turnSpan, turnId);
+          return;
+        }
+
         if (
           state.toolModeActive &&
           this.config.policies?.toolModeFallback !== false &&
@@ -809,6 +815,21 @@ export class Agent {
           } catch (error) {
             lastError = error as Error;
             const currentError = lastError;
+            if (isAbortError(currentError)) {
+              await closeSpan(toolSpan, {
+                status: "cancelled",
+                errorName: currentError.name,
+                errorMessage: currentError.message,
+                duration: Date.now() - executionStartTime,
+              });
+              yield* emitRunError(
+                toErrorPayload(currentError),
+                runSpan,
+                undefined,
+                turnId,
+              );
+              return;
+            }
             const isTransient =
               this.config.policies?.isTransientToolError?.(
                 currentError,

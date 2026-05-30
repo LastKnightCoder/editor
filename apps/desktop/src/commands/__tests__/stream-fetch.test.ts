@@ -113,6 +113,33 @@ describe("stream", () => {
     });
   });
 
+  it("controller abort 时应以 AbortError 结束请求", async () => {
+    const controller = new AbortController();
+
+    fetchEventSourceMock.mockImplementation(async () => {
+      controller.abort();
+    });
+
+    await expect(
+      stream(
+        "https://example.com/chat/completions",
+        { messages: [] },
+        {
+          Authorization: "Bearer test",
+        },
+        controller,
+        {
+          parse: (text) => JSON.parse(text),
+        },
+        {
+          disableAnimation: true,
+        },
+      ),
+    ).rejects.toMatchObject({
+      name: "AbortError",
+    });
+  });
+
   it("解析 Responses SSE 的文本、思考摘要与函数调用", async () => {
     fetchEventSourceMock.mockImplementation(async (_url, options) => {
       await options.onopen(
