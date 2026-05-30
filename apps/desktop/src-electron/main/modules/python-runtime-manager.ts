@@ -3,11 +3,13 @@ import fs from "fs-extra";
 import type { IncomingHttpHeaders, IncomingMessage } from "http";
 import http from "http";
 import https from "https";
+import os from "os";
 import path from "path";
 
 const PYTHON_RUNTIME_LATEST_JSON_URL =
   "https://release-bin.oss-cn-shanghai.aliyuncs.com/python-services-latest.json";
 
+// 配置协议由我们定义：assets.darwin.url 仅兼容旧客户端；新客户端读取 darwin.x86.url / darwin.arm64.url。
 const DOWNLOAD_TIMEOUT_MS = 60_000;
 const MAX_REDIRECTS = 5;
 
@@ -43,10 +45,7 @@ interface PythonRuntimeAsset {
 
 interface PythonRuntimeLatestJson {
   version: string;
-  assets: {
-    win32?: PythonRuntimeAsset;
-    darwin?: PythonRuntimeAsset;
-  };
+  assets: Record<string, unknown>;
 }
 
 interface HttpBufferedResponse {
@@ -59,11 +58,19 @@ interface PythonRuntimeMeta {
   installedVersion: string;
   binaryPath: string;
   updatedAt: number;
+  platform?: NodeJS.Platform;
+  arch?: string;
 }
 
 interface PythonRuntimeBinaryInfo {
   binaryPath: string;
   version: string;
+}
+
+interface PythonRuntimeDescriptor {
+  platform: "win32" | "darwin";
+  arch: string;
+  executableExtension: string;
 }
 
 export class PythonRuntimeError extends Error {
@@ -115,6 +122,7 @@ const compareSemver = (left: string, right: string): number => {
 class PythonRuntimeManager {
   private initialized = false;
   private bootstrapped = false;
+  private sessionRuntime: PythonRuntimeBinaryInfo | null = null;
   private status: PythonRuntimeStatus = {
     state: "idle",
     message: "Python 运行时未检查",
@@ -137,9 +145,14 @@ class PythonRuntimeManager {
     return path.join(this.getRuntimeDir(), "pending-meta.json");
   }
 
-  private getRuntimeBinaryPath(version: string) {
-    const ext = process.platform === "win32" ? ".exe" : "";
-    return path.join(this.getRuntimeDir(), `python-server-${version}${ext}`);
+  private getRuntimeBinaryPath(
+    version: string,
+    descriptor: PythonRuntimeDescriptor,
+  ) {
+    return path.join(
+      this.getRuntimeDir(),
+      `python-server-${version}-${descriptor.platform}-${descriptor.arch}${descriptor.executableExtension}`,
+    );
   }
 
   init() {
@@ -186,6 +199,14 @@ class PythonRuntimeManager {
     forceCheck?: boolean;
   }): Promise<PythonRuntimeBinaryInfo> {
     const trigger = options?.trigger || "foreground";
+    const forceCheck = options?.forceCheck || false;
+
+    if (trigger === "foreground" && !forceCheck) {
+      const cachedRuntime = await this.getValidSessionRuntime();
+      if (cachedRuntime) {
+        return cachedRuntime;
+      }
+    }
 
     if (this.inFlightTask) {
       return this.inFlightTask;
@@ -193,10 +214,15 @@ class PythonRuntimeManager {
 
     this.inFlightTask = this.prepareRuntime({
       trigger,
-      forceCheck: options?.forceCheck || false,
-    }).finally(() => {
-      this.inFlightTask = null;
-    });
+      forceCheck,
+    })
+      .then((runtime) => {
+        this.sessionRuntime = runtime;
+        return runtime;
+      })
+      .finally(() => {
+        this.inFlightTask = null;
+      });
 
     return this.inFlightTask;
   }
@@ -205,21 +231,24 @@ class PythonRuntimeManager {
     trigger: "foreground" | "background";
     forceCheck: boolean;
   }): Promise<PythonRuntimeBinaryInfo> {
-    if (process.platform !== "win32" && process.platform !== "darwin") {
-      const error = new PythonRuntimeError(
+    let descriptor: PythonRuntimeDescriptor;
+    try {
+      descriptor = this.getRuntimeDescriptor();
+    } catch {
+      const runtimeError = new PythonRuntimeError(
         "PY_RUNTIME_PLATFORM_UNSUPPORTED",
-        `当前平台不支持 python-server 下载: ${process.platform}`,
+        `当前平台不支持 python-server 下载: ${process.platform}/${os.arch()}`,
       );
       this.updateStatus(
         {
           state: "error",
-          message: error.message,
+          message: runtimeError.message,
           progress: 0,
           isDownloading: false,
         },
         options.trigger,
       );
-      throw error;
+      throw runtimeError;
     }
 
     await this.ensureBootstrapped();
@@ -229,9 +258,14 @@ class PythonRuntimeManager {
     const installedBinaryExists = installedMeta
       ? await fs.pathExists(installedMeta.binaryPath)
       : false;
+    const installedRuntimeCompatible =
+      !!installedMeta &&
+      installedBinaryExists &&
+      this.isInstalledMetaCompatible(installedMeta, descriptor);
 
     if (installedMeta && !installedBinaryExists) {
       await this.removeInstalledMeta();
+      this.sessionRuntime = null;
       this.updateStatus(
         {
           installedVersion: null,
@@ -254,7 +288,7 @@ class PythonRuntimeManager {
     try {
       latestJson = await this.fetchLatestJson(PYTHON_RUNTIME_LATEST_JSON_URL);
     } catch (error) {
-      if (installedMeta && installedBinaryExists) {
+      if (installedRuntimeCompatible) {
         this.updateStatus(
           {
             state: "degraded",
@@ -265,8 +299,8 @@ class PythonRuntimeManager {
           options.trigger,
         );
         return {
-          binaryPath: installedMeta.binaryPath,
-          version: installedMeta.installedVersion,
+          binaryPath: installedMeta!.binaryPath,
+          version: installedMeta!.installedVersion,
         };
       }
 
@@ -293,11 +327,11 @@ class PythonRuntimeManager {
       options.trigger,
     );
 
-    const asset = latestJson.assets[process.platform as "win32" | "darwin"];
+    const asset = this.resolveAssetByDescriptor(latestJson, descriptor);
     if (!asset?.url) {
       const runtimeError = new PythonRuntimeError(
         "PY_RUNTIME_PLATFORM_UNSUPPORTED",
-        `latest.json 缺少平台 ${process.platform} 的下载地址`,
+        `latest.json 缺少平台 ${descriptor.platform}/${descriptor.arch} 的下载地址`,
       );
       this.updateStatus(
         {
@@ -313,6 +347,10 @@ class PythonRuntimeManager {
 
     let hasInstalledVersion =
       !!installedMeta?.installedVersion && installedBinaryExists;
+
+    if (hasInstalledVersion && !installedRuntimeCompatible) {
+      hasInstalledVersion = false;
+    }
 
     if (hasInstalledVersion && installedMeta) {
       try {
@@ -366,7 +404,10 @@ class PythonRuntimeManager {
       };
     }
 
-    const targetBinaryPath = this.getRuntimeBinaryPath(latestJson.version);
+    const targetBinaryPath = this.getRuntimeBinaryPath(
+      latestJson.version,
+      descriptor,
+    );
     const alreadyDownloaded = await fs.pathExists(targetBinaryPath);
 
     try {
@@ -401,6 +442,8 @@ class PythonRuntimeManager {
           installedVersion: latestJson.version,
           binaryPath: targetBinaryPath,
           updatedAt: Date.now(),
+          platform: descriptor.platform,
+          arch: descriptor.arch,
         };
         await this.writeInstalledMeta(meta);
         this.updateStatus(
@@ -423,6 +466,8 @@ class PythonRuntimeManager {
         installedVersion: latestJson.version,
         binaryPath: targetBinaryPath,
         updatedAt: Date.now(),
+        platform: descriptor.platform,
+        arch: descriptor.arch,
       };
       await this.writePendingMeta(pendingMeta);
 
@@ -445,7 +490,7 @@ class PythonRuntimeManager {
         version: installedMeta.installedVersion,
       };
     } catch (error) {
-      if (installedMeta && installedBinaryExists) {
+      if (installedRuntimeCompatible) {
         this.updateStatus(
           {
             state: "degraded",
@@ -456,8 +501,8 @@ class PythonRuntimeManager {
           options.trigger,
         );
         return {
-          binaryPath: installedMeta.binaryPath,
-          version: installedMeta.installedVersion,
+          binaryPath: installedMeta!.binaryPath,
+          version: installedMeta!.installedVersion,
         };
       }
 
@@ -525,6 +570,20 @@ class PythonRuntimeManager {
     };
   }
 
+  private async getValidSessionRuntime(): Promise<PythonRuntimeBinaryInfo | null> {
+    if (!this.sessionRuntime) {
+      return null;
+    }
+
+    const runtimeExists = await fs.pathExists(this.sessionRuntime.binaryPath);
+    if (!runtimeExists) {
+      this.sessionRuntime = null;
+      return null;
+    }
+
+    return this.sessionRuntime;
+  }
+
   private async applyPendingMetaIfNeeded() {
     const pendingMeta = await this.loadPendingMeta();
     if (!pendingMeta) {
@@ -571,6 +630,8 @@ class PythonRuntimeManager {
         binaryPath: meta.binaryPath,
         updatedAt:
           typeof meta.updatedAt === "number" ? meta.updatedAt : Date.now(),
+        platform: typeof meta.platform === "string" ? meta.platform : undefined,
+        arch: typeof meta.arch === "string" ? meta.arch : undefined,
       };
     } catch {
       return null;
@@ -597,6 +658,8 @@ class PythonRuntimeManager {
         binaryPath: meta.binaryPath,
         updatedAt:
           typeof meta.updatedAt === "number" ? meta.updatedAt : Date.now(),
+        platform: typeof meta.platform === "string" ? meta.platform : undefined,
+        arch: typeof meta.arch === "string" ? meta.arch : undefined,
       };
     } catch {
       return null;
@@ -652,6 +715,83 @@ class PythonRuntimeManager {
 
     normalizeSemver(parsed.version);
     return parsed;
+  }
+
+  private getRuntimeDescriptor(): PythonRuntimeDescriptor {
+    const platform = process.platform;
+    const arch = os.arch();
+
+    const supportedArchitectures: Partial<Record<NodeJS.Platform, string[]>> = {
+      win32: ["x64", "ia32", "arm64"],
+      darwin: ["x64", "arm64"],
+    };
+
+    const platformArchitectures = supportedArchitectures[platform] || [];
+    if (!platformArchitectures.includes(arch)) {
+      throw new Error(
+        `Unsupported python-server platform/arch: ${platform}/${arch}`,
+      );
+    }
+
+    return {
+      platform: platform as "win32" | "darwin",
+      arch,
+      executableExtension: platform === "win32" ? ".exe" : "",
+    };
+  }
+
+  private resolveAssetByDescriptor(
+    latestJson: PythonRuntimeLatestJson,
+    descriptor: PythonRuntimeDescriptor,
+  ): PythonRuntimeAsset | null {
+    const assets = latestJson.assets;
+    if (!assets || typeof assets !== "object") {
+      return null;
+    }
+
+    const platformAsset = assets[descriptor.platform];
+    if (!platformAsset || typeof platformAsset !== "object") {
+      return this.isPythonRuntimeAsset(platformAsset) ? platformAsset : null;
+    }
+
+    const platformAssets = platformAsset as Record<string, unknown>;
+
+    if (descriptor.platform === "darwin") {
+      const archKey = descriptor.arch === "x64" ? "x86" : "arm64";
+      const archAsset = platformAssets[archKey];
+      return this.isPythonRuntimeAsset(archAsset) ? archAsset : null;
+    }
+
+    const defaultUrl = platformAssets.url;
+    return typeof defaultUrl === "string" && defaultUrl.length > 0
+      ? { url: defaultUrl }
+      : null;
+  }
+
+  private isPythonRuntimeAsset(value: unknown): value is PythonRuntimeAsset {
+    if (!value || typeof value !== "object") {
+      return false;
+    }
+
+    const candidate = value as { url?: unknown };
+    return typeof candidate.url === "string" && candidate.url.length > 0;
+  }
+
+  private isInstalledMetaCompatible(
+    meta: PythonRuntimeMeta,
+    descriptor: PythonRuntimeDescriptor,
+  ) {
+    if (
+      meta.platform === descriptor.platform &&
+      meta.arch === descriptor.arch
+    ) {
+      return true;
+    }
+
+    const binaryFileName = path.basename(meta.binaryPath);
+    return binaryFileName.includes(
+      `-${descriptor.platform}-${descriptor.arch}`,
+    );
   }
 
   private async downloadBinary(
