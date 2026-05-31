@@ -1,6 +1,5 @@
 import { memo, useRef, useState, useCallback } from "react";
-import { DndProvider, useDrop } from "react-dnd";
-import { HTML5Backend } from "react-dnd-html5-backend";
+import { useDrop } from "react-dnd";
 import classnames from "classnames";
 import useTabStore from "@/stores/useTabStore";
 import TitlebarWithTabs from "../TitlebarWithTabs";
@@ -262,119 +261,106 @@ const PanesLayout = memo(() => {
   if (isHorizontal) {
     // 左右布局：只在右侧的 pane 显示控件
     return (
-      <DndProvider backend={HTML5Backend}>
-        <div className="flex-1 min-h-0 flex overflow-hidden">
+      <div className="flex-1 min-h-0 flex overflow-hidden">
+        <div
+          ref={containerRef}
+          className={classnames(styles.panesContainer, "flex-1 min-w-0")}
+        >
           <div
-            ref={containerRef}
-            className={classnames(styles.panesContainer, "flex-1 min-w-0")}
+            className={styles.pane}
+            style={{ width: `${splitRatio * 100}%`, height: "100%" }}
           >
-            <div
-              className={styles.pane}
-              style={{ width: `${splitRatio * 100}%`, height: "100%" }}
+            <TitlebarWithTabs paneId={firstPane.id} showRightControls={false} />
+            <ContentDropZone
+              paneId={firstPane.id}
+              className="flex-1 min-h-0 overflow-hidden"
             >
-              <TitlebarWithTabs
-                paneId={firstPane.id}
-                showRightControls={false}
-              />
-              <ContentDropZone
-                paneId={firstPane.id}
-                className="flex-1 min-h-0 overflow-hidden"
-              >
-                <div className={styles.paneContent}>
-                  {firstActiveTab && (
-                    <TabContent tab={firstActiveTab} paneId={firstPane.id} />
-                  )}
-                </div>
-              </ContentDropZone>
-            </div>
+              <div className={styles.paneContent}>
+                {firstActiveTab && (
+                  <TabContent tab={firstActiveTab} paneId={firstPane.id} />
+                )}
+              </div>
+            </ContentDropZone>
+          </div>
 
-            <Resizer
-              direction={direction}
+          <Resizer
+            direction={direction}
+            paneId={secondPane.id}
+            containerRef={containerRef}
+          />
+
+          <div
+            className={styles.pane}
+            style={{ width: `${(1 - splitRatio) * 100}%`, height: "100%" }}
+          >
+            <TitlebarWithTabs paneId={secondPane.id} showRightControls={true} />
+            <ContentDropZone
               paneId={secondPane.id}
-              containerRef={containerRef}
-            />
-
-            <div
-              className={styles.pane}
-              style={{ width: `${(1 - splitRatio) * 100}%`, height: "100%" }}
+              className="flex-1 min-h-0 overflow-hidden"
             >
-              <TitlebarWithTabs
-                paneId={secondPane.id}
-                showRightControls={true}
-              />
-              <ContentDropZone
-                paneId={secondPane.id}
-                className="flex-1 min-h-0 overflow-hidden"
-              >
-                <div className={styles.paneContent}>
-                  {secondActiveTab && (
-                    <TabContent tab={secondActiveTab} paneId={secondPane.id} />
-                  )}
-                </div>
-              </ContentDropZone>
-            </div>
+              <div className={styles.paneContent}>
+                {secondActiveTab && (
+                  <TabContent tab={secondActiveTab} paneId={secondPane.id} />
+                )}
+              </div>
+            </ContentDropZone>
           </div>
         </div>
-      </DndProvider>
+      </div>
     );
   } else {
     // 上下布局：只在上面的 pane 显示控件
     return (
-      <DndProvider backend={HTML5Backend}>
-        <div className="flex-1 min-h-0 flex overflow-hidden">
+      <div className="flex-1 min-h-0 flex overflow-hidden">
+        <div
+          ref={containerRef}
+          className={classnames(styles.panesContainer, "flex-1 min-w-0")}
+          style={{ flexDirection: "column" }}
+        >
           <div
-            ref={containerRef}
-            className={classnames(styles.panesContainer, "flex-1 min-w-0")}
-            style={{ flexDirection: "column" }}
+            className={styles.pane}
+            style={{ width: "100%", height: `${splitRatio * 100}%` }}
           >
-            <div
-              className={styles.pane}
-              style={{ width: "100%", height: `${splitRatio * 100}%` }}
+            <TitlebarWithTabs paneId={firstPane.id} showRightControls={true} />
+            <ContentDropZone
+              paneId={firstPane.id}
+              className="flex-1 min-h-0 overflow-hidden"
             >
-              <TitlebarWithTabs
-                paneId={firstPane.id}
-                showRightControls={true}
-              />
-              <ContentDropZone
-                paneId={firstPane.id}
-                className="flex-1 min-h-0 overflow-hidden"
-              >
-                <div className={styles.paneContent}>
-                  {firstActiveTab && (
-                    <TabContent tab={firstActiveTab} paneId={firstPane.id} />
-                  )}
-                </div>
-              </ContentDropZone>
-            </div>
+              <div className={styles.paneContent}>
+                {firstActiveTab && (
+                  <TabContent tab={firstActiveTab} paneId={firstPane.id} />
+                )}
+              </div>
+            </ContentDropZone>
+          </div>
 
-            <Resizer
-              direction={direction}
+          <Resizer
+            direction={direction}
+            paneId={secondPane.id}
+            containerRef={containerRef}
+          />
+
+          <div
+            className={styles.pane}
+            style={{ width: "100%", height: `${(1 - splitRatio) * 100}%` }}
+          >
+            <TitlebarWithTabs
               paneId={secondPane.id}
-              containerRef={containerRef}
+              showRightControls={false}
             />
-
-            <div
-              className={styles.pane}
-              style={{ width: "100%", height: `${(1 - splitRatio) * 100}%` }}
+            <ContentDropZone
+              paneId={secondPane.id}
+              className="flex-1 min-h-0 overflow-hidden"
             >
-              <TitlebarWithTabs
-                paneId={secondPane.id}
-                showRightControls={false}
-              />
-              <ContentDropZone
-                paneId={secondPane.id}
-                className="flex-1 min-h-0 overflow-hidden"
-              >
-                <div className={styles.paneContent}>
-                  {secondActiveTab && (
-                    <TabContent tab={secondActiveTab} paneId={secondPane.id} />
-                  )}
-                </div>
-              </ContentDropZone>
-            </div>
+              <div className={styles.paneContent}>
+                {secondActiveTab && (
+                  <TabContent tab={secondActiveTab} paneId={secondPane.id} />
+                )}
+              </div>
+            </ContentDropZone>
           </div>
         </div>
-      </DndProvider>
+      </div>
     );
   }
 });
