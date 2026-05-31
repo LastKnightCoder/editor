@@ -3,10 +3,24 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
 import electron from "vite-plugin-electron/simple";
-import pkg from "./package.json";
 import fs from "fs-extra";
 
 import * as path from "path";
+
+const runtimeDependencyExternals = [
+  "7zip-min",
+  "@myriaddreamin/typst-ts-node-compiler",
+  "@node-rs/jieba",
+  "@tailwindcss/oxide",
+  "better-sqlite3",
+  "font-list",
+  "node-pty",
+  "sharp",
+  "sqlite-vec",
+  "tailwindcss",
+  "ws",
+];
+
 export default defineConfig(() => {
   rmSync("dist-electron", { recursive: true, force: true });
 
@@ -68,7 +82,7 @@ export default defineConfig(() => {
               outDir: "dist-electron/main",
               rollupOptions: {
                 external: [
-                  ...Object.keys("dependencies" in pkg ? pkg.dependencies : {}),
+                  ...runtimeDependencyExternals,
                   // Exclude large renderer-only packages to prevent memory overflow
                   "mathjax-full",
                   "highlight.js",
@@ -138,9 +152,7 @@ export default defineConfig(() => {
               minify: true,
               outDir: "dist-electron/preload",
               rollupOptions: {
-                external: Object.keys(
-                  "dependencies" in pkg ? pkg.dependencies : {}
-                ),
+                external: runtimeDependencyExternals,
               },
             },
           },

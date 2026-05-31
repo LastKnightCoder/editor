@@ -30,6 +30,8 @@ export const resolveChatInputPlaceholder = (
   const modifierLabel = resolveChatInputModifierLabel(platform);
 
   return placeholder
-    .replaceAll("Ctrl/Command", modifierLabel)
-    .replaceAll("Command/Ctrl", modifierLabel);
+    .split("Ctrl/Command")
+    .join(modifierLabel)
+    .split("Command/Ctrl")
+    .join(modifierLabel);
 };

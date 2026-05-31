@@ -28,6 +28,7 @@
     "icon:regen": "pnpm run icon:prepare:android-fg && tauri icon src-tauri/icon-manifest.json"
   },
   "dependencies": {
+    "@ant-design/icons": "^6.0.6",
     "@tanstack/react-virtual": "3.13.12",
     "@tau/editor": "workspace:*",
     "@tau/shared": "workspace:*",
