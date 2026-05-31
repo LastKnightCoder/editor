@@ -12,6 +12,13 @@ export default defineConfig(() => {
 
   return {
     resolve: {
+      dedupe: [
+        "react",
+        "react-dom",
+        "react-dnd",
+        "react-dnd-html5-backend",
+        "dnd-core",
+      ],
       alias: {
         "@": path.resolve(__dirname, "src"),
         "@quick-card": path.resolve(__dirname, "quick-card"),

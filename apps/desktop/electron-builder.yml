@@ -3,11 +3,23 @@ productName: "Tau"
 copyright: "Copyright © 2025 ${author}"
 asar: true
 asarUnpack:
+  - "node_modules/@node-rs/jieba/**/*"
+  - "node_modules/@node-rs/jieba-*/**/*"
+  - "node_modules/@img/sharp-*/**/*"
+  - "node_modules/@img/sharp-libvips-*/**/*"
+  - "node_modules/sharp/**/*"
   - "node_modules/sqlite-vec-*/**/*"
   - "node_modules/better-sqlite3/**/*"
   - "node_modules/bindings/**/*"
   - "node_modules/file-uri-to-path/**/*"
   - "node_modules/node-pty/**/*"
+  - "node_modules/@tailwindcss/oxide/**/*"
+  - "node_modules/@tailwindcss/oxide-*/**/*"
+  - "node_modules/@myriaddreamin/typst-ts-node-compiler/**/*"
+  - "node_modules/@myriaddreamin/typst-ts-node-compiler-*/**/*"
+  - "node_modules/7zip-bin/**/*"
+  - "node_modules/font-list/**/*"
+afterPack: "scripts/prune-packaged-native-modules.cjs"
 directories:
   output: release/
   buildResources: build
