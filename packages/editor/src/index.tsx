@@ -141,6 +141,7 @@ const Index = memo(
     const systemTheme = useSystemTheme();
     const services = useEditorServices();
     const currentValue = useRef<Descendant[]>(initValue);
+    const pendingSetEditorValueJson = useRef<string | null>(null);
 
     const finalExtensions: IExtension[] = useMemo(() => {
       if (!extensions) return disableStartExtensions ? [] : startExtensions;
@@ -299,12 +300,14 @@ const Index = memo(
         },
         setEditorValue: (nodes: Descendant[]) => {
           const normalizedNodes = normalizeEditorContent(nodes);
-          ReactEditor.deselect(editor);
+          const nextValueJson = JSON.stringify(normalizedNodes);
           const domSelection = window.getSelection();
           if (domSelection && domSelection.rangeCount > 0) {
             domSelection.removeAllRanges();
           }
+          Transforms.deselect(editor);
           editor.isResetValue = true;
+          pendingSetEditorValueJson.current = nextValueJson;
           Editor.withoutNormalizing(editor, () => {
             updateNodeRecursively(
               editor,
@@ -340,13 +343,23 @@ const Index = memo(
 
     const handleOnChange = (value: Descendant[]) => {
       const normalizedValue = normalizeEditorContent(value);
+      const nextValueJson = JSON.stringify(normalizedValue);
       if (syncSelectionSnapshot()) {
         onSelectionChange?.();
       }
-      if (
-        JSON.stringify(currentValue.current) === JSON.stringify(normalizedValue)
-      )
+      const valueChanged =
+        JSON.stringify(currentValue.current) !== nextValueJson;
+      const isSetEditorValueChange =
+        pendingSetEditorValueJson.current === nextValueJson;
+      if (isSetEditorValueChange) {
+        if (valueChanged) {
+          currentValue.current = normalizedValue;
+        }
+        pendingSetEditorValueJson.current = null;
         return;
+      }
+      pendingSetEditorValueJson.current = null;
+      if (!valueChanged) return;
       currentValue.current = normalizedValue;
       onChange && onChange(normalizedValue, editor);
     };
