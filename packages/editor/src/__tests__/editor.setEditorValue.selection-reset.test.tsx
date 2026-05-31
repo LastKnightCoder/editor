@@ -56,10 +56,49 @@ describe("Editor.setEditorValue", () => {
     document.body.innerHTML = "";
   });
 
+  const renderEditor = async (onChange = vi.fn()) => {
+    const ref = createRef<EditorRef>();
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(
+        <DndProvider backend={HTML5Backend}>
+          <EditorServicesProvider services={services}>
+            <Editor
+              ref={ref}
+              initValue={[createParagraph("旧内容")]}
+              readonly={false}
+              onChange={onChange}
+            />
+          </EditorServicesProvider>
+        </DndProvider>,
+      );
+    });
+
+    const slateEditor = ref.current?.getEditor();
+    expect(slateEditor).toBeTruthy();
+
+    act(() => {
+      slateEditor!.selection = {
+        anchor: { path: [0, 0], offset: 0 },
+        focus: { path: [0, 0], offset: 2 },
+      };
+    });
+
+    return { ref, slateEditor: slateEditor!, onChange };
+  };
+
   it("外部设值前应先清理 selection，避免沿用旧叶子节点范围", async () => {
-    const deselectSpy = vi.spyOn(ReactEditor, "deselect");
     const removeAllRanges = vi.fn();
+    const { ref, slateEditor } = await renderEditor();
+    const editorElement = ReactEditor.toDOMNode(slateEditor, slateEditor);
+    const selectionNode = editorElement.firstChild;
+
     const getSelectionSpy = vi.spyOn(window, "getSelection").mockReturnValue({
+      anchorNode: selectionNode,
+      focusNode: selectionNode,
       removeAllRanges,
       rangeCount: 1,
       getRangeAt: () =>
@@ -78,42 +117,64 @@ describe("Editor.setEditorValue", () => {
         }) as Range,
     } as unknown as Selection);
 
-    const ref = createRef<EditorRef>();
-    container = document.createElement("div");
-    document.body.appendChild(container);
-    root = createRoot(container);
-
     await act(async () => {
-      root?.render(
-        <DndProvider backend={HTML5Backend}>
-          <EditorServicesProvider services={services}>
-            <Editor
-              ref={ref}
-              initValue={[createParagraph("旧内容")]}
-              readonly={false}
-            />
-          </EditorServicesProvider>
-        </DndProvider>,
-      );
+      ref.current?.setEditorValue([createParagraph("新内容")]);
     });
 
-    const slateEditor = ref.current?.getEditor();
-    expect(slateEditor).toBeTruthy();
+    expect(getSelectionSpy).toHaveBeenCalled();
+    expect(removeAllRanges).toHaveBeenCalledTimes(1);
+    expect(ref.current?.getEditor().selection).toBeNull();
+  });
 
-    act(() => {
-      slateEditor!.selection = {
-        anchor: { path: [0, 0], offset: 0 },
-        focus: { path: [0, 0], offset: 2 },
-      };
-    });
+  it("外部设值不应清理其他 editor 或元素内的 DOM selection", async () => {
+    const reactEditorDeselectSpy = vi.spyOn(ReactEditor, "deselect");
+    const removeAllRanges = vi.fn();
+    const { ref } = await renderEditor();
+    const externalSelectionHost = document.createElement("div");
+    externalSelectionHost.textContent = "其他编辑器里的选区";
+    document.body.appendChild(externalSelectionHost);
+    const selectionNode = externalSelectionHost.firstChild;
+
+    const getSelectionSpy = vi.spyOn(window, "getSelection").mockReturnValue({
+      anchorNode: selectionNode,
+      focusNode: selectionNode,
+      removeAllRanges,
+      rangeCount: 1,
+      getRangeAt: () =>
+        ({
+          getBoundingClientRect: () => ({
+            top: 0,
+            bottom: 0,
+            left: 0,
+            width: 0,
+            height: 0,
+            right: 0,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+          }),
+        }) as Range,
+    } as unknown as Selection);
 
     await act(async () => {
       ref.current?.setEditorValue([createParagraph("新内容")]);
     });
 
-    expect(deselectSpy).toHaveBeenCalledTimes(1);
     expect(getSelectionSpy).toHaveBeenCalled();
-    expect(removeAllRanges).toHaveBeenCalledTimes(1);
+    expect(reactEditorDeselectSpy).not.toHaveBeenCalled();
+    expect(removeAllRanges).not.toHaveBeenCalled();
     expect(ref.current?.getEditor().selection).toBeNull();
+  });
+
+  it("外部设值触发的 Slate onChange 不应继续调用业务 onChange", async () => {
+    const onChange = vi.fn();
+    const { ref } = await renderEditor(onChange);
+    onChange.mockClear();
+
+    await act(async () => {
+      ref.current?.setEditorValue([createParagraph("外部同步内容")]);
+    });
+
+    expect(onChange).not.toHaveBeenCalled();
   });
 });

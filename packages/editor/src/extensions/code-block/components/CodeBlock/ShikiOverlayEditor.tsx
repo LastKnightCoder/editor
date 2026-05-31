@@ -23,6 +23,13 @@ interface SelectionRange {
   end: number;
 }
 
+interface SelectionSnapshot extends SelectionRange {
+  direction: HTMLTextAreaElement["selectionDirection"];
+  value: string;
+  allowValueChange?: boolean;
+  pendingRestore?: boolean;
+}
+
 export interface OverlayKeydownHelpers {
   getValue: () => string;
   setValue: (value: string) => void;
@@ -102,6 +109,18 @@ const cursorToOffset = (value: string, cursor: CodeCursorPosition): number => {
   return offset + clamp(cursor.ch, 0, targetLineText.length);
 };
 
+const clampSelectionSnapshot = (
+  snapshot: SelectionSnapshot,
+  value: string,
+): SelectionSnapshot => {
+  return {
+    ...snapshot,
+    start: clamp(snapshot.start, 0, value.length),
+    end: clamp(snapshot.end, 0, value.length),
+    value,
+  };
+};
+
 const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
   value,
   language,
@@ -132,6 +151,7 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
   const [editorHeight, setEditorHeight] = useState(0);
   const renderTaskIdRef = useRef(0);
   const measuredContentHeightRef = useRef(0);
+  const selectionSnapshotRef = useRef<SelectionSnapshot | null>(null);
 
   valueRef.current = value;
   const shikiLanguage = useMemo(
@@ -159,6 +179,26 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
       ? `${measuredValue}\u200b`
       : measuredValue;
   }, [measuredValue]);
+
+  const saveSelectionSnapshot = useCallback(
+    (
+      textarea: HTMLTextAreaElement | null = textareaRef.current,
+      options: { allowValueChange?: boolean } = {},
+    ) => {
+      if (!textarea) {
+        return;
+      }
+      selectionSnapshotRef.current = {
+        start: textarea.selectionStart || 0,
+        end: textarea.selectionEnd || 0,
+        direction: textarea.selectionDirection,
+        value: textarea.value,
+        allowValueChange: options.allowValueChange,
+        pendingRestore: options.allowValueChange,
+      };
+    },
+    [],
+  );
 
   const syncHeight = useCallback(() => {
     const textarea = textareaRef.current;
@@ -197,6 +237,49 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
   useLayoutEffect(() => {
     syncHeight();
   }, [measureContent, isDark, syncHeight]);
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    const snapshot = selectionSnapshotRef.current;
+    if (
+      readOnly ||
+      !textarea ||
+      !snapshot ||
+      document.activeElement !== textarea
+    ) {
+      return;
+    }
+    if (snapshot.value !== value && !snapshot.allowValueChange) {
+      return;
+    }
+
+    const currentStart = textarea.selectionStart || 0;
+    const currentEnd = textarea.selectionEnd || 0;
+    const expected = clampSelectionSnapshot(snapshot, value);
+    if (
+      currentStart === expected.start &&
+      currentEnd === expected.end &&
+      textarea.selectionDirection === expected.direction
+    ) {
+      selectionSnapshotRef.current = {
+        ...expected,
+        allowValueChange: false,
+        pendingRestore: false,
+      };
+      return;
+    }
+
+    textarea.setSelectionRange(
+      expected.start,
+      expected.end,
+      expected.direction,
+    );
+    selectionSnapshotRef.current = {
+      ...expected,
+      allowValueChange: false,
+      pendingRestore: false,
+    };
+  }, [readOnly, value]);
 
   useEffect(() => {
     if (magicMoveEnabled && magicMoveHighlighter) {
@@ -329,6 +412,7 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
         const offset = cursorToOffset(valueRef.current, cursor);
         textarea.focus();
         textarea.setSelectionRange(offset, offset);
+        saveSelectionSnapshot(textarea);
       },
       getLine: (line: number) => {
         const lines = getLines(valueRef.current);
@@ -339,7 +423,7 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
         return Math.max(lines.length - 1, 0);
       },
     };
-  }, [onChange]);
+  }, [onChange, saveSelectionSnapshot]);
 
   useEffect(() => {
     onDidMount?.(controller);
@@ -370,11 +454,12 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
         const textarea = textareaRef.current;
         if (!textarea) return;
         textarea.setSelectionRange(start, end);
+        saveSelectionSnapshot(textarea, { allowValueChange: true });
       },
       getLine: (line: number) => controller.getLine(line),
       lastLine: () => controller.lastLine(),
     };
-  }, [controller]);
+  }, [controller, saveSelectionSnapshot]);
 
   return (
     <div
@@ -442,7 +527,23 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
           overflowX: "auto",
           overflowY: allowScroll ? "auto" : "hidden",
         }}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => {
+          selectionSnapshotRef.current = {
+            start: event.target.selectionStart || 0,
+            end: event.target.selectionEnd || 0,
+            direction: event.target.selectionDirection,
+            value: event.target.value,
+            allowValueChange: true,
+            pendingRestore: true,
+          };
+          onChange(event.target.value);
+        }}
+        onSelect={(event) => {
+          if (selectionSnapshotRef.current?.pendingRestore) {
+            return;
+          }
+          saveSelectionSnapshot(event.currentTarget);
+        }}
         onBlur={onBlur}
         onContextMenu={(e) => {
           if (!onContextMenu) return;
