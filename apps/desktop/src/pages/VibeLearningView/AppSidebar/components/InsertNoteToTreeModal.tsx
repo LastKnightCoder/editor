@@ -19,6 +19,7 @@ import {
   addChildProjectItem,
   createSharedProjectItemFromContent,
 } from "@/commands/project";
+import { createWebLink } from "@/commands/web-link";
 import {
   addRootDocumentItem,
   addChildDocumentItem,
@@ -27,7 +28,8 @@ import {
 import { getContentById } from "@/commands";
 import { getContentLength } from "@/utils";
 import { EProjectType, EProjectItemType } from "@/types/project";
-import type { CreateProjectItem, Project } from "@/types/project";
+import type { CreateProjectItem, Project, ProjectItem } from "@/types/project";
+import type { WebLinkSourceType } from "@/types/web-link";
 import type { IDocument, ICreateDocumentItem } from "@/types/document";
 import {
   buildProjectTree,
@@ -41,9 +43,14 @@ interface InsertNoteToTreeModalProps {
   noteTitle: string;
   noteContent: Descendant[];
   sourceContentId?: number | null;
-  insertMode?: "copy" | "shared-content";
+  insertMode?: "copy" | "shared-content" | "webview";
+  webviewPayload?: {
+    title: string;
+    url: string;
+    sourceType?: WebLinkSourceType;
+  };
   onCancel: () => void;
-  onSuccess: () => void;
+  onSuccess: (createdItem?: ProjectItem | null) => void;
 }
 
 // 递归树节点组件
@@ -136,6 +143,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
     noteContent,
     sourceContentId = null,
     insertMode = "copy",
+    webviewPayload,
     onCancel,
     onSuccess,
   }) => {
@@ -220,7 +228,45 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
       if (!selectedEntityId) return;
       setInserting(true);
       try {
-        if (insertMode === "shared-content") {
+        if (insertMode === "webview") {
+          if (mode !== "project" || !webviewPayload?.url) {
+            throw new Error("缺少网页信息");
+          }
+
+          const title = webviewPayload.title.trim() || webviewPayload.url;
+          const webLink = await createWebLink({
+            title,
+            url: webviewPayload.url,
+            sourceType: webviewPayload.sourceType || "remote",
+          });
+
+          const newItem: CreateProjectItem = {
+            title: webLink.title,
+            content: [],
+            children: [],
+            refType: "web-link",
+            refId: webLink.id,
+            projectItemType: EProjectItemType.WebView,
+            count: 0,
+            whiteBoardContentId: 0,
+          };
+
+          let createdItem: ProjectItem | null = null;
+          if (selectedNodeId) {
+            [, createdItem] = await addChildProjectItem(
+              selectedNodeId,
+              newItem,
+            );
+          } else {
+            [, createdItem] = await addRootProjectItem(
+              selectedEntityId,
+              newItem,
+            );
+          }
+          message.success("网页已添加到项目");
+          onSuccess(createdItem);
+          return;
+        } else if (insertMode === "shared-content") {
           if (!sourceContentId) {
             throw new Error("缺少共享内容 ID");
           }
@@ -295,7 +341,11 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
       } catch (error) {
         console.error("Failed to insert note:", error);
         message.error(
-          insertMode === "shared-content" ? "挂载内容失败" : "插入笔记失败",
+          insertMode === "webview"
+            ? "添加网页失败"
+            : insertMode === "shared-content"
+              ? "挂载内容失败"
+              : "插入笔记失败",
         );
       } finally {
         setInserting(false);
@@ -308,9 +358,17 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
       noteContent,
       sourceContentId,
       insertMode,
+      webviewPayload,
       message,
       onSuccess,
     ]);
+
+    const actionText =
+      insertMode === "shared-content"
+        ? "创建"
+        : insertMode === "webview"
+          ? "添加"
+          : "插入";
 
     return (
       <CustomModal
@@ -320,15 +378,17 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
         bodyClassName="!p-0"
         title={
           mode === "project"
-            ? insertMode === "shared-content"
-              ? "创建项目文档"
-              : "插入笔记到项目"
+            ? insertMode === "webview"
+              ? "添加网页到项目"
+              : insertMode === "shared-content"
+                ? "创建项目文档"
+                : "插入笔记到项目"
             : insertMode === "shared-content"
               ? "创建知识库文档"
               : "插入笔记到知识库"
         }
         onOk={handleConfirm}
-        okText={insertMode === "shared-content" ? "创建" : "插入"}
+        okText={actionText}
         cancelText="取消"
         confirmLoading={inserting}
         okButtonProps={{ disabled: !selectedEntityId }}
@@ -426,7 +486,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
                         : themeColors.textClass,
                     )}
                   >
-                    插入到根目录
+                    {insertMode === "webview" ? "添加到根目录" : "插入到根目录"}
                   </span>
                 </div>
                 {/* 文档树节点 */}

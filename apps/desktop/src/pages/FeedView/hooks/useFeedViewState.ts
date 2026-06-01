@@ -1,17 +1,26 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
+import { getAllProjectItems, getWebLinksByIds } from "@/commands";
 import useRssStore, { RssStatus } from "@/stores/useRssStore";
 import useReadLaterStore from "@/stores/useReadLaterStore";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 import type { SidebarSelection, UnifiedArticleItem } from "../types";
 import {
   useUnifiedRssEntries,
   useUnifiedReadLaterItems,
 } from "./useUnifiedArticleList";
+import {
+  resolveArticleProjectTargets,
+  type ArticleProjectTarget,
+} from "../utils/articleProjectTargets";
 
 export interface FeedViewState {
   selection: SidebarSelection;
   articles: UnifiedArticleItem[];
   selectedArticle: UnifiedArticleItem | null;
+  projectArticleToAdd: UnifiedArticleItem | null;
+  articleProjectTargets: Record<string, ArticleProjectTarget>;
   isLoading: boolean;
   isRefreshing: boolean;
   addDialogOpen: boolean;
@@ -28,6 +37,10 @@ export interface FeedViewActions {
   archiveItem: (article: UnifiedArticleItem) => void;
   unarchiveItem: (article: UnifiedArticleItem) => void;
   deleteItem: (article: UnifiedArticleItem) => void;
+  addToProject: (article: UnifiedArticleItem) => void;
+  closeProjectInsertModal: () => void;
+  refreshArticleProjectTargets: () => Promise<void>;
+  openProjectTarget: (target: ArticleProjectTarget) => void;
   refreshCurrent: () => void;
   refreshAll: () => void;
   setAddDialogOpen: (open: boolean) => void;
@@ -43,9 +56,16 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
   );
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [isSelectedInReadLater, setIsSelectedInReadLater] = useState(false);
+  const [projectArticleToAdd, setProjectArticleToAdd] =
+    useState<UnifiedArticleItem | null>(null);
+  const [articleProjectTargets, setArticleProjectTargets] = useState<
+    Record<string, ArticleProjectTarget>
+  >({});
+  const projectTargetRequestRef = useRef(0);
 
   const rssStore = useRssStore();
   const readLaterStore = useReadLaterStore();
+  const navigateTo = useTabStore((state) => state.navigateTo);
 
   const isReadLaterMode =
     selection.kind === "smart" && selection.group === "readlater";
@@ -103,6 +123,42 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
       setIsSelectedInReadLater(false);
     }
   }, [selectedArticle?.id]);
+
+  const refreshArticleProjectTargets = useMemoizedFn(async () => {
+    const requestId = projectTargetRequestRef.current + 1;
+    projectTargetRequestRef.current = requestId;
+    const articlesWithUrl = articles.filter((article) => article.url);
+    if (articlesWithUrl.length === 0) {
+      if (projectTargetRequestRef.current === requestId) {
+        setArticleProjectTargets({});
+      }
+      return;
+    }
+
+    try {
+      const projectItems = await getAllProjectItems();
+      const webviewItems = projectItems.filter(
+        (item) => item.refType === "web-link" && item.refId,
+      );
+      const webLinks = await getWebLinksByIds([
+        ...new Set(webviewItems.map((item) => item.refId)),
+      ]);
+      if (projectTargetRequestRef.current === requestId) {
+        setArticleProjectTargets(
+          resolveArticleProjectTargets(articlesWithUrl, webviewItems, webLinks),
+        );
+      }
+    } catch (error) {
+      console.error("[FeedView] 加载文章项目文档状态失败:", error);
+      if (projectTargetRequestRef.current === requestId) {
+        setArticleProjectTargets({});
+      }
+    }
+  });
+
+  useEffect(() => {
+    void refreshArticleProjectTargets();
+  }, [articles, refreshArticleProjectTargets]);
 
   const isLoading = isReadLaterMode
     ? readLaterStore.loading
@@ -182,6 +238,26 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
     }
   });
 
+  const addToProject = useMemoizedFn((article: UnifiedArticleItem) => {
+    if (!article.url) return;
+    setProjectArticleToAdd(article);
+  });
+
+  const closeProjectInsertModal = useMemoizedFn(() => {
+    setProjectArticleToAdd(null);
+  });
+
+  const openProjectTarget = useMemoizedFn((target: ArticleProjectTarget) => {
+    navigateTo(
+      TabType.ProjectDetail,
+      {
+        id: target.projectId,
+        itemId: target.itemId,
+      },
+      `项目 - ${target.title}`,
+    );
+  });
+
   const refreshCurrent = useMemoizedFn(() => {
     if (selection.kind === "subscription") {
       rssStore.refreshFeed(selection.feedId);
@@ -198,6 +274,8 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
     selection,
     articles,
     selectedArticle,
+    projectArticleToAdd,
+    articleProjectTargets,
     isLoading,
     isRefreshing: rssStore.isRefreshing,
     addDialogOpen,
@@ -211,6 +289,10 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
     archiveItem,
     unarchiveItem,
     deleteItem,
+    addToProject,
+    closeProjectInsertModal,
+    refreshArticleProjectTargets,
+    openProjectTarget,
     refreshCurrent,
     refreshAll,
     setAddDialogOpen,

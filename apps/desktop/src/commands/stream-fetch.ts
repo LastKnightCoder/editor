@@ -201,6 +201,7 @@ export const createResponsesStreamParser = () => {
       const event = JSON.parse(text);
       switch (event.type) {
         case "response.output_text.delta":
+          // TODO: 如后续发现 Responses API 模型会在 output_text 中输出 <think> 标签，再接入 thinkTagNormalizer；当前未发现实际问题，暂不处理。
           return { delta: { content: event.delta as string } };
         case "response.reasoning_summary_text.delta":
         case "response.reasoning_summary.delta":

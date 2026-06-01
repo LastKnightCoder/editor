@@ -1094,6 +1094,10 @@ const RightComponentsSidebar = memo(
             setPreviewCardId(undefined);
             data.refreshCards();
           }}
+          onGoToDetail={() => {
+            setPreviewCardId(undefined);
+            data.refreshCards();
+          }}
         />
 
         <ReviewModal

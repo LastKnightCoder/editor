@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { InboxOutlined } from "@ant-design/icons";
 import useThemeColors from "@/hooks/useThemeColors";
 import type { SidebarSelection, UnifiedArticleItem } from "../../types";
+import type { ArticleProjectTarget } from "../../utils/articleProjectTargets";
 import ArticleListHeader from "./ArticleListHeader";
 import ArticleListItem from "./ArticleListItem";
 import ListSkeleton from "./ListSkeleton";
@@ -12,9 +13,18 @@ interface ArticleListProps {
   articles: UnifiedArticleItem[];
   selectedId: string | null;
   isLoading: boolean;
+  articleProjectTargets?: Record<string, ArticleProjectTarget>;
   onSelect: (id: string) => void;
   onMarkAllRead: () => void;
   onRefresh: () => void;
+  onToggleStar: (article: UnifiedArticleItem) => void;
+  onMarkRead: (article: UnifiedArticleItem) => void;
+  onToggleReadLater: (article: UnifiedArticleItem) => void;
+  onArchive: (article: UnifiedArticleItem) => void;
+  onUnarchive: (article: UnifiedArticleItem) => void;
+  onDelete: (article: UnifiedArticleItem) => void;
+  onAddToProject?: (article: UnifiedArticleItem) => void;
+  onOpenProject?: (target: ArticleProjectTarget) => void;
 }
 
 export default function ArticleList({
@@ -22,9 +32,18 @@ export default function ArticleList({
   articles,
   selectedId,
   isLoading,
+  articleProjectTargets = {},
   onSelect,
   onMarkAllRead,
   onRefresh,
+  onToggleStar,
+  onMarkRead,
+  onToggleReadLater,
+  onArchive,
+  onUnarchive,
+  onDelete,
+  onAddToProject,
+  onOpenProject,
 }: ArticleListProps) {
   const themeColors = useThemeColors();
 
@@ -106,7 +125,16 @@ export default function ArticleList({
                   <ArticleListItem
                     item={article}
                     isActive={selectedId === article.id}
+                    projectTarget={articleProjectTargets[article.id] || null}
                     onClick={() => onSelect(article.id)}
+                    onToggleStar={onToggleStar}
+                    onMarkRead={onMarkRead}
+                    onToggleReadLater={onToggleReadLater}
+                    onArchive={onArchive}
+                    onUnarchive={onUnarchive}
+                    onDelete={onDelete}
+                    onAddToProject={onAddToProject}
+                    onOpenProject={onOpenProject}
                   />
                 </motion.div>
               ))}

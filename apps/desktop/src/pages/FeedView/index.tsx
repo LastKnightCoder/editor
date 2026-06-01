@@ -1,13 +1,18 @@
 import { memo } from "react";
+import type { Descendant } from "slate";
 import ResizablePanel from "@/components/ResizablePanel";
 import useFeedViewState from "./hooks/useFeedViewState";
 import FeedSidebar from "./components/FeedSidebar";
 import ArticleList from "./components/ArticleList";
 import ReadingPane from "./components/ReadingPane";
 import AddFeedDialog from "./components/AddFeedDialog";
+import InsertNoteToTreeModal from "@/pages/VibeLearningView/AppSidebar/components/InsertNoteToTreeModal";
+
+const EMPTY_NOTE_CONTENT: Descendant[] = [];
 
 const FeedView: React.FC = memo(() => {
   const state = useFeedViewState();
+  const projectArticle = state.projectArticleToAdd;
 
   return (
     <>
@@ -41,9 +46,18 @@ const FeedView: React.FC = memo(() => {
                 articles={state.articles}
                 selectedId={state.selectedArticle?.id || null}
                 isLoading={state.isLoading}
+                articleProjectTargets={state.articleProjectTargets}
                 onSelect={state.selectArticle}
                 onMarkAllRead={state.markAllRead}
                 onRefresh={state.refreshCurrent}
+                onToggleStar={state.toggleStar}
+                onMarkRead={state.markRead}
+                onToggleReadLater={state.toggleReadLater}
+                onArchive={state.archiveItem}
+                onUnarchive={state.unarchiveItem}
+                onDelete={state.deleteItem}
+                onAddToProject={state.addToProject}
+                onOpenProject={state.openProjectTarget}
               />
             }
             right={
@@ -59,6 +73,27 @@ const FeedView: React.FC = memo(() => {
       <AddFeedDialog
         open={state.addDialogOpen}
         onClose={() => state.setAddDialogOpen(false)}
+      />
+      <InsertNoteToTreeModal
+        mode="project"
+        open={!!projectArticle}
+        noteTitle={projectArticle?.title || ""}
+        noteContent={EMPTY_NOTE_CONTENT}
+        insertMode="webview"
+        webviewPayload={
+          projectArticle?.url
+            ? {
+                title: projectArticle.title,
+                url: projectArticle.url,
+                sourceType: "remote",
+              }
+            : undefined
+        }
+        onCancel={state.closeProjectInsertModal}
+        onSuccess={() => {
+          state.closeProjectInsertModal();
+          void state.refreshArticleProjectTargets();
+        }}
       />
     </>
   );
