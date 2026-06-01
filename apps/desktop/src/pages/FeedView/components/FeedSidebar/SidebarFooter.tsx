@@ -39,7 +39,7 @@ export default function SidebarFooter({ onAddClick }: SidebarFooterProps) {
 
   return (
     <div
-      className={`flex items-center gap-1 px-3 py-2 border-t ${themeColors.borderClass}`}
+      className={`flex items-center gap-1.5 px-4 py-3 border-t ${themeColors.borderClass} backdrop-blur-sm`}
     >
       <FooterButton
         icon={<PlusOutlined />}
@@ -82,7 +82,7 @@ function FooterButton({
 }) {
   return (
     <button
-      className={`flex h-7 w-7 items-center justify-center rounded-md border-none cursor-pointer bg-transparent transition-colors duration-150 text-xs ${themeColors.secondaryTextClass} ${themeColors.hoverClass}`}
+      className={`flex h-8 w-8 items-center justify-center rounded-lg border-none cursor-pointer bg-transparent transition-all duration-200 text-xs hover:scale-105 active:scale-95 ${themeColors.secondaryTextClass} ${themeColors.hoverClass}`}
       title={title}
       onClick={onClick}
     >

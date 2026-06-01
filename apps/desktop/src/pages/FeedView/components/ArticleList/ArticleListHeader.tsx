@@ -5,12 +5,14 @@ import type { SidebarSelection } from "../../types";
 
 interface ArticleListHeaderProps {
   selection: SidebarSelection;
+  articleCount?: number;
   onMarkAllRead: () => void;
   onRefresh: () => void;
 }
 
 export default function ArticleListHeader({
   selection,
+  articleCount,
   onMarkAllRead,
   onRefresh,
 }: ArticleListHeaderProps) {
@@ -48,14 +50,27 @@ export default function ArticleListHeader({
 
   return (
     <div
-      className={`flex items-center justify-between px-3 py-2 border-b ${themeColors.borderClass}`}
+      className={`flex items-center justify-between px-4 py-3 border-b ${themeColors.borderClass} ${themeColors.glassPanelBg} backdrop-blur-sm`}
     >
-      <span className="text-[13px] font-medium truncate">{getTitle()}</span>
+      <div className="flex items-baseline gap-2 min-w-0">
+        <span
+          className={`text-[15px] font-bold tracking-tight truncate ${themeColors.textClass}`}
+        >
+          {getTitle()}
+        </span>
+        {articleCount !== undefined && articleCount > 0 && (
+          <span
+            className={`text-[11px] shrink-0 ${themeColors.secondaryTextClass}`}
+          >
+            {articleCount} 篇
+          </span>
+        )}
+      </div>
       {showRssActions && (
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-1">
           {selection.kind === "subscription" && (
             <button
-              className={`flex h-6 w-6 items-center justify-center rounded border-none cursor-pointer bg-transparent text-xs ${themeColors.secondaryTextClass} ${themeColors.hoverClass} transition-colors duration-150`}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg border-none cursor-pointer bg-transparent text-xs transition-all duration-200 hover:scale-105 active:scale-95 ${themeColors.secondaryTextClass} ${themeColors.hoverClass}`}
               title="全部已读"
               onClick={onMarkAllRead}
             >
@@ -63,7 +78,7 @@ export default function ArticleListHeader({
             </button>
           )}
           <button
-            className={`flex h-6 w-6 items-center justify-center rounded border-none cursor-pointer bg-transparent text-xs ${themeColors.secondaryTextClass} ${themeColors.hoverClass} transition-colors duration-150`}
+            className={`flex h-8 w-8 items-center justify-center rounded-lg border-none cursor-pointer bg-transparent text-xs transition-all duration-200 hover:scale-105 active:scale-95 ${themeColors.secondaryTextClass} ${themeColors.hoverClass}`}
             title="刷新"
             onClick={onRefresh}
           >
