@@ -62,6 +62,7 @@ import {
   injectPublishRssLink,
   type IPublishFeedItem,
 } from "./publish-rss";
+import { scopeRuntimeTailwindCss } from "./publish-tailwind-scope";
 
 const TEMPLATE_ENTRY_MAP: Record<string, string> = {
   "home.html": "src/templates/home/index.html",
@@ -828,7 +829,7 @@ class PublishModule implements Module {
 
     const inlineStyle = options?.inlineStyle?.trim();
     if (inlineStyle) {
-      const scopedStyle = `[data-slate-editor="true"] { ${inlineStyle} }`;
+      const scopedStyle = scopeRuntimeTailwindCss(inlineStyle);
       const styleTag = `<style data-runtime-tailwind>${scopedStyle}</style>`;
       if (html.includes("</head>")) {
         html = html.replace("</head>", `${styleTag}\n</head>`);
