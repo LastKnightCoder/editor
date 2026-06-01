@@ -9,6 +9,17 @@
   --width-75: 300px;
 
   --animate-shimmer: shimmer 2s infinite;
+  --animate-float: float 3s ease-in-out infinite;
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
   --animate-gradient-shift: gradient-shift 6s ease infinite;
   --animate-gradient-flow: gradient-flow 8s ease infinite;
   --animate-gradient-dream: gradient-dream 10s ease infinite;
@@ -320,6 +331,24 @@
   }
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--th-tag-bg, rgba(0, 0, 0, 0.1)) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 5px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--th-tag-bg, rgba(0, 0, 0, 0.1));
+    border-radius: 9999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: var(--th-tag-hover, rgba(0, 0, 0, 0.2));
   }
 }
 
