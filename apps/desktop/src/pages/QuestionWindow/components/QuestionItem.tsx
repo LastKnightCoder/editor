@@ -274,7 +274,7 @@ const QuestionItem = memo(
               <div className="flex-1 min-w-0">
                 <EditText
                   ref={editTextRef}
-                  defaultValue={q.questionContent}
+                  value={q.questionContent}
                   contentEditable={isEditing}
                   defaultFocus={isEditing}
                   className={classNames(

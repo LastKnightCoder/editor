@@ -160,7 +160,7 @@ const PublishSetting = () => {
   };
 
   const onSiteConfigChange = useMemoizedFn(
-    (field: "title" | "description", value: string) => {
+    (field: "title" | "description" | "publicUrl", value: string) => {
       useSettingStore.setState(
         produce((state) => {
           state.setting.publish.site[field] = value;
@@ -469,6 +469,13 @@ const PublishSetting = () => {
             value={publish.site.description}
             onChange={(e) => onSiteConfigChange("description", e.target.value)}
             placeholder="记录学习与思考"
+          />
+          <SettingInput
+            label="公开 URL"
+            value={publish.site.publicUrl}
+            onChange={(e) => onSiteConfigChange("publicUrl", e.target.value)}
+            placeholder="https://example.com"
+            description="用于生成 RSS 订阅中的绝对链接；留空时会降级为站内路径"
           />
           <div className="flex flex-col gap-2">
             <div>

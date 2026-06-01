@@ -11,6 +11,7 @@ import {
 } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Descendant } from "slate";
+import type { IQuestion } from "@/types/question";
 
 import QuestionWindowPage from "../index";
 
@@ -74,7 +75,7 @@ const {
     setFilter: vi.fn(),
     searchQuery: "",
     setSearchQuery: vi.fn(),
-    itemsByGroup: { 1: [] },
+    itemsByGroup: { 1: [] as IQuestion[] },
     loadGroups: loadGroupsMock,
     loadGroupStats: loadGroupStatsMock,
     loadItems: loadItemsMock,
@@ -153,7 +154,25 @@ vi.mock("../components/QuestionSidebar", () => ({
 }));
 
 vi.mock("../components/QuestionList", () => ({
-  default: () => <div data-testid="question-list" />,
+  default: ({
+    questions,
+    onViewDetails,
+  }: {
+    questions: Array<{ id: number; questionContent: string }>;
+    onViewDetails: (id: number) => void;
+  }) => (
+    <div data-testid="question-list">
+      {questions.map((question) => (
+        <button
+          key={question.id}
+          type="button"
+          onClick={() => onViewDetails(question.id)}
+        >
+          查看详情：{question.questionContent}
+        </button>
+      ))}
+    </div>
+  ),
 }));
 
 vi.mock("../components/Toolbar", () => ({
@@ -262,6 +281,9 @@ describe("QuestionWindowPage", () => {
     loadItemsMock.mockClear();
     loadGroupStatsMock.mockClear();
     loadGroupsMock.mockClear();
+    questionStoreState.itemsByGroup = { 1: [] };
+    questionStoreState.searchQuery = "";
+    questionStoreState.filter = "all";
   });
 
   afterEach(async () => {
@@ -383,5 +405,90 @@ describe("QuestionWindowPage", () => {
     ) as HTMLTextAreaElement | null;
 
     expect(reopenedDescriptionEditor?.value).toBe("");
+  });
+
+  it("同一问题详情重新打开时应刷新非受控描述编辑器", async () => {
+    questionStoreState.itemsByGroup = {
+      1: [
+        {
+          id: 1,
+          createTime: 1,
+          updateTime: 1,
+          questionContent: "测试问题",
+          description: createParagraph("原描述"),
+          answers: [],
+          groupId: 1,
+          sortIndex: 0,
+          status: "not_started",
+        },
+      ],
+    };
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(
+        <App>
+          <QuestionWindowPage />
+        </App>,
+      );
+    });
+
+    const openDetailButton = Array.from(
+      container.querySelectorAll("button"),
+    ).find((button) => button.textContent?.includes("查看详情：测试问题"));
+    expect(openDetailButton).toBeTruthy();
+
+    await act(async () => {
+      clickElement(openDetailButton as HTMLButtonElement);
+    });
+
+    const descriptionEditor = container.querySelector(
+      '[data-testid="question-description-editor"]',
+    ) as HTMLTextAreaElement | null;
+    expect(descriptionEditor?.value).toBe("原描述");
+
+    const cancelButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.includes("取消"),
+    );
+    expect(cancelButton).toBeTruthy();
+
+    await act(async () => {
+      clickElement(cancelButton as HTMLButtonElement);
+    });
+
+    questionStoreState.itemsByGroup = {
+      1: [
+        {
+          ...questionStoreState.itemsByGroup[1][0],
+          description: createParagraph("外部更新描述"),
+        },
+      ],
+    };
+
+    await act(async () => {
+      root?.render(
+        <App>
+          <QuestionWindowPage />
+        </App>,
+      );
+    });
+
+    const reopenDetailButton = Array.from(
+      container.querySelectorAll("button"),
+    ).find((button) => button.textContent?.includes("查看详情：测试问题"));
+    expect(reopenDetailButton).toBeTruthy();
+
+    await act(async () => {
+      clickElement(reopenDetailButton as HTMLButtonElement);
+    });
+
+    const reopenedDescriptionEditor = container.querySelector(
+      '[data-testid="question-description-editor"]',
+    ) as HTMLTextAreaElement | null;
+
+    expect(reopenedDescriptionEditor?.value).toBe("外部更新描述");
   });
 });

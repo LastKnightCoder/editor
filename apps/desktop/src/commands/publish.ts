@@ -112,6 +112,7 @@ export async function exportPublishOutput(options: {
   siteConfig: {
     title: string;
     description: string;
+    publicUrl?: string;
     favicon?: IPublishFaviconConfig;
   };
   settings?: IPublishAppearanceSettings;
@@ -135,6 +136,7 @@ export async function executePublish(config: {
   siteConfig: {
     title: string;
     description: string;
+    publicUrl?: string;
     favicon?: IPublishFaviconConfig;
   };
   settings?: IPublishAppearanceSettings;

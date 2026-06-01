@@ -475,6 +475,7 @@ export interface ISetting {
     site: {
       title: string;
       description: string;
+      publicUrl: string;
       favicon?: IPublishFaviconConfig;
     };
   };
@@ -989,6 +990,7 @@ const initialState: IState = {
       site: {
         title: "",
         description: "",
+        publicUrl: "",
         favicon: undefined,
       },
     },

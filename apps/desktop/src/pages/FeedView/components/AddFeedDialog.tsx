@@ -23,16 +23,28 @@ export default function AddFeedDialog({ open, onClose }: AddFeedDialogProps) {
     { url: string; title: string; type: string }[]
   >([]);
 
+  const previewFeedUrl = useMemoizedFn(async (feedUrl: string) => {
+    const result = await previewFeed(feedUrl.trim());
+    setPreview(result);
+    if (!result.valid) {
+      setError(result.message);
+    }
+  });
+
   const handleDiscover = useMemoizedFn(async () => {
     if (!url.trim()) return;
     setLoading(true);
     setError(null);
     setPreview(null);
+    setDiscovered([]);
     try {
       const feeds = await discoverFeeds(url.trim());
-      setDiscovered(feeds);
       if (feeds.length === 0) {
-        setError("未发现 RSS/Atom 源，可尝试把当前地址作为 Feed URL 验证。");
+        setError("未发现 RSS/Atom 源，请确认网站是否提供订阅源。");
+      } else if (feeds.length === 1) {
+        await previewFeedUrl(feeds[0].url);
+      } else {
+        setDiscovered(feeds);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "发现 Feed 失败");
@@ -46,11 +58,7 @@ export default function AddFeedDialog({ open, onClose }: AddFeedDialogProps) {
     setLoading(true);
     setError(null);
     try {
-      const result = await previewFeed(feedUrl.trim());
-      setPreview(result);
-      if (!result.valid) {
-        setError(result.message);
-      }
+      await previewFeedUrl(feedUrl);
     } catch (err) {
       setPreview(null);
       setError(err instanceof Error ? err.message : "验证 Feed 失败");
@@ -127,7 +135,7 @@ export default function AddFeedDialog({ open, onClose }: AddFeedDialogProps) {
                   添加订阅
                 </h2>
                 <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
-                  输入网站地址发现 RSS 源
+                  输入网站或 Feed 地址，自动查找可订阅源
                 </p>
               </div>
               <button
@@ -185,9 +193,9 @@ export default function AddFeedDialog({ open, onClose }: AddFeedDialogProps) {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-2">
+                <div>
                   <button
-                    className="flex-1 px-4 py-3 rounded-xl border-none text-sm font-semibold cursor-pointer transition-all bg-orange-500 text-white shadow-[0_4px_14px_rgba(249,115,22,0.35)] hover:bg-orange-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none"
+                    className="w-full px-4 py-3 rounded-xl border-none text-sm font-semibold cursor-pointer transition-all bg-orange-500 text-white shadow-[0_4px_14px_rgba(249,115,22,0.35)] hover:bg-orange-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none"
                     onClick={handleDiscover}
                     disabled={loading || !url.trim()}
                   >
@@ -209,13 +217,6 @@ export default function AddFeedDialog({ open, onClose }: AddFeedDialogProps) {
                       </svg>
                     )}
                     发现 Feed
-                  </button>
-                  <button
-                    className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={() => handlePreview(url)}
-                    disabled={loading || !url.trim()}
-                  >
-                    验证地址
                   </button>
                 </div>
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { App } from "antd";
 import type WebSocketClient from "../../../utils/WebSocketClient";
 
 interface HeaderProps {
@@ -12,23 +13,40 @@ export default function Header({
   onReloadClick,
   wsClient,
 }: HeaderProps) {
+  const { message } = App.useApp();
   const [saving, setSaving] = useState(false);
 
   const handleReadLater = async () => {
-    if (!wsClient?.isConnected || saving) return;
+    if (saving) return;
+    if (!wsClient?.isConnected) {
+      message.warning("桌面端未连接，无法加入稍后读");
+      return;
+    }
     setSaving(true);
     try {
       const [tab] = await chrome.tabs.query({
         active: true,
         currentWindow: true,
       });
-      if (!tab?.url) return;
-      await wsClient.sendRequest("read-later:add-from-extension", {
-        title: tab.title || tab.url,
-        url: tab.url,
-      });
+      if (!tab?.url) {
+        message.warning("当前页面无法加入稍后读");
+        return;
+      }
+      const result = (await wsClient.sendRequest(
+        "read-later:add-from-extension",
+        {
+          title: tab.title || tab.url,
+          url: tab.url,
+        },
+      )) as { duplicate?: boolean } | null;
+      if (result?.duplicate) {
+        message.info("已在稍后读中");
+        return;
+      }
+      message.success("已加入稍后读");
     } catch (e) {
       console.error("[Tau] Failed to save to read later:", e);
+      message.error("保存稍后读失败");
     } finally {
       setSaving(false);
     }
