@@ -154,6 +154,7 @@ export interface IPublishInitData {
     title: string;
     description: string;
     basePath: string;
+    publicUrl?: string;
     favicon?: {
       href: string;
       format: IPublishFaviconConfig["format"];

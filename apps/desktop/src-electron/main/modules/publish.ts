@@ -56,6 +56,12 @@ import {
 } from "./publish-content-link-targets";
 import { attachPublishAppearanceSettings } from "./publish-appearance-settings";
 import { resolvePublishFaviconOutput } from "./publish-favicon";
+import {
+  buildFeedUrl,
+  generateRssXml,
+  injectPublishRssLink,
+  type IPublishFeedItem,
+} from "./publish-rss";
 
 const TEMPLATE_ENTRY_MAP: Record<string, string> = {
   "home.html": "src/templates/home/index.html",
@@ -72,6 +78,7 @@ interface ISiteMeta {
   title: string;
   description: string;
   basePath: string;
+  publicUrl?: string;
   favicon?: IPublishFaviconConfig;
 }
 
@@ -148,6 +155,7 @@ type ExecutePublishConfig =
       siteConfig: {
         title: string;
         description: string;
+        publicUrl?: string;
         favicon?: IPublishFaviconConfig;
       };
       settings?: IPublishAppearanceSettings;
@@ -159,6 +167,7 @@ type ExecutePublishConfig =
       siteConfig: {
         title: string;
         description: string;
+        publicUrl?: string;
         favicon?: IPublishFaviconConfig;
       };
       settings?: IPublishAppearanceSettings;
@@ -256,6 +265,7 @@ class PublishModule implements Module {
           siteConfig: {
             title: string;
             description: string;
+            publicUrl?: string;
             favicon?: IPublishFaviconConfig;
           };
           settings?: IPublishAppearanceSettings;
@@ -346,6 +356,7 @@ class PublishModule implements Module {
     siteConfig: {
       title: string;
       description: string;
+      publicUrl?: string;
       favicon?: IPublishFaviconConfig;
     },
   ): ISiteMeta {
@@ -366,6 +377,7 @@ class PublishModule implements Module {
       title: siteConfig?.title?.trim() || "我的博客",
       description: siteConfig?.description || "",
       basePath,
+      publicUrl: siteConfig?.publicUrl?.trim() || "",
       favicon: siteConfig?.favicon,
     };
   }
@@ -376,6 +388,7 @@ class PublishModule implements Module {
         title: site.title,
         description: site.description,
         basePath: site.basePath,
+        publicUrl: site.publicUrl,
       };
     }
 
@@ -388,6 +401,7 @@ class PublishModule implements Module {
       title: site.title,
       description: site.description,
       basePath: site.basePath,
+      publicUrl: site.publicUrl,
       favicon: {
         href: faviconOutput.href,
         format: site.favicon.format,
@@ -712,6 +726,16 @@ class PublishModule implements Module {
       hash: this.computeHash(homeHtml),
     });
 
+    const rssXml = generateRssXml(
+      site,
+      this.buildPublishFeedItems(cards, articles, docPublishResult.listEntries),
+    );
+    files.push({
+      path: "rss.xml",
+      content: Buffer.from(rssXml),
+      hash: this.computeHash(rssXml),
+    });
+
     return { files, virtualProcessed: docPublishResult.skippedDocItems };
   }
 
@@ -789,9 +813,23 @@ class PublishModule implements Module {
       );
     }
 
+    html = injectPublishRssLink(
+      html,
+      buildFeedUrl(
+        {
+          title: initData.site.title,
+          description: initData.site.description,
+          basePath: initData.site.basePath,
+          publicUrl: initData.site.publicUrl,
+        },
+        "/rss.xml",
+      ),
+    );
+
     const inlineStyle = options?.inlineStyle?.trim();
     if (inlineStyle) {
-      const styleTag = `<style data-runtime-tailwind>${inlineStyle}</style>`;
+      const scopedStyle = `[data-slate-editor="true"] { ${inlineStyle} }`;
+      const styleTag = `<style data-runtime-tailwind>${scopedStyle}</style>`;
       if (html.includes("</head>")) {
         html = html.replace("</head>", `${styleTag}\n</head>`);
       } else {
@@ -2015,6 +2053,51 @@ class PublishModule implements Module {
       category: card.category,
       createTime: card.create_time,
     };
+  }
+
+  private buildCardFeedTitle(card: ICard): string {
+    const summary = this.buildSummary(card.content || [], 40);
+    return summary || `卡片 #${card.id}`;
+  }
+
+  private buildPublishFeedItems(
+    cards: ICard[],
+    articles: IArticle[],
+    docs: IDocEntry[],
+  ): IPublishFeedItem[] {
+    return [
+      ...articles.map((article) => ({
+        type: "article" as const,
+        id: article.id,
+        title: article.title || `文章 #${article.id}`,
+        summary: this.buildSummary(article.content || []),
+        href: `/articles/${article.id}.html`,
+        tags: article.tags || [],
+        publishTime: article.create_time,
+        updateTime: article.update_time,
+        author: article.author,
+      })),
+      ...cards.map((card) => ({
+        type: "card" as const,
+        id: card.id,
+        title: this.buildCardFeedTitle(card),
+        summary: this.buildSummary(card.content || []),
+        href: `/cards/${card.id}.html`,
+        tags: card.tags || [],
+        publishTime: card.create_time,
+        updateTime: card.update_time,
+      })),
+      ...docs.map((doc) => ({
+        type: "doc" as const,
+        id: doc.id,
+        title: doc.title || `文档 #${doc.id}`,
+        summary: doc.summary,
+        href: doc.href,
+        tags: doc.tags || [],
+        publishTime: doc.createTime,
+        updateTime: doc.updateTime,
+      })),
+    ];
   }
 
   /**

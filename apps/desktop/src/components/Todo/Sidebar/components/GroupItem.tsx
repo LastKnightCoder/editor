@@ -30,6 +30,16 @@ interface GroupItemProps {
   isSystem?: boolean;
 }
 
+type TodoGroupProgressStats = NonNullable<GroupItemProps["stats"]>;
+
+export const formatTodoGroupProgress = (
+  stats?: TodoGroupProgressStats,
+): string => {
+  const total = stats?.total || 0;
+  const completed = Math.max(total - (stats?.uncompleted || 0), 0);
+  return `${completed}/${total}`;
+};
+
 const GroupItem = memo(
   ({
     id,
@@ -185,7 +195,7 @@ const GroupItem = memo(
                 themeColors.textClass,
               )}
             >
-              {stats?.uncompleted || 0}/{stats?.total || 0}
+              {formatTodoGroupProgress(stats)}
             </span>
           </div>
         ) : (
