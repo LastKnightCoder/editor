@@ -11,7 +11,7 @@
     "predev": "pnpm -w db:schema:prepare",
     "dev": "vite",
     "prebuild": "pnpm -w db:schema:prepare && pnpm --filter @tau/cli build",
-    "build": "cross-env-shell NODE_OPTIONS='--max-old-space-size=8092' \"tsc && vite build && electron-builder && node scripts/verify-native-runtime.mjs\"",
+    "build": "cross-env-shell NODE_OPTIONS='--max-old-space-size=8092' \"tsc && vite build && node scripts/run-electron-builder.mjs && node scripts/verify-native-runtime.mjs\"",
     "verify:native-runtime": "node scripts/verify-native-runtime.mjs",
     "rebuild": "electron-rebuild -f -w better-sqlite3,node-pty",
     "postinstall": "node scripts/build-python.js install || true",

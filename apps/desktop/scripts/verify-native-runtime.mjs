@@ -6,6 +6,9 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const desktopDir = path.resolve(__dirname, "..");
 
+const firstExistingPackage = (packages) =>
+  packages.find(({ appExe }) => existsSync(appExe)) ?? packages[0];
+
 const resolvePackagePaths = () => {
   if (process.platform === "win32") {
     const unpackedDir = path.join(desktopDir, "release", "win-unpacked");
@@ -17,18 +20,23 @@ const resolvePackagePaths = () => {
   }
 
   if (process.platform === "darwin") {
-    const unpackedDir = path.join(
-      desktopDir,
-      "release",
-      "mac",
-      "Tau.app",
-      "Contents",
+    const outputDirs = [`mac-${process.arch}`, "mac"];
+    return firstExistingPackage(
+      outputDirs.map((outputDir) => {
+        const unpackedDir = path.join(
+          desktopDir,
+          "release",
+          outputDir,
+          "Tau.app",
+          "Contents",
+        );
+        return {
+          unpackedDir,
+          appExe: path.join(unpackedDir, "MacOS", "Tau"),
+          appAsar: "./Resources/app.asar",
+        };
+      }),
     );
-    return {
-      unpackedDir,
-      appExe: path.join(unpackedDir, "MacOS", "Tau"),
-      appAsar: "./Resources/app.asar",
-    };
   }
 
   return null;
