@@ -300,14 +300,25 @@ const Index = memo(
         },
         setEditorValue: (nodes: Descendant[]) => {
           const normalizedNodes = normalizeEditorContent(nodes);
-          const nextValueJson = JSON.stringify(normalizedNodes);
           const domSelection = window.getSelection();
+          let shouldClearDomSelection = false;
           if (domSelection && domSelection.rangeCount > 0) {
+            try {
+              const editorElement = ReactEditor.toDOMNode(editor, editor);
+              shouldClearDomSelection =
+                (!!domSelection.anchorNode &&
+                  editorElement.contains(domSelection.anchorNode)) ||
+                (!!domSelection.focusNode &&
+                  editorElement.contains(domSelection.focusNode));
+            } catch {
+              shouldClearDomSelection = false;
+            }
+          }
+          if (domSelection && shouldClearDomSelection) {
             domSelection.removeAllRanges();
           }
           Transforms.deselect(editor);
           editor.isResetValue = true;
-          pendingSetEditorValueJson.current = nextValueJson;
           Editor.withoutNormalizing(editor, () => {
             updateNodeRecursively(
               editor,
@@ -320,6 +331,9 @@ const Index = memo(
               [],
             );
           });
+          pendingSetEditorValueJson.current = JSON.stringify(
+            normalizeEditorContent(editor.children),
+          );
           editor.isResetValue = false;
         },
         getEditor: () => editor,
@@ -349,6 +363,12 @@ const Index = memo(
       }
       const valueChanged =
         JSON.stringify(currentValue.current) !== nextValueJson;
+      if (editor.isResetValue) {
+        if (valueChanged) {
+          currentValue.current = normalizedValue;
+        }
+        return;
+      }
       const isSetEditorValueChange =
         pendingSetEditorValueJson.current === nextValueJson;
       if (isSetEditorValueChange) {
@@ -358,8 +378,8 @@ const Index = memo(
         pendingSetEditorValueJson.current = null;
         return;
       }
-      pendingSetEditorValueJson.current = null;
       if (!valueChanged) return;
+      pendingSetEditorValueJson.current = null;
       currentValue.current = normalizedValue;
       onChange && onChange(normalizedValue, editor);
     };
