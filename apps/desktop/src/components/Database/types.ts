@@ -116,6 +116,7 @@ export interface CellPlugin<T> {
     onColumnChange: (column: ColumnDef) => void;
     theme: "light" | "dark";
     readonly: boolean;
+    autoOpen?: boolean;
   }>;
   getGroupKey?: (row: RowData, column: ColumnDef) => string;
   sort?: (params: {

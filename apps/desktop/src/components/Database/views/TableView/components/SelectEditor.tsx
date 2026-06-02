@@ -17,6 +17,7 @@ interface SelectEditorProps {
   onFinishEdit: () => void;
   onColumnChange: (column: ColumnDef<{ options: SelectOption[] }>) => void;
   theme: "light" | "dark";
+  autoOpen?: boolean;
 }
 
 const SelectEditor: React.FC<SelectEditorProps> = ({
@@ -26,8 +27,9 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
   onCellValueChange,
   onFinishEdit,
   theme,
+  autoOpen = false,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(autoOpen);
   const [searchTerm, setSearchTerm] = useState("");
   const [options, setOptions] = useState<SelectOption[]>([]);
   const [selectedOptions, setSelectedOptions] = useState<SelectOption[]>([]);
