@@ -19,6 +19,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import useNavigationHistoryStore from "@/stores/useNavigationHistoryStore";
 
 import DraggableTab from "./DraggableTab";
+import styles from "./index.module.less";
 
 import {
   ITab,
@@ -102,6 +103,7 @@ const QUICK_ACCESS_MODULE_KEYS = Object.keys(
   QUICK_ACCESS_MODULE_TAB_MAP,
 ) as QuickAccessModuleKey[];
 const TAB_TYPE_SET = new Set<TabType>(Object.values(TabType));
+const QUICK_ACCESS_MENU_MAX_HEIGHT = "360px";
 
 interface TabGroupHeaderProps {
   group: ITabGroup;
@@ -1009,6 +1011,10 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
             menu={{
               items: quickAccessMenuItems,
               onClick: handleQuickAccessMenuClick,
+              className: styles.quickAccessMenu,
+              style: {
+                maxHeight: QUICK_ACCESS_MENU_MAX_HEIGHT,
+              },
             }}
             trigger={["hover"]}
             placement="bottomLeft"
