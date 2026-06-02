@@ -1,4 +1,22 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mockImageToolsEnabled = vi.hoisted(() => ({ value: true }));
+
+vi.mock("@/hooks/useChatLLM", () => ({
+  chatLLMStream: vi.fn(),
+}));
+
+vi.mock("@/tools", () => ({
+  default: {
+    hasEnabledTool: vi.fn((toolName: string) => {
+      if (toolName !== "generate_image") {
+        return false;
+      }
+      return mockImageToolsEnabled.value;
+    }),
+  },
+  ensureToolingReady: vi.fn(),
+}));
 import {
   buildGenerationRequest,
   type GenerationRequest,
@@ -29,6 +47,7 @@ const createPPTRequest = (): GenerationRequest<"ppt", "vibe_learning"> => ({
 });
 
 const configureImageTools = (enabled: boolean) => {
+  mockImageToolsEnabled.value = enabled;
   useSettingStore.setState((state) => ({
     setting: {
       ...state.setting,
@@ -178,6 +197,7 @@ describe("services/generation-orchestrator", () => {
     expect(result.enableTools).toBe(true);
     expect(systemText).toContain("generate_image");
     expect(systemText).toContain("images[0].url");
+    expect(systemText).toContain("read_image");
     expect(systemText).toContain("不要伪造 URL");
     expect(systemText).toContain("降级为无图片版 slide");
     expect(systemText).toContain("每个适合配图的重点页面最多 1 张");

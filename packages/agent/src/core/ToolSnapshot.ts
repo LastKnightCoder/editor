@@ -112,6 +112,7 @@ export class ToolSnapshot {
         typeof result.content === "string"
           ? result.content
           : safeStringify(result.content),
+      modelContent: result.modelContent,
       reasoning: result.reasoning,
       metadata: result.metadata,
       isParameterError: result.isParameterError,

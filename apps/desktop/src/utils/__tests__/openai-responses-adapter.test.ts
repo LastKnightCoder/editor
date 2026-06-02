@@ -30,4 +30,45 @@ describe("openai-responses-adapter", () => {
       ],
     });
   });
+
+  it("将 tool 图片结果映射为 function_call_output 的 input_image", () => {
+    const payload = buildResponsesPayload({
+      model: "gpt-5.1",
+      stream: false,
+      messages: [
+        {
+          role: Role.Assistant,
+          content: "",
+          tool_calls: [
+            {
+              id: "call-1",
+              type: "function",
+              function: {
+                name: "read_image",
+                arguments: '{"path":"image.png"}',
+              },
+            },
+          ],
+        },
+        {
+          role: Role.Tool,
+          name: "read_image",
+          tool_call_id: "call-1",
+          content: [
+            { type: "text", text: "已读取图片 image.png" },
+            { type: "image", image: "data:image/png;base64,AAAA" },
+          ],
+        },
+      ],
+    });
+
+    expect(payload.input[1]).toMatchObject({
+      type: "function_call_output",
+      call_id: "call-1",
+      output: [
+        { type: "input_text", text: "已读取图片 image.png" },
+        { type: "input_image", image_url: "data:image/png;base64,AAAA" },
+      ],
+    });
+  });
 });

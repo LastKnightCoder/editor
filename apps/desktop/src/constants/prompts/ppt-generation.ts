@@ -10,6 +10,7 @@ export const PPT_AI_ILLUSTRATION_RULES = `## AI 插图使用规则（工具可�
 - 不要为了装饰而生成图片；每张插图都必须服务于页面的核心观点，并与当前 PPT 模板风格一致。
 - 调用 \`generate_image\` 时，prompt 必须说明图片用途、画面主体、构图重点、视觉风格，以及它会放在哪类 slide 中。
 - 工具成功后，只能使用返回 JSON 中的 \`images[0].url\` 作为 \`<img src="...">\`；不要伪造 URL，不要写本地路径，不要写 file://，不要内联 base64。
+- 如果需要确认生成图是否符合页面意图，可以继续调用 \`read_image({ "path": images[0].url })\` 进行视觉自检；不要自己构造 base64 或用户消息。
 - 每个适合配图的重点页面最多 1 张图片，整套 PPT 不强制每页都有图，优先保证内容密度和讲解节奏。
 - 图片容器必须遵守视口约束：设置 \`max-height: min(50vh, 400px)\`、\`object-fit: contain\`、\`overflow: hidden\`，避免遮挡文字或造成内部滚动。
 - 如果 \`generate_image\` 不可用、返回错误或没有可用 URL，降级为无图片版 slide，使用 HTML/CSS/SVG/图表排版完成表达；不要向用户暴露工具错误，也不要输出损坏的 \`<img>\` 或占位假链接。
