@@ -4,7 +4,7 @@ import { updateContent, getContentById } from "@/commands";
 import { useMemoizedFn, useCreation, useThrottleFn } from "ahooks";
 import { defaultContentEventBus, ContentEventData } from "@/utils";
 
-const DEFAULT_CONTENT: Descendant[] = [
+const createDefaultContent = (): Descendant[] => [
   {
     type: "paragraph",
     disableDrag: false,
@@ -20,7 +20,7 @@ const useEditContent = (
     () => defaultContentEventBus.createEditor(),
     [],
   );
-  const [content, setContent] = useState<Descendant[]>(DEFAULT_CONTENT);
+  const [content, setContent] = useState<Descendant[]>(createDefaultContent);
   const onContentChangeRef = useRef(onContentChange);
 
   useEffect(() => {
@@ -29,12 +29,13 @@ const useEditContent = (
 
   useEffect(() => {
     if (!contentId) {
-      setContent(DEFAULT_CONTENT);
-      onContentChangeRef.current(DEFAULT_CONTENT);
+      const nextContent = createDefaultContent();
+      setContent(nextContent);
+      onContentChangeRef.current(nextContent);
     }
     if (contentId) {
       getContentById(contentId).then((content) => {
-        const nextContent = content?.content || DEFAULT_CONTENT;
+        const nextContent = content?.content || createDefaultContent();
         setContent(nextContent);
         onContentChangeRef.current(nextContent);
       });
