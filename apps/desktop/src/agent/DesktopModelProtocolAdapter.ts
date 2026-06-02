@@ -20,7 +20,9 @@ import { buildResponsesPayload } from "@/utils/openai-responses-adapter";
 import { getModelRequestOverrides } from "@/utils/model-overrides";
 import { createThinkTagNormalizer } from "@/utils/thinkTagNormalizer";
 
-type ClaudeContentBlock =
+type ClaudeCacheControl = { type: "ephemeral" };
+
+type ClaudeContentBlock = (
   | { type: "text"; text: string }
   | {
       type: "image";
@@ -36,11 +38,124 @@ type ClaudeContentBlock =
       type: "tool_result";
       tool_use_id: string;
       content: string | Array<{ type: "text"; text: string }>;
-    };
+    }
+) & { cache_control?: ClaudeCacheControl };
 
 type ClaudeMessage = {
   role: "user" | "assistant";
   content: string | ClaudeContentBlock[];
+};
+
+const CLAUDE_CACHE_DEBUG_PREFIX = "[ClaudeCacheDebug]";
+
+const logClaudeCacheDebug = (event: string, payload: unknown) => {
+  console.info(
+    `${CLAUDE_CACHE_DEBUG_PREFIX} ${event} ${JSON.stringify(payload)}`,
+  );
+};
+
+const getClaudeContentBlockCount = (content: ClaudeMessage["content"]) =>
+  Array.isArray(content) ? content.length : 1;
+
+const getClaudeCacheControlBlockCount = (content: unknown): number => {
+  if (!Array.isArray(content)) {
+    return 0;
+  }
+  return content.filter((block) => Boolean(block?.cache_control)).length;
+};
+
+const summarizeClaudeMessagesForCacheDebug = (messages: ClaudeMessage[]) => {
+  const roleCounts = messages.reduce(
+    (counts, message) => {
+      counts[message.role] += 1;
+      return counts;
+    },
+    { user: 0, assistant: 0 } as Record<ClaudeMessage["role"], number>,
+  );
+  const contentBlockCounts = messages.map((message) =>
+    getClaudeContentBlockCount(message.content),
+  );
+
+  return {
+    messageCount: messages.length,
+    roleCounts,
+    contentBlockCount: contentBlockCounts.reduce(
+      (total, count) => total + count,
+      0,
+    ),
+    maxContentBlocksInMessage: Math.max(0, ...contentBlockCounts),
+    messageCacheControlBlockCount: messages.reduce(
+      (total, message) =>
+        total + getClaudeCacheControlBlockCount(message.content),
+      0,
+    ),
+  };
+};
+
+const toClaudeContentBlocks = (
+  content: ClaudeMessage["content"],
+): ClaudeContentBlock[] =>
+  typeof content === "string" ? [{ type: "text", text: content }] : content;
+
+const addCacheControlToLastContentBlock = (
+  message: ClaudeMessage,
+): ClaudeMessage => {
+  const blocks = toClaudeContentBlocks(message.content);
+  if (blocks.length === 0) {
+    return message;
+  }
+
+  return {
+    ...message,
+    content: blocks.map((block, index) =>
+      index === blocks.length - 1
+        ? { ...block, cache_control: { type: "ephemeral" } }
+        : block,
+    ),
+  };
+};
+
+const findLastAssistantHistoryBreakpointIndex = (messages: ClaudeMessage[]) =>
+  messages
+    .map((message, index) => ({ message, index }))
+    .reverse()
+    .find(({ message, index }) => {
+      if (message.role !== "assistant") {
+        return false;
+      }
+      return messages[index + 1]?.role === "user";
+    })?.index;
+
+const findLastToolResultBreakpointIndex = (messages: ClaudeMessage[]) =>
+  messages
+    .map((message, index) => ({ message, index }))
+    .reverse()
+    .find(({ message }) => {
+      if (message.role !== "user" || !Array.isArray(message.content)) {
+        return false;
+      }
+      return message.content.some((block) => block.type === "tool_result");
+    })?.index;
+
+const addMessageHistoryCacheBreakpoints = (
+  messages: ClaudeMessage[],
+): ClaudeMessage[] => {
+  const breakpointIndexes = new Set(
+    [
+      findLastAssistantHistoryBreakpointIndex(messages),
+      findLastToolResultBreakpointIndex(messages),
+    ].filter((index): index is number => index !== undefined),
+  );
+
+  if (breakpointIndexes.size === 0) {
+    return messages;
+  }
+
+  return messages.map((message, index) =>
+    breakpointIndexes.has(index)
+      ? addCacheControlToLastContentBlock(message)
+      : message,
+  );
 };
 
 const extractTextFromMessage = (message: RequestMessage): string => {
@@ -318,7 +433,7 @@ const buildClaudeMessages = (messages: RequestMessage[]) => {
 
   return {
     system: systemParts.join("\n\n") || undefined,
-    messages: merged,
+    messages: addMessageHistoryCacheBreakpoints(merged),
   };
 };
 
@@ -333,6 +448,13 @@ const createClaudeSSEParser = (): AgentModelRawChunkParser => ({
   parse: (text: string) => {
     const json = JSON.parse(text);
     const type = json.type as string;
+
+    if (type === "message_start" && json.message?.usage) {
+      logClaudeCacheDebug("usage", {
+        eventType: type,
+        usage: json.message.usage,
+      });
+    }
 
     if (type === "content_block_start") {
       const block = json.content_block;
@@ -377,6 +499,12 @@ const createClaudeSSEParser = (): AgentModelRawChunkParser => ({
     }
 
     if (type === "message_delta") {
+      if (json.usage) {
+        logClaudeCacheDebug("usage", {
+          eventType: type,
+          usage: json.usage,
+        });
+      }
       const stopReason = json.delta?.stop_reason as string | null;
       if (stopReason === "tool_use") {
         return { finish_reason: "tool_calls" as const };
@@ -522,6 +650,23 @@ export class DesktopModelProtocolAdapter implements AgentModelProtocolAdapter {
           ? { tools: convertToolsToClaudeFormat(request.tools) }
           : {}),
       };
+      logClaudeCacheDebug("request_summary", {
+        model: modelName,
+        system: system
+          ? {
+              textLength: system.length,
+              cacheControlBlockCount: 1,
+            }
+          : {
+              textLength: 0,
+              cacheControlBlockCount: 0,
+            },
+        messages: summarizeClaudeMessagesForCacheDebug(messages),
+        tools: {
+          count: request.tools?.length ?? 0,
+          cacheControlBlockCount: 0,
+        },
+      });
       parser = createClaudeSSEParser();
     } else if (isResponsesApi) {
       payload = buildResponsesPayload({

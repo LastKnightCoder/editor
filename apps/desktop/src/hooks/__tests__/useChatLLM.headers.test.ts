@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { Role } from "@/constants";
 import type { ProviderConfig, ModelConfig, RequestMessage } from "@/types/llm";
 
@@ -101,6 +101,10 @@ describe("hooks/useChatLLM headers", () => {
       content: "ok",
       reasoning_content: "",
     });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("SubAgent 工具应跳过父 Agent 通用工具超时", () => {
@@ -233,6 +237,7 @@ describe("hooks/useChatLLM headers", () => {
 
   it("Claude native payload 应携带 Anthropic prompt cache 控制字段", async () => {
     const onError = vi.fn();
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     const modelConfig: ModelConfig = {
       name: "claude-opus-4-6-v1",
       description: "Claude",
@@ -308,6 +313,262 @@ describe("hooks/useChatLLM headers", () => {
       ],
     });
     expect(streamMock.mock.calls[0]?.[1]).not.toHaveProperty("cache_control");
+
+    const cacheDebugLogs = infoSpy.mock.calls
+      .map(([message]) => String(message))
+      .filter((message) => message.startsWith("[ClaudeCacheDebug] "));
+    expect(cacheDebugLogs).toHaveLength(1);
+    expect(cacheDebugLogs[0]).toMatch(/^\[ClaudeCacheDebug\] request_summary /);
+    const payloadText = cacheDebugLogs[0]?.replace(
+      "[ClaudeCacheDebug] request_summary ",
+      "",
+    );
+    const payload = JSON.parse(payloadText ?? "{}");
+    expect(payload).toMatchObject({
+      model: "claude-opus-4-6-v1",
+      system: {
+        textLength: "system prompt".length,
+        cacheControlBlockCount: 1,
+      },
+      messages: {
+        messageCount: 1,
+        roleCounts: {
+          user: 1,
+          assistant: 0,
+        },
+        messageCacheControlBlockCount: 0,
+      },
+      tools: {
+        count: 0,
+        cacheControlBlockCount: 0,
+      },
+    });
+    expect(cacheDebugLogs[0]).not.toContain("test-key");
+  });
+
+  it("Claude native payload 应给最后一段稳定 assistant 历史添加缓存断点", async () => {
+    const onError = vi.fn();
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const modelConfig: ModelConfig = {
+      name: "claude-opus-4-6-v1",
+      description: "Claude",
+      messageFormat: "claude",
+      features: {
+        online: true,
+        thinking: true,
+        image: false,
+        video: false,
+        audio: false,
+        file: false,
+      },
+    };
+    const requestMessages: RequestMessage[] = [
+      {
+        role: Role.System,
+        content: "system prompt",
+      },
+      {
+        role: Role.User,
+        content: "第一轮问题",
+      },
+      {
+        role: Role.Assistant,
+        content: "第一轮回答",
+      },
+      {
+        role: Role.User,
+        content: "第二轮问题",
+      },
+    ];
+    normalizeRequestMessagesMock.mockImplementation(
+      async (incoming) => incoming,
+    );
+
+    await chatStreamCore({
+      providerConfig,
+      modelConfig,
+      messages: requestMessages,
+      enableTools: false,
+      onError,
+    });
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(streamMock).toHaveBeenCalledOnce();
+    expect(streamMock.mock.calls[0]?.[1]).toMatchObject({
+      system: [
+        {
+          type: "text",
+          text: "system prompt",
+          cache_control: {
+            type: "ephemeral",
+          },
+        },
+      ],
+      messages: [
+        {
+          role: "user",
+          content: "第一轮问题",
+        },
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "text",
+              text: "第一轮回答",
+              cache_control: {
+                type: "ephemeral",
+              },
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: "第二轮问题",
+        },
+      ],
+    });
+
+    const cacheDebugLogs = infoSpy.mock.calls
+      .map(([message]) => String(message))
+      .filter((message) => message.startsWith("[ClaudeCacheDebug] "));
+    const requestSummaryLog = cacheDebugLogs.find((message) =>
+      message.startsWith("[ClaudeCacheDebug] request_summary "),
+    );
+    const payloadText = requestSummaryLog?.replace(
+      "[ClaudeCacheDebug] request_summary ",
+      "",
+    );
+    const payload = JSON.parse(payloadText ?? "{}");
+    expect(payload.messages).toMatchObject({
+      messageCount: 3,
+      messageCacheControlBlockCount: 1,
+    });
+  });
+
+  it("Claude native payload 应给最新工具结果添加缓存断点", async () => {
+    const onError = vi.fn();
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const modelConfig: ModelConfig = {
+      name: "claude-opus-4-6-v1",
+      description: "Claude",
+      messageFormat: "claude",
+      features: {
+        online: true,
+        thinking: true,
+        image: false,
+        video: false,
+        audio: false,
+        file: false,
+      },
+    };
+    const requestMessages: RequestMessage[] = [
+      {
+        role: Role.System,
+        content: "system prompt",
+      },
+      {
+        role: Role.User,
+        content: "查一下项目状态",
+      },
+      {
+        role: Role.Assistant,
+        content: "我先调用工具。",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: {
+              name: "query_project",
+              arguments: '{"id":1}',
+            },
+          },
+        ],
+      },
+      {
+        role: Role.Tool,
+        tool_call_id: "call-1",
+        content: "工具返回的大段结果",
+      },
+      {
+        role: Role.User,
+        content: "继续分析",
+      },
+    ];
+    normalizeRequestMessagesMock.mockImplementation(
+      async (incoming) => incoming,
+    );
+
+    await chatStreamCore({
+      providerConfig,
+      modelConfig,
+      messages: requestMessages,
+      enableTools: false,
+      onError,
+    });
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(streamMock).toHaveBeenCalledOnce();
+    expect(streamMock.mock.calls[0]?.[1]).toMatchObject({
+      messages: [
+        {
+          role: "user",
+          content: "查一下项目状态",
+        },
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "text",
+              text: "我先调用工具。",
+            },
+            {
+              type: "tool_use",
+              id: "call-1",
+              name: "query_project",
+              input: {
+                id: 1,
+              },
+              cache_control: {
+                type: "ephemeral",
+              },
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "call-1",
+              content: "工具返回的大段结果",
+            },
+            {
+              type: "text",
+              text: "继续分析",
+              cache_control: {
+                type: "ephemeral",
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    const cacheDebugLogs = infoSpy.mock.calls
+      .map(([message]) => String(message))
+      .filter((message) => message.startsWith("[ClaudeCacheDebug] "));
+    const requestSummaryLog = cacheDebugLogs.find((message) =>
+      message.startsWith("[ClaudeCacheDebug] request_summary "),
+    );
+    const payloadText = requestSummaryLog?.replace(
+      "[ClaudeCacheDebug] request_summary ",
+      "",
+    );
+    const payload = JSON.parse(payloadText ?? "{}");
+    expect(payload.messages).toMatchObject({
+      messageCount: 3,
+      messageCacheControlBlockCount: 2,
+    });
   });
 
   it("OpenAI Responses payload 当前不携带缓存优化字段", async () => {
