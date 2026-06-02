@@ -33,7 +33,7 @@ import Spinner from "./components/Spinner";
 import Tooltip from "./components/Tooltip";
 import EmptyState from "./components/EmptyState";
 
-const DEFAULT_DESCRIPTION_CONTENT: Descendant[] = [
+const createDefaultDescriptionContent = (): Descendant[] => [
   {
     type: "paragraph",
     disableDrag: false,
@@ -400,7 +400,8 @@ const DetailsPanel = () => {
     updateItemDescriptionContent(activeTodoId, current.groupId, content);
 
     const isEmpty =
-      JSON.stringify(content) === JSON.stringify(DEFAULT_DESCRIPTION_CONTENT);
+      JSON.stringify(content) ===
+      JSON.stringify(createDefaultDescriptionContent());
 
     if (current.descriptionContentId) {
       if (!isEmpty) {
@@ -822,7 +823,7 @@ const DetailsPanel = () => {
                         ref={descriptionEditorRef}
                         initValue={
                           current.descriptionContent ||
-                          DEFAULT_DESCRIPTION_CONTENT
+                          createDefaultDescriptionContent()
                         }
                         onChange={handleDescriptionChange}
                         readonly={false}
