@@ -89,6 +89,7 @@ const MemoizedEditor = memo(
           onColumnChange={onColumnChange}
           theme={theme}
           readonly={readonly}
+          autoOpen
         />
       </div>
     );
