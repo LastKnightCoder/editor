@@ -78,9 +78,10 @@ const buildAssistantToolCallMessage = (
 const buildToolResultMessage = (
   call: AgentToolCall,
   content: string,
+  modelContent?: AgentMessage["content"],
 ): AgentMessage => ({
   role: "tool",
-  content: [{ type: "text", text: content }],
+  content: modelContent ?? [{ type: "text", text: content }],
   tool_call_id: call.id,
   name: call.function.name,
 });
@@ -753,7 +754,7 @@ export class Agent {
             const duration = Date.now() - executionStartTime;
             state.messages = [
               ...state.messages,
-              buildToolResultMessage(call, content),
+              buildToolResultMessage(call, content, toolResult?.modelContent),
             ];
 
             executions = executions.map((execution, index) =>

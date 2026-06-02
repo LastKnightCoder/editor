@@ -11,6 +11,7 @@ import { Role } from "@/constants";
 import { sanitizeToolMessages } from "@/services/assistantMessageBlocks";
 import { normalizeRequestMessages } from "@/services/chatMessageNormalization";
 import type {
+  ImageContent,
   ModelConfig,
   ProviderConfig,
   ReasoningEffort,
@@ -37,9 +38,16 @@ type ClaudeContentBlock = (
   | {
       type: "tool_result";
       tool_use_id: string;
-      content: string | Array<{ type: "text"; text: string }>;
+      content: string | ClaudeToolResultContentBlock[];
     }
 ) & { cache_control?: ClaudeCacheControl };
+
+type ClaudeToolResultContentBlock =
+  | { type: "text"; text: string }
+  | {
+      type: "image";
+      source: { type: "base64"; media_type: string; data: string };
+    };
 
 type ClaudeMessage = {
   role: "user" | "assistant";
@@ -170,6 +178,65 @@ const extractTextFromMessage = (message: RequestMessage): string => {
   );
 };
 
+const parseImageDataUrl = (value: string) => {
+  const match = value.match(/^data:([^;]+);base64,(.+)$/);
+  return match
+    ? {
+        mediaType: match[1],
+        base64: match[2],
+      }
+    : null;
+};
+
+const getImageContent = (message: RequestMessage): string[] =>
+  Array.isArray(message.content)
+    ? message.content
+        .filter(
+          (item): item is ImageContent => item.type === "image" && !!item.image,
+        )
+        .map((item) => item.image)
+    : [];
+
+const mapMessageContentToOpenAIContentParts = (
+  content: RequestMessage["content"],
+) => {
+  if (typeof content === "string") {
+    return content;
+  }
+
+  return content
+    ?.map((item) => {
+      if (item.type === "text") {
+        return {
+          type: "text",
+          text: item.text,
+        };
+      }
+      if (item.type === "image") {
+        return {
+          type: "image_url",
+          image_url: {
+            url: item.image,
+          },
+        };
+      }
+      if (item.type === "file") {
+        if (!item.file?.startsWith("data:application/pdf")) {
+          return null;
+        }
+        return {
+          type: "file",
+          file: {
+            filename: item.fileName || "file",
+            file_data: item.file,
+          },
+        };
+      }
+      return null;
+    })
+    .filter((item): item is Exclude<typeof item, null> => Boolean(item));
+};
+
 const mergeSystemMessages = (messages: RequestMessage[]): RequestMessage[] => {
   const systemMessages = messages.filter(
     (message) => message.role === Role.System,
@@ -212,6 +279,72 @@ const mapToolMessagesOpenAI = (message: RequestMessage) => ({
   tool_call_id: message.tool_call_id,
 });
 
+const buildSyntheticToolImageUserMessageOpenAI = (
+  toolMessages: RequestMessage[],
+) => {
+  const images = toolMessages.flatMap(getImageContent);
+  if (images.length === 0) {
+    return null;
+  }
+
+  return {
+    role: "user",
+    content: [
+      {
+        type: "text",
+        text: "以下图片来自刚刚的工具 read_image 返回结果，请直接基于这些图片内容继续分析。",
+      },
+      ...images.map((image) => ({
+        type: "image_url",
+        image_url: {
+          url: image,
+        },
+      })),
+    ],
+  };
+};
+
+const mapToolResultContentClaude = (
+  message: RequestMessage,
+): string | ClaudeToolResultContentBlock[] => {
+  if (!Array.isArray(message.content)) {
+    return message.content;
+  }
+
+  const blocks = message.content
+    .map((item): ClaudeToolResultContentBlock | null => {
+      if (item.type === "text") {
+        return { type: "text", text: item.text };
+      }
+      if (item.type === "image") {
+        const parsed = parseImageDataUrl(item.image);
+        if (!parsed) {
+          return null;
+        }
+        return {
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: parsed.mediaType,
+            data: parsed.base64,
+          },
+        };
+      }
+      return null;
+    })
+    .filter((item): item is ClaudeToolResultContentBlock => Boolean(item));
+
+  if (blocks.length === 0) {
+    return "";
+  }
+
+  if (blocks.length === 1 && blocks[0].type === "text") {
+    return blocks[0].text;
+  }
+
+  return blocks;
+};
+
 const mapAssistantToolCallsOpenAI = (message: RequestMessage) => ({
   role: message.role,
   content: typeof message.content === "string" ? message.content : "",
@@ -221,7 +354,7 @@ const mapAssistantToolCallsOpenAI = (message: RequestMessage) => ({
     : {}),
 });
 
-const mapToStreamPayload = (messages: RequestMessage[]) => {
+export const mapToStreamPayload = (messages: RequestMessage[]) => {
   const result: any[] = [];
   let index = 0;
 
@@ -229,8 +362,17 @@ const mapToStreamPayload = (messages: RequestMessage[]) => {
     const message = messages[index];
 
     if (message.role === Role.Tool) {
-      result.push(mapToolMessagesOpenAI(message));
-      index += 1;
+      const toolMessages: RequestMessage[] = [];
+      while (index < messages.length && messages[index].role === Role.Tool) {
+        toolMessages.push(messages[index]);
+        result.push(mapToolMessagesOpenAI(messages[index]));
+        index += 1;
+      }
+      const syntheticImageMessage =
+        buildSyntheticToolImageUserMessageOpenAI(toolMessages);
+      if (syntheticImageMessage) {
+        result.push(syntheticImageMessage);
+      }
       continue;
     }
 
@@ -279,37 +421,7 @@ const mapToStreamPayload = (messages: RequestMessage[]) => {
 
     result.push({
       role: message.role,
-      content: message.content
-        ?.map((item) => {
-          if (item.type === "text") {
-            return {
-              type: "text",
-              text: item.text,
-            };
-          }
-          if (item.type === "image") {
-            return {
-              type: "image_url",
-              image_url: {
-                url: item.image,
-              },
-            };
-          }
-          if (item.type === "file") {
-            if (!item.file?.startsWith("data:application/pdf")) {
-              return null;
-            }
-            return {
-              type: "file",
-              file: {
-                filename: item.fileName || "file",
-                file_data: item.file,
-              },
-            };
-          }
-          return null;
-        })
-        .filter((item): item is Exclude<typeof item, null> => Boolean(item)),
+      content: mapMessageContentToOpenAIContentParts(message.content),
     });
     index += 1;
   }
@@ -317,7 +429,7 @@ const mapToStreamPayload = (messages: RequestMessage[]) => {
   return result.filter(Boolean);
 };
 
-const buildClaudeMessages = (messages: RequestMessage[]) => {
+export const buildClaudeMessages = (messages: RequestMessage[]) => {
   const systemParts: string[] = [];
   const claudeMessages: ClaudeMessage[] = [];
 
@@ -336,7 +448,7 @@ const buildClaudeMessages = (messages: RequestMessage[]) => {
         toolResults.push({
           type: "tool_result",
           tool_use_id: toolMessage.tool_call_id!,
-          content: extractTextFromMessage(toolMessage),
+          content: mapToolResultContentClaude(toolMessage),
         });
         index += 1;
       }
@@ -383,14 +495,14 @@ const buildClaudeMessages = (messages: RequestMessage[]) => {
         if (item.type === "text") {
           blocks.push({ type: "text", text: item.text });
         } else if (item.type === "image") {
-          const match = item.image.match(/^data:([^;]+);base64,(.+)$/);
-          if (match) {
+          const parsed = parseImageDataUrl(item.image);
+          if (parsed) {
             blocks.push({
               type: "image",
               source: {
                 type: "base64",
-                media_type: match[1],
-                data: match[2],
+                media_type: parsed.mediaType,
+                data: parsed.base64,
               },
             });
           }

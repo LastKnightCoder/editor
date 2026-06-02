@@ -14,7 +14,7 @@ export type ResponsesInputItem =
   | {
       type?: "message";
       role: "user" | "assistant";
-      content: string;
+      content: string | ResponsesContentPart[];
     }
   | {
       type: "function_call";
@@ -25,8 +25,12 @@ export type ResponsesInputItem =
   | {
       type: "function_call_output";
       call_id: string;
-      output: string;
+      output: string | ResponsesContentPart[];
     };
+
+export type ResponsesContentPart =
+  | { type: "input_text"; text: string }
+  | { type: "input_image"; image_url: string };
 
 export interface ResponsesFunctionTool {
   type: "function";
@@ -56,6 +60,39 @@ const contentToText = (content: RequestMessage["content"]): string => {
     .join("\n");
 };
 
+const contentToResponsesParts = (
+  content: RequestMessage["content"],
+): ResponsesContentPart[] | string => {
+  if (typeof content === "string") {
+    return content;
+  }
+
+  const parts = content
+    .map((item): ResponsesContentPart | null => {
+      if (item.type === "text") {
+        return { type: "input_text", text: item.text };
+      }
+      if (item.type === "image") {
+        return { type: "input_image", image_url: item.image };
+      }
+      if (item.type === "file") {
+        return { type: "input_text", text: item.fileName ?? item.file };
+      }
+      return null;
+    })
+    .filter((item): item is ResponsesContentPart => Boolean(item));
+
+  if (parts.length === 0) {
+    return "";
+  }
+
+  if (parts.length === 1 && parts[0].type === "input_text") {
+    return parts[0].text;
+  }
+
+  return parts;
+};
+
 export const toResponsesInput = (
   messages: RequestMessage[],
 ): ResponsesInputItem[] =>
@@ -70,13 +107,13 @@ export const toResponsesInput = (
             {
               type: "function_call_output" as const,
               call_id: message.tool_call_id,
-              output: contentToText(message.content),
+              output: contentToResponsesParts(message.content),
             },
           ]
         : [];
     }
 
-    const content = contentToText(message.content);
+    const content = contentToResponsesParts(message.content);
     const items: ResponsesInputItem[] = [];
     if (message.tool_calls?.length) {
       items.push(
@@ -88,7 +125,10 @@ export const toResponsesInput = (
         })),
       );
     }
-    if (content || items.length === 0) {
+    if (
+      (typeof content === "string" ? content : content.length > 0) ||
+      items.length === 0
+    ) {
       items.unshift({
         type: "message",
         role: message.role,

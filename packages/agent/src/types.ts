@@ -5,7 +5,22 @@ export interface AgentTextContent {
   text: string;
 }
 
-export type AgentMessageContent = AgentTextContent | object;
+export interface AgentImageContent {
+  type: "image";
+  image: string;
+}
+
+export interface AgentFileContent {
+  type: "file";
+  file: string;
+  resourceId?: number;
+  fileName?: string;
+}
+
+export type AgentMessageContent =
+  | AgentTextContent
+  | AgentImageContent
+  | AgentFileContent;
 
 export interface AgentToolCall {
   id: string;
@@ -66,6 +81,7 @@ export interface AgentToolSchema {
 
 export interface AgentToolExecutionResult {
   content: string;
+  modelContent?: AgentMessageContent[];
   reasoning?: string;
   metadata?: Record<string, unknown>;
   isParameterError?: boolean;
