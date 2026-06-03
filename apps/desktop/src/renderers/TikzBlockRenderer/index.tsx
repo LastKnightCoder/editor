@@ -13,8 +13,6 @@ const TikzBlockPreview: React.FC<BlockPreviewRendererProps> = memo(
   ({ block }) => {
     const { isDark } = useTheme();
 
-    console.log(block.content);
-
     return (
       <div className="flex h-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
         <div className="flex flex-1 items-center justify-center overflow-auto">

@@ -3,12 +3,19 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
   DeleteOutlined,
+  EditOutlined,
   FolderOutlined,
   InboxOutlined,
   PlusOutlined,
+  BellOutlined,
 } from "@ant-design/icons";
 import { App, Dropdown } from "antd";
 import type { MenuProps } from "antd";
+import {
+  BILIBILI_DEFAULT_CATEGORY,
+  BILIBILI_FOLLOWINGS_DYNAMIC_FEED_URL,
+} from "@/commands/rss";
+import EditTitleModal from "@/components/EditTitleModal";
 import useRssStore from "@/stores/useRssStore";
 import useThemeColors from "@/hooks/useThemeColors";
 import type { SidebarSelection } from "../../types";
@@ -23,12 +30,15 @@ export default function SubscriptionTree({
   onSelect,
 }: SubscriptionTreeProps) {
   const themeColors = useThemeColors();
-  const { modal } = App.useApp();
+  const { message, modal } = App.useApp();
   const feeds = useRssStore((s) => s.feeds);
   const subscriptions = useRssStore((s) => s.subscriptions);
   const categories = useRssStore((s) => s.categories);
   const unreadCounts = useRssStore((s) => s.unreadCounts);
   const unsubscribe = useRssStore((s) => s.unsubscribe);
+  const subscribeBilibiliFollowings = useRssStore(
+    (s) => s.subscribeBilibiliFollowings,
+  );
   const updateSubscription = useRssStore((s) => s.updateSubscription);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
     new Set(),
@@ -38,6 +48,10 @@ export default function SubscriptionTree({
   const [newCategoryName, setNewCategoryName] = useState("");
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [categorySubmitting, setCategorySubmitting] = useState(false);
+  const [editingSubscription, setEditingSubscription] = useState<{
+    id: number;
+    title: string;
+  } | null>(null);
 
   const handleUnsubscribe = useCallback(
     async (subscriptionId: number, name: string) => {
@@ -60,6 +74,30 @@ export default function SubscriptionTree({
       await updateSubscription(subscriptionId, { category });
     },
     [updateSubscription],
+  );
+
+  const handleOpenRename = useCallback(
+    (subscriptionId: number, title: string) => {
+      setEditingSubscription({ id: subscriptionId, title });
+    },
+    [],
+  );
+
+  const handleRenameSubscription = useCallback(
+    async ({ title }: { title: string }) => {
+      if (!editingSubscription) return;
+
+      try {
+        await updateSubscription(editingSubscription.id, { title });
+        setEditingSubscription(null);
+        message.success("订阅名称已更新");
+      } catch (error) {
+        message.error(
+          error instanceof Error ? error.message : "订阅名称更新失败",
+        );
+      }
+    },
+    [editingSubscription, message, updateSubscription],
   );
 
   const handleCreateCategory = useCallback((subscriptionId: number) => {
@@ -141,6 +179,16 @@ export default function SubscriptionTree({
 
       return [
         {
+          key: "rename",
+          label: "重命名",
+          icon: <EditOutlined />,
+          onClick: ({ domEvent }) => {
+            domEvent.stopPropagation();
+            handleOpenRename(subscriptionId, displayName);
+          },
+        },
+        { type: "divider" as const },
+        {
           key: "category",
           label: "调整分类",
           icon: <FolderOutlined />,
@@ -168,7 +216,13 @@ export default function SubscriptionTree({
         },
       ] satisfies MenuProps["items"];
     },
-    [categories, handleCreateCategory, handleMoveToCategory, handleUnsubscribe],
+    [
+      categories,
+      handleCreateCategory,
+      handleMoveToCategory,
+      handleOpenRename,
+      handleUnsubscribe,
+    ],
   );
 
   const grouped: Record<string, typeof subscriptions> = {};
@@ -177,6 +231,78 @@ export default function SubscriptionTree({
     if (!grouped[cat]) grouped[cat] = [];
     grouped[cat].push(sub);
   }
+  if (!grouped[BILIBILI_DEFAULT_CATEGORY]) {
+    grouped[BILIBILI_DEFAULT_CATEGORY] = [];
+  }
+
+  const bilibiliFollowingsFeed = feeds.find(
+    (feed) => feed.url === BILIBILI_FOLLOWINGS_DYNAMIC_FEED_URL,
+  );
+  const bilibiliFollowingsSubscription = bilibiliFollowingsFeed
+    ? subscriptions.find((sub) => sub.feedId === bilibiliFollowingsFeed.id) ||
+      null
+    : null;
+  const bilibiliFollowingsUnread = bilibiliFollowingsFeed
+    ? unreadCounts[bilibiliFollowingsFeed.id] || 0
+    : 0;
+  const bilibiliFollowingsDisplayName = bilibiliFollowingsSubscription
+    ? getBilibiliFollowingsDisplayName(
+        bilibiliFollowingsSubscription.title,
+        bilibiliFollowingsFeed?.title,
+      )
+    : "我订阅的动态";
+
+  const handleSubscribeBilibiliFollowings = useCallback(async () => {
+    try {
+      await subscribeBilibiliFollowings(BILIBILI_DEFAULT_CATEGORY);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "订阅失败");
+    }
+  }, [message, subscribeBilibiliFollowings]);
+
+  const bilibiliFollowingsMenuItems: MenuProps["items"] =
+    bilibiliFollowingsSubscription
+      ? [
+          {
+            key: "rename",
+            label: "重命名",
+            icon: <EditOutlined />,
+            onClick: ({ domEvent }) => {
+              domEvent.stopPropagation();
+              handleOpenRename(
+                bilibiliFollowingsSubscription.id,
+                bilibiliFollowingsDisplayName,
+              );
+            },
+          },
+          {
+            type: "divider",
+          },
+          {
+            key: "unsubscribe",
+            label: "取消订阅",
+            icon: <DeleteOutlined />,
+            danger: true,
+            onClick: ({ domEvent }) => {
+              domEvent.stopPropagation();
+              handleUnsubscribe(
+                bilibiliFollowingsSubscription.id,
+                bilibiliFollowingsDisplayName,
+              );
+            },
+          },
+        ]
+      : [
+          {
+            key: "subscribe",
+            label: "订阅",
+            icon: <BellOutlined />,
+            onClick: ({ domEvent }) => {
+              domEvent.stopPropagation();
+              void handleSubscribeBilibiliFollowings();
+            },
+          },
+        ];
 
   const toggleCategory = (cat: string) => {
     setCollapsedCategories((prev) => {
@@ -186,8 +312,6 @@ export default function SubscriptionTree({
       return next;
     });
   };
-
-  if (subscriptions.length === 0) return null;
 
   return (
     <>
@@ -222,68 +346,121 @@ export default function SubscriptionTree({
                   </svg>
                 </button>
               )}
-              {isCategoryExpanded &&
-                subs.map((sub) => {
-                  const feed = feeds.find((f) => f.id === sub.feedId);
-                  const unread = unreadCounts[sub.feedId] || 0;
-                  const isActive =
-                    selection.kind === "subscription" &&
-                    selection.subscriptionId === sub.id;
-                  const displayName = getDisplayName(
-                    sub.title,
-                    feed?.title,
-                    feed?.url,
-                  );
-                  const initial = displayName.charAt(0).toUpperCase();
-
-                  return (
-                    <Dropdown
-                      key={sub.id}
-                      menu={{
-                        items: buildSubscriptionMenuItems(
-                          sub.id,
-                          sub.category || "",
-                          displayName,
-                        ),
-                      }}
-                      trigger={["contextMenu"]}
+              {isCategoryExpanded && [
+                category === BILIBILI_DEFAULT_CATEGORY && (
+                  <Dropdown
+                    key="bilibili-followings"
+                    menu={{ items: bilibiliFollowingsMenuItems }}
+                    trigger={["contextMenu"]}
+                  >
+                    <button
+                      className={`group flex items-center gap-2.5 w-full rounded-xl px-2.5 py-2 text-[13px] border-none cursor-pointer transition-all duration-200 text-left pl-5 ${
+                        selection.kind === "bilibili-followings"
+                          ? `${themeColors.activeClass} shadow-sm`
+                          : `bg-transparent hover:translate-x-0.5 ${themeColors.hoverClass}`
+                      }`}
+                      onClick={() => onSelect({ kind: "bilibili-followings" })}
+                      onContextMenu={(event) => event.stopPropagation()}
                     >
-                      <button
-                        className={`group flex items-center gap-2.5 w-full rounded-xl px-2.5 py-2 text-[13px] border-none cursor-pointer transition-all duration-200 text-left ${category ? "pl-5" : ""} ${
-                          isActive
-                            ? `${themeColors.activeClass} shadow-sm`
-                            : `bg-transparent hover:translate-x-0.5 ${themeColors.hoverClass}`
-                        }`}
-                        onClick={() =>
-                          onSelect({
-                            kind: "subscription",
-                            subscriptionId: sub.id,
-                            feedId: sub.feedId,
-                          })
-                        }
-                        onContextMenu={(event) => event.stopPropagation()}
+                      <div
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-bold ${themeColors.tagBgClass} ${themeColors.tagTextClass}`}
                       >
-                        <div
-                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-bold ${themeColors.tagBgClass} ${themeColors.tagTextClass}`}
+                        B
+                      </div>
+                      <span className="flex-1 truncate">
+                        {bilibiliFollowingsDisplayName}
+                      </span>
+                      {bilibiliFollowingsUnread > 0 && (
+                        <span
+                          className={`text-[11px] min-w-[20px] text-center rounded-full px-2 py-0.5 font-medium shadow-sm ${themeColors.badgeBgClass} ${themeColors.badgeTextClass}`}
                         >
-                          {initial}
-                        </div>
-                        <span className="flex-1 truncate">{displayName}</span>
-                        {unread > 0 && (
-                          <span
-                            className={`text-[11px] min-w-[20px] text-center rounded-full px-2 py-0.5 font-medium shadow-sm ${themeColors.badgeBgClass} ${themeColors.badgeTextClass}`}
+                          {bilibiliFollowingsUnread > 99
+                            ? "99+"
+                            : bilibiliFollowingsUnread}
+                        </span>
+                      )}
+                    </button>
+                  </Dropdown>
+                ),
+                ...subs
+                  .filter(
+                    (sub) =>
+                      !(
+                        bilibiliFollowingsFeed &&
+                        sub.feedId === bilibiliFollowingsFeed.id
+                      ),
+                  )
+                  .map((sub) => {
+                    const feed = feeds.find((f) => f.id === sub.feedId);
+                    const unread = unreadCounts[sub.feedId] || 0;
+                    const isActive =
+                      selection.kind === "subscription" &&
+                      selection.subscriptionId === sub.id;
+                    const displayName = getDisplayName(
+                      sub.title,
+                      feed?.title,
+                      feed?.url,
+                    );
+                    const initial = displayName.charAt(0).toUpperCase();
+
+                    return (
+                      <Dropdown
+                        key={sub.id}
+                        menu={{
+                          items: buildSubscriptionMenuItems(
+                            sub.id,
+                            sub.category || "",
+                            displayName,
+                          ),
+                        }}
+                        trigger={["contextMenu"]}
+                      >
+                        <button
+                          className={`group flex items-center gap-2.5 w-full rounded-xl px-2.5 py-2 text-[13px] border-none cursor-pointer transition-all duration-200 text-left ${category ? "pl-5" : ""} ${
+                            isActive
+                              ? `${themeColors.activeClass} shadow-sm`
+                              : `bg-transparent hover:translate-x-0.5 ${themeColors.hoverClass}`
+                          }`}
+                          onClick={() =>
+                            onSelect({
+                              kind: "subscription",
+                              subscriptionId: sub.id,
+                              feedId: sub.feedId,
+                            })
+                          }
+                          onContextMenu={(event) => event.stopPropagation()}
+                        >
+                          <div
+                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-bold ${themeColors.tagBgClass} ${themeColors.tagTextClass}`}
                           >
-                            {unread > 99 ? "99+" : unread}
-                          </span>
-                        )}
-                      </button>
-                    </Dropdown>
-                  );
-                })}
+                            {initial}
+                          </div>
+                          <span className="flex-1 truncate">{displayName}</span>
+                          {unread > 0 && (
+                            <span
+                              className={`text-[11px] min-w-[20px] text-center rounded-full px-2 py-0.5 font-medium shadow-sm ${themeColors.badgeBgClass} ${themeColors.badgeTextClass}`}
+                            >
+                              {unread > 99 ? "99+" : unread}
+                            </span>
+                          )}
+                        </button>
+                      </Dropdown>
+                    );
+                  }),
+              ]}
             </div>
           );
         })}
       </div>
+      <EditTitleModal
+        open={!!editingSubscription}
+        onCancel={() => setEditingSubscription(null)}
+        onConfirm={handleRenameSubscription}
+        initialTitle={editingSubscription?.title || ""}
+        modalTitle="修改订阅名称"
+        modalDescription="设置这个订阅在信息流中的显示名称"
+        placeholder="请输入订阅名称"
+      />
       {createPortal(
         <AnimatePresence>
           {categoryDialogSubscriptionId !== null && (
@@ -427,4 +604,12 @@ function prettifyUrl(url: string): string {
   } catch {
     return url;
   }
+}
+
+function getBilibiliFollowingsDisplayName(
+  subTitle: string | null,
+  feedTitle: string | undefined,
+): string {
+  const title = getDisplayName(subTitle, feedTitle, undefined);
+  return title === "我的 Bilibili 关注动态" ? "我订阅的动态" : title;
 }

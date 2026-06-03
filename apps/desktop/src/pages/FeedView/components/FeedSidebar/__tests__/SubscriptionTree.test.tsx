@@ -29,8 +29,9 @@ const rssState = vi.hoisted(() => ({
     },
   ],
   categories: ["技术", "产品"],
-  unreadCounts: { 1: 3 },
+  unreadCounts: { 1: 3 } as Record<number, number>,
   unsubscribe: vi.fn(),
+  subscribeBilibiliFollowings: vi.fn(),
   updateSubscription: vi.fn(),
 }));
 
@@ -95,6 +96,41 @@ const clickMenuItem = async (label: string) => {
   await flushDropdown();
 };
 
+const openBilibiliFollowingsContextMenu = async (container: HTMLElement) => {
+  const followingsButton = Array.from(
+    container.querySelectorAll("button"),
+  ).find(
+    (button) =>
+      button.textContent?.includes("我订阅的动态") ||
+      button.textContent?.includes("我的关注更新"),
+  );
+  expect(followingsButton).toBeTruthy();
+
+  await act(async () => {
+    followingsButton?.dispatchEvent(
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        clientX: 20,
+        clientY: 20,
+      }),
+    );
+  });
+  await flushDropdown();
+};
+
+const clickButton = async (label: string) => {
+  const button = Array.from(document.body.querySelectorAll("button")).find(
+    (node) => node.textContent?.includes(label),
+  );
+  expect(button).toBeTruthy();
+
+  await act(async () => {
+    button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+  await flushDropdown();
+};
+
 const changeInput = async (input: HTMLInputElement, value: string) => {
   const setter = Object.getOwnPropertyDescriptor(
     HTMLInputElement.prototype,
@@ -107,10 +143,40 @@ const changeInput = async (input: HTMLInputElement, value: string) => {
   });
 };
 
+const changeTextarea = async (textarea: HTMLTextAreaElement, value: string) => {
+  const setter = Object.getOwnPropertyDescriptor(
+    HTMLTextAreaElement.prototype,
+    "value",
+  )?.set;
+  setter?.call(textarea, value);
+
+  await act(async () => {
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+};
+
 describe("SubscriptionTree", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
     vi.clearAllMocks();
+    rssState.feeds = [
+      {
+        id: 1,
+        title: "Example Feed",
+        url: "https://example.com/feed.xml",
+      },
+    ];
+    rssState.subscriptions = [
+      {
+        id: 10,
+        feedId: 1,
+        title: "Example Feed",
+        category: "技术",
+      },
+    ];
+    rssState.categories = ["技术", "产品"];
+    rssState.unreadCounts = { 1: 3 };
+    rssState.subscribeBilibiliFollowings.mockResolvedValue(undefined);
   });
 
   it("右键订阅项时应展示包含分类操作的 Dropdown 菜单", async () => {
@@ -124,7 +190,38 @@ describe("SubscriptionTree", () => {
     await openSubscriptionContextMenu(container);
 
     expect(document.body.textContent).toContain("调整分类");
+    expect(document.body.textContent).toContain("重命名");
     expect(document.body.textContent).toContain("取消订阅");
+
+    await unmount(root, container);
+  });
+
+  it("应通过弹窗修改普通订阅名称", async () => {
+    const { root, container } = await mount(
+      <SubscriptionTree
+        selection={{ kind: "smart", group: "all" }}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    await openSubscriptionContextMenu(container);
+    await clickMenuItem("重命名");
+
+    expect(document.body.textContent).toContain("修改订阅名称");
+    expect(document.body.textContent).toContain(
+      "设置这个订阅在信息流中的显示名称",
+    );
+
+    const textarea = document.body.querySelector(
+      'textarea[placeholder="请输入订阅名称"]',
+    ) as HTMLTextAreaElement | null;
+    expect(textarea).toBeTruthy();
+    await changeTextarea(textarea!, "新的订阅名称");
+    await clickButton("确认");
+
+    expect(rssState.updateSubscription).toHaveBeenCalledWith(10, {
+      title: "新的订阅名称",
+    });
 
     await unmount(root, container);
   });
@@ -161,6 +258,165 @@ describe("SubscriptionTree", () => {
 
     expect(rssState.updateSubscription).toHaveBeenCalledWith(10, {
       category: "资讯",
+    });
+
+    await unmount(root, container);
+  });
+
+  it("应始终在 B 站分类下展示我订阅的动态固定项", async () => {
+    rssState.feeds = [];
+    rssState.subscriptions = [];
+    rssState.categories = [];
+    rssState.unreadCounts = {};
+    const onSelect = vi.fn();
+
+    const { root, container } = await mount(
+      <SubscriptionTree
+        selection={{ kind: "smart", group: "all" }}
+        onSelect={onSelect}
+      />,
+    );
+
+    expect(container.textContent).toContain("B 站");
+    expect(container.textContent).toContain("我订阅的动态");
+
+    const followingsButton = Array.from(
+      container.querySelectorAll("button"),
+    ).find((button) => button.textContent?.includes("我订阅的动态"));
+    expect(followingsButton).toBeTruthy();
+    await act(async () => {
+      followingsButton?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+
+    expect(onSelect).toHaveBeenCalledWith({ kind: "bilibili-followings" });
+
+    await unmount(root, container);
+  });
+
+  it("未订阅 B 站动态时右键应提供订阅操作", async () => {
+    rssState.feeds = [];
+    rssState.subscriptions = [];
+    rssState.categories = [];
+
+    const { root, container } = await mount(
+      <SubscriptionTree
+        selection={{ kind: "smart", group: "all" }}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    await openBilibiliFollowingsContextMenu(container);
+    await clickMenuItem("订阅");
+
+    expect(rssState.subscribeBilibiliFollowings).toHaveBeenCalledWith("B 站");
+
+    await unmount(root, container);
+  });
+
+  it("已订阅 B 站动态时右键应提供取消订阅操作", async () => {
+    rssState.feeds = [
+      {
+        id: 2,
+        title: "我的 Bilibili 关注动态",
+        url: "tau://rss/bilibili/followings-dynamic",
+      },
+    ];
+    rssState.subscriptions = [
+      {
+        id: 20,
+        feedId: 2,
+        title: "我的 Bilibili 关注动态",
+        category: "B 站",
+      },
+    ];
+    rssState.categories = ["B 站"];
+
+    const { root, container } = await mount(
+      <SubscriptionTree
+        selection={{ kind: "bilibili-followings" }}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    await openBilibiliFollowingsContextMenu(container);
+
+    expect(document.body.textContent).toContain("重命名");
+    expect(document.body.textContent).toContain("取消订阅");
+    expect(document.body.textContent).not.toContain("订阅订阅");
+
+    await unmount(root, container);
+  });
+
+  it("已订阅 B 站动态时应显示自定义订阅名称", async () => {
+    rssState.feeds = [
+      {
+        id: 2,
+        title: "我的 Bilibili 关注动态",
+        url: "tau://rss/bilibili/followings-dynamic",
+      },
+    ];
+    rssState.subscriptions = [
+      {
+        id: 20,
+        feedId: 2,
+        title: "我的关注更新",
+        category: "B 站",
+      },
+    ];
+    rssState.categories = ["B 站"];
+
+    const { root, container } = await mount(
+      <SubscriptionTree
+        selection={{ kind: "bilibili-followings" }}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(container.textContent).toContain("我的关注更新");
+    expect(container.textContent).not.toContain("我订阅的动态");
+
+    await unmount(root, container);
+  });
+
+  it("应通过弹窗修改 B 站动态订阅名称", async () => {
+    rssState.feeds = [
+      {
+        id: 2,
+        title: "我的 Bilibili 关注动态",
+        url: "tau://rss/bilibili/followings-dynamic",
+      },
+    ];
+    rssState.subscriptions = [
+      {
+        id: 20,
+        feedId: 2,
+        title: "我的 Bilibili 关注动态",
+        category: "B 站",
+      },
+    ];
+    rssState.categories = ["B 站"];
+
+    const { root, container } = await mount(
+      <SubscriptionTree
+        selection={{ kind: "bilibili-followings" }}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    await openBilibiliFollowingsContextMenu(container);
+    await clickMenuItem("重命名");
+
+    const textarea = document.body.querySelector(
+      'textarea[placeholder="请输入订阅名称"]',
+    ) as HTMLTextAreaElement | null;
+    expect(textarea).toBeTruthy();
+    await changeTextarea(textarea!, "我的关注更新");
+    await clickButton("确认");
+
+    expect(rssState.updateSubscription).toHaveBeenCalledWith(20, {
+      title: "我的关注更新",
     });
 
     await unmount(root, container);

@@ -3,6 +3,7 @@ import log from "electron-log";
 import { Module } from "../types/module";
 import databaseModule from "./database";
 import { parseFeedXml } from "./rss-parser-lite";
+import { fetchBilibiliFeed, parseLocalBilibiliFeedUrl } from "./rss-bilibili";
 
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
@@ -175,36 +176,65 @@ class RssFetcherModule implements Module {
 
     try {
       console.log("[RSS] fetch start", { feedId, url });
-      const xml = await fetchUrl(url);
-      console.log("[RSS] fetch response received", {
-        feedId,
-        url,
-        bytes: Buffer.byteLength(xml),
-      });
-      const feed = parseFeedXml(xml);
+      const localBilibiliFeed = parseLocalBilibiliFeedUrl(url);
+      let parsedFeed;
+      if (localBilibiliFeed) {
+        parsedFeed = await fetchBilibiliFeed(url);
+      } else {
+        const xml = await fetchUrl(url);
+        console.log("[RSS] fetch response received", {
+          feedId,
+          url,
+          bytes: Buffer.byteLength(xml),
+        });
+        parsedFeed = parseFeedXml(xml);
+      }
 
       console.log("[RSS] feed parsed", {
         feedId,
         url,
-        title: feed.title,
-        entries: feed.entries.length,
+        title: parsedFeed.title,
+        entries: parsedFeed.entries.length,
       });
 
       let newCount = 0;
       const now = Date.now();
 
-      const upsertStmt = db.prepare(`
-        INSERT INTO rss_entry (
-          create_time, update_time, feed_id, guid, title, url, author,
-          description, content, published_at, media, categories,
-          enclosure_url, enclosure_type, enclosure_length
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(feed_id, guid) DO NOTHING
-      `);
+      const upsertStmt = db.prepare(
+        localBilibiliFeed
+          ? `
+            INSERT INTO rss_entry (
+              create_time, update_time, feed_id, guid, title, url, author,
+              description, content, published_at, media, categories,
+              enclosure_url, enclosure_type, enclosure_length
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(feed_id, guid) DO UPDATE SET
+              update_time = excluded.update_time,
+              title = excluded.title,
+              url = excluded.url,
+              author = excluded.author,
+              description = excluded.description,
+              content = excluded.content,
+              published_at = excluded.published_at,
+              media = excluded.media,
+              categories = excluded.categories,
+              enclosure_url = excluded.enclosure_url,
+              enclosure_type = excluded.enclosure_type,
+              enclosure_length = excluded.enclosure_length
+          `
+          : `
+            INSERT INTO rss_entry (
+              create_time, update_time, feed_id, guid, title, url, author,
+              description, content, published_at, media, categories,
+              enclosure_url, enclosure_type, enclosure_length
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(feed_id, guid) DO NOTHING
+          `,
+      );
 
       let latestEntryAt: number | null = null;
 
-      for (const entry of feed.entries) {
+      for (const entry of parsedFeed.entries) {
         const guid = entry.id || entry.link || entry.title || "";
         if (!guid) continue;
 
@@ -243,13 +273,13 @@ class RssFetcherModule implements Module {
         `UPDATE rss_feed SET last_fetched_at = ?, last_entry_at = ?, error_count = 0, last_error = NULL, update_time = ? WHERE id = ?`,
       ).run(now, latestEntryAt, now, feedId);
 
-      if (feed.title) {
+      if (parsedFeed.title) {
         db.prepare(
           `UPDATE rss_feed SET title = CASE WHEN title = url THEN ? ELSE title END, description = ?, site_url = ?, image_url = ? WHERE id = ?`,
         ).run(
-          feed.title,
-          feed.description ?? null,
-          feed.link ?? null,
+          parsedFeed.title,
+          parsedFeed.description ?? null,
+          parsedFeed.link ?? null,
           null,
           feedId,
         );

@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { InboxOutlined } from "@ant-design/icons";
+import { App } from "antd";
 import useThemeColors from "@/hooks/useThemeColors";
 import type { SidebarSelection, UnifiedArticleItem } from "../../types";
 import type { ArticleProjectTarget } from "../../utils/articleProjectTargets";
@@ -25,6 +26,8 @@ interface ArticleListProps {
   onDelete: (article: UnifiedArticleItem) => void;
   onAddToProject?: (article: UnifiedArticleItem) => void;
   onOpenProject?: (target: ArticleProjectTarget) => void;
+  showBilibiliFollowingsSubscribe?: boolean;
+  onSubscribeBilibiliFollowings?: () => Promise<void>;
 }
 
 export default function ArticleList({
@@ -44,18 +47,25 @@ export default function ArticleList({
   onDelete,
   onAddToProject,
   onOpenProject,
+  showBilibiliFollowingsSubscribe = false,
+  onSubscribeBilibiliFollowings,
 }: ArticleListProps) {
   const themeColors = useThemeColors();
+  const { message } = App.useApp();
+  const [isSubscribingBilibili, setIsSubscribingBilibili] = useState(false);
 
   const selectionKey = useMemo(() => {
     if (selection.kind === "smart") return `smart-${selection.group}`;
     if (selection.kind === "subscription")
       return `sub-${selection.subscriptionId}`;
     if (selection.kind === "category") return `cat-${selection.category}`;
+    if (selection.kind === "bilibili-followings") return "bilibili-followings";
     return "unknown";
   }, [selection]);
 
   const emptyMessage = useMemo(() => {
+    if (showBilibiliFollowingsSubscribe)
+      return "订阅后会自动同步关注 UP 主动态";
     if (selection.kind === "smart" && selection.group === "readlater")
       return "从浏览器扩展或 RSS 添加稍后读";
     if (selection.kind === "smart" && selection.group === "starred")
@@ -102,6 +112,28 @@ export default function ArticleList({
               <span className={`text-xs ${themeColors.secondaryTextClass}`}>
                 {emptyMessage}
               </span>
+              {showBilibiliFollowingsSubscribe && (
+                <button
+                  type="button"
+                  className="mt-1 px-5 py-2.5 rounded-xl border-none text-sm font-semibold cursor-pointer transition-all bg-orange-500 text-white shadow-[0_4px_14px_rgba(249,115,22,0.28)] hover:bg-orange-600 hover:-translate-y-px active:translate-y-0"
+                  disabled={isSubscribingBilibili}
+                  onClick={() => {
+                    if (!onSubscribeBilibiliFollowings) return;
+                    setIsSubscribingBilibili(true);
+                    onSubscribeBilibiliFollowings()
+                      .catch((error) => {
+                        message.error(
+                          error instanceof Error ? error.message : "订阅失败",
+                        );
+                      })
+                      .finally(() => {
+                        setIsSubscribingBilibili(false);
+                      });
+                  }}
+                >
+                  {isSubscribingBilibili ? "订阅中..." : "订阅"}
+                </button>
+              )}
             </motion.div>
           ) : (
             <motion.div

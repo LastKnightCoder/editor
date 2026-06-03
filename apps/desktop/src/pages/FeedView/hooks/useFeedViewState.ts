@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import { getAllProjectItems, getWebLinksByIds } from "@/commands";
+import { BILIBILI_FOLLOWINGS_DYNAMIC_FEED_URL } from "@/commands/rss";
 import useRssStore, { RssStatus } from "@/stores/useRssStore";
 import useReadLaterStore from "@/stores/useReadLaterStore";
 import useTabStore from "@/stores/useTabStore";
@@ -25,6 +26,7 @@ export interface FeedViewState {
   isRefreshing: boolean;
   addDialogOpen: boolean;
   isSelectedInReadLater: boolean;
+  showBilibiliFollowingsSubscribe: boolean;
 }
 
 export interface FeedViewActions {
@@ -43,6 +45,7 @@ export interface FeedViewActions {
   openProjectTarget: (target: ArticleProjectTarget) => void;
   refreshCurrent: () => void;
   refreshAll: () => void;
+  subscribeBilibiliFollowings: () => Promise<void>;
   setAddDialogOpen: (open: boolean) => void;
 }
 
@@ -69,6 +72,24 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
 
   const isReadLaterMode =
     selection.kind === "smart" && selection.group === "readlater";
+  const bilibiliFollowingsFeed = useMemo(
+    () =>
+      rssStore.feeds.find(
+        (feed) => feed.url === BILIBILI_FOLLOWINGS_DYNAMIC_FEED_URL,
+      ) || null,
+    [rssStore.feeds],
+  );
+  const bilibiliFollowingsSubscription = useMemo(
+    () =>
+      bilibiliFollowingsFeed
+        ? rssStore.subscriptions.find(
+            (subscription) => subscription.feedId === bilibiliFollowingsFeed.id,
+          ) || null
+        : null,
+    [bilibiliFollowingsFeed, rssStore.subscriptions],
+  );
+  const showBilibiliFollowingsSubscribe =
+    selection.kind === "bilibili-followings" && !bilibiliFollowingsSubscription;
 
   useEffect(() => {
     if (rssStore.status === RssStatus.UN_INIT) {
@@ -97,8 +118,14 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
       }
     } else if (selection.kind === "category") {
       rssStore.loadCategoryEntries(selection.category);
+    } else if (selection.kind === "bilibili-followings") {
+      if (bilibiliFollowingsSubscription) {
+        rssStore.loadEntries(bilibiliFollowingsSubscription.feedId);
+      } else {
+        rssStore.clearEntries();
+      }
     }
-  }, [selection, isReadLaterMode]);
+  }, [selection, isReadLaterMode, bilibiliFollowingsSubscription?.feedId]);
 
   useEffect(() => {
     setSelectedArticleId(null);
@@ -261,6 +288,11 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
   const refreshCurrent = useMemoizedFn(() => {
     if (selection.kind === "subscription") {
       rssStore.refreshFeed(selection.feedId);
+    } else if (
+      selection.kind === "bilibili-followings" &&
+      bilibiliFollowingsSubscription
+    ) {
+      rssStore.refreshFeed(bilibiliFollowingsSubscription.feedId);
     } else if (!isReadLaterMode) {
       rssStore.refreshAll();
     }
@@ -268,6 +300,10 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
 
   const refreshAll = useMemoizedFn(() => {
     rssStore.refreshAll();
+  });
+
+  const subscribeBilibiliFollowings = useMemoizedFn(async () => {
+    await rssStore.subscribeBilibiliFollowings();
   });
 
   return {
@@ -280,6 +316,7 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
     isRefreshing: rssStore.isRefreshing,
     addDialogOpen,
     isSelectedInReadLater,
+    showBilibiliFollowingsSubscribe,
     setSelection,
     selectArticle,
     toggleStar,
@@ -295,6 +332,7 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
     openProjectTarget,
     refreshCurrent,
     refreshAll,
+    subscribeBilibiliFollowings,
     setAddDialogOpen,
   };
 }

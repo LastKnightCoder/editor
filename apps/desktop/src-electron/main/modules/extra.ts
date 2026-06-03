@@ -111,6 +111,8 @@ class Extra implements Module {
           status: res.status,
           statusText: res.statusText,
           headers: res.headers,
+          finalUrl:
+            res.request?.res?.responseUrl || res.request?.responseURL || url,
         }));
       }
       return response.then((res) => res.data);

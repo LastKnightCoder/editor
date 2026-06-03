@@ -130,4 +130,14 @@ describe("AddFeedDialog", () => {
 
     await unmount(root, container);
   });
+
+  it("不应在添加订阅弹窗展示 B 站关注动态入口", async () => {
+    const { root, container } = await mount(
+      <AddFeedDialog open onClose={vi.fn()} />,
+    );
+
+    expect(document.body.textContent).not.toContain("订阅我的 B 站关注动态");
+
+    await unmount(root, container);
+  });
 });

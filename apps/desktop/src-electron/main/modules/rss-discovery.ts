@@ -3,6 +3,13 @@ import log from "electron-log";
 import { Module } from "../types/module";
 import { safeFetchHtml } from "./safe-fetch";
 import { parseFeedXml as parseFeedXmlLite } from "./rss-parser-lite";
+import {
+  BILIBILI_FOLLOWINGS_DYNAMIC_URL,
+  buildBilibiliUserVideoUrl,
+  parseBilibiliSpaceUrl,
+  parseLocalBilibiliFeedUrl,
+  previewBilibiliFeed,
+} from "./rss-bilibili";
 
 export interface DiscoveredFeed {
   url: string;
@@ -45,6 +52,9 @@ const RSS_ACCEPT =
   "application/rss+xml, application/atom+xml, application/feed+json, application/json, application/xml, text/xml, */*";
 
 function normalizeHttpUrl(value: string): string {
+  if (parseLocalBilibiliFeedUrl(value)) {
+    return value.trim();
+  }
   const parsed = new URL(value.trim());
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new Error(`Blocked scheme: ${parsed.protocol}`);
@@ -103,6 +113,14 @@ function mapPreviewError(url: string, error: unknown): FeedPreviewResult {
   const message = error instanceof Error ? error.message : String(error);
   const lower = message.toLowerCase();
 
+  if (url === BILIBILI_FOLLOWINGS_DYNAMIC_URL || url.startsWith("tau://")) {
+    return {
+      valid: false,
+      url,
+      errorCode: "network_error",
+      message,
+    };
+  }
   if (lower.includes("invalid url")) {
     return {
       valid: false,
@@ -260,6 +278,17 @@ class RssDiscoveryModule implements Module {
 
   async discoverFeeds(url: string): Promise<DiscoveredFeed[]> {
     try {
+      const bilibiliUid = parseBilibiliSpaceUrl(url);
+      if (bilibiliUid) {
+        return [
+          {
+            url: buildBilibiliUserVideoUrl(bilibiliUid),
+            title: `Bilibili UP ${bilibiliUid} 投稿`,
+            type: "rss",
+          },
+        ];
+      }
+
       const normalizedUrl = normalizeHttpUrl(url);
       console.log("[RSS] discover start", { url: normalizedUrl });
 
@@ -310,6 +339,20 @@ export async function previewFeedUrl(url: string): Promise<FeedPreviewResult> {
   try {
     const normalizedUrl = normalizeHttpUrl(url);
     console.log("[RSS] preview start", { url: normalizedUrl });
+    if (parseLocalBilibiliFeedUrl(normalizedUrl)) {
+      const preview = await previewBilibiliFeed(normalizedUrl);
+      return {
+        valid: true,
+        url: normalizedUrl,
+        finalUrl: normalizedUrl,
+        title: preview.title,
+        siteUrl: preview.siteUrl,
+        description: preview.description,
+        feedType: "rss",
+        entriesPreview: preview.entriesPreview,
+      };
+    }
+
     const xml = await safeFetchHtml(normalizedUrl, {
       accept: RSS_ACCEPT,
       timeoutMs: 15_000,

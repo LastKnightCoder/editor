@@ -14,6 +14,10 @@ import {
   ReadLaterItem,
 } from "@/types";
 
+export const BILIBILI_FOLLOWINGS_DYNAMIC_FEED_URL =
+  "tau://rss/bilibili/followings-dynamic";
+export const BILIBILI_DEFAULT_CATEGORY = "B 站";
+
 // === RSS Feed ===
 
 export const createRssFeed = async (
