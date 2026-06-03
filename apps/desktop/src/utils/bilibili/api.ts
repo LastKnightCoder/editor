@@ -90,6 +90,56 @@ async function fetchWithRetry(
   throw new BilibiliNetworkError(`请求失败: ${url}`);
 }
 
+function extractVideoUrlFromText(text: string): string | null {
+  const decoded = text.replace(/\\u002F/g, "/").replace(/\\\//g, "/");
+  const patterns = [
+    /https?:\/\/www\.bilibili\.com\/video\/(?:BV[0-9A-Za-z]+|av\d+)[^"'<>\\\s]*/i,
+    /\/\/www\.bilibili\.com\/video\/(?:BV[0-9A-Za-z]+|av\d+)[^"'<>\\\s]*/i,
+    /\/video\/(?:BV[0-9A-Za-z]+|av\d+)[^"'<>\\\s]*/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = decoded.match(pattern);
+    if (!match?.[0]) continue;
+    const value = match[0];
+    if (value.startsWith("//")) return `https:${value}`;
+    if (value.startsWith("/")) return `${BILIBILI_WEB_URL}${value}`;
+    return value;
+  }
+
+  return null;
+}
+
+async function resolveBilibiliVideoUrl(
+  url: string,
+  credentials?: BilibiliCredentials,
+): Promise<string> {
+  if (/^https?:\/\/(?:www\.)?bilibili\.com\/video\//i.test(url)) {
+    return url;
+  }
+
+  const response = await nodeFetch(url, {
+    method: "GET",
+    headers: createHeaders(credentials),
+    isRaw: true,
+    allowHttpErrorStatus: true,
+  });
+
+  const finalUrl = response?.finalUrl;
+  if (
+    typeof finalUrl === "string" &&
+    /^https?:\/\/(?:www\.)?bilibili\.com\/video\//i.test(finalUrl)
+  ) {
+    return finalUrl;
+  }
+
+  const html = typeof response?.data === "string" ? response.data : "";
+  const extractedUrl = extractVideoUrlFromText(html);
+  if (extractedUrl) return extractedUrl;
+
+  throw new BilibiliParseError(`无法从链接解析 Bilibili 视频: ${url}`);
+}
+
 export async function checkBilibiliLogin(
   credentials: BilibiliCredentials,
 ): Promise<BilibiliUserInfo> {
@@ -125,7 +175,8 @@ export async function getVideoInfoByUrl(
   url: string,
   credentials?: BilibiliCredentials,
 ): Promise<BilibiliVideoInfo> {
-  const parsedUrl = parseBilibiliUrl(url);
+  const resolvedUrl = await resolveBilibiliVideoUrl(url, credentials);
+  const parsedUrl = parseBilibiliUrl(resolvedUrl);
 
   let videoInfo: BilibiliVideoInfo;
 
@@ -134,8 +185,7 @@ export async function getVideoInfoByUrl(
       if (parsedUrl.bvid) {
         videoInfo = await getVideoInfoByBvid(parsedUrl.bvid, credentials);
       } else if (parsedUrl.aid) {
-        const bvid = av2bv(parseInt(parsedUrl.aid));
-        videoInfo = await getVideoInfoByBvid(bvid, credentials);
+        videoInfo = await getVideoInfoByAid(parsedUrl.aid, credentials);
       } else {
         throw new BilibiliParseError("无法获取视频信息");
       }
@@ -161,6 +211,24 @@ export async function getVideoInfoByUrl(
   return videoInfo;
 }
 
+async function getVideoInfoByAid(
+  aid: string,
+  credentials?: BilibiliCredentials,
+): Promise<BilibiliVideoInfo> {
+  try {
+    try {
+      return await getVideoInfoByApi(undefined, credentials, aid);
+    } catch (apiError) {
+      console.warn("API 方法失败，尝试通过 av 号转换 BV 号:", apiError);
+    }
+
+    const bvid = av2bv(parseInt(aid, 10));
+    return await getVideoInfoByBvid(bvid, credentials);
+  } catch (error) {
+    throw new BilibiliNetworkError(`获取视频信息失败: av${aid}`, error);
+  }
+}
+
 export async function getVideoInfoByBvid(
   bvid: string,
   credentials?: BilibiliCredentials,
@@ -179,11 +247,13 @@ export async function getVideoInfoByBvid(
 }
 
 async function getVideoInfoByApi(
-  bvid: string,
+  bvid?: string,
   credentials?: BilibiliCredentials,
+  aid?: string,
 ): Promise<BilibiliVideoInfo> {
+  const query = bvid ? `bvid=${bvid}` : `aid=${aid}`;
   const response = await fetchWithRetry(
-    `${BILIBILI_BASE_URL}/x/web-interface/view?bvid=${bvid}`,
+    `${BILIBILI_BASE_URL}/x/web-interface/view?${query}`,
     {
       headers: createHeaders(credentials),
     },
@@ -201,7 +271,7 @@ async function getVideoInfoByApi(
   try {
     qualityInfo = await getQualityInfo(
       videoData.cid.toString(),
-      bvid,
+      videoData.bvid,
       credentials,
     );
   } catch (error) {
@@ -227,7 +297,7 @@ async function getVideoInfoByApi(
       })) || [],
     pages: videoData.pages.map((page) => ({
       title: page.part,
-      url: `${BILIBILI_WEB_URL}/video/${bvid}?p=${page.page}`,
+      url: `${BILIBILI_WEB_URL}/video/${videoData.bvid}?p=${page.page}`,
       page: page.page,
       duration: formatDuration(page.duration),
       cid: page.cid.toString(),
@@ -335,7 +405,7 @@ export async function getPlayUrl(
     let videoStream = await selectAvailableStream(matchingVideoStreams);
     if (!videoStream) {
       console.warn("未找到可用的视频流，尝试从所有视频流中选择可用的");
-      videoStream = selectAvailableStream(dash.video);
+      videoStream = await selectAvailableStream(dash.video);
       if (!videoStream) {
         console.warn("未找到可用的视频流，使用第一个作为备选");
         videoStream = dash.video[0];

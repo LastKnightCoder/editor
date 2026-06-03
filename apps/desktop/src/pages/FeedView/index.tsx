@@ -1,18 +1,33 @@
 import { memo } from "react";
 import type { Descendant } from "slate";
 import ResizablePanel from "@/components/ResizablePanel";
+import useSettingStore from "@/stores/useSettingStore";
 import useFeedViewState from "./hooks/useFeedViewState";
 import FeedSidebar from "./components/FeedSidebar";
 import ArticleList from "./components/ArticleList";
 import ReadingPane from "./components/ReadingPane";
 import AddFeedDialog from "./components/AddFeedDialog";
 import InsertNoteToTreeModal from "@/pages/VibeLearningView/AppSidebar/components/InsertNoteToTreeModal";
+import {
+  isBilibiliVideoArticle,
+  resolveBilibiliVideoMetaInfo,
+} from "./utils/bilibiliVideoMeta";
 
 const EMPTY_NOTE_CONTENT: Descendant[] = [];
 
 const FeedView: React.FC = memo(() => {
   const state = useFeedViewState();
   const projectArticle = state.projectArticleToAdd;
+  const bilibiliCredentials = useSettingStore(
+    (store) => store.setting.integration.bilibili.credentials,
+  );
+  const shouldInsertAsBilibiliVideo = Boolean(
+    projectArticle &&
+    isBilibiliVideoArticle({
+      url: projectArticle.url,
+      content: projectArticle.content,
+    }),
+  );
 
   return (
     <>
@@ -58,6 +73,12 @@ const FeedView: React.FC = memo(() => {
                 onDelete={state.deleteItem}
                 onAddToProject={state.addToProject}
                 onOpenProject={state.openProjectTarget}
+                showBilibiliFollowingsSubscribe={
+                  state.showBilibiliFollowingsSubscribe
+                }
+                onSubscribeBilibiliFollowings={
+                  state.subscribeBilibiliFollowings
+                }
               />
             }
             right={
@@ -79,13 +100,29 @@ const FeedView: React.FC = memo(() => {
         open={!!projectArticle}
         noteTitle={projectArticle?.title || ""}
         noteContent={EMPTY_NOTE_CONTENT}
-        insertMode="webview"
+        insertMode={shouldInsertAsBilibiliVideo ? "video-note" : "webview"}
         webviewPayload={
-          projectArticle?.url
+          projectArticle?.url && !shouldInsertAsBilibiliVideo
             ? {
                 title: projectArticle.title,
                 url: projectArticle.url,
                 sourceType: "remote",
+              }
+            : undefined
+        }
+        videoNotePayload={
+          projectArticle?.url && shouldInsertAsBilibiliVideo
+            ? {
+                title: projectArticle.title,
+                resolveMetaInfo: async () => {
+                  return resolveBilibiliVideoMetaInfo(
+                    {
+                      url: projectArticle.url!,
+                      content: projectArticle.content,
+                    },
+                    bilibiliCredentials,
+                  );
+                },
               }
             : undefined
         }

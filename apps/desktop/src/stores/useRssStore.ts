@@ -3,6 +3,8 @@ import { persist } from "zustand/middleware";
 import { RssFeed, RssSubscription, RssEntry } from "@/types";
 import { on } from "@/electron";
 import {
+  BILIBILI_DEFAULT_CATEGORY,
+  BILIBILI_FOLLOWINGS_DYNAMIC_FEED_URL,
   listRssFeeds,
   listRssSubscriptions,
   getRssCategories,
@@ -65,7 +67,9 @@ interface IAction {
   loadStarredEntries: () => Promise<void>;
   loadAllEntries: () => Promise<void>;
   loadCategoryEntries: (category: string) => Promise<void>;
+  clearEntries: () => void;
   subscribe: (url: string, category?: string, title?: string) => Promise<void>;
+  subscribeBilibiliFollowings: (category?: string) => Promise<void>;
   unsubscribe: (subscriptionId: number) => Promise<void>;
   updateSubscription: (
     id: number,
@@ -201,6 +205,10 @@ const useRssStore = create<IState & IAction>()(
         }
       },
 
+      clearEntries: () => {
+        set({ entries: [], entriesStatus: RssStatus.SUCCESS });
+      },
+
       subscribe: async (url: string, category?: string, title?: string) => {
         const preview = await previewFeed(url);
         if (!preview.valid) {
@@ -252,6 +260,14 @@ const useRssStore = create<IState & IAction>()(
         } else if (!selectedSubscriptionId && filterMode === "starred") {
           await get().loadStarredEntries();
         }
+      },
+
+      subscribeBilibiliFollowings: async (category?: string) => {
+        await get().subscribe(
+          BILIBILI_FOLLOWINGS_DYNAMIC_FEED_URL,
+          category || BILIBILI_DEFAULT_CATEGORY,
+          "我的 Bilibili 关注动态",
+        );
       },
 
       unsubscribe: async (subscriptionId: number) => {

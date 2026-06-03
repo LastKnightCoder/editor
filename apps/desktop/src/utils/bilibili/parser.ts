@@ -1,8 +1,7 @@
 import { ParsedBilibiliUrl, BilibiliParseError } from "./types";
 
 export function isBilibiliUrl(url: string): boolean {
-  const urlPattern =
-    /^https?:\/\/(www\.)?bilibili\.com\/(video|bangumi\/play)\/.+/i;
+  const urlPattern = /^https?:\/\/(?:([\w-]+\.)?bilibili\.com|b23\.tv)\/.+/i;
   return urlPattern.test(url);
 }
 

@@ -14,6 +14,7 @@ import useThemeColors from "@/hooks/useThemeColors";
 import { formatRelativeTime } from "../../utils/formatRelativeTime";
 import type { UnifiedArticleItem } from "../../types";
 import type { ArticleProjectTarget } from "../../utils/articleProjectTargets";
+import { isBilibiliVideoArticle } from "../../utils/bilibiliVideoMeta";
 
 interface ArticleListItemProps {
   item: UnifiedArticleItem;
@@ -45,6 +46,10 @@ export default function ArticleListItem({
   onOpenProject,
 }: ArticleListItemProps) {
   const themeColors = useThemeColors();
+  const isBilibiliVideo = isBilibiliVideoArticle({
+    url: item.url,
+    content: item.content,
+  });
 
   const menuItems: MenuProps["items"] = [];
 
@@ -101,7 +106,7 @@ export default function ArticleListItem({
   } else if (item.url && onAddToProject) {
     menuItems.push({
       key: "add-to-project",
-      label: "添加到项目文档",
+      label: isBilibiliVideo ? "添加到项目视频笔记" : "添加到项目文档",
       icon: <FolderOpenOutlined />,
       onClick: ({ domEvent }) => {
         domEvent.stopPropagation();

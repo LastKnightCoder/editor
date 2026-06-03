@@ -1,4 +1,5 @@
 import { CheckOutlined, ReloadOutlined } from "@ant-design/icons";
+import { BILIBILI_FOLLOWINGS_DYNAMIC_FEED_URL } from "@/commands/rss";
 import useThemeColors from "@/hooks/useThemeColors";
 import useRssStore from "@/stores/useRssStore";
 import type { SidebarSelection } from "../../types";
@@ -20,6 +21,12 @@ export default function ArticleListHeader({
   const feeds = useRssStore((s) => s.feeds);
   const subscriptions = useRssStore((s) => s.subscriptions);
   const isRefreshing = useRssStore((s) => s.isRefreshing);
+  const bilibiliFollowingsFeed = feeds.find(
+    (feed) => feed.url === BILIBILI_FOLLOWINGS_DYNAMIC_FEED_URL,
+  );
+  const hasBilibiliFollowingsSubscription = bilibiliFollowingsFeed
+    ? subscriptions.some((sub) => sub.feedId === bilibiliFollowingsFeed.id)
+    : false;
 
   const getTitle = () => {
     if (selection.kind === "smart") {
@@ -42,11 +49,16 @@ export default function ArticleListHeader({
     if (selection.kind === "category") {
       return selection.category;
     }
+    if (selection.kind === "bilibili-followings") {
+      return "我订阅的动态";
+    }
     return "";
   };
 
   const showRssActions =
-    selection.kind !== "smart" || selection.group !== "readlater";
+    (selection.kind !== "smart" || selection.group !== "readlater") &&
+    (selection.kind !== "bilibili-followings" ||
+      hasBilibiliFollowingsSubscription);
 
   return (
     <div

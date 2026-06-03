@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useMemoizedFn } from "ahooks";
 import useRssStore from "@/stores/useRssStore";
 import type { RssFeedPreviewResult } from "@/types";
+import { BILIBILI_DEFAULT_CATEGORY } from "@/commands/rss";
 
 interface AddFeedDialogProps {
   open: boolean;
@@ -72,7 +73,10 @@ export default function AddFeedDialog({ open, onClose }: AddFeedDialogProps) {
       setLoading(true);
       setError(null);
       try {
-        await subscribe(feedUrl, category || undefined, title);
+        const defaultCategory = feedUrl.startsWith("tau://rss/bilibili/")
+          ? BILIBILI_DEFAULT_CATEGORY
+          : undefined;
+        await subscribe(feedUrl, category || defaultCategory, title);
         setSuccess("订阅成功");
         setTimeout(() => handleClose(), 800);
       } catch (err) {
@@ -193,32 +197,30 @@ export default function AddFeedDialog({ open, onClose }: AddFeedDialogProps) {
                 </div>
 
                 {/* Action Buttons */}
-                <div>
-                  <button
-                    className="w-full px-4 py-3 rounded-xl border-none text-sm font-semibold cursor-pointer transition-all bg-orange-500 text-white shadow-[0_4px_14px_rgba(249,115,22,0.35)] hover:bg-orange-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none"
-                    onClick={handleDiscover}
-                    disabled={loading || !url.trim()}
-                  >
-                    {loading && (
-                      <svg
-                        className="inline-block w-4 h-4 mr-1.5 animate-spin"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                      >
-                        <circle
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeDasharray="60"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    )}
-                    发现 Feed
-                  </button>
-                </div>
+                <button
+                  className="w-full px-4 py-3 rounded-xl border-none text-sm font-semibold cursor-pointer transition-all bg-orange-500 text-white shadow-[0_4px_14px_rgba(249,115,22,0.35)] hover:bg-orange-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none"
+                  onClick={handleDiscover}
+                  disabled={loading || !url.trim()}
+                >
+                  {loading && (
+                    <svg
+                      className="inline-block w-4 h-4 mr-1.5 animate-spin"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        strokeDasharray="60"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  )}
+                  发现 Feed
+                </button>
 
                 {/* Error Message */}
                 {error && (

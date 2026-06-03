@@ -47,6 +47,14 @@ const readLaterArticle: UnifiedArticleItem = {
   readabilityContent: null,
 };
 
+const bilibiliVideoArticle: UnifiedArticleItem = {
+  ...rssArticle,
+  id: "rss-3",
+  sourceId: 3,
+  title: "一个 B 站视频",
+  url: "https://www.bilibili.com/video/BV1abc",
+};
+
 const mount = async (node: ReactNode) => {
   const container = document.createElement("div");
   document.body.appendChild(container);
@@ -204,6 +212,46 @@ describe("ArticleListItem", () => {
     });
 
     expect(onAddToProject).toHaveBeenCalledWith(rssArticle);
+
+    await unmount(root, container);
+  });
+
+  it("右键 B 站视频文章时应展示添加到项目视频笔记操作", async () => {
+    const onAddToProject = vi.fn();
+
+    const { root, container } = await mount(
+      <ArticleListItem
+        item={bilibiliVideoArticle}
+        isActive={false}
+        onClick={vi.fn()}
+        onAddToProject={onAddToProject}
+      />,
+    );
+
+    await act(async () => {
+      container.firstElementChild?.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          clientX: 20,
+          clientY: 20,
+        }),
+      );
+    });
+    await flushDropdown();
+
+    expect(document.body.textContent).toContain("添加到项目视频笔记");
+    expect(document.body.textContent).not.toContain("添加到项目文档");
+
+    const addItem = Array.from(document.body.querySelectorAll("li")).find(
+      (item) => item.textContent?.includes("添加到项目视频笔记"),
+    );
+    expect(addItem).toBeTruthy();
+    await act(async () => {
+      addItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(onAddToProject).toHaveBeenCalledWith(bilibiliVideoArticle);
 
     await unmount(root, container);
   });

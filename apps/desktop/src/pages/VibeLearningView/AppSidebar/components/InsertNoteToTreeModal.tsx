@@ -11,7 +11,7 @@ import {
 } from "@ant-design/icons";
 import useThemeColors from "@/hooks/useThemeColors";
 import CustomModal from "@/components/CustomModal";
-import { LoadingSpinner } from "./index";
+import LoadingSpinner from "./LoadingSpinner";
 import { getProjectList } from "@/commands/project";
 import { getAllDocuments } from "@/commands/document";
 import {
@@ -26,16 +26,25 @@ import {
   createSharedDocumentItemFromContent,
 } from "@/commands/document";
 import { getContentById } from "@/commands";
+import { createEmptyVideoNote } from "@/commands/video-notes";
 import { getContentLength } from "@/utils";
 import { EProjectType, EProjectItemType } from "@/types/project";
 import type { CreateProjectItem, Project, ProjectItem } from "@/types/project";
+import type { VideoNote } from "@/types/video-note";
 import type { WebLinkSourceType } from "@/types/web-link";
 import type { IDocument, ICreateDocumentItem } from "@/types/document";
 import {
   buildProjectTree,
   buildDocumentTree,
 } from "@/pages/Settings/PublishSetting/PublishSelector/utils/treeBuilder";
-import type { DocTreeNode } from "@/pages/Settings/PublishSetting/PublishSelector/types";
+
+interface DocTreeNode {
+  id: number;
+  title: string;
+  hasContent: boolean;
+  content: Descendant[];
+  children: DocTreeNode[];
+}
 
 interface InsertNoteToTreeModalProps {
   mode: "project" | "document";
@@ -43,11 +52,16 @@ interface InsertNoteToTreeModalProps {
   noteTitle: string;
   noteContent: Descendant[];
   sourceContentId?: number | null;
-  insertMode?: "copy" | "shared-content" | "webview";
+  insertMode?: "copy" | "shared-content" | "webview" | "video-note";
   webviewPayload?: {
     title: string;
     url: string;
     sourceType?: WebLinkSourceType;
+  };
+  videoNotePayload?: {
+    title: string;
+    metaInfo?: VideoNote["metaInfo"];
+    resolveMetaInfo?: () => Promise<VideoNote["metaInfo"]>;
   };
   onCancel: () => void;
   onSuccess: (createdItem?: ProjectItem | null) => void;
@@ -144,6 +158,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
     sourceContentId = null,
     insertMode = "copy",
     webviewPayload,
+    videoNotePayload,
     onCancel,
     onSuccess,
   }) => {
@@ -266,6 +281,49 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
           message.success("网页已添加到项目");
           onSuccess(createdItem);
           return;
+        } else if (insertMode === "video-note") {
+          if (mode !== "project" || !videoNotePayload) {
+            throw new Error("缺少视频信息");
+          }
+
+          const metaInfo =
+            videoNotePayload.metaInfo ||
+            (await videoNotePayload.resolveMetaInfo?.());
+          if (!metaInfo) {
+            throw new Error("缺少视频信息");
+          }
+
+          const videoNote = await createEmptyVideoNote(metaInfo);
+          if (!videoNote) {
+            throw new Error("创建视频笔记失败");
+          }
+
+          const newItem: CreateProjectItem = {
+            title: videoNotePayload.title.trim() || "视频笔记",
+            content: [],
+            children: [],
+            refType: "video-note",
+            refId: videoNote.id,
+            projectItemType: EProjectItemType.VideoNote,
+            count: 0,
+            whiteBoardContentId: 0,
+          };
+
+          let createdItem: ProjectItem | null = null;
+          if (selectedNodeId) {
+            [, createdItem] = await addChildProjectItem(
+              selectedNodeId,
+              newItem,
+            );
+          } else {
+            [, createdItem] = await addRootProjectItem(
+              selectedEntityId,
+              newItem,
+            );
+          }
+          message.success("视频笔记已添加到项目");
+          onSuccess(createdItem);
+          return;
         } else if (insertMode === "shared-content") {
           if (!sourceContentId) {
             throw new Error("缺少共享内容 ID");
@@ -343,9 +401,11 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
         message.error(
           insertMode === "webview"
             ? "添加网页失败"
-            : insertMode === "shared-content"
-              ? "挂载内容失败"
-              : "插入笔记失败",
+            : insertMode === "video-note"
+              ? "添加视频笔记失败"
+              : insertMode === "shared-content"
+                ? "挂载内容失败"
+                : "插入笔记失败",
         );
       } finally {
         setInserting(false);
@@ -359,6 +419,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
       sourceContentId,
       insertMode,
       webviewPayload,
+      videoNotePayload,
       message,
       onSuccess,
     ]);
@@ -366,7 +427,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
     const actionText =
       insertMode === "shared-content"
         ? "创建"
-        : insertMode === "webview"
+        : insertMode === "webview" || insertMode === "video-note"
           ? "添加"
           : "插入";
 
@@ -380,9 +441,11 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
           mode === "project"
             ? insertMode === "webview"
               ? "添加网页到项目"
-              : insertMode === "shared-content"
-                ? "创建项目文档"
-                : "插入笔记到项目"
+              : insertMode === "video-note"
+                ? "添加视频笔记到项目"
+                : insertMode === "shared-content"
+                  ? "创建项目文档"
+                  : "插入笔记到项目"
             : insertMode === "shared-content"
               ? "创建知识库文档"
               : "插入笔记到知识库"
@@ -486,7 +549,9 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
                         : themeColors.textClass,
                     )}
                   >
-                    {insertMode === "webview" ? "添加到根目录" : "插入到根目录"}
+                    {insertMode === "webview" || insertMode === "video-note"
+                      ? "添加到根目录"
+                      : "插入到根目录"}
                   </span>
                 </div>
                 {/* 文档树节点 */}
