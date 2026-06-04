@@ -2,6 +2,7 @@ import { createBuiltinSkillTools } from "../builtins/skillTools";
 import { createSkillMessageContributor } from "../contributors/SkillMessageContributor";
 import { isAbortError } from "./abort";
 import { createAgentRuntimeAPI } from "./AgentRuntime";
+import { logAgentTokenBudget } from "./tokenBudgetDebug";
 import { ToolSnapshot } from "./ToolSnapshot";
 import type {
   AgentConfig,
@@ -411,11 +412,22 @@ export class Agent {
       yield* flushPublishedNotices(turnId);
 
       try {
+        const turnToolSchemas = state.toolModeActive
+          ? turnContext.system.toolSchemas
+          : undefined;
+        logAgentTokenBudget({
+          traceId,
+          runId,
+          turnId,
+          conversationKey,
+          loopIndex: toolLoopCount,
+          toolModeActive: state.toolModeActive,
+          messages: state.messages,
+          tools: turnToolSchemas,
+        });
         for await (const event of this.config.model.streamTurn({
           messages: state.messages,
-          tools: state.toolModeActive
-            ? turnContext.system.toolSchemas
-            : undefined,
+          tools: turnToolSchemas,
           controller,
           signal: controller.signal,
           traceId,

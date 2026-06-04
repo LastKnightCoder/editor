@@ -22,6 +22,9 @@ export interface FeedViewState {
   selectedArticle: UnifiedArticleItem | null;
   projectArticleToAdd: UnifiedArticleItem | null;
   articleProjectTargets: Record<string, ArticleProjectTarget>;
+  articleTotal: number;
+  hasMoreArticles: boolean;
+  articleSearch: string;
   isLoading: boolean;
   isRefreshing: boolean;
   addDialogOpen: boolean;
@@ -34,7 +37,10 @@ export interface FeedViewActions {
   selectArticle: (id: string | null) => void;
   toggleStar: (article: UnifiedArticleItem) => void;
   markRead: (article: UnifiedArticleItem) => void;
+  markUnread: (article: UnifiedArticleItem) => void;
   markAllRead: () => void;
+  loadMoreArticles: () => Promise<void>;
+  setArticleSearch: (search: string) => void;
   toggleReadLater: (article: UnifiedArticleItem) => Promise<void>;
   archiveItem: (article: UnifiedArticleItem) => void;
   unarchiveItem: (article: UnifiedArticleItem) => void;
@@ -91,20 +97,11 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
   const showBilibiliFollowingsSubscribe =
     selection.kind === "bilibili-followings" && !bilibiliFollowingsSubscription;
 
-  useEffect(() => {
-    if (rssStore.status === RssStatus.UN_INIT) {
-      rssStore.init();
-    }
-  }, [rssStore.status]);
-
-  useEffect(() => {
+  const reloadCurrentSelection = useMemoizedFn(() => {
     if (isReadLaterMode) {
       readLaterStore.init();
+      return;
     }
-  }, [isReadLaterMode]);
-
-  useEffect(() => {
-    if (isReadLaterMode) return;
 
     if (selection.kind === "subscription") {
       rssStore.loadEntries(selection.feedId);
@@ -125,7 +122,28 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
         rssStore.clearEntries();
       }
     }
-  }, [selection, isReadLaterMode, bilibiliFollowingsSubscription?.feedId]);
+  });
+
+  useEffect(() => {
+    if (rssStore.status === RssStatus.UN_INIT) {
+      rssStore.init();
+    }
+  }, [rssStore.status]);
+
+  useEffect(() => {
+    if (isReadLaterMode) {
+      readLaterStore.init();
+    }
+  }, [isReadLaterMode]);
+
+  useEffect(() => {
+    reloadCurrentSelection();
+  }, [
+    selection,
+    isReadLaterMode,
+    bilibiliFollowingsSubscription?.feedId,
+    rssStore.entriesSearch,
+  ]);
 
   useEffect(() => {
     setSelectedArticleId(null);
@@ -192,13 +210,22 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
     : rssStore.entriesStatus === RssStatus.LOADING;
 
   const selectArticle = useMemoizedFn((id: string | null) => {
-    setSelectedArticleId(id);
-    if (id && !isReadLaterMode) {
-      const article = articles.find((a) => a.id === id);
-      if (article && article.source === "rss" && !article.isRead) {
-        rssStore.markRead(article.sourceId);
-      }
+    const article = id ? articles.find((a) => a.id === id) : null;
+    if (
+      id &&
+      !isReadLaterMode &&
+      article?.source === "rss" &&
+      !article.isRead
+    ) {
+      rssStore.markRead(article.sourceId);
     }
+
+    if (id && id === selectedArticleId) {
+      setSelectedArticleId(null);
+      return;
+    }
+
+    setSelectedArticleId(id);
   });
 
   const toggleStar = useMemoizedFn((article: UnifiedArticleItem) => {
@@ -219,9 +246,20 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
     }
   });
 
+  const markUnread = useMemoizedFn((article: UnifiedArticleItem) => {
+    if (article.source === "rss") {
+      rssStore.markUnread(article.sourceId);
+    }
+  });
+
   const markAllRead = useMemoizedFn(() => {
     if (selection.kind === "subscription") {
       rssStore.markAllRead(selection.feedId);
+    } else if (
+      selection.kind === "bilibili-followings" &&
+      bilibiliFollowingsSubscription
+    ) {
+      rssStore.markAllRead(bilibiliFollowingsSubscription.feedId);
     }
   });
 
@@ -262,6 +300,12 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
   const deleteItem = useMemoizedFn((article: UnifiedArticleItem) => {
     if (article.source === "readlater") {
       readLaterStore.removeItem(article.sourceId);
+    } else if (article.source === "rss") {
+      rssStore.deleteEntry(article.sourceId);
+    }
+
+    if (article.id === selectedArticleId) {
+      setSelectedArticleId(null);
     }
   });
 
@@ -302,6 +346,16 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
     rssStore.refreshAll();
   });
 
+  const loadMoreArticles = useMemoizedFn(async () => {
+    if (!isReadLaterMode) {
+      await rssStore.loadMoreEntries();
+    }
+  });
+
+  const setArticleSearch = useMemoizedFn((search: string) => {
+    rssStore.setEntriesSearch(search);
+  });
+
   const subscribeBilibiliFollowings = useMemoizedFn(async () => {
     await rssStore.subscribeBilibiliFollowings();
   });
@@ -312,6 +366,9 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
     selectedArticle,
     projectArticleToAdd,
     articleProjectTargets,
+    articleTotal: isReadLaterMode ? articles.length : rssStore.entriesTotal,
+    hasMoreArticles: !isReadLaterMode && rssStore.entriesHasMore,
+    articleSearch: rssStore.entriesSearch,
     isLoading,
     isRefreshing: rssStore.isRefreshing,
     addDialogOpen,
@@ -321,7 +378,10 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
     selectArticle,
     toggleStar,
     markRead,
+    markUnread,
     markAllRead,
+    loadMoreArticles,
+    setArticleSearch,
     toggleReadLater,
     archiveItem,
     unarchiveItem,

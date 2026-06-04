@@ -1,14 +1,19 @@
 import { useMemo } from "react";
 import type { RssEntry, ReadLaterItem } from "@/types";
 import type { UnifiedArticleItem } from "../types";
+import { resolveBilibiliVideoArticleUrl } from "../utils/bilibiliVideoMeta";
 
 export function normalizeRssEntry(entry: RssEntry): UnifiedArticleItem {
+  const content = entry.content || entry.description || null;
   return {
     id: `rss-${entry.id}`,
     source: "rss",
     sourceId: entry.id,
     title: entry.title || "无标题",
-    url: entry.url || null,
+    url: resolveBilibiliVideoArticleUrl({
+      url: entry.url,
+      content,
+    }),
     excerpt: entry.description?.replace(/<[^>]*>/g, "").slice(0, 200) || null,
     author: entry.author || null,
     publishedAt: entry.publishedAt || null,
@@ -16,7 +21,7 @@ export function normalizeRssEntry(entry: RssEntry): UnifiedArticleItem {
     isStarred: !!entry.isStarred,
     isArchived: false,
     badge: "RSS",
-    content: entry.content || entry.description || null,
+    content,
     readabilityContent: entry.readabilityContent || null,
     feedId: entry.feedId,
   };

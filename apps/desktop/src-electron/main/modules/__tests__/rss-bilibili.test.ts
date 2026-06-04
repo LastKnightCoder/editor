@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   BILIBILI_FOLLOWINGS_DYNAMIC_URL,
   __rssBilibiliInternals,
+  buildBilibiliUserDynamicUrl,
   buildBilibiliUserVideoUrl,
   parseBilibiliSpaceUrl,
   parseLocalBilibiliFeedUrl,
@@ -24,6 +25,12 @@ describe("rss-bilibili", () => {
 
   it("应解析本地 B 站 Feed URL", () => {
     expect(
+      parseLocalBilibiliFeedUrl(buildBilibiliUserDynamicUrl("2267573")),
+    ).toEqual({
+      type: "user-dynamic",
+      uid: "2267573",
+    });
+    expect(
       parseLocalBilibiliFeedUrl(buildBilibiliUserVideoUrl("2267573")),
     ).toEqual({
       type: "user-video",
@@ -41,6 +48,35 @@ describe("rss-bilibili", () => {
     expect(() =>
       parseLocalBilibiliFeedUrl("tau://rss/bilibili/user-video/not-a-uid"),
     ).toThrow("UID 不正确");
+  });
+
+  it("应缓存刚预览过的 B 站 feed，避免订阅时短时间重复请求", () => {
+    const url = buildBilibiliUserDynamicUrl("342646");
+    const feed = {
+      title: "UP 342646 的 Bilibili 动态",
+      description: "UP 342646 的 Bilibili 动态",
+      link: "https://space.bilibili.com/342646/dynamic",
+      entries: [
+        {
+          id: "BV1xx411c7mD",
+          title: "视频标题",
+          link: "https://www.bilibili.com/video/BV1xx411c7mD",
+          description: "视频简介",
+          contentHtml: "<p>视频简介</p>",
+          creator: "UP 342646",
+          categories: [],
+          published: null,
+        },
+      ],
+    };
+
+    __rssBilibiliInternals.cacheFeed(url, feed);
+    const first = __rssBilibiliInternals.getCachedFeed(url);
+    expect(first?.entries[0].title).toBe("视频标题");
+
+    first!.entries[0].title = "被外部修改";
+    const second = __rssBilibiliInternals.getCachedFeed(url);
+    expect(second?.entries[0].title).toBe("视频标题");
   });
 
   it("关注动态中的视频应优先跳转到视频播放页", () => {
@@ -170,5 +206,76 @@ describe("rss-bilibili", () => {
     expect(entry?.contentHtml).toContain("...");
     expect(entry?.contentHtml).toContain("<img");
     expect(entry?.link).toBe("https://t.bilibili.com/123456789");
+  });
+
+  it("非视频动态即使带 rid 也不应跳转到视频播放页", () => {
+    const entry = __rssBilibiliInternals.mapFollowingDynamicItem({
+      desc: {
+        type: 2,
+        dynamic_id_str: "748748748",
+        rid: 884884884,
+        timestamp: 1760000000,
+        user_profile: { info: { uname: "楚国刮大风" } },
+      },
+      card: JSON.stringify({
+        item: {
+          dynamic: "这是一条普通图文动态",
+          pictures: [{ img_src: "https://i0.hdslb.com/picture.jpg" }],
+        },
+      }),
+    });
+
+    expect(entry?.title).toBe("楚国刮大风的图文动态");
+    expect(entry?.link).toBe("https://t.bilibili.com/748748748");
+    expect(entry?.contentHtml).not.toContain('"type":"bilibili-video"');
+    expect(entry?.contentHtml).not.toContain("video/av884884884");
+  });
+
+  it("新版关注动态接口条目应让视频动态跳转播放页并保留视频元信息", () => {
+    const dynamicEntry = __rssBilibiliInternals.mapWebFollowingDynamicItem({
+      id_str: "99887766",
+      type: "DYNAMIC_TYPE_DRAW",
+      modules: {
+        module_author: { name: "楚国刮大风", pub_ts: 1760000000 },
+        module_dynamic: {
+          desc: { text: "一条新版图文动态" },
+          major: {
+            type: "MAJOR_TYPE_OPUS",
+            opus: {
+              summary: { text: "一条新版图文动态" },
+              pics: [{ url: "https://i0.hdslb.com/picture.jpg" }],
+            },
+          },
+        },
+      },
+    });
+    const videoEntry = __rssBilibiliInternals.mapWebFollowingDynamicItem({
+      id_str: "11223344",
+      type: "DYNAMIC_TYPE_AV",
+      modules: {
+        module_author: { name: "Mx-Shell", pub_ts: 1760000001 },
+        module_dynamic: {
+          major: {
+            type: "MAJOR_TYPE_ARCHIVE",
+            archive: {
+              title: "一个新版视频动态",
+              desc: "视频简介",
+              bvid: "BV1xx411c7mD",
+              aid: 123456,
+              cid: 654321,
+              cover: "https://i0.hdslb.com/video.jpg",
+            },
+          },
+        },
+      },
+    });
+
+    expect(dynamicEntry?.link).toBe("https://t.bilibili.com/99887766");
+    expect(dynamicEntry?.contentHtml).not.toContain('"type":"bilibili-video"');
+    expect(videoEntry?.link).toBe(
+      "https://www.bilibili.com/video/BV1xx411c7mD",
+    );
+    expect(videoEntry?.contentHtml).toContain('"type":"bilibili-video"');
+    expect(videoEntry?.contentHtml).toContain('"bvid":"BV1xx411c7mD"');
   });
 });

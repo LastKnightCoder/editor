@@ -6,8 +6,16 @@ import {
 } from "@/types";
 
 export default class RssEntryTable {
-  static upgradeTable(_db: Database.Database) {
-    // placeholder for future migrations
+  static upgradeTable(db: Database.Database) {
+    const columns = db.prepare(`PRAGMA table_info(rss_entry)`).all() as Array<{
+      name: string;
+    }>;
+    const hasDeletedColumn = columns.some(
+      (column) => column.name === "is_deleted",
+    );
+    if (!hasDeletedColumn) {
+      db.exec(`ALTER TABLE rss_entry ADD COLUMN is_deleted INTEGER DEFAULT 0`);
+    }
   }
 
   static parse(row: Record<string, unknown>): RssEntry {
@@ -31,6 +39,7 @@ export default class RssEntryTable {
       enclosureLength: row.enclosure_length as number | null,
       isRead: row.is_read as number,
       isStarred: row.is_starred as number,
+      isDeleted: (row.is_deleted as number | undefined) ?? 0,
     };
   }
 
@@ -46,12 +55,33 @@ export default class RssEntryTable {
       "rss-entry:list-starred": this.listStarred.bind(this),
       "rss-entry:list-all": this.listAll.bind(this),
       "rss-entry:list-by-category": this.listByCategory.bind(this),
+      "rss-entry:count-by-feed": this.countByFeed.bind(this),
+      "rss-entry:count-unread": this.countUnread.bind(this),
+      "rss-entry:count-starred": this.countStarred.bind(this),
+      "rss-entry:count-all": this.countAll.bind(this),
+      "rss-entry:count-by-category": this.countByCategory.bind(this),
       "rss-entry:mark-read": this.markRead.bind(this),
+      "rss-entry:mark-unread": this.markUnread.bind(this),
       "rss-entry:mark-all-read-by-feed": this.markAllReadByFeed.bind(this),
       "rss-entry:toggle-star": this.toggleStar.bind(this),
+      "rss-entry:delete": this.remove.bind(this),
       "rss-entry:delete-by-feed": this.deleteByFeed.bind(this),
       "rss-entry:get-unread-counts": this.getUnreadCounts.bind(this),
       "rss-entry:get-starred-count": this.getStarredCount.bind(this),
+    };
+  }
+
+  private static searchCondition(search?: string): {
+    clause: string;
+    params: string[];
+  } {
+    const keyword = search?.trim();
+    if (!keyword) return { clause: "", params: [] };
+    const like = `%${keyword}%`;
+    return {
+      clause:
+        " AND (title LIKE ? OR description LIKE ? OR content LIKE ? OR author LIKE ?)",
+      params: [like, like, like, like],
     };
   }
 
@@ -194,12 +224,17 @@ export default class RssEntryTable {
     feedId: number,
     limit = 50,
     offset = 0,
+    search = "",
   ): RssEntry[] {
+    const searchCondition = this.searchCondition(search);
     const rows = db
       .prepare(
-        `SELECT * FROM rss_entry WHERE feed_id = ? ORDER BY published_at DESC LIMIT ? OFFSET ?`,
+        `SELECT * FROM rss_entry WHERE feed_id = ? AND is_deleted = 0${searchCondition.clause} ORDER BY published_at DESC LIMIT ? OFFSET ?`,
       )
-      .all(feedId, limit, offset) as Record<string, unknown>[];
+      .all(feedId, ...searchCondition.params, limit, offset) as Record<
+      string,
+      unknown
+    >[];
     return rows.map((row) => this.parse(row));
   }
 
@@ -208,24 +243,38 @@ export default class RssEntryTable {
     subscriptionId: number,
     limit = 50,
     offset = 0,
+    search = "",
   ): RssEntry[] {
+    const searchCondition = this.searchCondition(search);
     const rows = db
       .prepare(
         `SELECT e.* FROM rss_entry e
          JOIN rss_subscription s ON s.feed_id = e.feed_id
-         WHERE s.id = ?
+         WHERE s.id = ? AND e.is_deleted = 0${searchCondition.clause}
          ORDER BY e.published_at DESC LIMIT ? OFFSET ?`,
       )
-      .all(subscriptionId, limit, offset) as Record<string, unknown>[];
+      .all(subscriptionId, ...searchCondition.params, limit, offset) as Record<
+      string,
+      unknown
+    >[];
     return rows.map((row) => this.parse(row));
   }
 
-  static listUnread(db: Database.Database, limit = 50, offset = 0): RssEntry[] {
+  static listUnread(
+    db: Database.Database,
+    limit = 50,
+    offset = 0,
+    search = "",
+  ): RssEntry[] {
+    const searchCondition = this.searchCondition(search);
     const rows = db
       .prepare(
-        `SELECT * FROM rss_entry WHERE is_read = 0 ORDER BY published_at DESC LIMIT ? OFFSET ?`,
+        `SELECT * FROM rss_entry WHERE is_read = 0 AND is_deleted = 0${searchCondition.clause} ORDER BY published_at DESC LIMIT ? OFFSET ?`,
       )
-      .all(limit, offset) as Record<string, unknown>[];
+      .all(...searchCondition.params, limit, offset) as Record<
+      string,
+      unknown
+    >[];
     return rows.map((row) => this.parse(row));
   }
 
@@ -233,21 +282,35 @@ export default class RssEntryTable {
     db: Database.Database,
     limit = 50,
     offset = 0,
+    search = "",
   ): RssEntry[] {
+    const searchCondition = this.searchCondition(search);
     const rows = db
       .prepare(
-        `SELECT * FROM rss_entry WHERE is_starred = 1 ORDER BY published_at DESC LIMIT ? OFFSET ?`,
+        `SELECT * FROM rss_entry WHERE is_starred = 1 AND is_deleted = 0${searchCondition.clause} ORDER BY published_at DESC LIMIT ? OFFSET ?`,
       )
-      .all(limit, offset) as Record<string, unknown>[];
+      .all(...searchCondition.params, limit, offset) as Record<
+      string,
+      unknown
+    >[];
     return rows.map((row) => this.parse(row));
   }
 
-  static listAll(db: Database.Database, limit = 100, offset = 0): RssEntry[] {
+  static listAll(
+    db: Database.Database,
+    limit = 100,
+    offset = 0,
+    search = "",
+  ): RssEntry[] {
+    const searchCondition = this.searchCondition(search);
     const rows = db
       .prepare(
-        `SELECT * FROM rss_entry ORDER BY published_at DESC LIMIT ? OFFSET ?`,
+        `SELECT * FROM rss_entry WHERE is_deleted = 0${searchCondition.clause} ORDER BY published_at DESC LIMIT ? OFFSET ?`,
       )
-      .all(limit, offset) as Record<string, unknown>[];
+      .all(...searchCondition.params, limit, offset) as Record<
+      string,
+      unknown
+    >[];
     return rows.map((row) => this.parse(row));
   }
 
@@ -256,16 +319,81 @@ export default class RssEntryTable {
     category: string,
     limit = 100,
     offset = 0,
+    search = "",
   ): RssEntry[] {
+    const searchCondition = this.searchCondition(search);
     const rows = db
       .prepare(
         `SELECT e.* FROM rss_entry e
          JOIN rss_subscription s ON s.feed_id = e.feed_id
-         WHERE s.category = ?
+         WHERE s.category = ? AND e.is_deleted = 0${searchCondition.clause}
          ORDER BY e.published_at DESC LIMIT ? OFFSET ?`,
       )
-      .all(category, limit, offset) as Record<string, unknown>[];
+      .all(category, ...searchCondition.params, limit, offset) as Record<
+      string,
+      unknown
+    >[];
     return rows.map((row) => this.parse(row));
+  }
+
+  static countByFeed(
+    db: Database.Database,
+    feedId: number,
+    search = "",
+  ): number {
+    const searchCondition = this.searchCondition(search);
+    const row = db
+      .prepare(
+        `SELECT COUNT(*) AS count FROM rss_entry WHERE feed_id = ? AND is_deleted = 0${searchCondition.clause}`,
+      )
+      .get(feedId, ...searchCondition.params) as Record<string, unknown>;
+    return row.count as number;
+  }
+
+  static countUnread(db: Database.Database, search = ""): number {
+    const searchCondition = this.searchCondition(search);
+    const row = db
+      .prepare(
+        `SELECT COUNT(*) AS count FROM rss_entry WHERE is_read = 0 AND is_deleted = 0${searchCondition.clause}`,
+      )
+      .get(...searchCondition.params) as Record<string, unknown>;
+    return row.count as number;
+  }
+
+  static countStarred(db: Database.Database, search = ""): number {
+    const searchCondition = this.searchCondition(search);
+    const row = db
+      .prepare(
+        `SELECT COUNT(*) AS count FROM rss_entry WHERE is_starred = 1 AND is_deleted = 0${searchCondition.clause}`,
+      )
+      .get(...searchCondition.params) as Record<string, unknown>;
+    return row.count as number;
+  }
+
+  static countAll(db: Database.Database, search = ""): number {
+    const searchCondition = this.searchCondition(search);
+    const row = db
+      .prepare(
+        `SELECT COUNT(*) AS count FROM rss_entry WHERE is_deleted = 0${searchCondition.clause}`,
+      )
+      .get(...searchCondition.params) as Record<string, unknown>;
+    return row.count as number;
+  }
+
+  static countByCategory(
+    db: Database.Database,
+    category: string,
+    search = "",
+  ): number {
+    const searchCondition = this.searchCondition(search);
+    const row = db
+      .prepare(
+        `SELECT COUNT(*) AS count FROM rss_entry e
+         JOIN rss_subscription s ON s.feed_id = e.feed_id
+         WHERE s.category = ? AND e.is_deleted = 0${searchCondition.clause}`,
+      )
+      .get(category, ...searchCondition.params) as Record<string, unknown>;
+    return row.count as number;
   }
 
   static markRead(db: Database.Database, id: number): number {
@@ -275,11 +403,18 @@ export default class RssEntryTable {
       .run(now, id).changes;
   }
 
+  static markUnread(db: Database.Database, id: number): number {
+    const now = Date.now();
+    return db
+      .prepare(`UPDATE rss_entry SET is_read = 0, update_time = ? WHERE id = ?`)
+      .run(now, id).changes;
+  }
+
   static markAllReadByFeed(db: Database.Database, feedId: number): number {
     const now = Date.now();
     return db
       .prepare(
-        `UPDATE rss_entry SET is_read = 1, update_time = ? WHERE feed_id = ? AND is_read = 0`,
+        `UPDATE rss_entry SET is_read = 1, update_time = ? WHERE feed_id = ? AND is_read = 0 AND is_deleted = 0`,
       )
       .run(now, feedId).changes;
   }
@@ -292,6 +427,14 @@ export default class RssEntryTable {
     return this.getById(db, id);
   }
 
+  static remove(db: Database.Database, id: number): number {
+    return db
+      .prepare(
+        `UPDATE rss_entry SET is_deleted = 1, update_time = ? WHERE id = ?`,
+      )
+      .run(Date.now(), id).changes;
+  }
+
   static deleteByFeed(db: Database.Database, feedId: number): number {
     return db.prepare(`DELETE FROM rss_entry WHERE feed_id = ?`).run(feedId)
       .changes;
@@ -302,7 +445,7 @@ export default class RssEntryTable {
   ): { feedId: number; count: number }[] {
     const rows = db
       .prepare(
-        `SELECT feed_id, COUNT(*) as count FROM rss_entry WHERE is_read = 0 GROUP BY feed_id`,
+        `SELECT feed_id, COUNT(*) as count FROM rss_entry WHERE is_read = 0 AND is_deleted = 0 GROUP BY feed_id`,
       )
       .all() as Record<string, unknown>[];
     return rows.map((row) => ({
@@ -313,7 +456,9 @@ export default class RssEntryTable {
 
   static getStarredCount(db: Database.Database): number {
     const row = db
-      .prepare(`SELECT COUNT(*) as count FROM rss_entry WHERE is_starred = 1`)
+      .prepare(
+        `SELECT COUNT(*) as count FROM rss_entry WHERE is_starred = 1 AND is_deleted = 0`,
+      )
       .get() as Record<string, unknown>;
     return row.count as number;
   }

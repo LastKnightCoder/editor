@@ -445,6 +445,7 @@ CREATE TABLE IF NOT EXISTS rss_entry (
     enclosure_length INTEGER,
     is_read INTEGER DEFAULT 0,
     is_starred INTEGER DEFAULT 0,
+    is_deleted INTEGER DEFAULT 0,
     FOREIGN KEY(feed_id) REFERENCES rss_feed(id) ON DELETE CASCADE,
     UNIQUE(feed_id, guid)
 );

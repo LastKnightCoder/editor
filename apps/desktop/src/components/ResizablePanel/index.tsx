@@ -194,7 +194,11 @@ const ResizablePanel = ({
         <div className="h-full w-[2px] rounded-full bg-gray-200 dark:bg-zinc-700" />
       </div>
       <div
-        className={classNames("h-full min-w-0", rightClassName)}
+        className={classNames(
+          "h-full min-w-0",
+          isDragging && "pointer-events-none",
+          rightClassName,
+        )}
         style={rightStyle}
       >
         {rightContent}

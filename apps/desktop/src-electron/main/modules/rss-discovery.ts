@@ -5,7 +5,7 @@ import { safeFetchHtml } from "./safe-fetch";
 import { parseFeedXml as parseFeedXmlLite } from "./rss-parser-lite";
 import {
   BILIBILI_FOLLOWINGS_DYNAMIC_URL,
-  buildBilibiliUserVideoUrl,
+  buildBilibiliUserDynamicUrl,
   parseBilibiliSpaceUrl,
   parseLocalBilibiliFeedUrl,
   previewBilibiliFeed,
@@ -282,8 +282,8 @@ class RssDiscoveryModule implements Module {
       if (bilibiliUid) {
         return [
           {
-            url: buildBilibiliUserVideoUrl(bilibiliUid),
-            title: `Bilibili UP ${bilibiliUid} 投稿`,
+            url: buildBilibiliUserDynamicUrl(bilibiliUid),
+            title: `Bilibili UP ${bilibiliUid} 动态`,
             type: "rss",
           },
         ];

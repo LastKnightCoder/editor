@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type UIEvent } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { InboxOutlined } from "@ant-design/icons";
 import { App } from "antd";
@@ -14,12 +14,18 @@ interface ArticleListProps {
   articles: UnifiedArticleItem[];
   selectedId: string | null;
   isLoading: boolean;
+  articleTotal: number;
+  hasMore: boolean;
+  search: string;
   articleProjectTargets?: Record<string, ArticleProjectTarget>;
   onSelect: (id: string) => void;
+  onSearchChange: (search: string) => void;
+  onLoadMore: () => Promise<void>;
   onMarkAllRead: () => void;
   onRefresh: () => void;
   onToggleStar: (article: UnifiedArticleItem) => void;
   onMarkRead: (article: UnifiedArticleItem) => void;
+  onMarkUnread: (article: UnifiedArticleItem) => void;
   onToggleReadLater: (article: UnifiedArticleItem) => void;
   onArchive: (article: UnifiedArticleItem) => void;
   onUnarchive: (article: UnifiedArticleItem) => void;
@@ -35,12 +41,18 @@ export default function ArticleList({
   articles,
   selectedId,
   isLoading,
+  articleTotal,
+  hasMore,
+  search,
   articleProjectTargets = {},
   onSelect,
+  onSearchChange,
+  onLoadMore,
   onMarkAllRead,
   onRefresh,
   onToggleStar,
   onMarkRead,
+  onMarkUnread,
   onToggleReadLater,
   onArchive,
   onUnarchive,
@@ -53,6 +65,10 @@ export default function ArticleList({
   const themeColors = useThemeColors();
   const { message } = App.useApp();
   const [isSubscribingBilibili, setIsSubscribingBilibili] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const loadingMoreRef = useRef(false);
+  const shouldShowSkeleton =
+    isLoading && articles.length === 0 && articleTotal === 0 && !search.trim();
 
   const selectionKey = useMemo(() => {
     if (selection.kind === "smart") return `smart-${selection.group}`;
@@ -66,24 +82,54 @@ export default function ArticleList({
   const emptyMessage = useMemo(() => {
     if (showBilibiliFollowingsSubscribe)
       return "订阅后会自动同步关注 UP 主动态";
+    if (search.trim()) return "没有匹配的文章";
     if (selection.kind === "smart" && selection.group === "readlater")
       return "从浏览器扩展或 RSS 添加稍后读";
     if (selection.kind === "smart" && selection.group === "starred")
       return "收藏的文章会出现在这里";
     return "暂无文章";
-  }, [selection]);
+  }, [selection, search, showBilibiliFollowingsSubscribe]);
+
+  const handleScroll = useCallback(
+    (event: UIEvent<HTMLDivElement>) => {
+      if (!hasMore || isLoading || loadingMoreRef.current) return;
+      const target = event.currentTarget;
+      const distanceToBottom =
+        target.scrollHeight - target.scrollTop - target.clientHeight;
+      if (distanceToBottom > 180) return;
+
+      loadingMoreRef.current = true;
+      setIsLoadingMore(true);
+      onLoadMore()
+        .catch((error) => {
+          message.error(
+            error instanceof Error ? error.message : "加载更多文章失败",
+          );
+        })
+        .finally(() => {
+          loadingMoreRef.current = false;
+          setIsLoadingMore(false);
+        });
+    },
+    [hasMore, isLoading, message, onLoadMore],
+  );
 
   return (
     <div className="flex h-full flex-col">
       <ArticleListHeader
         selection={selection}
-        articleCount={articles.length}
+        articleCount={articleTotal}
+        search={search}
+        onSearchChange={onSearchChange}
         onMarkAllRead={onMarkAllRead}
         onRefresh={onRefresh}
       />
-      <div className="flex-1 overflow-y-auto scrollbar-thin px-2 py-2">
+      <div
+        className="flex-1 overflow-y-auto scrollbar-thin px-2 py-2"
+        onScroll={handleScroll}
+      >
         <AnimatePresence mode="wait">
-          {isLoading ? (
+          {shouldShowSkeleton ? (
             <motion.div
               key="skeleton"
               initial={{ opacity: 0 }}
@@ -161,6 +207,7 @@ export default function ArticleList({
                     onClick={() => onSelect(article.id)}
                     onToggleStar={onToggleStar}
                     onMarkRead={onMarkRead}
+                    onMarkUnread={onMarkUnread}
                     onToggleReadLater={onToggleReadLater}
                     onArchive={onArchive}
                     onUnarchive={onUnarchive}
@@ -170,6 +217,20 @@ export default function ArticleList({
                   />
                 </motion.div>
               ))}
+              {(hasMore || isLoadingMore) && (
+                <div
+                  className={`py-3 text-center text-[11px] ${themeColors.secondaryTextClass}`}
+                >
+                  {isLoadingMore ? "加载中..." : "继续向下滚动加载更多"}
+                </div>
+              )}
+              {!hasMore && articleTotal > articles.length && (
+                <div
+                  className={`py-3 text-center text-[11px] ${themeColors.secondaryTextClass}`}
+                >
+                  已加载当前可见文章
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

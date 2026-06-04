@@ -2,6 +2,7 @@ import { act } from "react";
 import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { App } from "antd";
 import ArticleListItem from "../ArticleListItem";
 import type { UnifiedArticleItem } from "../../../types";
 
@@ -11,6 +12,30 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   unobserve() {}
   disconnect() {}
 };
+vi.spyOn(window, "getComputedStyle").mockImplementation(
+  () =>
+    ({
+      getPropertyValue: () => "",
+    }) as unknown as CSSStyleDeclaration,
+);
+
+const confirmMock = vi.hoisted(() => vi.fn());
+
+vi.mock("antd", async (importOriginal) => {
+  const antd = await importOriginal<typeof import("antd")>();
+  return {
+    ...antd,
+    App: Object.assign(antd.App, {
+      useApp: () => ({
+        modal: { confirm: confirmMock },
+        message: {
+          error: vi.fn(),
+          success: vi.fn(),
+        },
+      }),
+    }),
+  };
+});
 
 const rssArticle: UnifiedArticleItem = {
   id: "rss-1",
@@ -61,7 +86,7 @@ const mount = async (node: ReactNode) => {
   const root = createRoot(container);
 
   await act(async () => {
-    root.render(node);
+    root.render(<App>{node}</App>);
   });
 
   return { root, container };
@@ -80,6 +105,27 @@ const flushDropdown = async () => {
   });
 };
 
+const openContextMenu = async (container: HTMLElement, title: string) => {
+  const itemNode = Array.from(container.querySelectorAll("div")).find(
+    (node) =>
+      node.className.includes("cursor-pointer") &&
+      node.textContent?.includes(title),
+  );
+  expect(itemNode).toBeTruthy();
+
+  await act(async () => {
+    itemNode?.dispatchEvent(
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        clientX: 20,
+        clientY: 20,
+      }),
+    );
+  });
+  await flushDropdown();
+};
+
 describe("ArticleListItem", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
@@ -90,6 +136,7 @@ describe("ArticleListItem", () => {
     const onToggleStar = vi.fn();
     const onMarkRead = vi.fn();
     const onToggleReadLater = vi.fn();
+    const onDelete = vi.fn();
 
     const { root, container } = await mount(
       <ArticleListItem
@@ -100,25 +147,17 @@ describe("ArticleListItem", () => {
           onToggleStar,
           onMarkRead,
           onToggleReadLater,
+          onDelete,
         } as any)}
       />,
     );
 
-    await act(async () => {
-      container.firstElementChild?.dispatchEvent(
-        new MouseEvent("contextmenu", {
-          bubbles: true,
-          cancelable: true,
-          clientX: 20,
-          clientY: 20,
-        }),
-      );
-    });
-    await flushDropdown();
+    await openContextMenu(container, rssArticle.title);
 
     expect(document.body.textContent).toContain("收藏");
     expect(document.body.textContent).toContain("稍后读");
     expect(document.body.textContent).toContain("标记为已读");
+    expect(document.body.textContent).toContain("删除");
 
     const favoriteItem = Array.from(document.body.querySelectorAll("li")).find(
       (item) => item.textContent?.includes("收藏"),
@@ -129,6 +168,61 @@ describe("ArticleListItem", () => {
     });
 
     expect(onToggleStar).toHaveBeenCalledWith(rssArticle);
+
+    const deleteItem = Array.from(document.body.querySelectorAll("li")).find(
+      (item) => item.textContent?.includes("删除"),
+    );
+    expect(deleteItem).toBeTruthy();
+    await act(async () => {
+      deleteItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await flushDropdown();
+
+    expect(confirmMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "删除文章",
+        okText: "删除",
+        cancelText: "取消",
+      }),
+    );
+    expect(onDelete).not.toHaveBeenCalledWith(rssArticle);
+
+    await act(async () => {
+      await confirmMock.mock.calls.at(-1)?.[0].onOk();
+    });
+
+    expect(onDelete).toHaveBeenCalledWith(rssArticle);
+
+    await unmount(root, container);
+  });
+
+  it("右键已读 RSS 文章时应支持重新标记为未读", async () => {
+    const onMarkUnread = vi.fn();
+    const readArticle = { ...rssArticle, isRead: true };
+
+    const { root, container } = await mount(
+      <ArticleListItem
+        item={readArticle}
+        isActive={false}
+        onClick={vi.fn()}
+        onMarkUnread={onMarkUnread}
+      />,
+    );
+
+    await openContextMenu(container, readArticle.title);
+
+    expect(document.body.textContent).toContain("标记为未读");
+    expect(document.body.textContent).not.toContain("标记为已读");
+
+    const markUnreadItem = Array.from(
+      document.body.querySelectorAll("li"),
+    ).find((item) => item.textContent?.includes("标记为未读"));
+    expect(markUnreadItem).toBeTruthy();
+    await act(async () => {
+      markUnreadItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(onMarkUnread).toHaveBeenCalledWith(readArticle);
 
     await unmount(root, container);
   });
@@ -148,17 +242,7 @@ describe("ArticleListItem", () => {
       />,
     );
 
-    await act(async () => {
-      container.firstElementChild?.dispatchEvent(
-        new MouseEvent("contextmenu", {
-          bubbles: true,
-          cancelable: true,
-          clientX: 20,
-          clientY: 20,
-        }),
-      );
-    });
-    await flushDropdown();
+    await openContextMenu(container, readLaterArticle.title);
 
     expect(document.body.textContent).toContain("取消收藏");
     expect(document.body.textContent).toContain("归档");
@@ -170,6 +254,20 @@ describe("ArticleListItem", () => {
     expect(deleteItem).toBeTruthy();
     await act(async () => {
       deleteItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await flushDropdown();
+
+    expect(confirmMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "删除文章",
+        okText: "删除",
+        cancelText: "取消",
+      }),
+    );
+    expect(onDelete).not.toHaveBeenCalledWith(readLaterArticle);
+
+    await act(async () => {
+      await confirmMock.mock.calls.at(-1)?.[0].onOk();
     });
 
     expect(onDelete).toHaveBeenCalledWith(readLaterArticle);
@@ -189,17 +287,7 @@ describe("ArticleListItem", () => {
       />,
     );
 
-    await act(async () => {
-      container.firstElementChild?.dispatchEvent(
-        new MouseEvent("contextmenu", {
-          bubbles: true,
-          cancelable: true,
-          clientX: 20,
-          clientY: 20,
-        }),
-      );
-    });
-    await flushDropdown();
+    await openContextMenu(container, rssArticle.title);
 
     expect(document.body.textContent).toContain("添加到项目文档");
 
@@ -228,17 +316,7 @@ describe("ArticleListItem", () => {
       />,
     );
 
-    await act(async () => {
-      container.firstElementChild?.dispatchEvent(
-        new MouseEvent("contextmenu", {
-          bubbles: true,
-          cancelable: true,
-          clientX: 20,
-          clientY: 20,
-        }),
-      );
-    });
-    await flushDropdown();
+    await openContextMenu(container, bilibiliVideoArticle.title);
 
     expect(document.body.textContent).toContain("添加到项目视频笔记");
     expect(document.body.textContent).not.toContain("添加到项目文档");
@@ -270,17 +348,7 @@ describe("ArticleListItem", () => {
       />,
     );
 
-    await act(async () => {
-      container.firstElementChild?.dispatchEvent(
-        new MouseEvent("contextmenu", {
-          bubbles: true,
-          cancelable: true,
-          clientX: 20,
-          clientY: 20,
-        }),
-      );
-    });
-    await flushDropdown();
+    await openContextMenu(container, readLaterArticle.title);
 
     expect(document.body.textContent).toContain("打开所在项目");
 

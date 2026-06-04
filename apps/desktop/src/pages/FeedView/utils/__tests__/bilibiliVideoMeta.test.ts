@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   extractBilibiliVideoMetaFromContent,
   isBilibiliVideoArticle,
+  resolveBilibiliVideoArticleUrl,
   resolveBilibiliVideoMetaInfo,
 } from "../bilibiliVideoMeta";
 
@@ -66,5 +67,22 @@ describe("bilibiliVideoMeta", () => {
         content: "<p>普通动态</p>",
       }),
     ).toBe(false);
+  });
+
+  it("动态条目带视频元信息时应解析为视频播放页 URL", () => {
+    expect(
+      resolveBilibiliVideoArticleUrl({
+        url: "https://t.bilibili.com/987654321",
+        content:
+          '<!-- tau:meta {"type":"bilibili-video","bvid":"BV1xx411c7mD","aid":"123456"} -->',
+      }),
+    ).toBe("https://www.bilibili.com/video/BV1xx411c7mD");
+
+    expect(
+      resolveBilibiliVideoArticleUrl({
+        url: "https://t.bilibili.com/987654321",
+        content: '<!-- tau:meta {"type":"bilibili-video","aid":"123456"} -->',
+      }),
+    ).toBe("https://www.bilibili.com/video/av123456");
   });
 });
