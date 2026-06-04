@@ -106,9 +106,20 @@ function createRssDb() {
               enclosure_length,
               is_read: 0,
               is_starred: 0,
+              is_deleted: 0,
             };
             entries.push(row);
             return { changes: 1, lastInsertRowid: row.id };
+          }
+          if (sql.includes("UPDATE rss_entry SET is_deleted = 1")) {
+            const id = args[1];
+            const entry = entries.find((item) => item.id === id);
+            if (entry) {
+              entry.is_deleted = 1;
+              entry.update_time = args[0];
+              return { changes: 1 };
+            }
+            return { changes: 0 };
           }
           throw new Error(`Unhandled run SQL: ${sql}`);
         },
@@ -126,25 +137,33 @@ function createRssDb() {
             );
           }
           if (sql.includes("SELECT COUNT(*) AS count FROM rss_entry")) {
-            return { count: entries.length };
+            return {
+              count: entries.filter((entry) => entry.is_deleted !== 1).length,
+            };
           }
           throw new Error(`Unhandled get SQL: ${sql}`);
         },
         all(...args: unknown[]) {
-          if (sql.includes("FROM rss_entry ORDER BY published_at DESC")) {
-            return [...entries].sort(
-              (a, b) =>
-                ((b.published_at as number | null) ?? 0) -
-                ((a.published_at as number | null) ?? 0),
-            );
-          }
           if (sql.includes("JOIN rss_subscription")) {
             const category = args[0];
             const feedIds = subscriptions
               .filter((sub) => sub.category === category)
               .map((sub) => sub.feed_id);
             return entries
+              .filter((entry) => entry.is_deleted !== 1)
               .filter((entry) => feedIds.includes(entry.feed_id))
+              .sort(
+                (a, b) =>
+                  ((b.published_at as number | null) ?? 0) -
+                  ((a.published_at as number | null) ?? 0),
+              );
+          }
+          if (
+            sql.includes("FROM rss_entry") &&
+            sql.includes("ORDER BY published_at DESC")
+          ) {
+            return entries
+              .filter((entry) => entry.is_deleted !== 1)
               .sort(
                 (a, b) =>
                   ((b.published_at as number | null) ?? 0) -
@@ -296,6 +315,12 @@ describe("RSS review regressions", () => {
     db.prepare(
       "INSERT INTO rss_subscription (id, create_time, update_time, feed_id, title, category) VALUES (?, ?, ?, ?, ?, ?)",
     ).run(2, 1, 1, 2, "B", "Tech");
+    db.prepare(
+      "INSERT INTO rss_feed (id, create_time, update_time, title, url) VALUES (?, ?, ?, ?, ?)",
+    ).run(3, 1, 1, "C", "https://c.example/feed.xml");
+    db.prepare(
+      "INSERT INTO rss_subscription (id, create_time, update_time, feed_id, title, category) VALUES (?, ?, ?, ?, ?, ?)",
+    ).run(3, 1, 1, 3, "C", "Life");
     RssEntryTable.create(db, {
       feedId: 1,
       guid: "a",
@@ -308,6 +333,13 @@ describe("RSS review regressions", () => {
       title: "B",
       publishedAt: 200,
     });
+    const deletedEntry = RssEntryTable.create(db, {
+      feedId: 3,
+      guid: "c",
+      title: "C",
+      publishedAt: 300,
+    });
+    RssEntryTable.remove(db, deletedEntry.id);
 
     expect(RssEntryTable.listAll(db).map((entry) => entry.title)).toEqual([
       "B",
@@ -316,6 +348,8 @@ describe("RSS review regressions", () => {
     expect(
       RssEntryTable.listByCategory(db, "Tech").map((entry) => entry.title),
     ).toEqual(["B", "A"]);
+    expect(RssEntryTable.listByCategory(db, "Life")).toHaveLength(0);
+    expect(RssEntryTable.countAll(db)).toBe(2);
   });
 
   it("稍后读 URL 类型应按 URL 去重并返回已有记录", () => {

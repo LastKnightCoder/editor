@@ -11,6 +11,13 @@ interface RssBilibiliVideoMeta {
 }
 
 const META_COMMENT_PATTERN = /<!--\s*tau:meta\s+({[\s\S]*?})\s*-->/;
+const BILIBILI_BVID_PATTERN = /^BV[0-9A-Za-z]{10}$/;
+
+function normalizeBvid(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const bvid = value.trim();
+  return BILIBILI_BVID_PATTERN.test(bvid) ? bvid : null;
+}
 
 function normalizeNumericId(value: unknown): string | null {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -52,6 +59,28 @@ export function isBilibiliVideoArticle(params: {
     (params.url &&
       /^https?:\/\/(?:www\.)?bilibili\.com\/video\//i.test(params.url)),
   );
+}
+
+export function resolveBilibiliVideoArticleUrl(params: {
+  url?: string | null;
+  content?: string | null;
+}): string | null {
+  const meta = extractBilibiliVideoMetaFromContent(params.content);
+  if (!meta) return params.url || null;
+
+  const bvid = normalizeBvid(meta.bvid);
+  if (bvid) return `https://www.bilibili.com/video/${bvid}`;
+
+  const aid = normalizeNumericId(meta.aid);
+  if (aid) return `https://www.bilibili.com/video/av${aid}`;
+
+  const sourceUrl =
+    typeof meta.sourceUrl === "string" ? meta.sourceUrl.trim() : "";
+  if (/^https?:\/\/(?:www\.)?bilibili\.com\/video\//i.test(sourceUrl)) {
+    return sourceUrl;
+  }
+
+  return params.url || null;
 }
 
 function buildCandidateUrls(

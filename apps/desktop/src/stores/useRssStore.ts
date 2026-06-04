@@ -5,6 +5,8 @@ import { on } from "@/electron";
 import {
   BILIBILI_DEFAULT_CATEGORY,
   BILIBILI_FOLLOWINGS_DYNAMIC_FEED_URL,
+  getLocalBilibiliFeedMetadata,
+  isLocalBilibiliFeedUrl,
   listRssFeeds,
   listRssSubscriptions,
   getRssCategories,
@@ -18,9 +20,16 @@ import {
   listStarredRssEntries,
   listAllRssEntries,
   listRssEntriesByCategory,
+  countRssEntriesByFeed,
+  countUnreadRssEntries,
+  countStarredRssEntries,
+  countAllRssEntries,
+  countRssEntriesByCategory,
   markRssEntryRead,
+  markRssEntryUnread,
   markAllRssEntriesReadByFeed,
   toggleRssEntryStar,
+  deleteRssEntry,
   getUnreadCounts,
   getStarredCount,
   refreshRssFeed,
@@ -39,12 +48,38 @@ export enum RssStatus {
 }
 
 export type RssFilterMode = "all" | "unread" | "starred";
+type RssEntryListScope =
+  | { kind: "feed"; feedId: number }
+  | { kind: "unread" }
+  | { kind: "starred" }
+  | { kind: "all" }
+  | { kind: "category"; category: string };
+
+const RSS_ENTRY_PAGE_SIZE = 50;
+
+const countLoadedEntriesInScope = (
+  scope: RssEntryListScope | null,
+  entries: RssEntry[],
+) => {
+  if (!scope) return entries.length;
+  if (scope.kind === "unread") {
+    return entries.filter((entry) => !entry.isRead).length;
+  }
+  if (scope.kind === "starred") {
+    return entries.filter((entry) => entry.isStarred).length;
+  }
+  return entries.length;
+};
 
 interface IState {
   feeds: RssFeed[];
   subscriptions: RssSubscription[];
   categories: string[];
   entries: RssEntry[];
+  entriesTotal: number;
+  entriesHasMore: boolean;
+  entriesSearch: string;
+  entriesScope: RssEntryListScope | null;
   unreadCounts: Record<number, number>;
   starredCount: number;
   status: RssStatus;
@@ -67,6 +102,8 @@ interface IAction {
   loadStarredEntries: () => Promise<void>;
   loadAllEntries: () => Promise<void>;
   loadCategoryEntries: (category: string) => Promise<void>;
+  loadMoreEntries: () => Promise<void>;
+  setEntriesSearch: (search: string) => void;
   clearEntries: () => void;
   subscribe: (url: string, category?: string, title?: string) => Promise<void>;
   subscribeBilibiliFollowings: (category?: string) => Promise<void>;
@@ -76,8 +113,10 @@ interface IAction {
     data: { title?: string; category?: string },
   ) => Promise<void>;
   markRead: (entryId: number) => void;
+  markUnread: (entryId: number) => void;
   markAllRead: (feedId: number) => void;
   toggleStar: (entryId: number) => void;
+  deleteEntry: (entryId: number) => Promise<void>;
   refreshFeed: (feedId: number) => Promise<void>;
   refreshAll: () => Promise<void>;
   discoverFeeds: (
@@ -97,6 +136,10 @@ const useRssStore = create<IState & IAction>()(
       subscriptions: [],
       categories: [],
       entries: [],
+      entriesTotal: 0,
+      entriesHasMore: false,
+      entriesSearch: "",
+      entriesScope: null,
       unreadCounts: {},
       starredCount: 0,
       status: RssStatus.UN_INIT,
@@ -155,12 +198,27 @@ const useRssStore = create<IState & IAction>()(
         set({ starredCount });
       },
 
+      setEntriesSearch: (search: string) => {
+        set({ entriesSearch: search });
+      },
+
       loadEntries: async (feedId: number) => {
         set({ entriesStatus: RssStatus.LOADING });
         try {
-          const entries = await listRssEntriesByFeed(feedId);
-          set({ entries, entriesStatus: RssStatus.SUCCESS });
-        } catch {
+          const search = get().entriesSearch;
+          const [entries, total] = await Promise.all([
+            listRssEntriesByFeed(feedId, RSS_ENTRY_PAGE_SIZE, 0, search),
+            countRssEntriesByFeed(feedId, search),
+          ]);
+          set({
+            entries,
+            entriesTotal: total,
+            entriesHasMore: entries.length < total,
+            entriesScope: { kind: "feed", feedId },
+            entriesStatus: RssStatus.SUCCESS,
+          });
+        } catch (error) {
+          console.error("[RSS] 加载订阅文章失败:", error);
           set({ entriesStatus: RssStatus.FAIL });
         }
       },
@@ -168,9 +226,20 @@ const useRssStore = create<IState & IAction>()(
       loadUnreadEntries: async () => {
         set({ entriesStatus: RssStatus.LOADING });
         try {
-          const entries = await listUnreadRssEntries(100);
-          set({ entries, entriesStatus: RssStatus.SUCCESS });
-        } catch {
+          const search = get().entriesSearch;
+          const [entries, total] = await Promise.all([
+            listUnreadRssEntries(RSS_ENTRY_PAGE_SIZE, 0, search),
+            countUnreadRssEntries(search),
+          ]);
+          set({
+            entries,
+            entriesTotal: total,
+            entriesHasMore: entries.length < total,
+            entriesScope: { kind: "unread" },
+            entriesStatus: RssStatus.SUCCESS,
+          });
+        } catch (error) {
+          console.error("[RSS] 加载未读文章失败:", error);
           set({ entriesStatus: RssStatus.FAIL });
         }
       },
@@ -178,9 +247,20 @@ const useRssStore = create<IState & IAction>()(
       loadStarredEntries: async () => {
         set({ entriesStatus: RssStatus.LOADING });
         try {
-          const entries = await listStarredRssEntries(100);
-          set({ entries, entriesStatus: RssStatus.SUCCESS });
-        } catch {
+          const search = get().entriesSearch;
+          const [entries, total] = await Promise.all([
+            listStarredRssEntries(RSS_ENTRY_PAGE_SIZE, 0, search),
+            countStarredRssEntries(search),
+          ]);
+          set({
+            entries,
+            entriesTotal: total,
+            entriesHasMore: entries.length < total,
+            entriesScope: { kind: "starred" },
+            entriesStatus: RssStatus.SUCCESS,
+          });
+        } catch (error) {
+          console.error("[RSS] 加载收藏文章失败:", error);
           set({ entriesStatus: RssStatus.FAIL });
         }
       },
@@ -188,9 +268,20 @@ const useRssStore = create<IState & IAction>()(
       loadAllEntries: async () => {
         set({ entriesStatus: RssStatus.LOADING });
         try {
-          const entries = await listAllRssEntries(100);
-          set({ entries, entriesStatus: RssStatus.SUCCESS });
-        } catch {
+          const search = get().entriesSearch;
+          const [entries, total] = await Promise.all([
+            listAllRssEntries(RSS_ENTRY_PAGE_SIZE, 0, search),
+            countAllRssEntries(search),
+          ]);
+          set({
+            entries,
+            entriesTotal: total,
+            entriesHasMore: entries.length < total,
+            entriesScope: { kind: "all" },
+            entriesStatus: RssStatus.SUCCESS,
+          });
+        } catch (error) {
+          console.error("[RSS] 加载全部文章失败:", error);
           set({ entriesStatus: RssStatus.FAIL });
         }
       },
@@ -198,35 +289,110 @@ const useRssStore = create<IState & IAction>()(
       loadCategoryEntries: async (category: string) => {
         set({ entriesStatus: RssStatus.LOADING });
         try {
-          const entries = await listRssEntriesByCategory(category, 100);
-          set({ entries, entriesStatus: RssStatus.SUCCESS });
-        } catch {
+          const search = get().entriesSearch;
+          const [entries, total] = await Promise.all([
+            listRssEntriesByCategory(category, RSS_ENTRY_PAGE_SIZE, 0, search),
+            countRssEntriesByCategory(category, search),
+          ]);
+          set({
+            entries,
+            entriesTotal: total,
+            entriesHasMore: entries.length < total,
+            entriesScope: { kind: "category", category },
+            entriesStatus: RssStatus.SUCCESS,
+          });
+        } catch (error) {
+          console.error("[RSS] 加载分类文章失败:", error);
           set({ entriesStatus: RssStatus.FAIL });
         }
       },
 
+      loadMoreEntries: async () => {
+        const { entriesScope, entries, entriesHasMore, entriesSearch } = get();
+        if (!entriesScope || !entriesHasMore) return;
+        const offset = countLoadedEntriesInScope(entriesScope, entries);
+        let nextEntries: RssEntry[] = [];
+        if (entriesScope.kind === "feed") {
+          nextEntries = await listRssEntriesByFeed(
+            entriesScope.feedId,
+            RSS_ENTRY_PAGE_SIZE,
+            offset,
+            entriesSearch,
+          );
+        } else if (entriesScope.kind === "unread") {
+          nextEntries = await listUnreadRssEntries(
+            RSS_ENTRY_PAGE_SIZE,
+            offset,
+            entriesSearch,
+          );
+        } else if (entriesScope.kind === "starred") {
+          nextEntries = await listStarredRssEntries(
+            RSS_ENTRY_PAGE_SIZE,
+            offset,
+            entriesSearch,
+          );
+        } else if (entriesScope.kind === "all") {
+          nextEntries = await listAllRssEntries(
+            RSS_ENTRY_PAGE_SIZE,
+            offset,
+            entriesSearch,
+          );
+        } else if (entriesScope.kind === "category") {
+          nextEntries = await listRssEntriesByCategory(
+            entriesScope.category,
+            RSS_ENTRY_PAGE_SIZE,
+            offset,
+            entriesSearch,
+          );
+        }
+        const merged = [...entries, ...nextEntries];
+        const loadedCount = countLoadedEntriesInScope(entriesScope, merged);
+        set({
+          entries: merged,
+          entriesHasMore: loadedCount < get().entriesTotal,
+        });
+      },
+
       clearEntries: () => {
-        set({ entries: [], entriesStatus: RssStatus.SUCCESS });
+        set({
+          entries: [],
+          entriesTotal: 0,
+          entriesHasMore: false,
+          entriesScope: null,
+          entriesStatus: RssStatus.SUCCESS,
+        });
       },
 
       subscribe: async (url: string, category?: string, title?: string) => {
-        const preview = await previewFeed(url);
-        if (!preview.valid) {
+        const localBilibiliMetadata = isLocalBilibiliFeedUrl(url)
+          ? getLocalBilibiliFeedMetadata(url, title)
+          : null;
+        const preview = localBilibiliMetadata ? null : await previewFeed(url);
+        if (preview && !preview.valid) {
           throw new Error(preview.message);
         }
 
-        const feedUrl = preview.finalUrl || preview.url;
+        const feedUrl = preview ? preview.finalUrl || preview.url : url;
         let feed =
           (await getRssFeedByUrl(feedUrl)) ||
           (feedUrl !== url ? await getRssFeedByUrl(url) : null);
         const isNewFeed = !feed;
         if (!feed) {
           feed = await createRssFeed({
-            title: title || preview.title || feedUrl,
-            description: preview.description ?? undefined,
+            title:
+              title ||
+              preview?.title ||
+              localBilibiliMetadata?.title ||
+              feedUrl,
+            description:
+              preview?.description ??
+              localBilibiliMetadata?.description ??
+              undefined,
             url: feedUrl,
-            siteUrl: preview.siteUrl ?? undefined,
-            feedType: preview.feedType,
+            siteUrl:
+              preview?.siteUrl ?? localBilibiliMetadata?.siteUrl ?? undefined,
+            feedType:
+              preview?.feedType ?? localBilibiliMetadata?.feedType ?? "rss",
           });
         }
         const subscription = await createRssSubscription({
@@ -296,12 +462,42 @@ const useRssStore = create<IState & IAction>()(
       },
 
       markRead: async (entryId: number) => {
-        await markRssEntryRead(entryId);
+        const { entries, entriesScope, entriesTotal } = get();
+        const entry = entries.find((e) => e.id === entryId);
+        const nextEntries = entries.map((e) =>
+          e.id === entryId ? { ...e, isRead: 1 } : e,
+        );
+        const nextTotal =
+          entriesScope?.kind === "unread" && entry && !entry.isRead
+            ? Math.max(entriesTotal - 1, 0)
+            : entriesTotal;
         set({
-          entries: get().entries.map((e) =>
-            e.id === entryId ? { ...e, isRead: 1 } : e,
-          ),
+          entries: nextEntries,
+          entriesTotal: nextTotal,
+          entriesHasMore:
+            countLoadedEntriesInScope(entriesScope, nextEntries) < nextTotal,
         });
+        await markRssEntryRead(entryId);
+        await get().loadUnreadCounts();
+      },
+
+      markUnread: async (entryId: number) => {
+        const { entries, entriesScope, entriesTotal } = get();
+        const entry = entries.find((e) => e.id === entryId);
+        const nextEntries = entries.map((e) =>
+          e.id === entryId ? { ...e, isRead: 0 } : e,
+        );
+        const nextTotal =
+          entriesScope?.kind === "unread" && entry && entry.isRead
+            ? entriesTotal + 1
+            : entriesTotal;
+        set({
+          entries: nextEntries,
+          entriesTotal: nextTotal,
+          entriesHasMore:
+            countLoadedEntriesInScope(entriesScope, nextEntries) < nextTotal,
+        });
+        await markRssEntryUnread(entryId);
         await get().loadUnreadCounts();
       },
 
@@ -318,13 +514,36 @@ const useRssStore = create<IState & IAction>()(
       toggleStar: async (entryId: number) => {
         const result = await toggleRssEntryStar(entryId);
         if (result) {
+          const { entries, entriesScope, entriesTotal } = get();
+          const entry = entries.find((e) => e.id === entryId);
+          const nextEntries = entries.map((e) =>
+            e.id === entryId ? { ...e, isStarred: result.isStarred } : e,
+          );
+          let nextTotal = entriesTotal;
+          if (entriesScope?.kind === "starred" && entry) {
+            if (entry.isStarred && !result.isStarred) {
+              nextTotal = Math.max(entriesTotal - 1, 0);
+            } else if (!entry.isStarred && result.isStarred) {
+              nextTotal = entriesTotal + 1;
+            }
+          }
           set({
-            entries: get().entries.map((e) =>
-              e.id === entryId ? { ...e, isStarred: result.isStarred } : e,
-            ),
+            entries: nextEntries,
+            entriesTotal: nextTotal,
+            entriesHasMore:
+              countLoadedEntriesInScope(entriesScope, nextEntries) < nextTotal,
           });
           await get().loadStarredCount();
         }
+      },
+
+      deleteEntry: async (entryId: number) => {
+        await deleteRssEntry(entryId);
+        set({
+          entries: get().entries.filter((entry) => entry.id !== entryId),
+          entriesTotal: Math.max(get().entriesTotal - 1, 0),
+        });
+        await Promise.all([get().loadUnreadCounts(), get().loadStarredCount()]);
       },
 
       refreshFeed: async (feedId: number) => {
@@ -335,14 +554,9 @@ const useRssStore = create<IState & IAction>()(
             throw new Error(result.error);
           }
           await get().loadUnreadCounts();
-          const { selectedSubscriptionId, subscriptions } = get();
-          if (selectedSubscriptionId) {
-            const sub = subscriptions.find(
-              (s) => s.id === selectedSubscriptionId,
-            );
-            if (sub && sub.feedId === feedId) {
-              await get().loadEntries(feedId);
-            }
+          const { entriesScope } = get();
+          if (entriesScope?.kind === "feed" && entriesScope.feedId === feedId) {
+            await get().loadEntries(feedId);
           }
         } finally {
           set({ isRefreshing: false });
@@ -354,6 +568,18 @@ const useRssStore = create<IState & IAction>()(
         try {
           await refreshAllRssFeeds();
           await get().loadUnreadCounts();
+          const { entriesScope } = get();
+          if (entriesScope?.kind === "feed") {
+            await get().loadEntries(entriesScope.feedId);
+          } else if (entriesScope?.kind === "unread") {
+            await get().loadUnreadEntries();
+          } else if (entriesScope?.kind === "starred") {
+            await get().loadStarredEntries();
+          } else if (entriesScope?.kind === "all") {
+            await get().loadAllEntries();
+          } else if (entriesScope?.kind === "category") {
+            await get().loadCategoryEntries(entriesScope.category);
+          }
         } finally {
           set({ isRefreshing: false });
         }

@@ -8,7 +8,7 @@ import {
   StarOutlined,
   UndoOutlined,
 } from "@ant-design/icons";
-import { Dropdown } from "antd";
+import { App, Dropdown } from "antd";
 import type { MenuProps } from "antd";
 import useThemeColors from "@/hooks/useThemeColors";
 import { formatRelativeTime } from "../../utils/formatRelativeTime";
@@ -23,6 +23,7 @@ interface ArticleListItemProps {
   projectTarget?: ArticleProjectTarget | null;
   onToggleStar?: (item: UnifiedArticleItem) => void;
   onMarkRead?: (item: UnifiedArticleItem) => void;
+  onMarkUnread?: (item: UnifiedArticleItem) => void;
   onToggleReadLater?: (item: UnifiedArticleItem) => void;
   onArchive?: (item: UnifiedArticleItem) => void;
   onUnarchive?: (item: UnifiedArticleItem) => void;
@@ -38,6 +39,7 @@ export default function ArticleListItem({
   projectTarget,
   onToggleStar,
   onMarkRead,
+  onMarkUnread,
   onToggleReadLater,
   onArchive,
   onUnarchive,
@@ -45,6 +47,7 @@ export default function ArticleListItem({
   onAddToProject,
   onOpenProject,
 }: ArticleListItemProps) {
+  const { modal } = App.useApp();
   const themeColors = useThemeColors();
   const isBilibiliVideo = isBilibiliVideoArticle({
     url: item.url,
@@ -52,6 +55,20 @@ export default function ArticleListItem({
   });
 
   const menuItems: MenuProps["items"] = [];
+  const confirmDelete = () => {
+    if (!onDelete) return;
+    modal.confirm({
+      title: "删除文章",
+      content:
+        item.source === "rss"
+          ? `确定要删除「${item.title}」吗？这只会删除当前文章，不会取消订阅。`
+          : `确定要删除「${item.title}」吗？`,
+      okText: "删除",
+      okButtonProps: { danger: true },
+      cancelText: "取消",
+      onOk: () => onDelete(item),
+    });
+  };
 
   if (onToggleStar) {
     menuItems.push({
@@ -89,6 +106,18 @@ export default function ArticleListItem({
       onClick: ({ domEvent }) => {
         domEvent.stopPropagation();
         onMarkRead(item);
+      },
+    });
+  }
+
+  if (item.source === "rss" && item.isRead && onMarkUnread) {
+    menuItems.push({
+      key: "mark-unread",
+      label: "标记为未读",
+      icon: <UndoOutlined />,
+      onClick: ({ domEvent }) => {
+        domEvent.stopPropagation();
+        onMarkUnread(item);
       },
     });
   }
@@ -139,7 +168,20 @@ export default function ArticleListItem({
       danger: true,
       onClick: ({ domEvent }) => {
         domEvent.stopPropagation();
-        onDelete(item);
+        confirmDelete();
+      },
+    });
+  }
+
+  if (item.source === "rss" && onDelete) {
+    menuItems.push({
+      key: "delete",
+      label: "删除",
+      icon: <DeleteOutlined />,
+      danger: true,
+      onClick: ({ domEvent }) => {
+        domEvent.stopPropagation();
+        confirmDelete();
       },
     });
   }

@@ -121,6 +121,7 @@ export interface RssEntry {
   enclosureLength: number | null;
   isRead: number;
   isStarred: number;
+  isDeleted: number;
 }
 
 export interface CreateRssEntryPayload {

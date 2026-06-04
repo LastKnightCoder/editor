@@ -59,6 +59,14 @@ const changeInput = async (input: HTMLInputElement, value: string) => {
   });
 };
 
+const getInputByPlaceholder = (placeholder: string) => {
+  const input = Array.from(document.body.querySelectorAll("input")).find(
+    (item) => item.placeholder === placeholder,
+  );
+  expect(input).toBeTruthy();
+  return input as HTMLInputElement;
+};
+
 describe("AddFeedDialog", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
@@ -112,9 +120,8 @@ describe("AddFeedDialog", () => {
       <AddFeedDialog open onClose={vi.fn()} />,
     );
 
-    const urlInput = document.body.querySelector("input");
-    expect(urlInput).toBeTruthy();
-    await changeInput(urlInput!, "https://example.com");
+    const urlInput = getInputByPlaceholder("输入网站或 Feed URL");
+    await changeInput(urlInput, "https://example.com");
 
     await clickButton("发现 Feed");
 
@@ -137,6 +144,81 @@ describe("AddFeedDialog", () => {
     );
 
     expect(document.body.textContent).not.toContain("订阅我的 B 站关注动态");
+
+    await unmount(root, container);
+  });
+
+  it("发现到 B 站本地源时不应自动预览，避免提前触发 B 站风控", async () => {
+    rssStoreMock.discoverFeeds.mockResolvedValue([
+      {
+        url: "tau://rss/bilibili/user-dynamic/342646",
+        title: "Bilibili UP 342646 动态",
+        type: "rss",
+      },
+    ]);
+
+    const { root, container } = await mount(
+      <AddFeedDialog open onClose={vi.fn()} />,
+    );
+
+    const urlInput = getInputByPlaceholder("输入网站或 Feed URL");
+    await changeInput(urlInput, "https://space.bilibili.com/342646");
+
+    await clickButton("发现 Feed");
+
+    expect(rssStoreMock.previewFeed).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain("Bilibili UP 342646 动态");
+    expect(document.body.textContent).toContain("订阅");
+
+    await unmount(root, container);
+  });
+
+  it("分类选择应使用共享下拉并把选中分类用于订阅", async () => {
+    rssStoreMock.discoverFeeds.mockResolvedValue([
+      {
+        url: "tau://rss/bilibili/user-dynamic/342646",
+        title: "Bilibili UP 342646 动态",
+        type: "rss",
+      },
+    ]);
+    rssStoreMock.subscribe.mockResolvedValue(undefined);
+
+    const { root, container } = await mount(
+      <AddFeedDialog open onClose={vi.fn()} />,
+    );
+
+    const categoryInput = getInputByPlaceholder("输入或选择分类");
+    const categoryToggle = document.body.querySelector(
+      'button[aria-label="选择分类"]',
+    );
+    expect(categoryToggle).toBeTruthy();
+    await act(async () => {
+      categoryToggle?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(document.body.textContent).toContain("技术");
+
+    const categoryItem = Array.from(document.body.querySelectorAll("div")).find(
+      (item) => item.textContent === "技术",
+    );
+    expect(categoryItem).toBeTruthy();
+    await act(async () => {
+      (categoryItem?.parentElement || categoryItem)?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+    expect(categoryInput.value).toBe("技术");
+
+    const urlInput = getInputByPlaceholder("输入网站或 Feed URL");
+    await changeInput(urlInput, "https://space.bilibili.com/342646");
+    await clickButton("发现 Feed");
+    await clickButton("订阅");
+
+    expect(rssStoreMock.subscribe).toHaveBeenCalledWith(
+      "tau://rss/bilibili/user-dynamic/342646",
+      "技术",
+      "Bilibili UP 342646 动态",
+    );
 
     await unmount(root, container);
   });

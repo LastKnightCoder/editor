@@ -17,6 +17,56 @@ import {
 export const BILIBILI_FOLLOWINGS_DYNAMIC_FEED_URL =
   "tau://rss/bilibili/followings-dynamic";
 export const BILIBILI_DEFAULT_CATEGORY = "B 站";
+export const BILIBILI_LOCAL_FEED_PREFIX = "tau://rss/bilibili/";
+
+export const isLocalBilibiliFeedUrl = (url: string): boolean =>
+  url.startsWith(BILIBILI_LOCAL_FEED_PREFIX);
+
+export const getLocalBilibiliFeedMetadata = (
+  url: string,
+  title?: string,
+): {
+  title: string;
+  description: string;
+  siteUrl: string | null;
+  feedType: "rss";
+} | null => {
+  if (url === BILIBILI_FOLLOWINGS_DYNAMIC_FEED_URL) {
+    const feedTitle = title || "我的 Bilibili 关注动态";
+    return {
+      title: feedTitle,
+      description: feedTitle,
+      siteUrl: "https://t.bilibili.com",
+      feedType: "rss",
+    };
+  }
+
+  const userDynamicPrefix = `${BILIBILI_LOCAL_FEED_PREFIX}user-dynamic/`;
+  if (url.startsWith(userDynamicPrefix)) {
+    const uid = decodeURIComponent(url.slice(userDynamicPrefix.length));
+    const feedTitle = title || `Bilibili UP ${uid} 动态`;
+    return {
+      title: feedTitle,
+      description: feedTitle,
+      siteUrl: `https://space.bilibili.com/${uid}/dynamic`,
+      feedType: "rss",
+    };
+  }
+
+  const userVideoPrefix = `${BILIBILI_LOCAL_FEED_PREFIX}user-video/`;
+  if (url.startsWith(userVideoPrefix)) {
+    const uid = decodeURIComponent(url.slice(userVideoPrefix.length));
+    const feedTitle = title || `Bilibili UP ${uid} 投稿`;
+    return {
+      title: feedTitle,
+      description: feedTitle,
+      siteUrl: `https://space.bilibili.com/${uid}/video`,
+      feedType: "rss",
+    };
+  }
+
+  return null;
+};
 
 // === RSS Feed ===
 
@@ -100,54 +150,97 @@ export const listRssEntriesByFeed = async (
   feedId: number,
   limit = 50,
   offset = 0,
+  search = "",
 ): Promise<RssEntry[]> => {
-  return await invoke("rss-entry:list-by-feed", feedId, limit, offset);
+  return await invoke("rss-entry:list-by-feed", feedId, limit, offset, search);
 };
 
 export const listRssEntriesBySubscription = async (
   subscriptionId: number,
   limit = 50,
   offset = 0,
+  search = "",
 ): Promise<RssEntry[]> => {
   return await invoke(
     "rss-entry:list-by-subscription",
     subscriptionId,
     limit,
     offset,
+    search,
   );
 };
 
 export const listUnreadRssEntries = async (
   limit = 50,
   offset = 0,
+  search = "",
 ): Promise<RssEntry[]> => {
-  return await invoke("rss-entry:list-unread", limit, offset);
+  return await invoke("rss-entry:list-unread", limit, offset, search);
 };
 
 export const listStarredRssEntries = async (
   limit = 50,
   offset = 0,
+  search = "",
 ): Promise<RssEntry[]> => {
-  return await invoke("rss-entry:list-starred", limit, offset);
+  return await invoke("rss-entry:list-starred", limit, offset, search);
 };
 
 export const listAllRssEntries = async (
-  limit = 100,
+  limit = 50,
   offset = 0,
+  search = "",
 ): Promise<RssEntry[]> => {
-  return await invoke("rss-entry:list-all", limit, offset);
+  return await invoke("rss-entry:list-all", limit, offset, search);
 };
 
 export const listRssEntriesByCategory = async (
   category: string,
-  limit = 100,
+  limit = 50,
   offset = 0,
+  search = "",
 ): Promise<RssEntry[]> => {
-  return await invoke("rss-entry:list-by-category", category, limit, offset);
+  return await invoke(
+    "rss-entry:list-by-category",
+    category,
+    limit,
+    offset,
+    search,
+  );
+};
+
+export const countRssEntriesByFeed = async (
+  feedId: number,
+  search = "",
+): Promise<number> => {
+  return await invoke("rss-entry:count-by-feed", feedId, search);
+};
+
+export const countUnreadRssEntries = async (search = ""): Promise<number> => {
+  return await invoke("rss-entry:count-unread", search);
+};
+
+export const countStarredRssEntries = async (search = ""): Promise<number> => {
+  return await invoke("rss-entry:count-starred", search);
+};
+
+export const countAllRssEntries = async (search = ""): Promise<number> => {
+  return await invoke("rss-entry:count-all", search);
+};
+
+export const countRssEntriesByCategory = async (
+  category: string,
+  search = "",
+): Promise<number> => {
+  return await invoke("rss-entry:count-by-category", category, search);
 };
 
 export const markRssEntryRead = async (id: number): Promise<number> => {
   return await invoke("rss-entry:mark-read", id);
+};
+
+export const markRssEntryUnread = async (id: number): Promise<number> => {
+  return await invoke("rss-entry:mark-unread", id);
 };
 
 export const markAllRssEntriesReadByFeed = async (
@@ -160,6 +253,10 @@ export const toggleRssEntryStar = async (
   id: number,
 ): Promise<RssEntry | null> => {
   return await invoke("rss-entry:toggle-star", id);
+};
+
+export const deleteRssEntry = async (id: number): Promise<number> => {
+  return await invoke("rss-entry:delete", id);
 };
 
 export const updateRssEntry = async (

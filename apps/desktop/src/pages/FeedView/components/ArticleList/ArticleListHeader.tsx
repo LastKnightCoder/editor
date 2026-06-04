@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { CheckOutlined, ReloadOutlined } from "@ant-design/icons";
 import { BILIBILI_FOLLOWINGS_DYNAMIC_FEED_URL } from "@/commands/rss";
 import useThemeColors from "@/hooks/useThemeColors";
@@ -7,6 +8,8 @@ import type { SidebarSelection } from "../../types";
 interface ArticleListHeaderProps {
   selection: SidebarSelection;
   articleCount?: number;
+  search: string;
+  onSearchChange: (search: string) => void;
   onMarkAllRead: () => void;
   onRefresh: () => void;
 }
@@ -14,9 +17,12 @@ interface ArticleListHeaderProps {
 export default function ArticleListHeader({
   selection,
   articleCount,
+  search,
+  onSearchChange,
   onMarkAllRead,
   onRefresh,
 }: ArticleListHeaderProps) {
+  const [inputValue, setInputValue] = useState(search);
   const themeColors = useThemeColors();
   const feeds = useRssStore((s) => s.feeds);
   const subscriptions = useRssStore((s) => s.subscriptions);
@@ -60,43 +66,105 @@ export default function ArticleListHeader({
     (selection.kind !== "bilibili-followings" ||
       hasBilibiliFollowingsSubscription);
 
+  useEffect(() => {
+    setInputValue(search);
+  }, [search]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (inputValue !== search) {
+        onSearchChange(inputValue);
+      }
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [inputValue, onSearchChange, search]);
+
   return (
     <div
-      className={`flex items-center justify-between px-4 py-3 border-b ${themeColors.borderClass} ${themeColors.glassPanelBg} backdrop-blur-sm`}
+      className={`flex flex-col gap-2 px-4 py-3 border-b ${themeColors.borderClass} ${themeColors.glassPanelBg} backdrop-blur-sm`}
     >
-      <div className="flex items-baseline gap-2 min-w-0">
-        <span
-          className={`text-[15px] font-bold tracking-tight truncate ${themeColors.textClass}`}
-        >
-          {getTitle()}
-        </span>
-        {articleCount !== undefined && articleCount > 0 && (
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-baseline gap-2 min-w-0">
+          <span
+            className={`text-[15px] font-bold tracking-tight truncate ${themeColors.textClass}`}
+          >
+            {getTitle()}
+          </span>
           <span
             className={`text-[11px] shrink-0 ${themeColors.secondaryTextClass}`}
           >
-            {articleCount} 篇
+            {articleCount ?? 0} 篇
           </span>
+        </div>
+        {showRssActions && (
+          <div className="flex items-center gap-1">
+            {(selection.kind === "subscription" ||
+              (selection.kind === "bilibili-followings" &&
+                hasBilibiliFollowingsSubscription)) && (
+              <button
+                className={`flex h-8 w-8 items-center justify-center rounded-lg border-none cursor-pointer bg-transparent text-xs transition-all duration-200 hover:scale-105 active:scale-95 ${themeColors.secondaryTextClass} ${themeColors.hoverClass}`}
+                title="全部已读"
+                onClick={onMarkAllRead}
+              >
+                <CheckOutlined />
+              </button>
+            )}
+            <button
+              className={`flex h-8 w-8 items-center justify-center rounded-lg border-none cursor-pointer bg-transparent text-xs transition-all duration-200 hover:scale-105 active:scale-95 ${themeColors.secondaryTextClass} ${themeColors.hoverClass}`}
+              title="刷新"
+              onClick={onRefresh}
+            >
+              <ReloadOutlined spin={isRefreshing} />
+            </button>
+          </div>
         )}
       </div>
       {showRssActions && (
-        <div className="flex items-center gap-1">
-          {selection.kind === "subscription" && (
+        <label className="relative block">
+          <svg
+            className={`pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${themeColors.secondaryTextClass}`}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            value={inputValue}
+            placeholder="搜索标题、正文或作者"
+            className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50 px-9 text-[13px] outline-none transition-all text-gray-800 shadow-inner placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.04),0_0_0_3px_rgba(59,130,246,0.15)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-zinc-950 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]"
+            onChange={(event) => setInputValue(event.target.value)}
+          />
+          {inputValue && (
             <button
-              className={`flex h-8 w-8 items-center justify-center rounded-lg border-none cursor-pointer bg-transparent text-xs transition-all duration-200 hover:scale-105 active:scale-95 ${themeColors.secondaryTextClass} ${themeColors.hoverClass}`}
-              title="全部已读"
-              onClick={onMarkAllRead}
+              type="button"
+              className={`absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-md border-none bg-transparent cursor-pointer transition-all ${themeColors.secondaryTextClass} ${themeColors.hoverClass}`}
+              title="清空搜索"
+              onClick={() => {
+                setInputValue("");
+                onSearchChange("");
+              }}
             >
-              <CheckOutlined />
+              <svg
+                className="h-3.5 w-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
             </button>
           )}
-          <button
-            className={`flex h-8 w-8 items-center justify-center rounded-lg border-none cursor-pointer bg-transparent text-xs transition-all duration-200 hover:scale-105 active:scale-95 ${themeColors.secondaryTextClass} ${themeColors.hoverClass}`}
-            title="刷新"
-            onClick={onRefresh}
-          >
-            <ReloadOutlined spin={isRefreshing} />
-          </button>
-        </div>
+        </label>
       )}
     </div>
   );

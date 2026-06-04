@@ -74,6 +74,7 @@ class RssFetcherModule implements Module {
     });
 
     this.startChecking();
+    void this.checkAndFetch();
     log.info("[RssFetcher] initialized");
   }
 
@@ -179,7 +180,14 @@ class RssFetcherModule implements Module {
       const localBilibiliFeed = parseLocalBilibiliFeedUrl(url);
       let parsedFeed;
       if (localBilibiliFeed) {
-        parsedFeed = await fetchBilibiliFeed(url);
+        const knownEntryIds = new Set(
+          (
+            db
+              .prepare(`SELECT guid FROM rss_entry WHERE feed_id = ?`)
+              .all(feedId) as Array<{ guid: string }>
+          ).map((row) => row.guid),
+        );
+        parsedFeed = await fetchBilibiliFeed(url, { knownEntryIds });
       } else {
         const xml = await fetchUrl(url);
         console.log("[RSS] fetch response received", {
