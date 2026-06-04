@@ -19,7 +19,6 @@ import { toExternalAgentTools } from "@/agent/externalAgentTools";
 import { getToolRegistryAgentTools } from "@/agent/toolRegistryAgentTools";
 import { SUBAGENT_RESEARCH_TOOL_NAME } from "@/agent/subagentResearch";
 import { getToolExecutionTimeout } from "@/tools/toolRuntimePolicy";
-import { SHOW_WIDGET_TOOL_NAME } from "@/generative-ui/constants";
 
 ensureToolingReady();
 
@@ -188,9 +187,6 @@ const isTransientError = (error: Error): boolean => {
   ];
   return transientPatterns.some((p) => msg.includes(p));
 };
-
-const shouldPublishStreamingToolPlan = (toolCalls: ToolCallPayload[]) =>
-  toolCalls.some((call) => call.function.name === SHOW_WIDGET_TOOL_NAME);
 
 const buildToolCallPlaceholders = (
   toolCalls: ToolCallPayload[],
@@ -485,18 +481,13 @@ export const chatStreamCore = async (
       if (event.type === "tool-call-planned") {
         const streamingPhase = event.phase === "streaming";
         const eventToolCalls = event.toolCalls as ToolCallPayload[];
-        const supportsStreamingPreview =
-          shouldPublishStreamingToolPlan(eventToolCalls);
         const shouldPublishStreamingPlaceholder =
           streamingPhase &&
-          !supportsStreamingPreview &&
           eventToolCalls.some(
             (call) => !publishedStreamingToolCallIds.has(call.id),
           );
         const shouldPublishStreamingPlan =
-          !streamingPhase ||
-          supportsStreamingPreview ||
-          shouldPublishStreamingPlaceholder;
+          !streamingPhase || shouldPublishStreamingPlaceholder;
         if (!shouldPublishStreamingPlan) {
           continue;
         }

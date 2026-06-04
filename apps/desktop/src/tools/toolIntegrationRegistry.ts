@@ -4,10 +4,6 @@ import type {
   ToolExecutionResult,
 } from "@/types";
 import {
-  resolveToolExecutionMetadata as resolveGenerativeUiExecutionMetadata,
-  upsertStreamingToolExecutions as upsertGenerativeUiStreamingExecutions,
-} from "@/generative-ui/streaming-tool-adapter";
-import {
   resolveSubAgentExecutionMetadata,
   upsertSubAgentStreamingExecutions,
 } from "@/agent/subagentStreamingAdapter";
@@ -26,10 +22,6 @@ export interface ToolStreamingIntegration {
 }
 
 const integrations: ToolStreamingIntegration[] = [
-  {
-    upsertStreamingExecutions: upsertGenerativeUiStreamingExecutions,
-    resolveExecutionMetadata: resolveGenerativeUiExecutionMetadata,
-  },
   {
     upsertStreamingExecutions: upsertSubAgentStreamingExecutions,
     resolveExecutionMetadata: resolveSubAgentExecutionMetadata,
