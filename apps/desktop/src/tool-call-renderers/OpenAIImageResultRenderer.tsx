@@ -4,7 +4,7 @@ import { OPENAI_IMAGE_RENDERER_KEY } from "@/tools/openaiImageTools";
 import LocalImage from "@/components/LocalImage";
 import LocalImagePreviewPortal from "@/components/LocalImagePreviewPortal";
 import { Copy, Pencil, Check, ChevronDown } from "lucide-react";
-import { useChatWidgetInteraction } from "./generative-widget/interaction-context";
+import { useToolRendererInteraction } from "./ToolRendererInteractionContext";
 import {
   ToolCard,
   ToolCardHeader,
@@ -129,7 +129,7 @@ const OpenAIImageResultRenderer = ({
   isDark,
   renderDefault,
 }: ToolCallCustomRendererProps) => {
-  const interaction = useChatWidgetInteraction();
+  const interaction = useToolRendererInteraction();
   const [previewImage, setPreviewImage] = useState<
     OpenAIImageRenderPayload["images"][number] | null
   >(null);

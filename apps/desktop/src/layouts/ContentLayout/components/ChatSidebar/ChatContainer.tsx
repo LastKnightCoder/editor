@@ -34,7 +34,6 @@ import {
   DEFAULT_SYSTEM_PROMPT,
   buildSessionAwareSystemPrompt,
 } from "@/constants";
-import { GENERATIVE_UI_SYSTEM_PROMPT } from "@/generative-ui/constants";
 import useChatLLM from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useSettingStore from "@/stores/useSettingStore";
@@ -51,7 +50,7 @@ import {
   ASK_QUESTION_TOOL_NAME,
   buildAskQuestionToolResult,
 } from "@/tools/askQuestionTypes";
-import { ChatWidgetInteractionProvider } from "@/tool-call-renderers/generative-widget/interaction-context";
+import { ToolRendererInteractionProvider } from "@/tool-call-renderers/ToolRendererInteractionContext";
 import { useAskQuestionSessionStore } from "@/tools/askQuestionSessionStore";
 import {
   applyAssistantReasoningSnapshot,
@@ -385,18 +384,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       } as RequestMessage;
     });
 
-    const buildGenerativeUiSystemMessage = useMemoizedFn(() => {
-      return {
-        role: Role.System,
-        content: [
-          {
-            type: "text",
-            text: GENERATIVE_UI_SYSTEM_PROMPT,
-          },
-        ],
-      } as RequestMessage;
-    });
-
     const buildHistoryMessages = useMemoizedFn(
       (
         chat: ChatMessage,
@@ -478,7 +465,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
         const sendMessages: RequestMessage[] = [
           buildSystemMessageWithRequest(actualCurrentChat),
-          buildGenerativeUiSystemMessage(),
           ...buildHistoryMessages(actualCurrentChat),
           ...extraHistoryMessages,
           requestMessage,
@@ -1427,32 +1413,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }
     });
 
-    const handleWidgetPrompt = useMemoizedFn(async (text: string) => {
-      const promptText = text.trim();
-      if (!promptText) {
-        return;
-      }
-
-      if (sendLoading) {
-        message.warning("当前已有生成任务，请稍后再试");
-        return;
-      }
-
-      const userMessage: RequestMessage = {
-        role: Role.User,
-        content: [
-          {
-            type: "text",
-            text: promptText,
-          },
-        ],
-      };
-
-      await processMessageSending(userMessage, {
-        shouldClearInput: false,
-      });
-    });
-
     if (!currentChat) {
       return null;
     }
@@ -1484,9 +1444,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     );
 
     return (
-      <ChatWidgetInteractionProvider
+      <ToolRendererInteractionProvider
         value={{
-          sendPrompt: handleWidgetPrompt,
           setInputValue: (text) => {
             editTextRef.current?.setValue(text);
             editTextRef.current?.focusEnd();
@@ -1649,7 +1608,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             );
           }}
         />
-      </ChatWidgetInteractionProvider>
+      </ToolRendererInteractionProvider>
     );
   },
 );
