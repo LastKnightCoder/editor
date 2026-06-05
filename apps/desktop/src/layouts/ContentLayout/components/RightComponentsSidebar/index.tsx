@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import classNames from "classnames";
 import { AnimatePresence, motion } from "motion/react";
+import { App } from "antd";
 import {
   Archive,
   Check,
@@ -298,6 +299,7 @@ const RightComponentsSidebar = memo(
       );
     const open = activePanel === "components";
     const data = useComponentsWorkbenchData(open);
+    const { modal } = App.useApp();
     const [previewCardId, setPreviewCardId] = useState<number | undefined>();
     const [now, setNow] = useState(Date.now());
     const [reviewModalOpen, setReviewModalOpen] = useState(false);
@@ -791,12 +793,20 @@ const RightComponentsSidebar = memo(
                               </button>
                               <button
                                 type="button"
-                                onClick={async (event) => {
+                                onClick={(event) => {
                                   event.stopPropagation();
-                                  if (!window.confirm("删除这张闪念卡片？"))
-                                    return;
-                                  await deleteCard(card.id);
-                                  data.refreshCards();
+                                  modal.confirm({
+                                    title: "确认删除",
+                                    content:
+                                      "确认删除这张闪念卡片吗？该操作不可撤销。",
+                                    okText: "删除",
+                                    cancelText: "取消",
+                                    okButtonProps: { danger: true },
+                                    onOk: async () => {
+                                      await deleteCard(card.id);
+                                      data.refreshCards();
+                                    },
+                                  });
                                 }}
                                 className={iconButtonClass}
                               >
