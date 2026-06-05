@@ -67,6 +67,12 @@ const getInputByPlaceholder = (placeholder: string) => {
   return input as HTMLInputElement;
 };
 
+const waitForDropdownPosition = async () => {
+  await act(async () => {
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+  });
+};
+
 describe("AddFeedDialog", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
@@ -195,17 +201,18 @@ describe("AddFeedDialog", () => {
     await act(async () => {
       categoryToggle?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
+    await waitForDropdownPosition();
 
     expect(document.body.textContent).toContain("技术");
 
     const categoryItem = Array.from(document.body.querySelectorAll("div")).find(
-      (item) => item.textContent === "技术",
+      (item) =>
+        item.textContent === "技术" &&
+        String(item.className).includes("menuItem"),
     );
     expect(categoryItem).toBeTruthy();
     await act(async () => {
-      (categoryItem?.parentElement || categoryItem)?.dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
+      categoryItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     expect(categoryInput.value).toBe("技术");
 
@@ -217,6 +224,37 @@ describe("AddFeedDialog", () => {
     expect(rssStoreMock.subscribe).toHaveBeenCalledWith(
       "tau://rss/bilibili/user-dynamic/342646",
       "技术",
+      "Bilibili UP 342646 动态",
+    );
+
+    await unmount(root, container);
+  });
+
+  it("分类输入框仍应支持手动输入新分类", async () => {
+    rssStoreMock.discoverFeeds.mockResolvedValue([
+      {
+        url: "tau://rss/bilibili/user-dynamic/342646",
+        title: "Bilibili UP 342646 动态",
+        type: "rss",
+      },
+    ]);
+    rssStoreMock.subscribe.mockResolvedValue(undefined);
+
+    const { root, container } = await mount(
+      <AddFeedDialog open onClose={vi.fn()} />,
+    );
+
+    await changeInput(getInputByPlaceholder("输入或选择分类"), "研究");
+    await changeInput(
+      getInputByPlaceholder("输入网站或 Feed URL"),
+      "https://space.bilibili.com/342646",
+    );
+    await clickButton("发现 Feed");
+    await clickButton("订阅");
+
+    expect(rssStoreMock.subscribe).toHaveBeenCalledWith(
+      "tau://rss/bilibili/user-dynamic/342646",
+      "研究",
       "Bilibili UP 342646 动态",
     );
 
