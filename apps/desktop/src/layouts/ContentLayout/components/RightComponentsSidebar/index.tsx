@@ -3,7 +3,6 @@ import classNames from "classnames";
 import { AnimatePresence, motion } from "motion/react";
 import { App } from "antd";
 import {
-  Archive,
   Check,
   ChevronDown,
   Component,
@@ -31,7 +30,6 @@ import useRightChatSidebarStore from "@/stores/useRightChatSidebarStore";
 import { useTodoStore } from "@/stores/useTodoStore";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import {
-  archiveTodoItem,
   addAnswer,
   deleteCard,
   deleteAnswer,
@@ -255,18 +253,6 @@ const TodoRow = ({
             onClick={() => onEdit(item)}
           >
             <SquarePen size={14} />
-          </button>
-          <button
-            type="button"
-            title="归档任务"
-            aria-label="归档任务"
-            className={iconButtonClass}
-            onClick={async () => {
-              await archiveTodoItem(item.id, true);
-              onChanged();
-            }}
-          >
-            <Archive size={14} />
           </button>
           <button
             type="button"
