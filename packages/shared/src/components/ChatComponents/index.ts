@@ -24,6 +24,12 @@ export {
   type ToolCallDefaultItemRenderParams,
 } from "./ToolCallDisplay";
 export {
+  ChatToolCallDisplay,
+  ChatToolCallDefaultItem,
+  type ChatToolCallDisplayProps,
+  type ChatToolCallDefaultItemProps,
+} from "./ChatToolCallDisplay";
+export {
   ReasoningDisplay,
   type ReasoningDisplayProps,
 } from "./ReasoningDisplay";

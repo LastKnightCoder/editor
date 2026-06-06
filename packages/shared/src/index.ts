@@ -81,6 +81,8 @@ export {
 export {
   StatusBadge,
   ToolCallDisplay,
+  ChatToolCallDisplay,
+  ChatToolCallDefaultItem,
   ReasoningDisplay,
   ChatMessage,
   toolCallRendererRegistry,
@@ -93,6 +95,8 @@ export {
   type StatusBadgeProps,
   type ToolCallDisplayProps,
   type ToolCallDefaultItemRenderParams,
+  type ChatToolCallDisplayProps,
+  type ChatToolCallDefaultItemProps,
   type ReasoningDisplayProps,
   type ChatMessageProps,
   type ToolCallCustomRenderer,
@@ -180,6 +184,12 @@ export {
   type UseEditDatabaseDeps,
   type UseEditDatabaseResult,
 } from "./hooks/useEditDatabase";
+
+export {
+  default as useChatAutoScroll,
+  type ScrollToBottomOptions,
+  type UseChatAutoScrollOptions,
+} from "./hooks/useChatAutoScroll";
 
 export {
   useRemoteVideo,

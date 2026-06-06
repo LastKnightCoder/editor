@@ -4,7 +4,6 @@ import React, {
   memo,
   useEffect,
   useState,
-  useCallback,
   forwardRef,
   useImperativeHandle,
 } from "react";
@@ -22,7 +21,6 @@ import {
   ChatMessage,
   RequestMessage,
   ResponseMessage,
-  ResponseContentBlock,
   TextContent,
   ReasoningEffort,
   ToolCallPayload,
@@ -45,6 +43,7 @@ import {
   ChatContainerCore,
   type ChatMessageType as CoreChatMessageType,
   type MessageContentItem,
+  useChatAutoScroll,
 } from "@tau/shared";
 import {
   ASK_QUESTION_TOOL_NAME,
@@ -59,8 +58,6 @@ import {
   createAssistantMessage,
   ensureAssistantMessage,
   finalizeAssistantTurn,
-  getAssistantContentBlocks,
-  getAssistantToolExecutions,
   syncAssistantDerivedFields,
 } from "@/services/assistantMessageBlocks";
 import {
@@ -176,88 +173,6 @@ const buildAskQuestionExecutionSnapshotKey = (
   execution: ToolCallExecutionState,
 ) => `${execution.toolCallId}::${execution.input}`;
 
-const emitDebugLog = (event: string, payload: unknown) => {
-  console.info(`[DEBUG] ${event} ${JSON.stringify(payload)}`);
-};
-
-const summarizeText = (text: string | undefined | null, limit = 160) => {
-  const normalized = text || "";
-  return {
-    length: normalized.length,
-    preview:
-      normalized.length > limit
-        ? `${normalized.slice(0, limit)}...`
-        : normalized,
-  };
-};
-
-const summarizeContentBlocks = (blocks?: ResponseContentBlock[]) =>
-  (blocks || []).map((block) => {
-    if (block.type === "text" || block.type === "reasoning") {
-      return {
-        type: block.type,
-        content: summarizeText(block.content),
-      };
-    }
-
-    return {
-      type: block.type,
-      executions: block.executions.map((execution) => ({
-        toolCallId: execution.toolCallId,
-        toolName: execution.toolName,
-        status: execution.status,
-      })),
-    };
-  });
-
-const buildAssistantDebugSnapshot = (message: ResponseMessage) => ({
-  content: summarizeText(message.content),
-  reasoning: summarizeText(message.reasoning_content || ""),
-  contentBlocks: summarizeContentBlocks(getAssistantContentBlocks(message)),
-  toolExecutions: getAssistantToolExecutions(message).map((execution) => ({
-    toolCallId: execution.toolCallId,
-    toolName: execution.toolName,
-    status: execution.status,
-  })),
-});
-
-const findSuspiciousDuplicatePattern = (blocks?: ResponseContentBlock[]) => {
-  if (!blocks || blocks.length < 3) {
-    return null;
-  }
-
-  for (let i = 0; i <= blocks.length - 3; i += 1) {
-    const first = blocks[i];
-    const second = blocks[i + 1];
-    const third = blocks[i + 2];
-
-    if (
-      first.type !== "text" ||
-      second.type !== "tool_calls" ||
-      third.type !== "text"
-    ) {
-      continue;
-    }
-
-    const beforeText = first.content;
-    const afterText = third.content;
-    return {
-      indices: [i, i + 1, i + 2],
-      beforeText,
-      afterText,
-      beforeLength: beforeText.length,
-      afterLength: afterText.length,
-      sameText: beforeText === afterText,
-      afterContainsBefore:
-        Boolean(beforeText) &&
-        Boolean(afterText) &&
-        afterText.includes(beforeText),
-    };
-  }
-
-  return null;
-};
-
 const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
   (
     {
@@ -316,7 +231,14 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
     const editTextRef = useRef<ChatInputAreaHandle>(null);
     const messagesRef = useRef<HTMLDivElement>(null);
-    const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
+    const {
+      containerRef: setMessagesContainerRef,
+      enableAutoScroll,
+      forceScrollToBottom,
+      scrollToBottom,
+    } = useChatAutoScroll({
+      containerRef: messagesRef,
+    });
     const [editingDraft, setEditingDraft] = useState<EditingDraftState | null>(
       null,
     );
@@ -338,7 +260,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const activeAssistantTurnIdRef = useRef<string | null>(null);
     const persistedAskQuestionSnapshotsRef = useRef<Set<string>>(new Set());
     const resumingAskQuestionRef = useRef<Set<string>>(new Set());
-    const debugStreamCounterRef = useRef(0);
+    const streamCounterRef = useRef(0);
 
     // 当切换聊天或收到同一聊天的外部最新快照时同步 ref
     useEffect(() => {
@@ -470,9 +392,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           requestMessage,
         ];
         const conversationKey = getConversationKey(actualCurrentChat.id);
-        const streamTraceId = `${conversationKey}:${++debugStreamCounterRef.current}`;
-        let lastLoggedAssistantShape = "";
-        let suspiciousPatternLogged = false;
+        const streamId = `${conversationKey}:${++streamCounterRef.current}`;
 
         // 立即添加用户消息和初始的助手回复到状态中
         const chatWithNewMessages = {
@@ -489,20 +409,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         actualChatRef.current = chatWithNewMessages;
         setUpdateCounter((prev) => prev + 1);
         updateCurrentChat(chatWithNewMessages);
-        emitDebugLog("ChatContainer.placeholder_created", {
-          traceId: streamTraceId,
-          chatId: chatWithNewMessages.id,
-          messageCount: chatWithNewMessages.messages.length,
-          persistRequestMessage,
-        });
 
         // 添加新消息后立即滚动到底部（重置自动滚动）
-        setIsAutoScrollEnabled(true);
-        setTimeout(() => {
-          if (messagesRef.current) {
-            messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
-          }
-        }, 0);
+        enableAutoScroll();
+        setTimeout(forceScrollToBottom, 0);
 
         if (shouldClearInput) {
           editTextRef.current?.clear();
@@ -514,45 +424,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           return false;
         }
 
-        const maybeLogAssistantStructure = (
-          source: string,
-          assistant: ResponseMessage,
-          extra?: Record<string, unknown>,
-        ) => {
-          const contentBlocks = getAssistantContentBlocks(assistant);
-          const shape = JSON.stringify(
-            contentBlocks.map((block) => {
-              if (block.type === "tool_calls") {
-                return `${block.type}:${block.executions.length}`;
-              }
-              return block.type;
-            }),
-          );
-
-          if (shape !== lastLoggedAssistantShape) {
-            lastLoggedAssistantShape = shape;
-            emitDebugLog("ChatContainer.assistant_structure_changed", {
-              traceId: streamTraceId,
-              source,
-              ...extra,
-              assistant: buildAssistantDebugSnapshot(assistant),
-            });
-          }
-
-          const suspiciousPattern =
-            findSuspiciousDuplicatePattern(contentBlocks);
-          if (suspiciousPattern && !suspiciousPatternLogged) {
-            suspiciousPatternLogged = true;
-            emitDebugLog("ChatContainer.suspicious_text_tool_text_pattern", {
-              traceId: streamTraceId,
-              source,
-              ...extra,
-              pattern: suspiciousPattern,
-              assistant: buildAssistantDebugSnapshot(assistant),
-            });
-          }
-        };
-
         chatLLMStream(chatProviderConfig, chatModelConfig, sendMessages, {
           enableTools: true,
           conversationKey,
@@ -561,19 +432,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           reasoningEffort: chatModelConfig?.features?.thinking
             ? effectiveReasoningEffort
             : undefined,
-          onFinish: () => {
-            const lastAssistant = actualCurrentChat.messages[
-              actualCurrentChat.messages.length - 1
-            ] as ResponseMessage | undefined;
-            if (lastAssistant?.role === Role.Assistant) {
-              emitDebugLog("ChatContainer.stream_finish_before_persist", {
-                traceId: streamTraceId,
-                assistant: buildAssistantDebugSnapshot(lastAssistant),
-              });
-            }
-          },
+          onFinish: () => {},
 
-          onAssistantTurnEnd: async ({ turnId, finishReason, resultType }) => {
+          onAssistantTurnEnd: async ({ turnId, resultType }) => {
             activeAssistantTurnIdRef.current = null;
             const finalizedChat = produce(actualCurrentChat, (draft) => {
               const lastMessageIndex = draft.messages.length - 1;
@@ -585,11 +446,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   lastMessageIndex
                 ] as ResponseMessage;
                 finalizeAssistantTurn(lastMessage, turnId);
-                maybeLogAssistantStructure("onAssistantTurnEnd", lastMessage, {
-                  turnId,
-                  finishReason,
-                  resultType,
-                });
               }
             });
 
@@ -724,7 +580,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           onUpdate: (
             full: string,
             _inc: string,
-            reasoningText?: string,
+            _reasoningText?: string,
             turnId?: string,
           ) => {
             if (turnId) {
@@ -743,15 +599,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                 ] as ResponseMessage;
                 applyAssistantTextSnapshot(
                   lastMessage,
-                  turnId || `${streamTraceId}:fallback-text`,
+                  turnId || `${streamId}:fallback-text`,
                   full,
                 );
-
-                maybeLogAssistantStructure("onUpdate", lastMessage, {
-                  turnId,
-                  fullLength: full.length,
-                  hasReasoningText: Boolean(reasoningText),
-                });
               }
             });
 
@@ -784,14 +634,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                 ] as ResponseMessage;
                 applyAssistantReasoningSnapshot(
                   lastMessage,
-                  turnId || `${streamTraceId}:fallback-reasoning`,
+                  turnId || `${streamId}:fallback-reasoning`,
                   full,
                 );
-
-                maybeLogAssistantStructure("onReasoning", lastMessage, {
-                  turnId,
-                  fullLength: full.length,
-                });
               }
             });
 
@@ -828,19 +673,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                 ] as ResponseMessage;
                 applyAssistantToolCallsSnapshot(
                   lastMessage,
-                  turnId || `${streamTraceId}:fallback-tool`,
+                  turnId || `${streamId}:fallback-tool`,
                   executions,
                   toolCalls,
                 );
-
-                maybeLogAssistantStructure("onToolCallsUpdate", lastMessage, {
-                  turnId,
-                  toolCallIds: toolCalls?.map((toolCall) => toolCall.id) || [],
-                  executionCount: executions.length,
-                  executionStatuses: executions.map(
-                    (execution) => execution.status,
-                  ),
-                });
               }
             });
 
@@ -1134,36 +970,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }
     }, [editingDraft, lastUserMessageIndex, visibleMessages]);
 
-    // 检查是否滚动到底部
-    const isScrolledToBottom = useCallback(() => {
-      if (!messagesRef.current) return true;
-      const { scrollTop, scrollHeight, clientHeight } = messagesRef.current;
-      // 允许10px的误差
-      return scrollTop + clientHeight >= scrollHeight - 10;
-    }, []);
-
-    // 优化的滚动到底部函数
-    const scrollToBottom = useMemoizedFn(() => {
-      if (!messagesRef.current || visibleMessages.length === 0) return;
-      if (!isAutoScrollEnabled) return;
-      messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
-    });
-
-    // 处理滚动事件
-    const handleScroll = useMemoizedFn(() => {
-      if (!messagesRef.current) return;
-
-      const isAtBottom = isScrolledToBottom();
-
-      // 如果用户滚动到了底部，重新启用自动滚动
-      if (isAtBottom) {
-        setIsAutoScrollEnabled(true);
-      } else {
-        // 如果用户向上滚动，禁用自动滚动
-        setIsAutoScrollEnabled(false);
-      }
-    });
-
     const finalizeActiveAssistantTurn = useMemoizedFn(() => {
       const turnId = activeAssistantTurnIdRef.current;
       if (!turnId) {
@@ -1206,23 +1012,13 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }
     });
 
-    useEffect(() => {
-      const messagesContainer = messagesRef.current;
-      if (!messagesContainer) return;
-
-      messagesContainer.addEventListener("scroll", handleScroll);
-      return () => {
-        messagesContainer.removeEventListener("scroll", handleScroll);
-      };
-    }, [handleScroll]);
-
     // 初始加载时滚动到底部
     useEffect(() => {
       // 延迟执行确保DOM已更新
       setTimeout(() => {
-        scrollToBottom();
+        forceScrollToBottom();
       }, 100);
-    }, [currentChat.id, scrollToBottom]);
+    }, [currentChat.id, forceScrollToBottom]);
 
     // 在消息列表变化时滚动到底部（仅在自动滚动启用时）
     useEffect(() => {
@@ -1487,8 +1283,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             id: actualChatRef.current.id,
           }}
           inputRef={editTextRef}
-          messagesContainerRef={messagesRef}
-          manageAutoScroll={false}
+          messagesContainerRef={setMessagesContainerRef}
           messagesContainerClassName="border-t-12 border-b-12 border-transparent px-6 py-3 flex-1 min-h-0 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]"
           renderEmptyState={() => null}
           renderInputWrapper={(inputNode) => (

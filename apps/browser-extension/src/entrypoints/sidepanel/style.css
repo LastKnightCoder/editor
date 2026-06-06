@@ -1,3 +1,4 @@
+@import "../../../../desktop/src/styles/theme-colors.css";
 @import "tailwindcss";
 @source "../../../../../packages/editor/src";
 @source "../../../../../packages/shared/src";
@@ -27,10 +28,6 @@
       transform: translateX(100%);
     }
   }
-}
-
-html {
-  font-size: 18px;
 }
 
 html,
@@ -240,11 +237,13 @@ code {
 .tau-scrollbar::-webkit-scrollbar-track {
   border-radius: 4px;
   background: var(--scroller-track-background-color);
+  -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.08);
 }
 
 .tau-scrollbar::-webkit-scrollbar-thumb {
   border-radius: 3px;
   background: var(--scroller-thumb-background-color);
+  -webkit-box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
 }
 
 .tau-scrollbar::-webkit-scrollbar-corner {
