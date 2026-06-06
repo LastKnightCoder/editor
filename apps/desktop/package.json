@@ -29,6 +29,7 @@
     "@tailwindcss/oxide": "^4.1.17",
     "better-sqlite3": "^12.10.0",
     "font-list": "^1.5.1",
+    "fuse.js": "^7.4.1",
     "node-pty": "^1.1.0",
     "proxy-agent": "^5.0.0",
     "sharp": "^0.34.4",

@@ -151,6 +151,34 @@ export interface ContentLinkTarget {
   title?: string;
 }
 
+export type SearchItemType =
+  | "card"
+  | "article"
+  | "project-doc"
+  | "knowledge-doc"
+  | "quest";
+
+export interface SearchItem {
+  id: number;
+  type: SearchItemType;
+  typeLabel: string;
+  title: string;
+  summary: string;
+  content: string;
+  tags: string[];
+  href: string;
+  createTime: number;
+  updateTime: number;
+}
+
+export interface SearchIndexPayload {
+  version: 1;
+  generatedAt: number;
+  options: Record<string, unknown>;
+  items: SearchItem[];
+  index: unknown;
+}
+
 // 注：目录从 content 中的 header 元素自动提取，使用主项目的 Outline 组件渲染
 
 // 首页数据
@@ -228,6 +256,9 @@ export interface InitData {
   docCollections?: DocCollection[]; // 项目/知识库集合
   contentLinkTargets?: Record<string, ContentLinkTarget>;
   rss?: {
+    href: string;
+  };
+  search?: {
     href: string;
   };
   settings?: {

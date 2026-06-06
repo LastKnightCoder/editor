@@ -67,6 +67,11 @@ import {
   injectPublishRssLink,
   type IPublishFeedItem,
 } from "./publish-rss";
+import {
+  buildPublishSearchIndexPayload,
+  PUBLISH_SEARCH_INDEX_HREF,
+  PUBLISH_SEARCH_INDEX_PATH,
+} from "./publish-search-index";
 import { scopeRuntimeTailwindCss } from "./publish-tailwind-scope";
 
 const TEMPLATE_ENTRY_MAP: Record<string, string> = {
@@ -456,6 +461,12 @@ class PublishModule implements Module {
     };
   }
 
+  private buildSearchInitMeta(): NonNullable<IPublishInitData["search"]> {
+    return {
+      href: PUBLISH_SEARCH_INDEX_HREF,
+    };
+  }
+
   private getDatabase(event: Electron.IpcMainInvokeEvent) {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) return null;
@@ -827,6 +838,20 @@ class PublishModule implements Module {
       hash: this.computeHash(rssXml),
     });
 
+    const searchIndexJson = JSON.stringify(
+      buildPublishSearchIndexPayload({
+        cards,
+        articles,
+        docs: docPublishResult.listEntries,
+        quests: questPublishResult.entries,
+      }),
+    );
+    files.push({
+      path: PUBLISH_SEARCH_INDEX_PATH,
+      content: Buffer.from(searchIndexJson),
+      hash: this.computeHash(searchIndexJson),
+    });
+
     return { files, virtualProcessed: docPublishResult.skippedDocItems };
   }
 
@@ -960,6 +985,7 @@ class PublishModule implements Module {
         site: this.buildSiteInitMeta(site),
         navigation,
         rss: this.buildRssInitMeta(site),
+        search: this.buildSearchInitMeta(),
         docCollections,
         contentLinkTargets,
         content: {
@@ -1002,6 +1028,7 @@ class PublishModule implements Module {
         site: this.buildSiteInitMeta(site),
         navigation,
         rss: this.buildRssInitMeta(site),
+        search: this.buildSearchInitMeta(),
         docCollections,
         contentLinkTargets,
         cardTagTree,
@@ -1040,6 +1067,7 @@ class PublishModule implements Module {
         site: this.buildSiteInitMeta(site),
         navigation,
         rss: this.buildRssInitMeta(site),
+        search: this.buildSearchInitMeta(),
         docCollections,
         contentLinkTargets,
         content: {
@@ -1097,6 +1125,7 @@ class PublishModule implements Module {
         site: this.buildSiteInitMeta(site),
         navigation,
         rss: this.buildRssInitMeta(site),
+        search: this.buildSearchInitMeta(),
         docCollections,
         contentLinkTargets,
         content: {
@@ -1482,6 +1511,7 @@ class PublishModule implements Module {
         site: this.buildSiteInitMeta(site),
         navigation,
         rss: this.buildRssInitMeta(site),
+        search: this.buildSearchInitMeta(),
         sidebar: entry.sidebar,
         docCollections: activeCollections,
         contentLinkTargets,
@@ -1586,6 +1616,7 @@ class PublishModule implements Module {
         site: this.buildSiteInitMeta(site),
         navigation,
         rss: this.buildRssInitMeta(site),
+        search: this.buildSearchInitMeta(),
         docCollections,
         contentLinkTargets,
         content: {
@@ -1847,6 +1878,7 @@ class PublishModule implements Module {
         site: this.buildSiteInitMeta(site),
         navigation,
         rss: this.buildRssInitMeta(site),
+        search: this.buildSearchInitMeta(),
         docCollections,
         contentLinkTargets,
         content: { ...entry },
@@ -1886,6 +1918,7 @@ class PublishModule implements Module {
         site: this.buildSiteInitMeta(site),
         navigation,
         rss: this.buildRssInitMeta(site),
+        search: this.buildSearchInitMeta(),
         docCollections,
         contentLinkTargets,
         content: {

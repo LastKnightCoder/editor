@@ -2,7 +2,15 @@
  * 获取初始化数据
  */
 export function getInitData() {
-  return window._INIT_DATA_;
+  const initData = window._INIT_DATA_;
+
+  // 开发模式的 mock 数据不经过发布器，需要补齐发布态才会注入的搜索元信息。
+  // @ts-ignore - import.meta.env.DEV 是 Vite 提供的
+  if (import.meta.env.DEV && !initData.search) {
+    initData.search = { href: "/__blog-dev-search-index.json" };
+  }
+
+  return initData;
 }
 
 /**
