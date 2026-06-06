@@ -8,6 +8,7 @@ import templateStartup from "@/assets/report/template-startup.html?raw";
 import templateMagazine from "@/assets/report/template-magazine.html?raw";
 import templateMinimalReport from "@/assets/report/template-minimal-report.html?raw";
 import templateNatureEco from "@/assets/report/template-nature-eco.html?raw";
+import templateCapsuleReport from "@/assets/report/template-capsule-report.html?raw";
 import templateCyberpunkReport from "@/assets/report/template-cyberpunk-report.html?raw";
 import templateRetroAnnual from "@/assets/report/template-retro-annual.html?raw";
 import templateGradientGlass from "@/assets/report/template-gradient-glass.html?raw";
@@ -151,6 +152,23 @@ const natureEcoStyleGuide = `
 - **排版**: 圆润无衬线正文，有机间距，16px 圆角
 - **风格**: 可持续发展主题，有机形状背景，自然调色板
 - **组件**: 圆角卡片、有机形状装饰、生态指标、绿色进度条
+`;
+
+const capsuleReportStyleGuide = `
+### 视觉风格 (Capsule Report Style - 胶囊信号报告)
+- **字体**: Google Fonts 导入 Albert Sans（英文/数据）+ Noto Sans SC（中文正文），标题使用 800 字重形成直接、清晰的报告语气
+- **配色**: 暖纸底 #f7f2e8，墨黑 #22211f，薄荷绿 #73d99f，珊瑚红 #ff7d66，电光蓝 #5268ff，柠檬黄 #f5d858，淡紫 #b9a0ff
+- **排版**: 左对齐为主，封面非对称双栏，正文采用章节索引 + 内容区结构；不对标题和描述做局部 max-width 限制
+- **胶囊系统**: 胶囊用于报告标识、数据标签、状态、进度条、画像占比、路线图阶段，不作为每节标题上方的重复装饰
+- **边框**: 1.5px 墨黑描边，胶囊圆角 999px，卡片圆角 8px，避免过大圆角导致报告感变弱
+- **背景**: 暖纸色 + 36px 细网格，提供轻微结构感但不抢正文
+- **布局**: 1440px 最大外壳，section 使用 190px+内容区的稳定网格；触点诊断使用横向任务链，避免不对称左右拼贴造成错乱
+- **图表**: ECharts CDN，透明背景，黑色描边糖果色数据，柱状图圆角胶囊化，图表旁保留文字解释
+- **内容结构**: 产品体验信号报告样例，包含执行摘要、健康指标、用户分层、触点诊断、渠道留存、策略结构、路线图、风险治理、研究方法
+- **动效**: IntersectionObserver 渐入，顶部彩色胶囊进度条，胶囊返回顶部按钮
+- **断点**: 1080px 关键网格转单列，780px 章节索引转横向，520px 胶囊装饰栅格简化
+- **打印**: 去除固定控件与阴影，保留内容结构和图表容器
+- **无障碍**: back-to-top aria-label，prefers-reduced-motion 禁用动画
 `;
 
 const cyberpunkReportStyleGuide = `
@@ -463,6 +481,21 @@ export const REPORT_TEMPLATES: ReportTemplate[] = [
     ),
     fullTemplate: templateNatureEco,
     styleGuide: natureEcoStyleGuide,
+  },
+  {
+    id: "capsule-report",
+    name: "胶囊信号",
+    description:
+      "暖纸底、糖果色胶囊编码、稳定报告网格，适合产品体验、用户洞察与策略分析报告",
+    previewHtml: generatePreviewHtml(
+      "#f7f2e8",
+      "#22211f",
+      "#ff7d66",
+      "胶囊信号",
+      "CAPSULE",
+    ),
+    fullTemplate: templateCapsuleReport,
+    styleGuide: capsuleReportStyleGuide,
   },
   {
     id: "cyberpunk-report",

@@ -15,6 +15,7 @@ import templateZen from "@/assets/ppt/template-zen.html?raw";
 import templateWatercolor from "@/assets/ppt/template-watercolor.html?raw";
 import templateBlueprint from "@/assets/ppt/template-blueprint.html?raw";
 import templateBrutalism from "@/assets/ppt/template-brutalism.html?raw";
+import templateCapsule from "@/assets/ppt/template-capsule.html?raw";
 
 export interface PPTTemplate {
   id: string;
@@ -300,6 +301,21 @@ const brutalismStyleGuide = `
 - **断点**: max-height: 750px / 650px / 500px+landscape, max-width: 768px
 - **无障碍**: prefers-reduced-motion 支持
 - **JS**: SlidePresentation class，键盘/滚轮/触摸/全览导航，data-count 计数动画
+`;
+
+const capsuleStyleGuide = `
+### 视觉风格 (Capsule Style - 胶囊叙事)
+- **字体**: Google Fonts 导入 Bodoni Moda（展示标题 700-900）+ Space Grotesk（正文/标签 400-700），中文回退 PingFang SC / Microsoft YaHei
+- **配色**: OKLCH 暖纸色背景，深墨色描边，Coral/Citron/Sky/Mint/Lavender/Peach 糖果色作为语义色；颜色只标记角色，不随机装饰
+- **排版**: 所有字号使用 clamp()；Bodoni 大标题制造编辑感，Space Grotesk 负责正文密度；标签全部 uppercase 且 letter-spacing 0.08-0.12em
+- **核心形态**: 胶囊标签、圆形编号、圆角面板、2px 深色描边、5-10px 低透明硬阴影；小标签使用 border-radius:999px，信息面板使用 28-42px 圆角
+- **布局**: 不重复单一卡片网格，包含封面、目录、章节页、左右分栏、轨道图、对比页、时间线、流程页、引用页、数据条、指标组、矩阵、地图、路线图、规范页、总结页
+- **动效**: 650ms 页面淡入，620ms reveal，cubic-bezier(0.16, 1, 0.3, 1) 指数缓出；无弹性回弹
+- **背景**: 暖纸色 + 极淡网格纹理，保持胶囊和大字的舞台感；不使用玻璃拟态或大面积模糊光球
+- **数据**: data-count 数字动效、.bar-fill[data-percent] 胶囊进度条；数字用 Bodoni，解释文字保持短句
+- **导航**: 顶部糖果渐变进度条，右下角描边胶囊页码；支持键盘、滚轮、触摸、全屏和 overview
+- **断点**: max-width 900px / 620px 响应式降列，移动端允许纵向滚动避免内容溢出
+- **无障碍**: prefers-reduced-motion 禁用动画；深色文字与浅纸背景保持高对比
 `;
 
 const generatePreviewHtml = (
@@ -595,6 +611,22 @@ export const PPT_TEMPLATES: PPTTemplate[] = [
     ),
     fullTemplate: templateBrutalism,
     styleGuide: brutalismStyleGuide,
+  },
+  {
+    id: "capsule",
+    name: "胶囊叙事",
+    description:
+      "粗描边胶囊、糖果语义色、编辑式大字与多变版式，适合产品发布、创意提案和品牌叙事",
+    previewHtml: generatePreviewHtml(
+      "#F5F2EA",
+      "#2B211B",
+      "#E85D4E",
+      "胶囊叙事",
+      "CAPSULE",
+      "light",
+    ),
+    fullTemplate: templateCapsule,
+    styleGuide: capsuleStyleGuide,
   },
 ];
 
