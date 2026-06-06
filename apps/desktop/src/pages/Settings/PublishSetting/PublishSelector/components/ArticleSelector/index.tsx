@@ -144,7 +144,7 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
             }}
             icon={
               <svg
-                className="w-5 h-5 text-blue-500"
+                className="w-5 h-5 text-zinc-500"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -153,7 +153,7 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
                 <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             }
-            iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
+            iconBgColor="border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800"
           />
         )}
       </>
@@ -176,7 +176,7 @@ const ArticleList = memo<{
   const virtualizer = useVirtualizer({
     count: articles.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 72,
+    estimateSize: () => 88,
     overscan: 5,
   });
 
@@ -208,9 +208,9 @@ const ArticleList = memo<{
             >
               <div
                 className={classNames(
-                  "flex items-start gap-3 px-3 py-2 rounded-lg transition-colors h-full",
+                  "flex min-h-[76px] items-start gap-3 rounded-lg px-4 py-3.5 transition-colors",
                   selected
-                    ? "bg-blue-50 dark:bg-blue-500/10"
+                    ? "bg-zinc-200/60 dark:bg-zinc-700/50"
                     : "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
                 )}
               >
@@ -227,7 +227,7 @@ const ArticleList = memo<{
                     className={classNames(
                       "text-sm truncate",
                       selected
-                        ? "text-blue-600 dark:text-blue-400 font-medium"
+                        ? "font-medium text-zinc-950 dark:text-zinc-50"
                         : themeColors.textClass,
                     )}
                   >

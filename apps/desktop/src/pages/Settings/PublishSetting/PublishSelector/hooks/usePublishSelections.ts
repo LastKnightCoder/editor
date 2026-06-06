@@ -9,6 +9,7 @@ interface UsePublishSelectionsReturn {
   selections: Map<string, boolean>;
   projectScopes: Map<number, EntityScope>;
   documentScopes: Map<number, EntityScope>;
+  questScopes: Map<number, EntityScope>;
   isLoading: boolean;
   isItemSelected: (type: PublishContentType, id: number) => boolean;
   toggleSelection: (type: PublishContentType, id: number) => void;
@@ -20,12 +21,12 @@ interface UsePublishSelectionsReturn {
   ) => Promise<void>;
   loadSelections: () => Promise<void>;
   handleEntityToggle: (
-    type: "project" | "document",
+    type: "project" | "document" | "quest",
     id: number,
     enabled: boolean,
   ) => Promise<void>;
   updateEntityScope: (
-    type: "project" | "document",
+    type: "project" | "document" | "quest",
     entityId: number,
     scope: EntityScope,
   ) => Promise<void>;
@@ -42,6 +43,9 @@ export function usePublishSelections(): UsePublishSelectionsReturn {
   const [documentScopes, setDocumentScopes] = useState<
     Map<number, EntityScope>
   >(new Map());
+  const [questScopes, setQuestScopes] = useState<Map<number, EntityScope>>(
+    new Map(),
+  );
   const [isLoading, setIsLoading] = useState(false);
 
   const isItemSelected = useCallback(
@@ -57,6 +61,7 @@ export function usePublishSelections(): UsePublishSelectionsReturn {
       const map = new Map<string, boolean>();
       const projectScope = new Map<number, EntityScope>();
       const documentScope = new Map<number, EntityScope>();
+      const questScope = new Map<number, EntityScope>();
 
       data.forEach((item) => {
         const key = `${item.contentType}-${item.contentId}`;
@@ -67,11 +72,15 @@ export function usePublishSelections(): UsePublishSelectionsReturn {
         if (item.contentType === "document") {
           documentScope.set(item.contentId, decodeScope(item.parentPath));
         }
+        if (item.contentType === "quest") {
+          questScope.set(item.contentId, decodeScope(item.parentPath));
+        }
       });
 
       setSelections(map);
       setProjectScopes(projectScope);
       setDocumentScopes(documentScope);
+      setQuestScopes(questScope);
     } catch (error) {
       console.error("Failed to load selections:", error);
     } finally {
@@ -113,7 +122,11 @@ export function usePublishSelections(): UsePublishSelectionsReturn {
   );
 
   const handleEntityToggle = useMemoizedFn(
-    async (type: "project" | "document", id: number, enabled: boolean) => {
+    async (
+      type: "project" | "document" | "quest",
+      id: number,
+      enabled: boolean,
+    ) => {
       if (!enabled) {
         if (type === "project") {
           setProjectScopes((prev) => {
@@ -121,8 +134,14 @@ export function usePublishSelections(): UsePublishSelectionsReturn {
             next.delete(id);
             return next;
           });
-        } else {
+        } else if (type === "document") {
           setDocumentScopes((prev) => {
+            const next = new Map(prev);
+            next.delete(id);
+            return next;
+          });
+        } else {
+          setQuestScopes((prev) => {
             const next = new Map(prev);
             next.delete(id);
             return next;
@@ -132,7 +151,12 @@ export function usePublishSelections(): UsePublishSelectionsReturn {
         return;
       }
 
-      const scopes = type === "project" ? projectScopes : documentScopes;
+      const scopes =
+        type === "project"
+          ? projectScopes
+          : type === "document"
+            ? documentScopes
+            : questScopes;
       const scope = scopes.get(id) ?? { mode: "all" };
       await batchToggle(type, [id], true, {
         parentPath: encodeScope(scope),
@@ -140,22 +164,26 @@ export function usePublishSelections(): UsePublishSelectionsReturn {
 
       if (type === "project") {
         setProjectScopes((prev) => new Map(prev).set(id, scope));
-      } else {
+      } else if (type === "document") {
         setDocumentScopes((prev) => new Map(prev).set(id, scope));
+      } else {
+        setQuestScopes((prev) => new Map(prev).set(id, scope));
       }
     },
   );
 
   const updateEntityScope = useMemoizedFn(
     async (
-      type: "project" | "document",
+      type: "project" | "document" | "quest",
       entityId: number,
       scope: EntityScope,
     ) => {
       if (type === "project") {
         setProjectScopes((prev) => new Map(prev).set(entityId, scope));
-      } else {
+      } else if (type === "document") {
         setDocumentScopes((prev) => new Map(prev).set(entityId, scope));
+      } else {
+        setQuestScopes((prev) => new Map(prev).set(entityId, scope));
       }
 
       await batchToggle(type, [entityId], true, {
@@ -192,6 +220,7 @@ export function usePublishSelections(): UsePublishSelectionsReturn {
     selections,
     projectScopes,
     documentScopes,
+    questScopes,
     isLoading,
     isItemSelected,
     toggleSelection,

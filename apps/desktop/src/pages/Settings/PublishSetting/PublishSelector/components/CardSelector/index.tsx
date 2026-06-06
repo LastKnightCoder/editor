@@ -231,7 +231,7 @@ const TagTreeNode = memo<{
         className={classNames(
           "w-full text-left px-3 py-1.5 text-sm transition-colors flex items-center gap-2 mx-1 rounded-md",
           isActive
-            ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium"
+            ? "bg-zinc-200/70 text-zinc-950 font-medium dark:bg-zinc-700/60 dark:text-zinc-50"
             : [
                 "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
                 themeColors.textClass,
@@ -241,7 +241,7 @@ const TagTreeNode = memo<{
       >
         <span className="flex-1 truncate">{node.label}</span>
         {selectedCount > 0 && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400">
+          <span className="rounded-full bg-zinc-200 px-1.5 py-0.5 text-[10px] text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100">
             {selectedCount}/{node.count}
           </span>
         )}
@@ -283,7 +283,7 @@ const CardList = memo<{
   const virtualizer = useVirtualizer({
     count: cards.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 56,
+    estimateSize: () => 68,
     overscan: 5,
   });
 
@@ -320,9 +320,9 @@ const CardList = memo<{
             >
               <div
                 className={classNames(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors h-full",
+                  "flex min-h-[56px] items-center gap-3 rounded-lg px-4 py-3 transition-colors",
                   selected
-                    ? "bg-blue-50 dark:bg-blue-500/10"
+                    ? "bg-zinc-200/60 dark:bg-zinc-700/50"
                     : "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
                 )}
               >
@@ -339,7 +339,7 @@ const CardList = memo<{
                     className={classNames(
                       "text-sm truncate",
                       selected
-                        ? "text-blue-600 dark:text-blue-400 font-medium"
+                        ? "font-medium text-zinc-950 dark:text-zinc-50"
                         : themeColors.textClass,
                     )}
                   >

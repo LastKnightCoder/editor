@@ -91,6 +91,7 @@ const ArticlePage = memo(() => {
         navigation={navigation}
         customNav={desktopDocNav}
         mobileCustomNav={mobileDocNav}
+        rssHref={initData.rss?.href}
       />
 
       <main className="min-h-0 flex-1 overflow-hidden">

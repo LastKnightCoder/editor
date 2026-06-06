@@ -1,7 +1,12 @@
 /**
  * 发布内容类型
  */
-export type PublishContentType = "card" | "article" | "project" | "document";
+export type PublishContentType =
+  | "card"
+  | "article"
+  | "project"
+  | "document"
+  | "quest";
 
 /**
  * 发布选择记录
@@ -77,6 +82,22 @@ export interface IPublishListItem {
   href: string;
   tags: string[];
   createTime: number;
+}
+
+export type IPublishQuestStatus = "not_started" | "in_progress" | "resolved";
+
+export interface IPublishQuestListItem {
+  id: number;
+  title: string;
+  summary: string;
+  href: string;
+  tags: string[];
+  groupId: number;
+  groupTitle: string;
+  status: IPublishQuestStatus;
+  answerCount: number;
+  createTime: number;
+  updateTime: number;
 }
 
 export interface IPublishDocCollectionItem {
@@ -162,6 +183,9 @@ export interface IPublishInitData {
     };
   };
   navigation: Array<{ label: string; href: string }>;
+  rss?: {
+    href: string;
+  };
   cardTagTree?: IPublishCardTagTree[];
   activeTag?: string;
   articleList?: IPublishArticleListItem[];
@@ -179,7 +203,7 @@ export interface IPublishInitData {
   settings?: IPublishAppearanceSettings;
   content: Record<string, unknown>;
   meta: {
-    type: "home" | "card" | "article" | "doc" | "list";
+    type: "home" | "card" | "article" | "doc" | "list" | "quest";
     publishTime: number;
   };
 }

@@ -19,6 +19,7 @@ import {
   CardSelector,
   ArticleSelector,
   EntitySelector,
+  QuestSelector,
 } from "./components";
 
 const PublishSelector = memo(() => {
@@ -36,11 +37,20 @@ const PublishSelector = memo(() => {
     getTypeSelectedCount,
     projectScopes,
     documentScopes,
+    questScopes,
   } = usePublishSelections();
 
   // 加载内容
-  const { cards, articles, projects, documents, isLoading, loadContent } =
-    useContentLoader();
+  const {
+    cards,
+    articles,
+    projects,
+    documents,
+    questionGroups,
+    questions,
+    isLoading,
+    loadContent,
+  } = useContentLoader();
 
   // 项目/知识库树缓存
   const [projectTrees, setProjectTrees] = useState<Map<number, DocTreeNode[]>>(
@@ -133,6 +143,18 @@ const PublishSelector = memo(() => {
     [updateEntityScope],
   );
 
+  // 更新问题管理分组作用域
+  const handleUpdateQuestScope = useCallback(
+    async (groupId: number, scope: EntityScope) => {
+      if (scope.mode === "partial" && scope.nodeIds.size === 0) {
+        await handleEntityToggle("quest", groupId, false);
+        return;
+      }
+      await updateEntityScope("quest", groupId, scope);
+    },
+    [handleEntityToggle, updateEntityScope],
+  );
+
   // 渲染当前 Tab 内容
   const renderContent = () => {
     if (isLoading) {
@@ -167,6 +189,19 @@ const PublishSelector = memo(() => {
             isItemSelected={isItemSelected}
             onToggleArticle={handleToggleArticle}
             onBatchToggle={handleBatchToggleArticles}
+          />
+        );
+      case "quest":
+        return (
+          <QuestSelector
+            groups={questionGroups}
+            questions={questions}
+            isItemSelected={isItemSelected}
+            scopes={questScopes}
+            onToggleGroup={(id, enabled) =>
+              handleEntityToggle("quest", id, enabled)
+            }
+            onUpdateScope={handleUpdateQuestScope}
           />
         );
       case "project":

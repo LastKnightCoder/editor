@@ -47,6 +47,26 @@ export const TABS: TabConfig[] = [
     ),
   },
   {
+    key: "quest",
+    label: "问题管理",
+    description: "按分类选择问题",
+    icon: (
+      <svg
+        className="w-4 h-4"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M8 10h.01M12 10h.01M16 10h.01M7 16h6m-8 3.5V6a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H8.5L5 21.5z"
+        />
+      </svg>
+    ),
+  },
+  {
     key: "project",
     label: "项目",
     description: "选择项目文档",
@@ -104,6 +124,7 @@ export const CARD_CATEGORY_LABEL: Record<ECardCategory, string> = {
 export const CONTENT_TYPE_LABEL: Record<PublishContentType, string> = {
   card: "卡片",
   article: "文章",
+  quest: "问题管理",
   project: "项目",
   document: "知识库",
 };
@@ -114,6 +135,7 @@ export const CONTENT_TYPE_LABEL: Record<PublishContentType, string> = {
 export const EMPTY_PLACEHOLDER: Record<PublishContentType, string> = {
   card: "暂无卡片",
   article: "暂无文章",
+  quest: "暂无问题条目",
   project: "暂无项目",
   document: "暂无知识库",
 };
@@ -124,6 +146,7 @@ export const EMPTY_PLACEHOLDER: Record<PublishContentType, string> = {
 export const SEARCH_PLACEHOLDER: Record<PublishContentType, string> = {
   card: "搜索卡片标题或标签...",
   article: "搜索文章标题...",
+  quest: "搜索问题标题或分类...",
   project: "搜索项目名称...",
   document: "搜索知识库名称...",
 };

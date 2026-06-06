@@ -40,6 +40,7 @@ export default defineConfig({
         card: resolve(__dirname, "src/templates/card/index.html"),
         article: resolve(__dirname, "src/templates/article/index.html"),
         doc: resolve(__dirname, "src/templates/doc/index.html"),
+        quest: resolve(__dirname, "src/templates/quest/index.html"),
         list: resolve(__dirname, "src/templates/list/index.html"),
       },
       output: {

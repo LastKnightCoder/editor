@@ -9,6 +9,19 @@ interface HeaderProps {
   navigation: NavItem[];
   customNav?: ReactNode;
   mobileCustomNav?: ReactNode;
+  rssHref?: string;
+}
+
+function resolveCopyHref(href: string): string {
+  if (typeof window === "undefined") {
+    return href;
+  }
+
+  try {
+    return new URL(href, window.location.href).toString();
+  } catch {
+    return href;
+  }
 }
 
 const ThemeSwitch = ({
@@ -116,6 +129,51 @@ const MenuButton = ({
   </button>
 );
 
+const RssButton = ({
+  href,
+  copied,
+  onCopy,
+}: {
+  href: string;
+  copied: boolean;
+  onCopy: () => void;
+}) => (
+  <button
+    type="button"
+    onClick={onCopy}
+    className="group relative flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)]"
+    aria-label={copied ? "RSS 链接已复制" : "复制 RSS 链接"}
+    title={copied ? "RSS 链接已复制" : "复制 RSS 链接"}
+    data-rss-href={href}
+  >
+    {copied ? (
+      <svg
+        className="h-[18px] w-[18px] text-[var(--color-text-primary)]"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+      </svg>
+    ) : (
+      <svg
+        className="h-[18px] w-[18px]"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M5 19h.01M5 5c7.18 0 13 5.82 13 13M5 11a7 7 0 017 7"
+        />
+      </svg>
+    )}
+  </button>
+);
+
 const Header = memo(
   ({
     title,
@@ -123,13 +181,28 @@ const Header = memo(
     navigation,
     customNav,
     mobileCustomNav,
+    rssHref,
   }: HeaderProps) => {
     const [dark, setDark] = useState(() => isDarkMode());
     const [menuOpen, setMenuOpen] = useState(false);
+    const [rssCopied, setRssCopied] = useState(false);
 
     const handleToggleTheme = () => {
       toggleTheme();
       setDark((prev) => !prev);
+    };
+
+    const handleCopyRss = async () => {
+      if (!rssHref) return;
+
+      const copyHref = resolveCopyHref(rssHref);
+      try {
+        await navigator.clipboard.writeText(copyHref);
+        setRssCopied(true);
+        window.setTimeout(() => setRssCopied(false), 1600);
+      } catch {
+        window.open(rssHref, "_blank", "noopener,noreferrer");
+      }
     };
 
     const headerRef = useRef<HTMLElement>(null);
@@ -174,11 +247,25 @@ const Header = memo(
               </div>
             )}
             <div className="mx-2 h-5 w-px bg-[var(--color-border-ring)]" />
+            {rssHref && (
+              <RssButton
+                href={rssHref}
+                copied={rssCopied}
+                onCopy={handleCopyRss}
+              />
+            )}
             <ThemeSwitch checked={dark} onToggle={handleToggleTheme} />
           </nav>
 
           {/* 移动端操作 */}
           <div className="flex items-center gap-1 md:hidden">
+            {rssHref && (
+              <RssButton
+                href={rssHref}
+                copied={rssCopied}
+                onCopy={handleCopyRss}
+              />
+            )}
             <ThemeSwitch checked={dark} onToggle={handleToggleTheme} />
             <MenuButton
               isOpen={menuOpen}
@@ -189,7 +276,7 @@ const Header = memo(
 
         {/* 移动端菜单 */}
         {menuOpen && (
-          <div className="absolute left-0 right-0 top-14 z-40 border-b border-[var(--color-border-ring)] bg-[var(--color-bg-page)] md:hidden">
+          <div className="absolute left-0 right-0 top-14 z-40 max-h-[calc(100dvh-3.5rem)] overflow-y-auto border-b border-[var(--color-border-ring)] bg-[var(--color-bg-page)] md:hidden">
             <nav className="px-4 py-3">
               <div className="flex flex-col gap-1">
                 {navigation.map((item) => (
@@ -210,6 +297,15 @@ const Header = memo(
                   <div className="mt-2 flex flex-col gap-2">
                     {mobileCustomNav || customNav}
                   </div>
+                )}
+                {rssHref && (
+                  <button
+                    type="button"
+                    onClick={handleCopyRss}
+                    className="mt-2 rounded-lg px-4 py-2.5 text-left text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)]"
+                  >
+                    {rssCopied ? "RSS 链接已复制" : "复制 RSS 链接"}
+                  </button>
                 )}
               </div>
             </nav>

@@ -69,8 +69,8 @@ export const SearchToolbar = memo<SearchToolbarProps>(
             placeholder={placeholder}
             className={classNames(
               "w-full pl-10 pr-4 py-2 rounded-lg border text-sm transition-colors",
-              themeColors.inputBgClass,
-              themeColors.cardBorderClass,
+              "bg-zinc-50 dark:bg-zinc-800/80",
+              "border-zinc-200 dark:border-zinc-700/80",
               themeColors.textClass,
               "placeholder:text-gray-400 dark:placeholder:text-gray-500",
               "focus:outline-none",

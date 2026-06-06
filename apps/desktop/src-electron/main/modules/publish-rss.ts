@@ -6,7 +6,7 @@ export interface IPublishRssSite {
 }
 
 export interface IPublishFeedItem {
-  type: "article" | "card" | "doc";
+  type: "article" | "card" | "doc" | "quest";
   id: number;
   title: string;
   summary: string;

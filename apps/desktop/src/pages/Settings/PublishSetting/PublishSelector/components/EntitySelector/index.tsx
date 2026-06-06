@@ -233,7 +233,7 @@ const EntityCard = memo<{
         className={classNames(
           "flex flex-col gap-3 rounded-xl border p-4 transition-colors md:flex-row md:items-center",
           selected
-            ? [themeColors.activeClass, themeColors.activeBorderClass]
+            ? ["border-transparent bg-zinc-200/60 dark:bg-zinc-700/50"]
             : [themeColors.cardBgClass, themeColors.cardBorderClass],
         )}
       >
@@ -243,7 +243,9 @@ const EntityCard = memo<{
             <div
               className={classNames(
                 "text-sm font-medium truncate",
-                themeColors.activeTextClass,
+                selected
+                  ? "text-zinc-950 dark:text-zinc-50"
+                  : themeColors.textClass,
               )}
             >
               {entity.title}
