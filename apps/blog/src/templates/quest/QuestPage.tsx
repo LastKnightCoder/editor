@@ -279,6 +279,7 @@ const QuestPage = memo(() => {
         customNav={desktopDocNav}
         mobileCustomNav={mobileDocNav}
         rssHref={initData.rss?.href}
+        searchHref={initData.search?.href}
       />
 
       <main className="min-h-0 flex-1 overflow-hidden">

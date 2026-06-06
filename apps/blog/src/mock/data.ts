@@ -1817,6 +1817,24 @@ export const mockQuestListPageData: InitData = {
 
 export const mockListPageData = mockCardListPageData;
 
+export const mockSearchInitDataList: InitData[] = [
+  mockCardPageData,
+  mockArticlePageData,
+  mockDocPageData,
+  mockDocPageSidebarDemoData,
+  mockQuestPageData,
+  mockCardListPageData,
+  mockArticleListPageData,
+  mockDocListPageData,
+  mockQuestListPageData,
+];
+
+if (typeof window !== "undefined") {
+  (
+    window as typeof window & { __BLOG_DEV_MOCK_DATA__?: InitData[] }
+  ).__BLOG_DEV_MOCK_DATA__ = mockSearchInitDataList;
+}
+
 export function getMockListPageData(
   type: "card" | "article" | "doc" | "quest" = "card",
 ): InitData {

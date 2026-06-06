@@ -121,6 +121,34 @@ export interface IPublishContentLinkTarget {
   title?: string;
 }
 
+export type IPublishSearchItemType =
+  | "card"
+  | "article"
+  | "project-doc"
+  | "knowledge-doc"
+  | "quest";
+
+export interface IPublishSearchItem {
+  id: number;
+  type: IPublishSearchItemType;
+  typeLabel: string;
+  title: string;
+  summary: string;
+  content: string;
+  tags: string[];
+  href: string;
+  createTime: number;
+  updateTime: number;
+}
+
+export interface IPublishSearchIndexPayload {
+  version: 1;
+  generatedAt: number;
+  options: Record<string, unknown>;
+  items: IPublishSearchItem[];
+  index: unknown;
+}
+
 export interface IPublishFaviconConfig {
   cachePath: string;
   fileName: string;
@@ -200,6 +228,9 @@ export interface IPublishInitData {
   }>;
   docCollections?: IPublishDocCollection[];
   contentLinkTargets?: Record<string, IPublishContentLinkTarget>;
+  search?: {
+    href: string;
+  };
   settings?: IPublishAppearanceSettings;
   content: Record<string, unknown>;
   meta: {

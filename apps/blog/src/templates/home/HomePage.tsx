@@ -58,6 +58,7 @@ const HomePage = memo(() => {
         customNav={desktopDocNav}
         mobileCustomNav={mobileDocNav}
         rssHref={initData.rss?.href}
+        searchHref={initData.search?.href}
       />
 
       <main className="flex min-h-0 flex-1 items-stretch px-6 sm:px-8 lg:px-12">

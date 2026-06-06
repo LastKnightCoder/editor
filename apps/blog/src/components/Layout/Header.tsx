@@ -1,7 +1,15 @@
-import { memo, useState, ReactNode, useRef, useLayoutEffect } from "react";
+import {
+  memo,
+  useState,
+  ReactNode,
+  useRef,
+  useLayoutEffect,
+  useEffect,
+} from "react";
 import classNames from "classnames";
 import { NavItem } from "@blog/types";
 import { toggleTheme, isDarkMode, joinPath } from "@blog/utils";
+import { SearchButton, SearchDialog } from "@blog/components/Search";
 
 interface HeaderProps {
   title: string;
@@ -10,6 +18,7 @@ interface HeaderProps {
   customNav?: ReactNode;
   mobileCustomNav?: ReactNode;
   rssHref?: string;
+  searchHref?: string;
 }
 
 function resolveCopyHref(href: string): string {
@@ -182,10 +191,12 @@ const Header = memo(
     customNav,
     mobileCustomNav,
     rssHref,
+    searchHref,
   }: HeaderProps) => {
     const [dark, setDark] = useState(() => isDarkMode());
     const [menuOpen, setMenuOpen] = useState(false);
     const [rssCopied, setRssCopied] = useState(false);
+    const [searchOpen, setSearchOpen] = useState(false);
 
     const handleToggleTheme = () => {
       toggleTheme();
@@ -220,6 +231,33 @@ const Header = memo(
       return () => window.removeEventListener("resize", updateHeight);
     }, []);
 
+    useEffect(() => {
+      if (!searchHref) return;
+
+      const handleKeyDown = (event: KeyboardEvent) => {
+        const target = event.target as HTMLElement | null;
+        const isEditable =
+          target?.tagName === "INPUT" ||
+          target?.tagName === "TEXTAREA" ||
+          target?.isContentEditable;
+
+        if (isEditable) {
+          return;
+        }
+
+        if (
+          (event.ctrlKey || event.metaKey) &&
+          event.key.toLowerCase() === "k"
+        ) {
+          event.preventDefault();
+          setSearchOpen(true);
+        }
+      };
+
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [searchHref]);
+
     return (
       <header
         ref={headerRef}
@@ -247,6 +285,7 @@ const Header = memo(
               </div>
             )}
             <div className="mx-2 h-5 w-px bg-[var(--color-border-ring)]" />
+            {searchHref && <SearchButton onClick={() => setSearchOpen(true)} />}
             {rssHref && (
               <RssButton
                 href={rssHref}
@@ -259,6 +298,9 @@ const Header = memo(
 
           {/* 移动端操作 */}
           <div className="flex items-center gap-1 md:hidden">
+            {searchHref && (
+              <SearchButton compact onClick={() => setSearchOpen(true)} />
+            )}
             {rssHref && (
               <RssButton
                 href={rssHref}
@@ -310,6 +352,14 @@ const Header = memo(
               </div>
             </nav>
           </div>
+        )}
+        {searchHref && (
+          <SearchDialog
+            open={searchOpen}
+            searchHref={joinPath(basePath, searchHref, { raw: true })}
+            basePath={basePath}
+            onClose={() => setSearchOpen(false)}
+          />
         )}
       </header>
     );
