@@ -1,0 +1,1674 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 产品体验信号报告</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --paper: #f7f2e8;
+            --paper-warm: #fbf7ef;
+            --ink: #22211f;
+            --muted: #66615a;
+            --dim: #918a7d;
+            --line: rgba(34, 33, 31, 0.18);
+            --line-strong: rgba(34, 33, 31, 0.78);
+            --mint: #73d99f;
+            --mint-soft: #dff6e9;
+            --coral: #ff7d66;
+            --coral-soft: #ffe3dc;
+            --blue: #5268ff;
+            --blue-soft: #e2e6ff;
+            --lemon: #f5d858;
+            --lemon-soft: #fbf0b7;
+            --lilac: #b9a0ff;
+            --lilac-soft: #eee7ff;
+            --radius: 8px;
+            --capsule: 999px;
+            --shadow: 0 14px 34px rgba(34, 33, 31, 0.08);
+            --sans: "Albert Sans", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+            --title-size: clamp(3rem, 8vw, 7.2rem);
+            --h2-size: clamp(2rem, 4vw, 3.8rem);
+            --h3-size: clamp(1.28rem, 2vw, 1.75rem);
+            --body-size: clamp(1rem, 1.12vw, 1.08rem);
+            --small-size: clamp(0.78rem, 0.9vw, 0.9rem);
+            --pad-x: clamp(1.2rem, 4vw, 4.5rem);
+            --section-gap: clamp(5rem, 9vw, 9rem);
+            --content-gap: clamp(1.4rem, 3vw, 3rem);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            min-height: 100vh;
+            background:
+                linear-gradient(90deg, rgba(34,33,31,0.035) 1px, transparent 1px),
+                linear-gradient(180deg, rgba(34,33,31,0.03) 1px, transparent 1px),
+                var(--paper);
+            background-size: 36px 36px;
+            color: var(--ink);
+            font-family: var(--sans);
+            font-size: var(--body-size);
+            line-height: 1.72;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
+        }
+
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 6px;
+            background: linear-gradient(90deg, var(--coral), var(--lemon), var(--mint), var(--blue));
+            border-radius: 0 var(--capsule) var(--capsule) 0;
+            z-index: 9999;
+            transition: width 0.12s linear;
+        }
+
+        .back-to-top {
+            position: fixed;
+            right: clamp(1rem, 3vw, 2rem);
+            bottom: clamp(1rem, 3vw, 2rem);
+            width: 54px;
+            height: 34px;
+            border: 1.5px solid var(--ink);
+            border-radius: var(--capsule);
+            background: var(--lemon);
+            color: var(--ink);
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            box-shadow: 4px 4px 0 var(--ink);
+            opacity: 0;
+            transform: translateY(12px);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            z-index: 999;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .back-to-top:hover {
+            transform: translate(-2px, -2px);
+        }
+
+        .report-shell {
+            width: min(100%, 1440px);
+            margin: 0 auto;
+        }
+
+        .report-cover {
+            min-height: 92vh;
+            padding: clamp(2rem, 5vw, 5rem) var(--pad-x) clamp(3rem, 7vw, 6rem);
+            display: grid;
+            grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+            gap: clamp(2rem, 6vw, 6rem);
+            align-items: end;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 1.5px solid var(--line-strong);
+        }
+
+        .cover-mark {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.7rem;
+            width: fit-content;
+            padding: 0.46rem 0.82rem 0.46rem 0.48rem;
+            margin-bottom: clamp(2rem, 4vw, 4.5rem);
+            border: 1.5px solid var(--ink);
+            border-radius: var(--capsule);
+            background: var(--paper-warm);
+            font-size: var(--small-size);
+            font-weight: 800;
+            letter-spacing: 0.02em;
+        }
+
+        .cover-mark-dot {
+            width: 2.25rem;
+            height: 1.25rem;
+            border: 1.5px solid var(--ink);
+            border-radius: var(--capsule);
+            background: var(--mint);
+            box-shadow: inset -12px 0 0 var(--coral);
+        }
+
+        .cover-title {
+            font-size: var(--title-size);
+            line-height: 0.92;
+            font-weight: 800;
+            letter-spacing: 0;
+        }
+
+        .cover-title span {
+            display: block;
+        }
+
+        .cover-subtitle {
+            margin-top: clamp(1.5rem, 3vw, 2.5rem);
+            font-size: clamp(1.18rem, 2vw, 1.62rem);
+            line-height: 1.55;
+            color: var(--muted);
+        }
+
+        .cover-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.7rem;
+            margin-top: clamp(1.4rem, 3vw, 2.4rem);
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            min-height: 2rem;
+            padding: 0.32rem 0.76rem;
+            border: 1.5px solid var(--ink);
+            border-radius: var(--capsule);
+            background: var(--paper-warm);
+            color: var(--ink);
+            font-size: var(--small-size);
+            font-weight: 700;
+            line-height: 1.15;
+            white-space: nowrap;
+        }
+
+        .pill::before {
+            content: "";
+            width: 0.56rem;
+            height: 0.56rem;
+            border-radius: 50%;
+            background: var(--pill-color, var(--mint));
+            border: 1px solid var(--ink);
+        }
+
+        .pill.mint { --pill-color: var(--mint); background: var(--mint-soft); }
+        .pill.coral { --pill-color: var(--coral); background: var(--coral-soft); }
+        .pill.blue { --pill-color: var(--blue); background: var(--blue-soft); }
+        .pill.lemon { --pill-color: var(--lemon); background: var(--lemon-soft); }
+        .pill.lilac { --pill-color: var(--lilac); background: var(--lilac-soft); }
+
+        .cover-board {
+            align-self: stretch;
+            display: grid;
+            gap: 1rem;
+            align-content: end;
+        }
+
+        .capsule-stack {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            grid-auto-rows: minmax(34px, auto);
+            gap: 0.7rem;
+            align-items: stretch;
+        }
+
+        .capsule-token {
+            border: 1.5px solid var(--ink);
+            border-radius: var(--capsule);
+            background: var(--paper-warm);
+            box-shadow: 4px 4px 0 var(--ink);
+            min-height: 34px;
+        }
+
+        .token-wide { grid-column: span 3; }
+        .token-mid { grid-column: span 2; }
+        .token-small { grid-column: span 1; }
+        .token-mint { background: var(--mint); }
+        .token-coral { background: var(--coral); }
+        .token-blue { background: var(--blue); }
+        .token-lemon { background: var(--lemon); }
+        .token-lilac { background: var(--lilac); }
+        .token-paper { background: var(--paper-warm); }
+
+        .cover-kpis {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.85rem;
+            margin-top: 1.2rem;
+        }
+
+        .cover-kpi {
+            min-height: 112px;
+            padding: 1rem;
+            border: 1.5px solid var(--ink);
+            border-radius: var(--radius);
+            background: var(--paper-warm);
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .cover-kpi strong {
+            font-size: clamp(1.9rem, 3vw, 2.75rem);
+            line-height: 1;
+            letter-spacing: 0;
+        }
+
+        .cover-kpi span {
+            color: var(--muted);
+            font-size: var(--small-size);
+            line-height: 1.45;
+        }
+
+        .report-main {
+            padding: var(--section-gap) var(--pad-x);
+        }
+
+        .report-section {
+            margin-bottom: var(--section-gap);
+        }
+
+        .section-grid {
+            display: grid;
+            grid-template-columns: minmax(190px, 0.34fr) minmax(0, 1fr);
+            gap: clamp(1.8rem, 5vw, 5rem);
+            align-items: start;
+        }
+
+        .section-index {
+            position: sticky;
+            top: 2rem;
+            display: grid;
+            gap: 0.85rem;
+        }
+
+        .index-number {
+            width: 5.3rem;
+            height: 2.55rem;
+            display: grid;
+            place-items: center;
+            border: 1.5px solid var(--ink);
+            border-radius: var(--capsule);
+            background: var(--section-color, var(--mint));
+            box-shadow: 4px 4px 0 var(--ink);
+            font-weight: 800;
+        }
+
+        .index-note {
+            color: var(--muted);
+            font-size: var(--small-size);
+            line-height: 1.6;
+        }
+
+        .section-body {
+            min-width: 0;
+        }
+
+        .section-title {
+            font-size: var(--h2-size);
+            line-height: 1.05;
+            letter-spacing: 0;
+            font-weight: 800;
+            margin-bottom: 1.1rem;
+        }
+
+        .section-lead {
+            font-size: clamp(1.06rem, 1.5vw, 1.24rem);
+            color: var(--muted);
+            line-height: 1.75;
+            margin-bottom: var(--content-gap);
+        }
+
+        .summary-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+            gap: clamp(1.2rem, 3vw, 2.4rem);
+            align-items: start;
+        }
+
+        .narrative-block {
+            padding: clamp(1.4rem, 3vw, 2.2rem);
+            border: 1.5px solid var(--ink);
+            border-radius: var(--radius);
+            background: var(--paper-warm);
+            box-shadow: var(--shadow);
+        }
+
+        .narrative-block p + p {
+            margin-top: 1rem;
+        }
+
+        .signal-list {
+            display: grid;
+            gap: 0.85rem;
+        }
+
+        .signal-item {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 0.85rem;
+            align-items: center;
+            padding: 0.9rem;
+            border: 1.5px solid var(--ink);
+            border-radius: var(--capsule);
+            background: var(--paper-warm);
+        }
+
+        .signal-badge {
+            min-width: 3.25rem;
+            height: 2rem;
+            display: inline-grid;
+            place-items: center;
+            border: 1.5px solid var(--ink);
+            border-radius: var(--capsule);
+            background: var(--badge-color, var(--lemon));
+            font-weight: 800;
+            font-size: var(--small-size);
+        }
+
+        .signal-copy strong {
+            display: block;
+            font-size: 1rem;
+            line-height: 1.35;
+            margin-bottom: 0.15rem;
+        }
+
+        .signal-copy span {
+            display: block;
+            color: var(--muted);
+            font-size: var(--small-size);
+            line-height: 1.45;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.9rem;
+            margin-bottom: clamp(1.4rem, 3vw, 2.4rem);
+        }
+
+        .metric-card {
+            min-height: 156px;
+            padding: 1rem;
+            border: 1.5px solid var(--ink);
+            border-radius: var(--radius);
+            background: var(--paper-warm);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .metric-card strong {
+            font-size: clamp(2rem, 3.2vw, 3.4rem);
+            line-height: 0.95;
+            letter-spacing: 0;
+        }
+
+        .metric-card span {
+            color: var(--muted);
+            font-size: var(--small-size);
+            line-height: 1.45;
+        }
+
+        .metric-card .meter {
+            height: 1.25rem;
+            border: 1.5px solid var(--ink);
+            border-radius: var(--capsule);
+            background: var(--paper);
+            overflow: hidden;
+            margin-top: 0.9rem;
+        }
+
+        .metric-card .meter i {
+            display: block;
+            height: 100%;
+            width: var(--value);
+            border-right: 1.5px solid var(--ink);
+            border-radius: var(--capsule);
+            background: var(--color, var(--mint));
+        }
+
+        .chart-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr);
+            gap: clamp(1.2rem, 3vw, 2rem);
+            align-items: stretch;
+        }
+
+        .chart-panel, .side-panel {
+            border: 1.5px solid var(--ink);
+            border-radius: var(--radius);
+            background: var(--paper-warm);
+            box-shadow: var(--shadow);
+        }
+
+        .chart-panel {
+            padding: clamp(1rem, 2vw, 1.4rem);
+        }
+
+        .chart-title {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            align-items: baseline;
+            margin-bottom: 0.6rem;
+            font-weight: 800;
+        }
+
+        .chart-title span {
+            color: var(--muted);
+            font-size: var(--small-size);
+            font-weight: 600;
+        }
+
+        .chart {
+            width: 100%;
+            height: clamp(320px, 42vw, 460px);
+        }
+
+        .side-panel {
+            padding: clamp(1.2rem, 2.5vw, 1.7rem);
+            display: grid;
+            align-content: start;
+            gap: 1rem;
+        }
+
+        .side-panel h3,
+        .content-panel h3,
+        .roadmap-card h3 {
+            font-size: var(--h3-size);
+            line-height: 1.2;
+            font-weight: 800;
+        }
+
+        .capsule-bars {
+            display: grid;
+            gap: 0.9rem;
+        }
+
+        .capsule-bar {
+            display: grid;
+            grid-template-columns: 7.8rem minmax(0, 1fr) 3.2rem;
+            gap: 0.8rem;
+            align-items: center;
+            font-size: var(--small-size);
+            font-weight: 700;
+        }
+
+        .capsule-track {
+            height: 1.1rem;
+            border: 1.5px solid var(--ink);
+            border-radius: var(--capsule);
+            background: var(--paper);
+            overflow: hidden;
+        }
+
+        .capsule-track span {
+            display: block;
+            width: var(--value);
+            height: 100%;
+            border-radius: var(--capsule);
+            background: var(--color);
+        }
+
+        .segment-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: clamp(1rem, 2.5vw, 1.6rem);
+        }
+
+        .segment-card {
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            gap: 1rem;
+            padding: clamp(1.2rem, 2.5vw, 1.6rem);
+            border: 1.5px solid var(--ink);
+            border-radius: var(--radius);
+            background: var(--paper-warm);
+            min-height: 310px;
+        }
+
+        .segment-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .segment-card h3 {
+            font-size: clamp(1.35rem, 2vw, 1.9rem);
+            line-height: 1.1;
+            font-weight: 800;
+        }
+
+        .segment-share {
+            flex: 0 0 auto;
+            min-width: 4rem;
+            height: 2.2rem;
+            display: grid;
+            place-items: center;
+            border: 1.5px solid var(--ink);
+            border-radius: var(--capsule);
+            background: var(--card-color);
+            font-weight: 800;
+        }
+
+        .segment-card p {
+            color: var(--muted);
+            line-height: 1.65;
+        }
+
+        .tag-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.48rem;
+            align-items: center;
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 2.35rem;
+            padding: 0.24rem 0.6rem;
+            border: 1.3px solid var(--ink);
+            border-radius: var(--capsule);
+            background: var(--card-color, var(--paper));
+            font-size: 0.78rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .journey-map {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .journey-step {
+            display: grid;
+            grid-template-columns: 8.8rem minmax(0, 1fr) minmax(180px, 0.32fr);
+            gap: 1rem;
+            align-items: stretch;
+            padding: 0.95rem;
+            border: 1.5px solid var(--ink);
+            border-radius: var(--radius);
+            background: var(--paper-warm);
+        }
+
+        .step-name {
+            display: grid;
+            align-content: center;
+            justify-items: start;
+            gap: 0.45rem;
+        }
+
+        .step-code {
+            display: inline-grid;
+            place-items: center;
+            min-width: 3.2rem;
+            height: 2rem;
+            border: 1.5px solid var(--ink);
+            border-radius: var(--capsule);
+            background: var(--step-color);
+            font-weight: 800;
+        }
+
+        .step-name strong {
+            font-size: 1.05rem;
+            line-height: 1.25;
+        }
+
+        .step-desc {
+            padding: 0.4rem 0;
+            color: var(--muted);
+        }
+
+        .step-score {
+            display: grid;
+            align-content: center;
+            gap: 0.55rem;
+        }
+
+        .score-line {
+            height: 1.15rem;
+            border: 1.5px solid var(--ink);
+            border-radius: var(--capsule);
+            background: var(--paper);
+            overflow: hidden;
+        }
+
+        .score-line span {
+            display: block;
+            height: 100%;
+            width: var(--value);
+            background: var(--step-color);
+            border-right: 1.5px solid var(--ink);
+            border-radius: var(--capsule);
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: clamp(1rem, 2.5vw, 1.6rem);
+        }
+
+        .content-panel {
+            padding: clamp(1.2rem, 2.8vw, 1.8rem);
+            border: 1.5px solid var(--ink);
+            border-radius: var(--radius);
+            background: var(--paper-warm);
+            display: grid;
+            gap: 1rem;
+        }
+
+        .content-panel p {
+            color: var(--muted);
+        }
+
+        .strategy-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
+            gap: clamp(1.2rem, 3vw, 2.4rem);
+            align-items: stretch;
+        }
+
+        .strategy-rail {
+            display: grid;
+            gap: 0.85rem;
+        }
+
+        .strategy-pill {
+            min-height: 4.3rem;
+            padding: 0.8rem 1rem;
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 0.9rem;
+            align-items: center;
+            border: 1.5px solid var(--ink);
+            border-radius: var(--capsule);
+            background: var(--pill-bg);
+        }
+
+        .strategy-pill b {
+            display: grid;
+            place-items: center;
+            width: 2.4rem;
+            height: 2.4rem;
+            border: 1.5px solid var(--ink);
+            border-radius: 50%;
+            background: var(--paper-warm);
+        }
+
+        .strategy-pill strong {
+            display: block;
+            line-height: 1.25;
+        }
+
+        .strategy-pill span {
+            color: var(--muted);
+            display: block;
+            font-size: var(--small-size);
+            line-height: 1.4;
+            margin-top: 0.16rem;
+        }
+
+        .roadmap {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.9rem;
+        }
+
+        .roadmap-card {
+            min-height: 265px;
+            padding: 1.1rem;
+            border: 1.5px solid var(--ink);
+            border-radius: var(--radius);
+            background: var(--paper-warm);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .roadmap-card .quarter {
+            display: inline-flex;
+            width: fit-content;
+            padding: 0.3rem 0.7rem;
+            border: 1.5px solid var(--ink);
+            border-radius: var(--capsule);
+            background: var(--quarter-color);
+            font-size: var(--small-size);
+            font-weight: 800;
+            margin-bottom: 0.9rem;
+        }
+
+        .roadmap-card ul,
+        .table-notes {
+            padding-left: 1.1rem;
+            color: var(--muted);
+        }
+
+        .roadmap-card li + li,
+        .table-notes li + li {
+            margin-top: 0.42rem;
+        }
+
+        .risk-table {
+            border: 1.5px solid var(--ink);
+            border-radius: var(--radius);
+            overflow: hidden;
+            background: var(--paper-warm);
+        }
+
+        .risk-row {
+            display: grid;
+            grid-template-columns: 1.1fr 0.72fr 1.18fr 0.52fr;
+            gap: 1rem;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1.5px solid var(--line);
+        }
+
+        .risk-row:last-child { border-bottom: none; }
+
+        .risk-row.header {
+            background: var(--ink);
+            color: var(--paper-warm);
+            font-size: var(--small-size);
+            font-weight: 800;
+            letter-spacing: 0.04em;
+        }
+
+        .risk-level {
+            display: inline-flex;
+            justify-content: center;
+            width: fit-content;
+            min-width: 4.5rem;
+            padding: 0.32rem 0.68rem;
+            border: 1.5px solid var(--ink);
+            border-radius: var(--capsule);
+            background: var(--level-color);
+            font-weight: 800;
+            font-size: var(--small-size);
+        }
+
+        .method-strip {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.7rem;
+        }
+
+        .method-item {
+            min-height: 138px;
+            padding: 1rem;
+            border: 1.5px solid var(--ink);
+            border-radius: var(--radius);
+            background: var(--paper-warm);
+        }
+
+        .method-item b {
+            display: inline-grid;
+            place-items: center;
+            min-width: 3.2rem;
+            height: 2rem;
+            margin-bottom: 0.8rem;
+            border: 1.5px solid var(--ink);
+            border-radius: var(--capsule);
+            background: var(--method-color);
+        }
+
+        .method-item p {
+            color: var(--muted);
+            font-size: var(--small-size);
+            line-height: 1.5;
+        }
+
+        .final-band {
+            padding: clamp(1.6rem, 4vw, 3rem);
+            border: 1.5px solid var(--ink);
+            border-radius: var(--radius);
+            background:
+                linear-gradient(120deg, rgba(255,125,102,0.18), transparent 36%),
+                linear-gradient(260deg, rgba(82,104,255,0.18), transparent 38%),
+                var(--paper-warm);
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 2rem;
+            align-items: end;
+        }
+
+        .final-band h2 {
+            font-size: clamp(2rem, 4.5vw, 4.4rem);
+            line-height: 1.02;
+            letter-spacing: 0;
+        }
+
+        .final-band p {
+            margin-top: 1rem;
+            color: var(--muted);
+        }
+
+        .final-capsules {
+            width: min(320px, 28vw);
+            display: grid;
+            gap: 0.7rem;
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(18px);
+            transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @media (max-width: 1080px) {
+            .report-cover,
+            .summary-layout,
+            .chart-row,
+            .strategy-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .cover-board {
+                align-self: auto;
+            }
+
+            .metric-grid,
+            .roadmap,
+            .method-strip {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .segment-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 780px) {
+            .report-cover {
+                min-height: auto;
+            }
+
+            .section-grid {
+                grid-template-columns: 1fr;
+                gap: 1.25rem;
+            }
+
+            .section-index {
+                position: static;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 1rem;
+                border-bottom: 1.5px solid var(--line);
+                padding-bottom: 0.9rem;
+            }
+
+            .index-note {
+                text-align: right;
+            }
+
+            .metric-grid,
+            .content-grid,
+            .method-strip,
+            .roadmap,
+            .cover-kpis {
+                grid-template-columns: 1fr;
+            }
+
+            .journey-step,
+            .risk-row {
+                grid-template-columns: 1fr;
+            }
+
+            .capsule-bar {
+                grid-template-columns: 1fr;
+                gap: 0.35rem;
+            }
+
+            .final-band {
+                grid-template-columns: 1fr;
+            }
+
+            .final-capsules {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .capsule-stack {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .token-wide,
+            .token-mid,
+            .token-small {
+                grid-column: span 1;
+            }
+
+            .signal-item {
+                border-radius: var(--radius);
+            }
+
+            .strategy-pill {
+                border-radius: var(--radius);
+            }
+        }
+
+        @media print {
+            body { background: var(--paper); }
+            .scroll-progress,
+            .back-to-top { display: none; }
+            .section-index { position: static; }
+            .reveal { opacity: 1; transform: none; }
+            .chart-panel, .side-panel, .narrative-block, .cover-kpi { box-shadow: none; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+            .reveal { opacity: 1; transform: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="scroll-progress" id="scrollProgress"></div>
+    <button class="back-to-top" id="backToTop" aria-label="回到顶部">↑</button>
+
+    <div class="report-shell">
+        <header class="report-cover">
+            <div>
+                <div class="cover-mark">
+                    <span class="cover-mark-dot" aria-hidden="true"></span>
+                    Capsule Signal Report 2026
+                </div>
+                <h1 class="cover-title">
+                    <span>产品体验</span>
+                    <span>信号报告</span>
+                </h1>
+                <p class="cover-subtitle">从碎片触点、用户情绪和履约数据中，识别下一轮产品体验增长的关键单元。</p>
+                <div class="cover-meta" aria-label="报告标签">
+                    <span class="pill mint">样本 18,420</span>
+                    <span class="pill coral">访谈 64 组</span>
+                    <span class="pill blue">周期 12 周</span>
+                    <span class="pill lemon">行业 消费科技</span>
+                </div>
+            </div>
+            <div class="cover-board" aria-label="报告核心指标">
+                <div class="capsule-stack">
+                    <span class="capsule-token token-wide token-coral"></span>
+                    <span class="capsule-token token-mid token-paper"></span>
+                    <span class="capsule-token token-small token-blue"></span>
+                    <span class="capsule-token token-mid token-mint"></span>
+                    <span class="capsule-token token-wide token-lemon"></span>
+                    <span class="capsule-token token-small token-lilac"></span>
+                    <span class="capsule-token token-small token-paper"></span>
+                    <span class="capsule-token token-wide token-blue"></span>
+                    <span class="capsule-token token-mid token-coral"></span>
+                    <span class="capsule-token token-wide token-mint"></span>
+                    <span class="capsule-token token-small token-lemon"></span>
+                    <span class="capsule-token token-mid token-paper"></span>
+                </div>
+                <div class="cover-kpis">
+                    <div class="cover-kpi">
+                        <strong>37%</strong>
+                        <span>用户流失发生在第 2 个关键触点之前</span>
+                    </div>
+                    <div class="cover-kpi">
+                        <strong>4.8x</strong>
+                        <span>高粘性用户更常使用跨端连续任务</span>
+                    </div>
+                    <div class="cover-kpi">
+                        <strong>21天</strong>
+                        <span>形成稳定使用习惯的中位周期</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="report-main">
+            <section class="report-section section-grid reveal" style="--section-color: var(--coral);">
+                <aside class="section-index">
+                    <div class="index-number">01</div>
+                    <p class="index-note">结论先行，帮助读者在三分钟内抓住报告判断。</p>
+                </aside>
+                <div class="section-body">
+                    <h2 class="section-title">执行摘要</h2>
+                    <p class="section-lead">本报告把用户体验拆成可管理的“胶囊单元”：每个单元都包含触发场景、用户情绪、产品响应和衡量指标。相比只看漏斗转化，这种切法更容易定位体验断点。</p>
+                    <div class="summary-layout">
+                        <div class="narrative-block">
+                            <p>2026 年，体验竞争不再只发生在功能完整度上，而是发生在用户能否快速理解、放心托付、连续完成一件事上。样本数据显示，低频用户并非缺少需求，而是在首次决策后的 72 小时内无法获得足够清晰的价值反馈。</p>
+                            <p>表现最好的产品团队有一个共同点：他们把服务拆成小而完整的胶囊单元，每个单元都能被命名、复用、追踪和优化。它们不追求一次解释全部能力，而是让用户在每个微任务里获得明确回报。</p>
+                        </div>
+                        <div class="signal-list">
+                            <div class="signal-item">
+                                <span class="signal-badge" style="--badge-color: var(--mint);">S1</span>
+                                <div class="signal-copy">
+                                    <strong>新手期要少解释，多完成</strong>
+                                    <span>首周留存与“首次成功任务”相关性最高，而不是功能浏览深度。</span>
+                                </div>
+                            </div>
+                            <div class="signal-item">
+                                <span class="signal-badge" style="--badge-color: var(--lemon);">S2</span>
+                                <div class="signal-copy">
+                                    <strong>跨端连续性成为粘性分水岭</strong>
+                                    <span>移动端发起、桌面端完成的用户，30 日复访率提升 31 个百分点。</span>
+                                </div>
+                            </div>
+                            <div class="signal-item">
+                                <span class="signal-badge" style="--badge-color: var(--lilac);">S3</span>
+                                <div class="signal-copy">
+                                    <strong>解释成本正在变成体验债务</strong>
+                                    <span>用户需要二次搜索才能理解的功能，后续付费意愿明显下降。</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="report-section section-grid reveal" style="--section-color: var(--mint);">
+                <aside class="section-index">
+                    <div class="index-number">02</div>
+                    <p class="index-note">核心指标用胶囊进度条表达状态，不额外堆装饰。</p>
+                </aside>
+                <div class="section-body">
+                    <h2 class="section-title">体验健康度指标</h2>
+                    <p class="section-lead">四个指标分别对应理解、信任、连续和复用。它们共同构成产品体验的健康面板，可以直接用于季度复盘。</p>
+                    <div class="metric-grid">
+                        <div class="metric-card">
+                            <strong>68</strong>
+                            <span>首次任务成功指数，较上季提升 9 点</span>
+                            <div class="meter"><i style="--value: 68%; --color: var(--mint);"></i></div>
+                        </div>
+                        <div class="metric-card">
+                            <strong>42%</strong>
+                            <span>关键路径解释负担，仍处于偏高区间</span>
+                            <div class="meter"><i style="--value: 42%; --color: var(--coral);"></i></div>
+                        </div>
+                        <div class="metric-card">
+                            <strong>74%</strong>
+                            <span>跨端任务续接率，高价值用户贡献明显</span>
+                            <div class="meter"><i style="--value: 74%; --color: var(--blue);"></i></div>
+                        </div>
+                        <div class="metric-card">
+                            <strong>2.6</strong>
+                            <span>平均复用场景数，低于目标区间 3.2</span>
+                            <div class="meter"><i style="--value: 52%; --color: var(--lemon);"></i></div>
+                        </div>
+                    </div>
+                    <div class="chart-row">
+                        <div class="chart-panel">
+                            <div class="chart-title">体验健康度趋势 <span>2025 Q1 至 2026 Q2</span></div>
+                            <div class="chart" id="healthChart"></div>
+                        </div>
+                        <div class="side-panel">
+                            <h3>读数说明</h3>
+                            <p>健康度并不是满意度的替代指标，它更偏向行为结果：用户是否完成、是否愿意继续、是否能把能力迁移到下一次使用。</p>
+                            <div class="capsule-bars">
+                                <div class="capsule-bar">
+                                    <b>理解</b>
+                                    <div class="capsule-track"><span style="--value: 68%; --color: var(--mint);"></span></div>
+                                    <em>68</em>
+                                </div>
+                                <div class="capsule-bar">
+                                    <b>信任</b>
+                                    <div class="capsule-track"><span style="--value: 61%; --color: var(--blue);"></span></div>
+                                    <em>61</em>
+                                </div>
+                                <div class="capsule-bar">
+                                    <b>连续</b>
+                                    <div class="capsule-track"><span style="--value: 74%; --color: var(--lemon);"></span></div>
+                                    <em>74</em>
+                                </div>
+                                <div class="capsule-bar">
+                                    <b>复用</b>
+                                    <div class="capsule-track"><span style="--value: 52%; --color: var(--coral);"></span></div>
+                                    <em>52</em>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="report-section section-grid reveal" style="--section-color: var(--blue);">
+                <aside class="section-index">
+                    <div class="index-number">03</div>
+                    <p class="index-note">用户不是平均数，分层后才能看清不同体验阻力。</p>
+                </aside>
+                <div class="section-body">
+                    <h2 class="section-title">用户分层与行为信号</h2>
+                    <p class="section-lead">我们将用户分成三类胶囊画像：探索者、推进者和整合者。三类人都需要产品价值，但触发点、焦虑点和复用理由完全不同。</p>
+                    <div class="segment-grid">
+                        <article class="segment-card" style="--card-color: var(--mint);">
+                            <div class="segment-head">
+                                <h3>探索者</h3>
+                                <span class="segment-share">46%</span>
+                            </div>
+                            <p>带着明确问题进入产品，但对长期价值仍观望。最需要短路径样例、即时反馈和低成本试错空间。</p>
+                            <div class="tag-row">
+                                <span class="tag">首周敏感</span>
+                                <span class="tag">样例驱动</span>
+                                <span class="tag">低承诺</span>
+                            </div>
+                        </article>
+                        <article class="segment-card" style="--card-color: var(--lemon);">
+                            <div class="segment-head">
+                                <h3>推进者</h3>
+                                <span class="segment-share">37%</span>
+                            </div>
+                            <p>已经把产品放进日常流程，但仍会被权限、协作和跨端中断拖慢。最看重稳定、透明和可恢复。</p>
+                            <div class="tag-row">
+                                <span class="tag">流程复用</span>
+                                <span class="tag">跨端任务</span>
+                                <span class="tag">团队协作</span>
+                            </div>
+                        </article>
+                        <article class="segment-card" style="--card-color: var(--lilac);">
+                            <div class="segment-head">
+                                <h3>整合者</h3>
+                                <span class="segment-share">17%</span>
+                            </div>
+                            <p>把产品当作工作系统的一部分，会主动连接数据、模板和自动化。他们贡献最高价值，也最容易遇到边界问题。</p>
+                            <div class="tag-row">
+                                <span class="tag">高频复用</span>
+                                <span class="tag">系统连接</span>
+                                <span class="tag">规则配置</span>
+                            </div>
+                        </article>
+                    </div>
+                </div>
+            </section>
+
+            <section class="report-section section-grid reveal" style="--section-color: var(--lemon);">
+                <aside class="section-index">
+                    <div class="index-number">04</div>
+                    <p class="index-note">触点诊断采用横向任务链，不强行做左右装饰分栏。</p>
+                </aside>
+                <div class="section-body">
+                    <h2 class="section-title">关键触点诊断</h2>
+                    <p class="section-lead">体验断点集中出现在“理解价值”和“恢复任务”两个位置。它们并不显眼，却会持续消耗用户信任。</p>
+                    <div class="journey-map">
+                        <div class="journey-step" style="--step-color: var(--mint);">
+                            <div class="step-name">
+                                <span class="step-code">A1</span>
+                                <strong>进入与识别</strong>
+                            </div>
+                            <p class="step-desc">用户通过搜索、邀请或外部链接进入产品，最需要知道当前页面能帮自己完成什么。</p>
+                            <div class="step-score">
+                                <div class="score-line"><span style="--value: 72%;"></span></div>
+                                <small>完成质量 72</small>
+                            </div>
+                        </div>
+                        <div class="journey-step" style="--step-color: var(--coral);">
+                            <div class="step-name">
+                                <span class="step-code">B2</span>
+                                <strong>首次决策</strong>
+                            </div>
+                            <p class="step-desc">定价、权限、默认模板和导入入口同时出现时，用户会推迟行动，甚至退出。</p>
+                            <div class="step-score">
+                                <div class="score-line"><span style="--value: 48%;"></span></div>
+                                <small>完成质量 48</small>
+                            </div>
+                        </div>
+                        <div class="journey-step" style="--step-color: var(--blue);">
+                            <div class="step-name">
+                                <span class="step-code">C3</span>
+                                <strong>任务推进</strong>
+                            </div>
+                            <p class="step-desc">当系统能保留上下文、给出下一步建议时，用户更容易进入连续使用状态。</p>
+                            <div class="step-score">
+                                <div class="score-line"><span style="--value: 76%;"></span></div>
+                                <small>完成质量 76</small>
+                            </div>
+                        </div>
+                        <div class="journey-step" style="--step-color: var(--lemon);">
+                            <div class="step-name">
+                                <span class="step-code">D4</span>
+                                <strong>恢复与复用</strong>
+                            </div>
+                            <p class="step-desc">用户回来时最怕找不到上次的状态。恢复体验决定产品能否进入工作习惯。</p>
+                            <div class="step-score">
+                                <div class="score-line"><span style="--value: 54%;"></span></div>
+                                <small>完成质量 54</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="report-section section-grid reveal" style="--section-color: var(--lilac);">
+                <aside class="section-index">
+                    <div class="index-number">05</div>
+                    <p class="index-note">图表服务于判断，旁边放解释，不做孤立大图。</p>
+                </aside>
+                <div class="section-body">
+                    <h2 class="section-title">渠道与留存表现</h2>
+                    <p class="section-lead">不同来源用户的粘性差异很大。自然搜索带来更高的问题明确度，团队邀请则更容易形成协作复用。</p>
+                    <div class="chart-row">
+                        <div class="chart-panel">
+                            <div class="chart-title">渠道留存与转化 <span>30 日观察窗口</span></div>
+                            <div class="chart" id="channelChart"></div>
+                        </div>
+                        <div class="side-panel">
+                            <h3>主要发现</h3>
+                            <p>团队邀请用户的激活率并非最高，但一旦完成首次协作，复访曲线最稳定。需要把邀请后的首个共同任务做得更短、更确定。</p>
+                            <div class="tag-row">
+                                <span class="pill mint">搜索：问题明确</span>
+                                <span class="pill blue">邀请：复用稳定</span>
+                                <span class="pill coral">广告：解释成本高</span>
+                                <span class="pill lemon">内容：教育周期长</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="report-section section-grid reveal" style="--section-color: var(--coral);">
+                <aside class="section-index">
+                    <div class="index-number">06</div>
+                    <p class="index-note">策略不是口号，每个方向都绑定体验单元和结果指标。</p>
+                </aside>
+                <div class="section-body">
+                    <h2 class="section-title">策略结构</h2>
+                    <p class="section-lead">建议用四条策略线重组体验工作：降低理解成本、强化任务连续、建立恢复机制、把高频能力封装成可复用胶囊。</p>
+                    <div class="strategy-grid">
+                        <div class="strategy-rail">
+                            <div class="strategy-pill" style="--pill-bg: var(--mint-soft);">
+                                <b>1</b>
+                                <div><strong>首个成功胶囊</strong><span>把新手引导压缩为一个可完成任务，而不是功能巡游。</span></div>
+                            </div>
+                            <div class="strategy-pill" style="--pill-bg: var(--blue-soft);">
+                                <b>2</b>
+                                <div><strong>跨端续接胶囊</strong><span>统一草稿、历史和下一步，减少用户重建上下文。</span></div>
+                            </div>
+                            <div class="strategy-pill" style="--pill-bg: var(--lemon-soft);">
+                                <b>3</b>
+                                <div><strong>解释减负胶囊</strong><span>把复杂配置拆成可预览、可撤销、可比较的小决策。</span></div>
+                            </div>
+                            <div class="strategy-pill" style="--pill-bg: var(--coral-soft);">
+                                <b>4</b>
+                                <div><strong>团队协作胶囊</strong><span>围绕邀请后的第一个共同动作设计默认流程。</span></div>
+                            </div>
+                        </div>
+                        <div class="content-panel">
+                            <h3>优先级判断</h3>
+                            <p>短期最该投入的是首个成功胶囊和恢复机制，它们直接影响首周留存。中期投入跨端续接和团队协作，可以把个人价值扩展为组织价值。长期再补充自动化与高级配置，否则容易让新用户提前面对复杂度。</p>
+                            <div class="capsule-bars">
+                                <div class="capsule-bar">
+                                    <b>留存影响</b>
+                                    <div class="capsule-track"><span style="--value: 86%; --color: var(--coral);"></span></div>
+                                    <em>高</em>
+                                </div>
+                                <div class="capsule-bar">
+                                    <b>实现成本</b>
+                                    <div class="capsule-track"><span style="--value: 58%; --color: var(--lemon);"></span></div>
+                                    <em>中</em>
+                                </div>
+                                <div class="capsule-bar">
+                                    <b>复用潜力</b>
+                                    <div class="capsule-track"><span style="--value: 79%; --color: var(--mint);"></span></div>
+                                    <em>高</em>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="report-section section-grid reveal" style="--section-color: var(--mint);">
+                <aside class="section-index">
+                    <div class="index-number">07</div>
+                    <p class="index-note">路线图以季度为单位，保证行动可以落地追踪。</p>
+                </aside>
+                <div class="section-body">
+                    <h2 class="section-title">行动路线图</h2>
+                    <p class="section-lead">路线图围绕可交付的体验单元展开，每个季度都要完成一个能被用户感知的变化，而不是只完成内部能力建设。</p>
+                    <div class="roadmap">
+                        <article class="roadmap-card">
+                            <div>
+                                <span class="quarter" style="--quarter-color: var(--mint);">Q1</span>
+                                <h3>清理入口噪音</h3>
+                            </div>
+                            <ul>
+                                <li>重写首次任务路径</li>
+                                <li>统一模板选择口径</li>
+                                <li>上线成功样例库</li>
+                            </ul>
+                        </article>
+                        <article class="roadmap-card">
+                            <div>
+                                <span class="quarter" style="--quarter-color: var(--lemon);">Q2</span>
+                                <h3>建立恢复体验</h3>
+                            </div>
+                            <ul>
+                                <li>新增上次状态入口</li>
+                                <li>补齐草稿和历史解释</li>
+                                <li>监控恢复失败原因</li>
+                            </ul>
+                        </article>
+                        <article class="roadmap-card">
+                            <div>
+                                <span class="quarter" style="--quarter-color: var(--blue);">Q3</span>
+                                <h3>强化跨端连续</h3>
+                            </div>
+                            <ul>
+                                <li>打通移动端发起流程</li>
+                                <li>优化桌面端接力提示</li>
+                                <li>上线任务续接指标</li>
+                            </ul>
+                        </article>
+                        <article class="roadmap-card">
+                            <div>
+                                <span class="quarter" style="--quarter-color: var(--coral);">Q4</span>
+                                <h3>封装团队胶囊</h3>
+                            </div>
+                            <ul>
+                                <li>重构邀请后的首任务</li>
+                                <li>发布协作模板包</li>
+                                <li>建立角色化权限说明</li>
+                            </ul>
+                        </article>
+                    </div>
+                </div>
+            </section>
+
+            <section class="report-section section-grid reveal" style="--section-color: var(--blue);">
+                <aside class="section-index">
+                    <div class="index-number">08</div>
+                    <p class="index-note">风险表保留报告感，便于直接替换成真实项目内容。</p>
+                </aside>
+                <div class="section-body">
+                    <h2 class="section-title">风险与治理</h2>
+                    <p class="section-lead">体验胶囊化的风险不在形式，而在过度拆分后让用户看不到整体价值。因此需要同步维护命名、指标和跨团队治理。</p>
+                    <div class="risk-table" role="table" aria-label="风险与治理表">
+                        <div class="risk-row header" role="row">
+                            <div>风险</div>
+                            <div>等级</div>
+                            <div>治理动作</div>
+                            <div>责任</div>
+                        </div>
+                        <div class="risk-row" role="row">
+                            <div>胶囊命名不统一，用户无法迁移理解</div>
+                            <div><span class="risk-level" style="--level-color: var(--lemon);">中</span></div>
+                            <div>建立体验词表，所有入口、教程、模板使用同一套任务名。</div>
+                            <div>产品</div>
+                        </div>
+                        <div class="risk-row" role="row">
+                            <div>数据指标只看点击，忽略任务结果</div>
+                            <div><span class="risk-level" style="--level-color: var(--coral);">高</span></div>
+                            <div>用“触发、完成、恢复、复用”四段指标替换单点点击率。</div>
+                            <div>数据</div>
+                        </div>
+                        <div class="risk-row" role="row">
+                            <div>复杂能力被过早暴露给新用户</div>
+                            <div><span class="risk-level" style="--level-color: var(--coral);">高</span></div>
+                            <div>为高级配置增加预览和撤销，默认路径只保留必要决策。</div>
+                            <div>设计</div>
+                        </div>
+                        <div class="risk-row" role="row">
+                            <div>跨端状态同步不稳定，损害信任</div>
+                            <div><span class="risk-level" style="--level-color: var(--lemon);">中</span></div>
+                            <div>给出同步状态、失败提示和本地恢复策略，避免无声丢失。</div>
+                            <div>工程</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="report-section section-grid reveal" style="--section-color: var(--lilac);">
+                <aside class="section-index">
+                    <div class="index-number">09</div>
+                    <p class="index-note">附录不是摆设，说明数据来源和替换方式。</p>
+                </aside>
+                <div class="section-body">
+                    <h2 class="section-title">研究方法</h2>
+                    <p class="section-lead">模板中的数据为示例口径，实际使用时可替换为产品埋点、问卷、访谈和客服工单数据。建议保持同一套指标定义，便于跨季度比较。</p>
+                    <div class="method-strip">
+                        <div class="method-item" style="--method-color: var(--mint);">
+                            <b>18K</b>
+                            <p>行为样本覆盖新用户、活跃用户和沉默用户，观察窗口为 30 天。</p>
+                        </div>
+                        <div class="method-item" style="--method-color: var(--lemon);">
+                            <b>64</b>
+                            <p>半结构访谈按画像分层招募，重点追问首次成功和中断恢复。</p>
+                        </div>
+                        <div class="method-item" style="--method-color: var(--blue);">
+                            <b>12W</b>
+                            <p>连续跟踪 12 周版本迭代，记录体验修复前后的指标变化。</p>
+                        </div>
+                        <div class="method-item" style="--method-color: var(--coral);">
+                            <b>4类</b>
+                            <p>把信号归入理解、信任、连续、复用四类，减少主观判断偏差。</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="final-band reveal">
+                <div>
+                    <h2>把体验做成可交付、可复用、可追踪的单元。</h2>
+                    <p>胶囊风格不只是视觉语言，也是一种报告结构：它让复杂问题被压缩成清晰单元，再通过数据和行动计划展开。</p>
+                </div>
+                <div class="final-capsules" aria-hidden="true">
+                    <span class="capsule-token token-wide token-coral"></span>
+                    <span class="capsule-token token-wide token-mint"></span>
+                    <span class="capsule-token token-wide token-blue"></span>
+                    <span class="capsule-token token-wide token-lemon"></span>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        class ReportPresentation {
+            constructor() {
+                this.progress = document.getElementById('scrollProgress');
+                this.backToTop = document.getElementById('backToTop');
+                this.initScrollProgress();
+                this.initBackToTop();
+                this.initReveal();
+                this.initCharts();
+            }
+
+            initScrollProgress() {
+                const update = () => {
+                    const scrollTop = window.scrollY || document.documentElement.scrollTop;
+                    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                    const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+                    this.progress.style.width = `${progress}%`;
+                };
+                window.addEventListener('scroll', update, { passive: true });
+                update();
+            }
+
+            initBackToTop() {
+                window.addEventListener('scroll', () => {
+                    this.backToTop.classList.toggle('visible', window.scrollY > 600);
+                }, { passive: true });
+                this.backToTop.addEventListener('click', () => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                });
+            }
+
+            initReveal() {
+                const items = document.querySelectorAll('.reveal');
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach((entry) => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('visible');
+                            observer.unobserve(entry.target);
+                        }
+                    });
+                }, { threshold: 0.12, rootMargin: '0px 0px -80px 0px' });
+                items.forEach((item) => observer.observe(item));
+            }
+
+            initCharts() {
+                if (!window.echarts) return;
+                this.initHealthChart();
+                this.initChannelChart();
+            }
+
+            chartText() {
+                return {
+                    color: '#66615a',
+                    fontFamily: 'Albert Sans, Noto Sans SC, sans-serif'
+                };
+            }
+
+            initHealthChart() {
+                const el = document.getElementById('healthChart');
+                if (!el) return;
+                const chart = echarts.init(el);
+                chart.setOption({
+                    backgroundColor: 'transparent',
+                    tooltip: {
+                        trigger: 'axis',
+                        backgroundColor: '#fbf7ef',
+                        borderColor: '#22211f',
+                        borderWidth: 1.5,
+                        textStyle: { color: '#22211f' }
+                    },
+                    legend: {
+                        top: 4,
+                        right: 8,
+                        textStyle: this.chartText()
+                    },
+                    grid: { left: 42, right: 24, top: 54, bottom: 42 },
+                    xAxis: {
+                        type: 'category',
+                        boundaryGap: false,
+                        data: ['25Q1', '25Q2', '25Q3', '25Q4', '26Q1', '26Q2'],
+                        axisLine: { lineStyle: { color: 'rgba(34,33,31,0.45)' } },
+                        axisTick: { show: false },
+                        axisLabel: this.chartText()
+                    },
+                    yAxis: {
+                        type: 'value',
+                        min: 30,
+                        max: 90,
+                        axisLabel: this.chartText(),
+                        splitLine: { lineStyle: { color: 'rgba(34,33,31,0.12)', type: 'dashed' } }
+                    },
+                    series: [
+                        {
+                            name: '理解',
+                            type: 'line',
+                            smooth: true,
+                            symbol: 'circle',
+                            symbolSize: 8,
+                            lineStyle: { width: 3, color: '#73d99f' },
+                            itemStyle: { color: '#73d99f', borderColor: '#22211f', borderWidth: 1.5 },
+                            data: [49, 53, 55, 58, 63, 68]
+                        },
+                        {
+                            name: '连续',
+                            type: 'line',
+                            smooth: true,
+                            symbol: 'circle',
+                            symbolSize: 8,
+                            lineStyle: { width: 3, color: '#5268ff' },
+                            itemStyle: { color: '#5268ff', borderColor: '#22211f', borderWidth: 1.5 },
+                            areaStyle: {
+                                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                    { offset: 0, color: 'rgba(82,104,255,0.2)' },
+                                    { offset: 1, color: 'rgba(82,104,255,0.02)' }
+                                ])
+                            },
+                            data: [55, 57, 61, 65, 70, 74]
+                        },
+                        {
+                            name: '复用',
+                            type: 'line',
+                            smooth: true,
+                            symbol: 'circle',
+                            symbolSize: 8,
+                            lineStyle: { width: 3, color: '#ff7d66' },
+                            itemStyle: { color: '#ff7d66', borderColor: '#22211f', borderWidth: 1.5 },
+                            data: [44, 45, 47, 49, 51, 52]
+                        }
+                    ]
+                });
+                window.addEventListener('resize', () => chart.resize());
+            }
+
+            initChannelChart() {
+                const el = document.getElementById('channelChart');
+                if (!el) return;
+                const chart = echarts.init(el);
+                chart.setOption({
+                    backgroundColor: 'transparent',
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: { type: 'shadow' },
+                        backgroundColor: '#fbf7ef',
+                        borderColor: '#22211f',
+                        borderWidth: 1.5,
+                        textStyle: { color: '#22211f' }
+                    },
+                    legend: {
+                        top: 4,
+                        right: 8,
+                        textStyle: this.chartText()
+                    },
+                    grid: { left: 42, right: 24, top: 54, bottom: 46 },
+                    xAxis: {
+                        type: 'category',
+                        data: ['自然搜索', '团队邀请', '内容文章', '付费广告'],
+                        axisLine: { lineStyle: { color: 'rgba(34,33,31,0.45)' } },
+                        axisTick: { show: false },
+                        axisLabel: this.chartText()
+                    },
+                    yAxis: {
+                        type: 'value',
+                        axisLabel: { ...this.chartText(), formatter: '{value}%' },
+                        splitLine: { lineStyle: { color: 'rgba(34,33,31,0.12)', type: 'dashed' } }
+                    },
+                    series: [
+                        {
+                            name: '激活率',
+                            type: 'bar',
+                            barWidth: 24,
+                            itemStyle: { color: '#73d99f', borderColor: '#22211f', borderWidth: 1.2, borderRadius: [12, 12, 0, 0] },
+                            data: [64, 58, 47, 39]
+                        },
+                        {
+                            name: '30日留存',
+                            type: 'bar',
+                            barWidth: 24,
+                            itemStyle: { color: '#5268ff', borderColor: '#22211f', borderWidth: 1.2, borderRadius: [12, 12, 0, 0] },
+                            data: [38, 52, 34, 22]
+                        },
+                        {
+                            name: '付费转化',
+                            type: 'line',
+                            smooth: true,
+                            symbol: 'circle',
+                            symbolSize: 9,
+                            lineStyle: { color: '#ff7d66', width: 3 },
+                            itemStyle: { color: '#ff7d66', borderColor: '#22211f', borderWidth: 1.5 },
+                            data: [14, 21, 12, 8]
+                        }
+                    ]
+                });
+                window.addEventListener('resize', () => chart.resize());
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            new ReportPresentation();
+        });
+    </script>
+</body>
+</html>

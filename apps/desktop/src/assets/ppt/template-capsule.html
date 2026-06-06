@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>胶囊叙事</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,700;6..96,800;6..96,900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --paper: oklch(0.965 0.012 89);
+            --paper-2: oklch(0.925 0.018 89);
+            --ink: oklch(0.18 0.018 55);
+            --ink-soft: oklch(0.34 0.018 55);
+            --ink-faint: oklch(0.62 0.012 55);
+            --line: oklch(0.2 0.018 55);
+            --white-chip: oklch(0.985 0.006 89);
+            --coral: oklch(0.68 0.18 32);
+            --citron: oklch(0.84 0.16 112);
+            --lavender: oklch(0.77 0.105 304);
+            --sky: oklch(0.73 0.13 252);
+            --mint: oklch(0.82 0.11 165);
+            --peach: oklch(0.82 0.105 61);
+            --violet: oklch(0.62 0.18 294);
+            --rose: oklch(0.74 0.15 8);
+            --shadow: oklch(0.18 0.018 55 / 0.1);
+            --shadow-strong: oklch(0.18 0.018 55 / 0.18);
+            --font-display: "Bodoni Moda", "Source Han Serif SC", "Songti SC", Georgia, serif;
+            --font-body: "Space Grotesk", "PingFang SC", "Microsoft YaHei", sans-serif;
+            --fs-giant: clamp(5rem, 12.5vw, 12.5rem);
+            --fs-display: clamp(3.3rem, 8vw, 8.8rem);
+            --fs-hero: clamp(2.5rem, 5.8vw, 6.4rem);
+            --fs-h2: clamp(1.8rem, 3.6vw, 4rem);
+            --fs-h3: clamp(1.22rem, 2.1vw, 2.25rem);
+            --fs-body: clamp(0.96rem, 1.2vw, 1.22rem);
+            --fs-small: clamp(0.78rem, 0.95vw, 0.98rem);
+            --fs-label: clamp(0.66rem, 0.78vw, 0.82rem);
+            --fs-stat: clamp(3.2rem, 7vw, 7.6rem);
+            --pad-x: clamp(3rem, 8vw, 10vw);
+            --pad-y: clamp(2.5rem, 6vh, 7rem);
+            --space-xs: clamp(0.45rem, 0.8vw, 0.8rem);
+            --space-sm: clamp(0.8rem, 1.35vw, 1.35rem);
+            --space-md: clamp(1.2rem, 2.4vw, 2.4rem);
+            --space-lg: clamp(1.8rem, 3.6vw, 4rem);
+            --space-xl: clamp(2.6rem, 5.4vw, 6rem);
+            --ease: cubic-bezier(0.16, 1, 0.3, 1);
+            --dur-slide: 650ms;
+            --dur-reveal: 620ms;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; overflow: hidden; -webkit-font-smoothing: antialiased; }
+        body {
+            background: var(--paper);
+            color: var(--ink);
+            font-family: var(--font-body);
+            font-size: var(--fs-body);
+            line-height: 1.56;
+        }
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background:
+                linear-gradient(90deg, oklch(0.2 0.018 55 / 0.035) 1px, transparent 1px),
+                linear-gradient(oklch(0.2 0.018 55 / 0.03) 1px, transparent 1px);
+            background-size: 34px 34px;
+            mask-image: linear-gradient(180deg, transparent, black 12%, black 88%, transparent);
+            opacity: 0.55;
+            z-index: 0;
+        }
+
+        .slide {
+            position: absolute;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: var(--pad-y) var(--pad-x);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity var(--dur-slide) var(--ease), visibility 0s linear var(--dur-slide);
+            z-index: 1;
+        }
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transition: opacity var(--dur-slide) var(--ease), visibility 0s linear 0s;
+        }
+        .slide::after {
+            content: attr(data-kicker);
+            position: absolute;
+            top: clamp(1.2rem, 3vh, 2rem);
+            left: var(--pad-x);
+            font-size: var(--fs-label);
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--ink-faint);
+        }
+
+        .reveal, .reveal-left, .reveal-right, .reveal-scale {
+            opacity: 0;
+            transition: opacity var(--dur-reveal) var(--ease), transform var(--dur-reveal) var(--ease);
+        }
+        .reveal { transform: translateY(18px); }
+        .reveal-left { transform: translateX(-24px); }
+        .reveal-right { transform: translateX(24px); }
+        .reveal-scale { transform: scale(0.94); }
+        .slide.active .reveal,
+        .slide.active .reveal-left,
+        .slide.active .reveal-right,
+        .slide.active .reveal-scale { opacity: 1; transform: none; }
+        .delay-1 { transition-delay: 100ms; }
+        .delay-2 { transition-delay: 200ms; }
+        .delay-3 { transition-delay: 300ms; }
+        .delay-4 { transition-delay: 400ms; }
+        .delay-5 { transition-delay: 500ms; }
+        .delay-6 { transition-delay: 600ms; }
+
+        #progressBar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: oklch(0.2 0.018 55 / 0.1);
+            z-index: 9999;
+        }
+        #progressFill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--coral), var(--citron), var(--sky), var(--lavender));
+            transition: width 520ms var(--ease);
+        }
+        #counter {
+            position: fixed;
+            right: clamp(1.4rem, 3.5vw, 3rem);
+            bottom: clamp(1.2rem, 3vh, 2.2rem);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            border: 2px solid var(--line);
+            border-radius: 999px;
+            background: var(--white-chip);
+            padding: 0.42rem 0.9rem;
+            box-shadow: 5px 5px 0 var(--shadow);
+            font-size: var(--fs-label);
+            font-weight: 700;
+            letter-spacing: 0.08em;
+        }
+        #counter span { color: var(--ink-faint); }
+
+        h1, h2, h3, .serif {
+            font-family: var(--font-display);
+            line-height: 0.96;
+            letter-spacing: 0;
+        }
+        h1 { font-size: var(--fs-display); font-weight: 900; }
+        h2 { font-size: var(--fs-h2); font-weight: 800; }
+        h3 { font-size: var(--fs-h3); font-weight: 800; }
+        p { color: var(--ink-soft); }
+        .muted { color: var(--ink-faint); }
+        .lead { font-size: clamp(1.05rem, 1.55vw, 1.5rem); line-height: 1.55; }
+        .label {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--line);
+            border-radius: 999px;
+            background: var(--citron);
+            padding: 0.48rem 1.2rem;
+            box-shadow: 5px 5px 0 var(--shadow);
+            font-size: var(--fs-label);
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--line);
+            border-radius: 999px;
+            background: var(--white-chip);
+            padding: 0.55rem 1.2rem;
+            font-size: var(--fs-small);
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .soft-card {
+            border: 2px solid var(--line);
+            border-radius: 28px;
+            background: var(--white-chip);
+            box-shadow: 8px 8px 0 var(--shadow);
+        }
+        .rule {
+            width: clamp(70px, 8vw, 120px);
+            height: 5px;
+            border: 2px solid var(--line);
+            border-radius: 999px;
+            background: var(--coral);
+            box-shadow: 5px 5px 0 var(--shadow);
+        }
+        .caption {
+            font-size: var(--fs-label);
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--ink-faint);
+        }
+        .float-pill {
+            position: absolute;
+            z-index: 0;
+            border: 2px solid var(--line);
+            border-radius: 999px;
+            padding: 0.48rem 1.1rem;
+            font-size: var(--fs-label);
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--ink);
+        }
+        .float-dot {
+            position: absolute;
+            z-index: 0;
+            width: clamp(54px, 6vw, 86px);
+            height: clamp(54px, 6vw, 86px);
+            border: 2px solid var(--line);
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            font-family: var(--font-display);
+            font-size: clamp(1.2rem, 2vw, 2rem);
+            font-weight: 900;
+        }
+        .content { position: relative; z-index: 2; }
+        .two-col { display: grid; grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr); gap: var(--space-lg); align-items: center; }
+        .three-col { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-md); }
+        .four-col { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-sm); }
+        .stack { display: grid; gap: var(--space-sm); }
+
+        .slide-cover {
+            align-items: center;
+            text-align: center;
+        }
+        .slide-cover h1 {
+            font-size: var(--fs-giant);
+            margin: var(--space-md) auto 0;
+        }
+        .slide-cover em {
+            font-style: normal;
+            color: var(--coral);
+        }
+        .cover-sub {
+            margin: var(--space-md) auto 0;
+            font-size: var(--fs-small);
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--ink-faint);
+        }
+
+        .toc-wrap { display: grid; gap: var(--space-lg); align-items: center; }
+        .toc-title {
+            display: grid;
+            gap: var(--space-md);
+        }
+        .toc-title h2 {
+            font-size: clamp(3.4rem, 7.5vw, 8.2rem);
+        }
+        .toc-stage {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            text-align: left;
+            padding: 0;
+        }
+        .toc-num {
+            font-family: var(--font-display);
+            font-size: clamp(5.6rem, 11vw, 11rem);
+            font-weight: 900;
+            line-height: 0.78;
+            color: var(--coral);
+            text-shadow: 8px 8px 0 var(--shadow);
+            margin-top: var(--space-sm);
+        }
+        .toc-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.7rem;
+            margin-top: var(--space-sm);
+        }
+        .toc-pills .pill {
+            box-shadow: 4px 4px 0 var(--shadow);
+        }
+        .toc-list {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: var(--space-sm);
+        }
+        .toc-item {
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            align-items: start;
+            gap: var(--space-sm);
+            border: 2px solid var(--line);
+            border-radius: 30px;
+            background: var(--white-chip);
+            padding: clamp(1.2rem, 2vw, 1.8rem);
+            min-height: clamp(190px, 24vh, 250px);
+            box-shadow: 7px 7px 0 var(--shadow);
+        }
+        .toc-item b { font-family: var(--font-display); font-size: clamp(1.35rem, 2.3vw, 2.5rem); line-height: 1; }
+        .toc-item small { color: var(--ink-faint); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+        .toc-item .pill { justify-self: start; }
+
+        .center-stack {
+            display: grid;
+            gap: var(--space-lg);
+            justify-items: stretch;
+            text-align: left;
+        }
+        .capsule-cluster {
+            width: min(100%, 1120px);
+            min-height: clamp(280px, 42vh, 430px);
+            position: relative;
+            border: 2px solid var(--line);
+            border-radius: 42px;
+            background: var(--paper-2);
+            box-shadow: 10px 10px 0 var(--shadow);
+            overflow: hidden;
+        }
+        .capsule-cluster .big-pill {
+            position: absolute;
+            border: 2px solid var(--line);
+            border-radius: 999px;
+            display: grid;
+            place-items: center;
+            font-weight: 800;
+            box-shadow: 6px 6px 0 var(--shadow);
+        }
+        .frame-system {
+            display: grid;
+            grid-template-columns: 0.82fr 1.18fr;
+            gap: var(--space-lg);
+            align-items: stretch;
+        }
+        .frame-copy {
+            display: grid;
+            align-content: center;
+            gap: var(--space-md);
+        }
+        .frame-board {
+            position: relative;
+            min-height: clamp(430px, 58vh, 620px);
+            border: 2px solid var(--line);
+            border-radius: 34px;
+            background: var(--paper-2);
+            box-shadow: 10px 10px 0 var(--shadow);
+            overflow: hidden;
+        }
+        .frame-board .system-pill {
+            position: absolute;
+            border: 2px solid var(--line);
+            border-radius: 999px;
+            display: grid;
+            place-items: center;
+            font-weight: 800;
+            box-shadow: 6px 6px 0 var(--shadow);
+        }
+        .frame-board .system-note {
+            position: absolute;
+            border: 2px solid var(--line);
+            border-radius: 22px;
+            background: var(--white-chip);
+            padding: 0.85rem 1rem;
+            font-size: var(--fs-small);
+            font-weight: 700;
+            color: var(--ink-soft);
+        }
+        .balanced-orbit {
+            display: grid;
+            grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.28fr);
+            align-items: center;
+            gap: var(--space-xl);
+        }
+        .balanced-orbit .orbit { width: 100%; min-height: clamp(330px, 52vh, 520px); }
+        .balanced-panel {
+            display: grid;
+            gap: var(--space-lg);
+            justify-items: stretch;
+            text-align: left;
+        }
+        .balanced-flow {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: var(--space-md);
+        }
+        .flow-card {
+            min-height: 210px;
+            padding: var(--space-md);
+            display: grid;
+            align-content: space-between;
+            justify-items: start;
+            text-align: left;
+        }
+        .flow-card b {
+            width: 58px;
+            height: 58px;
+            border: 2px solid var(--line);
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            font-family: var(--font-display);
+            font-size: 1.6rem;
+            background: var(--peach);
+        }
+        .data-board {
+            width: 100%;
+            padding: var(--space-md);
+        }
+        .map-balanced {
+            display: grid;
+            gap: var(--space-lg);
+            justify-items: stretch;
+            text-align: left;
+        }
+        .map-balanced .map-board { width: 100%; min-height: clamp(360px, 52vh, 520px); }
+        .stakeholder-map {
+            display: grid;
+            grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
+            gap: var(--space-lg);
+            align-items: stretch;
+        }
+        .stakeholder-copy {
+            display: grid;
+            align-content: center;
+            gap: var(--space-md);
+        }
+        .stakeholder-board {
+            position: relative;
+            min-height: clamp(430px, 58vh, 620px);
+            border: 2px solid var(--line);
+            border-radius: 34px;
+            background: var(--paper-2);
+            box-shadow: 10px 10px 0 var(--shadow);
+            overflow: hidden;
+        }
+        .stakeholder-ring {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: min(58%, 460px);
+            aspect-ratio: 1;
+            transform: translate(-50%, -50%);
+            border: 2px dashed oklch(0.2 0.018 55 / 0.28);
+            border-radius: 50%;
+        }
+        .stakeholder-line {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 30%;
+            height: 2px;
+            background: oklch(0.2 0.018 55 / 0.26);
+            transform-origin: left center;
+        }
+        .stakeholder-board .pill,
+        .stakeholder-board .map-center {
+            position: absolute;
+            z-index: 2;
+            box-shadow: 5px 5px 0 var(--shadow);
+        }
+        .layout-gallery {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: var(--space-sm);
+            width: min(100%, 1040px);
+        }
+        .layout-tile {
+            min-height: 290px;
+            padding: var(--space-md);
+            display: grid;
+            gap: 1rem;
+            align-content: space-between;
+        }
+        .layout-mini {
+            display: grid;
+            gap: 0.7rem;
+            min-height: 150px;
+        }
+        .layout-mini span {
+            border: 2px solid var(--line);
+            border-radius: 999px;
+            background: var(--paper-2);
+        }
+        .summary-balanced {
+            display: grid;
+            gap: var(--space-lg);
+            justify-items: stretch;
+            text-align: left;
+        }
+        .summary-balanced .summary-list {
+            width: 100%;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .summary-balanced {
+            position: relative;
+        }
+        .summary-accent {
+            content: "";
+            position: absolute;
+            border: 2px solid var(--line);
+            border-radius: 999px;
+            pointer-events: none;
+            z-index: -1;
+            opacity: 0.82;
+            box-shadow: 6px 6px 0 var(--shadow);
+        }
+        .summary-accent--top {
+            width: clamp(190px, 18vw, 320px);
+            height: clamp(58px, 6vw, 90px);
+            right: 4%;
+            top: -8%;
+            background: var(--lavender);
+            transform: rotate(7deg);
+        }
+        .summary-balanced .summary-item {
+            min-height: 108px;
+            padding: 1rem 1.2rem;
+            border-radius: 30px;
+            grid-template-columns: auto 1fr auto;
+        }
+        .summary-balanced .summary-item b {
+            background: var(--item-color, var(--citron));
+            box-shadow: 4px 4px 0 var(--shadow);
+        }
+        .summary-balanced .summary-item span {
+            font-size: clamp(1rem, 1.25vw, 1.22rem);
+            font-weight: 700;
+        }
+        .summary-balanced .summary-item::after {
+            content: "";
+            justify-self: end;
+            align-self: center;
+            width: clamp(70px, 7vw, 112px);
+            height: 18px;
+            border: 2px solid var(--line);
+            border-radius: 999px;
+            background: var(--item-color, var(--citron));
+        }
+
+        .chapter {
+            align-items: flex-start;
+            justify-content: flex-end;
+            padding-bottom: clamp(4rem, 12vh, 8rem);
+        }
+        .chapter .ghost {
+            position: absolute;
+            right: var(--pad-x);
+            top: clamp(2rem, 8vh, 6rem);
+            font-family: var(--font-display);
+            font-size: clamp(9rem, 25vw, 26rem);
+            font-weight: 900;
+            line-height: 0.8;
+            color: oklch(0.2 0.018 55 / 0.08);
+        }
+        .chapter-pills {
+            position: absolute;
+            right: var(--pad-x);
+            bottom: clamp(5rem, 12vh, 9rem);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 0.8rem;
+            max-width: min(40vw, 620px);
+            z-index: 1;
+        }
+        .chapter-pills .pill {
+            box-shadow: 5px 5px 0 var(--shadow);
+        }
+        .split-title h2 { margin-top: var(--space-sm); }
+        .split-title p { margin-top: var(--space-md); }
+        .blob-board {
+            min-height: clamp(350px, 52vh, 560px);
+            position: relative;
+            border: 2px solid var(--line);
+            border-radius: 42px;
+            background: var(--paper-2);
+            box-shadow: 10px 10px 0 var(--shadow);
+            overflow: hidden;
+        }
+        .blob-board .big-pill {
+            position: absolute;
+            border: 2px solid var(--line);
+            border-radius: 999px;
+            display: grid;
+            place-items: center;
+            font-weight: 800;
+            box-shadow: 6px 6px 0 var(--shadow);
+        }
+        .big-pill.one { width: 58%; height: 28%; left: 9%; top: 12%; background: var(--sky); transform: rotate(-8deg); }
+        .big-pill.two { width: 50%; height: 24%; right: 8%; top: 42%; background: var(--citron); transform: rotate(10deg); }
+        .big-pill.three { width: 42%; height: 20%; left: 20%; bottom: 10%; background: var(--lavender); transform: rotate(-3deg); }
+
+        .pillar {
+            min-height: 28vh;
+            padding: var(--space-md);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .pillar .index {
+            width: 62px;
+            height: 62px;
+            border: 2px solid var(--line);
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            font-weight: 900;
+        }
+        .pillar p { margin-top: var(--space-sm); font-size: var(--fs-small); }
+
+        .orbit {
+            min-height: 56vh;
+            position: relative;
+            display: grid;
+            place-items: center;
+        }
+        .orbit::before {
+            content: "";
+            position: absolute;
+            width: min(45vw, 540px);
+            aspect-ratio: 1;
+            border: 2px dashed oklch(0.2 0.018 55 / 0.28);
+            border-radius: 50%;
+        }
+        .orbit-core {
+            width: clamp(160px, 18vw, 240px);
+            aspect-ratio: 1;
+            border: 2px solid var(--line);
+            border-radius: 50%;
+            background: var(--citron);
+            display: grid;
+            place-items: center;
+            box-shadow: 10px 10px 0 var(--shadow);
+            font-family: var(--font-display);
+            font-size: clamp(2.8rem, 5vw, 5.8rem);
+            font-weight: 900;
+            z-index: 2;
+        }
+        .orbit .pill { position: absolute; box-shadow: 5px 5px 0 var(--shadow); }
+
+        .versus {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: var(--space-md);
+            align-items: stretch;
+        }
+        .versus-card { padding: var(--space-md); }
+        .versus-card h3 { margin-bottom: var(--space-md); }
+        .versus-card li {
+            list-style: none;
+            display: flex;
+            gap: 0.8rem;
+            align-items: flex-start;
+            padding: 0.7rem 0;
+            border-top: 2px solid oklch(0.2 0.018 55 / 0.1);
+            color: var(--ink-soft);
+        }
+        .versus-card li::before {
+            content: "";
+            width: 0.7rem;
+            height: 0.7rem;
+            border: 2px solid var(--line);
+            border-radius: 50%;
+            background: var(--coral);
+            flex: 0 0 auto;
+            margin-top: 0.42rem;
+        }
+        .vs-mark {
+            width: clamp(80px, 9vw, 120px);
+            align-self: center;
+            aspect-ratio: 1;
+            border: 2px solid var(--line);
+            border-radius: 50%;
+            background: var(--ink);
+            color: var(--paper);
+            display: grid;
+            place-items: center;
+            font-family: var(--font-display);
+            font-size: clamp(2rem, 4vw, 4rem);
+            font-weight: 900;
+            box-shadow: 7px 7px 0 var(--shadow-strong);
+        }
+
+        .timeline {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            align-items: center;
+            gap: 0;
+            margin-top: var(--space-lg);
+        }
+        .time-node { position: relative; min-height: 250px; padding: 0 var(--space-xs); }
+        .time-node::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 72px;
+            height: 4px;
+            background: var(--line);
+        }
+        .time-dot {
+            position: relative;
+            width: 86px;
+            height: 86px;
+            border: 2px solid var(--line);
+            border-radius: 50%;
+            background: var(--white-chip);
+            display: grid;
+            place-items: center;
+            font-family: var(--font-display);
+            font-size: 1.8rem;
+            font-weight: 900;
+            box-shadow: 6px 6px 0 var(--shadow);
+            z-index: 2;
+        }
+        .time-node h3 { margin-top: var(--space-sm); font-size: clamp(1rem, 1.5vw, 1.5rem); }
+        .time-node p { margin-top: 0.4rem; font-size: var(--fs-small); }
+
+        .conveyor {
+            display: grid;
+            grid-template-columns: 0.9fr 1.1fr;
+            gap: var(--space-xl);
+            align-items: center;
+        }
+        .steps { display: grid; gap: 1rem; }
+        .step {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 1rem;
+            align-items: center;
+            border: 2px solid var(--line);
+            border-radius: 999px;
+            background: var(--white-chip);
+            padding: 0.65rem 1rem;
+            box-shadow: 5px 5px 0 var(--shadow);
+        }
+        .step b {
+            width: 42px;
+            height: 42px;
+            border: 2px solid var(--line);
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: var(--peach);
+            font-family: var(--font-display);
+        }
+        .step span { font-weight: 700; }
+
+        .quote {
+            max-width: 980px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        .quote h2 {
+            font-size: clamp(2.4rem, 5.6vw, 6.5rem);
+            line-height: 1.05;
+        }
+        .quote .highlight {
+            display: inline-flex;
+            border: 2px solid var(--line);
+            border-radius: 999px;
+            background: var(--mint);
+            padding: 0 0.35em 0.08em;
+            box-shadow: 7px 7px 0 var(--shadow);
+        }
+
+        .bars { display: grid; gap: 1rem; margin-top: var(--space-md); }
+        .bar-row { display: grid; grid-template-columns: 140px 1fr 72px; gap: 1rem; align-items: center; }
+        .bar-track {
+            height: 40px;
+            border: 2px solid var(--line);
+            border-radius: 999px;
+            overflow: hidden;
+            background: var(--white-chip);
+        }
+        .bar-fill {
+            height: 100%;
+            width: 0%;
+            border-right: 2px solid var(--line);
+            border-radius: 999px;
+            transition: width 1200ms var(--ease);
+        }
+        .bar-row strong { font-family: var(--font-display); font-size: 1.3rem; }
+
+        .metric-strip {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: var(--space-sm);
+            margin-top: var(--space-lg);
+        }
+        .metric-card {
+            min-height: clamp(250px, 38vh, 360px);
+            padding: clamp(1.4rem, 2.6vw, 2.4rem);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
+        }
+        .metric-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+        .metric-top .pill {
+            padding: 0.32rem 0.82rem;
+            font-size: var(--fs-label);
+            box-shadow: 4px 4px 0 var(--shadow);
+        }
+        .metric-value {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.14em;
+            font-family: var(--font-display);
+            font-weight: 900;
+            line-height: 0.78;
+            letter-spacing: 0;
+            font-size: clamp(4rem, 8vw, 9rem);
+            white-space: nowrap;
+        }
+        .metric-value small {
+            margin-top: 0.18em;
+            font-family: var(--font-body);
+            font-size: clamp(1.4rem, 2.5vw, 2.7rem);
+            font-weight: 800;
+            line-height: 1;
+        }
+        .metric-card p {
+            font-size: clamp(1rem, 1.35vw, 1.35rem);
+            font-weight: 700;
+            color: var(--ink-soft);
+        }
+        .metric-body {
+            display: grid;
+            gap: clamp(1.1rem, 2vh, 1.8rem);
+        }
+        .metric-note {
+            font-size: var(--fs-small);
+            line-height: 1.45;
+            color: var(--ink-faint);
+        }
+        .metric-rail {
+            height: 18px;
+            border: 2px solid var(--line);
+            border-radius: 999px;
+            background: var(--paper-2);
+            overflow: hidden;
+        }
+        .metric-rail span {
+            display: block;
+            height: 100%;
+            border-right: 2px solid var(--line);
+            border-radius: 999px;
+        }
+
+        .matrix {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-sm);
+            margin-top: var(--space-md);
+        }
+        .matrix-cell {
+            min-height: 190px;
+            padding: var(--space-md);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .matrix-cell small { font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); }
+
+        .map {
+            display: grid;
+            grid-template-columns: 1fr 1.1fr;
+            gap: var(--space-lg);
+            align-items: center;
+        }
+        .map-board {
+            min-height: 52vh;
+            position: relative;
+            border: 2px solid var(--line);
+            border-radius: 38px;
+            background: var(--paper-2);
+            box-shadow: 10px 10px 0 var(--shadow);
+        }
+        .map-board .pill { position: absolute; box-shadow: 5px 5px 0 var(--shadow); z-index: 2; }
+        .map-line {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 30%;
+            height: 2px;
+            background: oklch(0.2 0.018 55 / 0.38);
+            transform-origin: left center;
+            z-index: 1;
+        }
+        .map-center {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            border: 2px solid var(--line);
+            border-radius: 999px;
+            background: var(--coral);
+            padding: 1rem 1.8rem;
+            font-weight: 800;
+            box-shadow: 6px 6px 0 var(--shadow);
+            z-index: 3;
+        }
+
+        .roadmap {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: var(--space-sm);
+            margin-top: var(--space-lg);
+        }
+        .road-card { min-height: 310px; padding: var(--space-md); display: flex; flex-direction: column; justify-content: space-between; }
+        .road-card .top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+        .road-card .tag { border: 2px solid var(--line); border-radius: 999px; padding: 0.25rem 0.75rem; font-size: var(--fs-label); font-weight: 700; background: var(--white-chip); }
+
+        .palette {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: var(--space-sm);
+            margin-top: var(--space-lg);
+        }
+        .swatch {
+            min-height: clamp(240px, 34vh, 340px);
+            border: 2px solid var(--line);
+            border-radius: 30px;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
+            background: var(--white-chip);
+            box-shadow: 6px 6px 0 var(--shadow);
+        }
+        .swatch-chip {
+            min-height: 58%;
+            border-bottom: 2px solid var(--line);
+        }
+        .swatch-meta {
+            padding: 1rem;
+        }
+        .swatch b { font-family: var(--font-display); font-size: clamp(1.35rem, 2vw, 2rem); line-height: 1; }
+        .swatch span { display: block; margin-top: 0.45rem; font-size: var(--fs-label); font-weight: 700; color: var(--ink-soft); }
+
+        .type-spec {
+            display: grid;
+            gap: 1rem;
+            margin-top: var(--space-md);
+        }
+        .type-row {
+            display: grid;
+            grid-template-columns: 180px 1fr;
+            align-items: center;
+            border-bottom: 2px solid oklch(0.2 0.018 55 / 0.12);
+            padding: 1rem 0;
+        }
+        .type-row .sample { overflow: hidden; }
+
+        .kit {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-md);
+            align-items: stretch;
+        }
+        .kit-box { padding: var(--space-md); }
+        .kit-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: var(--space-sm); }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: var(--space-lg);
+            align-items: center;
+        }
+        .summary-list { display: grid; gap: 0.9rem; }
+        .summary-item {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 1rem;
+            align-items: center;
+            border: 2px solid var(--line);
+            border-radius: 999px;
+            background: var(--white-chip);
+            padding: 0.72rem 1rem;
+            box-shadow: 5px 5px 0 var(--shadow);
+        }
+        .summary-item b {
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--line);
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            font-family: var(--font-display);
+        }
+
+        .slide-end { align-items: center; text-align: center; }
+        .ov-grid {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            background: oklch(0.965 0.012 89 / 0.98);
+            overflow: auto;
+            padding: clamp(1rem, 3vw, 2.5rem);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1rem;
+            opacity: 0;
+            transition: opacity 250ms var(--ease);
+        }
+        .ov-grid.ov-visible { opacity: 1; }
+        .ov-card {
+            position: relative;
+            overflow: hidden;
+            border: 2px solid var(--line);
+            border-radius: 18px;
+            background: var(--paper);
+            cursor: pointer;
+            box-shadow: 5px 5px 0 var(--shadow);
+        }
+        .ov-current { outline: 5px solid var(--coral); }
+        .ov-inner { position: absolute; inset: 0; transform-origin: top left; pointer-events: none; }
+        .ov-num {
+            position: absolute;
+            right: 0.65rem;
+            bottom: 0.55rem;
+            border: 2px solid var(--line);
+            border-radius: 999px;
+            background: var(--citron);
+            padding: 0.1rem 0.55rem;
+            font-size: 0.8rem;
+            font-weight: 800;
+        }
+        .ov-close {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 10001;
+            width: 42px;
+            height: 42px;
+            border: 2px solid var(--line);
+            border-radius: 50%;
+            background: var(--coral);
+            color: var(--ink);
+            font-size: 1.6rem;
+            cursor: pointer;
+            box-shadow: 4px 4px 0 var(--shadow);
+        }
+
+        @media (max-width: 900px) {
+            :root { --pad-x: clamp(1.4rem, 6vw, 3rem); --pad-y: clamp(2rem, 5vh, 4rem); }
+            .two-col, .toc-wrap, .conveyor, .map, .summary-grid, .kit { grid-template-columns: 1fr; }
+            .balanced-orbit, .frame-system, .stakeholder-map { grid-template-columns: 1fr; }
+            .three-col, .four-col, .roadmap, .palette, .timeline, .metric-strip, .toc-list, .balanced-flow, .layout-gallery, .summary-balanced .summary-list { grid-template-columns: 1fr 1fr; }
+            .versus { grid-template-columns: 1fr; }
+            .vs-mark { justify-self: center; }
+            .bar-row { grid-template-columns: 100px 1fr 54px; }
+            .chapter-pills { position: relative; right: auto; bottom: auto; margin-top: var(--space-lg); max-width: none; justify-content: flex-start; }
+            .slide { overflow-y: auto; }
+        }
+        @media (max-width: 620px) {
+            .three-col, .four-col, .roadmap, .palette, .timeline, .matrix, .metric-strip, .toc-list, .balanced-flow, .layout-gallery, .summary-balanced .summary-list { grid-template-columns: 1fr; }
+            .type-row { grid-template-columns: 1fr; gap: 0.6rem; }
+            .slide::after { display: none; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { transition: none !important; animation: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div id="progressBar"><div id="progressFill"></div></div>
+    <div id="counter"><strong id="counterCurrent">01</strong><span>/</span><strong id="counterTotal">25</strong></div>
+
+    <div class="slide slide-cover active" data-kicker="Capsule System">
+        <span class="float-pill reveal-left" style="background: var(--coral); top: 13%; left: 7%; transform: rotate(-10deg);">strategy</span>
+        <span class="float-pill reveal-right delay-1" style="background: var(--sky); top: 18%; right: 8%; transform: rotate(8deg);">product</span>
+        <span class="float-dot reveal-scale delay-2" style="background: var(--citron); top: 58%; left: 7%;">01</span>
+        <span class="float-pill reveal-left delay-3" style="background: var(--mint); bottom: 15%; right: 9%; transform: rotate(-8deg);">launch</span>
+        <span class="float-pill reveal-right delay-4" style="background: var(--lavender); bottom: 20%; left: 15%; transform: rotate(6deg);">signal</span>
+        <span class="float-dot reveal-scale delay-5" style="background: var(--peach); top: 16%; right: 25%;">+</span>
+        <div class="content">
+            <h1 class="reveal delay-1">把观点装进<em>胶囊</em></h1>
+            <p class="cover-sub reveal delay-2">Editorial pills, bold outline, candy rhythm</p>
+            <div class="rule reveal delay-3" style="margin: var(--space-md) auto 0;"></div>
+        </div>
+    </div>
+
+    <div class="slide" data-kicker="Contents">
+        <div class="toc-wrap content">
+            <div class="toc-stage">
+                <h2 class="reveal">二十五页，不只一种版式</h2>
+                <div class="toc-num reveal delay-1">25</div>
+                <div class="toc-pills reveal delay-2">
+                    <span class="pill" style="background: var(--coral);">封面</span>
+                    <span class="pill" style="background: var(--citron);">章节</span>
+                    <span class="pill" style="background: var(--sky);">数据</span>
+                    <span class="pill" style="background: var(--mint);">地图</span>
+                    <span class="pill" style="background: var(--lavender);">规范</span>
+                </div>
+            </div>
+            <div class="toc-list">
+                <div class="toc-item reveal delay-1"><small>01</small><b>叙事骨架</b><span class="pill" style="background: var(--sky);">06 页</span></div>
+                <div class="toc-item reveal delay-2"><small>02</small><b>信息表达</b><span class="pill" style="background: var(--mint);">07 页</span></div>
+                <div class="toc-item reveal delay-3"><small>03</small><b>视觉规范</b><span class="pill" style="background: var(--lavender);">06 页</span></div>
+                <div class="toc-item reveal delay-4"><small>04</small><b>收束总结</b><span class="pill" style="background: var(--peach);">03 页</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide chapter" data-kicker="Chapter 01">
+        <div class="ghost reveal-scale">01</div>
+        <div class="chapter-pills reveal delay-2">
+            <span class="pill" style="background: var(--sky);">问题</span>
+            <span class="pill" style="background: var(--citron);">结构</span>
+            <span class="pill" style="background: var(--mint);">节奏</span>
+        </div>
+        <div class="content">
+            <h2 class="reveal delay-1">先把问题变成可观看的形状</h2>
+            <div class="rule reveal delay-2" style="margin-top: var(--space-md); background: var(--sky);"></div>
+        </div>
+    </div>
+
+    <div class="slide" data-kicker="Framing">
+        <div class="frame-system content">
+            <div class="frame-copy">
+                <h2 class="reveal delay-1">胶囊不是装饰，是阅读节奏</h2>
+                <p class="lead reveal delay-2" style="margin-top: var(--space-md);">每一个胶囊形态都承担一个明确任务：归类、强调、转场、对比或封装结论。视觉语言服务于听众的瞬间判断。</p>
+                <div class="toc-pills reveal delay-3">
+                    <span class="pill" style="background: var(--sky);">归类</span>
+                    <span class="pill" style="background: var(--citron);">强调</span>
+                    <span class="pill" style="background: var(--lavender);">转场</span>
+                    <span class="pill" style="background: var(--mint);">结论</span>
+                </div>
+            </div>
+            <div class="frame-board reveal-scale delay-2">
+                <div class="system-pill" style="width: 58%; height: 18%; left: 8%; top: 14%; background: var(--sky); transform: rotate(-5deg);">识别信号</div>
+                <div class="system-pill" style="width: 44%; height: 18%; right: 8%; top: 40%; background: var(--citron); transform: rotate(4deg);">组织信息</div>
+                <div class="system-pill" style="width: 52%; height: 18%; left: 18%; bottom: 15%; background: var(--lavender);">推动行动</div>
+                <div class="system-note" style="left: 9%; top: 39%;">短胶囊用于标签和导航</div>
+                <div class="system-note" style="right: 8%; bottom: 12%;">长胶囊用于强调句</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide" data-kicker="Pillars">
+        <div class="content">
+            <h2 class="reveal delay-1" style="margin-top: var(--space-sm);">每页只保留一个真正的重心</h2>
+            <div class="three-col" style="margin-top: var(--space-lg);">
+                <div class="soft-card pillar reveal delay-1">
+                    <div class="index" style="background: var(--coral);">I</div>
+                    <div><h3>粗描边</h3><p>用稳定的边界给信息定型，让页面即使色彩活跃也不会散。</p></div>
+                </div>
+                <div class="soft-card pillar reveal delay-2">
+                    <div class="index" style="background: var(--citron);">II</div>
+                    <div><h3>糖果色</h3><p>颜色只标记角色，不填满全部空间，避免从活泼变成嘈杂。</p></div>
+                </div>
+                <div class="soft-card pillar reveal delay-3">
+                    <div class="index" style="background: var(--sky);">III</div>
+                    <div><h3>大字标题</h3><p>标题负责舞台感，正文负责解释，标签负责导航。</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide" data-kicker="Orbit">
+        <div class="balanced-orbit content">
+            <div>
+                <h2 class="reveal delay-1" style="margin-top: var(--space-sm);">一个中心观点，四个辅助证据</h2>
+                <p class="lead reveal delay-2" style="margin-top: var(--space-md);">适合战略判断、产品定位、研究结论。中心圆承载主张，外围胶囊承载证据维度。</p>
+            </div>
+            <div class="orbit reveal-scale delay-2">
+                <div class="orbit-core">1</div>
+                <span class="pill" style="background: var(--coral); top: 8%; left: 18%; transform: rotate(-9deg);">用户</span>
+                <span class="pill" style="background: var(--sky); top: 18%; right: 12%; transform: rotate(7deg);">场景</span>
+                <span class="pill" style="background: var(--lavender); bottom: 14%; right: 18%; transform: rotate(-6deg);">渠道</span>
+                <span class="pill" style="background: var(--mint); bottom: 10%; left: 13%; transform: rotate(8deg);">指标</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide" data-kicker="Compare">
+        <div class="content">
+            <h2 class="reveal delay-1" style="margin-top: var(--space-sm);">把差异讲清楚，而不是把内容排整齐</h2>
+            <div class="versus" style="margin-top: var(--space-lg);">
+                <div class="soft-card versus-card reveal-left delay-1">
+                    <h3>普通模板</h3>
+                    <ul>
+                        <li>同尺寸卡片堆叠，重点被平均化。</li>
+                        <li>颜色没有职责，只是填充空白。</li>
+                        <li>页面之间缺少可记忆的节拍。</li>
+                    </ul>
+                </div>
+                <div class="vs-mark reveal-scale delay-2">VS</div>
+                <div class="soft-card versus-card reveal-right delay-3">
+                    <h3>胶囊模板</h3>
+                    <ul>
+                        <li>用形态区分标题、标签、数据和结论。</li>
+                        <li>每种颜色都绑定一个表达角色。</li>
+                        <li>章节、数据、引用和收尾有不同构图。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide" data-kicker="Timeline">
+        <div class="content">
+            <h2 class="reveal delay-1" style="margin-top: var(--space-sm);">从模糊议题到可交付叙事</h2>
+            <div class="timeline">
+                <div class="time-node reveal delay-1"><div class="time-dot" style="background: var(--coral);">01</div><h3>收束</h3><p>统一目标和听众。</p></div>
+                <div class="time-node reveal delay-2"><div class="time-dot" style="background: var(--sky);">02</div><h3>分类</h3><p>整理事实、洞察和决策。</p></div>
+                <div class="time-node reveal delay-3"><div class="time-dot" style="background: var(--mint);">03</div><h3>压缩</h3><p>每页保留一个动作。</p></div>
+                <div class="time-node reveal delay-4"><div class="time-dot" style="background: var(--lavender);">04</div><h3>排演</h3><p>检查节奏和视觉停顿。</p></div>
+                <div class="time-node reveal delay-5"><div class="time-dot" style="background: var(--peach);">05</div><h3>发布</h3><p>交付可复用模板。</p></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide chapter" data-kicker="Chapter 02">
+        <div class="ghost reveal-scale">02</div>
+        <div class="chapter-pills reveal delay-2">
+            <span class="pill" style="background: var(--coral);">数字</span>
+            <span class="pill" style="background: var(--sky);">流程</span>
+            <span class="pill" style="background: var(--lavender);">矩阵</span>
+            <span class="pill" style="background: var(--mint);">地图</span>
+        </div>
+        <div class="content">
+            <h2 class="reveal delay-1">不同信息需要不同容器</h2>
+            <div class="rule reveal delay-2" style="margin-top: var(--space-md); background: var(--mint);"></div>
+        </div>
+    </div>
+
+    <div class="slide" data-kicker="Process">
+        <div class="balanced-panel content">
+            <div>
+                <h2 class="reveal delay-1" style="margin-top: var(--space-sm);">把动作串起来，让听众知道下一步</h2>
+                <p class="lead reveal delay-2" style="margin-top: var(--space-md);">流程不需要复杂图标，清晰编号、短动词和稳定间距就足够可靠。</p>
+            </div>
+            <div class="balanced-flow">
+                <div class="soft-card flow-card reveal delay-1"><b>1</b><h3>提出假设</h3><p>把模糊问题变成一句可验证判断。</p></div>
+                <div class="soft-card flow-card reveal delay-2"><b style="background: var(--citron);">2</b><h3>寻找证据</h3><p>让事实、数据和反馈各自归位。</p></div>
+                <div class="soft-card flow-card reveal delay-3"><b style="background: var(--lavender);">3</b><h3>形成判断</h3><p>选择最有解释力的观点。</p></div>
+                <div class="soft-card flow-card reveal delay-4"><b style="background: var(--mint);">4</b><h3>转化行动</h3><p>把结论落到下一步动作。</p></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide" data-kicker="Quote">
+        <div class="quote content">
+            <h2 class="reveal delay-1" style="margin-top: var(--space-md);">重点不是加粗，而是给它一个<span class="highlight">可停留的形状</span></h2>
+            <p class="lead reveal delay-2" style="margin: var(--space-md) auto 0;">适合观点金句、客户反馈、研究结论或章节转场。</p>
+        </div>
+    </div>
+
+    <div class="slide" data-kicker="Data">
+        <div class="balanced-panel content">
+            <div>
+                <h2 class="reveal delay-1" style="margin-top: var(--space-sm);">数字先吸引注意，条形再解释差距</h2>
+                <p class="lead reveal delay-2" style="margin-top: var(--space-md);">用胶囊进度条表达比例，避免过度图表化。适合趋势、满意度、转化率或优先级。</p>
+            </div>
+            <div class="soft-card data-board reveal-scale delay-2">
+                <h3>项目健康度</h3>
+                <div class="bars">
+                    <div class="bar-row"><strong>识别</strong><div class="bar-track"><div class="bar-fill" data-percent="86" style="background: var(--coral);"></div></div><span>86</span></div>
+                    <div class="bar-row"><strong>采用</strong><div class="bar-track"><div class="bar-fill" data-percent="72" style="background: var(--sky);"></div></div><span>72</span></div>
+                    <div class="bar-row"><strong>复用</strong><div class="bar-track"><div class="bar-fill" data-percent="64" style="background: var(--mint);"></div></div><span>64</span></div>
+                    <div class="bar-row"><strong>增长</strong><div class="bar-track"><div class="bar-fill" data-percent="91" style="background: var(--citron);"></div></div><span>91</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide" data-kicker="Metrics">
+        <div class="content">
+            <h2 class="reveal delay-1" style="margin-top: var(--space-sm);">让关键数字变成页面主角</h2>
+            <div class="metric-strip">
+                <div class="soft-card metric-card reveal delay-1">
+                    <div class="metric-top"><span class="pill" style="background: var(--coral);">cost</span><span class="caption">01</span></div>
+                    <div class="metric-body">
+                        <div class="metric-value" style="color: var(--coral);"><span data-count="18">0</span><small>%</small></div>
+                        <div>
+                            <p>识别成本下降</p>
+                            <div class="metric-note">首屏识别更快，说明标题与容器职责更清楚。</div>
+                        </div>
+                    </div>
+                    <div class="metric-rail"><span style="width: 82%; background: var(--coral);"></span></div>
+                </div>
+                <div class="soft-card metric-card reveal delay-2">
+                    <div class="metric-top"><span class="pill" style="background: var(--sky);">reuse</span><span class="caption">02</span></div>
+                    <div class="metric-body">
+                        <div class="metric-value" style="color: var(--sky);"><span data-count="42">0</span><small>%</small></div>
+                        <div>
+                            <p>复用效率提升</p>
+                            <div class="metric-note">胶囊、编号、数据条可以跨页复用。</div>
+                        </div>
+                    </div>
+                    <div class="metric-rail"><span style="width: 74%; background: var(--sky);"></span></div>
+                </div>
+                <div class="soft-card metric-card reveal delay-3">
+                    <div class="metric-top"><span class="pill" style="background: var(--lavender);">cycle</span><span class="caption">03</span></div>
+                    <div class="metric-body">
+                        <div class="metric-value" style="color: var(--violet);"><span data-count="7">0</span><small>天</small></div>
+                        <div>
+                            <p>首版交付周期</p>
+                            <div class="metric-note">从叙事骨架到视觉规范形成闭环。</div>
+                        </div>
+                    </div>
+                    <div class="metric-rail"><span style="width: 58%; background: var(--lavender);"></span></div>
+                </div>
+                <div class="soft-card metric-card reveal delay-4">
+                    <div class="metric-top"><span class="pill" style="background: var(--mint);">layout</span><span class="caption">04</span></div>
+                    <div class="metric-body">
+                        <div class="metric-value" style="color: var(--mint);"><span data-count="21">0</span><small>套</small></div>
+                        <div>
+                            <p>可组合版式</p>
+                            <div class="metric-note">用于封面、目录、矩阵、路线图和收尾页。</div>
+                        </div>
+                    </div>
+                    <div class="metric-rail"><span style="width: 88%; background: var(--mint);"></span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide" data-kicker="Matrix">
+        <div class="content">
+            <h2 class="reveal delay-1" style="margin-top: var(--space-sm);">用四象限处理复杂判断</h2>
+            <div class="matrix">
+                <div class="soft-card matrix-cell reveal delay-1" style="background: var(--mint);"><small>高影响，低成本</small><h3>马上做</h3><p>直接进入发布路线。</p></div>
+                <div class="soft-card matrix-cell reveal delay-2" style="background: var(--citron);"><small>高影响，高成本</small><h3>拆小做</h3><p>先验证核心假设。</p></div>
+                <div class="soft-card matrix-cell reveal delay-3" style="background: var(--lavender);"><small>低影响，低成本</small><h3>顺手做</h3><p>作为质量补丁处理。</p></div>
+                <div class="soft-card matrix-cell reveal delay-4" style="background: var(--peach);"><small>低影响，高成本</small><h3>暂缓做</h3><p>等需求更清晰再进入。</p></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide" data-kicker="Audience">
+        <div class="stakeholder-map content">
+            <div class="stakeholder-copy">
+                <h2 class="reveal delay-1" style="margin-top: var(--space-sm);">把角色关系画成可讨论的地图</h2>
+                <p class="lead reveal delay-2" style="margin-top: var(--space-md);">适合用户旅程、组织协作、利益相关方分析。胶囊越靠近中心，越直接影响决策。</p>
+                <div class="toc-pills reveal delay-3">
+                    <span class="pill" style="background: var(--coral);">中心</span>
+                    <span class="pill" style="background: var(--sky);">一线</span>
+                    <span class="pill" style="background: var(--mint);">支持</span>
+                </div>
+            </div>
+            <div class="stakeholder-board reveal-scale delay-2">
+                <span class="stakeholder-ring"></span>
+                <span class="stakeholder-line" style="transform: rotate(-150deg);"></span>
+                <span class="stakeholder-line" style="transform: rotate(-28deg);"></span>
+                <span class="stakeholder-line" style="transform: rotate(145deg);"></span>
+                <span class="stakeholder-line" style="transform: rotate(34deg);"></span>
+                <span class="map-center">决策者</span>
+                <span class="pill" style="background: var(--sky); left: 14%; top: 24%;">使用者</span>
+                <span class="pill" style="background: var(--lavender); right: 14%; top: 25%;">采购</span>
+                <span class="pill" style="background: var(--citron); left: 16%; bottom: 24%;">运营</span>
+                <span class="pill" style="background: var(--mint); right: 16%; bottom: 24%;">支持</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide" data-kicker="Roadmap">
+        <div class="content">
+            <h2 class="reveal delay-1" style="margin-top: var(--space-sm);">用高度差制造推进感</h2>
+            <div class="roadmap">
+                <div class="soft-card road-card reveal delay-1" style="background: var(--white-chip); margin-top: 3rem;"><div class="top"><span class="tag">Q1</span><span class="caption">Find</span></div><div><h3>定位</h3><p>找出最有价值的讲述对象。</p></div></div>
+                <div class="soft-card road-card reveal delay-2" style="background: var(--sky); margin-top: 1.6rem;"><div class="top"><span class="tag">Q2</span><span class="caption">Build</span></div><div><h3>搭建</h3><p>沉淀版式、组件和规范。</p></div></div>
+                <div class="soft-card road-card reveal delay-3" style="background: var(--citron); margin-top: 0.4rem;"><div class="top"><span class="tag">Q3</span><span class="caption">Scale</span></div><div><h3>扩展</h3><p>覆盖更多主题和业务场景。</p></div></div>
+                <div class="soft-card road-card reveal delay-4" style="background: var(--coral);"><div class="top"><span class="tag">Q4</span><span class="caption">Ship</span></div><div><h3>发布</h3><p>进入模板库，供团队复用。</p></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide chapter" data-kicker="Chapter 03">
+        <div class="ghost reveal-scale">03</div>
+        <div class="chapter-pills reveal delay-2">
+            <span class="pill" style="background: var(--citron);">色彩</span>
+            <span class="pill" style="background: var(--sky);">字体</span>
+            <span class="pill" style="background: var(--lavender);">组件</span>
+            <span class="pill" style="background: var(--peach);">布局</span>
+        </div>
+        <div class="content">
+            <h2 class="reveal delay-1">把自由限制在一套好用的规则里</h2>
+            <div class="rule reveal delay-2" style="margin-top: var(--space-md); background: var(--lavender);"></div>
+        </div>
+    </div>
+
+    <div class="slide" data-kicker="Palette">
+        <div class="content">
+            <h2 class="reveal delay-1" style="margin-top: var(--space-sm);">糖果色负责角色，纸色负责呼吸</h2>
+            <div class="palette">
+                <div class="swatch reveal delay-1"><div class="swatch-chip" style="background: var(--coral);"></div><div class="swatch-meta"><b>Coral</b><span>行动与重点</span></div></div>
+                <div class="swatch reveal delay-2"><div class="swatch-chip" style="background: var(--citron);"></div><div class="swatch-meta"><b>Citron</b><span>结论与提示</span></div></div>
+                <div class="swatch reveal delay-3"><div class="swatch-chip" style="background: var(--sky);"></div><div class="swatch-meta"><b>Sky</b><span>结构与流程</span></div></div>
+                <div class="swatch reveal delay-4"><div class="swatch-chip" style="background: var(--mint);"></div><div class="swatch-meta"><b>Mint</b><span>增长与正向</span></div></div>
+                <div class="swatch reveal delay-5"><div class="swatch-chip" style="background: var(--lavender);"></div><div class="swatch-meta"><b>Lavender</b><span>洞察与转场</span></div></div>
+                <div class="swatch reveal delay-6"><div class="swatch-chip" style="background: var(--paper-2);"></div><div class="swatch-meta"><b>Paper</b><span>背景与留白</span></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide" data-kicker="Typography">
+        <div class="content">
+            <h2 class="reveal delay-1" style="margin-top: var(--space-sm);">衬线负责戏剧感，无衬线负责信息密度</h2>
+            <div class="type-spec">
+                <div class="type-row reveal delay-1"><div class="caption">Display</div><div class="sample serif" style="font-size: clamp(3rem, 7vw, 7rem); font-weight: 900;">Capsule</div></div>
+                <div class="type-row reveal delay-2"><div class="caption">Headline</div><div class="sample serif" style="font-size: clamp(2rem, 4vw, 4rem); font-weight: 800;">把观点放大</div></div>
+                <div class="type-row reveal delay-3"><div class="caption">Body</div><div class="sample"><p>正文使用 Space Grotesk 与中文系统字体，保持清晰、紧凑、易读。</p></div></div>
+                <div class="type-row reveal delay-4"><div class="caption">Label</div><div class="sample"><span class="pill" style="background: var(--citron);">UPPERCASE TAG</span></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide" data-kicker="Components">
+        <div class="kit content">
+            <div class="soft-card kit-box reveal-left">
+                <h2 style="margin-top: var(--space-sm);">胶囊、圆点、短线</h2>
+                <div class="kit-row">
+                    <span class="pill" style="background: var(--coral);">重点</span>
+                    <span class="pill" style="background: var(--sky);">流程</span>
+                    <span class="pill" style="background: var(--lavender);">洞察</span>
+                    <span class="pill" style="background: var(--citron);">结论</span>
+                </div>
+            </div>
+            <div class="soft-card kit-box reveal-right delay-1">
+                <div class="stack" style="margin-top: var(--space-md);">
+                    <div class="summary-item"><b>1</b><span>所有容器保持 2px 深色描边。</span></div>
+                    <div class="summary-item"><b>2</b><span>阴影只用于可阅读结构，不用于漂浮装饰。</span></div>
+                    <div class="summary-item"><b>3</b><span>每页最多一个最大尺寸标题。</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide" data-kicker="Layout">
+        <div class="balanced-panel content">
+            <div>
+                <h2 class="reveal delay-1" style="margin-top: var(--space-sm);">同一套语言，可以长成不同版面</h2>
+                <p class="lead reveal delay-2" style="margin-top: var(--space-md);">封面居中，章节页左下，数据页左右分栏，路线图错落，矩阵页均衡。模板应该有家族感，而不是复制粘贴感。</p>
+            </div>
+            <div class="layout-gallery">
+                <div class="soft-card layout-tile reveal delay-1">
+                    <h3>Centered</h3>
+                    <div class="layout-mini"><span style="background: var(--coral);"></span><span style="background: var(--sky); width: 72%; justify-self: center;"></span><span style="background: var(--mint); width: 52%; justify-self: center;"></span></div>
+                    <span class="pill">封面 / 引用</span>
+                </div>
+                <div class="soft-card layout-tile reveal delay-2">
+                    <h3>Grid</h3>
+                    <div class="layout-mini" style="grid-template-columns: 1fr 1fr;"><span style="background: var(--citron);"></span><span style="background: var(--lavender);"></span><span style="background: var(--sky);"></span><span style="background: var(--mint);"></span></div>
+                    <span class="pill">数据 / 规范</span>
+                </div>
+                <div class="soft-card layout-tile reveal delay-3">
+                    <h3>Orbit</h3>
+                    <div class="layout-mini" style="place-items: center;"><span style="width: 120px; height: 120px; border-radius: 50%; background: var(--peach);"></span><span style="width: 70%; background: var(--coral);"></span></div>
+                    <span class="pill">模型 / 地图</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide" data-kicker="Rules">
+        <div class="content">
+            <h2 class="reveal delay-1" style="margin-top: var(--space-sm);">让活泼变专业的四个限制</h2>
+            <div class="four-col" style="margin-top: var(--space-lg);">
+                <div class="soft-card pillar reveal delay-1"><div class="index" style="background: var(--coral);">1</div><div><h3>少用长段落</h3><p>正文控制在两到三行，解释放在讲述里。</p></div></div>
+                <div class="soft-card pillar reveal delay-2"><div class="index" style="background: var(--sky);">2</div><div><h3>颜色有角色</h3><p>不要在同一页随机更换语义。</p></div></div>
+                <div class="soft-card pillar reveal delay-3"><div class="index" style="background: var(--citron);">3</div><div><h3>描边要一致</h3><p>2px 是这个模板的视觉骨架。</p></div></div>
+                <div class="soft-card pillar reveal delay-4"><div class="index" style="background: var(--lavender);">4</div><div><h3>留白要大胆</h3><p>胶囊越多，空白越重要。</p></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide chapter" data-kicker="Chapter 04">
+        <div class="ghost reveal-scale">04</div>
+        <div class="chapter-pills reveal delay-2">
+            <span class="pill" style="background: var(--mint);">备忘</span>
+            <span class="pill" style="background: var(--coral);">行动</span>
+            <span class="pill" style="background: var(--peach);">收尾</span>
+        </div>
+        <div class="content">
+            <h2 class="reveal delay-1">把记忆点留给最后一页</h2>
+            <div class="rule reveal delay-2" style="margin-top: var(--space-md); background: var(--peach);"></div>
+        </div>
+    </div>
+
+    <div class="slide" data-kicker="Summary">
+        <div class="summary-balanced content">
+            <span class="summary-accent summary-accent--top"></span>
+            <div>
+                <h2 class="reveal delay-1" style="margin-top: var(--space-sm);">胶囊风格的价值，是让信息被看见</h2>
+                <p class="lead reveal delay-2" style="margin-top: var(--space-md);">如果一页内容不知道该用什么形状，先问它承担什么表达任务。任务清楚，版式自然会清楚。</p>
+            </div>
+            <div class="summary-list">
+                <div class="summary-item reveal delay-1" style="--item-color: var(--coral);"><b>1</b><span>标题给观点，标签给路径。</span></div>
+                <div class="summary-item reveal delay-2" style="--item-color: var(--sky);"><b>2</b><span>色彩给语义，描边给秩序。</span></div>
+                <div class="summary-item reveal delay-3" style="--item-color: var(--citron);"><b>3</b><span>数据给差距，结论给行动。</span></div>
+                <div class="summary-item reveal delay-4" style="--item-color: var(--mint);"><b>4</b><span>章节给停顿，收尾给记忆。</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="slide slide-end" data-kicker="Closing">
+        <span class="float-pill reveal-left" style="background: var(--mint); top: 16%; left: 9%; transform: rotate(-8deg);">reuse</span>
+        <span class="float-pill reveal-right delay-1" style="background: var(--coral); top: 19%; right: 11%; transform: rotate(9deg);">focus</span>
+        <span class="float-dot reveal-scale delay-2" style="background: var(--citron); bottom: 18%; left: 14%;">25</span>
+        <span class="float-pill reveal-right delay-3" style="background: var(--lavender); bottom: 16%; right: 12%; transform: rotate(-7deg);">ship</span>
+        <div class="content">
+            <h1 class="reveal delay-1" style="margin-top: var(--space-md);">谢谢观看</h1>
+            <p class="cover-sub reveal delay-2">Make the next idea easier to hold</p>
+            <div class="rule reveal delay-3" style="margin: var(--space-md) auto 0; background: var(--coral);"></div>
+        </div>
+    </div>
+
+    <script>
+        class SlidePresentation {
+            constructor() {
+                this.slides = document.querySelectorAll(".slide");
+                this.totalSlides = this.slides.length;
+                this.currentSlide = 0;
+                this.isTransitioning = false;
+                this.overviewActive = false;
+                this.transitionDuration = 650;
+                this.progressFill = document.getElementById("progressFill");
+                this.counterCurrent = document.getElementById("counterCurrent");
+                this.counterTotal = document.getElementById("counterTotal");
+                if (this.counterTotal) this.counterTotal.textContent = String(this.totalSlides).padStart(2, "0");
+                this.updateUI();
+                this.bindEvents();
+                this.triggerSlideEffects(0);
+            }
+
+            bindEvents() {
+                window.addEventListener("keydown", (e) => {
+                    switch (e.key) {
+                        case "ArrowRight": case "ArrowDown": case " ": case "PageDown":
+                            e.preventDefault(); this.next(); break;
+                        case "ArrowLeft": case "ArrowUp": case "PageUp":
+                            e.preventDefault(); this.prev(); break;
+                        case "Home": e.preventDefault(); this.goToSlide(0); break;
+                        case "End": e.preventDefault(); this.goToSlide(this.totalSlides - 1); break;
+                        case "f": case "F": e.preventDefault(); this.toggleFullscreen(); break;
+                        case "o": case "O": e.preventDefault(); this.toggleOverview(); break;
+                        case "Escape": this.closeOverview(); break;
+                    }
+                });
+
+                window.addEventListener("wheel", (e) => {
+                    e.preventDefault();
+                    if (e.deltaY > 20) this.next();
+                    else if (e.deltaY < -20) this.prev();
+                }, { passive: false });
+
+                let touchStartY = 0, touchStartX = 0;
+                window.addEventListener("touchstart", (e) => {
+                    touchStartY = e.touches[0].clientY;
+                    touchStartX = e.touches[0].clientX;
+                }, { passive: true });
+                window.addEventListener("touchend", (e) => {
+                    const dy = touchStartY - e.changedTouches[0].clientY;
+                    const dx = touchStartX - e.changedTouches[0].clientX;
+                    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 50) dy > 0 ? this.next() : this.prev();
+                    else if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) dx > 0 ? this.next() : this.prev();
+                }, { passive: true });
+            }
+
+            next() { this.goToSlide(this.currentSlide + 1); }
+            prev() { this.goToSlide(this.currentSlide - 1); }
+
+            goToSlide(index) {
+                if (this.isTransitioning || index < 0 || index >= this.totalSlides || index === this.currentSlide) return;
+                this.isTransitioning = true;
+                this.slides[this.currentSlide].classList.remove("active");
+                this.currentSlide = index;
+                this.slides[this.currentSlide].classList.add("active");
+                this.updateUI();
+                this.triggerSlideEffects(index);
+                setTimeout(() => { this.isTransitioning = false; }, this.transitionDuration);
+            }
+
+            updateUI() {
+                const progress = this.totalSlides > 1 ? (this.currentSlide / (this.totalSlides - 1)) * 100 : 100;
+                if (this.progressFill) this.progressFill.style.width = progress + "%";
+                if (this.counterCurrent) this.counterCurrent.textContent = String(this.currentSlide + 1).padStart(2, "0");
+            }
+
+            triggerSlideEffects(index) {
+                const slide = this.slides[index];
+                slide.querySelectorAll("[data-count]").forEach((el) => {
+                    if (!el.dataset.counted) {
+                        this.animateCounter(el, Number.parseInt(el.dataset.count, 10));
+                        el.dataset.counted = "true";
+                    }
+                });
+                slide.querySelectorAll(".bar-fill[data-percent]").forEach((el) => {
+                    if (!el.dataset.filled) {
+                        setTimeout(() => { el.style.width = el.dataset.percent + "%"; }, 250);
+                        el.dataset.filled = "true";
+                    }
+                });
+            }
+
+            animateCounter(el, target) {
+                const duration = 1400;
+                const start = performance.now();
+                const suffix = el.dataset.suffix || "";
+                const tick = (now) => {
+                    const progress = Math.min((now - start) / duration, 1);
+                    const eased = 1 - Math.pow(1 - progress, 3);
+                    el.textContent = Math.round(eased * target) + suffix;
+                    if (progress < 1) requestAnimationFrame(tick);
+                    else el.textContent = target + suffix;
+                };
+                requestAnimationFrame(tick);
+            }
+
+            toggleFullscreen() {
+                if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+                else document.exitFullscreen().catch(() => {});
+            }
+
+            toggleOverview() {
+                if (this.overviewActive) { this.closeOverview(); return; }
+                this.overviewActive = true;
+                const ov = document.createElement("div");
+                ov.className = "ov-grid";
+                const close = document.createElement("button");
+                close.className = "ov-close";
+                close.innerHTML = "&times;";
+                close.onclick = () => this.closeOverview();
+                ov.appendChild(close);
+                const viewportRatio = (window.innerWidth / window.innerHeight).toFixed(4);
+                this.slides.forEach((slide, i) => {
+                    const card = document.createElement("div");
+                    card.className = "ov-card" + (i === this.currentSlide ? " ov-current" : "");
+                    card.style.aspectRatio = viewportRatio;
+                    const inner = document.createElement("div");
+                    inner.className = "ov-inner";
+                    const clone = slide.cloneNode(true);
+                    clone.style.cssText = "position:absolute;inset:0;width:100vw;height:100vh;opacity:1;visibility:visible;transform:none;pointer-events:none;";
+                    clone.classList.add("active");
+                    inner.appendChild(clone);
+                    const num = document.createElement("span");
+                    num.className = "ov-num";
+                    num.textContent = i + 1;
+                    card.appendChild(inner);
+                    card.appendChild(num);
+                    card.onclick = () => { this.goToSlide(i); this.closeOverview(); };
+                    ov.appendChild(card);
+                });
+                document.body.appendChild(ov);
+                this._ovEl = ov;
+                requestAnimationFrame(() => {
+                    ov.querySelectorAll(".ov-inner").forEach((inner) => {
+                        const card = inner.parentElement;
+                        const sx = card.offsetWidth / window.innerWidth;
+                        const sy = card.offsetHeight / window.innerHeight;
+                        inner.style.transform = "scale(" + Math.min(sx, sy) + ")";
+                    });
+                    ov.classList.add("ov-visible");
+                });
+            }
+
+            closeOverview() {
+                this.overviewActive = false;
+                if (this._ovEl) {
+                    this._ovEl.remove();
+                    this._ovEl = null;
+                }
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", () => { new SlidePresentation(); });
+    </script>
+</body>
+</html>
