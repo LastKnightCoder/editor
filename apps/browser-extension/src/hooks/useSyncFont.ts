@@ -11,6 +11,12 @@ interface FontSetting {
   codeFont: string;
 }
 
+interface AppearanceSetting {
+  backgroundType?: string;
+}
+
+const DEFAULT_ACCENT = "solid";
+
 /**
  * 将字体设置应用到 document.body 的 CSS 变量
  * 对齐 desktop useSyncFont.ts 的逻辑
@@ -26,23 +32,31 @@ function applyFontSetting(fontSetting: FontSetting) {
   );
 }
 
+function applyAppearanceSetting(appearance?: AppearanceSetting) {
+  document.documentElement.dataset.accent =
+    appearance?.backgroundType || DEFAULT_ACCENT;
+}
+
 /**
- * 通过 WebSocket RPC 获取客户端字体设置并同步到 CSS 变量
+ * 通过 WebSocket RPC 获取客户端外观设置并同步到 CSS 变量
  *
  * - 连接成功后调用 "get-user-setting" 获取完整设置
- * - 监听 "user-setting-changed" 通知，实时同步字体变更
- * - 与 desktop 的 useSyncFont + useSettingStore 行为一致
+ * - 监听 "user-setting-changed" 通知，实时同步字体和主题强调色
+ * - 与 desktop 的 useSyncFont + useSyncTheme 行为一致
  */
 export function useSyncFont(wsClient: WebSocketClient | null) {
   useEffect(() => {
+    applyAppearanceSetting();
+
     if (!wsClient?.isConnected) return;
 
-    // 从完整设置中提取 fontSetting 并应用
-    const extractAndApplyFont = (setting: Record<string, unknown>) => {
+    const extractAndApplyAppearance = (setting: Record<string, unknown>) => {
       const fontSetting = setting?.fontSetting as FontSetting | undefined;
       if (fontSetting) {
         applyFontSetting(fontSetting);
       }
+
+      applyAppearanceSetting(setting?.appearance as AppearanceSetting);
     };
 
     // 初始化：获取当前设置
@@ -50,11 +64,11 @@ export function useSyncFont(wsClient: WebSocketClient | null) {
       .sendRequest("get-user-setting", null)
       .then((result) => {
         if (result && typeof result === "object") {
-          extractAndApplyFont(result as Record<string, unknown>);
+          extractAndApplyAppearance(result as Record<string, unknown>);
         }
       })
       .catch((err) => {
-        console.warn("[Tau Extension] 获取字体设置失败:", err);
+        console.warn("[Tau Extension] 获取外观设置失败:", err);
       });
 
     // 监听设置变更通知
@@ -62,7 +76,7 @@ export function useSyncFont(wsClient: WebSocketClient | null) {
       if (data && typeof data === "object") {
         const payload = data as { setting?: Record<string, unknown> };
         if (payload.setting) {
-          extractAndApplyFont(payload.setting);
+          extractAndApplyAppearance(payload.setting);
         }
       }
     };

@@ -5,6 +5,7 @@ import {
   useCallback,
   useMemo,
   type ReactNode,
+  type Ref,
   type RefObject,
 } from "react";
 import { Tooltip } from "antd";
@@ -60,7 +61,6 @@ export interface ChatContainerCoreProps {
   showConnectingDelayMs?: number;
   currentPageUrl?: string | null;
   hideInput?: boolean;
-  manageAutoScroll?: boolean;
   className?: string;
   messagesContainerClassName?: string;
   inputWrapperClassName?: string;
@@ -78,6 +78,7 @@ export interface ChatContainerCoreProps {
   onSendMessageContent?: (
     content: MessageContentItem[],
   ) => void | Promise<void>;
+  onUserSend?: () => void;
   onStopGeneration?: () => void;
   onClearMessages?: () => void;
   onDeleteMessage?: (messageIndex: number) => void;
@@ -88,7 +89,7 @@ export interface ChatContainerCoreProps {
   onDeleteConfirm?: () => Promise<boolean>;
   chatInputServices?: ChatInputAreaServices;
   inputRef?: RefObject<ChatInputAreaHandle | null>;
-  messagesContainerRef?: RefObject<HTMLDivElement | null>;
+  messagesContainerRef?: Ref<HTMLDivElement>;
   renderMessage?: (params: ChatContainerCoreMessageRendererParams) => ReactNode;
   renderEmptyState?: (
     params: ChatContainerCoreEmptyStateRenderParams,
@@ -120,7 +121,6 @@ export function ChatContainerCore({
   showConnectingDelayMs = 800,
   currentPageUrl,
   hideInput = false,
-  manageAutoScroll = true,
   className,
   messagesContainerClassName,
   inputWrapperClassName,
@@ -136,6 +136,7 @@ export function ChatContainerCore({
   onModelSelect,
   onSendTextMessage,
   onSendMessageContent,
+  onUserSend,
   onStopGeneration,
   onClearMessages,
   onDeleteMessage,
@@ -158,7 +159,6 @@ export function ChatContainerCore({
   const resolvedMessagesContainerRef =
     messagesContainerRef || internalMessagesContainerRef;
   const resolvedChatInputRef = inputRef || internalChatInputRef;
-  const isAutoScrollEnabledRef = useRef(true);
   const resolvedPlaceholder = useMemo(
     () => resolveChatInputPlaceholder(placeholder),
     [placeholder],
@@ -174,44 +174,6 @@ export function ChatContainerCore({
     }
     setShowConnectingUI(false);
   }, [isConnected, showConnectingDelayMs]);
-
-  const scrollToBottom = useCallback(() => {
-    if (
-      !resolvedMessagesContainerRef.current ||
-      !isAutoScrollEnabledRef.current
-    ) {
-      return;
-    }
-    resolvedMessagesContainerRef.current.scrollTop =
-      resolvedMessagesContainerRef.current.scrollHeight;
-  }, [resolvedMessagesContainerRef]);
-
-  const handleScroll = useCallback(() => {
-    if (!resolvedMessagesContainerRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } =
-      resolvedMessagesContainerRef.current;
-    isAutoScrollEnabledRef.current =
-      scrollTop + clientHeight >= scrollHeight - 10;
-  }, [resolvedMessagesContainerRef]);
-
-  useEffect(() => {
-    if (!manageAutoScroll) {
-      return;
-    }
-    const container = resolvedMessagesContainerRef.current;
-    if (!container) return;
-    container.addEventListener("scroll", handleScroll);
-    return () => container.removeEventListener("scroll", handleScroll);
-  }, [handleScroll, manageAutoScroll, resolvedMessagesContainerRef]);
-
-  useEffect(() => {
-    if (!manageAutoScroll) {
-      return;
-    }
-    if (messages.length === 0) return;
-    const timer = setTimeout(scrollToBottom, 0);
-    return () => clearTimeout(timer);
-  }, [manageAutoScroll, messages, scrollToBottom]);
 
   const hasNonTextContent = useCallback(
     (messageContent: MessageContentItem[]) =>
@@ -229,7 +191,7 @@ export function ChatContainerCore({
 
     if (!textContent.trim() && !hasAttachment) return;
 
-    isAutoScrollEnabledRef.current = true;
+    onUserSend?.();
 
     if (onSendMessageContent) {
       void Promise.resolve(onSendMessageContent(messageContent));
@@ -240,20 +202,13 @@ export function ChatContainerCore({
     }
 
     resolvedChatInputRef.current?.clear();
-
-    setTimeout(() => {
-      if (resolvedMessagesContainerRef.current) {
-        resolvedMessagesContainerRef.current.scrollTop =
-          resolvedMessagesContainerRef.current.scrollHeight;
-      }
-    }, 0);
   }, [
     hasNonTextContent,
     isLoading,
+    onUserSend,
     onSendMessageContent,
     onSendTextMessage,
     resolvedChatInputRef,
-    resolvedMessagesContainerRef,
   ]);
 
   const defaultToolbarButton = useMemo(() => {

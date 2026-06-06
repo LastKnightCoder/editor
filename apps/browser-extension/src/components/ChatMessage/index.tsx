@@ -1,16 +1,15 @@
 import { memo, useCallback, useMemo, useState } from "react";
 import { App } from "antd";
 import {
-  ToolOutlined,
   LoadingOutlined,
   ThunderboltOutlined,
   FilePdfOutlined,
 } from "@ant-design/icons";
 import {
   LazySyntaxHighlighter,
+  ChatToolCallDisplay,
   MarkdownRenderer,
   ReasoningDisplay,
-  ToolCallDisplay,
   buildLegacyAssistantDisplayBlocks,
   getDisplayTextFromBlocks,
   type ChatMessageType,
@@ -224,10 +223,6 @@ const PreviewBlockCard = ({
     </button>
   );
 };
-
-const ToolIcon = ({ className }: { className?: string }) => (
-  <ToolOutlined className={className} />
-);
 
 const ThinkingIcon = ({ className }: { className?: string }) => (
   <ThunderboltOutlined className={className} />
@@ -577,11 +572,10 @@ export function ChatMessage({
           return (
             <div key={`tool-${index}`} className={styles.toolCallsContainer}>
               {block.executions.map((execution, execIndex) => (
-                <ToolCallDisplay
+                <ChatToolCallDisplay
                   key={execution.toolCallId || execIndex}
-                  executions={[execution]}
+                  execution={execution}
                   isDark={isDark}
-                  ToolIcon={ToolIcon}
                 />
               ))}
             </div>

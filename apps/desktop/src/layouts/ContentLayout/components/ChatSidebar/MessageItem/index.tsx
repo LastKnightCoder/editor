@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useRef, useState } from "react";
+import React, { memo, useState } from "react";
 import classnames from "classnames";
 import {
   ChatSessionMessage,
@@ -40,51 +40,6 @@ interface MessageItemProps {
   messageIndex: number;
   messageMeta?: MarkdownMessageMeta;
 }
-
-const emitDebugLog = (event: string, payload: unknown) => {
-  console.info(`[DEBUG] ${event} ${JSON.stringify(payload)}`);
-};
-
-const summarizeText = (text: string | undefined | null, limit = 160) => {
-  const normalized = text || "";
-  return {
-    length: normalized.length,
-    preview:
-      normalized.length > limit
-        ? `${normalized.slice(0, limit)}...`
-        : normalized,
-  };
-};
-
-const findRenderedSuspiciousPattern = (blocks: ResponseContentBlock[]) => {
-  for (let i = 0; i <= blocks.length - 3; i += 1) {
-    const first = blocks[i];
-    const second = blocks[i + 1];
-    const third = blocks[i + 2];
-
-    if (
-      first.type !== "text" ||
-      second.type !== "tool_calls" ||
-      third.type !== "text"
-    ) {
-      continue;
-    }
-
-    return {
-      indices: [i, i + 1, i + 2],
-      beforeText: first.content,
-      afterText: third.content,
-      beforeLength: first.content.length,
-      afterLength: third.content.length,
-      afterContainsBefore:
-        Boolean(first.content) &&
-        Boolean(third.content) &&
-        third.content.includes(first.content),
-    };
-  }
-
-  return null;
-};
 
 const getTextContent = (message: RequestMessage): string => {
   if (typeof message.content === "string") {
@@ -156,7 +111,6 @@ const MessageItem: React.FC<MessageItemProps> = memo(
   }) => {
     const { message: antdMessage, modal } = App.useApp();
     const [showActions, setShowActions] = useState(false);
-    const loggedRenderFingerprintRef = useRef<string | null>(null);
     const { chatMessageBg } = useThemeColors();
 
     const isUser = message.role === Role.User;
@@ -186,60 +140,6 @@ const MessageItem: React.FC<MessageItemProps> = memo(
       }
       return true;
     });
-
-    useEffect(() => {
-      if (!isAssistant || filteredContentBlocks.length === 0) {
-        return;
-      }
-
-      const suspiciousPattern = findRenderedSuspiciousPattern(
-        filteredContentBlocks,
-      );
-      if (!suspiciousPattern) {
-        return;
-      }
-
-      const fingerprint = JSON.stringify({
-        messageIndex,
-        blocks: filteredContentBlocks.map((block) => {
-          if (block.type === "tool_calls") {
-            return `${block.type}:${block.executions.length}`;
-          }
-          return `${block.type}:${block.content.length}`;
-        }),
-      });
-
-      if (loggedRenderFingerprintRef.current === fingerprint) {
-        return;
-      }
-
-      loggedRenderFingerprintRef.current = fingerprint;
-      emitDebugLog("MessageItem.render_suspicious_pattern", {
-        messageIndex,
-        rawContent: summarizeText((message as ResponseMessage).content),
-        rawReasoning: summarizeText(
-          (message as ResponseMessage).reasoning_content || "",
-        ),
-        blocks: filteredContentBlocks.map((block) => {
-          if (block.type === "tool_calls") {
-            return {
-              type: block.type,
-              executions: block.executions.map((execution) => ({
-                toolCallId: execution.toolCallId,
-                toolName: execution.toolName,
-                status: execution.status,
-              })),
-            };
-          }
-
-          return {
-            type: block.type,
-            content: summarizeText(block.content),
-          };
-        }),
-        pattern: suspiciousPattern,
-      });
-    }, [filteredContentBlocks, isAssistant, message, messageIndex]);
 
     if (
       !displayContent &&

@@ -20,21 +20,6 @@ function prettyObject(msg: any) {
   return ["```json", msg, "```"].join("\n");
 }
 
-const emitDebugLog = (event: string, payload: unknown) => {
-  console.info(`[DEBUG] ${event} ${JSON.stringify(payload)}`);
-};
-
-const summarizeText = (text: string | undefined | null, limit = 120) => {
-  const normalized = text || "";
-  return {
-    length: normalized.length,
-    preview:
-      normalized.length > limit
-        ? `${normalized.slice(0, limit)}...`
-        : normalized,
-  };
-};
-
 type ResponseEvent = {
   id: number;
 };
@@ -156,17 +141,6 @@ const getToolArgumentState = (call: ToolCallPayload) => {
       parseError: (error as Error).message,
     };
   }
-};
-
-const summarizeToolCallForDebug = (call: ToolCallPayload) => {
-  const argumentState = getToolArgumentState(call);
-  return {
-    id: call.id,
-    name: call.function.name,
-    argumentLength: call.function.arguments?.length ?? 0,
-    argumentPreview: summarizeText(call.function.arguments, 180),
-    argumentState,
-  };
 };
 
 export const createResponsesStreamParser = () => {
@@ -428,38 +402,6 @@ export function stream(
     let finishReason: string | null = null;
     const toolCallBuffer = new Map<number, PartialToolCall>();
     let parserFlushed = false;
-    const streamDebugState = {
-      sawFirstContent: false,
-      sawFirstReasoning: false,
-      sawFirstToolCalls: false,
-      sawDone: false,
-      contentChunkCount: 0,
-      reasoningChunkCount: 0,
-      toolCallDeltaCount: 0,
-      finishReasonHistory: [] as string[],
-      eventSequence: [] as string[],
-    };
-
-    const recordEvent = (event: string) => {
-      if (
-        streamDebugState.eventSequence[
-          streamDebugState.eventSequence.length - 1
-        ] !== event
-      ) {
-        streamDebugState.eventSequence.push(event);
-      }
-    };
-
-    const recordFinishReason = (reason: string | null | undefined) => {
-      if (
-        reason &&
-        streamDebugState.finishReasonHistory[
-          streamDebugState.finishReasonHistory.length - 1
-        ] !== reason
-      ) {
-        streamDebugState.finishReasonHistory.push(reason);
-      }
-    };
 
     const flushRemainText = () => {
       responseText += remainText;
@@ -482,7 +424,6 @@ export function stream(
         parsed && "delta" in parsed ? parsed.delta : (parsed as any);
       if (parsed?.finish_reason) {
         finishReason = parsed.finish_reason;
-        recordFinishReason(parsed.finish_reason);
       }
       if (!delta) {
         return;
@@ -491,62 +432,24 @@ export function stream(
       const { content, reasoning_content, tool_calls } = delta;
       if (options.disableAnimation) {
         if (content) {
-          streamDebugState.contentChunkCount += 1;
-          recordEvent("content");
-          if (!streamDebugState.sawFirstContent) {
-            streamDebugState.sawFirstContent = true;
-            emitDebugLog("ChatAPI.first_content_delta", {
-              finishReason,
-              chunk: summarizeText(content),
-            });
-          }
           responseText += content;
           if (!options.deferAssistantTextUntilFinish) {
             options.onUpdate?.(responseText, content, reasoningText);
           }
         }
         if (reasoning_content) {
-          streamDebugState.reasoningChunkCount += 1;
-          recordEvent("reasoning");
-          if (!streamDebugState.sawFirstReasoning) {
-            streamDebugState.sawFirstReasoning = true;
-            emitDebugLog("ChatAPI.first_reasoning_delta", {
-              finishReason,
-              chunk: summarizeText(reasoning_content),
-            });
-          }
           reasoningText += reasoning_content;
           options.onReasoning?.(reasoningText, reasoning_content);
         }
       } else {
         if (content) {
-          streamDebugState.contentChunkCount += 1;
-          recordEvent("content");
-          if (!streamDebugState.sawFirstContent) {
-            streamDebugState.sawFirstContent = true;
-            emitDebugLog("ChatAPI.first_content_delta", {
-              finishReason,
-              chunk: summarizeText(content),
-            });
-          }
           remainText += content;
         }
         if (reasoning_content) {
-          streamDebugState.reasoningChunkCount += 1;
-          recordEvent("reasoning");
-          if (!streamDebugState.sawFirstReasoning) {
-            streamDebugState.sawFirstReasoning = true;
-            emitDebugLog("ChatAPI.first_reasoning_delta", {
-              finishReason,
-              chunk: summarizeText(reasoning_content),
-            });
-          }
           reasoningRemainText += reasoning_content;
         }
       }
       if (Array.isArray(tool_calls)) {
-        streamDebugState.toolCallDeltaCount += tool_calls.length;
-        recordEvent("tool_calls");
         for (const partial of tool_calls as ToolCallDelta[]) {
           const existing = toolCallBuffer.get(partial.index) ?? {
             function: { arguments: "" },
@@ -566,17 +469,6 @@ export function stream(
           toolCallBuffer.set(partial.index, existing);
         }
         const toolCallList = buildToolCallList(toolCallBuffer);
-        if (!streamDebugState.sawFirstToolCalls) {
-          streamDebugState.sawFirstToolCalls = true;
-          emitDebugLog("ChatAPI.first_tool_calls_delta", {
-            finishReason,
-            toolCalls: toolCallList.map((call) => ({
-              id: call.id,
-              name: call.function.name,
-              argumentLength: call.function.arguments?.length ?? 0,
-            })),
-          });
-        }
         options.onToolCallsDelta?.(toolCallList);
       }
     };
@@ -644,41 +536,11 @@ export function stream(
         argumentState: getToolArgumentState(call),
       }));
 
-      emitDebugLog("ChatAPI.stream_finish", {
-        finishReason,
-        explicitReason: reason ?? null,
-        sawDone: streamDebugState.sawDone,
-        sawContent: streamDebugState.sawFirstContent,
-        sawReasoning: streamDebugState.sawFirstReasoning,
-        sawToolCalls: streamDebugState.sawFirstToolCalls,
-        contentChunkCount: streamDebugState.contentChunkCount,
-        reasoningChunkCount: streamDebugState.reasoningChunkCount,
-        toolCallDeltaCount: streamDebugState.toolCallDeltaCount,
-        finishReasonHistory: streamDebugState.finishReasonHistory,
-        eventSequence: streamDebugState.eventSequence,
-        responseText: summarizeText(responseText + remainText),
-        reasoningText: summarizeText(reasoningText + reasoningRemainText),
-        pendingToolCalls: pendingToolCalls.map(summarizeToolCallForDebug),
-      });
-
       const executableToolCalls = toolCallArgumentStates
         .filter((item) => item.argumentState.executable)
         .map((item) => item.call);
 
-      if (pendingToolCalls.length > executableToolCalls.length) {
-        emitDebugLog("ChatAPI.skip_incomplete_tool_calls", {
-          skippedCount: pendingToolCalls.length - executableToolCalls.length,
-          skippedToolCalls: toolCallArgumentStates
-            .filter((item) => !item.argumentState.executable)
-            .map((item) => summarizeToolCallForDebug(item.call)),
-        });
-      }
-
       if (executableToolCalls.length > 0) {
-        emitDebugLog("ChatAPI.execute_tool_calls", {
-          executableCount: executableToolCalls.length,
-          toolCalls: executableToolCalls.map(summarizeToolCallForDebug),
-        });
         resolve({
           type: "tool_calls",
           finishReason: "tool_calls",
@@ -721,22 +583,6 @@ export function stream(
         headers: requestHeaders,
       };
       const requestTimeoutId = setTimeout(() => controller.abort(), 60 * 1000);
-      emitDebugLog("ChatAPI.stream_start", {
-        url: targetPath,
-        method: "POST",
-        headerKeys: Object.keys(requestHeaders),
-        hasTools: Array.isArray((payload as any)?.tools),
-        toolCount: Array.isArray((payload as any)?.tools)
-          ? (payload as any).tools.length
-          : 0,
-        messageCount: Array.isArray((payload as any)?.messages)
-          ? (payload as any).messages.length
-          : 0,
-        deferAssistantTextUntilFinish: Boolean(
-          options.deferAssistantTextUntilFinish,
-        ),
-        disableAnimation: Boolean(options.disableAnimation),
-      });
       return fetchEventSource(targetPath, {
         fetch: streamFetch as any,
         ...chatPayload,
@@ -786,8 +632,6 @@ export function stream(
         },
         onmessage(msg) {
           if (msg.data === "[DONE]" || finished) {
-            streamDebugState.sawDone = true;
-            recordEvent("done");
             return finish();
           }
           const text = msg.data;
@@ -804,7 +648,6 @@ export function stream(
           }
         },
         onclose() {
-          recordEvent("close");
           finish();
         },
         onerror(e) {

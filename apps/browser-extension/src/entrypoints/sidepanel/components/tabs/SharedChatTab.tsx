@@ -12,6 +12,7 @@ import type WebSocketClient from "../../../../utils/WebSocketClient";
 import {
   ChatInputArea,
   ChatContainerCore,
+  useChatAutoScroll,
   type ChatInputAreaProps,
   type ChatInputAreaHandle,
   type ChatInputAreaServices,
@@ -152,6 +153,12 @@ export default function SharedChatTab({
     (state) => state.completeSession,
   );
   const resumingAskQuestionRef = useRef<Set<string>>(new Set());
+  const {
+    containerRef: messagesContainerRef,
+    enableAutoScroll,
+    forceScrollToBottom,
+    scrollToBottom,
+  } = useChatAutoScroll<HTMLDivElement>({});
 
   const {
     sessions,
@@ -418,6 +425,11 @@ export default function SharedChatTab({
     [sendRequestMessage],
   );
 
+  const handleUserSend = useCallback(() => {
+    enableAutoScroll();
+    setTimeout(forceScrollToBottom, 0);
+  }, [enableAutoScroll, forceScrollToBottom]);
+
   const submittedAskQuestionSessions = useMemo(() => {
     return Object.values(askQuestionRecords)
       .filter(
@@ -546,6 +558,16 @@ export default function SharedChatTab({
     updateSessionTitle,
   ]);
 
+  useEffect(() => {
+    setTimeout(forceScrollToBottom, 100);
+  }, [currentSession?.id, forceScrollToBottom]);
+
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const timer = setTimeout(scrollToBottom, 0);
+    return () => clearTimeout(timer);
+  }, [messages, scrollToBottom]);
+
   return (
     <ChatContainerCore
       isDark={isDark}
@@ -570,6 +592,7 @@ export default function SharedChatTab({
       onMcpManagerClick={handleMcpManagerClick}
       currentPageUrl={url}
       onSendMessageContent={handleSendMessageContent}
+      onUserSend={handleUserSend}
       onStopGeneration={stopGeneration}
       onClearMessages={clearMessages}
       onDeleteMessage={handleDeleteMessage}
@@ -580,13 +603,12 @@ export default function SharedChatTab({
       onDeleteConfirm={handleDeleteConfirm}
       chatInputServices={chatInputServices}
       chatHeader={chatHeader}
+      messagesContainerRef={messagesContainerRef}
+      messagesContainerClassName="tau-scrollbar border-t-12 border-b-12 border-transparent px-6 py-3 flex-1 min-h-0 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]"
       renderInputWrapper={(inputNode) => (
         <div
           className={classNames(
-            "m-1 mt-3 flex-none px-3 py-3 box-border shadow-sm rounded-3xl border",
-            isDark
-              ? "bg-[#0d1117] border-gray-800"
-              : "bg-white border-gray-200",
+            "m-1 mt-3 flex-none px-3 py-3 box-border shadow-sm rounded-3xl border bg-(--th-chat-input) border-(--th-chat-input-border)",
           )}
         >
           {inputNode}
@@ -608,19 +630,20 @@ export default function SharedChatTab({
         );
       }}
       renderMessage={({ message, messageIndex }) => (
-        <ChatMessage
-          key={message.id}
-          message={message as ChatMessageType}
-          messageIndex={messageIndex}
-          isDark={isDark}
-          wsClient={aiWsClient}
-          onDeleteMessage={handleDeleteMessage}
-          onRegenerateMessage={handleRegenerateMessage}
-          onCreateBranch={handleCreateBranch}
-          onCopySuccess={handleCopySuccess}
-          onCopyError={handleCopyError}
-          onDeleteConfirm={handleDeleteConfirm}
-        />
+        <div key={message.id} className="py-3">
+          <ChatMessage
+            message={message as ChatMessageType}
+            messageIndex={messageIndex}
+            isDark={isDark}
+            wsClient={aiWsClient}
+            onDeleteMessage={handleDeleteMessage}
+            onRegenerateMessage={handleRegenerateMessage}
+            onCreateBranch={handleCreateBranch}
+            onCopySuccess={handleCopySuccess}
+            onCopyError={handleCopyError}
+            onDeleteConfirm={handleDeleteConfirm}
+          />
+        </div>
       )}
     />
   );
