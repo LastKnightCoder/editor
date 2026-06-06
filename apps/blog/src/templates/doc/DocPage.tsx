@@ -95,15 +95,6 @@ const DocPage = memo(() => {
         variant="desktop"
       />
     ) : undefined;
-  const mobileDocNav =
-    docCollections.length > 0 ? (
-      <DocCollectionsMenu
-        collections={docCollections}
-        basePath={site.basePath}
-        variant="mobile"
-      />
-    ) : undefined;
-
   const sidebarScrollStorageKey = useMemo(
     () =>
       `${DOC_SIDEBAR_SCROLL_STORAGE_KEY}:${site.basePath}:${sidebarData.title}`,
@@ -114,6 +105,29 @@ const DocPage = memo(() => {
       `${DOC_SIDEBAR_COLLAPSE_STORAGE_KEY}:${site.basePath}:${sidebarData.title}`,
     [sidebarData.title, site.basePath],
   );
+  const mobileDocNav =
+    docCollections.length > 0 || sidebarData.items.length > 0 ? (
+      <>
+        {docCollections.length > 0 && (
+          <DocCollectionsMenu
+            collections={docCollections}
+            basePath={site.basePath}
+            variant="mobile"
+          />
+        )}
+        {sidebarData.items.length > 0 && (
+          <div className="border-t border-[var(--color-border-ring)] pt-3">
+            <DocSidebar
+              items={sidebarData.items}
+              basePath={site.basePath}
+              title={sidebarData.title}
+              currentPath={doc.currentPath}
+              storageKey={sidebarCollapseStorageKey}
+            />
+          </div>
+        )}
+      </>
+    ) : undefined;
 
   useEffect(() => {
     if (sidebarData.items.length === 0) {
@@ -211,6 +225,7 @@ const DocPage = memo(() => {
         navigation={navigation}
         customNav={desktopDocNav}
         mobileCustomNav={mobileDocNav}
+        rssHref={initData.rss?.href}
       />
 
       <main className="min-h-0 flex-1 overflow-hidden">

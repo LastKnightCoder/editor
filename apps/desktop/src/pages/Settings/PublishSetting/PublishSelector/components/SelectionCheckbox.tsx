@@ -7,31 +7,32 @@ interface SelectionCheckboxProps {
   indeterminate?: boolean;
   onChange: () => void;
   size?: "sm" | "md";
+  interactive?: boolean;
 }
 
 export const SelectionCheckbox = memo<SelectionCheckboxProps>(
-  ({ checked, indeterminate = false, onChange, size = "md" }) => {
+  ({
+    checked,
+    indeterminate = false,
+    onChange,
+    size = "md",
+    interactive = true,
+  }) => {
     const themeColors = useThemeColors();
     const sizeClass = size === "sm" ? "w-4 h-4" : "w-5 h-5";
     const iconSize = size === "sm" ? "w-2.5 h-2.5" : "w-3 h-3";
-
-    return (
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onChange();
-        }}
-        className={classNames(
-          sizeClass,
-          "rounded-md border-2 flex items-center justify-center transition-all flex-shrink-0",
-          checked || indeterminate
-            ? [themeColors.buttonBg, "border-transparent"]
-            : [
-                "border-gray-300 dark:border-gray-600",
-                "hover:border-gray-400 dark:hover:border-gray-500",
-              ],
-        )}
-      >
+    const className = classNames(
+      sizeClass,
+      "rounded-md border-2 flex items-center justify-center transition-all flex-shrink-0",
+      checked || indeterminate
+        ? [themeColors.buttonBg, "border-transparent"]
+        : [
+            "border-gray-300 dark:border-gray-600",
+            "hover:border-gray-400 dark:hover:border-gray-500",
+          ],
+    );
+    const content = (
+      <>
         {checked && (
           <svg
             className={classNames(iconSize, themeColors.buttonTextClass)}
@@ -55,6 +56,27 @@ export const SelectionCheckbox = memo<SelectionCheckboxProps>(
             )}
           />
         )}
+      </>
+    );
+
+    if (!interactive) {
+      return (
+        <span className={className} aria-hidden="true">
+          {content}
+        </span>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onChange();
+        }}
+        className={className}
+      >
+        {content}
       </button>
     );
   },

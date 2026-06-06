@@ -49,6 +49,7 @@ const DEV_TEMPLATE_PATHS = {
   card: "/src/templates/card/index.html",
   article: "/src/templates/article/index.html",
   doc: "/src/templates/doc/index.html",
+  quest: "/src/templates/quest/index.html",
   home: "/src/templates/home/index.html",
   list: "/src/templates/list/index.html",
 } as const;
@@ -116,6 +117,17 @@ function devTransformPath(path: string): string {
       return search
         ? `${DEV_TEMPLATE_PATHS.doc}?${search}`
         : DEV_TEMPLATE_PATHS.doc;
+    }
+    if (firstSegment === "quests") {
+      if (segments.length === 1) {
+        const listPath = search
+          ? `${DEV_TEMPLATE_PATHS.list}?${search}`
+          : DEV_TEMPLATE_PATHS.list;
+        return appendQueryParam(listPath, DEV_LIST_TYPE_PARAM, "quest");
+      }
+      return search
+        ? `${DEV_TEMPLATE_PATHS.quest}?${search}`
+        : DEV_TEMPLATE_PATHS.quest;
     }
   }
 

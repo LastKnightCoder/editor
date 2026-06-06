@@ -344,7 +344,7 @@ const DocTreeNodeItem = memo<{
         className={classNames(
           "flex items-center gap-2 px-3 py-1.5 transition-colors cursor-pointer mx-1 rounded-md",
           isActive
-            ? "bg-blue-50 dark:bg-blue-500/10"
+            ? "bg-zinc-200/70 dark:bg-zinc-700/60"
             : "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
         )}
         style={{ paddingLeft: depth * 12 + 12 }}
@@ -360,7 +360,7 @@ const DocTreeNodeItem = memo<{
           className={classNames(
             "flex-1 text-sm truncate",
             isActive
-              ? "text-blue-600 dark:text-blue-400 font-medium"
+              ? "font-medium text-zinc-950 dark:text-zinc-50"
               : themeColors.textClass,
           )}
         >

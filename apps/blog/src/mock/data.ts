@@ -666,7 +666,12 @@ const baseNavigation = [
   { label: "首页", href: "/", active: false },
   { label: "卡片", href: "/cards", active: false },
   { label: "文章", href: "/articles", active: false },
+  { label: "求索录", href: "/quests", active: false },
 ];
+
+const mockRss = {
+  href: "/rss.xml",
+};
 
 const mockDocCollections: DocCollection[] = [
   {
@@ -908,6 +913,7 @@ export const mockCardPageData: InitData = {
     ...n,
     active: n.href === "/cards",
   })),
+  rss: mockRss,
   docCollections: mockDocCollections,
   contentLinkTargets: mockContentLinkTargets,
   cardTagTree: mockCardTagTree,
@@ -958,6 +964,7 @@ export const mockArticlePageData: InitData = {
     ...n,
     active: n.href === "/articles",
   })),
+  rss: mockRss,
   docCollections: mockDocCollections,
   articleList: mockArticleList,
   content: {
@@ -984,6 +991,7 @@ export const mockDocPageData: InitData = {
     ...n,
     active: n.href === "/docs",
   })),
+  rss: mockRss,
   contentLinkTargets: mockContentLinkTargets,
   sidebar: [
     {
@@ -1134,12 +1142,232 @@ export const mockDocPageData: InitData = {
   },
 };
 
+export const mockQuestPageData: InitData = {
+  site: baseSiteConfig,
+  navigation: baseNavigation.map((n) => ({
+    ...n,
+    active: n.href === "/quests",
+  })),
+  rss: mockRss,
+  docCollections: mockDocCollections,
+  contentLinkTargets: mockContentLinkTargets,
+  content: {
+    id: 1,
+    title: "React 列表重渲染时，为什么输入框会失焦？",
+    summary:
+      "排查 key、受控输入和父组件重建之间的关系，最后确认是列表项 key 不稳定。",
+    href: "/quests/1.html",
+    groupId: 1,
+    groupTitle: "前端现场",
+    groupColor: "#92816b",
+    status: "resolved",
+    description: [
+      {
+        type: "paragraph",
+        children: [
+          {
+            type: "formatted",
+            text: "现象是每输入一个字符，输入框都会失焦。最初怀疑是防抖更新导致，后来发现根因在列表项标识。",
+          },
+        ],
+      },
+    ],
+    answers: [
+      {
+        id: 9001,
+        createTime: Date.now() - 86400000 * 2,
+        updateTime: Date.now() - 86400000,
+        content: [
+          {
+            type: "paragraph",
+            children: [
+              {
+                type: "formatted",
+                text: "先看 key 是否来自数组下标或临时生成值。如果父组件每次 render 都重新生成 key，React 会卸载并重建输入框，自然会丢失焦点。",
+              },
+            ],
+          },
+          {
+            type: "code-block",
+            language: "tsx",
+            code: "items.map((item) => <Row key={item.id} item={item} />)",
+            uuid: "quest-code-demo",
+            children: [{ type: "formatted", text: "" }],
+          } as any,
+        ],
+        source: {
+          type: "custom",
+          contentId: 9001,
+          published: false,
+        },
+      },
+    ],
+    createTime: Date.now() - 86400000 * 3,
+    updateTime: Date.now() - 86400000,
+    resolvedTime: Date.now() - 86400000,
+  },
+  meta: {
+    type: "quest",
+    publishTime: Date.now(),
+  },
+};
+
+export const mockQuestMultiAnswerPageData: InitData = {
+  ...mockQuestPageData,
+  content: {
+    ...(mockQuestPageData.content as any),
+    id: 2,
+    title: "发布页怎样避免重复打包同一份答案内容？",
+    summary:
+      "同一份 content 可以在卡片、文章和求索录之间复用，发布时按页面需求决定链接或内嵌。",
+    href: "/quests/2.html",
+    groupTitle: "发布",
+    description: [
+      {
+        type: "paragraph",
+        children: [
+          {
+            type: "formatted",
+            text: "这个调试样例用于观察多答案布局：一个答案直接内嵌，另一个答案来自已发布文章，页面需要保持轻量、清晰且不重复发布内容。",
+          },
+        ],
+      },
+    ],
+    answers: [
+      {
+        id: 9101,
+        createTime: Date.now() - 86400000 * 5,
+        updateTime: Date.now() - 86400000 * 4,
+        content: [
+          {
+            type: "paragraph",
+            children: [
+              {
+                type: "formatted",
+                text: "发布生成器先判断答案 contentId 是否已经投射为卡片或文章。如果本次也选择发布了对应页面，求索录只保留来源链接，由前端读取目标页面的初始化数据来展示正文。这个判断应该只服务于发布体积和阅读完整性，不应该反过来改变用户原本选择发布的范围。",
+              },
+            ],
+          },
+          {
+            type: "paragraph",
+            children: [
+              {
+                type: "formatted",
+                text: "换句话说，求索录引用了卡片，并不代表这张卡片必须被公开发布。只有当卡片本身已经在发布选择里，答案才复用它的页面数据；否则答案内容直接内嵌在求索录详情里。这样读者打开求索录时能读完整内容，发布目录也不会因为引用关系膨胀。",
+              },
+            ],
+          },
+          {
+            type: "paragraph",
+            children: [
+              {
+                type: "formatted",
+                text: "这个策略的关键是把“内容复用”和“页面生成”拆开：复用的是同一份 content 数据，生成的是用户明确选择的公开页面。求索录只是另一个阅读入口，不应该成为隐式发布卡片或文章的开关。",
+              },
+            ],
+          },
+        ],
+        source: {
+          type: "custom",
+          contentId: 9101,
+          published: false,
+        },
+      },
+      {
+        id: 9102,
+        createTime: Date.now() - 86400000 * 3,
+        updateTime: Date.now() - 86400000 * 2,
+        content: [
+          {
+            type: "paragraph",
+            children: [
+              {
+                type: "formatted",
+                text: "如果对应卡片或文章没有发布，求索录会直接内嵌答案正文。这样读者不需要跳转，也不会因为引用关系额外生成未选择的页面。内嵌时仍然保留答案来源信息，方便以后排查这段答案原本来自哪类内容。",
+              },
+            ],
+          },
+          {
+            type: "code-block",
+            language: "ts",
+            code: "const shouldInline = !source?.href;",
+            uuid: "quest-multi-code-demo",
+            children: [{ type: "formatted", text: "" }],
+          } as any,
+          {
+            type: "paragraph",
+            children: [
+              {
+                type: "formatted",
+                text: "这里的 source.href 只在目标页面已经发布时存在。没有 href 不代表没有来源，只代表这份来源不适合在公开站点中作为独立页面出现。这个约定能让前端渲染逻辑非常直接：有 href 就取远程初始化数据，没有 href 就渲染内嵌 content。",
+              },
+            ],
+          },
+        ],
+        source: {
+          type: "article",
+          id: 18,
+          contentId: 9102,
+          href: "/articles/18.html",
+          title: "发布数据复用策略",
+          published: true,
+        },
+      },
+      {
+        id: 9103,
+        createTime: Date.now() - 86400000 * 2,
+        updateTime: Date.now() - 86400000,
+        content: [
+          {
+            type: "paragraph",
+            children: [
+              {
+                type: "formatted",
+                text: "列表页和详情页只需要知道答案的展示方式，不需要知道内部表名。对外仍然叫求索录，保留一点记录探索过程的味道。内部可以继续沿用 question、answer、content 这些命名，因为它们服务的是数据建模，不是读者看到的公开叙事。",
+              },
+            ],
+          },
+          {
+            type: "paragraph",
+            children: [
+              {
+                type: "formatted",
+                text: "真正需要统一的是发布后的语言：导航、列表、详情页、空状态、RSS 标题都应该使用求索录。这样不会把内部的问题管理感暴露出去，也能让页面读起来像一组持续整理的探索记录。",
+              },
+            ],
+          },
+          {
+            type: "paragraph",
+            children: [
+              {
+                type: "formatted",
+                text: "答案的排版也应该服从这个定位。它不是评论流，也不是工单记录，而是一个题目下的几段完整笔记。因此调试样例必须使用接近真实卡片长度的答案，否则很容易误判布局，把页面设计成只适合短句的时间线。",
+              },
+            ],
+          },
+        ],
+        source: {
+          type: "document-item",
+          id: 7,
+          contentId: 9103,
+          title: "发布模块设计记录",
+          published: false,
+        },
+      },
+    ],
+    createTime: Date.now() - 86400000 * 7,
+    updateTime: Date.now() - 86400000,
+    resolvedTime: Date.now() - 86400000,
+  },
+};
+
 export const mockDocPageSidebarDemoData: InitData = {
   site: baseSiteConfig,
   navigation: baseNavigation.map((n) => ({
     ...n,
     active: n.href === "/docs",
   })),
+  rss: mockRss,
   contentLinkTargets: mockContentLinkTargets,
   sidebar: buildDocSidebarValidationDemo(),
   docCollections: mockDocCollections.map((collection) => ({
@@ -1178,6 +1406,7 @@ export const mockHomePageData: InitData = {
     ...n,
     active: n.href === "/",
   })),
+  rss: mockRss,
   docCollections: mockDocCollections,
   content: {
     hero: {
@@ -1252,6 +1481,7 @@ export const mockCardListPageData: InitData = {
     ...n,
     active: n.href === "/cards",
   })),
+  rss: mockRss,
   docCollections: mockDocCollections,
   cardTagTree: mockCardTagTree,
   activeTag: "",
@@ -1441,6 +1671,7 @@ export const mockArticleListPageData: InitData = {
     ...n,
     active: n.href === "/articles",
   })),
+  rss: mockRss,
   docCollections: mockDocCollections,
   content: {
     title: "全部文章",
@@ -1496,6 +1727,7 @@ export const mockDocListPageData: InitData = {
     ...n,
     active: n.href === "/docs",
   })),
+  rss: mockRss,
   docCollections: mockDocCollections,
   content: {
     title: "全部文档",
@@ -1530,16 +1762,71 @@ export const mockDocListPageData: InitData = {
   },
 };
 
+export const mockQuestListPageData: InitData = {
+  site: baseSiteConfig,
+  navigation: baseNavigation.map((n) => ({
+    ...n,
+    active: n.href === "/quests",
+  })),
+  rss: mockRss,
+  docCollections: mockDocCollections,
+  content: {
+    title: "求索录",
+    type: "quest",
+    items: [
+      {
+        id: 1,
+        title: "React 列表重渲染时，为什么输入框会失焦？",
+        summary:
+          "排查 key、受控输入和父组件重建之间的关系，最后确认是列表项 key 不稳定。",
+        href: "/quests/1.html",
+        tags: ["前端现场"],
+        groupId: 1,
+        groupTitle: "前端现场",
+        status: "resolved",
+        answerCount: 1,
+        createTime: Date.now() - 86400000 * 3,
+        updateTime: Date.now() - 86400000,
+      },
+      {
+        id: 2,
+        title: "发布页怎样避免重复打包同一份答案内容？",
+        summary:
+          "同一份 content 可以在卡片、文章和求索录之间复用，发布时按页面需求决定链接或内嵌。",
+        href: "/quests/2.html",
+        tags: ["发布"],
+        groupId: 2,
+        groupTitle: "发布",
+        status: "in_progress",
+        answerCount: 2,
+        createTime: Date.now() - 86400000 * 5,
+        updateTime: Date.now() - 86400000 * 2,
+      },
+    ],
+    pagination: {
+      current: 1,
+      total: 2,
+      pageSize: 10,
+    },
+  },
+  meta: {
+    type: "list",
+    publishTime: Date.now(),
+  },
+};
+
 export const mockListPageData = mockCardListPageData;
 
 export function getMockListPageData(
-  type: "card" | "article" | "doc" = "card",
+  type: "card" | "article" | "doc" | "quest" = "card",
 ): InitData {
   switch (type) {
     case "article":
       return mockArticleListPageData;
     case "doc":
       return mockDocListPageData;
+    case "quest":
+      return mockQuestListPageData;
     case "card":
     default:
       return mockCardListPageData;

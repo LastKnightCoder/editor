@@ -49,7 +49,7 @@ describe("publish-rss", () => {
     ).toBe("/blog/articles/1.html");
   });
 
-  it("应按更新时间或发布时间倒序生成文章、卡片、文档条目", () => {
+  it("应按更新时间或发布时间倒序生成文章、卡片、文档和求索录条目", () => {
     const items: IPublishFeedItem[] = [
       {
         type: "article",
@@ -82,6 +82,16 @@ describe("publish-rss", () => {
         publishTime: 3000,
         updateTime: 3000,
       },
+      {
+        type: "quest",
+        id: 4,
+        title: "求索录条目",
+        summary: "求索摘要",
+        href: "/quests/4.html",
+        tags: ["现场"],
+        publishTime: 4000,
+        updateTime: 4000,
+      },
     ];
 
     const xml = generateRssXml(site, items);
@@ -97,12 +107,18 @@ describe("publish-rss", () => {
     expect(xml).toContain(
       "<link>https://example.com/blog/docs/document/9/3.html</link>",
     );
+    expect(xml).toContain(
+      "<link>https://example.com/blog/quests/4.html</link>",
+    );
+    expect(xml).toContain('<guid isPermaLink="false">quest:4</guid>');
 
     const cardIndex = xml.indexOf("<title>卡片 #2</title>");
+    const questIndex = xml.indexOf("<title>求索录条目</title>");
     const docIndex = xml.indexOf("<title>知识库文档</title>");
     const articleIndex = xml.indexOf("<title>文章 &amp; 标题</title>");
     expect(cardIndex).toBeGreaterThan(-1);
-    expect(docIndex).toBeGreaterThan(cardIndex);
+    expect(questIndex).toBeGreaterThan(cardIndex);
+    expect(docIndex).toBeGreaterThan(questIndex);
     expect(articleIndex).toBeGreaterThan(docIndex);
   });
 

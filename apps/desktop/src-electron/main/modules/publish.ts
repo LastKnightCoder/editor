@@ -25,6 +25,8 @@ import {
   IPublishListItem,
   IPublishAppearanceSettings,
   IPublishFaviconConfig,
+  IPublishQuestListItem,
+  IPublishQuestStatus,
 } from "@/types/publish";
 import { createHash } from "crypto";
 import { join, resolve, dirname } from "path";
@@ -43,11 +45,14 @@ import CardTable from "./tables/card";
 import ArticleTable from "./tables/article";
 import ProjectTable from "./tables/project";
 import DocumentTable from "./tables/document";
+import QuestionTable from "./tables/question";
+import QuestionGroupTable, { QuestionGroup } from "./tables/question-group";
 import TailwindRuntimeModule from "./tailwind-runtime";
 import { ICard } from "@/types/card";
 import { IArticle } from "@/types/article";
 import { Project, ProjectItem, EProjectItemType } from "@/types/project";
 import { IDocument, IDocumentItem } from "@/types/document";
+import { IQuestion, IAnswer } from "@/types/question";
 import { Descendant } from "slate";
 import publishTemplateManager from "./publish-template-manager";
 import {
@@ -69,6 +74,7 @@ const TEMPLATE_ENTRY_MAP: Record<string, string> = {
   "card.html": "src/templates/card/index.html",
   "article.html": "src/templates/article/index.html",
   "doc.html": "src/templates/doc/index.html",
+  "quest.html": "src/templates/quest/index.html",
   "list.html": "src/templates/list/index.html",
 };
 
@@ -104,7 +110,7 @@ interface IDocEntry {
 }
 
 interface ITimelineEntry {
-  type: "card" | "article" | "doc";
+  type: "card" | "article" | "doc" | "quest";
   id: number;
   title?: string;
   summary: string;
@@ -136,6 +142,37 @@ interface IDocTreeNode {
   createTime: number;
   updateTime: number;
   hasContent: boolean;
+}
+
+interface IQuestEntry {
+  id: number;
+  title: string;
+  summary: string;
+  href: string;
+  groupId: number;
+  groupTitle: string;
+  groupColor?: string;
+  status: IPublishQuestStatus;
+  answers: IQuestAnswerEntry[];
+  description?: Descendant[];
+  createTime: number;
+  updateTime: number;
+  resolvedTime?: number | null;
+}
+
+interface IQuestAnswerEntry {
+  id: number;
+  createTime: number;
+  updateTime: number;
+  content?: Descendant[];
+  source?: {
+    type: "card" | "article" | "project-item" | "document-item" | "custom";
+    id?: number;
+    contentId: number;
+    href?: string;
+    title?: string;
+    published: boolean;
+  };
 }
 
 interface IDocCollectionMetaItem {
@@ -411,6 +448,14 @@ class PublishModule implements Module {
     };
   }
 
+  private buildRssInitMeta(
+    site: ISiteMeta,
+  ): NonNullable<IPublishInitData["rss"]> {
+    return {
+      href: buildFeedUrl(site, "/rss.xml"),
+    };
+  }
+
   private getDatabase(event: Electron.IpcMainInvokeEvent) {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) return null;
@@ -549,6 +594,8 @@ class PublishModule implements Module {
     const documents = this.loadDocuments(db, grouped.document);
     const projectScopes = this.buildEntityScopeMap(grouped.project);
     const documentScopes = this.buildEntityScopeMap(grouped.document);
+    const questScopes = this.buildEntityScopeMap(grouped.quest);
+    const hasSelectedQuests = grouped.quest.length > 0;
     const baseContentLinkTargets = buildSelectionContentLinkTargets({
       cardIds: grouped.card
         .map((selection) => selection.contentId)
@@ -561,6 +608,7 @@ class PublishModule implements Module {
     const navigation = this.buildNavigation({
       cards: cards.length > 0,
       articles: articles.length > 0,
+      quests: hasSelectedQuests,
       documents: projects.length > 0 || documents.length > 0,
     });
 
@@ -583,6 +631,19 @@ class PublishModule implements Module {
     files.push(...docPublishResult.files);
     const docCollections = docPublishResult.collections;
     const contentLinkTargets = docPublishResult.contentLinkTargets;
+    const questPublishResult = await this.buildQuestPages(
+      db,
+      site,
+      navigation,
+      grouped.quest,
+      questScopes,
+      cardMap,
+      articleMap,
+      docCollections,
+      contentLinkTargets,
+      appearanceSettings,
+    );
+    files.push(...questPublishResult.files);
 
     if (docPublishResult.listEntries.length > 0) {
       const docListInit = this.buildDocListInitData(
@@ -708,12 +769,36 @@ class PublishModule implements Module {
       });
     }
 
+    if (questPublishResult.entries.length > 0) {
+      const questListInit = this.buildQuestListInitData(
+        site,
+        navigation,
+        questPublishResult.entries,
+        docCollections,
+        contentLinkTargets,
+        appearanceSettings,
+      );
+      const questListHtml = this.injectData(
+        "list.html",
+        questListInit,
+        "quests/index.html",
+      );
+      files.push({
+        path: "quests/index.html",
+        content: Buffer.from(questListHtml),
+        hash: this.computeHash(questListHtml),
+      });
+    }
+
     const homeInitData = this.buildHomeInitData(
       site,
       navigation,
       cards,
       articles,
-      docPublishResult.timelineEntries,
+      [
+        ...docPublishResult.timelineEntries,
+        ...questPublishResult.timelineEntries,
+      ],
       projects.length,
       documents.length,
       docCollections,
@@ -729,7 +814,12 @@ class PublishModule implements Module {
 
     const rssXml = generateRssXml(
       site,
-      this.buildPublishFeedItems(cards, articles, docPublishResult.listEntries),
+      this.buildPublishFeedItems(
+        cards,
+        articles,
+        docPublishResult.listEntries,
+        questPublishResult.entries,
+      ),
     );
     files.push({
       path: "rss.xml",
@@ -869,6 +959,7 @@ class PublishModule implements Module {
       {
         site: this.buildSiteInitMeta(site),
         navigation,
+        rss: this.buildRssInitMeta(site),
         docCollections,
         contentLinkTargets,
         content: {
@@ -910,6 +1001,7 @@ class PublishModule implements Module {
       {
         site: this.buildSiteInitMeta(site),
         navigation,
+        rss: this.buildRssInitMeta(site),
         docCollections,
         contentLinkTargets,
         cardTagTree,
@@ -947,6 +1039,7 @@ class PublishModule implements Module {
       {
         site: this.buildSiteInitMeta(site),
         navigation,
+        rss: this.buildRssInitMeta(site),
         docCollections,
         contentLinkTargets,
         content: {
@@ -1003,6 +1096,7 @@ class PublishModule implements Module {
       {
         site: this.buildSiteInitMeta(site),
         navigation,
+        rss: this.buildRssInitMeta(site),
         docCollections,
         contentLinkTargets,
         content: {
@@ -1035,6 +1129,7 @@ class PublishModule implements Module {
     return {
       card: selections.filter((item) => item.contentType === "card"),
       article: selections.filter((item) => item.contentType === "article"),
+      quest: selections.filter((item) => item.contentType === "quest"),
       project: selections.filter((item) => item.contentType === "project"),
       document: selections.filter((item) => item.contentType === "document"),
     };
@@ -1076,6 +1171,7 @@ class PublishModule implements Module {
   private buildNavigation(sections: {
     cards: boolean;
     articles: boolean;
+    quests: boolean;
     documents: boolean;
   }): INavigationItem[] {
     const navigation: INavigationItem[] = [{ label: "首页", href: "/" }];
@@ -1084,6 +1180,9 @@ class PublishModule implements Module {
     }
     if (sections.articles) {
       navigation.push({ label: "文章", href: "/articles/" });
+    }
+    if (sections.quests) {
+      navigation.push({ label: "求索录", href: "/quests/" });
     }
     return navigation;
   }
@@ -1382,6 +1481,7 @@ class PublishModule implements Module {
       {
         site: this.buildSiteInitMeta(site),
         navigation,
+        rss: this.buildRssInitMeta(site),
         sidebar: entry.sidebar,
         docCollections: activeCollections,
         contentLinkTargets,
@@ -1485,6 +1585,7 @@ class PublishModule implements Module {
       {
         site: this.buildSiteInitMeta(site),
         navigation,
+        rss: this.buildRssInitMeta(site),
         docCollections,
         contentLinkTargets,
         content: {
@@ -1504,6 +1605,313 @@ class PublishModule implements Module {
       },
       appearanceSettings,
     );
+  }
+
+  private async buildQuestPages(
+    db: import("better-sqlite3").Database,
+    site: ISiteMeta,
+    navigation: INavigationItem[],
+    selections: Array<{ contentId: number; parentPath: string }>,
+    scopes: Map<number, EntityScopeConfig>,
+    publishedCards: Map<number, ICard>,
+    publishedArticles: Map<number, IArticle>,
+    docCollections?: IPublishInitData["docCollections"],
+    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
+    appearanceSettings?: IPublishAppearanceSettings,
+  ): Promise<{
+    files: IPublishFile[];
+    entries: IQuestEntry[];
+    timelineEntries: ITimelineEntry[];
+  }> {
+    if (selections.length === 0) {
+      return { files: [], entries: [], timelineEntries: [] };
+    }
+
+    const files: IPublishFile[] = [];
+    const entries: IQuestEntry[] = [];
+    const groupMap = new Map(
+      QuestionGroupTable.listGroups(db).map((group) => [group.id, group]),
+    );
+
+    for (const selection of selections) {
+      const group = groupMap.get(selection.contentId);
+      if (!group) continue;
+      const questions = this.loadSelectedQuestQuestions(
+        db,
+        group.id,
+        scopes.get(group.id),
+      );
+      for (const question of questions) {
+        const entry = this.createQuestEntry(
+          db,
+          question,
+          group,
+          publishedCards,
+          publishedArticles,
+        );
+        entries.push(entry);
+      }
+    }
+
+    entries.sort((a, b) => b.updateTime - a.updateTime || b.id - a.id);
+
+    for (const entry of entries) {
+      const initData = this.buildQuestInitData(
+        site,
+        navigation,
+        entry,
+        docCollections,
+        contentLinkTargets,
+        appearanceSettings,
+      );
+      const path = entry.href.replace(/^\//, "");
+      const runtimeCss = await this.buildTailwindRuntimeCss(
+        this.collectQuestInlineContent(entry),
+      );
+      const html = this.injectData("quest.html", initData, path, {
+        inlineStyle: runtimeCss,
+      });
+      files.push({
+        path,
+        content: Buffer.from(html),
+        hash: this.computeHash(html),
+        sourceType: "quest",
+        sourceId: entry.id,
+      });
+    }
+
+    return {
+      files,
+      entries,
+      timelineEntries: entries.map((entry) =>
+        this.createQuestTimelineEntry(entry),
+      ),
+    };
+  }
+
+  private loadSelectedQuestQuestions(
+    db: import("better-sqlite3").Database,
+    groupId: number,
+    scope?: EntityScopeConfig,
+  ): IQuestion[] {
+    const questions = QuestionTable.listByGroup(db, groupId, "all", "");
+    if (!scope || scope.mode === "all") {
+      return questions;
+    }
+    return questions.filter((question) => scope.nodes.has(question.id));
+  }
+
+  private createQuestEntry(
+    db: import("better-sqlite3").Database,
+    question: IQuestion,
+    group: QuestionGroup,
+    publishedCards: Map<number, ICard>,
+    publishedArticles: Map<number, IArticle>,
+  ): IQuestEntry {
+    const answers = question.answers
+      .map((answerId) => QuestionTable.getAnswerById(db, answerId))
+      .filter((answer): answer is IAnswer => Boolean(answer))
+      .map((answer) =>
+        this.createQuestAnswerEntry(
+          db,
+          answer,
+          publishedCards,
+          publishedArticles,
+        ),
+      );
+
+    const summary =
+      this.buildSummary(question.description || [], 96) ||
+      answers
+        .map((answer) => this.buildSummary(answer.content || [], 96))
+        .find((text) => text.length > 0) ||
+      (answers.length > 0 ? `收录 ${answers.length} 个答案` : "暂未记录答案");
+
+    return {
+      id: question.id,
+      title: question.questionContent || `求索 #${question.id}`,
+      summary,
+      href: `/quests/${question.id}.html`,
+      groupId: group.id,
+      groupTitle: group.title,
+      groupColor: group.color,
+      status: question.status,
+      answers,
+      description: question.description,
+      createTime: question.createTime,
+      updateTime: question.updateTime,
+      resolvedTime: question.resolvedTime,
+    };
+  }
+
+  private createQuestAnswerEntry(
+    db: import("better-sqlite3").Database,
+    answer: IAnswer,
+    publishedCards: Map<number, ICard>,
+    publishedArticles: Map<number, IArticle>,
+  ): IQuestAnswerEntry {
+    const source = this.resolveQuestAnswerSource(
+      db,
+      answer.id,
+      publishedCards,
+      publishedArticles,
+    );
+    const shouldInline = !source?.href;
+
+    return {
+      id: answer.id,
+      createTime: answer.createTime,
+      updateTime: answer.updateTime,
+      content: shouldInline ? answer.content || [] : undefined,
+      source,
+    };
+  }
+
+  private resolveQuestAnswerSource(
+    db: import("better-sqlite3").Database,
+    contentId: number,
+    publishedCards: Map<number, ICard>,
+    publishedArticles: Map<number, IArticle>,
+  ): IQuestAnswerEntry["source"] {
+    const card = CardTable.getCardByContentId(db, contentId);
+    if (card) {
+      const published = publishedCards.has(card.id);
+      return {
+        type: "card",
+        id: card.id,
+        contentId,
+        href: published ? `/cards/${card.id}.html` : undefined,
+        title: this.buildSummary(card.content || [], 48) || `卡片 #${card.id}`,
+        published,
+      };
+    }
+
+    const article = ArticleTable.getArticleByContentId(db, contentId);
+    if (article) {
+      const published = publishedArticles.has(article.id);
+      return {
+        type: "article",
+        id: article.id,
+        contentId,
+        href: published ? `/articles/${article.id}.html` : undefined,
+        title: article.title || `文章 #${article.id}`,
+        published,
+      };
+    }
+
+    const projectItem = ProjectTable.getProjectItemsByContentId(
+      db,
+      contentId,
+    )[0];
+    if (projectItem) {
+      return {
+        type: "project-item",
+        id: projectItem.id,
+        contentId,
+        title: projectItem.title || `项目条目 #${projectItem.id}`,
+        published: false,
+      };
+    }
+
+    const documentItem = DocumentTable.getDocumentItemsByContentId(
+      db,
+      contentId,
+    )[0];
+    if (documentItem) {
+      return {
+        type: "document-item",
+        id: documentItem.id,
+        contentId,
+        title: documentItem.title || `知识库条目 #${documentItem.id}`,
+        published: false,
+      };
+    }
+
+    return {
+      type: "custom",
+      contentId,
+      published: false,
+    };
+  }
+
+  private buildQuestInitData(
+    site: ISiteMeta,
+    navigation: INavigationItem[],
+    entry: IQuestEntry,
+    docCollections?: IPublishInitData["docCollections"],
+    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
+    appearanceSettings?: IPublishAppearanceSettings,
+  ): IPublishInitData {
+    return attachPublishAppearanceSettings(
+      {
+        site: this.buildSiteInitMeta(site),
+        navigation,
+        rss: this.buildRssInitMeta(site),
+        docCollections,
+        contentLinkTargets,
+        content: { ...entry },
+        meta: {
+          type: "quest",
+          publishTime: Date.now(),
+        },
+      },
+      appearanceSettings,
+    );
+  }
+
+  private buildQuestListInitData(
+    site: ISiteMeta,
+    navigation: INavigationItem[],
+    entries: IQuestEntry[],
+    docCollections?: IPublishInitData["docCollections"],
+    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
+    appearanceSettings?: IPublishAppearanceSettings,
+  ): IPublishInitData {
+    const items: IPublishQuestListItem[] = entries.map((entry) => ({
+      id: entry.id,
+      title: entry.title,
+      summary: entry.summary,
+      href: entry.href,
+      tags: [entry.groupTitle],
+      groupId: entry.groupId,
+      groupTitle: entry.groupTitle,
+      status: entry.status,
+      answerCount: entry.answers.length,
+      createTime: entry.createTime,
+      updateTime: entry.updateTime,
+    }));
+
+    return attachPublishAppearanceSettings(
+      {
+        site: this.buildSiteInitMeta(site),
+        navigation,
+        rss: this.buildRssInitMeta(site),
+        docCollections,
+        contentLinkTargets,
+        content: {
+          title: "求索录",
+          type: "quest",
+          items,
+          pagination: {
+            current: 1,
+            total: items.length,
+            pageSize: Math.max(items.length, 1),
+          },
+        },
+        meta: {
+          type: "list",
+          publishTime: Date.now(),
+        },
+      },
+      appearanceSettings,
+    );
+  }
+
+  private collectQuestInlineContent(entry: IQuestEntry): Descendant[] {
+    return [
+      ...(entry.description || []),
+      ...entry.answers.flatMap((answer) => answer.content || []),
+    ];
   }
 
   private buildProjectDocEntries(
@@ -1976,6 +2384,18 @@ class PublishModule implements Module {
     };
   }
 
+  private createQuestTimelineEntry(entry: IQuestEntry): ITimelineEntry {
+    return {
+      type: "quest",
+      id: entry.id,
+      title: entry.title,
+      summary: entry.summary,
+      href: entry.href,
+      tags: [entry.groupTitle],
+      publishTime: entry.updateTime || entry.createTime,
+    };
+  }
+
   private buildTimelineEntries(
     cards: ICard[],
     articles: IArticle[],
@@ -2065,6 +2485,7 @@ class PublishModule implements Module {
     cards: ICard[],
     articles: IArticle[],
     docs: IDocEntry[],
+    quests: IQuestEntry[] = [],
   ): IPublishFeedItem[] {
     return [
       ...articles.map((article) => ({
@@ -2097,6 +2518,16 @@ class PublishModule implements Module {
         tags: doc.tags || [],
         publishTime: doc.createTime,
         updateTime: doc.updateTime,
+      })),
+      ...quests.map((quest) => ({
+        type: "quest" as const,
+        id: quest.id,
+        title: quest.title,
+        summary: quest.summary,
+        href: quest.href,
+        tags: [quest.groupTitle],
+        publishTime: quest.createTime,
+        updateTime: quest.updateTime,
       })),
     ];
   }

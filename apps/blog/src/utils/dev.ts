@@ -7,6 +7,7 @@ const DEV_TEMPLATE_PATHS: Record<string, string> = {
   card: "/src/templates/card/index.html",
   article: "/src/templates/article/index.html",
   doc: "/src/templates/doc/index.html",
+  quest: "/src/templates/quest/index.html",
   home: "/src/templates/home/index.html",
   list: "/src/templates/list/index.html",
 };

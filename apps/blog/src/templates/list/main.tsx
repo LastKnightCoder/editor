@@ -10,7 +10,9 @@ if (import.meta.env.DEV) {
     const params = new URLSearchParams(window.location.search);
     const listType = params.get("__dev_list_type");
     window._INIT_DATA_ = getMockListPageData(
-      listType === "article" || listType === "doc" ? listType : "card",
+      listType === "article" || listType === "doc" || listType === "quest"
+        ? listType
+        : "card",
     );
     initTheme();
     createRoot(document.getElementById("root")!).render(

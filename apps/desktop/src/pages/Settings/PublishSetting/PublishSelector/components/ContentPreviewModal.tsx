@@ -31,7 +31,7 @@ export const ContentPreviewModal = memo<ContentPreviewModalProps>(
 
     const defaultIcon = (
       <svg
-        className="w-5 h-5 text-blue-500"
+        className="w-5 h-5 text-zinc-500"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -50,7 +50,7 @@ export const ContentPreviewModal = memo<ContentPreviewModalProps>(
         icon={icon || defaultIcon}
         iconBgColor={
           iconBgColor ||
-          "bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
+          "border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800"
         }
         closeOnEscape
       >

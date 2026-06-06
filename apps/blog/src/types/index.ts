@@ -31,6 +31,8 @@ export interface ArticleListItem {
   createTime: number;
 }
 
+export type QuestStatus = "not_started" | "in_progress" | "resolved";
+
 // 卡片列表项（用于卡片页面左侧导航）
 export interface CardListItem {
   id: number;
@@ -97,6 +99,37 @@ export interface DocData {
   currentPath?: string;
 }
 
+export interface QuestAnswerData {
+  id: number;
+  createTime: number;
+  updateTime: number;
+  content?: Descendant[];
+  source?: {
+    type: "card" | "article" | "project-item" | "document-item" | "custom";
+    id?: number;
+    contentId: number;
+    href?: string;
+    title?: string;
+    published: boolean;
+  };
+}
+
+export interface QuestData {
+  id: number;
+  title: string;
+  summary: string;
+  href: string;
+  groupId: number;
+  groupTitle: string;
+  groupColor?: string;
+  status: QuestStatus;
+  answers: QuestAnswerData[];
+  description?: Descendant[];
+  createTime: number;
+  updateTime: number;
+  resolvedTime?: number | null;
+}
+
 export interface DocCollectionItem {
   id: number;
   title: string;
@@ -139,7 +172,7 @@ export interface HomeData {
 
 // 时间线项
 export interface TimelineItem {
-  type: "card" | "article" | "doc";
+  type: "card" | "article" | "doc" | "quest";
   id: number;
   title?: string;
   summary: string;
@@ -151,7 +184,7 @@ export interface TimelineItem {
 // 列表数据
 export interface ListData {
   title: string;
-  type: "card" | "article" | "doc";
+  type: "card" | "article" | "doc" | "quest";
   items: ListItem[];
   pagination?: {
     current: number;
@@ -170,11 +203,16 @@ export interface ListItem {
   href: string;
   tags: string[];
   createTime: number;
+  updateTime?: number;
+  groupId?: number;
+  groupTitle?: string;
+  status?: QuestStatus;
+  answerCount?: number;
 }
 
 // 页面元数据
 export interface PageMeta {
-  type: "home" | "card" | "article" | "doc" | "list";
+  type: "home" | "card" | "article" | "doc" | "list" | "quest";
   publishTime: number;
 }
 
@@ -189,6 +227,9 @@ export interface InitData {
   activeTag?: string; // 当前激活的标签（用于筛选）
   docCollections?: DocCollection[]; // 项目/知识库集合
   contentLinkTargets?: Record<string, ContentLinkTarget>;
+  rss?: {
+    href: string;
+  };
   settings?: {
     appearance?: {
       image?: {
@@ -197,7 +238,7 @@ export interface InitData {
       };
     };
   };
-  content: CardData | ArticleData | DocData | HomeData | ListData;
+  content: CardData | ArticleData | DocData | QuestData | HomeData | ListData;
   meta: PageMeta;
 }
 
