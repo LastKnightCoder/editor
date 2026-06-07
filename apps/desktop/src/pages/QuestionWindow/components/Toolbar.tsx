@@ -86,12 +86,14 @@ const Toolbar = memo(
           </div>
           <button
             className={classNames(
-              "p-1.5 rounded-full cursor-pointer flex items-center justify-center shrink-0",
+              "w-8 h-8 rounded-full cursor-pointer flex items-center justify-center shrink-0",
               themeColors.hoverTextClass,
               themeColors.hoverClass,
             )}
             onClick={onCreateQuestion}
             title="新建问题"
+            type="button"
+            aria-label="新建问题"
           >
             <MdAdd size={20} />
           </button>
