@@ -18,7 +18,7 @@ export default function App() {
   const isDark = resolvedTheme === "dark";
 
   // 同步客户端字体设置到 CSS 变量，对齐 desktop useSyncFont
-  useSyncFont(client);
+  useSyncFont(client, status === "connected");
 
   // 将 dark 类设置到 html 根元素，确保 Tailwind dark: 和 CSS 变量同时生效
   useEffect(() => {

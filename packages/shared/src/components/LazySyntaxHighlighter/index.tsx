@@ -11,6 +11,8 @@ interface LazySyntaxHighlighterProps {
   isDark?: boolean;
 }
 
+const CODE_FONT_FAMILY = "var(--mono-font)";
+
 const LazySyntaxHighlighter: React.FC<LazySyntaxHighlighterProps> = ({
   language,
   children,
@@ -68,11 +70,19 @@ const LazySyntaxHighlighter: React.FC<LazySyntaxHighlighterProps> = ({
   };
 
   if (isLoading) {
-    return <pre className="loading-syntax">Loading code...</pre>;
+    return (
+      <pre className="loading-syntax" style={{ fontFamily: CODE_FONT_FAMILY }}>
+        Loading code...
+      </pre>
+    );
   }
 
   if (!SyntaxHighlighter) {
-    return <pre {...rest}>{children}</pre>;
+    return (
+      <pre {...rest} style={{ fontFamily: CODE_FONT_FAMILY }}>
+        {children}
+      </pre>
+    );
   }
 
   const normalizedLanguage = language === "js" ? "javascript" : language;
@@ -90,7 +100,16 @@ const LazySyntaxHighlighter: React.FC<LazySyntaxHighlighterProps> = ({
       <SyntaxHighlighter
         language={normalizedLanguage}
         style={theme}
-        customStyle={{ margin: 0, borderRadius: "4px" }}
+        customStyle={{
+          margin: 0,
+          borderRadius: "4px",
+          fontFamily: CODE_FONT_FAMILY,
+        }}
+        codeTagProps={{
+          style: {
+            fontFamily: CODE_FONT_FAMILY,
+          },
+        }}
         showLineNumbers={true}
         wrapLines={true}
         {...rest}

@@ -7,8 +7,8 @@ import { ModelItem, ConfigItem } from "../types";
 import { SettingButton } from "../../components";
 
 interface ModelDetailsProps {
-  onAddModel: () => void;
-  onEditModel: (model: ModelItem) => void;
+  onAddModel: (configId: string) => void;
+  onEditModel: (configId: string, model: ModelItem) => void;
   configId: string;
   onEditConfig: (config: ConfigItem) => void;
 }
@@ -217,7 +217,7 @@ const ModelDetails = ({
           </h3>
           <SettingButton
             variant="primary"
-            onClick={onAddModel}
+            onClick={() => onAddModel(configId)}
             icon={
               <svg
                 className="w-4 h-4"
@@ -272,7 +272,7 @@ const ModelDetails = ({
                     </div>
                     <div className="flex items-center gap-1 ml-3">
                       <button
-                        onClick={() => onEditModel(model)}
+                        onClick={() => onEditModel(configId, model)}
                         className={classNames(
                           "p-1.5 text-gray-500 rounded-md transition-colors",
                           themeColors.hoverClass,

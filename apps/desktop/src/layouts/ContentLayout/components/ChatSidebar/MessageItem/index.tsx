@@ -1,30 +1,20 @@
-import React, { memo, useState } from "react";
-import classnames from "classnames";
+import React, { memo, useCallback, useMemo } from "react";
+import { App } from "antd";
 import {
-  ChatSessionMessage,
-  RequestMessage,
-  ResponseMessage,
-  ResponseContentBlock,
-} from "@/types";
+  ChatMessageView,
+  type ChatMessageViewFile,
+  type ChatMessageViewImage,
+  type ChatMessageViewMarkdownRenderParams,
+  type ContentBlock,
+} from "@tau/shared";
+import { ChatSessionMessage, RequestMessage, ResponseMessage } from "@/types";
 import { Role } from "@/constants";
 import MarkdownRenderer from "../MarkdownRenderer";
 import { MarkdownMessageMeta } from "../MarkdownContext";
 import ToolCallDisplay from "./ToolCallDisplay";
-import ReasoningDisplay from "./ReasoningDisplay";
-import {
-  BiCopy,
-  BiTrash,
-  BiRefresh,
-  BiGitBranch,
-  BiEdit,
-} from "react-icons/bi";
-import { App } from "antd";
-import { FilePdfOutlined } from "@ant-design/icons";
 import { showInFolder, getHomeDir } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
-import { useThemeColors } from "@/hooks";
 import LocalImage from "@/components/LocalImage";
-import { getDisplayTextFromBlocks } from "@tau/shared";
 import { getAssistantContentBlocks } from "@/services/assistantMessageBlocks";
 import styles from "./index.module.less";
 
@@ -32,7 +22,7 @@ interface MessageItemProps {
   message: ChatSessionMessage;
   isDark: boolean;
   markdownComponents: any;
-  isVisible: boolean; // 控制是否可见/渲染
+  isVisible: boolean;
   onDeleteMessage?: (messageIndex: number) => void;
   onRegenerateMessage?: (messageIndex: number) => void;
   onEditMessage?: (messageIndex: number, content: string) => void;
@@ -52,19 +42,34 @@ const getTextContent = (message: RequestMessage): string => {
     .join("\n");
 };
 
-const getImageContent = (message: RequestMessage): string[] => {
+const getImageContent = (message: RequestMessage): ChatMessageViewImage[] => {
   if (typeof message.content === "string") {
     return [];
   }
 
   return message.content
     .filter((item) => item.type === "image")
-    .map((item) => item.image);
+    .map((item, index) => ({
+      url: item.image,
+      alt: `User uploaded image ${index + 1}`,
+    }));
 };
 
-const getFileContent = (
-  message: RequestMessage,
-): Array<{ path: string; name: string }> => {
+const parseFileName = (path: string, fileName?: string) => {
+  if (fileName?.trim()) {
+    return fileName;
+  }
+  try {
+    const url = new URL(path);
+    return url.pathname.split("/").pop() || path;
+  } catch {
+    const normalized = path.replace(/\\/g, "/");
+    const parts = normalized.split("/");
+    return parts[parts.length - 1] || path;
+  }
+};
+
+const getFileContent = (message: RequestMessage): ChatMessageViewFile[] => {
   if (typeof message.content === "string") {
     return [];
   }
@@ -78,22 +83,10 @@ const getFileContent = (
         { type: "file" }
       > => item.type === "file" && typeof item.file === "string",
     )
-    .map((item) => {
-      const path = item.file;
-      const name =
-        item.fileName ||
-        (() => {
-          try {
-            const url = new URL(path);
-            return url.pathname.split("/").pop() || path;
-          } catch {
-            const normalized = path.replace(/\\/g, "/");
-            const parts = normalized.split("/");
-            return parts[parts.length - 1] || path;
-          }
-        })();
-      return { path, name };
-    });
+    .map((item) => ({
+      path: item.file,
+      name: parseFileName(item.file, item.fileName),
+    }));
 };
 
 const MessageItem: React.FC<MessageItemProps> = memo(
@@ -110,324 +103,122 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     messageMeta,
   }) => {
     const { message: antdMessage, modal } = App.useApp();
-    const [showActions, setShowActions] = useState(false);
-    const { chatMessageBg } = useThemeColors();
-
     const isUser = message.role === Role.User;
-    const isAssistant = message.role === Role.Assistant;
 
-    let displayContent = "";
-    let contentBlocks: ResponseContentBlock[] = [];
-    let images: string[] = [];
-    let files: Array<{ path: string; name: string }> = [];
+    const userMessage = isUser ? (message as RequestMessage) : undefined;
+    const userText = userMessage ? getTextContent(userMessage) : "";
+    const images = userMessage ? getImageContent(userMessage) : [];
+    const files = userMessage ? getFileContent(userMessage) : [];
+    const assistantBlocks = useMemo(
+      () =>
+        isUser
+          ? []
+          : (getAssistantContentBlocks(
+              message as ResponseMessage,
+            ) as ContentBlock[]),
+      [isUser, message],
+    );
 
-    if (isUser) {
-      const userMessage = message as RequestMessage;
-      displayContent = getTextContent(userMessage);
-      images = getImageContent(userMessage);
-      files = getFileContent(userMessage);
-    } else {
-      const assistantMessage = message as ResponseMessage;
-      contentBlocks = getAssistantContentBlocks(assistantMessage);
-    }
-
-    const filteredContentBlocks = contentBlocks.filter((block) => {
-      if (block.type === "text" || block.type === "reasoning") {
-        return block.content.trim().length > 0;
-      }
-      if (block.type === "tool_calls") {
-        return block.executions.length > 0;
-      }
-      return true;
-    });
-
-    if (
-      !displayContent &&
-      images.length === 0 &&
-      files.length === 0 &&
-      filteredContentBlocks.length === 0
-    ) {
-      return null;
-    }
-
-    const openFileInExplorer = async (path: string) => {
-      try {
-        let targetPath = path;
-        if (/^https?:/i.test(path)) {
-          targetPath = await remoteResourceToLocal(path);
-        } else if (path.startsWith("~")) {
-          const homeDir = await getHomeDir();
-          targetPath = `${homeDir}${path.slice(1)}`;
+    const openFileInExplorer = useCallback(
+      async (file: ChatMessageViewFile) => {
+        try {
+          let targetPath = file.path;
+          if (/^https?:/i.test(file.path)) {
+            targetPath = await remoteResourceToLocal(file.path);
+          } else if (file.path.startsWith("~")) {
+            const homeDir = await getHomeDir();
+            targetPath = `${homeDir}${file.path.slice(1)}`;
+          }
+          await showInFolder(targetPath);
+        } catch (error) {
+          console.error("打开文件失败:", error);
+          antdMessage.error("无法打开文件");
         }
-        await showInFolder(targetPath);
-      } catch (error) {
-        console.error("打开文件失败:", error);
-        antdMessage.error("无法打开文件");
-      }
-    };
+      },
+      [antdMessage],
+    );
 
-    const handleCopy = async () => {
-      const contentToCopy = isUser
-        ? displayContent
-        : getDisplayTextFromBlocks(
-            filteredContentBlocks as Parameters<
-              typeof getDisplayTextFromBlocks
-            >[0],
-          );
+    const handleDelete = useCallback(
+      (index: number) => {
+        modal.confirm({
+          title: "确定删除该消息吗？",
+          okText: "确定",
+          cancelText: "取消",
+          okButtonProps: {
+            danger: true,
+          },
+          onOk: () => {
+            onDeleteMessage?.(index);
+          },
+        });
+      },
+      [modal, onDeleteMessage],
+    );
 
-      if (!contentToCopy) {
-        antdMessage.warning("没有可复制的内容");
-        return;
-      }
+    const renderMarkdown = useCallback(
+      ({
+        content,
+        blockIndex,
+        isLastTextBlock,
+        textContent,
+      }: ChatMessageViewMarkdownRenderParams) => {
+        const blockMeta =
+          messageMeta && blockIndex !== undefined
+            ? {
+                ...messageMeta,
+                blockIndex,
+                isLastTextBlock,
+                textContent,
+              }
+            : messageMeta;
 
-      try {
-        await navigator.clipboard.writeText(contentToCopy);
-        antdMessage.success("已复制到剪贴板");
-      } catch (error) {
-        console.error("复制失败:", error);
-        antdMessage.error("复制失败");
-      }
-    };
-
-    const handleDelete = () => {
-      modal.confirm({
-        title: "确定删除该消息吗？",
-        okText: "确定",
-        cancelText: "取消",
-        okButtonProps: {
-          danger: true,
-        },
-        onOk: () => {
-          onDeleteMessage?.(messageIndex);
-        },
-      });
-    };
-
-    const handleRegenerate = () => {
-      onRegenerateMessage?.(messageIndex);
-    };
-
-    const handleEdit = () => {
-      onEditMessage?.(messageIndex, displayContent);
-    };
-
-    const handleCreateBranch = () => {
-      onCreateBranch?.(messageIndex);
-    };
-
-    const canEditMessage =
-      isUser && !!onEditMessage && displayContent.length > 0;
+        return (
+          <MarkdownRenderer
+            content={content}
+            className={styles.markdown}
+            markdownComponents={markdownComponents}
+            shouldRender={isVisible}
+            messageMeta={blockMeta}
+          />
+        );
+      },
+      [isVisible, markdownComponents, messageMeta],
+    );
 
     return (
-      <div
-        className={classnames(styles.messageContainer, {
-          [styles.userContainer]: isUser,
-          [styles.assistantContainer]: isAssistant,
-          [styles.dark]: isDark,
-        })}
-        onMouseEnter={() => setShowActions(true)}
-        onMouseLeave={() => setShowActions(false)}
-      >
-        <div
-          className={classnames(styles.message, chatMessageBg, {
-            [styles.userMessage]: isUser,
-            [styles.assistantMessage]: isAssistant,
-            [styles.dark]: isDark,
-          })}
-        >
-          <div className={styles.messageContent}>
-            {isUser ? (
-              <>
-                {images.length > 0 && (
-                  <div className={styles.imagesContainer}>
-                    {images.map((image, index) => (
-                      <LocalImage
-                        key={index}
-                        url={image}
-                        alt={`User uploaded image ${index + 1}`}
-                        className={styles.messageImage}
-                      />
-                    ))}
-                  </div>
-                )}
-                {files.length > 0 && (
-                  <div className={styles.filesContainer}>
-                    {files.map((file, index) => (
-                      <button
-                        key={`${file.path}-${index}`}
-                        className={styles.fileAttachment}
-                        onClick={() => openFileInExplorer(file.path)}
-                      >
-                        <div className={styles.fileInfo}>
-                          <FilePdfOutlined />
-                          <span>{file.name}</span>
-                        </div>
-                        <span className={styles.fileAction}>
-                          在文件夹中打开
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {displayContent && (
-                  <MarkdownRenderer
-                    content={displayContent}
-                    className={styles.markdown}
-                    markdownComponents={markdownComponents}
-                    shouldRender={isVisible}
-                    messageMeta={messageMeta}
-                  />
-                )}
-              </>
-            ) : filteredContentBlocks.length > 0 ? (
-              <>
-                {(() => {
-                  let lastTextBlockIndex = -1;
-                  for (let i = filteredContentBlocks.length - 1; i >= 0; i--) {
-                    if (filteredContentBlocks[i].type === "text") {
-                      lastTextBlockIndex = i;
-                      break;
-                    }
-                  }
-
-                  return filteredContentBlocks.map((block, index) => {
-                    const isLastTextBlock =
-                      block.type === "text" && index === lastTextBlockIndex;
-                    const textContent =
-                      block.type === "text" ? block.content : undefined;
-                    const blockMeta = messageMeta
-                      ? {
-                          ...messageMeta,
-                          blockIndex: index,
-                          isLastTextBlock,
-                          textContent,
-                        }
-                      : undefined;
-
-                    if (block.type === "reasoning") {
-                      return (
-                        <ReasoningDisplay
-                          key={`reasoning-${index}`}
-                          content={block.content}
-                          isDark={isDark}
-                          markdownComponents={markdownComponents}
-                          isVisible={isVisible}
-                          startTime={block.startTime}
-                          endTime={block.endTime}
-                          duration={block.duration}
-                          messageMeta={blockMeta}
-                        />
-                      );
-                    } else if (block.type === "tool_calls") {
-                      return (
-                        <div
-                          key={`tool-calls-${index}`}
-                          className={styles.toolCallsContainer}
-                        >
-                          {block.executions.map((execution, execIndex) => (
-                            <ToolCallDisplay
-                              key={execution.toolCallId || execIndex}
-                              execution={execution}
-                              isDark={isDark}
-                              markdownComponents={markdownComponents}
-                            />
-                          ))}
-                        </div>
-                      );
-                    } else if (block.type === "text") {
-                      return (
-                        <MarkdownRenderer
-                          key={`text-${index}`}
-                          content={block.content}
-                          className={styles.markdown}
-                          markdownComponents={markdownComponents}
-                          shouldRender={isVisible}
-                          messageMeta={blockMeta}
-                        />
-                      );
-                    }
-                    return null;
-                  });
-                })()}
-              </>
-            ) : null}
-          </div>
-        </div>
-        <div
-          className={classnames(styles.messageActions, {
-            [styles.show]: showActions,
-            [styles.userActions]: isUser,
-            [styles.assistantActions]: isAssistant,
-            [styles.dark]: isDark,
-          })}
-        >
-          {isUser ? (
-            <>
-              {canEditMessage && (
-                <button
-                  type="button"
-                  className={styles.actionButton}
-                  onClick={handleEdit}
-                  title="编辑"
-                >
-                  <BiEdit />
-                </button>
-              )}
-              <button
-                type="button"
-                className={styles.actionButton}
-                onClick={handleRegenerate}
-                title="重新生成"
-              >
-                <BiRefresh />
-              </button>
-              <button
-                type="button"
-                className={styles.actionButton}
-                onClick={handleCopy}
-                title="复制"
-              >
-                <BiCopy />
-              </button>
-              <button
-                type="button"
-                className={styles.actionButton}
-                onClick={handleDelete}
-                title="删除"
-              >
-                <BiTrash />
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                className={styles.actionButton}
-                onClick={handleCreateBranch}
-                title="创建分支"
-              >
-                <BiGitBranch />
-              </button>
-              <button
-                type="button"
-                className={styles.actionButton}
-                onClick={handleCopy}
-                title="复制"
-              >
-                <BiCopy />
-              </button>
-              <button
-                type="button"
-                className={styles.actionButton}
-                onClick={handleDelete}
-                title="删除"
-              >
-                <BiTrash />
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+      <ChatMessageView
+        role={isUser ? "user" : "assistant"}
+        messageIndex={messageIndex}
+        isDark={isDark}
+        userText={userText}
+        images={images}
+        files={files}
+        assistantBlocks={assistantBlocks}
+        onDelete={handleDelete}
+        onRegenerate={onRegenerateMessage}
+        onEditUserMessage={onEditMessage}
+        onCreateBranch={onCreateBranch}
+        onOpenFile={openFileInExplorer}
+        onCopySuccess={() => antdMessage.success("已复制到剪贴板")}
+        onCopyError={() => antdMessage.error("复制失败")}
+        renderMarkdown={renderMarkdown}
+        renderImage={(image, index, className) => (
+          <LocalImage
+            key={`${image.url}-${index}`}
+            url={image.url}
+            alt={image.alt}
+            className={className}
+          />
+        )}
+        renderToolCall={(execution, index) => (
+          <ToolCallDisplay
+            key={execution.toolCallId || index}
+            execution={execution}
+            isDark={isDark}
+            markdownComponents={markdownComponents}
+          />
+        )}
+      />
     );
   },
 );
