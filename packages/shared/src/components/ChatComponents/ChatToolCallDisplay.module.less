@@ -50,7 +50,7 @@
 }
 
 .toolName {
-  font-family: "Monaco", "Menlo", "Consolas", monospace;
+  font-family: var(--mono-font, "Monaco", "Menlo", "Consolas", monospace);
   font-size: 14px;
   font-weight: 600;
   color: var(--color-text-primary);
@@ -112,7 +112,6 @@
   padding: 0 16px 12px;
   animation: slideDown 0.2s ease;
   user-select: text;
-  cursor: text;
 }
 
 @keyframes slideDown {
@@ -149,7 +148,7 @@
   border: 1px solid var(--color-border-secondary);
   border-radius: 6px;
   padding: 10px 12px;
-  font-family: "Monaco", "Menlo", "Consolas", monospace;
+  font-family: var(--mono-font, "Monaco", "Menlo", "Consolas", monospace);
   font-size: 12px;
   line-height: 1.5;
   color: var(--color-text-primary);

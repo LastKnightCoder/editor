@@ -35,6 +35,21 @@ export {
 } from "./ReasoningDisplay";
 export { ChatMessage, type ChatMessageProps } from "./ChatMessage";
 export {
+  ChatMarkdownRenderer,
+  CodeBlockPreviewCard,
+  buildCodeBlockPreviewPayload,
+  type ChatMarkdownRendererProps,
+  type CodeBlockPreviewPayload,
+  type CodeBlockPreviewCardProps,
+} from "./ChatMarkdownRenderer";
+export {
+  ChatMessageView,
+  type ChatMessageViewProps,
+  type ChatMessageViewFile,
+  type ChatMessageViewImage,
+  type ChatMessageViewMarkdownRenderParams,
+} from "./ChatMessageView";
+export {
   toolCallRendererRegistry,
   registerToolCallRenderer,
   registerToolCallRenderers,

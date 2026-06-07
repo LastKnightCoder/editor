@@ -56,8 +56,8 @@ interface ConfigListProps {
   onEditConfig: (config: ConfigItem) => void;
   selectedConfigId: string;
   onSelectConfig: (configId: string) => void;
-  onAddModel: () => void;
-  onEditModel: (model: ModelItem) => void;
+  onAddModel: (configId: string) => void;
+  onEditModel: (configId: string, model: ModelItem) => void;
 }
 
 const ConfigList = ({
@@ -263,7 +263,7 @@ const ConfigList = ({
                       </span>
                       <SettingButton
                         variant="secondary"
-                        onClick={onAddModel}
+                        onClick={() => onAddModel(config.id)}
                         icon={<Plus className="w-3.5 h-3.5" />}
                       >
                         添加
@@ -308,7 +308,7 @@ const ConfigList = ({
                             </div>
                             <div className="flex items-center gap-0.5 ml-3 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button
-                                onClick={() => onEditModel(model)}
+                                onClick={() => onEditModel(config.id, model)}
                                 className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
                                 title="编辑"
                               >

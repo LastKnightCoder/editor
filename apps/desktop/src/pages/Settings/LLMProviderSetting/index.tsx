@@ -23,6 +23,7 @@ const LLMProviderSetting = () => {
     null,
   );
   const [selectedConfigId, setSelectedConfigId] = useState<string>("");
+  const [editingModelConfigId, setEditingModelConfigId] = useState<string>("");
   const { message } = App.useApp();
 
   const onAddConfig = () => {
@@ -77,13 +78,15 @@ const LLMProviderSetting = () => {
     setInitialConfigData(null);
   };
 
-  const onAddModel = () => {
+  const onAddModel = (configId: string) => {
+    setEditingModelConfigId(configId);
     setModelAction("create");
     setInitialModelData(null);
     setModelAddOpen(true);
   };
 
-  const onEditModel = (model: ModelItem) => {
+  const onEditModel = (configId: string, model: ModelItem) => {
+    setEditingModelConfigId(configId);
     setModelAction("edit");
     setInitialModelData(model);
     setModelAddOpen(true);
@@ -95,7 +98,7 @@ const LLMProviderSetting = () => {
       return;
     }
 
-    if (!selectedConfigId) {
+    if (!editingModelConfigId) {
       message.warning("请先选择一个配置");
       return;
     }
@@ -103,7 +106,7 @@ const LLMProviderSetting = () => {
     useSettingStore.setState(
       produce((draft) => {
         const config = draft.setting.llmConfigs.find(
-          (item: any) => item.id === selectedConfigId,
+          (item: any) => item.id === editingModelConfigId,
         );
         if (config) {
           if (!config.models) {
@@ -139,11 +142,13 @@ const LLMProviderSetting = () => {
     );
     setModelAddOpen(false);
     setInitialModelData(null);
+    setEditingModelConfigId("");
   };
 
   const onAddModelCancel = () => {
     setModelAddOpen(false);
     setInitialModelData(null);
+    setEditingModelConfigId("");
   };
 
   return (

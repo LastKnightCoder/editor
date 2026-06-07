@@ -44,11 +44,14 @@ function applyAppearanceSetting(appearance?: AppearanceSetting) {
  * - 监听 "user-setting-changed" 通知，实时同步字体和主题强调色
  * - 与 desktop 的 useSyncFont + useSyncTheme 行为一致
  */
-export function useSyncFont(wsClient: WebSocketClient | null) {
+export function useSyncFont(
+  wsClient: WebSocketClient | null,
+  isConnected: boolean,
+) {
   useEffect(() => {
     applyAppearanceSetting();
 
-    if (!wsClient?.isConnected) return;
+    if (!wsClient || !isConnected) return;
 
     const extractAndApplyAppearance = (setting: Record<string, unknown>) => {
       const fontSetting = setting?.fontSetting as FontSetting | undefined;
@@ -92,5 +95,5 @@ export function useSyncFont(wsClient: WebSocketClient | null) {
         handleSettingChanged,
       );
     };
-  }, [wsClient]);
+  }, [wsClient, isConnected]);
 }
