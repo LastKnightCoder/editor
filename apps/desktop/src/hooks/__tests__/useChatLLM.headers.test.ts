@@ -346,6 +346,44 @@ describe("hooks/useChatLLM headers", () => {
     expect(cacheDebugLogs[0]).not.toContain("test-key");
   });
 
+  it("Claude native payload 应使用模型配置的最大输出 token", async () => {
+    const onError = vi.fn();
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    const modelConfig: ModelConfig = {
+      name: "claude-sonnet-4-6",
+      description: "Claude",
+      messageFormat: "claude",
+      maxOutputTokens: 32000,
+      features: {
+        online: true,
+        thinking: true,
+        image: false,
+        video: false,
+        audio: false,
+        file: false,
+      },
+    };
+    normalizeRequestMessagesMock.mockImplementation(
+      async (incoming) => incoming,
+    );
+
+    await chatStreamCore({
+      providerConfig,
+      modelConfig,
+      messages,
+      enableTools: false,
+      onError,
+    });
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(streamMock).toHaveBeenCalledOnce();
+    expect(streamMock.mock.calls[0]?.[1]).toMatchObject({
+      model: "claude-sonnet-4-6",
+      max_tokens: 32000,
+      stream: true,
+    });
+  });
+
   it("Claude native payload 应给最后一段稳定 assistant 历史添加缓存断点", async () => {
     const onError = vi.fn();
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});

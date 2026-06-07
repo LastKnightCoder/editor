@@ -55,6 +55,15 @@ type ClaudeMessage = {
 };
 
 const CLAUDE_CACHE_DEBUG_PREFIX = "[ClaudeCacheDebug]";
+const DEFAULT_CLAUDE_MAX_OUTPUT_TOKENS = 8192;
+
+const normalizeMaxOutputTokens = (value: unknown): number => {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return DEFAULT_CLAUDE_MAX_OUTPUT_TOKENS;
+  }
+  const normalized = Math.floor(value);
+  return normalized > 0 ? normalized : DEFAULT_CLAUDE_MAX_OUTPUT_TOKENS;
+};
 
 const logClaudeCacheDebug = (event: string, payload: unknown) => {
   console.info(
@@ -744,7 +753,7 @@ export class DesktopModelProtocolAdapter implements AgentModelProtocolAdapter {
       const { system, messages } = buildClaudeMessages(transportMessages);
       payload = {
         model: modelName,
-        max_tokens: 8192,
+        max_tokens: normalizeMaxOutputTokens(this.modelConfig.maxOutputTokens),
         stream: true,
         ...(system
           ? {

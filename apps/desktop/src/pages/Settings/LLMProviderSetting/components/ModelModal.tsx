@@ -41,6 +41,7 @@ const ModelModal = ({
   const [apiProtocol, setApiProtocol] = useState<
     "chat-completions" | "responses"
   >("chat-completions");
+  const [maxOutputTokens, setMaxOutputTokens] = useState("");
   const themeColors = useThemeColors();
 
   useEffect(() => {
@@ -49,6 +50,11 @@ const ModelModal = ({
       setDescription(initialData.description);
       setMessageFormat(initialData.messageFormat ?? "openai");
       setApiProtocol(initialData.apiProtocol ?? "chat-completions");
+      setMaxOutputTokens(
+        typeof initialData.maxOutputTokens === "number"
+          ? String(initialData.maxOutputTokens)
+          : "",
+      );
       const normalizedFeatures = {
         online: initialData.features?.online ?? false,
         thinking: initialData.features?.thinking ?? false,
@@ -68,6 +74,7 @@ const ModelModal = ({
       setSelectedFeatures([]);
       setMessageFormat("openai");
       setApiProtocol("chat-completions");
+      setMaxOutputTokens("");
     }
   }, [initialData, open]);
 
@@ -80,6 +87,7 @@ const ModelModal = ({
       audio: selectedFeatures.includes("audio"),
       file: selectedFeatures.includes("file"),
     };
+    const parsedMaxOutputTokens = Number.parseInt(maxOutputTokens, 10);
     onFinish({
       name: modelName,
       description,
@@ -87,12 +95,19 @@ const ModelModal = ({
       messageFormat,
       apiProtocol:
         messageFormat === "openai" ? apiProtocol : "chat-completions",
+      maxOutputTokens:
+        messageFormat === "claude" &&
+        Number.isFinite(parsedMaxOutputTokens) &&
+        parsedMaxOutputTokens > 0
+          ? parsedMaxOutputTokens
+          : undefined,
     });
     setModelName("");
     setDescription("");
     setSelectedFeatures([]);
     setMessageFormat("openai");
     setApiProtocol("chat-completions");
+    setMaxOutputTokens("");
   };
 
   const handleCancel = () => {
@@ -102,6 +117,7 @@ const ModelModal = ({
     setSelectedFeatures([]);
     setMessageFormat("openai");
     setApiProtocol("chat-completions");
+    setMaxOutputTokens("");
   };
 
   const toggleFeature = (value: string) => {
@@ -251,6 +267,18 @@ const ModelModal = ({
             ))}
           </div>
         </div>
+      )}
+      {messageFormat === "claude" && (
+        <SettingInput
+          label="最大输出 Token"
+          type="number"
+          min={1}
+          step={1}
+          value={maxOutputTokens}
+          onChange={(e) => setMaxOutputTokens(e.target.value)}
+          placeholder="默认 8192，例如 16000 或 32000"
+          description="用于 Claude Messages API 的 max_tokens。不同 Claude 模型和中转渠道允许的最大值不同，超出后服务端会拒绝请求。"
+        />
       )}
     </SettingModalShell>
   );

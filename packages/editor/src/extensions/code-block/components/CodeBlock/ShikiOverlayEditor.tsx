@@ -71,6 +71,8 @@ interface ShikiOverlayEditorProps {
 }
 
 const MIN_HEIGHT = 0;
+const WHEEL_DELTA_LINE = 1;
+const WHEEL_DELTA_PAGE = 2;
 
 const getLines = (value: string): string[] => {
   return value.split("\n");
@@ -80,6 +82,16 @@ const clamp = (value: number, min: number, max: number): number => {
   if (value < min) return min;
   if (value > max) return max;
   return value;
+};
+
+const getWheelDeltaPixels = (event: React.WheelEvent<HTMLElement>): number => {
+  if (event.deltaMode === WHEEL_DELTA_LINE) {
+    return event.deltaY * 16;
+  }
+  if (event.deltaMode === WHEEL_DELTA_PAGE) {
+    return event.deltaY * event.currentTarget.clientWidth;
+  }
+  return event.deltaY;
 };
 
 const offsetToCursor = (value: string, offset: number): CodeCursorPosition => {
@@ -461,6 +473,45 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
     };
   }, [controller, saveSelectionSnapshot]);
 
+  const syncScrollPosition = useCallback(
+    (source: HTMLElement, target: HTMLElement | null) => {
+      if (!target) {
+        return;
+      }
+      target.scrollTop = source.scrollTop;
+      target.scrollLeft = source.scrollLeft;
+    },
+    [],
+  );
+
+  const handleModWheelScroll = useCallback(
+    (event: React.WheelEvent<HTMLElement>) => {
+      if ((!event.ctrlKey && !event.metaKey) || event.deltaY === 0) {
+        return;
+      }
+
+      const target = event.currentTarget;
+      const maxScrollLeft = target.scrollWidth - target.clientWidth;
+      if (maxScrollLeft <= 0) {
+        return;
+      }
+
+      event.preventDefault();
+      target.scrollLeft = clamp(
+        target.scrollLeft + getWheelDeltaPixels(event),
+        0,
+        maxScrollLeft,
+      );
+
+      if (target === textareaRef.current) {
+        syncScrollPosition(target, codeLayerRef.current);
+      } else {
+        syncScrollPosition(target, textareaRef.current);
+      }
+    },
+    [syncScrollPosition],
+  );
+
   return (
     <div
       className={classnames(className)}
@@ -488,10 +539,9 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
           if (!readOnly || !textareaRef.current) {
             return;
           }
-          const target = event.currentTarget;
-          textareaRef.current.scrollTop = target.scrollTop;
-          textareaRef.current.scrollLeft = target.scrollLeft;
+          syncScrollPosition(event.currentTarget, textareaRef.current);
         }}
+        onWheel={handleModWheelScroll}
         aria-hidden={true}
       >
         {magicMoveEnabled && magicMoveHighlighter ? (
@@ -557,12 +607,9 @@ const ShikiOverlayEditor: React.FC<ShikiOverlayEditorProps> = ({
           onContextMenu(e, { start, end });
         }}
         onScroll={(event) => {
-          const target = event.currentTarget;
-          if (codeLayerRef.current) {
-            codeLayerRef.current.scrollTop = target.scrollTop;
-            codeLayerRef.current.scrollLeft = target.scrollLeft;
-          }
+          syncScrollPosition(event.currentTarget, codeLayerRef.current);
         }}
+        onWheel={handleModWheelScroll}
         onKeyDown={(event) => onKeyDown?.(event, helpers)}
         data-shiki-language={shikiLanguage}
       />

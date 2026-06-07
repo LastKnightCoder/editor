@@ -355,6 +355,8 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
   const renderGenerating = () => (
     <GeneratingProgress
       statusText={getToolStatusText()}
+      outputText={generatedHtml}
+      outputLabel="PPT"
       toolExecutions={toolExecutions}
       onStop={handleStopGenerate}
       showStopButton
