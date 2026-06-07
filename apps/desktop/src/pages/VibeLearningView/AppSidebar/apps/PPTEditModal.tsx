@@ -405,6 +405,8 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
     <div className="space-y-5">
       <GeneratingProgress
         statusText={getToolStatusText()}
+        outputText={generatedHtml}
+        outputLabel="PPT"
         toolExecutions={toolExecutions}
         onStop={handleStopGenerate}
         showStopButton

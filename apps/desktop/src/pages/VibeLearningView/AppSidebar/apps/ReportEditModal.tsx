@@ -371,6 +371,8 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
     <div className="space-y-5">
       <GeneratingProgress
         statusText={getToolStatusText()}
+        outputText={generatedHtml}
+        outputLabel="报告"
         toolExecutions={toolExecutions}
         onStop={handleStopGenerate}
         showStopButton

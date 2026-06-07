@@ -324,6 +324,8 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
   const renderGenerating = () => (
     <GeneratingProgress
       statusText={getToolStatusText()}
+      outputText={generatedHtml}
+      outputLabel="报告"
       toolExecutions={toolExecutions}
       onStop={handleStopGenerate}
       showStopButton

@@ -146,6 +146,8 @@ export interface ModelConfig {
   features: ModelFeatures;
   messageFormat?: MessageFormat;
   apiProtocol?: LLMApiProtocol;
+  /** 最大输出 token。Claude Messages API 使用 max_tokens，未配置时使用应用默认值。 */
+  maxOutputTokens?: number;
 }
 
 export interface LLMUsageConfig {

@@ -7,6 +7,7 @@ import {
   Search,
   BookOpen,
   FileText,
+  FileCode2,
 } from "lucide-react";
 import classNames from "classnames";
 
@@ -19,6 +20,10 @@ interface GeneratingProgressProps {
   generatedCount?: number;
   /** 已生成数量的单位 */
   generatedUnit?: string;
+  /** 正在流式输出的内容，用于展示产物体积 */
+  outputText?: string;
+  /** 输出内容类型标签 */
+  outputLabel?: string;
   /** 工具调用状态列表（可选） */
   toolExecutions?: ToolCallExecutionState[];
   /** 停止按钮点击回调 */
@@ -57,6 +62,14 @@ const getToolIcon = (toolName: string) => {
   }
 };
 
+const formatHtmlSize = (content: string) => {
+  const bytes =
+    typeof TextEncoder !== "undefined"
+      ? new TextEncoder().encode(content).length
+      : content.length;
+  return `${(bytes / 1024).toFixed(1)} KB`;
+};
+
 /**
  * 生成进度组件
  * 显示生成过程中的状态和进度
@@ -66,6 +79,8 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
     statusText = "正在生成中...",
     generatedCount,
     generatedUnit = "项",
+    outputText = "",
+    outputLabel = "HTML",
     toolExecutions = [],
     onStop,
     stopButtonText = "停止生成",
@@ -77,6 +92,9 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
     (t) => t.status === "success",
   ).length;
   const totalCount = toolExecutions.length;
+  const hasOutputText = outputText.trim().length > 0;
+  const outputSize = hasOutputText ? formatHtmlSize(outputText) : "0 KB";
+  const shouldShowToolProgress = !hasOutputText && toolExecutions.length > 0;
 
   return (
     <div className="flex flex-col items-center justify-center py-12">
@@ -108,8 +126,31 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
         </motion.p>
       )}
 
+      {/* 流式输出指标 */}
+      {hasOutputText && (
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={classNames(
+            "mt-4 flex w-full max-w-xs items-center gap-3 rounded-xl",
+            "border border-blue-100 bg-blue-50/70 px-4 py-3",
+            "text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200",
+          )}
+        >
+          <FileCode2 className="h-4 w-4 shrink-0" />
+          <div className="min-w-0">
+            <div className="text-[11px] font-medium text-blue-500 dark:text-blue-300">
+              {outputLabel} 大小
+            </div>
+            <div className="text-base font-semibold text-gray-800 dark:text-gray-100">
+              {outputSize}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* 工具调用进度 */}
-      {toolExecutions.length > 0 && (
+      {shouldShowToolProgress && (
         <div className="w-full max-w-xs mt-4">
           <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-2">
             <span>资料获取进度</span>
@@ -117,7 +158,7 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
               {completedCount}/{totalCount}
             </span>
           </div>
-          <div className="space-y-1.5 max-h-32 overflow-auto">
+          <div className="space-y-1.5">
             {toolExecutions.slice(-5).map((execution) => (
               <motion.div
                 key={execution.toolCallId}

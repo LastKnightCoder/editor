@@ -21,6 +21,7 @@ export interface ModelItem {
   };
   messageFormat?: "openai" | "claude";
   apiProtocol?: "chat-completions" | "responses";
+  maxOutputTokens?: number;
 }
 
 export interface ConfigFormData {
@@ -44,4 +45,5 @@ export interface ModelFormData {
   };
   messageFormat?: "openai" | "claude";
   apiProtocol?: "chat-completions" | "responses";
+  maxOutputTokens?: number;
 }

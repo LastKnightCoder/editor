@@ -22,6 +22,22 @@ const setNativeTextareaValue = (
   setter?.call(textarea, value);
 };
 
+const mockHorizontalScrollMetrics = (
+  element: HTMLElement,
+  metrics: { clientWidth?: number; scrollWidth?: number },
+) => {
+  Object.defineProperties(element, {
+    clientWidth: {
+      configurable: true,
+      value: metrics.clientWidth ?? 100,
+    },
+    scrollWidth: {
+      configurable: true,
+      value: metrics.scrollWidth ?? 500,
+    },
+  });
+};
+
 describe("ShikiOverlayEditor selection", () => {
   let root: Root | null = null;
   let container: HTMLDivElement | null = null;
@@ -135,5 +151,66 @@ describe("ShikiOverlayEditor selection", () => {
 
     expect(textarea.selectionStart).toBe(4);
     expect(textarea.selectionEnd).toBe(4);
+  });
+
+  it("按住 Ctrl 滚动时将 textarea 的纵向滚轮转换为横向滚动", async () => {
+    const textarea = await renderEditor("const value = 1;");
+    const codeLayer = container?.querySelector(
+      ".code-block-shiki-layer",
+    ) as HTMLDivElement;
+    mockHorizontalScrollMetrics(textarea, {
+      clientWidth: 100,
+      scrollWidth: 500,
+    });
+    mockHorizontalScrollMetrics(codeLayer, {
+      clientWidth: 100,
+      scrollWidth: 500,
+    });
+
+    await act(async () => {
+      textarea.dispatchEvent(
+        new WheelEvent("wheel", {
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: true,
+          deltaY: 48,
+        }),
+      );
+    });
+
+    expect(textarea.scrollLeft).toBe(48);
+    expect(codeLayer.scrollLeft).toBe(48);
+  });
+
+  it("只读模式下按住 Command 滚动高亮层时同步横向滚动位置", async () => {
+    const textarea = await renderEditor("const value = 1;", {
+      readOnly: true,
+    });
+    const codeLayer = container?.querySelector(
+      ".code-block-shiki-layer",
+    ) as HTMLDivElement;
+    mockHorizontalScrollMetrics(textarea, {
+      clientWidth: 100,
+      scrollWidth: 500,
+    });
+    mockHorizontalScrollMetrics(codeLayer, {
+      clientWidth: 100,
+      scrollWidth: 500,
+    });
+    codeLayer.scrollLeft = 20;
+
+    await act(async () => {
+      codeLayer.dispatchEvent(
+        new WheelEvent("wheel", {
+          bubbles: true,
+          cancelable: true,
+          metaKey: true,
+          deltaY: 64,
+        }),
+      );
+    });
+
+    expect(codeLayer.scrollLeft).toBe(84);
+    expect(textarea.scrollLeft).toBe(84);
   });
 });

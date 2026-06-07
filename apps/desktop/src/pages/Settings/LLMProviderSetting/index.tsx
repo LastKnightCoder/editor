@@ -117,6 +117,7 @@ const LLMProviderSetting = () => {
               features: data.features,
               messageFormat: data.messageFormat,
               apiProtocol: data.apiProtocol,
+              maxOutputTokens: data.maxOutputTokens,
             });
           } else {
             const modelIndex = config.models.findIndex(
@@ -129,6 +130,7 @@ const LLMProviderSetting = () => {
                 features: data.features,
                 messageFormat: data.messageFormat,
                 apiProtocol: data.apiProtocol,
+                maxOutputTokens: data.maxOutputTokens,
               };
             }
           }
