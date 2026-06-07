@@ -128,7 +128,7 @@ const SearchInput: React.FC<SearchInputProps> = memo(
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
               className={classNames(
-                "flex-1 h-full bg-transparent text-sm outline-none placeholder:opacity-50 px-2",
+                "min-w-0 flex-1 h-full bg-transparent text-sm outline-none placeholder:opacity-50 px-2",
                 textClass,
               )}
             />
