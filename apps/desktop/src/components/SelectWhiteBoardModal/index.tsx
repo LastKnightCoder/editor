@@ -109,8 +109,8 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
       onCancel={handleCancel}
       okButtonProps={{ disabled: selectedWhiteBoards.length === 0 }}
       width={1200}
-      contentClassName="p-0"
-      bodyClassName="h-[600px] box-border px-6 py-4"
+      contentClassName="p-0 h-[min(760px,calc(100vh-120px))]"
+      bodyClassName="flex-1 min-h-0 box-border px-6 py-4"
     >
       <div className="flex flex-col h-full gap-4">
         {/* 搜索栏 */}
@@ -152,7 +152,7 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
         {/* Grid 布局白板列表 */}
         <div
           ref={listRef}
-          className="flex-1 overflow-y-auto p-5"
+          className="flex-1 min-h-0 overflow-y-auto p-5"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
