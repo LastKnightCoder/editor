@@ -73,6 +73,7 @@ import {
   PUBLISH_SEARCH_INDEX_PATH,
 } from "./publish-search-index";
 import { scopeRuntimeTailwindCss } from "./publish-tailwind-scope";
+import { resolveQuestActivityTime } from "./publish-quest-time";
 
 const TEMPLATE_ENTRY_MAP: Record<string, string> = {
   "home.html": "src/templates/home/index.html",
@@ -1684,7 +1685,11 @@ class PublishModule implements Module {
       }
     }
 
-    entries.sort((a, b) => b.updateTime - a.updateTime || b.id - a.id);
+    entries.sort(
+      (a, b) =>
+        resolveQuestActivityTime(b) - resolveQuestActivityTime(a) ||
+        b.id - a.id,
+    );
 
     for (const entry of entries) {
       const initData = this.buildQuestInitData(
@@ -1757,6 +1762,10 @@ class PublishModule implements Module {
         .map((answer) => this.buildSummary(answer.content || [], 96))
         .find((text) => text.length > 0) ||
       (answers.length > 0 ? `收录 ${answers.length} 个答案` : "暂未记录答案");
+    const activityTime = resolveQuestActivityTime({
+      createTime: question.createTime,
+      answers,
+    });
 
     return {
       id: question.id,
@@ -1770,7 +1779,7 @@ class PublishModule implements Module {
       answers,
       description: question.description,
       createTime: question.createTime,
-      updateTime: question.updateTime,
+      updateTime: activityTime,
       resolvedTime: question.resolvedTime,
     };
   }
@@ -1910,7 +1919,7 @@ class PublishModule implements Module {
       status: entry.status,
       answerCount: entry.answers.length,
       createTime: entry.createTime,
-      updateTime: entry.updateTime,
+      updateTime: resolveQuestActivityTime(entry),
     }));
 
     return attachPublishAppearanceSettings(
@@ -2425,7 +2434,7 @@ class PublishModule implements Module {
       summary: entry.summary,
       href: entry.href,
       tags: [entry.groupTitle],
-      publishTime: entry.updateTime || entry.createTime,
+      publishTime: resolveQuestActivityTime(entry),
     };
   }
 
@@ -2559,8 +2568,8 @@ class PublishModule implements Module {
         summary: quest.summary,
         href: quest.href,
         tags: [quest.groupTitle],
-        publishTime: quest.createTime,
-        updateTime: quest.updateTime,
+        publishTime: resolveQuestActivityTime(quest),
+        updateTime: resolveQuestActivityTime(quest),
       })),
     ];
   }

@@ -132,13 +132,14 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
           iconBgColor="bg-purple-50 dark:bg-purple-500/20 border-purple-200 dark:border-purple-500/30"
           footer={footer}
           closeOnEscape={!multiple}
+          contentClassName="h-[min(860px,calc(100vh-120px))]"
         >
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.2 }}
-            style={{ maxHeight: 800 }}
+            className="h-full min-h-0"
           >
             <ContentSelector
               onSelect={handleSelect}

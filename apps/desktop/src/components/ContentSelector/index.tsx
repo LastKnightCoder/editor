@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Flex, Tag } from "antd";
+import { Tag } from "antd";
 import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -119,7 +119,7 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
   });
 
   return (
-    <div className="h-full overflow-y-auto overflow-x-hidden box-border flex flex-col max-h-[600px]">
+    <div className="h-full min-h-0 box-border flex flex-col">
       <div className="shrink-0 flex w-full p-0 box-border items-center mb-4 relative">
         <div className="absolute left-3.5 top-1/2 -translate-y-1/2 z-1 text-gray-400 dark:text-slate-500 text-base pointer-events-none">
           {searching ? <LoadingOutlined /> : <SearchOutlined />}
@@ -139,10 +139,9 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
       </div>
       <div
         className={classnames(
-          "mt-5 border-20 border-transparent px-5 flex-1 box-border flex flex-col",
+          "mt-5 border-20 border-transparent px-5 flex-1 min-h-0 box-border flex flex-col",
           {
             "overflow-y-auto": !searching,
-            "overflow-hidden": searching,
           },
         )}
         ref={listRef}
@@ -207,7 +206,7 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
                     onClick={handleItemClick.bind(null, item)}
                     style={{ contentVisibility: "auto" }}
                   >
-                    <Flex gap={8} align="center" className="mb-3">
+                    <div className="mb-5 flex items-center gap-2">
                       <div>
                         <Tag color={getTypeColor(item.type)}>
                           {getTypeLabel(item.type)}
@@ -218,7 +217,7 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
                           {item.title}
                         </div>
                       )}
-                    </Flex>
+                    </div>
                     <div className="mb-3 flex gap-2.5 text-gray-500 dark:text-slate-400 text-xs">
                       <span>更新于：{formatDate(item.updateTime, true)}</span>
                     </div>

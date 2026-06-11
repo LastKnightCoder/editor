@@ -295,8 +295,8 @@ const ChatSelectorModal = memo(
           cancelText="取消"
           centered
           okButtonProps={{ disabled: !selectedChat }}
-          contentClassName="p-0"
-          bodyClassName="max-h-[calc(100vh-200px)] h-[600px] flex flex-col p-6"
+          contentClassName="p-0 h-[min(760px,calc(100vh-120px))]"
+          bodyClassName="flex-1 min-h-0 flex flex-col p-6"
         >
           <div className="flex flex-col h-full">
             <div className="mb-4">
