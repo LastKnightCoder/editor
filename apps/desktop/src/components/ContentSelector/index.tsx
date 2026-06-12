@@ -130,7 +130,7 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
           contentEditable={true}
           onChange={setSearch}
           onPressEnter={searchItems}
-          className="flex-1 px-4 py-3 pl-11 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-900 dark:text-white relative focus:border-purple-500 focus:shadow-[0_0_0_3px_rgba(168,85,247,0.15)] focus:bg-white dark:focus:bg-zinc-900 placeholder:text-gray-400 dark:placeholder:text-slate-500"
+          className="flex-1 py-3 pl-11 pr-4 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-900 dark:text-white relative focus:border-purple-500 focus:shadow-[0_0_0_3px_rgba(168,85,247,0.15)] focus:bg-white dark:focus:bg-zinc-900 placeholder:text-gray-400 dark:placeholder:text-slate-500"
           onDeleteEmpty={() => {
             setSearch("");
             setSearchedItems(initialContents);
