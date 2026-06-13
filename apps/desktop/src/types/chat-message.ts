@@ -7,6 +7,7 @@ export interface ChatMessage {
   messages: ChatSessionMessage[];
   messageSchemaVersion?: number;
   title: string;
+  titleDirty?: boolean;
   groupId?: number | null;
   archived?: boolean;
   parentChatId?: number | null; // 父对话 ID（用于分支关系）

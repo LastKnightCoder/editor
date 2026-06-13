@@ -133,7 +133,7 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
               content: systemPrompt,
             },
           ];
-          await createChatMessage(messages, data.title);
+          await createChatMessage(messages, data.title, undefined, true);
         }
         messageApi.success("对话创建成功");
       } else if (data.id) {
@@ -142,6 +142,7 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
           const updatedChat = {
             ...chatToUpdate,
             title: data.title,
+            titleDirty: true,
           };
           if (useExternalData && onExternalChatUpdate) {
             await onExternalChatUpdate(updatedChat);

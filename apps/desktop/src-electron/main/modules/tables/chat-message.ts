@@ -20,6 +20,7 @@ export default class ChatMessageTable {
     const hasMessageSchemaVersion = tableInfo.some(
       (col) => col.name === "message_schema_version",
     );
+    const hasTitleDirty = tableInfo.some((col) => col.name === "title_dirty");
 
     if (!hasGroupId) {
       db.exec("ALTER TABLE chat_message ADD COLUMN group_id INTEGER");
@@ -46,6 +47,15 @@ export default class ChatMessageTable {
     if (!hasMessageSchemaVersion) {
       db.exec(
         "ALTER TABLE chat_message ADD COLUMN message_schema_version INTEGER DEFAULT 1",
+      );
+    }
+
+    if (!hasTitleDirty) {
+      db.exec(
+        "ALTER TABLE chat_message ADD COLUMN title_dirty INTEGER DEFAULT 1",
+      );
+      db.exec(
+        "UPDATE chat_message SET title_dirty = 1 WHERE title_dirty IS NULL",
       );
     }
 
@@ -100,6 +110,7 @@ export default class ChatMessageTable {
     branch_index: number | null;
     order_num: number | null;
     message_schema_version?: number | null;
+    title_dirty?: number | null;
   }): { chat: ChatMessage; migrated: boolean } {
     const storedSchemaVersion =
       typeof chatMessage.message_schema_version === "number"
@@ -114,6 +125,7 @@ export default class ChatMessageTable {
         createTime: chatMessage.create_time,
         updateTime: chatMessage.update_time,
         title: chatMessage.title,
+        titleDirty: Boolean(chatMessage.title_dirty ?? 1),
         messages: migration.messages,
         messageSchemaVersion: CHAT_MESSAGE_SCHEMA_VERSION,
         groupId: chatMessage.group_id,
@@ -149,9 +161,10 @@ export default class ChatMessageTable {
     parentChatId: number | null | undefined,
     branchIndex: number | undefined,
     orderNum: number | null | undefined,
+    titleDirty = false,
   ): ChatMessage {
     const stmt = db.prepare(
-      "INSERT INTO chat_message (create_time, update_time, title, messages, group_id, archived, parent_chat_id, branch_index, order_num, message_schema_version) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)",
+      "INSERT INTO chat_message (create_time, update_time, title, messages, group_id, archived, parent_chat_id, branch_index, order_num, message_schema_version, title_dirty) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)",
     );
     const now = Date.now();
     const migration = migrateChatSessionMessages(messages);
@@ -165,6 +178,7 @@ export default class ChatMessageTable {
       branchIndex ?? 0,
       orderNum ?? null,
       CHAT_MESSAGE_SCHEMA_VERSION,
+      titleDirty ? 1 : 0,
     );
     const createdId = res.lastInsertRowid;
     return this.getChatMessageById(db, createdId);
@@ -213,9 +227,10 @@ export default class ChatMessageTable {
       parentChatId,
       branchIndex,
       orderNum,
+      titleDirty,
     } = chatMessage;
     const stmt = db.prepare(
-      "UPDATE chat_message SET update_time = ?, title = ?, messages = ?, group_id = ?, archived = ?, parent_chat_id = ?, branch_index = ?, order_num = ?, message_schema_version = ? WHERE id = ?",
+      "UPDATE chat_message SET update_time = ?, title = ?, messages = ?, group_id = ?, archived = ?, parent_chat_id = ?, branch_index = ?, order_num = ?, message_schema_version = ?, title_dirty = ? WHERE id = ?",
     );
     const now = Date.now();
     const migration = migrateChatSessionMessages(messages);
@@ -229,6 +244,7 @@ export default class ChatMessageTable {
       branchIndex ?? 0,
       orderNum ?? null,
       CHAT_MESSAGE_SCHEMA_VERSION,
+      titleDirty === false ? 0 : 1,
       id,
     );
     return this.getChatMessageById(db, id);
