@@ -26,6 +26,7 @@ export type MessageContent = TextContent | ImageContent | FileContent;
 export type ReasoningEffort = "none" | "low" | "medium" | "high";
 
 export interface RequestMessage {
+  clientId?: string;
   role: Role;
   content: MessageContent[] | string;
   reasoning_content?: string;
@@ -110,6 +111,7 @@ export type ResponseContentBlock =
     };
 
 export interface ResponseMessage {
+  clientId?: string;
   role: Role;
   content: string;
   reasoning_content?: string;

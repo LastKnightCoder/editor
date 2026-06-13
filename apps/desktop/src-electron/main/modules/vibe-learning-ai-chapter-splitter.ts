@@ -45,7 +45,7 @@ export interface TaskProgress {
   inProgress: number; // 进行中
 }
 
-const KIMI_CLI_USER_AGENT = "KimiCLI/1.37.0";
+const KIMI_CLI_USER_AGENT = "kimi-code-cli/0.14.2";
 
 // ============================================================
 // 内部类型

@@ -5,6 +5,12 @@ export interface UseChatAutoScrollOptions<T extends HTMLElement> {
   containerRef?: RefObject<T | null>;
   enabled?: boolean;
   bottomThreshold?: number;
+  /**
+   * 自定义滚动到底部的实现。
+   * 传入后，scrollToBottom / forceScrollToBottom 将调用此函数，
+   * 常用于配合虚拟列表（如 @tanstack/react-virtual）。
+   */
+  scrollToBottomImpl?: (options?: ScrollToBottomOptions) => boolean;
 }
 
 export interface ScrollToBottomOptions {
@@ -27,6 +33,7 @@ export function useChatAutoScroll<T extends HTMLElement>({
   containerRef: externalContainerRef,
   enabled = true,
   bottomThreshold = 10,
+  scrollToBottomImpl,
 }: UseChatAutoScrollOptions<T>): UseChatAutoScrollResult<T> {
   const currentContainerRef = useRef<T | null>(null);
   const isAutoScrollEnabledRef = useRef(true);
@@ -35,6 +42,7 @@ export function useChatAutoScroll<T extends HTMLElement>({
   const lastTouchYRef = useRef<number | null>(null);
   const attachedContainerRef = useRef<T | null>(null);
   const detachListenersRef = useRef<(() => void) | null>(null);
+  const programmaticScrollUntilRef = useRef(0);
 
   const isScrolledToBottom = useMemoizedFn(() => {
     const container = currentContainerRef.current;
@@ -63,12 +71,20 @@ export function useChatAutoScroll<T extends HTMLElement>({
   });
 
   const scrollToBottom = useMemoizedFn((options?: ScrollToBottomOptions) => {
-    const container = currentContainerRef.current;
-    if (!container) {
+    if (!options?.force && !isAutoScrollEnabledRef.current) {
       return false;
     }
 
-    if (!options?.force && !isAutoScrollEnabledRef.current) {
+    if (options?.force) {
+      programmaticScrollUntilRef.current = Date.now() + 250;
+    }
+
+    if (scrollToBottomImpl) {
+      return scrollToBottomImpl(options);
+    }
+
+    const container = currentContainerRef.current;
+    if (!container) {
       return false;
     }
 
@@ -82,6 +98,10 @@ export function useChatAutoScroll<T extends HTMLElement>({
   });
 
   const handleScroll = useMemoizedFn(() => {
+    if (Date.now() < programmaticScrollUntilRef.current) {
+      return;
+    }
+
     const isAtBottom = isScrolledToBottom();
     if (!isAtBottom) {
       setAutoScrollEnabled(false);

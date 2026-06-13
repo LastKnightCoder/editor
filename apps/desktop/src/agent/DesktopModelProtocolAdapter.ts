@@ -713,7 +713,7 @@ export class DesktopModelProtocolAdapter implements AgentModelProtocolAdapter {
           Accept: "application/json",
           Authorization: `Bearer ${apiKey}`,
           ...(modelName === "kimi-for-coding"
-            ? { "User-Agent": "KimiCLI/1.37.0" }
+            ? { "User-Agent": "kimi-code-cli/0.14.2" }
             : {}),
         };
 

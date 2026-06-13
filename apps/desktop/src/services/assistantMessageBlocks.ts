@@ -1,5 +1,8 @@
 import { Role } from "@/constants";
-import { getAssistantToolExecutionsFromBlocks } from "@/services/chatMessageSchema";
+import {
+  createChatMessageClientId,
+  getAssistantToolExecutionsFromBlocks,
+} from "@/services/chatMessageSchema";
 import type {
   AssistantBlock,
   AssistantReasoningBlock,
@@ -221,6 +224,7 @@ export const createAssistantMessage = (
   initial?: Partial<ResponseMessage>,
 ): ResponseMessage => {
   const message: ResponseMessage = {
+    clientId: createChatMessageClientId(),
     role: Role.Assistant,
     content: "",
     reasoning_content: "",

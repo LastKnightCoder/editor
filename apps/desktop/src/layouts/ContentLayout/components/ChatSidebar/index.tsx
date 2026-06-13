@@ -319,7 +319,9 @@ const ChatSidebar = memo(() => {
       className,
       "data-markdown-block-code": markdownBlockCode,
     });
-    const code = String(children).replace(/\n$/, "");
+    const code = String(children)
+      .replace(/^\r?\n/, "")
+      .replace(/\r?\n$/, "");
 
     // 特殊渲染器优先处理
     if (language === "mermaid") {
@@ -532,6 +534,8 @@ const ChatSidebar = memo(() => {
                     titleRef={editTitleRef}
                     onCreateNewMessage={onCreateNewMessage}
                     createMessageLoading={createMessageLoading}
+                    preserveScrollPosition
+                    scrollPositionScope="left-chat-sidebar"
                     onCreateChat={handleCreateChat}
                     onCreateBranch={handleCreateBranch}
                   />

@@ -12,6 +12,7 @@ import type WebSocketClient from "../../../../utils/WebSocketClient";
 import {
   ChatInputArea,
   ChatContainerCore,
+  type ChatContainerCoreHandle,
   useChatAutoScroll,
   type ChatInputAreaProps,
   type ChatInputAreaHandle,
@@ -153,12 +154,21 @@ export default function SharedChatTab({
     (state) => state.completeSession,
   );
   const resumingAskQuestionRef = useRef<Set<string>>(new Set());
+  const coreRef = useRef<ChatContainerCoreHandle>(null);
   const {
     containerRef: messagesContainerRef,
     enableAutoScroll,
     forceScrollToBottom,
     scrollToBottom,
-  } = useChatAutoScroll<HTMLDivElement>({});
+  } = useChatAutoScroll<HTMLDivElement>({
+    scrollToBottomImpl: () => {
+      if (!coreRef.current) {
+        return false;
+      }
+      coreRef.current.scrollToBottom();
+      return true;
+    },
+  });
 
   const {
     sessions,
@@ -570,6 +580,7 @@ export default function SharedChatTab({
 
   return (
     <ChatContainerCore
+      ref={coreRef}
       isDark={isDark}
       isConnected={isConnected}
       messages={messages}
