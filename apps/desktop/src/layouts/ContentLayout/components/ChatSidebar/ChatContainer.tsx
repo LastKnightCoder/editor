@@ -68,6 +68,7 @@ import {
   formatGeneratedChatTitle,
   getLastUserMessageIndex,
   getRequestMessageText,
+  shouldGenerateChatTitle,
 } from "./editingUtils";
 
 const ENABLE_TITLE_SUMMARY = true;
@@ -610,9 +611,14 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               try {
                 if (
                   ENABLE_TITLE_SUMMARY &&
-                  titleProviderConfig &&
-                  titleModelConfig
+                  shouldGenerateChatTitle(
+                    updatedChatMessage,
+                    Boolean(titleProviderConfig && titleModelConfig),
+                  )
                 ) {
+                  if (!titleProviderConfig || !titleModelConfig) {
+                    return;
+                  }
                   const titleMessages: RequestMessage[] =
                     updatedChatMessage.messages
                       .slice(1)
@@ -689,6 +695,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                             updatedChatMessage,
                             (draft) => {
                               draft.title = nextTitle;
+                              draft.titleDirty = true;
                             },
                           );
                           const saved = await updateChatMessage(updateChat);

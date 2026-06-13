@@ -313,7 +313,7 @@ CREATE TABLE IF NOT EXISTS vibe_learning_chats (
         archived INTEGER DEFAULT 0,
         parent_chat_id INTEGER,
         branch_index INTEGER DEFAULT 0,
-        message_schema_version INTEGER DEFAULT 2,
+        message_schema_version INTEGER DEFAULT 3,
         FOREIGN KEY(project_id) REFERENCES project(id)
       );
 CREATE TABLE IF NOT EXISTS vl_note (

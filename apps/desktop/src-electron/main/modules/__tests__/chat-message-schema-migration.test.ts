@@ -31,6 +31,7 @@ vi.mock("electron-log", () => ({
 }));
 
 import { Role } from "@/constants";
+import { CHAT_MESSAGE_SCHEMA_VERSION } from "@/services/chatMessageSchema";
 import type { ChatSessionMessage } from "@/types";
 import ChatMessageTable from "../tables/chat-message";
 import PdfChatTable from "../tables/pdf-chat";
@@ -197,12 +198,13 @@ describe("chat message schema migration", () => {
     const chat = ChatMessageTable.getChatMessageById(db, 1);
     const assistant = chat.messages[1] as unknown as Record<string, unknown>;
 
-    expect(chat.messageSchemaVersion).toBe(2);
+    expect(chat.messageSchemaVersion).toBe(CHAT_MESSAGE_SCHEMA_VERSION);
+    expect(chat.titleDirty).toBe(true);
     expect(assistant.assistant_blocks).toBeTruthy();
     expect("tool_executions" in assistant).toBe(false);
     expect("content_blocks" in assistant).toBe(false);
     expect(updateRuns).toHaveLength(1);
-    expect(updateRuns[0]?.[1]).toBe(2);
+    expect(updateRuns[0]?.[1]).toBe(CHAT_MESSAGE_SCHEMA_VERSION);
   });
 
   it("新建各类聊天记录时直接写入最新 schema version", () => {
@@ -234,8 +236,18 @@ describe("chat message schema migration", () => {
               parent_chat_id: null,
               branch_index: 0,
               order_num: null,
-              message_schema_version: 2,
+              message_schema_version: CHAT_MESSAGE_SCHEMA_VERSION,
+              title_dirty: rootChatInsertRuns[0]?.[9],
             }),
+          };
+        }
+
+        if (
+          sql ===
+          "UPDATE chat_message SET messages = ?, message_schema_version = ? WHERE id = ?"
+        ) {
+          return {
+            run: vi.fn(),
           };
         }
 
@@ -267,7 +279,7 @@ describe("chat message schema migration", () => {
               archived: 0,
               parent_chat_id: null,
               branch_index: 0,
-              message_schema_version: 2,
+              message_schema_version: CHAT_MESSAGE_SCHEMA_VERSION,
             }),
           };
         }
@@ -275,6 +287,15 @@ describe("chat message schema migration", () => {
         if (sql.includes("SELECT COALESCE(MAX(branch_index), -1) + 1")) {
           return {
             get: () => ({ next_index: 0 }),
+          };
+        }
+
+        if (
+          sql ===
+          "UPDATE pdf_chats SET messages = ?, message_schema_version = ? WHERE id = ?"
+        ) {
+          return {
+            run: vi.fn(),
           };
         }
 
@@ -307,8 +328,17 @@ describe("chat message schema migration", () => {
               archived: 0,
               parent_chat_id: null,
               branch_index: 0,
-              message_schema_version: 2,
+              message_schema_version: CHAT_MESSAGE_SCHEMA_VERSION,
             }),
+          };
+        }
+
+        if (
+          sql ===
+          "UPDATE video_note_chats SET messages = ?, message_schema_version = ? WHERE id = ?"
+        ) {
+          return {
+            run: vi.fn(),
           };
         }
 
@@ -340,8 +370,17 @@ describe("chat message schema migration", () => {
               archived: 0,
               parent_chat_id: null,
               branch_index: 0,
-              message_schema_version: 2,
+              message_schema_version: CHAT_MESSAGE_SCHEMA_VERSION,
             }),
+          };
+        }
+
+        if (
+          sql ===
+          "UPDATE vibe_learning_chats SET messages = ?, message_schema_version = ? WHERE id = ?"
+        ) {
+          return {
+            run: vi.fn(),
           };
         }
 
@@ -374,14 +413,133 @@ describe("chat message schema migration", () => {
       title: "学习对话",
     });
 
-    expect(rootChat.messageSchemaVersion).toBe(2);
-    expect(pdfChat.messageSchemaVersion).toBe(2);
-    expect(videoNoteChat.messageSchemaVersion).toBe(2);
-    expect(vibeLearningChat.messageSchemaVersion).toBe(2);
-    expect(rootChatInsertRuns[0]?.[8]).toBe(2);
-    expect(pdfInsertRuns[0]?.[7]).toBe(2);
-    expect(videoInsertRuns[0]?.[7]).toBe(2);
-    expect(vibeInsertRuns[0]?.[7]).toBe(2);
+    expect(rootChat.messageSchemaVersion).toBe(CHAT_MESSAGE_SCHEMA_VERSION);
+    expect(rootChat.titleDirty).toBe(false);
+    expect(pdfChat.messageSchemaVersion).toBe(CHAT_MESSAGE_SCHEMA_VERSION);
+    expect(videoNoteChat.messageSchemaVersion).toBe(
+      CHAT_MESSAGE_SCHEMA_VERSION,
+    );
+    expect(vibeLearningChat.messageSchemaVersion).toBe(
+      CHAT_MESSAGE_SCHEMA_VERSION,
+    );
+    expect(rootChatInsertRuns[0]?.[8]).toBe(CHAT_MESSAGE_SCHEMA_VERSION);
+    expect(rootChatInsertRuns[0]?.[9]).toBe(0);
+    expect(pdfInsertRuns[0]?.[7]).toBe(CHAT_MESSAGE_SCHEMA_VERSION);
+    expect(videoInsertRuns[0]?.[7]).toBe(CHAT_MESSAGE_SCHEMA_VERSION);
+    expect(vibeInsertRuns[0]?.[7]).toBe(CHAT_MESSAGE_SCHEMA_VERSION);
+
+    vi.restoreAllMocks();
+  });
+
+  it("升级旧 chat_message 表时新增 title_dirty 并将历史对话锁定", () => {
+    const execSql: string[] = [];
+    const db = {
+      prepare: vi.fn((sql: string) => {
+        if (sql === "PRAGMA table_info(chat_message)") {
+          return {
+            all: () => [
+              { name: "id" },
+              { name: "create_time" },
+              { name: "update_time" },
+              { name: "messages" },
+              { name: "title" },
+              { name: "group_id" },
+              { name: "archived" },
+              { name: "parent_chat_id" },
+              { name: "branch_index" },
+              { name: "order_num" },
+              { name: "message_schema_version" },
+            ],
+          };
+        }
+
+        if (
+          sql ===
+          "UPDATE chat_message SET messages = ?, message_schema_version = ? WHERE id = ?"
+        ) {
+          return {
+            run: vi.fn(),
+          };
+        }
+
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      exec: vi.fn((sql: string) => {
+        execSql.push(sql);
+      }),
+    } as any;
+
+    ChatMessageTable.upgradeTable(db);
+
+    expect(execSql).toContain(
+      "ALTER TABLE chat_message ADD COLUMN title_dirty INTEGER DEFAULT 1",
+    );
+    expect(execSql).toContain(
+      "UPDATE chat_message SET title_dirty = 1 WHERE title_dirty IS NULL",
+    );
+  });
+
+  it("更新 chat_message 时保留传入的 titleDirty 状态", () => {
+    const now = 5678;
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    const updateRuns: unknown[][] = [];
+    const db = {
+      prepare: vi.fn((sql: string) => {
+        if (sql.startsWith("UPDATE chat_message SET update_time")) {
+          return {
+            run: (...args: unknown[]) => {
+              updateRuns.push(args);
+            },
+          };
+        }
+
+        if (sql === "SELECT * FROM chat_message WHERE id = ?") {
+          return {
+            get: () => ({
+              id: 1,
+              create_time: 1000,
+              update_time: now,
+              title: "主对话",
+              messages: JSON.stringify(buildCurrentMessages()),
+              group_id: null,
+              archived: 0,
+              parent_chat_id: null,
+              branch_index: 0,
+              order_num: null,
+              message_schema_version: CHAT_MESSAGE_SCHEMA_VERSION,
+              title_dirty: updateRuns[0]?.[9],
+            }),
+          };
+        }
+
+        if (
+          sql ===
+          "UPDATE chat_message SET messages = ?, message_schema_version = ? WHERE id = ?"
+        ) {
+          return {
+            run: vi.fn(),
+          };
+        }
+
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    } as any;
+
+    const updatedChat = ChatMessageTable.updateChatMessage(db, {
+      id: 1,
+      createTime: 1000,
+      title: "主对话",
+      titleDirty: false,
+      messages: buildCurrentMessages(),
+      groupId: null,
+      archived: false,
+      parentChatId: null,
+      branchIndex: 0,
+      orderNum: null,
+    });
+
+    expect(updateRuns[0]?.[9]).toBe(0);
+    expect(updatedChat.titleDirty).toBe(false);
 
     vi.restoreAllMocks();
   });

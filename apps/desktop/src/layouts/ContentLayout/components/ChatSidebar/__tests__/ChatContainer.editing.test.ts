@@ -5,6 +5,7 @@ import {
   formatGeneratedChatTitle,
   getLastUserMessageIndex,
   getRequestMessageText,
+  shouldGenerateChatTitle,
 } from "../editingUtils";
 import { Role } from "@/constants";
 import type { ChatMessage, RequestMessage, ResponseMessage } from "@/types";
@@ -96,6 +97,13 @@ describe("ChatContainer 编辑辅助逻辑", () => {
         "\n\n  这是一个超过二十个字符的测试标题用于验证截断行为  ",
       ),
     ).toBe("这是一个超过二十个字符的测试标题用于验证");
+  });
+
+  it("仅未锁定标题且标题模型可用时才自动总结标题", () => {
+    expect(shouldGenerateChatTitle({ titleDirty: false }, true)).toBe(true);
+    expect(shouldGenerateChatTitle({ titleDirty: true }, true)).toBe(false);
+    expect(shouldGenerateChatTitle({}, true)).toBe(false);
+    expect(shouldGenerateChatTitle({ titleDirty: false }, false)).toBe(false);
   });
 
   it("构造请求历史时不应截断超过 20 组的对话", () => {

@@ -58,6 +58,7 @@ const DEFAULT_CHAT: ChatMessage = {
     },
   ],
   title: "新对话",
+  titleDirty: false,
   groupId: null,
   archived: false,
   parentChatId: null,
@@ -140,7 +141,7 @@ const RightChatSidebar = memo(
 
       const perf = measurePerformance("titleChange");
       try {
-        const updatedChat = { ...currentChat, title };
+        const updatedChat = { ...currentChat, title, titleDirty: true };
         await updateChatMessage(updatedChat);
       } catch (error) {
         message.error("Failed to update title");

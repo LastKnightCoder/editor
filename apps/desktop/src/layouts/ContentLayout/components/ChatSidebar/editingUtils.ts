@@ -32,6 +32,11 @@ export const getLastUserMessageIndex = (
 export const formatGeneratedChatTitle = (title: string): string =>
   title.trim().slice(0, 20);
 
+export const shouldGenerateChatTitle = (
+  chat: Pick<ChatMessage, "titleDirty">,
+  hasTitleModelConfig: boolean,
+): boolean => chat.titleDirty === false && hasTitleModelConfig;
+
 export const buildResetBaseChat = (
   chat: ChatMessage,
   visibleMessageIndex: number,
