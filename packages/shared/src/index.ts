@@ -227,5 +227,6 @@ export type {
 export {
   default as ChatContainerCore,
   type ChatContainerCoreProps,
+  type ChatContainerCoreHandle,
   type ChatContainerCoreMessageRendererParams,
 } from "./chat-core/ChatContainerCore";

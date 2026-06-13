@@ -2,9 +2,14 @@ import {
   useState,
   useRef,
   useEffect,
+  useLayoutEffect,
   useCallback,
   useMemo,
+  useImperativeHandle,
+  memo,
+  forwardRef,
   type ReactNode,
+  type MutableRefObject,
   type Ref,
   type RefObject,
 } from "react";
@@ -12,6 +17,11 @@ import { Tooltip } from "antd";
 import type { MenuProps } from "antd";
 import { Trash2, AlertTriangle, Unplug } from "lucide-react";
 import classNames from "classnames";
+import {
+  useVirtualizer,
+  type VirtualItem,
+  type Virtualizer,
+} from "@tanstack/react-virtual";
 import ChatInputArea, {
   type ChatInputAreaProps,
   type ChatInputAreaHandle,
@@ -28,6 +38,70 @@ import {
   DEFAULT_CHAT_INPUT_PLACEHOLDER,
   resolveChatInputPlaceholder,
 } from "../utils/chat-input-placeholder";
+
+const ITEM_GAP = 16;
+
+interface VirtualMessageItemProps {
+  virtualItem: VirtualItem;
+  virtualizer: Virtualizer<HTMLDivElement, Element>;
+  messageId: string | number;
+  isLast: boolean;
+  onResize?: () => void;
+  children: ReactNode;
+}
+
+/**
+ * 虚拟消息项包装器。
+ * 负责绝对定位、ResizeObserver 监听内容高度变化，并同步给 virtualizer。
+ */
+const VirtualMessageItem = memo(function VirtualMessageItem({
+  virtualItem,
+  virtualizer,
+  messageId,
+  isLast,
+  onResize,
+  children,
+}: VirtualMessageItemProps) {
+  const itemRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const element = itemRef.current;
+    if (!element) return;
+
+    virtualizer.measureElement(element);
+    onResize?.();
+
+    const resizeObserver = new ResizeObserver(() => {
+      virtualizer.measureElement(element);
+      onResize?.();
+    });
+    resizeObserver.observe(element);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [onResize, virtualItem.key, virtualizer]);
+
+  return (
+    <div
+      ref={itemRef}
+      data-index={virtualItem.index}
+      data-message-id={messageId}
+      data-virtual-message-item="true"
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        transform: `translateY(${virtualItem.start}px)`,
+        paddingBottom: isLast ? 0 : ITEM_GAP,
+        boxSizing: "border-box",
+      }}
+    >
+      {children}
+    </div>
+  );
+});
 
 export interface ChatContainerCoreMessageRendererParams {
   message: ChatMessageType;
@@ -46,6 +120,26 @@ export interface ChatContainerCoreEmptyStateRenderParams {
   isDark: boolean;
 }
 
+export interface ChatContainerCoreHandle {
+  scrollToBottom: (options?: { behavior?: "auto" | "smooth" }) => void;
+  scrollToOffset: (
+    offset: number,
+    options?: { behavior?: "auto" | "smooth" },
+  ) => void;
+  scrollToItemOffset: (
+    index: number,
+    offset: number,
+    options?: { behavior?: "auto" | "smooth" },
+  ) => void;
+  scrollToIndex: (
+    index: number,
+    options?: {
+      align?: "start" | "center" | "end";
+      behavior?: "auto" | "smooth";
+    },
+  ) => void;
+}
+
 export interface ChatContainerCoreProps {
   isDark?: boolean;
   isConnected: boolean;
@@ -62,6 +156,7 @@ export interface ChatContainerCoreProps {
   currentPageUrl?: string | null;
   hideInput?: boolean;
   className?: string;
+  forceScrollToBottomKey?: string | number;
   messagesContainerClassName?: string;
   inputWrapperClassName?: string;
   chatInputClassName?: string;
@@ -106,62 +201,266 @@ const extractTextContent = (messageContent: MessageContentItem[]): string =>
     .map((item) => (item as { type: "text"; text: string }).text)
     .join("\n");
 
-export function ChatContainerCore({
-  isDark = false,
-  isConnected,
-  messages,
-  isLoading,
-  error = null,
-  reasoningEffort,
-  reasoningEffortDisabled = false,
-  currentModelName = "未选择模型",
-  isSupportImage = false,
-  isSupportFile = false,
-  placeholder = DEFAULT_CHAT_INPUT_PLACEHOLDER,
-  showConnectingDelayMs = 800,
-  currentPageUrl,
-  hideInput = false,
-  className,
-  messagesContainerClassName,
-  inputWrapperClassName,
-  chatInputClassName,
-  chatHeader,
-  extraToolbarButtons,
-  modelSelectItems = [],
-  createMessageLoading = false,
-  onCreateNewMessage,
-  resourceSource = null,
-  onMcpManagerClick,
-  onReasoningEffortChange,
-  onModelSelect,
-  onSendTextMessage,
-  onSendMessageContent,
-  onUserSend,
-  onStopGeneration,
-  onClearMessages,
-  onDeleteMessage,
-  onRegenerateMessage,
-  onCreateBranch,
-  onCopySuccess,
-  onCopyError,
-  onDeleteConfirm,
-  chatInputServices,
-  inputRef,
-  messagesContainerRef,
-  renderMessage,
-  renderEmptyState,
-  renderInputWrapper,
-  renderChatInputArea,
-}: ChatContainerCoreProps) {
+export const ChatContainerCore = forwardRef<
+  ChatContainerCoreHandle,
+  ChatContainerCoreProps
+>(function ChatContainerCore(
+  {
+    isDark = false,
+    isConnected,
+    messages,
+    isLoading,
+    error = null,
+    reasoningEffort,
+    reasoningEffortDisabled = false,
+    currentModelName = "未选择模型",
+    isSupportImage = false,
+    isSupportFile = false,
+    placeholder = DEFAULT_CHAT_INPUT_PLACEHOLDER,
+    showConnectingDelayMs = 800,
+    currentPageUrl,
+    hideInput = false,
+    className,
+    forceScrollToBottomKey,
+    messagesContainerClassName,
+    inputWrapperClassName,
+    chatInputClassName,
+    chatHeader,
+    extraToolbarButtons,
+    modelSelectItems = [],
+    createMessageLoading = false,
+    onCreateNewMessage,
+    resourceSource = null,
+    onMcpManagerClick,
+    onReasoningEffortChange,
+    onModelSelect,
+    onSendTextMessage,
+    onSendMessageContent,
+    onUserSend,
+    onStopGeneration,
+    onClearMessages,
+    onDeleteMessage,
+    onRegenerateMessage,
+    onCreateBranch,
+    onCopySuccess,
+    onCopyError,
+    onDeleteConfirm,
+    chatInputServices,
+    inputRef,
+    messagesContainerRef,
+    renderMessage,
+    renderEmptyState,
+    renderInputWrapper,
+    renderChatInputArea,
+  }: ChatContainerCoreProps,
+  ref,
+) {
   const [showConnectingUI, setShowConnectingUI] = useState(false);
-  const internalMessagesContainerRef = useRef<HTMLDivElement>(null);
+  const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(
+    null,
+  );
+  const [scrollPadding, setScrollPadding] = useState({ top: 0, bottom: 0 });
   const internalChatInputRef = useRef<ChatInputAreaHandle>(null);
-  const resolvedMessagesContainerRef =
-    messagesContainerRef || internalMessagesContainerRef;
+  const stickToBottomUntilRef = useRef(0);
+  const lastScrollTopRef = useRef(0);
+  const lastForceScrollToBottomKeyRef = useRef<string | number | undefined>(
+    undefined,
+  );
   const resolvedChatInputRef = inputRef || internalChatInputRef;
   const resolvedPlaceholder = useMemo(
     () => resolveChatInputPlaceholder(placeholder),
     [placeholder],
+  );
+
+  useEffect(() => {
+    if (!scrollElement) {
+      setScrollPadding({ top: 0, bottom: 0 });
+      return;
+    }
+    const style = getComputedStyle(scrollElement);
+    setScrollPadding({
+      top:
+        (parseFloat(style.borderTopWidth) || 0) +
+        (parseFloat(style.paddingTop) || 0),
+      bottom:
+        (parseFloat(style.borderBottomWidth) || 0) +
+        (parseFloat(style.paddingBottom) || 0),
+    });
+  }, [scrollElement]);
+
+  const setScrollElementAndForwardRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      setScrollElement(node);
+      if (typeof messagesContainerRef === "function") {
+        (messagesContainerRef as (instance: HTMLDivElement | null) => void)(
+          node,
+        );
+      } else if (messagesContainerRef) {
+        (
+          messagesContainerRef as MutableRefObject<HTMLDivElement | null>
+        ).current = node;
+      }
+    },
+    [messagesContainerRef],
+  );
+
+  const virtualizer = useVirtualizer({
+    count: messages.length,
+    getScrollElement: useCallback(() => scrollElement, [scrollElement]),
+    estimateSize: useCallback(() => 160, []),
+    overscan: 5,
+    getItemKey: useCallback(
+      (index: number) => messages[index]?.id ?? index,
+      [messages],
+    ),
+    measureElement: useCallback(
+      (element: Element) => element.getBoundingClientRect().height,
+      [],
+    ),
+    scrollPaddingStart: scrollPadding.top,
+    scrollPaddingEnd: scrollPadding.bottom,
+  });
+
+  useEffect(() => {
+    virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item) => {
+      if (Date.now() < stickToBottomUntilRef.current) {
+        return false;
+      }
+      const scrollOffset = virtualizer.scrollOffset ?? scrollElement?.scrollTop;
+      return typeof scrollOffset === "number" && item.end <= scrollOffset;
+    };
+  }, [scrollElement, virtualizer]);
+
+  const virtualItems = virtualizer.getVirtualItems();
+  const totalSize = virtualizer.getTotalSize();
+
+  const scrollToBottom = useCallback(
+    (options?: { behavior?: "auto" | "smooth" }) => {
+      const lastIndex = messages.length - 1;
+      if (lastIndex < 0) return;
+
+      const behavior = options?.behavior ?? "auto";
+      stickToBottomUntilRef.current = Date.now() + 2000;
+      const scroll = () => {
+        const viewportHeight =
+          scrollElement?.clientHeight || virtualizer.scrollRect?.height || 0;
+        const verticalScrollPadding = scrollPadding.top + scrollPadding.bottom;
+        const bottomOffset = Math.max(
+          0,
+          virtualizer.getTotalSize() + verticalScrollPadding - viewportHeight,
+        );
+        virtualizer.scrollToOffset(bottomOffset, { behavior });
+      };
+
+      scroll();
+      requestAnimationFrame(() => {
+        scroll();
+        requestAnimationFrame(scroll);
+      });
+    },
+    [messages.length, scrollElement, scrollPadding, virtualizer],
+  );
+
+  const scrollToBottomIfSticky = useCallback(() => {
+    if (Date.now() >= stickToBottomUntilRef.current) {
+      return;
+    }
+    scrollToBottom();
+  }, [scrollToBottom]);
+
+  const cancelStickToBottom = useCallback(() => {
+    stickToBottomUntilRef.current = 0;
+  }, []);
+
+  useEffect(() => {
+    const element = scrollElement;
+    if (!element) {
+      return;
+    }
+
+    lastScrollTopRef.current = element.scrollTop;
+
+    const handleWheel = (event: WheelEvent) => {
+      if (event.deltaY < 0) {
+        cancelStickToBottom();
+      }
+    };
+
+    const handlePointerDown = () => {
+      cancelStickToBottom();
+    };
+
+    const handleTouchMove = () => {
+      cancelStickToBottom();
+    };
+
+    const handleScroll = () => {
+      const previousScrollTop = lastScrollTopRef.current;
+      lastScrollTopRef.current = element.scrollTop;
+      if (
+        Date.now() < stickToBottomUntilRef.current &&
+        element.scrollTop < previousScrollTop
+      ) {
+        cancelStickToBottom();
+      }
+    };
+
+    element.addEventListener("wheel", handleWheel, { passive: true });
+    element.addEventListener("pointerdown", handlePointerDown);
+    element.addEventListener("touchmove", handleTouchMove, { passive: true });
+    element.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      element.removeEventListener("wheel", handleWheel);
+      element.removeEventListener("pointerdown", handlePointerDown);
+      element.removeEventListener("touchmove", handleTouchMove);
+      element.removeEventListener("scroll", handleScroll);
+    };
+  }, [cancelStickToBottom, scrollElement]);
+
+  useLayoutEffect(() => {
+    scrollToBottomIfSticky();
+  }, [messages.length, scrollToBottomIfSticky, totalSize]);
+
+  useLayoutEffect(() => {
+    if (
+      forceScrollToBottomKey === undefined ||
+      lastForceScrollToBottomKeyRef.current === forceScrollToBottomKey
+    ) {
+      return;
+    }
+
+    lastForceScrollToBottomKeyRef.current = forceScrollToBottomKey;
+    stickToBottomUntilRef.current = Date.now() + 2000;
+    scrollToBottom();
+  }, [forceScrollToBottomKey, scrollToBottom]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      scrollToBottom,
+      scrollToOffset: (offset, options) => {
+        virtualizer.scrollToOffset(offset, {
+          behavior: options?.behavior ?? "auto",
+        });
+      },
+      scrollToItemOffset: (index, offset, options) => {
+        const target = virtualizer.getOffsetForIndex(index, "start");
+        if (!target) {
+          return;
+        }
+        virtualizer.scrollToOffset(target[0] + offset, {
+          behavior: options?.behavior ?? "auto",
+        });
+      },
+      scrollToIndex: (index, options) => {
+        virtualizer.scrollToIndex(index, {
+          align: options?.align ?? "start",
+          behavior: options?.behavior ?? "auto",
+        });
+      },
+    }),
+    [scrollToBottom, virtualizer],
   );
 
   useEffect(() => {
@@ -305,7 +604,7 @@ export function ChatContainerCore({
       ) : null}
 
       <div
-        ref={resolvedMessagesContainerRef}
+        ref={setScrollElementAndForwardRef}
         className={messagesContainerClassName || "flex-1 overflow-y-auto p-4"}
       >
         {messages.length === 0 ? (
@@ -345,27 +644,44 @@ export function ChatContainerCore({
             </div>
           )
         ) : (
-          <div className="space-y-4">
-            {messages.map((message, index) => {
-              if (renderMessage) {
-                return renderMessage({
-                  message,
-                  messageIndex: index,
-                });
-              }
+          <div
+            style={{
+              height: totalSize,
+              width: "100%",
+              position: "relative",
+            }}
+          >
+            {virtualItems.map((virtualItem) => {
+              const message = messages[virtualItem.index];
+              const isLast = virtualItem.index === messages.length - 1;
               return (
-                <ChatMessage
-                  key={message.id}
-                  message={message}
-                  messageIndex={index}
-                  isDark={isDark}
-                  onDeleteMessage={onDeleteMessage}
-                  onRegenerateMessage={onRegenerateMessage}
-                  onCreateBranch={onCreateBranch}
-                  onCopySuccess={onCopySuccess}
-                  onCopyError={onCopyError}
-                  onDeleteConfirm={onDeleteConfirm}
-                />
+                <VirtualMessageItem
+                  key={virtualItem.key}
+                  virtualItem={virtualItem}
+                  virtualizer={virtualizer}
+                  messageId={message.id}
+                  isLast={isLast}
+                  onResize={isLast ? scrollToBottomIfSticky : undefined}
+                >
+                  {renderMessage ? (
+                    renderMessage({
+                      message,
+                      messageIndex: virtualItem.index,
+                    })
+                  ) : (
+                    <ChatMessage
+                      message={message}
+                      messageIndex={virtualItem.index}
+                      isDark={isDark}
+                      onDeleteMessage={onDeleteMessage}
+                      onRegenerateMessage={onRegenerateMessage}
+                      onCreateBranch={onCreateBranch}
+                      onCopySuccess={onCopySuccess}
+                      onCopyError={onCopyError}
+                      onDeleteConfirm={onDeleteConfirm}
+                    />
+                  )}
+                </VirtualMessageItem>
               );
             })}
           </div>
@@ -400,6 +716,8 @@ export function ChatContainerCore({
       ) : null}
     </div>
   );
-}
+});
+
+ChatContainerCore.displayName = "ChatContainerCore";
 
 export default ChatContainerCore;

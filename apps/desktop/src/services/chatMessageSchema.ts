@@ -1,4 +1,5 @@
 import { Role } from "@/constants";
+import { v4 as uuidv4 } from "uuid";
 import type {
   AssistantBlock,
   AssistantReasoningBlock,
@@ -11,13 +12,31 @@ import type {
   ToolCallPayload,
 } from "@/types";
 
-export const CHAT_MESSAGE_SCHEMA_VERSION = 2;
+export const CHAT_MESSAGE_SCHEMA_VERSION = 3;
 
 const SYNTHETIC_MIGRATION_TURN_ID = "turn:migrated:0";
+
+export const createChatMessageClientId = () => `msg:${uuidv4()}`;
 
 type LegacyResponseMessage = ResponseMessage & {
   tool_executions?: ToolCallExecutionState[];
   content_blocks?: ResponseContentBlock[];
+};
+
+const ensureMessageClientId = <T extends ChatSessionMessage>(
+  message: T,
+): { message: T; changed: boolean } => {
+  if (typeof message.clientId === "string" && message.clientId.length > 0) {
+    return { message, changed: false };
+  }
+
+  return {
+    message: {
+      ...message,
+      clientId: createChatMessageClientId(),
+    },
+    changed: true,
+  };
 };
 
 const createSyntheticExecution = (
@@ -196,6 +215,7 @@ export const migrateAssistantMessage = (
     : buildBlocksFromLegacyFields(message);
   const derived = deriveAssistantFields(assistantBlocks);
   const nextMessage: ResponseMessage = {
+    clientId: message.clientId,
     role: Role.Assistant,
     content: derived.content,
     reasoning_content: derived.reasoning_content,
@@ -225,12 +245,15 @@ export const migrateChatSessionMessages = (
 
   const nextMessages = messages.map((message) => {
     if (message.role !== Role.Assistant) {
-      return message;
+      const ensured = ensureMessageClientId(message);
+      changed = changed || ensured.changed;
+      return ensured.message;
     }
 
     const migrated = migrateAssistantMessage(message as LegacyResponseMessage);
-    changed = changed || migrated.changed;
-    return migrated.message;
+    const ensured = ensureMessageClientId(migrated.message);
+    changed = changed || migrated.changed || ensured.changed;
+    return ensured.message;
   });
 
   return {

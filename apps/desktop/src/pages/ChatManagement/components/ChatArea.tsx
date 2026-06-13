@@ -276,7 +276,9 @@ const ChatArea = memo(
           // 修改正则以支持连字符（如 mind-map）
           const match = /language-([\w-]+)/.exec(className || "");
           const language = match ? match[1] : undefined;
-          const code = String(children).replace(/\n$/, "");
+          const code = String(children)
+            .replace(/^\r?\n/, "")
+            .replace(/\r?\n$/, "");
 
           // 判断代码块是否正在生成：
           // 1. 消息正在流式生成

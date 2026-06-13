@@ -13,6 +13,37 @@ interface LazySyntaxHighlighterProps {
 
 const CODE_FONT_FAMILY = "var(--mono-font)";
 
+const normalizeLanguage = (language: string) => {
+  const normalized = language.trim().toLowerCase();
+  const languageAliases: Record<string, string> = {
+    "plain text": "text",
+    plaintext: "text",
+    txt: "text",
+    js: "javascript",
+    ts: "typescript",
+    "html/xml": "markup",
+    html: "markup",
+    xml: "markup",
+    sh: "bash",
+    shell: "bash",
+    zsh: "bash",
+    yml: "yaml",
+    md: "markdown",
+    dockerfile: "docker",
+    "c++": "cpp",
+    "c#": "csharp",
+    "objective c": "objectivec",
+    "objective-c": "objectivec",
+    objc: "objectivec",
+    pwsh: "powershell",
+    ps1: "powershell",
+    "protocol buffer": "protobuf",
+    proto: "protobuf",
+  };
+
+  return languageAliases[normalized] ?? normalized;
+};
+
 const LazySyntaxHighlighter: React.FC<LazySyntaxHighlighterProps> = ({
   language,
   children,
@@ -85,7 +116,14 @@ const LazySyntaxHighlighter: React.FC<LazySyntaxHighlighterProps> = ({
     );
   }
 
-  const normalizedLanguage = language === "js" ? "javascript" : language;
+  const normalizedLanguage = normalizeLanguage(language);
+  const codeBaseStyle =
+    theme == null
+      ? {}
+      : {
+          ...(theme['code[class*="language-"]'] ?? {}),
+          ...(theme[`code[class*="language-${normalizedLanguage}"]`] ?? {}),
+        };
 
   return (
     <div className={styles.syntaxContainer}>
@@ -106,7 +144,11 @@ const LazySyntaxHighlighter: React.FC<LazySyntaxHighlighterProps> = ({
           fontFamily: CODE_FONT_FAMILY,
         }}
         codeTagProps={{
+          className: normalizedLanguage
+            ? `language-${normalizedLanguage}`
+            : undefined,
           style: {
+            ...codeBaseStyle,
             fontFamily: CODE_FONT_FAMILY,
           },
         }}

@@ -259,7 +259,9 @@ const RightChatSidebar = memo(
           className,
           "data-markdown-block-code": markdownBlockCode,
         });
-        const code = String(children).replace(/\n$/, "");
+        const code = String(children)
+          .replace(/^\r?\n/, "")
+          .replace(/\r?\n$/, "");
 
         // 判断代码块是否正在生成：
         // 1. 消息正在流式生成
@@ -454,6 +456,8 @@ const RightChatSidebar = memo(
                     titleRef={editTitleRef}
                     onCreateNewMessage={onCreateNewMessage}
                     createMessageLoading={createMessageLoading}
+                    preserveScrollPosition
+                    scrollPositionScope="right-chat-sidebar"
                     onChatCreated={handleChatCreated}
                     onCreateChat={handleCreateChat}
                     onCreateBranch={handleCreateBranch}
