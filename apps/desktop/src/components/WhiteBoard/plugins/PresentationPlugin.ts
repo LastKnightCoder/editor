@@ -6,6 +6,7 @@ import {
 } from "../types";
 import { BoardUtil, PointUtil } from "../utils";
 import { SelectTransforms } from "../transforms";
+import { BOARD_TO_CONTAINER } from "../constants";
 
 export class PresentationPlugin implements IBoardPlugin {
   name = "presentation-plugin";
@@ -156,7 +157,11 @@ export class PresentationPlugin implements IBoardPlugin {
         board.presentationManager.stopPresentationMode();
         e.preventDefault();
       } else if (e.key === "f" || e.key === "F") {
-        document.documentElement.requestFullscreen();
+        if (!document.fullscreenElement) {
+          BOARD_TO_CONTAINER.get(board)
+            ?.requestFullscreen()
+            .catch(() => undefined);
+        }
         e.preventDefault();
       }
     }

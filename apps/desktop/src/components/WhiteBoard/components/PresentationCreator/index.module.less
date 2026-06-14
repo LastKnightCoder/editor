@@ -298,20 +298,7 @@
   background: rgba(99, 102, 241, 0.12);
   border: 1px solid transparent;
   color: rgb(99, 102, 241);
-  padding-left: 24px !important;
   font-weight: 500;
-
-  &::before {
-    content: "";
-    position: absolute;
-    left: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;
-    height: 60%;
-    background: rgb(99, 102, 241);
-    border-radius: 2px;
-  }
 
   &:hover {
     background: rgba(99, 102, 241, 0.18);
@@ -320,10 +307,6 @@
   .dark & {
     background: rgba(99, 102, 241, 0.2);
     color: rgb(129, 140, 248);
-
-    &::before {
-      background: rgb(129, 140, 248);
-    }
 
     &:hover {
       background: rgba(99, 102, 241, 0.25);

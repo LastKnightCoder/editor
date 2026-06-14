@@ -10,6 +10,7 @@ import {
 } from "../../constants";
 import {
   useCreateElementType,
+  usePresentationState,
   useSelection,
   usePointerViewport,
 } from "../../hooks";
@@ -319,12 +320,14 @@ const ArrowConnectPointGroup = memo((props: ArrowConnectPointGroupProps) => {
   const overlayRef = useContext(ArrowConnectPointOverlayContext);
   const pointerViewport = usePointerViewport();
   const createElementType = useCreateElementType();
+  const { isPresentationMode } = usePresentationState();
   const selection = useSelection();
   const hasSelectedArrow = (selection?.selectedElements ?? []).some(
     (selectedElement) => selectedElement.type === "arrow",
   );
   const isCreatingElement = createElementType !== ECreateBoardElementType.None;
   const isInteractionSuppressed = hasSelectedArrow || isCreatingElement;
+  const isConnectPointDisabled = disabled || isPresentationMode;
   const {
     isProximityVisible,
     isDraggingFromConnectPoint,
@@ -333,19 +336,21 @@ const ArrowConnectPointGroup = memo((props: ArrowConnectPointGroupProps) => {
     handleConnectStart,
   } = useConnectPointVisibility({
     supportsHover,
-    disabled,
+    disabled: isConnectPointDisabled,
     isSelected,
     proximityBounds,
     pointerViewport,
   });
 
   const isDisabledByDrop =
-    (disabled || isInteractionSuppressed) && !isDraggingFromConnectPoint;
+    (isConnectPointDisabled || isInteractionSuppressed) &&
+    !isDraggingFromConnectPoint;
   const showConnectPoints =
-    isSelected ||
-    (supportsHover &&
-      !isDisabledByDrop &&
-      (isProximityVisible || isDraggingFromConnectPoint));
+    !isPresentationMode &&
+    (isSelected ||
+      (supportsHover &&
+        !isDisabledByDrop &&
+        (isProximityVisible || isDraggingFromConnectPoint)));
   const connectPointNodes = showConnectPoints
     ? points.map((point) => (
         <ArrowConnectPoint

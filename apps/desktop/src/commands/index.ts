@@ -24,6 +24,7 @@ export * from "./stream-fetch";
 export * from "./vec-document";
 export * from "./extra";
 export * from "./window";
+export * from "./whiteboard-recording";
 export * from "./operation";
 export * from "./fts";
 export * from "./video-notes";

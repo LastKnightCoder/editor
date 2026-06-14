@@ -38,6 +38,8 @@ export enum EPublishProvider {
   Local = "local",
 }
 
+export type WhiteboardRecordingOutputFormat = "webm" | "mp4" | "mov" | "mkv";
+
 import type { ProviderConfig, ModelConfig, LLMUsageConfig } from "@/types/llm";
 import { useBackendWebsocketStore } from "./useBackendWebsocketStore";
 
@@ -478,6 +480,13 @@ export interface ISetting {
       publicUrl: string;
       favicon?: IPublishFaviconConfig;
     };
+  };
+  whiteboardRecording: {
+    autoStartRecording: boolean;
+    saveDirectory: string;
+    outputFormat: WhiteboardRecordingOutputFormat;
+    cameraEnabledByDefault: boolean;
+    microphoneEnabledByDefault: boolean;
   };
 }
 
@@ -993,6 +1002,13 @@ const initialState: IState = {
         publicUrl: "",
         favicon: undefined,
       },
+    },
+    whiteboardRecording: {
+      autoStartRecording: false,
+      saveDirectory: "",
+      outputFormat: "webm",
+      cameraEnabledByDefault: false,
+      microphoneEnabledByDefault: true,
     },
   },
   settingModalOpen: false,

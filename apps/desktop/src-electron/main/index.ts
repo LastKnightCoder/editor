@@ -22,6 +22,7 @@ import FTSTable from "./modules/tables/fts";
 import userSettingModule from "./modules/user-setting";
 import { resolveEmbeddingConfig } from "./utils/embedding-config";
 import moduleInitManager from "./module-init/ModuleInitManager";
+import whiteboardRecordingModule from "./modules/whiteboard-recording";
 
 (async (): Promise<void> => {
   const contextMenu = await import("electron-context-menu");
@@ -50,6 +51,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // 初始化应用环境
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = "true";
 process.env.APP_ROOT = path.join(__dirname, "../..");
+
+// Windows 上 Chromium 的屏幕捕获默认使用 Windows.Graphics.Capture。
+// 窗口录制走 Electron 的 WebFrameMain 捕获，不依赖 WGC window capturer。
+if (process.platform === "win32") {
+  app.commandLine.appendSwitch("disable-features", "AllowWgcScreenCapturer");
+}
 
 export const MAIN_DIST = path.join(process.env.APP_ROOT, "dist-electron");
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, "dist");
@@ -159,6 +166,13 @@ if (!gotTheLock) {
       log.info(`操作系统: ${os.platform()} ${os.release()}`);
       log.info(`Node.js 版本: ${process.version}`);
       log.info(`Electron 版本: ${process.versions.electron}`);
+      if (process.platform === "win32") {
+        log.info(
+          `[WhiteboardRecording] Windows 录制启动参数 disable-features=${app.commandLine.getSwitchValue(
+            "disable-features",
+          )}`,
+        );
+      }
 
       // === 立即创建窗口管理器并显示窗口 ===
       windowManager = await windowManagerModule.init(
@@ -166,6 +180,12 @@ if (!gotTheLock) {
         RENDERER_DIST,
         preload,
       );
+      whiteboardRecordingModule.configure({
+        mainWindowProvider: () => windowManager.getMainWindow(),
+        preloadPath: preload,
+        rendererDistPath: RENDERER_DIST,
+        viteDevServerUrl: VITE_DEV_SERVER_URL || "",
+      });
 
       // 根据启动参数创建窗口（窗口会显示 Loading 状态）
       if (windowTypeToOpen) {
