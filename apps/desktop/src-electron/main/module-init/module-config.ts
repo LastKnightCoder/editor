@@ -51,6 +51,7 @@ import rssFetcherModule from "../modules/rss-fetcher";
 import rssDiscoveryModule from "../modules/rss-discovery";
 import rssReadabilityModule from "../modules/rss-readability";
 import rssOpmlModule from "../modules/rss-opml";
+import whiteboardRecordingModule from "../modules/whiteboard-recording";
 
 /**
  * 所有模块配置
@@ -85,6 +86,13 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.IMMEDIATE,
     dependencies: ["logger"],
     init: () => resourceModule.init(),
+  },
+  {
+    name: "whiteboard-recording",
+    group: ModuleGroup.ESSENTIAL,
+    layer: InitLayer.IMMEDIATE,
+    dependencies: ["logger"],
+    init: () => whiteboardRecordingModule.init(),
   },
 
   // === BACKGROUND 层：后台启动核心服务 ===

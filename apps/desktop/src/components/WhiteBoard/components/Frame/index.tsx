@@ -3,7 +3,7 @@ import { useMemoizedFn } from "ahooks";
 
 import { EHandlerPosition, Point, Board, FrameElement } from "../../types";
 import { useBoard, useSelectState, useDropArrow } from "../../hooks";
-import { PathUtil, PointUtil } from "../../utils";
+import { FrameUtil, PathUtil, PointUtil } from "../../utils";
 import ResizeCircle from "../ResizeCircle";
 import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
@@ -149,8 +149,8 @@ const Frame = memo(
       }
     }, [isEditingTitle]);
 
-    const titleHeight = 40;
-    const titleY = y - titleHeight - 10;
+    const titleHeight = FrameUtil.TITLE_HEIGHT;
+    const titleY = FrameUtil.getTitleY(element);
 
     return (
       <g ref={frameRef}>

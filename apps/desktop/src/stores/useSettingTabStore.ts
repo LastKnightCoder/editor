@@ -12,6 +12,7 @@ export type SettingsTabKey =
   | "embedding"
   | "textToSpeech"
   | "transcription"
+  | "whiteboardRecording"
   | "module"
   | "customBlock"
   | "integration"

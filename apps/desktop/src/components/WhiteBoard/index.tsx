@@ -994,7 +994,7 @@ const WhiteBoard = memo(
                     value={pointerViewportStore}
                   >
                     <div className="flex h-full relative">
-                      {showSidebar && (
+                      {showSidebar && !isPresentationMode && (
                         <>
                           <ResizeableAndHideableSidebar
                             className="relative shrink-0 h-full flex-none overflow-hidden border-r border-[#f0f0f0] dark:border-[#2a2a2a]"

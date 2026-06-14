@@ -27,6 +27,9 @@ const PomodoroImmersivePage = loadable(
   () => import("@/pages/PomodoroWindow/Immersive"),
 );
 const BackgroundAudioPage = loadable(() => import("@/pages/BackgroundAudio"));
+const WhiteboardRecordingControlsPage = loadable(
+  () => import("@/pages/WhiteboardRecordingControls"),
+);
 
 const routes = [
   {
@@ -140,6 +143,10 @@ const routes = [
   {
     path: "/background-audio",
     element: <BackgroundAudioPage />,
+  },
+  {
+    path: "/whiteboard-recording-controls",
+    element: <WhiteboardRecordingControlsPage />,
   },
 ];
 

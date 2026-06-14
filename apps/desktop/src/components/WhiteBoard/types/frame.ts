@@ -1,6 +1,9 @@
 import { BoardElement } from "./board";
 import { CommonElement } from "../plugins/CommonPlugin";
 
+export const FRAME_TITLE_HEIGHT = 40;
+export const FRAME_TITLE_GAP = 10;
+
 export interface FrameElement extends CommonElement {
   type: "frame";
   title: string;

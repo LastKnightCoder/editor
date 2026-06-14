@@ -10,6 +10,7 @@ import {
 import { produce } from "immer";
 import { ViewPortTransforms } from "../transforms/ViewPortTransforms";
 import { BOARD_TO_CONTAINER, FIT_VIEW_PADDING } from "../constants";
+import { mergePresentationElementBounds } from "./PresentationViewportUtil";
 
 export class PresentationManager {
   private board: Board;
@@ -388,8 +389,12 @@ export class PresentationManager {
   // 检查元素是否在视口中
   isElementInViewport(element: BoardElement, viewPort: ViewPort): boolean {
     // 对于具有起点终点的元素（如箭头），检查端点是否在视口中
-    if (element.x1 !== undefined && element.y1 !== undefined &&
-        element.x2 !== undefined && element.y2 !== undefined) {
+    if (
+      element.x1 !== undefined &&
+      element.y1 !== undefined &&
+      element.x2 !== undefined &&
+      element.y2 !== undefined
+    ) {
       const { x1, y1, x2, y2 } = element;
       return (
         this.isPointInViewport(x1, y1, viewPort) ||
@@ -439,69 +444,20 @@ export class PresentationManager {
       return null;
     }
 
-    // 计算所有元素的边界框
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
+    const bounds = mergePresentationElementBounds(elements, (element) =>
+      this.board.getBounds(element),
+    );
 
-    elements.forEach((element) => {
-      if (
-        "x" in element &&
-        "y" in element &&
-        "width" in element &&
-        "height" in element
-      ) {
-        const { x, y, width, height } = element;
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x + width);
-        maxY = Math.max(maxY, y + height);
-      } else if (element.points && Array.isArray(element.points)) {
-        // 对于具有 points 数组的元素（如箭头），考虑所有路径点
-        element.points.forEach((point: { x: number; y: number }) => {
-          minX = Math.min(minX, point.x);
-          minY = Math.min(minY, point.y);
-          maxX = Math.max(maxX, point.x);
-          maxY = Math.max(maxY, point.y);
-        });
-      } else if (
-        element.x1 !== undefined &&
-        element.y1 !== undefined &&
-        element.x2 !== undefined &&
-        element.y2 !== undefined
-      ) {
-        // 对于具有起点终点的元素（兼容旧版格式）
-        const { x1, y1, x2, y2 } = element;
-        if (
-          x1 !== undefined &&
-          y1 !== undefined &&
-          x2 !== undefined &&
-          y2 !== undefined
-        ) {
-          minX = Math.min(minX, x1, x2);
-          minY = Math.min(minY, y1, y2);
-          maxX = Math.max(maxX, x1, x2);
-          maxY = Math.max(maxY, y1, y2);
-        }
-      }
-    });
-
-    if (
-      minX === Infinity ||
-      minY === Infinity ||
-      maxX === -Infinity ||
-      maxY === -Infinity
-    ) {
+    if (!bounds) {
       console.error("无法计算元素边界");
       return null;
     }
 
     // 添加内边距
-    minX -= padding;
-    minY -= padding;
-    maxX += padding;
-    maxY += padding;
+    const minX = bounds.minX - padding;
+    const minY = bounds.minY - padding;
+    const maxX = bounds.maxX + padding;
+    const maxY = bounds.maxY + padding;
 
     const elementsWidth = maxX - minX;
     const elementsHeight = maxY - minY;

@@ -1,18 +1,36 @@
 import { produce } from "immer";
 import { v4 as getUuid } from "uuid";
+import type { Board, BoardElement } from "../types/board";
+import type { Operation } from "../types/operation";
 import {
-  BoardElement,
-  FrameElement,
   FRAME_DEFAULT_STYLES,
-  Operation,
-  Board,
-} from "../types";
-import { isRectIntersect, getRectIntersectionArea, PathUtil } from "./index";
+  FRAME_TITLE_GAP,
+  FRAME_TITLE_HEIGHT,
+  type FrameElement,
+} from "../types/frame";
+import { isRectIntersect, getRectIntersectionArea } from "./common";
+import { PathUtil } from "./PathUtil";
 import { canNest } from "./Constraints";
 
 const LOCAL_STORAGE_KEY = "whiteboard-frame";
 
 export class FrameUtil {
+  static readonly TITLE_HEIGHT = FRAME_TITLE_HEIGHT;
+  static readonly TITLE_GAP = FRAME_TITLE_GAP;
+
+  static getTitleY(frame: FrameElement) {
+    return frame.y - this.TITLE_HEIGHT - this.TITLE_GAP;
+  }
+
+  static getRenderBounds(frame: FrameElement) {
+    return {
+      minX: frame.x,
+      minY: this.getTitleY(frame),
+      maxX: frame.x + frame.width,
+      maxY: frame.y + frame.height,
+    };
+  }
+
   static setLocalStorage(key: string, value: string) {
     const realKey = `${LOCAL_STORAGE_KEY}-${key}`;
     localStorage.setItem(realKey, value);
