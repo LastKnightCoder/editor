@@ -158,6 +158,8 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
       targetMarker: target.marker,
       sourceConnectId: source.connectId,
       targetConnectId: target.connectId,
+      sourceCustomOffset: source.customOffset,
+      targetCustomOffset: target.customOffset,
       midPoint,
     });
   }, [
@@ -165,8 +167,10 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
     midPoint,
     points,
     source.connectId,
+    source.customOffset,
     source.marker,
     target.connectId,
+    target.customOffset,
     target.marker,
   ]);
   const labelAnchor = useMemo(() => {
@@ -314,10 +318,11 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
     let targetPoint: Point | null = null;
 
     if (sourceBindElement) {
-      const { connectId } = source;
+      const { connectId, customOffset } = source;
       const sourceBindPoint = board.getArrowBindPoint(
         sourceBindElement,
         connectId!,
+        customOffset,
       );
       if (sourceBindPoint) {
         sourcePoint = sourceBindPoint;
@@ -325,10 +330,11 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
     }
 
     if (targetBindElement) {
-      const { connectId } = target;
+      const { connectId, customOffset } = target;
       const targetBindPoint = board.getArrowBindPoint(
         targetBindElement,
         connectId!,
+        customOffset,
       );
       if (targetBindPoint) {
         targetPoint = targetBindPoint;
@@ -626,6 +632,8 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
         targetMarker={target.marker}
         sourceConnectId={source.connectId}
         targetConnectId={target.connectId}
+        sourceCustomOffset={source.customOffset}
+        targetCustomOffset={target.customOffset}
         sketchEnabled={sketchEnabled}
         roughness={roughness}
         dashed={dashed}

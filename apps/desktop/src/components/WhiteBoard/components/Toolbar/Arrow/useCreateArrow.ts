@@ -23,7 +23,7 @@ export const useCreateArrow = () => {
 
   const { zoom } = useViewPort();
 
-  const { getUpdateArrowElement } = useMoveArrow({
+  const { getUpdateArrowElement, setAltMode } = useMoveArrow({
     isMoved,
     currentPoint,
   });
@@ -49,6 +49,9 @@ export const useCreateArrow = () => {
       }
 
       if (!isMoved.current) return;
+
+      // 透传 alt 键状态：按住 alt 时启用自定义连接点吸附
+      setAltMode(e.altKey);
 
       // 判断创建的箭头是否存在，不存在则创建，存在则更新
       if (!createdArrow.current || !createdArrowPath.current) {

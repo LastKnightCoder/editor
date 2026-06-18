@@ -11,6 +11,7 @@ export * from "./RichTextUtil";
 export * from "./common";
 export * from "./RefLineUtil";
 export * from "./ArrowUtil.ts";
+export * from "./ConnectPointUtil.ts";
 export * from "./MindUtil.ts";
 export * from "./FrameUtil.ts";
 export * from "./ColumnUtil.ts";

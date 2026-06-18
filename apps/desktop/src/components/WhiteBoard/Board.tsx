@@ -20,6 +20,7 @@ import {
   BoardContextMenuPayload,
   ContextMenuContext,
   PluginContextMenuItem,
+  CustomOffset,
 } from "./types";
 import { isValid, executeSequence, BoardUtil, MindUtil } from "./utils";
 
@@ -650,9 +651,16 @@ class Board {
     return value.map((element) => this.renderElement(element));
   }
 
-  getArrowBindPoint(element: BoardElement, connectId: string) {
+  getArrowBindPoint(
+    element: BoardElement,
+    connectId: string,
+    customOffset?: CustomOffset,
+  ) {
     const plugin = this.plugins.find((plugin) => plugin.name === element.type);
-    return plugin?.getArrowBindPoint?.(this, element, connectId) ?? null;
+    return (
+      plugin?.getArrowBindPoint?.(this, element, connectId, customOffset) ??
+      null
+    );
   }
 
   undo() {

@@ -18,6 +18,7 @@ import {
   resolveExportBackgroundColor,
   resolveExportElements,
 } from "../../utils";
+import { isInteriorConnectElement } from "../../utils/ConnectPointUtil";
 
 interface ExportImageModalProps {
   open: boolean;
@@ -44,12 +45,7 @@ const EMPTY_REF_LINES: Array<{
   y2: number;
 }> = [];
 
-const isCenterConnectArrow = (element: BoardElement): boolean => {
-  return (
-    element.source?.connectId === "center" ||
-    element.target?.connectId === "center"
-  );
-};
+const isCenterConnectArrow = isInteriorConnectElement;
 
 const splitElementsForRender = (
   elements: BoardElement[],

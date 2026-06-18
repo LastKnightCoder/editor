@@ -1,5 +1,6 @@
 import { useMemo, useRef } from "react";
 import { BoardElement, Selection } from "../types";
+import { isInteriorConnectElement } from "../utils";
 
 type ElementsSortingResult = {
   centerConnectArrows: BoardElement[];
@@ -13,7 +14,7 @@ type RootLayerCache = {
   rootIdSet: Set<string>;
   rootOrderIndex: Map<string, number>;
   rootElementById: Map<string, BoardElement>;
-  isCenterById: Map<string, boolean>;
+  isInteriorById: Map<string, boolean>;
   promotedSelectedRootIds: Set<string>;
   centerConnectArrows: BoardElement[];
   noneCenterConnectArrows: BoardElement[];
@@ -25,18 +26,15 @@ type SelectionInfo = {
   hasNestedSelection: boolean;
 };
 
-const isCenterConnectElement = (element: BoardElement) => {
-  return (
-    element.source?.connectId === "center" ||
-    element.target?.connectId === "center"
-  );
-};
+// "中心连接"语义扩展为"端点落在图形 bbox 内部"：包含 center 以及自定义连接点中
+// u、v 均严格处于 (0,1) 的内部点。这类箭头端点会被图形遮挡，需放在底层渲染。
+const isCenterConnectElement = isInteriorConnectElement;
 
 const shouldPromoteSelectedRootElement = (
   element: BoardElement,
-  isCenterConnect: boolean,
+  isInterior: boolean,
 ) => {
-  return element.type === "arrow" || isCenterConnect;
+  return element.type === "arrow" || isInterior;
 };
 
 const isSameIdSet = (left: Set<string>, right: Set<string>) => {
@@ -113,7 +111,7 @@ const buildRootLayerCache = (
   const rootIdSet = new Set<string>();
   const rootOrderIndex = new Map<string, number>();
   const rootElementById = new Map<string, BoardElement>();
-  const isCenterById = new Map<string, boolean>();
+  const isInteriorById = new Map<string, boolean>();
   const centerConnectArrows: BoardElement[] = [];
   const noneCenterConnectArrows: BoardElement[] = [];
   const centerConnectAndSelectedArrows: BoardElement[] = [];
@@ -122,17 +120,17 @@ const buildRootLayerCache = (
     rootIdSet.add(element.id);
     rootOrderIndex.set(element.id, index);
     rootElementById.set(element.id, element);
-    const isCenter = isCenterConnectElement(element);
-    isCenterById.set(element.id, isCenter);
+    const isInterior = isCenterConnectElement(element);
+    isInteriorById.set(element.id, isInterior);
 
     const isSelected = selectedRootIds.has(element.id);
     const shouldPromoteSelected =
-      isSelected && shouldPromoteSelectedRootElement(element, isCenter);
+      isSelected && shouldPromoteSelectedRootElement(element, isInterior);
     if (shouldPromoteSelected) {
       centerConnectAndSelectedArrows.push(element);
       return;
     }
-    if (isCenter) {
+    if (isInterior) {
       centerConnectArrows.push(element);
     } else {
       noneCenterConnectArrows.push(element);
@@ -142,8 +140,8 @@ const buildRootLayerCache = (
   const promotedSelectedRootIds = new Set<string>();
   selectedRootIds.forEach((id) => {
     const element = rootElementById.get(id);
-    const isCenter = element ? (isCenterById.get(id) ?? false) : false;
-    if (element && shouldPromoteSelectedRootElement(element, isCenter)) {
+    const isInterior = element ? (isInteriorById.get(id) ?? false) : false;
+    if (element && shouldPromoteSelectedRootElement(element, isInterior)) {
       promotedSelectedRootIds.add(id);
     }
   });
@@ -153,7 +151,7 @@ const buildRootLayerCache = (
     rootIdSet,
     rootOrderIndex,
     rootElementById,
-    isCenterById,
+    isInteriorById,
     promotedSelectedRootIds,
     centerConnectArrows,
     noneCenterConnectArrows,
@@ -169,8 +167,8 @@ const updateRootLayerCacheBySelection = (
   nextSelectedRootIds.forEach((id) => {
     const element = cache.rootElementById.get(id);
     if (!element) return;
-    const isCenter = cache.isCenterById.get(id) ?? false;
-    if (shouldPromoteSelectedRootElement(element, isCenter)) {
+    const isInterior = cache.isInteriorById.get(id) ?? false;
+    if (shouldPromoteSelectedRootElement(element, isInterior)) {
       nextPromotedSelectedRootIds.add(id);
     }
   });
@@ -191,7 +189,7 @@ const updateRootLayerCacheBySelection = (
       centerConnectAndSelectedArrows,
       id,
     );
-    if (cache.isCenterById.get(id)) {
+    if (cache.isInteriorById.get(id)) {
       centerConnectArrows = insertByRootOrder(
         centerConnectArrows,
         element,
@@ -215,7 +213,7 @@ const updateRootLayerCacheBySelection = (
       element,
       cache.rootOrderIndex,
     );
-    if (cache.isCenterById.get(id)) {
+    if (cache.isInteriorById.get(id)) {
       centerConnectArrows = removeById(centerConnectArrows, id);
     } else {
       noneCenterConnectArrows = removeById(noneCenterConnectArrows, id);
