@@ -3,8 +3,10 @@ import {
   EMarkerType,
   Point,
   GetArrowPathParams,
+  CustomOffset,
 } from "../types";
-import { ARROW_SIZE } from "../constants";
+import { ARROW_SIZE, ARROW_CONNECT_ID } from "../constants";
+import { getConnectEdgeOrientation } from "./ConnectPointUtil";
 
 export class ArrowUtil {
   static getMiddlePoint = (
@@ -64,6 +66,8 @@ export class ArrowUtil {
     endPoint: Point,
     sourceConnectId?: string,
     targetConnectId?: string,
+    sourceCustomOffset?: CustomOffset,
+    targetCustomOffset?: CustomOffset,
   ): Point[] => {
     const w = endPoint.x - startPoint.x;
     const h = endPoint.y - startPoint.y;
@@ -75,13 +79,25 @@ export class ArrowUtil {
       y: startPoint.y,
     });
 
-    // 根据连接点位置决定路径
+    // 根据连接点位置决定路径方向
+    // 自定义连接点按所在边缘的法线方向决定先水平/先垂直，与 4 方向语义自然延伸
+    const sourceOrientation = getConnectEdgeOrientation(
+      sourceConnectId,
+      sourceCustomOffset,
+    );
+    const targetOrientation = getConnectEdgeOrientation(
+      targetConnectId,
+      targetCustomOffset,
+    );
+
     // 如果有连接点信息，根据连接点类型决定路径方向
     if (sourceConnectId && targetConnectId) {
       // 如果是上下连接（top-bottom或bottom-top），先垂直后水平
       if (
-        (sourceConnectId === "top" && targetConnectId === "bottom") ||
-        (sourceConnectId === "bottom" && targetConnectId === "top")
+        (sourceConnectId === ARROW_CONNECT_ID.TOP &&
+          targetConnectId === ARROW_CONNECT_ID.BOTTOM) ||
+        (sourceConnectId === ARROW_CONNECT_ID.BOTTOM &&
+          targetConnectId === ARROW_CONNECT_ID.TOP)
       ) {
         // 垂直中点
         const midY = startPoint.y + h / 2;
@@ -96,8 +112,10 @@ export class ArrowUtil {
       }
       // 如果是左右连接（left-right或right-left），先水平后垂直
       else if (
-        (sourceConnectId === "left" && targetConnectId === "right") ||
-        (sourceConnectId === "right" && targetConnectId === "left")
+        (sourceConnectId === ARROW_CONNECT_ID.LEFT &&
+          targetConnectId === ARROW_CONNECT_ID.RIGHT) ||
+        (sourceConnectId === ARROW_CONNECT_ID.RIGHT &&
+          targetConnectId === ARROW_CONNECT_ID.LEFT)
       ) {
         // 水平中点
         const midX = startPoint.x + w / 2;
@@ -110,10 +128,26 @@ export class ArrowUtil {
           y: endPoint.y,
         });
       }
+      // 含自定义连接点：按各自边缘法线方向决定首段方向
+      else if (sourceOrientation || targetOrientation) {
+        // 优先用源端方向；源端无法判定时用目标端
+        const firstVertical =
+          (sourceOrientation ?? targetOrientation) === "vertical";
+        if (firstVertical) {
+          points.push({ x: startPoint.x, y: startPoint.y + h / 2 });
+          points.push({ x: endPoint.x, y: startPoint.y + h / 2 });
+        } else {
+          points.push({ x: startPoint.x + w / 2, y: startPoint.y });
+          points.push({ x: startPoint.x + w / 2, y: endPoint.y });
+        }
+      }
       // 如果是相邻边连接（如top-right, left-bottom等），使用拐角路径
       else {
         // 确定第一段方向基于起点连接位置
-        if (sourceConnectId === "top" || sourceConnectId === "bottom") {
+        if (
+          sourceConnectId === ARROW_CONNECT_ID.TOP ||
+          sourceConnectId === ARROW_CONNECT_ID.BOTTOM
+        ) {
           // 先垂直移动一段距离
           points.push({
             x: startPoint.x,
@@ -174,7 +208,7 @@ export class ArrowUtil {
     p0: Point,
     p1: Point,
     point: Point,
-    tolerance: number = 1,
+    tolerance = 1,
   ): boolean {
     // 计算点到线段的距离
     const dx = p1.x - p0.x;
@@ -274,6 +308,8 @@ export class ArrowUtil {
           points[1],
           arrow.sourceConnectId,
           arrow.targetConnectId,
+          arrow.sourceCustomOffset,
+          arrow.targetCustomOffset,
         );
 
         return orthogonalPoints.reduce((path, point, index) => {

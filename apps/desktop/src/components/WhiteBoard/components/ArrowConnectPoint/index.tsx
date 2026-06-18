@@ -48,7 +48,7 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
   const createdArrow = useRef<ArrowElement | null>(null);
   const createdArrowPath = useRef<number[] | null>(null);
 
-  const { getUpdateArrowElement } = useMoveArrow({
+  const { getUpdateArrowElement, setAltMode } = useMoveArrow({
     isMoved,
     currentPoint,
   });
@@ -74,6 +74,9 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
       }
 
       if (!isMoved.current) return;
+
+      // 透传 alt 键状态：按住 alt 时目标端点启用自定义连接点吸附
+      setAltMode(e.altKey);
 
       const bindStartPoint = board.getArrowBindPoint(element, connectId);
       if (!bindStartPoint) return;

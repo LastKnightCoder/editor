@@ -6,6 +6,7 @@ import SelectArea from "../SelectArea";
 import GroupSelectionBounds from "../GroupSelectionBounds";
 import ReferenceLines from "../ReferenceLines";
 import ArrowMarkers from "../ArrowMarkers";
+import ArrowCustomConnectOverlay from "../ArrowCustomConnectOverlay";
 import Board from "../../Board";
 import { SelectionContext } from "../../context";
 
@@ -135,6 +136,8 @@ const BoardContent = memo(
         </SelectionContext.Provider>
         {/* 连接点覆盖层（位于中间层之上，但低于选中箭头层） */}
         <g ref={connectPointOverlayRef} data-layer="connect-point-overlay" />
+        {/* 自定义连接点：常驻标记 + 拖拽时吸附反馈，通过 overlay 上下文 portal 到上方覆盖层 */}
+        <ArrowCustomConnectOverlay />
         {/* 3. 中心连接且被选中的箭头（最顶层） */}
         <g data-layer="selected-interaction-elements">
           {visibleCenterConnectAndSelectedArrows}

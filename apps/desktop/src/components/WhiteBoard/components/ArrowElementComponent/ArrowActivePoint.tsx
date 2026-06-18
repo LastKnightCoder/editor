@@ -38,7 +38,7 @@ const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
   const currentPoint = useRef<Point | null>(null);
   const isMoved = useRef(false);
 
-  const { getUpdateArrowElement } = useMoveArrow({
+  const { getUpdateArrowElement, setAltMode } = useMoveArrow({
     isMoved,
     currentPoint,
   });
@@ -54,6 +54,9 @@ const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
       if (!isMoved.current) {
         isMoved.current = true;
       }
+
+      // 透传 alt 键状态：按住 alt 时启用自定义连接点（射线-边缘交点）吸附
+      setAltMode(e.altKey);
 
       const updateArrowElement = getUpdateArrowElement(
         lastArrowElement.current,

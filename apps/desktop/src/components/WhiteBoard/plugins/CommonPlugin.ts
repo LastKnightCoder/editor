@@ -6,6 +6,7 @@ import {
   EHandlerPosition,
   Point,
   FrameElement,
+  CustomOffset,
 } from "../types";
 import {
   isRectIntersect,
@@ -17,6 +18,7 @@ import {
   Rect,
   isValid,
 } from "../utils";
+import { ARROW_CONNECT_ID } from "../constants";
 import { SelectTransforms } from "../transforms";
 
 export type CommonElement = BoardElement & {
@@ -59,35 +61,35 @@ export abstract class CommonPlugin implements IBoardPlugin {
     const { x, y, width, height } = element;
     return [
       {
-        connectId: "top",
+        connectId: ARROW_CONNECT_ID.TOP,
         point: {
           x: x + 0.5 * width,
           y,
         },
       },
       {
-        connectId: "bottom",
+        connectId: ARROW_CONNECT_ID.BOTTOM,
         point: {
           x: x + 0.5 * width,
           y: y + height,
         },
       },
       {
-        connectId: "left",
+        connectId: ARROW_CONNECT_ID.LEFT,
         point: {
           x,
           y: y + 0.5 * height,
         },
       },
       {
-        connectId: "right",
+        connectId: ARROW_CONNECT_ID.RIGHT,
         point: {
           x: x + width,
           y: y + 0.5 * height,
         },
       },
       {
-        connectId: "center",
+        connectId: ARROW_CONNECT_ID.CENTER,
         point: {
           x: x + 0.5 * width,
           y: y + 0.5 * height,
@@ -103,35 +105,35 @@ export abstract class CommonPlugin implements IBoardPlugin {
     const { x, y, width, height } = element;
     return [
       {
-        connectId: "top",
+        connectId: ARROW_CONNECT_ID.TOP,
         point: {
           x: x + 0.5 * width,
           y: y - extend,
         },
       },
       {
-        connectId: "bottom",
+        connectId: ARROW_CONNECT_ID.BOTTOM,
         point: {
           x: x + 0.5 * width,
           y: y + height + extend,
         },
       },
       {
-        connectId: "left",
+        connectId: ARROW_CONNECT_ID.LEFT,
         point: {
           x: x - extend,
           y: y + 0.5 * height,
         },
       },
       {
-        connectId: "right",
+        connectId: ARROW_CONNECT_ID.RIGHT,
         point: {
           x: x + width + extend,
           y: y + 0.5 * height,
         },
       },
       {
-        connectId: "center",
+        connectId: ARROW_CONNECT_ID.CENTER,
         point: {
           x: x + 0.5 * width,
           y: y + 0.5 * height,
@@ -140,30 +142,53 @@ export abstract class CommonPlugin implements IBoardPlugin {
     ];
   }
 
-  getArrowBindPoint(_board: Board, element: CommonElement, connectId: string) {
+  // 自定义连接点：按相对坐标 uv 重算绝对坐标，与 5 个固定点统一为 uv 模型，
+  // 这样图形移动/缩放时连接点天然跟随（resize 时因 uv 不变而按比例缩放）。
+  static getCustomBindPoint(
+    element: CommonElement,
+    customOffset: CustomOffset,
+  ): Point {
+    const { x, y, width, height } = element;
+    return {
+      x: x + customOffset.u * width,
+      y: y + customOffset.v * height,
+    };
+  }
+
+  getArrowBindPoint(
+    _board: Board,
+    element: CommonElement,
+    connectId: string,
+    customOffset?: CustomOffset,
+  ) {
     const { x, y, width, height } = element;
 
-    if (connectId === "left") {
+    if (connectId === ARROW_CONNECT_ID.CUSTOM) {
+      if (!customOffset) return null;
+      return CommonPlugin.getCustomBindPoint(element, customOffset);
+    }
+
+    if (connectId === ARROW_CONNECT_ID.LEFT) {
       return {
         x: x,
         y: y + 0.5 * height,
       };
-    } else if (connectId === "right") {
+    } else if (connectId === ARROW_CONNECT_ID.RIGHT) {
       return {
         x: x + width,
         y: y + 0.5 * height,
       };
-    } else if (connectId === "top") {
+    } else if (connectId === ARROW_CONNECT_ID.TOP) {
       return {
         x: x + 0.5 * width,
         y: y,
       };
-    } else if (connectId === "bottom") {
+    } else if (connectId === ARROW_CONNECT_ID.BOTTOM) {
       return {
         x: x + 0.5 * width,
         y: y + height,
       };
-    } else if (connectId === "center") {
+    } else if (connectId === ARROW_CONNECT_ID.CENTER) {
       return {
         x: x + 0.5 * width,
         y: y + 0.5 * height,

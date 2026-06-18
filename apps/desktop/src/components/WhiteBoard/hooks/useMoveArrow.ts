@@ -1,7 +1,8 @@
 import { useEffect, useRef, MutableRefObject } from "react";
-import { ArrowElement, BoardElement, Point } from "../types";
+import { ArrowElement, BoardElement, CustomOffset, Point } from "../types";
 import { useBoard } from "./useBoard";
-import { isValid } from "../utils";
+import { isValid, getCustomConnectCandidate } from "../utils";
+import { ARROW_CONNECT_ID } from "../constants";
 import { useMemoizedFn } from "ahooks";
 
 export type ArrowConnectPointData = {
@@ -17,6 +18,7 @@ export type CandidateConnectPointData = {
   connectId: string;
   distance: number;
   point: Point;
+  customOffset?: CustomOffset;
 };
 
 export const useMoveArrow = ({
@@ -28,8 +30,23 @@ export const useMoveArrow = ({
 }) => {
   const closingConnectElements = useRef<ArrowConnectPointData[]>([]);
   const candidateConnectPoints = useRef<CandidateConnectPointData[]>([]);
+  // alt 模式：按住 alt 拖拽时启用自定义连接点吸附（射线-边缘交点）
+  const altKeyRef = useRef(false);
 
   const board = useBoard();
+
+  const setAltMode = useMemoizedFn((alt: boolean) => {
+    altKeyRef.current = alt;
+  });
+
+  const emitCustomSnap = useMemoizedFn(() => {
+    const top = candidateConnectPoints.current[0];
+    if (top && top.connectId === ARROW_CONNECT_ID.CUSTOM) {
+      board.emit("arrow:custom-snap", { point: top.point });
+    } else {
+      board.emit("arrow:custom-snap", null);
+    }
+  });
 
   const getUpdateArrowElement = useMemoizedFn(
     (
@@ -49,9 +66,11 @@ export const useMoveArrow = ({
         if (movedPointIndex === 0 && source.bindId) {
           newSource.bindId = undefined;
           newSource.connectId = undefined;
+          newSource.customOffset = undefined;
         } else if (movedPointIndex === points.length - 1 && target.bindId) {
           newTarget.bindId = undefined;
           newTarget.connectId = undefined;
+          newTarget.customOffset = undefined;
         }
         board.emit("arrow:drop", {
           elementId: "",
@@ -59,10 +78,12 @@ export const useMoveArrow = ({
         });
       } else {
         const candidateConnectPoint = candidateConnectPoints.current[0];
-        const { elementId, connectId, point } = candidateConnectPoint;
+        const { elementId, connectId, point, customOffset } =
+          candidateConnectPoint;
         if (movedPointIndex === 0) {
           newSource.bindId = elementId;
           newSource.connectId = connectId;
+          newSource.customOffset = customOffset;
           newPoints[0] = point;
           board.emit("arrow:drop", {
             elementId,
@@ -71,6 +92,7 @@ export const useMoveArrow = ({
         } else if (movedPointIndex === points.length - 1) {
           newTarget.bindId = elementId;
           newTarget.connectId = connectId;
+          newTarget.customOffset = customOffset;
           newPoints[points.length - 1] = point;
           board.emit("arrow:drop", {
             elementId,
@@ -95,22 +117,41 @@ export const useMoveArrow = ({
   );
 
   useEffect(() => {
-    const handleAddClosingElements = (data: ArrowConnectPointData) => {
-      if (!isMoved.current) return;
-
+    const recomputeCandidates = () => {
       const { zoom } = board.viewPort;
-      const { element } = data;
+      const mouse = currentPoint.current;
 
-      // 如果 closingConnectPoints 中已经存在该 elementId，则替换
-      const index = closingConnectElements.current.findIndex(
-        (item) => item.element.id === element.id,
-      );
-      if (index > -1) {
-        closingConnectElements.current[index] = data;
-      } else {
-        closingConnectElements.current.push(data);
+      // alt 模式：忽略 5 个固定点，按"中心→鼠标"射线与 bbox 边缘交点生成唯一候选
+      if (altKeyRef.current && mouse) {
+        candidateConnectPoints.current = closingConnectElements.current
+          .map((item) => {
+            const candidate = getCustomConnectCandidate(
+              item.element as BoardElement & {
+                x: number;
+                y: number;
+                width: number;
+                height: number;
+              },
+              mouse,
+              zoom,
+            );
+            if (!candidate) return null;
+            return {
+              elementId: item.element.id,
+              connectId: ARROW_CONNECT_ID.CUSTOM,
+              distance: candidate.distance,
+              point: candidate.point,
+              customOffset: candidate.customOffset,
+            };
+          })
+          .filter(isValid)
+          .sort((a, b) => a.distance - b.distance);
+        emitCustomSnap();
+        return;
       }
 
+      // 非 alt 模式：清除自定义吸附可视化，沿用 5 点距离吸附
+      board.emit("arrow:custom-snap", null);
       candidateConnectPoints.current = closingConnectElements.current
         .map((item) => {
           const { element, connectPoints } = item;
@@ -140,6 +181,24 @@ export const useMoveArrow = ({
         .sort((a, b) => a.distance - b.distance);
     };
 
+    const handleAddClosingElements = (data: ArrowConnectPointData) => {
+      if (!isMoved.current) return;
+
+      const { element } = data;
+
+      // 如果 closingConnectPoints 中已经存在该 elementId，则替换
+      const index = closingConnectElements.current.findIndex(
+        (item) => item.element.id === element.id,
+      );
+      if (index > -1) {
+        closingConnectElements.current[index] = data;
+      } else {
+        closingConnectElements.current.push(data);
+      }
+
+      recomputeCandidates();
+    };
+
     const handleRemoveClosingElements = (data: ArrowConnectPointData) => {
       if (!isMoved.current) return;
       const { element } = data;
@@ -148,15 +207,15 @@ export const useMoveArrow = ({
       );
       if (index > -1) {
         closingConnectElements.current.splice(index, 1);
-        candidateConnectPoints.current = candidateConnectPoints.current.filter(
-          (item) => item.elementId !== element.id,
-        );
+        recomputeCandidates();
       }
     };
 
     const handleArrowMoveEnd = () => {
       candidateConnectPoints.current = [];
       closingConnectElements.current = [];
+      altKeyRef.current = false;
+      board.emit("arrow:custom-snap", null);
     };
 
     board.on("arrow:add-closing-elements", handleAddClosingElements);
@@ -168,11 +227,12 @@ export const useMoveArrow = ({
       board.off("arrow:remove-closing-elements", handleRemoveClosingElements);
       board.off("arrow:move-end", handleArrowMoveEnd);
     };
-  }, [board]);
+  }, [board, currentPoint, emitCustomSnap]);
 
   return {
     candidateConnectPoints,
     getUpdateArrowElement,
+    setAltMode,
   };
 };
 

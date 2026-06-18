@@ -1,6 +1,6 @@
 import { memo, useRef, useEffect } from "react";
 
-import { EMarkerType, Point, EArrowLineType } from "../../types";
+import { EMarkerType, Point, EArrowLineType, CustomOffset } from "../../types";
 import { ArrowUtil } from "@/components/WhiteBoard/utils";
 import SketchArrow from "./SketchArrow";
 
@@ -13,6 +13,8 @@ interface ArrowProps {
   points: Point[];
   sourceConnectId?: string;
   targetConnectId?: string;
+  sourceCustomOffset?: CustomOffset;
+  targetCustomOffset?: CustomOffset;
   sketchEnabled?: boolean;
   roughness?: number;
   dashed?: boolean;

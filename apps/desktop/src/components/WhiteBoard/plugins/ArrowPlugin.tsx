@@ -184,6 +184,10 @@ export class ArrowPlugin implements IBoardPlugin {
       lineType,
       sourceMarker,
       targetMarker,
+      sourceConnectId: element.source.connectId,
+      targetConnectId: element.target.connectId,
+      sourceCustomOffset: element.source.customOffset,
+      targetCustomOffset: element.target.customOffset,
       midPoint,
     });
 

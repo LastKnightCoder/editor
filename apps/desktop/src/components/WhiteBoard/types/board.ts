@@ -2,6 +2,7 @@ import React from "react";
 import { Selection } from "./selection.ts";
 import Board from "../Board.tsx";
 import { Point } from "./point.ts";
+import { CustomOffset } from "./arrow.ts";
 import type { IElementCapabilities } from "./capabilities.ts";
 
 export { default as Board } from "../Board.tsx";
@@ -131,6 +132,7 @@ export interface IBoardPlugin {
     board: Board,
     element: BoardElement & any,
     connectId: string,
+    customOffset?: CustomOffset,
   ) => Point | null;
   isElementSelected?: (
     board: Board,

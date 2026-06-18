@@ -10,6 +10,7 @@ import {
   PluginContextMenuItem,
   ECreateBoardElementType,
   IElementCapabilities,
+  CustomOffset,
 } from "../types";
 import {
   SnapBehavior,
@@ -18,6 +19,7 @@ import {
   ChildrenRenderOrder,
 } from "../types/capabilities";
 import { COLUMN_ALLOWED_CHILDREN } from "../types/column";
+import { ARROW_CONNECT_ID } from "../constants";
 import { CommonPlugin } from "./CommonPlugin";
 import { ColumnUtil, PathUtil, BoardUtil } from "../utils";
 import Column from "../components/Column";
@@ -242,12 +244,18 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
     const { x, y, width } = element;
     const height = ColumnUtil.calculateHeight(board, element);
     return [
-      { connectId: "top", point: { x: x + 0.5 * width, y } },
-      { connectId: "bottom", point: { x: x + 0.5 * width, y: y + height } },
-      { connectId: "left", point: { x, y: y + 0.5 * height } },
-      { connectId: "right", point: { x: x + width, y: y + 0.5 * height } },
+      { connectId: ARROW_CONNECT_ID.TOP, point: { x: x + 0.5 * width, y } },
       {
-        connectId: "center",
+        connectId: ARROW_CONNECT_ID.BOTTOM,
+        point: { x: x + 0.5 * width, y: y + height },
+      },
+      { connectId: ARROW_CONNECT_ID.LEFT, point: { x, y: y + 0.5 * height } },
+      {
+        connectId: ARROW_CONNECT_ID.RIGHT,
+        point: { x: x + width, y: y + 0.5 * height },
+      },
+      {
+        connectId: ARROW_CONNECT_ID.CENTER,
         point: { x: x + 0.5 * width, y: y + 0.5 * height },
       },
     ];
@@ -261,32 +269,50 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
     const { x, y, width } = element;
     const height = ColumnUtil.calculateHeight(board, element);
     return [
-      { connectId: "top", point: { x: x + 0.5 * width, y: y - extend } },
       {
-        connectId: "bottom",
+        connectId: ARROW_CONNECT_ID.TOP,
+        point: { x: x + 0.5 * width, y: y - extend },
+      },
+      {
+        connectId: ARROW_CONNECT_ID.BOTTOM,
         point: { x: x + 0.5 * width, y: y + height + extend },
       },
-      { connectId: "left", point: { x: x - extend, y: y + 0.5 * height } },
       {
-        connectId: "right",
+        connectId: ARROW_CONNECT_ID.LEFT,
+        point: { x: x - extend, y: y + 0.5 * height },
+      },
+      {
+        connectId: ARROW_CONNECT_ID.RIGHT,
         point: { x: x + width + extend, y: y + 0.5 * height },
       },
     ];
   }
 
-  getArrowBindPoint(board: Board, element: ColumnElement, connectId: string) {
+  getArrowBindPoint(
+    board: Board,
+    element: ColumnElement,
+    connectId: string,
+    customOffset?: CustomOffset,
+  ) {
     const { x, y, width } = element;
     const height = ColumnUtil.calculateHeight(board, element);
+    if (connectId === ARROW_CONNECT_ID.CUSTOM) {
+      if (!customOffset) return null;
+      return {
+        x: x + customOffset.u * width,
+        y: y + customOffset.v * height,
+      };
+    }
     switch (connectId) {
-      case "top":
+      case ARROW_CONNECT_ID.TOP:
         return { x: x + 0.5 * width, y };
-      case "bottom":
+      case ARROW_CONNECT_ID.BOTTOM:
         return { x: x + 0.5 * width, y: y + height };
-      case "left":
+      case ARROW_CONNECT_ID.LEFT:
         return { x, y: y + 0.5 * height };
-      case "right":
+      case ARROW_CONNECT_ID.RIGHT:
         return { x: x + width, y: y + 0.5 * height };
-      case "center":
+      case ARROW_CONNECT_ID.CENTER:
         return { x: x + 0.5 * width, y: y + 0.5 * height };
       default:
         return { x: x + 0.5 * width, y: y + 0.5 * height };
