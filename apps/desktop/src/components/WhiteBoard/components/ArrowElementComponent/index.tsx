@@ -14,7 +14,7 @@ import ArrowMidPointHandle from "./ArrowMidPointHandle";
 import { ArrowUtil, BoardUtil, PathUtil } from "../../utils";
 import { getArrowDisplayColor } from "../../utils/color";
 import useTheme from "@/hooks/useTheme";
-import { getLabelAnchorByPath } from "./labelGeometry";
+import { getLabelAnchorByPath, offsetAnchorAlongNormal } from "./labelGeometry";
 import styles from "./index.module.less";
 
 interface ArrowElementProps {
@@ -26,6 +26,9 @@ const ARROW_LABEL_MAX_WIDTH = 420;
 const ARROW_LABEL_MIN_HEIGHT = 36;
 const ARROW_LABEL_READONLY_MIN_WIDTH = 1;
 const ARROW_LABEL_RENDER_PADDING = 6;
+const ARROW_LABEL_EDITOR_PADDING_Y = 4;
+const ARROW_LABEL_NORMAL_GAP = 1;
+const ARROW_LABEL_WIDTH_BUFFER = 2;
 const ARROW_DESCRIPTION_EXTENSIONS = [paragraph, inlineMath, link];
 
 const createEmptyDescription = (): Descendant[] => {
@@ -169,6 +172,15 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
   const labelAnchor = useMemo(() => {
     return getLabelAnchorByPath(labelPath, points);
   }, [labelPath, points]);
+  const displayAnchor = useMemo(() => {
+    if (!labelAnchor) return null;
+    if (isEditingDescription) return labelAnchor;
+    const offset =
+      labelBoxSize.height / 2 -
+      ARROW_LABEL_EDITOR_PADDING_Y +
+      ARROW_LABEL_NORMAL_GAP;
+    return offsetAnchorAlongNormal(labelAnchor, offset);
+  }, [labelAnchor, isEditingDescription, labelBoxSize.height]);
   const descriptionIsEmpty = useMemo(() => {
     return isDescriptionEmpty(draftDescription);
   }, [draftDescription]);
@@ -205,30 +217,47 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
     });
   });
   const descriptionEditorStyle = useMemo(() => {
-    return {
+    const base: React.CSSProperties = {
       color: isDark ? "#f3f4f6" : "#111827",
-      background: isDark
-        ? "rgba(30, 41, 59, 0.88)"
-        : "rgba(255, 255, 255, 0.9)",
-      border: `1px solid ${
-        isDark ? "rgba(148, 163, 184, 0.32)" : "rgba(148, 163, 184, 0.28)"
-      }`,
-      boxShadow: isDark
-        ? "0 2px 8px rgba(2, 6, 23, 0.45)"
-        : "0 1px 4px rgba(15, 23, 42, 0.18)",
       width: "fit-content",
-      minWidth: descriptionMinWidth,
+      minWidth: Math.min(
+        labelBoxSize.width + ARROW_LABEL_WIDTH_BUFFER,
+        ARROW_LABEL_MAX_WIDTH,
+      ),
       maxWidth: ARROW_LABEL_MAX_WIDTH,
       minHeight: ARROW_LABEL_MIN_HEIGHT,
       height: "auto",
       boxSizing: "border-box",
       overflow: "visible",
-      padding: "4px 8px",
+      padding: `${ARROW_LABEL_EDITOR_PADDING_Y}px 8px`,
+    };
+    if (isEditingDescription) {
+      return {
+        ...base,
+        background: isDark
+          ? "rgba(30, 41, 59, 0.88)"
+          : "rgba(255, 255, 255, 0.9)",
+        border: `1px solid ${
+          isDark ? "rgba(148, 163, 184, 0.32)" : "rgba(148, 163, 184, 0.28)"
+        }`,
+        boxShadow: isDark
+          ? "0 2px 8px rgba(2, 6, 23, 0.45)"
+          : "0 1px 4px rgba(15, 23, 42, 0.18)",
+      } as React.CSSProperties;
+    }
+    return {
+      ...base,
+      textShadow: isDark
+        ? "0 1px 2px rgba(2, 6, 23, 0.9), 0 0 4px rgba(2, 6, 23, 0.7)"
+        : "0 1px 2px rgba(255, 255, 255, 0.95), 0 0 4px rgba(255, 255, 255, 0.85)",
     } as React.CSSProperties;
-  }, [descriptionMinWidth, isDark]);
+  }, [labelBoxSize.width, isDark, isEditingDescription]);
   const labelRenderBoxSize = useMemo(() => {
     return {
-      width: labelBoxSize.width + ARROW_LABEL_RENDER_PADDING * 2,
+      width:
+        labelBoxSize.width +
+        ARROW_LABEL_WIDTH_BUFFER +
+        ARROW_LABEL_RENDER_PADDING * 2,
       height: labelBoxSize.height + ARROW_LABEL_RENDER_PADDING * 2,
     };
   }, [labelBoxSize.height, labelBoxSize.width]);
@@ -605,16 +634,16 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
         animationSpeed={animationSpeed}
         midPoint={midPoint}
       />
-      {shouldRenderDescription && labelAnchor && (
+      {shouldRenderDescription && displayAnchor && (
         <foreignObject
-          x={labelAnchor.x - labelRenderBoxSize.width / 2}
-          y={labelAnchor.y - labelRenderBoxSize.height / 2}
+          x={displayAnchor.x - labelRenderBoxSize.width / 2}
+          y={displayAnchor.y - labelRenderBoxSize.height / 2}
           width={labelRenderBoxSize.width}
           height={labelRenderBoxSize.height}
           transform={
             isEditingDescription
               ? undefined
-              : `rotate(${labelAnchor.angle} ${labelAnchor.x} ${labelAnchor.y})`
+              : `rotate(${displayAnchor.angle} ${displayAnchor.x} ${displayAnchor.y})`
           }
           className="border-none"
           onPointerDown={handleDescriptionPointerDown}
