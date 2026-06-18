@@ -24,3 +24,4 @@ export { useElementsMoving } from "./useElementsMoving";
 export { useElementMoving } from "./useElementMoving";
 export { default as useColumnChildrenWatch } from "./useColumnChildrenWatch";
 export { default as useInertControl } from "./useInertControl";
+export { default as usePreventTextSelection } from "./usePreventTextSelection";

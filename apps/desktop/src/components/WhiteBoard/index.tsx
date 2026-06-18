@@ -76,6 +76,7 @@ import {
   useListenArrowMove,
   ArrowMoveContext,
   useElementsMoving,
+  usePreventTextSelection,
 } from "./hooks";
 import ContextMenuLayer, {
   type ContextMenuItem,
@@ -277,6 +278,7 @@ const WhiteBoard = memo(
     const isArrowMoving = useListenArrowMove(board);
     const { isMoving: isElementsMoving, movingStore } =
       useElementsMoving(board);
+    const { markInteracting } = usePreventTextSelection(containerRef);
     const [refLineVersion, setRefLineVersion] = useState(0);
 
     // 右键菜单触发的弹窗状态
@@ -772,6 +774,8 @@ const WhiteBoard = memo(
 
     const handleContainerPointerDown = useMemoizedFn(
       (event: React.PointerEvent<HTMLDivElement>) => {
+        // 必须最先同步置位，拦截随后触发的 selectstart，防止拖拽/框选时误选 HTML 文字
+        markInteracting(event.target);
         setPointerViewport(event);
         handleOnPointerDown(event);
       },

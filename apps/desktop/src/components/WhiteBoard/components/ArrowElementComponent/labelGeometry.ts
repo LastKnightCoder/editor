@@ -115,3 +115,20 @@ export const getLabelAnchorByPath = (
 
   return getFallbackLabelAnchor(fallbackPoints);
 };
+
+export const offsetAnchorAlongNormal = (
+  anchor: LabelAnchor,
+  offset: number,
+): LabelAnchor => {
+  if (offset === 0) {
+    return anchor;
+  }
+  const angleRad = (anchor.angle * Math.PI) / HALF_TURN;
+  const normalX = Math.sin(angleRad);
+  const normalY = -Math.cos(angleRad);
+  return {
+    x: anchor.x + normalX * offset,
+    y: anchor.y + normalY * offset,
+    angle: anchor.angle,
+  };
+};
