@@ -15,7 +15,7 @@ import useUploadResource from "@/hooks/useUploadResource.ts";
 import { WhiteBoard } from "@/types";
 import LocalImage from "@/components/LocalImage";
 import { formatDate } from "@/utils";
-import WhiteBoardModal from "../WhiteBoardModal";
+import WhiteBoardModal from "@/components/WhiteBoardModal";
 
 import styles from "./index.module.less";
 

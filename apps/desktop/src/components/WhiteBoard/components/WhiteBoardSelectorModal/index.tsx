@@ -1,16 +1,7 @@
 import { useState, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
 import { v4 as getUuid } from "uuid";
-import {
-  Modal,
-  Input,
-  Upload,
-  message as antdMessage,
-  List,
-  Empty,
-} from "antd";
-import { PlusOutlined } from "@ant-design/icons";
-import type { UploadFile } from "antd";
+import { Modal, List, Empty } from "antd";
 
 import Board from "../../Board";
 import { ECreateBoardElementType } from "../../types";
@@ -20,8 +11,9 @@ import {
   createWhiteBoardContent,
   getAllWhiteBoards,
 } from "@/commands/white-board";
-import useUploadResource from "@/hooks/useUploadResource";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
+import WhiteBoardModal from "@/components/WhiteBoardModal";
+import { WHITEBOARD_CARD_HEIGHT } from "../WhiteBoardCard";
 
 interface WhiteBoardSelectorModalProps {
   open: boolean;
@@ -36,12 +28,6 @@ const WhiteBoardSelectorModal = ({
   board,
   action = "create",
 }: WhiteBoardSelectorModalProps) => {
-  // Create modal state
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [fileList, setFileList] = useState<UploadFile[]>([]);
-  const [loading, setLoading] = useState(false);
-
   // Reference modal state
   const [allWhiteBoards, setAllWhiteBoards] = useState<IWhiteBoard[]>([]);
   const [selectedWhiteBoards, setSelectedWhiteBoards] = useState<IWhiteBoard[]>(
@@ -54,8 +40,6 @@ const WhiteBoardSelectorModal = ({
   const [currentWhiteBoardContents, setCurrentWhiteBoardContents] = useState<
     WhiteBoardContent[]
   >([]);
-
-  const uploadResource = useUploadResource();
 
   useEffect(() => {
     if (open && action === "reference") {
@@ -73,8 +57,8 @@ const WhiteBoardSelectorModal = ({
         x: minX + width / 2,
         y: minY + height / 2,
       };
-      const whiteboardWidth = 400;
-      const whiteboardHeight = 300;
+      const whiteboardWidth = 300;
+      const whiteboardHeight = WHITEBOARD_CARD_HEIGHT; // 使用固定高度
 
       const element: WhiteBoardElement = {
         id: getUuid(),
@@ -90,6 +74,7 @@ const WhiteBoardSelectorModal = ({
         resized: false,
         maxWidth: whiteboardWidth,
         maxHeight: whiteboardHeight,
+        resizable: true, // 支持水平拖拽调整宽度
       };
 
       board.apply([
@@ -110,58 +95,42 @@ const WhiteBoardSelectorModal = ({
     },
   );
 
-  const handleCreateOk = useMemoizedFn(async () => {
-    if (!name.trim()) {
-      antdMessage.error("请输入白板名称");
-      return;
-    }
+  const handleCreateOk = useMemoizedFn(
+    async (name: string, description: string, snapshot?: string) => {
+      try {
+        // 创建新的白板内容
+        const content = await createWhiteBoardContent({
+          data: {
+            children: [],
+            viewPort: { minX: 0, minY: 0, width: 800, height: 600, zoom: 1 },
+            selection: { selectArea: null, selectedElements: [] },
+            presentationSequences: [],
+          },
+          name,
+          imgUrl: snapshot || "",
+        });
 
-    setLoading(true);
-    try {
-      let snapshotUrl: string | undefined;
+        // 创建一个临时的 WhiteBoard 对象用于传递 description 和 snapshot
+        const tempWhiteBoard: IWhiteBoard = {
+          id: -1,
+          title: name,
+          description,
+          snapshot: snapshot || "",
+          tags: [],
+          whiteBoardContentIds: [content.id],
+          whiteBoardContentList: [content],
+          activeWhiteBoardContentId: content.id,
+          createTime: Date.now(),
+          updateTime: Date.now(),
+        };
 
-      // 如果有上传图片，先上传
-      if (fileList.length > 0 && fileList[0].originFileObj) {
-        const result = await uploadResource(fileList[0].originFileObj);
-        if (result) {
-          snapshotUrl = result;
-        }
+        createWhiteBoardElement(content, tempWhiteBoard);
+        handleCancel();
+      } catch (error) {
+        console.error("Create whiteboard failed:", error);
       }
-
-      // 创建新的白板内容
-      const content = await createWhiteBoardContent({
-        data: {
-          children: [],
-          viewPort: { minX: 0, minY: 0, width: 800, height: 600, zoom: 1 },
-          selection: { selectArea: null, selectedElements: [] },
-          presentationSequences: [],
-        },
-        name,
-        imgUrl: snapshotUrl || "",
-      });
-
-      // 创建一个临时的 WhiteBoard 对象用于传递 description 和 snapshot
-      const tempWhiteBoard: IWhiteBoard = {
-        id: -1,
-        title: name,
-        description,
-        snapshot: snapshotUrl || "",
-        tags: [],
-        whiteBoardContentIds: [content.id],
-        whiteBoardContentList: [content],
-        activeWhiteBoardContentId: content.id,
-        createTime: Date.now(),
-        updateTime: Date.now(),
-      };
-
-      createWhiteBoardElement(content, tempWhiteBoard);
-      handleCancel();
-    } catch (error) {
-      console.error("Create whiteboard failed:", error);
-    } finally {
-      setLoading(false);
-    }
-  });
+    },
+  );
 
   const handleWhiteBoardSelect = useMemoizedFn(
     async (whiteBoards: IWhiteBoard[]) => {
@@ -203,9 +172,6 @@ const WhiteBoardSelectorModal = ({
   );
 
   const handleCancel = useMemoizedFn(() => {
-    setName("");
-    setDescription("");
-    setFileList([]);
     setSelectWhiteBoardModalOpen(false);
     setSelectSubWhiteBoardModalOpen(false);
     setSelectedWhiteBoards([]);
@@ -217,52 +183,13 @@ const WhiteBoardSelectorModal = ({
   // Render create modal
   if (action === "create") {
     return (
-      <Modal
-        title="创建新白板"
+      <WhiteBoardModal
         open={open}
         onCancel={handleCancel}
         onOk={handleCreateOk}
-        confirmLoading={loading}
-      >
-        <div className="flex flex-col gap-4">
-          <div>
-            <div className="mb-2">名称 *</div>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="请输入白板名称"
-            />
-          </div>
-
-          <div>
-            <div className="mb-2">描述</div>
-            <Input.TextArea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="请输入白板描述"
-              rows={3}
-            />
-          </div>
-
-          <div>
-            <div className="mb-2">封面图</div>
-            <Upload
-              listType="picture-card"
-              fileList={fileList}
-              beforeUpload={() => false}
-              onChange={({ fileList }) => setFileList(fileList.slice(-1))}
-              maxCount={1}
-            >
-              {fileList.length === 0 && (
-                <div>
-                  <PlusOutlined />
-                  <div style={{ marginTop: 8 }}>上传</div>
-                </div>
-              )}
-            </Upload>
-          </div>
-        </div>
-      </Modal>
+        modalTitle="创建新白板"
+        okText="创建"
+      />
     );
   }
 
