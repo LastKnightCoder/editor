@@ -89,6 +89,23 @@ describe("BoardOperations - 基础操作", () => {
     expect(result.data.children.map((el) => el.id)).toEqual(["b", "a", "c"]);
   });
 
+  it("move_node 在嵌套容器内向下移动时使用移动前快照路径", () => {
+    const column = createRect("column", {
+      type: "column",
+      children: [createRect("a"), createRect("b"), createRect("c")],
+    });
+    const operations: Operation[] = [
+      { type: "move_node", path: [0, 0], newPath: [0, 2] },
+    ];
+
+    const result = apply([column], operations);
+    expect(result.data.children[0].children?.map((el) => el.id)).toEqual([
+      "b",
+      "a",
+      "c",
+    ]);
+  });
+
   it("set_node 更新属性并影响 metadata", () => {
     const base = [createRect("a")];
     const operations: Operation[] = [

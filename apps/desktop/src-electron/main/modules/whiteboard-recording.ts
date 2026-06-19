@@ -35,6 +35,11 @@ interface PrepareCaptureSourcePayload {
   sourceType: "screen" | "window";
 }
 
+interface MoveControlWindowPayload {
+  x: number;
+  y: number;
+}
+
 const CONTROL_WINDOW_TITLE = "Tau Whiteboard Recording Controls";
 const CONTROL_WINDOW_ALWAYS_ON_TOP_LEVEL = "screen-saver" as const;
 
@@ -88,6 +93,9 @@ class WhiteboardRecordingModule implements Module {
     });
     ipcMain.handle("whiteboard-recording:controls-resize", (_event, size) => {
       this.resizeControlWindow(size);
+    });
+    ipcMain.handle("whiteboard-recording:controls-move", (_event, bounds) => {
+      this.moveControlWindow(bounds);
     });
     ipcMain.handle(
       "whiteboard-recording:controls-command",
@@ -333,6 +341,7 @@ class WhiteboardRecordingModule implements Module {
       resizable: false,
       movable: true,
       alwaysOnTop: true,
+      focusable: false,
       autoHideMenuBar: true,
       skipTaskbar: true,
       show: false,
@@ -459,6 +468,36 @@ class WhiteboardRecordingModule implements Module {
     this.keepControlWindowOnTop();
   }
 
+  private moveControlWindow(bounds: MoveControlWindowPayload) {
+    if (!this.controlWindow || this.controlWindow.isDestroyed()) {
+      return;
+    }
+
+    if (!Number.isFinite(bounds.x) || !Number.isFinite(bounds.y)) {
+      return;
+    }
+
+    const [width, height] = this.controlWindow.getSize();
+    const display = screen.getDisplayNearestPoint({
+      x: Math.round(bounds.x + width / 2),
+      y: Math.round(bounds.y + height / 2),
+    });
+    const minX = display.workArea.x;
+    const minY = display.workArea.y;
+    const maxX = display.workArea.x + display.workArea.width - width;
+    const maxY = display.workArea.y + display.workArea.height - height;
+    const nextX = Math.min(Math.max(Math.round(bounds.x), minX), maxX);
+    const nextY = Math.min(Math.max(Math.round(bounds.y), minY), maxY);
+
+    this.controlWindow.setBounds({
+      x: nextX,
+      y: nextY,
+      width,
+      height,
+    });
+    this.keepControlWindowOnTop();
+  }
+
   private showControlWindow() {
     const controlWindow = this.createControlWindow();
     if (!controlWindow || controlWindow.isDestroyed()) {
@@ -469,8 +508,7 @@ class WhiteboardRecordingModule implements Module {
     controlWindow.webContents.setZoomFactor(1);
     this.positionControlWindow(bounds.width, bounds.height);
     this.keepControlWindowOnTop();
-    controlWindow.show();
-    controlWindow.focus();
+    controlWindow.showInactive();
 
     if (!this.controlsReady) {
       log.info("[WhiteboardRecording] 控制窗仍在加载，已提前 show");
