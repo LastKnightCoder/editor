@@ -2,7 +2,7 @@ import React, { memo, useState, useRef, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
 
 import { EHandlerPosition, Point, Board, ColumnElement } from "../../types";
-import { COLUMN_DEFAULTS } from "../../types/column";
+import { COLUMN_DEFAULTS, columnTheme } from "../../types/column";
 import {
   useSelectState,
   useDropArrow,
@@ -63,18 +63,7 @@ const Column = memo(
       draggingPosition,
     } = element;
 
-    const actualBackgroundColor = isDark
-      ? "rgba(30, 35, 45, 0.85)"
-      : "rgba(248, 250, 255, 0.9)";
-    const titleTextColor = isDark
-      ? "rgba(241, 245, 249, 0.9)"
-      : "rgba(15, 23, 42, 0.85)";
-    const childBorderColor = isDark
-      ? "rgba(255, 255, 255, 0.08)"
-      : "rgba(0, 0, 0, 0.06)";
-    const columnBorderColor = isDark
-      ? "rgba(255, 255, 255, 0.12)"
-      : "rgba(255, 255, 255, 0.45)";
+    const theme = isDark ? columnTheme.dark : columnTheme.light;
 
     const height = element.height || ColumnUtil.calculateHeight(board, element);
 
@@ -155,14 +144,7 @@ const Column = memo(
     }, [isEditingTitle]);
 
     const titleHeight = COLUMN_DEFAULTS.titleHeight;
-    const shadowFilter = shadowEnabled
-      ? isDark
-        ? "drop-shadow(0 4px 12px rgba(0,0,0,0.35))"
-        : "drop-shadow(0 4px 12px rgba(15,23,42,0.12))"
-      : "none";
-    const titleBorderColor = isDark
-      ? "rgba(255, 255, 255, 0.08)"
-      : "rgba(0, 0, 0, 0.06)";
+    const shadowFilter = shadowEnabled ? theme.shadow : "none";
 
     const getDropIndicatorY = () => {
       if (dropIndex === undefined) return 0;
@@ -191,13 +173,18 @@ const Column = memo(
           y={y}
           width={width}
           height={height}
-          fill={actualBackgroundColor}
+          fill={
+            isChildDraggingOver
+              ? theme.dropHighlightFill
+              : theme.backgroundColor
+          }
           rx={borderRadius}
           ry={borderRadius}
           style={{ filter: shadowFilter }}
-          stroke={isChildDraggingOver ? "#14b8a6" : columnBorderColor}
-          strokeWidth={isChildDraggingOver ? 2 : 1}
-          strokeDasharray={isChildDraggingOver ? "6 4" : "0"}
+          stroke={
+            isChildDraggingOver ? theme.dropHighlightBorder : theme.border
+          }
+          strokeWidth={isChildDraggingOver ? 1.5 : 1}
         />
 
         {/* Title area */}
@@ -225,11 +212,19 @@ const Column = memo(
               ref={titleRef}
               defaultValue={title || "Column"}
               className="text-lg font-bold cursor-pointer select-none min-w-5 outline-none"
-              style={{ color: titleTextColor }}
+              style={{ color: theme.titleText }}
               contentEditable={isEditingTitle}
               onBlur={handleTitleBlur}
               onPressEnter={handleTitleBlur}
             />
+            <span
+              className="text-xs select-none pointer-events-none"
+              style={{ color: theme.descriptionText, marginTop: 2 }}
+            >
+              {element.children.length === 0
+                ? "空"
+                : `${element.children.length} 项`}
+            </span>
           </div>
         </foreignObject>
 
@@ -239,8 +234,8 @@ const Column = memo(
           y1={y + titleHeight}
           x2={x + width - padding}
           y2={y + titleHeight}
-          stroke={titleBorderColor}
-          strokeWidth={1.5}
+          stroke={theme.separator}
+          strokeWidth={0.5}
           className="pointer-events-none"
         />
 
@@ -253,12 +248,6 @@ const Column = memo(
             // Check if this child is being dragged
             const isDragging = draggingChildId === childElement.id;
 
-            // Calculate border position based on child's stored position
-            const borderX = childElement.x;
-            const borderY = childElement.y;
-            const borderWidth = childElement.width || width - padding * 2;
-            const borderHeight = childElement.height || 50;
-
             return (
               <g
                 key={childElement.id}
@@ -267,19 +256,6 @@ const Column = memo(
                   transition: "opacity 0.15s ease",
                 }}
               >
-                {/* Milanote-style border around each child */}
-                <rect
-                  x={borderX}
-                  y={borderY}
-                  width={borderWidth}
-                  height={borderHeight}
-                  fill="none"
-                  stroke={childBorderColor}
-                  strokeWidth={1}
-                  rx={4}
-                  ry={4}
-                  className="pointer-events-none"
-                />
                 {/* Render child directly - no transform needed as positions are already calculated */}
                 {child}
               </g>
@@ -291,12 +267,12 @@ const Column = memo(
         <If condition={!!isChildDraggingOver && dropIndex !== undefined}>
           <rect
             x={x + padding}
-            y={dropIndicatorY - 2}
+            y={dropIndicatorY - 1}
             width={width - padding * 2}
-            height={4}
-            fill="#14b8a6"
-            rx={2}
-            ry={2}
+            height={2}
+            fill={theme.dropIndicator}
+            rx={1}
+            ry={1}
             className="pointer-events-none"
           />
         </If>
@@ -331,10 +307,10 @@ const Column = memo(
                   width={previewWidth}
                   height={previewHeight}
                   fill="none"
-                  stroke="#14b8a6"
+                  stroke={theme.dragPreviewStroke}
                   strokeWidth={2}
-                  rx={4}
-                  ry={4}
+                  rx={6}
+                  ry={6}
                 />
                 {/* 实际元素内容（通过 transform 移动到拖拽位置） */}
                 <g transform={`translate(${offsetX}, ${offsetY})`}>

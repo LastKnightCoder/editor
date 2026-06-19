@@ -4,7 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
   Camera,
@@ -20,6 +20,7 @@ import {
 import { showInFolder } from "@/commands";
 import {
   closeWhiteboardRecordingControls,
+  moveWhiteboardRecordingControls,
   onWhiteboardRecordingControlState,
   offWhiteboardRecordingControlState,
   sendWhiteboardRecordingControlCommand,
@@ -76,8 +77,17 @@ const stopButtonBase =
   "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-red-200/80 bg-red-50 text-red-600 transition-colors duration-150 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20";
 const closeButtonBase =
   "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/70 text-zinc-500 transition-colors duration-150 hover:bg-zinc-200/80 hover:text-zinc-900 dark:border-white/10 dark:bg-white/5 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-white";
-const dragRegionStyle = { WebkitAppRegion: "drag" } as CSSProperties;
-const noDragRegionStyle = { WebkitAppRegion: "no-drag" } as CSSProperties;
+
+interface DragState {
+  pointerId: number;
+  startPointerX: number;
+  startPointerY: number;
+  startWindowX: number;
+  startWindowY: number;
+  nextX: number;
+  nextY: number;
+  rafId: number | null;
+}
 
 const WhiteboardRecordingControls = () => {
   const [state, setState] =
@@ -86,6 +96,7 @@ const WhiteboardRecordingControls = () => {
   const measureRef = useRef<HTMLDivElement | null>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
   const lastSizeRef = useRef<{ width: number; height: number } | null>(null);
+  const dragStateRef = useRef<DragState | null>(null);
 
   const isBusy = state.status === "saving";
   const isActive = state.status === "recording" || state.status === "paused";
@@ -278,6 +289,16 @@ const WhiteboardRecordingControls = () => {
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      const dragState = dragStateRef.current;
+      if (dragState && dragState.rafId !== null) {
+        window.cancelAnimationFrame(dragState.rafId);
+      }
+      dragStateRef.current = null;
+    };
+  }, []);
+
   const handleClose = () => {
     sendWhiteboardRecordingControlCommand({ type: "close-controls" });
     closeWhiteboardRecordingControls();
@@ -286,6 +307,87 @@ const WhiteboardRecordingControls = () => {
   const handleOpenFolder = () => {
     if (!state.outputPath) return;
     showInFolder(state.outputPath);
+  };
+
+  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    const target = event.target as HTMLElement | null;
+    if (
+      target?.closest(
+        "button,a,input,textarea,select,[role='button'],[data-recording-controls-no-drag='true']",
+      )
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragStateRef.current = {
+      pointerId: event.pointerId,
+      startPointerX: event.screenX,
+      startPointerY: event.screenY,
+      startWindowX: window.screenX,
+      startWindowY: window.screenY,
+      nextX: window.screenX,
+      nextY: window.screenY,
+      rafId: null,
+    };
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const dragState = dragStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    dragState.nextX =
+      dragState.startWindowX + event.screenX - dragState.startPointerX;
+    dragState.nextY =
+      dragState.startWindowY + event.screenY - dragState.startPointerY;
+
+    if (dragState.rafId !== null) {
+      return;
+    }
+
+    dragState.rafId = window.requestAnimationFrame(() => {
+      const currentDragState = dragStateRef.current;
+      if (!currentDragState) {
+        return;
+      }
+
+      currentDragState.rafId = null;
+      moveWhiteboardRecordingControls({
+        x: currentDragState.nextX,
+        y: currentDragState.nextY,
+      }).catch(() => {
+        // 拖拽同步失败时保持当前位置即可。
+      });
+    });
+  };
+
+  const endDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const dragState = dragStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    if (dragState.rafId !== null) {
+      window.cancelAnimationFrame(dragState.rafId);
+      moveWhiteboardRecordingControls({
+        x: dragState.nextX,
+        y: dragState.nextY,
+      }).catch(() => {
+        // 拖拽同步失败时保持当前位置即可。
+      });
+    }
+
+    dragStateRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
   };
 
   const statusToneClass = (() => {
@@ -315,11 +417,14 @@ const WhiteboardRecordingControls = () => {
         <div
           ref={shellRef}
           className={shellClass}
-          style={dragRegionStyle}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
           data-testid="whiteboard-recording-controls-shell"
         >
           <div className="flex shrink-0 flex-nowrap items-center gap-1.5">
-            <div className={statusPillBase} style={dragRegionStyle}>
+            <div className={statusPillBase}>
               <span className={`${statusDotBase} ${statusToneClass}`} />
               <span className="whitespace-nowrap font-mono text-[13px] font-semibold tabular-nums leading-4">
                 {formatDuration(state.elapsedMs)}
@@ -329,7 +434,7 @@ const WhiteboardRecordingControls = () => {
               </span>
             </div>
 
-            <div className={segmentBase} style={noDragRegionStyle}>
+            <div className={segmentBase} data-recording-controls-no-drag="true">
               <span
                 className={`${sourceHighlightBase} ${
                   state.sourceType === "screen"
@@ -375,7 +480,7 @@ const WhiteboardRecordingControls = () => {
 
             <div
               className="flex items-center gap-1.5"
-              style={noDragRegionStyle}
+              data-recording-controls-no-drag="true"
             >
               <button
                 type="button"
@@ -415,7 +520,6 @@ const WhiteboardRecordingControls = () => {
               <button
                 type="button"
                 className={tertiaryButtonBase}
-                style={noDragRegionStyle}
                 onClick={handleOpenFolder}
                 title="在文件夹中显示"
               >
@@ -427,7 +531,6 @@ const WhiteboardRecordingControls = () => {
               <button
                 type="button"
                 className={tertiaryButtonBase}
-                style={noDragRegionStyle}
                 title="暂停录制"
                 onClick={() =>
                   sendWhiteboardRecordingControlCommand({ type: "pause" })
@@ -440,7 +543,6 @@ const WhiteboardRecordingControls = () => {
             <button
               type="button"
               className={primaryButtonBase}
-              style={noDragRegionStyle}
               onClick={mainAction.onClick}
               disabled={isBusy}
             >
@@ -452,7 +554,6 @@ const WhiteboardRecordingControls = () => {
               <button
                 type="button"
                 className={stopButtonBase}
-                style={noDragRegionStyle}
                 title="停止并保存"
                 disabled={isBusy}
                 onClick={() =>
@@ -466,7 +567,6 @@ const WhiteboardRecordingControls = () => {
             <button
               type="button"
               className={closeButtonBase}
-              style={noDragRegionStyle}
               title="关闭工具条"
               onClick={handleClose}
             >

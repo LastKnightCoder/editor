@@ -94,6 +94,13 @@ export const resizeWhiteboardRecordingControls = async (payload: {
   return await invoke("whiteboard-recording:controls-resize", payload);
 };
 
+export const moveWhiteboardRecordingControls = async (payload: {
+  x: number;
+  y: number;
+}) => {
+  return await invoke("whiteboard-recording:controls-move", payload);
+};
+
 export const sendWhiteboardRecordingControlCommand = async (
   command: WhiteboardRecordingCommand,
 ) => {

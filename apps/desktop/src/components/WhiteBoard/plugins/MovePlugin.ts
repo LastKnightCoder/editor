@@ -851,6 +851,7 @@ export class MovePlugin implements IBoardPlugin {
         const newIndex = capService.getDropIndex(
           currentContainer,
           pointerPosition.y,
+          element.id,
         );
         const currentIndex = oldPath[oldPath.length - 1];
 
@@ -860,13 +861,10 @@ export class MovePlugin implements IBoardPlugin {
             currentContainer,
           );
           if (containerPath) {
-            // move_node 是先删后插，当 newIndex > currentIndex 时需要调整索引
-            const adjustedIndex =
-              newIndex > currentIndex ? newIndex - 1 : newIndex;
             reorderOperations.push({
               type: "move_node",
               path: oldPath,
-              newPath: [...containerPath, adjustedIndex],
+              newPath: [...containerPath, newIndex],
             });
           }
         }
@@ -1112,7 +1110,11 @@ export class MovePlugin implements IBoardPlugin {
 
         // 计算 dropIndex（使用鼠标 Y 位置）
         if (isTarget && pointerPosition) {
-          dropIndex = capService.getDropIndex(container, pointerPosition.y);
+          dropIndex = capService.getDropIndex(
+            container,
+            pointerPosition.y,
+            draggingElement?.id,
+          );
         }
 
         // 计算拖拽位置（用于预览）
