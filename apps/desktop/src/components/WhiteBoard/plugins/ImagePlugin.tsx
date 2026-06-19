@@ -21,7 +21,7 @@ import {
   MovementBehavior,
   ChildrenRenderOrder,
 } from "../types/capabilities";
-import { DOMHeightMeasurer } from "../services/DOMHeightMeasurer";
+import { DOMSizeMeasurer } from "../services/DOMSizeMeasurer";
 import ImageElementComponent from "../components/ImageElement";
 import {
   DEFAULT_DESCRIPTION,
@@ -63,7 +63,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
       measurement: {
         measureHeightForWidth: async (element, targetWidth) => {
           const image = element as ImageElement;
-          return DOMHeightMeasurer.measureMediaHeight(
+          return DOMSizeMeasurer.measureMediaHeight(
             image.naturalWidth || image.width || targetWidth,
             image.naturalHeight || image.height || targetWidth * 0.75,
             targetWidth,

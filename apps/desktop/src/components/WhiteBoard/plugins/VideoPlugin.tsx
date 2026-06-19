@@ -20,7 +20,7 @@ import {
   MovementBehavior,
   ChildrenRenderOrder,
 } from "../types/capabilities";
-import { DOMHeightMeasurer } from "../services/DOMHeightMeasurer";
+import { DOMSizeMeasurer } from "../services/DOMSizeMeasurer";
 import VideoElementComponent from "../components/VideoElement";
 
 export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
@@ -46,7 +46,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
       measurement: {
         measureHeightForWidth: async (element, targetWidth) => {
           const video = element as VideoElement;
-          return DOMHeightMeasurer.measureMediaHeight(
+          return DOMSizeMeasurer.measureMediaHeight(
             video.naturalWidth || video.width || targetWidth,
             video.naturalHeight || video.height || targetWidth * 0.5625, // 16:9
             targetWidth,
