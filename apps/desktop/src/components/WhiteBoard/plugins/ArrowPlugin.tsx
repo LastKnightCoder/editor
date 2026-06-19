@@ -9,6 +9,7 @@ import {
   ContextMenuContext,
   PluginContextMenuItem,
   ECreateBoardElementType,
+  EArrowLineType,
   IElementCapabilities,
   SnapBehavior,
   ContainmentBehavior,
@@ -240,7 +241,7 @@ export class ArrowPlugin implements IBoardPlugin {
   }
 
   getBounds(_board: Board, element: ArrowElement) {
-    const { points } = element;
+    const { points, midPoint } = element;
     if (!points || points.length === 0) {
       return {
         minX: 0,
@@ -255,7 +256,26 @@ export class ArrowPlugin implements IBoardPlugin {
     let maxX = -Infinity;
     let maxY = -Infinity;
 
-    points.forEach((point) => {
+    // 参与包围盒计算的点：默认为端点
+    const considerPoints: Point[] = [...points];
+
+    // 二次贝塞尔曲线的弓背会偏离两端点连线，包围盒必须包含贝塞尔控制点
+    // （曲线必落在 start、controlPoint、end 三点构成的凸包内），否则弯曲后弓背
+    // 区域会被空间索引预筛选过滤，导致点击曲线无法选中
+    if (
+      element.lineType === EArrowLineType.STRAIGHT &&
+      points.length === 2 &&
+      midPoint
+    ) {
+      const [start, end] = points;
+      if (!ArrowUtil.isPointOnLine(start, end, midPoint, 1)) {
+        considerPoints.push(
+          ArrowUtil.getQuadraticControlPoint(start, end, midPoint),
+        );
+      }
+    }
+
+    considerPoints.forEach((point) => {
       minX = Math.min(minX, point.x);
       minY = Math.min(minY, point.y);
       maxX = Math.max(maxX, point.x);
@@ -271,10 +291,25 @@ export class ArrowPlugin implements IBoardPlugin {
     selectArea: SelectArea | null = board.selection.selectArea,
   ) {
     if (!selectArea) return false;
-    const { points } = element;
+    const { points, midPoint } = element;
     const { x, y, width, height } = selectAreaToRect(selectArea);
+
+    // 参与框选判定的点序列：默认为端点
+    const considerPoints: Point[] = [...points];
+
+    // 弯曲曲线需把 midPoint 纳入，否则框选罩住弓背但未罩住端点时会漏选
+    if (
+      element.lineType === EArrowLineType.STRAIGHT &&
+      points.length === 2 &&
+      midPoint &&
+      !ArrowUtil.isPointOnLine(points[0], points[1], midPoint, 1)
+    ) {
+      // midPoint 是曲线在 t=0.5 处经过的点，恰好位于弓背最远处，插在两端点之间
+      considerPoints.splice(1, 0, midPoint);
+    }
+
     const { upperPoints, lowerPoints, leftPoints, rightPoints } =
-      this.getArrowPaddingPath(points, 10);
+      this.getArrowPaddingPath(considerPoints, 10);
 
     const yPath = this.generateSvgPathFromPoints(
       upperPoints.concat(lowerPoints),
@@ -297,7 +332,7 @@ export class ArrowPlugin implements IBoardPlugin {
     return (
       intersect(xPath, selectPath).length > 0 ||
       intersect(yPath, selectPath).length > 0 ||
-      points.some((point) =>
+      considerPoints.some((point) =>
         CanvasUtil.isPointInPath(new Path2D(selectPath), point.x, point.y),
       )
     );

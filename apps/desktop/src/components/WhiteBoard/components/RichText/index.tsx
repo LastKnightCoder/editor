@@ -97,6 +97,8 @@ export interface RichtextRef {
 
 const PADDING_WIDTH = 20;
 const PADDING_HEIGHT = 20;
+const isSameContent = (a: Descendant[], b: Descendant[]) =>
+  JSON.stringify(a) === JSON.stringify(b);
 
 const Richtext = forwardRef<RichtextRef, RichTextProps>(
   (props: RichTextProps, ref) => {
@@ -168,6 +170,9 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
       contentId,
       (nextContent) => {
         if (!contentId) return;
+        if (focus && isSameContent(nextContent, latestContentRef.current)) {
+          return;
+        }
         latestContentRef.current = nextContent;
         setInitialState(nextContent);
         onElementChange?.(board, element, { content: nextContent });
