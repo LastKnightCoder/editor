@@ -9,6 +9,7 @@ import { GeometryElement } from "../../../../plugins/GeometryPlugin";
 import { StyleOptionGrid } from "./components/StyleOptionGrid";
 import { ModernSlider } from "./components/ModernSlider";
 import useTheme from "@/hooks/useTheme";
+import { GeometryUtil } from "@/components/WhiteBoard/utils";
 import classnames from "classnames";
 
 type SketchOptionKey = keyof NonNullable<GeometryElement["sketchOptions"]>;
@@ -56,6 +57,13 @@ const SketchStyleSetterComponent: React.FC<GeometrySetterComponentProps> = ({
         };
       }
     });
+    GeometryUtil.setLocalStorage("sketchEnabled", String(checked));
+    if (checked) {
+      GeometryUtil.setLocalStorage(
+        "sketchOptions",
+        GeometryUtil.serializeSketchOptions(newElement.sketchOptions),
+      );
+    }
     onChange(newElement);
   });
 
@@ -65,6 +73,10 @@ const SketchStyleSetterComponent: React.FC<GeometrySetterComponentProps> = ({
         if (!draft.sketchOptions) draft.sketchOptions = {};
         draft.sketchOptions[key] = value;
       });
+      GeometryUtil.setLocalStorage(
+        "sketchOptions",
+        GeometryUtil.serializeSketchOptions(newElement.sketchOptions),
+      );
       onChange(newElement);
     },
   );
@@ -159,10 +171,10 @@ const SketchStyleSetterComponent: React.FC<GeometrySetterComponentProps> = ({
       placement="right"
       styles={{
         container: {
-          background: 'transparent',
-          boxShadow: 'none',
+          background: "transparent",
+          boxShadow: "none",
           padding: 0,
-          marginLeft: 12
+          marginLeft: 12,
         },
       }}
       content={

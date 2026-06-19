@@ -13,6 +13,7 @@ import {
   MdOutlineFormatAlignCenter,
 } from "react-icons/md";
 import useTheme from "@/hooks/useTheme";
+import { GeometryUtil } from "@/components/WhiteBoard/utils";
 
 const alignOptions = [
   {
@@ -42,6 +43,7 @@ const AlignSetterComponent: React.FC<GeometrySetterComponentProps> = ({
           draft.text.align = value;
         }
       });
+      GeometryUtil.setLocalStorage("textAlign", value);
       onChange(newElement);
     },
   );
@@ -58,10 +60,10 @@ const AlignSetterComponent: React.FC<GeometrySetterComponentProps> = ({
       placement={"right"}
       styles={{
         container: {
-          background: 'transparent',
-          boxShadow: 'none',
+          background: "transparent",
+          boxShadow: "none",
           padding: 0,
-          marginLeft: 12
+          marginLeft: 12,
         },
       }}
       content={
