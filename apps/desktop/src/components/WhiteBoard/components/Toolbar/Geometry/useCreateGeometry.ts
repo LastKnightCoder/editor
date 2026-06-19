@@ -82,7 +82,13 @@ const useCreateGeometry = () => {
       height = max;
     }
 
-    const geometryStyle = GeometryUtil.getPrevGeometryStyle();
+    const {
+      cornerRadius,
+      textAlign,
+      sketchEnabled,
+      sketchOptions: rememberedSketchOptions,
+      ...geometryStyle
+    } = GeometryUtil.getPrevGeometryStyle();
 
     if (!geometryCreateId.current) {
       geometryCreateId.current = getUuid();
@@ -96,9 +102,12 @@ const useCreateGeometry = () => {
       type: "geometry",
       geometryType,
       paths: createOptions.paths,
-      extraInfo: defaultExtraInfo,
+      extraInfo: {
+        ...defaultExtraInfo,
+        cornerRadius,
+      },
       text: {
-        align: "center",
+        align: textAlign,
         content: [
           {
             type: "paragraph",
@@ -115,6 +124,14 @@ const useCreateGeometry = () => {
       y,
       width,
       height,
+      sketchEnabled,
+      sketchOptions:
+        sketchEnabled && rememberedSketchOptions
+          ? {
+              ...rememberedSketchOptions,
+              seed: Math.floor(Math.random() * 2147483647),
+            }
+          : undefined,
       ...geometryStyle,
     };
 

@@ -11,6 +11,7 @@ import Colors from "./components/Colors";
 import styles from "./setters.module.less";
 import classnames from "classnames";
 import useTheme from "@/hooks/useTheme";
+import { GeometryUtil } from "@/components/WhiteBoard/utils";
 
 export interface ColorOption {
   fill: string;
@@ -187,6 +188,12 @@ const ColorSetterComponent: React.FC<GeometrySetterComponentProps> = ({
       draft.color = color.color;
       draft.theme = color.theme;
     });
+    GeometryUtil.setLocalStorage("fill", color.fill);
+    GeometryUtil.setLocalStorage("fillOpacity", "1");
+    GeometryUtil.setLocalStorage("stroke", color.stroke);
+    GeometryUtil.setLocalStorage("strokeOpacity", "1");
+    GeometryUtil.setLocalStorage("color", color.color);
+    GeometryUtil.setLocalStorage("theme", color.theme);
     onChange(newElement);
   });
 
@@ -197,16 +204,18 @@ const ColorSetterComponent: React.FC<GeometrySetterComponentProps> = ({
       placement={"right"}
       styles={{
         container: {
-          background: 'transparent',
-          boxShadow: 'none',
+          background: "transparent",
+          boxShadow: "none",
           padding: 0,
-          marginLeft: 12
+          marginLeft: 12,
         },
       }}
       content={
-        <div className={classnames(styles.colorSelect, {
-          [styles.dark]: isDark,
-        })}>
+        <div
+          className={classnames(styles.colorSelect, {
+            [styles.dark]: isDark,
+          })}
+        >
           <Colors colors={fillWithStrokeColors} onClick={handleOnSelectColor} />
           <Colors
             colors={fillWithoutStrokeColors}

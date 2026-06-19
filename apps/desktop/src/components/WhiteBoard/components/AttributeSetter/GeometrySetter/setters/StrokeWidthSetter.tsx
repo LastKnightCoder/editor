@@ -8,6 +8,7 @@ import { useMemoizedFn } from "ahooks";
 import styles from "./setters.module.less";
 import classnames from "classnames";
 import useTheme from "@/hooks/useTheme";
+import { GeometryUtil } from "@/components/WhiteBoard/utils";
 
 // 线条粗细设置器组件
 const StrokeWidthSetterComponent: React.FC<GeometrySetterComponentProps> = ({
@@ -22,6 +23,7 @@ const StrokeWidthSetterComponent: React.FC<GeometrySetterComponentProps> = ({
     const newElement = produce(element, (draft) => {
       draft.strokeWidth = value;
     });
+    GeometryUtil.setLocalStorage("strokeWidth", String(value));
     onChange(newElement);
   });
 
@@ -32,16 +34,18 @@ const StrokeWidthSetterComponent: React.FC<GeometrySetterComponentProps> = ({
       placement={"right"}
       styles={{
         container: {
-          background: 'transparent',
-          boxShadow: 'none',
+          background: "transparent",
+          boxShadow: "none",
           padding: 0,
-          marginLeft: 12
+          marginLeft: 12,
         },
       }}
       content={
-        <div className={classnames(styles.sliderPopover, {
-          [styles.dark]: isDark,
-        })}>
+        <div
+          className={classnames(styles.sliderPopover, {
+            [styles.dark]: isDark,
+          })}
+        >
           <ConfigProvider
             theme={{
               algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,

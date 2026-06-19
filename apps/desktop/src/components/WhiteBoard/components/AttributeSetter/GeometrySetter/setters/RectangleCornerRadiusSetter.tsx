@@ -8,6 +8,7 @@ import styles from "./setters.module.less";
 import { RiRoundedCorner } from "react-icons/ri";
 import classnames from "classnames";
 import useTheme from "@/hooks/useTheme";
+import { GeometryUtil } from "@/components/WhiteBoard/utils";
 
 // 矩形圆角设置器组件
 const RectangleCornerRadiusSetterComponent: React.FC<
@@ -24,6 +25,7 @@ const RectangleCornerRadiusSetterComponent: React.FC<
       }
       draft.extraInfo.cornerRadius = value;
     });
+    GeometryUtil.setLocalStorage("cornerRadius", String(value));
     onChange(newElement);
   });
 
@@ -34,16 +36,18 @@ const RectangleCornerRadiusSetterComponent: React.FC<
       placement={"right"}
       styles={{
         container: {
-          background: 'transparent',
-          boxShadow: 'none',
+          background: "transparent",
+          boxShadow: "none",
           padding: 0,
-          marginLeft: 12
+          marginLeft: 12,
         },
       }}
       content={
-        <div className={classnames(styles.sliderPopover, {
-          [styles.dark]: isDark,
-        })}>
+        <div
+          className={classnames(styles.sliderPopover, {
+            [styles.dark]: isDark,
+          })}
+        >
           <ConfigProvider
             theme={{
               algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
