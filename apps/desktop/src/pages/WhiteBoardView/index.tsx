@@ -4,7 +4,7 @@ import { Empty, Button } from "antd";
 import classnames from "classnames";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore.ts";
 import { useMemoizedFn } from "ahooks";
-import WhiteBoardModal from "./WhiteBoardModal";
+import WhiteBoardModal from "@/components/WhiteBoardModal";
 import WhiteBoardList from "./WhiteBoardList";
 
 import { PlusOutlined } from "@ant-design/icons";

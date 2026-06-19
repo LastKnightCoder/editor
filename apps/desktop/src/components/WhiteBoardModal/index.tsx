@@ -98,10 +98,6 @@ const WhiteBoardModal: React.FC<WhiteBoardModalProps> = ({
       setError("请输入标题");
       return;
     }
-    if (!description.trim()) {
-      setError("请输入描述");
-      return;
-    }
 
     setIsSubmitting(true);
     setError(null);
@@ -315,7 +311,7 @@ const WhiteBoardModal: React.FC<WhiteBoardModalProps> = ({
                   <line x1="16" y1="17" x2="8" y2="17" />
                   <polyline points="10 9 9 9 8 9" />
                 </svg>
-                描述
+                描述（可选）
               </label>
               <textarea
                 value={description}
@@ -347,7 +343,7 @@ const WhiteBoardModal: React.FC<WhiteBoardModalProps> = ({
               <button
                 className="flex-1 px-5 py-3 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-purple-500 text-white shadow-[0_4px_14px_rgba(168,85,247,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-purple-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none"
                 onClick={handleSubmit}
-                disabled={!title.trim() || !description.trim() || isSubmitting}
+                disabled={!title.trim() || isSubmitting}
               >
                 {isSubmitting ? (
                   <>
