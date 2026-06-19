@@ -958,6 +958,7 @@ const WhiteBoard = memo(
 
     const handleEditSequence = useMemoizedFn((sequenceId: string) => {
       board.presentationManager.setCurrentSequence(sequenceId);
+      board.presentationManager.startCreatingSequence();
     });
 
     const handleDeleteSequence = useMemoizedFn((sequenceId: string) => {

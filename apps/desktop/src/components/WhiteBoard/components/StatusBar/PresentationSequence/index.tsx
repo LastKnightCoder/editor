@@ -38,6 +38,31 @@ const PresentationSequenceComponent = memo<PresentationSequenceProps>(
       onStartPresentation(sequenceId);
     });
 
+    const handleEdit = useMemoizedFn(
+      (e: React.MouseEvent, sequenceId: string) => {
+        e.stopPropagation();
+        setPopoverOpen(false);
+        onEditSequence(sequenceId);
+      },
+    );
+
+    const handleDelete = useMemoizedFn(
+      (e: React.MouseEvent, sequenceId: string) => {
+        e.stopPropagation();
+        modal.confirm({
+          title: "删除序列",
+          content: "确定删除该序列吗？该操作无法撤销。",
+          okText: "删除",
+          cancelText: "取消",
+          okButtonProps: { danger: true },
+          onOk: () => {
+            setPopoverOpen(false);
+            onDeleteSequence(sequenceId);
+          },
+        });
+      },
+    );
+
     if (sequences.length === 0) {
       return null;
     }
@@ -49,7 +74,11 @@ const PresentationSequenceComponent = memo<PresentationSequenceProps>(
         open={popoverOpen}
         onOpenChange={handlePopoverOpenChange}
         content={
-          <Flex vertical className={styles.sequenceList}>
+          <div className={styles.sequenceList}>
+            <div className={styles.listHeader}>
+              <span className={styles.listTitle}>演示序列</span>
+              <span className={styles.listCount}>{sequences.length}</span>
+            </div>
             <For
               data={sequences}
               renderItem={(sequence) => (
@@ -60,45 +89,37 @@ const PresentationSequenceComponent = memo<PresentationSequenceProps>(
                   >
                     {sequence.name}
                   </span>
-                  <Flex gap={12} className={styles.sequenceActions}>
-                    <EditOutlined
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPopoverOpen(false);
-                        onEditSequence(sequence.id);
-                      }}
-                    />
-                    <CloseOutlined
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // 删除序列
-                        modal.confirm({
-                          title: "删除序列",
-                          content: "确定删除该序列吗？",
-                          onOk: () => {
-                            setPopoverOpen(false);
-                            onDeleteSequence(sequence.id);
-                          },
-                          okButtonProps: {
-                            danger: true,
-                          },
-                        });
-                      }}
-                    />
+                  <Flex gap={2} className={styles.sequenceActions}>
+                    <Tooltip title="编辑序列">
+                      <span
+                        className={styles.actionIcon}
+                        onClick={(e) => handleEdit(e, sequence.id)}
+                      >
+                        <EditOutlined />
+                      </span>
+                    </Tooltip>
+                    <Tooltip title="删除序列">
+                      <span
+                        className={`${styles.actionIcon} ${styles.deleteIcon}`}
+                        onClick={(e) => handleDelete(e, sequence.id)}
+                      >
+                        <CloseOutlined />
+                      </span>
+                    </Tooltip>
                   </Flex>
                 </div>
               )}
             />
-          </Flex>
+          </div>
         }
         styles={{
           content: {
-            padding: 8,
-            marginBottom: 12,
+            padding: 0,
+            marginBottom: 8,
           },
         }}
       >
-        <Tooltip title="开始演示">
+        <Tooltip title="演示序列">
           <div className={styles.presentationButton} onClick={stopPropagation}>
             <PlayCircleOutlined />
           </div>
