@@ -6,12 +6,15 @@ import Board from "../../Board";
 import { ImageUtil } from "../../utils";
 import ResourcePickerModal from "@/components/ResourcePickerModal";
 import type { IResource } from "@/types";
+import ImageAIGenerateModal from "./ImageAIGenerateModal";
+import ImageUrlModal from "./ImageUrlModal";
+import { generateWhiteboardImage } from "./imageActions";
 
 interface ImageSelectorModalProps {
   open: boolean;
   onClose: () => void;
   board: Board;
-  action?: string; // "local" | "resource"
+  action?: string; // "local" | "resource" | "url" | "ai"
 }
 
 const ImageSelectorModal = ({
@@ -22,6 +25,8 @@ const ImageSelectorModal = ({
 }: ImageSelectorModalProps) => {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
+  const [urlModalOpen, setUrlModalOpen] = useState(false);
+  const [aiGenerateOpen, setAiGenerateOpen] = useState(false);
 
   const { message } = App.useApp();
 
@@ -35,6 +40,10 @@ const ImageSelectorModal = ({
     } else if (action === "resource") {
       // 打开资源库
       setResourcePickerOpen(true);
+    } else if (action === "url") {
+      setUrlModalOpen(true);
+    } else if (action === "ai") {
+      setAiGenerateOpen(true);
     }
   }, [open, action]);
 
@@ -84,6 +93,31 @@ const ImageSelectorModal = ({
     onClose();
   });
 
+  const handleUrlModalCancel = useMemoizedFn(() => {
+    setUrlModalOpen(false);
+    onClose();
+  });
+
+  const handleAIGenerateCancel = useMemoizedFn(() => {
+    setAiGenerateOpen(false);
+    onClose();
+  });
+
+  const handleInsertFromUrl = useMemoizedFn(async (url: string) => {
+    await ImageUtil.insertImageFromPath(url, board);
+    message.success("图片已插入");
+    setUrlModalOpen(false);
+    onClose();
+  });
+
+  const handleGenerateAIImage = useMemoizedFn(async (prompt: string) => {
+    const result = await generateWhiteboardImage(prompt);
+    await ImageUtil.insertImageFromPath(result.url, board);
+    message.success("图片已生成并插入");
+    setAiGenerateOpen(false);
+    onClose();
+  });
+
   return (
     <>
       <input
@@ -100,6 +134,16 @@ const ImageSelectorModal = ({
         multiple
         title="选择图片"
         onConfirm={handleSelectFromResource}
+      />
+      <ImageUrlModal
+        open={urlModalOpen}
+        onCancel={handleUrlModalCancel}
+        onConfirm={handleInsertFromUrl}
+      />
+      <ImageAIGenerateModal
+        open={aiGenerateOpen}
+        onCancel={handleAIGenerateCancel}
+        onConfirm={handleGenerateAIImage}
       />
     </>
   );

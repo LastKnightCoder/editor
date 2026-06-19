@@ -1,4 +1,12 @@
-import { Image, Copy, Link, Download } from "lucide-react";
+import {
+  Image,
+  Copy,
+  Link,
+  Download,
+  Sparkles,
+  Upload,
+  FolderOpen,
+} from "lucide-react";
 import { v4 as getUuid } from "uuid";
 import { message } from "antd";
 import { uploadResource } from "@/hooks/useUploadResource";
@@ -88,6 +96,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
           {
             key: "image-local",
             label: "本地上传",
+            icon: <Upload size={14} />,
             priority: 0,
             onSelect: (ctx: ContextMenuContext) => {
               ctx.board.emit("context-menu:open-modal", {
@@ -99,11 +108,36 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
           {
             key: "image-resource",
             label: "资源库",
+            icon: <FolderOpen size={14} />,
             priority: 1,
             onSelect: (ctx: ContextMenuContext) => {
               ctx.board.emit("context-menu:open-modal", {
                 type: "image",
                 action: "resource",
+              });
+            },
+          },
+          {
+            key: "image-url",
+            label: "输入 URL",
+            icon: <Link size={14} />,
+            priority: 2,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("context-menu:open-modal", {
+                type: "image",
+                action: "url",
+              });
+            },
+          },
+          {
+            key: "image-ai",
+            label: "AI 图片生成",
+            icon: <Sparkles size={14} />,
+            priority: 3,
+            onSelect: (ctx: ContextMenuContext) => {
+              ctx.board.emit("context-menu:open-modal", {
+                type: "image",
+                action: "ai",
               });
             },
           },

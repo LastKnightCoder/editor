@@ -179,6 +179,6 @@ export interface ContextMenuModalPayload {
     | "webview"
     | "whiteboard"
     | "export-image";
-  action?: string; // image: local/resource; video: local/resource/url/bilibili/youtube/notion; audio: local/resource/url/tts; whiteboard: create/reference; export-image: board/selection
+  action?: string; // image: local/resource/url/ai; video: local/resource/url/bilibili/youtube/notion; audio: local/resource/url/tts; whiteboard: create/reference; export-image: board/selection
   selectedElementIds?: string[];
 }
