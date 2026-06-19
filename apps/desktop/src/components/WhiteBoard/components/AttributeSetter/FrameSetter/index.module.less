@@ -85,3 +85,94 @@
     transform: scale(1);
   }
 }
+
+.positionList {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px;
+}
+
+.positionOption {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  color: #1f2937;
+  width: 100%;
+
+  &:hover {
+    background: rgba(59, 130, 246, 0.12);
+  }
+
+  &.positionOptionActive {
+    color: #3b82f6;
+  }
+
+  &.dark {
+    color: #e2e8f0;
+
+    &:hover {
+      background: rgba(96, 165, 250, 0.18);
+    }
+
+    &.positionOptionActive {
+      color: #60a5fa;
+    }
+  }
+}
+
+.positionPreview {
+  position: relative;
+  width: 28px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.previewFrame {
+  position: absolute;
+  left: 2px;
+  top: 5px;
+  width: 24px;
+  height: 15px;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+  background: rgba(59, 130, 246, 0.1);
+  opacity: 0.7;
+}
+
+.previewTitle {
+  position: absolute;
+  background: currentColor;
+}
+
+.previewTitleTop {
+  left: 4px;
+  top: 0;
+  width: 10px;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.previewTitleInline {
+  left: 2px;
+  top: 5px;
+  width: 9px;
+  height: 5px;
+  border-radius: 3px 0 1px 0;
+}
+
+.positionLabel {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.positionCheck {
+  margin-left: auto;
+  width: 14px;
+  height: 14px;
+}

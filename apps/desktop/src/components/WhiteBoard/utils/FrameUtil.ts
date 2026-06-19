@@ -4,9 +4,12 @@ import type { Board, BoardElement } from "../types/board";
 import type { Operation } from "../types/operation";
 import {
   FRAME_DEFAULT_STYLES,
+  FRAME_DEFAULT_TITLE_POSITION,
+  FRAME_INLINE_TITLE_HEIGHT,
   FRAME_TITLE_GAP,
   FRAME_TITLE_HEIGHT,
   type FrameElement,
+  type FrameTitlePosition,
 } from "../types/frame";
 import { isRectIntersect, getRectIntersectionArea } from "./common";
 import { PathUtil } from "./PathUtil";
@@ -17,18 +20,18 @@ const LOCAL_STORAGE_KEY = "whiteboard-frame";
 export class FrameUtil {
   static readonly TITLE_HEIGHT = FRAME_TITLE_HEIGHT;
   static readonly TITLE_GAP = FRAME_TITLE_GAP;
+  static readonly INLINE_TITLE_HEIGHT = FRAME_INLINE_TITLE_HEIGHT;
 
   static getTitleY(frame: FrameElement) {
+    if (frame.titlePosition === "inline") {
+      return frame.y;
+    }
     return frame.y - this.TITLE_HEIGHT - this.TITLE_GAP;
   }
 
-  static getRenderBounds(frame: FrameElement) {
-    return {
-      minX: frame.x,
-      minY: this.getTitleY(frame),
-      maxX: frame.x + frame.width,
-      maxY: frame.y + frame.height,
-    };
+  static getInlineTopPadding(frame: FrameElement): number {
+    if (frame.titlePosition !== "inline") return frame.padding;
+    return frame.padding + this.INLINE_TITLE_HEIGHT;
   }
 
   static setLocalStorage(key: string, value: string) {
@@ -65,6 +68,14 @@ export class FrameUtil {
     } as const;
   }
 
+  static getPrevTitlePosition(): FrameTitlePosition {
+    const stored = this.getLocalStorage("titlePosition");
+    if (stored === "top" || stored === "inline") {
+      return stored;
+    }
+    return FRAME_DEFAULT_TITLE_POSITION;
+  }
+
   static createFrame(
     x: number,
     y: number,
@@ -82,6 +93,7 @@ export class FrameUtil {
       width,
       height,
       title,
+      titlePosition: this.getPrevTitlePosition(),
       children: [],
       backgroundColor: prevStyle.backgroundColor,
       borderColor: prevStyle.borderColor,
@@ -253,8 +265,9 @@ export class FrameUtil {
     }
 
     // 计算需要的边界（包含 padding）
+    const topPadding = this.getInlineTopPadding(frame);
     const requiredMinX = minX - frame.padding;
-    const requiredMinY = minY - frame.padding;
+    const requiredMinY = minY - topPadding;
     const requiredMaxX = maxX + frame.padding;
     const requiredMaxY = maxY + frame.padding;
 
@@ -319,11 +332,12 @@ export class FrameUtil {
       };
     }
 
+    const topPadding = this.getInlineTopPadding(frame);
     return {
       x: minX - frame.padding,
-      y: minY - frame.padding,
+      y: minY - topPadding,
       width: maxX - minX + 2 * frame.padding,
-      height: maxY - minY + 2 * frame.padding,
+      height: maxY - minY + frame.padding + topPadding,
     };
   }
 

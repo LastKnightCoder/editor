@@ -9,12 +9,17 @@ type ResolveBounds = (element: BoardElement) => ElementBounds | null;
 
 export const getFramePresentationBounds = (
   frame: FrameElement,
-): ElementBounds => ({
-  minX: frame.x,
-  minY: frame.y - FRAME_TITLE_HEIGHT - FRAME_TITLE_GAP,
-  maxX: frame.x + frame.width,
-  maxY: frame.y + frame.height,
-});
+): ElementBounds => {
+  const hasExternalTitle = frame.titlePosition !== "inline";
+  return {
+    minX: frame.x,
+    minY: hasExternalTitle
+      ? frame.y - FRAME_TITLE_HEIGHT - FRAME_TITLE_GAP
+      : frame.y,
+    maxX: frame.x + frame.width,
+    maxY: frame.y + frame.height,
+  };
+};
 
 export const getPresentationElementBounds = (
   element: BoardElement,
