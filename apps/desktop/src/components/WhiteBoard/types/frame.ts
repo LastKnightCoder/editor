@@ -4,9 +4,16 @@ import { CommonElement } from "../plugins/CommonPlugin";
 export const FRAME_TITLE_HEIGHT = 40;
 export const FRAME_TITLE_GAP = 10;
 
+export type FrameTitlePosition = "top" | "inline";
+
+export const FRAME_DEFAULT_TITLE_POSITION: FrameTitlePosition = "top";
+
+export const FRAME_INLINE_TITLE_HEIGHT = 32;
+
 export interface FrameElement extends CommonElement {
   type: "frame";
   title: string;
+  titlePosition?: FrameTitlePosition;
   children: BoardElement[];
   backgroundColor: string;
   borderColor: string;

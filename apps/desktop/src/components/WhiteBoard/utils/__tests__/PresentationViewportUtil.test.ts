@@ -47,4 +47,13 @@ describe("PresentationViewportUtil", () => {
     expect(bounds).toEqual(getFramePresentationBounds(frame));
     expect(bounds?.minY).toBe(frame.y - FRAME_TITLE_HEIGHT - FRAME_TITLE_GAP);
   });
+
+  it("inline 模式下 Frame 演示边界不应向上包含标题区域", () => {
+    const frame = createFrame({ titlePosition: "inline" });
+    const bounds = mergePresentationElementBounds([frame], resolveBounds);
+
+    expect(bounds).toEqual(getFramePresentationBounds(frame));
+    expect(bounds?.minY).toBe(frame.y);
+    expect(bounds?.maxY).toBe(frame.y + frame.height);
+  });
 });

@@ -2,10 +2,14 @@ import { memo, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Popover, Tooltip } from "antd";
 import { MdOutlineColorLens, MdOutlineFitScreen } from "react-icons/md";
-import { LuPackageOpen } from "react-icons/lu";
+import { LuPackageOpen, LuPanelTop, LuCheck } from "react-icons/lu";
 import { produce } from "immer";
 
-import { FrameElement, FRAME_DEFAULT_STYLES } from "../../../types";
+import {
+  FrameElement,
+  FRAME_DEFAULT_STYLES,
+  FrameTitlePosition,
+} from "../../../types";
 import { useBoard } from "../../../hooks";
 import { FrameUtil } from "../../../utils";
 
@@ -22,7 +26,10 @@ const FrameSetter = memo((props: FrameSetterProps) => {
   const { element, onChange } = props;
   const { isDark } = useTheme();
   const [styleOpen, setStyleOpen] = useState(false);
+  const [titlePositionOpen, setTitlePositionOpen] = useState(false);
   const board = useBoard();
+  const currentTitlePosition: FrameTitlePosition =
+    element.titlePosition ?? "top";
 
   // 找到当前元素对应的样式索引
   const currentStyleIndex = FRAME_DEFAULT_STYLES.findIndex(
@@ -56,6 +63,15 @@ const FrameSetter = memo((props: FrameSetterProps) => {
     setStyleOpen(false);
   });
 
+  const handleTitlePositionChange = useMemoizedFn((pos: FrameTitlePosition) => {
+    const newElement = produce(element, (draft) => {
+      draft.titlePosition = pos;
+    });
+    FrameUtil.setLocalStorage("titlePosition", pos);
+    onChange(newElement);
+    setTitlePositionOpen(false);
+  });
+
   const stopPropagation = useMemoizedFn((e: React.UIEvent) => {
     e.stopPropagation();
     e.nativeEvent.stopImmediatePropagation();
@@ -75,6 +91,47 @@ const FrameSetter = memo((props: FrameSetterProps) => {
   const handleUnwrapFrame = useMemoizedFn(() => {
     FrameUtil.unwrapFrame(board, element);
   });
+
+  const titlePositionContent = (
+    <div
+      className={classnames(styles.popoverContent, styles.positionList, {
+        [styles.dark]: isDark,
+      })}
+      onClick={stopPropagation}
+      onPointerDown={stopPropagation}
+      onPointerUp={stopPropagation}
+      onWheel={stopPropagation}
+    >
+      {(["top", "inline"] as const).map((pos) => (
+        <div
+          key={pos}
+          className={classnames(styles.positionOption, {
+            [styles.dark]: isDark,
+            [styles.positionOptionActive]: currentTitlePosition === pos,
+          })}
+          onClick={() => handleTitlePositionChange(pos)}
+        >
+          <span className={styles.positionPreview}>
+            <span className={styles.previewFrame} />
+            <span
+              className={classnames(
+                styles.previewTitle,
+                pos === "top"
+                  ? styles.previewTitleTop
+                  : styles.previewTitleInline,
+              )}
+            />
+          </span>
+          <span className={styles.positionLabel}>
+            {pos === "top" ? "上方" : "内嵌"}
+          </span>
+          {currentTitlePosition === pos && (
+            <LuCheck className={styles.positionCheck} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
 
   const styleContent = (
     <div
@@ -123,10 +180,10 @@ const FrameSetter = memo((props: FrameSetterProps) => {
         onOpenChange={setStyleOpen}
         styles={{
           container: {
-            background: 'transparent',
-            boxShadow: 'none',
+            background: "transparent",
+            boxShadow: "none",
             padding: 0,
-            marginLeft: 12
+            marginLeft: 12,
           },
         }}
         trigger={"click"}
@@ -137,6 +194,28 @@ const FrameSetter = memo((props: FrameSetterProps) => {
         <Tooltip title={"选择样式"} trigger={"hover"} placement={"right"}>
           <div className={styles.item}>
             <MdOutlineColorLens />
+          </div>
+        </Tooltip>
+      </Popover>
+      <Popover
+        open={titlePositionOpen}
+        onOpenChange={setTitlePositionOpen}
+        styles={{
+          container: {
+            background: "transparent",
+            boxShadow: "none",
+            padding: 0,
+            marginLeft: 12,
+          },
+        }}
+        trigger={"click"}
+        content={titlePositionContent}
+        placement={"right"}
+        arrow={false}
+      >
+        <Tooltip title={"标题位置"} trigger={"hover"} placement={"right"}>
+          <div className={styles.item}>
+            <LuPanelTop />
           </div>
         </Tooltip>
       </Popover>

@@ -18,6 +18,26 @@ import {
   RESIZE_CIRCLE_RADIUS,
 } from "../../constants";
 
+const getReadableTextColor = (hex: string): string => {
+  const m = hex.replace("#", "");
+  if (m.length !== 6 && m.length !== 3) return "#ffffff";
+  const full =
+    m.length === 3
+      ? m
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : m;
+  const r = parseInt(full.slice(0, 2), 16) / 255;
+  const g = parseInt(full.slice(2, 4), 16) / 255;
+  const b = parseInt(full.slice(4, 6), 16) / 255;
+  const toLinear = (c: number) =>
+    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  const lum =
+    0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+  return lum > 0.6 ? "#1f2937" : "#ffffff";
+};
+
 interface FrameProps {
   element: FrameElement;
   onClick?: (e: React.MouseEvent) => void;
@@ -149,8 +169,19 @@ const Frame = memo(
       }
     }, [isEditingTitle]);
 
-    const titleHeight = FrameUtil.TITLE_HEIGHT;
-    const titleY = FrameUtil.getTitleY(element);
+    const isInlineTitle = element.titlePosition === "inline";
+    const effectiveBorderWidth = isChildMoveIn ? borderWidth + 1 : borderWidth;
+    const borderInset = effectiveBorderWidth / 2;
+    const INLINE_TITLE_HEIGHT = FrameUtil.INLINE_TITLE_HEIGHT;
+    const inlineRadius = Math.max(0, borderRadius - borderInset);
+    const titleTextColor = getReadableTextColor(borderColor);
+    const titleHeight = isInlineTitle
+      ? INLINE_TITLE_HEIGHT
+      : FrameUtil.TITLE_HEIGHT;
+    const titleY = isInlineTitle
+      ? y + borderInset
+      : FrameUtil.getTitleY(element);
+    const titleObjectX = isInlineTitle ? x + borderInset : x;
 
     return (
       <g ref={frameRef}>
@@ -172,11 +203,12 @@ const Frame = memo(
 
         {/* 标题区域 - 移到选中状态之前，避免遮挡箭头连接点 */}
         <foreignObject
-          x={x}
+          x={titleObjectX}
           y={titleY}
           width={width}
           height={titleHeight}
           className="border-none"
+          style={{ pointerEvents: isInlineTitle ? "none" : undefined }}
         >
           <div
             className="w-fit flex items-center h-full pointer-events-auto"
@@ -198,9 +230,21 @@ const Frame = memo(
               id={`frame-title-${element.id}`}
               ref={titleRef}
               defaultValue={title || "Frame"}
-              className="text-sm font-medium text-white px-2 py-1 rounded-lg cursor-pointer select-none min-w-5 text-center h-full flex items-center w-fit outline-none hover:opacity-90"
+              className={
+                isInlineTitle
+                  ? "text-xs font-semibold pl-2.5 pr-3 cursor-pointer select-none min-w-5 text-center h-full flex items-center w-fit outline-none hover:opacity-95 tracking-wide"
+                  : "text-sm font-medium px-2 py-1 rounded-lg cursor-pointer select-none min-w-5 text-center h-full flex items-center w-fit outline-none hover:opacity-90"
+              }
               style={{
                 background: borderColor,
+                color: titleTextColor,
+                borderRadius: isInlineTitle
+                  ? `${inlineRadius}px 0px 6px 0px`
+                  : undefined,
+                textShadow:
+                  titleTextColor === "#ffffff"
+                    ? "0 1px 1px rgba(0,0,0,0.25)"
+                    : "0 1px 1px rgba(255,255,255,0.25)",
               }}
               contentEditable={isEditingTitle}
               onBlur={handleTitleBlur}
