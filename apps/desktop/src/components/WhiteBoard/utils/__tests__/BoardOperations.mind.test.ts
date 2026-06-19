@@ -1,4 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+
+const electronMocks = vi.hoisted(() => ({
+  invoke: vi.fn(() => Promise.resolve({})),
+  send: vi.fn(),
+  sendSync: vi.fn(),
+  on: vi.fn(),
+  off: vi.fn(),
+  platform: "web",
+}));
+vi.mock("@/electron", () => electronMocks);
+
 import BoardOperations from "../BoardOperations";
 import { BoardUtil } from "../BoardUtil";
 import MindUtil from "../MindUtil";

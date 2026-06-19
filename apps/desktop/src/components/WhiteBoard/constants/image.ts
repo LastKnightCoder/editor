@@ -1,3 +1,5 @@
+import { EShadowSize } from "./shadow";
+
 // 图片描述相关常量
 export enum EDescriptionPosition {
   TOP = "top",
@@ -39,3 +41,6 @@ export const DEFAULT_DESCRIPTION_ALIGNMENT = EDescriptionAlignment.CENTER;
 
 // 默认描述字体大小
 export const DEFAULT_DESCRIPTION_FONT_SIZE = 10;
+
+// 默认阴影大小
+export const DEFAULT_IMAGE_SHADOW_SIZE = EShadowSize.None;

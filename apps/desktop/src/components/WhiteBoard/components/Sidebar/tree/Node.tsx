@@ -30,6 +30,7 @@ import {
   simulateChildrenAfterOps,
   buildFrameResizeOp,
   collectMindLayoutOpsFromPreview,
+  canDropElementIntoParent,
 } from "./utils";
 
 interface NodeProps {
@@ -235,11 +236,25 @@ const Node: React.FC<NodeProps> = ({
       { elementId: element.id, path: elementPath, parentPath },
       {
         canDropExtra: (dragItem, _dropItem, position) => {
-          // Inside 放置需要容器校验；Top/Bottom 用于同父级重排，允许
-          if (position !== DragPosition.Inside) return true;
-          if (!isContainer) return false;
           const dragEl = BoardUtil.getElementById(board, dragItem.elementId);
           if (!dragEl) return false;
+          // Inside 放置需要容器校验；Top/Bottom 需要校验目标父级是否能包含拖拽元素。
+          if (position !== DragPosition.Inside) {
+            const dropParentPath = elementPath.slice(0, -1);
+            const targetParent =
+              dropParentPath.length > 0
+                ? (PathUtil.getElementByPath(
+                    board,
+                    dropParentPath,
+                  ) as BoardElement | null)
+                : null;
+            return canDropElementIntoParent(
+              board as Board,
+              targetParent,
+              dragEl,
+            );
+          }
+          if (!isContainer) return false;
           // 使用能力查询检查容器是否可以包含拖拽元素
           return capService.canContain(element, dragEl);
         },
@@ -427,20 +442,12 @@ const Node: React.FC<NodeProps> = ({
                 ) as BoardElement | null)
               : null;
 
-          // 若拖拽元素需要特定容器，检查父级是否兼容
-          if (parent.length > 0 && targetParentEl) {
-            // 使用能力查询检查是否可以被父级包含
-            if (dragEl2) {
-              const containment = capService.getContainmentCapability(
-                dragEl2.type,
-              );
-              if (
-                containment.canBeContainedBy &&
-                !containment.canBeContainedBy(targetParentEl)
-              ) {
-                return; // 阻止不兼容的层级拖拽
-              }
-            }
+          // Top/Bottom 会插到目标节点的父级，必须同时满足父级容器的包含规则。
+          if (
+            dragEl2 &&
+            !canDropElementIntoParent(board as Board, targetParentEl, dragEl2)
+          ) {
+            return;
           }
           // 根据父级列表的展示顺序决定插入索引：
           // - 使用能力查询判断子元素渲染顺序
@@ -733,11 +740,13 @@ const Node: React.FC<NodeProps> = ({
         <div
           onClick={onClick}
           className={classNames(
-            "group cursor-pointer select-none relative transition-all duration-150 ease-out",
+            "group select-none relative transition-all duration-150 ease-out",
             "rounded-md mx-2",
             colorClasses.hover,
             isSelected && colorClasses.selected,
             {
+              "cursor-not-allowed": isOver && !canDrop,
+              "cursor-pointer": !isOver || canDrop,
               [TOP_DROP_INDICATOR_CLASS]:
                 isOver && canDrop && dragPosition === DragPosition.Top,
               [BOTTOM_DROP_INDICATOR_CLASS]:

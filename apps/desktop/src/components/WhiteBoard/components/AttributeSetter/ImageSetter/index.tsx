@@ -4,12 +4,19 @@ import { Popover, Tooltip } from "antd";
 import { MdOutlineColorLens, MdOutlineTextFields } from "react-icons/md";
 import { CgAlignLeft, CgAlignCenter, CgAlignRight } from "react-icons/cg";
 import { BiSolidUpArrow, BiSolidDownArrow } from "react-icons/bi";
+import { TbShadow } from "react-icons/tb";
 import { produce } from "immer";
 import { ImageElement } from "../../../types";
 import {
   EDescriptionPosition,
   EDescriptionAlignment,
 } from "../../../constants/image";
+import {
+  EShadowSize,
+  SHADOW_SIZE_OPTIONS,
+  getShadowStyle,
+} from "../../../constants";
+import { ImageUtil } from "../../../utils";
 
 import styles from "./index.module.less";
 import useTheme from "@/hooks/useTheme";
@@ -76,6 +83,7 @@ const ImageSetter = memo((props: ImageSetterProps) => {
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
   const [positionPopoverVisible, setPositionPopoverVisible] = useState(false);
   const [alignmentPopoverVisible, setAlignmentPopoverVisible] = useState(false);
+  const [shadowPopoverVisible, setShadowPopoverVisible] = useState(false);
 
   const handlePositionChange = useMemoizedFn(
     (position: EDescriptionPosition) => {
@@ -84,7 +92,7 @@ const ImageSetter = memo((props: ImageSetterProps) => {
       });
       onChange(newElement);
       setPositionPopoverVisible(false);
-    }
+    },
   );
 
   const handleAlignmentChange = useMemoizedFn(
@@ -94,7 +102,7 @@ const ImageSetter = memo((props: ImageSetterProps) => {
       });
       onChange(newElement);
       setAlignmentPopoverVisible(false);
-    }
+    },
   );
 
   const handleOnSelectColor = useMemoizedFn((color: DescriptionColor) => {
@@ -115,6 +123,15 @@ const ImageSetter = memo((props: ImageSetterProps) => {
       draft.showDescription = !draft.showDescription;
     });
     onChange(newElement);
+  });
+
+  const handleShadowSizeChange = useMemoizedFn((size: EShadowSize) => {
+    const newElement = produce(element, (draft) => {
+      draft.shadowSize = size;
+    });
+    ImageUtil.setLocalStorage("shadowSize", size);
+    onChange(newElement);
+    setShadowPopoverVisible(false);
   });
 
   const stopPropagation = useMemoizedFn((e: React.UIEvent) => {
@@ -217,6 +234,55 @@ const ImageSetter = memo((props: ImageSetterProps) => {
         [styles.dark]: isDark,
       })}
     >
+      <Popover
+        open={shadowPopoverVisible}
+        onOpenChange={setShadowPopoverVisible}
+        styles={{
+          container: {
+            background: "transparent",
+            boxShadow: "none",
+            padding: 0,
+            marginLeft: 12,
+          },
+        }}
+        trigger={"click"}
+        content={
+          <div
+            onClick={stopPropagation}
+            onPointerDown={stopPropagation}
+            onPointerUp={stopPropagation}
+            onWheel={stopPropagation}
+            className={classnames(styles.shadowPopover, {
+              [styles.dark]: isDark,
+            })}
+          >
+            {SHADOW_SIZE_OPTIONS.map((option) => (
+              <div
+                key={option.value}
+                className={classnames(styles.shadowOptionItem, {
+                  [styles.active]:
+                    (element.shadowSize ?? EShadowSize.None) === option.value,
+                })}
+                onClick={() => handleShadowSizeChange(option.value)}
+              >
+                <div
+                  className={styles.shadowPreview}
+                  style={{ boxShadow: getShadowStyle(option.value, false) }}
+                />
+                <span>{option.label}</span>
+              </div>
+            ))}
+          </div>
+        }
+        placement={"right"}
+        arrow={false}
+      >
+        <Tooltip title={"阴影大小"} placement={"left"}>
+          <div className={styles.item}>
+            <TbShadow />
+          </div>
+        </Tooltip>
+      </Popover>
       <Tooltip
         title={!showDescription ? "显示描述" : "隐藏描述"}
         trigger={"hover"}
@@ -233,10 +299,10 @@ const ImageSetter = memo((props: ImageSetterProps) => {
             onOpenChange={setPositionPopoverVisible}
             styles={{
               container: {
-                background: 'transparent',
-                boxShadow: 'none',
+                background: "transparent",
+                boxShadow: "none",
                 padding: 0,
-                marginLeft: 12
+                marginLeft: 12,
               },
             }}
             trigger={"click"}
@@ -260,10 +326,10 @@ const ImageSetter = memo((props: ImageSetterProps) => {
             onOpenChange={setAlignmentPopoverVisible}
             styles={{
               container: {
-                background: 'transparent',
-                boxShadow: 'none',
+                background: "transparent",
+                boxShadow: "none",
                 padding: 0,
-                marginLeft: 12
+                marginLeft: 12,
               },
             }}
             trigger={"click"}
@@ -288,10 +354,10 @@ const ImageSetter = memo((props: ImageSetterProps) => {
             onOpenChange={setColorPickerVisible}
             styles={{
               container: {
-                background: 'transparent',
-                boxShadow: 'none',
+                background: "transparent",
+                boxShadow: "none",
                 padding: 0,
-                marginLeft: 12
+                marginLeft: 12,
               },
             }}
             trigger={"click"}

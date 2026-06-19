@@ -7,9 +7,33 @@ import {
   DEFAULT_DESCRIPTION_POSITION,
   DEFAULT_DESCRIPTION_ALIGNMENT,
   DEFAULT_DESCRIPTION_FONT_SIZE,
+  DEFAULT_IMAGE_SHADOW_SIZE,
 } from "../constants/image";
+import { EShadowSize } from "../constants";
+
+const LOCAL_STORAGE_KEY = "whiteboard-image";
 
 export class ImageUtil {
+  static setLocalStorage(key: string, value: string | undefined) {
+    if (!value) {
+      localStorage.removeItem(`${LOCAL_STORAGE_KEY}-${key}`);
+      return;
+    }
+    const realKey = `${LOCAL_STORAGE_KEY}-${key}`;
+    localStorage.setItem(realKey, value);
+  }
+
+  static getLocalStorage(key: string) {
+    const realKey = `${LOCAL_STORAGE_KEY}-${key}`;
+    return localStorage.getItem(realKey);
+  }
+
+  static getPrevImageStyle() {
+    const shadowSize = (this.getLocalStorage("shadowSize") ||
+      DEFAULT_IMAGE_SHADOW_SIZE) as EShadowSize;
+    return { shadowSize } as const;
+  }
+
   static async insertImage(file: File, board: Board) {
     const info = await getImageInfo(file);
     const { minX, minY, width, height } = board.viewPort;
@@ -58,6 +82,7 @@ export class ImageUtil {
           descriptionStyle: {
             fontSize: DEFAULT_DESCRIPTION_FONT_SIZE,
           },
+          ...this.getPrevImageStyle(),
         },
       });
     }
@@ -130,6 +155,7 @@ export class ImageUtil {
         descriptionStyle: {
           fontSize: DEFAULT_DESCRIPTION_FONT_SIZE,
         },
+        ...this.getPrevImageStyle(),
       },
     });
 
