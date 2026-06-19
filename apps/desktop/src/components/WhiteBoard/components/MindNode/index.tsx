@@ -2,7 +2,8 @@ import React, { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Editor, EditorRef } from "@tau/editor/src";
 import If from "@/components/If";
 import { Dropdown, MenuProps } from "antd";
-import { FileTextOutlined } from "@ant-design/icons";
+import { StickyNote } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 
 import { useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
@@ -138,6 +139,24 @@ const MindNode = (props: MindNodeProps) => {
   const [isEditing, setIsEditing] = useState(Boolean(defaultFocus));
   const isMoving = useElementMoving(id);
   const [contentSelectorOpen, setContentSelectorOpen] = useState(false);
+  const [isNoteMenuOpen, setIsNoteMenuOpen] = useState(false);
+
+  const [isNodeHovered, setIsNodeHovered] = useState(false);
+  const hoverTimerRef = useRef<number | null>(null);
+  const setNodeHovered = useMemoizedFn((v: boolean) => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    if (v) {
+      setIsNodeHovered(true);
+    } else {
+      hoverTimerRef.current = window.setTimeout(() => {
+        setIsNodeHovered(false);
+        hoverTimerRef.current = null;
+      }, 120);
+    }
+  });
 
   const editorRef = useRef<EditorRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -411,7 +430,7 @@ const MindNode = (props: MindNodeProps) => {
 
   const handleOpenNote = useMemoizedFn(() => {
     if (element.contentId) {
-      board.emit("open-note", element.contentId, element.contentTitle);
+      board.emit("toggle-note", element.contentId, element.contentTitle);
     }
   });
 
@@ -446,6 +465,19 @@ const MindNode = (props: MindNodeProps) => {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [handleKeyDown]);
+
+  // 监听右键菜单触发的「选择笔记」事件，仅当前节点响应
+  useEffect(() => {
+    const handleSelectNote = (nodeId: string) => {
+      if (nodeId === element.id) {
+        setContentSelectorOpen(true);
+      }
+    };
+    board.on("mind:select-note", handleSelectNote);
+    return () => {
+      board.off("mind:select-note", handleSelectNote);
+    };
+  }, [board, element.id]);
 
   const leftChildPoints = useMemo(() => {
     const leftChildren = element.children.filter(
@@ -539,48 +571,6 @@ const MindNode = (props: MindNodeProps) => {
             strokeWidth={3}
           />
         </If>
-        {/* 笔记图标 */}
-        <If condition={isSelected || !!element.contentId}>
-          <foreignObject
-            x={x + width - 10}
-            y={y - 22}
-            width={20}
-            height={20}
-            className="overflow-visible z-10 border-none"
-          >
-            {element.contentId ? (
-              <div
-                className="w-5 h-5 bg-white rounded-full shadow-sm flex items-center justify-center cursor-pointer hover:text-blue-500 text-blue-500 border border-blue-500"
-                onClick={handleOpenNote}
-                onPointerDown={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
-              >
-                <FileTextOutlined style={{ fontSize: 12 }} />
-              </div>
-            ) : (
-              <Dropdown
-                menu={noteMenuProps}
-                trigger={["click"]}
-                dropdownRender={(menu) => (
-                  <div
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onPointerDown={(e) => e.stopPropagation()}
-                  >
-                    {menu}
-                  </div>
-                )}
-              >
-                <div
-                  className="w-5 h-5 bg-white rounded-full shadow-sm flex items-center justify-center cursor-pointer hover:text-blue-500 text-gray-400 border border-gray-200"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
-                >
-                  <FileTextOutlined style={{ fontSize: 12 }} />
-                </div>
-              </Dropdown>
-            )}
-          </foreignObject>
-        </If>
         <foreignObject
           x={x}
           y={y}
@@ -594,6 +584,8 @@ const MindNode = (props: MindNodeProps) => {
             // @ts-ignore
             onDoubleClick={handleDoubleClick}
             onPointerDown={handlePointerDown}
+            onMouseEnter={() => setNodeHovered(true)}
+            onMouseLeave={() => setNodeHovered(false)}
           >
             <div
               className="absolute left-0 top-0 box-border z-[-1]"
@@ -617,6 +609,86 @@ const MindNode = (props: MindNodeProps) => {
               theme={editorTheme}
             />
           </div>
+        </foreignObject>
+
+        {/* 笔记状态点：有笔记时常驻显示（hover 时也不消失） */}
+        <If condition={!!element.contentId}>
+          <circle
+            cx={x + width - 9}
+            cy={y + 9}
+            r={4}
+            fill={editorTheme === "dark" ? "#fbbf24" : "#475569"}
+            stroke={background}
+            strokeWidth={1.5}
+            pointerEvents="none"
+          />
+        </If>
+
+        {/* 笔记操作 icon：hover/选中/菜单打开时浮现于节点右上角外侧（带动画） */}
+        <foreignObject
+          x={x + width - 12}
+          y={y - 24}
+          width={24}
+          height={24}
+          className="overflow-visible border-none"
+          style={{
+            pointerEvents:
+              isNodeHovered || isSelected || isNoteMenuOpen ? "auto" : "none",
+          }}
+        >
+          <AnimatePresence>
+            {(isNodeHovered || isSelected || isNoteMenuOpen) && (
+              <motion.div
+                initial={{ scale: 0.4, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.4, opacity: 0 }}
+                transition={{ duration: 0.18, ease: "easeOut" }}
+              >
+                {element.contentId ? (
+                  <div
+                    className="w-6 h-6 bg-white rounded-full border border-gray-200 flex items-center justify-center cursor-pointer text-blue-500 hover:border-blue-400 transition-colors"
+                    onClick={handleOpenNote}
+                    onDoubleClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onMouseEnter={() => setNodeHovered(true)}
+                    onMouseLeave={() => setNodeHovered(false)}
+                    title="打开笔记"
+                  >
+                    <StickyNote size={13} strokeWidth={1.75} />
+                  </div>
+                ) : (
+                  <Dropdown
+                    menu={noteMenuProps}
+                    trigger={["click"]}
+                    open={isNoteMenuOpen}
+                    onOpenChange={setIsNoteMenuOpen}
+                    dropdownRender={(menu) => (
+                      <div
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onMouseEnter={() => setNodeHovered(true)}
+                      >
+                        {menu}
+                      </div>
+                    )}
+                  >
+                    <div
+                      className="w-6 h-6 bg-white rounded-full border border-gray-200 flex items-center justify-center cursor-pointer text-gray-400 hover:text-blue-500 hover:border-blue-400 transition-colors"
+                      onDoubleClick={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onMouseEnter={() => setNodeHovered(true)}
+                      onMouseLeave={() => setNodeHovered(false)}
+                      title="关联笔记"
+                    >
+                      <StickyNote size={13} strokeWidth={1.75} />
+                    </div>
+                  </Dropdown>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </foreignObject>
 
         {/* 左侧子节点连线 */}

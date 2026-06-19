@@ -16,6 +16,7 @@ import {
 } from "ahooks";
 import classnames from "classnames";
 import { App } from "antd";
+import { AnimatePresence, motion } from "motion/react";
 
 import Board from "./Board";
 import {
@@ -60,6 +61,7 @@ import {
   PresentationSequence,
   PluginContextMenuItem,
   ContextMenuModalPayload,
+  MindNodeElement,
 } from "./types";
 import Toolbar from "./components/Toolbar";
 import AttributeSetter from "./components/AttributeSetter";
@@ -100,7 +102,11 @@ import ExportImageModal from "./components/ExportImageModal";
 import ImagePreviewModal from "./components/ImagePreviewModal";
 import EditTitleModal from "@/components/EditTitleModal";
 import InsertNoteToTreeModal from "@/pages/VibeLearningView/AppSidebar/components/InsertNoteToTreeModal";
-import { createContent, updateContent } from "@/commands/content";
+import {
+  createContent,
+  updateContent,
+  decrementContentRefCount,
+} from "@/commands/content";
 import { buildCardFromContent, getCardByContentId } from "@/commands/card";
 import {
   buildArticleFromContent,
@@ -188,6 +194,10 @@ const WhiteBoard = memo(
 
     const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
     const [activeNoteTitle, setActiveNoteTitle] = useState<string | null>(null);
+    const activeNoteIdRef = useRef<number | null>(null);
+    useEffect(() => {
+      activeNoteIdRef.current = activeNoteId;
+    }, [activeNoteId]);
     const [imagePreview, setImagePreview] = useState<{
       open: boolean;
       src: string;
@@ -307,7 +317,7 @@ const WhiteBoard = memo(
         }
       >(),
     );
-    const { message } = App.useApp();
+    const { message, modal } = App.useApp();
 
     // 监听右键菜单弹窗事件
     useEffect(() => {
@@ -845,11 +855,68 @@ const WhiteBoard = memo(
         setActiveNoteId(contentId);
         setActiveNoteTitle(contentTitle);
       };
+      const handleToggleNote = (contentId: number, contentTitle: string) => {
+        if (activeNoteIdRef.current === contentId) {
+          setActiveNoteId(null);
+          setActiveNoteTitle(null);
+        } else {
+          setActiveNoteId(contentId);
+          setActiveNoteTitle(contentTitle);
+        }
+      };
       board.on("open-note", handleOpenNote);
+      board.on("toggle-note", handleToggleNote);
       return () => {
         board.off("open-note", handleOpenNote);
+        board.off("toggle-note", handleToggleNote);
       };
     }, [board]);
+
+    // 监听取消关联笔记的二次确认
+    useEffect(() => {
+      const handleConfirmUnlinkNote = (nodeId: string) => {
+        const node = BoardUtil.getElementById(
+          board,
+          nodeId,
+        ) as MindNodeElement | null;
+        if (!node?.contentId) return;
+        modal.confirm({
+          title: "取消关联笔记",
+          content:
+            "确定取消该节点与笔记的关联吗？笔记内容不会被删除，可稍后重新关联。",
+          okText: "取消关联",
+          okButtonProps: { danger: true },
+          cancelText: "再想想",
+          onOk: async () => {
+            const unlinkContentId = node.contentId!;
+            await decrementContentRefCount(unlinkContentId);
+            const nodePath = PathUtil.getPathByElement(board, node);
+            if (!nodePath) return;
+            board.apply({
+              type: "set_node",
+              path: nodePath,
+              properties: {
+                contentId: node.contentId,
+                contentTitle: node.contentTitle,
+              },
+              newProperties: {
+                contentId: undefined,
+                contentTitle: undefined,
+              },
+            });
+            // 若侧边栏正打开该笔记，则一并关闭
+            if (activeNoteIdRef.current === unlinkContentId) {
+              setActiveNoteId(null);
+              setActiveNoteTitle(null);
+            }
+          },
+        });
+      };
+      board.on("mind:confirm-unlink-note", handleConfirmUnlinkNote);
+      return () => {
+        board.off("mind:confirm-unlink-note", handleConfirmUnlinkNote);
+      };
+    }, [board, modal]);
 
     useEffect(() => {
       const handleRefLineChange = () => {
@@ -1098,11 +1165,28 @@ const WhiteBoard = memo(
                           buildMenuItems={buildContextMenuItems}
                         />
                       </div>
-                      <NotePanel
-                        contentId={activeNoteId ?? undefined}
-                        contentTitle={activeNoteTitle ?? undefined}
-                        onClose={() => setActiveNoteId(null)}
-                      />
+                      <AnimatePresence>
+                        {activeNoteId != null && (
+                          <motion.div
+                            key="note-panel"
+                            className="absolute right-0 top-0 bottom-0 z-50"
+                            initial={{ x: "100%", opacity: 0.6 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            exit={{ x: "100%", opacity: 0.6 }}
+                            transition={{
+                              type: "tween",
+                              duration: 0.25,
+                              ease: "easeInOut",
+                            }}
+                          >
+                            <NotePanel
+                              contentId={activeNoteId}
+                              contentTitle={activeNoteTitle ?? undefined}
+                              onClose={() => setActiveNoteId(null)}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
 
                       {/* 右键菜单触发的弹窗 */}
                       <CardSelectorModal
