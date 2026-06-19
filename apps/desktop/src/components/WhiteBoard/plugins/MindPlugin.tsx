@@ -11,6 +11,10 @@ import {
   CornerDownRight,
   ChevronDown,
   ChevronUp,
+  StickyNote,
+  Unlink,
+  FilePlus2,
+  Search,
 } from "lucide-react";
 import {
   Board,
@@ -39,6 +43,16 @@ import {
 } from "../utils";
 import MindNode from "../components/MindNode";
 import { MIND_COLORS } from "../constants";
+import { Descendant } from "slate";
+import { createContent } from "@/commands/content";
+
+const DEFAULT_CONTENT: Descendant[] = [
+  {
+    type: "paragraph",
+    disableDrag: false,
+    children: [{ type: "formatted", text: "" }],
+  },
+];
 
 interface DragState {
   isDragging: boolean;
@@ -468,6 +482,90 @@ export class MindPlugin implements IBoardPlugin {
             },
           });
         }
+      }
+
+      // 笔记相关菜单项（根节点与非根节点通用）
+      if (mindNode.contentId) {
+        items.push({
+          key: "mind-open-note",
+          label: "打开笔记",
+          icon: <StickyNote size={14} />,
+          priority: 150,
+          onSelect: (ctx: ContextMenuContext) => {
+            const node = ctx.targetElements.find(
+              (el) => el.type === "mind-node",
+            ) as MindNodeElement;
+            if (!node?.contentId) return;
+            ctx.board.emit("open-note", node.contentId, node.contentTitle);
+          },
+        });
+
+        items.push({
+          key: "mind-unlink-note",
+          label: "取消关联笔记",
+          icon: <Unlink size={14} />,
+          priority: 151,
+          danger: true,
+          onSelect: (ctx: ContextMenuContext) => {
+            const node = ctx.targetElements.find(
+              (el) => el.type === "mind-node",
+            ) as MindNodeElement;
+            if (!node?.contentId) return;
+            ctx.board.emit("mind:confirm-unlink-note", node.id);
+          },
+        });
+      } else {
+        items.push({
+          key: "mind-link-note",
+          label: "关联笔记",
+          icon: <FilePlus2 size={14} />,
+          priority: 150,
+          children: [
+            {
+              key: "mind-create-note",
+              label: "新建笔记",
+              icon: <FilePlus2 size={14} />,
+              priority: 0,
+              onSelect: async (ctx: ContextMenuContext) => {
+                const node = ctx.targetElements.find(
+                  (el) => el.type === "mind-node",
+                ) as MindNodeElement;
+                if (!node) return;
+                const contentId = await createContent(DEFAULT_CONTENT, 0);
+                if (!contentId) return;
+                const nodePath = PathUtil.getPathByElement(ctx.board, node);
+                if (!nodePath) return;
+                ctx.board.apply({
+                  type: "set_node",
+                  path: nodePath,
+                  properties: {
+                    contentId: node.contentId,
+                    contentTitle: node.contentTitle,
+                  },
+                  newProperties: {
+                    contentId,
+                    contentTitle: "",
+                  },
+                });
+                ctx.board.emit("open-note", contentId, "");
+              },
+            },
+            {
+              key: "mind-select-note",
+              label: "选择笔记",
+              icon: <Search size={14} />,
+              priority: 1,
+              onSelect: (ctx: ContextMenuContext) => {
+                const node = ctx.targetElements.find(
+                  (el) => el.type === "mind-node",
+                ) as MindNodeElement;
+                if (!node) return;
+                ctx.board.emit("mind:select-note", node.id);
+              },
+            },
+          ],
+          onSelect: () => {},
+        });
       }
     }
 

@@ -69,15 +69,15 @@ const NotePanel: React.FC<NotePanelProps> = ({
         onKeyDownCapture={stopKeyboardPropagation}
         onKeyUpCapture={stopKeyboardPropagation}
       >
-        <div className="flex items-center justify-between p-4 border-b border-[#f0f0f0] dark:border-[#2a2a2a]">
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[#f0f0f0] dark:border-[#2a2a2a]">
           <h3
-            className="text-lg font-medium truncate flex-1 mr-4"
+            className="text-base font-medium truncate flex-1 min-w-0"
             title={title}
           >
             {title}
           </h3>
           <div
-            className="cursor-pointer p-1 hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a] rounded transition-colors"
+            className="cursor-pointer shrink-0 w-8 h-8 flex items-center justify-center hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a] rounded-md transition-colors"
             onClick={onClose}
           >
             <CloseOutlined className="text-gray-500" />

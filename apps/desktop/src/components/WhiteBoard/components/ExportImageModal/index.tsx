@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { App, InputNumber, Select } from "antd";
+import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "motion/react";
+import { Download } from "lucide-react";
+import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
 import useTheme from "@/hooks/useTheme";
-import CustomModal from "@/components/CustomModal";
 import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
 import Board from "../../Board";
 import BoardContent from "../BoardContent";
 import type { BoardElement, ViewPort } from "../../types";
+import SegmentedControl, {
+  SegmentedOption,
+} from "./components/SegmentedControl";
+import NumberStepper from "./components/NumberStepper";
 import {
   ExportImageAction,
   ExportImageBackgroundMode,
@@ -44,6 +50,12 @@ const EMPTY_REF_LINES: Array<{
   x2: number;
   y2: number;
 }> = [];
+
+const BACKGROUND_OPTIONS: SegmentedOption<ExportImageBackgroundMode>[] = [
+  { value: "light", label: "白色" },
+  { value: "dark", label: "深色" },
+  { value: "transparent", label: "透明" },
+];
 
 const isCenterConnectArrow = isInteriorConnectElement;
 
@@ -352,56 +364,144 @@ const ExportImageModal = (props: ExportImageModalProps) => {
 
   return (
     <>
-      <CustomModal
-        open={open}
-        title={modalTitle}
-        onCancel={onClose}
-        onOk={handleExport}
-        okText={exporting ? "导出中..." : "导出"}
-        cancelText="取消"
-        confirmLoading={exporting}
-        width={460}
-      >
-        <div className="flex flex-col gap-4">
-          <label className="flex items-center justify-between gap-4">
-            <span>背景</span>
-            <Select<ExportImageBackgroundMode>
-              value={background}
-              style={{ width: 220 }}
-              options={[
-                { value: "light", label: "白色" },
-                { value: "dark", label: "深色" },
-                { value: "transparent", label: "透明" },
-              ]}
-              onChange={(value) => setBackground(value)}
-            />
-          </label>
-          <label className="flex items-center justify-between gap-4">
-            <span>放大倍数</span>
-            <InputNumber
-              value={scale}
-              min={0.5}
-              max={4}
-              step={0.25}
-              precision={2}
-              style={{ width: 220 }}
-              onChange={(value) => setScale(Number(value) || 1)}
-            />
-          </label>
-          <label className="flex items-center justify-between gap-4">
-            <span>边距</span>
-            <InputNumber
-              value={padding}
-              min={0}
-              max={500}
-              step={1}
-              precision={0}
-              style={{ width: 220 }}
-              onChange={(value) => setPadding(Math.max(0, Number(value) || 0))}
-            />
-          </label>
-        </div>
-      </CustomModal>
+      {createPortal(
+        <AnimatePresence>
+          {open && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+              onClick={onClose}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="w-full max-w-[460px] m-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800">
+                  {/* Header */}
+                  <div className="flex items-start gap-3 mb-5">
+                    <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-blue-50 dark:bg-blue-500/20 border border-blue-200 dark:border-blue-500/30">
+                      <Download className="w-5 h-5 text-blue-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-base font-bold m-0 text-gray-800 dark:text-white">
+                        {modalTitle}
+                      </h2>
+                      <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
+                        调整导出参数后点击导出
+                      </p>
+                    </div>
+                    <button
+                      onClick={onClose}
+                      className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
+                    >
+                      <svg
+                        className="w-[18px] h-[18px]"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path d="M18 6 6 18M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Form */}
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-sm text-gray-700 dark:text-slate-300">
+                        背景
+                      </span>
+                      <SegmentedControl
+                        options={BACKGROUND_OPTIONS}
+                        value={background}
+                        onChange={(value) => setBackground(value)}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-sm text-gray-700 dark:text-slate-300">
+                        放大倍数
+                      </span>
+                      <NumberStepper
+                        value={scale}
+                        onChange={(value) => setScale(Number(value) || 1)}
+                        min={0.5}
+                        max={4}
+                        step={0.25}
+                        precision={2}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-sm text-gray-700 dark:text-slate-300">
+                        边距
+                      </span>
+                      <NumberStepper
+                        value={padding}
+                        onChange={(value) =>
+                          setPadding(Math.max(0, Number(value) || 0))
+                        }
+                        min={0}
+                        max={500}
+                        step={1}
+                        precision={0}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="flex gap-3 mt-5 pt-4 border-t border-gray-200 dark:border-slate-700">
+                    <button
+                      className="flex-1 px-5 py-3 rounded-xl border border-gray-200 dark:border-slate-700 text-sm font-medium cursor-pointer flex items-center justify-center gap-2 transition-all bg-white dark:bg-zinc-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-zinc-700"
+                      onClick={onClose}
+                      disabled={exporting}
+                    >
+                      取消
+                    </button>
+                    <button
+                      className="flex-1 px-5 py-3 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-blue-500 text-white shadow-[0_4px_14px_rgba(59,130,246,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-blue-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0"
+                      onClick={handleExport}
+                      disabled={exporting}
+                    >
+                      {exporting && (
+                        <svg
+                          className="w-4 h-4 animate-spin"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <circle
+                            cx="12"
+                            cy="12"
+                            r="9"
+                            stroke="currentColor"
+                            strokeOpacity="0.35"
+                          />
+                          <path
+                            d="M12 3a9 9 0 0 1 9 9"
+                            stroke="currentColor"
+                            strokeLinecap="round"
+                            strokeOpacity="0.85"
+                          />
+                        </svg>
+                      )}
+                      {exporting ? "导出中..." : "导出"}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
 
       {captureState && (
         <div

@@ -21,6 +21,7 @@ export default class ContentTable {
       "content:get-by-id": this.getContentById.bind(this),
       "content:delete": this.deleteContent.bind(this),
       "content:increment-ref-count": this.incrementRefCount.bind(this),
+      "content:decrement-ref-count": this.decrementRefCount.bind(this),
     };
   }
 
@@ -270,6 +271,13 @@ export default class ContentTable {
   static incrementRefCount(db: Database.Database, contentId: number): void {
     const stmt = db.prepare(
       "UPDATE contents SET ref_count = ref_count + 1 WHERE id = ?",
+    );
+    stmt.run(contentId);
+  }
+
+  static decrementRefCount(db: Database.Database, contentId: number): void {
+    const stmt = db.prepare(
+      "UPDATE contents SET ref_count = ref_count - 1 WHERE id = ? AND ref_count > 0",
     );
     stmt.run(contentId);
   }

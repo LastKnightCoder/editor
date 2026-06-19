@@ -36,3 +36,9 @@ export const incrementContentRefCount = async (
 ): Promise<void> => {
   return await invoke("content:increment-ref-count", contentId);
 };
+
+export const decrementContentRefCount = async (
+  contentId: number,
+): Promise<void> => {
+  return await invoke("content:decrement-ref-count", contentId);
+};
