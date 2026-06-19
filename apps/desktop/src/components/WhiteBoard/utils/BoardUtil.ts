@@ -317,6 +317,68 @@ export class BoardUtil {
   }
 
   /**
+   * 平移整棵子树：对 root 及其所有带 x/y 的后代节点各生成一条 set_node。
+   * 纯函数，不依赖 board，调用方需传入移动前的 root 快照及其 path。
+   * 适用场景：容器（Frame/Column）与 RootOnly 元素（mind-node 根）整体移动，
+   * 避免用 set_node 写入 children 字段。
+   */
+  static buildTranslateSubtreeOps(
+    snapshotRoot: BoardElement,
+    rootPath: number[],
+    dx: number,
+    dy: number,
+  ): Operation[] {
+    if ((!dx && !dy) || !rootPath || rootPath.length === 0) return [];
+
+    const ops: Operation[] = [];
+    const currentPath = [...rootPath];
+
+    const dfs = (node: BoardElement) => {
+      if (typeof node.x === "number" && typeof node.y === "number") {
+        ops.push({
+          type: "set_node",
+          path: [...currentPath],
+          properties: { x: node.x, y: node.y },
+          newProperties: { x: node.x + dx, y: node.y + dy },
+        });
+      }
+
+      const children = node.children;
+      if (!children || children.length === 0) return;
+      for (let i = 0; i < children.length; i++) {
+        currentPath.push(i);
+        dfs(children[i]);
+        currentPath.pop();
+      }
+    };
+
+    dfs(snapshotRoot);
+    return ops;
+  }
+
+  /**
+   * 返回所有"属于容器后代"的元素 id 集合（任意祖先是容器的元素，不含容器自身）。
+   * 容器判定基于 CapabilityService.isContainer（Frame/Column/MindNode 等）。
+   * 用于多选对齐等场景：容器内部元素的位置由容器布局决定，独立平移会破坏布局，
+   * 因此应将其从可独立操作的目标中剔除。容器自身不被计入。
+   */
+  static getContainerDescendantIds(board: Board): Set<string> {
+    const capService = board.capabilityService;
+    const ids = new Set<string>();
+
+    const dfs = (node: BoardElement, insideContainer: boolean) => {
+      if (insideContainer) ids.add(node.id);
+      const isContainer = capService.isContainer(node);
+      node.children?.forEach((child) =>
+        dfs(child, insideContainer || isContainer),
+      );
+    };
+
+    board.children.forEach((root) => dfs(root, false));
+    return ids;
+  }
+
+  /**
    * 将一组操作标记为“已标准化”，用于跳过路径变换与预处理排序。
    * 适用场景：ops 是通过 diff 生成、且依赖“按原始顺序执行”的序列。
    */

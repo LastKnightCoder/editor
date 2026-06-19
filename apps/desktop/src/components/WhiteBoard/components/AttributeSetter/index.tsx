@@ -9,6 +9,7 @@ import {
   Operation,
   FrameElement,
 } from "@/components/WhiteBoard/types";
+import { SnapBehavior } from "@/components/WhiteBoard/types/capabilities";
 import { BoardUtil, FrameUtil, PathUtil } from "@/components/WhiteBoard/utils";
 import setterConfig from "./setter-config.ts";
 
@@ -51,15 +52,42 @@ const AttributeSetter = () => {
       (el) => !newElements.map((el) => el.id).includes(el.id),
     );
 
+    const capService = board.capabilityService;
+
     newElements.forEach((newElement) => {
       const path = PathUtil.getPathByElement(board, newElement);
       if (!path) return;
 
       const currentElement = PathUtil.getElementByPath(board, path);
       if (!currentElement) return;
-      ops.push(
-        ...BoardUtil.diffNodePatchOnly(currentElement, newElement, path),
-      );
+
+      // 容器（Frame/Column）与 RootOnly 元素（mind-node 根）移动时，
+      // 子元素需要随容器一起平移：用子树平移 ops，避免 set_node 写入 children。
+      const snapCap = capService.getSnapCapability(currentElement.type);
+      const shouldTranslateSubtree =
+        capService.shouldMoveWithChildren(currentElement) ||
+        (snapCap.behavior === SnapBehavior.RootOnly &&
+          Boolean(snapCap.moveAll) &&
+          Array.isArray(currentElement.children) &&
+          currentElement.children.length > 0);
+
+      if (
+        shouldTranslateSubtree &&
+        typeof currentElement.x === "number" &&
+        typeof currentElement.y === "number" &&
+        typeof newElement.x === "number" &&
+        typeof newElement.y === "number"
+      ) {
+        const dx = newElement.x - currentElement.x;
+        const dy = newElement.y - currentElement.y;
+        ops.push(
+          ...BoardUtil.buildTranslateSubtreeOps(currentElement, path, dx, dy),
+        );
+      } else {
+        ops.push(
+          ...BoardUtil.diffNodePatchOnly(currentElement, newElement, path),
+        );
+      }
     });
 
     ops.push({
@@ -94,12 +122,19 @@ const AttributeSetter = () => {
 
   const noArrowElements = validElements.filter((el) => el.type !== "arrow");
 
+  // 多选对齐时剔除任何容器（Frame/Column/MindNode 等）的内部元素，
+  // 避免内部元素被独立平移破坏容器布局；容器自身移动已通过子树平移携带子元素。
+  const containerDescendantIds = BoardUtil.getContainerDescendantIds(board);
+  const alignElements = noArrowElements.filter(
+    (el) => !containerDescendantIds.has(el.id),
+  );
+
   // 多选元素的情况
-  if (noArrowElements.length > 1) {
+  if (alignElements.length > 1) {
     const MultiSelectComponent = setterConfig.multiselect.component;
     return (
       <MultiSelectComponent
-        elements={noArrowElements}
+        elements={alignElements}
         onChange={onMultiElementsChange}
       />
     );

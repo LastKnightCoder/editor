@@ -380,7 +380,7 @@ export class MovePlugin implements IBoardPlugin {
           const dx = movedElement.x - current.x;
           const dy = movedElement.y - current.y;
           operations.push(
-            ...this.buildTranslateSubtreeOps(board, path, dx, dy),
+            ...BoardUtil.buildTranslateSubtreeOps(current, path, dx, dy),
           );
         }
         return;
@@ -498,12 +498,7 @@ export class MovePlugin implements IBoardPlugin {
           const dx = movedElement.x - originElement.x;
           const dy = movedElement.y - originElement.y;
           commitOps.push(
-            ...this.buildTranslateSubtreeOpsFromSnapshot(
-              originElement,
-              path,
-              dx,
-              dy,
-            ),
+            ...BoardUtil.buildTranslateSubtreeOps(originElement, path, dx, dy),
           );
         }
         return;
@@ -595,7 +590,7 @@ export class MovePlugin implements IBoardPlugin {
             const dx = movedElement.x - element.x;
             const dy = movedElement.y - element.y;
             operations.push(
-              ...this.buildTranslateSubtreeOps(board, path, dx, dy),
+              ...BoardUtil.buildTranslateSubtreeOps(element, path, dx, dy),
             );
           } else {
             operations.push(
@@ -642,81 +637,6 @@ export class MovePlugin implements IBoardPlugin {
     }
 
     return false;
-  }
-
-  private buildTranslateSubtreeOps(
-    board: Board,
-    rootPath: number[],
-    dx: number,
-    dy: number,
-  ): Operation[] {
-    if ((!dx && !dy) || !rootPath || rootPath.length === 0) return [];
-
-    let root: BoardElement;
-    try {
-      root = PathUtil.getElementByPath(board, rootPath);
-    } catch {
-      return [];
-    }
-
-    const ops: Operation[] = [];
-    const currentPath = [...rootPath];
-
-    const dfs = (node: BoardElement) => {
-      if (typeof node.x === "number" && typeof node.y === "number") {
-        ops.push({
-          type: "set_node",
-          path: [...currentPath],
-          properties: { x: node.x, y: node.y },
-          newProperties: { x: node.x + dx, y: node.y + dy },
-        });
-      }
-
-      const children = node.children;
-      if (!children || children.length === 0) return;
-      for (let i = 0; i < children.length; i++) {
-        currentPath.push(i);
-        dfs(children[i]);
-        currentPath.pop();
-      }
-    };
-
-    dfs(root);
-    return ops;
-  }
-
-  private buildTranslateSubtreeOpsFromSnapshot(
-    snapshotRoot: BoardElement,
-    rootPath: number[],
-    dx: number,
-    dy: number,
-  ): Operation[] {
-    if ((!dx && !dy) || !rootPath || rootPath.length === 0) return [];
-
-    const ops: Operation[] = [];
-    const currentPath = [...rootPath];
-
-    const dfs = (node: BoardElement) => {
-      if (typeof node.x === "number" && typeof node.y === "number") {
-        ops.push({
-          type: "set_node",
-          path: [...currentPath],
-          properties: { x: node.x, y: node.y },
-          newProperties: { x: node.x + dx, y: node.y + dy },
-        });
-      }
-
-      const children = node.children;
-      if (!children || children.length === 0) return;
-      for (let i = 0; i < children.length; i++) {
-        currentPath.push(i);
-        dfs(children[i]);
-        currentPath.pop();
-      }
-    };
-
-    dfs(snapshotRoot);
-    return ops;
   }
 
   // 处理方向键移动
