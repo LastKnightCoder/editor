@@ -9,6 +9,7 @@ import { Popover, Tooltip, Slider, ConfigProvider, theme } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { useState } from "react";
 import { CardUtil, RichTextUtil } from "@/components/WhiteBoard/utils";
+import { DOMSizeMeasurer } from "@/components/WhiteBoard/services/DOMSizeMeasurer";
 import useTheme from "@/hooks/useTheme";
 import classnames from "classnames";
 interface RichTextSetterProps {
@@ -229,23 +230,24 @@ const RichTextSetter = (props: RichTextSetterProps) => {
     onChange(newElement);
   });
 
-  const handleFitWidth = useMemoizedFn(() => {
-    const richTextContainer = document.getElementById(
-      `rich-text-container-${element.id}`,
+  const handleFitWidth = useMemoizedFn(async () => {
+    // 离屏测量文字真实自然宽度，避免在屏测量被父容器/旧 maxWidth 封顶
+    const naturalWidth = await DOMSizeMeasurer.measureRichTextWidth(
+      element.id,
+      element.content,
+      element.paddingWidth || 16,
+      element.paddingHeight || 16,
     );
-    if (!richTextContainer) return;
-    const editor = richTextContainer.querySelector(
-      ":scope > [data-slate-editor]",
-    ) as HTMLDivElement;
-    if (!editor) return;
-
-    editor.style.width = "fit-content";
 
     const newElement = produce(element, (draft) => {
-      draft.width = Math.ceil(editor.scrollWidth);
-      draft.maxWidth = Math.max(Math.ceil(editor.scrollWidth), 300);
-      draft.resized =
-        Math.round(element.height) !== richTextContainer.scrollHeight;
+      // 测量端已 Math.ceil，仅 +2 防亚像素/fit-content 收缩抖动，不设 300 下限以真正收缩；
+      // width 与 maxWidth 取相同值，使聚焦/非聚焦 foreignObject 宽度一致，
+      // 消除非聚焦时 fit-content 被父容器恰好封顶在文字自然宽度而导致的换行
+      const targetWidth = naturalWidth + 2;
+      draft.width = targetWidth;
+      draft.maxWidth = targetWidth;
+      // 回到自适应模式：编辑器用 fit-content + auto 高度自然展开，高度随宽度变化跟随
+      draft.resized = false;
     });
     onChange(newElement);
   });

@@ -30,7 +30,7 @@ import {
   RichTextUtil,
   getResizedBBox,
 } from "../utils";
-import { DOMHeightMeasurer } from "../services/DOMHeightMeasurer";
+import { DOMSizeMeasurer } from "../services/DOMSizeMeasurer";
 import RichText from "../components/RichText";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { SelectTransforms } from "../transforms";
@@ -86,7 +86,7 @@ export class RichTextPlugin extends CommonPlugin {
       measurement: {
         measureHeightForWidth: async (element, targetWidth) => {
           const richText = element as RichTextElement;
-          return DOMHeightMeasurer.measureRichTextHeight(
+          return DOMSizeMeasurer.measureRichTextHeight(
             richText.id,
             richText.content,
             targetWidth,
