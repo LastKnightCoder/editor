@@ -1,15 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useMemoizedFn } from "ahooks";
-import {
-  Button,
-  Input,
-  Tooltip,
-  List,
-  Slider,
-  App,
-  Space,
-  Divider,
-} from "antd";
+import { Button, Input, Tooltip, List, Slider, App } from "antd";
 import {
   Plus,
   Save,
@@ -20,6 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Trash2,
+  Clapperboard,
+  Film,
 } from "lucide-react";
 import styles from "./index.module.less";
 import usePresentationState from "../../hooks/usePresentationState";
@@ -30,7 +24,7 @@ import useTheme from "@/hooks/useTheme";
 
 const PresentationCreator: React.FC = () => {
   const board = useBoard();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { isDark } = useTheme();
   const [frames, setFrames] = useState<PresentationFrame[]>([]);
   const [currentFrame, setCurrentFrame] = useState<PresentationFrame | null>(
@@ -126,11 +120,20 @@ const PresentationCreator: React.FC = () => {
   });
 
   // 删除一帧
-  const removeFrame = useMemoizedFn((frameId: string) => {
-    setFrames((prev) => prev.filter((frame) => frame.id !== frameId));
-    if (currentFrame?.id === frameId) {
-      setCurrentFrame(null);
-    }
+  const removeFrame = useMemoizedFn((frameId: string, index: number) => {
+    modal.confirm({
+      title: "删除帧",
+      content: `确定要删除第 ${index + 1} 帧吗？该操作无法撤销。`,
+      okText: "删除",
+      okButtonProps: { danger: true },
+      cancelText: "取消",
+      onOk: () => {
+        setFrames((prev) => prev.filter((frame) => frame.id !== frameId));
+        if (currentFrame?.id === frameId) {
+          setCurrentFrame(null);
+        }
+      },
+    });
   });
 
   // 预览一帧
@@ -392,100 +395,118 @@ const PresentationCreator: React.FC = () => {
       onDoubleClick={stopPropagation}
     >
       <div className={styles.header}>
-        <h3 className={styles.title}>{isEditMode ? "编辑" : "创建"}演示序列</h3>
-        <Divider className={styles.divider} />
+        <div className={styles.headerTop}>
+          <div className={styles.titleWrap}>
+            <Clapperboard size={18} className={styles.titleIcon} />
+            <h3 className={styles.title}>
+              {isEditMode ? "编辑" : "创建"}演示序列
+            </h3>
+          </div>
+          <Tooltip title="关闭">
+            <Button
+              type="text"
+              icon={<X size={18} />}
+              onClick={onCancel}
+              disabled={isAdjustingViewport}
+              className={styles.closeButton}
+            />
+          </Tooltip>
+        </div>
         <div className={styles.toolbarButtons}>
-          <Space size="middle">
-            <Tooltip title="添加帧">
-              <Button
-                icon={<Plus size={18} />}
-                onClick={addCurrentFrame}
-                disabled={previewMode || isAdjustingViewport}
-              >
-                添加帧
-              </Button>
-            </Tooltip>
-            <Tooltip title={isAdjustingViewport ? "完成调整" : "调整视口"}>
-              <Button
-                icon={
-                  isAdjustingViewport ? (
-                    <Square size={18} />
-                  ) : (
-                    <Maximize2 size={18} />
-                  )
-                }
-                onClick={
-                  isAdjustingViewport ? stopAdjustViewport : startAdjustViewport
-                }
-                disabled={!currentFrame || previewMode}
-              >
-                {isAdjustingViewport ? "完成调整" : "调整视口"}
-              </Button>
-            </Tooltip>
-            <Tooltip title="预览">
-              <Button
-                icon={<Eye size={18} />}
-                onClick={startPreview}
-                disabled={
-                  frames.length === 0 || previewMode || isAdjustingViewport
-                }
-              >
-                预览
-              </Button>
-            </Tooltip>
-          </Space>
+          <Tooltip title="将选中元素添加为一帧">
+            <Button
+              icon={<Plus size={16} />}
+              onClick={addCurrentFrame}
+              disabled={previewMode || isAdjustingViewport}
+            >
+              添加帧
+            </Button>
+          </Tooltip>
+          <Tooltip
+            title={isAdjustingViewport ? "完成视口调整" : "调整当前帧视口"}
+          >
+            <Button
+              icon={
+                isAdjustingViewport ? (
+                  <Square size={16} />
+                ) : (
+                  <Maximize2 size={16} />
+                )
+              }
+              onClick={
+                isAdjustingViewport ? stopAdjustViewport : startAdjustViewport
+              }
+              disabled={!currentFrame || previewMode}
+            >
+              {isAdjustingViewport ? "完成" : "调整视口"}
+            </Button>
+          </Tooltip>
+          <Tooltip title="预览演示序列">
+            <Button
+              icon={<Eye size={16} />}
+              onClick={startPreview}
+              disabled={
+                frames.length === 0 || previewMode || isAdjustingViewport
+              }
+            >
+              预览
+            </Button>
+          </Tooltip>
         </div>
       </div>
 
-      {previewMode && (
-        <div className={styles.previewControls}>
-          <Button
-            type="text"
-            icon={<ChevronLeft size={20} />}
-            onClick={previewPrev}
-            disabled={previewIndex === 0}
-            style={{ color: "white" }}
-          />
-          <span className={styles.previewCounter}>
-            {previewIndex + 1} / {frames.length}
-          </span>
-          <Button
-            type="text"
-            icon={<ChevronRight size={20} />}
-            onClick={previewNext}
-            disabled={previewIndex === frames.length - 1}
-            style={{ color: "white" }}
-          />
-          <Button
-            type="text"
-            icon={<X size={20} />}
-            onClick={stopPreview}
-            style={{ color: "white" }}
-          >
-            退出预览
-          </Button>
-        </div>
-      )}
+      {previewMode &&
+        createPortal(
+          <div className={styles.previewControls}>
+            <Button
+              type="text"
+              icon={<ChevronLeft size={20} />}
+              onClick={previewPrev}
+              disabled={previewIndex === 0}
+              className={styles.previewBtn}
+            />
+            <span className={styles.previewCounter}>
+              {previewIndex + 1} / {frames.length}
+            </span>
+            <Button
+              type="text"
+              icon={<ChevronRight size={20} />}
+              onClick={previewNext}
+              disabled={previewIndex === frames.length - 1}
+              className={styles.previewBtn}
+            />
+            <div className={styles.previewDivider} />
+            <Button
+              type="text"
+              icon={<X size={18} />}
+              onClick={stopPreview}
+              className={styles.previewBtn}
+            >
+              退出预览
+            </Button>
+          </div>,
+          document.body,
+        )}
 
       {isAdjustingViewport && (
         <div className={styles.viewportControls}>
           <div className={styles.paddingControl}>
-            <span>视口填充:</span>
+            <span className={styles.paddingLabel}>视口填充</span>
             <Slider
               min={0}
               max={200}
               value={viewportPadding}
               onChange={handlePaddingChange}
-              style={{ width: 200 }}
+              className={styles.paddingSlider}
             />
-            <span>{viewportPadding}px</span>
+            <span className={styles.paddingValue}>{viewportPadding}px</span>
           </div>
           <div
             className={styles.resizeHandle}
             ref={resizeHandleRef}
             onMouseDown={handleResizeStart}
           >
-            拖拽调整视口大小
+            拖拽此处调整视口大小
           </div>
         </div>
       )}
@@ -495,33 +516,53 @@ const PresentationCreator: React.FC = () => {
           dataSource={frames}
           size="small"
           bordered={false}
-          locale={{ emptyText: "暂无帧，请点击添加帧按钮添加" }}
+          split={false}
+          locale={{
+            emptyText: (
+              <div className={styles.emptyState}>
+                <Film size={28} className={styles.emptyIcon} />
+                <p className={styles.emptyTitle}>暂无帧</p>
+                <span className={styles.emptyHint}>
+                  选中画板元素后点击「添加帧」
+                </span>
+              </div>
+            ),
+          }}
           renderItem={(frame, index) => (
             <List.Item
               className={`${styles.frameItem} ${currentFrame?.id === frame.id ? styles.activeFrame : ""}`}
               actions={[
-                <Tooltip key="preview" title="预览">
+                <Tooltip key="preview" title="预览此帧">
                   <Button
                     type="text"
-                    icon={<Eye size={16} />}
+                    icon={<Eye size={15} />}
                     onClick={() => previewFrame(frame)}
                     disabled={previewMode || isAdjustingViewport}
                     className={styles.frameActionButton}
                   />
                 </Tooltip>,
-                <Tooltip key="delete" title="删除">
+                <Tooltip key="delete" title="删除此帧">
                   <Button
                     type="text"
-                    icon={<Trash2 size={16} />}
-                    onClick={() => removeFrame(frame.id)}
+                    icon={<Trash2 size={15} />}
+                    onClick={() => removeFrame(frame.id, index)}
                     disabled={previewMode || isAdjustingViewport}
-                    className={styles.frameActionButton}
+                    className={`${styles.frameActionButton} ${styles.deleteButton}`}
                   />
                 </Tooltip>,
               ]}
             >
-              <div onClick={() => previewFrame(frame, false)}>
-                帧 {index + 1} ({frame.elements.length}个元素)
+              <div
+                className={styles.frameContent}
+                onClick={() => previewFrame(frame, false)}
+              >
+                <span className={styles.frameIndex}>{index + 1}</span>
+                <div className={styles.frameInfo}>
+                  <span className={styles.frameLabel}>帧 {index + 1}</span>
+                  <span className={styles.frameMeta}>
+                    {frame.elements.length} 个元素
+                  </span>
+                </div>
               </div>
             </List.Item>
           )}
@@ -538,35 +579,43 @@ const PresentationCreator: React.FC = () => {
         </Button>
         <Button
           type="primary"
-          icon={<Save size={18} />}
+          icon={<Save size={16} />}
           onClick={saveSequence}
           disabled={frames.length === 0 || isAdjustingViewport}
+          className={styles.saveButton}
         >
-          保存
+          保存序列
         </Button>
       </div>
 
-      {showSaveDialog && (
-        <div className={styles.saveDialogOverlay}>
-          <div className={styles.saveDialog}>
-            <h3>{isEditMode ? "更新" : "保存"}演示序列</h3>
-            <Input
-              placeholder="请输入演示序列名称"
-              value={sequenceName}
-              onChange={(e) => setSequenceName(e.target.value)}
-              autoFocus
-            />
-            <div className={styles.saveDialogButtons}>
-              <Button size="large" onClick={() => setShowSaveDialog(false)}>
-                取消
-              </Button>
-              <Button size="large" type="primary" onClick={handleSave}>
-                {isEditMode ? "更新" : "保存"}
-              </Button>
+      {showSaveDialog &&
+        createPortal(
+          <div className={styles.saveDialogOverlay}>
+            <div className={styles.saveDialog}>
+              <h3 className={styles.saveDialogTitle}>
+                {isEditMode ? "更新" : "保存"}演示序列
+              </h3>
+              <p className={styles.saveDialogSubtitle}>
+                为此演示序列命名，共 {frames.length} 帧
+              </p>
+              <Input
+                placeholder="请输入演示序列名称"
+                value={sequenceName}
+                onChange={(e) => setSequenceName(e.target.value)}
+                onPressEnter={handleSave}
+                autoFocus
+                className={styles.saveDialogInput}
+              />
+              <div className={styles.saveDialogButtons}>
+                <Button onClick={() => setShowSaveDialog(false)}>取消</Button>
+                <Button type="primary" onClick={handleSave}>
+                  {isEditMode ? "更新" : "保存"}
+                </Button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 };
