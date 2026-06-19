@@ -342,13 +342,17 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
         <EditorContextMenu {...menuProps} readonly={readOnly} />
 
         <CustomModal
-          title="编辑网页地址"
+          title={null}
           open={editUrlOpen}
           footer={null}
+          showCloseButton={false}
+          width={460}
+          centered
           onCancel={() => setEditUrlOpen(false)}
         >
           <InputUrlModal
             editor={editor}
+            title="编辑网页地址"
             defaultValue={url}
             defaultSourceType={element.sourceType ?? WebLinkSourceType.REMOTE}
             onOk={handleEditUrlConfirm}
