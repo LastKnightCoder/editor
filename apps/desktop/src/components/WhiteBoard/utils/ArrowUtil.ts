@@ -242,6 +242,20 @@ export class ArrowUtil {
     return distance <= tolerance;
   }
 
+  // 计算二次贝塞尔曲线的控制点
+  // midPoint 是曲线在 t=0.5 处经过的点；由贝塞尔公式 B(0.5)=0.25·start+0.5·control+0.25·end
+  // 可得 control = 2·midPoint − 0.5·(start+end)
+  static getQuadraticControlPoint(
+    startPoint: Point,
+    endPoint: Point,
+    midPoint: Point,
+  ): Point {
+    return {
+      x: 2 * midPoint.x - 0.5 * (startPoint.x + endPoint.x),
+      y: 2 * midPoint.y - 0.5 * (startPoint.y + endPoint.y),
+    };
+  }
+
   static getArrowPath(
     arrow: GetArrowPathParams,
     forceVertical = false,
@@ -264,11 +278,11 @@ export class ArrowUtil {
           // 不在直线上，使用二次贝塞尔曲线
           // midPoint 是曲线上的点（用户看到的蓝色圆圈）
           // 需要计算实际的贝塞尔控制点，使曲线在 t=0.5 时通过 midPoint
-          // 公式：controlPoint = 2 * midPoint - 0.5 * (startPoint + endPoint)
-          const controlPoint = {
-            x: 2 * midPoint.x - 0.5 * (startPoint.x + endPoint.x),
-            y: 2 * midPoint.y - 0.5 * (startPoint.y + endPoint.y),
-          };
+          const controlPoint = this.getQuadraticControlPoint(
+            startPoint,
+            endPoint,
+            midPoint,
+          );
           return `M ${startPoint.x} ${startPoint.y} Q ${controlPoint.x} ${controlPoint.y} ${endPoint.x} ${endPoint.y}`;
         }
       }
