@@ -11,6 +11,22 @@ export type PreviewNodeInfo = {
   path: number[];
 };
 
+export const canDropElementIntoParent = (
+  board: Board,
+  parent: BoardElement | null,
+  child: BoardElement,
+): boolean => {
+  if (!parent) return true;
+
+  const capService = board.capabilityService;
+  if (!capService.canContain(parent, child)) return false;
+
+  const containment = capService.getContainmentCapability(child.type);
+  return containment.canBeContainedBy
+    ? containment.canBeContainedBy(parent)
+    : true;
+};
+
 export const simulateChildrenAfterOps = (
   board: Board,
   ops: Operation[],

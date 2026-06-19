@@ -16,6 +16,7 @@ import {
   SELECT_RECT_FILL_OPACITY,
   RESIZE_CIRCLE_FILL,
   RESIZE_CIRCLE_RADIUS,
+  getShadowStyle,
 } from "../../constants";
 import {
   IMAGE_DESCRIPTION_HEIGHT,
@@ -72,6 +73,7 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
     descriptionPosition = DEFAULT_DESCRIPTION_POSITION,
     descriptionAlignment = DEFAULT_DESCRIPTION_ALIGNMENT,
     resizable = true,
+    shadowSize,
   } = element;
 
   const { isDark } = useTheme();
@@ -283,6 +285,7 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
         className="border-none"
         style={{
           userSelect: "none",
+          overflow: "visible",
         }}
       >
         <LocalImage
@@ -293,6 +296,10 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
           className="object-contain select-none object-center"
           draggable={false}
           onDoubleClick={stopPropagation}
+          style={{
+            boxShadow: getShadowStyle(shadowSize, isDark),
+            borderRadius: 4,
+          }}
         />
       </foreignObject>
 

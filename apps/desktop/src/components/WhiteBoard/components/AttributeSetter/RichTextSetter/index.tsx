@@ -2,6 +2,7 @@ import { RichTextElement } from "@/components/WhiteBoard/plugins";
 import { MdOutlineColorLens } from "react-icons/md";
 import { CgArrowsShrinkH, CgArrowsShrinkV } from "react-icons/cg";
 import { MdOutlinePadding } from "react-icons/md";
+import { TbShadow } from "react-icons/tb";
 import { produce } from "immer";
 
 import styles from "./index.module.less";
@@ -9,6 +10,11 @@ import { Popover, Tooltip, Slider, ConfigProvider, theme } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { useState } from "react";
 import { CardUtil, RichTextUtil } from "@/components/WhiteBoard/utils";
+import {
+  EShadowSize,
+  SHADOW_SIZE_OPTIONS,
+  getShadowStyle,
+} from "@/components/WhiteBoard/constants";
 import { DOMSizeMeasurer } from "@/components/WhiteBoard/services/DOMSizeMeasurer";
 import useTheme from "@/hooks/useTheme";
 import classnames from "classnames";
@@ -168,6 +174,7 @@ const RichTextSetter = (props: RichTextSetterProps) => {
 
   const [selectColorOpen, setSelectColorOpen] = useState(false);
   const [selectPaddingOpen, setSelectPaddingOpen] = useState(false);
+  const [selectShadowOpen, setSelectShadowOpen] = useState(false);
   const { isDark } = useTheme();
 
   const handleOnSelectColor = useMemoizedFn((color: ColorConfig) => {
@@ -204,6 +211,20 @@ const RichTextSetter = (props: RichTextSetterProps) => {
       draft.paddingHeight = value;
     });
     onChange(newElement);
+  });
+
+  const handleShadowSizeChange = useMemoizedFn((size: EShadowSize) => {
+    const newElement = produce(element, (draft) => {
+      draft.shadowSize = size;
+    });
+    // @ts-ignore
+    if (element.type === "card") {
+      CardUtil.setLocalStorage("shadowSize", size);
+    } else if (element.type === "richtext") {
+      RichTextUtil.setLocalStorage("shadowSize", size);
+    }
+    onChange(newElement);
+    setSelectShadowOpen(false);
   });
 
   const handleFitHeight = useMemoizedFn(() => {
@@ -429,6 +450,51 @@ const RichTextSetter = (props: RichTextSetterProps) => {
         <Tooltip title={"内边距"} placement={"left"}>
           <div className={styles.item}>
             <MdOutlinePadding />
+          </div>
+        </Tooltip>
+      </Popover>
+      <Popover
+        open={selectShadowOpen}
+        onOpenChange={setSelectShadowOpen}
+        styles={{
+          container: {
+            background: "transparent",
+            boxShadow: "none",
+            padding: 0,
+            marginLeft: 12,
+          },
+        }}
+        trigger={"click"}
+        content={
+          <div
+            className={classnames(styles.shadowPopover, {
+              [styles.dark]: isDark,
+            })}
+          >
+            {SHADOW_SIZE_OPTIONS.map((option) => (
+              <div
+                key={option.value}
+                className={classnames(styles.shadowOptionItem, {
+                  [styles.active]:
+                    (element.shadowSize ?? EShadowSize.None) === option.value,
+                })}
+                onClick={() => handleShadowSizeChange(option.value)}
+              >
+                <div
+                  className={styles.shadowPreview}
+                  style={{ boxShadow: getShadowStyle(option.value, false) }}
+                />
+                <span>{option.label}</span>
+              </div>
+            ))}
+          </div>
+        }
+        placement={"right"}
+        arrow={false}
+      >
+        <Tooltip title={"阴影大小"} placement={"left"}>
+          <div className={styles.item}>
+            <TbShadow />
           </div>
         </Tooltip>
       </Popover>

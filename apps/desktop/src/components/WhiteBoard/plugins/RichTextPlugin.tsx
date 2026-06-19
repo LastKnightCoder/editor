@@ -34,6 +34,7 @@ import { DOMSizeMeasurer } from "../services/DOMSizeMeasurer";
 import RichText from "../components/RichText";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { SelectTransforms } from "../transforms";
+import { EShadowSize } from "../constants";
 
 export interface RichTextElement extends CommonElement {
   type: "richtext";
@@ -56,6 +57,7 @@ export interface RichTextElement extends CommonElement {
   topColor?: string;
   color?: string;
   theme?: "light" | "dark";
+  shadowSize?: EShadowSize;
 }
 
 export class RichTextPlugin extends CommonPlugin {

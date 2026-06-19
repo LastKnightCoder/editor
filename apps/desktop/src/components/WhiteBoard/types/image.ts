@@ -3,6 +3,7 @@ import {
   EDescriptionPosition,
   EDescriptionAlignment,
 } from "../constants/image";
+import { EShadowSize } from "../constants/shadow";
 
 export interface ImageElement extends CommonElement {
   src: string;
@@ -19,4 +20,5 @@ export interface ImageElement extends CommonElement {
     color?: string;
     fontSize?: number;
   };
+  shadowSize?: EShadowSize;
 }

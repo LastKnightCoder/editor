@@ -11,6 +11,7 @@ import { BoardUtil, getResizedBBox, PathUtil } from "../utils";
 import Card from "../components/Card";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { SelectTransforms } from "../transforms";
+import { EShadowSize } from "../constants";
 
 export interface CardElement extends CommonElement {
   type: "card";
@@ -26,6 +27,7 @@ export interface CardElement extends CommonElement {
   topColor?: string;
   color?: string;
   theme?: "light" | "dark";
+  shadowSize?: EShadowSize;
 }
 
 export class CardPlugin extends CommonPlugin implements IBoardPlugin {

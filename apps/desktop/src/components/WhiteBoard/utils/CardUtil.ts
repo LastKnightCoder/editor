@@ -6,6 +6,8 @@ import {
   DEFAULT_CARD_STROKE_WIDTH,
   DEFAULT_CARD_STROKE_OPACITY,
   DEFAULT_CARD_THEME,
+  DEFAULT_CARD_SHADOW_SIZE,
+  EShadowSize,
 } from "../constants";
 
 const LOCAL_STORAGE_KEY = "whiteboard-card";
@@ -41,6 +43,8 @@ export class CardUtil {
       | "light"
       | "dark"
       | undefined;
+    const shadowSize = (this.getLocalStorage("shadowSize") ||
+      DEFAULT_CARD_SHADOW_SIZE) as EShadowSize;
 
     return {
       background,
@@ -50,6 +54,7 @@ export class CardUtil {
       strokeWidth,
       strokeOpacity,
       theme,
+      shadowSize,
     } as const;
   }
 }

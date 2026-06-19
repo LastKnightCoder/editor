@@ -36,6 +36,7 @@ import {
 } from "../../types";
 import { RichTextElement, CommonElement } from "../../plugins";
 import { PointUtil } from "../../utils";
+import { getShadowStyle } from "../../constants";
 import {
   useBoard,
   useElementMoving,
@@ -47,6 +48,7 @@ import {
 } from "../../hooks";
 import { useBoardState } from "../../hooks/useBoardState";
 import { useViewPort } from "../../hooks/useViewPort";
+import useTheme from "@/hooks/useTheme";
 
 import styles from "./index.module.less";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
@@ -132,6 +134,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
       background,
       color,
       theme,
+      shadowSize,
       resizable = true,
       autoHeight = false,
     } = element;
@@ -140,6 +143,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
       (state) => state.extensions,
     );
     const textColor = color || "#1f1f1f";
+    const { isDark } = useTheme();
 
     const containerRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<EditorRef>(null);
@@ -434,6 +438,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
           width={autoHeight ? width : focus && !resized ? maxWidth : width}
           height={autoHeight ? height : focus && !resized ? maxHeight : height}
           className="border-none"
+          style={{ overflow: "visible" }}
         >
           <div
             id={`rich-text-container-${elementId}`}
@@ -453,6 +458,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
                 height,
                 background: background || "transparent",
                 borderRadius: 4,
+                boxShadow: getShadowStyle(shadowSize, isDark),
                 zIndex: -1,
               }}
             />
