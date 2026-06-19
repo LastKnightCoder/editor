@@ -1,6 +1,5 @@
 import { useRef, useState } from "react";
-import { Button, Empty, Input, Spin, Tooltip } from "antd";
-import { UpOutlined } from "@ant-design/icons";
+import { Empty, Spin } from "antd";
 
 import { WhiteBoard } from "@/types";
 
@@ -39,7 +38,6 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
   } = props;
 
   const [maxWhiteBoardCount, setMaxWhiteBoardCount] = useState<number>(20);
-  const listRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
   const loadMore = useMemoizedFn(() => {
@@ -53,6 +51,7 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
     onSearchValueChange,
     tags,
     onDeleteTag,
+    onDeleteLastTag,
     onSearch,
     searchedWhiteBoards,
     clear,
@@ -91,16 +90,6 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
     }
   };
 
-  const scrollToTop = () => {
-    if (listRef.current) {
-      listRef.current.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
-      setMaxWhiteBoardCount(Math.min(20, searchedWhiteBoards.length));
-    }
-  };
-
   return (
     <CustomModal
       title={title || "选择关联白板"}
@@ -114,27 +103,28 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
     >
       <div className="flex flex-col h-full gap-4">
         {/* 搜索栏 */}
-        <div className="flex gap-2 items-center">
-          <Input
+        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 shadow-inner focus-within:border-blue-500 focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] dark:focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]">
+          {tags.length > 0 && (
+            <Tags closable tags={tags} onClose={onDeleteTag} />
+          )}
+          <input
             value={searchValue}
-            prefix={
-              tags.length > 0 ? (
-                <Tags closable tags={tags} onClose={onDeleteTag} />
-              ) : undefined
-            }
-            onChange={(e) => {
-              onSearchValueChange(e.target.value);
+            onChange={(e) => onSearchValueChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                onSearch();
+              } else if (
+                e.key === "Backspace" &&
+                !searchValue &&
+                tags.length > 0
+              ) {
+                onDeleteLastTag();
+              }
             }}
-            onPressEnter={onSearch}
-            placeholder={"请输入名称、描述或标签进行搜索"}
+            placeholder="请输入名称、描述或标签进行搜索"
+            className="flex-1 min-w-0 bg-transparent border-none outline-none text-sm text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500"
           />
-          <Tooltip title={"回到顶部"}>
-            <Button
-              className="shrink-0"
-              icon={<UpOutlined />}
-              onClick={scrollToTop}
-            ></Button>
-          </Tooltip>
         </div>
 
         {/* 选中提示 */}
@@ -151,7 +141,6 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
 
         {/* Grid 布局白板列表 */}
         <div
-          ref={listRef}
           className="flex-1 min-h-0 overflow-y-auto p-5"
           style={{
             display: "grid",
