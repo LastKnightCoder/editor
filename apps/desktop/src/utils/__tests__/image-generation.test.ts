@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   buildOpenAIImageRequest,
-  isImageGenerationConfigValid,
+  isProviderConfigValid as isImageGenerationConfigValid,
   normalizeOpenAIImageBaseUrl,
   resolveImageInputFile,
-} from "../openai-image-service";
+} from "../image-generation";
 
-describe("openai-image-service", () => {
+describe("image-generation", () => {
   it("连接参数完整时认为图片生成配置有效", () => {
     expect(
       isImageGenerationConfigValid({

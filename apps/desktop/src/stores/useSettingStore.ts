@@ -14,8 +14,11 @@ import { MINIMAX_DEFAULT_SPEECH_MODEL } from "@/utils/tts/minimaxSpeech";
 import {
   DEFAULT_OPENAI_IMAGE_BASE_URL,
   DEFAULT_OPENAI_IMAGE_MODEL,
-  type ImageGenerationConfig,
-} from "@/utils/openai-image-service";
+} from "@/utils/image-generation";
+import type {
+  ImageGenerationStoreShape,
+  ImageProviderConfig,
+} from "@/types/imageGeneration";
 
 export enum EImageBed {
   Local = "local",
@@ -120,6 +123,80 @@ const sanitizeDeprecatedLLMUsageSettings = <T extends Partial<ISetting>>(
   }
 
   return nextSetting;
+};
+
+const migrateImageGenerationConfig = <T extends Partial<ISetting>>(
+  setting: T,
+): void => {
+  const img = (setting as any).imageGeneration;
+  if (!img) return;
+  if (typeof img !== "object") {
+    (setting as any).imageGeneration = {
+      currentProviderId: "",
+      providers: [],
+    };
+    return;
+  }
+  // 旧格式：{ baseUrl, apiKey, modelName } → 新格式：{ currentProviderId, providers[] }
+  if (!("providers" in img)) {
+    (setting as any).imageGeneration = {
+      currentProviderId: "default-openai",
+      providers: [
+        {
+          id: "default-openai",
+          name: "OpenAI 兼容",
+          providerType: "openai",
+          baseUrl: img.baseUrl ?? DEFAULT_OPENAI_IMAGE_BASE_URL,
+          apiKey: img.apiKey ?? "",
+          modelName: img.modelName ?? DEFAULT_OPENAI_IMAGE_MODEL,
+        },
+      ],
+    };
+    return;
+  }
+
+  img.providers = Array.isArray(img.providers)
+    ? img.providers
+        .filter((provider: Partial<ImageProviderConfig> | null) =>
+          Boolean(provider?.id),
+        )
+        .map((provider: Partial<ImageProviderConfig>) => ({
+          id: String(provider.id),
+          name: provider.name || "OpenAI 兼容",
+          providerType: provider.providerType || "openai",
+          baseUrl: provider.baseUrl ?? DEFAULT_OPENAI_IMAGE_BASE_URL,
+          apiKey: provider.apiKey ?? "",
+          modelName: provider.modelName ?? DEFAULT_OPENAI_IMAGE_MODEL,
+        }))
+    : [];
+
+  if (
+    typeof img.currentProviderId !== "string" ||
+    !img.providers.some(
+      (provider: ImageProviderConfig) => provider.id === img.currentProviderId,
+    )
+  ) {
+    img.currentProviderId = img.providers[0]?.id ?? "";
+  }
+};
+
+export const mergeSettingWithDefaults = (
+  setting: Partial<ISetting> | ISetting,
+): ISetting => {
+  migrateImageGenerationConfig(setting);
+  const mergedSetting = structuredClone(defaultSetting);
+  const imageGeneration = setting.imageGeneration
+    ? structuredClone(setting.imageGeneration)
+    : null;
+  merge(mergedSetting, setting);
+  if (imageGeneration) {
+    mergedSetting.imageGeneration = imageGeneration;
+  }
+  sanitizeSettingModules(mergedSetting);
+  sanitizeDeprecatedLLMUsageSettings(mergedSetting);
+  migrateImageGenerationConfig(mergedSetting);
+  normalizeTransientSettingState(mergedSetting);
+  return mergedSetting;
 };
 
 export interface ISetting {
@@ -305,7 +382,7 @@ export interface ISetting {
     device: "cuda" | "cpu";
   };
   llmConfigs: ProviderConfig[];
-  imageGeneration: ImageGenerationConfig;
+  imageGeneration: ImageGenerationStoreShape;
   llmUsageSettings: {
     chat: LLMUsageConfig | null;
     titleSummary: LLMUsageConfig | null;
@@ -626,7 +703,9 @@ const loadCachedSetting = (): Partial<ISetting> | null => {
       cachedSetting.moduleOrder = [...DEFAULT_MODULE_ORDER];
     }
     sanitizeSettingModules(cachedSetting);
-    return sanitizeDeprecatedLLMUsageSettings(cachedSetting);
+    const migrated = sanitizeDeprecatedLLMUsageSettings(cachedSetting);
+    migrateImageGenerationConfig(migrated);
+    return migrated;
   } catch (error) {
     console.error("Failed to parse cached setting", error);
     return null;
@@ -844,9 +923,17 @@ const initialState: IState = {
     },
     llmConfigs: [],
     imageGeneration: {
-      baseUrl: DEFAULT_OPENAI_IMAGE_BASE_URL,
-      apiKey: "",
-      modelName: DEFAULT_OPENAI_IMAGE_MODEL,
+      currentProviderId: "default-openai",
+      providers: [
+        {
+          id: "default-openai",
+          name: "OpenAI 兼容",
+          providerType: "openai",
+          baseUrl: DEFAULT_OPENAI_IMAGE_BASE_URL,
+          apiKey: "",
+          modelName: DEFAULT_OPENAI_IMAGE_MODEL,
+        },
+      ],
     },
     llmUsageSettings: {
       chat: null,
@@ -1017,10 +1104,7 @@ const initialState: IState = {
 const defaultSetting = structuredClone(initialState.setting);
 const cachedSetting = loadCachedSetting();
 if (cachedSetting) {
-  merge(initialState.setting, cachedSetting);
-  sanitizeSettingModules(initialState.setting);
-  sanitizeDeprecatedLLMUsageSettings(initialState.setting);
-  normalizeTransientSettingState(initialState.setting);
+  initialState.setting = mergeSettingWithDefaults(cachedSetting);
 }
 applyAppearanceFromSetting(initialState.setting);
 
@@ -1066,11 +1150,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
         return;
       }
 
-      const mergedSetting = structuredClone(defaultSetting);
-      merge(mergedSetting, nextSetting);
-      sanitizeSettingModules(mergedSetting);
-      sanitizeDeprecatedLLMUsageSettings(mergedSetting);
-      normalizeTransientSettingState(mergedSetting);
+      const mergedSetting = mergeSettingWithDefaults(nextSetting);
       console.info("[SettingSync] 应用远端设置", {
         sourceClientId: sourceClientId || "unknown",
         weread: getWeReadSettingDebugSummary(mergedSetting.integration.weread),
@@ -1092,11 +1172,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       null,
     )) as ISetting;
     try {
-      const newSetting = structuredClone(defaultSetting);
-      merge(newSetting, setting);
-      sanitizeSettingModules(newSetting);
-      sanitizeDeprecatedLLMUsageSettings(newSetting);
-      normalizeTransientSettingState(newSetting);
+      const newSetting = mergeSettingWithDefaults(setting);
       console.info("[SettingSync] 初始化设置完成", {
         weread: getWeReadSettingDebugSummary(newSetting.integration.weread),
       });

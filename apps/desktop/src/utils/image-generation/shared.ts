@@ -1,15 +1,14 @@
 import { getFileExtension, readBinaryFile } from "@/commands/file";
 import { nodeFetch } from "@/commands/extra";
-import { resolveLocalMediaPath } from "./localMediaPath";
+import { resolveLocalMediaPath } from "../localMediaPath";
+import type { ImageProviderConfig, ImageResult } from "@/types/imageGeneration";
+
+// ====================== Constants ======================
 
 export const DEFAULT_OPENAI_IMAGE_BASE_URL = "https://api.openai.com/v1";
 export const DEFAULT_OPENAI_IMAGE_MODEL = "gpt-image-2";
 
-export interface ImageGenerationConfig {
-  baseUrl: string;
-  apiKey: string;
-  modelName: string;
-}
+// ====================== Option type (OpenAI-specific, kept here) ======================
 
 export interface OpenAIImageOptions {
   size?: string;
@@ -17,19 +16,6 @@ export interface OpenAIImageOptions {
   output_format?: string;
   background?: string;
   n?: number;
-}
-
-export interface OpenAIImageResult {
-  b64Json?: string;
-  url?: string;
-  mimeType?: string;
-  revisedPrompt?: string;
-}
-
-interface ParsedImageHttpResponse {
-  payload: unknown;
-  rawText: string | null;
-  binaryResult: OpenAIImageResult | null;
 }
 
 export interface ResolvedImageInputFile extends File {
@@ -45,23 +31,7 @@ export interface ImageInputFileDependencies {
   getFileExtension?: typeof getFileExtension;
 }
 
-const IMAGE_OPTION_KEYS: Array<keyof OpenAIImageOptions> = [
-  "size",
-  "quality",
-  "output_format",
-  "background",
-  "n",
-];
-
-const bananaLog = (event: string, payload: Record<string, unknown>) => {
-  try {
-    console.log(`🍌 ${event} ${JSON.stringify(payload)}`);
-  } catch (error) {
-    console.log(
-      `🍌 ${event} ${JSON.stringify({ logError: (error as Error).message })}`,
-    );
-  }
-};
+// ====================== MIME maps ======================
 
 const MIME_BY_EXTENSION: Record<string, string> = {
   png: "image/png",
@@ -76,8 +46,35 @@ const EXTENSION_BY_MIME: Record<string, string> = {
   "image/webp": "webp",
 };
 
-export const isImageGenerationConfigValid = (
-  config?: Partial<ImageGenerationConfig> | null,
+const IMAGE_OPTION_KEYS: Array<keyof OpenAIImageOptions> = [
+  "size",
+  "quality",
+  "output_format",
+  "background",
+  "n",
+];
+
+// ====================== Helpers ======================
+
+const extensionFromMimeType = (mimeType: string) => EXTENSION_BY_MIME[mimeType];
+
+const mimeTypeFromExtension = (extension: string) =>
+  MIME_BY_EXTENSION[extension.toLowerCase().replace(/^\./, "")];
+
+// ====================== Public utilities ======================
+
+export const bananaLog = (event: string, payload: Record<string, unknown>) => {
+  try {
+    console.log(`🍌 ${event} ${JSON.stringify(payload)}`);
+  } catch (error) {
+    console.log(
+      `🍌 ${event} ${JSON.stringify({ logError: (error as Error).message })}`,
+    );
+  }
+};
+
+export const isProviderConfigValid = (
+  config?: Partial<ImageProviderConfig> | null,
 ) =>
   Boolean(
     config?.baseUrl?.trim() &&
@@ -88,7 +85,7 @@ export const isImageGenerationConfigValid = (
 export const normalizeOpenAIImageBaseUrl = (baseUrl: string) =>
   (baseUrl || DEFAULT_OPENAI_IMAGE_BASE_URL).trim().replace(/\/+$/, "");
 
-const compactImageOptions = (options?: OpenAIImageOptions) => {
+export const compactImageOptions = (options?: OpenAIImageOptions) => {
   const compacted: Record<string, string | number> = {};
   IMAGE_OPTION_KEYS.forEach((key) => {
     const value = options?.[key];
@@ -100,22 +97,7 @@ const compactImageOptions = (options?: OpenAIImageOptions) => {
   return compacted;
 };
 
-export const buildOpenAIImageRequest = (params: {
-  baseUrl: string;
-  endpoint: "generations" | "edits";
-  model?: string;
-  prompt?: string;
-  options?: OpenAIImageOptions;
-}) => ({
-  url: `${normalizeOpenAIImageBaseUrl(params.baseUrl)}/images/${params.endpoint}`,
-  body: {
-    ...(params.model ? { model: params.model } : {}),
-    ...(params.prompt ? { prompt: params.prompt } : {}),
-    ...compactImageOptions(params.options),
-  },
-});
-
-const parseDataUrl = (value: string) => {
+export const parseDataUrl = (value: string) => {
   const match = value.match(
     /^data:(image\/(?:png|jpeg|jpg|webp));base64,(.+)$/i,
   );
@@ -131,12 +113,7 @@ const parseDataUrl = (value: string) => {
   return { bytes, mimeType };
 };
 
-const extensionFromMimeType = (mimeType: string) => EXTENSION_BY_MIME[mimeType];
-
-const mimeTypeFromExtension = (extension: string) =>
-  MIME_BY_EXTENSION[extension.toLowerCase().replace(/^\./, "")];
-
-const createImageFile = (
+export const createImageFile = (
   bytes: Uint8Array,
   mimeType: string,
   prefix = "input-image",
@@ -156,7 +133,7 @@ const createImageFile = (
   return file;
 };
 
-const fetchRemoteImage = async (url: string) => {
+export const fetchRemoteImage = async (url: string) => {
   const response = (await nodeFetch(url, {
     method: "GET",
     responseType: "arraybuffer",
@@ -215,7 +192,53 @@ export const resolveImageInputFile = async (
   return file;
 };
 
-const parseOpenAIImageResponse = (payload: unknown): OpenAIImageResult[] => {
+export const createImageFileFromBase64 = (
+  b64Json: string,
+  mimeType = "image/png",
+  prefix = "openai-image",
+) => {
+  const binary = atob(b64Json);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return createImageFile(bytes, mimeType, prefix);
+};
+
+export const buildOpenAIImageRequest = (params: {
+  baseUrl: string;
+  endpoint: "generations" | "edits";
+  model?: string;
+  prompt?: string;
+  options?: OpenAIImageOptions;
+}) => ({
+  url: `${normalizeOpenAIImageBaseUrl(params.baseUrl)}/images/${params.endpoint}`,
+  body: {
+    ...(params.model ? { model: params.model } : {}),
+    ...(params.prompt ? { prompt: params.prompt } : {}),
+    ...compactImageOptions(params.options),
+  },
+});
+
+const arrayBufferToBase64 = (arrayBuffer: ArrayBuffer) => {
+  const bytes = new Uint8Array(arrayBuffer);
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 1) {
+    binary += String.fromCharCode(bytes[index]);
+  }
+  return btoa(binary);
+};
+
+interface ParsedImageHttpResponse {
+  payload: unknown;
+  rawText: string | null;
+  binaryResult: ImageResult | null;
+}
+
+const mimeTypeFromExtensionStr = (extension: string) =>
+  MIME_BY_EXTENSION[extension.toLowerCase().replace(/^\./, "")];
+
+export const parseOpenAIImageResponse = (payload: unknown): ImageResult[] => {
   bananaLog("openai-image.parse-response", {
     payloadType: typeof payload,
     topLevelKeys:
@@ -256,8 +279,8 @@ const parseOpenAIImageResponse = (payload: unknown): OpenAIImageResult[] => {
     Array.isArray((payload as any).data)
       ? ((payload as any).data as Array<Record<string, unknown>>)
       : [];
-  const results: OpenAIImageResult[] = data
-    .map((item): OpenAIImageResult | null => {
+  const results: ImageResult[] = data
+    .map((item): ImageResult | null => {
       const b64Json = item.b64_json;
       const url = item.url;
       if (
@@ -268,10 +291,10 @@ const parseOpenAIImageResponse = (payload: unknown): OpenAIImageResult[] => {
       }
       const outputFormat =
         typeof item.output_format === "string" ? item.output_format : "png";
-      const result: OpenAIImageResult = {};
+      const result: ImageResult = {};
       if (typeof b64Json === "string" && b64Json) {
         result.b64Json = b64Json;
-        result.mimeType = mimeTypeFromExtension(outputFormat) ?? "image/png";
+        result.mimeType = mimeTypeFromExtensionStr(outputFormat) ?? "image/png";
       }
       if (typeof url === "string" && url) {
         result.url = url;
@@ -281,7 +304,7 @@ const parseOpenAIImageResponse = (payload: unknown): OpenAIImageResult[] => {
       }
       return result;
     })
-    .filter((item): item is OpenAIImageResult => Boolean(item));
+    .filter((item): item is ImageResult => Boolean(item));
 
   if (results.length === 0) {
     throw new Error(
@@ -291,16 +314,7 @@ const parseOpenAIImageResponse = (payload: unknown): OpenAIImageResult[] => {
   return results;
 };
 
-const arrayBufferToBase64 = (arrayBuffer: ArrayBuffer) => {
-  const bytes = new Uint8Array(arrayBuffer);
-  let binary = "";
-  for (let index = 0; index < bytes.length; index += 1) {
-    binary += String.fromCharCode(bytes[index]);
-  }
-  return btoa(binary);
-};
-
-const parseImageHttpResponse = async (
+export const parseImageHttpResponse = async (
   response: Response,
 ): Promise<ParsedImageHttpResponse> => {
   const contentType = response.headers.get("content-type") || "";
@@ -342,153 +356,4 @@ const parseImageHttpResponse = async (
     });
     return { payload: null, rawText, binaryResult: null };
   }
-};
-
-const assertValidConfig = (config: ImageGenerationConfig) => {
-  if (!isImageGenerationConfigValid(config)) {
-    throw new Error(
-      "图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称",
-    );
-  }
-};
-
-export const generateOpenAIImages = async (params: {
-  config: ImageGenerationConfig;
-  prompt: string;
-  options?: OpenAIImageOptions;
-  signal?: AbortSignal;
-}): Promise<OpenAIImageResult[]> => {
-  assertValidConfig(params.config);
-  const request = buildOpenAIImageRequest({
-    baseUrl: params.config.baseUrl,
-    endpoint: "generations",
-    model: params.config.modelName,
-    prompt: params.prompt,
-    options: params.options,
-  });
-  bananaLog("openai-image.generate.request", {
-    url: request.url,
-    model: request.body.model,
-    optionKeys: Object.keys(params.options ?? {}),
-    body: request.body,
-    apiKeyConfigured: Boolean(params.config.apiKey?.trim()),
-  });
-  const response = await fetch(request.url, {
-    method: "POST",
-    signal: params.signal,
-    headers: {
-      Authorization: `Bearer ${params.config.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(request.body),
-  });
-  const { payload, rawText, binaryResult } =
-    await parseImageHttpResponse(response);
-  bananaLog("openai-image.generate.response", {
-    status: response.status,
-    ok: response.ok,
-    statusText: response.statusText,
-    contentType: response.headers.get("content-type"),
-    payloadType: typeof payload,
-    topLevelKeys:
-      payload && typeof payload === "object" ? Object.keys(payload) : null,
-    rawTextLength: rawText?.length ?? null,
-    hasBinaryResult: Boolean(binaryResult),
-    errorMessage: (payload as any)?.error?.message ?? null,
-  });
-  if (!response.ok) {
-    throw new Error(
-      (payload as any)?.error?.message ||
-        rawText?.slice(0, 500) ||
-        `图片生成失败: ${response.status}`,
-    );
-  }
-  if (binaryResult) {
-    return [binaryResult];
-  }
-  return parseOpenAIImageResponse(payload);
-};
-
-export const editOpenAIImages = async (params: {
-  config: ImageGenerationConfig;
-  prompt: string;
-  imageFiles: File[];
-  options?: OpenAIImageOptions;
-  signal?: AbortSignal;
-}): Promise<OpenAIImageResult[]> => {
-  assertValidConfig(params.config);
-  if (params.imageFiles.length === 0) {
-    throw new Error("图片编辑至少需要一张输入图片");
-  }
-  const request = buildOpenAIImageRequest({
-    baseUrl: params.config.baseUrl,
-    endpoint: "edits",
-    model: params.config.modelName,
-    prompt: params.prompt,
-    options: params.options,
-  });
-  bananaLog("openai-image.edit.request", {
-    url: request.url,
-    model: request.body.model,
-    optionKeys: Object.keys(params.options ?? {}),
-    body: request.body,
-    imageFiles: params.imageFiles.map((file) => ({
-      name: file.name,
-      type: file.type,
-      size: file.size,
-    })),
-    apiKeyConfigured: Boolean(params.config.apiKey?.trim()),
-  });
-  const formData = new FormData();
-  Object.entries(request.body).forEach(([key, value]) => {
-    formData.append(key, String(value));
-  });
-  params.imageFiles.forEach((file) => formData.append("image[]", file));
-
-  const response = await fetch(request.url, {
-    method: "POST",
-    signal: params.signal,
-    headers: {
-      Authorization: `Bearer ${params.config.apiKey}`,
-    },
-    body: formData,
-  });
-  const { payload, rawText, binaryResult } =
-    await parseImageHttpResponse(response);
-  bananaLog("openai-image.edit.response", {
-    status: response.status,
-    ok: response.ok,
-    statusText: response.statusText,
-    contentType: response.headers.get("content-type"),
-    payloadType: typeof payload,
-    topLevelKeys:
-      payload && typeof payload === "object" ? Object.keys(payload) : null,
-    rawTextLength: rawText?.length ?? null,
-    hasBinaryResult: Boolean(binaryResult),
-    errorMessage: (payload as any)?.error?.message ?? null,
-  });
-  if (!response.ok) {
-    throw new Error(
-      (payload as any)?.error?.message ||
-        rawText?.slice(0, 500) ||
-        `图片编辑失败: ${response.status}`,
-    );
-  }
-  if (binaryResult) {
-    return [binaryResult];
-  }
-  return parseOpenAIImageResponse(payload);
-};
-
-export const createImageFileFromBase64 = (
-  b64Json: string,
-  mimeType = "image/png",
-  prefix = "openai-image",
-) => {
-  const binary = atob(b64Json);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return createImageFile(bytes, mimeType, prefix);
 };

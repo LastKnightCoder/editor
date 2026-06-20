@@ -1,12 +1,12 @@
 import { uploadResource } from "@/hooks/useUploadResource";
-import useSettingStore from "@/stores/useSettingStore";
 import {
   createImageFileFromBase64,
-  generateOpenAIImages,
-  isImageGenerationConfigValid,
   resolveImageInputFile,
-  type OpenAIImageResult,
-} from "@/utils/openai-image-service";
+  isProviderConfigValid,
+  getActiveImageGenerationConfig,
+  createProviderFromConfig,
+} from "@/utils/image-generation";
+import type { ImageResult } from "@/types/imageGeneration";
 
 export const validateImageUrl = (value: string) => {
   const url = value.trim();
@@ -19,7 +19,7 @@ export const validateImageUrl = (value: string) => {
   return url;
 };
 
-const getGeneratedImageFile = async (result: OpenAIImageResult, index = 0) => {
+const getGeneratedImageFile = async (result: ImageResult, index = 0) => {
   if (result.b64Json) {
     return createImageFileFromBase64(
       result.b64Json,
@@ -41,14 +41,15 @@ export const generateWhiteboardImage = async (prompt: string) => {
     throw new Error("请输入图片生成要求");
   }
 
-  const config = useSettingStore.getState().setting.imageGeneration;
-  if (!isImageGenerationConfigValid(config)) {
+  const config = getActiveImageGenerationConfig();
+  if (!config || !isProviderConfigValid(config)) {
     throw new Error(
       "图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称",
     );
   }
 
-  const results = await generateOpenAIImages({
+  const provider = createProviderFromConfig(config);
+  const results = await provider.generate({
     config,
     prompt: finalPrompt,
   });
