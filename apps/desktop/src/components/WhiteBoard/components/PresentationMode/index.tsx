@@ -339,9 +339,6 @@ const PresentationMode: React.FC = () => {
       return;
     }
 
-    const previousCursor = fullscreenTarget.style.cursor;
-    fullscreenTarget.style.cursor = "none";
-
     const handlePointerMove = (event: PointerEvent) => {
       const now = Date.now();
       const nextPoint = {
@@ -384,7 +381,6 @@ const PresentationMode: React.FC = () => {
 
     return () => {
       window.cancelAnimationFrame(animationFrame);
-      fullscreenTarget.style.cursor = previousCursor;
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("blur", handlePointerLeave);
       document.removeEventListener("pointerleave", handlePointerLeave);

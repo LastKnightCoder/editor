@@ -3,7 +3,6 @@ import { RiMindMap } from "react-icons/ri";
 import { useMemoizedFn } from "ahooks";
 import { Tooltip } from "antd";
 
-import useCreateMindMap from "./useCreateMindMap.ts";
 import { useBoard, useCreateElementType } from "../../../hooks";
 import { ECreateBoardElementType } from "../../../types";
 
@@ -16,8 +15,6 @@ const MindMap = (props: MindMapProps) => {
   const { className, style } = props;
 
   const board = useBoard();
-
-  useCreateMindMap();
 
   const createElementType = useCreateElementType();
 

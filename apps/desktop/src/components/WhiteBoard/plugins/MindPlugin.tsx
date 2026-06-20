@@ -1,5 +1,6 @@
 import { produce } from "immer";
 import type { ReactNode } from "react";
+import { v4 as getUuid } from "uuid";
 import {
   Network,
   LayoutGrid,
@@ -45,6 +46,7 @@ import MindNode from "../components/MindNode";
 import { MIND_COLORS } from "../constants";
 import { Descendant } from "slate";
 import { createContent } from "@/commands/content";
+import useSettingStore from "@/stores/useSettingStore.ts";
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -668,6 +670,77 @@ export class MindPlugin implements IBoardPlugin {
 
   getServerSnapshot() {
     return this.dragState;
+  }
+
+  private createMindRoot(x: number, y: number): MindNodeElement {
+    const fontSize = useSettingStore.getState().setting.fontSetting.fontSize;
+    const lineHeight = fontSize * 1.57;
+    const totalHeight = lineHeight + 16 * 2;
+
+    return {
+      id: getUuid(),
+      type: "mind-node",
+      x,
+      y,
+      width: 24,
+      height: totalHeight,
+      actualHeight: totalHeight,
+      level: 1,
+      leftChildrenHeight: 0,
+      rightChildrenHeight: 0,
+      childrenHeight: 0,
+      direction: "right",
+      text: [
+        {
+          type: "paragraph",
+          children: [
+            {
+              type: "formatted",
+              text: "",
+              bold: true,
+            },
+          ],
+        },
+      ],
+      children: [],
+      defaultFocus: true,
+      isLeftFold: false,
+      isRightFold: false,
+      themeId: MindUtil.getDefaultThemeId(),
+    };
+  }
+
+  onClick(e: MouseEvent, board: Board) {
+    if (board.currentCreateType !== ECreateBoardElementType.MindMap) {
+      return;
+    }
+
+    const currentPoint = PointUtil.screenToViewPort(
+      board,
+      e.clientX,
+      e.clientY,
+    );
+    if (!currentPoint) return;
+
+    const mindRoot = this.createMindRoot(currentPoint.x, currentPoint.y);
+
+    board.apply([
+      {
+        type: "set_selection",
+        properties: board.selection,
+        newProperties: {
+          selectArea: null,
+          selectedElements: [],
+        },
+      },
+      {
+        type: "insert_node",
+        path: [board.children.length],
+        node: mindRoot,
+      },
+    ]);
+
+    board.currentCreateType = ECreateBoardElementType.None;
   }
 
   onPointerDown(e: PointerEvent, board: Board) {
