@@ -1,4 +1,13 @@
-import { Video, Link, Download } from "lucide-react";
+import {
+  Video,
+  Link,
+  Download,
+  Upload,
+  FolderOpen,
+  MonitorPlay,
+  Youtube,
+  FileText,
+} from "lucide-react";
 import { v4 as getUuid } from "uuid";
 import { message } from "antd";
 import { uploadResource } from "@/hooks/useUploadResource";
@@ -71,6 +80,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
           {
             key: "video-local",
             label: "本地上传",
+            icon: <Upload size={14} />,
             priority: 0,
             onSelect: (ctx: ContextMenuContext) => {
               ctx.board.emit("context-menu:open-modal", {
@@ -82,6 +92,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
           {
             key: "video-resource",
             label: "资源库",
+            icon: <FolderOpen size={14} />,
             priority: 1,
             onSelect: (ctx: ContextMenuContext) => {
               ctx.board.emit("context-menu:open-modal", {
@@ -93,6 +104,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
           {
             key: "video-url",
             label: "网络地址",
+            icon: <Link size={14} />,
             priority: 2,
             onSelect: (ctx: ContextMenuContext) => {
               ctx.board.emit("context-menu:open-modal", {
@@ -104,6 +116,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
           {
             key: "video-bilibili",
             label: "Bilibili",
+            icon: <MonitorPlay size={14} />,
             priority: 3,
             onSelect: (ctx: ContextMenuContext) => {
               ctx.board.emit("context-menu:open-modal", {
@@ -115,6 +128,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
           {
             key: "video-youtube",
             label: "YouTube",
+            icon: <Youtube size={14} />,
             priority: 4,
             onSelect: (ctx: ContextMenuContext) => {
               ctx.board.emit("context-menu:open-modal", {
@@ -126,6 +140,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
           {
             key: "video-notion",
             label: "Notion",
+            icon: <FileText size={14} />,
             priority: 5,
             onSelect: (ctx: ContextMenuContext) => {
               ctx.board.emit("context-menu:open-modal", {
