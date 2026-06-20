@@ -13,9 +13,34 @@ export interface CustomConnectCandidate {
   distance: number;
 }
 
+export interface ElementCustomConnectCandidate extends CustomConnectCandidate {
+  element: BoardElement & {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}
+
 const EPSILON = 1e-6;
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+
+const hasBBox = (
+  element: BoardElement,
+): element is BoardElement & {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} => {
+  return (
+    typeof element.x === "number" &&
+    typeof element.y === "number" &&
+    typeof element.width === "number" &&
+    typeof element.height === "number"
+  );
+};
 
 /**
  * 计算"图形中心 → 鼠标"射线与图形 bbox 边缘的交点，作为自定义连接点候选。
@@ -74,6 +99,35 @@ export const getCustomConnectCandidate = (
   if (distance > threshold) return null;
 
   return { point, customOffset, distance };
+};
+
+export const getNearestCustomConnectCandidate = (
+  elements: BoardElement[],
+  mousePoint: Point,
+  zoom: number,
+): ElementCustomConnectCandidate | null => {
+  let nearest: ElementCustomConnectCandidate | null = null;
+
+  const visit = (items: BoardElement[]) => {
+    for (const element of items) {
+      if (element.type !== "arrow" && hasBBox(element)) {
+        const candidate = getCustomConnectCandidate(element, mousePoint, zoom);
+        if (candidate && (!nearest || candidate.distance < nearest.distance)) {
+          nearest = {
+            ...candidate,
+            element,
+          };
+        }
+      }
+
+      if (Array.isArray(element.children) && element.children.length > 0) {
+        visit(element.children);
+      }
+    }
+  };
+
+  visit(elements);
+  return nearest;
 };
 
 /**
@@ -141,6 +195,7 @@ export const getConnectEdgeOrientation = (
 
 export default {
   getCustomConnectCandidate,
+  getNearestCustomConnectCandidate,
   isInteriorConnectBound,
   isInteriorConnectElement,
   getConnectEdgeOrientation,

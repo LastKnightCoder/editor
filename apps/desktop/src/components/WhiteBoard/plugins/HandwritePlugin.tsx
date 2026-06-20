@@ -1,4 +1,12 @@
-import { Link2, Minus, PenLine, Plus, Sparkles, Ungroup } from "lucide-react";
+import {
+  Gauge,
+  Link2,
+  Minus,
+  PenLine,
+  Plus,
+  Sparkles,
+  Ungroup,
+} from "lucide-react";
 import { v4 as getUuid } from "uuid";
 import { message } from "antd";
 import {
@@ -257,6 +265,7 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
           {
             key: "handwrite-toggle-pressure",
             label: "切换压感模拟",
+            icon: <Gauge size={14} />,
             priority: 2,
             onSelect: (ctx: ContextMenuContext) => {
               this.updateElementStyle(ctx.board, handwriteElement, (style) => ({

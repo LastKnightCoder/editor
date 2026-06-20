@@ -1,4 +1,4 @@
-import { Music2, Link, Download } from "lucide-react";
+import { Music2, Link, Download, Upload, FolderOpen, Mic } from "lucide-react";
 import { v4 as getUuid } from "uuid";
 import { message } from "antd";
 import { uploadResource } from "@/hooks/useUploadResource";
@@ -69,6 +69,7 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
           {
             key: "audio-local",
             label: "本地上传",
+            icon: <Upload size={14} />,
             priority: 0,
             onSelect: (ctx: ContextMenuContext) => {
               ctx.board.emit("context-menu:open-modal", {
@@ -80,6 +81,7 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
           {
             key: "audio-resource",
             label: "资源库",
+            icon: <FolderOpen size={14} />,
             priority: 1,
             onSelect: (ctx: ContextMenuContext) => {
               ctx.board.emit("context-menu:open-modal", {
@@ -91,6 +93,7 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
           {
             key: "audio-url",
             label: "网络地址",
+            icon: <Link size={14} />,
             priority: 2,
             onSelect: (ctx: ContextMenuContext) => {
               ctx.board.emit("context-menu:open-modal", {
@@ -102,6 +105,7 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
           {
             key: "audio-tts",
             label: "文本转语音",
+            icon: <Mic size={14} />,
             priority: 3,
             onSelect: (ctx: ContextMenuContext) => {
               ctx.board.emit("context-menu:open-modal", {

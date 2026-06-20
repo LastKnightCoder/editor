@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getCustomConnectCandidate,
+  getNearestCustomConnectCandidate,
   isInteriorConnectBound,
   isInteriorConnectElement,
   getConnectEdgeOrientation,
@@ -67,6 +68,76 @@ describe("getCustomConnectCandidate - 射线与 bbox 边缘交点", () => {
   it("零尺寸元素返回 null", () => {
     const el = rect(0, 0, 0, 100);
     expect(getCustomConnectCandidate(el, { x: 5, y: 50 }, ZOOM)).toBeNull();
+  });
+});
+
+describe("getNearestCustomConnectCandidate - 最近元素候选", () => {
+  it("多个元素命中时返回距离最近的候选", () => {
+    const near = rect(0, 0, 100, 100);
+    near.id = "near";
+    const far = rect(140, 0, 100, 100);
+    far.id = "far";
+
+    const c = getNearestCustomConnectCandidate(
+      [near, far],
+      { x: 108, y: 50 },
+      ZOOM,
+    );
+
+    expect(c).not.toBeNull();
+    expect(c!.element.id).toBe("near");
+    expect(c!.point.x).toBeCloseTo(100, 5);
+  });
+
+  it("鼠标远离所有元素边缘时返回 null", () => {
+    const c = getNearestCustomConnectCandidate(
+      [rect(0, 0, 100, 100)],
+      { x: 180, y: 50 },
+      ZOOM,
+    );
+
+    expect(c).toBeNull();
+  });
+
+  it("跳过箭头和缺少 bbox 的元素", () => {
+    const arrow = {
+      id: "arrow",
+      type: "arrow",
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      source: { marker: "none" },
+      target: { marker: "none" },
+    } as unknown as BoardElement;
+    const noBBox = { id: "plain", type: "richtext" } as BoardElement;
+
+    const c = getNearestCustomConnectCandidate(
+      [arrow, noBBox],
+      { x: 108, y: 50 },
+      ZOOM,
+    );
+
+    expect(c).toBeNull();
+  });
+
+  it("会扫描子元素候选", () => {
+    const child = rect(0, 0, 100, 100);
+    child.id = "child";
+    const parent = {
+      id: "parent",
+      type: "frame",
+      children: [child],
+    } as BoardElement;
+
+    const c = getNearestCustomConnectCandidate(
+      [parent],
+      { x: 108, y: 50 },
+      ZOOM,
+    );
+
+    expect(c).not.toBeNull();
+    expect(c!.element.id).toBe("child");
   });
 });
 

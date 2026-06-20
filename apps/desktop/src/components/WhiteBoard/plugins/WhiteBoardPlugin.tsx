@@ -1,4 +1,4 @@
-import { Layout } from "lucide-react";
+import { Layout, Link2, Plus } from "lucide-react";
 import {
   Board,
   IBoardPlugin,
@@ -80,6 +80,7 @@ export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
           {
             key: "create-whiteboard-new",
             label: "创建新白板",
+            icon: <Plus size={14} />,
             priority: 0,
             onSelect: (ctx: ContextMenuContext) => {
               ctx.board.emit("context-menu:open-modal", {
@@ -91,6 +92,7 @@ export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
           {
             key: "create-whiteboard-reference",
             label: "引用已有白板",
+            icon: <Link2 size={14} />,
             priority: 1,
             onSelect: (ctx: ContextMenuContext) => {
               ctx.board.emit("context-menu:open-modal", {
