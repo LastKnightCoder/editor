@@ -1,37 +1,67 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { mockProvider } = vi.hoisted(() => ({
+  mockProvider: {
+    generate: vi.fn(),
+    edit: vi.fn(),
+  },
+}));
+
+vi.mock("@/utils/image-generation", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/utils/image-generation")>();
+  return {
+    ...actual,
+    createProviderFromConfig: vi.fn(() => mockProvider),
+  };
+});
+
 import {
-  createOpenAIImageToolDefinitions,
-  getOpenAIImageToolsEnabled,
+  createImageToolDefinitions,
+  getImageToolsEnabled,
 } from "../openaiImageTools";
 
-describe("openaiImageTools", () => {
-  it("仅在图片生成配置有效时启用工具", () => {
-    expect(
-      getOpenAIImageToolsEnabled({
-        baseUrl: "https://api.openai.com/v1",
-        apiKey: "sk-test",
-        modelName: "gpt-image-2",
-      }),
-    ).toBe(true);
+// 辅助：构建一个有效的 ProviderConfig
+const mockProviderConfig = (overrides = {}) => ({
+  id: "test",
+  name: "test",
+  providerType: "openai" as const,
+  baseUrl: "https://api.openai.com/v1",
+  apiKey: "sk-test",
+  modelName: "gpt-image-2",
+  ...overrides,
+});
 
-    expect(
-      getOpenAIImageToolsEnabled({
-        baseUrl: "https://api.openai.com/v1",
-        apiKey: "",
-        modelName: "gpt-image-2",
-      }),
-    ).toBe(false);
+const mockStoreState = (overrides = {}) => ({
+  currentProviderId: "default",
+  providers: [
+    {
+      id: "default",
+      name: "test",
+      providerType: "openai" as const,
+      baseUrl: "https://api.openai.com/v1",
+      apiKey: "sk-test",
+      modelName: "gpt-image-2",
+      ...overrides,
+    },
+  ],
+});
+
+describe("openaiImageTools", () => {
+  beforeEach(() => {
+    mockProvider.generate.mockReset();
+    mockProvider.edit.mockReset();
+  });
+
+  it("仅在图片生成配置有效时启用工具", () => {
+    expect(getImageToolsEnabled(mockStoreState())).toBe(true);
+
+    expect(getImageToolsEnabled(mockStoreState({ apiKey: "" }))).toBe(false);
   });
 
   it("暴露生成和编辑两个工具，并将图片参数作为可选参数", () => {
-    const tools = createOpenAIImageToolDefinitions({
-      getConfig: () => ({
-        baseUrl: "https://api.openai.com/v1",
-        apiKey: "sk-test",
-        modelName: "gpt-image-2",
-      }),
-      generateImages: vi.fn(),
-      editImages: vi.fn(),
+    const tools = createImageToolDefinitions({
+      getConfig: () => mockProviderConfig(),
       uploadImage: vi.fn(),
     });
 
@@ -49,21 +79,12 @@ describe("openaiImageTools", () => {
   });
 
   it("生成工具上传 b64 图片并返回渲染 metadata", async () => {
-    const generateImages = vi.fn().mockResolvedValue([
-      {
-        b64Json: "AQID",
-        mimeType: "image/png",
-      },
+    mockProvider.generate.mockResolvedValue([
+      { b64Json: "iVBORw0KGgo=", mimeType: "image/png" },
     ]);
     const uploadImage = vi.fn().mockResolvedValue("https://cdn.test/image.png");
-    const [generateTool] = createOpenAIImageToolDefinitions({
-      getConfig: () => ({
-        baseUrl: "https://api.openai.com/v1",
-        apiKey: "sk-test",
-        modelName: "gpt-image-2",
-      }),
-      generateImages,
-      editImages: vi.fn(),
+    const [generateTool] = createImageToolDefinitions({
+      getConfig: () => mockProviderConfig(),
       uploadImage,
     });
 
@@ -72,7 +93,7 @@ describe("openaiImageTools", () => {
       background: "transparent",
     });
 
-    expect(generateImages).toHaveBeenCalledWith(
+    expect(mockProvider.generate).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: "生成透明背景 logo",
         options: { background: "transparent" },
@@ -89,7 +110,7 @@ describe("openaiImageTools", () => {
   });
 
   it("生成工具遇到远程 url 结果时先下载再自定义上传", async () => {
-    const generateImages = vi.fn().mockResolvedValue([
+    mockProvider.generate.mockResolvedValue([
       {
         url: "https://temp.test/generated.png",
       },
@@ -99,14 +120,8 @@ describe("openaiImageTools", () => {
     });
     const resolveImageInputFile = vi.fn().mockResolvedValue(resolvedFile);
     const uploadImage = vi.fn().mockResolvedValue("https://cdn.test/final.png");
-    const [generateTool] = createOpenAIImageToolDefinitions({
-      getConfig: () => ({
-        baseUrl: "https://api.openai.com/v1",
-        apiKey: "sk-test",
-        modelName: "gpt-image-2",
-      }),
-      generateImages,
-      editImages: vi.fn(),
+    const [generateTool] = createImageToolDefinitions({
+      getConfig: () => mockProviderConfig(),
       uploadImage,
       resolveImageInputFile,
     });

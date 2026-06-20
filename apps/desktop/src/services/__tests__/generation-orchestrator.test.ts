@@ -52,9 +52,17 @@ const configureImageTools = (enabled: boolean) => {
     setting: {
       ...state.setting,
       imageGeneration: {
-        baseUrl: "https://api.openai.com/v1",
-        apiKey: "sk-test",
-        modelName: "gpt-image-2",
+        currentProviderId: "default",
+        providers: [
+          {
+            id: "default",
+            name: "test",
+            providerType: "openai" as const,
+            baseUrl: "https://api.openai.com/v1",
+            apiKey: "sk-test",
+            modelName: "gpt-image-2",
+          },
+        ],
       },
     },
   }));

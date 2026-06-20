@@ -64,12 +64,12 @@ import { uploadResource as uploadResourceCommand } from "@/hooks/useUploadResour
 import { compileCustomBlockTailwind } from "@/services/tailwindRuntime";
 import {
   createImageFileFromBase64,
-  editOpenAIImages,
-  generateOpenAIImages,
-  isImageGenerationConfigValid,
   resolveImageInputFile,
-  type OpenAIImageResult,
-} from "@/utils/openai-image-service";
+  isProviderConfigValid,
+  getActiveImageGenerationConfig,
+  createProviderFromConfig,
+} from "@/utils/image-generation";
+import type { ImageResult } from "@/types/imageGeneration";
 
 import { nodeFetch } from "@/commands/extra";
 
@@ -532,10 +532,7 @@ const createUploadResult = (url: string, file?: File) => ({
   path: url,
 });
 
-const uploadGeneratedImageResult = async (
-  result: OpenAIImageResult,
-  index = 0,
-) => {
+const uploadGeneratedImageResult = async (result: ImageResult, index = 0) => {
   const file = result.b64Json
     ? createImageFileFromBase64(
         result.b64Json,
@@ -563,7 +560,7 @@ const uploadGeneratedImageResult = async (
   };
 };
 
-const uploadFirstGeneratedImage = async (results: OpenAIImageResult[]) => {
+const uploadFirstGeneratedImage = async (results: ImageResult[]) => {
   if (!results.length) {
     throw new Error("图片生成服务未返回图片");
   }
@@ -811,25 +808,25 @@ export function createEditorServices(): EditorServices {
 
     imageGeneration: {
       isAvailable: () => {
-        return isImageGenerationConfigValid(
-          useSettingStore.getState().setting.imageGeneration,
-        );
+        const config = getActiveImageGenerationConfig();
+        return isProviderConfigValid(config);
       },
 
       generateImage: async ({ prompt }) => {
-        const config = useSettingStore.getState().setting.imageGeneration;
-        if (!isImageGenerationConfigValid(config)) {
+        const config = getActiveImageGenerationConfig();
+        if (!config || !isProviderConfigValid(config)) {
           throw new Error(
             "图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称",
           );
         }
-        const results = await generateOpenAIImages({ config, prompt });
+        const provider = createProviderFromConfig(config);
+        const results = await provider.generate({ config, prompt });
         return uploadFirstGeneratedImage(results);
       },
 
       editImage: async ({ prompt, images }) => {
-        const config = useSettingStore.getState().setting.imageGeneration;
-        if (!isImageGenerationConfigValid(config)) {
+        const config = getActiveImageGenerationConfig();
+        if (!config || !isProviderConfigValid(config)) {
           throw new Error(
             "图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称",
           );
@@ -843,7 +840,8 @@ export function createEditorServices(): EditorServices {
         const imageFiles = await Promise.all(
           normalizedImageUrls.map((item) => resolveImageInputFile(item)),
         );
-        const results = await editOpenAIImages({
+        const provider = createProviderFromConfig(config);
+        const results = await provider.edit({
           config,
           prompt,
           imageFiles,

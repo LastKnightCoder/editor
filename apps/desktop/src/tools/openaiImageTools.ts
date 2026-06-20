@@ -1,15 +1,16 @@
-import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
 import type { ToolDefinition, ToolParameterSchema } from "@/types";
+import type {
+  ImageGenerationStoreShape,
+  ImageProviderConfig,
+  ImageResult,
+} from "@/types/imageGeneration";
 import {
   createImageFileFromBase64,
-  editOpenAIImages,
-  generateOpenAIImages,
-  isImageGenerationConfigValid,
   resolveImageInputFile,
-  type ImageGenerationConfig,
-  type OpenAIImageOptions,
-  type OpenAIImageResult,
-} from "@/utils/openai-image-service";
+  isProviderConfigValid,
+  getActiveImageGenerationConfig,
+  createProviderFromConfig,
+} from "@/utils/image-generation";
 
 export const OPENAI_IMAGE_TOOLS_SOURCE = "openai-image-tools";
 export const OPENAI_IMAGE_RENDERER_KEY = "openai-image-result";
@@ -27,18 +28,16 @@ interface UploadedImageResult {
   revisedPrompt?: string;
 }
 
-interface OpenAIImageToolResultPayload {
+interface ImageToolResultPayload {
   success: boolean;
   mode: ImageToolMode;
   prompt: string;
   images: UploadedImageResult[];
-  parameters: OpenAIImageOptions;
+  parameters: Record<string, unknown>;
 }
 
-export interface OpenAIImageToolDependencies {
-  getConfig?: () => ImageGenerationConfig;
-  generateImages?: typeof generateOpenAIImages;
-  editImages?: typeof editOpenAIImages;
+export interface ImageToolDependencies {
+  getConfig?: () => ImageProviderConfig | null;
   uploadImage?: (file: File) => Promise<string | null>;
   resolveImageInputFile?: typeof resolveImageInputFile;
 }
@@ -68,24 +67,22 @@ const optionSchema = {
   },
 } satisfies Record<string, ToolParameterSchema>;
 
-const getImageGenerationConfig = (): ImageGenerationConfig => {
-  const setting = useSettingStore.getState().setting;
-  return setting.imageGeneration;
-};
-
 const uploadImageResource = async (file: File) => {
   const { uploadResource } = await import("@/hooks/useUploadResource");
   return uploadResource(file);
 };
 
-export const getOpenAIImageToolsEnabled = (
-  config: Partial<ImageGenerationConfig> | null | undefined,
-) => isImageGenerationConfigValid(config);
+export const getImageToolsEnabled = (state?: ImageGenerationStoreShape) => {
+  const config = state
+    ? resolveImageGenerationSetting({ imageGeneration: state })
+    : getActiveImageGenerationConfig();
+  return isProviderConfigValid(config);
+};
 
-const pickImageOptions = (
+const pickOptions = (
   args: Record<string, unknown>,
-): OpenAIImageOptions => {
-  const options: OpenAIImageOptions = {};
+): Record<string, unknown> => {
+  const options: Record<string, unknown> = {};
   if (typeof args.size === "string" && args.size.trim()) {
     options.size = args.size.trim();
   }
@@ -112,8 +109,8 @@ const getPrompt = (args: Record<string, unknown>) => {
   return prompt;
 };
 
-const uploadOpenAIImageResults = async (
-  results: OpenAIImageResult[],
+const uploadImageResults = async (
+  results: ImageResult[],
   uploadImage: (file: File) => Promise<string | null>,
   resolveInputFile: typeof resolveImageInputFile,
 ) => {
@@ -145,7 +142,7 @@ const uploadOpenAIImageResults = async (
   return uploaded;
 };
 
-const buildToolResult = (payload: OpenAIImageToolResultPayload) => ({
+const buildToolResult = (payload: ImageToolResultPayload) => ({
   content: JSON.stringify(payload, null, 2),
   metadata: {
     render: {
@@ -155,12 +152,10 @@ const buildToolResult = (payload: OpenAIImageToolResultPayload) => ({
   },
 });
 
-export const createOpenAIImageToolDefinitions = (
-  dependencies: OpenAIImageToolDependencies = {},
+export const createImageToolDefinitions = (
+  dependencies: ImageToolDependencies = {},
 ): ToolDefinition[] => {
-  const getConfig = dependencies.getConfig ?? getImageGenerationConfig;
-  const generateImages = dependencies.generateImages ?? generateOpenAIImages;
-  const editImages = dependencies.editImages ?? editOpenAIImages;
+  const getConfig = dependencies.getConfig ?? getActiveImageGenerationConfig;
   const uploadImage = dependencies.uploadImage ?? uploadImageResource;
   const resolveInputFile =
     dependencies.resolveImageInputFile ?? resolveImageInputFile;
@@ -184,7 +179,7 @@ export const createOpenAIImageToolDefinitions = (
       },
       executor: async (args, context) => {
         const config = getConfig();
-        if (!getOpenAIImageToolsEnabled(config)) {
+        if (!config || !isProviderConfigValid(config)) {
           return {
             content:
               "图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称，并在 MCP 管理中心启用图片生成工具。",
@@ -192,14 +187,15 @@ export const createOpenAIImageToolDefinitions = (
           };
         }
         const prompt = getPrompt(args);
-        const parameters = pickImageOptions(args);
-        const results = await generateImages({
+        const parameters = pickOptions(args);
+        const provider = createProviderFromConfig(config);
+        const results = await provider.generate({
           config,
           prompt,
           options: parameters,
           signal: context?.signal,
         });
-        const images = await uploadOpenAIImageResults(
+        const images = await uploadImageResults(
           results,
           uploadImage,
           resolveInputFile,
@@ -237,7 +233,7 @@ export const createOpenAIImageToolDefinitions = (
       },
       executor: async (args, context) => {
         const config = getConfig();
-        if (!getOpenAIImageToolsEnabled(config)) {
+        if (!config || !isProviderConfigValid(config)) {
           return {
             content:
               "图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称，并在 MCP 管理中心启用图片生成工具。",
@@ -253,18 +249,19 @@ export const createOpenAIImageToolDefinitions = (
         if (imagePaths.length === 0) {
           throw new Error("image_paths 至少需要包含一张图片");
         }
-        const parameters = pickImageOptions(args);
+        const parameters = pickOptions(args);
         const imageFiles = await Promise.all(
           imagePaths.map((path) => resolveInputFile(path)),
         );
-        const results = await editImages({
+        const provider = createProviderFromConfig(config);
+        const results = await provider.edit({
           config,
           prompt,
           imageFiles,
           options: parameters,
           signal: context?.signal,
         });
-        const images = await uploadOpenAIImageResults(
+        const images = await uploadImageResults(
           results,
           uploadImage,
           resolveInputFile,
@@ -281,6 +278,9 @@ export const createOpenAIImageToolDefinitions = (
   ];
 };
 
-export const resolveImageGenerationSetting = (
-  setting: ISetting,
-): ImageGenerationConfig => setting.imageGeneration;
+export const resolveImageGenerationSetting = (setting: {
+  imageGeneration: ImageGenerationStoreShape;
+}): ImageProviderConfig | null => {
+  const { currentProviderId, providers } = setting.imageGeneration;
+  return providers.find((p) => p.id === currentProviderId) ?? null;
+};
