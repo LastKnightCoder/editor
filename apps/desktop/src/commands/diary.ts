@@ -69,11 +69,15 @@ export const getDiaryEntriesByType = async (
 export const getDiaryEntriesByDateRange = async (
   startDate: string,
   endDate: string,
+  diaryType?: DiaryType,
 ): Promise<DiaryEntry[]> => {
+  // 显式透传 diaryType：后端 IPC 调用 handler 时会在末尾追加 win 对象，
+  // 若省略可选参数，win 会顶替 diaryType 的位置导致查询失效
   const results = await invoke(
     "get-diary-entries-by-date-range",
     startDate,
     endDate,
+    diaryType,
   );
   return results.map(deserializeDiaryEntry);
 };
