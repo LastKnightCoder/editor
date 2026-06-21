@@ -137,27 +137,15 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
             console.error("Failed to get document:", error);
             openInNewTab(TabType.DocumentList);
           }
-        } else if (
-          type === "diary-daily" ||
-          type === "diary-weekly" ||
-          type === "diary-monthly"
-        ) {
-          const viewModeMap: Record<string, "daily" | "weekly" | "monthly"> = {
-            "diary-daily": "daily",
-            "diary-weekly": "weekly",
-            "diary-monthly": "monthly",
-          };
+        } else if (type === "diary-daily") {
           try {
             const entry = await getDiaryEntryById(id);
             openInNewTab(TabType.DailyNote, {
-              viewMode: viewModeMap[type],
               date: entry.date,
             });
           } catch (error) {
             console.error("Failed to get diary entry:", error);
-            openInNewTab(TabType.DailyNote, {
-              viewMode: viewModeMap[type],
-            });
+            openInNewTab(TabType.DailyNote);
           }
         }
       },

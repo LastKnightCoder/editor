@@ -226,8 +226,6 @@ const ReferenceEditor = ({
           "document-item",
           "project-item",
           "diary-daily",
-          "diary-weekly",
-          "diary-monthly",
         ]}
         extensions={extensions}
         emptyDescription="无可用内容"

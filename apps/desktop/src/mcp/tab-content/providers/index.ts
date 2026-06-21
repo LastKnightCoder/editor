@@ -31,7 +31,6 @@ import { QuestionsProvider } from "./questions-provider";
 import { PomodoroProvider } from "./pomodoro-provider";
 import { WeReadProvider } from "./weread-provider";
 import { FlashcardCenterProvider } from "./flashcard-center-provider";
-import { DataViewProvider } from "./data-view-provider";
 
 /**
  * 初始化并注册所有 Tab 内容提供者
@@ -56,7 +55,7 @@ export function initializeTabContentProviders(): void {
     new WebViewProvider(),
     new BlockPreviewProvider(),
 
-    // 功能页面类 (15个)
+    // 功能页面类
     new HomeProvider(),
     new DailyNoteProvider(),
     new VecDocumentProvider(),
@@ -69,7 +68,6 @@ export function initializeTabContentProviders(): void {
     new PomodoroProvider(),
     new WeReadProvider(),
     new FlashcardCenterProvider(),
-    new DataViewProvider(),
   ]);
 
   console.log(`Registered ${tabContentRegistry.size} tab content providers`);

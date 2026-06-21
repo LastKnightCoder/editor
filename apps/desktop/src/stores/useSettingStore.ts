@@ -70,7 +70,6 @@ export const DEFAULT_MODULE_ORDER = [
   "feed",
   "weread",
   "webview",
-  "dataView",
   "settings",
 ];
 
@@ -364,10 +363,6 @@ export interface ISetting {
     webview: {
       enable: boolean;
       name: "网页浏览";
-    };
-    dataView: {
-      enable: boolean;
-      name: "数据";
     };
     settings: {
       enable: boolean;
@@ -881,10 +876,6 @@ const initialState: IState = {
       webview: {
         enable: true,
         name: "网页浏览",
-      },
-      dataView: {
-        enable: true,
-        name: "数据",
       },
       pomodoro: {
         enable: true,

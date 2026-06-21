@@ -7,7 +7,6 @@ import {
   ChevronDown,
   Component,
   Loader2,
-  RefreshCcw,
   Sparkles,
   SquarePen,
   Trash2,
@@ -16,6 +15,9 @@ import { useShallow } from "zustand/react/shallow";
 import type { Descendant } from "slate";
 
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
+import FlashcardReviewDeckList, {
+  slateToPlainText,
+} from "@/components/FlashcardReviewDeckList";
 import CardPreview from "@/pages/card-list-view/CardPreview";
 import ReviewModal from "@/pages/FlashcardCenter/ReviewModal";
 import QuestionItem from "@/pages/QuestionWindow/components/QuestionItem";
@@ -58,16 +60,6 @@ const ONE_MONTH = 30 * 24 * 60 * 60 * 1000;
 const DEFAULT_CONTENT: Descendant[] = [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] },
 ];
-
-const slateToText = (nodes?: Descendant[] | null): string => {
-  if (!nodes) return "";
-  const read = (node: any): string => {
-    if (typeof node.text === "string") return node.text;
-    if (Array.isArray(node.children)) return node.children.map(read).join("");
-    return "";
-  };
-  return nodes.map(read).join(" ").replace(/\s+/g, " ").trim();
-};
 
 const formatRemaining = (remainingMs: number) => {
   if (remainingMs <= 0) return "已过期";
@@ -383,30 +375,6 @@ const RightComponentsSidebar = memo(
       () => reviewModalQueue[0]?.deckId ?? null,
       [reviewModalQueue],
     );
-    const reviewDeckSummaries = useMemo(() => {
-      const deckNameMap = new Map(
-        flashcardDecks.map((deck) => [deck.id, deck.name]),
-      );
-      const grouped = new Map<
-        number,
-        { deckId: number; deckName: string; cards: Flashcard[] }
-      >();
-      workbenchReviewQueue.forEach((card) => {
-        const current = grouped.get(card.deckId);
-        if (current) {
-          current.cards.push(card);
-          return;
-        }
-        grouped.set(card.deckId, {
-          deckId: card.deckId,
-          deckName: deckNameMap.get(card.deckId) ?? `卡组 #${card.deckId}`,
-          cards: [card],
-        });
-      });
-      return Array.from(grouped.values()).sort(
-        (left, right) => right.cards.length - left.cards.length,
-      );
-    }, [flashcardDecks, workbenchReviewQueue]);
     const questionItems = useMemo(
       () => data.questions.data?.items ?? [],
       [data.questions.data?.items],
@@ -736,7 +704,7 @@ const RightComponentsSidebar = memo(
                           ),
                         );
                         const title =
-                          slateToText(card.content) || `卡片 #${card.id}`;
+                          slateToPlainText(card.content) || `卡片 #${card.id}`;
                         return (
                           <div
                             key={card.id}
@@ -812,85 +780,20 @@ const RightComponentsSidebar = memo(
                   )}
                 </Section>
 
-                <Section
-                  title="闪卡复习"
-                  count={dueFlashcards}
-                  action={
-                    <button
-                      type="button"
-                      className={iconButtonClass}
-                      onClick={async () => {
-                        const queue = await refreshWorkbenchReviewQueue();
-                        if (queue.length === 0) {
-                          window.alert("当前没有需要复习的闪卡");
-                          return;
-                        }
-                      }}
-                    >
-                      {loadingReview ? (
-                        <Loader2 size={14} className="animate-spin" />
-                      ) : (
-                        <RefreshCcw size={14} />
-                      )}
-                    </button>
-                  }
-                >
-                  <div className="rounded-xl border border-slate-900/10 bg-white/70 p-3 dark:border-white/10 dark:bg-zinc-950/35">
-                    <div className="space-y-3">
-                      <div>
-                        <div className="text-xs font-medium text-slate-900 dark:text-slate-100">
-                          {dueFlashcards > 0
-                            ? `${dueFlashcards} 张待复习，来自 ${reviewDeckSummaries.length} 个卡组`
-                            : "暂无待复习"}
-                        </div>
-                        <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                          {workbenchReviewQueue[0]
-                            ? `下一张：${slateToText(workbenchReviewQueue[0].prompt) || `#${workbenchReviewQueue[0].id}`}`
-                            : "点击刷新检查复习队列"}
-                        </div>
-                        {reviewDeckSummaries.length > 0 && (
-                          <div className="mt-2 space-y-1.5">
-                            {reviewDeckSummaries.slice(0, 4).map((deck) => (
-                              <div
-                                key={deck.deckId}
-                                className="flex min-w-0 items-center justify-between gap-2 rounded-lg bg-slate-900/4 px-2 py-1.5 dark:bg-white/6"
-                              >
-                                <div className="min-w-0">
-                                  <div className="truncate text-[11px] font-medium text-slate-700 dark:text-slate-200">
-                                    {deck.deckName}
-                                  </div>
-                                  <div className="truncate text-[10px] text-slate-500 dark:text-slate-400">
-                                    {slateToText(deck.cards[0]?.prompt) ||
-                                      `#${deck.cards[0]?.id}`}
-                                  </div>
-                                </div>
-                                <div className="flex shrink-0 items-center gap-1.5">
-                                  <span className="rounded-md bg-teal-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-teal-700 dark:text-teal-300">
-                                    {deck.cards.length}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    className="h-6 rounded-md bg-teal-600 px-2 text-[11px] font-semibold text-white transition hover:bg-teal-500 disabled:opacity-50"
-                                    disabled={loadingReview}
-                                    onClick={() =>
-                                      handleStartDeckReview(deck.deckId)
-                                    }
-                                  >
-                                    复习
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                            {reviewDeckSummaries.length > 4 && (
-                              <div className="px-2 text-[10px] text-slate-500 dark:text-slate-400">
-                                还有 {reviewDeckSummaries.length - 4} 个卡组
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                <Section title="闪卡复习" count={dueFlashcards}>
+                  <FlashcardReviewDeckList
+                    reviewQueue={workbenchReviewQueue}
+                    decks={flashcardDecks}
+                    loading={loadingReview}
+                    maxDecks={4}
+                    onRefresh={async () => {
+                      const queue = await refreshWorkbenchReviewQueue();
+                      if (queue.length === 0) {
+                        window.alert("当前没有需要复习的闪卡");
+                      }
+                    }}
+                    onStartDeckReview={handleStartDeckReview}
+                  />
                 </Section>
 
                 <Section title="TODO" count={pendingTodos}>
@@ -1233,8 +1136,6 @@ const RightComponentsSidebar = memo(
             "project-item",
             "document-item",
             "diary-daily",
-            "diary-weekly",
-            "diary-monthly",
           ]}
           extensions={dynamicExtensions}
         />

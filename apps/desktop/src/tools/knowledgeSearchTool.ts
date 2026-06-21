@@ -13,8 +13,6 @@ const VALID_TYPES: IndexType[] = [
   "project-item",
   "document-item",
   "diary-daily",
-  "diary-weekly",
-  "diary-monthly",
 ];
 
 export const createKnowledgeSearchTool = (): ToolDefinition => ({
@@ -44,12 +42,10 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
             "project-item",
             "document-item",
             "diary-daily",
-            "diary-weekly",
-            "diary-monthly",
           ],
         },
         description:
-          "可选，限定搜索的内容类型。不传则搜索所有类型。可选值：card（卡片）、article（文章）、project-item（项目条目）、document-item（文档条目）、diary-daily（日记）、diary-weekly（周记）、diary-monthly（月记）",
+          "可选，限定搜索的内容类型。不传则搜索所有类型。可选值：card（卡片）、article（文章）、project-item（项目条目）、document-item（文档条目）、diary-daily（日记）",
       },
       limit: {
         type: "number",

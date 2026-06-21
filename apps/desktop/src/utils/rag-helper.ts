@@ -27,8 +27,6 @@ export function getTypeDisplayName(type: string): string {
     "project-item": "项目条目",
     "document-item": "文档条目",
     "diary-daily": "日记",
-    "diary-weekly": "周记",
-    "diary-monthly": "月记",
   };
   return typeMap[type] || type;
 }

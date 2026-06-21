@@ -1,0 +1,344 @@
+import { act } from "react";
+import type { ReactNode } from "react";
+import { createRoot } from "react-dom/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import useHomeData, { type HomeData } from "../useHomeData";
+
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
+
+vi.mock("@/commands/components-workbench", () => ({
+  listTodoPreview: vi.fn(),
+  listQuestionPreview: vi.fn(),
+}));
+
+vi.mock("@/commands/flashcard", () => ({
+  getFlashcardReviewQueue: vi.fn(),
+  listFlashcardDecks: vi.fn(),
+}));
+
+vi.mock("@/commands/pomodoro", () => ({
+  summaryPomodoroToday: vi.fn(),
+  getActivePomodoroSession: vi.fn(),
+  listPomodoroPresets: vi.fn(),
+  listPomodoroSessions: vi.fn(),
+}));
+
+vi.mock("@/commands/rss", () => ({
+  countUnreadRssEntries: vi.fn(),
+  listUnreadRssEntries: vi.fn(),
+  listRssFeeds: vi.fn(),
+}));
+
+vi.mock("@/commands/operation", () => ({
+  getLatestOperations: vi.fn(),
+}));
+
+vi.mock("@/commands/statistic", () => ({
+  getCalendarHeatmap: vi.fn(),
+  getAllStatistic: vi.fn(),
+}));
+
+vi.mock("@/commands/diary", () => ({
+  createDiaryEntry: vi.fn(),
+  getDiaryEntriesByDateRange: vi.fn(),
+  getDiaryEntryByDate: vi.fn(),
+  createDiarySegment: vi.fn(),
+  updateDiarySegment: vi.fn(),
+  deleteDiarySegment: vi.fn(),
+  updateDiaryEntry: vi.fn(),
+  getAllDiarySegmentsFlat: vi.fn(),
+  getAllDiaryTagSettings: vi.fn(),
+  upsertDiaryTagSetting: vi.fn(),
+  deleteDiaryTagSetting: vi.fn(),
+}));
+
+const workbenchCommands = await import("@/commands/components-workbench");
+const flashcardCommands = await import("@/commands/flashcard");
+const pomodoroCommands = await import("@/commands/pomodoro");
+const rssCommands = await import("@/commands/rss");
+const operationCommands = await import("@/commands/operation");
+const statisticCommands = await import("@/commands/statistic");
+const diaryCommands = await import("@/commands/diary");
+
+type HookValue = ReturnType<typeof useHomeData>;
+
+const createQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 5 * 60 * 1000,
+        gcTime: 30 * 60 * 1000,
+        refetchOnWindowFocus: false,
+        retry: false,
+      },
+    },
+  });
+
+const flushPromises = async () => {
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(0);
+  });
+};
+
+const mountHook = (queryClient: QueryClient) => {
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  let current: HookValue | null = null;
+
+  const Harness = () => {
+    current = useHomeData();
+    return null;
+  };
+
+  const render = async (node: ReactNode) => {
+    await act(async () => {
+      root.render(node);
+    });
+  };
+
+  return {
+    get current() {
+      if (!current) {
+        throw new Error("Hook has not rendered yet");
+      }
+      return current;
+    },
+    render: () =>
+      render(
+        <QueryClientProvider client={queryClient}>
+          <Harness />
+        </QueryClientProvider>,
+      ),
+    unmount: async () => {
+      await act(async () => {
+        root.unmount();
+      });
+      container.remove();
+    },
+  };
+};
+
+const setupSuccessfulCommands = () => {
+  vi.mocked(workbenchCommands.listTodoPreview).mockResolvedValue({
+    pendingTotal: 2,
+    overdueTotal: 1,
+    total: 2,
+    nextCursor: null,
+    items: [{ id: 1, content: "todo" }] as any,
+    groups: [{ groupId: 1, name: "待办", count: 2 }] as any,
+  });
+  vi.mocked(workbenchCommands.listQuestionPreview).mockResolvedValue({
+    total: 1,
+    nextCursor: null,
+    notStartedTotal: 1,
+    inProgressTotal: 0,
+    items: [{ id: 1, title: "question" }] as any,
+    groups: [{ status: "not_started", count: 1 }] as any,
+  });
+  vi.mocked(flashcardCommands.getFlashcardReviewQueue).mockResolvedValue([
+    { id: 1, deckId: 1 } as any,
+  ]);
+  vi.mocked(flashcardCommands.listFlashcardDecks).mockResolvedValue([
+    { id: 1, name: "deck", stats: { dueCount: 3 } } as any,
+  ]);
+  vi.mocked(pomodoroCommands.summaryPomodoroToday).mockResolvedValue({
+    count: 1,
+    focusMs: 60_000,
+  });
+  vi.mocked(pomodoroCommands.getActivePomodoroSession).mockResolvedValue(null);
+  vi.mocked(pomodoroCommands.listPomodoroPresets).mockResolvedValue([
+    { id: 1, name: "专注" } as any,
+  ]);
+  vi.mocked(pomodoroCommands.listPomodoroSessions).mockResolvedValue([]);
+  vi.mocked(rssCommands.countUnreadRssEntries).mockResolvedValue(4);
+  vi.mocked(rssCommands.listUnreadRssEntries).mockResolvedValue([
+    { id: 1, title: "rss" } as any,
+  ]);
+  vi.mocked(rssCommands.listRssFeeds).mockResolvedValue([
+    { id: 1, title: "feed" } as any,
+  ]);
+  vi.mocked(operationCommands.getLatestOperations).mockResolvedValue({
+    cards: [{ id: 1 }] as any,
+    articles: [],
+    projectItems: [],
+    documentItems: [],
+  });
+  vi.mocked(statisticCommands.getCalendarHeatmap).mockResolvedValue([
+    { time: "2026-06-21", operation_list: [{ id: 1 }] } as any,
+  ]);
+  vi.mocked(statisticCommands.getAllStatistic).mockResolvedValue([]);
+  vi.mocked(diaryCommands.getDiaryEntriesByDateRange).mockResolvedValue([]);
+  vi.mocked(diaryCommands.getAllDiarySegmentsFlat).mockResolvedValue([]);
+  vi.mocked(diaryCommands.getAllDiaryTagSettings).mockResolvedValue([]);
+};
+
+const waitForLoaded = async (hook: { current: HookValue }) => {
+  for (let index = 0; index < 10; index += 1) {
+    await flushPromises();
+    if (!hook.current.data.loading) {
+      return;
+    }
+  }
+  throw new Error(
+    `Home data did not finish loading: ${JSON.stringify({
+      loading: hook.current.data.loading,
+      pendingTodos: hook.current.data.summary.pendingTodos,
+      todoCalls: vi.mocked(workbenchCommands.listTodoPreview).mock.calls.length,
+      rssError: hook.current.data.errors.rss?.message,
+    })}`,
+  );
+};
+
+describe("useHomeData", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-21T08:00:00.000Z"));
+    setupSuccessfulCommands();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    document.body.innerHTML = "";
+  });
+
+  it("首次没有缓存时显示首屏 loading，并加载首页数据", async () => {
+    const queryClient = createQueryClient();
+    const hook = mountHook(queryClient);
+
+    await hook.render();
+
+    expect(hook.current.data.loading).toBe(true);
+
+    await waitForLoaded(hook);
+
+    expect(hook.current.data.loading).toBe(false);
+    expect(hook.current.data.summary.pendingTodos).toBe(2);
+    expect(hook.current.data.summary.flashcardsDue).toBe(3);
+    expect(hook.current.data.summary.rssUnread).toBe(4);
+
+    await hook.unmount();
+  });
+
+  it("5 分钟内重新挂载时立即显示缓存数据，不出现整页 loading", async () => {
+    const queryClient = createQueryClient();
+    const firstHook = mountHook(queryClient);
+
+    await firstHook.render();
+    await waitForLoaded(firstHook);
+    await firstHook.unmount();
+
+    const secondHook = mountHook(queryClient);
+    await secondHook.render();
+
+    expect(secondHook.current.data.loading).toBe(false);
+    expect(secondHook.current.data.summary.pendingTodos).toBe(2);
+    expect(workbenchCommands.listTodoPreview).toHaveBeenCalledTimes(1);
+
+    await secondHook.unmount();
+  });
+
+  it("缓存 stale 后重新挂载时先显示旧数据，同时后台刷新", async () => {
+    const queryClient = createQueryClient();
+    const firstHook = mountHook(queryClient);
+
+    await firstHook.render();
+    await waitForLoaded(firstHook);
+    await firstHook.unmount();
+
+    vi.mocked(workbenchCommands.listTodoPreview).mockResolvedValue({
+      pendingTotal: 9,
+      overdueTotal: 0,
+      total: 9,
+      nextCursor: null,
+      items: [] as any,
+      groups: [] as any,
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(5 * 60 * 1000 + 1);
+    });
+
+    const secondHook = mountHook(queryClient);
+    await secondHook.render();
+
+    expect(secondHook.current.data.loading).toBe(false);
+    expect(secondHook.current.data.summary.pendingTodos).toBe(2);
+
+    await waitForLoaded(secondHook);
+
+    expect(secondHook.current.data.summary.pendingTodos).toBe(9);
+    expect(workbenchCommands.listTodoPreview).toHaveBeenCalledTimes(2);
+
+    await secondHook.unmount();
+  });
+
+  it("局部刷新 RSS 时只刷新 RSS query", async () => {
+    const queryClient = createQueryClient();
+    const hook = mountHook(queryClient);
+
+    await hook.render();
+    await waitForLoaded(hook);
+
+    vi.mocked(rssCommands.countUnreadRssEntries).mockResolvedValue(7);
+
+    await act(async () => {
+      await hook.current.refreshRss();
+    });
+    await flushPromises();
+
+    expect(hook.current.data.summary.rssUnread).toBe(7);
+    expect(rssCommands.countUnreadRssEntries).toHaveBeenCalledTimes(2);
+    expect(workbenchCommands.listTodoPreview).toHaveBeenCalledTimes(1);
+    expect(flashcardCommands.getFlashcardReviewQueue).toHaveBeenCalledTimes(1);
+
+    await hook.unmount();
+  });
+
+  it("局部刷新闪卡时只刷新 flashcard query", async () => {
+    const queryClient = createQueryClient();
+    const hook = mountHook(queryClient);
+
+    await hook.render();
+    await waitForLoaded(hook);
+
+    vi.mocked(flashcardCommands.listFlashcardDecks).mockResolvedValue([
+      { id: 1, name: "deck", stats: { dueCount: 8 } } as any,
+    ]);
+
+    await act(async () => {
+      await hook.current.refreshFlashcards();
+    });
+    await flushPromises();
+
+    expect(hook.current.data.summary.flashcardsDue).toBe(8);
+    expect(flashcardCommands.getFlashcardReviewQueue).toHaveBeenCalledTimes(2);
+    expect(workbenchCommands.listTodoPreview).toHaveBeenCalledTimes(1);
+    expect(rssCommands.countUnreadRssEntries).toHaveBeenCalledTimes(1);
+
+    await hook.unmount();
+  });
+
+  it("某个 query 失败时保留其他分组数据并暴露错误", async () => {
+    vi.mocked(rssCommands.countUnreadRssEntries).mockRejectedValue(
+      new Error("rss failed"),
+    );
+    const queryClient = createQueryClient();
+    const hook = mountHook(queryClient);
+
+    await hook.render();
+    await waitForLoaded(hook);
+
+    const data: HomeData = hook.current.data;
+    expect(data.summary.pendingTodos).toBe(2);
+    expect(data.summary.flashcardsDue).toBe(3);
+    expect(data.errors.rss?.message).toBe("rss failed");
+
+    await hook.unmount();
+  });
+});

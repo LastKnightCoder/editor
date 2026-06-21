@@ -117,19 +117,9 @@ const Search = memo(() => {
         console.error("Failed to get document:", error);
         openInNewTab(TabType.DocumentList);
       }
-    } else if (
-      result.type === "diary-daily" ||
-      result.type === "diary-weekly" ||
-      result.type === "diary-monthly"
-    ) {
-      // 打开日记页面，并定位到对应的视图类型和日期
-      const viewModeMap: Record<string, "daily" | "weekly" | "monthly"> = {
-        "diary-daily": "daily",
-        "diary-weekly": "weekly",
-        "diary-monthly": "monthly",
-      };
+    } else if (result.type === "diary-daily") {
       openInNewTab(TabType.DailyNote, {
-        viewMode: viewModeMap[result.type],
+        id: result.id,
         date: result.date,
       });
     }
@@ -148,10 +138,6 @@ const Search = memo(() => {
         return "知识库";
       case "diary-daily":
         return "日记";
-      case "diary-weekly":
-        return "周记";
-      case "diary-monthly":
-        return "月记";
       default:
         return refType;
     }
@@ -170,10 +156,6 @@ const Search = memo(() => {
         return "orange";
       case "diary-daily":
         return "purple";
-      case "diary-weekly":
-        return "cyan";
-      case "diary-monthly":
-        return "magenta";
       default:
         return "default";
     }

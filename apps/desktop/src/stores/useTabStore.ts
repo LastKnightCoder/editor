@@ -157,7 +157,7 @@ const initialState: IState = {
 
 initialState.activePaneId = initialState.panes[0].id;
 
-const TAB_STORE_VERSION = 4;
+const TAB_STORE_VERSION = 5;
 
 const createHomeTab = (): ITab<TabType.Home> => ({
   id: uuidv4(),
@@ -191,6 +191,14 @@ const migrateTabStoreState = (persistedState: unknown): IState => {
       })
       .map((tab) => {
         const type = tab.type as string;
+        if (type === "dataView") {
+          return {
+            ...tab,
+            type: TabType.Home,
+            params: undefined,
+            title: TAB_TITLES[TabType.Home],
+          };
+        }
         if (type === "rssSubscription" || type === "readLater") {
           return {
             ...tab,

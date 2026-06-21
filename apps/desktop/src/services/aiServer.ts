@@ -711,24 +711,14 @@ const handleTabOpen = async (request: RpcRequestMessage) => {
         }
         break;
       }
-      case "diary-daily":
-      case "diary-weekly":
-      case "diary-monthly": {
-        const viewModeMap: Record<string, "daily" | "weekly" | "monthly"> = {
-          "diary-daily": "daily",
-          "diary-weekly": "weekly",
-          "diary-monthly": "monthly",
-        };
+      case "diary-daily": {
         try {
           const entry = await getDiaryEntryById(id);
           openInNewTab(TabType.DailyNote, {
-            viewMode: viewModeMap[type],
             date: entry.date,
           });
         } catch {
-          openInNewTab(TabType.DailyNote, {
-            viewMode: viewModeMap[type],
-          });
+          openInNewTab(TabType.DailyNote);
         }
         break;
       }

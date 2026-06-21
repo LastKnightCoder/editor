@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import type { Descendant } from "slate";
 import Operation from "./operation";
 import ContentTable from "./content";
 import { getContentLength } from "@/utils/helper.ts";
@@ -6,96 +7,430 @@ import { getMarkdown } from "@/utils/markdown.ts";
 import log from "electron-log";
 import { BrowserWindow } from "electron";
 
+// weather/mood 反序列化后的结构（与前端 WeatherMood 对齐）
+interface WeatherMoodValue {
+  type: "emoji" | "image";
+  value: string;
+}
+
+// diary_entries 表的 DB 行结构
+interface RawDiaryEntryRow {
+  id: number;
+  type: "daily" | "weekly" | "monthly";
+  date: string;
+  content_id: number | null;
+  weather: string | null;
+  mood: string | null;
+  tags: string | null; // JSON 数组字符串，如 ["日常","反思"]
+  word_count: number;
+  create_time: number;
+  update_time: number;
+}
+
+// diary_segments JOIN contents 后的 DB 行结构
+interface RawDiarySegmentRow {
+  id: number;
+  diary_id: number;
+  content_id: number;
+  content: string | null;
+  word_count: number | null;
+  create_time: number;
+  update_time: number;
+}
+
+interface LegacyDailyNoteRow {
+  id: number;
+  date: string;
+  content_id: number | null;
+  content_create_time: number | null;
+  content_update_time: number | null;
+  word_count: number | null;
+}
+
+export interface DiarySegment {
+  id: number;
+  diaryId: number;
+  contentId: number;
+  wordCount: number;
+  createTime: number;
+  updateTime: number;
+  content?: Descendant[];
+}
+
 export interface DiaryEntry {
   id: number;
   type: "daily" | "weekly" | "monthly";
   date: string; // YYYY-MM-DD for daily, YYYY-Www for weekly, YYYY-MM for monthly
-  contentId: number;
+  contentId: number | null; // Legacy, deprecated: kept for migration compatibility
   weather: string | null; // JSON string: {type: 'emoji', value: '☀️'}
   mood: string | null; // JSON string: {type: 'emoji', value: '😊'}
+  tags: string; // JSON string: ["日常","反思"]
   wordCount: number;
   createTime: number;
   updateTime: number;
-  content?: any[]; // Loaded from content table
+  segments: DiarySegment[];
+  content?: Descendant[]; // Concatenation of all segments' content (for markdown export etc.)
+}
+
+// 朋友圈流用的扁平 segment 项：一个 segment + 父 entry 摘要
+export interface DiarySegmentItem {
+  id: number;
+  diaryId: number;
+  contentId: number;
+  wordCount: number;
+  createTime: number;
+  updateTime: number;
+  content?: Descendant[];
+  entryDate: string;
+  entryDateMs: number;
+  weather: string | null;
+  mood: string | null;
+  tags: string; // JSON string
+}
+
+// 标签设置
+export interface DiaryTagSetting {
+  name: string;
+  color: string;
+  sort: number;
+  createTime: number;
+  updateTime: number;
+}
+
+// createDiaryEntry 的入参：兼容旧 content 单段 + 新 segments 多段
+interface CreateDiaryEntryPayload {
+  type: "daily" | "weekly" | "monthly";
+  date: string;
+  weather: string | null;
+  mood: string | null;
+  tags?: string | null; // JSON string
+  content?: Descendant[];
+  segments?: Descendant[][];
 }
 
 export default class DiaryTable {
   static upgradeTable(db: Database.Database) {
-    // Check if we need to migrate from daily_notes table
-    const tableExists = db
+    this.migrateDiarySegmentsSchema(db);
+    this.migrateDailyNotes(db);
+    this.migrateLegacyEntryContentToSegments(db);
+    this.migrateDiaryTags(db);
+  }
+
+  private static parseEntryDateMs(date: string, fallback: number) {
+    const parsed = Date.parse(`${date}T00:00:00`);
+    return Number.isNaN(parsed) ? fallback : parsed;
+  }
+
+  private static getEntrySortTime(
+    type: "daily" | "weekly" | "monthly" | null,
+    date: string,
+    fallback: number,
+  ) {
+    if (type !== "daily") return fallback;
+    return this.parseEntryDateMs(date, fallback);
+  }
+
+  static getDiarySearchTitle(entry: Pick<DiaryEntry, "type" | "date">) {
+    switch (entry.type) {
+      case "weekly":
+        return `${entry.date} 周记`;
+      case "monthly":
+        return `${entry.date} 月记`;
+      case "daily":
+      default:
+        return `${entry.date} 日记`;
+    }
+  }
+
+  private static tableExists(db: Database.Database, tableName: string) {
+    return Boolean(
+      db
+        .prepare(
+          `SELECT name FROM sqlite_master WHERE type='table' AND name = ?`,
+        )
+        .get(tableName),
+    );
+  }
+
+  private static getTableColumns(db: Database.Database, tableName: string) {
+    return db.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{
+      name: string;
+    }>;
+  }
+
+  private static migrateDiarySegmentsSchema(db: Database.Database) {
+    if (!this.tableExists(db, "diary_segments")) return;
+
+    const columns = this.getTableColumns(db, "diary_segments");
+    const hasPosition = columns.some((col) => col.name === "position");
+    if (!hasPosition) return;
+
+    const migrate = db.transaction(() => {
+      db.prepare(
+        `DROP INDEX IF EXISTS idx_diary_segments_diary_id_position`,
+      ).run();
+      db.prepare(`DROP INDEX IF EXISTS idx_diary_segments_diary_id`).run();
+      db.prepare(`DROP INDEX IF EXISTS idx_diary_segments_create_time`).run();
+      db.prepare(`DROP TABLE IF EXISTS diary_segments_migrated`).run();
+      db.prepare(
+        `
+        CREATE TABLE diary_segments_migrated (
+          id INTEGER PRIMARY KEY NOT NULL,
+          diary_id INTEGER NOT NULL,
+          content_id INTEGER NOT NULL,
+          create_time INTEGER NOT NULL,
+          update_time INTEGER NOT NULL,
+          FOREIGN KEY(diary_id) REFERENCES diary_entries(id) ON DELETE CASCADE,
+          FOREIGN KEY(content_id) REFERENCES contents(id)
+        )
+      `,
+      ).run();
+      db.prepare(
+        `
+        INSERT INTO diary_segments_migrated (id, diary_id, content_id, create_time, update_time)
+        SELECT id, diary_id, content_id, create_time, update_time
+        FROM diary_segments
+      `,
+      ).run();
+      db.prepare(`DROP TABLE diary_segments`).run();
+      db.prepare(
+        `ALTER TABLE diary_segments_migrated RENAME TO diary_segments`,
+      ).run();
+      db.prepare(
+        `CREATE INDEX IF NOT EXISTS idx_diary_segments_diary_id ON diary_segments(diary_id)`,
+      ).run();
+      db.prepare(
+        `CREATE INDEX IF NOT EXISTS idx_diary_segments_create_time ON diary_segments(create_time)`,
+      ).run();
+    });
+
+    migrate();
+    log.info("[diary-segments] Removed legacy position column");
+  }
+
+  // 给 diary_entries 加 tags 列。旧 weekly/monthly 只在首次加列时自动补标签。
+  private static migrateDiaryTags(db: Database.Database) {
+    const columns = this.getTableColumns(db, "diary_entries");
+    const hasTags = columns.some((col) => col.name === "tags");
+    if (!hasTags) {
+      db.prepare(
+        `ALTER TABLE diary_entries ADD COLUMN tags TEXT DEFAULT '[]'`,
+      ).run();
+      log.info("[diary-tags] Added tags column to diary_entries");
+
+      const weeklyResult = db
+        .prepare(
+          `UPDATE diary_entries SET tags = '["周记"]' WHERE type = 'weekly' AND (tags IS NULL OR tags = '[]' OR tags = '')`,
+        )
+        .run();
+      const monthlyResult = db
+        .prepare(
+          `UPDATE diary_entries SET tags = '["月记"]' WHERE type = 'monthly' AND (tags IS NULL OR tags = '[]' OR tags = '')`,
+        )
+        .run();
+      log.info(
+        `[diary-tags] Auto-tagged weekly=${weeklyResult.changes}, monthly=${monthlyResult.changes}`,
+      );
+    }
+
+    const now = Date.now();
+    const upsertTag = db.prepare(`
+      INSERT INTO diary_tag_settings (name, color, sort, create_time, update_time)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(name) DO NOTHING
+    `);
+    upsertTag.run("周记", "#52c41a", 0, now, now);
+    upsertTag.run("月记", "#fa8c16", 1, now, now);
+
+    log.info("[diary-tags] Migration complete");
+  }
+
+  // 一次性从旧 daily_notes 迁移为 daily diary_entries。
+  // date 是业务归属日期；create/update time 继承 contents 时间，保留补写发生时间。
+  private static migrateDailyNotes(db: Database.Database) {
+    if (!this.tableExists(db, "daily_notes")) return;
+
+    const notes = db
       .prepare(
-        `SELECT name FROM sqlite_master WHERE type='table' AND name='daily_notes'`,
-      )
-      .get();
-
-    if (tableExists) {
-      log.info("Migrating data from daily_notes to diary_entries...");
-
-      try {
-        // Check if migration has already been done
-        const existingEntries = db
-          .prepare(
-            `SELECT COUNT(*) as count FROM diary_entries WHERE type='daily'`,
+        `
+        SELECT d.id, d.date, d.content_id,
+               c.create_time as content_create_time,
+               c.update_time as content_update_time,
+               c.count as word_count
+        FROM daily_notes d
+        LEFT JOIN contents c ON d.content_id = c.id
+        WHERE d.content_id IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM diary_entries e
+            WHERE e.type = 'daily' AND e.content_id = d.content_id
           )
-          .get() as { count: number };
+          AND NOT EXISTS (
+            SELECT 1
+            FROM diary_segments s
+            JOIN diary_entries e ON e.id = s.diary_id
+            WHERE e.type = 'daily' AND s.content_id = d.content_id
+          )
+        ORDER BY d.date ASC, COALESCE(c.create_time, d.id) ASC, d.id ASC
+      `,
+      )
+      .all() as LegacyDailyNoteRow[];
 
-        const oldNotes = db
-          .prepare(`SELECT COUNT(*) as count FROM daily_notes`)
-          .get() as { count: number };
+    if (notes.length === 0) return;
+    log.info(`[diary-migrate] Migrating ${notes.length} daily_notes`);
 
-        if (existingEntries.count === 0 && oldNotes.count > 0) {
-          // Migrate data
-          const notes = db
-            .prepare(`SELECT id, date, content_id FROM daily_notes ORDER BY id`)
-            .all();
+    const getDailyEntryByDate = db.prepare(`
+      SELECT id, update_time FROM diary_entries WHERE type = 'daily' AND date = ?
+    `);
+    const hasMigratedContent = db.prepare(`
+      SELECT 1
+      FROM diary_entries e
+      WHERE e.type = 'daily' AND e.content_id = ?
+      UNION
+      SELECT 1
+      FROM diary_segments s
+      JOIN diary_entries e ON e.id = s.diary_id
+      WHERE e.type = 'daily' AND s.content_id = ?
+      LIMIT 1
+    `);
+    const insertEntry = db.prepare(`
+      INSERT INTO diary_entries (type, date, content_id, weather, mood, word_count, create_time, update_time)
+      VALUES ('daily', ?, NULL, NULL, NULL, 0, ?, ?)
+    `);
+    const insertSegment = db.prepare(`
+      INSERT INTO diary_segments (diary_id, content_id, create_time, update_time)
+      VALUES (?, ?, ?, ?)
+    `);
+    const touchEntry = db.prepare(`
+      UPDATE diary_entries SET update_time = MAX(update_time, ?) WHERE id = ?
+    `);
+    const updateContentCount = db.prepare(`
+      UPDATE contents SET count = ? WHERE id = ?
+    `);
 
-          const insertStmt = db.prepare(`
-            INSERT INTO diary_entries (type, date, content_id, weather, mood, word_count, create_time, update_time)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-          `);
+    const now = Date.now();
 
-          const now = Date.now();
+    const migrate = db.transaction((pendingNotes: LegacyDailyNoteRow[]) => {
+      const touchedEntryIds = new Set<number>();
 
-          for (const note of notes as any[]) {
-            // Get content to calculate word count
-            let wordCount = 0;
-            if (note.content_id) {
-              const content = db
-                .prepare(`SELECT content FROM contents WHERE id = ?`)
-                .get(note.content_id) as { content: string } | undefined;
+      for (const note of pendingNotes) {
+        if (!note.content_id) continue;
+        if (hasMigratedContent.get(note.content_id, note.content_id)) continue;
 
-              if (content && content.content) {
-                try {
-                  const contentArray = JSON.parse(content.content);
-                  wordCount = getContentLength(contentArray);
-                } catch (e) {
-                  log.error("Error parsing content for word count:", e);
-                }
-              }
+        const createTime = note.content_create_time ?? now;
+        const updateTime =
+          note.content_update_time ?? note.content_create_time ?? now;
+        let wordCount = note.word_count ?? 0;
+        if (wordCount === 0 && note.content_id) {
+          const content = db
+            .prepare(`SELECT content FROM contents WHERE id = ?`)
+            .get(note.content_id) as { content: string } | undefined;
+
+          if (content?.content) {
+            try {
+              wordCount = getContentLength(JSON.parse(content.content));
+              updateContentCount.run(wordCount, note.content_id);
+            } catch (e) {
+              log.error("Error parsing content for word count:", e);
             }
-
-            insertStmt.run(
-              "daily",
-              note.date,
-              note.content_id,
-              null, // weather
-              null, // mood
-              wordCount,
-              now,
-              now,
-            );
           }
-
-          log.info(
-            `Successfully migrated ${notes.length} entries from daily_notes to diary_entries`,
-          );
-        } else {
-          log.info("Migration already completed or no data to migrate");
         }
-      } catch (error) {
-        log.error("Error during migration:", error);
+
+        const existingEntry = getDailyEntryByDate.get(note.date) as
+          | { id: number; update_time: number }
+          | undefined;
+        const diaryId =
+          existingEntry?.id ??
+          Number(
+            insertEntry.run(note.date, createTime, updateTime).lastInsertRowid,
+          );
+
+        insertSegment.run(diaryId, note.content_id, createTime, updateTime);
+        touchEntry.run(updateTime, diaryId);
+        touchedEntryIds.add(diaryId);
+      }
+
+      for (const diaryId of touchedEntryIds) {
+        this.syncDiaryWordCount(db, diaryId);
+      }
+    });
+
+    migrate(notes);
+
+    log.info(`[diary-migrate] Migrated ${notes.length} daily_notes`);
+  }
+
+  // 把旧 diary_entries.content_id 单 content 模型迁移为 diary_segments 多段模型
+  private static migrateLegacyEntryContentToSegments(db: Database.Database) {
+    if (!this.tableExists(db, "diary_segments")) return;
+
+    const orphans = db
+      .prepare(
+        `
+        SELECT d.id, d.content_id, d.create_time, d.update_time,
+               c.create_time as content_create_time,
+               c.update_time as content_update_time
+        FROM diary_entries d
+        LEFT JOIN contents c ON d.content_id = c.id
+        LEFT JOIN diary_segments s ON s.diary_id = d.id AND s.content_id = d.content_id
+        WHERE d.content_id IS NOT NULL AND s.id IS NULL
+      `,
+      )
+      .all() as Array<{
+      id: number;
+      content_id: number;
+      create_time: number;
+      update_time: number;
+      content_create_time: number | null;
+      content_update_time: number | null;
+    }>;
+
+    if (orphans.length > 0) {
+      log.info(
+        `[diary-segments] Migrating ${orphans.length} legacy entries to segments`,
+      );
+
+      const insertSegment = db.prepare(`
+        INSERT INTO diary_segments (diary_id, content_id, create_time, update_time)
+        VALUES (?, ?, ?, ?)
+      `);
+      const migratedDiaryIds = new Set<number>();
+
+      for (const orphan of orphans) {
+        insertSegment.run(
+          orphan.id,
+          orphan.content_id,
+          orphan.content_create_time ?? orphan.create_time,
+          orphan.content_update_time ??
+            orphan.content_create_time ??
+            orphan.update_time,
+        );
+        migratedDiaryIds.add(orphan.id);
+      }
+
+      for (const diaryId of migratedDiaryIds) {
+        this.syncDiaryWordCount(db, diaryId);
       }
     }
+
+    const clearedLegacyContentIds = db
+      .prepare(
+        `
+        UPDATE diary_entries
+        SET content_id = NULL
+        WHERE content_id IS NOT NULL
+          AND EXISTS (
+            SELECT 1
+            FROM diary_segments s
+            WHERE s.diary_id = diary_entries.id
+              AND s.content_id = diary_entries.content_id
+          )
+      `,
+      )
+      .run().changes;
+
+    log.info(
+      `[diary-segments] Migration complete: created=${orphans.length}, clearedLegacyContentIds=${clearedLegacyContentIds}`,
+    );
   }
 
   static getListenEvents() {
@@ -112,74 +447,197 @@ export default class DiaryTable {
       "get-diary-heatmap-data": this.getDiaryHeatmapData.bind(this),
       "get-diaries-by-dates": this.getDiariesByDates.bind(this),
       "get-diaries-with-content": this.getDiariesWithContent.bind(this),
+      // Segment-level CRUD
+      "get-diary-segments": this.getDiarySegments.bind(this),
+      "create-diary-segment": this.createDiarySegment.bind(this),
+      "update-diary-segment": this.updateDiarySegment.bind(this),
+      "delete-diary-segment": this.deleteDiarySegment.bind(this),
+      // 朋友圈流 + 标签设置
+      "get-all-diary-segments-flat": this.getAllDiarySegmentsFlat.bind(this),
+      "get-all-diary-tag-settings": this.getAllDiaryTagSettings.bind(this),
+      "upsert-diary-tag-setting": this.upsertDiaryTagSetting.bind(this),
+      "delete-diary-tag-setting": this.deleteDiaryTagSetting.bind(this),
     };
   }
 
-  static parseDiaryEntry(entry: any): DiaryEntry {
-    let content = [];
+  // ---- Segment 解析与查询 ----
 
-    if (entry.content) {
+  static parseDiarySegment(row: RawDiarySegmentRow): DiarySegment {
+    let content: Descendant[] = [];
+    if (row.content) {
       try {
-        content = JSON.parse(entry.content);
-      } catch (error) {
-        log.error("Error parsing content:", error);
+        content = JSON.parse(row.content);
+      } catch (e) {
+        log.error("Error parsing segment content:", e);
+      }
+    }
+    return {
+      id: row.id,
+      diaryId: row.diary_id,
+      contentId: row.content_id,
+      wordCount: row.word_count || 0,
+      createTime: row.create_time,
+      updateTime: row.update_time,
+      content,
+    };
+  }
+
+  // 查询某篇 diary 的所有 segments（按创建时间升序，JOIN contents 取 content）
+  static getDiarySegmentsByDiaryId(
+    db: Database.Database,
+    diaryId: number,
+  ): DiarySegment[] {
+    const stmt = db.prepare(`
+      SELECT s.*, c.content, c.count as word_count
+      FROM diary_segments s
+      LEFT JOIN contents c ON s.content_id = c.id
+      WHERE s.diary_id = ?
+      ORDER BY s.create_time ASC, s.id ASC
+    `);
+    const rows = stmt.all(diaryId) as RawDiarySegmentRow[];
+    return rows.map((row) => this.parseDiarySegment(row));
+  }
+
+  private static getDiarySegmentsByDiaryIds(
+    db: Database.Database,
+    diaryIds: number[],
+  ): Map<number, DiarySegment[]> {
+    const segmentsByDiaryId = new Map<number, DiarySegment[]>();
+    if (diaryIds.length === 0) return segmentsByDiaryId;
+
+    const placeholders = diaryIds.map(() => "?").join(",");
+    const stmt = db.prepare(`
+      SELECT s.*, c.content, c.count as word_count
+      FROM diary_segments s
+      LEFT JOIN contents c ON s.content_id = c.id
+      WHERE s.diary_id IN (${placeholders})
+      ORDER BY s.diary_id ASC, s.create_time ASC, s.id ASC
+    `);
+    const rows = stmt.all(...diaryIds) as RawDiarySegmentRow[];
+
+    for (const row of rows) {
+      const segment = this.parseDiarySegment(row);
+      const segments = segmentsByDiaryId.get(segment.diaryId);
+      if (segments) {
+        segments.push(segment);
+      } else {
+        segmentsByDiaryId.set(segment.diaryId, [segment]);
       }
     }
 
+    return segmentsByDiaryId;
+  }
+  // 拼接所有 segment 的 content 为一个完整文档（用于 markdown 导出等只读场景）
+  static concatSegmentsContent(segments: DiarySegment[]): Descendant[] {
+    const result: Descendant[] = [];
+    for (const segment of segments) {
+      if (segment.content && segment.content.length > 0) {
+        result.push(...segment.content);
+      }
+    }
+    return result;
+  }
+
+  // 汇总所有 segment 的字数
+  static sumSegmentsWordCount(segments: DiarySegment[]): number {
+    return segments.reduce((sum, s) => sum + (s.wordCount || 0), 0);
+  }
+
+  static parseDiaryEntry(
+    entry: RawDiaryEntryRow,
+    segments?: DiarySegment[],
+  ): DiaryEntry {
     return {
       id: entry.id,
       type: entry.type,
       date: entry.date,
-      contentId: entry.content_id,
+      contentId: entry.content_id ?? null,
       weather: entry.weather,
       mood: entry.mood,
+      tags: entry.tags ?? "[]",
       wordCount: entry.word_count || 0,
       createTime: entry.create_time,
       updateTime: entry.update_time,
-      content: content,
+      segments: segments ?? [],
+      content: segments ? this.concatSegmentsContent(segments) : [],
     };
   }
 
+  // 给 diary 行装载 segments，返回完整 DiaryEntry
+  private static loadEntryWithSegments(
+    db: Database.Database,
+    entry: RawDiaryEntryRow | undefined,
+  ): DiaryEntry {
+    const segments = entry ? this.getDiarySegmentsByDiaryId(db, entry.id) : [];
+    return this.parseDiaryEntry(entry as RawDiaryEntryRow, segments);
+  }
+
+  private static loadEntriesWithSegments(
+    db: Database.Database,
+    entries: RawDiaryEntryRow[],
+  ): DiaryEntry[] {
+    const segmentsByDiaryId = this.getDiarySegmentsByDiaryIds(
+      db,
+      entries.map((entry) => entry.id),
+    );
+
+    return entries.map((entry) =>
+      this.parseDiaryEntry(entry, segmentsByDiaryId.get(entry.id) ?? []),
+    );
+  }
+  // ---- Diary CRUD ----
+
   static createDiaryEntry(
     db: Database.Database,
-    entry: Omit<DiaryEntry, "id" | "createTime" | "updateTime">,
+    entry: CreateDiaryEntryPayload,
   ): DiaryEntry {
     const now = Date.now();
 
-    // Create content record
-    const contentId = ContentTable.createContent(db, {
-      content: entry.content || [],
-      count: getContentLength(entry.content || []),
-    });
-
-    // Create diary entry
+    // 新建 diary_entries 行（content_id 不再使用，置 null）
     const stmt = db.prepare(`
-      INSERT INTO diary_entries (type, date, content_id, weather, mood, word_count, create_time, update_time)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO diary_entries (type, date, content_id, weather, mood, tags, word_count, create_time, update_time)
+      VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?)
     `);
 
-    const wordCount = getContentLength(entry.content || []);
+    // 兼容：若调用方传了 content（旧接口），作为单段处理；若传了 segments，按段建
+    const segmentsContent: Descendant[][] = entry.segments
+      ? entry.segments
+      : [entry.content ?? []];
+
+    const totalWordCount = segmentsContent.reduce(
+      (sum, c) => sum + getContentLength(c || []),
+      0,
+    );
 
     const res = stmt.run(
       entry.type,
       entry.date,
-      contentId,
       entry.weather,
       entry.mood,
-      wordCount,
+      entry.tags ?? "[]",
+      totalWordCount,
       now,
       now,
     );
 
-    Operation.insertOperation(
-      db,
-      "diary-entry",
-      "insert",
-      res.lastInsertRowid,
-      now,
-    );
+    const diaryId = Number(res.lastInsertRowid);
 
-    return this.getDiaryEntryById(db, Number(res.lastInsertRowid));
+    // 为每段建 content + segment 行
+    const insertSegment = db.prepare(`
+      INSERT INTO diary_segments (diary_id, content_id, create_time, update_time)
+      VALUES (?, ?, ?, ?)
+    `);
+    segmentsContent.forEach((segContent) => {
+      const contentId = ContentTable.createContent(db, {
+        content: segContent || [],
+        count: getContentLength(segContent || []),
+      });
+      insertSegment.run(diaryId, contentId, now, now);
+    });
+
+    Operation.insertOperation(db, "diary-entry", "insert", diaryId, now);
+
+    return this.getDiaryEntryById(db, diaryId);
   }
 
   static updateDiaryEntry(
@@ -194,28 +652,12 @@ export default class DiaryTable {
       throw new Error(`Diary entry with id ${entry.id} not found`);
     }
 
-    // Update content if provided
-    if (entry.content !== undefined && existingEntry.contentId) {
-      const wordCount = getContentLength(entry.content);
-
-      ContentTable.updateContent(
-        db,
-        existingEntry.contentId,
-        {
-          content: entry.content,
-          count: wordCount,
-        },
-        win,
-      );
-
-      // Update word_count in diary_entries
-      db.prepare(`UPDATE diary_entries SET word_count = ? WHERE id = ?`).run(
-        wordCount,
-        entry.id,
-      );
+    // 兼容旧调用方：整体 content 更新只覆盖首个 segment，不再隐式拆分多段。
+    if (entry.content !== undefined) {
+      this.updateFirstSegmentContent(db, entry.id, entry.content, win);
     }
 
-    // Update other fields
+    // weather/mood/tags 更新
     const updateFields: string[] = [];
     const updateValues: any[] = [];
 
@@ -229,21 +671,21 @@ export default class DiaryTable {
       updateValues.push(entry.mood);
     }
 
-    if (updateFields.length > 0) {
-      updateFields.push("update_time = ?");
-      updateValues.push(now);
-      updateValues.push(entry.id);
+    if (entry.tags !== undefined) {
+      updateFields.push("tags = ?");
+      updateValues.push(entry.tags);
+    }
 
-      const updateStmt = db.prepare(
-        `UPDATE diary_entries SET ${updateFields.join(", ")} WHERE id = ?`,
-      );
-      updateStmt.run(...updateValues);
-    } else {
-      // Always update update_time
-      db.prepare(`UPDATE diary_entries SET update_time = ? WHERE id = ?`).run(
-        now,
-        entry.id,
-      );
+    updateFields.push("update_time = ?");
+    updateValues.push(now);
+    updateValues.push(entry.id);
+
+    db.prepare(
+      `UPDATE diary_entries SET ${updateFields.join(", ")} WHERE id = ?`,
+    ).run(...updateValues);
+
+    if (entry.content !== undefined) {
+      this.syncDiaryWordCount(db, entry.id);
     }
 
     Operation.insertOperation(db, "diary-entry", "update", entry.id, now);
@@ -251,11 +693,48 @@ export default class DiaryTable {
     return this.getDiaryEntryById(db, entry.id);
   }
 
+  private static updateFirstSegmentContent(
+    db: Database.Database,
+    diaryId: number,
+    content: Descendant[],
+    win: BrowserWindow,
+  ) {
+    const [firstSegment] = this.getDiarySegmentsByDiaryId(db, diaryId);
+    const now = Date.now();
+    if (firstSegment) {
+      ContentTable.updateContent(
+        db,
+        firstSegment.contentId,
+        {
+          content,
+          count: getContentLength(content),
+        },
+        win,
+      );
+      db.prepare(`UPDATE diary_segments SET update_time = ? WHERE id = ?`).run(
+        now,
+        firstSegment.id,
+      );
+      return;
+    }
+
+    const contentId = ContentTable.createContent(db, {
+      content,
+      count: getContentLength(content),
+    });
+    db.prepare(
+      `INSERT INTO diary_segments (diary_id, content_id, create_time, update_time) VALUES (?, ?, ?, ?)`,
+    ).run(diaryId, contentId, now, now);
+  }
+
   static deleteDiaryEntry(db: Database.Database, id: number): number {
     const entry = this.getDiaryEntryById(db, id);
 
-    if (entry && entry.contentId) {
-      ContentTable.deleteContent(db, entry.contentId);
+    // 先删 segment 行解除外键，再递减对应 content 引用计数
+    if (entry) {
+      for (const segment of entry.segments) {
+        this.deleteSegmentInternal(db, segment.id);
+      }
     }
 
     const stmt = db.prepare("DELETE FROM diary_entries WHERE id = ?");
@@ -265,13 +744,10 @@ export default class DiaryTable {
 
   static getDiaryEntryById(db: Database.Database, id: number): DiaryEntry {
     const stmt = db.prepare(`
-      SELECT d.*, c.content
-      FROM diary_entries d
-      LEFT JOIN contents c ON d.content_id = c.id
-      WHERE d.id = ?
+      SELECT d.* FROM diary_entries d WHERE d.id = ?
     `);
-    const entry = stmt.get(id);
-    return this.parseDiaryEntry(entry);
+    const entry = stmt.get(id) as RawDiaryEntryRow | undefined;
+    return this.loadEntryWithSegments(db, entry);
   }
 
   static getDiaryEntryByIdOrNull(
@@ -279,16 +755,11 @@ export default class DiaryTable {
     id: number,
   ): DiaryEntry | null {
     const stmt = db.prepare(`
-      SELECT d.*, c.content
-      FROM diary_entries d
-      LEFT JOIN contents c ON d.content_id = c.id
-      WHERE d.id = ?
+      SELECT d.* FROM diary_entries d WHERE d.id = ?
     `);
-    const entry = stmt.get(id);
-    if (!entry) {
-      return null;
-    }
-    return this.parseDiaryEntry(entry);
+    const entry = stmt.get(id) as RawDiaryEntryRow | undefined;
+    if (!entry) return null;
+    return this.loadEntryWithSegments(db, entry);
   }
 
   static getDiaryEntryByDate(
@@ -296,13 +767,11 @@ export default class DiaryTable {
     date: string,
   ): DiaryEntry | null {
     const stmt = db.prepare(`
-      SELECT d.*, c.content
-      FROM diary_entries d
-      LEFT JOIN contents c ON d.content_id = c.id
-      WHERE d.date = ?
+      SELECT d.* FROM diary_entries d WHERE d.date = ?
     `);
-    const entry = stmt.get(date);
-    return entry ? this.parseDiaryEntry(entry) : null;
+    const entry = stmt.get(date) as RawDiaryEntryRow | undefined;
+    if (!entry) return null;
+    return this.loadEntryWithSegments(db, entry);
   }
 
   static getDiaryEntriesByType(
@@ -310,14 +779,12 @@ export default class DiaryTable {
     type: "daily" | "weekly" | "monthly",
   ): DiaryEntry[] {
     const stmt = db.prepare(`
-      SELECT d.*, c.content
-      FROM diary_entries d
-      LEFT JOIN contents c ON d.content_id = c.id
+      SELECT d.* FROM diary_entries d
       WHERE d.type = ?
       ORDER BY d.date DESC
     `);
-    const entries = stmt.all(type);
-    return entries.map((entry) => this.parseDiaryEntry(entry));
+    const entries = stmt.all(type) as RawDiaryEntryRow[];
+    return this.loadEntriesWithSegments(db, entries);
   }
 
   static getDiaryEntriesByDateRange(
@@ -327,9 +794,7 @@ export default class DiaryTable {
     diaryType?: "daily" | "weekly" | "monthly",
   ): DiaryEntry[] {
     let query = `
-      SELECT d.*, c.content
-      FROM diary_entries d
-      LEFT JOIN contents c ON d.content_id = c.id
+      SELECT d.* FROM diary_entries d
       WHERE d.date >= ? AND d.date <= ?
     `;
     const params: any[] = [startDate, endDate];
@@ -342,53 +807,47 @@ export default class DiaryTable {
     query += ` ORDER BY d.date DESC`;
 
     const stmt = db.prepare(query);
-    const entries = stmt.all(...params);
-    return entries.map((entry) => this.parseDiaryEntry(entry));
+    const entries = stmt.all(...params) as RawDiaryEntryRow[];
+    return this.loadEntriesWithSegments(db, entries);
   }
 
   static getAllDiaryEntries(db: Database.Database): DiaryEntry[] {
     const stmt = db.prepare(`
-      SELECT d.*, c.content
-      FROM diary_entries d
-      LEFT JOIN contents c ON d.content_id = c.id
+      SELECT d.* FROM diary_entries d
       ORDER BY d.date DESC
     `);
-    const entries = stmt.all();
-    return entries.map((entry) => this.parseDiaryEntry(entry));
+    const entries = stmt.all() as RawDiaryEntryRow[];
+    return this.loadEntriesWithSegments(db, entries);
   }
 
-  /**
-   * Get heatmap data for a specific month
-   * Returns word count for each day in the month
-   */
   static getDiaryHeatmapData(
     db: Database.Database,
     year: number,
     month: number,
   ): Array<{ date: string; wordCount: number }> {
-    // Format: YYYY-MM
     const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
     const endDate =
       month === 12
         ? `${year + 1}-01-01`
         : `${year}-${String(month + 1).padStart(2, "0")}-01`;
 
+    // 汇总各 segment 的字数（contents.count）按 diary 聚合
     const stmt = db.prepare(`
-      SELECT date, word_count as wordCount
-      FROM diary_entries
-      WHERE type = 'daily' AND date >= ? AND date < ?
-      ORDER BY date
+      SELECT d.date, COALESCE(SUM(c.count), 0) as wordCount
+      FROM diary_entries d
+      LEFT JOIN diary_segments s ON s.diary_id = d.id
+      LEFT JOIN contents c ON s.content_id = c.id
+      WHERE d.type = 'daily' AND d.date >= ? AND d.date < ?
+      GROUP BY d.id, d.date
+      ORDER BY d.date
     `);
 
-    const results = stmt.all(startDate, endDate) as Array<{
+    return stmt.all(startDate, endDate) as Array<{
       date: string;
       wordCount: number;
     }>;
-
-    return results;
   }
 
-  // 批量日期查询
   static getDiariesByDates(
     db: Database.Database,
     dates: string[],
@@ -398,9 +857,7 @@ export default class DiaryTable {
 
     const placeholders = dates.map(() => "?").join(",");
     let sql = `
-      SELECT de.*, ct.content
-      FROM diary_entries de
-      LEFT JOIN contents ct ON de.content_id = ct.id
+      SELECT de.* FROM diary_entries de
       WHERE de.date IN (${placeholders})
     `;
 
@@ -414,12 +871,11 @@ export default class DiaryTable {
     sql += ` ORDER BY de.date DESC`;
 
     const stmt = db.prepare(sql);
-    const entries = stmt.all(...params);
+    const entries = stmt.all(...params) as RawDiaryEntryRow[];
 
-    return entries.map((entry) => this.parseDiaryEntry(entry));
+    return this.loadEntriesWithSegments(db, entries);
   }
 
-  // 获取日记内容（带 Markdown 转换）
   static getDiariesWithContent(
     db: Database.Database,
     params: {
@@ -433,8 +889,8 @@ export default class DiaryTable {
     id: number;
     type: "daily" | "weekly" | "monthly";
     date: string;
-    weather: any;
-    mood: any;
+    weather: WeatherMoodValue | null;
+    mood: WeatherMoodValue | null;
     wordCount: number;
     content: string;
     createTime: string;
@@ -456,7 +912,8 @@ export default class DiaryTable {
     }
 
     return entries.map((entry) => {
-      let markdown = entry.content ? getMarkdown(entry.content) : "";
+      const fullContent = this.concatSegmentsContent(entry.segments);
+      let markdown = fullContent.length > 0 ? getMarkdown(fullContent) : "";
       const maxLength = params.maxLength;
 
       if (maxLength && markdown.length > maxLength) {
@@ -488,13 +945,282 @@ export default class DiaryTable {
         id: entry.id,
         type: entry.type,
         date: entry.date,
-        weather: entry.weather ? JSON.parse(entry.weather) : null,
-        mood: entry.mood ? JSON.parse(entry.mood) : null,
+        weather: entry.weather
+          ? (JSON.parse(entry.weather) as WeatherMoodValue)
+          : null,
+        mood: entry.mood ? (JSON.parse(entry.mood) as WeatherMoodValue) : null,
         wordCount: entry.wordCount,
         content: markdown,
         createTime: formatTime(entry.createTime),
         updateTime: formatTime(entry.updateTime),
       };
     });
+  }
+
+  // ---- Segment-level CRUD（IPC 暴露） ----
+
+  static getDiarySegments(
+    db: Database.Database,
+    diaryId: number,
+  ): DiarySegment[] {
+    return this.getDiarySegmentsByDiaryId(db, diaryId);
+  }
+
+  static createDiarySegment(
+    db: Database.Database,
+    params: { diaryId: number; content: Descendant[] },
+  ): DiarySegment {
+    const { diaryId, content } = params;
+    const now = Date.now();
+    const contentId = ContentTable.createContent(db, {
+      content: content || [],
+      count: getContentLength(content || []),
+    });
+
+    const res = db
+      .prepare(
+        `INSERT INTO diary_segments (diary_id, content_id, create_time, update_time) VALUES (?, ?, ?, ?)`,
+      )
+      .run(diaryId, contentId, now, now);
+
+    // 同步 diary_entries.word_count
+    this.syncDiaryWordCount(db, diaryId);
+    // bump update_time，让 FTS/vec reconcile 队列检测到内容变更
+    db.prepare(`UPDATE diary_entries SET update_time = ? WHERE id = ?`).run(
+      now,
+      diaryId,
+    );
+    Operation.insertOperation(db, "diary-entry", "update", diaryId, now);
+
+    const created = this.getDiarySegmentById(db, Number(res.lastInsertRowid));
+    if (!created) {
+      throw new Error(
+        `Failed to load created diary segment ${res.lastInsertRowid}`,
+      );
+    }
+    return created;
+  }
+
+  static updateDiarySegment(
+    db: Database.Database,
+    params: { segmentId: number; content: Descendant[] },
+    win: BrowserWindow,
+  ): DiarySegment | null {
+    const { segmentId, content } = params;
+    const seg = this.getDiarySegmentById(db, segmentId);
+    if (!seg) return null;
+
+    ContentTable.updateContent(
+      db,
+      seg.contentId,
+      {
+        content,
+        count: getContentLength(content),
+      },
+      win,
+    );
+
+    const now = Date.now();
+    db.prepare(`UPDATE diary_segments SET update_time = ? WHERE id = ?`).run(
+      now,
+      segmentId,
+    );
+    db.prepare(`UPDATE diary_entries SET update_time = ? WHERE id = ?`).run(
+      now,
+      seg.diaryId,
+    );
+
+    this.syncDiaryWordCount(db, seg.diaryId);
+    Operation.insertOperation(db, "diary-entry", "update", seg.diaryId, now);
+
+    return this.getDiarySegmentById(db, segmentId);
+  }
+
+  static deleteDiarySegment(db: Database.Database, segmentId: number): number {
+    const seg = this.getDiarySegmentById(db, segmentId);
+    if (!seg) return 0;
+
+    const now = Date.now();
+    this.deleteSegmentInternal(db, segmentId);
+    this.syncDiaryWordCount(db, seg.diaryId);
+    // bump update_time，让 FTS/vec reconcile 队列检测到内容变更
+    db.prepare(`UPDATE diary_entries SET update_time = ? WHERE id = ?`).run(
+      now,
+      seg.diaryId,
+    );
+
+    Operation.insertOperation(db, "diary-entry", "update", seg.diaryId, now);
+    return 1;
+  }
+
+  // ---- Segment 内部工具 ----
+
+  private static getDiarySegmentById(
+    db: Database.Database,
+    segmentId: number,
+  ): DiarySegment | null {
+    const stmt = db.prepare(`
+      SELECT s.*, c.content, c.count as word_count
+      FROM diary_segments s
+      LEFT JOIN contents c ON s.content_id = c.id
+      WHERE s.id = ?
+    `);
+    const row = stmt.get(segmentId) as RawDiarySegmentRow | undefined;
+    return row ? this.parseDiarySegment(row) : null;
+  }
+
+  private static deleteSegmentInternal(
+    db: Database.Database,
+    segmentId: number,
+  ) {
+    const seg = this.getDiarySegmentById(db, segmentId);
+    if (!seg) return;
+    // 先解除 diary_entries 旧 content_id 和 diary_segments 对 contents 的外键约束
+    db.prepare(
+      `UPDATE diary_entries SET content_id = NULL WHERE id = ? AND content_id = ?`,
+    ).run(seg.diaryId, seg.contentId);
+    db.prepare(`DELETE FROM diary_segments WHERE id = ?`).run(segmentId);
+    if (seg.contentId) {
+      ContentTable.deleteContent(db, seg.contentId);
+    }
+  }
+
+  private static syncDiaryWordCount(db: Database.Database, diaryId: number) {
+    const result = db
+      .prepare(
+        `SELECT COALESCE(SUM(c.count), 0) as total
+         FROM diary_segments s
+         LEFT JOIN contents c ON s.content_id = c.id
+         WHERE s.diary_id = ?`,
+      )
+      .get(diaryId) as { total: number };
+    db.prepare(`UPDATE diary_entries SET word_count = ? WHERE id = ?`).run(
+      result.total,
+      diaryId,
+    );
+  }
+
+  // ---- 朋友圈流：扁平 segment + 标签设置 ----
+
+  // 扁平化返回所有 segment（带父 entry 摘要），按日记归属日期降序
+  static getAllDiarySegmentsFlat(db: Database.Database): DiarySegmentItem[] {
+    const stmt = db.prepare(`
+      SELECT s.id, s.diary_id, s.content_id, s.create_time, s.update_time,
+             c.content, c.count as word_count,
+             d.type as entry_type, d.date as entry_date, d.weather, d.mood, d.tags
+      FROM diary_segments s
+      LEFT JOIN contents c ON s.content_id = c.id
+      LEFT JOIN diary_entries d ON s.diary_id = d.id
+      ORDER BY
+        CASE
+          WHEN d.type = 'daily' AND d.date GLOB '????-??-??' THEN strftime('%s', d.date) * 1000
+          ELSE s.create_time
+        END DESC,
+        s.create_time DESC,
+        s.id DESC
+    `);
+    const rows = stmt.all() as Array<{
+      id: number;
+      diary_id: number;
+      content_id: number;
+      create_time: number;
+      update_time: number;
+      content: string | null;
+      word_count: number | null;
+      entry_type: "daily" | "weekly" | "monthly" | null;
+      entry_date: string | null;
+      weather: string | null;
+      mood: string | null;
+      tags: string | null;
+    }>;
+
+    return rows.map((row) => {
+      let content: Descendant[] = [];
+      if (row.content) {
+        try {
+          content = JSON.parse(row.content);
+        } catch (e) {
+          log.error("Error parsing flat segment content:", e);
+        }
+      }
+      return {
+        id: row.id,
+        diaryId: row.diary_id,
+        contentId: row.content_id,
+        wordCount: row.word_count || 0,
+        createTime: row.create_time,
+        updateTime: row.update_time,
+        content,
+        entryDate: row.entry_date ?? "",
+        entryDateMs: this.getEntrySortTime(
+          row.entry_type,
+          row.entry_date ?? "",
+          row.create_time,
+        ),
+        weather: row.weather,
+        mood: row.mood,
+        tags: row.tags ?? "[]",
+      };
+    });
+  }
+
+  // ---- 标签设置 CRUD ----
+
+  static getAllDiaryTagSettings(db: Database.Database): DiaryTagSetting[] {
+    const stmt = db.prepare(`
+      SELECT name, color, sort, create_time, update_time
+      FROM diary_tag_settings
+      ORDER BY sort ASC, create_time ASC
+    `);
+    const rows = stmt.all() as Array<{
+      name: string;
+      color: string;
+      sort: number;
+      create_time: number;
+      update_time: number;
+    }>;
+    return rows.map((row) => ({
+      name: row.name,
+      color: row.color,
+      sort: row.sort,
+      createTime: row.create_time,
+      updateTime: row.update_time,
+    }));
+  }
+
+  static upsertDiaryTagSetting(
+    db: Database.Database,
+    setting: { name: string; color: string; sort?: number },
+  ): DiaryTagSetting {
+    const now = Date.now();
+    db.prepare(
+      `
+      INSERT INTO diary_tag_settings (name, color, sort, create_time, update_time)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(name) DO UPDATE SET color = excluded.color, sort = excluded.sort, update_time = excluded.update_time
+    `,
+    ).run(setting.name, setting.color, setting.sort ?? 0, now, now);
+
+    const row = db
+      .prepare(`SELECT * FROM diary_tag_settings WHERE name = ?`)
+      .get(setting.name) as {
+      name: string;
+      color: string;
+      sort: number;
+      create_time: number;
+      update_time: number;
+    };
+    return {
+      name: row.name,
+      color: row.color,
+      sort: row.sort,
+      createTime: row.create_time,
+      updateTime: row.update_time,
+    };
+  }
+
+  static deleteDiaryTagSetting(db: Database.Database, name: string): number {
+    return db.prepare(`DELETE FROM diary_tag_settings WHERE name = ?`).run(name)
+      .changes;
   }
 }

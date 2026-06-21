@@ -12,7 +12,7 @@ export const diaryToolsProvider: MCPProviderDefinition = {
     {
       name: "get_current_diary_context",
       description:
-        "获取当前日记视图的上下文信息，包括视图模式（日视图/周视图/月视图/时间轴）、当前选中的日期、激活的日记 ID 等。用于了解用户当前在日记界面的选择状态。",
+        "获取当前日记朋友圈流的上下文信息，包括当前日期、激活的标签筛选、时间筛选范围、搜索关键词等。用于了解用户当前在日记界面的选择状态。",
       parameters: {
         type: "object",
         properties: {} as Record<string, ToolParameterSchema>,
@@ -22,21 +22,20 @@ export const diaryToolsProvider: MCPProviderDefinition = {
       executor: async () => {
         const diaryStore = useDiaryStore.getState();
 
+        const tagFilterDesc =
+          diaryStore.activeTagFilter.length > 0
+            ? `，筛选标签：${diaryStore.activeTagFilter.join(", ")}`
+            : "";
+
         return {
           content: JSON.stringify(
             {
-              viewMode: diaryStore.currentViewMode, // "daily" | "weekly" | "monthly" | "timeline"
-              currentDate: diaryStore.currentDate, // YYYY-MM-DD 格式
-              activeEntryId: diaryStore.activeEntryId, // 当前激活编辑的日记 ID
-              description: `用户当前在${
-                diaryStore.currentViewMode === "daily"
-                  ? "日视图"
-                  : diaryStore.currentViewMode === "weekly"
-                    ? "周视图"
-                    : diaryStore.currentViewMode === "monthly"
-                      ? "月视图"
-                      : "时间轴"
-              }，选中日期为 ${diaryStore.currentDate}`,
+              currentDate: diaryStore.currentDate,
+              activeEntryId: diaryStore.activeEntryId,
+              activeTagFilter: diaryStore.activeTagFilter,
+              activeDateRange: diaryStore.activeDateRange,
+              searchQuery: diaryStore.searchQuery,
+              description: `用户当前在日记朋友圈流，选中日期为 ${diaryStore.currentDate}${tagFilterDesc}`,
             },
             null,
             2,

@@ -16,46 +16,42 @@ import { Descendant } from "slate";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { TableRowSelection } from "antd/es/table/interface";
 import { indexContent, removeIndex, getAllIndexResults } from "@/utils/search";
-import { getAllDiaryEntries } from "@/commands";
+import { getAllDiaryEntries, getAllDiaryTagSettings } from "@/commands";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 
 const PAGE_SIZE = 20;
+const ALL_TAG_FILTER = "__all__";
+const EMPTY_TAG_FILTER = "__empty__";
 
 type OnChange = NonNullable<TableProps<DiaryEntry>["onChange"]>;
 type Filters = Parameters<OnChange>[1];
-
-// 日记类型到索引类型的映射
-const diaryTypeToIndexType: Record<string, IndexType> = {
-  daily: "diary-daily",
-  weekly: "diary-weekly",
-  monthly: "diary-monthly",
-};
-
-// 日记类型标签
-const diaryTypeLabel: Record<string, string> = {
-  daily: "日记",
-  weekly: "周记",
-  monthly: "月记",
-};
 
 // 适配 useBatchOperation 需要的数据格式
 interface DiaryEntryForBatch {
   id: number;
   content: Descendant[];
   update_time: number;
-  // 保留日记类型用于确定索引类型
-  diaryType: "daily" | "weekly" | "monthly";
 }
 
 const useDiaryConfig = () => {
   const { message } = App.useApp();
   const [diaryEntries, setDiaryEntries] = useState<DiaryEntry[]>([]);
+  const [tagOptions, setTagOptions] = useState<string[]>([]);
 
   // 获取所有日记
   useEffect(() => {
-    getAllDiaryEntries().then((entries) => {
-      setDiaryEntries(entries);
-    });
+    Promise.all([getAllDiaryEntries(), getAllDiaryTagSettings()])
+      .then(([entries, settings]) => {
+        setDiaryEntries(entries);
+        const tagSet = new Set(settings.map((setting) => setting.name));
+        entries.forEach((entry) => {
+          entry.tags.forEach((tag) => tagSet.add(tag));
+        });
+        setTagOptions(Array.from(tagSet));
+      })
+      .catch((error) => {
+        console.error("获取日记索引数据失败", error);
+      });
   }, []);
 
   const modelInfo = useEmbeddingConfig();
@@ -79,21 +75,22 @@ const useDiaryConfig = () => {
   const [vecResults, setVecResults] = useState<SearchResult[]>([]);
   const [current, setCurrent] = useState(1);
 
-  // 根据日记类型获取对应的索引类型
-  const getIndexType = (entry: DiaryEntry): IndexType => {
-    return diaryTypeToIndexType[entry.type] || "diary-daily";
-  };
+  const getIndexType = (_entry: DiaryEntry): IndexType => "diary-daily";
 
   const filteredEntries = useMemo(() => {
-    const diaryTypeFilterArray = filteredInfo.diary_type || [];
+    const tagFilterArray = filteredInfo.tags || [];
     const indexStatusFilterArray = filteredInfo.index_status || [];
 
     return diaryEntries.filter((entry) => {
-      // 日记类型过滤
-      const isHitDiaryType =
-        diaryTypeFilterArray.length === 0 ||
-        diaryTypeFilterArray.includes(entry.type);
-      if (!isHitDiaryType) return false;
+      const isHitTags =
+        tagFilterArray.length === 0 ||
+        tagFilterArray.includes(ALL_TAG_FILTER) ||
+        tagFilterArray.some((tag) =>
+          tag === EMPTY_TAG_FILTER
+            ? entry.tags.length === 0
+            : entry.tags.includes(String(tag)),
+        );
+      if (!isHitTags) return false;
 
       // 获取对应的索引类型
       const indexType = getIndexType(entry);
@@ -126,13 +123,11 @@ const useDiaryConfig = () => {
 
   const initIndexResults = useMemoizedFn(async () => {
     try {
-      // 获取所有三种日记类型的索引结果
-      const [dailyResults, weeklyResults, monthlyResults] = await Promise.all([
+      // 迁移后周记、月记都作为带标签的 diary-daily 索引。
+      const [dailyResults] = await Promise.all([
         getAllIndexResults("diary-daily"),
-        getAllIndexResults("diary-weekly"),
-        getAllIndexResults("diary-monthly"),
       ]);
-      setVecResults([...dailyResults, ...weeklyResults, ...monthlyResults]);
+      setVecResults([...dailyResults]);
     } catch (e) {
       console.error("初始化索引结果失败", e);
       throw e;
@@ -149,7 +144,6 @@ const useDiaryConfig = () => {
       id: entry.id,
       content: entry.content,
       update_time: entry.updateTime,
-      diaryType: entry.type,
     }),
   );
 
@@ -170,7 +164,7 @@ const useDiaryConfig = () => {
       const deleteEmbeddings: DiaryEntryForBatch[] = [];
 
       selectedRowsForBatch.forEach((entry) => {
-        const indexType = diaryTypeToIndexType[entry.diaryType];
+        const indexType = "diary-daily";
         const vecResult = vecResults.find(
           (result) => result.id === entry.id && result.type === indexType,
         );
@@ -202,7 +196,7 @@ const useDiaryConfig = () => {
         if (!diaryEntry) continue;
 
         const markdown = getMarkdown(diaryEntry.content);
-        const indexType = diaryTypeToIndexType[entry.diaryType];
+        const indexType = "diary-daily";
 
         const params: IndexParams = {
           id: entry.id,
@@ -236,8 +230,7 @@ const useDiaryConfig = () => {
 
     for (const entry of deleteEmbeddings) {
       try {
-        const indexType = diaryTypeToIndexType[entry.diaryType];
-        await removeIndex(entry.id, indexType);
+        await removeIndex(entry.id, "diary-daily");
       } catch (error) {
         console.error("批量删除失败:", error);
       }
@@ -399,23 +392,29 @@ const useDiaryConfig = () => {
       width: 140,
     },
     {
-      key: "diary_type",
-      dataIndex: "type",
-      title: "类型",
-      width: 100,
+      key: "tags",
+      dataIndex: "tags",
+      title: "标签",
+      width: 180,
       filters: [
-        { text: "日记", value: "daily" },
-        { text: "周记", value: "weekly" },
-        { text: "月记", value: "monthly" },
+        { text: "全部", value: ALL_TAG_FILTER },
+        { text: "无标签", value: EMPTY_TAG_FILTER },
+        ...tagOptions.map((tag) => ({ text: tag, value: tag })),
       ],
-      filteredValue: filteredInfo.diary_type || null,
-      render: (type: DiaryEntry["type"]) => {
-        const colorMap: Record<string, string> = {
-          daily: "purple",
-          weekly: "cyan",
-          monthly: "magenta",
-        };
-        return <Tag color={colorMap[type]}>{diaryTypeLabel[type]}</Tag>;
+      filteredValue: filteredInfo.tags || null,
+      render: (tags: string[]) => {
+        if (!tags.length) {
+          return <Typography.Text type="secondary">无标签</Typography.Text>;
+        }
+        return (
+          <Flex gap={4} wrap>
+            {tags.map((tag) => (
+              <Tag color="blue" key={tag}>
+                {tag}
+              </Tag>
+            ))}
+          </Flex>
+        );
       },
     },
     {
@@ -582,9 +581,8 @@ const useDiaryConfig = () => {
         return {
           ...prevFilteredInfo,
           ...filteredInfo,
-          diary_type: filteredInfo.diary_type || prevFilteredInfo.diary_type,
-          index_status:
-            filteredInfo.index_status || prevFilteredInfo.index_status,
+          tags: filteredInfo.tags,
+          index_status: filteredInfo.index_status,
         };
       });
     },

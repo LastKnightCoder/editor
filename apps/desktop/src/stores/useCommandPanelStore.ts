@@ -48,8 +48,6 @@ const useCommandPanelStore = create<ICommandPanelState & ICommandPanelActions>(
             "project-item",
             "document-item",
             "diary-daily",
-            "diary-weekly",
-            "diary-monthly",
           ],
           limit: TOP_K,
           modelInfo,

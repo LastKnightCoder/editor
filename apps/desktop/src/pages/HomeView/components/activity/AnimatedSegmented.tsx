@@ -26,9 +26,7 @@ function AnimatedSegmented<T extends string>({
   return (
     <div
       className={classNames(
-        "inline-flex items-center gap-1 rounded-xl border p-1 backdrop-blur-md",
-        themeColors.glassPanelBg,
-        themeColors.cardBorderClass,
+        "inline-flex items-center gap-0.5 rounded-lg bg-[var(--th-hover-bg)] p-0.5",
         className,
       )}
     >
@@ -40,16 +38,17 @@ function AnimatedSegmented<T extends string>({
             type="button"
             onClick={() => onChange(option.key)}
             className={classNames(
-              "relative rounded-lg px-3 py-1.5 text-xs font-medium transition-colors duration-200",
+              "relative rounded-md px-2.5 py-1 text-xs font-medium transition-colors duration-200",
               active
-                ? "text-[var(--th-btn-text)]"
+                ? "text-[var(--th-active-text)]"
                 : themeColors.secondaryTextClass,
+              !active && "hover:text-[var(--th-hover-text)]",
             )}
           >
             {active && (
               <motion.div
                 layoutId={layoutId}
-                className="absolute inset-0 rounded-lg bg-[var(--th-btn-bg)] shadow-sm"
+                className="absolute inset-0 rounded-md bg-[var(--th-card-bg)] shadow-sm"
                 transition={{ type: "spring", stiffness: 420, damping: 34 }}
               />
             )}

@@ -1,4 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useMemo } from "react";
+import {
+  useQueries,
+  useQueryClient,
+  type QueryClient,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import dayjs from "dayjs";
 import type { TodoItem } from "@/types/todo";
 import type { IQuestion } from "@/types/question";
@@ -9,10 +15,8 @@ import type {
   PomodoroSession,
 } from "@/types";
 import type {
-  WorkbenchTodoPreviewResponse,
-  WorkbenchQuestionPreviewResponse,
-  WorkbenchQuestionGroupStat,
   WorkbenchTodoGroupStat,
+  WorkbenchQuestionGroupStat,
 } from "@/types/components-workbench";
 import { getLatestOperations } from "@/commands/operation";
 import {
@@ -27,24 +31,57 @@ import {
   summaryPomodoroToday,
   getActivePomodoroSession,
   listPomodoroPresets,
+  listPomodoroSessions,
 } from "@/commands/pomodoro";
-import { countUnreadRssEntries } from "@/commands/rss";
+import {
+  countUnreadRssEntries,
+  listUnreadRssEntries,
+  listRssFeeds,
+} from "@/commands/rss";
 import { getCalendarHeatmap, getAllStatistic } from "@/commands/statistic";
 import {
   createDiaryEntry,
   getDiaryEntriesByDateRange,
+  getDiaryEntryByDate,
+  createDiarySegment,
+  updateDiarySegment,
+  deleteDiarySegment,
   updateDiaryEntry,
+  getAllDiarySegmentsFlat,
+  getAllDiaryTagSettings,
+  upsertDiaryTagSetting,
+  deleteDiaryTagSetting,
 } from "@/commands/diary";
 import { createEmptyDiaryContent } from "@/pages/DiaryView/constants/content";
 import type { ICard, IArticle, IDocumentItem, ProjectItem } from "@/types";
-import type { DiaryEntry } from "@/types/diary";
+import type { DiaryEntry, DiarySegment, DiaryTagSetting } from "@/types/diary";
+import type { RssEntry, RssFeed } from "@/types/rss";
 import type { IItem } from "@/components/CalendarHeatmap";
 
-// 首页时间轴展示的日记篇数上限与拉取窗口天数
-const DIARY_TIMELINE_LIMIT = 3;
+const HOME_QUERY_KEY = ["home"] as const;
+const TODO_QUERY_KEY = [...HOME_QUERY_KEY, "todo"] as const;
+const QUESTION_QUERY_KEY = [...HOME_QUERY_KEY, "question"] as const;
+const FLASHCARD_QUERY_KEY = [...HOME_QUERY_KEY, "flashcard"] as const;
+const RSS_QUERY_KEY = [...HOME_QUERY_KEY, "rss"] as const;
+const POMODORO_QUERY_KEY = [...HOME_QUERY_KEY, "pomodoro"] as const;
+const ACTIVITY_QUERY_KEY = [...HOME_QUERY_KEY, "activity"] as const;
+const DIARY_QUERY_KEY = [...HOME_QUERY_KEY, "diary"] as const;
+
+const RSS_PREVIEW_LIMIT = 5;
+const SEGMENT_LIMIT = 3;
 const DIARY_FETCH_WINDOW_DAYS = 365;
-// 仅展示日常日记，周记/月记属于总结性质，不纳入朋友圈式动态
+const POMODORO_RECENT_SESSION_LIMIT = 30;
 const DIARY_TIMELINE_TYPE = "daily" as const;
+
+export interface RecentSegmentItem {
+  segment: DiarySegment;
+  diary: DiaryEntry;
+}
+
+interface RecentDiaryResult {
+  segments: RecentSegmentItem[];
+  tagUsageCounts: Map<string, number>;
+}
 
 export type HomeTrendType =
   | "card"
@@ -60,7 +97,6 @@ export interface HomeTrendPoint {
 }
 
 export interface HomeData {
-  // 今日概要
   summary: {
     pendingTodos: number;
     overdueTodos: number;
@@ -68,17 +104,17 @@ export interface HomeData {
     rssUnread: number;
     pomodoroToday: { count: number; focusMs: number };
   };
-  // 详情列表
   todoItems: TodoItem[];
   todoGroups: WorkbenchTodoGroupStat[];
   flashcardItems: Flashcard[];
   flashcardDecks: FlashcardDeck[];
   questionItems: IQuestion[];
   questionGroups: WorkbenchQuestionGroupStat[];
-  // 番茄钟
+  rssItems: RssEntry[];
+  rssFeeds: RssFeed[];
   activeSession: PomodoroSession | null;
   pomodoroPresets: PomodoroPreset[];
-  // 最近动态
+  pomodoroRecentSessions: PomodoroSession[];
   recentActivity: {
     cards: ICard[];
     articles: IArticle[];
@@ -86,16 +122,65 @@ export interface HomeData {
     documentItems: IDocumentItem[];
   };
   activityHeatmap: IItem[];
-  // 最近创作趋势
   contentTrend: HomeTrendPoint[];
-  // 最近若干篇日记（朋友圈式时间轴展示）
-  recentDiaries: DiaryEntry[];
-  // 今天是否已有日记（决定是否显示"添加今日日记"入口）
-  todayDiaryExists: boolean;
-  // 状态
+  recentSegments: RecentSegmentItem[];
+  tagSettings: DiaryTagSetting[];
+  tagUsageCounts: Map<string, number>;
   loading: boolean;
+  flashcardsLoading: boolean;
+  rssLoading: boolean;
   errors: Record<string, Error | null>;
 }
+
+interface HomeTodoData {
+  pendingTodos: number;
+  overdueTodos: number;
+  todoItems: TodoItem[];
+  todoGroups: WorkbenchTodoGroupStat[];
+}
+
+interface HomeQuestionData {
+  questionItems: IQuestion[];
+  questionGroups: WorkbenchQuestionGroupStat[];
+}
+
+interface HomeFlashcardData {
+  flashcardsDue: number;
+  flashcardItems: Flashcard[];
+  flashcardDecks: FlashcardDeck[];
+}
+
+interface HomeRssData {
+  rssUnread: number;
+  rssItems: RssEntry[];
+  rssFeeds: RssFeed[];
+}
+
+interface HomePomodoroData {
+  pomodoroToday: { count: number; focusMs: number };
+  activeSession: PomodoroSession | null;
+  pomodoroPresets: PomodoroPreset[];
+  pomodoroRecentSessions: PomodoroSession[];
+}
+
+interface HomeActivityData {
+  recentActivity: HomeData["recentActivity"];
+  activityHeatmap: IItem[];
+  contentTrend: HomeTrendPoint[];
+}
+
+interface HomeDiaryData {
+  recentSegments: RecentSegmentItem[];
+  tagSettings: DiaryTagSetting[];
+  tagUsageCounts: Map<string, number>;
+}
+
+const EMPTY_RECENT_ACTIVITY: HomeData["recentActivity"] = {
+  cards: [],
+  articles: [],
+  projectItems: [],
+  documentItems: [],
+};
 
 const INITIAL_DATA: HomeData = {
   summary: {
@@ -111,23 +196,23 @@ const INITIAL_DATA: HomeData = {
   flashcardDecks: [],
   questionItems: [],
   questionGroups: [],
+  rssItems: [],
+  rssFeeds: [],
   activeSession: null,
   pomodoroPresets: [],
-  recentActivity: {
-    cards: [],
-    articles: [],
-    projectItems: [],
-    documentItems: [],
-  },
+  pomodoroRecentSessions: [],
+  recentActivity: EMPTY_RECENT_ACTIVITY,
   activityHeatmap: [],
   contentTrend: [],
-  recentDiaries: [],
-  todayDiaryExists: false,
+  recentSegments: [],
+  tagSettings: [],
+  tagUsageCounts: new Map(),
   loading: true,
+  flashcardsLoading: false,
+  rssLoading: false,
   errors: {},
 };
 
-const formatDate = (date: Date) => dayjs(date).format("YYYY-MM-DD");
 const TREND_TYPES: HomeTrendType[] = [
   "card",
   "article",
@@ -135,308 +220,562 @@ const TREND_TYPES: HomeTrendType[] = [
   "document-item",
 ];
 
-const useHomeData = () => {
-  const [data, setData] = useState<HomeData>(INITIAL_DATA);
+const formatDate = (date: Date) => dayjs(date).format("YYYY-MM-DD");
 
-  const fetchAllData = useCallback(async () => {
-    setData((prev) => ({ ...prev, loading: true }));
+const toError = (error: unknown): Error | null => {
+  if (!error) return null;
+  return error instanceof Error ? error : new Error(String(error));
+};
 
-    const results = await Promise.allSettled([
-      // 0: 待办详情
-      listTodoPreview({ status: "pending", limit: 6 }),
-      // 1: 闪卡复习队列
-      getFlashcardReviewQueue({ limit: 6 }),
-      // 2: 闪卡卡组（用于显示卡组名）
-      listFlashcardDecks(),
-      // 3: 问题详情
-      listQuestionPreview({
-        statuses: ["not_started", "in_progress"],
-        limit: 6,
-      }),
-      // 4: 番茄钟今日
-      summaryPomodoroToday(),
-      // 5: 活跃 session
-      getActivePomodoroSession(),
-      // 6: 番茄钟预设
-      listPomodoroPresets(),
-      // 7: RSS 未读
-      countUnreadRssEntries(),
-      // 8: 最近动态
-      getLatestOperations(30),
-      // 9: 操作热力图
-      getCalendarHeatmap(dayjs().year()),
-      // 10: 全量创作统计，前端按视图聚合（增量/累计/占比）
-      getAllStatistic(),
-      // 11: 最近若干篇日记（时间轴展示），按日期倒序取最近三篇
-      // 显式传 diaryType：后端 IPC 会在末尾追加 win 对象顶替可选参数位置
-      (async () => {
-        const today = dayjs();
-        const startDate = today
-          .subtract(DIARY_FETCH_WINDOW_DAYS, "day")
-          .format("YYYY-MM-DD");
-        const endDate = today.format("YYYY-MM-DD");
-        const entries = await getDiaryEntriesByDateRange(
-          startDate,
-          endDate,
-          DIARY_TIMELINE_TYPE,
-        );
-        return entries
-          .sort((a, b) => b.date.localeCompare(a.date))
-          .slice(0, DIARY_TIMELINE_LIMIT)
-          .reverse();
-      })(),
-    ]);
-
-    const errors: Record<string, Error | null> = {};
-
-    // 解构结果
-    const [
-      todoResult,
-      flashcardResult,
-      decksResult,
-      questionResult,
-      pomodoroTodayResult,
-      activeSessionResult,
-      presetsResult,
-      rssUnreadResult,
-      recentActivityResult,
-      heatmapResult,
-      dailyStatsResult,
-      recentDiariesResult,
-    ] = results;
-
-    // 待办
-    let todoResponse: WorkbenchTodoPreviewResponse | null = null;
-    if (todoResult.status === "fulfilled") {
-      todoResponse = todoResult.value;
-    } else {
-      errors.todo = todoResult.reason;
-    }
-
-    // 闪卡
-    let flashcardItems: Flashcard[] = [];
-    if (flashcardResult.status === "fulfilled") {
-      flashcardItems = flashcardResult.value;
-    } else {
-      errors.flashcard = flashcardResult.reason;
-    }
-
-    // 卡组
-    let flashcardDecks: FlashcardDeck[] = [];
-    if (decksResult.status === "fulfilled") {
-      flashcardDecks = decksResult.value;
-    } else {
-      errors.decks = decksResult.reason;
-    }
-
-    // 问题
-    let questionResponse: WorkbenchQuestionPreviewResponse | null = null;
-    if (questionResult.status === "fulfilled") {
-      questionResponse = questionResult.value;
-    } else {
-      errors.question = questionResult.reason;
-    }
-
-    // 番茄钟今日
-    let pomodoroToday = { count: 0, focusMs: 0 };
-    if (pomodoroTodayResult.status === "fulfilled") {
-      pomodoroToday = pomodoroTodayResult.value;
-    } else {
-      errors.pomodoroToday = pomodoroTodayResult.reason;
-    }
-
-    // 活跃 session
-    let activeSession: PomodoroSession | null = null;
-    if (activeSessionResult.status === "fulfilled") {
-      activeSession = activeSessionResult.value;
-    } else {
-      errors.activeSession = activeSessionResult.reason;
-    }
-
-    // 预设
-    let pomodoroPresets: PomodoroPreset[] = [];
-    if (presetsResult.status === "fulfilled") {
-      pomodoroPresets = presetsResult.value;
-    } else {
-      errors.presets = presetsResult.reason;
-    }
-
-    // RSS
-    let rssUnread = 0;
-    if (rssUnreadResult.status === "fulfilled") {
-      rssUnread = rssUnreadResult.value;
-    } else {
-      errors.rss = rssUnreadResult.reason;
-    }
-
-    // 最近动态
-    let recentActivity: HomeData["recentActivity"] = {
-      cards: [],
-      articles: [],
-      projectItems: [],
-      documentItems: [],
-    };
-    if (recentActivityResult.status === "fulfilled") {
-      recentActivity = recentActivityResult.value;
-    } else {
-      errors.recentActivity = recentActivityResult.reason;
-    }
-
-    let activityHeatmap: IItem[] = [];
-    if (heatmapResult.status === "fulfilled") {
-      activityHeatmap = heatmapResult.value.map((item) => ({
-        date: item.time,
-        count: item.operation_list.length,
-        operationList: item.operation_list,
-      }));
-    } else {
-      errors.heatmap = heatmapResult.reason;
-    }
-
-    let contentTrend: HomeTrendPoint[] = [];
-    if (dailyStatsResult.status === "fulfilled") {
-      const statsByKey = new Map<
-        string,
-        { count: number; wordsCount: number }
-      >();
-      dailyStatsResult.value.forEach((item) => {
-        if (!TREND_TYPES.includes(item.statisticType as HomeTrendType)) return;
-        const key = `${item.date}:${item.statisticType}`;
-        // 后端 content 为截至当日的累计总量快照，同一天多条记录取最大值（最新快照）
-        const prev = statsByKey.get(key) ?? { count: 0, wordsCount: 0 };
-        statsByKey.set(key, {
-          count: Math.max(prev.count, item.content.count),
-          wordsCount: Math.max(prev.wordsCount, item.content.wordsCount),
-        });
-      });
-
-      // 从最早统计数据到今天，生成完整时间序列（用于增量/累计/占比视图）
-      const end = dayjs();
-      let start = end;
-      for (const key of statsByKey.keys()) {
-        const d = dayjs(key.split(":")[0]);
-        if (d.isBefore(start)) start = d;
-      }
-      const days = end.diff(start, "day") + 1;
-      contentTrend = Array.from({ length: days }, (_, index) => {
-        const date = start.add(index, "day").format("YYYY-MM-DD");
-        return TREND_TYPES.map((type) => {
-          const stats = statsByKey.get(`${date}:${type}`) ?? {
-            count: 0,
-            wordsCount: 0,
-          };
-          return { date, type, ...stats };
-        });
-      }).flat();
-    } else {
-      errors.dailyStats = dailyStatsResult.reason;
-    }
-
-    let recentDiaries: DiaryEntry[] = [];
-    if (recentDiariesResult.status === "fulfilled") {
-      recentDiaries = recentDiariesResult.value;
-    } else {
-      errors.recentDiaries = recentDiariesResult.reason;
-    }
-
-    // 判断今天是否已有日记（决定是否显示"添加今日日记"入口）
-    const todayKey = formatDate(new Date());
-    const todayDiaryExists = recentDiaries.some(
-      (entry) => entry.date === todayKey,
-    );
-
-    // 计算闪卡到期数量（queue 返回的就是 due 的）
-    const flashcardsDue = flashcardItems.length;
-
-    // 从 deck stats 中获取全部 due 数量（更准确）
-    const totalDueFromDecks = flashcardDecks.reduce(
-      (sum, d) => sum + (d.stats?.dueCount || 0),
-      0,
-    );
-
-    setData({
-      summary: {
-        pendingTodos: todoResponse?.pendingTotal || 0,
-        overdueTodos: todoResponse?.overdueTotal || 0,
-        flashcardsDue: totalDueFromDecks || flashcardsDue,
-        rssUnread,
-        pomodoroToday,
-      },
-      todoItems: todoResponse?.items || [],
-      todoGroups: todoResponse?.groups || [],
-      flashcardItems,
-      flashcardDecks,
-      questionItems: questionResponse?.items || [],
-      questionGroups: questionResponse?.groups || [],
-      activeSession,
-      pomodoroPresets,
-      recentActivity,
-      activityHeatmap,
-      contentTrend,
-      recentDiaries,
-      todayDiaryExists,
-      loading: false,
-      errors,
+const fetchRecentDiaryData = async (): Promise<RecentDiaryResult> => {
+  const today = dayjs();
+  const startDate = today
+    .subtract(DIARY_FETCH_WINDOW_DAYS, "day")
+    .format("YYYY-MM-DD");
+  const endDate = today.format("YYYY-MM-DD");
+  const [entries, allSegments] = await Promise.all([
+    getDiaryEntriesByDateRange(startDate, endDate, DIARY_TIMELINE_TYPE),
+    getAllDiarySegmentsFlat(),
+  ]);
+  const allItems: RecentSegmentItem[] = entries.flatMap((entry) =>
+    entry.segments.map((segment) => ({ segment, diary: entry })),
+  );
+  const tagEntryIds = new Map<string, Set<number>>();
+  allSegments.forEach((item) => {
+    item.tags.forEach((tag) => {
+      const entryIds = tagEntryIds.get(tag) ?? new Set<number>();
+      entryIds.add(item.diaryId);
+      tagEntryIds.set(tag, entryIds);
     });
-  }, []);
+  });
+  const tagUsageCounts = new Map<string, number>();
+  tagEntryIds.forEach((entryIds, tag) => {
+    tagUsageCounts.set(tag, entryIds.size);
+  });
 
-  useEffect(() => {
-    fetchAllData();
-  }, [fetchAllData]);
+  return {
+    segments: allItems
+      .sort((a, b) => b.segment.createTime - a.segment.createTime)
+      .slice(0, SEGMENT_LIMIT),
+    tagUsageCounts,
+  };
+};
 
-  const saveDiary = useCallback(
-    async (
-      id: number,
-      content: DiaryEntry["content"],
-    ): Promise<DiaryEntry | null> => {
-      try {
-        const updated = await updateDiaryEntry({ id, content });
-        setData((prev) => ({
-          ...prev,
-          recentDiaries: prev.recentDiaries.map((entry) =>
-            entry.id === id ? updated : entry,
-          ),
-        }));
-        return updated;
-      } catch (error) {
-        console.error("Failed to save diary:", error);
-        return null;
-      }
-    },
-    [],
+const fetchHomeTodoData = async (): Promise<HomeTodoData> => {
+  const response = await listTodoPreview({ status: "pending", limit: 6 });
+  return {
+    pendingTodos: response.pendingTotal || 0,
+    overdueTodos: response.overdueTotal || 0,
+    todoItems: response.items || [],
+    todoGroups: response.groups || [],
+  };
+};
+
+const fetchHomeQuestionData = async (): Promise<HomeQuestionData> => {
+  const response = await listQuestionPreview({
+    statuses: ["not_started", "in_progress"],
+    limit: 6,
+  });
+  return {
+    questionItems: response.items || [],
+    questionGroups: response.groups || [],
+  };
+};
+
+const fetchHomeFlashcardData = async (): Promise<HomeFlashcardData> => {
+  const [flashcardItems, flashcardDecks] = await Promise.all([
+    getFlashcardReviewQueue({ limit: 30 }),
+    listFlashcardDecks(),
+  ]);
+  const totalDueFromDecks = flashcardDecks.reduce(
+    (sum, deck) => sum + (deck.stats?.dueCount || 0),
+    0,
   );
 
-  const createTodayDiary = useCallback(async (): Promise<DiaryEntry | null> => {
+  return {
+    flashcardsDue: totalDueFromDecks || flashcardItems.length,
+    flashcardItems,
+    flashcardDecks,
+  };
+};
+
+const fetchHomeRssData = async (): Promise<HomeRssData> => {
+  const [rssItems, rssFeeds, rssUnread] = await Promise.all([
+    listUnreadRssEntries(RSS_PREVIEW_LIMIT, 0, ""),
+    listRssFeeds(),
+    countUnreadRssEntries(),
+  ]);
+
+  return {
+    rssUnread,
+    rssItems,
+    rssFeeds,
+  };
+};
+
+const fetchHomePomodoroData = async (): Promise<HomePomodoroData> => {
+  const [
+    pomodoroToday,
+    activeSession,
+    pomodoroPresets,
+    pomodoroRecentSessions,
+  ] = await Promise.all([
+    summaryPomodoroToday(),
+    getActivePomodoroSession(),
+    listPomodoroPresets(),
+    listPomodoroSessions({ limit: POMODORO_RECENT_SESSION_LIMIT }),
+  ]);
+
+  return {
+    pomodoroToday,
+    activeSession,
+    pomodoroPresets,
+    pomodoroRecentSessions,
+  };
+};
+
+const buildContentTrend = (
+  stats: Awaited<ReturnType<typeof getAllStatistic>>,
+): HomeTrendPoint[] => {
+  const statsByKey = new Map<string, { count: number; wordsCount: number }>();
+  stats.forEach((item) => {
+    if (!TREND_TYPES.includes(item.statisticType as HomeTrendType)) return;
+    const key = `${item.date}:${item.statisticType}`;
+    const prev = statsByKey.get(key) ?? { count: 0, wordsCount: 0 };
+    statsByKey.set(key, {
+      count: Math.max(prev.count, item.content.count),
+      wordsCount: Math.max(prev.wordsCount, item.content.wordsCount),
+    });
+  });
+
+  const end = dayjs();
+  let start = end;
+  for (const key of statsByKey.keys()) {
+    const d = dayjs(key.split(":")[0]);
+    if (d.isBefore(start)) start = d;
+  }
+  const days = end.diff(start, "day") + 1;
+  return Array.from({ length: days }, (_, index) => {
+    const date = start.add(index, "day").format("YYYY-MM-DD");
+    return TREND_TYPES.map((type) => {
+      const typeStats = statsByKey.get(`${date}:${type}`) ?? {
+        count: 0,
+        wordsCount: 0,
+      };
+      return { date, type, ...typeStats };
+    });
+  }).flat();
+};
+
+const fetchHomeActivityData = async (): Promise<HomeActivityData> => {
+  const [recentActivity, heatmap, dailyStats] = await Promise.all([
+    getLatestOperations(30),
+    getCalendarHeatmap(dayjs().year()),
+    getAllStatistic(),
+  ]);
+
+  return {
+    recentActivity,
+    activityHeatmap: heatmap.map((item) => ({
+      date: item.time,
+      count: item.operation_list.length,
+      operationList: item.operation_list,
+    })),
+    contentTrend: buildContentTrend(dailyStats),
+  };
+};
+
+const fetchHomeDiaryData = async (): Promise<HomeDiaryData> => {
+  const [recentDiaryData, tagSettings] = await Promise.all([
+    fetchRecentDiaryData(),
+    getAllDiaryTagSettings(),
+  ]);
+
+  return {
+    recentSegments: recentDiaryData.segments,
+    tagSettings,
+    tagUsageCounts: recentDiaryData.tagUsageCounts,
+  };
+};
+
+const buildHomeData = ({
+  todo,
+  question,
+  flashcard,
+  rss,
+  pomodoro,
+  activity,
+  diary,
+  loading,
+  flashcardsLoading,
+  rssLoading,
+  errors,
+}: {
+  todo?: HomeTodoData;
+  question?: HomeQuestionData;
+  flashcard?: HomeFlashcardData;
+  rss?: HomeRssData;
+  pomodoro?: HomePomodoroData;
+  activity?: HomeActivityData;
+  diary?: HomeDiaryData;
+  loading: boolean;
+  flashcardsLoading: boolean;
+  rssLoading: boolean;
+  errors: Record<string, Error | null>;
+}): HomeData => ({
+  summary: {
+    pendingTodos: todo?.pendingTodos ?? INITIAL_DATA.summary.pendingTodos,
+    overdueTodos: todo?.overdueTodos ?? INITIAL_DATA.summary.overdueTodos,
+    flashcardsDue:
+      flashcard?.flashcardsDue ?? INITIAL_DATA.summary.flashcardsDue,
+    rssUnread: rss?.rssUnread ?? INITIAL_DATA.summary.rssUnread,
+    pomodoroToday:
+      pomodoro?.pomodoroToday ?? INITIAL_DATA.summary.pomodoroToday,
+  },
+  todoItems: todo?.todoItems ?? INITIAL_DATA.todoItems,
+  todoGroups: todo?.todoGroups ?? INITIAL_DATA.todoGroups,
+  flashcardItems: flashcard?.flashcardItems ?? INITIAL_DATA.flashcardItems,
+  flashcardDecks: flashcard?.flashcardDecks ?? INITIAL_DATA.flashcardDecks,
+  questionItems: question?.questionItems ?? INITIAL_DATA.questionItems,
+  questionGroups: question?.questionGroups ?? INITIAL_DATA.questionGroups,
+  rssItems: rss?.rssItems ?? INITIAL_DATA.rssItems,
+  rssFeeds: rss?.rssFeeds ?? INITIAL_DATA.rssFeeds,
+  activeSession: pomodoro?.activeSession ?? INITIAL_DATA.activeSession,
+  pomodoroPresets: pomodoro?.pomodoroPresets ?? INITIAL_DATA.pomodoroPresets,
+  pomodoroRecentSessions:
+    pomodoro?.pomodoroRecentSessions ?? INITIAL_DATA.pomodoroRecentSessions,
+  recentActivity: activity?.recentActivity ?? INITIAL_DATA.recentActivity,
+  activityHeatmap: activity?.activityHeatmap ?? INITIAL_DATA.activityHeatmap,
+  contentTrend: activity?.contentTrend ?? INITIAL_DATA.contentTrend,
+  recentSegments: diary?.recentSegments ?? INITIAL_DATA.recentSegments,
+  tagSettings: diary?.tagSettings ?? INITIAL_DATA.tagSettings,
+  tagUsageCounts: diary?.tagUsageCounts ?? INITIAL_DATA.tagUsageCounts,
+  loading,
+  flashcardsLoading,
+  rssLoading,
+  errors,
+});
+
+const buildErrors = (results: {
+  todo: UseQueryResult<HomeTodoData>;
+  question: UseQueryResult<HomeQuestionData>;
+  flashcard: UseQueryResult<HomeFlashcardData>;
+  rss: UseQueryResult<HomeRssData>;
+  pomodoro: UseQueryResult<HomePomodoroData>;
+  activity: UseQueryResult<HomeActivityData>;
+  diary: UseQueryResult<HomeDiaryData>;
+}): Record<string, Error | null> => ({
+  todo: toError(results.todo.error),
+  question: toError(results.question.error),
+  flashcard: toError(results.flashcard.error),
+  rss: toError(results.rss.error),
+  pomodoro: toError(results.pomodoro.error),
+  activity: toError(results.activity.error),
+  diary: toError(results.diary.error),
+});
+
+const updateDiaryCache = (
+  queryClient: QueryClient,
+  updater: (prev: HomeDiaryData) => HomeDiaryData,
+) => {
+  queryClient.setQueryData<HomeDiaryData>(DIARY_QUERY_KEY, (prev) => {
+    if (!prev) {
+      return prev;
+    }
+    return updater(prev);
+  });
+};
+
+const useHomeData = () => {
+  const queryClient = useQueryClient();
+  const [
+    todoQuery,
+    questionQuery,
+    flashcardQuery,
+    rssQuery,
+    pomodoroQuery,
+    activityQuery,
+    diaryQuery,
+  ] = useQueries({
+    queries: [
+      { queryKey: TODO_QUERY_KEY, queryFn: fetchHomeTodoData },
+      { queryKey: QUESTION_QUERY_KEY, queryFn: fetchHomeQuestionData },
+      { queryKey: FLASHCARD_QUERY_KEY, queryFn: fetchHomeFlashcardData },
+      { queryKey: RSS_QUERY_KEY, queryFn: fetchHomeRssData },
+      { queryKey: POMODORO_QUERY_KEY, queryFn: fetchHomePomodoroData },
+      { queryKey: ACTIVITY_QUERY_KEY, queryFn: fetchHomeActivityData },
+      { queryKey: DIARY_QUERY_KEY, queryFn: fetchHomeDiaryData },
+    ],
+  });
+
+  const queries = useMemo(
+    () => ({
+      todo: todoQuery,
+      question: questionQuery,
+      flashcard: flashcardQuery,
+      rss: rssQuery,
+      pomodoro: pomodoroQuery,
+      activity: activityQuery,
+      diary: diaryQuery,
+    }),
+    [
+      todoQuery,
+      questionQuery,
+      flashcardQuery,
+      rssQuery,
+      pomodoroQuery,
+      activityQuery,
+      diaryQuery,
+    ],
+  );
+
+  const hasAnyData = Object.values(queries).some((query) => !!query.data);
+  const loading =
+    !hasAnyData && Object.values(queries).some((query) => query.isLoading);
+  const data = useMemo(
+    () =>
+      buildHomeData({
+        todo: todoQuery.data,
+        question: questionQuery.data,
+        flashcard: flashcardQuery.data,
+        rss: rssQuery.data,
+        pomodoro: pomodoroQuery.data,
+        activity: activityQuery.data,
+        diary: diaryQuery.data,
+        loading,
+        flashcardsLoading: flashcardQuery.isFetching && !!flashcardQuery.data,
+        rssLoading: rssQuery.isFetching && !!rssQuery.data,
+        errors: buildErrors(queries),
+      }),
+    [
+      todoQuery.data,
+      questionQuery.data,
+      flashcardQuery.data,
+      rssQuery.data,
+      pomodoroQuery.data,
+      activityQuery.data,
+      diaryQuery.data,
+      loading,
+      flashcardQuery.isFetching,
+      rssQuery.isFetching,
+      queries,
+    ],
+  );
+
+  const refresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: HOME_QUERY_KEY });
+  }, [queryClient]);
+
+  const refreshFlashcards = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: FLASHCARD_QUERY_KEY });
+  }, [queryClient]);
+
+  const refreshRss = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: RSS_QUERY_KEY });
+  }, [queryClient]);
+
+  const refreshPomodoro = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: POMODORO_QUERY_KEY });
+  }, [queryClient]);
+
+  // 乐观更新当前活动会话，避免等待完整查询刷新导致的卡顿
+  const setActiveSession = useCallback(
+    (session: PomodoroSession | null) => {
+      queryClient.setQueryData<HomePomodoroData>(POMODORO_QUERY_KEY, (prev) => {
+        if (!prev) return prev;
+        return { ...prev, activeSession: session };
+      });
+    },
+    [queryClient],
+  );
+
+  const createSegmentNow = useCallback(async (): Promise<void> => {
     const today = formatDate(new Date());
     try {
-      const created = await createDiaryEntry({
-        type: DIARY_TIMELINE_TYPE,
-        date: today,
-        weather: null,
-        mood: null,
-        content: createEmptyDiaryContent(),
-      });
-      setData((prev) => ({
-        ...prev,
-        // 新建日记插入到时间轴最前，并保持篇数上限
-        recentDiaries: [created, ...prev.recentDiaries].slice(
-          0,
-          DIARY_TIMELINE_LIMIT,
-        ),
-        todayDiaryExists: true,
-      }));
-      return created;
+      const existing = await getDiaryEntryByDate(today);
+      if (existing) {
+        const created = await createDiarySegment({
+          diaryId: existing.id,
+          content: createEmptyDiaryContent(),
+        });
+        const newItem: RecentSegmentItem = {
+          segment: created,
+          diary: existing,
+        };
+        updateDiaryCache(queryClient, (prev) => ({
+          ...prev,
+          recentSegments: [newItem, ...prev.recentSegments].slice(
+            0,
+            SEGMENT_LIMIT,
+          ),
+        }));
+      } else {
+        const createdEntry = await createDiaryEntry({
+          type: DIARY_TIMELINE_TYPE,
+          date: today,
+          weather: null,
+          mood: null,
+          tags: [],
+          content: createEmptyDiaryContent(),
+        });
+        const newSegment = createdEntry.segments[0];
+        if (newSegment) {
+          const newItem: RecentSegmentItem = {
+            segment: newSegment,
+            diary: createdEntry,
+          };
+          updateDiaryCache(queryClient, (prev) => ({
+            ...prev,
+            recentSegments: [newItem, ...prev.recentSegments].slice(
+              0,
+              SEGMENT_LIMIT,
+            ),
+          }));
+        }
+      }
     } catch (error) {
-      console.error("Failed to create today diary:", error);
-      return null;
+      console.error("Failed to create segment now:", error);
     }
-  }, []);
+  }, [queryClient]);
+
+  const updateSegment = useCallback(
+    async (
+      segmentId: number,
+      content: DiaryEntry["content"],
+    ): Promise<void> => {
+      try {
+        const updated = await updateDiarySegment({ segmentId, content });
+        if (!updated) return;
+        updateDiaryCache(queryClient, (prev) => ({
+          ...prev,
+          recentSegments: prev.recentSegments.map((item) =>
+            item.segment.id === segmentId
+              ? { ...item, segment: updated }
+              : item,
+          ),
+        }));
+      } catch (error) {
+        console.error("Failed to update diary segment:", error);
+      }
+    },
+    [queryClient],
+  );
+
+  const deleteSegment = useCallback(
+    async (segmentId: number): Promise<void> => {
+      try {
+        await deleteDiarySegment(segmentId);
+        const recentDiaryData = await fetchRecentDiaryData();
+        updateDiaryCache(queryClient, (prev) => ({
+          ...prev,
+          recentSegments: recentDiaryData.segments,
+          tagUsageCounts: recentDiaryData.tagUsageCounts,
+        }));
+      } catch (error) {
+        console.error("Failed to delete diary segment:", error);
+      }
+    },
+    [queryClient],
+  );
+
+  const updateDiaryTags = useCallback(
+    async (entryId: number, tags: string[]): Promise<void> => {
+      try {
+        const updated = await updateDiaryEntry({ id: entryId, tags });
+        updateDiaryCache(queryClient, (prev) => {
+          const previousTags =
+            prev.recentSegments.find((item) => item.diary.id === entryId)?.diary
+              .tags ?? [];
+          const nextUsageCounts = new Map(prev.tagUsageCounts);
+
+          previousTags.forEach((tag) => {
+            if (tags.includes(tag)) return;
+            const nextCount = (nextUsageCounts.get(tag) ?? 0) - 1;
+            if (nextCount > 0) {
+              nextUsageCounts.set(tag, nextCount);
+            } else {
+              nextUsageCounts.delete(tag);
+            }
+          });
+
+          tags.forEach((tag) => {
+            if (previousTags.includes(tag)) return;
+            nextUsageCounts.set(tag, (nextUsageCounts.get(tag) ?? 0) + 1);
+          });
+
+          return {
+            ...prev,
+            recentSegments: prev.recentSegments.map((item) =>
+              item.diary.id === entryId ? { ...item, diary: updated } : item,
+            ),
+            tagUsageCounts: nextUsageCounts,
+          };
+        });
+      } catch (error) {
+        console.error("Failed to update diary tags:", error);
+      }
+    },
+    [queryClient],
+  );
+
+  const upsertTagSetting = useCallback(
+    async (setting: {
+      name: string;
+      color: string;
+      sort?: number;
+    }): Promise<void> => {
+      try {
+        const result = await upsertDiaryTagSetting(setting);
+        updateDiaryCache(queryClient, (prev) => {
+          const existing = prev.tagSettings.findIndex(
+            (item) => item.name === result.name,
+          );
+          const tagSettings =
+            existing >= 0
+              ? prev.tagSettings.map((item, index) =>
+                  index === existing ? result : item,
+                )
+              : [...prev.tagSettings, result];
+          return { ...prev, tagSettings };
+        });
+      } catch (error) {
+        console.error("Failed to upsert diary tag setting:", error);
+      }
+    },
+    [queryClient],
+  );
+
+  const deleteTagSetting = useCallback(
+    async (name: string): Promise<void> => {
+      try {
+        await deleteDiaryTagSetting(name);
+        const recentDiaryData = await fetchRecentDiaryData();
+        updateDiaryCache(queryClient, (prev) => ({
+          ...prev,
+          tagSettings: prev.tagSettings.filter((item) => item.name !== name),
+          recentSegments: recentDiaryData.segments,
+          tagUsageCounts: recentDiaryData.tagUsageCounts,
+        }));
+      } catch (error) {
+        console.error("Failed to delete tag setting:", error);
+      }
+    },
+    [queryClient],
+  );
 
   return {
     data,
-    refresh: fetchAllData,
-    saveDiary,
-    createTodayDiary,
+    refresh,
+    refreshFlashcards,
+    refreshRss,
+    refreshPomodoro,
+    setActiveSession,
+    createSegmentNow,
+    updateSegment,
+    deleteSegment,
+    updateDiaryTags,
+    upsertTagSetting,
+    deleteTagSetting,
   };
 };
 

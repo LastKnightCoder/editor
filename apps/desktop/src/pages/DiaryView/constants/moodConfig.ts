@@ -29,18 +29,6 @@ export const getMoodColor = (mood: string | null): string => {
 };
 
 /**
- * Get type color
- */
-export const getTypeColor = (type: string): string => {
-  const typeColorMap: Record<string, string> = {
-    daily: "#1890ff",
-    weekly: "#52c41a",
-    monthly: "#fa8c16",
-  };
-  return typeColorMap[type] || "#1890ff";
-};
-
-/**
  * Convert hex color to rgba
  */
 export const hexToRgba = (hex: string, alpha: number): string => {

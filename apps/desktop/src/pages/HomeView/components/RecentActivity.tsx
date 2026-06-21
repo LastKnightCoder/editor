@@ -158,14 +158,8 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ recentActivity }) => {
   }, [recentActivity, createTab]);
 
   return (
-    <div
-      className={classNames(
-        "rounded-xl border p-5",
-        themeColors.cardBorderClass,
-        themeColors.cardBgClass,
-      )}
-    >
-      <div className="mb-4 flex items-center justify-between">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
         <h3
           className={classNames("text-sm font-semibold", themeColors.textClass)}
         >

@@ -236,6 +236,20 @@ class FTSTable {
     return this.removeIndex(db, prefixedId);
   }
 
+  static removeIndexesByType(db: Database.Database, type: string) {
+    if (!this.hasTable(db, "content_fts")) {
+      return 0;
+    }
+    const result = db
+      .prepare(
+        `
+          DELETE FROM content_fts WHERE type = ?
+        `,
+      )
+      .run(type);
+    return result.changes;
+  }
+
   static checkIndexExists(
     db: Database.Database,
     id: number,
@@ -374,7 +388,7 @@ class FTSTable {
     }
 
     for (const entry of DiaryTable.getAllDiaryEntries(mainDb)) {
-      const entryType = `diary-${entry.type}` as IndexType;
+      const entryType: IndexType = "diary-daily";
       if (!shouldIncludeType(entryType)) continue;
       const text = getMarkdown(entry.content || []).trim();
       if (!text || !isMatch(text)) continue;
@@ -552,19 +566,13 @@ class FTSTable {
         case "document-item":
           details = DocumentTable.getDocumentItem(db, result.id);
           break;
-        case "diary-daily":
-        case "diary-weekly":
-        case "diary-monthly": {
+        case "diary-daily": {
           const diaryEntry = DiaryTable.getDiaryEntryById(db, result.id);
           if (diaryEntry) {
-            const typeLabels = {
-              daily: "日记",
-              weekly: "周记",
-              monthly: "月记",
-            };
             details = {
               ...diaryEntry,
-              title: `${diaryEntry.date} ${typeLabels[diaryEntry.type] || "日记"}`,
+              contentId: diaryEntry.segments[0]?.contentId ?? 0,
+              title: DiaryTable.getDiarySearchTitle(diaryEntry),
             };
           }
           break;

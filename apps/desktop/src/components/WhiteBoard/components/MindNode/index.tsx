@@ -830,8 +830,6 @@ const MindNode = (props: MindNodeProps) => {
           "document-item",
           "project-item",
           "diary-daily",
-          "diary-weekly",
-          "diary-monthly",
         ]}
         extensions={dynamicExtensions}
         title="选择笔记"

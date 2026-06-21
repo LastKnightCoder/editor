@@ -361,6 +361,25 @@ export default class VecDocumentTable {
     }
   }
 
+  static removeIndexesByType(db: Database.Database, type: string) {
+    if (!this.hasTable(db, "vec_documents")) {
+      return 0;
+    }
+    try {
+      const result = db
+        .prepare(
+          `
+            DELETE FROM vec_documents WHERE type = ?
+          `,
+        )
+        .run(type);
+      return result.changes;
+    } catch (error) {
+      log.error("按类型移除向量索引失败:", error);
+      return 0;
+    }
+  }
+
   static async searchContent(
     mainDb: Database.Database,
     indexDb: Database.Database,
@@ -434,19 +453,13 @@ export default class VecDocumentTable {
             case "document-item":
               details = DocumentTable.getDocumentItem(mainDb, doc.id);
               break;
-            case "diary-daily":
-            case "diary-weekly":
-            case "diary-monthly": {
+            case "diary-daily": {
               const diaryEntry = DiaryTable.getDiaryEntryById(mainDb, doc.id);
               if (diaryEntry) {
-                const typeLabels = {
-                  daily: "日记",
-                  weekly: "周记",
-                  monthly: "月记",
-                };
                 details = {
                   ...diaryEntry,
-                  title: `${diaryEntry.date} ${typeLabels[diaryEntry.type] || "日记"}`,
+                  contentId: diaryEntry.segments[0]?.contentId ?? 0,
+                  title: DiaryTable.getDiarySearchTitle(diaryEntry),
                 };
               }
               break;
@@ -547,19 +560,13 @@ export default class VecDocumentTable {
         case "document-item":
           details = DocumentTable.getDocumentItem(mainDb, doc.id);
           break;
-        case "diary-daily":
-        case "diary-weekly":
-        case "diary-monthly": {
+        case "diary-daily": {
           const diaryEntry = DiaryTable.getDiaryEntryById(mainDb, doc.id);
           if (diaryEntry) {
-            const typeLabels = {
-              daily: "日记",
-              weekly: "周记",
-              monthly: "月记",
-            };
             details = {
               ...diaryEntry,
-              title: `${diaryEntry.date} ${typeLabels[diaryEntry.type] || "日记"}`,
+              contentId: diaryEntry.segments[0]?.contentId ?? 0,
+              title: DiaryTable.getDiarySearchTitle(diaryEntry),
             };
           }
           break;

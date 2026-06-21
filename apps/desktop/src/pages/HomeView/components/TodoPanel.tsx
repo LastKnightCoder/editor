@@ -67,7 +67,7 @@ const TodoPanel: React.FC<TodoPanelProps> = ({
   return (
     <div
       className={classNames(
-        "rounded-xl border p-4 h-[260px] flex flex-col",
+        "rounded-xl border p-4 min-h-[200px] flex flex-col",
         themeColors.cardBorderClass,
         themeColors.cardBgClass,
       )}
@@ -113,7 +113,7 @@ const TodoPanel: React.FC<TodoPanelProps> = ({
         <button
           onClick={() => createTab(TabType.Todo)}
           className={classNames(
-            "text-xs flex items-center gap-1 transition-colors",
+            "text-xs flex items-center gap-1 transition-colors cursor-pointer",
             themeColors.secondaryTextClass,
             "hover:opacity-80",
           )}
@@ -134,7 +134,7 @@ const TodoPanel: React.FC<TodoPanelProps> = ({
           没有待办任务 🎉
         </div>
       ) : (
-        <div className="flex-1 space-y-1 overflow-hidden min-h-0">
+        <div className="flex-1 space-y-1 overflow-y-auto min-h-0 pr-1">
           {previewItems.map((item) => {
             const dueStatus = getDueStatus(item);
             return (
@@ -151,7 +151,7 @@ const TodoPanel: React.FC<TodoPanelProps> = ({
                     e.stopPropagation();
                     handleToggle(item);
                   }}
-                  className="mt-0.5 shrink-0"
+                  className="mt-0.5 shrink-0 cursor-pointer"
                 >
                   {item.isCompleted ? (
                     <CheckCircle2 className="w-4 h-4 text-green-500" />

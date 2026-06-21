@@ -8,6 +8,8 @@ CREATE INDEX IF NOT EXISTS idx_articles_podcast_id ON articles(podcast_id);
 CREATE INDEX IF NOT EXISTS idx_diary_entries_type ON diary_entries(type);
 CREATE INDEX IF NOT EXISTS idx_diary_entries_date ON diary_entries(date);
 CREATE INDEX IF NOT EXISTS idx_diary_entries_create_time ON diary_entries(create_time);
+CREATE INDEX IF NOT EXISTS idx_diary_segments_diary_id ON diary_segments(diary_id);
+CREATE INDEX IF NOT EXISTS idx_diary_segments_create_time ON diary_segments(create_time);
 CREATE INDEX IF NOT EXISTS idx_video_note_item_video ON video_note_item(video_note_id);
 CREATE INDEX IF NOT EXISTS idx_chat_group_parent_id ON chat_group(parent_id);
 CREATE INDEX IF NOT EXISTS idx_chat_group_order_index ON chat_group(order_index);

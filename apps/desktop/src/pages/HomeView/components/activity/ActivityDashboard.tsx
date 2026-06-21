@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 import classNames from "classnames";
-import dayjs from "dayjs";
 import { motion } from "motion/react";
-import CalendarHeatmap, { type IItem } from "@/components/CalendarHeatmap";
 import useThemeColors from "@/hooks/useThemeColors";
 import type { HomeTrendPoint } from "../../hooks/useHomeData";
 import AnimatedSegmented from "./AnimatedSegmented";
@@ -21,12 +19,10 @@ import {
 } from "./constants";
 
 interface ActivityDashboardProps {
-  activityHeatmap: IItem[];
   contentTrend: HomeTrendPoint[];
 }
 
 const ActivityDashboard: React.FC<ActivityDashboardProps> = ({
-  activityHeatmap,
   contentTrend,
 }) => {
   const themeColors = useThemeColors();
@@ -45,59 +41,55 @@ const ActivityDashboard: React.FC<ActivityDashboardProps> = ({
 
   return (
     <section className="space-y-5">
-      <CalendarHeatmap
-        className="px-1"
-        data={activityHeatmap}
-        year={dayjs().format("YYYY")}
-        renderTooltip={(date, value) => `${date}: ${value?.count ?? 0} 次操作`}
-      />
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-baseline gap-2">
         <h2
-          className={classNames(
-            "text-base font-semibold",
-            themeColors.textClass,
-          )}
+          className={classNames("text-sm font-semibold", themeColors.textClass)}
         >
           创作动态
         </h2>
-        <div className="flex flex-wrap items-center gap-2">
-          <AnimatedSegmented
-            options={RANGES}
-            value={range}
-            onChange={setRange}
-            layoutId="act-range"
-          />
-          <AnimatedSegmented
-            options={MODES}
-            value={mode}
-            onChange={setMode}
-            layoutId="act-mode"
-          />
-          <AnimatedSegmented
-            options={METRICS}
-            value={metric}
-            onChange={setMetric}
-            layoutId="act-metric"
-          />
-          <AnimatedSegmented
-            options={CATEGORIES}
-            value={category}
-            onChange={setCategory}
-            layoutId="act-category"
-          />
-        </div>
+        <span
+          className={classNames(
+            "text-xs tabular-nums",
+            themeColors.secondaryTextClass,
+          )}
+        >
+          {chartData.ratio.total.toLocaleString()}{" "}
+          {metric === "count" ? "篇" : "字"}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <AnimatedSegmented
+          options={RANGES}
+          value={range}
+          onChange={setRange}
+          layoutId="act-range"
+        />
+        <AnimatedSegmented
+          options={MODES}
+          value={mode}
+          onChange={setMode}
+          layoutId="act-mode"
+        />
+        <AnimatedSegmented
+          options={METRICS}
+          value={metric}
+          onChange={setMetric}
+          layoutId="act-metric"
+        />
+        <AnimatedSegmented
+          options={CATEGORIES}
+          value={category}
+          onChange={setCategory}
+          layoutId="act-category"
+        />
       </div>
 
       <motion.div
         layout
-        className={classNames(
-          "rounded-2xl border p-5",
-          themeColors.cardBorderClass,
-          themeColors.cardBgClass,
-        )}
+        className="@container rounded-2xl bg-[var(--th-input-bg)] p-5"
       >
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
+        <div className="flex flex-col gap-6 @3xl:flex-row @3xl:items-center">
           <div className="min-w-0 flex-1">
             <div className="mb-3 flex items-center justify-between">
               <span
@@ -116,13 +108,7 @@ const ActivityDashboard: React.FC<ActivityDashboardProps> = ({
               metric={metric}
             />
           </div>
-          <div
-            className={classNames(
-              "shrink-0 rounded-xl border p-4",
-              themeColors.cardBorderClass,
-            )}
-            style={{ backgroundColor: "var(--th-hover-bg)" }}
-          >
+          <div className="shrink-0 rounded-xl p-4 bg-[var(--th-hover-bg)] @3xl:self-center">
             <div
               className={classNames(
                 "mb-3 text-xs font-medium",

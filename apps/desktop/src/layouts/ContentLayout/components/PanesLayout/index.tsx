@@ -261,7 +261,7 @@ const PanesLayout = memo(() => {
   if (isHorizontal) {
     // 左右布局：只在右侧的 pane 显示控件
     return (
-      <div className="flex-1 min-h-0 flex overflow-hidden">
+      <div className="flex h-full w-full min-h-0 overflow-hidden">
         <div
           ref={containerRef}
           className={classnames(styles.panesContainer, "flex-1 min-w-0")}
@@ -311,7 +311,7 @@ const PanesLayout = memo(() => {
   } else {
     // 上下布局：只在上面的 pane 显示控件
     return (
-      <div className="flex-1 min-h-0 flex overflow-hidden">
+      <div className="flex h-full w-full min-h-0 overflow-hidden">
         <div
           ref={containerRef}
           className={classnames(styles.panesContainer, "flex-1 min-w-0")}

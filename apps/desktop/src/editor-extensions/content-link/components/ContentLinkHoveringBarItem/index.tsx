@@ -110,8 +110,6 @@ const LinkHoveringItem = memo(() => {
           "project-item",
           "document-item",
           "diary-daily",
-          "diary-weekly",
-          "diary-monthly",
         ]}
         extensions={extensions}
         emptyDescription="没有可选择的内容"

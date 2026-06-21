@@ -1,20 +1,74 @@
 import {
   DiaryEntry,
+  DiarySegment,
   CreateDiaryEntry,
   UpdateDiaryEntry,
   DiaryType,
   DiaryHeatmapData,
+  DiarySegmentItem,
+  DiaryTagSetting,
+  WeatherMood,
 } from "@/types/diary";
+import { Descendant } from "slate";
 import { invoke } from "@/electron";
+
+// IPC 返回的原始结构（weather/mood/tags 为 JSON string，segments 为原始对象数组）
+interface RawDiaryEntry {
+  id: number;
+  type: DiaryType;
+  date: string;
+  contentId: number | null;
+  weather: string | null;
+  mood: string | null;
+  tags: string | null;
+  wordCount: number;
+  createTime: number;
+  updateTime: number;
+  segments: RawDiarySegment[];
+  content?: Descendant[];
+}
+
+interface RawDiarySegment {
+  id: number;
+  diaryId: number;
+  contentId: number;
+  wordCount: number;
+  createTime: number;
+  updateTime: number;
+  content: Descendant[];
+}
+
+interface RawDiarySegmentItem {
+  id: number;
+  diaryId: number;
+  contentId: number;
+  wordCount: number;
+  createTime: number;
+  updateTime: number;
+  content: Descendant[];
+  entryDate: string;
+  entryDateMs: number;
+  weather: string | null;
+  mood: string | null;
+  tags: string | null;
+}
+
+interface RawDiaryTagSetting {
+  name: string;
+  color: string;
+  sort: number;
+  createTime: number;
+  updateTime: number;
+}
 
 export const createDiaryEntry = async (
   entry: CreateDiaryEntry,
 ): Promise<DiaryEntry> => {
-  // Serialize weather and mood to JSON strings
   const serializedEntry = {
     ...entry,
     weather: entry.weather ? JSON.stringify(entry.weather) : null,
     mood: entry.mood ? JSON.stringify(entry.mood) : null,
+    tags: entry.tags ? JSON.stringify(entry.tags) : "[]",
   };
   const result = await invoke("create-diary-entry", serializedEntry);
   return deserializeDiaryEntry(result);
@@ -23,7 +77,6 @@ export const createDiaryEntry = async (
 export const updateDiaryEntry = async (
   entry: UpdateDiaryEntry,
 ): Promise<DiaryEntry> => {
-  // Serialize weather and mood to JSON strings if they exist
   const serializedEntry = {
     ...entry,
     weather:
@@ -38,6 +91,7 @@ export const updateDiaryEntry = async (
           ? JSON.stringify(entry.mood)
           : null
         : undefined,
+    tags: entry.tags !== undefined ? JSON.stringify(entry.tags) : undefined,
   };
   const result = await invoke("update-diary-entry", serializedEntry);
   return deserializeDiaryEntry(result);
@@ -113,8 +167,8 @@ export const getDiariesWithContent = async (params: {
     id: number;
     type: DiaryType;
     date: string;
-    weather: any;
-    mood: any;
+    weather: WeatherMood | null;
+    mood: WeatherMood | null;
     wordCount: number;
     content: string;
     createTime: string;
@@ -124,11 +178,131 @@ export const getDiariesWithContent = async (params: {
   return await invoke("get-diaries-with-content", params);
 };
 
-// Helper function to deserialize weather and mood from JSON strings
-function deserializeDiaryEntry(entry: any): DiaryEntry {
+// ---- Segment-level commands ----
+
+export const getDiarySegments = async (
+  diaryId: number,
+): Promise<DiarySegment[]> => {
+  const results = await invoke("get-diary-segments", diaryId);
+  return results.map(deserializeDiarySegment);
+};
+
+export const createDiarySegment = async (params: {
+  diaryId: number;
+  content: Descendant[];
+}): Promise<DiarySegment> => {
+  const result = await invoke("create-diary-segment", params);
+  return deserializeDiarySegment(result);
+};
+
+export const updateDiarySegment = async (params: {
+  segmentId: number;
+  content: Descendant[];
+}): Promise<DiarySegment | null> => {
+  const result = await invoke("update-diary-segment", params);
+  return result ? deserializeDiarySegment(result) : null;
+};
+
+export const deleteDiarySegment = async (
+  segmentId: number,
+): Promise<number> => {
+  return invoke("delete-diary-segment", segmentId);
+};
+
+// ---- Deserialization helpers ----
+
+function deserializeDiarySegment(segment: RawDiarySegment): DiarySegment {
   return {
-    ...entry,
-    weather: entry?.weather != null ? JSON.parse(entry.weather) : null,
-    mood: entry?.mood != null ? JSON.parse(entry.mood) : null,
+    id: segment.id,
+    diaryId: segment.diaryId,
+    contentId: segment.contentId,
+    wordCount: segment.wordCount,
+    createTime: segment.createTime,
+    updateTime: segment.updateTime,
+    content: segment.content,
   };
 }
+
+function deserializeDiaryEntry(entry: RawDiaryEntry): DiaryEntry {
+  return {
+    id: entry.id,
+    type: entry.type,
+    date: entry.date,
+    contentId: entry.contentId,
+    weather: entry.weather != null ? JSON.parse(entry.weather) : null,
+    mood: entry.mood != null ? JSON.parse(entry.mood) : null,
+    tags: entry.tags != null ? safeParseTags(entry.tags) : [],
+    wordCount: entry.wordCount,
+    createTime: entry.createTime,
+    updateTime: entry.updateTime,
+    segments: entry.segments.map(deserializeDiarySegment),
+    content: entry.content ?? [],
+  };
+}
+
+function safeParseTags(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function deserializeDiarySegmentItem(
+  item: RawDiarySegmentItem,
+): DiarySegmentItem {
+  return {
+    id: item.id,
+    diaryId: item.diaryId,
+    contentId: item.contentId,
+    wordCount: item.wordCount,
+    createTime: item.createTime,
+    updateTime: item.updateTime,
+    content: item.content,
+    entryDate: item.entryDate,
+    entryDateMs: item.entryDateMs,
+    weather: item.weather != null ? JSON.parse(item.weather) : null,
+    mood: item.mood != null ? JSON.parse(item.mood) : null,
+    tags: item.tags != null ? safeParseTags(item.tags) : [],
+  };
+}
+
+function deserializeDiaryTagSetting(
+  setting: RawDiaryTagSetting,
+): DiaryTagSetting {
+  return {
+    name: setting.name,
+    color: setting.color,
+    sort: setting.sort,
+    createTime: setting.createTime,
+    updateTime: setting.updateTime,
+  };
+}
+
+// ---- 朋友圈流 + 标签设置 ----
+
+export const getAllDiarySegmentsFlat = async (): Promise<
+  DiarySegmentItem[]
+> => {
+  const results = await invoke("get-all-diary-segments-flat");
+  return results.map(deserializeDiarySegmentItem);
+};
+
+export const getAllDiaryTagSettings = async (): Promise<DiaryTagSetting[]> => {
+  const results = await invoke("get-all-diary-tag-settings");
+  return results.map(deserializeDiaryTagSetting);
+};
+
+export const upsertDiaryTagSetting = async (setting: {
+  name: string;
+  color: string;
+  sort?: number;
+}): Promise<DiaryTagSetting> => {
+  const result = await invoke("upsert-diary-tag-setting", setting);
+  return deserializeDiaryTagSetting(result);
+};
+
+export const deleteDiaryTagSetting = async (name: string): Promise<number> => {
+  return invoke("delete-diary-tag-setting", name);
+};
