@@ -18,6 +18,7 @@ interface CardListPanelProps {
   onToggleCardTop: (cardId: number) => Promise<void>;
   onShowScrollToTop: (show: boolean) => void;
   onPresentationMode: (card: ICard) => void;
+  emptyDescription?: string;
 }
 
 const CardListPanel = forwardRef<CardListPanelRef, CardListPanelProps>(
@@ -30,6 +31,7 @@ const CardListPanel = forwardRef<CardListPanelRef, CardListPanelProps>(
       onToggleCardTop,
       onShowScrollToTop,
       onPresentationMode,
+      emptyDescription,
     },
     ref,
   ) => {
@@ -62,6 +64,7 @@ const CardListPanel = forwardRef<CardListPanelRef, CardListPanelProps>(
             onDeleteCard={onDeleteCard}
             onUpdateCardCategory={onUpdateCardCategory}
             onToggleCardTop={onToggleCardTop}
+            emptyDescription={emptyDescription}
           />
         </div>
       </div>

@@ -11,6 +11,11 @@ import { searchContent } from "@/utils";
 import { resolveEmbeddingModelInfoFromSetting } from "@/utils/embedding-model-info";
 import MomentCard from "@/pages/DiaryView/components/MomentCard";
 import MomentFilterBar from "@/pages/DiaryView/components/MomentFilterBar";
+import {
+  buildDiarySearchRankMap,
+  filterAndSortSegmentsBySearchRank,
+  type DiarySearchRankMap,
+} from "./utils";
 
 const MomentStreamView = memo(() => {
   const {
@@ -35,21 +40,24 @@ const MomentStreamView = memo(() => {
     setActiveEntryId,
   } = useDiaryStore();
 
-  const [searchedEntryIds, setSearchedEntryIds] = useState<Set<number> | null>(
-    null,
-  );
+  const [searchedEntryRankMap, setSearchedEntryRankMap] =
+    useState<DiarySearchRankMap | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef(false);
   const lastScrolledEntryRef = useRef<number | null>(null);
   const resizeObserversRef = useRef<Map<string, ResizeObserver>>(new Map());
+  const searchRequestIdRef = useRef(0);
 
   // 搜索：debounce 后调用 hybrid 搜索（FTS + embedding 向量召回）
   const { run: debouncedSearch } = useDebounceFn(
     async (query: string) => {
       const trimmed = query.trim();
+      const requestId = searchRequestIdRef.current + 1;
+      searchRequestIdRef.current = requestId;
+
       if (!trimmed) {
-        setSearchedEntryIds(null);
+        setSearchedEntryRankMap(null);
         setIsSearching(false);
         return;
       }
@@ -63,12 +71,18 @@ const MomentStreamView = memo(() => {
           limit: 100,
           ...(modelInfo ? { modelInfo } : {}),
         });
-        setSearchedEntryIds(new Set(results.map((r) => r.id)));
+        if (searchRequestIdRef.current !== requestId) return;
+        setSearchedEntryRankMap(
+          buildDiarySearchRankMap(results.map((result) => result.id)),
+        );
       } catch (error) {
+        if (searchRequestIdRef.current !== requestId) return;
         console.error("Diary search failed:", error);
-        setSearchedEntryIds(new Set());
+        setSearchedEntryRankMap(new Map());
       } finally {
-        setIsSearching(false);
+        if (searchRequestIdRef.current === requestId) {
+          setIsSearching(false);
+        }
       }
     },
     { wait: 300 },
@@ -95,8 +109,8 @@ const MomentStreamView = memo(() => {
       );
     }
 
-    if (activeEntryId == null && searchedEntryIds) {
-      result = result.filter((item) => searchedEntryIds.has(item.diaryId));
+    if (activeEntryId == null && searchedEntryRankMap) {
+      result = filterAndSortSegmentsBySearchRank(result, searchedEntryRankMap);
     }
 
     return result;
@@ -105,7 +119,7 @@ const MomentStreamView = memo(() => {
     activeTagFilter,
     activeDateRange,
     activeEntryId,
-    searchedEntryIds,
+    searchedEntryRankMap,
   ]);
 
   const visibleSegments = useMemo(

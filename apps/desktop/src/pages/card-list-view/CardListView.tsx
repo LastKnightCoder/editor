@@ -29,6 +29,7 @@ import {
   getContentLength,
   importFromMarkdown,
   defaultCardEventBus,
+  searchContent,
 } from "@/utils";
 import {
   getAllCards,
@@ -40,11 +41,16 @@ import {
 } from "@/commands";
 import classNames from "classnames";
 import { useThemeColors } from "@/hooks";
+import SearchInput from "@/components/SearchInput";
+import useSettingStore from "@/stores/useSettingStore";
+import { resolveEmbeddingModelInfoFromSetting } from "@/utils/embedding-model-info";
 
 const categoryWithAll = {
   all: "全部笔记",
   ...cardCategoryName,
 };
+
+const CARD_SEARCH_LIMIT = 200;
 
 const CardListView = () => {
   const [cards, setCards] = useState<ICard[]>([]);
@@ -57,8 +63,14 @@ const CardListView = () => {
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const [pendingCardCategory, setPendingCardCategory] =
     useState<ECardCategory | null>(null);
+  const [cardSearchQuery, setCardSearchQuery] = useState("");
+  const [searchedCardIds, setSearchedCardIds] = useState<Set<number> | null>(
+    null,
+  );
+  const [isSearching, setIsSearching] = useState(false);
   const { modal } = App.useApp();
   const cardDatabaseViewRef = useRef<CardDatabaseViewRef>(null);
+  const searchRequestIdRef = useRef(0);
   const { hoverClass, activeClass, borderClass, buttonBg, buttonTextClass } =
     useThemeColors();
 
@@ -149,6 +161,46 @@ const CardListView = () => {
     });
     // 点击标签后滚动到顶部
     cardListRef.current?.scrollToTop();
+  });
+
+  const handleSearchCards = useMemoizedFn(async (query: string) => {
+    setCardSearchQuery(query);
+
+    const trimmedQuery = query.trim();
+    const requestId = searchRequestIdRef.current + 1;
+    searchRequestIdRef.current = requestId;
+
+    if (!trimmedQuery) {
+      setSearchedCardIds(null);
+      setIsSearching(false);
+      cardListRef.current?.scrollToTop();
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const settings = useSettingStore.getState().setting;
+      const modelInfo = resolveEmbeddingModelInfoFromSetting(settings);
+      const results = await searchContent({
+        query: trimmedQuery,
+        types: ["card"],
+        limit: CARD_SEARCH_LIMIT,
+        ...(modelInfo ? { modelInfo } : {}),
+      });
+
+      if (searchRequestIdRef.current !== requestId) return;
+
+      setSearchedCardIds(new Set(results.map((result) => result.id)));
+      cardListRef.current?.scrollToTop();
+    } catch (error) {
+      if (searchRequestIdRef.current !== requestId) return;
+      console.error("Failed to search cards:", error);
+      setSearchedCardIds(new Set());
+    } finally {
+      if (searchRequestIdRef.current === requestId) {
+        setIsSearching(false);
+      }
+    }
   });
 
   const handleCreateCard = useMemoizedFn(async (card: ICreateCard) => {
@@ -318,8 +370,31 @@ const CardListView = () => {
   );
 
   const filteredCards = useMemo(() => {
-    return filterCards(sortedCards, selectCategory, activeCardTag);
-  }, [sortedCards, selectCategory, activeCardTag, filterCards]);
+    const tagAndCategoryFilteredCards = filterCards(
+      sortedCards,
+      selectCategory,
+      activeCardTag,
+    );
+
+    if (!cardSearchQuery.trim() || !searchedCardIds) {
+      return tagAndCategoryFilteredCards;
+    }
+
+    const cardById = new Map(
+      tagAndCategoryFilteredCards.map((card) => [card.id, card]),
+    );
+
+    return Array.from(searchedCardIds)
+      .map((cardId) => cardById.get(cardId))
+      .filter((card): card is ICard => Boolean(card));
+  }, [
+    sortedCards,
+    selectCategory,
+    activeCardTag,
+    filterCards,
+    cardSearchQuery,
+    searchedCardIds,
+  ]);
 
   const handleMoreClick = useMemoizedFn(async ({ key }: { key: string }) => {
     if (key === "create-card") {
@@ -427,6 +502,13 @@ const CardListView = () => {
                   </div>
                 ))}
               </div>
+              <div className="flex-1 flex justify-end px-3">
+                <SearchInput
+                  value={cardSearchQuery}
+                  onChange={handleSearchCards}
+                  placeholder="搜索卡片..."
+                />
+              </div>
               <div className="flex gap-3 h-10 items-center mr-3">
                 <Dropdown
                   trigger={["click"]}
@@ -486,6 +568,13 @@ const CardListView = () => {
                   onToggleCardTop={handleToggleCardTop}
                   onShowScrollToTop={setShowScrollToTop}
                   onPresentationMode={handlePresentationMode}
+                  emptyDescription={
+                    isSearching
+                      ? "搜索中..."
+                      : cardSearchQuery.trim()
+                        ? "没有匹配的卡片"
+                        : "暂无卡片"
+                  }
                 />
               </If>
               <If condition={viewMode === ViewMode.Graph}>

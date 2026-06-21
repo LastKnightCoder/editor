@@ -4,6 +4,7 @@ import classNames from "classnames";
 import { useDebounceFn } from "ahooks";
 import { Tooltip } from "antd";
 import { useThemeColors } from "@/hooks";
+import useSettingStore from "@/stores/useSettingStore";
 
 interface SearchInputProps {
   value: string;
@@ -28,6 +29,7 @@ const SearchInput: React.FC<SearchInputProps> = memo(
       textClass,
       secondaryTextClass,
     } = useThemeColors();
+    const isDarkMode = useSettingStore((state) => state.setting.darkMode);
     const inputRef = useRef<HTMLInputElement>(null);
     const [isExpanded, setIsExpanded] = useState(alwaysExpanded);
     const [localValue, setLocalValue] = useState(value);
@@ -93,7 +95,12 @@ const SearchInput: React.FC<SearchInputProps> = memo(
         className={classNames(
           "relative flex items-center h-9 rounded-full transition-all duration-200 ease-in-out border",
           isExpanded
-            ? ["w-52 px-3", inputBgClass, borderClass]
+            ? [
+                "w-52 px-3",
+                isDarkMode
+                  ? "bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.12)]"
+                  : [inputBgClass, borderClass],
+              ]
             : ["w-9 cursor-pointer border-transparent", hoverClass],
         )}
       >

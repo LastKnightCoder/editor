@@ -135,6 +135,7 @@ interface DateAnchorButtonProps {
   active: boolean;
   accentColor: string;
   anchorName: string;
+  isDarkMode: boolean;
   onActivate: () => void;
 }
 
@@ -144,6 +145,7 @@ const DateAnchorButton = ({
   active,
   accentColor,
   anchorName,
+  isDarkMode,
   onActivate,
 }: DateAnchorButtonProps) => {
   return (
@@ -157,7 +159,9 @@ const DateAnchorButton = ({
           borderColor: active ? accentColor : "var(--th-card-border)",
           background: active
             ? colorWithAlpha(accentColor, 0.1)
-            : "var(--th-input-bg)",
+            : isDarkMode
+              ? "rgba(255, 255, 255, 0.06)"
+              : "var(--th-input-bg)",
           color: value ? "var(--th-text)" : "var(--th-text-secondary)",
         } as AnchorPositionStyle
       }
@@ -353,19 +357,6 @@ const MomentFilterBar = memo(
     const hasSearch = searchQuery.trim().length > 0;
     const hasAnyFilter = hasDateFilter || hasTagFilter || hasSearch;
     const accentColor = themeColors.accentColor || "#1890ff";
-    const createButtonStyle = isDarkMode
-      ? {
-          background: colorWithAlpha(accentColor, 0.16),
-          borderColor: colorWithAlpha(accentColor, 0.42),
-          color: accentColor,
-          boxShadow: `0 8px 18px ${colorWithAlpha(accentColor, 0.1)}`,
-        }
-      : {
-          background: accentColor,
-          borderColor: "transparent",
-          color: "#ffffff",
-          boxShadow: `0 8px 18px ${colorWithAlpha(accentColor, 0.2)}`,
-        };
 
     useEffect(() => {
       const handlePointerDown = (event: PointerEvent) => {
@@ -538,7 +529,9 @@ const MomentFilterBar = memo(
                     : "var(--th-card-border)",
                   background: isActive
                     ? colorWithAlpha(themeColors.accentColor || "#1890ff", 0.12)
-                    : "var(--th-input-bg)",
+                    : isDarkMode
+                      ? "rgba(255, 255, 255, 0.06)"
+                      : "var(--th-input-bg)",
                   color: isActive ? themeColors.accentColor : "var(--th-text)",
                 }}
               >
@@ -566,6 +559,7 @@ const MomentFilterBar = memo(
             active={activeCustomDate === "start"}
             accentColor={accentColor}
             anchorName="--diary-start-date"
+            isDarkMode={isDarkMode}
             onActivate={() => openDatePopover("start")}
           />
           <span
@@ -580,6 +574,7 @@ const MomentFilterBar = memo(
             active={activeCustomDate === "end"}
             accentColor={accentColor}
             anchorName="--diary-end-date"
+            isDarkMode={isDarkMode}
             onActivate={() => openDatePopover("end")}
           />
           <AnchoredDateCalendar
@@ -697,149 +692,161 @@ const MomentFilterBar = memo(
       <div
         ref={toolbarRef}
         className={classNames(
-          "sticky top-0 z-20 flex items-center gap-3 border-b px-6 py-3",
+          "sticky top-0 z-20 border-b",
           themeColors.cardBorderClass,
         )}
         style={{
-          background: "var(--th-blur-bg, var(--th-card-bg))",
-          backdropFilter: "blur(16px)",
-          WebkitBackdropFilter: "blur(16px)",
+          background: "transparent",
         }}
       >
-        {/* 搜索框 */}
-        <div
-          className="relative flex h-8 w-56 items-center rounded-full border px-3 transition-colors"
-          style={{
-            borderColor: hasSearch
-              ? themeColors.accentColor
-              : "var(--th-card-border)",
-            background: "var(--th-input-bg)",
-          }}
-        >
-          <Search
-            className="mr-2 h-3.5 w-3.5 flex-shrink-0"
-            style={{ color: "var(--th-text-secondary)" }}
-          />
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchQueryChange(e.target.value)}
-            placeholder="搜索日记..."
-            className="min-w-0 flex-1 bg-transparent text-xs outline-none"
-            style={{ color: "var(--th-text)" }}
-          />
-          {hasSearch && (
-            <button
-              type="button"
-              onClick={handleSearchClear}
-              className="ml-1 flex-shrink-0 rounded-full p-0.5 transition-colors"
-              style={{ color: "var(--th-text-secondary)" }}
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-
-        <div className="relative flex-shrink-0">
-          <button
-            type="button"
-            onClick={() =>
-              setOpenDropdown(openDropdown === "date" ? null : "date")
-            }
-            className={classNames(
-              "flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-all active:scale-[0.98]",
-              hasDateFilter ? "" : themeColors.hoverClass,
-            )}
+        {/* 版心容器：与下方内容区同宽（max-w-[800px]），避免顶部满栏两端分布 */}
+        <div className="mx-auto flex max-w-[800px] items-center gap-3 px-6 py-3">
+          {/* 搜索框 */}
+          <div
+            className="relative flex h-8 w-56 items-center rounded-full border px-3 transition-colors"
             style={{
-              borderColor: hasDateFilter
+              borderColor: hasSearch
                 ? themeColors.accentColor
-                : "var(--th-card-border)",
-              background: hasDateFilter
-                ? colorWithAlpha(themeColors.accentColor || "#1890ff", 0.1)
-                : "transparent",
-              color: hasDateFilter
-                ? themeColors.accentColor
-                : "var(--th-text-secondary)",
+                : isDarkMode
+                  ? "rgba(255, 255, 255, 0.12)"
+                  : "var(--th-card-border)",
+              background: isDarkMode
+                ? "rgba(255, 255, 255, 0.06)"
+                : "var(--th-input-bg)",
             }}
           >
-            <Calendar className="h-3.5 w-3.5" />
-            <span>{dateLabel}</span>
-            <ChevronDown
-              className={classNames(
-                "h-3.5 w-3.5 transition-transform",
-                openDropdown === "date" && "rotate-180",
-              )}
+            <Search
+              className="mr-2 h-3.5 w-3.5 flex-shrink-0"
+              style={{ color: "var(--th-text-secondary)" }}
             />
-          </button>
-          {openDropdown === "date" && dateDropdownContent}
-        </div>
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => onSearchQueryChange(e.target.value)}
+              placeholder="搜索日记..."
+              className="min-w-0 flex-1 bg-transparent text-xs outline-none"
+              style={{ color: "var(--th-text)" }}
+            />
+            {hasSearch && (
+              <button
+                type="button"
+                onClick={handleSearchClear}
+                className="ml-1 flex-shrink-0 rounded-full p-0.5 transition-colors"
+                style={{ color: "var(--th-text-secondary)" }}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
 
-        {tagSettings.length > 0 && (
           <div className="relative flex-shrink-0">
             <button
               type="button"
               onClick={() =>
-                setOpenDropdown(openDropdown === "tag" ? null : "tag")
+                setOpenDropdown(openDropdown === "date" ? null : "date")
               }
               className={classNames(
                 "flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-all active:scale-[0.98]",
-                hasTagFilter ? "" : themeColors.hoverClass,
+                hasDateFilter ? "" : themeColors.hoverClass,
               )}
               style={{
-                borderColor: hasTagFilter
+                borderColor: hasDateFilter
                   ? themeColors.accentColor
                   : "var(--th-card-border)",
-                background: hasTagFilter
+                background: hasDateFilter
                   ? colorWithAlpha(themeColors.accentColor || "#1890ff", 0.1)
                   : "transparent",
-                color: hasTagFilter
+                color: hasDateFilter
                   ? themeColors.accentColor
                   : "var(--th-text-secondary)",
               }}
             >
-              <Tags className="h-3.5 w-3.5" />
-              <span>
-                {hasTagFilter ? `标签 ${activeTagFilter.length}` : "标签"}
-              </span>
+              <Calendar className="h-3.5 w-3.5" />
+              <span>{dateLabel}</span>
               <ChevronDown
                 className={classNames(
                   "h-3.5 w-3.5 transition-transform",
-                  openDropdown === "tag" && "rotate-180",
+                  openDropdown === "date" && "rotate-180",
                 )}
               />
             </button>
-            {openDropdown === "tag" && tagDropdownContent}
+            {openDropdown === "date" && dateDropdownContent}
           </div>
-        )}
 
-        {/* 清除全部筛选 */}
-        {hasAnyFilter && (
+          {tagSettings.length > 0 && (
+            <div className="relative flex-shrink-0">
+              <button
+                type="button"
+                onClick={() =>
+                  setOpenDropdown(openDropdown === "tag" ? null : "tag")
+                }
+                className={classNames(
+                  "flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-all active:scale-[0.98]",
+                  hasTagFilter ? "" : themeColors.hoverClass,
+                )}
+                style={{
+                  borderColor: hasTagFilter
+                    ? themeColors.accentColor
+                    : "var(--th-card-border)",
+                  background: hasTagFilter
+                    ? colorWithAlpha(themeColors.accentColor || "#1890ff", 0.1)
+                    : "transparent",
+                  color: hasTagFilter
+                    ? themeColors.accentColor
+                    : "var(--th-text-secondary)",
+                }}
+              >
+                <Tags className="h-3.5 w-3.5" />
+                <span>
+                  {hasTagFilter ? `标签 ${activeTagFilter.length}` : "标签"}
+                </span>
+                <ChevronDown
+                  className={classNames(
+                    "h-3.5 w-3.5 transition-transform",
+                    openDropdown === "tag" && "rotate-180",
+                  )}
+                />
+              </button>
+              {openDropdown === "tag" && tagDropdownContent}
+            </div>
+          )}
+
+          {/* 清除全部筛选 */}
+          {hasAnyFilter && (
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className={classNames(
+                "flex h-8 flex-shrink-0 items-center gap-1 rounded-full px-3 text-xs transition-colors",
+                themeColors.hoverClass,
+              )}
+              style={{ color: "var(--th-text-secondary)" }}
+            >
+              <X className="h-3 w-3" />
+              <span>清除筛选</span>
+            </button>
+          )}
+
+          <div className="min-w-0 flex-1" />
+
           <button
             type="button"
-            onClick={handleClearAll}
+            onClick={onCreateMoment}
             className={classNames(
-              "flex h-8 flex-shrink-0 items-center gap-1 rounded-full px-3 text-xs transition-colors",
+              "flex h-8 flex-shrink-0 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-all active:scale-[0.98]",
               themeColors.hoverClass,
             )}
-            style={{ color: "var(--th-text-secondary)" }}
+            style={{
+              borderColor: colorWithAlpha(accentColor, 0.5),
+              background: "transparent",
+              color: accentColor,
+            }}
           >
-            <X className="h-3 w-3" />
-            <span>清除筛选</span>
+            <Plus className="h-3.5 w-3.5" />
+            <span>记录此刻</span>
           </button>
-        )}
-
-        <div className="min-w-0 flex-1" />
-
-        <button
-          type="button"
-          onClick={onCreateMoment}
-          className="flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3.5 text-xs font-semibold shadow-sm transition-all hover:brightness-105 active:scale-[0.98]"
-          style={createButtonStyle}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          <span>记录此刻</span>
-        </button>
+        </div>
       </div>
     );
   },
