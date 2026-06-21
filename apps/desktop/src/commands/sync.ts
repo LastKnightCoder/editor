@@ -51,7 +51,18 @@ const setDatabaseConnectionStatus = (
 const reconnectAfterSync = async (
   databaseName: string,
   source: DatabaseConnectSource,
+  options?: { mode?: "fast" | "maintenance" },
 ) => {
+  if (options?.mode === "maintenance") {
+    await connectDatabaseByName(databaseName, {
+      force: true,
+      mode: "maintenance",
+      source,
+    });
+    setDatabaseConnectionStatus(databaseName, "ready");
+    return;
+  }
+
   try {
     await reconnectDatabaseFast(databaseName, source);
     setDatabaseConnectionStatus(databaseName, "ready");
@@ -328,7 +339,9 @@ export const download = async (options?: SyncCommandOptions) => {
     return false;
   } finally {
     if (shouldReconnectInFinally) {
-      await reconnectAfterSync(databaseName, "sync_download_reconnect");
+      await reconnectAfterSync(databaseName, "sync_download_reconnect", {
+        mode: "maintenance",
+      });
     }
   }
 };
