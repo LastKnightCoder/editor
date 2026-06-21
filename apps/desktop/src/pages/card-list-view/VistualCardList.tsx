@@ -22,6 +22,7 @@ interface VirtualCardListProps {
     category: ECardCategory,
   ) => Promise<void>;
   onToggleCardTop?: (cardId: number) => Promise<void>;
+  emptyDescription?: string;
 }
 
 const VirtualCardList = forwardRef<VirtualCardListRef, VirtualCardListProps>(
@@ -34,6 +35,7 @@ const VirtualCardList = forwardRef<VirtualCardListRef, VirtualCardListProps>(
       onDeleteCard,
       onUpdateCardCategory,
       onToggleCardTop,
+      emptyDescription = "暂无卡片",
     },
     ref,
   ) => {
@@ -98,7 +100,7 @@ const VirtualCardList = forwardRef<VirtualCardListRef, VirtualCardListProps>(
       >
         <If condition={cards.length === 0}>
           <div className="flex justify-center items-center h-full">
-            <Empty description={"暂无卡片"} />
+            <Empty description={emptyDescription} />
           </div>
         </If>
         <If condition={cards.length > 0}>
