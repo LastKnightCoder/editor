@@ -141,7 +141,7 @@ describe("sync commands reconnect source", () => {
     );
   });
 
-  it("下载完成后使用 sync_download_reconnect 重连", async () => {
+  it("下载完成后使用维护模式重连以执行 schema 迁移", async () => {
     mockContext.syncProvider.downloadFile.mockImplementation(
       async (objectName: string) => {
         if (objectName === "database_data.db.json") {
@@ -154,10 +154,12 @@ describe("sync commands reconnect source", () => {
     const success = await download();
 
     expect(success).toBe(true);
-    expect(mockContext.reconnectDatabaseFast).toHaveBeenCalledWith(
-      "data.db",
-      "sync_download_reconnect",
-    );
+    expect(mockContext.reconnectDatabaseFast).not.toHaveBeenCalled();
+    expect(mockContext.connectDatabaseByName).toHaveBeenCalledWith("data.db", {
+      force: true,
+      mode: "maintenance",
+      source: "sync_download_reconnect",
+    });
   });
 
   it("自动下载后立即 reload 时跳过成功后的即时重连", async () => {

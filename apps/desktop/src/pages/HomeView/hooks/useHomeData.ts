@@ -237,9 +237,7 @@ const fetchRecentDiaryData = async (): Promise<RecentDiaryResult> => {
     getDiaryEntriesByDateRange(startDate, endDate, DIARY_TIMELINE_TYPE),
     getAllDiarySegmentsFlat(),
   ]);
-  const allItems: RecentSegmentItem[] = entries.flatMap((entry) =>
-    entry.segments.map((segment) => ({ segment, diary: entry })),
-  );
+  const entryById = new Map(entries.map((entry) => [entry.id, entry]));
   const tagEntryIds = new Map<string, Set<number>>();
   allSegments.forEach((item) => {
     item.tags.forEach((tag) => {
@@ -254,9 +252,21 @@ const fetchRecentDiaryData = async (): Promise<RecentDiaryResult> => {
   });
 
   return {
-    segments: allItems
-      .sort((a, b) => b.segment.createTime - a.segment.createTime)
-      .slice(0, SEGMENT_LIMIT),
+    segments: allSegments
+      .filter((item) => entryById.has(item.diaryId))
+      .slice(0, SEGMENT_LIMIT)
+      .map((item) => ({
+        segment: {
+          id: item.id,
+          diaryId: item.diaryId,
+          contentId: item.contentId,
+          wordCount: item.wordCount,
+          createTime: item.createTime,
+          updateTime: item.updateTime,
+          content: item.content,
+        },
+        diary: entryById.get(item.diaryId)!,
+      })),
     tagUsageCounts,
   };
 };

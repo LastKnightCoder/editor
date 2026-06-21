@@ -341,4 +341,73 @@ describe("useHomeData", () => {
 
     await hook.unmount();
   });
+
+  it("首页日记顺序跟随 DiaryView 的最新 segment 排序", async () => {
+    const olderSegment = {
+      id: 10,
+      diaryId: 1,
+      contentId: 101,
+      wordCount: 1,
+      createTime: 1000,
+      updateTime: 1000,
+      content: [{ type: "paragraph", children: [{ text: "旧记录" }] }],
+    };
+    const newerSegment = {
+      id: 11,
+      diaryId: 1,
+      contentId: 102,
+      wordCount: 1,
+      createTime: 1000,
+      updateTime: 1000,
+      content: [{ type: "paragraph", children: [{ text: "新记录" }] }],
+    };
+    const diaryEntry = {
+      id: 1,
+      type: "daily",
+      date: "2026-06-21",
+      contentId: null,
+      weather: null,
+      mood: null,
+      tags: [],
+      wordCount: 2,
+      createTime: 1000,
+      updateTime: 1000,
+      segments: [olderSegment, newerSegment],
+      content: [],
+    };
+
+    vi.mocked(diaryCommands.getDiaryEntriesByDateRange).mockResolvedValue([
+      diaryEntry as any,
+    ]);
+    vi.mocked(diaryCommands.getAllDiarySegmentsFlat).mockResolvedValue([
+      {
+        ...newerSegment,
+        entryDate: "2026-06-21",
+        entryDateMs: 1_783_536_000_000,
+        weather: null,
+        mood: null,
+        tags: [],
+      } as any,
+      {
+        ...olderSegment,
+        entryDate: "2026-06-21",
+        entryDateMs: 1_783_536_000_000,
+        weather: null,
+        mood: null,
+        tags: [],
+      } as any,
+    ]);
+
+    const queryClient = createQueryClient();
+    const hook = mountHook(queryClient);
+
+    await hook.render();
+    await waitForLoaded(hook);
+
+    expect(
+      hook.current.data.recentSegments.map((item) => item.segment.id),
+    ).toEqual([11, 10]);
+
+    await hook.unmount();
+  });
 });
