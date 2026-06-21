@@ -15,8 +15,6 @@ const selectNotes = [
   "project-item",
   "document-item",
   "diary-daily",
-  "diary-weekly",
-  "diary-monthly",
 ] satisfies IndexType[];
 
 const TodoNotesDnd = ({ todoId }: { todoId: number }) => {

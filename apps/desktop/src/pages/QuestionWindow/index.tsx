@@ -665,8 +665,6 @@ const QuestionWindowPage = () => {
             "project-item",
             "document-item",
             "diary-daily",
-            "diary-weekly",
-            "diary-monthly",
           ]}
           extensions={dynamicExtensions}
         />

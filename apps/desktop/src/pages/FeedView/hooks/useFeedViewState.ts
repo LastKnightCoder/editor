@@ -5,6 +5,7 @@ import { BILIBILI_FOLLOWINGS_DYNAMIC_FEED_URL } from "@/commands/rss";
 import useRssStore, { RssStatus } from "@/stores/useRssStore";
 import useReadLaterStore from "@/stores/useReadLaterStore";
 import useTabStore from "@/stores/useTabStore";
+import useTabParams from "@/hooks/useTabParams";
 import { TabType } from "@/types/tab";
 import type { SidebarSelection, UnifiedArticleItem } from "../types";
 import {
@@ -71,6 +72,10 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
     Record<string, ArticleProjectTarget>
   >({});
   const projectTargetRequestRef = useRef(0);
+
+  // 通过 Tab 参数携带的待打开 RSS 条目 ID（由首页 RSS 面板等外部入口注入）
+  const { entryId: pendingEntryId } = useTabParams(TabType.Feed);
+  const pendingEntryIdRef = useRef<number | null>(null);
 
   const rssStore = useRssStore();
   const readLaterStore = useReadLaterStore();
@@ -148,6 +153,17 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
   useEffect(() => {
     setSelectedArticleId(null);
   }, [selection]);
+
+  // 待打开 entryId 变化：记录待选中，并确保 selection 为"全部"以保证目标文章在列表内
+  useEffect(() => {
+    if (pendingEntryId == null) return;
+    pendingEntryIdRef.current = pendingEntryId;
+    setSelection((prev) =>
+      prev.kind === "smart" && prev.group === "all"
+        ? prev
+        : { kind: "smart", group: "all" },
+    );
+  }, [pendingEntryId]);
 
   const rssArticles = useUnifiedRssEntries(rssStore.entries);
   const readLaterArticles = useUnifiedReadLaterItems(readLaterStore.items);
@@ -227,6 +243,21 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
 
     setSelectedArticleId(id);
   });
+
+  // articles 就绪后执行待打开条目的选中（仅在非稍后读模式下处理 RSS 条目）
+  // 必须调用 selectArticle 而非直接 setSelectedArticleId，否则会跳过 markRead 逻辑，
+  // 导致文章在数据库中仍为未读、首页 RSS 面板刷新后依然出现在未读列表
+  useEffect(() => {
+    const pending = pendingEntryIdRef.current;
+    if (pending == null || isReadLaterMode || articles.length === 0) return;
+    const targetId = `rss-${pending}`;
+    if (articles.some((a) => a.id === targetId)) {
+      pendingEntryIdRef.current = null;
+      if (selectedArticleId !== targetId) {
+        selectArticle(targetId);
+      }
+    }
+  }, [articles, isReadLaterMode, selectedArticleId, selectArticle]);
 
   const toggleStar = useMemoizedFn((article: UnifiedArticleItem) => {
     if (article.source === "rss") {

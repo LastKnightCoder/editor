@@ -349,11 +349,6 @@ const MODULE_CONFIG: Record<
     description: "文件与资源管理",
     category: "tools",
   },
-  dataView: {
-    icon: "Database",
-    description: "数据可视化与分析",
-    category: "tools",
-  },
 };
 
 // 分类配置

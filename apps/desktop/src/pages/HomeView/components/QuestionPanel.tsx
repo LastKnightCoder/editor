@@ -48,7 +48,7 @@ const QuestionPanel: React.FC<QuestionPanelProps> = ({ items, groups }) => {
   return (
     <div
       className={classNames(
-        "rounded-xl border p-4 h-[260px] flex flex-col",
+        "rounded-xl border p-4 min-h-[200px] flex flex-col",
         themeColors.cardBorderClass,
         themeColors.cardBgClass,
       )}
@@ -89,7 +89,7 @@ const QuestionPanel: React.FC<QuestionPanelProps> = ({ items, groups }) => {
         <button
           onClick={() => createTab(TabType.Questions)}
           className={classNames(
-            "text-xs flex items-center gap-1 transition-colors",
+            "text-xs flex items-center gap-1 transition-colors cursor-pointer",
             themeColors.secondaryTextClass,
             "hover:opacity-80",
           )}
@@ -110,7 +110,7 @@ const QuestionPanel: React.FC<QuestionPanelProps> = ({ items, groups }) => {
           没有待解决的问题 ✅
         </div>
       ) : (
-        <div className="flex-1 space-y-1 overflow-hidden min-h-0">
+        <div className="flex-1 space-y-1 overflow-y-auto min-h-0 pr-1">
           {previewItems.map((question) => {
             const statusConfig = STATUS_CONFIG[question.status];
             const groupName = getGroupName(question.groupId);

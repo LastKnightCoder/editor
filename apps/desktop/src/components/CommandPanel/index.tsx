@@ -34,7 +34,6 @@ const ALL_PAGES = [
     category: "工具",
     module: "resourceManagement",
   },
-  { type: TabType.DataView, category: "工具", module: "dataView" },
   { type: TabType.Todo, category: "效率", module: "todo" },
   { type: TabType.Questions, category: "效率", module: "question" },
   { type: TabType.Pomodoro, category: "效率", module: "pomodoro" },

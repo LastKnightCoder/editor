@@ -133,10 +133,27 @@ CREATE TABLE IF NOT EXISTS diary_entries (
         content_id INTEGER,
         weather TEXT,
         mood TEXT,
+        tags TEXT DEFAULT '[]',
         word_count INTEGER DEFAULT 0,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         FOREIGN KEY(content_id) REFERENCES contents(id)
+      );
+CREATE TABLE IF NOT EXISTS diary_segments (
+        id INTEGER PRIMARY KEY NOT NULL,
+        diary_id INTEGER NOT NULL,
+        content_id INTEGER NOT NULL,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        FOREIGN KEY(diary_id) REFERENCES diary_entries(id) ON DELETE CASCADE,
+        FOREIGN KEY(content_id) REFERENCES contents(id)
+      );
+CREATE TABLE IF NOT EXISTS diary_tag_settings (
+        name TEXT PRIMARY KEY NOT NULL,
+        color TEXT NOT NULL,
+        sort INTEGER DEFAULT 0,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS operation (
             id INTEGER PRIMARY KEY,
@@ -840,6 +857,8 @@ CREATE INDEX IF NOT EXISTS idx_articles_podcast_id ON articles(podcast_id);
 CREATE INDEX IF NOT EXISTS idx_diary_entries_type ON diary_entries(type);
 CREATE INDEX IF NOT EXISTS idx_diary_entries_date ON diary_entries(date);
 CREATE INDEX IF NOT EXISTS idx_diary_entries_create_time ON diary_entries(create_time);
+CREATE INDEX IF NOT EXISTS idx_diary_segments_diary_id ON diary_segments(diary_id);
+CREATE INDEX IF NOT EXISTS idx_diary_segments_create_time ON diary_segments(create_time);
 CREATE INDEX IF NOT EXISTS idx_video_note_item_video ON video_note_item(video_note_id);
 CREATE INDEX IF NOT EXISTS idx_chat_group_parent_id ON chat_group(parent_id);
 CREATE INDEX IF NOT EXISTS idx_chat_group_order_index ON chat_group(order_index);

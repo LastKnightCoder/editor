@@ -321,7 +321,7 @@ importers:
     devDependencies:
       '@tailwindcss/vite':
         specifier: ^4.1.17
-        version: 4.1.18(vite@7.3.1(@types/node@24.12.4)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2))
+        version: 4.1.18(vite@7.3.1(@types/node@24.12.4)(jiti@2.7.0)(less@4.4.2)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2))
       '@types/chrome':
         specifier: ^0.1.36
         version: 0.1.36
@@ -345,7 +345,7 @@ importers:
         version: 9.0.8
       '@wxt-dev/module-react':
         specifier: ^1.1.0
-        version: 1.1.5(vite@7.3.1(@types/node@24.12.4)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2))(wxt@0.19.29(@types/node@24.12.4)(less@4.4.2)(lightningcss@1.30.2)(rollup@4.53.3)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2))
+        version: 1.1.5(vite@7.3.1(@types/node@24.12.4)(jiti@2.7.0)(less@4.4.2)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2))(wxt@0.19.29(@types/node@24.12.4)(less@4.4.2)(lightningcss@1.30.2)(rollup@4.53.3)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2))
       tailwindcss:
         specifier: ^4.1.11
         version: 4.1.18
@@ -354,7 +354,7 @@ importers:
         version: 5.8.3
       vite:
         specifier: ^7.3.1
-        version: 7.3.1(@types/node@24.12.4)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2)
+        version: 7.3.1(@types/node@24.12.4)(jiti@2.7.0)(less@4.4.2)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2)
       wxt:
         specifier: ^0.19.0
         version: 0.19.29(@types/node@24.12.4)(less@4.4.2)(lightningcss@1.30.2)(rollup@4.53.3)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2)
@@ -425,6 +425,9 @@ importers:
       '@tailwindcss/oxide':
         specifier: ^4.1.17
         version: 4.1.18
+      '@tanstack/react-query':
+        specifier: ^5.101.0
+        version: 5.101.0(react@19.1.0)
       better-sqlite3:
         specifier: ^12.10.0
         version: 12.10.0(patch_hash=28e507a141733e7011377e4879c00f5fc51e4360f7736bbfeee8fe8ed0c8126f)
@@ -4642,6 +4645,14 @@ packages:
     resolution: {integrity: sha512-jVA+/UpKL1vRLg6Hkao5jldawNmRo7mQYrZtNHMIVpLfLhDml5nMRUo/8MwoX2vNXvnaXNNMedrMfMugAVX1nA==}
     peerDependencies:
       vite: ^5.2.0 || ^6 || ^7
+
+  '@tanstack/query-core@5.101.0':
+    resolution: {integrity: sha512-cQetA74EB+seWySv1TTKr828TnP0u39m6LykwDXIo84SNortpDkp30TMEjkqtYCNP9c40uT/iwl6MLiufEt0Ow==}
+
+  '@tanstack/react-query@5.101.0':
+    resolution: {integrity: sha512-rLlJXSpkqfizLWgkR5+eLeIk0MvTx/meEIR7LRjxic+qxiQP8zVjq7BqQkiCMNLQBlLfuOLqqr6KO5GtrDlmSg==}
+    peerDependencies:
+      react: 19.1.0
 
   '@tanstack/react-virtual@3.13.12':
     resolution: {integrity: sha512-Gd13QdxPSukP8ZrkbgS2RwoZseTTbQPLnQEn7HY/rqtM+8Zt95f7xKC7N0EsKs7aoz0WzZ+fditZux+F8EzYxA==}
@@ -14837,19 +14848,19 @@ snapshots:
       tailwindcss: 4.1.18
       vite: 7.2.4(@types/node@20.19.27)(jiti@2.7.0)(less@4.4.2)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2)
 
-  '@tailwindcss/vite@4.1.18(vite@7.3.1(@types/node@24.12.4)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2))':
-    dependencies:
-      '@tailwindcss/node': 4.1.18
-      '@tailwindcss/oxide': 4.1.18
-      tailwindcss: 4.1.18
-      vite: 7.3.1(@types/node@24.12.4)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2)
-
   '@tailwindcss/vite@4.1.18(vite@7.3.1(@types/node@24.12.4)(jiti@2.7.0)(less@4.4.2)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
       '@tailwindcss/node': 4.1.18
       '@tailwindcss/oxide': 4.1.18
       tailwindcss: 4.1.18
       vite: 7.3.1(@types/node@24.12.4)(jiti@2.7.0)(less@4.4.2)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2)
+
+  '@tanstack/query-core@5.101.0': {}
+
+  '@tanstack/react-query@5.101.0(react@19.1.0)':
+    dependencies:
+      '@tanstack/query-core': 5.101.0
+      react: 19.1.0
 
   '@tanstack/react-virtual@3.13.12(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
@@ -15464,7 +15475,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@vitejs/plugin-react@5.1.3(vite@7.3.1(@types/node@24.12.4)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2))':
+  '@vitejs/plugin-react@5.1.3(vite@7.3.1(@types/node@24.12.4)(jiti@2.7.0)(less@4.4.2)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
       '@babel/core': 7.29.0
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.29.0)
@@ -15472,7 +15483,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-rc.2
       '@types/babel__core': 7.20.5
       react-refresh: 0.18.0
-      vite: 7.3.1(@types/node@24.12.4)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2)
+      vite: 7.3.1(@types/node@24.12.4)(jiti@2.7.0)(less@4.4.2)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - supports-color
 
@@ -15682,9 +15693,9 @@ snapshots:
       '@types/filesystem': 0.0.36
       '@types/har-format': 1.2.16
 
-  '@wxt-dev/module-react@1.1.5(vite@7.3.1(@types/node@24.12.4)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2))(wxt@0.19.29(@types/node@24.12.4)(less@4.4.2)(lightningcss@1.30.2)(rollup@4.53.3)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2))':
+  '@wxt-dev/module-react@1.1.5(vite@7.3.1(@types/node@24.12.4)(jiti@2.7.0)(less@4.4.2)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2))(wxt@0.19.29(@types/node@24.12.4)(less@4.4.2)(lightningcss@1.30.2)(rollup@4.53.3)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
-      '@vitejs/plugin-react': 5.1.3(vite@7.3.1(@types/node@24.12.4)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2))
+      '@vitejs/plugin-react': 5.1.3(vite@7.3.1(@types/node@24.12.4)(jiti@2.7.0)(less@4.4.2)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2))
       wxt: 0.19.29(@types/node@24.12.4)(less@4.4.2)(lightningcss@1.30.2)(rollup@4.53.3)(terser@5.48.0)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - supports-color

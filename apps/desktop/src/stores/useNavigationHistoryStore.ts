@@ -36,7 +36,7 @@ const initialState: IState = {
   history: [],
 };
 
-const NAVIGATION_HISTORY_STORE_VERSION = 2;
+const NAVIGATION_HISTORY_STORE_VERSION = 3;
 
 const migrateNavigationHistoryState = (persistedState: unknown): IState => {
   if (!persistedState || typeof persistedState !== "object") {
@@ -45,7 +45,10 @@ const migrateNavigationHistoryState = (persistedState: unknown): IState => {
 
   const state = persistedState as Partial<IState>;
   const history = Array.isArray(state.history)
-    ? state.history.filter((item) => (item.type as string) !== "goals")
+    ? state.history.filter((item) => {
+        const type = item.type as string;
+        return type !== "goals" && type !== "dataView";
+      })
     : [];
 
   return { history };

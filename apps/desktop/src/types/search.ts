@@ -6,9 +6,7 @@ export type IndexType =
   | "article"
   | "project-item"
   | "document-item"
-  | "diary-daily"
-  | "diary-weekly"
-  | "diary-monthly";
+  | "diary-daily";
 
 export interface SearchResult {
   id: number;

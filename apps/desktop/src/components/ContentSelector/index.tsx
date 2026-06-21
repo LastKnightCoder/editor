@@ -23,8 +23,6 @@ const getTypeLabel = (type: IndexType): string => {
     "project-item": "项目",
     "document-item": "知识库",
     "diary-daily": "日记",
-    "diary-weekly": "周记",
-    "diary-monthly": "月记",
   };
   return labels[type] || type;
 };
@@ -37,8 +35,6 @@ const getTypeColor = (type: IndexType): string => {
     "project-item": "green",
     "document-item": "orange",
     "diary-daily": "purple",
-    "diary-weekly": "cyan",
-    "diary-monthly": "magenta",
   };
   return colors[type] || "default";
 };

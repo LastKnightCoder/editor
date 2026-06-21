@@ -1,168 +1,169 @@
-import React, { memo, useCallback, useRef } from "react";
+import { memo, useCallback } from "react";
 import type { Descendant } from "slate";
 import classNames from "classnames";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { useThrottleFn, useUnmount } from "ahooks";
-import { Plus } from "lucide-react";
+import { Plus, MoreHorizontal, Trash2 } from "lucide-react";
+import { App, Dropdown } from "antd";
+import type { MenuProps } from "antd";
 import "dayjs/locale/zh-cn";
 
 import useThemeColors from "@/hooks/useThemeColors";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
-import type { DiaryEntry } from "@/types/diary";
-import DiaryContentEditor from "@/pages/DiaryView/components/DiaryContentEditor";
+import type { RecentSegmentItem } from "@/pages/HomeView/hooks/useHomeData";
+import type { DiaryTagSetting } from "@/types/diary";
 import { createEmptyDiaryContent } from "@/pages/DiaryView/constants/content";
 import { getIconPath } from "@/pages/DiaryView/utils/getIconPath";
 import { WEATHER_ICONS } from "@/pages/DiaryView/constants/icons";
+import DiaryContentEditor from "@/pages/DiaryView/components/DiaryContentEditor";
+import { TagEditor } from "@/pages/DiaryView/components/MomentCard";
 
 dayjs.extend(relativeTime);
 dayjs.locale("zh-cn");
 
 interface DiaryTimelineSectionProps {
-  recentDiaries: DiaryEntry[];
-  todayDiaryExists: boolean;
-  onSaveDiary: (
-    id: number,
-    content: Descendant[],
-  ) => Promise<DiaryEntry | null>;
-  onCreateToday: () => Promise<DiaryEntry | null>;
+  recentSegments: RecentSegmentItem[];
+  tagSettings: DiaryTagSetting[];
+  tagUsageCounts: Map<string, number>;
+  onCreateSegmentNow: () => Promise<void>;
+  onSegmentChange: (segmentId: number, content: Descendant[]) => Promise<void>;
+  onSegmentDelete: (segmentId: number) => Promise<void>;
+  onTagsChange: (entryId: number, tags: string[]) => Promise<void>;
+  onTagSettingChange: (setting: {
+    name: string;
+    color: string;
+    sort?: number;
+  }) => Promise<void>;
+  onTagSettingDelete: (name: string) => Promise<void>;
 }
 
-const WEEKDAY_LABELS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
-
-// 从 Slate content 中提取纯文本，用于字数统计
-function extractPlainText(nodes: Descendant[]): string {
-  let text = "";
-  const walk = (node: unknown) => {
-    if (typeof node !== "object" || node === null) return;
-    if (
-      "text" in node &&
-      typeof (node as { text: unknown }).text === "string"
-    ) {
-      text += (node as { text: string }).text;
-    }
-    if (
-      "children" in node &&
-      Array.isArray((node as { children: unknown[] }).children)
-    ) {
-      for (const child of (node as { children: unknown[] }).children) {
-        walk(child);
-      }
-    }
-  };
-  for (const n of nodes) walk(n);
-  return text;
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-const countWords = (content: Descendant[] | undefined): number => {
-  if (!content || content.length === 0) return 0;
-  return extractPlainText(content).length;
-};
+function getTagColor(tag: string, tagSettings: DiaryTagSetting[]): string {
+  const setting = tagSettings.find((item) => item.name === tag);
+  return setting?.color || "#8c8c8c";
+}
 
-// 计算左列日期标识：今天/昨天显示相对词，其余显示月-日
-const getDateLabel = (
-  dateStr: string,
-): { primary: string; secondary: string } => {
-  const date = dayjs(dateStr);
-  const today = dayjs().startOf("day");
-  const diffDays = today.diff(date.startOf("day"), "day");
-  const weekday = WEEKDAY_LABELS[date.day()];
-
-  if (diffDays === 0) {
-    return {
-      primary: "今天",
-      secondary: `${date.format("M月D日")} · ${weekday}`,
-    };
-  }
-  if (diffDays === 1) {
-    return {
-      primary: "昨天",
-      secondary: `${date.format("M月D日")} · ${weekday}`,
-    };
-  }
-  return { primary: date.format("M月D日"), secondary: weekday };
-};
-
-// ---- 单张日记卡片：独立维护 content 快照与节流保存 ----
-interface DiaryTimelineCardProps {
-  entry: DiaryEntry;
+// 单个 segment 时间轴节点
+interface SegmentNodeProps {
+  item: RecentSegmentItem;
   isLast: boolean;
-  onSaveDiary: (
-    id: number,
-    content: Descendant[],
-  ) => Promise<DiaryEntry | null>;
+  tagSettings: DiaryTagSetting[];
+  tagUsageCounts: Map<string, number>;
+  onSegmentChange: (segmentId: number, content: Descendant[]) => Promise<void>;
+  onSegmentDelete: (segmentId: number) => Promise<void>;
+  onTagsChange: (entryId: number, tags: string[]) => Promise<void>;
+  onTagSettingChange: (setting: {
+    name: string;
+    color: string;
+    sort?: number;
+  }) => Promise<void>;
+  onTagSettingDelete: (name: string) => Promise<void>;
 }
 
-const DiaryTimelineCard = memo(
-  ({ entry, isLast, onSaveDiary }: DiaryTimelineCardProps) => {
+const SegmentNode = memo(
+  ({
+    item,
+    isLast,
+    tagSettings,
+    tagUsageCounts,
+    onSegmentChange,
+    onSegmentDelete,
+    onTagsChange,
+    onTagSettingChange,
+    onTagSettingDelete,
+  }: SegmentNodeProps) => {
     const themeColors = useThemeColors();
     const extensions = useDynamicExtensionsStore((state) => state.extensions);
-
-    const latestContentRef = useRef<Descendant[]>(
-      entry.content ?? createEmptyDiaryContent(),
-    );
-
-    const { primary, secondary } = getDateLabel(entry.date);
-
-    // 同步 diary 条目快照（content + wordCount），节流 1s，与 DailyView 双写模式一致
-    const { run: flushDiary, cancel: cancelFlush } = useThrottleFn(
-      async (id: number, content: Descendant[]) => {
-        await onSaveDiary(id, content);
-      },
-      { wait: 1000, leading: false, trailing: true },
-    );
-
-    useUnmount(() => {
-      // 组件卸载时兜底落库
-      flushDiary(entry.id, latestContentRef.current);
-      cancelFlush();
-    });
+    const { modal, message } = App.useApp();
+    const { segment, diary } = item;
 
     const handleContentChange = useCallback(
       (content: Descendant[]) => {
-        latestContentRef.current = content;
-        flushDiary(entry.id, content);
+        onSegmentChange(segment.id, content);
       },
-      [entry.id, flushDiary],
+      [segment.id, onSegmentChange],
     );
 
-    const weatherStr = entry.weather ? JSON.stringify(entry.weather) : null;
-    const moodStr = entry.mood ? JSON.stringify(entry.mood) : null;
+    const handleDelete = useCallback(() => {
+      modal.confirm({
+        title: "删除这一段",
+        content: "删除后无法恢复，确定要删除吗？",
+        okText: "删除",
+        cancelText: "取消",
+        okButtonProps: { danger: true },
+        onOk: () => {
+          onSegmentDelete(segment.id);
+          message.success("已删除");
+        },
+      });
+    }, [modal, message, segment.id, onSegmentDelete]);
+
+    const handleTagsChange = useCallback(
+      (newTags: string[]) => {
+        onTagsChange(diary.id, newTags);
+      },
+      [diary.id, onTagsChange],
+    );
+
+    const menuItems: MenuProps["items"] = [
+      {
+        key: "delete",
+        label: "删除",
+        icon: <Trash2 className="h-3.5 w-3.5" />,
+        danger: true,
+        onClick: handleDelete,
+      },
+    ];
+
+    // 所属日记的天气/心情（只读显示）
+    const weatherStr = diary.weather ? JSON.stringify(diary.weather) : null;
+    const moodStr = diary.mood ? JSON.stringify(diary.mood) : null;
     const weatherIconSrc = getIconPath(weatherStr, "weather");
     const moodIconSrc = getIconPath(moodStr, "mood");
     const weatherColor =
-      WEATHER_ICONS.find((icon) => icon.id === entry.weather?.value)?.color ||
+      WEATHER_ICONS.find((icon) => icon.id === diary.weather?.value)?.color ||
       "#000000";
 
-    const wordCount = countWords(entry.content);
+    // 段创建时间：相对时间显示（朋友圈风格）
+    const createdLabel = dayjs(segment.createTime).fromNow();
+
+    // 所属日记的日期标注
+    const diaryDate = dayjs(diary.date);
+    const diaryDateLabel = diaryDate.format("M月D日");
 
     return (
-      <div className="grid grid-cols-[64px_20px_minmax(0,1fr)] gap-4 min-w-0">
-        {/* 左列：日期标识 */}
+      <div className="grid grid-cols-[72px_20px_minmax(0,1fr)] gap-4 min-w-0">
+        {/* 左列：段创建时间（相对时间）+ 所属日记日期 */}
         <div className="flex flex-col items-end pt-2 text-right">
           <span
             className={classNames(
-              "text-sm font-semibold leading-tight",
-              themeColors.textClass,
+              "text-xs font-medium leading-tight",
+              themeColors.secondaryTextClass,
             )}
           >
-            {primary}
+            {createdLabel}
           </span>
           <span
             className={classNames(
               "mt-1 text-[11px] leading-tight",
               themeColors.secondaryTextClass,
+              "opacity-70",
             )}
           >
-            {secondary}
+            {diaryDateLabel}
           </span>
         </div>
 
         {/* 中列：竖线 + 圆点 */}
         <div className="relative flex justify-center">
-          {/* 竖线：贯穿上下，最后一项不向下延伸 */}
           {!isLast && (
             <span className="absolute top-3 bottom-[-1rem] w-px bg-[var(--th-card-border)]" />
           )}
@@ -175,76 +176,140 @@ const DiaryTimelineCard = memo(
           />
         </div>
 
-        {/* 右列：日记卡片 */}
-        <div
-          className={classNames(
-            "mb-4 min-w-0 rounded-xl border p-4",
-            themeColors.cardBorderClass,
-            themeColors.inputBgClass,
-          )}
-        >
-          {/* 头部：天气/心情/字数/相对时间 */}
+        {/* 右列：segment 卡片 */}
+        <div className="relative mb-4 min-w-0">
           <div
             className={classNames(
-              "mb-2 flex items-center gap-3 text-[11px]",
-              themeColors.secondaryTextClass,
+              "min-w-0 rounded-xl border p-4",
+              themeColors.cardBorderClass,
+              themeColors.inputBgClass,
             )}
           >
-            <div className="flex items-center gap-2">
-              {weatherIconSrc && entry.weather && (
+            {/* 头部：所属日记的天气/心情/字数（左）+ more 菜单（右） */}
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <div
-                  className="h-4 w-4"
-                  style={{
-                    maskImage: `url(${weatherIconSrc})`,
-                    WebkitMaskImage: `url(${weatherIconSrc})`,
-                    maskSize: "contain",
-                    WebkitMaskSize: "contain",
-                    maskRepeat: "no-repeat",
-                    WebkitMaskRepeat: "no-repeat",
-                    maskPosition: "center",
-                    WebkitMaskPosition: "center",
-                    backgroundColor: weatherColor,
-                  }}
-                />
-              )}
-              {moodIconSrc && (
-                <img
-                  src={moodIconSrc}
-                  alt="mood"
-                  className="h-4 w-4 object-contain"
-                />
-              )}
-            </div>
-            <span className="tabular-nums">{wordCount} 字</span>
-            <span>·</span>
-            <span>{dayjs(entry.updateTime).fromNow()}</span>
-          </div>
+                  className={classNames(
+                    "flex items-center gap-2 text-[11px]",
+                    themeColors.secondaryTextClass,
+                  )}
+                >
+                  {weatherIconSrc && diary.weather && (
+                    <div
+                      className="h-4 w-4"
+                      style={{
+                        maskImage: `url(${weatherIconSrc})`,
+                        WebkitMaskImage: `url(${weatherIconSrc})`,
+                        maskSize: "contain",
+                        WebkitMaskSize: "contain",
+                        maskRepeat: "no-repeat",
+                        WebkitMaskRepeat: "no-repeat",
+                        maskPosition: "center",
+                        WebkitMaskPosition: "center",
+                        backgroundColor: weatherColor,
+                      }}
+                    />
+                  )}
+                  {moodIconSrc && (
+                    <img
+                      src={moodIconSrc}
+                      alt="mood"
+                      className="h-4 w-4 object-contain"
+                    />
+                  )}
+                  <span className="tabular-nums">{segment.wordCount} 字</span>
+                </div>
 
-          {/* 正文：可编辑 */}
-          <div className="min-h-20">
-            <DiaryContentEditor
-              contentId={entry.contentId}
-              initialValue={entry.content ?? createEmptyDiaryContent()}
-              extensions={extensions}
-              placeholder="记录今天发生了什么..."
-              className="text-sm leading-relaxed"
-              onContentChange={handleContentChange}
-            />
+                {diary.tags.length > 0 && (
+                  <div className="flex min-w-0 items-center gap-1 overflow-hidden">
+                    {diary.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
+                        style={{
+                          backgroundColor: hexToRgba(
+                            getTagColor(tag, tagSettings),
+                            0.12,
+                          ),
+                          color: getTagColor(tag, tagSettings),
+                        }}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* more 菜单：固定显示在右上角 */}
+              <div className="flex flex-shrink-0 items-center gap-1">
+                <TagEditor
+                  anchorName={`--home-diary-tag-editor-${segment.id}`}
+                  tags={diary.tags}
+                  tagSettings={tagSettings}
+                  tagUsageCounts={tagUsageCounts}
+                  onTagsChange={handleTagsChange}
+                  onTagSettingChange={onTagSettingChange}
+                  onTagSettingDelete={onTagSettingDelete}
+                >
+                  <button
+                    type="button"
+                    className={classNames(
+                      "flex h-5 w-5 items-center justify-center rounded transition-colors",
+                      themeColors.secondaryTextClass,
+                      themeColors.hoverClass,
+                    )}
+                    title="编辑标签"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </TagEditor>
+
+                <Dropdown menu={{ items: menuItems }} trigger={["click"]}>
+                  <button
+                    type="button"
+                    className={classNames(
+                      "flex h-5 w-5 items-center justify-center rounded transition-colors",
+                      themeColors.secondaryTextClass,
+                      themeColors.hoverClass,
+                    )}
+                    title="更多"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </button>
+                </Dropdown>
+              </div>
+            </div>
+
+            {/* 正文：可编辑 */}
+            <div className="min-h-16">
+              <DiaryContentEditor
+                contentId={segment.contentId}
+                initialValue={segment.content ?? createEmptyDiaryContent()}
+                extensions={extensions}
+                placeholder="记录这一刻..."
+                className="text-sm leading-relaxed"
+                onContentChange={handleContentChange}
+              />
+            </div>
           </div>
         </div>
       </div>
     );
   },
 );
+SegmentNode.displayName = "SegmentNode";
 
-DiaryTimelineCard.displayName = "DiaryTimelineCard";
-
-// ---- 时间轴区块 ----
 const DiaryTimelineSection: React.FC<DiaryTimelineSectionProps> = ({
-  recentDiaries,
-  todayDiaryExists,
-  onSaveDiary,
-  onCreateToday,
+  recentSegments,
+  tagSettings,
+  tagUsageCounts,
+  onCreateSegmentNow,
+  onSegmentChange,
+  onSegmentDelete,
+  onTagsChange,
+  onTagSettingChange,
+  onTagSettingDelete,
 }) => {
   const themeColors = useThemeColors();
   const { createTab } = useTabStore();
@@ -253,19 +318,13 @@ const DiaryTimelineSection: React.FC<DiaryTimelineSectionProps> = ({
     createTab(TabType.DailyNote);
   };
 
-  const handleCreateToday = async () => {
-    await onCreateToday();
-  };
+  const handleCreateNow = useCallback(() => {
+    void onCreateSegmentNow();
+  }, [onCreateSegmentNow]);
 
   return (
-    <section
-      className={classNames(
-        "rounded-xl border p-5",
-        themeColors.cardBgClass,
-        themeColors.cardBorderClass,
-      )}
-    >
-      <div className="mb-4 flex items-center justify-between">
+    <section className="space-y-4">
+      <div className="flex items-center justify-between">
         <div className="flex items-baseline gap-2">
           <h2
             className={classNames(
@@ -278,24 +337,39 @@ const DiaryTimelineSection: React.FC<DiaryTimelineSectionProps> = ({
           <span
             className={classNames("text-xs", themeColors.secondaryTextClass)}
           >
-            最近 {recentDiaries.length} 篇
+            最近 {recentSegments.length} 条
           </span>
         </div>
-        <button
-          type="button"
-          onClick={handleOpenDiary}
-          className={classNames(
-            "rounded-lg border px-3 py-1.5 text-xs transition-colors",
-            themeColors.cardBorderClass,
-            themeColors.secondaryTextClass,
-            themeColors.hoverClass,
-          )}
-        >
-          打开日记
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleOpenDiary}
+            className={classNames(
+              "rounded-lg border px-3 py-1.5 text-xs transition-colors",
+              themeColors.cardBorderClass,
+              themeColors.secondaryTextClass,
+              themeColors.hoverClass,
+            )}
+          >
+            打开日记
+          </button>
+          <button
+            type="button"
+            onClick={handleCreateNow}
+            className={classNames(
+              "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
+              themeColors.cardBorderClass,
+              themeColors.secondaryTextClass,
+              themeColors.hoverClass,
+            )}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>记录此刻</span>
+          </button>
+        </div>
       </div>
 
-      {recentDiaries.length === 0 && todayDiaryExists ? (
+      {recentSegments.length === 0 ? (
         <div
           className={classNames(
             "py-8 text-center text-sm",
@@ -306,53 +380,20 @@ const DiaryTimelineSection: React.FC<DiaryTimelineSectionProps> = ({
         </div>
       ) : (
         <div className="flex flex-col">
-          {recentDiaries.map((entry, index) => (
-            <DiaryTimelineCard
-              key={entry.id}
-              entry={entry}
-              isLast={index === recentDiaries.length - 1 && todayDiaryExists}
-              onSaveDiary={onSaveDiary}
+          {recentSegments.map((item, index) => (
+            <SegmentNode
+              key={item.segment.id}
+              item={item}
+              isLast={index === recentSegments.length - 1}
+              tagSettings={tagSettings}
+              tagUsageCounts={tagUsageCounts}
+              onSegmentChange={onSegmentChange}
+              onSegmentDelete={onSegmentDelete}
+              onTagsChange={onTagsChange}
+              onTagSettingChange={onTagSettingChange}
+              onTagSettingDelete={onTagSettingDelete}
             />
           ))}
-
-          {/* 添加今日日记入口：倒序后位于时间轴最下端（代表"今天"的位置） */}
-          {!todayDiaryExists && (
-            <button
-              type="button"
-              onClick={handleCreateToday}
-              className={classNames(
-                "grid w-full grid-cols-[64px_20px_minmax(0,1fr)] gap-4 rounded-xl border border-dashed p-4 text-left transition-colors",
-                themeColors.cardBorderClass,
-                themeColors.hoverClass,
-              )}
-            >
-              <div className="flex flex-col items-end pt-1 text-right">
-                <span
-                  className={classNames(
-                    "text-sm font-semibold",
-                    themeColors.textClass,
-                  )}
-                >
-                  今天
-                </span>
-              </div>
-              <div className="flex justify-center">
-                <span
-                  className="mt-3 h-2 w-2 rounded-full"
-                  style={{ backgroundColor: themeColors.timelineRingColor }}
-                />
-              </div>
-              <div
-                className={classNames(
-                  "flex min-w-0 items-center gap-2 text-sm",
-                  themeColors.secondaryTextClass,
-                )}
-              >
-                <Plus className="h-4 w-4" />
-                <span>记录今天发生了什么...</span>
-              </div>
-            </button>
-          )}
         </div>
       )}
     </section>

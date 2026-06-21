@@ -10,6 +10,7 @@ import {
 } from "@ant-design/icons";
 import { App, Dropdown } from "antd";
 import type { MenuProps } from "antd";
+import { useEffect, useRef } from "react";
 import useThemeColors from "@/hooks/useThemeColors";
 import { formatRelativeTime } from "../../utils/formatRelativeTime";
 import type { UnifiedArticleItem } from "../../types";
@@ -49,10 +50,18 @@ export default function ArticleListItem({
 }: ArticleListItemProps) {
   const { modal } = App.useApp();
   const themeColors = useThemeColors();
+  const itemRef = useRef<HTMLDivElement>(null);
   const isBilibiliVideo = isBilibiliVideoArticle({
     url: item.url,
     content: item.content,
   });
+
+  // 选中态由外部（如首页 RSS 面板跳转）触发时，自动滚动到视口中央
+  useEffect(() => {
+    if (isActive && itemRef.current) {
+      itemRef.current.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }, [isActive]);
 
   const menuItems: MenuProps["items"] = [];
   const confirmDelete = () => {
@@ -240,8 +249,10 @@ export default function ArticleListItem({
   );
 
   return (
-    <Dropdown menu={{ items: menuItems }} trigger={["contextMenu"]}>
-      {content}
-    </Dropdown>
+    <div ref={itemRef}>
+      <Dropdown menu={{ items: menuItems }} trigger={["contextMenu"]}>
+        {content}
+      </Dropdown>
+    </div>
   );
 }

@@ -258,6 +258,9 @@ class MainContentVecIndexQueue implements Module {
     const tasks: MainContentVecIndexTask[] = [];
     let processed = 0;
 
+    VecDocumentTable.removeIndexesByType(indexDb, "diary-weekly");
+    VecDocumentTable.removeIndexesByType(indexDb, "diary-monthly");
+
     for (const card of CardTable.getAllCards(mainDb)) {
       this.appendTask(
         indexDb,
@@ -332,7 +335,7 @@ class MainContentVecIndexQueue implements Module {
         tasks,
         {
           id: entry.id,
-          type: `diary-${entry.type}` as IndexType,
+          type: "diary-daily",
           content: getMarkdown(entry.content || []).trim(),
           updateTime: Number(entry.updateTime || 0),
         },

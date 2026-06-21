@@ -3,7 +3,6 @@ import type { BlockData } from "@/types/block-preview";
 
 export enum TabType {
   Home = "home",
-  DataView = "dataView",
   CardList = "cardList",
   CardDetail = "cardDetail",
   ArticleList = "articleList",
@@ -38,7 +37,6 @@ export enum TabType {
 
 export type TabParams = {
   [TabType.Home]: undefined;
-  [TabType.DataView]: undefined;
   [TabType.CardList]: undefined;
   [TabType.CardDetail]: { id: number };
   [TabType.ArticleList]: undefined;
@@ -54,9 +52,7 @@ export type TabParams = {
   [TabType.PdfList]: undefined;
   [TabType.PdfDetail]: { id: number };
   [TabType.EpubDetail]: { id: number };
-  [TabType.DailyNote]:
-    | undefined
-    | { viewMode?: "daily" | "weekly" | "monthly"; date?: string };
+  [TabType.DailyNote]: undefined | { id?: number; date?: string };
   [TabType.VecDocument]: undefined;
   [TabType.Settings]: undefined;
   [TabType.Calendar]: undefined;
@@ -72,7 +68,7 @@ export type TabParams = {
   [TabType.BlockPreview]: { block: BlockData };
   [TabType.RssSubscription]: undefined;
   [TabType.ReadLater]: undefined;
-  [TabType.Feed]: undefined;
+  [TabType.Feed]: { entryId?: number }; // 可选的 RSS 条目 ID，用于跳转后自动选中并打开指定文章
 };
 
 export interface ITab<T extends TabType = TabType> {
@@ -107,7 +103,6 @@ export interface IPane {
 
 export const TAB_TITLES: Record<TabType, string> = {
   [TabType.Home]: "首页",
-  [TabType.DataView]: "数据",
   [TabType.CardList]: "卡片",
   [TabType.CardDetail]: "卡片详情",
   [TabType.ArticleList]: "文章",

@@ -93,7 +93,6 @@ const QUICK_ACCESS_MODULE_TAB_MAP = {
   question: TabType.Questions,
   weread: TabType.WeRead,
   webview: TabType.WebView,
-  dataView: TabType.DataView,
   settings: TabType.Settings,
 } as const;
 

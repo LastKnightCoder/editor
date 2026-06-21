@@ -251,8 +251,6 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
           "project-item",
           "document-item",
           "diary-daily",
-          "diary-weekly",
-          "diary-monthly",
         ]}
         extensions={extensions}
         excludeContentIds={excludeContentIds}

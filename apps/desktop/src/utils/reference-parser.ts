@@ -13,10 +13,6 @@ export function getRefTypeLabel(type: string): string {
       return "知识库";
     case "diary-daily":
       return "日记";
-    case "diary-weekly":
-      return "周记";
-    case "diary-monthly":
-      return "月记";
     default:
       return type;
   }
@@ -37,10 +33,6 @@ export function getRefTypeColor(type: string): string {
       return "#f59e0b"; // orange
     case "diary-daily":
       return "#8b5cf6"; // purple
-    case "diary-weekly":
-      return "#06b6d4"; // cyan
-    case "diary-monthly":
-      return "#d946ef"; // fuchsia
     default:
       return "#6b7280"; // gray
   }
