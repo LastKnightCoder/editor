@@ -259,6 +259,7 @@ const DocumentMindMapNodeContent = memo(
         menu={{
           items: moreMenuItems,
           onClick: (info) => {
+            info.domEvent.stopPropagation();
             setMoreMenuOpen(false);
             onMoreMenuClick(info, meta);
           },

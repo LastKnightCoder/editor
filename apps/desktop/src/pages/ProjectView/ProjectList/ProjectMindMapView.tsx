@@ -202,6 +202,7 @@ const ProjectMindMapItemActions = memo(
           menu={{
             items: moreMenuItems,
             onClick: (info) => {
+              info.domEvent.stopPropagation();
               setMoreMenuOpen(false);
               handleMoreMenuClick?.(info);
             },

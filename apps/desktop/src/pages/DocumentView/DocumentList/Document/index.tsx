@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
-import { Button, Dropdown, Empty, MenuProps, message, Tooltip } from "antd";
+import {
+  App,
+  Button,
+  Dropdown,
+  Empty,
+  MenuProps,
+  message,
+  Tooltip,
+} from "antd";
 import {
   ApartmentOutlined,
   HomeOutlined,
@@ -193,6 +201,7 @@ const Document = (props: IDocumentProps) => {
   } | null>(null);
 
   const navigateTo = useTabStore((state) => state.navigateTo);
+  const { modal } = App.useApp();
   const documentItemEventBus = useMemo(
     () => defaultDocumentItemEventBus.createEditor(),
     [],
@@ -552,36 +561,48 @@ const Document = (props: IDocumentProps) => {
       if (!item) return;
       setActiveActionItem(item);
       if (key === "delete") {
-        if (meta.isRoot) {
-          await removeRootDocumentItem(documentId, item.id);
-        } else if (typeof meta.parentId === "number") {
-          const result = await removeChildDocumentItem(
-            documentId,
-            meta.parentId,
-            item.id,
-          );
-          const [updatedParentItem, updatedItem] = result || [];
-          if (updatedParentItem) {
-            documentItemEventBus.publishDocumentItemEvent(
-              "document-item:updated",
-              updatedParentItem,
-            );
-          }
-          if (updatedItem) {
-            documentItemEventBus.publishDocumentItemEvent(
-              "document-item:updated",
-              updatedItem,
-            );
-          }
-        }
-        refreshDocument();
-        await reloadDocumentTree({ silent: true });
-        if (!activeDocumentItemId || activeDocumentItemId === item.id) {
-          navigateTo(TabType.DocumentDetail, {
-            id: documentId,
-            itemId: undefined,
-          });
-        }
+        modal.confirm({
+          title: "是否删除文档",
+          content:
+            item.children.length > 0
+              ? "该文档下包含多篇子文档，是否删除"
+              : "删除后无法恢复",
+          onOk: async () => {
+            if (meta.isRoot) {
+              await removeRootDocumentItem(documentId, item.id);
+            } else if (typeof meta.parentId === "number") {
+              const result = await removeChildDocumentItem(
+                documentId,
+                meta.parentId,
+                item.id,
+              );
+              const [updatedParentItem, updatedItem] = result || [];
+              if (updatedParentItem) {
+                documentItemEventBus.publishDocumentItemEvent(
+                  "document-item:updated",
+                  updatedParentItem,
+                );
+              }
+              if (updatedItem) {
+                documentItemEventBus.publishDocumentItemEvent(
+                  "document-item:updated",
+                  updatedItem,
+                );
+              }
+            }
+            refreshDocument();
+            await reloadDocumentTree({ silent: true });
+            if (!activeDocumentItemId || activeDocumentItemId === item.id) {
+              navigateTo(TabType.DocumentDetail, {
+                id: documentId,
+                itemId: undefined,
+              });
+            }
+          },
+          okText: "删除",
+          cancelText: "取消",
+          okButtonProps: { danger: true },
+        });
       } else if (key === "export-markdown") {
         const markdown = getMarkdown(item.content);
         downloadMarkdown(markdown, item.title);
