@@ -7,6 +7,7 @@ export interface MindMapNodeData {
   isLeftFold?: boolean;
   isRightFold?: boolean;
   children?: MindMapNodeData[];
+  meta?: Record<string, unknown>;
 }
 
 export interface FlattenedMindMapNode {

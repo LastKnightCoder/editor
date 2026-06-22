@@ -85,10 +85,6 @@ export const getProjectItemMoreMenuItems = (
         label: "窗口打开",
       },
       {
-        key: "open-in-right-sidebar",
-        label: "右侧打开",
-      },
-      {
         key: "remove",
         label: "删除文档",
       },

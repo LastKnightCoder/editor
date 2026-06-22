@@ -426,7 +426,11 @@ export class WindowManager {
   }
 
   // 创建基础窗口配置
-  private createBaseWindowConfig(): BrowserWindowConstructorOptions {
+  private createBaseWindowConfig(options?: {
+    nativeTitlebar?: boolean;
+  }): BrowserWindowConstructorOptions {
+    const nativeTitlebar = options?.nativeTitlebar ?? false;
+
     return {
       width: 800,
       height: 600,
@@ -436,16 +440,12 @@ export class WindowManager {
         preload,
         spellcheck: false,
       },
-      // Mac 专属配置
-      ...(process.platform === "darwin" && {
-        titleBarStyle: "hidden" as const,
-        frame: false,
-        trafficLightPosition: { x: -1000, y: -1000 }, // 隐藏原生交通灯，使用自绘的
-      }),
-      // Windows 配置（保持默认标题栏）
-      ...(process.platform === "win32" && {
-        frame: true,
-      }),
+      frame: nativeTitlebar,
+      ...(!nativeTitlebar &&
+        process.platform === "darwin" && {
+          titleBarStyle: "hidden" as const,
+          trafficLightPosition: { x: -1000, y: -1000 }, // 隐藏原生交通灯，使用自绘的
+        }),
     };
   }
 
@@ -851,7 +851,9 @@ export class WindowManager {
       }
     }
 
-    const baseConfig = this.createBaseWindowConfig();
+    const baseConfig = this.createBaseWindowConfig({
+      nativeTitlebar: type === "markdown",
+    });
     if (type === "markdown") {
       const display = screen.getDisplayNearestPoint(
         screen.getCursorScreenPoint(),

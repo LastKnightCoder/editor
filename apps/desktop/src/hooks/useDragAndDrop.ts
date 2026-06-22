@@ -137,7 +137,7 @@ const useDragAndDrop = (item: IDragAndDropParams) => {
       },
       collect: (monitor) => ({
         isOver: monitor.isOver({ shallow: true }),
-        canDrop: monitor.canDrop(),
+        canDrop: monitor.isOver({ shallow: true }) && monitor.canDrop(),
       }),
     },
     [item],

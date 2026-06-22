@@ -4,7 +4,7 @@ import DataTableProjectView from "./DataTableProjectView";
 import VibeLearningView from "@/pages/VibeLearningView";
 import { Empty, Button } from "antd";
 import ProjectContext from "./ProjectContext";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Project, EProjectType } from "@/types";
 import { getProjectById } from "@/commands";
 import { LoadingOutlined } from "@ant-design/icons";
@@ -20,6 +20,22 @@ const ProjectView = () => {
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerWidth, setContainerWidth] = useState<number | undefined>(
+    undefined,
+  );
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setContainerWidth(entry.contentRect.width);
+    });
+    observer.observe(el);
+    setContainerWidth(el.getBoundingClientRect().width);
+    return () => observer.disconnect();
+  }, [project]);
 
   // 在数据库连接或切换时加载项目
   useDatabaseChangeEffect(() => {
@@ -79,9 +95,10 @@ const ProjectView = () => {
       value={{
         projectId: Number(id),
         itemId: itemId,
+        containerWidth,
       }}
     >
-      <div className="w-full h-full flex">
+      <div ref={containerRef} className="w-full h-full flex">
         <div className="h-full overflow-hidden border-r border-[#f0f0f0] dark:border-[#2a2a2a]">
           <ProjectList />
         </div>

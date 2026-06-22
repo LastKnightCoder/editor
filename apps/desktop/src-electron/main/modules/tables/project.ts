@@ -40,6 +40,66 @@ import log from "electron-log";
 const LEGACY_WEB_LINK_MIGRATION_KEY = "project:legacy-web-links";
 const PROJECT_ID_SEQ_KEY = "project:id-seq";
 
+type TreeMovePosition = "top" | "bottom" | "inside";
+
+interface MoveProjectTreeItemParams {
+  dragItem: {
+    itemId: number;
+    parentId: number;
+    isRoot: boolean;
+    parentChildren: number[];
+  };
+  dropTargetId: number;
+  dropTargetParentId: number;
+  dropTargetIsRoot: boolean;
+  dragPosition: TreeMovePosition;
+  childInsertIndex?: number;
+  insertParentId?: number;
+  insertParentIsRoot?: boolean;
+  insertIndex?: number;
+}
+
+const uniqueNumbers = (values: number[]) => Array.from(new Set(values));
+
+const getAdjustedInsertIndex = ({
+  children,
+  dragId,
+  insertIndex,
+}: {
+  children: number[];
+  dragId: number;
+  insertIndex: number;
+}) => {
+  const previousIndex = children.findIndex((id) => id === dragId);
+  const adjustedIndex =
+    previousIndex >= 0 && previousIndex < insertIndex
+      ? insertIndex - 1
+      : insertIndex;
+  return Math.max(0, Math.min(adjustedIndex, children.length));
+};
+
+const getProjectTargetParentId = ({
+  dragPosition,
+  dropTargetId,
+  dropTargetParentId,
+  dropTargetIsRoot,
+  insertParentId,
+  insertParentIsRoot,
+}: {
+  dragPosition: TreeMovePosition;
+  dropTargetId: number;
+  dropTargetParentId: number;
+  dropTargetIsRoot: boolean;
+  insertParentId?: number;
+  insertParentIsRoot?: boolean;
+}) => {
+  if (typeof insertParentId === "number") {
+    return insertParentIsRoot ? null : insertParentId;
+  }
+  if (dragPosition === "inside") return dropTargetId;
+  return dropTargetIsRoot ? null : dropTargetParentId;
+};
+
 export default class ProjectTable {
   static upgradeTable(db: Database.Database) {
     // 检查并添加新字段
@@ -233,6 +293,7 @@ export default class ProjectTable {
       "add-ref-child-project-item": this.addRefChildProjectItem.bind(this),
       "remove-root-project-item": this.removeRootProjectItem.bind(this),
       "remove-child-project-item": this.removeChildProjectItem.bind(this),
+      "move-project-tree-item": this.moveProjectTreeItem.bind(this),
       "get-project-items-by-dates": this.getProjectItemsByDates.bind(this),
       "get-project-items-by-date-range":
         this.getProjectItemsByDateRange.bind(this),
@@ -1002,6 +1063,7 @@ export default class ProjectTable {
     currentProjects.add(projectId);
     projectItem.projects = Array.from(currentProjects);
     this.updateProjectItem(db, projectItem);
+    this.updateProjectSubtreeMembership(db, projectItemId, [], [projectId], []);
 
     Operation.insertOperation(
       db,
@@ -1048,6 +1110,13 @@ export default class ProjectTable {
     projectItem.projects = Array.from(currentProjects);
 
     this.updateProjectItem(db, projectItem);
+    this.updateProjectSubtreeMembership(
+      db,
+      projectItemId,
+      [],
+      Array.from(currentProjects),
+      [],
+    );
 
     Operation.insertOperation(
       db,
@@ -1081,21 +1150,9 @@ export default class ProjectTable {
       return [project, projectItem];
     }
 
-    // 从项目条目的所属项目列表中移除该项目
-    projectItem.projects = projectItem.projects.filter(
-      (id) => id !== projectId,
-    );
-    this.updateProjectItem(db, projectItem);
+    this.updateProjectSubtreeMembership(db, projectItemId, [projectId], [], []);
 
-    // 递归处理子条目
-    for (const childId of projectItem.children) {
-      this.removeChildProjectItem(db, projectId, projectItemId, childId);
-    }
-
-    // 如果项目条目不再属于任何项目，则删除它
-    if (projectItem.projects.length === 0) {
-      this.deleteProjectItem(db, projectItemId);
-    }
+    this.deleteUnreferencedProjectSubtree(db, projectItemId);
 
     return [project, projectItem];
   }
@@ -1131,28 +1188,466 @@ export default class ProjectTable {
     projectItem.parents = projectItem.parents.filter(
       (id) => id !== parentProjectItemId,
     );
-    projectItem.projects = projectItem.projects.filter(
-      (id) => id !== projectId,
-    );
     this.updateProjectItem(db, projectItem);
 
-    // 递归处理子条目
-    for (const childId of projectItem.children) {
-      this.removeChildProjectItem(
-        db,
-        projectId,
-        projectItemId,
-        childId,
-        notDelete,
-      );
-    }
+    this.updateProjectSubtreeMembership(db, projectItemId, [projectId], [], []);
 
-    // 如果项目条目不再属于任何项目，则删除它
-    if (projectItem.projects.length === 0) {
-      this.deleteProjectItem(db, projectItemId);
-    }
+    this.deleteUnreferencedProjectSubtree(db, projectItemId);
 
     return [parentProjectItem, projectItem];
+  }
+
+  private static collectProjectItemSubtreeIds(
+    db: Database.Database,
+    projectItemId: number,
+    visited = new Set<number>(),
+  ): number[] {
+    if (visited.has(projectItemId)) return [];
+    visited.add(projectItemId);
+
+    const projectItem = this.getProjectItem(db, projectItemId);
+    if (!projectItem) return [];
+
+    return [
+      projectItemId,
+      ...projectItem.children.flatMap((childId) =>
+        this.collectProjectItemSubtreeIds(db, childId, visited),
+      ),
+    ];
+  }
+
+  private static deleteUnreferencedProjectSubtree(
+    db: Database.Database,
+    rootProjectItemId: number,
+  ) {
+    const subtreeIds = this.collectProjectItemSubtreeIds(db, rootProjectItemId);
+    const deletedIds = new Set<number>();
+
+    [...subtreeIds].reverse().forEach((projectItemId) => {
+      const projectItem = this.getProjectItem(db, projectItemId);
+      if (!projectItem || projectItem.projects.length > 0) return;
+      deletedIds.add(projectItemId);
+      this.deleteProjectItem(db, projectItemId);
+    });
+
+    if (deletedIds.size === 0) return;
+
+    subtreeIds.forEach((projectItemId) => {
+      if (deletedIds.has(projectItemId)) return;
+      const projectItem = this.getProjectItem(db, projectItemId);
+      if (!projectItem) return;
+      const nextParents = projectItem.parents.filter(
+        (parentId) => !deletedIds.has(parentId),
+      );
+      const nextChildren = projectItem.children.filter(
+        (childId) => !deletedIds.has(childId),
+      );
+      if (
+        nextParents.length === projectItem.parents.length &&
+        nextChildren.length === projectItem.children.length
+      ) {
+        return;
+      }
+      this.updateProjectItem(db, {
+        ...projectItem,
+        parents: nextParents,
+        children: nextChildren,
+      });
+    });
+  }
+
+  private static isProjectItemDescendant(
+    db: Database.Database,
+    ancestorId: number,
+    maybeDescendantId: number,
+  ) {
+    return this.collectProjectItemSubtreeIds(db, ancestorId)
+      .slice(1)
+      .includes(maybeDescendantId);
+  }
+
+  private static getProjectMoveParentChildren(
+    db: Database.Database,
+    projectId: number,
+    parentId: number | null,
+  ) {
+    if (parentId === null) {
+      return this.getProject(db, projectId).children;
+    }
+    return this.getProjectItem(db, parentId)?.children;
+  }
+
+  private static canMoveProjectTreeItem(
+    db: Database.Database,
+    projectId: number,
+    params: MoveProjectTreeItemParams,
+  ) {
+    const { dragItem, dropTargetId, dragPosition } = params;
+    const {
+      itemId: dragId,
+      parentId: dragParentId,
+      isRoot: dragIsRoot,
+    } = dragItem;
+
+    if (dragId === dropTargetId) return false;
+
+    const dragProjectItem = this.getProjectItem(db, dragId);
+    if (!dragProjectItem) return false;
+
+    const sourceChildren = this.getProjectMoveParentChildren(
+      db,
+      projectId,
+      dragIsRoot ? null : dragParentId,
+    );
+    if (!sourceChildren?.includes(dragId)) return false;
+
+    const targetParentId = getProjectTargetParentId(params);
+    if (targetParentId === dragId) return false;
+    if (
+      typeof targetParentId === "number" &&
+      this.isProjectItemDescendant(db, dragId, targetParentId)
+    ) {
+      return false;
+    }
+    if (
+      targetParentId === null &&
+      dragPosition !== "inside" &&
+      this.isProjectItemDescendant(db, dragId, dropTargetId)
+    ) {
+      return false;
+    }
+
+    const targetChildren = this.getProjectMoveParentChildren(
+      db,
+      projectId,
+      targetParentId,
+    );
+    if (!targetChildren) return false;
+
+    if (
+      targetParentId !== (dragIsRoot ? null : dragParentId) &&
+      targetChildren.includes(dragId)
+    ) {
+      return false;
+    }
+
+    if (
+      dragPosition !== "inside" &&
+      typeof params.insertParentId !== "number" &&
+      !targetChildren.includes(dropTargetId)
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private static getMovedProjectMembership({
+    currentProjects,
+    sourceProjects,
+    targetProjects,
+    retainedSourceProjects,
+  }: {
+    currentProjects: number[];
+    sourceProjects: number[];
+    targetProjects: number[];
+    retainedSourceProjects: number[];
+  }) {
+    const retainedSourceProjectSet = new Set(retainedSourceProjects);
+    const removableSourceProjectSet = new Set(
+      sourceProjects.filter((id) => !retainedSourceProjectSet.has(id)),
+    );
+    return uniqueNumbers([
+      ...currentProjects.filter((id) => !removableSourceProjectSet.has(id)),
+      ...targetProjects,
+    ]);
+  }
+
+  private static updateProjectSubtreeMembership(
+    db: Database.Database,
+    rootProjectItemId: number,
+    sourceProjects: number[],
+    targetProjects: number[],
+    retainedSourceProjects: number[],
+  ) {
+    const subtreeIds = this.collectProjectItemSubtreeIds(db, rootProjectItemId);
+    const subtreeIdSet = new Set(subtreeIds);
+    const retainedSourceByItem = new Map<number, Set<number>>(
+      subtreeIds.map((id) => [id, new Set<number>()]),
+    );
+    retainedSourceProjects.forEach((projectId) => {
+      retainedSourceByItem.get(rootProjectItemId)?.add(projectId);
+    });
+
+    subtreeIds.forEach((projectItemId) => {
+      const projectItem = this.getProjectItem(db, projectItemId);
+      if (!projectItem) return;
+      projectItem.parents
+        .filter((parentId) => !subtreeIdSet.has(parentId))
+        .forEach((parentId) => {
+          this.getProjectItem(db, parentId)?.projects.forEach((projectId) => {
+            retainedSourceByItem.get(projectItemId)?.add(projectId);
+          });
+        });
+      sourceProjects.forEach((sourceProjectId) => {
+        const sourceProject = this.getProject(db, sourceProjectId);
+        if (sourceProject.children.includes(projectItemId)) {
+          retainedSourceByItem.get(projectItemId)?.add(sourceProjectId);
+        }
+      });
+    });
+
+    let changed = true;
+    while (changed) {
+      changed = false;
+      subtreeIds.forEach((projectItemId) => {
+        const projectItem = this.getProjectItem(db, projectItemId);
+        const parentRetainedProjects = retainedSourceByItem.get(projectItemId);
+        if (!projectItem || !parentRetainedProjects) return;
+        projectItem.children
+          .filter((childId) => subtreeIdSet.has(childId))
+          .forEach((childId) => {
+            const childRetainedProjects = retainedSourceByItem.get(childId);
+            if (!childRetainedProjects) return;
+            parentRetainedProjects.forEach((projectId) => {
+              if (childRetainedProjects.has(projectId)) return;
+              childRetainedProjects.add(projectId);
+              changed = true;
+            });
+          });
+      });
+    }
+
+    subtreeIds.forEach((projectItemId) => {
+      const projectItem = this.getProjectItem(db, projectItemId);
+      if (!projectItem) return;
+      const nextProjects = this.getMovedProjectMembership({
+        currentProjects: projectItem.projects,
+        sourceProjects,
+        targetProjects,
+        retainedSourceProjects: Array.from(
+          retainedSourceByItem.get(projectItemId) || [],
+        ),
+      });
+      if (
+        JSON.stringify(nextProjects) === JSON.stringify(projectItem.projects)
+      ) {
+        return;
+      }
+      this.updateProjectItem(db, {
+        ...projectItem,
+        projects: nextProjects,
+      });
+    });
+  }
+
+  static moveProjectTreeItem(
+    db: Database.Database,
+    projectId: number,
+    params: MoveProjectTreeItemParams,
+  ) {
+    const {
+      dragItem,
+      dropTargetId,
+      dropTargetParentId,
+      dropTargetIsRoot,
+      dragPosition,
+      childInsertIndex,
+      insertParentId,
+      insertParentIsRoot,
+      insertIndex,
+    } = params;
+    const {
+      itemId: dragId,
+      parentId: dragParentId,
+      isRoot: dragIsRoot,
+    } = dragItem;
+    const dragProjectItem = this.getProjectItem(db, dragId);
+    if (!dragProjectItem) return null;
+    if (!this.canMoveProjectTreeItem(db, projectId, params)) return null;
+
+    const tx = db.transaction(() => {
+      const sourceProjectIds = dragIsRoot
+        ? [projectId]
+        : this.getProjectItem(db, dragParentId)?.projects || [];
+      const targetProjectIds =
+        typeof insertParentId === "number"
+          ? insertParentIsRoot
+            ? [projectId]
+            : this.getProjectItem(db, insertParentId)?.projects || []
+          : dragPosition === "inside"
+            ? this.getProjectItem(db, dropTargetId)?.projects || []
+            : dropTargetIsRoot
+              ? [projectId]
+              : this.getProjectItem(db, dropTargetParentId)?.projects || [];
+      if (targetProjectIds.length === 0) return null;
+
+      const retainedSourceProjectIds = new Set<number>();
+      dragProjectItem.parents
+        .filter((parentId) => parentId !== dragParentId)
+        .forEach((parentId) => {
+          this.getProjectItem(db, parentId)?.projects.forEach(
+            (parentProjectId) => retainedSourceProjectIds.add(parentProjectId),
+          );
+        });
+
+      if (dragIsRoot) {
+        const project = this.getProject(db, projectId);
+        if (!project.children.includes(dragId)) return null;
+        project.children = project.children.filter((id) => id !== dragId);
+        this.updateProject(db, project);
+      } else {
+        const sourceParent = this.getProjectItem(db, dragParentId);
+        if (!sourceParent?.children.includes(dragId)) return null;
+        sourceParent.children = sourceParent.children.filter(
+          (id) => id !== dragId,
+        );
+        this.updateProjectItem(db, sourceParent);
+      }
+
+      const nextDragProjectItem = this.getProjectItem(db, dragId);
+      if (!nextDragProjectItem) return null;
+      nextDragProjectItem.parents = nextDragProjectItem.parents.filter(
+        (parentId) => parentId !== dragParentId,
+      );
+
+      if (
+        typeof insertParentId === "number" &&
+        typeof insertIndex === "number"
+      ) {
+        if (insertParentIsRoot) {
+          const project = this.getProject(db, projectId);
+          const sourceChildren = dragIsRoot
+            ? dragItem.parentChildren
+            : project.children;
+          project.children = project.children.filter((id) => id !== dragId);
+          project.children.splice(
+            getAdjustedInsertIndex({
+              children: sourceChildren,
+              dragId,
+              insertIndex,
+            }),
+            0,
+            dragId,
+          );
+          this.updateProject(db, project);
+        } else {
+          const targetParent = this.getProjectItem(db, insertParentId);
+          if (!targetParent) {
+            throw new Error("Project tree move target parent no longer exists");
+          }
+          const sourceChildren =
+            dragParentId === insertParentId
+              ? dragItem.parentChildren
+              : targetParent.children;
+          targetParent.children = targetParent.children.filter(
+            (id) => id !== dragId,
+          );
+          targetParent.children.splice(
+            getAdjustedInsertIndex({
+              children: sourceChildren,
+              dragId,
+              insertIndex,
+            }),
+            0,
+            dragId,
+          );
+          this.updateProjectItem(db, targetParent);
+          if (!nextDragProjectItem.parents.includes(insertParentId)) {
+            nextDragProjectItem.parents.push(insertParentId);
+          }
+        }
+      } else if (dragPosition === "inside") {
+        const targetItem = this.getProjectItem(db, dropTargetId);
+        if (!targetItem) {
+          throw new Error("Project tree move target no longer exists");
+        }
+        const sourceChildren =
+          dragParentId === dropTargetId
+            ? dragItem.parentChildren
+            : targetItem.children;
+        targetItem.children = targetItem.children.filter((id) => id !== dragId);
+        if (typeof childInsertIndex === "number") {
+          targetItem.children.splice(
+            getAdjustedInsertIndex({
+              children: sourceChildren,
+              dragId,
+              insertIndex: childInsertIndex,
+            }),
+            0,
+            dragId,
+          );
+        } else {
+          targetItem.children.push(dragId);
+        }
+        this.updateProjectItem(db, targetItem);
+        if (!nextDragProjectItem.parents.includes(dropTargetId)) {
+          nextDragProjectItem.parents.push(dropTargetId);
+        }
+      } else if (dropTargetIsRoot) {
+        const project = this.getProject(db, projectId);
+        project.children = project.children.filter((id) => id !== dragId);
+        const targetIndex = project.children.findIndex(
+          (id) => id === dropTargetId,
+        );
+        if (targetIndex === -1) {
+          throw new Error("Project tree move target no longer exists");
+        }
+        project.children.splice(
+          dragPosition === "top" ? targetIndex : targetIndex + 1,
+          0,
+          dragId,
+        );
+        this.updateProject(db, project);
+      } else {
+        const targetParent = this.getProjectItem(db, dropTargetParentId);
+        if (!targetParent?.children.includes(dropTargetId)) {
+          throw new Error(
+            "Project tree move target parent no longer contains target",
+          );
+        }
+        targetParent.children = targetParent.children.filter(
+          (id) => id !== dragId,
+        );
+        const targetIndex = targetParent.children.findIndex(
+          (id) => id === dropTargetId,
+        );
+        if (targetIndex === -1) {
+          throw new Error("Project tree move target no longer exists");
+        }
+        targetParent.children.splice(
+          dragPosition === "top" ? targetIndex : targetIndex + 1,
+          0,
+          dragId,
+        );
+        this.updateProjectItem(db, targetParent);
+        if (!nextDragProjectItem.parents.includes(dropTargetParentId)) {
+          nextDragProjectItem.parents.push(dropTargetParentId);
+        }
+      }
+
+      this.updateProjectItem(db, nextDragProjectItem);
+      this.updateProjectSubtreeMembership(
+        db,
+        dragId,
+        sourceProjectIds,
+        targetProjectIds,
+        Array.from(retainedSourceProjectIds),
+      );
+
+      return {
+        movedItemId: dragId,
+        refreshItemIds: uniqueNumbers([
+          dragId,
+          dragParentId,
+          dropTargetId,
+          dropTargetParentId,
+          insertParentId ?? 0,
+        ]).filter((id) => id > 0),
+      };
+    });
+
+    return tx();
   }
 
   // 批量日期查询项目条目

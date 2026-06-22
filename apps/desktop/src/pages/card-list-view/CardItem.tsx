@@ -60,9 +60,6 @@ const CardItem = memo(
     const dynamicExtensions = useDynamicExtensionsStore(
       (state) => state.extensions,
     );
-    const openInNewTab = useTabStore((state) => state.openInNewTab);
-    const panes = useTabStore((state) => state.panes);
-    const activePaneId = useTabStore((state) => state.activePaneId);
     const editorRef = useRef<EditorRef>(null);
     const [exportModalOpen, setExportModalOpen] = useState(false);
     const [epubExportModalOpen, setEpubExportModalOpen] = useState(false);
@@ -106,25 +103,6 @@ const CardItem = memo(
           key: "open-card-in-new-window",
           label: "窗口打开",
           onClick: () => openCardInNewWindow(databaseName, card.id),
-        },
-        {
-          key: "open-card-in-right-sidebar",
-          label: "右侧打开",
-          onClick: () => {
-            // 确定在哪个 pane 中打开 - 尝试在另一个 pane 中打开
-            let targetPaneId: string | undefined;
-            if (panes.length > 1) {
-              const otherPane = panes.find((p) => p.id !== activePaneId);
-              targetPaneId = otherPane?.id;
-            }
-
-            openInNewTab(
-              TabType.CardDetail,
-              { id: card.id },
-              targetPaneId,
-              getEditorText(card.content, 10),
-            );
-          },
         },
         {
           key: "toggle-top",
@@ -178,9 +156,6 @@ const CardItem = memo(
       card.content,
       isTop,
       handlePresentationMode,
-      activePaneId,
-      panes,
-      openInNewTab,
     ]);
 
     const handleMoreClick: MenuProps["onClick"] = useMemoizedFn(

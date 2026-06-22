@@ -20,6 +20,72 @@ import ContentTable from "./content";
 import CardTable from "./card";
 import ArticleTable from "./article";
 
+type TreeMovePosition = "top" | "bottom" | "inside";
+
+interface MoveDocumentTreeItemParams {
+  dragItem: {
+    itemId: number;
+    parentId: number;
+    isRoot: boolean;
+    parentChildren: number[];
+  };
+  dropTargetId: number;
+  dropTargetParentId: number;
+  dropTargetIsRoot: boolean;
+  dragPosition: TreeMovePosition;
+  childInsertIndex?: number;
+  insertParentId?: number;
+  insertParentIsRoot?: boolean;
+  insertIndex?: number;
+}
+
+const uniqueNumbers = (values: number[]) => Array.from(new Set(values));
+
+const hasSameNumberMembers = (left: number[], right: number[]) => {
+  if (left.length !== right.length) return false;
+  const rightSet = new Set(right);
+  return left.every((value) => rightSet.has(value));
+};
+
+const getAdjustedInsertIndex = ({
+  children,
+  dragId,
+  insertIndex,
+}: {
+  children: number[];
+  dragId: number;
+  insertIndex: number;
+}) => {
+  const previousIndex = children.findIndex((id) => id === dragId);
+  const adjustedIndex =
+    previousIndex >= 0 && previousIndex < insertIndex
+      ? insertIndex - 1
+      : insertIndex;
+  return Math.max(0, Math.min(adjustedIndex, children.length));
+};
+
+const getDocumentTargetParentId = ({
+  dragPosition,
+  dropTargetId,
+  dropTargetParentId,
+  dropTargetIsRoot,
+  insertParentId,
+  insertParentIsRoot,
+}: {
+  dragPosition: TreeMovePosition;
+  dropTargetId: number;
+  dropTargetParentId: number;
+  dropTargetIsRoot: boolean;
+  insertParentId?: number;
+  insertParentIsRoot?: boolean;
+}) => {
+  if (typeof insertParentId === "number") {
+    return insertParentIsRoot ? null : insertParentId;
+  }
+  if (dragPosition === "inside") return dropTargetId;
+  return dropTargetIsRoot ? null : dropTargetParentId;
+};
+
 export default class DocumentTable {
   static upgradeTable(db: Database.Database) {
     const tableInfo = db.prepare(`PRAGMA table_info(document_items)`).all() as {
@@ -163,6 +229,7 @@ export default class DocumentTable {
       "add-ref-child-document-item": this.addRefChildDocumentItem.bind(this),
       "remove-root-document-item": this.removeRootDocumentItem.bind(this),
       "remove-child-document-item": this.removeChildDocumentItem.bind(this),
+      "move-document-tree-item": this.moveDocumentTreeItem.bind(this),
       "update-document-item": this.updateDocumentItem.bind(this),
       "delete-document-item": this.deleteDocumentItem.bind(this),
       "get-document-item": this.getDocumentItem.bind(this),
@@ -404,6 +471,13 @@ export default class DocumentTable {
     currentDocuments.add(documentId);
     documentItem.documents = Array.from(currentDocuments);
     this.updateDocumentItem(db, documentItem);
+    this.updateDocumentSubtreeMembership(
+      db,
+      documentItemId,
+      [],
+      [documentId],
+      [],
+    );
 
     Operation.insertOperation(
       db,
@@ -434,8 +508,10 @@ export default class DocumentTable {
 
     const documentItem = this.getDocumentItem(db, documentItemId);
     if (!documentItem) return null;
-    const currentDocuments = new Set(documentItem.documents || []);
-    currentDocuments.add(parentDocumentItemId);
+    const currentDocuments = new Set([
+      ...(documentItem.documents || []),
+      ...(parentDocumentItem.documents || []),
+    ]);
     documentItem.documents = Array.from(currentDocuments);
     // 更新 parents
     const currentParents = new Set(documentItem.parents || []);
@@ -443,6 +519,13 @@ export default class DocumentTable {
     documentItem.parents = Array.from(currentParents);
 
     this.updateDocumentItem(db, documentItem);
+    this.updateDocumentSubtreeMembership(
+      db,
+      documentItemId,
+      [],
+      Array.from(currentDocuments),
+      [],
+    );
 
     Operation.insertOperation(
       db,
@@ -472,17 +555,15 @@ export default class DocumentTable {
       return [document, documentItem];
     }
 
-    documentItem.documents = documentItem.documents.filter(
-      (id) => id !== documentId,
+    this.updateDocumentSubtreeMembership(
+      db,
+      documentItemId,
+      [documentId],
+      [],
+      [],
     );
-    this.updateDocumentItem(db, documentItem);
 
-    for (const childId of documentItem.children) {
-      this.removeChildDocumentItem(db, documentId, documentItemId, childId);
-    }
-    if (documentItem.documents.length === 0) {
-      this.deleteDocumentItem(db, documentItemId);
-    }
+    this.deleteUnreferencedDocumentSubtree(db, documentItemId);
 
     return [document, documentItem];
   }
@@ -511,29 +592,489 @@ export default class DocumentTable {
       return [parentDocumentItem, documentItem];
     }
 
-    documentItem.documents = documentItem.documents.filter(
-      (id) => id !== documentId,
-    );
     documentItem.parents = documentItem.parents.filter(
       (id) => id !== parentDocumentItemId,
     );
     this.updateDocumentItem(db, documentItem);
 
-    for (const childId of documentItem.children) {
-      this.removeChildDocumentItem(
-        db,
-        documentId,
-        documentItemId,
-        childId,
-        notDelete,
-      );
-    }
-    log.info(`documentItem.documents.length: ${documentItem.documents.length}`);
-    if (documentItem.documents.length === 0) {
-      this.deleteDocumentItem(db, documentItemId);
-    }
+    this.updateDocumentSubtreeMembership(
+      db,
+      documentItemId,
+      [documentId],
+      [],
+      [],
+    );
+
+    this.deleteUnreferencedDocumentSubtree(db, documentItemId);
 
     return [parentDocumentItem, documentItem];
+  }
+
+  private static collectDocumentItemSubtreeIds(
+    db: Database.Database,
+    documentItemId: number,
+    visited = new Set<number>(),
+  ): number[] {
+    if (visited.has(documentItemId)) return [];
+    visited.add(documentItemId);
+
+    const documentItem = this.getDocumentItem(db, documentItemId);
+    if (!documentItem) return [];
+
+    return [
+      documentItemId,
+      ...documentItem.children.flatMap((childId) =>
+        this.collectDocumentItemSubtreeIds(db, childId, visited),
+      ),
+    ];
+  }
+
+  private static deleteUnreferencedDocumentSubtree(
+    db: Database.Database,
+    rootDocumentItemId: number,
+  ) {
+    const subtreeIds = this.collectDocumentItemSubtreeIds(
+      db,
+      rootDocumentItemId,
+    );
+    const deletedIds = new Set<number>();
+
+    [...subtreeIds].reverse().forEach((documentItemId) => {
+      const documentItem = this.getDocumentItem(db, documentItemId);
+      if (!documentItem || documentItem.documents.length > 0) return;
+      deletedIds.add(documentItemId);
+      this.deleteDocumentItem(db, documentItemId);
+    });
+
+    if (deletedIds.size === 0) return;
+
+    subtreeIds.forEach((documentItemId) => {
+      if (deletedIds.has(documentItemId)) return;
+      const documentItem = this.getDocumentItem(db, documentItemId);
+      if (!documentItem) return;
+      const nextParents = documentItem.parents.filter(
+        (parentId) => !deletedIds.has(parentId),
+      );
+      const nextChildren = documentItem.children.filter(
+        (childId) => !deletedIds.has(childId),
+      );
+      if (
+        nextParents.length === documentItem.parents.length &&
+        nextChildren.length === documentItem.children.length
+      ) {
+        return;
+      }
+      this.updateDocumentItem(db, {
+        ...documentItem,
+        parents: nextParents,
+        children: nextChildren,
+      });
+    });
+  }
+
+  private static isDocumentItemDescendant(
+    db: Database.Database,
+    ancestorId: number,
+    maybeDescendantId: number,
+  ) {
+    return this.collectDocumentItemSubtreeIds(db, ancestorId)
+      .slice(1)
+      .includes(maybeDescendantId);
+  }
+
+  private static getDocumentMoveParentChildren(
+    db: Database.Database,
+    documentId: number,
+    parentId: number | null,
+  ) {
+    if (parentId === null) {
+      return this.getDocument(db, documentId).children;
+    }
+    return this.getDocumentItem(db, parentId)?.children;
+  }
+
+  private static canMoveDocumentTreeItem(
+    db: Database.Database,
+    documentId: number,
+    params: MoveDocumentTreeItemParams,
+  ) {
+    const { dragItem, dropTargetId, dragPosition } = params;
+    const {
+      itemId: dragId,
+      parentId: dragParentId,
+      isRoot: dragIsRoot,
+    } = dragItem;
+
+    if (dragId === dropTargetId) return false;
+
+    const dragDocumentItem = this.getDocumentItem(db, dragId);
+    if (!dragDocumentItem) return false;
+
+    const sourceChildren = this.getDocumentMoveParentChildren(
+      db,
+      documentId,
+      dragIsRoot ? null : dragParentId,
+    );
+    if (!sourceChildren?.includes(dragId)) return false;
+
+    const targetParentId = getDocumentTargetParentId(params);
+    if (targetParentId === dragId) return false;
+    if (
+      typeof targetParentId === "number" &&
+      this.isDocumentItemDescendant(db, dragId, targetParentId)
+    ) {
+      return false;
+    }
+    if (
+      targetParentId === null &&
+      dragPosition !== "inside" &&
+      this.isDocumentItemDescendant(db, dragId, dropTargetId)
+    ) {
+      return false;
+    }
+
+    const targetChildren = this.getDocumentMoveParentChildren(
+      db,
+      documentId,
+      targetParentId,
+    );
+    if (!targetChildren) return false;
+
+    if (
+      targetParentId !== (dragIsRoot ? null : dragParentId) &&
+      targetChildren.includes(dragId)
+    ) {
+      return false;
+    }
+
+    if (
+      dragPosition !== "inside" &&
+      typeof params.insertParentId !== "number" &&
+      !targetChildren.includes(dropTargetId)
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private static getMovedDocumentMembership({
+    currentDocuments,
+    sourceDocuments,
+    targetDocuments,
+    retainedSourceDocuments,
+  }: {
+    currentDocuments: number[];
+    sourceDocuments: number[];
+    targetDocuments: number[];
+    retainedSourceDocuments: number[];
+  }) {
+    const retainedSourceDocumentSet = new Set(retainedSourceDocuments);
+    const removableSourceDocumentSet = new Set(
+      sourceDocuments.filter((id) => !retainedSourceDocumentSet.has(id)),
+    );
+    return uniqueNumbers([
+      ...currentDocuments.filter((id) => !removableSourceDocumentSet.has(id)),
+      ...targetDocuments,
+    ]);
+  }
+
+  private static updateDocumentSubtreeMembership(
+    db: Database.Database,
+    rootDocumentItemId: number,
+    sourceDocuments: number[],
+    targetDocuments: number[],
+    retainedSourceDocuments: number[],
+  ) {
+    const subtreeIds = this.collectDocumentItemSubtreeIds(
+      db,
+      rootDocumentItemId,
+    );
+    const subtreeIdSet = new Set(subtreeIds);
+    const retainedSourceByItem = new Map<number, Set<number>>(
+      subtreeIds.map((id) => [id, new Set<number>()]),
+    );
+    retainedSourceDocuments.forEach((documentId) => {
+      retainedSourceByItem.get(rootDocumentItemId)?.add(documentId);
+    });
+
+    subtreeIds.forEach((documentItemId) => {
+      const documentItem = this.getDocumentItem(db, documentItemId);
+      if (!documentItem) return;
+      documentItem.parents
+        .filter((parentId) => !subtreeIdSet.has(parentId))
+        .forEach((parentId) => {
+          this.getDocumentItem(db, parentId)?.documents.forEach(
+            (documentId) => {
+              retainedSourceByItem.get(documentItemId)?.add(documentId);
+            },
+          );
+        });
+      sourceDocuments.forEach((sourceDocumentId) => {
+        const sourceDocument = this.getDocument(db, sourceDocumentId);
+        if (sourceDocument.children.includes(documentItemId)) {
+          retainedSourceByItem.get(documentItemId)?.add(sourceDocumentId);
+        }
+      });
+    });
+
+    let changed = true;
+    while (changed) {
+      changed = false;
+      subtreeIds.forEach((documentItemId) => {
+        const documentItem = this.getDocumentItem(db, documentItemId);
+        const parentRetainedDocuments =
+          retainedSourceByItem.get(documentItemId);
+        if (!documentItem || !parentRetainedDocuments) return;
+        documentItem.children
+          .filter((childId) => subtreeIdSet.has(childId))
+          .forEach((childId) => {
+            const childRetainedDocuments = retainedSourceByItem.get(childId);
+            if (!childRetainedDocuments) return;
+            parentRetainedDocuments.forEach((documentId) => {
+              if (childRetainedDocuments.has(documentId)) return;
+              childRetainedDocuments.add(documentId);
+              changed = true;
+            });
+          });
+      });
+    }
+
+    subtreeIds.forEach((documentItemId) => {
+      const documentItem = this.getDocumentItem(db, documentItemId);
+      if (!documentItem) return;
+      const nextDocuments = this.getMovedDocumentMembership({
+        currentDocuments: documentItem.documents,
+        sourceDocuments,
+        targetDocuments,
+        retainedSourceDocuments: Array.from(
+          retainedSourceByItem.get(documentItemId) || [],
+        ),
+      });
+      if (
+        JSON.stringify(nextDocuments) === JSON.stringify(documentItem.documents)
+      ) {
+        return;
+      }
+      this.updateDocumentItem(db, {
+        ...documentItem,
+        documents: nextDocuments,
+      });
+    });
+  }
+
+  static moveDocumentTreeItem(
+    db: Database.Database,
+    documentId: number,
+    params: MoveDocumentTreeItemParams,
+  ) {
+    const {
+      dragItem,
+      dropTargetId,
+      dropTargetParentId,
+      dropTargetIsRoot,
+      dragPosition,
+      childInsertIndex,
+      insertParentId,
+      insertParentIsRoot,
+      insertIndex,
+    } = params;
+    const {
+      itemId: dragId,
+      parentId: dragParentId,
+      isRoot: dragIsRoot,
+    } = dragItem;
+    const dragDocumentItem = this.getDocumentItem(db, dragId);
+    if (!dragDocumentItem) return null;
+    if (!this.canMoveDocumentTreeItem(db, documentId, params)) return null;
+
+    const tx = db.transaction(() => {
+      const sourceDocumentIds = dragIsRoot
+        ? [documentId]
+        : this.getDocumentItem(db, dragParentId)?.documents || [];
+      const targetDocumentIds =
+        typeof insertParentId === "number"
+          ? insertParentIsRoot
+            ? [documentId]
+            : this.getDocumentItem(db, insertParentId)?.documents || []
+          : dragPosition === "inside"
+            ? this.getDocumentItem(db, dropTargetId)?.documents || []
+            : dropTargetIsRoot
+              ? [documentId]
+              : this.getDocumentItem(db, dropTargetParentId)?.documents || [];
+      if (targetDocumentIds.length === 0) return null;
+
+      const retainedSourceDocumentIds = new Set<number>();
+      dragDocumentItem.parents
+        .filter((parentId) => parentId !== dragParentId)
+        .forEach((parentId) => {
+          this.getDocumentItem(db, parentId)?.documents.forEach(
+            (parentDocumentId) =>
+              retainedSourceDocumentIds.add(parentDocumentId),
+          );
+        });
+
+      if (dragIsRoot) {
+        const document = this.getDocument(db, documentId);
+        if (!document.children.includes(dragId)) return null;
+        document.children = document.children.filter((id) => id !== dragId);
+        this.updateDocument(db, document);
+      } else {
+        const sourceParent = this.getDocumentItem(db, dragParentId);
+        if (!sourceParent?.children.includes(dragId)) return null;
+        sourceParent.children = sourceParent.children.filter(
+          (id) => id !== dragId,
+        );
+        this.updateDocumentItem(db, sourceParent);
+      }
+
+      const nextDragDocumentItem = this.getDocumentItem(db, dragId);
+      if (!nextDragDocumentItem) return null;
+      nextDragDocumentItem.parents = nextDragDocumentItem.parents.filter(
+        (parentId) => parentId !== dragParentId,
+      );
+
+      if (
+        typeof insertParentId === "number" &&
+        typeof insertIndex === "number"
+      ) {
+        if (insertParentIsRoot) {
+          const document = this.getDocument(db, documentId);
+          const sourceChildren = dragIsRoot
+            ? dragItem.parentChildren
+            : document.children;
+          document.children = document.children.filter((id) => id !== dragId);
+          document.children.splice(
+            getAdjustedInsertIndex({
+              children: sourceChildren,
+              dragId,
+              insertIndex,
+            }),
+            0,
+            dragId,
+          );
+          this.updateDocument(db, document);
+        } else {
+          const targetParent = this.getDocumentItem(db, insertParentId);
+          if (!targetParent) {
+            throw new Error(
+              "Document tree move target parent no longer exists",
+            );
+          }
+          const sourceChildren =
+            dragParentId === insertParentId
+              ? dragItem.parentChildren
+              : targetParent.children;
+          targetParent.children = targetParent.children.filter(
+            (id) => id !== dragId,
+          );
+          targetParent.children.splice(
+            getAdjustedInsertIndex({
+              children: sourceChildren,
+              dragId,
+              insertIndex,
+            }),
+            0,
+            dragId,
+          );
+          this.updateDocumentItem(db, targetParent);
+          if (!nextDragDocumentItem.parents.includes(insertParentId)) {
+            nextDragDocumentItem.parents.push(insertParentId);
+          }
+        }
+      } else if (dragPosition === "inside") {
+        const targetItem = this.getDocumentItem(db, dropTargetId);
+        if (!targetItem) {
+          throw new Error("Document tree move target no longer exists");
+        }
+        const sourceChildren =
+          dragParentId === dropTargetId
+            ? dragItem.parentChildren
+            : targetItem.children;
+        targetItem.children = targetItem.children.filter((id) => id !== dragId);
+        if (typeof childInsertIndex === "number") {
+          targetItem.children.splice(
+            getAdjustedInsertIndex({
+              children: sourceChildren,
+              dragId,
+              insertIndex: childInsertIndex,
+            }),
+            0,
+            dragId,
+          );
+        } else {
+          targetItem.children.push(dragId);
+        }
+        this.updateDocumentItem(db, targetItem);
+        if (!nextDragDocumentItem.parents.includes(dropTargetId)) {
+          nextDragDocumentItem.parents.push(dropTargetId);
+        }
+      } else if (dropTargetIsRoot) {
+        const document = this.getDocument(db, documentId);
+        document.children = document.children.filter((id) => id !== dragId);
+        const targetIndex = document.children.findIndex(
+          (id) => id === dropTargetId,
+        );
+        if (targetIndex === -1) {
+          throw new Error("Document tree move target no longer exists");
+        }
+        document.children.splice(
+          dragPosition === "top" ? targetIndex : targetIndex + 1,
+          0,
+          dragId,
+        );
+        this.updateDocument(db, document);
+      } else {
+        const targetParent = this.getDocumentItem(db, dropTargetParentId);
+        if (!targetParent?.children.includes(dropTargetId)) {
+          throw new Error(
+            "Document tree move target parent no longer contains target",
+          );
+        }
+        targetParent.children = targetParent.children.filter(
+          (id) => id !== dragId,
+        );
+        const targetIndex = targetParent.children.findIndex(
+          (id) => id === dropTargetId,
+        );
+        if (targetIndex === -1) {
+          throw new Error("Document tree move target no longer exists");
+        }
+        targetParent.children.splice(
+          dragPosition === "top" ? targetIndex : targetIndex + 1,
+          0,
+          dragId,
+        );
+        this.updateDocumentItem(db, targetParent);
+        if (!nextDragDocumentItem.parents.includes(dropTargetParentId)) {
+          nextDragDocumentItem.parents.push(dropTargetParentId);
+        }
+      }
+
+      this.updateDocumentItem(db, nextDragDocumentItem);
+      if (!hasSameNumberMembers(sourceDocumentIds, targetDocumentIds)) {
+        this.updateDocumentSubtreeMembership(
+          db,
+          dragId,
+          sourceDocumentIds,
+          targetDocumentIds,
+          Array.from(retainedSourceDocumentIds),
+        );
+      }
+
+      return {
+        movedItemId: dragId,
+        refreshItemIds: uniqueNumbers([
+          dragId,
+          dragParentId,
+          dropTargetId,
+          dropTargetParentId,
+          insertParentId ?? 0,
+        ]).filter((id) => id > 0),
+      };
+    });
+
+    return tx();
   }
 
   static createDocument(

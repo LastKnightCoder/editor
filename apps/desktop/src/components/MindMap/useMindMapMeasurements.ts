@@ -87,6 +87,8 @@ const createNodeHash = (
     id: node.node.id,
     text: node.node.text ?? [],
     level: node.level,
+    measureSingleLine: node.node.meta?.measureSingleLine,
+    measureInlinePrefixWidth: node.node.meta?.measureInlinePrefixWidth,
     hashKey,
   });
   return hashString(payload);
