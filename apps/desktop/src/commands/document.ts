@@ -1,4 +1,5 @@
 import { invoke } from "@/electron";
+import { EDragPosition, IDragItem } from "@/hooks/useDragAndDrop";
 import {
   IDocument,
   ICreateDocument,
@@ -131,6 +132,23 @@ export const removeChildDocumentItem = async (
     documentItemId,
     notDelete,
   );
+};
+
+export const moveDocumentTreeItem = async (
+  documentId: number,
+  params: {
+    dragItem: IDragItem;
+    dropTargetId: number;
+    dropTargetParentId: number;
+    dropTargetIsRoot: boolean;
+    dragPosition: EDragPosition;
+    childInsertIndex?: number;
+    insertParentId?: number;
+    insertParentIsRoot?: boolean;
+    insertIndex?: number;
+  },
+): Promise<{ movedItemId: number; refreshItemIds: number[] } | null> => {
+  return await invoke("move-document-tree-item", documentId, params);
 };
 
 export const updateDocumentItem = async (

@@ -8,10 +8,12 @@ import React, {
   memo,
   forwardRef,
   useImperativeHandle,
+  ReactNode,
 } from "react";
 import clsx from "classnames";
 import { Editor } from "@tau/editor/src";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
+import useSettingStore from "@/stores/useSettingStore";
 import { MindUtil } from "@/components/WhiteBoard/utils/MindUtil";
 import { MindNodeElement } from "@/components/WhiteBoard/types/mind";
 import {
@@ -23,7 +25,7 @@ import { MindMapNodeData, FlattenedMindMapNode } from "./types";
 import { useMindMapMeasurements } from "./useMindMapMeasurements";
 import { Descendant } from "slate";
 
-const MAX_NODE_WIDTH = 300;
+const MAX_NODE_WIDTH = 560;
 const CANVAS_PADDING = 80;
 const HASH_VERSION = "v1";
 const MIN_ZOOM = 0.4;
@@ -35,6 +37,92 @@ export interface MindMapRef {
 
 const clamp = (value: number, min: number, max: number) => {
   return Math.min(max, Math.max(min, value));
+};
+
+const parseToRgb = (color: string): [number, number, number] | null => {
+  const hexMatch = color.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hexMatch) {
+    let h = hexMatch[1];
+    if (h.length === 3) {
+      h = h
+        .split("")
+        .map((c) => c + c)
+        .join("");
+    }
+    return [
+      parseInt(h.slice(0, 2), 16),
+      parseInt(h.slice(2, 4), 16),
+      parseInt(h.slice(4, 6), 16),
+    ];
+  }
+  const rgbMatch = color.match(/^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/);
+  if (rgbMatch) {
+    return [Number(rgbMatch[1]), Number(rgbMatch[2]), Number(rgbMatch[3])];
+  }
+  return null;
+};
+
+const rgbToHsl = (
+  r: number,
+  g: number,
+  b: number,
+): [number, number, number] => {
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min;
+  const s = d / (1 - Math.abs(2 * l - 1));
+  let h: number;
+  if (max === rn) h = ((gn - bn) / d) % 6;
+  else if (max === gn) h = (bn - rn) / d + 2;
+  else h = (rn - gn) / d + 4;
+  h = h < 0 ? h + 6 : h;
+  return [h * 60, s, l];
+};
+
+const hslToRgb = (
+  h: number,
+  s: number,
+  l: number,
+): [number, number, number] => {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const hp = h / 60;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  let r1 = 0,
+    g1 = 0,
+    b1 = 0;
+  if (hp >= 0 && hp < 1) [r1, g1, b1] = [c, x, 0];
+  else if (hp < 2) [r1, g1, b1] = [x, c, 0];
+  else if (hp < 3) [r1, g1, b1] = [0, c, x];
+  else if (hp < 4) [r1, g1, b1] = [0, x, c];
+  else if (hp < 5) [r1, g1, b1] = [x, 0, c];
+  else [r1, g1, b1] = [c, 0, x];
+  const m = l - c / 2;
+  return [
+    Math.round((r1 + m) * 255),
+    Math.round((g1 + m) * 255),
+    Math.round((b1 + m) * 255),
+  ];
+};
+
+const getSelectedRingColor = (bg: string, isDark: boolean): string => {
+  const rgb = parseToRgb(bg);
+  if (!rgb) {
+    return isDark ? "rgba(255,255,255,0.75)" : "rgba(30,41,59,0.75)";
+  }
+  const [r, g, b] = rgb;
+  const [h, s, l] = rgbToHsl(r, g, b);
+  const targetL = l > 0.55 ? Math.max(0.3, l * 0.5) : Math.min(0.8, l + 0.35);
+  const [nr, ng, nb] = hslToRgb(h, s, targetL);
+  return `rgb(${nr}, ${ng}, ${nb})`;
+};
+
+const getSelectedBoxShadow = (bg: string, isDark: boolean): string => {
+  return `0 0 0 2px ${getSelectedRingColor(bg, isDark)}`;
 };
 
 const sanitizeMindDataDirections = (
@@ -103,6 +191,28 @@ interface MindMapProps {
   cacheNamespace?: string;
   initialPan?: { x: number; y: number };
   initialZoom?: number;
+  selectedNodeIds?: string[];
+  interactionMode?: "readonly" | "editable";
+  onNodeClick?: (nodeId: string) => void;
+  renderNodeActions?: (
+    node: MindMapNodeData,
+    context: MindMapNodeActionContext,
+  ) => ReactNode;
+  renderNodeContent?: (node: MindMapNodeData) => ReactNode;
+  onViewportChange?: (viewport: {
+    pan: { x: number; y: number };
+    zoom: number;
+  }) => void;
+  onNodeFoldChange?: (
+    nodeId: string,
+    direction: "left" | "right",
+    folded: boolean,
+  ) => void;
+}
+
+export interface MindMapNodeActionContext {
+  actionSide: "left" | "right";
+  hasFoldIndicator: boolean;
 }
 
 interface NodeVisualStyle {
@@ -168,6 +278,16 @@ const flattenMindNodes = (root: MindMapNodeData): FlattenedMindMapNode[] => {
 
   walk(root, 1);
   return result;
+};
+
+const buildNodeMap = (root: MindMapNodeData) => {
+  const map = new Map<string, MindMapNodeData>();
+  const walk = (node: MindMapNodeData) => {
+    map.set(node.id, node);
+    node.children?.forEach(walk);
+  };
+  walk(root);
+  return map;
 };
 
 const buildMindNodeTree = (
@@ -246,6 +366,11 @@ const MindMapMeasureNode = ({
     () => getNodeStyle(flattened.level, theme),
     [flattened.level, theme],
   );
+  const measureSingleLine = flattened.node.meta?.measureSingleLine === true;
+  const measureInlinePrefixWidth =
+    typeof flattened.node.meta?.measureInlinePrefixWidth === "number"
+      ? flattened.node.meta.measureInlinePrefixWidth
+      : 0;
 
   useEffect(() => {
     const element = wrapperRef.current;
@@ -260,10 +385,10 @@ const MindMapMeasureNode = ({
 
       if (!width || !height) return;
       // 加上 1px 边距避免亚像素渲染导致的文本换行问题
-      const finalWidth = Math.max(
-        40,
-        Math.min(MAX_NODE_WIDTH, Math.ceil(width) + 1),
-      );
+      const measuredWidth = Math.ceil(width) + 1 + measureInlinePrefixWidth;
+      const finalWidth = measureSingleLine
+        ? Math.max(40, measuredWidth)
+        : Math.max(40, Math.min(MAX_NODE_WIDTH, measuredWidth));
       const finalHeight = Math.max(40, Math.ceil(height));
       onMeasured(
         flattened.node.id,
@@ -286,18 +411,25 @@ const MindMapMeasureNode = ({
       resizeObserver.disconnect();
       cancelAnimationFrame(raf);
     };
-  }, [flattened.node.id, hash, onMeasured]);
+  }, [
+    flattened.node.id,
+    hash,
+    measureSingleLine,
+    measureInlinePrefixWidth,
+    onMeasured,
+  ]);
 
   return (
     <div
-      className="inline-block px-4 py-3 max-w-75 box-border"
+      className="inline-block px-4 py-3 box-border"
       ref={wrapperRef}
       style={{
         background: visualStyle.background,
         borderRadius: visualStyle.borderRadius,
         border: `${visualStyle.borderWidth}px solid ${visualStyle.borderColor}`,
         color: visualStyle.textColor,
-        maxWidth: MAX_NODE_WIDTH,
+        maxWidth: measureSingleLine ? undefined : MAX_NODE_WIDTH,
+        whiteSpace: measureSingleLine ? "nowrap" : undefined,
       }}
     >
       <div className="pointer-events-none **:data-slate-editor:text-sm **:data-slate-editor:leading-[1.6] **:data-slate-editor:outline-none [&_.slate-Editor]:bg-transparent">
@@ -345,17 +477,18 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
       cacheNamespace,
       initialPan,
       initialZoom,
+      selectedNodeIds,
+      interactionMode = "readonly",
+      onNodeClick,
+      renderNodeActions,
+      renderNodeContent,
+      onViewportChange,
+      onNodeFoldChange,
     },
     ref,
   ) => {
     const theme = useMemo(() => getThemeById(themeId), [themeId]);
-    useEffect(() => {
-      setPan(initialPan ?? { x: 0, y: 0 });
-      setZoom(initialZoom ?? 1);
-      setShouldAutoCenter(!initialPan);
-      lastBoundsOffsetRef.current = null;
-    }, [data, initialPan, initialZoom]);
-
+    const isDark = useSettingStore((state) => state.setting.darkMode);
     const sanitizedData = useMemo(
       () => sanitizeMindDataDirections(data),
       [data],
@@ -365,6 +498,20 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
     const [shouldAutoCenter, setShouldAutoCenter] = useState(!initialPan);
     const [isDragging, setIsDragging] = useState(false);
     const lastBoundsOffsetRef = useRef<{ x: number; y: number } | null>(null);
+    const initialViewportRef = useRef({ initialPan, initialZoom });
+
+    useEffect(() => {
+      initialViewportRef.current = { initialPan, initialZoom };
+    }, [initialPan, initialZoom]);
+
+    useEffect(() => {
+      const { initialPan: nextInitialPan, initialZoom: nextInitialZoom } =
+        initialViewportRef.current;
+      setPan(nextInitialPan ?? { x: 0, y: 0 });
+      setZoom(nextInitialZoom ?? 1);
+      setShouldAutoCenter(!nextInitialPan);
+      lastBoundsOffsetRef.current = null;
+    }, [data.id]);
 
     const panRef = useRef(pan);
     useEffect(() => {
@@ -393,6 +540,17 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
       () => flattenMindNodes(sanitizedData),
       [sanitizedData],
     );
+    const nodeDataMap = useMemo(
+      () => buildNodeMap(sanitizedData),
+      [sanitizedData],
+    );
+    const selectedNodeIdSet = useMemo(() => {
+      return new Set(selectedNodeIds || []);
+    }, [selectedNodeIds]);
+
+    useEffect(() => {
+      onViewportChange?.({ pan, zoom });
+    }, [onViewportChange, pan, zoom]);
 
     const toggleFoldState = useCallback(
       (nodeId: string, direction: "left" | "right") => {
@@ -401,11 +559,14 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
           if (!prev) return prev;
           const target = MindUtil.findNodeInTree(prev, nodeId);
           if (!target) return prev;
+          const folded =
+            direction === "left" ? !target.isLeftFold : !target.isRightFold;
           const next = MindUtil.toggleFold(prev, target, direction);
+          onNodeFoldChange?.(nodeId, direction, folded);
           return next;
         });
       },
-      [],
+      [onNodeFoldChange],
     );
 
     const hashKey = useMemo(
@@ -433,7 +594,6 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
     const [layoutTree, setLayoutTree] = useState<MindNodeElement | null>(null);
     useEffect(() => {
       if (!canLayout) {
-        setLayoutTree(null);
         return;
       }
       const root = buildMindNodeTree(sanitizedData, nodeSizes);
@@ -619,25 +779,38 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
 
     const handlePointerDown = useCallback(
       (event: React.PointerEvent<HTMLDivElement>) => {
-        if (event.button !== 0) return;
+        if (event.button !== 0 && event.button !== 2) return;
         const target = event.target as HTMLElement;
-        if (target.closest("[data-fold-indicator]")) {
+        if (
+          target.closest(
+            "[data-fold-indicator],[data-mindmap-node],[data-mindmap-interactive]",
+          )
+        ) {
           return;
         }
-        event.preventDefault();
+        window.dispatchEvent(new CustomEvent("mindmap:canvas-pointer-down"));
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
         setShouldAutoCenter(false);
         const startPointer = { x: event.clientX, y: event.clientY };
         const startPan = panRef.current;
+        let hasMoved = false;
         setIsDragging(true);
 
         const handleMove = (moveEvent: PointerEvent) => {
+          hasMoved = true;
+          moveEvent.preventDefault();
           setPan({
             x: startPan.x + (moveEvent.clientX - startPointer.x),
             y: startPan.y + (moveEvent.clientY - startPointer.y),
           });
         };
 
-        const stopDragging = () => {
+        const stopDragging = (upEvent?: PointerEvent) => {
+          if (hasMoved) {
+            upEvent?.preventDefault();
+          }
           setIsDragging(false);
           window.removeEventListener("pointermove", handleMove);
           window.removeEventListener("pointerup", stopDragging);
@@ -699,11 +872,20 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
       <div
         ref={containerRef}
         className={clsx(
-          "relative w-full h-full overflow-hidden touch-none bg-[#fafafa] dark:bg-[#1a1a1a]",
+          "relative w-full h-full overflow-hidden touch-none outline-none",
           className,
         )}
         style={style}
         onPointerDown={handlePointerDown}
+        onContextMenu={(event) => {
+          const target = event.target as HTMLElement;
+          if (
+            target.closest("[data-mindmap-node],[data-mindmap-interactive]")
+          ) {
+            return;
+          }
+          event.preventDefault();
+        }}
       >
         {layoutTree ? (
           <div className="relative w-full h-full overflow-hidden">
@@ -713,7 +895,7 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
                 width: bounds.width,
                 height: bounds.height,
                 transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
-                cursor: isDragging ? "grabbing" : "grab",
+                cursor: isDragging ? "grabbing" : "default",
               }}
             >
               <svg
@@ -743,10 +925,30 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
               </svg>
               {visibleNodes.map((node) => {
                 const visualStyle = getNodeStyle(node.level, theme);
+                const nodeData = nodeDataMap.get(node.id);
+                const { left: nodeLeftChildren, right: nodeRightChildren } =
+                  splitChildrenByDirection(node);
+                const actionSide =
+                  node.direction === "left" && node.level > 1
+                    ? "left"
+                    : "right";
+                const hasFoldIndicator =
+                  actionSide === "left"
+                    ? nodeLeftChildren.length > 0
+                    : nodeRightChildren.length > 0;
+                const customContent =
+                  nodeData && renderNodeContent
+                    ? renderNodeContent(nodeData)
+                    : null;
                 return (
                   <div
                     key={node.id}
-                    className="absolute box-border px-4 py-3 max-w-75 bg-white dark:bg-[#2a2a2a] shadow-[0_6px_20px_rgba(15,23,42,0.12)] dark:shadow-[0_6px_20px_rgba(0,0,0,0.3)]"
+                    data-mindmap-node
+                    className={clsx(
+                      "group/mindmap-node absolute box-border px-4 py-3 bg-white outline-none dark:bg-[#2a2a2a] shadow-[0_6px_20px_rgba(15,23,42,0.12)] dark:shadow-[0_6px_20px_rgba(0,0,0,0.3)]",
+                      interactionMode === "editable" &&
+                        "cursor-pointer transition-shadow duration-200 hover:shadow-[0_8px_24px_rgba(15,23,42,0.18)]",
+                    )}
                     style={{
                       left: node.x + bounds.offsetX,
                       top: node.y + bounds.offsetY,
@@ -755,14 +957,38 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
                       color: visualStyle.textColor,
                       borderRadius: visualStyle.borderRadius,
                       border: `${visualStyle.borderWidth}px solid ${visualStyle.borderColor}`,
+                      boxShadow: selectedNodeIdSet.has(node.id)
+                        ? getSelectedBoxShadow(visualStyle.background, isDark)
+                        : undefined,
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      if (
+                        (e.target as HTMLElement).closest(
+                          "[data-mindmap-interactive]",
+                        )
+                      ) {
+                        return;
+                      }
+                      onNodeClick?.(node.id);
                     }}
                   >
-                    <div className="pointer-events-none **:data-slate-editor:text-sm **:data-slate-editor:leading-[1.6] **:data-slate-editor:outline-none [&_.slate-Editor]:bg-transparent">
-                      <MindMapNodeContent
-                        value={node.text}
-                        editorTheme={visualStyle.editorTheme}
-                      />
-                    </div>
+                    {customContent ? (
+                      customContent
+                    ) : (
+                      <div className="pointer-events-none **:data-slate-editor:text-sm **:data-slate-editor:leading-[1.6] **:data-slate-editor:outline-none [&_.slate-Editor]:bg-transparent">
+                        <MindMapNodeContent
+                          value={node.text}
+                          editorTheme={visualStyle.editorTheme}
+                        />
+                      </div>
+                    )}
+                    {nodeData &&
+                      renderNodeActions &&
+                      renderNodeActions(nodeData, {
+                        actionSide,
+                        hasFoldIndicator,
+                      })}
                   </div>
                 );
               })}

@@ -2,24 +2,21 @@ import { useState, useEffect, memo, useRef, useMemo } from "react";
 import classnames from "classnames";
 import { useCreation, useLocalStorageState, useMemoizedFn } from "ahooks";
 import useUploadResource from "@/hooks/useUploadResource";
-import { App, Dropdown, MenuProps, message, Tooltip } from "antd";
-import { produce } from "immer";
+import { Dropdown, MenuProps, message, Tooltip } from "antd";
 import {
   getFileBaseName,
   readTextFile,
   selectFile,
-  getProjectById,
   getProjectItemById,
+  getProjectItemsByIds,
   updateProjectItem,
-  openProjectItemInNewWindow,
   createEmptyVideoNote,
   createEmptyAudioNote,
   createWhiteBoardContent,
   addChildProjectItem,
-  removeRootProjectItem,
-  removeChildProjectItem,
   createDataTable,
   updateWebLink,
+  moveProjectTreeItem,
 } from "@/commands";
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
 import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
@@ -29,7 +26,6 @@ import SelectEpubModal from "@/components/SelectEpubModal";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import NotionSyncModal from "@/components/NotionSyncModal";
 import useProjectsStore from "@/stores/useProjectsStore";
-import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
 import useSettingStore from "@/stores/useSettingStore";
 import useTabStore from "@/stores/useTabStore";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
@@ -75,7 +71,6 @@ import {
   type ProjectItem,
   IndexType,
   SearchResult,
-  WhiteBoardContent,
   Pdf,
   Epub,
 } from "@/types";
@@ -98,29 +93,10 @@ import {
   getContentLength,
   importFromMarkdown,
   defaultProjectItemEventBus,
-  getMarkdown,
-  downloadMarkdown,
-  copyMarkdownToClipboard,
-  copyWechatHtmlToClipboard,
 } from "@/utils";
 import whiteBoardIcon from "@/assets/icons/white-board.svg";
 
 import EditText, { EditTextHandle } from "@/components/EditText";
-import PresentationMode from "@/components/PresentationMode";
-import ContentExportModal from "@/components/ContentExportModal";
-import EpubExportModal from "@/components/EpubExportModal";
-import { PdfExportModal } from "@/components/PdfExportModal";
-import DeckSelectorModal from "@/components/DeckSelectorModal";
-import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
-import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
-import FlashcardEditor from "@/pages/FlashcardCenter/FlashcardEditor";
-import useFlashcardCreation from "@/hooks/useFlashcardCreation";
-import usePodcastAttachment from "@/hooks/usePodcastAttachment";
-import {
-  attachPodcastToProjectItem,
-  detachPodcastFromProjectItem,
-} from "@/commands/podcast";
-import PodcastGenerationModal from "@/components/PodcastGenerationModal";
 import { useProjectContext } from "../../ProjectContext";
 import { useThemeColors } from "@/hooks";
 import YoutubeVideoSelectModal from "@/components/YoutubeVideoSelectModal";
@@ -134,10 +110,9 @@ import XiaoyuzhouInput from "@/pages/ProjectView/AudioNoteView/components/Xiaoyu
 import WebViewSelectModal, {
   type WebViewSelectResult,
 } from "@/components/WebViewSelectModal";
-import EditTitleModal from "@/components/EditTitleModal";
 
 import { createProjectCardListExtension } from "@/editor-extensions";
-import { getProjectItemMoreMenuItems } from "./projectItemMoreMenuItems";
+import useProjectItemMoreActions from "./useProjectItemMoreActions";
 
 const TOP_DROP_INDICATOR_CLASS = [
   "before:content-['']",
@@ -228,9 +203,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const { projectId, itemId } = useProjectContext();
   const databaseName = useSettingStore.getState().setting.database.active;
   const navigateTo = useTabStore((state) => state.navigateTo);
-  const openInNewTab = useTabStore((state) => state.openInNewTab);
-  const panes = useTabStore((state) => state.panes);
-  const activePaneId = useTabStore((state) => state.activePaneId);
   const { hoverClass, activeClass, borderClass } = useThemeColors();
 
   const [titleEditable, setTitleEditable] = useState(false);
@@ -353,51 +325,11 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     getSetting: () => useSettingStore.getState().setting,
   });
 
-  const [exportModalOpen, setExportModalOpen] = useState(false);
-  const [epubExportModalOpen, setEpubExportModalOpen] = useState(false);
-  const [pdfExportModalOpen, setPdfExportModalOpen] = useState(false);
-  const [editTitleModalOpen, setEditTitleModalOpen] = useState(false);
-  const darkMode = useSettingStore((state) => state.setting.darkMode);
-  const { modal, message: messageInstance } = App.useApp();
-
-  // 闪卡生成
-  const flashcard = useFlashcardCreation({
-    getContent: () => projectItem?.content || [],
-    getReference: () => ({
-      refType: "content",
-      contentId: projectItem?.contentId || 0,
-      title: projectItem?.title || "项目文档参考",
-    }),
-  });
-
-  // 播客生成
-  const {
-    podcastModalOpen,
-    openPodcastModal,
-    closePodcastModal,
-    handlePodcastSuccess,
-  } = usePodcastAttachment({
-    hostId: projectItemId,
-    currentPodcast: projectItem?.podcast,
-    attachPodcast: attachPodcastToProjectItem,
-    detachPodcast: detachPodcastFromProjectItem,
-    reloadHost: getProjectItemById,
-    onHostReloaded: setProjectItem,
-    message: messageInstance,
-    messages: {
-      created: "播客已添加到文档",
-    },
-  });
-
   const {
     title: projectItemTitle,
     url: displayWebviewUrl,
     linkId: webLinkId,
   } = useProjectWebLinkMeta(projectItem);
-
-  const { updateProject } = useProjectsStore((state) => ({
-    updateProject: state.updateProject,
-  }));
 
   const setting = useSettingStore.getState().setting;
 
@@ -420,7 +352,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     excludeCardIds,
     onOk: onCardOk,
     onCancel: onCardCancel,
-    buildCardFromProjectItem,
   } = useAddRefCard(cards, projectId, projectItem);
   const {
     selectWhiteBoardModalOpen,
@@ -480,8 +411,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     onConfirm: handleSelectEpubConfirm,
     projectItem,
   });
-
-  const [isPresentation, setIsPresentation] = useState(false);
 
   const handleWebviewConfirm = useMemoizedFn(
     async (result: WebViewSelectResult) => {
@@ -557,176 +486,64 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     };
   }, [projectItemId, projectItemEventBus]);
 
-  const { createWhiteBoard } = useWhiteBoardStore((state) => ({
-    createWhiteBoard: state.createWhiteBoard,
-  }));
-
-  const onRemoveProjectItem = useMemoizedFn(async () => {
-    modal.confirm({
-      title: "删除项目文档",
-      content: "确定删除该项目文档吗？",
-      onOk: async () => {
-        if (isRoot) {
-          if (projectId) {
-            await removeRootProjectItem(projectId, projectItemId);
-            refreshProject?.();
-          }
-        } else {
-          if (parentProjectItemId) {
-            const [parentProjectItem] = await removeChildProjectItem(
-              projectId,
-              parentProjectItemId,
-              projectItemId,
-            );
-            if (parentProjectItem) {
-              setProjectItem(parentProjectItem);
-              projectItemEventBus.publishProjectItemEvent(
-                "project-item:updated",
-                parentProjectItem,
-              );
-            }
-          }
-        }
-        if (itemId === projectItemId) {
-          navigateTo(TabType.ProjectDetail, {
-            id: projectId,
-            itemId: undefined,
-          });
-        }
-      },
-      okText: "确定",
-      cancelText: "取消",
-      okButtonProps: {
-        danger: true,
-      },
-    });
-  });
-
   const onDrop = useMemoizedFn(
     async (dragItem: IDragItem, dragPosition: EDragPosition) => {
       if (!projectItem || !projectId) return;
-      const {
-        itemId: dragId,
-        parentId: dragParentId,
-        isRoot: dragIsRoot,
-      } = dragItem;
-
-      const needRefreshId = [dragId];
+      const cleanDragItem: IDragItem = {
+        itemId: dragItem.itemId,
+        parentId: dragItem.parentId,
+        isRoot: dragItem.isRoot,
+        path: dragItem.path,
+        children: dragItem.children,
+        parentChildren: dragItem.parentChildren,
+      };
 
       try {
         useProjectsStore.setState({
           dragging: true,
         });
-        if (dragIsRoot) {
-          if (projectId) {
-            await removeRootProjectItem(projectId, dragId, true);
-            refreshProject?.();
-          }
-        } else {
-          if (dragParentId) {
-            await removeChildProjectItem(projectId, dragParentId, dragId, true);
-            needRefreshId.push(dragParentId);
-          }
+        const result = await moveProjectTreeItem(projectId, {
+          dragItem: cleanDragItem,
+          dropTargetId: projectItemId,
+          dropTargetParentId: parentProjectItemId,
+          dropTargetIsRoot: isRoot,
+          dragPosition,
+        });
+        if (!result) {
+          message.warning("移动失败，目标位置可能已变化");
+          return;
         }
-
-        const dragProjectItem = await getProjectItemById(dragId);
-        if (!dragProjectItem) return;
-
-        if (dragPosition === EDragPosition.Inside) {
-          const newDragProjectItem = produce(dragProjectItem, (draft) => {
-            if (!draft.parents.includes(projectItemId)) {
-              draft.parents.push(projectItemId);
-            }
-            for (const projectId of projectItem.projects) {
-              if (!draft.projects.includes(projectId)) {
-                draft.projects.push(projectId);
-              }
-            }
-          });
-          await updateProjectItem(newDragProjectItem);
-          const newProjectItem = produce(projectItem, (draft) => {
-            if (!draft.children.includes(dragId)) {
-              draft.children.push(dragId);
-            }
-          });
-          await updateProjectItem(newProjectItem);
-          needRefreshId.push(projectItemId);
-        } else {
-          const project = await getProjectById(projectId);
-          if (!project) return;
-          if (isRoot) {
-            // 如果是 root，则更新 project，向 project 中添加新的 projectItem
-            const newProject = produce(project, (draft) => {
-              draft.children = draft.children.filter(
-                (childId) => childId !== dragId,
-              );
-              // 获取当前 projectItem 在 project 中的位置
-              const index = draft.children.findIndex(
-                (childId) => childId === projectItemId,
-              );
-              if (index === -1) return;
-              const spliceIndex =
-                dragPosition === EDragPosition.Top ? index : index + 1;
-              draft.children.splice(spliceIndex, 0, dragId);
-            });
-            // 更新 project
-            await updateProject(newProject);
-            // 更新其 projects
-            const newDragProjectItem = produce(dragProjectItem, (draft) => {
-              if (!draft.projects.includes(projectId)) {
-                draft.projects.push(projectId);
-              }
-            });
-            await updateProjectItem(newDragProjectItem);
-            refreshProject?.();
-          } else {
-            const parentProjectItem =
-              await getProjectItemById(parentProjectItemId);
-            if (!parentProjectItem) return;
-            const newDragProjectItem = produce(dragProjectItem, (draft) => {
-              if (!draft.parents.includes(parentProjectItemId)) {
-                draft.parents.push(parentProjectItemId);
-              }
-              for (const projectId of parentProjectItem.projects) {
-                if (!draft.projects.includes(projectId)) {
-                  draft.projects.push(projectId);
-                }
-              }
-            });
-            await updateProjectItem(newDragProjectItem);
-            const newParentProjectItem = produce(parentProjectItem, (draft) => {
-              // 找到当前 projectItem 在父节点中的位置
-              const index = draft.children.findIndex(
-                (childId) => childId === projectItemId,
-              );
-              if (index === -1) return;
-              const spliceIndex =
-                dragPosition === EDragPosition.Top ? index : index + 1;
-              draft.children.splice(spliceIndex, 0, dragId);
-            });
-            await updateProjectItem(newParentProjectItem);
-            needRefreshId.push(parentProjectItemId);
-          }
+        const needRefreshId = [...result.refreshItemIds];
+        if (
+          dragItem.isRoot ||
+          (dragPosition !== EDragPosition.Inside && isRoot)
+        ) {
+          refreshProject?.();
         }
-      } finally {
         if (
           itemId &&
-          [dragId, dragParentId, projectItemId, parentProjectItemId].includes(
-            itemId,
-          )
+          [
+            dragItem.itemId,
+            dragItem.parentId,
+            projectItemId,
+            parentProjectItemId,
+          ].includes(itemId)
         ) {
           needRefreshId.push(itemId);
         }
-        for (const refreshId of [...new Set(needRefreshId)]) {
-          const updatedProjectItem = await getProjectItemById(refreshId);
-          if (!updatedProjectItem) continue;
+        const updatedProjectItems = await getProjectItemsByIds([
+          ...new Set(needRefreshId),
+        ]);
+        updatedProjectItems.forEach((updatedProjectItem) => {
+          if (!updatedProjectItem) return;
           defaultProjectItemEventBus
             .createEditor()
             .publishProjectItemEvent(
               "project-item:updated",
               updatedProjectItem,
             );
-        }
+        });
+      } finally {
         useProjectsStore.setState({
           dragging: false,
         });
@@ -752,202 +569,24 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     parentChildren,
   });
 
-  const moreMenuItems: MenuProps["items"] = useMemo(
-    () => getProjectItemMoreMenuItems(projectItem),
-    [projectItem?.projectItemType, projectItem?.refType, projectItem?.podcast],
-  );
-
-  // 处理编辑标题确认
-  const handleEditTitleConfirm = useMemoizedFn(
-    async (result: { title: string }) => {
-      if (!projectItem) {
-        setEditTitleModalOpen(false);
-        return;
-      }
-
-      const textContent = result.title.trim();
-      if (!textContent) {
-        setEditTitleModalOpen(false);
-        return;
-      }
-
-      let nextTitle = textContent;
-      if (projectItem.projectItemType === EProjectItemType.WebView) {
-        if (webLinkId) {
-          updateWebLink({
-            id: webLinkId,
-            title: textContent,
-          }).catch((err) => console.error("更新网页标题失败:", err));
-        } else if (displayWebviewUrl) {
-          nextTitle = `${textContent} [${displayWebviewUrl}]`;
-        }
-      }
-
-      if (nextTitle !== projectItem.title) {
-        const newProjectItem = await updateProjectItem({
-          ...projectItem,
-          title: nextTitle,
+  const { moreMenuItems, handleMoreMenuClick, moreActionModals } =
+    useProjectItemMoreActions({
+      projectId,
+      projectItem,
+      parentProjectItemId,
+      isRoot,
+      activeItemId: itemId,
+      onProjectItemChange: setProjectItem,
+      refreshProject,
+      getTitleHandle: () => titleRef.current,
+      onRequestInlineTitleEdit: () => {
+        setTitleEditable(true);
+        requestAnimationFrame(() => {
+          titleRef.current?.setContentEditable(true);
+          titleRef.current?.selectAll();
         });
-        if (newProjectItem) {
-          setProjectItem(newProjectItem);
-          titleRef.current?.setValue(
-            projectItem.projectItemType === EProjectItemType.WebView
-              ? textContent
-              : nextTitle,
-          );
-          projectItemEventBus.publishProjectItemEvent(
-            "project-item:updated",
-            newProjectItem,
-          );
-        }
-      }
-
-      setEditTitleModalOpen(false);
-    },
-  );
-
-  const handleMoreMenuClick: MenuProps["onClick"] = useMemoizedFn(
-    async ({ key }) => {
-      if (key === "to-card") {
-        const projectItem = await getProjectItemById(projectItemId);
-        if (!projectItem) return;
-        await buildCardFromProjectItem(projectItem);
-        message.success("成功建立卡片");
-      } else if (key === "to-white-board") {
-        if (!projectItem) return;
-        if (
-          projectItem.projectItemType !== EProjectItemType.WhiteBoard ||
-          !projectItem.whiteBoardContentId
-        )
-          return;
-        // 已经关联了白板，不能关联新的白板
-        if (projectItem.refType === "white-board") return;
-        const createWhiteBoardData = {
-          title: projectItem.title,
-          description: projectItem.title,
-          tags: [],
-          whiteBoardContentList: [
-            {
-              name: projectItem.title,
-              data: {
-                children: [],
-                viewPort: {
-                  zoom: 1,
-                  minX: 0,
-                  minY: 0,
-                  width: 0,
-                  height: 0,
-                },
-                selection: {
-                  selectArea: null,
-                  selectedElements: [],
-                },
-                presentationSequences: [],
-              },
-            } as Pick<WhiteBoardContent, "data" | "name">,
-          ],
-          snapshot: "",
-        };
-        try {
-          const createdWhiteBoard =
-            await createWhiteBoard(createWhiteBoardData);
-          // 更新 ProjectItem 的 refType
-          const newProjectItem = produce(projectItem, (draft) => {
-            draft.refId = createdWhiteBoard.id;
-            draft.refType = "white-board";
-          });
-          const updatedProjectItem = await updateProjectItem(newProjectItem);
-          if (!updatedProjectItem) return;
-          projectItemEventBus.publishProjectItemEvent(
-            "project-item:updated",
-            updatedProjectItem,
-          );
-          message.success("成功创建白板");
-        } catch (e) {
-          console.error(e);
-          message.error("创建白板失败");
-        }
-      } else if (key === "remove") {
-        await onRemoveProjectItem();
-      } else if (key === "copy-markdown") {
-        if (!projectItem) return;
-        await copyMarkdownToClipboard(projectItem.content, messageInstance);
-      } else if (key === "copy-wechat") {
-        if (!projectItem) return;
-        await copyWechatHtmlToClipboard(projectItem.content, messageInstance);
-      } else if (key === "export-markdown") {
-        if (!projectItem) return;
-        const markdown = getMarkdown(projectItem.content);
-        downloadMarkdown(markdown, projectItem.title);
-      } else if (key === "export-image") {
-        setExportModalOpen(true);
-      } else if (key === "export-epub") {
-        setEpubExportModalOpen(true);
-      } else if (key === "export-pdf") {
-        setPdfExportModalOpen(true);
-      } else if (key === "edit-title") {
-        setEditTitleModalOpen(true);
-      } else if (key === "presentation-mode") {
-        if (
-          !projectItem ||
-          projectItem.projectItemType !== EProjectItemType.Document
-        )
-          return;
-        setIsPresentation(true);
-      } else if (key === "open-in-new-window") {
-        const databaseName = useSettingStore.getState().setting.database.active;
-        openProjectItemInNewWindow(databaseName, projectItemId);
-      } else if (key === "open-in-new-tab") {
-        if (!projectItem) return;
-
-        let targetPaneId: string | undefined;
-        if (panes.length > 1) {
-          const otherPane = panes.find((p) => p.id !== activePaneId);
-          targetPaneId = otherPane?.id;
-        }
-
-        if (projectItem.projectItemType === EProjectItemType.WebView) {
-          if (displayWebviewUrl) {
-            openInNewTab(
-              TabType.WebView,
-              { url: displayWebviewUrl },
-              targetPaneId,
-            );
-          } else {
-            message.error("无法提取 URL");
-          }
-        } else {
-          openInNewTab(
-            TabType.ProjectDetail,
-            { id: projectId, itemId: projectItem.id },
-            targetPaneId,
-            projectItem.title || "项目",
-          );
-        }
-      } else if (key === "open-in-right-sidebar") {
-        if (!projectItem) return;
-
-        let targetPaneId: string | undefined;
-        if (panes.length > 1) {
-          const otherPane = panes.find((p) => p.id !== activePaneId);
-          targetPaneId = otherPane?.id;
-        }
-
-        openInNewTab(
-          TabType.ProjectDetail,
-          { id: projectId, itemId: projectItem.id },
-          targetPaneId,
-          projectItem.title || "项目",
-        );
-      } else if (key === "manual-flashcard") {
-        flashcard.openManualFlashcard();
-      } else if (key === "ai-flashcard") {
-        flashcard.openAiFlashcard();
-      } else if (key === "generate-podcast") {
-        openPodcastModal();
-      }
-    },
-  );
+      },
+    });
 
   const handleAddMenuClick: MenuProps["onClick"] = useMemoizedFn(
     async ({ key }) => {
@@ -1624,109 +1263,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         onConfirm={handleYoutubeAudioConfirm}
       />
 
-      <EditTitleModal
-        open={editTitleModalOpen}
-        onCancel={() => setEditTitleModalOpen(false)}
-        onConfirm={handleEditTitleConfirm}
-        initialTitle={
-          projectItem?.projectItemType === EProjectItemType.WebView
-            ? projectItemTitle
-            : projectItem?.title || ""
-        }
-        modalTitle="编辑标题"
-        modalDescription="修改当前项目的显示标题"
-        placeholder="请输入标题"
-      />
-
-      {isPresentation &&
-        projectItem &&
-        projectItem.projectItemType === EProjectItemType.Document && (
-          <PresentationMode
-            content={projectItem.content}
-            onExit={() => {
-              setIsPresentation(false);
-            }}
-          />
-        )}
-
-      <ContentExportModal
-        open={exportModalOpen}
-        onClose={() => setExportModalOpen(false)}
-        content={projectItem?.content || []}
-        title={projectItem?.title || "项目文档"}
-      />
-      <EpubExportModal
-        open={epubExportModalOpen}
-        onClose={() => setEpubExportModalOpen(false)}
-        content={projectItem?.content || []}
-        title={projectItem?.title || "项目文档"}
-      />
-      <PdfExportModal
-        visible={pdfExportModalOpen}
-        onClose={() => setPdfExportModalOpen(false)}
-        content={projectItem?.content || []}
-        title={projectItem?.title || "项目文档"}
-      />
-
-      {/* 卡组选择弹窗 */}
-      <DeckSelectorModal
-        open={flashcard.deckSelectorOpen}
-        onCancel={flashcard.closeDeckSelector}
-        onSelect={flashcard.handleDeckSelect}
-        title={
-          flashcard.deckSelectorMode === "manual"
-            ? "选择卡组 - 手动制卡"
-            : "选择卡组 - AI 制卡"
-        }
-      />
-
-      {/* 手动制卡编辑器 */}
-      {flashcard.flashcardEditorOpen && flashcard.selectedDeck && (
-        <FlashcardEditor
-          open={flashcard.flashcardEditorOpen}
-          mode="create"
-          activeDeckId={flashcard.selectedDeck.id}
-          onClose={flashcard.closeFlashcardEditor}
-          isDark={darkMode}
-          initialReferences={[flashcard.getReference()]}
-        />
-      )}
-
-      {/* AI 生成闪卡弹窗 */}
-      <FlashcardGenerationModal
-        open={flashcard.aiGenerationModalOpen}
-        onCancel={flashcard.handleCancelAiGeneration}
-        isGenerating={flashcard.isGenerating}
-        isPending={flashcard.isGenerationPending}
-        error={flashcard.generationError}
-        generatedCards={flashcard.generatedCards}
-        selectedDeck={flashcard.selectedDeck}
-        onToggleCard={flashcard.toggleCardSelection}
-        onSelectAll={flashcard.selectAll}
-        onDeselectAll={flashcard.deselectAll}
-        onConfirm={flashcard.handleConfirmAiGeneration}
-        onChangeDeck={flashcard.changeDeck}
-        onEditCard={flashcard.handleEditGeneratedCard}
-      />
-
-      {/* 编辑 AI 生成的闪卡弹窗 */}
-      <GeneratedFlashcardEditModal
-        open={flashcard.generatedCardEditModalOpen}
-        card={flashcard.editingGeneratedCard}
-        onSave={flashcard.handleSaveGeneratedCard}
-        onCancel={flashcard.closeGeneratedCardEditModal}
-        isDark={darkMode}
-      />
-
-      {/* 播客生成弹窗 */}
-      <PodcastGenerationModal
-        open={podcastModalOpen}
-        cardContent={projectItem?.content || []}
-        initialPodcast={projectItem?.podcast}
-        onSuccess={handlePodcastSuccess}
-        onCancel={closePodcastModal}
-        saveText="保存到文档"
-      />
+      {moreActionModals}
     </>
   );
 });

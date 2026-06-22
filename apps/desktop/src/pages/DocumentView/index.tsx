@@ -3,7 +3,7 @@ import EditDocumentItem from "./EditDocumentItem";
 import DocumentContext from "./DocumentContext";
 import useThemeColors from "@/hooks/useThemeColors";
 import { Empty, Button } from "antd";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { IDocument } from "@/types";
 import { getDocument } from "@/commands";
 import { LoadingOutlined } from "@ant-design/icons";
@@ -23,6 +23,10 @@ const DocumentView = () => {
   const [document, setDocument] = useState<IDocument | null>(null);
   const [loading, setLoading] = useState(true);
   const [hideSidebar, setHideSidebar] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerWidth, setContainerWidth] = useState<number | undefined>(
+    undefined,
+  );
 
   const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
     "document-view-sidebar-width",
@@ -32,6 +36,21 @@ const DocumentView = () => {
   );
 
   const navigateTo = useTabStore((state) => state.navigateTo);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setContainerWidth(entry.contentRect.width);
+    });
+    observer.observe(el);
+    setContainerWidth(el.getBoundingClientRect().width);
+    return () => observer.disconnect();
+  }, [document]);
+
+  const sidebarMaxWidth =
+    containerWidth !== undefined ? Math.max(200, containerWidth - 300) : 900;
 
   // 在数据库连接或切换时加载知识库
   useDatabaseChangeEffect(() => {
@@ -82,15 +101,17 @@ const DocumentView = () => {
       value={{
         documentId: document.id,
         itemId: itemId,
+        containerWidth,
       }}
     >
-      <div className="w-full h-full flex relative">
+      <div ref={containerRef} className="w-full h-full flex relative">
         <ResizeableAndHideableSidebar
           width={sidebarWidth ?? 300}
           onWidthChange={setSidebarWidth}
           open={!hideSidebar}
           onToggle={onFoldSidebar}
           sidebarPosition="left"
+          maxWidth={sidebarMaxWidth}
           disableResize={false}
           className={classnames(
             "h-full border-r relative overflow-hidden",

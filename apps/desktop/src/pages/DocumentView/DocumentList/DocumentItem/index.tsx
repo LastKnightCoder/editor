@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { App, Dropdown, MenuProps, message, Tooltip } from "antd";
 import {
   FileOutlined,
@@ -12,7 +12,6 @@ import {
   useLocalStorageState,
   useMemoizedFn,
 } from "ahooks";
-import { produce } from "immer";
 import classnames from "classnames";
 
 import useDragAndDrop, {
@@ -29,13 +28,14 @@ import {
 
 import {
   getDocumentItem,
+  getDocumentItemsByIds,
   getDocumentItemAllParents,
   isDocumentItemChildOf,
-  updateDocumentItem,
   openDocumentItemInNewWindow,
   removeChildDocumentItem,
   addChildDocumentItem,
   addRefChildDocumentItem,
+  moveDocumentTreeItem,
 } from "@/commands";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import PresentationMode from "@/components/PresentationMode";
@@ -74,16 +74,7 @@ interface IDocumentItemProps {
     id: number,
     notDelete?: boolean,
   ) => Promise<IDocumentItem | null>;
-  onParentAddChild: (
-    id: number,
-    targetId: number,
-    position: EDragPosition,
-  ) => Promise<void>;
-  onParentMoveChild: (
-    sourceId: number,
-    targetId: number,
-    position: EDragPosition,
-  ) => Promise<void>;
+  refreshDocument?: () => void;
   onOpenChange?: (open: boolean) => void;
   path: number[];
   parentChildren: number[];
@@ -92,7 +83,7 @@ interface IDocumentItemProps {
   documentItems: IDocumentItem[];
 }
 
-const DocumentItem = (props: IDocumentItemProps) => {
+const DocumentItem = memo((props: IDocumentItemProps) => {
   const {
     documentId,
     itemId,
@@ -100,8 +91,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
     parentId,
     isRoot = false,
     onParentDeleteChild,
-    onParentAddChild,
-    onParentMoveChild,
+    refreshDocument,
     parentChildren,
     cards,
     articles,
@@ -143,9 +133,6 @@ const DocumentItem = (props: IDocumentItemProps) => {
   }, [itemId, dynamicExtensions]);
 
   const navigateTo = useTabStore((state) => state.navigateTo);
-  const openInNewTab = useTabStore((state) => state.openInNewTab);
-  const panes = useTabStore((state) => state.panes);
-  const activePaneId = useTabStore((state) => state.activePaneId);
   const { hoverClass, activeClass } = useThemeColors();
 
   const { itemId: activeDocumentItemId } = useDocumentContext();
@@ -197,52 +184,45 @@ const DocumentItem = (props: IDocumentItemProps) => {
 
   const onDrop = useMemoizedFn(
     async (dragItem: IDragItem, dragPosition: EDragPosition) => {
-      const { itemId: dragId, parentId: dragParentId } = dragItem;
-
-      if (dragPosition === EDragPosition.Inside) {
-        await onAddDocumentItemWithPosition(dragId, itemId, dragPosition);
-      } else {
-        if (dragParentId === parentId) {
-          // 此时操作的是同一对象，不能先加后删，否则后面的会覆盖前面的
-          await onParentMoveChild(dragId, itemId, dragPosition);
-        } else {
-          await onParentAddChild(dragId, itemId, dragPosition);
-        }
-      }
-
-      const newDragItem = await getDocumentItem(dragId);
-      if (!newDragItem) return;
-
-      // 更新 parents，先删除 dragItem 的 parentId
-      // 如果是 inside，添加 itemId
-      // 如果是 top 或者 bottom，添加 itemId 的 parentId
-      const toUpdateItem = produce(newDragItem, (draft) => {
-        if (!dragItem.isRoot) {
-          // 是 root 的话，dragItem 的 parentId 是文档的 id，不是文档项的 id，因此不需要删除
-          draft.parents = draft.parents.filter(
-            (parentId) => parentId !== dragParentId,
-          );
-        }
-        if (dragPosition === EDragPosition.Inside) {
-          draft.parents.push(itemId);
-        } else if (!isRoot) {
-          // isRoot 的 parentId 是文档的 id，不是文档项的 id，因此不需要添加
-          draft.parents.push(parentId);
-        }
-        // 去重
-        draft.parents = Array.from(new Set(draft.parents));
+      const cleanDragItem: IDragItem = {
+        itemId: dragItem.itemId,
+        parentId: dragItem.parentId,
+        isRoot: dragItem.isRoot,
+        path: dragItem.path,
+        children: dragItem.children,
+        parentChildren: dragItem.parentChildren,
+      };
+      const result = await moveDocumentTreeItem(documentId, {
+        dragItem: cleanDragItem,
+        dropTargetId: itemId,
+        dropTargetParentId: parentId,
+        dropTargetIsRoot: isRoot,
+        dragPosition,
       });
-      const updatedDragItem = await updateDocumentItem(toUpdateItem);
-      if (!updatedDragItem) return;
-      defaultDocumentItemEventBus
-        .createEditor()
-        .publishDocumentItemEvent("document-item:updated", updatedDragItem);
+      if (!result) {
+        message.warning("移动失败，目标位置可能已变化");
+        return;
+      }
+      if (
+        dragItem.isRoot ||
+        (dragPosition !== EDragPosition.Inside && isRoot)
+      ) {
+        refreshDocument?.();
+      }
+      const updatedDocumentItems = await getDocumentItemsByIds([
+        ...new Set(result.refreshItemIds),
+      ]);
+      updatedDocumentItems.forEach((updatedDocumentItem) => {
+        if (!updatedDocumentItem) return;
+        defaultDocumentItemEventBus
+          .createEditor()
+          .publishDocumentItemEvent(
+            "document-item:updated",
+            updatedDocumentItem,
+          );
+      });
     },
   );
-
-  const onDragEnd = useMemoizedFn(async (dragItem: IDragItem) => {
-    await onParentDeleteChild(dragItem.itemId, true);
-  });
 
   const {
     drag,
@@ -258,7 +238,6 @@ const DocumentItem = (props: IDocumentItemProps) => {
     isRoot,
     path,
     onDrop,
-    onDragEnd,
     children: item?.children || [],
     parentChildren,
   });
@@ -285,43 +264,6 @@ const DocumentItem = (props: IDocumentItemProps) => {
     // });
   });
 
-  // 拖拽移动到当前 item 的上方或下方，或者移动到当前 item 的内部
-  const onAddDocumentItemWithPosition = useMemoizedFn(
-    async (id: number, targetId: number, position: EDragPosition) => {
-      if (!item) {
-        return;
-      }
-      let newItem: IDocumentItem;
-      if (position === EDragPosition.Inside) {
-        // 加入当前文档的开头
-        newItem = produce(item, (draft) => {
-          draft.children.push(id);
-        });
-        setFolderOpen(true);
-      } else {
-        const targetIndex = item.children.findIndex(
-          (childId) => childId === targetId,
-        );
-        if (targetIndex === -1) {
-          return;
-        }
-        const sliceIndex =
-          position === EDragPosition.Top ? targetIndex : targetIndex + 1;
-        newItem = produce(item, (draft) => {
-          draft.children.splice(sliceIndex, 0, id);
-        });
-      }
-
-      const updatedDoc = await updateDocumentItem(newItem);
-      if (!updatedDoc) return;
-      setItem(updatedDoc);
-      documentItemEventBus.publishDocumentItemEvent(
-        "document-item:updated",
-        updatedDoc,
-      );
-    },
-  );
-
   const onRemoveDocumentItem = useMemoizedFn(
     async (id: number, notDelete?: boolean) => {
       if (!item) {
@@ -342,46 +284,6 @@ const DocumentItem = (props: IDocumentItemProps) => {
         parentDocumentItem,
       );
       return removedDocumentItem;
-    },
-  );
-
-  // 处理同级别子元素的移动，此时 position 绝对不可能是 EDragPosition.Inside
-  const onMoveDocumentItem = useMemoizedFn(
-    async (sourceId: number, targetId: number, position: EDragPosition) => {
-      if (!item || position === EDragPosition.Inside) {
-        return;
-      }
-      const sourceIndex = item.children.findIndex(
-        (childId) => childId === sourceId,
-      );
-      const targetIndex = item.children.findIndex(
-        (childId) => childId === targetId,
-      );
-      if (targetIndex === -1 || sourceIndex === -1) {
-        message.error("未找到目标位置");
-        return;
-      }
-      // 把 sourceIndex 的元素删除，然后插入到 targetIndex 的位置
-      const newItem = produce(item, (draft) => {
-        if (sourceIndex < targetIndex) {
-          const spliceIndex =
-            position === EDragPosition.Top ? targetIndex - 1 : targetIndex;
-          draft.children.splice(sourceIndex, 1);
-          draft.children.splice(spliceIndex, 0, sourceId);
-        } else {
-          const spliceIndex =
-            position === EDragPosition.Top ? targetIndex : targetIndex + 1;
-          draft.children.splice(sourceIndex, 1);
-          draft.children.splice(spliceIndex, 0, sourceId);
-        }
-      });
-      const updatedDoc = await updateDocumentItem(newItem);
-      if (!updatedDoc) return;
-      setItem(updatedDoc);
-      documentItemEventBus.publishDocumentItemEvent(
-        "document-item:updated",
-        updatedDoc,
-      );
     },
   );
 
@@ -523,15 +425,15 @@ const DocumentItem = (props: IDocumentItemProps) => {
         return;
       }
 
-      let updatedParentDocumentItem: IDocumentItem;
-      selectedDocumentItems.forEach(async (selectedDocumentItem) => {
+      let updatedParentDocumentItem: IDocumentItem | null = null;
+      for (const selectedDocumentItem of selectedDocumentItems) {
         const res = await addRefChildDocumentItem(
           item.id,
           selectedDocumentItem.id,
         );
-        if (!res) return;
+        if (!res) continue;
         const [parentDocumentItem, createdDocumentItem] = res;
-        if (!parentDocumentItem || !createdDocumentItem) return;
+        if (!parentDocumentItem || !createdDocumentItem) continue;
         defaultDocumentItemEventBus
           .createEditor()
           .publishDocumentItemEvent(
@@ -545,7 +447,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
           "document-item:updated",
           updatedParentDocumentItem,
         );
-      });
+      }
 
       setFolderOpen(true);
       setSelectDocumentItemModalOpen(false);
@@ -716,10 +618,6 @@ const DocumentItem = (props: IDocumentItemProps) => {
         key: "open-in-new-window",
         label: "窗口打开",
       },
-      {
-        key: "open-in-right-sidebar",
-        label: "右侧打开",
-      },
     ],
     [],
   );
@@ -751,20 +649,6 @@ const DocumentItem = (props: IDocumentItemProps) => {
       } else if (key === "open-in-new-window") {
         const databaseName = useSettingStore.getState().setting.database.active;
         openDocumentItemInNewWindow(databaseName, itemId);
-      } else if (key === "open-in-right-sidebar") {
-        // 确定在哪个 pane 中打开 - 尝试在另一个 pane 中打开
-        let targetPaneId: string | undefined;
-        if (panes.length > 1) {
-          const otherPane = panes.find((p) => p.id !== activePaneId);
-          targetPaneId = otherPane?.id;
-        }
-
-        openInNewTab(
-          TabType.DocumentDetail,
-          { id: documentId, itemId: itemId },
-          targetPaneId,
-          item?.title || "知识库",
-        );
       } else if (key === "flashcard-manual") {
         flashcard.openManualFlashcard();
       } else if (key === "flashcard-ai") {
@@ -937,8 +821,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
               itemId={id}
               parentId={item.id}
               onParentDeleteChild={onRemoveDocumentItem}
-              onParentAddChild={onAddDocumentItemWithPosition}
-              onParentMoveChild={onMoveDocumentItem}
+              refreshDocument={refreshDocument}
               path={[...path, index]}
               parentChildren={item.children}
               cards={cards}
@@ -949,41 +832,47 @@ const DocumentItem = (props: IDocumentItemProps) => {
           ))}
         </div>
       </div>
-      <ContentSelectorModal
-        title={"选择关联卡片"}
-        open={selectCardModalOpen}
-        onCancel={() => {
-          setSelectCardModalOpen(false);
-        }}
-        onSelect={handleCardSelect}
-        contentType="card"
-        multiple={false}
-        excludeIds={excludeCardIds}
-        initialContents={initialCardContents}
-        extensions={extensions}
-      />
-      <ContentSelectorModal
-        title={"选择关联文章"}
-        open={selectArticleModalOpen}
-        onCancel={onSelectArticleCancel}
-        onSelect={handleArticleSelect}
-        contentType="article"
-        multiple={false}
-        excludeIds={excludeArticleIds}
-        extensions={extensions}
-        initialContents={initialArticleContents}
-      />
-      <ContentSelectorModal
-        title={"选择关联文档"}
-        open={selectDocumentItemModalOpen}
-        onCancel={onSelectDocumentItemCancel}
-        onSelect={handleDocumentItemSelect}
-        contentType="document-item"
-        multiple={false}
-        excludeIds={excludeDocumentItemIds}
-        extensions={extensions}
-        initialContents={initialDocumentItemContents}
-      />
+      {selectCardModalOpen && (
+        <ContentSelectorModal
+          title={"选择关联卡片"}
+          open={selectCardModalOpen}
+          onCancel={() => {
+            setSelectCardModalOpen(false);
+          }}
+          onSelect={handleCardSelect}
+          contentType="card"
+          multiple={false}
+          excludeIds={excludeCardIds}
+          initialContents={initialCardContents}
+          extensions={extensions}
+        />
+      )}
+      {selectArticleModalOpen && (
+        <ContentSelectorModal
+          title={"选择关联文章"}
+          open={selectArticleModalOpen}
+          onCancel={onSelectArticleCancel}
+          onSelect={handleArticleSelect}
+          contentType="article"
+          multiple={false}
+          excludeIds={excludeArticleIds}
+          extensions={extensions}
+          initialContents={initialArticleContents}
+        />
+      )}
+      {selectDocumentItemModalOpen && (
+        <ContentSelectorModal
+          title={"选择关联文档"}
+          open={selectDocumentItemModalOpen}
+          onCancel={onSelectDocumentItemCancel}
+          onSelect={handleDocumentItemSelect}
+          contentType="document-item"
+          multiple={false}
+          excludeIds={excludeDocumentItemIds}
+          extensions={extensions}
+          initialContents={initialDocumentItemContents}
+        />
+      )}
 
       {isPresentation && item && (
         <PresentationMode
@@ -994,36 +883,44 @@ const DocumentItem = (props: IDocumentItemProps) => {
         />
       )}
 
-      <ContentExportModal
-        open={exportModalOpen}
-        onClose={() => setExportModalOpen(false)}
-        content={item?.content || []}
-        title={item?.title || "文档"}
-      />
-      <EpubExportModal
-        open={epubExportModalOpen}
-        onClose={() => setEpubExportModalOpen(false)}
-        content={item?.content || []}
-        title={item?.title || "文档"}
-      />
-      <PdfExportModal
-        visible={pdfExportModalOpen}
-        onClose={() => setPdfExportModalOpen(false)}
-        content={item?.content || []}
-        title={item?.title || "文档"}
-      />
+      {exportModalOpen && (
+        <ContentExportModal
+          open={exportModalOpen}
+          onClose={() => setExportModalOpen(false)}
+          content={item?.content || []}
+          title={item?.title || "文档"}
+        />
+      )}
+      {epubExportModalOpen && (
+        <EpubExportModal
+          open={epubExportModalOpen}
+          onClose={() => setEpubExportModalOpen(false)}
+          content={item?.content || []}
+          title={item?.title || "文档"}
+        />
+      )}
+      {pdfExportModalOpen && (
+        <PdfExportModal
+          visible={pdfExportModalOpen}
+          onClose={() => setPdfExportModalOpen(false)}
+          content={item?.content || []}
+          title={item?.title || "文档"}
+        />
+      )}
 
       {/* 卡组选择弹窗 */}
-      <DeckSelectorModal
-        open={flashcard.deckSelectorOpen}
-        onCancel={flashcard.closeDeckSelector}
-        onSelect={flashcard.handleDeckSelect}
-        title={
-          flashcard.deckSelectorMode === "manual"
-            ? "选择卡组 - 手动制卡"
-            : "选择卡组 - AI 制卡"
-        }
-      />
+      {flashcard.deckSelectorOpen && (
+        <DeckSelectorModal
+          open={flashcard.deckSelectorOpen}
+          onCancel={flashcard.closeDeckSelector}
+          onSelect={flashcard.handleDeckSelect}
+          title={
+            flashcard.deckSelectorMode === "manual"
+              ? "选择卡组 - 手动制卡"
+              : "选择卡组 - AI 制卡"
+          }
+        />
+      )}
 
       {/* 手动制卡编辑器 */}
       {flashcard.flashcardEditorOpen && flashcard.selectedDeck && (
@@ -1038,32 +935,36 @@ const DocumentItem = (props: IDocumentItemProps) => {
       )}
 
       {/* AI 生成闪卡弹窗 */}
-      <FlashcardGenerationModal
-        open={flashcard.aiGenerationModalOpen}
-        onCancel={flashcard.handleCancelAiGeneration}
-        isGenerating={flashcard.isGenerating}
-        isPending={flashcard.isGenerationPending}
-        error={flashcard.generationError}
-        generatedCards={flashcard.generatedCards}
-        selectedDeck={flashcard.selectedDeck}
-        onToggleCard={flashcard.toggleCardSelection}
-        onSelectAll={flashcard.selectAll}
-        onDeselectAll={flashcard.deselectAll}
-        onConfirm={flashcard.handleConfirmAiGeneration}
-        onChangeDeck={flashcard.changeDeck}
-        onEditCard={flashcard.handleEditGeneratedCard}
-      />
+      {flashcard.aiGenerationModalOpen && (
+        <FlashcardGenerationModal
+          open={flashcard.aiGenerationModalOpen}
+          onCancel={flashcard.handleCancelAiGeneration}
+          isGenerating={flashcard.isGenerating}
+          isPending={flashcard.isGenerationPending}
+          error={flashcard.generationError}
+          generatedCards={flashcard.generatedCards}
+          selectedDeck={flashcard.selectedDeck}
+          onToggleCard={flashcard.toggleCardSelection}
+          onSelectAll={flashcard.selectAll}
+          onDeselectAll={flashcard.deselectAll}
+          onConfirm={flashcard.handleConfirmAiGeneration}
+          onChangeDeck={flashcard.changeDeck}
+          onEditCard={flashcard.handleEditGeneratedCard}
+        />
+      )}
 
       {/* 编辑 AI 生成的闪卡弹窗 */}
-      <GeneratedFlashcardEditModal
-        open={flashcard.generatedCardEditModalOpen}
-        card={flashcard.editingGeneratedCard}
-        onSave={flashcard.handleSaveGeneratedCard}
-        onCancel={flashcard.closeGeneratedCardEditModal}
-        isDark={darkMode}
-      />
+      {flashcard.generatedCardEditModalOpen && (
+        <GeneratedFlashcardEditModal
+          open={flashcard.generatedCardEditModalOpen}
+          card={flashcard.editingGeneratedCard}
+          onSave={flashcard.handleSaveGeneratedCard}
+          onCancel={flashcard.closeGeneratedCardEditModal}
+          isDark={darkMode}
+        />
+      )}
     </div>
   );
-};
+});
 
 export default DocumentItem;

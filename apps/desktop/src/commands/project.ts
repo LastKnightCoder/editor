@@ -1,4 +1,5 @@
 import { invoke } from "@/electron";
+import { EDragPosition, IDragItem } from "@/hooks/useDragAndDrop";
 import {
   Project,
   ProjectItem,
@@ -191,6 +192,23 @@ export const removeChildProjectItem = async (
     projectItemId,
     notDelete,
   );
+};
+
+export const moveProjectTreeItem = async (
+  projectId: number,
+  params: {
+    dragItem: IDragItem;
+    dropTargetId: number;
+    dropTargetParentId: number;
+    dropTargetIsRoot: boolean;
+    dragPosition: EDragPosition;
+    childInsertIndex?: number;
+    insertParentId?: number;
+    insertParentIsRoot?: boolean;
+    insertIndex?: number;
+  },
+): Promise<{ movedItemId: number; refreshItemIds: number[] } | null> => {
+  return await invoke("move-project-tree-item", projectId, params);
 };
 
 export const openProjectItemInNewWindow = (

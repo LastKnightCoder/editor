@@ -1,6 +1,11 @@
 import { useEffect, useState, useMemo, useRef } from "react";
-import { Dropdown, Empty, MenuProps, App } from "antd";
-import { HomeOutlined, PlusOutlined } from "@ant-design/icons";
+import { Dropdown, Empty, MenuProps, App, Tooltip } from "antd";
+import {
+  ApartmentOutlined,
+  HomeOutlined,
+  NodeExpandOutlined,
+  PlusOutlined,
+} from "@ant-design/icons";
 import { ChevronDown } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import useTabParams from "@/hooks/useTabParams";
@@ -36,22 +41,14 @@ import useAddRefPdf from "./ProjectItem/useAddRefPdf";
 import useAddRefEpub from "./ProjectItem/useAddRefEpub";
 import { useProjectItemModalStates } from "../shared/hooks/useProjectItemModalStates";
 import { useWebLinkHandlers } from "../shared/hooks/useWebLinkHandlers";
-import {
-  useVideoHandlers,
-  createRootVideoStrategy,
-} from "../shared/hooks/useVideoHandlers";
-import {
-  useAudioHandlers,
-  createRootAudioStrategy,
-} from "../shared/hooks/useAudioHandlers";
+import { useVideoHandlers } from "../shared/hooks/useVideoHandlers";
+import { useAudioHandlers } from "../shared/hooks/useAudioHandlers";
 import {
   usePdfHandlers,
-  createRootPdfStrategy,
   createProjectItemFromPdf,
 } from "../shared/hooks/usePdfHandlers";
 import {
   useEpubHandlers,
-  createRootEpubStrategy,
   createProjectItemFromEpub,
 } from "../shared/hooks/useEpubHandlers";
 import { useNotionSyncHandlers } from "../shared/hooks/useNotionSyncHandlers";
@@ -64,12 +61,15 @@ import {
   getProjectById,
   getAllWhiteBoards,
   getAllCards,
+  getWhiteBoardById,
   createEmptyVideoNote,
   createEmptyAudioNote,
   createWhiteBoardContent,
   addRootProjectItem,
+  addChildProjectItem,
   createDataTable,
   getProjectList,
+  getProjectItemById,
 } from "@/commands";
 import { getContentLength, importFromMarkdown } from "@/utils";
 import { importLocalBook } from "../shared/utils/bookImport";
@@ -92,6 +92,9 @@ import classnames from "classnames";
 import usePdfsStore from "@/stores/usePdfsStore";
 import useEpubsStore from "@/stores/useEpubsStore";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
+import ProjectMindMapView from "./ProjectMindMapView";
+import { useProjectTreeData } from "./useProjectTreeData";
+import { useProjectContext } from "../ProjectContext";
 
 const Project = () => {
   const dynamicExtensions = useDynamicExtensionsStore(
@@ -99,9 +102,10 @@ const Project = () => {
   );
   const { message } = App.useApp();
   const uploadResource = useUploadResource();
-  const { id } = useTabParams(TabType.ProjectDetail);
+  const { id, itemId } = useTabParams(TabType.ProjectDetail);
   const navigateTo = useTabStore((state) => state.navigateTo);
   const { setting } = useSettingStore((state) => ({ setting: state.setting }));
+  const databaseName = setting.database.active;
   const [hideSidebar, setHideSidebar] = useState(false);
   const { divideClass } = useThemeColors();
   const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
@@ -110,6 +114,9 @@ const Project = () => {
       defaultValue: 300,
     },
   );
+  const { containerWidth } = useProjectContext();
+  const sidebarMaxWidth =
+    containerWidth !== undefined ? Math.max(200, containerWidth - 300) : 900;
   const [project, setProject] = useState<IProject | null>(null);
   const [allProjects, setAllProjects] = useState<IProject[]>([]);
   const [cards, setCards] = useState<ICard[]>([]);
@@ -130,113 +137,30 @@ const Project = () => {
   );
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
+  const [addingParentProjectItemId, setAddingParentProjectItemId] = useState<
+    number | undefined
+  >(undefined);
+  const [sidebarView, setSidebarView] = useLocalStorageState<
+    "tree" | "mindmap"
+  >(`project-sidebar-view:${databaseName}:${id}`, {
+    defaultValue: "tree",
+  });
+  const [mindMapState, setMindMapState] = useLocalStorageState<{
+    pan?: { x: number; y: number };
+    zoom?: number;
+  }>(`project-mindmap-state:${databaseName}:${id}`, {
+    defaultValue: {},
+  });
+  const mindMapViewportSaveTimerRef = useRef<number | null>(null);
+  const pendingMindMapViewportRef = useRef<{
+    pan: { x: number; y: number };
+    zoom: number;
+  } | null>(null);
 
   const { modalStates, openModal, closeModal } = useProjectItemModalStates();
   const { createWebLinkRecord, handleSelectWebviewFile } = useWebLinkHandlers({
     uploadResource,
     messageKeyPrefix: "upload",
-  });
-
-  const videoStrategy = useMemo(
-    () =>
-      createRootVideoStrategy({
-        project,
-        addRootProjectItem,
-        setProject,
-        navigateTo: (_tabType, params, title) =>
-          navigateTo(TabType.ProjectDetail, params, title),
-      }),
-    [project, navigateTo],
-  );
-
-  const pdfStrategy = useMemo(
-    () =>
-      createRootPdfStrategy({
-        project,
-        addRootProjectItem,
-        setProject,
-        navigateTo: (_tabType, params, title) =>
-          navigateTo(TabType.ProjectDetail, params, title),
-      }),
-    [project, navigateTo],
-  );
-
-  const epubStrategy = useMemo(
-    () =>
-      createRootEpubStrategy({
-        project,
-        addRootProjectItem,
-        setProject,
-        navigateTo: (_tabType, params, title) =>
-          navigateTo(TabType.ProjectDetail, params, title),
-      }),
-    [project, navigateTo],
-  );
-
-  const {
-    handleYoutubeConfirm,
-    handleBilibiliConfirm,
-    handleNotionConfirm,
-    handleRemoteVideoConfirm,
-  } = useVideoHandlers({
-    closeModal,
-    strategy: videoStrategy,
-  });
-
-  const { handleRemotePdfConfirm, handleSelectPdfConfirm } = usePdfHandlers({
-    closeModal,
-    strategy: pdfStrategy,
-  });
-
-  const { handleRemoteEpubConfirm, handleSelectEpubConfirm } = useEpubHandlers({
-    closeModal,
-    strategy: epubStrategy,
-  });
-
-  const audioStrategy = useMemo(
-    () =>
-      createRootAudioStrategy({
-        project,
-        addRootProjectItem,
-        setProject,
-        navigateTo: (_tabType, params, title) =>
-          navigateTo(TabType.ProjectDetail, params, title),
-      }),
-    [project, navigateTo],
-  );
-
-  const {
-    handleRemoteAudioConfirm,
-    handleXiaoyuzhouConfirm,
-    handleBilibiliAudioConfirm,
-    handleYoutubeAudioConfirm,
-  } = useAudioHandlers({
-    closeModal,
-    strategy: audioStrategy,
-  });
-
-  const { handleNotionSyncModalOk } = useNotionSyncHandlers({
-    closeModal,
-    strategy: {
-      addProjectItem: async (createItem) => {
-        if (!project) {
-          message.error("项目尚未加载完成");
-          return;
-        }
-        const [newProject, projectItem] = await addRootProjectItem(
-          project.id,
-          createItem,
-        );
-        if (projectItem) {
-          navigateTo(TabType.ProjectDetail, {
-            id: newProject.id,
-            itemId: projectItem.id,
-          });
-        }
-        setProject(newProject);
-      },
-    },
-    getSetting: () => useSettingStore.getState().setting,
   });
 
   const onFoldSidebar = useMemoizedFn(() => {
@@ -285,6 +209,166 @@ const Project = () => {
     refresh();
   }, [refresh]);
 
+  const {
+    treeData,
+    loading: treeLoading,
+    reload: reloadProjectTree,
+  } = useProjectTreeData(project);
+
+  const saveMindMapViewport = useMemoizedFn(
+    (viewport: { pan: { x: number; y: number }; zoom: number }) => {
+      setMindMapState((previous) => {
+        if (
+          previous?.pan?.x === viewport.pan.x &&
+          previous?.pan?.y === viewport.pan.y &&
+          previous?.zoom === viewport.zoom
+        ) {
+          return previous;
+        }
+        return viewport;
+      });
+    },
+  );
+
+  const handleMindMapViewportChange = useMemoizedFn(
+    (viewport: { pan: { x: number; y: number }; zoom: number }) => {
+      pendingMindMapViewportRef.current = viewport;
+      if (mindMapViewportSaveTimerRef.current !== null) return;
+
+      mindMapViewportSaveTimerRef.current = window.setTimeout(() => {
+        mindMapViewportSaveTimerRef.current = null;
+        const nextViewport = pendingMindMapViewportRef.current;
+        if (nextViewport) {
+          saveMindMapViewport(nextViewport);
+        }
+      }, 200);
+    },
+  );
+
+  useEffect(() => {
+    return () => {
+      if (mindMapViewportSaveTimerRef.current !== null) {
+        window.clearTimeout(mindMapViewportSaveTimerRef.current);
+      }
+    };
+  }, []);
+
+  const addProjectItemToTarget = useMemoizedFn(
+    async (
+      createProjectItem: CreateProjectItem,
+      parentProjectItemId?: number,
+    ) => {
+      if (!project) {
+        throw new Error("项目尚未加载完成");
+      }
+      if (!parentProjectItemId) {
+        const result = await addRootProjectItem(project.id, createProjectItem);
+        setProject(result[0]);
+        return result;
+      }
+      const [, createdItem] = await addChildProjectItem(
+        parentProjectItemId,
+        createProjectItem,
+      );
+      const newProject = await getProjectById(project.id);
+      setProject(newProject);
+      const parentProjectItem = await getProjectItemById(parentProjectItemId);
+      if (parentProjectItem) {
+        // 让树视图中的父节点立刻刷新 children。
+        reloadProjectTree();
+      }
+      return [newProject, createdItem] as [IProject, typeof createdItem];
+    },
+  );
+
+  const targetAwareAddStrategy = useMemo(
+    () => ({
+      addProjectItem: async (createItem: CreateProjectItem) => {
+        if (!project) {
+          message.error("项目尚未加载完成");
+          return;
+        }
+        const [newProject, projectItem] = await addProjectItemToTarget(
+          createItem,
+          addingParentProjectItemId,
+        );
+        if (projectItem) {
+          navigateTo(
+            TabType.ProjectDetail,
+            {
+              id: newProject.id,
+              itemId: projectItem.id,
+            },
+            `项目 - ${projectItem.title || `#${projectItem.id}`}`,
+          );
+        }
+        setAddingParentProjectItemId(undefined);
+      },
+    }),
+    [
+      addProjectItemToTarget,
+      addingParentProjectItemId,
+      message,
+      navigateTo,
+      project,
+    ],
+  );
+
+  const {
+    handleYoutubeConfirm,
+    handleBilibiliConfirm,
+    handleNotionConfirm,
+    handleRemoteVideoConfirm,
+  } = useVideoHandlers({
+    closeModal,
+    strategy: targetAwareAddStrategy,
+  });
+
+  const { handleRemotePdfConfirm, handleSelectPdfConfirm } = usePdfHandlers({
+    closeModal,
+    strategy: targetAwareAddStrategy,
+  });
+
+  const { handleRemoteEpubConfirm, handleSelectEpubConfirm } = useEpubHandlers({
+    closeModal,
+    strategy: targetAwareAddStrategy,
+  });
+
+  const {
+    handleRemoteAudioConfirm,
+    handleXiaoyuzhouConfirm,
+    handleBilibiliAudioConfirm,
+    handleYoutubeAudioConfirm,
+  } = useAudioHandlers({
+    closeModal,
+    strategy: targetAwareAddStrategy,
+  });
+
+  const { handleNotionSyncModalOk } = useNotionSyncHandlers({
+    closeModal,
+    strategy: {
+      addProjectItem: async (createItem) => {
+        if (!project) {
+          message.error("项目尚未加载完成");
+          return;
+        }
+        const [newProject, projectItem] = await addProjectItemToTarget(
+          createItem,
+          addingParentProjectItemId,
+        );
+        if (projectItem) {
+          navigateTo(TabType.ProjectDetail, {
+            id: newProject.id,
+            itemId: projectItem.id,
+          });
+        }
+        setProject(newProject);
+        setAddingParentProjectItemId(undefined);
+      },
+    },
+    getSetting: () => useSettingStore.getState().setting,
+  });
+
   const handleWebviewConfirm = useMemoizedFn(
     async (result: WebViewSelectResult) => {
       if (!project) {
@@ -310,9 +394,9 @@ const Project = () => {
           whiteBoardContentId: 0,
         };
 
-        const [newProject, item] = await addRootProjectItem(
-          project.id,
+        const [newProject, item] = await addProjectItemToTarget(
           createProjectItem,
+          addingParentProjectItemId,
         );
         if (item) {
           navigateTo(
@@ -324,7 +408,7 @@ const Project = () => {
             `项目 - ${item.title || `#${item.id}`}`,
           );
         }
-        setProject(newProject);
+        setAddingParentProjectItemId(undefined);
         closeModal(ModalKey.Webview);
         message.success("网页添加成功");
       } catch (error) {
@@ -365,6 +449,33 @@ const Project = () => {
       .map((id) => cards.find((card) => card.id === id))
       .filter((card): card is ICard => !!card);
 
+    if (addingParentProjectItemId && newSelectedCards[0]) {
+      if (!project) return;
+      const selectCard = newSelectedCards[0];
+      const [, item] = await addProjectItemToTarget(
+        {
+          title: "新文档",
+          content: selectCard.content,
+          children: [],
+          refType: "card",
+          refId: selectCard.id,
+          projectItemType: EProjectItemType.Document,
+          count: 0,
+          whiteBoardContentId: 0,
+        },
+        addingParentProjectItemId,
+      );
+      if (item) {
+        navigateTo(TabType.ProjectDetail, {
+          id: project.id,
+          itemId: item.id,
+        });
+      }
+      setAddingParentProjectItemId(undefined);
+      onCardCancel();
+      return;
+    }
+
     const res = await onCardOk(newSelectedCards);
     if (res && res[0]) {
       setProject(res[0] as IProject);
@@ -384,6 +495,40 @@ const Project = () => {
 
   const handleOnSelectWhiteboardOk = useMemoizedFn(
     async (whiteBoards: WhiteBoard[]) => {
+      if (addingParentProjectItemId && whiteBoards[0]) {
+        if (!project) return;
+        const fullWhiteBoard = await getWhiteBoardById(whiteBoards[0].id);
+        if (
+          !fullWhiteBoard ||
+          fullWhiteBoard.whiteBoardContentIds.length === 0
+        ) {
+          message.error(`获取白板 ${whiteBoards[0].title} 数据失败`);
+          return;
+        }
+        const [, item] = await addProjectItemToTarget(
+          {
+            title: fullWhiteBoard.title,
+            content: [],
+            whiteBoardContentId: fullWhiteBoard.whiteBoardContentIds[0],
+            children: [],
+            refType: "white-board",
+            refId: fullWhiteBoard.id,
+            projectItemType: EProjectItemType.WhiteBoard,
+            count: 0,
+          },
+          addingParentProjectItemId,
+        );
+        if (item) {
+          navigateTo(TabType.ProjectDetail, {
+            id: project.id,
+            itemId: item.id,
+          });
+        }
+        setAddingParentProjectItemId(undefined);
+        onWhiteBoardCancel();
+        return;
+      }
+
       const res = await onWhiteBoardOk(whiteBoards);
       if (res && res[0]) {
         setProject(res[0] as IProject);
@@ -421,8 +566,11 @@ const Project = () => {
     onConfirm: handleSelectEpubConfirm,
   });
 
-  const handleAddMenuClick: MenuProps["onClick"] = useMemoizedFn(
-    async ({ key }) => {
+  const handleAddMenuClick = useMemoizedFn(
+    async (
+      { key }: Parameters<NonNullable<MenuProps["onClick"]>>[0],
+      parentProjectItemId?: number,
+    ) => {
       if (!project) return;
       if (key === "add-project-item") {
         const createProjectItem: CreateProjectItem = {
@@ -440,9 +588,9 @@ const Project = () => {
           count: 0,
           whiteBoardContentId: 0,
         };
-        const [newProject, item] = await addRootProjectItem(
-          project.id,
+        const [newProject, item] = await addProjectItemToTarget(
           createProjectItem,
+          parentProjectItemId,
         );
         if (item) {
           navigateTo(
@@ -454,8 +602,8 @@ const Project = () => {
             `项目 - ${item.title || `#${item.id}`}`,
           );
         }
-        setProject(newProject);
       } else if (key === "add-notion-document-project-item") {
+        setAddingParentProjectItemId(parentProjectItemId);
         openModal(ModalKey.NotionSync);
       } else if (key === "add-white-board-project-item") {
         const whiteBoardContent = await createWhiteBoardContent({
@@ -487,9 +635,9 @@ const Project = () => {
           projectItemType: EProjectItemType.WhiteBoard,
           count: 0,
         };
-        const [newProject, item] = await addRootProjectItem(
-          project.id,
+        const [newProject, item] = await addProjectItemToTarget(
           createProjectItem,
+          parentProjectItemId,
         );
         if (item) {
           navigateTo(
@@ -501,7 +649,6 @@ const Project = () => {
             `项目 - ${item.title || `#${item.id}`}`,
           );
         }
-        setProject(newProject);
       } else if (key === "add-local-video-note-project-item") {
         // 选择视频文件
         const filePath = await selectFile({
@@ -533,9 +680,9 @@ const Project = () => {
           count: 0,
           whiteBoardContentId: 0,
         };
-        const [newProject, projectItem] = await addRootProjectItem(
-          project.id,
+        const [newProject, projectItem] = await addProjectItemToTarget(
           createProjectItem,
+          parentProjectItemId,
         );
         if (projectItem) {
           navigateTo(
@@ -547,14 +694,17 @@ const Project = () => {
             `项目 - ${projectItem.title || `#${projectItem.id}`}`,
           );
         }
-        setProject(newProject);
       } else if (key === "add-remote-video-note-project-item") {
+        setAddingParentProjectItemId(parentProjectItemId);
         openModal(ModalKey.WebVideo);
       } else if (key === "add-bilibili-video-note-project-item") {
+        setAddingParentProjectItemId(parentProjectItemId);
         openModal(ModalKey.Bilibili);
       } else if (key === "add-youtube-video-note-project-item") {
+        setAddingParentProjectItemId(parentProjectItemId);
         openModal(ModalKey.Youtube);
       } else if (key === "add-notion-video-note-project-item") {
+        setAddingParentProjectItemId(parentProjectItemId);
         openModal(ModalKey.Notion);
       } else if (key === "add-local-audio-note-project-item") {
         const filePath = await selectFile({
@@ -586,9 +736,9 @@ const Project = () => {
           count: 0,
           whiteBoardContentId: 0,
         };
-        const [newProject2, projectItem2] = await addRootProjectItem(
-          project.id,
+        const [newProject2, projectItem2] = await addProjectItemToTarget(
           createProjectItem,
+          parentProjectItemId,
         );
         if (projectItem2) {
           navigateTo(
@@ -600,16 +750,20 @@ const Project = () => {
             `项目 - ${projectItem2.title || `#${projectItem2.id}`}`,
           );
         }
-        setProject(newProject2);
       } else if (key === "add-remote-audio-note-project-item") {
+        setAddingParentProjectItemId(parentProjectItemId);
         openModal(ModalKey.RemoteAudio);
       } else if (key === "add-xiaoyuzhou-audio-note-project-item") {
+        setAddingParentProjectItemId(parentProjectItemId);
         openModal(ModalKey.XiaoyuzhouPodcast);
       } else if (key === "add-bilibili-audio-note-project-item") {
+        setAddingParentProjectItemId(parentProjectItemId);
         openModal(ModalKey.BilibiliAudio);
       } else if (key === "add-youtube-audio-note-project-item") {
+        setAddingParentProjectItemId(parentProjectItemId);
         openModal(ModalKey.YoutubeAudio);
       } else if (key === "add-webview-project-item") {
+        setAddingParentProjectItemId(parentProjectItemId);
         openModal(ModalKey.Webview);
       } else if (key === "add-table-project-item") {
         const dataTable = await createDataTable({
@@ -627,9 +781,9 @@ const Project = () => {
           count: 0,
           whiteBoardContentId: 0,
         };
-        const [newProject, item] = await addRootProjectItem(
-          project.id,
+        const [newProject, item] = await addProjectItemToTarget(
           createProjectItem,
+          parentProjectItemId,
         );
         if (item) {
           navigateTo(
@@ -641,7 +795,6 @@ const Project = () => {
             `项目 - ${item.title || `#${item.id}`}`,
           );
         }
-        setProject(newProject);
       } else if (key === "add-local-pdf-project-item") {
         try {
           const fileInfo = await importLocalBook("pdf");
@@ -654,15 +807,26 @@ const Project = () => {
             tags: [],
             category: "",
           });
-          await pdfStrategy.addProjectItem(createProjectItemFromPdf(pdf));
+          const [, item] = await addProjectItemToTarget(
+            createProjectItemFromPdf(pdf),
+            parentProjectItemId,
+          );
+          if (item) {
+            navigateTo(TabType.ProjectDetail, {
+              id: project.id,
+              itemId: item.id,
+            });
+          }
           message.success("本地 PDF 添加成功");
         } catch (error) {
           console.error("添加本地 PDF 失败:", error);
           message.error("添加本地 PDF 失败");
         }
       } else if (key === "add-remote-pdf-project-item") {
+        setAddingParentProjectItemId(parentProjectItemId);
         openModal(ModalKey.RemotePdf);
       } else if (key === "link-pdf-project-item") {
+        setAddingParentProjectItemId(parentProjectItemId);
         openSelectPdfModal();
       } else if (key === "add-local-epub-project-item") {
         try {
@@ -677,19 +841,32 @@ const Project = () => {
             category: "default",
             progressPercentage: 0,
           });
-          await epubStrategy.addProjectItem(createProjectItemFromEpub(epub));
+          const [, item] = await addProjectItemToTarget(
+            createProjectItemFromEpub(epub),
+            parentProjectItemId,
+          );
+          if (item) {
+            navigateTo(TabType.ProjectDetail, {
+              id: project.id,
+              itemId: item.id,
+            });
+          }
           message.success("本地 EPUB 添加成功");
         } catch (error) {
           console.error("添加本地 EPUB 失败:", error);
           message.error("添加本地 EPUB 失败");
         }
       } else if (key === "add-remote-epub-project-item") {
+        setAddingParentProjectItemId(parentProjectItemId);
         openModal(ModalKey.RemoteEpub);
       } else if (key === "link-epub-project-item") {
+        setAddingParentProjectItemId(parentProjectItemId);
         openSelectEpubModal();
       } else if (key === "link-card-project-item") {
+        setAddingParentProjectItemId(parentProjectItemId);
         openSelectCardModal();
       } else if (key === "link-white-board-project-item") {
+        setAddingParentProjectItemId(parentProjectItemId);
         openSelectWhiteBoardModal();
       } else if (key === "import-markdown") {
         const filePath = await selectFile({
@@ -709,16 +886,19 @@ const Project = () => {
           const markdown = await readTextFile(path);
           const content = importFromMarkdown(markdown, ["yaml"]);
           const fileName = await getFileBaseName(path, true);
-          const [newProject, item] = await addRootProjectItem(project.id, {
-            title: fileName,
-            content,
-            children: [],
-            refType: "",
-            refId: 0,
-            projectItemType: EProjectItemType.Document,
-            count: getContentLength(content),
-            whiteBoardContentId: 0,
-          });
+          const [newProject, item] = await addProjectItemToTarget(
+            {
+              title: fileName,
+              content,
+              children: [],
+              refType: "",
+              refId: 0,
+              projectItemType: EProjectItemType.Document,
+              count: getContentLength(content),
+              whiteBoardContentId: 0,
+            },
+            parentProjectItemId,
+          );
           if (item) {
             navigateTo(
               TabType.ProjectDetail,
@@ -729,7 +909,6 @@ const Project = () => {
               `项目 - ${item.title || `#${item.id}`}`,
             );
           }
-          setProject(newProject);
         }
       }
     },
@@ -745,6 +924,7 @@ const Project = () => {
         open={!hideSidebar}
         onToggle={onFoldSidebar}
         sidebarPosition="left"
+        maxWidth={sidebarMaxWidth}
         disableResize={false}
         className="h-full"
       >
@@ -773,6 +953,24 @@ const Project = () => {
               </div>
             </div>
             <div className={styles.icons}>
+              <Tooltip
+                title={
+                  sidebarView === "tree" ? "切换到思维导图" : "切换到树视图"
+                }
+              >
+                <div
+                  className={classnames(styles.icon, "mr-1 transition-colors")}
+                  onClick={() =>
+                    setSidebarView(sidebarView === "tree" ? "mindmap" : "tree")
+                  }
+                >
+                  {sidebarView === "tree" ? (
+                    <NodeExpandOutlined />
+                  ) : (
+                    <ApartmentOutlined />
+                  )}
+                </div>
+              </Tooltip>
               <Dropdown
                 menu={{
                   items: ADD_MENU_ITEMS,
@@ -787,27 +985,55 @@ const Project = () => {
           </div>
           <div className={classnames(styles.divider, divideClass)}></div>
           <div className={styles.contentArea}>
-            <If condition={project.children.length === 0}>
-              <Empty description={"项目下暂无文档"} />
-            </If>
-            <For
-              data={project.children}
-              renderItem={(projectItemId, index) => (
-                <ProjectItem
-                  projectItemId={projectItemId}
-                  isRoot
-                  key={projectItemId}
-                  path={[index]}
-                  parentProjectItemId={project.id}
-                  parentChildren={project.children}
+            {sidebarView === "mindmap" ? (
+              treeLoading ? (
+                <div className="flex h-full items-center justify-center text-sm opacity-60">
+                  正在加载思维导图...
+                </div>
+              ) : (
+                <ProjectMindMapView
+                  project={project}
+                  treeData={treeData}
+                  activeItemId={itemId}
+                  databaseName={databaseName}
                   cards={cards}
                   whiteBoards={whiteBoards}
                   pdfs={pdfs}
                   epubs={epubs}
+                  addMenuItems={ADD_MENU_ITEMS}
+                  onAddMenuClick={handleAddMenuClick}
                   refreshProject={refresh}
+                  reloadTree={reloadProjectTree}
+                  initialPan={mindMapState?.pan}
+                  initialZoom={mindMapState?.zoom}
+                  onViewportChange={handleMindMapViewportChange}
                 />
-              )}
-            />
+              )
+            ) : (
+              <>
+                <If condition={project.children.length === 0}>
+                  <Empty description={"项目下暂无文档"} />
+                </If>
+                <For
+                  data={project.children}
+                  renderItem={(projectItemId, index) => (
+                    <ProjectItem
+                      projectItemId={projectItemId}
+                      isRoot
+                      key={projectItemId}
+                      path={[index]}
+                      parentProjectItemId={project.id}
+                      parentChildren={project.children}
+                      cards={cards}
+                      whiteBoards={whiteBoards}
+                      pdfs={pdfs}
+                      epubs={epubs}
+                      refreshProject={refresh}
+                    />
+                  )}
+                />
+              </>
+            )}
           </div>
           <ContentSelectorModal
             title={"选择关联卡片"}
