@@ -65,4 +65,46 @@ describe("ResizableAndHideableSidebar", () => {
 
     await unmount(root, container);
   });
+
+  it("窗口约束变大后应按保存宽度恢复内外层实际宽度", async () => {
+    const handleWidthChange = vi.fn();
+    const { root, container } = await mount(
+      <ResizableAndHideableSidebar
+        width={900}
+        open={true}
+        minWidth={200}
+        maxWidth={480}
+        onWidthChange={handleWidthChange}
+      >
+        <div>content</div>
+      </ResizableAndHideableSidebar>,
+    );
+
+    const sidebarRoot = container.firstElementChild as HTMLElement;
+    const viewportWrapper = sidebarRoot.firstElementChild as HTMLElement;
+    const resizable = viewportWrapper.firstElementChild as HTMLElement;
+
+    expect(sidebarRoot.style.width).toBe("480px");
+    expect(resizable.style.width).toBe("480px");
+    expect(handleWidthChange).not.toHaveBeenCalledWith(480, 480);
+
+    await act(async () => {
+      root.render(
+        <ResizableAndHideableSidebar
+          width={900}
+          open={true}
+          minWidth={200}
+          maxWidth={900}
+          onWidthChange={handleWidthChange}
+        >
+          <div>content</div>
+        </ResizableAndHideableSidebar>,
+      );
+    });
+
+    expect(sidebarRoot.style.width).toBe("900px");
+    expect(resizable.style.width).toBe("900px");
+
+    await unmount(root, container);
+  });
 });

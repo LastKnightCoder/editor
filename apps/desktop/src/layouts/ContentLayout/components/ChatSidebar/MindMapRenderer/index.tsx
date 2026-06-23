@@ -33,7 +33,7 @@ const MindMapRenderer = forwardRef<MindMapRef, MindMapRendererProps>(
   ({ code, fillContainer = false }, ref) => {
     const { isDark } = useTheme();
     const themeId = useMemo(() => {
-      return isDark ? "vanilla" : "dystopia";
+      return isDark ? "dance" : "hawaii";
     }, [isDark]);
 
     // 500ms 节流，防止流式输出时频繁渲染
