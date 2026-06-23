@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import WidthResizable from "@/components/WidthResizable";
 import SidebarToggleButton from "@/components/SidebarToggleButton";
 import useDragAndHideSidebar from "@/hooks/useDragAndHideSidebar.ts";
@@ -61,15 +61,23 @@ const ResizeableAndHideableSidebar = (
 
   const [isHoveringEdge, setIsHoveringEdge] = useState(false);
   const resolvedResizeHandleSide = resizeHandleSide ?? side ?? "right";
+  const actualWidth = Math.min(Math.max(width, minWidth), maxWidth);
 
   useEffect(() => {
     setIsHoveringEdge(false);
   }, [open]);
 
+  const handleAnimatedWidthChange = useCallback(
+    (_width: number, actualWidth?: number) => {
+      onWidthChange?.(width, actualWidth);
+    },
+    [onWidthChange, width],
+  );
+
   const ref = useDragAndHideSidebar<HTMLDivElement>({
-    width,
+    width: actualWidth,
     open,
-    onWidthChange,
+    onWidthChange: handleAnimatedWidthChange,
   });
 
   useEffect(() => {
@@ -86,12 +94,12 @@ const ResizeableAndHideableSidebar = (
   return (
     <div
       ref={ref}
-      style={{ ...style, width }}
+      style={{ ...style, width: actualWidth }}
       className={`${className || ""} relative`}
     >
       <div className={`h-full w-full ${open ? "" : "overflow-hidden"}`}>
         <WidthResizable
-          defaultWidth={width}
+          defaultWidth={actualWidth}
           minWidth={minWidth}
           maxWidth={maxWidth}
           onResize={(width) => {

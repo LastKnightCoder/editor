@@ -62,6 +62,13 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (
     setShowHandleHighlight(false);
   }, []);
 
+  useEffect(() => {
+    let nextWidth = defaultWidth;
+    if (minWidth && nextWidth < minWidth) nextWidth = minWidth;
+    if (maxWidth && nextWidth > maxWidth) nextWidth = maxWidth;
+    setWidth(nextWidth);
+  }, [defaultWidth, maxWidth, minWidth]);
+
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     if (disableResize) return;
     setIsResizing(true);

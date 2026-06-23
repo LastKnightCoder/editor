@@ -17,7 +17,6 @@ import useSettingStore from "@/stores/useSettingStore";
 import { MindUtil } from "@/components/WhiteBoard/utils/MindUtil";
 import { MindNodeElement } from "@/components/WhiteBoard/types/mind";
 import {
-  DEFAULT_THEME_ID,
   MindMapTheme,
   getThemeById,
 } from "@/components/WhiteBoard/constants/mind-themes";
@@ -471,7 +470,7 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
   (
     {
       data,
-      themeId = DEFAULT_THEME_ID,
+      themeId,
       className,
       style,
       cacheNamespace,
@@ -487,8 +486,12 @@ const MindMap = forwardRef<MindMapRef, MindMapProps>(
     },
     ref,
   ) => {
-    const theme = useMemo(() => getThemeById(themeId), [themeId]);
     const isDark = useSettingStore((state) => state.setting.darkMode);
+    const resolvedThemeId = themeId ?? (isDark ? "dance" : "hawaii");
+    const theme = useMemo(
+      () => getThemeById(resolvedThemeId),
+      [resolvedThemeId],
+    );
     const sanitizedData = useMemo(
       () => sanitizeMindDataDirections(data),
       [data],
