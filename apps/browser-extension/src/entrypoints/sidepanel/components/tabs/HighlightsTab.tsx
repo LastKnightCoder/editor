@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Trash2, MessageSquare, Highlighter } from "lucide-react";
+import {
+  Trash2,
+  MessageSquare,
+  Highlighter,
+  ChevronRight,
+  ChevronDown,
+} from "lucide-react";
 import type {
   PageHighlights,
   HighlightStyle,
@@ -20,8 +26,27 @@ const COLORS: HighlightColor[] = ["pink", "purple", "blue", "green", "orange"];
 
 const STYLE_LIST: HighlightStyle[] = ["marker", "straight", "wavy", "dashed"];
 
+/** 将时间戳格式化为相对时间（刚刚 / 3 分钟前 / 2 小时前 / 昨天 / 3 天前 / 1 月12 日） */
+function formatRelativeTime(ts: number): string {
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "刚刚";
+  if (m < 60) return `${m} 分钟前`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} 小时前`;
+  const d = Math.floor(h / 24);
+  if (d === 1) return "昨天";
+  if (d < 7) return `${d} 天前`;
+  const w = Math.floor(d / 7);
+  if (w < 5) return `${w} 周前`;
+  const date = new Date(ts);
+  return `${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
 interface HighlightsTabProps {
   url: string | null;
+  /** 高亮数量变化时回调，供外部（如 TabBar 徽标）使用 */
+  onCountChange?: (count: number) => void;
 }
 
 /**
@@ -102,7 +127,10 @@ function StyleIcon({ style, color }: { style: HighlightStyle; color: string }) {
   }
 }
 
-export default function HighlightsTab({ url }: HighlightsTabProps) {
+export default function HighlightsTab({
+  url,
+  onCountChange,
+}: HighlightsTabProps) {
   const [pageData, setPageData] = useState<PageHighlights | null>(null);
   const pageDataRef = useRef<PageHighlights | null>(null);
 
@@ -116,6 +144,11 @@ export default function HighlightsTab({ url }: HighlightsTabProps) {
   useEffect(() => {
     pageDataRef.current = pageData;
   }, [pageData]);
+
+  // 高亮数量变化时上报（单一数据源，自动响应 storage.onChanged）
+  useEffect(() => {
+    onCountChange?.(pageData?.highlights.length ?? 0);
+  }, [pageData, onCountChange]);
 
   // 加载当前页面的高亮数据
   useEffect(() => {
@@ -301,7 +334,7 @@ export default function HighlightsTab({ url }: HighlightsTabProps) {
   );
 
   return (
-    <div className="tau-scrollbar flex h-full flex-col overflow-y-auto">
+    <div className="tau-scrollbar flex h-full flex-col overflow-y-auto bg-[var(--sb-surface)]">
       {/* 标题栏 */}
       <div className="flex items-center justify-between px-4 pb-1 pt-3">
         <span className="text-xs font-medium tracking-wide text-gray-400 dark:text-[#484f58]">
@@ -310,7 +343,7 @@ export default function HighlightsTab({ url }: HighlightsTabProps) {
       </div>
 
       {/* 高亮列表 */}
-      <div className="flex flex-col gap-2 px-3 pb-4 pt-1">
+      <div className="flex flex-col gap-2.5 px-3 pb-4 pt-1">
         {sortedHighlights.map((highlight) => {
           const annotation = annotations[highlight.id];
           const isExpanded = expandedId === highlight.id;
@@ -319,26 +352,22 @@ export default function HighlightsTab({ url }: HighlightsTabProps) {
           return (
             <div
               key={highlight.id}
-              className={`group relative overflow-hidden rounded-xl transition-all duration-200 ${
+              className={`group relative overflow-hidden rounded-xl border border-[var(--sb-card-border)] bg-[var(--sb-card-bg)] transition-all duration-200 ${
                 isExpanded
-                  ? "bg-white shadow-[0_1px_8px_rgba(0,0,0,0.08)] ring-1 ring-black/4 dark:bg-[#1c2128] dark:shadow-[0_1px_8px_rgba(0,0,0,0.3)] dark:ring-white/6"
-                  : "bg-white/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)] ring-1 ring-black/3 hover:shadow-[0_2px_8px_rgba(0,0,0,0.07)] hover:ring-black/6 dark:bg-[#1c2128]/80 dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)] dark:ring-white/4 dark:hover:shadow-[0_2px_8px_rgba(0,0,0,0.35)] dark:hover:ring-white/8"
+                  ? "shadow-[var(--sb-card-shadow-expanded)]"
+                  : "shadow-[var(--sb-card-shadow)] hover:shadow-[var(--sb-card-shadow-hover)]"
               }`}
             >
               {/* 左侧色条 */}
               <div
-                className="absolute bottom-0 left-0 top-0 w-[3px]"
+                className="absolute bottom-0 left-0 top-0 w-[4px]"
                 style={{ backgroundColor: HIGHLIGHT_COLORS[highlight.color] }}
               />
 
-              {/* 卡片主体 */}
+              {/* 卡片主体：点击 = 仅滚动定位到页面高亮处 */}
               <div
                 className="cursor-pointer py-3 pl-4 pr-3"
-                onClick={() => {
-                  scrollToHighlight(highlight.id);
-                  setExpandedId(isExpanded ? null : highlight.id);
-                  if (isExpanded) setEditingThoughtId(null);
-                }}
+                onClick={() => scrollToHighlight(highlight.id)}
               >
                 {/* 原文：直接用实际高亮样式渲染 */}
                 <p className="text-[13px] leading-[1.7] text-gray-800 dark:text-[#e6edf3]">
@@ -347,21 +376,64 @@ export default function HighlightsTab({ url }: HighlightsTabProps) {
                   </span>
                 </p>
 
-                {/* 想法预览（折叠态） */}
+                {/* 想法预览（折叠态）：点击展开 */}
                 {annotation && !isExpanded && (
-                  <p className="mt-2 line-clamp-2 border-l-2 border-gray-200 pl-2.5 text-xs leading-relaxed text-gray-400 dark:border-[#30363d] dark:text-[#8b949e]">
+                  <p
+                    className="mt-2 line-clamp-2 border-l-2 border-gray-200 pl-2.5 text-xs leading-relaxed text-gray-400 transition-colors hover:border-gray-300 hover:text-gray-500 dark:border-[#30363d] dark:text-[#8b949e] dark:hover:border-[#484f58] dark:hover:text-[#adbac7]"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedId(highlight.id);
+                    }}
+                  >
                     {annotation.text}
                   </p>
+                )}
+
+                {/* 底部 meta 行（折叠态）：左=相对时间，右=展开按钮 */}
+                {!isExpanded && (
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-[11px] leading-none text-gray-300 dark:text-[#484f58]">
+                      {formatRelativeTime(highlight.createdAt)}
+                    </span>
+                    <button
+                      className="flex h-5 w-5 items-center justify-center rounded text-gray-300 transition-colors hover:bg-gray-100 hover:text-gray-500 dark:text-[#484f58] dark:hover:bg-white/8 dark:hover:text-[#8b949e]"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedId(highlight.id);
+                      }}
+                      title="编辑"
+                    >
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
                 )}
               </div>
 
               {/* 展开的编辑区域 */}
               {isExpanded && (
                 <div className="border-t border-gray-100 px-4 pb-3 pt-2.5 dark:border-[#30363d]/60">
+                  {/* 顶部 meta 行：时间 + 收起按钮 */}
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[11px] leading-none text-gray-300 dark:text-[#484f58]">
+                      {formatRelativeTime(highlight.createdAt)}
+                    </span>
+                    <button
+                      className="flex h-5 w-5 items-center justify-center rounded text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-[#8b949e] dark:hover:bg-white/8 dark:hover:text-[#adbac7]"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedId(null);
+                        setEditingThoughtId(null);
+                      }}
+                      title="收起"
+                    >
+                      <ChevronDown size={14} />
+                    </button>
+                  </div>
+
                   {/* 颜色 + 样式选择行 */}
                   <div className="flex items-center gap-2.5">
                     {/* 颜色选择 */}
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-2">
                       {COLORS.map((c) => (
                         <button
                           key={c}

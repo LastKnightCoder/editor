@@ -1,3 +1,9 @@
+/* 选中文字：深底面板内禁用系统默认黑底黑字，统一蓝底白字 */
+::selection {
+  background: rgba(96, 165, 250, 0.35);
+  color: #ffffff;
+}
+
 /* === Floating Toolbar === */
 .tau-floating-toolbar {
   display: flex;
@@ -126,34 +132,7 @@
   transform: scale(1.15);
 }
 
-/* === Thought View (查看态，复用 .tau-thought-input 布局) === */
-.tau-thought-view-text {
-  font-size: 14px;
-  line-height: 1.6;
-  color: #f5f5f7;
-  margin: 0;
-  word-break: break-word;
-}
-
-.tau-thought-view-action {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 20px;
-  background: transparent;
-  color: #f87171;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    background 0.15s,
-    color 0.15s;
-}
-
-.tau-thought-view-action:hover {
-  background: rgba(248, 113, 113, 0.12);
-}
-
-/* === Thought Input (编辑态卡片) === */
+/* === Thought Panel（写想法 / 查看，共用布局） === */
 .tau-thought-input {
   position: fixed;
   bottom: 24px;
@@ -163,27 +142,55 @@
   max-width: 560px;
   background: #1c1c1e;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
+  border-radius: 18px;
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.4),
-    0 2px 8px rgba(0, 0, 0, 0.2);
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    0 2px 8px rgba(0, 0, 0, 0.25);
   z-index: 2147483647;
   animation: tau-slide-up 0.2s ease-out;
   pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-/* 右上角圆形关闭按钮 */
-.tau-thought-input-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
+/* 深底面板内选中文字：蓝底白字 */
+.tau-thought-input ::selection {
+  background: rgba(96, 165, 250, 0.35);
+  color: #ffffff;
+}
+
+/* 顶栏：标题 + 关闭 */
+.tau-thought-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  flex-shrink: 0;
+}
+
+.tau-thought-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #f5f5f7;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.tau-thought-title svg {
+  color: #60a5fa;
+}
+
+.tau-thought-close {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 28px;
   height: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  background: transparent;
   color: #8e8e93;
   border-radius: 50%;
   cursor: pointer;
@@ -192,38 +199,39 @@
     color 0.15s;
 }
 
-.tau-thought-input-close:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #ccc;
+.tau-thought-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f5f5f7;
 }
 
-/* textarea 区域 */
-.tau-thought-input-body {
-  padding: 20px 20px 0;
+/* 主体内容区 */
+.tau-thought-body {
+  padding: 4px 18px 14px;
+  min-height: 0;
 }
 
+/* 编辑态 textarea 区域 */
 .tau-thought-textarea-wrap {
   position: relative;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  transition: border-color 0.15s;
 }
 
-.tau-thought-textarea-icon {
-  position: absolute;
-  top: 14px;
-  left: 14px;
-  color: #6b6b70;
-  pointer-events: none;
+.tau-thought-textarea-wrap:focus-within {
+  border-color: rgba(96, 165, 250, 0.5);
 }
 
 .tau-thought-textarea {
   width: 100%;
-  min-height: 100px;
-  max-height: 200px;
+  min-height: 96px;
+  max-height: 220px;
   resize: none;
   border: none;
-  border-radius: 10px;
   background: transparent;
   color: #f5f5f7;
-  padding: 12px 16px 12px 38px;
+  padding: 14px 16px;
   font-size: 14px;
   line-height: 1.6;
   outline: none;
@@ -236,18 +244,80 @@
   color: #6b6b70;
 }
 
+/* 查看态想法文字 */
+.tau-thought-view-text {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #e8e8ea;
+  margin: 0;
+  padding: 4px 2px;
+  word-break: break-word;
+  user-select: text;
+  white-space: pre-wrap;
+}
+
 /* 底部 footer */
-.tau-thought-input-footer {
+.tau-thought-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px 16px;
+  padding: 10px 16px 14px;
+  flex-shrink: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.tau-thought-submit {
-  padding: 8px 24px;
+/* 编辑态快捷键提示 */
+.tau-thought-hint {
+  font-size: 11px;
+  color: #6b6b70;
+  letter-spacing: 0.02em;
+}
+
+/* 查看态时间戳 */
+.tau-thought-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #6b6b70;
+}
+
+/* 查看态操作组 */
+.tau-thought-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 幽灵按钮（删除） */
+.tau-thought-ghost-btn {
+  padding: 7px 14px;
   border: none;
-  border-radius: 20px;
+  border-radius: 16px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.tau-thought-danger {
+  color: #f87171;
+}
+
+.tau-thought-danger:hover {
+  background: rgba(248, 113, 113, 0.12);
+  color: #fca5a5;
+}
+
+/* 主按钮（保存 / 编辑） */
+.tau-thought-primary-btn {
+  padding: 7px 20px;
+  border: none;
+  border-radius: 16px;
   background: #3b82f6;
   color: #fff;
   font-size: 13px;
@@ -259,16 +329,16 @@
     transform 0.1s;
 }
 
-.tau-thought-submit:hover {
+.tau-thought-primary-btn:hover {
   background: #2563eb;
 }
 
-.tau-thought-submit:active {
+.tau-thought-primary-btn:active {
   transform: scale(0.97);
 }
 
-.tau-thought-submit:disabled {
-  opacity: 0.5;
+.tau-thought-primary-btn:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
@@ -279,151 +349,108 @@
   left: 50%;
   transform: translateX(-50%);
   width: 90%;
-  max-width: 600px;
+  max-width: 620px;
   background: #1c1c1e;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
+  border-radius: 18px;
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.4),
-    0 2px 8px rgba(0, 0, 0, 0.2);
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    0 2px 8px rgba(0, 0, 0, 0.25);
   z-index: 2147483647;
   animation: tau-slide-up 0.2s ease-out;
   pointer-events: auto;
   display: flex;
   flex-direction: column;
-  max-height: 70vh;
+  max-height: 72vh;
+  overflow: hidden;
 }
 
-/* 关闭按钮 */
+/* 选中文字保持高对比，避免黑底黑字看不清 */
+.tau-ai-panel ::selection {
+  background: rgba(96, 165, 250, 0.35);
+  color: #ffffff;
+}
+
+/* 顶栏：标题 + 关闭按钮 */
+.tau-ai-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  flex-shrink: 0;
+}
+
+.tau-ai-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #f5f5f7;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.tau-ai-panel-title svg {
+  color: #60a5fa;
+}
+
 .tau-ai-panel-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 28px;
   height: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  background: transparent;
   color: #8e8e93;
   border-radius: 50%;
   cursor: pointer;
   transition:
     background 0.15s,
     color 0.15s;
-  z-index: 1;
 }
 
 .tau-ai-panel-close:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #ccc;
+  background: rgba(255, 255, 255, 0.1);
+  color: #f5f5f7;
 }
 
-/* 选中文字预览 */
-.tau-ai-panel-context {
+/* 引用块（选中文字预览） */
+.tau-ai-panel-quote {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 16px 48px 12px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 10px;
+  margin: 0 16px 12px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 3px solid rgba(96, 165, 250, 0.5);
+  border-radius: 8px;
 }
 
-.tau-ai-panel-context-icon {
+.tau-ai-panel-quote-icon {
   flex-shrink: 0;
   color: #60a5fa;
-  margin-top: 2px;
+  margin-top: 1px;
+  opacity: 0.85;
 }
 
-.tau-ai-panel-context-text {
+.tau-ai-panel-quote-text {
   font-size: 13px;
-  line-height: 1.5;
-  color: #a1a1a6;
+  line-height: 1.55;
+  color: #c7c7cc;
   word-break: break-word;
+  user-select: text;
 }
 
-/* 输入区域 */
-.tau-ai-panel-input-wrap {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  padding: 12px 16px;
-}
-
-.tau-ai-panel-input {
-  flex: 1;
-  min-height: 36px;
-  max-height: 120px;
-  resize: none;
-  border: none;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #f5f5f7;
-  padding: 8px 12px;
-  font-size: 14px;
-  line-height: 1.5;
-  outline: none;
-  font-family: inherit;
-  overflow-y: auto;
-  box-sizing: border-box;
-}
-
-.tau-ai-panel-input::placeholder {
-  color: #6b6b70;
-}
-
-.tau-ai-panel-input:disabled {
-  opacity: 0.6;
-}
-
-.tau-ai-panel-input-actions {
-  flex-shrink: 0;
-}
-
-.tau-ai-panel-send,
-.tau-ai-panel-stop {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition:
-    background 0.15s,
-    opacity 0.15s;
-}
-
-.tau-ai-panel-send {
-  background: #3b82f6;
-  color: #fff;
-}
-
-.tau-ai-panel-send:hover {
-  background: #2563eb;
-}
-
-.tau-ai-panel-send:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.tau-ai-panel-stop {
-  background: rgba(248, 113, 113, 0.2);
-  color: #f87171;
-}
-
-.tau-ai-panel-stop:hover {
-  background: rgba(248, 113, 113, 0.3);
-}
-
-/* 连接状态区域 */
+/* 连接状态/错误提示 */
 .tau-ai-panel-connect {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 20px;
+  margin: 0 16px 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(248, 180, 64, 0.08);
 }
 
 .tau-ai-panel-status {
@@ -431,11 +458,11 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #8e8e93;
+  color: #d8a85a;
 }
 
 .tau-ai-panel-open-tau {
-  padding: 4px 14px;
+  padding: 4px 12px;
   border: 1px solid rgba(96, 165, 250, 0.3);
   border-radius: 6px;
   background: rgba(96, 165, 250, 0.1);
@@ -452,44 +479,142 @@
   border-color: rgba(96, 165, 250, 0.5);
 }
 
-/* 错误提示 */
 .tau-ai-panel-error {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 20px;
+  margin: 0 16px 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(248, 113, 113, 0.08);
   font-size: 12px;
   color: #f87171;
 }
 
-/* AI 响应区域 */
-.tau-ai-panel-response {
-  padding: 0 20px 16px;
+/* AI 响应区域（中间，可滚动，占满剩余空间） */
+.tau-ai-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 4px 18px 14px;
   overflow-y: auto;
-  max-height: 40vh;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 
-.tau-ai-panel-response::-webkit-scrollbar {
+.tau-ai-panel-body::-webkit-scrollbar {
   width: 4px;
 }
 
-.tau-ai-panel-response::-webkit-scrollbar-track {
+.tau-ai-panel-body::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.tau-ai-panel-response::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+.tau-ai-panel-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 2px;
+}
+
+/* 空态时 body 不占空 */
+.tau-ai-panel-body:empty {
+  display: none;
+}
+
+/* 底栏：胶囊输入区 */
+.tau-ai-panel-footer {
+  flex-shrink: 0;
+  padding: 10px 16px 14px;
+}
+
+.tau-ai-panel-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 6px 6px 6px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  transition: border-color 0.15s;
+}
+
+.tau-ai-panel-composer:focus-within {
+  border-color: rgba(96, 165, 250, 0.5);
+}
+
+.tau-ai-panel-input {
+  flex: 1;
+  min-height: 32px;
+  max-height: 140px;
+  resize: none;
+  border: none;
+  background: transparent;
+  color: #f5f5f7;
+  padding: 7px 0;
+  font-size: 14px;
+  line-height: 1.5;
+  outline: none;
+  font-family: inherit;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.tau-ai-panel-input::placeholder {
+  color: #6b6b70;
+}
+
+.tau-ai-panel-input:disabled {
+  opacity: 0.6;
+}
+
+.tau-ai-panel-send,
+.tau-ai-panel-stop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    opacity 0.15s,
+    transform 0.1s;
+}
+
+.tau-ai-panel-send {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.tau-ai-panel-send:hover {
+  background: #2563eb;
+}
+
+.tau-ai-panel-send:active {
+  transform: scale(0.94);
+}
+
+.tau-ai-panel-send:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.tau-ai-panel-stop {
+  background: rgba(248, 113, 113, 0.2);
+  color: #f87171;
+}
+
+.tau-ai-panel-stop:hover {
+  background: rgba(248, 113, 113, 0.32);
 }
 
 /* 加载动画 */
 .tau-ai-panel-loading {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 8px 0;
+  gap: 5px;
+  padding: 10px 2px;
 }
 
 .tau-ai-panel-loading-dot {

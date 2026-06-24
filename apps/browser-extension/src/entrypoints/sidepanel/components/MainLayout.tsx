@@ -47,6 +47,12 @@ export default function MainLayout({
   const [pageAnimating, setPageAnimating] = useState(false);
   const [pageDirection, setPageDirection] = useState<"in" | "out">("in");
   const pendingNoteRef = useRef<PendingNoteSelection | null>(null);
+  // 当前页高亮数量，由 HighlightsTab 上报，用于 TabBar 徽标
+  const [highlightCount, setHighlightCount] = useState(0);
+
+  const handleHighlightCountChange = useCallback((count: number) => {
+    setHighlightCount(count);
+  }, []);
 
   const navigateTo = useCallback((page: PageType) => {
     setPageDirection("in");
@@ -111,7 +117,13 @@ export default function MainLayout({
           />
         );
       case "highlights":
-        return <HighlightsTab key={url} url={url} />;
+        return (
+          <HighlightsTab
+            key={url}
+            url={url}
+            onCountChange={handleHighlightCountChange}
+          />
+        );
     }
   };
 
@@ -162,6 +174,7 @@ export default function MainLayout({
           currentTab={currentTab}
           onTabChange={setCurrentTab}
           onAllNotesClick={() => navigateTo("allNotes")}
+          highlightCount={highlightCount}
         />
       </div>
 

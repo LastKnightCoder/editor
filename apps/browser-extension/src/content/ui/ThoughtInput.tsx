@@ -50,39 +50,78 @@ export default function ThoughtInput({
         className="tau-thought-input"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* 右上角关闭按钮 */}
-        <button className="tau-thought-input-close" onClick={onClose}>
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        <header className="tau-thought-header">
+          <div className="tau-thought-title">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            <span>想法</span>
+          </div>
+          <button
+            className="tau-thought-close"
+            onClick={onClose}
+            title="关闭"
+            aria-label="关闭"
           >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </header>
 
-        <div className="tau-thought-input-body">
+        <div className="tau-thought-body">
           <p className="tau-thought-view-text">{annotation.text}</p>
         </div>
 
-        <div className="tau-thought-input-footer">
-          <button
-            className="tau-thought-view-action"
-            onClick={onDelete}
-            title="删除"
-          >
-            删除
-          </button>
-          <button className="tau-thought-submit" onClick={onEdit}>
-            编辑
-          </button>
-        </div>
+        <footer className="tau-thought-footer">
+          <div className="tau-thought-meta">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <span>{new Date(annotation.updatedAt).toLocaleString()}</span>
+          </div>
+          <div className="tau-thought-actions">
+            <button
+              className="tau-thought-ghost-btn tau-thought-danger"
+              onClick={onDelete}
+              title="删除"
+            >
+              删除
+            </button>
+            <button className="tau-thought-primary-btn" onClick={onEdit}>
+              编辑
+            </button>
+          </div>
+        </footer>
       </div>
     );
   }
@@ -112,28 +151,9 @@ export default function ThoughtInput({
 
   return (
     <div className="tau-thought-input" onMouseDown={(e) => e.stopPropagation()}>
-      {/* 右上角关闭按钮 */}
-      <button className="tau-thought-input-close" onClick={onClose}>
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
-
-      {/* textarea 区域，带内联思考图标 */}
-      <div className="tau-thought-input-body">
-        <div className="tau-thought-textarea-wrap">
+      <header className="tau-thought-header">
+        <div className="tau-thought-title">
           <svg
-            className="tau-thought-textarea-icon"
             width="16"
             height="16"
             viewBox="0 0 24 24"
@@ -145,10 +165,37 @@ export default function ThoughtInput({
           >
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
+          <span>写想法</span>
+        </div>
+        <button
+          className="tau-thought-close"
+          onClick={onClose}
+          title="关闭"
+          aria-label="关闭"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </header>
+
+      {/* textarea 区域 */}
+      <div className="tau-thought-body">
+        <div className="tau-thought-textarea-wrap">
           <textarea
             ref={textareaRef}
             className="tau-thought-textarea"
-            placeholder="写下这一刻的想法"
+            placeholder="写下这一刻的想法…"
             value={text}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
@@ -158,16 +205,16 @@ export default function ThoughtInput({
       </div>
 
       {/* 底部 footer */}
-      <div className="tau-thought-input-footer">
-        <div />
+      <footer className="tau-thought-footer">
+        <span className="tau-thought-hint">Enter 保存 · Esc 关闭</span>
         <button
-          className="tau-thought-submit"
+          className="tau-thought-primary-btn"
           onClick={handleSubmit}
           disabled={!text.trim()}
         >
           保存
         </button>
-      </div>
+      </footer>
     </div>
   );
 }

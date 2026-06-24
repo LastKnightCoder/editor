@@ -101,6 +101,8 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
   const [thoughtHighlightId, setThoughtHighlightId] = useState<string | null>(
     null,
   );
+  // 新建想法时临时创建的高亮 id；若关闭未保存则回退该高亮
+  const pendingNewThoughtRef = useRef<string | null>(null);
 
   // AI 问书面板状态
   const [aiPanelVisible, setAiPanelVisible] = useState(false);
@@ -257,6 +259,20 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
 
   // Dismiss all UI
   const dismissAll = useCallback(() => {
+    // 若有未保存的新建想法高亮，回退
+    const pendingId = pendingNewThoughtRef.current;
+    if (pendingId) {
+      removeHighlight(pendingId);
+      updatePageData((prev) => ({
+        ...prev,
+        highlights: prev.highlights.filter((h) => h.id !== pendingId),
+        annotations: (() => {
+          const { [pendingId]: _, ...rest } = prev.annotations;
+          return rest;
+        })(),
+      }));
+      pendingNewThoughtRef.current = null;
+    }
     setToolbarVisible(false);
     setColorPickerVisible(false);
     setThoughtVisible(false);
@@ -265,7 +281,7 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
     setEditingHighlightId(null);
     editingTextRef.current = "";
     toolbarAnchorRef.current = null;
-  }, []);
+  }, [updatePageData]);
 
   const disableToolbarForever = useCallback(async () => {
     setToolbarAutoDisabled(true);
@@ -333,6 +349,20 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
       // 新选区出现时，退出编辑模式
       setEditingHighlightId(null);
       editingTextRef.current = "";
+      // 若有未保存的新建想法高亮，先回退再关闭浮层
+      const pendingId = pendingNewThoughtRef.current;
+      if (pendingId) {
+        removeHighlight(pendingId);
+        updatePageData((prev) => ({
+          ...prev,
+          highlights: prev.highlights.filter((h) => h.id !== pendingId),
+          annotations: (() => {
+            const { [pendingId]: _, ...rest } = prev.annotations;
+            return rest;
+          })(),
+        }));
+        pendingNewThoughtRef.current = null;
+      }
       setThoughtVisible(false);
       setThoughtHighlightId(null);
       setColorPickerVisible(false);
@@ -719,8 +749,9 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
     const info = selectionRef.current;
     if (!info) return;
 
-    // 新建模式：用 dashed 虚线下划线样式创建高亮
+    // 新建模式：用 dashed 虚线下划线样式创建高亮（立即视觉反馈）
     const id = createHighlight(info.range, "dashed", selectedColor);
+    pendingNewThoughtRef.current = id;
     window.getSelection()?.removeAllRanges();
 
     setThoughtHighlightId(id);
@@ -766,6 +797,7 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
           },
         };
       });
+      pendingNewThoughtRef.current = null;
       setThoughtVisible(false);
       setThoughtHighlightId(null);
       setEditingHighlightId(null);
@@ -790,9 +822,15 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
   }, [thoughtHighlightId, updatePageData]);
 
   const handleThoughtClose = useCallback(() => {
+    // 若是新建想法且未保存，回退临时创建的高亮
+    const pendingId = pendingNewThoughtRef.current;
+    if (pendingId) {
+      deleteHighlight(pendingId);
+      pendingNewThoughtRef.current = null;
+    }
     setThoughtVisible(false);
     setThoughtHighlightId(null);
-  }, []);
+  }, [deleteHighlight]);
 
   const handleAskAI = useCallback(() => {
     const info = selectionRef.current;
