@@ -5,6 +5,8 @@ interface TabBarProps {
   currentTab: TabType;
   onTabChange: (tab: TabType) => void;
   onAllNotesClick: () => void;
+  /** 当前页高亮数量，用于在「高亮」Tab 上展示徽标 */
+  highlightCount?: number;
 }
 
 const TABS: { id: TabType; label: string; icon: React.ReactNode }[] = [
@@ -90,22 +92,29 @@ export default function TabBar({
   currentTab,
   onTabChange,
   onAllNotesClick,
+  highlightCount = 0,
 }: TabBarProps) {
   return (
-    <nav className="flex shrink-0 items-center gap-2 px-3 py-2">
+    <nav className="flex shrink-0 items-center gap-1.5 px-3 py-2">
       {TABS.map((tab) => {
         const isActive = currentTab === tab.id;
+        const showBadge = tab.id === "highlights" && highlightCount > 0;
         return (
           <Tooltip key={tab.id} title={tab.label} placement="top">
             <button
               onClick={() => onTabChange(tab.id)}
-              className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+              className={`relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors before:absolute before:inset-x-2.5 before:top-0 before:h-[2px] before:rounded-full before:transition-opacity before:content-[""] ${
                 isActive
-                  ? "bg-black/6 text-gray-900 dark:bg-white/10 dark:text-[#e6edf3]"
-                  : "text-gray-500 hover:bg-gray-100 hover:text-gray-600 dark:text-[#6e7681] dark:hover:bg-[#222222] dark:hover:text-[#8b949e]"
+                  ? "bg-[var(--sb-tab-active-bg)] text-[var(--sb-tab-active-text)] before:bg-[var(--sb-tab-indicator)] before:opacity-100"
+                  : "text-gray-500 hover:bg-[var(--sb-tab-hover-bg)] hover:text-gray-700 before:opacity-0 dark:text-[#6e7681] dark:hover:text-[#adbac7]"
               }`}
             >
               {tab.icon}
+              {showBadge && (
+                <span className="absolute right-0.5 top-0.5 flex min-w-[16px] items-center justify-center rounded-full bg-[var(--sb-tab-badge-bg)] px-1 text-[10px] font-semibold leading-[16px] text-[var(--sb-tab-badge-text)]">
+                  {highlightCount > 9 ? "9+" : highlightCount}
+                </span>
+              )}
             </button>
           </Tooltip>
         );
@@ -118,7 +127,7 @@ export default function TabBar({
       <Tooltip title="全部笔记" placement="top">
         <button
           onClick={onAllNotesClick}
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-[#6e7681] dark:hover:bg-[#222222] dark:hover:text-[#8b949e]"
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-[var(--sb-tab-hover-bg)] hover:text-gray-700 dark:text-[#6e7681] dark:hover:text-[#adbac7]"
         >
           <svg
             className="h-[18px] w-[18px]"

@@ -109,13 +109,9 @@ code {
   --box-shadow1: 0 3px 6px 0 rgba(0, 0, 0, 0.15);
   --box-shadow2: 0 4px 21px -12px rgba(0, 0, 0, 0.6);
   --block-panel-active-bg: #e6e6e6;
-  --common-hover-bg: #eef0f5;
-  --item-common-hover-bg: rgba(0, 0, 0, 0.04);
   --table-border-color: #dadde1;
   --table-odd-bg: #e6e6e666;
   --card-bg-color: rgb(255 255 255 / 0.4);
-  --bottom-line-bg: #3358d4;
-  --tab-active-color: #ecedf1;
   --scroller-track-background-color: rgba(0, 0, 0, 0.04);
   --scroller-thumb-background-color: rgba(0, 0, 0, 0.06);
   --normal-card-bg: hsl(168, 8%, 95%);
@@ -128,8 +124,6 @@ code {
   --bullet-list-item-shodow: 0 0 0 0.3em hsla(168, 90%, 85%, 0.55);
   --selection-color: #d9f0ff;
   --sidebar-background: transparent;
-  --sidebar-active-bg: #e8f0f6;
-  --second-sidevar-background: #f2f3f4;
   --shadow: 0 0 5px rgba(0, 0, 0, 0.1);
 
   --bg-secondary: #f7f7f7;
@@ -141,6 +135,26 @@ code {
 
   --color-hover-bg: rgba(0, 0, 0, 0.04);
   --color-active-bg: rgba(0, 0, 0, 0.06);
+
+  /* ==================== 侧边栏语义 token（--sb-*）==================== */
+  /* 表面层级：灰底白卡，消除"白底白卡"层级模糊问题 */
+  --sb-surface: var(--color-bg-page);
+  --sb-card-bg: var(--color-bg-container);
+  --sb-card-border: color-mix(in srgb, #000 6%, transparent);
+  --sb-card-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.04);
+  --sb-card-shadow-hover:
+    0 3px 8px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05);
+  --sb-card-shadow-expanded:
+    0 4px 14px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+  /* Tab 导航 */
+  --sb-tab-hover-bg: color-mix(in srgb, #000 5%, transparent);
+  --sb-tab-active-bg: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  --sb-tab-active-text: var(--color-primary);
+  --sb-tab-indicator: var(--color-primary);
+  --sb-tab-badge-bg: color-mix(in srgb, var(--color-primary) 16%, transparent);
+  --sb-tab-badge-text: var(--color-primary);
+  --sb-divider: var(--color-border-secondary);
 }
 
 .dark {
@@ -186,8 +200,6 @@ code {
   --table-border-color: #606770;
   --card-bg-color: rgb(255 255 255 / 0.01);
   --card-line-color: #3a3f44;
-  --bottom-line-bg: #5472e4;
-  --tab-active-color: #272f3b;
   --scroller-track-background-color: rgba(255, 255, 255, 0.12);
   --scroller-thumb-background-color: rgba(255, 255, 255, 0.24);
   --normal-card-bg: #1d1f22;
@@ -201,8 +213,6 @@ code {
   --bullet-list-item-shodow: 0 0 0 0.3em hsla(168, 90%, 85%, 0.55);
   --selection-color: #182f3f;
   --sidebar-background: transparent;
-  --sidebar-active-bg: #313131;
-  --second-sidevar-background: #363636;
   --shadow:
     0 4px 5px rgba(200, 220, 255, 0.15), 0 8px 10px rgba(158, 178, 255, 0.1);
 
@@ -215,6 +225,22 @@ code {
 
   --color-hover-bg: rgba(255, 255, 255, 0.08);
   --color-active-bg: rgba(255, 255, 255, 0.12);
+
+  /* ==================== 侧边栏语义 token（--sb-*）暗色 ==================== */
+  --sb-surface: var(--color-bg-page);
+  --sb-card-bg: var(--color-bg-container);
+  --sb-card-border: color-mix(in srgb, #fff 8%, transparent);
+  --sb-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --sb-card-shadow-hover: 0 3px 8px rgba(0, 0, 0, 0.4);
+  --sb-card-shadow-expanded:
+    0 4px 14px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --sb-tab-hover-bg: color-mix(in srgb, #fff 8%, transparent);
+  --sb-tab-active-bg: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  --sb-tab-active-text: var(--color-primary);
+  --sb-tab-indicator: var(--color-primary);
+  --sb-tab-badge-bg: color-mix(in srgb, var(--color-primary) 22%, transparent);
+  --sb-tab-badge-text: var(--color-primary);
+  --sb-divider: var(--color-border-secondary);
 }
 
 .edit-text-with-placeholder[data-empty="true"][data-placeholder]::before {
