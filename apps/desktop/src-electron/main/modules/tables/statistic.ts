@@ -7,6 +7,15 @@ import ArticleTable from "./article";
 import ProjectTable from "./project";
 import DocumentTable from "./document";
 import log from "electron-log";
+
+// 统计覆盖的内容类型，与首页趋势图 TREND_TYPES 对应
+const STATISTIC_TYPES = [
+  "card",
+  "article",
+  "project-item",
+  "document-item",
+] as const;
+
 export default class StatisticTable {
   static upgradeTable(db: Database.Database) {
     // 在 upgradeTable 中执行统计，确保所有表的字段都已升级完毕
@@ -37,10 +46,7 @@ export default class StatisticTable {
 
   static doStatistic(db: Database.Database) {
     try {
-      this.doStatisticByType(db, "card");
-      this.doStatisticByType(db, "article");
-      this.doStatisticByType(db, "project-item");
-      this.doStatisticByType(db, "document-item");
+      STATISTIC_TYPES.forEach((type) => this.doStatisticByType(db, type));
     } catch (error) {
       log.error("统计失败", error);
     }
@@ -53,6 +59,43 @@ export default class StatisticTable {
     }, dayjs(tomorrow).diff(dayjs()));
   }
 
+  // 实时计算某类型的当前全量快照（count + wordsCount）
+  // 归档写入与查询时补算今日均复用此逻辑，保证口径一致
+  static computeSnapshot(
+    db: Database.Database,
+    type: string,
+  ): { count: number; wordsCount: number } {
+    if (type === "card") {
+      const cards = CardTable.getAllCards(db);
+      return {
+        count: cards.length,
+        wordsCount: cards.reduce((acc, card) => acc + card.count, 0),
+      };
+    }
+    if (type === "article") {
+      const articles = ArticleTable.getAllArticles(db);
+      return {
+        count: articles.length,
+        wordsCount: articles.reduce((acc, article) => acc + article.count, 0),
+      };
+    }
+    if (type === "project-item") {
+      const projectItems = ProjectTable.getAllProjectItems(db);
+      return {
+        count: projectItems.length,
+        wordsCount: projectItems.reduce((acc, item) => acc + item.count, 0),
+      };
+    }
+    if (type === "document-item") {
+      const documentItems = DocumentTable.getAllDocumentItems(db);
+      return {
+        count: documentItems.length,
+        wordsCount: documentItems.reduce((acc, item) => acc + item.count, 0),
+      };
+    }
+    return { count: 0, wordsCount: 0 };
+  }
+
   static doStatisticByType(db: Database.Database, type: string) {
     // 获取昨天的日期
     const yesterday = dayjs().subtract(1, "day").format("YYYY-MM-DD");
@@ -63,59 +106,10 @@ export default class StatisticTable {
     if (exist) {
       return;
     }
-    if (type === "card") {
-      const cards = CardTable.getAllCards(db);
-      const wordsCount = cards.reduce((acc, card) => {
-        return acc + card.count;
-      }, 0);
-      const content = {
-        count: cards.length,
-        wordsCount,
-      };
-      const stmt = db.prepare(
-        `INSERT INTO statistic (date, statistic_type, content) VALUES (?, ?, ?)`,
-      );
-      stmt.run(yesterday, type, JSON.stringify(content));
-    } else if (type === "article") {
-      const articles = ArticleTable.getAllArticles(db);
-      const wordsCount = articles.reduce((acc, article) => {
-        return acc + article.count;
-      }, 0);
-      const content = {
-        count: articles.length,
-        wordsCount,
-      };
-      const stmt = db.prepare(
-        `INSERT INTO statistic (date, statistic_type, content) VALUES (?, ?, ?)`,
-      );
-      stmt.run(yesterday, type, JSON.stringify(content));
-    } else if (type === "project-item") {
-      const projectItems = ProjectTable.getAllProjectItems(db);
-      const wordsCount = projectItems.reduce((acc, projectItem) => {
-        return acc + projectItem.count;
-      }, 0);
-      const content = {
-        count: projectItems.length,
-        wordsCount,
-      };
-      const stmt = db.prepare(
-        `INSERT INTO statistic (date, statistic_type, content) VALUES (?, ?, ?)`,
-      );
-      stmt.run(yesterday, type, JSON.stringify(content));
-    } else if (type === "document-item") {
-      const documentItems = DocumentTable.getAllDocumentItems(db);
-      const wordsCount = documentItems.reduce((acc, documentItem) => {
-        return acc + documentItem.count;
-      }, 0);
-      const content = {
-        count: documentItems.length,
-        wordsCount,
-      };
-      const stmt = db.prepare(
-        `INSERT INTO statistic (date, statistic_type, content) VALUES (?, ?, ?)`,
-      );
-      stmt.run(yesterday, type, JSON.stringify(content));
-    }
+    const content = this.computeSnapshot(db, type);
+    db.prepare(
+      `INSERT INTO statistic (date, statistic_type, content) VALUES (?, ?, ?)`,
+    ).run(yesterday, type, JSON.stringify(content));
   }
 
   static getStatisticByDate(db: Database.Database, date: string) {
@@ -163,8 +157,24 @@ export default class StatisticTable {
   }
 
   static getAllStatistic(db: Database.Database): StatisticData[] {
-    const stmt = db.prepare(`SELECT * FROM statistic`);
-    return stmt.all().map(this.parseStatistic);
+    const archived = db
+      .prepare(`SELECT * FROM statistic`)
+      .all()
+      .map(this.parseStatistic);
+    // 归档快照仅在凌晨/App 启动时写入，白天 CRUD 不会刷新今天的记录。
+    // 这里对今天实时补算 4 类快照并覆盖归档值，使首页趋势图当天可见。
+    const today = dayjs().format("YYYY-MM-DD");
+    const merged = new Map<string, StatisticData>();
+    archived.forEach((s) => merged.set(`${s.date}:${s.statisticType}`, s));
+    STATISTIC_TYPES.forEach((type) => {
+      merged.set(`${today}:${type}`, {
+        id: 0,
+        date: today,
+        statisticType: type,
+        content: this.computeSnapshot(db, type),
+      });
+    });
+    return Array.from(merged.values());
   }
 
   static groupByStatisticType(

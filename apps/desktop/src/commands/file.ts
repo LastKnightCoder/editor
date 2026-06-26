@@ -113,7 +113,7 @@ export const convertFileSrc = async (filePath: string): Promise<string> => {
 
 export const openMarkdownInNewWindow = async (filePath: string) => {
   return await invoke("open-markdown-in-new-window", filePath, {
-    showTitlebar: false,
+    showTitlebar: true,
     isDefaultTop: false,
   });
 };
