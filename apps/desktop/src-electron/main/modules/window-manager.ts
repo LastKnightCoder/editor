@@ -851,9 +851,7 @@ export class WindowManager {
       }
     }
 
-    const baseConfig = this.createBaseWindowConfig({
-      nativeTitlebar: type === "markdown",
-    });
+    const baseConfig = this.createBaseWindowConfig();
     if (type === "markdown") {
       const display = screen.getDisplayNearestPoint(
         screen.getCursorScreenPoint(),
