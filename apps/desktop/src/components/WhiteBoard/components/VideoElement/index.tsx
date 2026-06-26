@@ -1,5 +1,7 @@
-import React, { memo, useMemo } from "react";
+import React, { memo, useCallback, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
+import { Tooltip } from "antd";
+import { StickyNote } from "lucide-react";
 import If from "@/components/If";
 import LocalVideo from "@/components/LocalVideo";
 // keep single If import
@@ -117,6 +119,15 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
 
   const board = useBoard();
   const { isSelected } = useSelectState(id);
+  const setVideoRef = useCallback(
+    (video: HTMLVideoElement | null) => {
+      board.emit("video-note:element-ref", {
+        elementId: id,
+        video,
+      });
+    },
+    [board, id],
+  );
 
   const {
     isMoveArrowClosing,
@@ -166,6 +177,14 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
     },
   );
 
+  const handleOpenVideoNote = useMemoizedFn(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      board.emit("video-note:open", element);
+    },
+  );
+
   return (
     <>
       <foreignObject
@@ -179,111 +198,159 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
           height,
         }}
       >
-        {/* 平台视频优先按平台渲染 */}
-        <If condition={isBilibili}>
-          <>
-            <BilibiliVideoLoader
-              loading={bilibiliLoading}
-              error={bilibiliError}
-              streamProgress={bilibiliProgress}
-            />
-            <If
-              condition={
-                !!bilibiliVideoUrl && !bilibiliLoading && !bilibiliError
-              }
+        <div
+          className="group relative h-full w-full"
+          data-whiteboard-stop-keyboard="true"
+        >
+          <Tooltip title="视频笔记">
+            <button
+              type="button"
+              className="absolute right-5 top-5 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-black/10 bg-white/90 text-gray-600 opacity-0 shadow-sm transition-opacity hover:bg-white hover:text-blue-500 group-hover:opacity-100 dark:border-white/10 dark:bg-zinc-900/90 dark:text-gray-300 dark:hover:bg-zinc-900"
+              style={{ display: isSelected ? "none" : undefined }}
+              onClick={handleOpenVideoNote}
+              onPointerDown={(event) => event.stopPropagation()}
+              onMouseDown={(event) => event.stopPropagation()}
             >
-              <LocalVideo
-                src={bilibiliVideoUrl as string}
-                controls
-                style={{ padding: 16, boxSizing: "border-box" }}
-                width={"100%"}
-                height={"100%"}
+              <StickyNote size={16} />
+            </button>
+          </Tooltip>
+          {/* 平台视频优先按平台渲染 */}
+          <If condition={isBilibili}>
+            <>
+              <BilibiliVideoLoader
+                loading={bilibiliLoading}
+                error={bilibiliError}
+                streamProgress={bilibiliProgress}
               />
-            </If>
-          </>
-        </If>
-        <If condition={isYoutube}>
-          <>
-            <YoutubeVideoLoader
-              loading={youtubeLoading}
-              error={youtubeError}
-              streamProgress={youtubeProgress}
-            />
-            <If
-              condition={!!youtubeVideoUrl && !youtubeLoading && !youtubeError}
-            >
-              <LocalVideo
-                src={youtubeVideoUrl as string}
-                controls
-                style={{ padding: 16, boxSizing: "border-box" }}
-                width={"100%"}
-                height={"100%"}
-              />
-            </If>
-          </>
-        </If>
-        <If condition={isNotion}>
-          <>
-            <NotionVideoLoader
-              loading={notionLoading}
-              error={notionError}
-              streamProgress={notionProgress}
-            />
-            <If condition={!!notionVideoUrl && !notionLoading && !notionError}>
-              {notionMeta && notionMeta.cache !== false ? (
+              <If
+                condition={
+                  !!bilibiliVideoUrl && !bilibiliLoading && !bilibiliError
+                }
+              >
                 <LocalVideo
-                  src={notionVideoUrl as string}
+                  ref={setVideoRef}
+                  src={bilibiliVideoUrl as string}
                   controls
                   style={{ padding: 16, boxSizing: "border-box" }}
                   width={"100%"}
                   height={"100%"}
                 />
-              ) : (
-                <video
-                  src={notionVideoUrl as string}
+              </If>
+            </>
+          </If>
+          <If condition={isYoutube}>
+            <>
+              <YoutubeVideoLoader
+                loading={youtubeLoading}
+                error={youtubeError}
+                streamProgress={youtubeProgress}
+              />
+              <If
+                condition={
+                  !!youtubeVideoUrl && !youtubeLoading && !youtubeError
+                }
+              >
+                <LocalVideo
+                  ref={setVideoRef}
+                  src={youtubeVideoUrl as string}
                   controls
-                  style={{
-                    padding: 16,
-                    boxSizing: "border-box",
-                    display: "block",
-                  }}
+                  style={{ padding: 16, boxSizing: "border-box" }}
                   width={"100%"}
                   height={"100%"}
                 />
-              )}
-            </If>
-          </>
-        </If>
-        <If condition={!isBilibili && !isYoutube && !isNotion}>
-          {shouldUseLocalVideo ? (
-            <LocalVideo
-              src={src}
-              controls
-              style={{ padding: 16, boxSizing: "border-box" }}
-              width={"100%"}
-              height={"100%"}
-              onClick={(e: React.MouseEvent) => {
-                e.preventDefault();
-              }}
-            />
-          ) : (
-            <video
-              src={src}
-              controls
-              style={{
-                padding: 16,
-                boxSizing: "border-box",
-                display: "block",
-              }}
-              width={"100%"}
-              height={"100%"}
-              onClick={(e: React.MouseEvent) => {
-                e.preventDefault();
-              }}
-            />
-          )}
-        </If>
+              </If>
+            </>
+          </If>
+          <If condition={isNotion}>
+            <>
+              <NotionVideoLoader
+                loading={notionLoading}
+                error={notionError}
+                streamProgress={notionProgress}
+              />
+              <If
+                condition={!!notionVideoUrl && !notionLoading && !notionError}
+              >
+                {notionMeta && notionMeta.cache !== false ? (
+                  <LocalVideo
+                    ref={setVideoRef}
+                    src={notionVideoUrl as string}
+                    controls
+                    style={{ padding: 16, boxSizing: "border-box" }}
+                    width={"100%"}
+                    height={"100%"}
+                  />
+                ) : (
+                  <video
+                    ref={setVideoRef}
+                    src={notionVideoUrl as string}
+                    controls
+                    style={{
+                      padding: 16,
+                      boxSizing: "border-box",
+                      display: "block",
+                    }}
+                    width={"100%"}
+                    height={"100%"}
+                  />
+                )}
+              </If>
+            </>
+          </If>
+          <If condition={!isBilibili && !isYoutube && !isNotion}>
+            {shouldUseLocalVideo ? (
+              <LocalVideo
+                ref={setVideoRef}
+                src={src}
+                controls
+                style={{ padding: 16, boxSizing: "border-box" }}
+                width={"100%"}
+                height={"100%"}
+                onClick={(e: React.MouseEvent) => {
+                  e.preventDefault();
+                }}
+              />
+            ) : (
+              <video
+                ref={setVideoRef}
+                src={src}
+                controls
+                style={{
+                  padding: 16,
+                  boxSizing: "border-box",
+                  display: "block",
+                }}
+                width={"100%"}
+                height={"100%"}
+                onClick={(e: React.MouseEvent) => {
+                  e.preventDefault();
+                }}
+              />
+            )}
+          </If>
+        </div>
       </foreignObject>
+      <If condition={isSelected}>
+        <foreignObject
+          x={x + width - 44}
+          y={y + 12}
+          width={32}
+          height={32}
+          className="overflow-visible"
+        >
+          <Tooltip title="视频笔记">
+            <button
+              type="button"
+              className="flex h-8 w-8 items-center justify-center rounded-md border border-black/10 bg-white text-gray-600 shadow-sm transition-colors hover:text-blue-500 dark:border-white/10 dark:bg-zinc-900 dark:text-gray-300"
+              onClick={handleOpenVideoNote}
+              onPointerDown={(event) => event.stopPropagation()}
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <StickyNote size={16} />
+            </button>
+          </Tooltip>
+        </foreignObject>
+      </If>
       <If condition={isSelected}>
         <g>
           <rect

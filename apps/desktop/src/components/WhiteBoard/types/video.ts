@@ -3,6 +3,7 @@ import type { StreamOption } from "@/types/youtube";
 
 export interface VideoElement extends CommonElement {
   src: string;
+  videoNoteId?: number;
   // 视频的自然宽高，用于在 Column 等容器中保持宽高比
   naturalWidth?: number;
   naturalHeight?: number;
