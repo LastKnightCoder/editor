@@ -8,11 +8,21 @@ import {
   ThunderboltOutlined,
   BookOutlined,
 } from "@ant-design/icons";
-import { Pencil, FileText, Expand, Plus, ArrowLeft } from "lucide-react";
-import { App, Tooltip, Spin, Empty, Select } from "antd";
+import {
+  Pencil,
+  FileText,
+  Expand,
+  Plus,
+  ArrowLeft,
+  MessageCircle,
+  Trash2,
+  StickyNote,
+  Subtitles,
+} from "lucide-react";
+import { App, Tooltip } from "antd";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import classNames from "classnames";
-import { Descendant } from "slate";
+import { Descendant, Node } from "slate";
 import { Editor, EditorRef } from "@tau/editor/src";
 import { importFromMarkdown, getMarkdown } from "@/utils/markdown";
 import { formatDate } from "@/utils";
@@ -34,8 +44,6 @@ import {
   updateContent,
   updateVideoNoteTranscript,
   updateVideoNoteSummary,
-  updateVideoNoteHighlights,
-  updateVideoNoteInsights,
 } from "@/commands";
 import {
   transcribeAudio,
@@ -52,7 +60,6 @@ import {
 import { useLLMConfig } from "@/hooks/useLLMConfig";
 import { useTranscriptionOptimization } from "@/hooks/useTranscriptionOptimization";
 import { useVideoSummary } from "@/hooks/useVideoSummary";
-import { useVideoInsights } from "@/hooks/useVideoInsights";
 import { getBilibiliCacheStatus } from "@/commands/bilibili-cache";
 import {
   downloadRemoteVideoWithProgress,
@@ -64,8 +71,6 @@ import {
   type VideoNote as IVideoNote,
   type VideoNoteItem,
   type TranscriptSegment,
-  type VideoNoteHighlight,
-  type VideoNoteTopic,
   BiliBiliVideoMetaInfo,
   YouTubeVideoMetaInfo,
   NotionVideoMetaInfo,
@@ -78,11 +83,11 @@ import VideoScreenshotExtension from "./extensions/VideoScreenshot";
 import SummaryTimestampExtension from "./extensions/SummaryTimestamp";
 import { VideoController } from "./VideoController";
 import VideoNoteChatPanel from "./VideoNoteChatPanel";
+import LanguageSelect from "./LanguageSelect";
 import {
   VIDEO_NOTE_AUTO_LANGUAGE,
   resolveVideoNoteOptimizationLanguage,
 } from "./transcription-language";
-import { computeTranscriptHash } from "@/hooks/video-insights-parser";
 import VideoNoteEpubExportModal from "./VideoNoteEpubExportModal";
 
 const DEFAULT_CONTENT: Descendant[] = [
@@ -94,6 +99,15 @@ const DEFAULT_CONTENT: Descendant[] = [
 
 const createEmptyEditorContent = (): Descendant[] =>
   JSON.parse(JSON.stringify(DEFAULT_CONTENT)) as Descendant[];
+
+const getNotePreview = (content: Descendant[] | undefined): string => {
+  if (!content || content.length === 0) return "";
+  for (const node of content) {
+    const text = Node.string(node).trim();
+    if (text) return text;
+  }
+  return "";
+};
 
 const isRemoteHttpUrl = (value: string) =>
   /^https?:\/\//i.test(value) && !/^https?:\/\/localhost/i.test(value);
@@ -122,6 +136,9 @@ interface VideoNotePanelProps {
   transcriptionLanguage?: string;
   onTranscriptionLanguageChange?: (language: string) => void;
   onVideoNoteChange?: (videoNote: IVideoNote) => void;
+  subtitleMounted?: boolean;
+  onSubtitleMountedChange?: (mounted: boolean) => void;
+  reserveCloseButtonSpace?: boolean;
 }
 
 const VideoNotePanel = ({
@@ -131,6 +148,9 @@ const VideoNotePanel = ({
   transcriptionLanguage: controlledTranscriptionLanguage,
   onTranscriptionLanguageChange,
   onVideoNoteChange,
+  subtitleMounted,
+  onSubtitleMountedChange,
+  reserveCloseButtonSpace = false,
 }: VideoNotePanelProps) => {
   const { message, modal } = App.useApp();
   const dynamicExtensions = useDynamicExtensionsStore(
@@ -172,10 +192,6 @@ const VideoNotePanel = ({
     stopSummary,
     error: summaryError,
   } = useVideoSummary(summaryProviderConfig, summaryModelConfig);
-  const { generateInsights } = useVideoInsights(
-    summaryProviderConfig,
-    summaryModelConfig,
-  );
 
   // State
   const [videoNote, setVideoNote] = useState<IVideoNote | null>(null);
@@ -214,7 +230,6 @@ const VideoNotePanel = ({
   );
   const [detectedTranscriptionLanguage, setDetectedTranscriptionLanguage] =
     useState<string | null>(null);
-  const [selectedTheme] = useState<string | null>(null);
 
   // 当前高亮的转录片段索引（用于视频播放时的同步高亮）
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState<number | null>(
@@ -258,47 +273,6 @@ const VideoNotePanel = ({
     }
     return "";
   }, [videoNote]);
-  const currentTranscriptHash = useMemo(
-    () => computeTranscriptHash("", videoNote?.transcriptSegments),
-    [videoNote?.transcriptSegments],
-  );
-  const hasInsights = useMemo(() => {
-    const topics = videoNote?.insights?.topics || [];
-    const highlights = videoNote?.insights?.highlights || [];
-    return topics.length > 0 && highlights.length > 0;
-  }, [videoNote?.insights]);
-  const sortedHighlights = useMemo<VideoNoteHighlight[]>(() => {
-    const source = hasInsights
-      ? videoNote?.insights?.highlights
-      : videoNote?.highlights;
-    const list = Array.isArray(source) ? [...source] : [];
-    return list.sort((a, b) => a.start - b.start);
-  }, [hasInsights, videoNote?.insights?.highlights, videoNote?.highlights]);
-  const allTopics = useMemo<VideoNoteTopic[]>(
-    () => (hasInsights ? videoNote?.insights?.topics || [] : []),
-    [hasInsights, videoNote?.insights?.topics],
-  );
-  const selectedTopic = useMemo(
-    () => allTopics.find((topic) => topic.id === selectedTheme) || null,
-    [allTopics, selectedTheme],
-  );
-  const allThemes = useMemo(
-    () => allTopics.map((topic) => topic.name),
-    [allTopics],
-  );
-  const visibleHighlights = useMemo(
-    () =>
-      hasInsights && selectedTheme
-        ? sortedHighlights.filter((item) => item.topicId === selectedTheme)
-        : sortedHighlights,
-    [hasInsights, selectedTheme, sortedHighlights],
-  );
-  const isInsightsObsolete = useMemo(() => {
-    if (!videoNote?.insights) {
-      return false;
-    }
-    return videoNote.insights.transcriptHash !== currentTranscriptHash;
-  }, [videoNote?.insights, currentTranscriptHash]);
   // 用于存储 timeupdate 事件处理函数的 ref（避免 callback ref 的依赖问题）
   const timeUpdateHandlerRef = useRef<(() => void) | null>(null);
 
@@ -567,33 +541,6 @@ const VideoNotePanel = ({
     });
   });
 
-  const handleGenerateInsights = useMemoizedFn(
-    async (segments?: TranscriptSegment[]) => {
-      if (!segments || segments.length === 0) {
-        return;
-      }
-      try {
-        const insights = await generateInsights(segments);
-        await Promise.all([
-          updateVideoNoteInsights(videoNoteId, insights),
-          updateVideoNoteHighlights(videoNoteId, insights.highlights),
-        ]);
-        setVideoNote((prev) =>
-          prev
-            ? {
-                ...prev,
-                highlights: insights.highlights,
-                insights,
-              }
-            : null,
-        );
-      } catch (error) {
-        console.error("Failed to generate insights:", error);
-        message.error("主题高亮生成失败，请重试");
-      }
-    },
-  );
-
   // Get local video path for transcription
   const getVideoLocalPath = useMemoizedFn(async (): Promise<string | null> => {
     if (!videoNote) return null;
@@ -813,7 +760,6 @@ const VideoNotePanel = ({
                 }
               : null,
           );
-          void handleGenerateInsights(finalSegments);
           setIsTranscribing(false);
           setTranscriptionProgress("");
           message.success("转录完成");
@@ -853,7 +799,6 @@ const VideoNotePanel = ({
                 }
               : null,
           );
-          void handleGenerateInsights(optimizedFinalSegments);
 
           if (optimizationError) {
             message.warning("AI 优化出现错误，使用部分结果");
@@ -879,7 +824,6 @@ const VideoNotePanel = ({
     videoNoteId,
     optimizationError,
     message,
-    handleGenerateInsights,
   ]);
 
   // 取消优化
@@ -971,7 +915,6 @@ const VideoNotePanel = ({
           newSegments,
           videoNote.transcriptWordSegments,
         );
-        void handleGenerateInsights(newSegments);
       } catch (error) {
         console.error("Failed to save edited segment:", error);
         message.error("保存失败");
@@ -1235,16 +1178,42 @@ const VideoNotePanel = ({
 
   if (loading) {
     return (
-      <div className="flex h-full w-full items-center justify-center">
-        <Spin size="large" />
+      <div className="flex h-full w-full flex-col items-center justify-center gap-4">
+        <div className="relative h-10 w-10">
+          <span className="absolute inset-0 rounded-full border-2 border-gray-200 dark:border-slate-700" />
+          <span
+            className={classNames(
+              "absolute inset-0 rounded-full border-2 border-transparent animate-spin",
+              themeColors.iconTextClass,
+            )}
+            style={{ borderTopColor: "currentColor" }}
+          />
+        </div>
+        <span className={classNames("text-sm", themeColors.secondaryTextClass)}>
+          加载中...
+        </span>
       </div>
     );
   }
 
   if (!videoNote) {
     return (
-      <div className="flex h-full w-full items-center justify-center">
-        <Empty description="视频笔记不存在" />
+      <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-8 text-center">
+        <div
+          className={classNames(
+            "flex h-14 w-14 items-center justify-center rounded-2xl",
+            themeColors.iconBgClass,
+            themeColors.iconTextClass,
+          )}
+        >
+          <FileText size={26} />
+        </div>
+        <p className={classNames("text-sm font-medium", themeColors.textClass)}>
+          视频笔记不存在
+        </p>
+        <p className={classNames("text-xs", themeColors.secondaryTextClass)}>
+          该笔记可能已被删除或加载异常
+        </p>
       </div>
     );
   }
@@ -1257,95 +1226,85 @@ const VideoNotePanel = ({
 
   const videoNotePanel = (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-gray-200 px-4 dark:border-gray-700">
-        <button
-          onClick={() => setActiveTab("transcript")}
-          className={classNames(
-            "px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 border",
-            activeTab === "transcript"
-              ? [
-                  themeColors.activeClass,
-                  themeColors.activeTextClass,
-                  themeColors.activeBorderClass,
-                ]
-              : [
-                  themeColors.cardBgClass,
-                  "text-gray-600 dark:text-slate-400",
-                  themeColors.cardBorderClass,
-                  themeColors.hoverClass,
-                ],
-          )}
-        >
-          <SoundOutlined className="text-xs" />
-          转录
-        </button>
-        <button
-          onClick={() => setActiveTab("summary")}
-          className={classNames(
-            "px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 border",
-            activeTab === "summary"
-              ? [
-                  themeColors.activeClass,
-                  themeColors.activeTextClass,
-                  themeColors.activeBorderClass,
-                ]
-              : [
-                  themeColors.cardBgClass,
-                  "text-gray-600 dark:text-slate-400",
-                  themeColors.cardBorderClass,
-                  themeColors.hoverClass,
-                ],
-          )}
-        >
-          <FileText size={14} />
-          总结
-          {isSummarizing && (
-            <LoadingOutlined className="ml-1 animate-spin text-xs" />
-          )}
-        </button>
-        <button
-          disabled={!hasTranscriptSegments}
-          onClick={() => setActiveTab("chat")}
-          className={classNames(
-            "px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 border disabled:cursor-not-allowed disabled:opacity-50",
-            activeTab === "chat"
-              ? [
-                  themeColors.activeClass,
-                  themeColors.activeTextClass,
-                  themeColors.activeBorderClass,
-                ]
-              : [
-                  themeColors.cardBgClass,
-                  "text-gray-600 dark:text-slate-400",
-                  themeColors.cardBorderClass,
-                  themeColors.hoverClass,
-                ],
-          )}
-        >
-          <CommentOutlined className="text-xs" />
-          对话
-        </button>
-        <button
-          onClick={() => setActiveTab("note")}
-          className={classNames(
-            "px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 border",
-            activeTab === "note"
-              ? [
-                  themeColors.activeClass,
-                  themeColors.activeTextClass,
-                  themeColors.activeBorderClass,
-                ]
-              : [
-                  themeColors.cardBgClass,
-                  "text-gray-600 dark:text-slate-400",
-                  themeColors.cardBorderClass,
-                  themeColors.hoverClass,
-                ],
-          )}
-        >
-          <EditOutlined className="text-xs" />
-          笔记
-        </button>
+      <div className="flex h-12 shrink-0 items-center gap-3 border-b border-gray-200 px-4 dark:border-gray-700">
+        <div className="flex items-center gap-0.5 rounded-lg bg-black/5 p-0.5 dark:bg-white/5">
+          <button
+            onClick={() => setActiveTab("transcript")}
+            className={classNames(
+              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200",
+              activeTab === "transcript"
+                ? [
+                    themeColors.activeClass,
+                    themeColors.activeTextClass,
+                    "shadow-sm",
+                  ]
+                : [
+                    "text-gray-600 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200",
+                  ],
+            )}
+          >
+            <SoundOutlined className="text-xs" />
+            转录
+          </button>
+          <button
+            onClick={() => setActiveTab("summary")}
+            className={classNames(
+              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200",
+              activeTab === "summary"
+                ? [
+                    themeColors.activeClass,
+                    themeColors.activeTextClass,
+                    "shadow-sm",
+                  ]
+                : [
+                    "text-gray-600 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200",
+                  ],
+            )}
+          >
+            <FileText size={14} />
+            总结
+            {isSummarizing && (
+              <LoadingOutlined className="ml-0.5 animate-spin text-xs" />
+            )}
+          </button>
+          <button
+            disabled={!hasTranscriptSegments}
+            onClick={() => setActiveTab("chat")}
+            className={classNames(
+              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40",
+              activeTab === "chat"
+                ? [
+                    themeColors.activeClass,
+                    themeColors.activeTextClass,
+                    "shadow-sm",
+                  ]
+                : [
+                    "text-gray-600 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200",
+                  ],
+            )}
+          >
+            <CommentOutlined className="text-xs" />
+            对话
+          </button>
+          <button
+            onClick={() => setActiveTab("note")}
+            className={classNames(
+              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200",
+              activeTab === "note"
+                ? [
+                    themeColors.activeClass,
+                    themeColors.activeTextClass,
+                    "shadow-sm",
+                  ]
+                : [
+                    "text-gray-600 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200",
+                  ],
+            )}
+          >
+            <EditOutlined className="text-xs" />
+            笔记
+          </button>
+        </div>
 
         <div className="ml-auto flex items-center gap-2">
           {activeTab === "summary" &&
@@ -1576,16 +1535,52 @@ const VideoNotePanel = ({
                 videoNoteId={videoNoteId}
                 mainDbName={activeDatabase}
                 transcript={transcriptForChat}
-                selectedTheme={selectedTopic?.name || null}
-                visibleHighlights={visibleHighlights}
-                availableThemes={allThemes}
-                topics={allTopics}
-                insightsObsolete={isInsightsObsolete}
               />
             ) : (
-              <div className="flex h-full flex-col items-center justify-center gap-2 text-gray-400">
-                <SoundOutlined className="text-2xl" />
-                <span className="text-sm">需要先完成转录，才可开启对话</span>
+              <div className="flex h-full flex-col items-center justify-center gap-3 px-8 text-center">
+                <div
+                  className={classNames(
+                    "flex h-14 w-14 items-center justify-center rounded-2xl",
+                    themeColors.iconBgClass,
+                    themeColors.iconTextClass,
+                  )}
+                >
+                  <MessageCircle size={26} />
+                </div>
+                <div className="space-y-1">
+                  <p
+                    className={classNames(
+                      "text-sm font-medium",
+                      themeColors.textClass,
+                    )}
+                  >
+                    需要先完成转录，才可开启对话
+                  </p>
+                  <p
+                    className={classNames(
+                      "text-xs",
+                      themeColors.secondaryTextClass,
+                    )}
+                  >
+                    完成转录后，即可基于视频内容向 AI 提问
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className={classNames(
+                    "mt-1 flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50",
+                    themeColors.primaryButtonClass,
+                  )}
+                  disabled={isTranscribing || !videoNote}
+                  onClick={handleTranscribe}
+                >
+                  {isTranscribing ? (
+                    <LoadingOutlined className="animate-spin" />
+                  ) : (
+                    <SoundOutlined className="text-xs" />
+                  )}
+                  <span>{isTranscribing ? "转录中..." : "开始转录"}</span>
+                </button>
               </div>
             )}
           </div>
@@ -1685,88 +1680,135 @@ const VideoNotePanel = ({
                 </div>
 
                 {noteItems.length > 0 ? (
-                  <div className="min-h-0 space-y-2 overflow-auto pr-1">
+                  <div className="min-h-0 space-y-1.5 overflow-auto pr-1">
                     {noteItems.map((item, index) => {
                       const isActive = item.id === activeNoteItemId;
+                      const preview = getNotePreview(noteContentMap[item.id]);
                       return (
                         <div
                           key={item.id}
+                          role="button"
+                          tabIndex={0}
                           className={classNames(
-                            "group relative rounded-xl border p-3 transition-all",
-                            themeColors.cardBgClass,
+                            "group relative cursor-pointer rounded-lg px-3 py-2.5 outline-none transition-all",
                             isActive
-                              ? [
-                                  themeColors.activeClass,
-                                  themeColors.activeBorderClass,
-                                ]
+                              ? "bg-gray-100 dark:bg-zinc-800"
                               : [
-                                  themeColors.cardBorderClass,
-                                  themeColors.hoverBorderClass,
+                                  "hover:bg-gray-100/70 dark:hover:bg-zinc-800/60",
+                                  "focus-visible:bg-gray-100/70 dark:focus-visible:bg-zinc-800/60",
                                 ],
                           )}
+                          onClick={() => handleSelectNoteItem(item.id)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              handleSelectNoteItem(item.id);
+                            }
+                          }}
                         >
-                          <button
-                            type="button"
-                            className="flex w-full items-center gap-3 pr-14 border-none bg-transparent text-left"
-                            onClick={() => handleSelectNoteItem(item.id)}
-                          >
-                            <EditOutlined className="text-[13px] text-gray-500 dark:text-gray-400" />
+                          <div className="flex items-center gap-2.5">
                             <span
                               className={classNames(
-                                "line-clamp-1 min-w-0 flex-1 text-sm font-medium",
-                                themeColors.activeTextClass,
+                                "w-4 shrink-0 text-right text-xs font-medium tabular-nums",
+                                isActive
+                                  ? "text-gray-600 dark:text-gray-300"
+                                  : "text-gray-400 dark:text-gray-500",
+                              )}
+                            >
+                              {index + 1}
+                            </span>
+                            <span
+                              className={classNames(
+                                "min-w-0 flex-1 truncate text-sm font-medium",
+                                isActive
+                                  ? "text-gray-900 dark:text-white"
+                                  : "text-gray-700 dark:text-gray-200",
                               )}
                             >
                               {item.title?.trim() || `笔记卡片 ${index + 1}`}
                             </span>
                             <span
                               className={classNames(
-                                "shrink-0 text-xs",
-                                themeColors.secondaryTextClass,
+                                "shrink-0 text-xs tabular-nums opacity-50 transition-opacity group-hover:opacity-100",
+                                "text-gray-400 dark:text-gray-500",
                               )}
                             >
                               {formatDate(item.updateTime, true)}
                             </span>
-                          </button>
-                          <button
-                            type="button"
-                            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg px-1.5 py-1 text-xs text-red-500 opacity-0 transition-all hover:bg-red-50 group-hover:opacity-100 dark:hover:bg-red-900/20"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleDeleteNote(item.id);
-                            }}
-                          >
-                            删除
-                          </button>
+                            <button
+                              type="button"
+                              className={classNames(
+                                "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 opacity-0 transition-all group-hover:opacity-100",
+                                "hover:text-red-500",
+                              )}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleDeleteNote(item.id);
+                              }}
+                              title="删除"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                          {preview && (
+                            <p
+                              className={classNames(
+                                "mt-1 line-clamp-1 pl-[26px] text-xs",
+                                isActive
+                                  ? "text-gray-600 dark:text-gray-300"
+                                  : "text-gray-400 dark:text-gray-500",
+                              )}
+                            >
+                              {preview}
+                            </p>
+                          )}
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <div
-                    className={classNames(
-                      "flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed",
-                      themeColors.cardBorderClass,
-                    )}
-                  >
-                    <EditOutlined className="text-lg text-gray-400" />
-                    <span
+                  <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
+                    <div
                       className={classNames(
-                        "text-sm",
-                        themeColors.secondaryTextClass,
+                        "flex h-16 w-16 items-center justify-center rounded-2xl shadow-lg",
+                        themeColors.iconBgClass,
+                        themeColors.iconTextClass,
                       )}
+                      style={{
+                        boxShadow:
+                          "0 10px 30px -10px var(--th-icon-to, rgba(0,0,0,0.15))",
+                      }}
                     >
-                      暂无笔记卡片
-                    </span>
+                      <StickyNote size={28} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <p
+                        className={classNames(
+                          "text-base font-semibold",
+                          themeColors.textClass,
+                        )}
+                      >
+                        还没有笔记卡片
+                      </p>
+                      <p
+                        className={classNames(
+                          "text-sm",
+                          themeColors.secondaryTextClass,
+                        )}
+                      >
+                        创建卡片，边看视频边记录灵感与思考
+                      </p>
+                    </div>
                     <button
                       type="button"
                       className={classNames(
-                        "rounded-lg px-3 py-1.5 text-xs transition-all",
+                        "mt-1 flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-all",
                         themeColors.primaryButtonClass,
                       )}
                       onClick={handleAddNote}
                     >
-                      点击创建第一张笔记卡片
+                      <Plus size={16} />
+                      创建第一张卡片
                     </button>
                   </div>
                 )}
@@ -1805,33 +1847,32 @@ const VideoNotePanel = ({
         icon={<FileText size={20} className="text-blue-500" />}
         iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
         footer={null}
+        bodyClassName="px-5 pb-5 max-h-[70vh] overflow-auto"
       >
-        <div className="px-5 pb-5">
-          {(summaryContent || videoNote?.summary) && (
-            <Editor
-              ref={modalSummaryEditorRef}
-              key={`summary-modal-${videoNoteId}-${summarySessionId}`}
-              initValue={
-                isSummarizing && summaryContent
-                  ? summaryContent
-                  : finalSummary
-                    ? importFromMarkdown(finalSummary)
-                    : videoNote?.summary
-                      ? importFromMarkdown(videoNote.summary)
-                      : [
-                          {
-                            type: "paragraph",
-                            children: [{ type: "formatted", text: "" }],
-                          },
-                        ]
-              }
-              extensions={summaryExtensions}
-              readonly={!isModalEditable}
-              onChange={isModalEditable ? handleSummaryChange : undefined}
-              features={{ disableHeaderCollapse: true }}
-            />
-          )}
-        </div>
+        {(summaryContent || videoNote?.summary) && (
+          <Editor
+            ref={modalSummaryEditorRef}
+            key={`summary-modal-${videoNoteId}-${summarySessionId}`}
+            initValue={
+              isSummarizing && summaryContent
+                ? summaryContent
+                : finalSummary
+                  ? importFromMarkdown(finalSummary)
+                  : videoNote?.summary
+                    ? importFromMarkdown(videoNote.summary)
+                    : [
+                        {
+                          type: "paragraph",
+                          children: [{ type: "formatted", text: "" }],
+                        },
+                      ]
+            }
+            extensions={summaryExtensions}
+            readonly={!isModalEditable}
+            onChange={isModalEditable ? handleSummaryChange : undefined}
+            features={{ disableHeaderCollapse: true }}
+          />
+        )}
       </CustomModal>
 
       <VideoNoteEpubExportModal
@@ -1850,50 +1891,98 @@ const VideoNotePanel = ({
 
   return (
     <div className="flex h-full w-full flex-col">
-      <div className="flex h-12 shrink-0 items-center justify-end border-b border-gray-200 px-4 pr-12 dark:border-gray-700">
-        <div className="flex items-center gap-2">
-          <Select
-            value={transcriptionLanguage}
-            onChange={handleTranscriptionLanguageChange}
-            options={TRANSCRIPTION_LANGUAGES}
-            className="w-38"
-            disabled={isTranscribing}
-            popupMatchSelectWidth={false}
-            placeholder="转录语言"
-          />
+      <div
+        className={classNames(
+          "flex h-12 shrink-0 items-center justify-between gap-3 border-b border-gray-200 px-4 dark:border-gray-700",
+          reserveCloseButtonSpace ? "pr-14" : "",
+        )}
+      >
+        <LanguageSelect
+          value={transcriptionLanguage}
+          onChange={handleTranscriptionLanguageChange}
+          options={TRANSCRIPTION_LANGUAGES}
+          disabled={isTranscribing}
+          placeholder="转录语言"
+        />
+        <div className="flex items-center gap-1.5">
           <Tooltip title={isTranscribing ? transcriptionProgress : "转录视频"}>
             <button
-              className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className={classNames(
+                "flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50",
+                themeColors.primaryButtonClass,
+              )}
               disabled={isTranscribing || !videoNote}
               onClick={handleTranscribe}
             >
               {isTranscribing ? (
                 <LoadingOutlined className="animate-spin" />
               ) : (
-                <SoundOutlined />
+                <SoundOutlined className="text-xs" />
               )}
+              <span>{isTranscribing ? "转录中" : "转录"}</span>
             </button>
           </Tooltip>
           {videoNote?.transcriptWordSegments &&
             videoNote.transcriptWordSegments.length > 0 && (
               <Tooltip title="AI 优化断句">
                 <button
-                  className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  className={classNames(
+                    "flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-all disabled:cursor-not-allowed disabled:opacity-50",
+                    themeColors.cardBgClass,
+                    themeColors.cardBorderClass,
+                    themeColors.hoverClass,
+                    themeColors.textClass,
+                  )}
                   disabled={isTranscribing}
                   onClick={handleAIOptimize}
                 >
-                  <ThunderboltOutlined />
+                  <ThunderboltOutlined className="text-xs" />
                 </button>
               </Tooltip>
             )}
           <Tooltip title="AI 导出电子书">
             <button
-              className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
+              className={classNames(
+                "flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-all",
+                themeColors.cardBgClass,
+                themeColors.cardBorderClass,
+                themeColors.hoverClass,
+                themeColors.textClass,
+              )}
               onClick={handleOpenEbookExportModal}
             >
-              <BookOutlined />
+              <BookOutlined className="text-xs" />
             </button>
           </Tooltip>
+          {onSubtitleMountedChange && (
+            <Tooltip
+              title={
+                !hasTranscriptSegments
+                  ? "请先转录后再挂载字幕"
+                  : subtitleMounted
+                    ? "已挂载字幕（可关闭）"
+                    : "挂载字幕"
+              }
+            >
+              <button
+                className={classNames(
+                  "flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-all disabled:cursor-not-allowed disabled:opacity-50",
+                  subtitleMounted
+                    ? [themeColors.activeClass, themeColors.activeTextClass]
+                    : [
+                        themeColors.cardBgClass,
+                        themeColors.cardBorderClass,
+                        themeColors.hoverClass,
+                        themeColors.textClass,
+                      ],
+                )}
+                disabled={!hasTranscriptSegments}
+                onClick={() => onSubtitleMountedChange(!subtitleMounted)}
+              >
+                <Subtitles size={15} />
+              </button>
+            </Tooltip>
+          )}
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-hidden">{videoNotePanel}</div>

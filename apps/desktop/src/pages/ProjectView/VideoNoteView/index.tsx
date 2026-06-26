@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { GlobalOutlined } from "@ant-design/icons";
-import { App, Empty, Select, Spin, Tooltip } from "antd";
+import { App } from "antd";
 import { useLocalStorageState } from "ahooks";
+import classNames from "classnames";
+import { FileText, Captions, Video } from "lucide-react";
 
 import ResizablePanel from "@/components/ResizablePanel";
 import LocalVideo from "@/components/LocalVideo";
+import useThemeColors from "@/hooks/useThemeColors";
 import BilibiliVideoLoader from "@/components/BilibiliVideoLoader";
 import YoutubeVideoLoader from "@/components/YoutubeVideoLoader";
 import NotionVideoLoader from "@/components/NotionVideoLoader";
@@ -31,22 +33,6 @@ import {
 import { useProjectContext } from "../ProjectContext";
 import VideoNotePanel from "./VideoNotePanel";
 
-const TRANSCRIPTION_LANGUAGES = [
-  { value: VIDEO_NOTE_AUTO_LANGUAGE, label: "自动识别 (Auto Detect)" },
-  { value: "zh", label: "中文 (Chinese)" },
-  { value: "en", label: "英语 (English)" },
-  { value: "ja", label: "日语 (Japanese)" },
-  { value: "ko", label: "韩语 (Korean)" },
-  { value: "fr", label: "法语 (French)" },
-  { value: "de", label: "德语 (German)" },
-  { value: "es", label: "西班牙语 (Spanish)" },
-  { value: "ru", label: "俄语 (Russian)" },
-  { value: "it", label: "意大利语 (Italian)" },
-  { value: "pt", label: "葡萄牙语 (Portuguese)" },
-  { value: "ar", label: "阿拉伯语 (Arabic)" },
-  { value: "hi", label: "印地语 (Hindi)" },
-];
-
 const SUBTITLE_MOUNTED_STORAGE_PREFIX = "video_note_subtitle_mounted_";
 
 interface IVideoNoteViewProps {
@@ -59,6 +45,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     (state) => state.setting.misc.video.autoCacheRemote,
   );
   const { itemId: activeProjectItemId } = useProjectContext();
+  const themeColors = useThemeColors();
 
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(
@@ -247,12 +234,6 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     }
   }, [videoNote, autoCacheRemoteVideo]);
 
-  const hasTranscriptSegments = !!videoNote?.transcriptSegments?.length;
-  const subtitleTooltipTitle = !hasTranscriptSegments
-    ? "请先转录后再挂载字幕"
-    : subtitleMounted
-      ? "已挂载字幕（可关闭）"
-      : "挂载字幕";
   const subtitleLanguage = resolveVideoNoteOptimizationLanguage(
     transcriptionLanguage,
     null,
@@ -326,16 +307,42 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
 
   if (loading) {
     return (
-      <div className="flex h-full w-full items-center justify-center">
-        <Spin size="large" />
+      <div className="flex h-full w-full flex-col items-center justify-center gap-4">
+        <div className="relative h-10 w-10">
+          <span className="absolute inset-0 rounded-full border-2 border-gray-200 dark:border-slate-700" />
+          <span
+            className={classNames(
+              "absolute inset-0 rounded-full border-2 border-transparent animate-spin",
+              themeColors.iconTextClass,
+            )}
+            style={{ borderTopColor: "currentColor" }}
+          />
+        </div>
+        <span className={classNames("text-sm", themeColors.secondaryTextClass)}>
+          加载中...
+        </span>
       </div>
     );
   }
 
   if (!videoNote) {
     return (
-      <div className="flex h-full w-full items-center justify-center">
-        <Empty description="视频笔记不存在" />
+      <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-8 text-center">
+        <div
+          className={classNames(
+            "flex h-14 w-14 items-center justify-center rounded-2xl",
+            themeColors.iconBgClass,
+            themeColors.iconTextClass,
+          )}
+        >
+          <Video size={26} />
+        </div>
+        <p className={classNames("text-sm font-medium", themeColors.textClass)}>
+          视频笔记不存在
+        </p>
+        <p className={classNames("text-xs", themeColors.secondaryTextClass)}>
+          该笔记可能已被删除或加载异常
+        </p>
       </div>
     );
   }
@@ -352,40 +359,21 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
       />
     ) : null;
 
+  const sourceLabels: Record<string, string> = {
+    local: "本地视频",
+    remote: "远程视频",
+    bilibili: "哔哩哔哩",
+    youtube: "YouTube",
+    notion: "Notion",
+  };
+  const sourceLabel = videoNote
+    ? (sourceLabels[videoNote.metaInfo.type] ?? "视频")
+    : "视频";
+  const transcriptCount = videoNote?.transcriptSegments?.length ?? 0;
+  const hasSummary = !!videoNote?.summary;
+
   return (
     <div className="flex h-full w-full flex-col">
-      <div className="flex h-12 shrink-0 items-center justify-end border-b border-gray-200 px-4 dark:border-gray-700">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <GlobalOutlined className="text-base text-gray-600 dark:text-gray-300" />
-            <Select
-              value={transcriptionLanguage}
-              onChange={setTranscriptionLanguage}
-              options={TRANSCRIPTION_LANGUAGES}
-              className="w-52"
-              popupMatchSelectWidth={false}
-              placeholder="选择转录语言"
-            />
-          </div>
-
-          <Tooltip title={subtitleTooltipTitle}>
-            <button
-              className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!hasTranscriptSegments}
-              onClick={() => setSubtitleMounted(!subtitleMounted)}
-            >
-              <span
-                className={`text-xs font-semibold leading-none ${
-                  subtitleMounted ? "text-blue-500 dark:text-blue-400" : ""
-                }`}
-              >
-                字
-              </span>
-            </button>
-          </Tooltip>
-        </div>
-      </div>
-
       <div className="flex-1 overflow-hidden">
         <ResizablePanel
           id="video-note-view"
@@ -394,21 +382,18 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
           minRight={400}
           left={
             <div className="flex h-full flex-col overflow-y-auto">
-              <div className="flex shrink-0 items-center justify-center p-4">
+              <div className="mx-auto w-full max-w-[960px] p-4">
                 <div
-                  className="relative w-full overflow-hidden rounded-x"
+                  className="relative w-full overflow-hidden rounded-xl bg-black"
                   style={{
-                    maxWidth: 800,
+                    aspectRatio: "16/9",
                     boxShadow: "0 10px 30px -10px rgba(0,0,0,0.3)",
                   }}
                 >
                   {renderVideoLoader()}
 
                   {!videoLoading && !videoError && videoSrc && (
-                    <div
-                      className="relative w-full"
-                      style={{ aspectRatio: "16/9" }}
-                    >
+                    <>
                       {useLocalVideo ? (
                         <LocalVideo
                           ref={setVideoRef}
@@ -430,8 +415,44 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                           {subtitleTrackElement}
                         </video>
                       )}
-                    </div>
+                    </>
                   )}
+                </div>
+
+                <div className="mt-4 rounded-xl border border-gray-200 bg-white/60 p-4 dark:border-slate-700 dark:bg-white/5">
+                  <h2 className="truncate text-base font-semibold text-gray-900 dark:text-gray-100">
+                    {projectItemTitle || videoNote?.description || "未命名视频"}
+                  </h2>
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-white/10 dark:text-gray-300">
+                      <Video size={12} />
+                      {sourceLabel}
+                    </span>
+                    <span
+                      className={classNames(
+                        "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs",
+                        transcriptCount > 0
+                          ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400"
+                          : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400",
+                      )}
+                    >
+                      <Captions size={12} />
+                      {transcriptCount > 0
+                        ? `已转录 ${transcriptCount} 段`
+                        : "未转录"}
+                    </span>
+                    <span
+                      className={classNames(
+                        "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs",
+                        hasSummary
+                          ? "bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400"
+                          : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400",
+                      )}
+                    >
+                      <FileText size={12} />
+                      {hasSummary ? "已总结" : "未总结"}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -444,6 +465,8 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
               transcriptionLanguage={transcriptionLanguage}
               onTranscriptionLanguageChange={setTranscriptionLanguage}
               onVideoNoteChange={setVideoNote}
+              subtitleMounted={subtitleMounted ?? false}
+              onSubtitleMountedChange={setSubtitleMounted}
             />
           }
         />

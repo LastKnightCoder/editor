@@ -28,7 +28,6 @@ import { shouldRenderAsBlockCode } from "@/layouts/ContentLayout/components/Chat
 import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
 import { ResponseMessage, ChatMessage } from "@/types";
 import { Role, buildSessionAwareSystemPrompt } from "@/constants";
-import type { VideoNoteHighlight, VideoNoteTopic } from "@/types";
 import useVideoNoteChatStore, {
   EVideoNoteChatStatus,
 } from "@/stores/useVideoNoteChatStore";
@@ -94,11 +93,6 @@ interface VideoNoteChatPanelProps {
   videoNoteId: number;
   mainDbName: string;
   transcript: string;
-  selectedTheme: string | null;
-  visibleHighlights: VideoNoteHighlight[];
-  availableThemes: string[];
-  topics?: VideoNoteTopic[];
-  insightsObsolete?: boolean;
 }
 
 const createDefaultChat = (systemPrompt: string): ChatMessage => ({
@@ -123,11 +117,6 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
   videoNoteId,
   mainDbName,
   transcript,
-  selectedTheme,
-  visibleHighlights,
-  availableThemes,
-  topics = [],
-  insightsObsolete = false,
 }) => {
   const { isDark } = useTheme();
   const { message } = App.useApp();
@@ -137,63 +126,11 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
   const database = useSettingStore((state) => state.setting.database.active);
   const isConnected = useDatabaseConnected();
 
-  const selectedThemeRef = useRef<string | null>(selectedTheme);
-  const visibleHighlightsRef = useRef<VideoNoteHighlight[]>(visibleHighlights);
-  const availableThemesRef = useRef<string[]>(availableThemes);
-  const topicsRef = useRef<VideoNoteTopic[]>(topics);
-  const insightsObsoleteRef = useRef<boolean>(insightsObsolete);
-
-  useEffect(() => {
-    selectedThemeRef.current = selectedTheme;
-  }, [selectedTheme]);
-
-  useEffect(() => {
-    visibleHighlightsRef.current = visibleHighlights;
-  }, [visibleHighlights]);
-
-  useEffect(() => {
-    availableThemesRef.current = availableThemes;
-  }, [availableThemes]);
-
-  useEffect(() => {
-    topicsRef.current = topics;
-  }, [topics]);
-
-  useEffect(() => {
-    insightsObsoleteRef.current = insightsObsolete;
-  }, [insightsObsolete]);
-
-  const contextProvider = useMemo(
-    () => ({
-      getContext: () => ({
-        selectedTheme: selectedThemeRef.current,
-        visibleHighlights: visibleHighlightsRef.current,
-        availableThemes: availableThemesRef.current,
-        topics: topicsRef.current,
-        insightsObsolete: insightsObsoleteRef.current,
-      }),
-    }),
-    [],
-  );
-
-  useVideoNoteChat(videoNoteId, mainDbName, contextProvider);
+  useVideoNoteChat(videoNoteId, mainDbName);
 
   const systemPrompt = useMemo(
-    () =>
-      buildVideoNoteSystemPrompt({
-        transcript,
-        selectedTheme,
-        visibleHighlights,
-        availableThemes,
-        insightsObsolete,
-      }),
-    [
-      transcript,
-      selectedTheme,
-      visibleHighlights,
-      availableThemes,
-      insightsObsolete,
-    ],
+    () => buildVideoNoteSystemPrompt({ transcript }),
+    [transcript],
   );
 
   const {

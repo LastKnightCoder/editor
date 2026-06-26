@@ -1435,6 +1435,7 @@ const WhiteBoard = memo(
                                 <VideoNotePanel
                                   videoNoteId={activeVideoNote.videoNoteId}
                                   externalVideoElement={activeVideoElement}
+                                  reserveCloseButtonSpace
                                 />
                               </div>
                             </ResizeableAndHideableSidebar>

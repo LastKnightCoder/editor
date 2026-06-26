@@ -43,3 +43,4 @@ apps/desktop/build/publish-template.zip
 __pycache__
 .output
 .wxt/
+apps/mobile-rn/**
