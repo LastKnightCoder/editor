@@ -1,4 +1,11 @@
-import React, { useEffect, useRef, useState, memo, forwardRef } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  memo,
+  forwardRef,
+  useCallback,
+} from "react";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { getHomeDir } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
@@ -34,14 +41,23 @@ const LocalVideo = memo(
     const playStatus = useRef(false);
     const currentMethod = useRef("default");
 
+    const setVideoRef = useCallback(
+      (element: HTMLVideoElement | null) => {
+        innerRef.current = element;
+        if (typeof ref === "function") {
+          ref(element);
+        } else if (ref) {
+          ref.current = element;
+        }
+      },
+      [ref],
+    );
+
     const getVideoElement = useMemoizedFn(() => {
-      if (typeof ref === "function") {
-        return null;
-      } else if (ref && ref.current) {
+      if (ref && typeof ref !== "function" && ref.current) {
         return ref.current;
-      } else {
-        return innerRef.current;
       }
+      return innerRef.current;
     });
 
     const registerRemoteVideoCache = useMemoizedFn(
@@ -223,8 +239,6 @@ const LocalVideo = memo(
       },
     );
 
-    const videoRef = ref || innerRef;
-
     if (!previewUrl) {
       console.log("[LocalVideo] previewUrl 为空，不渲染");
       return null;
@@ -234,7 +248,7 @@ const LocalVideo = memo(
 
     return (
       <video
-        ref={videoRef}
+        ref={setVideoRef}
         onError={handleOnError}
         src={previewUrl}
         crossOrigin="anonymous"

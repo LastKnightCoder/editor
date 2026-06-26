@@ -162,6 +162,16 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
       const videoElement = videoElements[0];
 
       items.push({
+        key: "open-video-note",
+        label: "打开视频笔记",
+        icon: <FileText size={14} />,
+        priority: 49,
+        onSelect: (ctx: ContextMenuContext) => {
+          ctx.board.emit("video-note:open", videoElement);
+        },
+      });
+
+      items.push({
         key: "copy-video-link",
         label: "复制链接",
         icon: <Link size={14} />,

@@ -16,6 +16,7 @@ import {
 } from "ahooks";
 import classnames from "classnames";
 import { App } from "antd";
+import { CloseOutlined } from "@ant-design/icons";
 import { AnimatePresence, motion } from "motion/react";
 
 import Board from "./Board";
@@ -62,6 +63,7 @@ import {
   PluginContextMenuItem,
   ContextMenuModalPayload,
   MindNodeElement,
+  VideoElement,
 } from "./types";
 import Toolbar from "./components/Toolbar";
 import AttributeSetter from "./components/AttributeSetter";
@@ -107,12 +109,15 @@ import {
   updateContent,
   decrementContentRefCount,
 } from "@/commands/content";
+import { createEmptyVideoNote, getVideoNoteById } from "@/commands";
 import { buildCardFromContent, getCardByContentId } from "@/commands/card";
 import {
   buildArticleFromContent,
   getArticleByContentId,
 } from "@/commands/article";
 import { getContentLength } from "@/utils";
+import VideoNotePanel from "@/pages/ProjectView/VideoNoteView/VideoNotePanel";
+import type { VideoMetaInfo } from "@/types";
 
 const simplifiedRenderZoomThreshold = 0.3;
 
@@ -148,6 +153,38 @@ const DEFAULT_VIEW_PORT: ViewPort = {
 const DEFAULT_SELECTION: Selection = {
   selectArea: null,
   selectedElements: [] as BoardElement[],
+};
+
+const isRemoteHttpUrl = (src: string) => {
+  if (!/^https?:\/\//i.test(src)) {
+    return false;
+  }
+  return !/^https?:\/\/localhost/i.test(src);
+};
+
+const getVideoNoteMetaInfo = (element: VideoElement): VideoMetaInfo => {
+  if (element.metaInfo?.type === "local") {
+    return {
+      type: "local",
+      filePath: element.metaInfo.filePath || element.src,
+    };
+  }
+
+  if (element.metaInfo) {
+    return element.metaInfo;
+  }
+
+  if (isRemoteHttpUrl(element.src)) {
+    return {
+      type: "remote",
+      url: element.src,
+    };
+  }
+
+  return {
+    type: "local",
+    filePath: element.src,
+  };
 };
 
 export interface WhiteBoardRef {
@@ -194,10 +231,24 @@ const WhiteBoard = memo(
 
     const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
     const [activeNoteTitle, setActiveNoteTitle] = useState<string | null>(null);
+    const [activeVideoNote, setActiveVideoNote] = useState<{
+      videoNoteId: number;
+      elementId: string;
+    } | null>(null);
+    const [activeVideoElement, setActiveVideoElement] =
+      useState<HTMLVideoElement | null>(null);
+    const videoElementRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
+    const creatingVideoNoteRefs = useRef<Map<string, Promise<number | null>>>(
+      new Map(),
+    );
     const activeNoteIdRef = useRef<number | null>(null);
     useEffect(() => {
       activeNoteIdRef.current = activeNoteId;
     }, [activeNoteId]);
+    const [videoNotePanelWidth, setVideoNotePanelWidth] =
+      useLocalStorageState<number>("whiteboard-video-note-panel-width", {
+        defaultValue: 420,
+      });
     const [imagePreview, setImagePreview] = useState<{
       open: boolean;
       src: string;
@@ -853,6 +904,7 @@ const WhiteBoard = memo(
     useEffect(() => {
       const handleOpenNote = (contentId: number, contentTitle: string) => {
         setActiveNoteId(contentId);
+        setActiveVideoNote(null);
         setActiveNoteTitle(contentTitle);
       };
       const handleToggleNote = (contentId: number, contentTitle: string) => {
@@ -860,6 +912,7 @@ const WhiteBoard = memo(
           setActiveNoteId(null);
           setActiveNoteTitle(null);
         } else {
+          setActiveVideoNote(null);
           setActiveNoteId(contentId);
           setActiveNoteTitle(contentTitle);
         }
@@ -871,6 +924,150 @@ const WhiteBoard = memo(
         board.off("toggle-note", handleToggleNote);
       };
     }, [board]);
+
+    useEffect(() => {
+      const handleOpenVideoNote = async (element: VideoElement) => {
+        try {
+          const latestElement = BoardUtil.getElementById(
+            board,
+            element.id,
+          ) as VideoElement | null;
+          const targetElement = latestElement ?? element;
+          let videoNoteId = targetElement.videoNoteId;
+
+          if (videoNoteId) {
+            const existing = await getVideoNoteById(videoNoteId);
+            if (!existing) {
+              videoNoteId = undefined;
+            }
+          }
+
+          if (!videoNoteId) {
+            let creating = creatingVideoNoteRefs.current.get(element.id);
+            if (!creating) {
+              creating = (async () => {
+                const currentBeforeCreate = BoardUtil.getElementById(
+                  board,
+                  element.id,
+                ) as VideoElement | null;
+                const currentVideoNoteId = currentBeforeCreate?.videoNoteId;
+                if (currentVideoNoteId) {
+                  const existing = await getVideoNoteById(currentVideoNoteId);
+                  if (existing) {
+                    return currentVideoNoteId;
+                  }
+                }
+
+                const created = await createEmptyVideoNote(
+                  getVideoNoteMetaInfo(currentBeforeCreate ?? targetElement),
+                );
+                if (!created) {
+                  return null;
+                }
+
+                const currentElement = BoardUtil.getElementById(
+                  board,
+                  element.id,
+                ) as VideoElement | null;
+                const currentAfterCreateVideoNoteId =
+                  currentElement?.videoNoteId;
+                if (currentAfterCreateVideoNoteId) {
+                  const existing = await getVideoNoteById(
+                    currentAfterCreateVideoNoteId,
+                  );
+                  if (existing) {
+                    return currentAfterCreateVideoNoteId;
+                  }
+                }
+
+                const path =
+                  currentElement &&
+                  PathUtil.getPathByElement(board, currentElement);
+                if (path) {
+                  board.apply({
+                    type: "set_node",
+                    path,
+                    properties: {
+                      videoNoteId: currentElement.videoNoteId,
+                    },
+                    newProperties: {
+                      videoNoteId: created.id,
+                    },
+                  });
+                }
+
+                return created.id;
+              })().finally(() => {
+                creatingVideoNoteRefs.current.delete(element.id);
+              });
+              creatingVideoNoteRefs.current.set(element.id, creating);
+            }
+
+            const createdVideoNoteId = await creating;
+            if (!createdVideoNoteId) {
+              message.error("创建视频笔记失败");
+              return;
+            }
+            videoNoteId = createdVideoNoteId;
+          }
+
+          setActiveNoteId(null);
+          setActiveNoteTitle(null);
+          setActiveVideoNote({
+            videoNoteId,
+            elementId: element.id,
+          });
+          setActiveVideoElement(
+            videoElementRefs.current.get(element.id) ?? null,
+          );
+        } catch (error) {
+          console.error("Open whiteboard video note failed:", error);
+          message.error("打开视频笔记失败");
+        }
+      };
+
+      const handleElementRemove = (removedElements: BoardElement[]) => {
+        removedElements.forEach((element) => {
+          videoElementRefs.current.delete(element.id);
+        });
+        setActiveVideoNote((current) => {
+          if (
+            current &&
+            removedElements.some((element) => element.id === current.elementId)
+          ) {
+            setActiveVideoElement(null);
+            return null;
+          }
+          return current;
+        });
+      };
+
+      const handleVideoElementRef = (payload: {
+        elementId: string;
+        video: HTMLVideoElement | null;
+      }) => {
+        if (payload.video) {
+          videoElementRefs.current.set(payload.elementId, payload.video);
+        } else {
+          videoElementRefs.current.delete(payload.elementId);
+        }
+        setActiveVideoNote((current) => {
+          if (current?.elementId === payload.elementId) {
+            setActiveVideoElement(payload.video);
+          }
+          return current;
+        });
+      };
+
+      board.on("video-note:open", handleOpenVideoNote);
+      board.on("element:remove", handleElementRemove);
+      board.on("video-note:element-ref", handleVideoElementRef);
+      return () => {
+        board.off("video-note:open", handleOpenVideoNote);
+        board.off("element:remove", handleElementRemove);
+        board.off("video-note:element-ref", handleVideoElementRef);
+      };
+    }, [board, message]);
 
     // 监听取消关联笔记的二次确认
     useEffect(() => {
@@ -1184,6 +1381,63 @@ const WhiteBoard = memo(
                               contentTitle={activeNoteTitle ?? undefined}
                               onClose={() => setActiveNoteId(null)}
                             />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                      <AnimatePresence>
+                        {activeVideoNote != null && (
+                          <motion.div
+                            key="video-note-panel"
+                            className="absolute right-0 top-0 bottom-0 z-50"
+                            initial={{ x: "100%", opacity: 0.6 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            exit={{ x: "100%", opacity: 0.6 }}
+                            transition={{
+                              type: "tween",
+                              duration: 0.25,
+                              ease: "easeInOut",
+                            }}
+                          >
+                            <ResizeableAndHideableSidebar
+                              width={videoNotePanelWidth || 420}
+                              open
+                              onWidthChange={(width) =>
+                                setVideoNotePanelWidth(width)
+                              }
+                              minWidth={320}
+                              maxWidth={720}
+                              resizeHandleSide="left"
+                              sidebarPosition="right"
+                              className="h-full bg-white dark:bg-[#1e1e1e] z-50 flex flex-col border-l border-[#f0f0f0] dark:border-[#2a2a2a] overflow-hidden"
+                            >
+                              <div
+                                className="relative h-full"
+                                style={{ width: videoNotePanelWidth || 420 }}
+                                data-whiteboard-stop-keyboard="true"
+                                onKeyDownCapture={(event) =>
+                                  event.stopPropagation()
+                                }
+                                onKeyUpCapture={(event) =>
+                                  event.stopPropagation()
+                                }
+                              >
+                                <button
+                                  type="button"
+                                  className="absolute right-3 top-3 z-20 flex h-8 w-8 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
+                                  onClick={() => {
+                                    setActiveVideoNote(null);
+                                    setActiveVideoElement(null);
+                                  }}
+                                  aria-label="关闭视频笔记"
+                                >
+                                  <CloseOutlined />
+                                </button>
+                                <VideoNotePanel
+                                  videoNoteId={activeVideoNote.videoNoteId}
+                                  externalVideoElement={activeVideoElement}
+                                />
+                              </div>
+                            </ResizeableAndHideableSidebar>
                           </motion.div>
                         )}
                       </AnimatePresence>
