@@ -1,0 +1,65 @@
+<h2>React Native Slate WYSIWYG 方向确认</h2>
+<p class="subtitle">这次要解决的不是 JSON 是否能编辑，而是编辑区域本身是否能直接显示富文本样式。</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">当前 APK：纯文本输入 + 只读预览</div>
+    <div class="mockup-body">
+      <div style="border:1px solid #d1d5db;border-radius:8px;padding:14px;background:#fff;margin-bottom:12px">
+        <div style="font-size:15px;line-height:24px;color:#111827">Hello highlighted Slate text</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:8px">编辑区只能显示 plain text</div>
+      </div>
+      <div style="border:1px solid #b7d8c2;border-radius:8px;padding:14px;background:#eef7f1">
+        <div style="font-size:15px;line-height:24px;color:#111827">
+          Hello <strong>highlighted</strong> <span style="background:#fde68a">Slate</span> <span style="color:#dc2626">text</span>
+        </div>
+        <div style="font-size:12px;color:#58705f;margin-top:8px">下面的预览能显示样式，但不能直接编辑</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">目标 APK：原生 WYSIWYG 输入</div>
+    <div class="mockup-body">
+      <div style="border:2px solid #2563eb;border-radius:8px;padding:14px;background:#fff">
+        <div style="font-size:15px;line-height:24px;color:#111827">
+          Hello <strong>highlighted</strong> <span style="background:#fde68a">Slate</span> <span style="color:#dc2626">text</span>
+        </div>
+        <div style="height:1px;background:#dbeafe;margin:10px 0"></div>
+        <div style="font-size:12px;color:#2563eb">光标、选择、输入、删除都发生在这一块内</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>推荐实现</h3>
+  <div class="options">
+    <div class="option" data-choice="android-spannable" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>Android EditText + Spannable</h3>
+        <p>先做 Android APK。Slate leaves 映射为 spans，在原生输入区内直接显示 bold、italic、strike、code、highlight、color、darkColor。</p>
+      </div>
+    </div>
+    <div class="option" data-choice="cross-platform-native" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>iOS/Android 一起做原生输入</h3>
+        <p>目标最完整，但需要同时维护 UITextView attributed text 和 Android Spannable，交付 APK 会明显变慢。</p>
+      </div>
+    </div>
+    <div class="option" data-choice="webview-editor" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>WebView 富文本编辑器</h3>
+        <p>最快接近 WYSIWYG，但回到 web 技术路线，不符合这次“不要 slate-react / DOM”的方向。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>第一版边界</h3>
+  <p>只承诺 paragraph + formatted text + 常用 marks。列表、标题、链接、评论、附件等复杂块先只读 fallback，避免第一版把原生输入层做得过重。</p>
+</div>
