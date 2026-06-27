@@ -219,6 +219,29 @@ export const insertDetails = (editor: Editor) => {
   );
 };
 
+export const insertBlockquote = (editor: Editor) => {
+  setOrInsertNode(
+    editor,
+    {
+      type: "blockquote",
+      children: [
+        {
+          type: "paragraph",
+          children: [
+            {
+              type: "formatted",
+              text: "",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      select: true,
+    },
+  );
+};
+
 interface ImageParams {
   url: string;
   alt?: string;

@@ -1,7 +1,11 @@
 import { createEditor, Descendant, Editor, Transforms } from "slate";
 import { describe, expect, it } from "vitest";
 
-import { insertBulletList, insertNumberedList } from "../insertElement";
+import {
+  insertBlockquote,
+  insertBulletList,
+  insertNumberedList,
+} from "../insertElement";
 
 const createParagraph = (text = "") => ({
   type: "paragraph" as const,
@@ -69,6 +73,50 @@ describe("insertElement 列表插入焦点", () => {
     expect(editor.selection).toEqual({
       anchor: Editor.start(editor, [1, 0, 0]),
       focus: Editor.start(editor, [1, 0, 0]),
+    });
+  });
+});
+
+describe("insertElement 引用块插入", () => {
+  it("空段落应替换为引用块", () => {
+    const editor = createEditor();
+    editor.children = [
+      createParagraph("上一个块"),
+      createParagraph(""),
+    ] as Descendant[];
+
+    selectPath(editor, [1, 0]);
+
+    insertBlockquote(editor);
+
+    expect(editor.children[1]).toEqual({
+      type: "blockquote",
+      children: [
+        {
+          type: "paragraph",
+          children: [{ type: "formatted", text: "" }],
+        },
+      ],
+    });
+  });
+
+  it("非空段落后应插入新的引用块", () => {
+    const editor = createEditor();
+    editor.children = [createParagraph("当前段落")] as Descendant[];
+
+    selectPath(editor, [0, 0], "当前段落".length);
+
+    insertBlockquote(editor);
+
+    expect(editor.children).toHaveLength(2);
+    expect(editor.children[1]).toEqual({
+      type: "blockquote",
+      children: [
+        {
+          type: "paragraph",
+          children: [{ type: "formatted", text: "" }],
+        },
+      ],
     });
   });
 });

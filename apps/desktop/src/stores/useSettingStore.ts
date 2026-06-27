@@ -119,6 +119,7 @@ const sanitizeDeprecatedLLMUsageSettings = <T extends Partial<ISetting>>(
   ) {
     delete nextSetting.llmUsageSettings.contentPolish;
     delete nextSetting.llmUsageSettings.autoTagging;
+    delete nextSetting.llmUsageSettings.aiContinueWrite;
     delete nextSetting.llmUsageSettings.vibeLearningDocSummary;
   }
 
@@ -382,7 +383,6 @@ export interface ISetting {
   llmUsageSettings: {
     chat: LLMUsageConfig | null;
     titleSummary: LLMUsageConfig | null;
-    aiContinueWrite: LLMUsageConfig | null;
     webClip: LLMUsageConfig | null;
     podcastGeneration: LLMUsageConfig | null;
     flashcardGeneration: LLMUsageConfig | null;
@@ -929,7 +929,6 @@ const initialState: IState = {
     llmUsageSettings: {
       chat: null,
       titleSummary: null,
-      aiContinueWrite: null,
       webClip: null,
       podcastGeneration: null,
       flashcardGeneration: null,

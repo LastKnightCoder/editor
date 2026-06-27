@@ -202,7 +202,6 @@ fn default_setting_value() -> Value {
       "llmUsageSettings": {
         "chat": null,
         "titleSummary": null,
-        "aiContinueWrite": null,
         "webClip": null,
         "podcastGeneration": null,
         "contentPolish": null,

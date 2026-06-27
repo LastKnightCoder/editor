@@ -13,6 +13,10 @@ describe("aiSettingsCompat", () => {
     expect(LLM_FEATURE_KEYS).not.toContain("vibeLearningDocSummary");
   });
 
+  it("不再暴露废弃的 AI 续写 LLM 用途", () => {
+    expect(LLM_FEATURE_KEYS).not.toContain("aiContinueWrite");
+  });
+
   it("会清理失效的 llmUsageSettings 引用", () => {
     const configs = normalizeLlmConfigs([
       {

@@ -17,7 +17,6 @@ const UsageSettings = () => {
   const featureNames = {
     chat: "对话功能",
     titleSummary: "标题总结",
-    aiContinueWrite: "AI续写",
     webClip: "网页剪藏",
     podcastGeneration: "播客生成",
     flashcardGeneration: "闪卡生成",
@@ -32,7 +31,7 @@ const UsageSettings = () => {
     {
       key: "conversation",
       label: "对话与写作",
-      features: ["chat", "aiContinueWrite"] as const,
+      features: ["chat"] as const,
     },
     {
       key: "content",

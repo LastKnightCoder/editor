@@ -45,7 +45,6 @@ type EmbeddingPersistMutator = (
 const LLM_FEATURE_LABELS: Record<LlmFeatureKey, string> = {
   chat: "对话功能",
   titleSummary: "标题总结",
-  aiContinueWrite: "AI 续写",
   webClip: "网页剪藏",
   podcastGeneration: "播客生成",
   contentPolish: "内容润色",
@@ -64,7 +63,7 @@ const LLM_USAGE_GROUPS: Array<{
   {
     key: "conversation",
     label: "对话与写作",
-    features: ["chat", "aiContinueWrite", "contentPolish"],
+    features: ["chat", "contentPolish"],
   },
   {
     key: "content",
