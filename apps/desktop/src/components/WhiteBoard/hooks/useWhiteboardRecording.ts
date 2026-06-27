@@ -78,6 +78,18 @@ const normalizeCaptureErrorMessage = (error: unknown) => {
   return `录制初始化失败：${message}`;
 };
 
+const normalizeCameraErrorMessage = (error: unknown) => {
+  const message = errorToMessage(error);
+  if (
+    message.includes("Permission denied") ||
+    message.includes("NotAllowedError") ||
+    message.includes("Permission dismissed")
+  ) {
+    return "摄像头开启失败：系统拒绝了摄像头权限。请在系统设置的隐私与安全性 > 摄像头中允许 Tau 访问摄像头，然后重启应用。";
+  }
+  return `摄像头开启失败：${message}`;
+};
+
 export const useWhiteboardRecording = ({
   setting,
   onSaved,
@@ -152,6 +164,11 @@ export const useWhiteboardRecording = ({
     setCameraOverlay(null);
   });
 
+  const releaseMedia = useMemoizedFn(() => {
+    releaseRecordingStreams();
+    stopCamera();
+  });
+
   useEffect(() => {
     let cancelled = false;
     const syncCameraAvailability = async () => {
@@ -214,6 +231,10 @@ export const useWhiteboardRecording = ({
         height: { ideal: 720 },
       },
     });
+    if (stream.getVideoTracks().length === 0) {
+      stopStream(stream);
+      throw new Error("摄像头没有返回视频画面");
+    }
     cameraStreamRef.current = stream;
     setCameraOverlay({ stream, enabled: true });
     return stream;
@@ -447,7 +468,7 @@ export const useWhiteboardRecording = ({
         return;
       }
       publishState({ cameraEnabled: false });
-      setErrorState(`摄像头开启失败：${message}`);
+      setErrorState(normalizeCameraErrorMessage(error));
     }
   });
 
@@ -566,6 +587,7 @@ export const useWhiteboardRecording = ({
       startRecording,
       stopRecording,
       resetRecording,
+      releaseMedia,
       setCameraEnabled,
     }),
     [
@@ -573,6 +595,7 @@ export const useWhiteboardRecording = ({
       closeControls,
       controlState,
       openControls,
+      releaseMedia,
       resetRecording,
       setCameraEnabled,
       startRecording,

@@ -63,7 +63,6 @@ class WhiteboardRecordingModule implements Module {
     this.preloadPath = options.preloadPath;
     this.rendererDistPath = options.rendererDistPath;
     this.viteDevServerUrl = options.viteDevServerUrl;
-    this.createControlWindow();
     app.once("before-quit", () => {
       this.destroyControlWindow();
     });
@@ -106,6 +105,10 @@ class WhiteboardRecordingModule implements Module {
     ipcMain.handle("whiteboard-recording:controls-state", (_event, state) => {
       this.sendToControls("whiteboard-recording:controls-state", state);
     });
+  }
+
+  prewarmControlWindow() {
+    this.createControlWindow();
   }
 
   private async getSources(): Promise<RecordingSource[]> {
@@ -351,6 +354,7 @@ class WhiteboardRecordingModule implements Module {
       },
     });
 
+    this.controlWindow.setContentProtection(true);
     this.keepControlWindowOnTop();
     (
       this.controlWindow as BrowserWindow & { __tauHiddenSingleton?: string }
@@ -506,9 +510,11 @@ class WhiteboardRecordingModule implements Module {
 
     const bounds = controlWindow.getBounds();
     controlWindow.webContents.setZoomFactor(1);
+    controlWindow.setVisibleOnAllWorkspaces(false);
     this.positionControlWindow(bounds.width, bounds.height);
-    this.keepControlWindowOnTop();
     controlWindow.showInactive();
+    this.keepControlWindowOnTop();
+    controlWindow.moveTop();
 
     if (!this.controlsReady) {
       log.info("[WhiteboardRecording] 控制窗仍在加载，已提前 show");
@@ -517,6 +523,7 @@ class WhiteboardRecordingModule implements Module {
 
   private hideControlWindow() {
     if (this.controlWindow && !this.controlWindow.isDestroyed()) {
+      this.controlWindow.setVisibleOnAllWorkspaces(false);
       this.controlWindow.hide();
     }
   }

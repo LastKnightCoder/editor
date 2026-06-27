@@ -86,6 +86,9 @@ win:
 mac:
   icon: "build/icon.icns"
   artifactName: "${productName}-v${version}-${platform}.${ext}"
+  extendInfo:
+    NSCameraUsageDescription: "Tau 需要访问摄像头，用于白板演示录制时显示摄像头画中画。"
+    NSMicrophoneUsageDescription: "Tau 需要访问麦克风，用于白板演示录制时保存讲解声音。"
   fileAssociations:
     - ext: md
       name: Markdown

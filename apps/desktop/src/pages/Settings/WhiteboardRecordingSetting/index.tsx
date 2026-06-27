@@ -9,9 +9,9 @@ import useSettingStore, {
 import {
   SettingButton,
   SettingContainer,
+  SettingDropdown,
   SettingInput,
   SettingSection,
-  SettingSelect,
   SettingSwitch,
 } from "../components";
 
@@ -19,10 +19,10 @@ const outputFormatOptions: Array<{
   label: string;
   value: WhiteboardRecordingOutputFormat;
 }> = [
-  { label: "WebM（浏览器原生）", value: "webm" },
-  { label: "MP4（ffmpeg 转码）", value: "mp4" },
-  { label: "MOV（ffmpeg 转码）", value: "mov" },
-  { label: "MKV（ffmpeg 转码）", value: "mkv" },
+  { label: "WebM", value: "webm" },
+  { label: "MP4", value: "mp4" },
+  { label: "MOV", value: "mov" },
+  { label: "MKV", value: "mkv" },
 ];
 
 const WhiteboardRecordingSetting = () => {
@@ -96,7 +96,7 @@ const WhiteboardRecordingSetting = () => {
             />
           </div>
 
-          <SettingSelect
+          <SettingDropdown
             label="导出格式"
             value={setting.outputFormat}
             options={outputFormatOptions}
@@ -116,7 +116,6 @@ const WhiteboardRecordingSetting = () => {
               onChange={(event) =>
                 updateSetting("saveDirectory", event.target.value)
               }
-              description="WebM 会直接保存；MKV 优先无损拷贝；MP4、MOV 会优先尝试硬件编码，失败后自动回退。"
             />
             <div className="flex flex-wrap gap-3">
               <SettingButton
