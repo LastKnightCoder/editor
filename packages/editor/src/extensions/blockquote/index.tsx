@@ -2,6 +2,7 @@ import { RenderElementProps } from "slate-react";
 import type { BlockquoteElement } from "../../types";
 
 import Blockquote from "./components/Blockquote";
+import blockPanelItems from "./block-panel-items";
 import { markdownSyntax, quit, withNormalizeBlockquote } from "./plugins";
 import { createBlockElementPlugin } from "../../utils";
 
@@ -18,6 +19,10 @@ class BlockquoteExtension extends Base implements IExtension {
       withNormalizeBlockquote,
       createBlockElementPlugin(this.type),
     ];
+  }
+
+  override getBlockPanelItems() {
+    return blockPanelItems;
   }
 
   render(props: RenderElementProps) {

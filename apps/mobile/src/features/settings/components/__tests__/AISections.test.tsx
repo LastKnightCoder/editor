@@ -209,6 +209,22 @@ describe("AISections", () => {
     document.body.innerHTML = "";
   });
 
+  it("LLM 功能分配不展示废弃的 AI 续写用途", async () => {
+    const controller = createController();
+    await controller.render({
+      section: "llm-usage",
+      initialSetting: createBaseSetting({
+        llmConfigs: [],
+        llmUsageSettings: {
+          aiContinueWrite: { providerId: "p1", modelName: "m1" },
+        },
+      }),
+    });
+
+    expect(document.body.textContent?.includes("AI 续写")).toBe(false);
+    await controller.cleanup();
+  });
+
   it("LLM 功能分配切换 provider 时会自动选择该 provider 的首个模型", async () => {
     const controller = createController();
     await controller.render({

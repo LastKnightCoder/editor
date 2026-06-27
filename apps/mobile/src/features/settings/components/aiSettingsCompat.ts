@@ -1,7 +1,6 @@
 const LLM_FEATURE_KEY_LIST = [
   "chat",
   "titleSummary",
-  "aiContinueWrite",
   "webClip",
   "podcastGeneration",
   "contentPolish",

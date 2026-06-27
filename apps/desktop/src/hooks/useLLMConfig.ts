@@ -10,7 +10,6 @@ export const useLLMConfig = (
   feature:
     | "chat"
     | "titleSummary"
-    | "aiContinueWrite"
     | "webClip"
     | "podcastGeneration"
     | "flashcardGeneration"
