@@ -51,6 +51,7 @@ export type { ProviderConfig, ModelConfig, LLMUsageConfig };
 export const DEFAULT_MODULE_ORDER = [
   "card",
   "flashcard",
+  "badge",
   "article",
   "whiteBoard",
   "project",
@@ -289,6 +290,10 @@ export interface ISetting {
     flashcard: {
       enable: boolean;
       name: "闪卡中心";
+    };
+    badge: {
+      enable: boolean;
+      name: "徽章中心";
     };
     article: {
       enable: boolean;
@@ -824,6 +829,10 @@ const initialState: IState = {
       flashcard: {
         enable: true,
         name: "闪卡中心",
+      },
+      badge: {
+        enable: true,
+        name: "徽章中心",
       },
       article: {
         enable: true,

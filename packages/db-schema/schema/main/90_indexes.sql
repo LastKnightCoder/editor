@@ -107,6 +107,18 @@ CREATE INDEX IF NOT EXISTS idx_flashcards_due_time ON flashcards(due_time);
 CREATE INDEX IF NOT EXISTS idx_flashcard_reviews_card ON flashcard_reviews(card_id);
 CREATE INDEX IF NOT EXISTS idx_flashcard_references_card ON flashcard_references(card_id);
 CREATE INDEX IF NOT EXISTS idx_flashcard_references_content ON flashcard_references(content_id);
+CREATE INDEX IF NOT EXISTS idx_badge_definition_status ON badge_definition(status);
+CREATE INDEX IF NOT EXISTS idx_badge_definition_source ON badge_definition(source);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_badge_definition_system_key ON badge_definition(system_key);
+CREATE INDEX IF NOT EXISTS idx_badge_milestone_definition ON badge_milestone(definition_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_badge_milestone_definition_key ON badge_milestone(definition_id, milestone_key);
+CREATE INDEX IF NOT EXISTS idx_badge_event_type_time ON badge_event(event_type, event_time);
+CREATE INDEX IF NOT EXISTS idx_badge_event_subject ON badge_event(subject_type, subject_id);
+CREATE INDEX IF NOT EXISTS idx_badge_manual_entry_definition_date ON badge_manual_entry(definition_id, entry_date);
+CREATE INDEX IF NOT EXISTS idx_badge_manual_entry_key_date ON badge_manual_entry(manual_key, entry_date);
+CREATE INDEX IF NOT EXISTS idx_badge_award_definition ON badge_award(definition_id);
+CREATE INDEX IF NOT EXISTS idx_badge_award_milestone ON badge_award(milestone_id);
+CREATE INDEX IF NOT EXISTS idx_badge_award_kind ON badge_award(award_kind);
 CREATE INDEX IF NOT EXISTS idx_vlr_project_id
       ON vibe_learning_resources(project_id);
 CREATE INDEX IF NOT EXISTS idx_vlc_project_id

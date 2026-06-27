@@ -30,6 +30,7 @@ const SkillManagementPage = lazy(() => import("@/pages/SkillManagement"));
 const WeReadPage = lazy(() => import("@/pages/WeRead"));
 const WebViewPage = lazy(() => import("@/pages/WebViewPage"));
 const FlashcardCenterPage = lazy(() => import("@/pages/FlashcardCenter"));
+const BadgeCenterPage = lazy(() => import("@/pages/BadgeCenter"));
 const BlockPreviewPage = lazy(() => import("@/pages/BlockPreviewPage"));
 const FeedViewPage = lazy(() => import("@/pages/FeedView"));
 
@@ -137,6 +138,9 @@ const TabContent = memo((props: TabContentProps) => {
 
       case TabType.FlashcardCenter:
         return <FlashcardCenterPage />;
+
+      case TabType.BadgeCenter:
+        return <BadgeCenterPage />;
 
       case TabType.BlockPreview:
         return <BlockPreviewPage />;

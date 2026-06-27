@@ -24,6 +24,7 @@ import pomodoro from "@/assets/icons/pomodoro.svg";
 import prompt from "@/assets/icons/prompt.svg";
 import weread from "@/assets/icons/weread.svg";
 import flashcard from "@/assets/icons/flashcard.svg";
+import badge from "@/assets/icons/badge.svg";
 import rss from "@/assets/icons/rss.svg";
 
 interface SidebarNavItemsProps {
@@ -143,6 +144,13 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         desc: "闪卡中心",
         type: TabType.FlashcardCenter,
         enable: module.flashcard?.enable ?? true,
+      },
+      {
+        key: "badge",
+        icon: badge,
+        desc: "徽章中心",
+        type: TabType.BadgeCenter,
+        enable: true,
       },
       {
         key: "article",

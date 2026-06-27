@@ -1,12 +1,4 @@
-import {
-  memo,
-  useState,
-  useRef,
-  useCallback,
-  useEffect,
-  type RefObject,
-  type CSSProperties,
-} from "react";
+import { memo, useState, useRef, useCallback, useEffect } from "react";
 import classNames from "classnames";
 import dayjs from "dayjs";
 import {
@@ -17,12 +9,11 @@ import {
   Check,
   Tags,
   Plus,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import useThemeColors from "@/hooks/useThemeColors";
 import useSettingStore from "@/stores/useSettingStore";
 import type { DiaryTagSetting } from "@/types/diary";
+import DatePicker from "@/components/DatePicker";
 
 function colorWithAlpha(color: string, alpha: number): string {
   if (color.startsWith("#")) {
@@ -105,212 +96,6 @@ function findPresetLabel(range: [number, number] | null): string | null {
   return null;
 }
 
-function getCalendarDays(viewDate: dayjs.Dayjs): dayjs.Dayjs[] {
-  const startDate = viewDate.startOf("month").startOf("week");
-  const endDate = viewDate.endOf("month").endOf("week");
-  const days: dayjs.Dayjs[] = [];
-  let current = startDate;
-
-  while (current.isBefore(endDate) || current.isSame(endDate, "day")) {
-    days.push(current);
-    current = current.add(1, "day");
-  }
-
-  return days;
-}
-
-type AnchorPositionStyle = CSSProperties & {
-  anchorName?: string;
-  positionAnchor?: string;
-};
-
-type PopoverDivElement = HTMLDivElement & {
-  showPopover?: () => void;
-  hidePopover?: () => void;
-};
-
-interface DateAnchorButtonProps {
-  value: string;
-  placeholder: string;
-  active: boolean;
-  accentColor: string;
-  anchorName: string;
-  isDarkMode: boolean;
-  onActivate: () => void;
-}
-
-const DateAnchorButton = ({
-  value,
-  placeholder,
-  active,
-  accentColor,
-  anchorName,
-  isDarkMode,
-  onActivate,
-}: DateAnchorButtonProps) => {
-  return (
-    <button
-      type="button"
-      onClick={onActivate}
-      className="flex h-10 min-w-0 items-center justify-between rounded-lg border px-3 text-left transition-all active:scale-[0.99]"
-      style={
-        {
-          anchorName,
-          borderColor: active ? accentColor : "var(--th-card-border)",
-          background: active
-            ? colorWithAlpha(accentColor, 0.1)
-            : isDarkMode
-              ? "rgba(255, 255, 255, 0.06)"
-              : "var(--th-input-bg)",
-          color: value ? "var(--th-text)" : "var(--th-text-secondary)",
-        } as AnchorPositionStyle
-      }
-    >
-      <span className="min-w-0">
-        <span className="block truncate text-xs font-medium">
-          {value ? dayjs(value).format("YYYY年M月D日") : placeholder}
-        </span>
-      </span>
-      <Calendar className="ml-2 h-3.5 w-3.5 flex-shrink-0" />
-    </button>
-  );
-};
-
-interface AnchoredDateCalendarProps {
-  value: string;
-  viewDate: dayjs.Dayjs;
-  accentColor: string;
-  anchorName: string;
-  popoverRef: RefObject<PopoverDivElement | null>;
-  onViewDateChange: (date: dayjs.Dayjs) => void;
-  onChange: (value: string) => void;
-  onToggle: (open: boolean) => void;
-}
-
-const AnchoredDateCalendar = ({
-  value,
-  viewDate,
-  accentColor,
-  anchorName,
-  popoverRef,
-  onViewDateChange,
-  onChange,
-  onToggle,
-}: AnchoredDateCalendarProps) => {
-  const selectedDate = value ? dayjs(value) : null;
-  const today = dayjs();
-  const calendarDays = getCalendarDays(viewDate);
-
-  return (
-    <div
-      ref={popoverRef}
-      popover="auto"
-      className="absolute z-40 m-0 w-[300px] rounded-xl border p-2 shadow-[0_18px_45px_rgba(15,23,42,0.16)] backdrop:bg-transparent"
-      style={
-        {
-          positionAnchor: anchorName,
-          top: "anchor(bottom)",
-          left: "anchor(left)",
-          marginTop: 8,
-          borderColor: "var(--th-card-border)",
-          background: "var(--th-modal)",
-        } as AnchorPositionStyle
-      }
-      onClick={(event) => event.stopPropagation()}
-      onToggle={(event) => {
-        onToggle((event.currentTarget as HTMLElement).matches(":popover-open"));
-      }}
-    >
-      <div className="mb-2 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => onViewDateChange(viewDate.subtract(1, "month"))}
-          className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10"
-        >
-          <ChevronLeft className="h-3.5 w-3.5" />
-        </button>
-        <div
-          className="text-xs font-semibold"
-          style={{ color: "var(--th-text)" }}
-        >
-          {viewDate.format("YYYY年M月")}
-        </div>
-        <button
-          type="button"
-          onClick={() => onViewDateChange(viewDate.add(1, "month"))}
-          className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10"
-        >
-          <ChevronRight className="h-3.5 w-3.5" />
-        </button>
-      </div>
-
-      <div
-        className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-medium"
-        style={{ color: "var(--th-text-secondary)" }}
-      >
-        {["一", "二", "三", "四", "五", "六", "日"].map((day) => (
-          <div key={day} className="py-1">
-            {day}
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-7 gap-1">
-        {calendarDays.map((day) => {
-          const isCurrentMonth = day.month() === viewDate.month();
-          const isSelected = selectedDate?.isSame(day, "day") ?? false;
-          const isToday = day.isSame(today, "day");
-          return (
-            <button
-              key={day.format("YYYY-MM-DD")}
-              type="button"
-              onClick={() => {
-                onChange(day.format("YYYY-MM-DD"));
-                popoverRef.current?.hidePopover?.();
-              }}
-              className="flex h-7 items-center justify-center rounded-lg text-[11px] transition-all active:scale-95"
-              style={{
-                background: isSelected
-                  ? accentColor
-                  : isToday
-                    ? colorWithAlpha(accentColor, 0.12)
-                    : "transparent",
-                border:
-                  isToday && !isSelected
-                    ? `1px solid ${colorWithAlpha(accentColor, 0.45)}`
-                    : "1px solid transparent",
-                color: isSelected
-                  ? "#ffffff"
-                  : isCurrentMonth
-                    ? "var(--th-text)"
-                    : "var(--th-text-secondary)",
-                opacity: isCurrentMonth || isSelected ? 1 : 0.45,
-                fontWeight: isSelected || isToday ? 600 : 400,
-              }}
-            >
-              {day.date()}
-            </button>
-          );
-        })}
-      </div>
-
-      <button
-        type="button"
-        onClick={() => {
-          const nextToday = dayjs();
-          onViewDateChange(nextToday);
-          onChange(nextToday.format("YYYY-MM-DD"));
-          popoverRef.current?.hidePopover?.();
-        }}
-        className="mt-2 h-8 w-full rounded-lg text-xs font-medium transition-colors hover:bg-black/5 dark:hover:bg-white/10"
-        style={{ color: accentColor }}
-      >
-        今天
-      </button>
-    </div>
-  );
-};
-
 interface MomentFilterBarProps {
   tagSettings: DiaryTagSetting[];
   activeTagFilter: string[];
@@ -340,14 +125,8 @@ const MomentFilterBar = memo(
     const [openDropdown, setOpenDropdown] = useState<"date" | "tag" | null>(
       null,
     );
-    const [activeCustomDate, setActiveCustomDate] = useState<
-      "start" | "end" | null
-    >(null);
-    const [startViewDate, setStartViewDate] = useState(() => dayjs());
-    const [endViewDate, setEndViewDate] = useState(() => dayjs());
     const searchInputRef = useRef<HTMLInputElement>(null);
     const toolbarRef = useRef<HTMLDivElement>(null);
-    const datePopoverRef = useRef<PopoverDivElement | null>(null);
 
     const presetLabel = findPresetLabel(activeDateRange);
     const dateLabel = presetLabel || formatDateRange(activeDateRange);
@@ -365,8 +144,6 @@ const MomentFilterBar = memo(
           !toolbarRef.current.contains(event.target as Node)
         ) {
           setOpenDropdown(null);
-          setActiveCustomDate(null);
-          datePopoverRef.current?.hidePopover?.();
         }
       };
 
@@ -384,15 +161,11 @@ const MomentFilterBar = memo(
       }
       setCustomStart(dayjs(activeDateRange[0]).format("YYYY-MM-DD"));
       setCustomEnd(dayjs(activeDateRange[1]).format("YYYY-MM-DD"));
-      setStartViewDate(dayjs(activeDateRange[0]));
-      setEndViewDate(dayjs(activeDateRange[1]));
     }, [activeDateRange]);
 
     const handlePresetClick = useCallback(
       (getRange: () => [number, number]) => {
         onDateRangeChange(getRange());
-        setActiveCustomDate(null);
-        datePopoverRef.current?.hidePopover?.();
         setOpenDropdown(null);
       },
       [onDateRangeChange],
@@ -402,8 +175,6 @@ const MomentFilterBar = memo(
       onDateRangeChange(null);
       setCustomStart("");
       setCustomEnd("");
-      setActiveCustomDate(null);
-      datePopoverRef.current?.hidePopover?.();
       setOpenDropdown(null);
     }, [onDateRangeChange]);
 
@@ -419,28 +190,8 @@ const MomentFilterBar = memo(
         ? dayjs(customEnd).endOf("day").valueOf()
         : dayjs().endOf("day").valueOf();
       onDateRangeChange([start, end]);
-      setActiveCustomDate(null);
-      datePopoverRef.current?.hidePopover?.();
       setOpenDropdown(null);
     }, [customStart, customEnd, onDateRangeChange, handleClearDateRange]);
-
-    const handleCustomStartChange = useCallback(
-      (value: string) => {
-        setCustomStart(value);
-        setStartViewDate(dayjs(value));
-        if (!customEnd) {
-          setEndViewDate(dayjs(value));
-        }
-        setActiveCustomDate(null);
-      },
-      [customEnd],
-    );
-
-    const handleCustomEndChange = useCallback((value: string) => {
-      setCustomEnd(value);
-      setEndViewDate(dayjs(value));
-      setActiveCustomDate(null);
-    }, []);
 
     const handleTagToggle = useCallback(
       (tag: string) => {
@@ -459,21 +210,12 @@ const MomentFilterBar = memo(
       onSearchQueryChange("");
       setCustomStart("");
       setCustomEnd("");
-      setActiveCustomDate(null);
     }, [onTagFilterChange, onDateRangeChange, onSearchQueryChange]);
 
     const handleSearchClear = useCallback(() => {
       onSearchQueryChange("");
       searchInputRef.current?.focus();
     }, [onSearchQueryChange]);
-
-    const openDatePopover = useCallback((type: "start" | "end") => {
-      datePopoverRef.current?.hidePopover?.();
-      setActiveCustomDate(type);
-      requestAnimationFrame(() => {
-        datePopoverRef.current?.showPopover?.();
-      });
-    }, []);
 
     const dateDropdownContent = (
       <div
@@ -552,15 +294,12 @@ const MomentFilterBar = memo(
         >
           自定义范围
         </div>
-        <div className="relative grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-          <DateAnchorButton
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+          <DatePicker
             value={customStart}
             placeholder="选择开始日期"
-            active={activeCustomDate === "start"}
             accentColor={accentColor}
-            anchorName="--diary-start-date"
-            isDarkMode={isDarkMode}
-            onActivate={() => openDatePopover("start")}
+            onChange={setCustomStart}
           />
           <span
             className="text-xs"
@@ -568,38 +307,11 @@ const MomentFilterBar = memo(
           >
             至
           </span>
-          <DateAnchorButton
+          <DatePicker
             value={customEnd}
             placeholder="选择结束日期"
-            active={activeCustomDate === "end"}
             accentColor={accentColor}
-            anchorName="--diary-end-date"
-            isDarkMode={isDarkMode}
-            onActivate={() => openDatePopover("end")}
-          />
-          <AnchoredDateCalendar
-            value={activeCustomDate === "end" ? customEnd : customStart}
-            viewDate={activeCustomDate === "end" ? endViewDate : startViewDate}
-            accentColor={accentColor}
-            anchorName={
-              activeCustomDate === "end"
-                ? "--diary-end-date"
-                : "--diary-start-date"
-            }
-            popoverRef={datePopoverRef}
-            onViewDateChange={
-              activeCustomDate === "end" ? setEndViewDate : setStartViewDate
-            }
-            onChange={
-              activeCustomDate === "end"
-                ? handleCustomEndChange
-                : handleCustomStartChange
-            }
-            onToggle={(open) => {
-              if (!open) {
-                setActiveCustomDate(null);
-              }
-            }}
+            onChange={setCustomEnd}
           />
         </div>
 
