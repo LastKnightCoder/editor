@@ -29,6 +29,7 @@ export enum TabType {
   WeRead = "weread",
   WebView = "webview",
   FlashcardCenter = "flashcardCenter",
+  BadgeCenter = "badgeCenter",
   BlockPreview = "blockPreview",
   RssSubscription = "rssSubscription",
   ReadLater = "readLater",
@@ -65,6 +66,7 @@ export type TabParams = {
   [TabType.WeRead]: undefined;
   [TabType.WebView]: { url: string };
   [TabType.FlashcardCenter]: undefined;
+  [TabType.BadgeCenter]: undefined;
   [TabType.BlockPreview]: { block: BlockData };
   [TabType.RssSubscription]: undefined;
   [TabType.ReadLater]: undefined;
@@ -129,6 +131,7 @@ export const TAB_TITLES: Record<TabType, string> = {
   [TabType.WeRead]: "微信读书",
   [TabType.WebView]: "网页",
   [TabType.FlashcardCenter]: "闪卡中心",
+  [TabType.BadgeCenter]: "徽章中心",
   [TabType.BlockPreview]: "块预览",
   [TabType.RssSubscription]: "RSS 订阅",
   [TabType.ReadLater]: "稍后读",

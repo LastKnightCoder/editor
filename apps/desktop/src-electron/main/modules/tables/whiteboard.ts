@@ -3,6 +3,7 @@ import { WhiteBoard, WhiteBoardContent } from "@/types";
 import Operation from "./operation";
 import Project from "./project";
 import WhiteBoardContentTable from "./white-board-content";
+import BadgeTable from "./badge";
 export default class WhiteboardTable {
   static upgradeTable(db: Database.Database) {
     const tableInfo = db
@@ -128,6 +129,20 @@ export default class WhiteboardTable {
       db,
       "whiteboard",
       "insert",
+      res.lastInsertRowid,
+      now,
+    );
+    BadgeTable.recordContentEvent(
+      db,
+      "whiteboard.created",
+      "whiteboard",
+      res.lastInsertRowid,
+      now,
+    );
+    BadgeTable.recordContentEvent(
+      db,
+      "output.created",
+      "whiteboard",
       res.lastInsertRowid,
       now,
     );
@@ -316,6 +331,14 @@ export default class WhiteboardTable {
     );
 
     Operation.insertOperation(db, "whiteboard", "update", whiteboard.id, now);
+    BadgeTable.recordContentEvent(
+      db,
+      "output.created",
+      "whiteboard",
+      whiteboard.id,
+      now,
+      { source: "update" },
+    );
 
     return this.getWhiteboard(db, whiteboard.id);
   }

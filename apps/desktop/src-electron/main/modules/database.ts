@@ -39,6 +39,7 @@ import TodoRecurrenceTable from "./tables/todo-recurrence";
 import TodoRecurrenceCompletionTable from "./tables/todo-recurrence-completion";
 import TodoCalendarMappingTable from "./tables/todo-calendar-mapping";
 import TodoCalendarSyncTable from "./tables/todo-calendar-sync";
+import BadgeTable from "./tables/badge";
 import GoalHardCleanupTable from "./tables/goal-hard-cleanup";
 import QuestionGroupTable from "./tables/question-group";
 import PomodoroPresetTable from "./tables/pomodoro-preset";
@@ -227,6 +228,7 @@ class DatabaseModule implements Module {
       TodoRecurrenceTable,
       TodoRecurrenceCompletionTable,
       TodoCalendarMappingTable,
+      BadgeTable,
       PomodoroPresetTable,
       PomodoroSessionTable,
       PomodoroCalendarMappingTable,

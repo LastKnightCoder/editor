@@ -77,6 +77,7 @@ interface TitlebarWithTabsProps {
 const QUICK_ACCESS_MODULE_TAB_MAP = {
   card: TabType.CardList,
   flashcard: TabType.FlashcardCenter,
+  badge: TabType.BadgeCenter,
   article: TabType.ArticleList,
   whiteBoard: TabType.WhiteBoardList,
   project: TabType.ProjectList,

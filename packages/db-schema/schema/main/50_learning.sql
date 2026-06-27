@@ -250,6 +250,89 @@ CREATE TABLE IF NOT EXISTS flashcard_references (
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL
           );
+CREATE TABLE IF NOT EXISTS badge_definition (
+        id INTEGER PRIMARY KEY,
+        system_key TEXT,
+        name TEXT NOT NULL,
+        source TEXT NOT NULL CHECK(source IN ('system','custom')),
+        status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','archived')),
+        success_design TEXT NOT NULL,
+        failure_design TEXT,
+        rule_json TEXT NOT NULL,
+        schedule_json TEXT NOT NULL,
+        award_policy_json TEXT NOT NULL,
+        retroactive_mode TEXT NOT NULL DEFAULT 'disabled' CHECK(retroactive_mode IN ('system','enabled','disabled')),
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
+CREATE TABLE IF NOT EXISTS badge_milestone (
+        id INTEGER PRIMARY KEY,
+        definition_id INTEGER NOT NULL,
+        milestone_key TEXT,
+        target_value REAL NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        icon TEXT,
+        color TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        UNIQUE(definition_id, target_value),
+        FOREIGN KEY(definition_id) REFERENCES badge_definition(id)
+      );
+CREATE TABLE IF NOT EXISTS badge_event (
+        id INTEGER PRIMARY KEY,
+        event_key TEXT NOT NULL UNIQUE,
+        event_type TEXT NOT NULL,
+        event_time INTEGER NOT NULL,
+        subject_type TEXT,
+        subject_id INTEGER,
+        value REAL NOT NULL DEFAULT 1,
+        metadata TEXT,
+        create_time INTEGER NOT NULL
+      );
+CREATE TABLE IF NOT EXISTS badge_manual_entry (
+        id INTEGER PRIMARY KEY,
+        definition_id INTEGER NOT NULL,
+        manual_key TEXT NOT NULL,
+        entry_date TEXT NOT NULL,
+        completed_at INTEGER NOT NULL,
+        detail_content_id INTEGER,
+        attachments TEXT NOT NULL DEFAULT '[]',
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        FOREIGN KEY(definition_id) REFERENCES badge_definition(id),
+        FOREIGN KEY(detail_content_id) REFERENCES contents(id)
+      );
+CREATE TABLE IF NOT EXISTS badge_progress (
+        id INTEGER PRIMARY KEY,
+        definition_id INTEGER NOT NULL UNIQUE,
+        current_period_key TEXT,
+        current_value REAL NOT NULL DEFAULT 0,
+        current_streak INTEGER NOT NULL DEFAULT 0,
+        best_streak INTEGER NOT NULL DEFAULT 0,
+        accumulated_count REAL NOT NULL DEFAULT 0,
+        last_passed_period_key TEXT,
+        last_evaluated_at INTEGER,
+        update_time INTEGER NOT NULL,
+        FOREIGN KEY(definition_id) REFERENCES badge_definition(id)
+      );
+CREATE TABLE IF NOT EXISTS badge_award (
+        id INTEGER PRIMARY KEY,
+        definition_id INTEGER NOT NULL,
+        milestone_id INTEGER,
+        award_kind TEXT NOT NULL CHECK(award_kind IN ('success','failure')),
+        period_key TEXT NOT NULL,
+        period_start INTEGER NOT NULL,
+        period_end INTEGER NOT NULL,
+        target_value REAL NOT NULL,
+        progress_value REAL NOT NULL,
+        evidence TEXT,
+        awarded_at INTEGER NOT NULL,
+        UNIQUE(definition_id, award_kind, period_key, target_value),
+        FOREIGN KEY(definition_id) REFERENCES badge_definition(id),
+        FOREIGN KEY(milestone_id) REFERENCES badge_milestone(id)
+      );
 CREATE TABLE IF NOT EXISTS epubs (
         id INTEGER PRIMARY KEY NOT NULL,
         create_time INTEGER NOT NULL,
