@@ -7,6 +7,7 @@ import {
 } from "electron";
 import path from "node:path";
 import log from "electron-log";
+import { ensureMacOSForegroundApplication } from "../utils/macos-activation";
 
 // 从主进程导入的变量
 let VITE_DEV_SERVER_URL: string;
@@ -329,6 +330,7 @@ export class WindowManager {
 
   // 显示或创建主窗口
   public showOrCreateMainWindow() {
+    ensureMacOSForegroundApplication(app);
     const mainWindow = this.getMainWindow();
 
     if (mainWindow) {

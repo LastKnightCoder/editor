@@ -256,7 +256,7 @@ const PresentationMode: React.FC = () => {
     cameraOverlay,
     closeControls,
     openControls,
-    setCameraEnabled,
+    releaseMedia,
     startRecording,
     state: recordingState,
     stopRecording,
@@ -326,6 +326,7 @@ const PresentationMode: React.FC = () => {
     if (currentStatus === "recording" || currentStatus === "paused") {
       await stopRecording();
     }
+    releaseMedia();
     await closeControls();
     if (board) {
       board.presentationManager.stopPresentationMode();
@@ -417,6 +418,7 @@ const PresentationMode: React.FC = () => {
       if (shouldStop) {
         stopRecording();
       }
+      releaseMedia();
       closeControls();
       const fullscreenTarget = BOARD_TO_CONTAINER.get(board);
       if (document.fullscreenElement === fullscreenTarget) {
@@ -430,6 +432,7 @@ const PresentationMode: React.FC = () => {
     isCreatingSequence,
     isPresentationMode,
     openControls,
+    releaseMedia,
     recordingSetting.autoStartRecording,
     startRecording,
     stopRecording,
@@ -505,12 +508,7 @@ const PresentationMode: React.FC = () => {
         </div>
       )}
 
-      {cameraOverlay && (
-        <CameraOverlay
-          camera={cameraOverlay}
-          onClose={() => setCameraEnabled(false)}
-        />
-      )}
+      {cameraOverlay && <CameraOverlay camera={cameraOverlay} />}
     </div>
   );
 };

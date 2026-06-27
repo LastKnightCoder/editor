@@ -1,19 +1,21 @@
 import React, { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
 
 import type { CameraOverlayState } from "../../hooks/useWhiteboardRecording";
 import styles from "./index.module.less";
 
 interface CameraOverlayProps {
   camera: CameraOverlayState;
-  onClose: () => void;
 }
 
 const clamp = (value: number, min: number, max: number) => {
   return Math.min(Math.max(value, min), max);
 };
 
-const CameraOverlay: React.FC<CameraOverlayProps> = ({ camera, onClose }) => {
+const MIN_CAMERA_SIZE = 112;
+const MAX_CAMERA_SIZE = 280;
+const RESIZE_EDGE_WIDTH = 14;
+
+const CameraOverlay: React.FC<CameraOverlayProps> = ({ camera }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const dragStateRef = useRef<{
     mode: "move" | "resize";
@@ -24,6 +26,7 @@ const CameraOverlay: React.FC<CameraOverlayProps> = ({ camera, onClose }) => {
     startSize: number;
   } | null>(null);
   const [position, setPosition] = useState({ left: 0, top: 0, size: 168 });
+  const [isHoveringResizeEdge, setIsHoveringResizeEdge] = useState(false);
 
   useEffect(() => {
     const size = 168;
@@ -47,17 +50,29 @@ const CameraOverlay: React.FC<CameraOverlayProps> = ({ camera, onClose }) => {
       const deltaX = event.clientX - dragState.startX;
       const deltaY = event.clientY - dragState.startY;
       if (dragState.mode === "resize") {
+        const startCenterX = dragState.startLeft + dragState.startSize / 2;
+        const startCenterY = dragState.startTop + dragState.startSize / 2;
         const nextSize = clamp(
-          dragState.startSize + Math.max(deltaX, deltaY),
-          112,
-          280,
+          Math.hypot(
+            event.clientX - startCenterX,
+            event.clientY - startCenterY,
+          ) * 2,
+          MIN_CAMERA_SIZE,
+          MAX_CAMERA_SIZE,
         );
-        setPosition((current) => ({
-          ...current,
+        setPosition({
           size: nextSize,
-          left: clamp(current.left, 16, window.innerWidth - nextSize - 16),
-          top: clamp(current.top, 16, window.innerHeight - nextSize - 16),
-        }));
+          left: clamp(
+            startCenterX - nextSize / 2,
+            16,
+            window.innerWidth - nextSize - 16,
+          ),
+          top: clamp(
+            startCenterY - nextSize / 2,
+            16,
+            window.innerHeight - nextSize - 16,
+          ),
+        });
         return;
       }
 
@@ -88,14 +103,19 @@ const CameraOverlay: React.FC<CameraOverlayProps> = ({ camera, onClose }) => {
     };
   }, []);
 
-  const startDrag = (
-    event: React.PointerEvent<HTMLDivElement>,
-    mode: "move" | "resize",
-  ) => {
+  const isOnResizeEdge = (clientX: number, clientY: number) => {
+    const centerX = position.left + position.size / 2;
+    const centerY = position.top + position.size / 2;
+    const distanceFromCenter = Math.hypot(clientX - centerX, clientY - centerY);
+    const distanceFromEdge = Math.abs(distanceFromCenter - position.size / 2);
+    return distanceFromEdge <= RESIZE_EDGE_WIDTH;
+  };
+
+  const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
     dragStateRef.current = {
-      mode,
+      mode: isOnResizeEdge(event.clientX, event.clientY) ? "resize" : "move",
       startX: event.clientX,
       startY: event.clientY,
       startLeft: position.left,
@@ -113,7 +133,16 @@ const CameraOverlay: React.FC<CameraOverlayProps> = ({ camera, onClose }) => {
         left: position.left,
         top: position.top,
       }}
-      onPointerDown={(event) => startDrag(event, "move")}
+      data-resize-edge={isHoveringResizeEdge ? "true" : undefined}
+      onPointerDown={startDrag}
+      onPointerMove={(event) => {
+        if (dragStateRef.current) return;
+        setIsHoveringResizeEdge(isOnResizeEdge(event.clientX, event.clientY));
+      }}
+      onPointerLeave={() => {
+        if (dragStateRef.current) return;
+        setIsHoveringResizeEdge(false);
+      }}
     >
       <video
         ref={videoRef}
@@ -121,23 +150,6 @@ const CameraOverlay: React.FC<CameraOverlayProps> = ({ camera, onClose }) => {
         muted
         autoPlay
         playsInline
-      />
-      <button
-        type="button"
-        className={styles.closeButton}
-        title="关闭摄像头"
-        onPointerDown={(event) => event.stopPropagation()}
-        onClick={(event) => {
-          event.stopPropagation();
-          onClose();
-        }}
-      >
-        <X size={14} />
-      </button>
-      <div
-        className={styles.resizeHandle}
-        title="调整大小"
-        onPointerDown={(event) => startDrag(event, "resize")}
       />
     </div>
   );
