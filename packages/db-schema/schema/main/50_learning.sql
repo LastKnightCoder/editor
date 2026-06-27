@@ -300,7 +300,7 @@ CREATE TABLE IF NOT EXISTS vibe_learning_resources (
         markdown_path TEXT,
         resource_type TEXT NOT NULL,
         file_size INTEGER,
-        duration INTEGER, source_type TEXT, source_meta_info TEXT, is_chunked INTEGER DEFAULT 0, chapter_count INTEGER DEFAULT 0, transcript_segments TEXT,
+        duration INTEGER, source_type TEXT, source_meta_info TEXT, transcript_segments TEXT,
         FOREIGN KEY(project_id) REFERENCES project(id)
       );
 CREATE TABLE IF NOT EXISTS vibe_learning_chats (

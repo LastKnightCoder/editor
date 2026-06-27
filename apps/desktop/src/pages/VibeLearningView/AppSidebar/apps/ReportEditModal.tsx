@@ -312,12 +312,12 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
       const toolNameMap: Record<string, string> = {
         list_project_resources: "获取资源列表",
         read_resource_content: "读取资源内容",
-        read_resource_range: "分段读取内容",
-        list_resource_chapters: "查看章节结构",
-        read_resource_chapter: "读取章节正文",
-        read_resource_chapter_range: "分段读取章节",
-        read_search_hit_context: "补读命中上下文",
-        search_project_knowledge: "搜索知识库",
+        read_resource_lines: "按行补读内容",
+        read_resource_range: "按字符补读内容",
+        grep_resource_content: "精确搜索资料",
+        batch_read_search_hits: "批量补读上下文",
+        search_resource_content: "语义搜索资料",
+        batch_search_project_knowledge: "批量搜索资料",
       };
       return toolNameMap[executingTool.toolName] || "执行工具调用";
     }

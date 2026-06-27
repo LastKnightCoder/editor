@@ -200,13 +200,17 @@ export const searchVLContent = async (params: {
     resourceId: number;
     resourceName: string;
     content: string;
+    displayContent?: string;
+    searchContent?: string;
     score: number;
-    hitType?: "summary" | "chapter";
-    chapterIndex?: number;
-    chapterTitle?: string;
-    chapterSummary?: string;
     chunkIndex?: number;
-    chunkIndexInSection?: number;
+    chunkLevel?: "resource" | "passage";
+    chunkStartLine?: number;
+    chunkEndLine?: number;
+    startOffset?: number;
+    endOffset?: number;
+    charCount?: number;
+    whyMatched?: string;
     rrfScore?: number;
     rerankScore?: number;
   }>
@@ -349,8 +353,6 @@ export const readVLResourceContent = async (
   content?: string;
   totalLines?: number;
   resourceName?: string;
-  isChunked?: boolean;
-  chapterCount?: number;
   error?: string;
 }> => {
   return await invoke("vl-read-markdown-content", {
@@ -361,113 +363,29 @@ export const readVLResourceContent = async (
 };
 
 /**
- * 读取资源的章节内容
- */
-export const readVLChapterContent = async (
-  projectId: number,
-  resourceName: string,
-  mainDbName: string,
-  chapterIndex: number,
-): Promise<{
-  success: boolean;
-  content?: string;
-  chapterTitle?: string;
-  chapterIndex?: number;
-  totalChapters?: number;
-  resourceName?: string;
-  error?: string;
-}> => {
-  return await invoke("vl-read-chapter-content", {
-    projectId,
-    resourceName,
-    mainDbName,
-    chapterIndex,
-  });
-};
-
-/**
- * 读取资源命中片段附近的上下文
- */
-export const readVLSearchHitContext = async (
-  projectId: number,
-  resourceName: string,
-  mainDbName: string,
-  chunkIndex: number,
-  radius?: number,
-): Promise<{
-  success: boolean;
-  resourceName?: string;
-  hitType?: "summary" | "chapter";
-  chapterIndex?: number;
-  chapterTitle?: string;
-  chunkIndex?: number;
-  chunkIndexInSection?: number;
-  startChunkIndex?: number;
-  endChunkIndex?: number;
-  content?: string;
-  error?: string;
-}> => {
-  return await invoke("vl-read-search-hit-context", {
-    projectId,
-    resourceName,
-    mainDbName,
-    chunkIndex,
-    radius,
-  });
-};
-
-/**
- * 列出资源的所有章节
- */
-export const listVLChapters = async (
-  projectId: number,
-  resourceName: string,
-  mainDbName: string,
-): Promise<{
-  success: boolean;
-  chapters?: Array<{
-    index: number;
-    title: string;
-    charCount: number;
-    summary?: string;
-  }>;
-  resourceName?: string;
-  error?: string;
-}> => {
-  return await invoke("vl-list-chapters", {
-    projectId,
-    resourceName,
-    mainDbName,
-  });
-};
-
-/**
- * 深度阅读资源
- */
-export const deepReadVLResource = async (
-  projectId: number,
-  resourceName: string,
-  mainDbName: string,
-  question: string,
-  focusChapters?: number[],
-): Promise<{
-  success: boolean;
-  answer?: string;
-  analyzedChapters?: number[];
-  error?: string;
-}> => {
-  return await invoke("vl-deep-read-resource", {
-    projectId,
-    resourceName,
-    mainDbName,
-    question,
-    focusChapters,
-  });
-};
-
-/**
  * 按行范围读取资源的 Markdown 内容
  */
+export const readVLResourceLines = async (params: {
+  projectId: number;
+  mainDbName: string;
+  resourceId?: number;
+  resourceName?: string;
+  startLine: number;
+  endLine: number;
+}): Promise<{
+  success: boolean;
+  content?: string;
+  resourceId?: number;
+  startLine?: number;
+  endLine?: number;
+  totalLines?: number;
+  resourceName?: string;
+  truncated?: boolean;
+  error?: string;
+}> => {
+  return await invoke("vl-read-resource-lines", params);
+};
+
 export const readVLResourceContentRange = async (
   projectId: number,
   resourceName: string,
@@ -481,46 +399,61 @@ export const readVLResourceContentRange = async (
   endLine?: number;
   totalLines?: number;
   resourceName?: string;
+  truncated?: boolean;
   error?: string;
 }> => {
-  return await invoke("vl-read-markdown-range", {
+  return await readVLResourceLines({
     projectId,
-    resourceName,
     mainDbName,
+    resourceName,
     startLine,
     endLine,
   });
 };
 
-/**
- * 按行范围读取章节内容
- */
-export const readVLChapterContentRange = async (
-  projectId: number,
-  resourceName: string,
-  mainDbName: string,
-  chapterIndex: number,
-  startLine: number,
-  endLine: number,
-): Promise<{
-  success: boolean;
+export const readVLResourceRange = async (params: {
+  projectId: number;
+  mainDbName: string;
+  resourceId?: number;
   resourceName?: string;
-  chapterTitle?: string;
-  chapterIndex?: number;
-  startLine?: number;
-  endLine?: number;
-  totalLines?: number;
+  startOffset: number;
+  endOffset: number;
+}): Promise<{
+  success: boolean;
   content?: string;
+  resourceId?: number;
+  resourceName?: string;
+  startOffset?: number;
+  endOffset?: number;
+  totalChars?: number;
+  truncated?: boolean;
   error?: string;
 }> => {
-  return await invoke("vl-read-chapter-range", {
-    projectId,
-    resourceName,
-    mainDbName,
-    chapterIndex,
-    startLine,
-    endLine,
-  });
+  return await invoke("vl-read-resource-range", params);
+};
+
+export const grepVLResourceContent = async (params: {
+  projectId: number;
+  mainDbName: string;
+  query: string;
+  isRegex?: boolean;
+  ignoreCase?: boolean;
+  limit?: number;
+}): Promise<{
+  success: boolean;
+  query: string;
+  results: Array<{
+    resourceId: number;
+    resourceName: string;
+    lineNumber: number;
+    startOffset: number;
+    endOffset: number;
+    matchedText: string;
+    preview: string;
+  }>;
+  error?: string;
+}> => {
+  return await invoke("vl-grep-content", params);
 };
 
 // ==================== VL 笔记相关 ====================

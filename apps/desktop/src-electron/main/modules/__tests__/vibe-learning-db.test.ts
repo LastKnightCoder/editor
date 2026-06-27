@@ -59,13 +59,14 @@ describe("VibeLearningDBManager chunk metadata", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     execMock.mockReset();
+    (vibeLearningDBManager as any).chunkMetadataLegacySchemaMode.clear();
+    (vibeLearningDBManager as any).chunkMetadataLegacyFallback.clear();
+    (vibeLearningDBManager as any).chunkMetadataLegacyRangeFallback.clear();
     allMock.mockReturnValue([
       { name: "resource_id" },
       { name: "chunk_index" },
       { name: "search_content" },
       { name: "display_content" },
-      { name: "section_title" },
-      { name: "section_path" },
       { name: "chapter_start_line" },
       { name: "chapter_end_line" },
     ]);
@@ -78,8 +79,6 @@ describe("VibeLearningDBManager chunk metadata", () => {
       { name: "chunk_index" },
       { name: "search_content" },
       { name: "display_content" },
-      { name: "section_title" },
-      { name: "section_path" },
       { name: "chapter_start_line" },
       { name: "chapter_end_line" },
     ]);
@@ -110,8 +109,40 @@ describe("VibeLearningDBManager chunk metadata", () => {
       .mockReturnValueOnce({
         search_content: "chunk one",
         display_content: "Chunk One",
-        section_title: "Attention",
-        section_path: JSON.stringify(["第一章", "Attention"]),
+        chapter_start_line: 12,
+        chapter_end_line: 28,
+        start_offset: null,
+        end_offset: null,
+        char_count: null,
+      });
+
+    const metadata = vibeLearningDBManager.getChunkMetadata(
+      "test.db",
+      1,
+      42,
+      0,
+    );
+
+    expect(metadata).toMatchObject({
+      searchContent: "chunk one",
+      displayContent: "Chunk One",
+      chunkStartLine: 12,
+      chunkEndLine: 28,
+    });
+    expect(getMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("getChunkMetadata 在真实旧表缺少字符范围列时仍应兼容读取旧列", () => {
+    getMock
+      .mockImplementationOnce(() => {
+        throw new Error("no such column: chunk_start_line");
+      })
+      .mockImplementationOnce(() => {
+        throw new Error("no such column: start_offset");
+      })
+      .mockReturnValueOnce({
+        search_content: "chunk one",
+        display_content: "Chunk One",
         chapter_start_line: 12,
         chapter_end_line: 28,
       });
@@ -126,12 +157,13 @@ describe("VibeLearningDBManager chunk metadata", () => {
     expect(metadata).toMatchObject({
       searchContent: "chunk one",
       displayContent: "Chunk One",
-      sectionTitle: "Attention",
-      sectionPath: ["第一章", "Attention"],
       chunkStartLine: 12,
       chunkEndLine: 28,
     });
-    expect(getMock).toHaveBeenCalledTimes(2);
+    expect(metadata?.startOffset).toBeUndefined();
+    expect(metadata?.endOffset).toBeUndefined();
+    expect(metadata?.charCount).toBeUndefined();
+    expect(getMock).toHaveBeenCalledTimes(3);
   });
 
   it("迁移失败时 initTables 不应继续执行 chunk 行号列 DDL", () => {
@@ -141,8 +173,6 @@ describe("VibeLearningDBManager chunk metadata", () => {
         { name: "chunk_index" },
         { name: "search_content" },
         { name: "display_content" },
-        { name: "section_title" },
-        { name: "section_path" },
         { name: "chapter_start_line" },
         { name: "chapter_end_line" },
       ])
@@ -151,8 +181,6 @@ describe("VibeLearningDBManager chunk metadata", () => {
         { name: "chunk_index" },
         { name: "search_content" },
         { name: "display_content" },
-        { name: "section_title" },
-        { name: "section_path" },
         { name: "chapter_start_line" },
         { name: "chapter_end_line" },
       ]);
@@ -181,16 +209,17 @@ describe("VibeLearningDBManager chunk metadata", () => {
     );
   });
 
-  it("createIndex 应把命中 chunk 的精确行号写入 vl_chunk_metadata", () => {
+  it("createIndex 应把命中 chunk 的精确行号和字符范围写入 vl_chunk_metadata", () => {
     vibeLearningDBManager.createIndex("test.db", 1, 42, "原始内容", [
       {
         text: "chunk one",
         searchText: "chunk one",
         displayText: "Chunk One",
-        sectionTitle: "Attention",
-        sectionPath: ["第一章", "Attention"],
         chunkStartLine: 12,
         chunkEndLine: 28,
+        startOffset: 100,
+        endOffset: 124,
+        charCount: 24,
       },
     ]);
 
@@ -199,10 +228,11 @@ describe("VibeLearningDBManager chunk metadata", () => {
       0,
       "chunk one",
       "Chunk One",
-      "Attention",
-      JSON.stringify(["第一章", "Attention"]),
       12,
       28,
+      100,
+      124,
+      24,
     );
   });
 
@@ -216,10 +246,11 @@ describe("VibeLearningDBManager chunk metadata", () => {
         text: "chunk one",
         searchText: "chunk one",
         displayText: "Chunk One",
-        sectionTitle: "Attention",
-        sectionPath: ["第一章", "Attention"],
         chunkStartLine: 12,
         chunkEndLine: 28,
+        startOffset: 100,
+        endOffset: 124,
+        charCount: 24,
       },
     ]);
 
@@ -234,21 +265,63 @@ describe("VibeLearningDBManager chunk metadata", () => {
       0,
       "chunk one",
       "Chunk One",
-      "Attention",
-      JSON.stringify(["第一章", "Attention"]),
+      12,
+      28,
+      100,
+      124,
+      24,
+    );
+  });
+
+  it("legacy schema mode 下 createIndex 不应写入旧表不存在的字符范围列", () => {
+    (vibeLearningDBManager as any).chunkMetadataLegacySchemaMode.add(
+      "test-project-1",
+    );
+    (vibeLearningDBManager as any).chunkMetadataLegacyRangeFallback.add(
+      "test-project-1",
+    );
+
+    vibeLearningDBManager.createIndex("test.db", 1, 42, "原始内容", [
+      {
+        text: "chunk one",
+        searchText: "chunk one",
+        displayText: "Chunk One",
+        chunkStartLine: 12,
+        chunkEndLine: 28,
+        startOffset: 100,
+        endOffset: 124,
+        charCount: 24,
+      },
+    ]);
+
+    const legacyInsertSql = prepareMock.mock.calls.find(([sql]) =>
+      String(sql).includes("INSERT INTO vl_chunk_metadata"),
+    )?.[0] as string;
+
+    expect(legacyInsertSql).toContain("chapter_start_line");
+    expect(legacyInsertSql).toContain("chapter_end_line");
+    expect(legacyInsertSql).not.toContain("start_offset");
+    expect(legacyInsertSql).not.toContain("end_offset");
+    expect(legacyInsertSql).not.toContain("char_count");
+    expect(runMock).toHaveBeenCalledWith(
+      42,
+      0,
+      "chunk one",
+      "Chunk One",
       12,
       28,
     );
   });
 
-  it("getChunkMetadata 应读回命中 chunk 的精确行号", () => {
+  it("getChunkMetadata 应读回命中 chunk 的精确行号和字符范围", () => {
     getMock.mockReturnValue({
       search_content: "chunk one",
       display_content: "Chunk One",
-      section_title: "Attention",
-      section_path: JSON.stringify(["第一章", "Attention"]),
       chunk_start_line: 12,
       chunk_end_line: 28,
+      start_offset: 100,
+      end_offset: 124,
+      char_count: 24,
     });
 
     const metadata = vibeLearningDBManager.getChunkMetadata(
@@ -261,10 +334,11 @@ describe("VibeLearningDBManager chunk metadata", () => {
     expect(metadata).toMatchObject({
       searchContent: "chunk one",
       displayContent: "Chunk One",
-      sectionTitle: "Attention",
-      sectionPath: ["第一章", "Attention"],
       chunkStartLine: 12,
       chunkEndLine: 28,
+      startOffset: 100,
+      endOffset: 124,
+      charCount: 24,
     });
   });
 

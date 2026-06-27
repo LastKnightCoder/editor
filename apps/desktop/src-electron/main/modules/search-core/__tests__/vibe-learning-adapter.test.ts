@@ -114,7 +114,7 @@ describe("search-core/vibe-learning-adapter", () => {
     expect(result.score).toBe(0.9);
   });
 
-  it("searchFTS 应透传 section 元数据", async () => {
+  it("searchFTS 应透传 chunk 显示内容", async () => {
     mockSearchFTS.mockReturnValue([
       {
         resourceId: 1,
@@ -126,8 +126,6 @@ describe("search-core/vibe-learning-adapter", () => {
     mockGetChunkMetadata.mockReturnValue({
       searchContent: "q k v 输入 向量 不同 投影",
       displayContent: "Q、K、V 分别来自输入向量的不同投影。",
-      sectionTitle: "Query / Key / Value",
-      sectionPath: ["Attention 机制", "Query / Key / Value"],
     });
 
     const adapter = createVibeLearningAdapter();
@@ -139,16 +137,11 @@ describe("search-core/vibe-learning-adapter", () => {
 
     const results = await adapter.searchFTS("QKV 投影", context, 5, "original");
 
-    expect(results[0]?.payload.sectionTitle).toBe("Query / Key / Value");
-    expect(results[0]?.payload.sectionPath).toEqual([
-      "Attention 机制",
-      "Query / Key / Value",
-    ]);
-    expect(results[0]?.payload.chunkLevel).toBe("section");
+    expect(results[0]?.payload.chunkLevel).toBe("passage");
     expect(results[0]?.text).toBe("Q、K、V 分别来自输入向量的不同投影。");
   });
 
-  it("searchFTS 应透传 chunk 精确章节行号范围", async () => {
+  it("searchFTS 应透传 chunk 精确行号和字符范围", async () => {
     mockSearchFTS.mockReturnValue([
       {
         resourceId: 1,
@@ -160,10 +153,11 @@ describe("search-core/vibe-learning-adapter", () => {
     mockGetChunkMetadata.mockReturnValue({
       searchContent: "q k v 输入 向量 不同 投影",
       displayContent: "Q、K、V 分别来自输入向量的不同投影。",
-      sectionTitle: "Query / Key / Value",
-      sectionPath: ["Attention 机制", "Query / Key / Value"],
       chunkStartLine: 21,
       chunkEndLine: 44,
+      startOffset: 100,
+      endOffset: 168,
+      charCount: 68,
     });
 
     const adapter = createVibeLearningAdapter();
@@ -177,5 +171,8 @@ describe("search-core/vibe-learning-adapter", () => {
 
     expect(results[0]?.payload.chunkStartLine).toBe(21);
     expect(results[0]?.payload.chunkEndLine).toBe(44);
+    expect(results[0]?.payload.startOffset).toBe(100);
+    expect(results[0]?.payload.endOffset).toBe(168);
+    expect(results[0]?.payload.charCount).toBe(68);
   });
 });

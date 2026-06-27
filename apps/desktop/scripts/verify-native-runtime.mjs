@@ -136,6 +136,17 @@ const checks = [
     `,
   },
   {
+    name: "@vscode/ripgrep",
+    code: `
+      const fs = require("node:fs");
+      const ripgrep = require(${JSON.stringify(packagePaths?.appAsar ?? "")} + "/node_modules/@vscode/ripgrep");
+      if (!ripgrep.rgPath || !fs.existsSync(ripgrep.rgPath)) {
+        throw new Error("ripgrep binary not found: " + ripgrep.rgPath);
+      }
+      console.log("ripgrep=" + ripgrep.rgPath);
+    `,
+  },
+  {
     name: "@myriaddreamin/typst-ts-node-compiler",
     code: `
       const { NodeCompiler } = require(${JSON.stringify(packagePaths?.appAsar ?? "")} + "/node_modules/@myriaddreamin/typst-ts-node-compiler");

@@ -25,11 +25,12 @@ export interface VibeLearningSearchPayload extends Record<string, unknown> {
   searchContent?: string;
   score: number;
   chunkIndex?: number;
-  chunkLevel?: "resource" | "summary" | "section" | "chapter" | "passage";
-  sectionTitle?: string;
-  sectionPath?: string[];
+  chunkLevel?: "resource" | "passage";
   chunkStartLine?: number;
   chunkEndLine?: number;
+  startOffset?: number;
+  endOffset?: number;
+  charCount?: number;
   rrfScore?: number;
   rerankScore?: number;
 }
@@ -114,20 +115,33 @@ export function createVibeLearningAdapter(): SearchAdapter<
       );
 
       return vecResults.map((result) => {
+        const chunkMetadata = getChunkMetadata(
+          context,
+          result.resourceId,
+          result.chunkIndex,
+        );
         const payload: VibeLearningSearchPayload = {
           resourceId: result.resourceId,
           resourceName: "",
           content: result.content,
+          displayContent: chunkMetadata?.displayContent || result.content,
+          searchContent: chunkMetadata?.searchContent || result.content,
           score: distanceToSimilarity(result.distance),
           chunkIndex: result.chunkIndex,
+          chunkLevel: "passage",
+          chunkStartLine: chunkMetadata?.chunkStartLine,
+          chunkEndLine: chunkMetadata?.chunkEndLine,
+          startOffset: chunkMetadata?.startOffset,
+          endOffset: chunkMetadata?.endOffset,
+          charCount: chunkMetadata?.charCount,
         };
         return {
           key: `resource:${result.resourceId}:chunk:${result.chunkIndex}:vec`,
           dedupeKey: `resource:${result.resourceId}:chunk:${result.chunkIndex}`,
           source: "vec",
           payload,
-          text: result.content,
-          snippet: result.content,
+          text: chunkMetadata?.displayContent || result.content,
+          snippet: chunkMetadata?.displayContent || result.content,
           retrievalScore: distanceToSimilarity(result.distance),
         };
       });
@@ -214,11 +228,12 @@ function mapFTSRowToCandidate(
     searchContent: chunkMetadata?.searchContent || result.content,
     score: lexicalScore,
     chunkIndex: result.chunkIndex,
-    chunkLevel: chunkMetadata?.sectionTitle ? "section" : "passage",
-    sectionTitle: chunkMetadata?.sectionTitle,
-    sectionPath: chunkMetadata?.sectionPath,
+    chunkLevel: "passage",
     chunkStartLine: chunkMetadata?.chunkStartLine,
     chunkEndLine: chunkMetadata?.chunkEndLine,
+    startOffset: chunkMetadata?.startOffset,
+    endOffset: chunkMetadata?.endOffset,
+    charCount: chunkMetadata?.charCount,
   };
   return {
     key: `resource:${result.resourceId}:chunk:${result.chunkIndex}:fts`,

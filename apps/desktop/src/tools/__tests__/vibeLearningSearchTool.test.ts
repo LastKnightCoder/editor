@@ -8,13 +8,9 @@ vi.mock("@/electron", () => electronMocks);
 
 import {
   createBatchReadSearchHitsTool,
-  createBatchSearchProjectKnowledgeTool,
-  createListResourceChaptersTool,
-  createReadResourceChapterRangeTool,
-  createReadResourceChapterTool,
-  createReadResourceContentTool,
+  createGrepResourceContentTool,
+  createReadResourceLinesTool,
   createReadResourceRangeTool,
-  createReadSearchHitContextTool,
   createVibeLearningSearchTool,
 } from "@/tools/vibeLearningSearchTool";
 
@@ -26,82 +22,8 @@ describe("vibeLearningSearchTool", () => {
     electronMocks.invoke.mockReset();
   });
 
-  it("search_project_knowledge 应返回结构化证据与命中定位信息", async () => {
+  it("search_resource_content 应返回 chunk 坐标信息且不包含 chapter 字段", async () => {
     electronMocks.invoke.mockResolvedValueOnce([
-      {
-        resourceId: 1,
-        resourceName: "Transformer 原理",
-        content:
-          "Attention 的步骤是先计算 Query 与 Key 的相似度，再经 softmax 得到权重；其原理是用相似度分配注意力，关键细节包括缩放和掩码处理。",
-        displayContent:
-          "Attention 的步骤是先计算 Query 与 Key 的相似度，再经 softmax 得到权重；其原理是用相似度分配注意力，关键细节包括缩放和掩码处理。",
-        searchContent:
-          "attention 步骤 query key 相似度 softmax 权重 原理 注意力 关键细节 缩放 掩码",
-        score: 0.92,
-        hitType: "chapter",
-        chapterIndex: 1,
-        chapterTitle: "Attention 机制",
-        chapterSummary: "介绍注意力计算方式。",
-        chunkIndex: 10002,
-        chunkIndexInSection: 2,
-        chunkLevel: "section",
-        sectionTitle: "Query / Key / Value",
-        sectionPath: ["Attention 机制", "Query / Key / Value"],
-        evidenceScore: 0.92,
-        whyMatched: "命中章节正文，且与 Query、Key、Value 关键词高度重合。",
-        rrfScore: 0.77,
-        rerankScore: 0.88,
-      },
-    ]);
-
-    const tool = createVibeLearningSearchTool(1, "main.db");
-    const result = await tool.executor({
-      query: "Attention 的 Query、Key、Value 是如何计算权重的？",
-      limit: 5,
-    });
-    const payload = parse(String((result as { content: string }).content));
-    const firstResult = (payload.results as Array<Record<string, unknown>>)[0];
-
-    expect(payload.success).toBe(true);
-    expect(payload.query).toBe(
-      "Attention 的 Query、Key、Value 是如何计算权重的？",
-    );
-    expect(firstResult.displayContent).toBe(
-      "Attention 的步骤是先计算 Query 与 Key 的相似度，再经 softmax 得到权重；其原理是用相似度分配注意力，关键细节包括缩放和掩码处理。",
-    );
-    expect(firstResult.searchContent).toBe(
-      "attention 步骤 query key 相似度 softmax 权重 原理 注意力 关键细节 缩放 掩码",
-    );
-    expect(firstResult.chunkLevel).toBe("section");
-    expect(firstResult.sectionTitle).toBe("Query / Key / Value");
-    expect(firstResult.sectionPath).toEqual([
-      "Attention 机制",
-      "Query / Key / Value",
-    ]);
-    expect(firstResult.whyMatched).toContain("命中章节正文");
-    expect("usageHint" in payload).toBe(false);
-  });
-
-  it("长耗时的 Vibe Learning 检索与阅读工具应显式声明充足超时", () => {
-    const readHeavyTools = [
-      createVibeLearningSearchTool(1, "main.db"),
-      createBatchSearchProjectKnowledgeTool(1, "main.db"),
-      createBatchReadSearchHitsTool(1, "main.db"),
-      createReadResourceContentTool(1, "main.db"),
-      createReadResourceRangeTool(1, "main.db"),
-      createReadResourceChapterTool(1, "main.db"),
-      createReadSearchHitContextTool(1, "main.db"),
-      createReadResourceChapterRangeTool(1, "main.db"),
-      createListResourceChaptersTool(1, "main.db"),
-    ];
-
-    for (const tool of readHeavyTools) {
-      expect(tool.execution?.timeoutMs).toBeNull();
-    }
-  });
-
-  it("batch_search_project_knowledge 应返回多查询结果，并保留显式标签", async () => {
-    electronMocks.invoke.mockResolvedValue([
       {
         resourceId: 1,
         resourceName: "Transformer 原理",
@@ -109,65 +31,249 @@ describe("vibeLearningSearchTool", () => {
         displayContent: "Attention 通过 Query、Key、Value 计算权重。",
         searchContent: "attention query key value 计算 权重",
         score: 0.92,
-        hitType: "chapter",
-        chunkIndex: 10002,
-        chunkLevel: "section",
-        sectionTitle: "Query / Key / Value",
-        sectionPath: ["Attention 机制", "Query / Key / Value"],
+        chunkIndex: 2,
+        chunkLevel: "passage",
+        chunkStartLine: 21,
+        chunkEndLine: 44,
+        startOffset: 100,
+        endOffset: 168,
+        charCount: 68,
+        evidenceScore: 0.92,
+        whyMatched: "命中正文内容，可继续补读上下文。",
+        rrfScore: 0.77,
+        rerankScore: 0.88,
       },
     ]);
 
-    const tool = createBatchSearchProjectKnowledgeTool(1, "main.db");
+    const tool = createVibeLearningSearchTool(1, "main.db");
     const result = await tool.executor({
-      queries: [
-        { label: "原始问题", query: "Attention 如何计算权重" },
-        { label: "概念拆分", query: "Query Key Value 的作用" },
-      ],
-      limitPerQuery: 3,
+      query: "Attention 如何计算权重",
+      limit: 5,
     });
     const payload = parse(String((result as { content: string }).content));
-    const searches = payload.searches as Array<{
-      label?: string;
-      query: string;
-      results: Array<{ sectionTitle: string }>;
-    }>;
+    const firstResult = (payload.results as Array<Record<string, unknown>>)[0];
 
+    expect(tool.name).toBe("search_resource_content");
     expect(payload.success).toBe(true);
-    expect(searches.length).toBe(2);
-    expect(searches[0]?.label).toBe("原始问题");
-    expect(searches[1]?.label).toBe("概念拆分");
-    expect((searches[0]?.results?.[0] || {}).sectionTitle).toBe(
-      "Query / Key / Value",
-    );
+    expect(firstResult.resourceId).toBe(1);
+    expect(firstResult.chunkIndex).toBe(2);
+    expect(firstResult.chunkStartLine).toBe(21);
+    expect(firstResult.chunkEndLine).toBe(44);
+    expect(firstResult.startOffset).toBe(100);
+    expect(firstResult.endOffset).toBe(168);
+    expect(firstResult.charCount).toBe(68);
+    expect("chapterIndex" in firstResult).toBe(false);
+    expect("chapterTitle" in firstResult).toBe(false);
   });
 
-  it("batch_read_search_hits 应批量返回命中上下文", async () => {
-    electronMocks.invoke.mockResolvedValue({
+  it("grep_resource_content 应调用后端 grep 并返回精确匹配坐标", async () => {
+    electronMocks.invoke.mockResolvedValueOnce({
       success: true,
+      query: "Query",
+      results: [
+        {
+          resourceId: 1,
+          resourceName: "Transformer 原理",
+          lineNumber: 21,
+          startOffset: 100,
+          endOffset: 105,
+          matchedText: "Query",
+          preview: "Attention 通过 Query、Key、Value 计算权重。",
+        },
+      ],
+    });
+
+    const tool = createGrepResourceContentTool(1, "main.db");
+    const result = await tool.executor({
+      query: "Query",
+      isRegex: false,
+      ignoreCase: true,
+      limit: 10,
+    });
+    const payload = parse(String((result as { content: string }).content));
+    const firstResult = (payload.results as Array<Record<string, unknown>>)[0];
+
+    expect(electronMocks.invoke).toHaveBeenCalledWith("vl-grep-content", {
+      projectId: 1,
+      mainDbName: "main.db",
+      query: "Query",
+      isRegex: false,
+      ignoreCase: true,
+      limit: 10,
+    });
+    expect(payload.success).toBe(true);
+    expect(firstResult.startOffset).toBe(100);
+    expect(firstResult.endOffset).toBe(105);
+    expect(firstResult.matchedText).toBe("Query");
+  });
+
+  it("read_resource_lines 应按行范围读取资源内容", async () => {
+    electronMocks.invoke.mockResolvedValueOnce({
+      success: true,
+      resourceId: 1,
       resourceName: "Transformer 原理",
-      hitType: "chapter",
-      chapterIndex: 1,
-      chapterTitle: "Attention 机制",
-      chunkIndex: 10002,
-      chunkIndexInSection: 2,
-      startChunkIndex: 1,
-      endChunkIndex: 3,
-      content: "上下文内容",
+      startLine: 21,
+      endLine: 44,
+      totalLines: 120,
+      content: "局部正文",
+    });
+
+    const tool = createReadResourceLinesTool(1, "main.db");
+    const result = await tool.executor({
+      resourceId: 1,
+      startLine: 21,
+      endLine: 44,
+    });
+    const payload = parse(String((result as { content: string }).content));
+
+    expect(electronMocks.invoke).toHaveBeenCalledWith(
+      "vl-read-resource-lines",
+      {
+        projectId: 1,
+        resourceId: 1,
+        mainDbName: "main.db",
+        startLine: 21,
+        endLine: 44,
+      },
+    );
+    expect(payload.content).toBe("局部正文");
+  });
+
+  it("read_resource_range 应按字符范围读取资源内容", async () => {
+    electronMocks.invoke.mockResolvedValueOnce({
+      success: true,
+      resourceId: 1,
+      resourceName: "Transformer 原理",
+      startOffset: 100,
+      endOffset: 168,
+      totalChars: 1200,
+      content: "局部正文",
+    });
+
+    const tool = createReadResourceRangeTool(1, "main.db");
+    const result = await tool.executor({
+      resourceId: 1,
+      startOffset: 100,
+      endOffset: 168,
+    });
+    const payload = parse(String((result as { content: string }).content));
+
+    expect(electronMocks.invoke).toHaveBeenCalledWith(
+      "vl-read-resource-range",
+      {
+        projectId: 1,
+        resourceId: 1,
+        mainDbName: "main.db",
+        startOffset: 100,
+        endOffset: 168,
+      },
+    );
+    expect(payload.startOffset).toBe(100);
+    expect(payload.endOffset).toBe(168);
+    expect(payload.content).toBe("局部正文");
+  });
+
+  it("batch_read_search_hits 应优先按字符范围批量补读上下文", async () => {
+    electronMocks.invoke.mockResolvedValueOnce({
+      success: true,
+      resourceId: 1,
+      resourceName: "Transformer 原理",
+      startOffset: 80,
+      endOffset: 188,
+      totalChars: 1200,
+      content: "字符范围正文",
     });
 
     const tool = createBatchReadSearchHitsTool(1, "main.db");
     const result = await tool.executor({
       hits: [
-        { resourceName: "Transformer 原理", chunkIndex: 10002, radius: 1 },
-        { resourceName: "Transformer 原理", chunkIndex: 10003, radius: 1 },
+        {
+          resourceId: 1,
+          resourceName: "Transformer 原理",
+          startOffset: 100,
+          endOffset: 168,
+          contextChars: 20,
+        },
       ],
     });
     const payload = parse(String((result as { content: string }).content));
 
+    expect(electronMocks.invoke).toHaveBeenCalledWith(
+      "vl-read-resource-range",
+      {
+        projectId: 1,
+        resourceId: 1,
+        resourceName: "Transformer 原理",
+        mainDbName: "main.db",
+        startOffset: 80,
+        endOffset: 188,
+      },
+    );
     expect(payload.success).toBe(true);
-    expect((payload.contexts as Array<unknown>).length).toBe(2);
     expect(
-      ((payload.contexts as Array<{ content: string }>)[0] || {}).content,
-    ).toBe("上下文内容");
+      (payload.contexts as Array<Record<string, unknown>>)[0]?.content,
+    ).toBe("字符范围正文");
+  });
+
+  it("batch_read_search_hits 应在缺少字符范围时按行范围批量补读上下文", async () => {
+    electronMocks.invoke.mockResolvedValueOnce({
+      success: true,
+      resourceId: 1,
+      resourceName: "Transformer 原理",
+      startLine: 19,
+      endLine: 46,
+      totalLines: 120,
+      content: "行范围正文",
+    });
+
+    const tool = createBatchReadSearchHitsTool(1, "main.db");
+    const result = await tool.executor({
+      hits: [
+        {
+          resourceId: 1,
+          resourceName: "Transformer 原理",
+          chunkStartLine: 21,
+          chunkEndLine: 44,
+          contextLines: 2,
+        },
+      ],
+    });
+    const payload = parse(String((result as { content: string }).content));
+
+    expect(electronMocks.invoke).toHaveBeenCalledWith(
+      "vl-read-resource-lines",
+      {
+        projectId: 1,
+        resourceId: 1,
+        resourceName: "Transformer 原理",
+        mainDbName: "main.db",
+        startLine: 19,
+        endLine: 46,
+      },
+    );
+    expect(payload.success).toBe(true);
+    expect(
+      (payload.contexts as Array<Record<string, unknown>>)[0]?.content,
+    ).toBe("行范围正文");
+  });
+
+  it("长耗时的 Vibe Learning 检索与阅读工具应显式声明充足超时", () => {
+    const readHeavyTools = [
+      createVibeLearningSearchTool(1, "main.db"),
+      createGrepResourceContentTool(1, "main.db"),
+      createReadResourceLinesTool(1, "main.db"),
+      createReadResourceRangeTool(1, "main.db"),
+      createBatchReadSearchHitsTool(1, "main.db"),
+    ];
+
+    for (const tool of readHeavyTools) {
+      expect(tool.execution?.timeoutMs).toBeNull();
+    }
+  });
+
+  it("不再暴露已移除后端 IPC 的 read_search_hit_context 工具", async () => {
+    const toolsModule = await import("@/tools/vibeLearningSearchTool");
+
+    expect("createReadSearchHitContextTool" in toolsModule).toBe(false);
   });
 });

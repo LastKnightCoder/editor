@@ -15,6 +15,8 @@ asarUnpack:
   - "node_modules/node-pty/**/*"
   - "node_modules/@tailwindcss/oxide/**/*"
   - "node_modules/@tailwindcss/oxide-*/**/*"
+  - "node_modules/@vscode/ripgrep/**/*"
+  - "node_modules/@vscode/ripgrep-*/**/*"
   - "node_modules/@myriaddreamin/typst-ts-node-compiler/**/*"
   - "node_modules/@myriaddreamin/typst-ts-node-compiler-*/**/*"
   - "node_modules/7zip-bin/**/*"

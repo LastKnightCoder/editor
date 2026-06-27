@@ -74,6 +74,34 @@ describe("vibe-learning-chunk-line-map", () => {
     ).toBe(true);
   });
 
+  it("应为每个 chunk 返回源文本字符范围，且文本来自原文 slice", () => {
+    const markdown = [
+      "# 标题",
+      "",
+      "第一段第一句。第一段第二句。",
+      "",
+      "第二段第一句。第二段第二句。",
+      "",
+      "第三段第一句。",
+    ].join("\n");
+
+    const mapped = buildChunkLineMap(markdown, {
+      minLength: 10,
+      maxLength: 30,
+      overlap: 0,
+      splitter: "sentence",
+    });
+
+    expect(mapped.length).toBeGreaterThan(1);
+    for (const item of mapped) {
+      expect(item.startOffset).toBeGreaterThanOrEqual(0);
+      expect(item.endOffset).toBeGreaterThan(item.startOffset);
+      expect(item.text).toBe(markdown.slice(item.startOffset, item.endOffset));
+      expect(item.charCount).toBe(item.endOffset - item.startOffset);
+      expect("wordCount" in item).toBe(false);
+    }
+  });
+
   it("面对重复文本块时应保持行号映射稳定向前推进", () => {
     const repeated = "重复句子 A。重复句子 B。";
     const markdown = ["# 标题", "", repeated, "", repeated, "", repeated].join(

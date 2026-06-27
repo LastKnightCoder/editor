@@ -12,6 +12,7 @@ const runtimeDependencyExternals = [
   "@myriaddreamin/typst-ts-node-compiler",
   "@node-rs/jieba",
   "@tailwindcss/oxide",
+  "@vscode/ripgrep",
   "better-sqlite3",
   "font-list",
   "node-pty",
