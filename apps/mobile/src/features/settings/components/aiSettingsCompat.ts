@@ -10,7 +10,6 @@ const LLM_FEATURE_KEY_LIST = [
   "transcriptionOptimization",
   "videoSummary",
   "vibeLearningImageDescription",
-  "vibeLearningDocSummary",
 ] as const;
 
 export type LlmFeatureKey = (typeof LLM_FEATURE_KEY_LIST)[number];

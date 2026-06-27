@@ -2,11 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const commandMocks = vi.hoisted(() => ({
   searchPdfContent: vi.fn(),
-  searchPdfSections: vi.fn(),
   getPdfDocumentInfo: vi.fn(),
   getPdfDocumentMap: vi.fn(),
   getPdfOutline: vi.fn(),
-  getPdfSectionSummary: vi.fn(),
   getPdfPageContent: vi.fn(),
   getPdfPageRangeContent: vi.fn(),
   readPdfSection: vi.fn(),
@@ -18,12 +16,10 @@ vi.mock("@/commands", () => commandMocks);
 
 import {
   createGetPdfDocumentMapTool,
-  createGetPdfSectionSummaryTool,
   createGetPdfBookmarksTool,
   createGetPdfDocumentInfoTool,
   createPdfSearchTool,
   createReadPdfSectionTool,
-  createSearchPdfSectionsTool,
 } from "@/tools/pdfSearchTool";
 
 const parse = (content: string) =>
@@ -129,7 +125,7 @@ describe("pdfSearchTool", () => {
     );
   });
 
-  it("get_pdf_document_map 返回总纲地图", async () => {
+  it("get_pdf_document_map 返回章节结构", async () => {
     commandMocks.getPdfDocumentMap.mockResolvedValue({
       pdfId: 1,
       fileName: "demo.pdf",
@@ -140,18 +136,6 @@ describe("pdfSearchTool", () => {
         pageCount: 12,
         updatedAt: 123,
       },
-      summary: {
-        pdfId: 1,
-        overview: "这是全文总览",
-        themes: ["主题A"],
-        chapterMap: [],
-        mainArguments: ["主张A"],
-        coreEvidence: ["证据A"],
-        conclusion: ["结论A"],
-        readingPaths: [],
-        summarySource: "extractive",
-        status: "ready",
-      },
       sections: [],
     });
 
@@ -160,94 +144,23 @@ describe("pdfSearchTool", () => {
     const payload = parse(String((result as { content: string }).content));
 
     expect(payload.success).toBe(true);
-    expect((payload.summary as { overview: string }).overview).toBe(
-      "这是全文总览",
-    );
+    expect(payload.summary).toBeUndefined();
     expect(payload.pageCount).toBe(12);
-  });
-
-  it("search_pdf_sections 返回章节层结果", async () => {
-    commandMocks.searchPdfSections.mockResolvedValue([
-      {
-        pdfId: 1,
-        sectionId: "section-1",
-        title: "第一章",
-        level: 1,
-        pathTitles: ["第一章"],
-        startPage: 1,
-        endPage: 3,
-        overview: "章节摘要",
-        mainPoints: ["要点1"],
-        arguments: ["论点1"],
-        evidence: ["证据1"],
-        conclusions: ["结论1"],
-        terms: ["术语1"],
-        questions: ["问题1"],
-        summarySource: "extractive",
-        status: "ready",
-        score: 0.9,
-        source: "fts",
-      },
-    ]);
-
-    const tool = createSearchPdfSectionsTool(1, "main.db");
-    const result = await tool.executor({ query: "第一章讲什么" });
-    const payload = parse(String((result as { content: string }).content));
-
-    expect(payload.success).toBe(true);
-    expect((payload.results as Array<{ sectionId: string }>)[0].sectionId).toBe(
-      "section-1",
-    );
-  });
-
-  it("get_pdf_section_summary 返回章节摘要卡片", async () => {
-    commandMocks.getPdfSectionSummary.mockResolvedValue({
-      pdfId: 1,
-      sectionId: "section-2",
-      title: "第二章",
-      level: 1,
-      pathTitles: ["第二章"],
-      startPage: 4,
-      endPage: 8,
-      overview: "这是第二章摘要",
-      mainPoints: ["要点"],
-      arguments: [],
-      evidence: [],
-      conclusions: [],
-      terms: [],
-      questions: [],
-      summarySource: "extractive",
-      status: "ready",
-    });
-
-    const tool = createGetPdfSectionSummaryTool(1, "main.db");
-    const result = await tool.executor({ sectionId: "section-2" });
-    const payload = parse(String((result as { content: string }).content));
-
-    expect(payload.success).toBe(true);
-    expect((payload.section as { title: string }).title).toBe("第二章");
   });
 
   it("read_pdf_section 返回章节页范围和内容", async () => {
     commandMocks.readPdfSection.mockResolvedValue({
       pdfId: 1,
-      section: {
-        pdfId: 1,
-        sectionId: "section-3",
+      sectionInfo: {
+        id: "section-3",
+        parentId: null,
         title: "第三章",
         level: 1,
         pathTitles: ["第三章"],
         startPage: 9,
         endPage: 12,
-        overview: "第三章摘要",
-        mainPoints: [],
-        arguments: [],
-        evidence: [],
-        conclusions: [],
-        terms: [],
-        questions: [],
-        summarySource: "extractive",
-        status: "ready",
+        orderIndex: 2,
+        source: "outline",
       },
       breadcrumbs: [{ id: "第三章", title: "第三章" }],
       pages: [

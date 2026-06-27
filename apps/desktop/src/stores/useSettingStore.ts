@@ -119,6 +119,7 @@ const sanitizeDeprecatedLLMUsageSettings = <T extends Partial<ISetting>>(
   ) {
     delete nextSetting.llmUsageSettings.contentPolish;
     delete nextSetting.llmUsageSettings.autoTagging;
+    delete nextSetting.llmUsageSettings.vibeLearningDocSummary;
   }
 
   return nextSetting;
@@ -390,7 +391,6 @@ export interface ISetting {
     videoSummary: LLMUsageConfig | null;
     videoEbookRewrite: LLMUsageConfig | null;
     vibeLearningImageDescription: LLMUsageConfig | null;
-    vibeLearningDocSummary: LLMUsageConfig | null;
   };
   embeddingProvider: {
     currentConfigId: string;
@@ -938,7 +938,6 @@ const initialState: IState = {
       videoSummary: null,
       videoEbookRewrite: null,
       vibeLearningImageDescription: null,
-      vibeLearningDocSummary: null,
     },
     embeddingProvider: {
       currentConfigId: "",

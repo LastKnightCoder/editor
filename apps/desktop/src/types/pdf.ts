@@ -77,12 +77,7 @@ export interface PdfIndexStatus {
   fingerprint?: string;
   error?: string;
   partial?: boolean;
-  currentStage?:
-    | "extracting"
-    | "structuring"
-    | "summarizing"
-    | "embedding"
-    | "persisting";
+  currentStage?: "extracting" | "structuring" | "embedding" | "persisting";
   progressCurrent?: number;
   progressTotal?: number;
   progressLabel?: string;
@@ -108,42 +103,6 @@ export interface PdfSectionBreadcrumb {
   title: string;
 }
 
-export interface PdfReadingPath {
-  id: string;
-  label: string;
-  description: string;
-  sectionIds: string[];
-}
-
-export interface PdfChapterMapItem {
-  sectionId: string;
-  title: string;
-  role: string;
-  startPage: number | null;
-  endPage: number | null;
-}
-
-export interface PdfSectionSummary {
-  pdfId: number;
-  sectionId: string;
-  title: string;
-  level: number;
-  pathTitles: string[];
-  startPage: number;
-  endPage: number;
-  overview: string;
-  mainPoints: string[];
-  arguments: string[];
-  evidence: string[];
-  conclusions: string[];
-  terms: string[];
-  questions: string[];
-  summarySource: "llm" | "extractive";
-  status: "ready" | "degraded" | "failed";
-  score?: number;
-  source?: "fts" | "vec" | "hybrid";
-}
-
 export interface PdfSectionNode {
   id: string;
   parentId: string | null;
@@ -154,21 +113,7 @@ export interface PdfSectionNode {
   orderIndex: number;
   pathTitles: string[];
   source: "outline" | "inferred" | "synthetic";
-  summary: PdfSectionSummary | null;
   children: PdfSectionNode[];
-}
-
-export interface PdfDocumentSummary {
-  pdfId: number;
-  overview: string;
-  themes: string[];
-  chapterMap: PdfChapterMapItem[];
-  mainArguments: string[];
-  coreEvidence: string[];
-  conclusion: string[];
-  readingPaths: PdfReadingPath[];
-  summarySource: "llm" | "extractive";
-  status: "ready" | "degraded" | "failed";
 }
 
 export interface PdfDocumentMap {
@@ -176,13 +121,12 @@ export interface PdfDocumentMap {
   fileName: string;
   pageCount: number;
   indexStatus: PdfIndexStatus;
-  summary: PdfDocumentSummary | null;
   sections: PdfSectionNode[];
 }
 
 export interface PdfSectionDetail {
   pdfId: number;
-  section: PdfSectionSummary | null;
+  sectionInfo: Omit<PdfSectionNode, "children">;
   breadcrumbs: PdfSectionBreadcrumb[];
   pages: PdfPageContent[];
   content: string;

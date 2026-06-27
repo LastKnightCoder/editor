@@ -112,4 +112,16 @@ describe("useSettingStore persistence snapshot", () => {
       providers: [],
     });
   });
+
+  it("合并设置时应清理废弃的文档摘要 LLM 用途", () => {
+    const setting = structuredClone(useSettingStore.getState().setting) as any;
+    setting.llmUsageSettings.vibeLearningDocSummary = {
+      providerId: "legacy-provider",
+      modelName: "legacy-model",
+    };
+
+    const merged = mergeSettingWithDefaults(setting) as any;
+
+    expect(merged.llmUsageSettings.vibeLearningDocSummary).toBeUndefined();
+  });
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { ipcMain } from "electron";
 import { shouldReusePdfIndex } from "../pdf-index-reuse";
 
 vi.mock("electron", () => ({
@@ -68,11 +69,18 @@ import pdfIndexQueue from "../pdf-index-queue";
 
 describe("shouldReusePdfIndex", () => {
   it("数据库切换时关闭上一个主库的 PDF sidecar 连接", async () => {
+    vi.mocked(ipcMain.handle).mockClear();
     mockFns.onDatabaseChange.mockClear();
     mockFns.closeAllForMainDB.mockClear();
     mockFns.getCurrentDatabaseName.mockReturnValue("alpha.db");
 
     await pdfIndexQueue.init();
+
+    const registeredChannels = vi
+      .mocked(ipcMain.handle)
+      .mock.calls.map((call) => call[0]);
+    expect(registeredChannels).not.toContain("pdf-index:section-summary");
+    expect(registeredChannels).not.toContain("pdf-index:section-search");
 
     const changeHandler = mockFns.onDatabaseChange.mock.calls.at(-1)?.[0] as
       | ((dbName: string) => void)
@@ -118,50 +126,5 @@ describe("shouldReusePdfIndex", () => {
         nextEmbeddingFingerprint: null,
       }),
     ).toBe(false);
-  });
-
-  it("可以解析带代码块包裹的 LLM JSON 响应", () => {
-    const parsed = (pdfIndexQueue as any).parseJsonLikeResponse(`
-\`\`\`json
-{
-  "overview": "测试摘要",
-  "mainPoints": ["要点一", "要点二"]
-}
-\`\`\`
-`);
-
-    expect((parsed as { overview: string }).overview).toBe("测试摘要");
-    expect((parsed as { mainPoints: string[] }).mainPoints).toEqual([
-      "要点一",
-      "要点二",
-    ]);
-  });
-
-  it("LLM 章节摘要缺字段时回退 baseline", () => {
-    const baseline = {
-      sectionId: "section-1",
-      overview: "baseline-overview",
-      mainPoints: ["baseline-point"],
-      arguments: ["baseline-argument"],
-      evidence: ["baseline-evidence"],
-      conclusions: ["baseline-conclusion"],
-      terms: ["baseline-term"],
-      questions: ["baseline-question"],
-      summarySource: "extractive",
-      status: "ready",
-    };
-
-    const normalized = (pdfIndexQueue as any).normalizeSectionSummaryFromLLM(
-      {
-        overview: "llm-overview",
-        mainPoints: ["llm-point"],
-      },
-      baseline,
-    );
-
-    expect(normalized.overview).toBe("llm-overview");
-    expect(normalized.mainPoints).toEqual(["llm-point"]);
-    expect(normalized.arguments).toEqual(["baseline-argument"]);
-    expect(normalized.evidence).toEqual(["baseline-evidence"]);
   });
 });

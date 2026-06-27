@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  LLM_FEATURE_KEYS,
   normalizeEmbeddingApiConfigs,
   normalizeLlmConfigs,
   normalizeLlmUsageSettings,
@@ -8,6 +9,10 @@ import {
 } from "../aiSettingsCompat";
 
 describe("aiSettingsCompat", () => {
+  it("不再暴露废弃的文档摘要 LLM 用途", () => {
+    expect(LLM_FEATURE_KEYS).not.toContain("vibeLearningDocSummary");
+  });
+
   it("会清理失效的 llmUsageSettings 引用", () => {
     const configs = normalizeLlmConfigs([
       {

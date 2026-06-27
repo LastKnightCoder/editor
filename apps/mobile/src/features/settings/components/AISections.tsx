@@ -54,7 +54,6 @@ const LLM_FEATURE_LABELS: Record<LlmFeatureKey, string> = {
   transcriptionOptimization: "转录断句优化",
   videoSummary: "视频总结",
   vibeLearningImageDescription: "Vibe Learning 图片理解",
-  vibeLearningDocSummary: "Vibe Learning 文档摘要",
 };
 
 const LLM_USAGE_GROUPS: Array<{
@@ -88,7 +87,6 @@ const LLM_USAGE_GROUPS: Array<{
       "flashcardGeneration",
       "aiJudgement",
       "vibeLearningImageDescription",
-      "vibeLearningDocSummary",
     ],
   },
 ];
