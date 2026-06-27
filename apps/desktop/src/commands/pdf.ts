@@ -11,7 +11,6 @@ import {
   PdfPageContent,
   PdfOutlineNode,
   PdfDocumentMap,
-  PdfSectionSummary,
   PdfSectionDetail,
   PdfChatMessage,
   CreatePdfChat,
@@ -156,23 +155,6 @@ export const getPdfDocumentMap = async (params: {
   depth?: number;
 }): Promise<PdfDocumentMap> => {
   return await invoke("pdf-index:document-map", params);
-};
-
-export const getPdfSectionSummary = async (params: {
-  pdfId: number;
-  mainDbName: string;
-  sectionId: string;
-}): Promise<PdfSectionSummary | null> => {
-  return await invoke("pdf-index:section-summary", params);
-};
-
-export const searchPdfSections = async (params: {
-  pdfId: number;
-  mainDbName: string;
-  query: string;
-  limit?: number;
-}): Promise<PdfSectionSummary[]> => {
-  return await invoke("pdf-index:section-search", params);
 };
 
 export const readPdfSection = async (params: {

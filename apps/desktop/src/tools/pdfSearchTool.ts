@@ -14,9 +14,7 @@ import {
   getPdfOutline,
   getPdfPageContent,
   getPdfPageRangeContent,
-  getPdfSectionSummary,
   readPdfSection,
-  searchPdfSections,
   searchPdfContent,
 } from "@/commands";
 
@@ -206,7 +204,7 @@ export const createGetPdfDocumentMapTool = (
   mainDbName: string,
 ): ToolDefinition => ({
   name: "get_pdf_document_map",
-  description: "读取当前 PDF 的总纲地图，包括文档总览、章节树和各章节摘要。",
+  description: "读取当前 PDF 的目录/章节结构和页码范围。",
   parameters: {
     type: "object",
     properties: {
@@ -226,98 +224,7 @@ export const createGetPdfDocumentMapTool = (
         fileName: map.fileName,
         pageCount: map.pageCount,
         indexStatus: map.indexStatus,
-        summary: map.summary,
         sections: map.sections,
-      }),
-    };
-  },
-});
-
-export const createSearchPdfSectionsTool = (
-  pdfId: number,
-  mainDbName: string,
-): ToolDefinition => ({
-  name: "search_pdf_sections",
-  description: "搜索当前 PDF 的章节摘要层，适合定位相关章节和整体主题。",
-  parameters: {
-    type: "object",
-    properties: {
-      query: {
-        type: "string",
-        description: "问题或关键词",
-      },
-      limit: {
-        type: "number",
-        description: "返回条数，默认 5，最大 10",
-      },
-    },
-    required: ["query"],
-  },
-  executor: async (args) => {
-    const query = normalizeQuery(args.query);
-    const limit = tryParseLimit(args.limit, 5, 10);
-    if (!query) {
-      return {
-        content: JSON.stringify({
-          success: false,
-          error: "query 不能为空",
-          results: [],
-        }),
-      };
-    }
-    const results = await searchPdfSections({
-      pdfId,
-      mainDbName,
-      query,
-      limit,
-    });
-    return {
-      content: JSON.stringify({
-        success: true,
-        total: results.length,
-        results,
-      }),
-    };
-  },
-});
-
-export const createGetPdfSectionSummaryTool = (
-  pdfId: number,
-  mainDbName: string,
-): ToolDefinition => ({
-  name: "get_pdf_section_summary",
-  description: "读取当前 PDF 某个章节的深度摘要卡片。",
-  parameters: {
-    type: "object",
-    properties: {
-      sectionId: {
-        type: "string",
-        description:
-          "章节 ID，可通过 get_pdf_document_map 或 search_pdf_sections 获取",
-      },
-    },
-    required: ["sectionId"],
-  },
-  executor: async (args) => {
-    const sectionId = normalizeQuery(args.sectionId);
-    if (!sectionId) {
-      return {
-        content: JSON.stringify({
-          success: false,
-          error: "sectionId 不能为空",
-        }),
-      };
-    }
-    const summary = await getPdfSectionSummary({
-      pdfId,
-      mainDbName,
-      sectionId,
-    });
-    return {
-      content: JSON.stringify({
-        success: Boolean(summary),
-        section: summary,
-        error: summary ? undefined : `未找到章节 ${sectionId}`,
       }),
     };
   },
@@ -328,14 +235,13 @@ export const createReadPdfSectionTool = (
   mainDbName: string,
 ): ToolDefinition => ({
   name: "read_pdf_section",
-  description: "按章节读取当前 PDF 的页范围、摘要和完整文本。",
+  description: "按章节读取当前 PDF 的页范围和完整文本。",
   parameters: {
     type: "object",
     properties: {
       sectionId: {
         type: "string",
-        description:
-          "章节 ID，可通过 get_pdf_document_map 或 search_pdf_sections 获取",
+        description: "章节 ID，可通过 get_pdf_document_map 获取",
       },
     },
     required: ["sectionId"],

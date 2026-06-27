@@ -6,12 +6,10 @@ import {
   createGetPdfDocumentMapTool,
   createGetPdfDocumentInfoTool,
   createGetPdfOutlineTool,
-  createGetPdfSectionSummaryTool,
   createPdfSearchTool,
   createReadPdfSectionTool,
   createReadPdfPageRangeTool,
   createReadPdfPageTool,
-  createSearchPdfSectionsTool,
 } from "@/tools/pdfSearchTool";
 
 export const usePdfChat = (pdfId: number, mainDbName: string) => {
@@ -19,8 +17,6 @@ export const usePdfChat = (pdfId: number, mainDbName: string) => {
     const sourceId = `pdf-${pdfId}`;
     const tools = [
       createGetPdfDocumentMapTool(pdfId, mainDbName),
-      createSearchPdfSectionsTool(pdfId, mainDbName),
-      createGetPdfSectionSummaryTool(pdfId, mainDbName),
       createReadPdfSectionTool(pdfId, mainDbName),
       createPdfSearchTool(pdfId, mainDbName),
       createGetPdfDocumentInfoTool(pdfId, mainDbName),

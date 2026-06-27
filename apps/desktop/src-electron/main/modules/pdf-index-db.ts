@@ -6,13 +6,11 @@ import { existsSync, unlinkSync } from "node:fs";
 import log from "electron-log";
 import type {
   PdfDocumentMap,
-  PdfDocumentSummary,
   PdfIndexStatus,
   PdfOutlineNode,
   PdfPageContent,
   PdfSectionDetail,
   PdfSectionNode,
-  PdfSectionSummary,
 } from "@/types";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import PathUtil from "../utils/PathUtil";
@@ -58,31 +56,6 @@ export interface PdfSectionRecord {
   source: "outline" | "inferred" | "synthetic";
 }
 
-export interface PdfSectionSummaryRecord {
-  sectionId: string;
-  overview: string;
-  mainPoints: string[];
-  arguments: string[];
-  evidence: string[];
-  conclusions: string[];
-  terms: string[];
-  questions: string[];
-  summarySource: "llm" | "extractive";
-  status: "ready" | "degraded" | "failed";
-}
-
-export interface PdfDocumentSummaryRecord {
-  overview: string;
-  themes: string[];
-  chapterMap: PdfDocumentSummary["chapterMap"];
-  mainArguments: string[];
-  coreEvidence: string[];
-  conclusion: string[];
-  readingPaths: PdfDocumentSummary["readingPaths"];
-  summarySource: "llm" | "extractive";
-  status: "ready" | "degraded" | "failed";
-}
-
 interface PersistPdfIndexParams {
   fingerprint: string;
   pageCount: number;
@@ -90,10 +63,7 @@ interface PersistPdfIndexParams {
   chunks: PdfIndexChunkRecord[];
   outline: PdfOutlineNode[];
   sections: PdfSectionRecord[];
-  sectionSummaries: PdfSectionSummaryRecord[];
-  documentSummary?: PdfDocumentSummaryRecord | null;
   embeddings?: number[][];
-  sectionEmbeddings?: number[][];
   vecDimensions?: number;
   embeddingFingerprint?: string;
 }
@@ -141,18 +111,6 @@ const parseJsonArray = (value: unknown): string[] => {
     return Array.isArray(parsed)
       ? parsed.map((item) => String(item || "").trim()).filter(Boolean)
       : [];
-  } catch {
-    return [];
-  }
-};
-
-const parseJsonObjectArray = <T>(value: unknown): T[] => {
-  if (typeof value !== "string" || !value.trim()) {
-    return [];
-  }
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? (parsed as T[]) : [];
   } catch {
     return [];
   }
@@ -265,6 +223,7 @@ class PdfIndexDBManager {
     loadSqliteVecExtension(db);
     db.pragma("journal_mode = WAL");
     this.initTables(db);
+    this.cleanTables(db);
     this.databases.set(key, db);
     return db;
   }
@@ -302,30 +261,6 @@ class PdfIndexDBManager {
         path_titles TEXT NOT NULL DEFAULT '[]',
         source TEXT NOT NULL DEFAULT 'outline'
       );
-      CREATE TABLE IF NOT EXISTS pdf_section_summaries (
-        section_id TEXT PRIMARY KEY,
-        overview TEXT NOT NULL DEFAULT '',
-        main_points_json TEXT NOT NULL DEFAULT '[]',
-        arguments_json TEXT NOT NULL DEFAULT '[]',
-        evidence_json TEXT NOT NULL DEFAULT '[]',
-        conclusions_json TEXT NOT NULL DEFAULT '[]',
-        terms_json TEXT NOT NULL DEFAULT '[]',
-        questions_json TEXT NOT NULL DEFAULT '[]',
-        summary_source TEXT NOT NULL DEFAULT 'extractive',
-        status TEXT NOT NULL DEFAULT 'ready'
-      );
-      CREATE TABLE IF NOT EXISTS pdf_document_summary (
-        pdf_id INTEGER PRIMARY KEY,
-        overview TEXT NOT NULL DEFAULT '',
-        themes_json TEXT NOT NULL DEFAULT '[]',
-        chapter_map_json TEXT NOT NULL DEFAULT '[]',
-        main_arguments_json TEXT NOT NULL DEFAULT '[]',
-        core_evidence_json TEXT NOT NULL DEFAULT '[]',
-        conclusion_json TEXT NOT NULL DEFAULT '[]',
-        reading_paths_json TEXT NOT NULL DEFAULT '[]',
-        summary_source TEXT NOT NULL DEFAULT 'extractive',
-        status TEXT NOT NULL DEFAULT 'ready'
-      );
       CREATE VIRTUAL TABLE IF NOT EXISTS pdf_chunks_fts USING fts5(
         page_number UNINDEXED,
         chunk_index UNINDEXED,
@@ -335,25 +270,11 @@ class PdfIndexDBManager {
         search_content,
         tokenize='unicode61'
       );
-      CREATE VIRTUAL TABLE IF NOT EXISTS pdf_section_fts USING fts5(
-        section_id UNINDEXED,
-        title,
-        overview,
-        main_points,
-        arguments,
-        evidence,
-        conclusions,
-        terms,
-        questions,
-        search_content,
-        tokenize='unicode61'
-      );
     `);
     db.exec(
       "CREATE INDEX IF NOT EXISTS idx_pdf_sections_page_range ON pdf_sections(start_page, end_page)",
     );
     this.initVecTable(db, vecDimensions);
-    this.initSectionVecTable(db, vecDimensions);
   }
 
   private initVecTable(
@@ -380,30 +301,6 @@ class PdfIndexDBManager {
     `);
   }
 
-  private initSectionVecTable(
-    db: Database.Database,
-    vecDimensions = DEFAULT_VEC_DIMENSIONS,
-  ) {
-    const tableExists = db
-      .prepare(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='pdf_section_vec'",
-      )
-      .get();
-    if (tableExists) {
-      return;
-    }
-    db.exec(`
-      CREATE VIRTUAL TABLE pdf_section_vec USING vec0(
-        section_id TEXT,
-        level INTEGER,
-        start_page INTEGER,
-        end_page INTEGER,
-        content TEXT,
-        vec_embedding FLOAT[${vecDimensions}] distance_metric=cosine
-      )
-    `);
-  }
-
   private setMeta(db: Database.Database, key: string, value: string | null) {
     db.prepare(
       `
@@ -421,12 +318,20 @@ class PdfIndexDBManager {
     return row?.value ?? null;
   }
 
+  private cleanTables(db: Database.Database) {
+    db.exec(`
+      DROP TABLE IF EXISTS pdf_section_summaries;
+      DROP TABLE IF EXISTS pdf_document_summary;
+      DROP TABLE IF EXISTS pdf_section_fts;
+      DROP TABLE IF EXISTS pdf_section_vec;
+    `);
+  }
+
   private clearData(db: Database.Database) {
     db.prepare("DELETE FROM pdf_pages").run();
     db.prepare("DELETE FROM pdf_outline_nodes").run();
     db.prepare("DELETE FROM pdf_sections").run();
-    db.prepare("DELETE FROM pdf_section_summaries").run();
-    db.prepare("DELETE FROM pdf_document_summary").run();
+    this.cleanTables(db);
     if (
       db
         .prepare(
@@ -439,29 +344,11 @@ class PdfIndexDBManager {
     if (
       db
         .prepare(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name='pdf_section_fts'",
-        )
-        .get()
-    ) {
-      db.prepare("DELETE FROM pdf_section_fts").run();
-    }
-    if (
-      db
-        .prepare(
           "SELECT name FROM sqlite_master WHERE type='table' AND name='pdf_chunks_vec'",
         )
         .get()
     ) {
       db.exec("DROP TABLE IF EXISTS pdf_chunks_vec");
-    }
-    if (
-      db
-        .prepare(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name='pdf_section_vec'",
-        )
-        .get()
-    ) {
-      db.exec("DROP TABLE IF EXISTS pdf_section_vec");
     }
   }
 
@@ -506,9 +393,6 @@ class PdfIndexDBManager {
     const db = this.getDatabase(mainDbName, pdfId);
     this.initTables(db, params.vecDimensions || DEFAULT_VEC_DIMENSIONS);
     const outlineRows = flattenOutline(params.outline);
-    const summaryMap = new Map(
-      params.sectionSummaries.map((item) => [item.sectionId, item]),
-    );
     const insertPage = db.prepare(
       "INSERT INTO pdf_pages(page_number, content, char_count) VALUES (?, ?, ?)",
     );
@@ -529,51 +413,9 @@ class PdfIndexDBManager {
         source
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
-    const insertSectionSummary = db.prepare(
-      `INSERT INTO pdf_section_summaries(
-        section_id,
-        overview,
-        main_points_json,
-        arguments_json,
-        evidence_json,
-        conclusions_json,
-        terms_json,
-        questions_json,
-        summary_source,
-        status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
-    const insertDocumentSummary = db.prepare(
-      `INSERT INTO pdf_document_summary(
-        pdf_id,
-        overview,
-        themes_json,
-        chapter_map_json,
-        main_arguments_json,
-        core_evidence_json,
-        conclusion_json,
-        reading_paths_json,
-        summary_source,
-        status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
     const insertFts = db.prepare(
       `INSERT INTO pdf_chunks_fts(page_number, chunk_index, char_start, char_end, content, search_content)
        VALUES (?, ?, ?, ?, ?, ?)`,
-    );
-    const insertSectionFts = db.prepare(
-      `INSERT INTO pdf_section_fts(
-        section_id,
-        title,
-        overview,
-        main_points,
-        arguments,
-        evidence,
-        conclusions,
-        terms,
-        questions,
-        search_content
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
 
     const tx = db.transaction(() => {
@@ -604,34 +446,6 @@ class PdfIndexDBManager {
           section.source,
         );
       }
-      for (const summary of params.sectionSummaries) {
-        insertSectionSummary.run(
-          summary.sectionId,
-          summary.overview,
-          stringifyJson(summary.mainPoints),
-          stringifyJson(summary.arguments),
-          stringifyJson(summary.evidence),
-          stringifyJson(summary.conclusions),
-          stringifyJson(summary.terms),
-          stringifyJson(summary.questions),
-          summary.summarySource,
-          summary.status,
-        );
-      }
-      if (params.documentSummary) {
-        insertDocumentSummary.run(
-          pdfId,
-          params.documentSummary.overview,
-          stringifyJson(params.documentSummary.themes),
-          stringifyJson(params.documentSummary.chapterMap),
-          stringifyJson(params.documentSummary.mainArguments),
-          stringifyJson(params.documentSummary.coreEvidence),
-          stringifyJson(params.documentSummary.conclusion),
-          stringifyJson(params.documentSummary.readingPaths),
-          params.documentSummary.summarySource,
-          params.documentSummary.status,
-        );
-      }
       for (const chunk of params.chunks) {
         insertFts.run(
           chunk.pageNumber,
@@ -640,42 +454,6 @@ class PdfIndexDBManager {
           chunk.charEnd,
           chunk.content,
           this.segmentText(chunk.content),
-        );
-      }
-      for (const section of params.sections) {
-        const summary = summaryMap.get(section.id);
-        if (!summary) {
-          continue;
-        }
-        const mainPoints = summary.mainPoints.join("\n");
-        const argumentsText = summary.arguments.join("\n");
-        const evidenceText = summary.evidence.join("\n");
-        const conclusions = summary.conclusions.join("\n");
-        const terms = summary.terms.join(" ");
-        const questions = summary.questions.join("\n");
-        const ftsContent = [
-          section.title,
-          summary.overview,
-          mainPoints,
-          argumentsText,
-          evidenceText,
-          conclusions,
-          terms,
-          questions,
-        ]
-          .filter(Boolean)
-          .join("\n");
-        insertSectionFts.run(
-          section.id,
-          section.title,
-          summary.overview,
-          mainPoints,
-          argumentsText,
-          evidenceText,
-          conclusions,
-          terms,
-          questions,
-          this.segmentText(ftsContent),
         );
       }
 
@@ -693,35 +471,6 @@ class PdfIndexDBManager {
             BigInt(Math.floor(chunk.charEnd)),
             chunk.content,
             JSON.stringify(params.embeddings?.[index] || []),
-          );
-        });
-      }
-      if (params.sectionEmbeddings?.length && params.vecDimensions) {
-        this.initSectionVecTable(db, params.vecDimensions);
-        const insertSectionVec = db.prepare(
-          `INSERT INTO pdf_section_vec(section_id, level, start_page, end_page, content, vec_embedding)
-           VALUES (?, ?, ?, ?, ?, vec_f32(?))`,
-        );
-        params.sections.forEach((section, index) => {
-          const summary = summaryMap.get(section.id);
-          const vecContent = [
-            section.title,
-            summary?.overview || "",
-            ...(summary?.mainPoints || []),
-            ...(summary?.arguments || []),
-            ...(summary?.evidence || []),
-            ...(summary?.conclusions || []),
-            ...(summary?.terms || []),
-          ]
-            .filter(Boolean)
-            .join("\n");
-          insertSectionVec.run(
-            section.id,
-            BigInt(Math.floor(section.level)),
-            BigInt(Math.floor(section.startPage)),
-            BigInt(Math.floor(section.endPage)),
-            vecContent,
-            JSON.stringify(params.sectionEmbeddings?.[index] || []),
           );
         });
       }
@@ -787,97 +536,52 @@ class PdfIndexDBManager {
     return jieba.cutForSearch(text, true).join(" ");
   }
 
-  private mapSectionSummaryRow(
-    pdfId: number,
-    row: {
-      section_id: string;
-      title: string;
-      level: number;
-      start_page: number;
-      end_page: number;
-      path_titles: string;
-      overview: string;
-      main_points_json: string;
-      arguments_json: string;
-      evidence_json: string;
-      conclusions_json: string;
-      terms_json: string;
-      questions_json: string;
-      summary_source: "llm" | "extractive";
-      status: "ready" | "degraded" | "failed";
-      score?: number;
-      source?: "fts" | "vec" | "hybrid";
-    },
-  ): PdfSectionSummary {
-    return {
-      pdfId,
-      sectionId: row.section_id,
-      title: row.title,
-      level: row.level,
-      pathTitles: parseJsonArray(row.path_titles),
-      startPage: row.start_page,
-      endPage: row.end_page,
-      overview: row.overview || "",
-      mainPoints: parseJsonArray(row.main_points_json),
-      arguments: parseJsonArray(row.arguments_json),
-      evidence: parseJsonArray(row.evidence_json),
-      conclusions: parseJsonArray(row.conclusions_json),
-      terms: parseJsonArray(row.terms_json),
-      questions: parseJsonArray(row.questions_json),
-      summarySource: row.summary_source || "extractive",
-      status: row.status || "ready",
-      score: row.score,
-      source: row.source,
-    };
-  }
-
   private getSectionById(
     db: Database.Database,
-    pdfId: number,
     sectionId: string,
-  ): PdfSectionSummary | null {
+  ): Omit<PdfSectionNode, "children"> | null {
     const row = db
       .prepare(
         `SELECT
-          s.section_id,
-          s.title,
-          s.level,
-          s.start_page,
-          s.end_page,
-          s.path_titles,
-          ss.overview,
-          ss.main_points_json,
-          ss.arguments_json,
-          ss.evidence_json,
-          ss.conclusions_json,
-          ss.terms_json,
-          ss.questions_json,
-          ss.summary_source,
-          ss.status
-         FROM pdf_sections s
-         LEFT JOIN pdf_section_summaries ss ON ss.section_id = s.section_id
-         WHERE s.section_id = ?`,
+          section_id,
+          parent_section_id,
+          title,
+          level,
+          start_page,
+          end_page,
+          order_index,
+          path_titles,
+          source
+         FROM pdf_sections
+         WHERE section_id = ?`,
       )
       .get(sectionId) as
       | {
           section_id: string;
+          parent_section_id: string | null;
           title: string;
           level: number;
           start_page: number;
           end_page: number;
+          order_index: number;
           path_titles: string;
-          overview: string;
-          main_points_json: string;
-          arguments_json: string;
-          evidence_json: string;
-          conclusions_json: string;
-          terms_json: string;
-          questions_json: string;
-          summary_source: "llm" | "extractive";
-          status: "ready" | "degraded" | "failed";
+          source: "outline" | "inferred" | "synthetic";
         }
       | undefined;
-    return row ? this.mapSectionSummaryRow(pdfId, row) : null;
+    if (!row) {
+      return null;
+    }
+    return {
+      id: row.section_id,
+      parentId: row.parent_section_id,
+      title: row.title,
+      level: row.level,
+      startPage: row.start_page,
+      endPage: row.end_page,
+      orderIndex: row.order_index,
+      pathTitles: parseJsonArray(row.path_titles),
+      source: row.source || "outline",
+    };
   }
 
   private getSectionContextByPage(
@@ -1147,69 +851,6 @@ class PdfIndexDBManager {
     return result;
   }
 
-  getSectionSummary(
-    mainDbName: string,
-    pdfId: number,
-    sectionId: string,
-  ): PdfSectionSummary | null {
-    const db = this.getDatabase(mainDbName, pdfId);
-    return this.getSectionById(db, pdfId, sectionId);
-  }
-
-  getDocumentSummary(
-    mainDbName: string,
-    pdfId: number,
-  ): PdfDocumentSummary | null {
-    const db = this.getDatabase(mainDbName, pdfId);
-    const row = db
-      .prepare(
-        `SELECT
-          overview,
-          themes_json,
-          chapter_map_json,
-          main_arguments_json,
-          core_evidence_json,
-          conclusion_json,
-          reading_paths_json,
-          summary_source,
-          status
-         FROM pdf_document_summary
-         WHERE pdf_id = ?`,
-      )
-      .get(pdfId) as
-      | {
-          overview: string;
-          themes_json: string;
-          chapter_map_json: string;
-          main_arguments_json: string;
-          core_evidence_json: string;
-          conclusion_json: string;
-          reading_paths_json: string;
-          summary_source: "llm" | "extractive";
-          status: "ready" | "degraded" | "failed";
-        }
-      | undefined;
-    if (!row) {
-      return null;
-    }
-    return {
-      pdfId,
-      overview: row.overview || "",
-      themes: parseJsonArray(row.themes_json),
-      chapterMap: parseJsonObjectArray<
-        PdfDocumentSummary["chapterMap"][number]
-      >(row.chapter_map_json),
-      mainArguments: parseJsonArray(row.main_arguments_json),
-      coreEvidence: parseJsonArray(row.core_evidence_json),
-      conclusion: parseJsonArray(row.conclusion_json),
-      readingPaths: parseJsonObjectArray<
-        PdfDocumentSummary["readingPaths"][number]
-      >(row.reading_paths_json),
-      summarySource: row.summary_source || "extractive",
-      status: row.status || "ready",
-    };
-  }
-
   getSectionTree(
     mainDbName: string,
     pdfId: number,
@@ -1227,18 +868,8 @@ class PdfIndexDBManager {
           s.end_page,
           s.order_index,
           s.path_titles,
-          s.source AS section_source,
-          ss.overview,
-          ss.main_points_json,
-          ss.arguments_json,
-          ss.evidence_json,
-          ss.conclusions_json,
-          ss.terms_json,
-          ss.questions_json,
-          ss.summary_source,
-          ss.status
+          s.source AS section_source
          FROM pdf_sections s
-         LEFT JOIN pdf_section_summaries ss ON ss.section_id = s.section_id
          ORDER BY s.level ASC, s.order_index ASC, s.start_page ASC`,
       )
       .all() as Array<{
@@ -1251,15 +882,6 @@ class PdfIndexDBManager {
       order_index: number;
       path_titles: string;
       section_source: "outline" | "inferred" | "synthetic";
-      overview: string;
-      main_points_json: string;
-      arguments_json: string;
-      evidence_json: string;
-      conclusions_json: string;
-      terms_json: string;
-      questions_json: string;
-      summary_source: "llm" | "extractive";
-      status: "ready" | "degraded" | "failed";
     }>;
 
     const nodeMap = new Map<string, PdfSectionNode>();
@@ -1274,7 +896,6 @@ class PdfIndexDBManager {
         orderIndex: row.order_index,
         pathTitles: parseJsonArray(row.path_titles),
         source: row.section_source || "outline",
-        summary: this.mapSectionSummaryRow(pdfId, row),
         children: [],
       });
     });
@@ -1322,7 +943,6 @@ class PdfIndexDBManager {
       fileName: params.fileName,
       pageCount: indexStatus.pageCount,
       indexStatus,
-      summary: this.getDocumentSummary(mainDbName, pdfId),
       sections: this.getSectionTree(mainDbName, pdfId, params.depth),
     };
   }
@@ -1333,21 +953,21 @@ class PdfIndexDBManager {
     sectionId: string,
   ): PdfSectionDetail | null {
     const db = this.getDatabase(mainDbName, pdfId);
-    const section = this.getSectionById(db, pdfId, sectionId);
-    if (!section) {
+    const sectionInfo = this.getSectionById(db, sectionId);
+    if (!sectionInfo) {
       return null;
     }
     const pages = this.getPageRangeContent(
       mainDbName,
       pdfId,
-      section.startPage,
-      section.endPage,
+      sectionInfo.startPage,
+      sectionInfo.endPage,
     );
     return {
       pdfId,
-      section,
-      breadcrumbs: section.pathTitles.map((title, index) => ({
-        id: section.pathTitles.slice(0, index + 1).join(" / "),
+      sectionInfo,
+      breadcrumbs: sectionInfo.pathTitles.map((title, index) => ({
+        id: sectionInfo.pathTitles.slice(0, index + 1).join(" / "),
         title,
       })),
       pages,
@@ -1356,145 +976,6 @@ class PdfIndexDBManager {
         .filter(Boolean)
         .join("\n\n"),
     };
-  }
-
-  searchSectionFTS(
-    mainDbName: string,
-    pdfId: number,
-    query: string,
-    limit: number,
-  ): PdfSectionSummary[] {
-    const db = this.getDatabase(mainDbName, pdfId);
-    const segmented = this.segmentText(query.trim());
-    if (!segmented) {
-      return [];
-    }
-    const rows = db
-      .prepare(
-        `SELECT
-          s.section_id,
-          s.title,
-          s.level,
-          s.start_page,
-          s.end_page,
-          s.path_titles,
-          ss.overview,
-          ss.main_points_json,
-          ss.arguments_json,
-          ss.evidence_json,
-          ss.conclusions_json,
-          ss.terms_json,
-          ss.questions_json,
-          ss.summary_source,
-          ss.status,
-          bm25(pdf_section_fts) AS rank
-         FROM pdf_section_fts
-         JOIN pdf_sections s ON s.section_id = pdf_section_fts.section_id
-         LEFT JOIN pdf_section_summaries ss ON ss.section_id = s.section_id
-         WHERE pdf_section_fts.search_content MATCH ?
-         ORDER BY rank
-         LIMIT ?`,
-      )
-      .all(segmented, Math.max(1, limit)) as Array<{
-      section_id: string;
-      title: string;
-      level: number;
-      start_page: number;
-      end_page: number;
-      path_titles: string;
-      overview: string;
-      main_points_json: string;
-      arguments_json: string;
-      evidence_json: string;
-      conclusions_json: string;
-      terms_json: string;
-      questions_json: string;
-      summary_source: "llm" | "extractive";
-      status: "ready" | "degraded" | "failed";
-      rank: number;
-    }>;
-
-    return rows.map((row) =>
-      this.mapSectionSummaryRow(pdfId, {
-        ...row,
-        score: 1 / (1 + Math.abs(row.rank || 0)),
-        source: "fts",
-      }),
-    );
-  }
-
-  searchSectionVec(
-    mainDbName: string,
-    pdfId: number,
-    queryEmbedding: number[],
-    limit: number,
-    distance: number,
-  ): PdfSectionSummary[] {
-    const db = this.getDatabase(mainDbName, pdfId);
-    const hasTable = db
-      .prepare(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='pdf_section_vec'",
-      )
-      .get();
-    if (!hasTable) {
-      return [];
-    }
-
-    const rows = db
-      .prepare(
-        `SELECT
-          s.section_id,
-          s.title,
-          s.level,
-          s.start_page,
-          s.end_page,
-          s.path_titles,
-          ss.overview,
-          ss.main_points_json,
-          ss.arguments_json,
-          ss.evidence_json,
-          ss.conclusions_json,
-          ss.terms_json,
-          ss.questions_json,
-          ss.summary_source,
-          ss.status,
-          pdf_section_vec.distance AS distance
-         FROM pdf_section_vec
-         JOIN pdf_sections s ON s.section_id = pdf_section_vec.section_id
-         LEFT JOIN pdf_section_summaries ss ON ss.section_id = s.section_id
-         WHERE pdf_section_vec.distance < ? AND vec_embedding MATCH ? AND k = ?
-         ORDER BY pdf_section_vec.distance`,
-      )
-      .all(
-        distance,
-        JSON.stringify(queryEmbedding),
-        BigInt(Math.max(1, limit)),
-      ) as Array<{
-      section_id: string;
-      title: string;
-      level: number;
-      start_page: number;
-      end_page: number;
-      path_titles: string;
-      overview: string;
-      main_points_json: string;
-      arguments_json: string;
-      evidence_json: string;
-      conclusions_json: string;
-      terms_json: string;
-      questions_json: string;
-      summary_source: "llm" | "extractive";
-      status: "ready" | "degraded" | "failed";
-      distance: number;
-    }>;
-
-    return rows.map((row) =>
-      this.mapSectionSummaryRow(pdfId, {
-        ...row,
-        score: Math.max(0, Math.min(1, 1 - row.distance)),
-        source: "vec",
-      }),
-    );
   }
 
   closeAllForMainDB(mainDbName: string): void {
