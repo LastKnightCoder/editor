@@ -72,7 +72,6 @@ export type VLResourceStatus =
   | "transcribing" // 转录中：正在转录音视频（内存队列状态）
   | "converting" // 转换中：正在执行 MarkItDown 转换（内存队列状态）
   | "optimizing_transcript" // 断句优化中：正在进行转录断句优化（内存队列状态）
-  | "summarizing" // 摘要生成中：正在生成 AI 摘要（内存队列状态）
   | "indexing" // 索引中：正在执行 FTS/Vec 索引（内存队列状态）
   | "completed" // 已完成：Markdown 文件存在 且 索引记录存在
   | "need_download" // 需要下载：远程视频本地缓存不存在
@@ -97,8 +96,6 @@ export interface VLResource {
   duration: number | null; // 音视频时长（秒）
   sourceType: VLResourceSourceType | null; // 资源来源类型
   sourceMetaInfo: string | null; // 来源元信息（JSON 字符串）
-  isChunked: boolean; // 是否已按章节拆分
-  chapterCount: number; // 章节数量
   transcriptSegments?: Array<{
     text: string;
     start: number;
@@ -134,7 +131,6 @@ export type VLIndexTaskStatus =
   | "pending"
   | "converting"
   | "optimizing_transcript"
-  | "summarizing"
   | "indexing"
   | "completed"
   | "failed";
@@ -165,16 +161,12 @@ export interface VLSearchResult {
   searchContent?: string;
   score: number;
   chunkIndex?: number;
-  hitType?: "summary" | "chapter";
-  chunkLevel?: "resource" | "summary" | "section" | "chapter" | "passage";
-  chapterIndex?: number;
-  chapterTitle?: string;
-  chapterSummary?: string;
-  sectionTitle?: string;
-  sectionPath?: string[];
-  chunkIndexInSection?: number;
+  chunkLevel?: "resource" | "passage";
   chunkStartLine?: number;
   chunkEndLine?: number;
+  startOffset?: number;
+  endOffset?: number;
+  charCount?: number;
   evidenceScore?: number;
   whyMatched?: string;
   rrfScore?: number;

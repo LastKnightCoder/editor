@@ -24,8 +24,6 @@ interface VLResourceRecord {
   duration: number | null;
   source_type: string | null;
   source_meta_info: string | null;
-  is_chunked: number;
-  chapter_count: number;
   transcript_segments: string | null;
 }
 
@@ -54,20 +52,6 @@ export default class VibeLearningResourceTable {
         "ALTER TABLE vibe_learning_resources ADD COLUMN source_meta_info TEXT",
       );
       log.info("[VibeLearningResource] Added source_meta_info column");
-    }
-
-    if (!columns.includes("is_chunked")) {
-      db.exec(
-        "ALTER TABLE vibe_learning_resources ADD COLUMN is_chunked INTEGER DEFAULT 0",
-      );
-      log.info("[VibeLearningResource] Added is_chunked column");
-    }
-
-    if (!columns.includes("chapter_count")) {
-      db.exec(
-        "ALTER TABLE vibe_learning_resources ADD COLUMN chapter_count INTEGER DEFAULT 0",
-      );
-      log.info("[VibeLearningResource] Added chapter_count column");
     }
 
     if (!columns.includes("transcript_segments")) {
@@ -121,8 +105,6 @@ export default class VibeLearningResourceTable {
       duration: record.duration || null,
       sourceType: (record.source_type as VLResourceSourceType) || null,
       sourceMetaInfo: record.source_meta_info || null,
-      isChunked: record.is_chunked === 1,
-      chapterCount: record.chapter_count || 0,
       transcriptSegments: record.transcript_segments
         ? JSON.parse(record.transcript_segments)
         : null,
@@ -399,40 +381,6 @@ export default class VibeLearningResourceTable {
       );
       log.info(
         `[VibeLearningResource] Updated markdown path for resource: ${id}`,
-      );
-      return true;
-    }
-
-    return false;
-  }
-
-  static updateChunkInfo(
-    db: Database.Database,
-    id: number,
-    isChunked: boolean,
-    chapterCount: number,
-  ): boolean {
-    const now = Date.now();
-    const stmt = db.prepare(`
-      UPDATE vibe_learning_resources SET
-        update_time = ?,
-        is_chunked = ?,
-        chapter_count = ?
-      WHERE id = ?
-    `);
-
-    const res = stmt.run(now, isChunked ? 1 : 0, chapterCount, id);
-
-    if (res.changes > 0) {
-      Operation.insertOperation(
-        db,
-        "vibe-learning-resource",
-        "update",
-        id,
-        now,
-      );
-      log.info(
-        `[VibeLearningResource] Updated chunk info for resource: ${id}, isChunked=${isChunked}, chapterCount=${chapterCount}`,
       );
       return true;
     }

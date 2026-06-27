@@ -32,8 +32,6 @@ describe("ensureVLNoteResource", () => {
       duration: null,
       sourceType: "note",
       sourceMetaInfo: null,
-      isChunked: false,
-      chapterCount: 0,
       transcriptSegments: null,
     };
 
@@ -87,8 +85,6 @@ describe("ensureVLNoteResource", () => {
       duration: null,
       sourceType: "note",
       sourceMetaInfo: null,
-      isChunked: false,
-      chapterCount: 0,
       transcriptSegments: null,
     };
 

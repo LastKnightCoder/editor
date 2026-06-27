@@ -352,7 +352,6 @@ export const statusConfig: Record<
     color: "purple",
     spin: true,
   },
-  summarizing: { text: "摘要生成中", color: "purple", spin: true },
   indexing: { text: "索引中", color: "orange", spin: true },
   completed: { text: "已完成", color: "green", spin: false },
   need_download: { text: "需要下载", color: "purple", spin: false },

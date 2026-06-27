@@ -28,6 +28,7 @@
     "@node-rs/jieba": "^2.0.1",
     "@tailwindcss/oxide": "^4.1.17",
     "@tanstack/react-query": "^5.101.0",
+    "@vscode/ripgrep": "^1.15.14",
     "better-sqlite3": "^12.10.0",
     "font-list": "^1.5.1",
     "fuse.js": "^7.4.1",

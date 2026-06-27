@@ -5,6 +5,15 @@ export interface SmartChunkOptions {
   splitter?: "paragraph" | "sentence";
 }
 
+export interface SmartChunkRange {
+  text: string;
+  startOffset: number;
+  endOffset: number;
+  startLine: number;
+  endLine: number;
+  charCount: number;
+}
+
 interface BreakPoint {
   pos: number;
   score: number;
@@ -43,7 +52,16 @@ export function smartChunk(
   content: string,
   options: SmartChunkOptions = {},
 ): string[] {
-  const normalizedContent = (content || "").trim();
+  return smartChunkWithRanges(content, options).map((chunk) => chunk.text);
+}
+
+export function smartChunkWithRanges(
+  content: string,
+  options: SmartChunkOptions = {},
+): SmartChunkRange[] {
+  const rawContent = content || "";
+  const leadingTrimLength = rawContent.length - rawContent.trimStart().length;
+  const normalizedContent = rawContent.trim();
   if (!normalizedContent) {
     return [];
   }
@@ -61,13 +79,20 @@ export function smartChunk(
   const splitter = options.splitter || "paragraph";
 
   if (normalizedContent.length <= maxLength) {
-    return [normalizedContent];
+    return [
+      buildRangeChunk(
+        normalizedContent,
+        leadingTrimLength,
+        leadingTrimLength + normalizedContent.length,
+        rawContent,
+      ),
+    ];
   }
 
   const breakPoints = scanBreakPoints(normalizedContent, splitter);
   const codeFences = findCodeFences(normalizedContent);
 
-  const chunks: string[] = [];
+  const chunks: SmartChunkRange[] = [];
   let charPos = 0;
 
   while (charPos < normalizedContent.length) {
@@ -91,9 +116,17 @@ export function smartChunk(
       endPos = Math.min(charPos + maxLength, normalizedContent.length);
     }
 
-    const chunkText = normalizedContent.slice(charPos, endPos).trim();
+    const rawChunkText = normalizedContent.slice(charPos, endPos);
+    const trimStartOffset =
+      rawChunkText.length - rawChunkText.trimStart().length;
+    const trimEndOffset = rawChunkText.trimEnd().length;
+    const chunkText = rawChunkText.trim();
     if (chunkText) {
-      chunks.push(chunkText);
+      const sourceStart = leadingTrimLength + charPos + trimStartOffset;
+      const sourceEnd = leadingTrimLength + charPos + trimEndOffset;
+      chunks.push(
+        buildRangeChunk(chunkText, sourceStart, sourceEnd, rawContent),
+      );
     }
 
     if (endPos >= normalizedContent.length) {
@@ -105,6 +138,33 @@ export function smartChunk(
   }
 
   return mergeSmallChunks(chunks, minLength, maxLength);
+}
+
+function buildRangeChunk(
+  text: string,
+  startOffset: number,
+  endOffset: number,
+  source: string,
+): SmartChunkRange {
+  return {
+    text,
+    startOffset,
+    endOffset,
+    startLine: offsetToLine(source, startOffset),
+    endLine: offsetToLine(source, endOffset),
+    charCount: endOffset - startOffset,
+  };
+}
+
+function offsetToLine(source: string, offset: number): number {
+  const safeOffset = Math.max(0, Math.min(offset, source.length));
+  let line = 1;
+  for (let index = 0; index < safeOffset; index += 1) {
+    if (source.charCodeAt(index) === 10) {
+      line += 1;
+    }
+  }
+  return line;
 }
 
 function scanBreakPoints(
@@ -204,22 +264,30 @@ function isInsideCodeFence(
 }
 
 function mergeSmallChunks(
-  chunks: string[],
+  chunks: SmartChunkRange[],
   minLength: number,
   maxLength: number,
-): string[] {
+): SmartChunkRange[] {
   if (chunks.length <= 1) {
     return chunks;
   }
 
-  const merged: string[] = [];
+  const merged: SmartChunkRange[] = [];
   for (const chunk of chunks) {
     if (
       merged.length > 0 &&
-      chunk.length < minLength &&
-      `${merged[merged.length - 1]}\n\n${chunk}`.length <= maxLength * 1.3
+      chunk.text.length < minLength &&
+      `${merged[merged.length - 1].text}\n\n${chunk.text}`.length <=
+        maxLength * 1.3
     ) {
-      merged[merged.length - 1] = `${merged[merged.length - 1]}\n\n${chunk}`;
+      const previous = merged[merged.length - 1];
+      merged[merged.length - 1] = {
+        ...previous,
+        text: `${previous.text}\n\n${chunk.text}`,
+        endOffset: chunk.endOffset,
+        endLine: chunk.endLine,
+        charCount: chunk.endOffset - previous.startOffset,
+      };
     } else {
       merged.push(chunk);
     }

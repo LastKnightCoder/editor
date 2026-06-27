@@ -39,8 +39,6 @@ describe("VibeLearningResourceTable.ensureNoteResource", () => {
       duration: null,
       sourceType: "note",
       sourceMetaInfo: null,
-      isChunked: false,
-      chapterCount: 0,
       transcriptSegments: null,
     } as const;
 
@@ -80,8 +78,6 @@ describe("VibeLearningResourceTable.ensureNoteResource", () => {
       duration: null,
       sourceType: "note",
       sourceMetaInfo: null,
-      isChunked: false,
-      chapterCount: 0,
       transcriptSegments: null,
     } as const;
 

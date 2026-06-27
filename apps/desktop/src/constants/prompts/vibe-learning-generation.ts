@@ -9,47 +9,37 @@ const TOOL_GUIDE = `## 可用工具
 ### 2. read_resource_content
 - 功能：读取指定资源的 Markdown 内容
 - 参数：resourceName（资源名称）
-- 用途：对于普通文档返回全文；对于大型分章文档返回结构索引/摘要索引，用于建立整体理解
+- 用途：读取完整 Markdown 的开头内容；长文档会截断，不能替代精确补读
 
-### 3. read_resource_range
+### 3. search_resource_content
+- 功能：语义搜索项目资料
+- 参数：query（搜索关键词或问题）、limit（返回数量，默认 5）
+- 用途：快速定位相关 chunk，并获得 resourceId、chunkIndex、行范围和字符范围
+
+### 4. grep_resource_content
+- 功能：使用 ripgrep 做精确关键词或正则搜索
+- 参数：query、isRegex、ignoreCase、limit
+- 用途：定位精确字面匹配，并获得 lineNumber、startOffset、endOffset、matchedText 和 preview
+
+### 5. read_resource_lines
 - 功能：按行范围读取指定资源的内容
 - 参数：resourceName（资源名称）、startLine（起始行）、endLine（结束行）
-- 用途：分段读取普通大文件，或在已确认资源相关后补足上下文
+- 用途：根据 search 返回的 chunkStartLine/chunkEndLine 或 grep 返回的 lineNumber 补读上下文
 
-### 4. list_resource_chapters
-- 功能：列出大型分章文档的所有章节标题、摘要和索引
-- 参数：resourceName（资源名称）
-- 用途：理解长文结构，决定下一步该读哪些章节
+### 6. read_resource_range
+- 功能：按字符范围读取指定资源的内容
+- 参数：resourceId 或 resourceName、startOffset（起始字符）、endOffset（结束字符）
+- 用途：根据 search/grep 返回的 startOffset/endOffset 精确补读上下文
 
-### 5. read_resource_chapter
-- 功能：读取大型分章文档的指定章节全文
-- 参数：resourceName（资源名称）、chapterIndex（章节索引）
-- 用途：获取章节正文证据
-
-### 6. read_resource_chapter_range
-- 功能：按行范围读取大型分章文档的指定章节片段
-- 参数：resourceName（资源名称）、chapterIndex（章节索引）、startLine（起始行）、endLine（结束行）
-- 用途：章节较长时分段深读，只读取最相关的正文部分；当已定位到命中块时，优先于整章读取
-
-### 7. search_project_knowledge
-- 功能：在项目资料中搜索关键词或问题
-- 参数：query（搜索关键词或问题）、limit（返回数量，默认 5）
-- 用途：快速定位线索。返回结果会尽量标注命中属于摘要还是章节正文，以及所属章节信息
-
-### 8. batch_search_project_knowledge
+### 7. batch_search_project_knowledge
 - 功能：批量执行多个搜索查询
 - 参数：queries（查询数组，每项为 { label, query }）、limitPerQuery
 - 用途：对复杂问题并行比较多个搜索角度，减少单一表述漏召回
 
-### 9. read_search_hit_context
-- 功能：读取某个搜索命中附近的上下文
-- 参数：resourceName（资源名称）、chunkIndex（命中片段索引）、radius（上下文扩展范围）
-- 用途：在不立即整章通读的前提下补足命中前后文
-
-### 10. batch_read_search_hits
+### 8. batch_read_search_hits
 - 功能：批量补读多个搜索命中的上下文
-- 参数：hits（命中数组）
-- 用途：在已拿到多个候选证据时统一补上下文`;
+- 参数：hits（命中数组，每项应带 resourceId/resourceName 和字符范围或行范围）
+- 用途：在已拿到多个候选证据时，统一按字符范围或行范围补上下文`;
 
 const EXPLORATION_RULES = `## 资料探索规则（核心要求）
 
@@ -57,21 +47,19 @@ const EXPLORATION_RULES = `## 资料探索规则（核心要求）
 
 ### 1. 正确认识不同证据层级
 - 搜索结果片段只用于定位线索，不代表全文，不能直接当作充分证据
-- read_resource_content 对大型分章文档返回的是结构索引/摘要索引，不是正文
-- 章节正文（read_resource_chapter / read_resource_chapter_range）和普通文档全文，才是高置信度证据
+- read_resource_content 对长文档会截断，不代表全文
+- read_resource_lines/read_resource_range 读取到的原文上下文，才是高置信度证据
 
-### 2. 长文默认先建立全局理解
-- 如果资源是大型分章文档，先使用 read_resource_content 或 list_resource_chapters 理解整体结构
-- 根据章节标题和摘要决定下一步应读哪些章节
-- 不要把长文摘要当成正文依据
+### 2. 长文默认先定位再补读
+- 不要一次性读取长文全文
+- 先用 search_resource_content 做语义定位，或用 grep_resource_content 做精确字面定位
+- 根据返回的 resourceId、行范围或字符范围，用 read_resource_lines/read_resource_range 补读上下文
 
 ### 3. 搜索只负责定位，阅读负责确认
-- 对复杂问题，先自己决定需要哪些步骤，再组合使用 search_project_knowledge、batch_search_project_knowledge、read_search_hit_context、read_resource_chapter_range、read_resource_chapter
-- 搜索后先看 hitType、chapterIndex、chapterTitle、sectionTitle，判断证据是否仍停留在线索层
-- 如果命中来自章节正文，优先补读 read_search_hit_context；已拿到精确章节和行号范围时，再优先用 read_resource_chapter_range 深读局部正文
-- 只有片段证据仍不足、或者需要更完整论证链时，才升级到 read_resource_chapter
-- 如果已明确锁定到长文某一章节，但只需章节局部内容，优先使用 read_resource_chapter_range，而不是重新做整轮搜索
-- 如果问题需要跨多个主题、多个章节或多个搜索角度搜集资料，且预计会产生较多搜索命中、上下文补读或并行查证需求，应优先使用全局工具 subagent_research 把资料搜集任务拆给多个 SubAgent；不要让主 Agent 独自串很长的资料搜集链路
+- 对复杂问题，先自己决定需要哪些步骤，再组合使用 search_resource_content、grep_resource_content、batch_search_project_knowledge、read_resource_lines、read_resource_range
+- 搜索后优先看 resourceId、chunkStartLine/chunkEndLine、startOffset/endOffset、whyMatched
+- 如果只需要某个命中附近上下文，优先使用 read_resource_lines 或 read_resource_range
+- 如果问题需要跨多个主题、多个搜索角度搜集资料，且预计会产生较多搜索命中、上下文补读或并行查证需求，应优先使用全局工具 subagent_research 把资料搜集任务拆给多个 SubAgent；不要让主 Agent 独自串很长的资料搜集链路
 
 ### 4. 生成前必须达到证据门槛
 - 至少覆盖每个已选资源的核心模块，而不是只覆盖几个零散片段
@@ -94,8 +82,8 @@ export const buildVibeLearningGenerationUserPrompt = (params: {
     .join("\n");
   const reminders = [
     "先获取资料内容，不要在证据不足时直接开始生成",
-    "对于大型分章文档，先读结构索引，再按需读取章节正文",
-    "搜索结果只用于定位线索，关键内容要回到正文确认",
+    "对于长文档，先 search 或 grep 定位，再按行或字符范围补读上下文",
+    "搜索结果只用于定位线索，关键内容要回到原文范围确认",
     "确保信息已经足够覆盖主要知识点后，再输出最终结果",
     ...(params.extraReminders || []),
   ];

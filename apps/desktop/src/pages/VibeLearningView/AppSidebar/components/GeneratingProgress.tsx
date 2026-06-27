@@ -38,16 +38,19 @@ interface GeneratingProgressProps {
 const TOOL_NAME_MAP: Record<string, string> = {
   list_project_resources: "获取资源列表",
   read_resource_content: "读取资源内容",
-  read_resource_range: "分段读取内容",
-  search_project_knowledge: "搜索知识库",
-  batch_search_project_knowledge: "批量搜索知识库",
+  read_resource_lines: "按行补读内容",
+  read_resource_range: "按字符补读内容",
+  search_resource_content: "语义搜索资料",
+  grep_resource_content: "精确搜索资料",
+  batch_search_project_knowledge: "批量搜索资料",
   batch_read_search_hits: "批量补读上下文",
 };
 
 /** 根据工具名称获取对应图标 */
 const getToolIcon = (toolName: string) => {
   switch (toolName) {
-    case "search_project_knowledge":
+    case "search_resource_content":
+    case "grep_resource_content":
       return <Search className="w-3 h-3 inline mr-1" />;
     case "batch_search_project_knowledge":
       return <Search className="w-3 h-3 inline mr-1" />;
@@ -55,6 +58,7 @@ const getToolIcon = (toolName: string) => {
       return <FileText className="w-3 h-3 inline mr-1" />;
     case "read_resource_content":
       return <BookOpen className="w-3 h-3 inline mr-1" />;
+    case "read_resource_lines":
     case "read_resource_range":
       return <FileText className="w-3 h-3 inline mr-1" />;
     default:

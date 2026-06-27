@@ -31,8 +31,6 @@ type ResourceRow = {
   duration: number | null;
   source_type: string | null;
   source_meta_info: string | null;
-  is_chunked: number;
-  chapter_count: number;
   transcript_segments: string | null;
 };
 
@@ -49,8 +47,6 @@ const TABLE_COLUMNS = [
   "duration",
   "source_type",
   "source_meta_info",
-  "is_chunked",
-  "chapter_count",
   "transcript_segments",
 ] as const;
 
@@ -116,14 +112,6 @@ class FakeVibeLearningResourceDb {
 
     if (sql.includes("ADD COLUMN source_meta_info")) {
       this.columns.add("source_meta_info");
-    }
-
-    if (sql.includes("ADD COLUMN is_chunked")) {
-      this.columns.add("is_chunked");
-    }
-
-    if (sql.includes("ADD COLUMN chapter_count")) {
-      this.columns.add("chapter_count");
     }
 
     if (sql.includes("ADD COLUMN transcript_segments")) {
@@ -234,8 +222,6 @@ class FakeVibeLearningResourceDb {
             duration,
             source_type: sourceType,
             source_meta_info: sourceMetaInfo,
-            is_chunked: 0,
-            chapter_count: 0,
             transcript_segments: null,
           });
           return { lastInsertRowid: id };
@@ -392,8 +378,6 @@ describe("VibeLearningResourceTable 排序", () => {
         duration: null,
         source_type: null,
         source_meta_info: null,
-        is_chunked: 0,
-        chapter_count: 0,
         transcript_segments: null,
       },
       {
@@ -410,8 +394,6 @@ describe("VibeLearningResourceTable 排序", () => {
         duration: null,
         source_type: null,
         source_meta_info: null,
-        is_chunked: 0,
-        chapter_count: 0,
         transcript_segments: null,
       },
     ]);
@@ -427,5 +409,31 @@ describe("VibeLearningResourceTable 排序", () => {
       true,
     );
     expect(db.indexes.has("idx_vl_resource_project_sort")).toBe(true);
+    expect(db.columns.has("is_chunked")).toBe(false);
+    expect(db.columns.has("chapter_count")).toBe(false);
+  });
+
+  it("解析资源时不应暴露旧分章兼容字段", () => {
+    const parsed = VibeLearningResourceTable.parseResource({
+      id: 1,
+      project_id: 9,
+      sort_index: 2048,
+      create_time: 100,
+      update_time: 100,
+      name: "legacy.pdf",
+      original_path: "/tmp/legacy.pdf",
+      markdown_path: null,
+      resource_type: "pdf",
+      file_size: null,
+      duration: null,
+      source_type: null,
+      source_meta_info: null,
+      is_chunked: 1,
+      chapter_count: 12,
+      transcript_segments: null,
+    } as never);
+
+    expect(parsed).not.toHaveProperty("isChunked");
+    expect(parsed).not.toHaveProperty("chapterCount");
   });
 });
