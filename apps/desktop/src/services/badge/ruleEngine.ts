@@ -347,13 +347,17 @@ export function evaluateBadgeAward(
     period,
   );
   const samePassedPeriod = previousProgress.lastPassedPeriodKey === period.key;
+  const graceMs = (policy.graceDays ?? 0) * DAY_MS;
+  const periodStillOpen = period.end + graceMs > now;
   const currentStreak = currentPeriodPassed
     ? samePassedPeriod
       ? previousProgress.currentStreak
       : continued
         ? previousProgress.currentStreak + 1
         : 1
-    : 0;
+    : periodStillOpen && continued
+      ? previousProgress.currentStreak
+      : 0;
   const accumulatedCount = currentPeriodPassed
     ? samePassedPeriod
       ? previousProgress.accumulatedCount
@@ -385,7 +389,6 @@ export function evaluateBadgeAward(
         : buildAward("success", policy, period, progressValue)
       : null;
 
-  const graceMs = (policy.graceDays ?? 0) * DAY_MS;
   const failureAward =
     policy.failureEnabled && !currentPeriodPassed && period.end + graceMs <= now
       ? buildAward("failure", policy, period, currentValue)
