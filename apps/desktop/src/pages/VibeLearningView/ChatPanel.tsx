@@ -444,7 +444,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       className,
       "data-markdown-block-code": markdownBlockCode,
     });
-    const code = String(children).replace(/\n$/, "");
+    const code = String(children)
+      .replace(/^\r?\n/, "")
+      .replace(/\r?\n$/, "");
 
     if (language === "mermaid") {
       return (

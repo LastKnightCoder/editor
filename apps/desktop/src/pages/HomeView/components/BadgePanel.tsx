@@ -78,7 +78,7 @@ const GoalRow: React.FC<GoalRowProps> = ({
       type="button"
       onClick={() => onOpen(definition)}
       className={classNames(
-        "flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors",
+        "flex w-full min-w-0 items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors",
         themeColors.hoverClass,
       )}
     >
@@ -88,8 +88,9 @@ const GoalRow: React.FC<GoalRowProps> = ({
       >
         {design.icon}
       </span>
-      <span className="min-w-0 flex-1">
+      <span className="min-w-0 flex-1 overflow-hidden">
         <span
+          title={definition.name}
           className={classNames(
             "block truncate text-xs font-medium",
             themeColors.textClass,
@@ -99,29 +100,33 @@ const GoalRow: React.FC<GoalRowProps> = ({
         </span>
         <span
           className={classNames(
-            "mt-0.5 flex items-center gap-1 text-[10px]",
+            "mt-0.5 flex min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap text-[10px]",
             themeColors.secondaryTextClass,
           )}
         >
-          <span>{policyLabel[definition.awardPolicy.type]}</span>
+          <span className="flex-shrink-0">
+            {policyLabel[definition.awardPolicy.type]}
+          </span>
           {nextMilestone && (
             <>
-              <span className="opacity-40">·</span>
-              <span>{nextMilestone.title}</span>
+              <span className="flex-shrink-0 opacity-40">·</span>
+              <span className="min-w-0 truncate" title={nextMilestone.title}>
+                {nextMilestone.title}
+              </span>
             </>
           )}
           {!nextMilestone && !hasProgressTarget && (
             <>
-              <span className="opacity-40">·</span>
-              <span>长期任务</span>
+              <span className="flex-shrink-0 opacity-40">·</span>
+              <span className="flex-shrink-0">长期任务</span>
             </>
           )}
           {hasManual && (
             <>
-              <span className="opacity-40">·</span>
+              <span className="flex-shrink-0 opacity-40">·</span>
               <span
                 className={classNames(
-                  "inline-flex items-center gap-0.5",
+                  "inline-flex flex-shrink-0 items-center gap-0.5",
                   allCheckedIn ? "text-emerald-400" : "",
                 )}
               >

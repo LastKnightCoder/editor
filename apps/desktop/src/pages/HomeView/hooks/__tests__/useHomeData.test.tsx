@@ -55,6 +55,18 @@ vi.mock("@/commands/diary", () => ({
   deleteDiaryTagSetting: vi.fn(),
 }));
 
+const mockWebsocketClient = vi.hoisted(() => ({
+  registerNotificationHandler: vi.fn(),
+  unregisterNotificationHandler: vi.fn(),
+}));
+
+vi.mock("@/stores/useBackendWebsocketStore", () => ({
+  useBackendWebsocketStore: (selector?: (state: unknown) => unknown) => {
+    const state = { client: mockWebsocketClient };
+    return selector ? selector(state) : state;
+  },
+}));
+
 const workbenchCommands = await import("@/commands/components-workbench");
 const flashcardCommands = await import("@/commands/flashcard");
 const pomodoroCommands = await import("@/commands/pomodoro");
@@ -178,6 +190,50 @@ const setupSuccessfulCommands = () => {
   vi.mocked(diaryCommands.getAllDiaryTagSettings).mockResolvedValue([]);
 };
 
+const createPomodoroSession = (
+  overrides: Partial<{
+    id: number;
+    presetId: number;
+    startTime: number;
+    endTime?: number;
+    expectedMs?: number;
+    focusMs: number;
+    pauseTotalMs: number;
+    pauseCount: number;
+    pauses: { start: number; end?: number }[];
+    status: "running" | "paused" | "completed" | "stopped";
+    createTime: number;
+    updateTime: number;
+  }> = {},
+) => {
+  const now = Date.now();
+  return {
+    id: 1,
+    presetId: 1,
+    startTime: now - 60_000,
+    endTime: undefined,
+    expectedMs: 25 * 60_000,
+    focusMs: 0,
+    pauseTotalMs: 0,
+    pauseCount: 0,
+    pauses: [],
+    status: "running" as const,
+    createTime: now - 60_000,
+    updateTime: now,
+    ...overrides,
+  };
+};
+
+const getRegisteredNotificationHandler = (method: string) => {
+  const call = mockWebsocketClient.registerNotificationHandler.mock.calls.find(
+    ([registeredMethod]) => registeredMethod === method,
+  );
+  if (!call) {
+    throw new Error(`Notification handler not registered: ${method}`);
+  }
+  return call[1] as (payload: unknown) => void;
+};
+
 const waitForLoaded = async (hook: { current: HookValue }) => {
   for (let index = 0; index < 10; index += 1) {
     await flushPromises();
@@ -199,6 +255,8 @@ describe("useHomeData", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-21T08:00:00.000Z"));
+    mockWebsocketClient.registerNotificationHandler.mockClear();
+    mockWebsocketClient.unregisterNotificationHandler.mockClear();
     setupSuccessfulCommands();
   });
 
@@ -222,6 +280,11 @@ describe("useHomeData", () => {
     expect(hook.current.data.summary.pendingTodos).toBe(2);
     expect(hook.current.data.summary.flashcardsDue).toBe(3);
     expect(hook.current.data.summary.rssUnread).toBe(4);
+    expect(pomodoroCommands.listPomodoroSessions).toHaveBeenCalledWith({
+      start: new Date(2026, 5, 21, 0, 0, 0, 0).getTime(),
+      end: new Date(2026, 5, 21, 23, 59, 59, 999).getTime(),
+      limit: 30,
+    });
 
     await hook.unmount();
   });
@@ -320,6 +383,67 @@ describe("useHomeData", () => {
     expect(flashcardCommands.getFlashcardReviewQueue).toHaveBeenCalledTimes(2);
     expect(workbenchCommands.listTodoPreview).toHaveBeenCalledTimes(1);
     expect(rssCommands.countUnreadRssEntries).toHaveBeenCalledTimes(1);
+
+    await hook.unmount();
+  });
+
+  it("收到番茄钟主进程事件时实时同步首页活动会话和统计", async () => {
+    const runningSession = createPomodoroSession();
+    vi.mocked(pomodoroCommands.getActivePomodoroSession).mockResolvedValue(
+      runningSession,
+    );
+
+    const queryClient = createQueryClient();
+    const hook = mountHook(queryClient);
+
+    await hook.render();
+    await waitForLoaded(hook);
+
+    const handleActiveSessionChanged = getRegisteredNotificationHandler(
+      "pomodoro:active-session-changed",
+    );
+    const pausedSession = createPomodoroSession({
+      status: "paused",
+      pauseCount: 1,
+      pauses: [{ start: Date.now() }],
+      updateTime: Date.now(),
+    });
+
+    await act(async () => {
+      handleActiveSessionChanged(pausedSession);
+    });
+    await flushPromises();
+
+    expect(hook.current.data.activeSession?.status).toBe("paused");
+    expect(hook.current.data.activeSession?.pauseCount).toBe(1);
+
+    vi.mocked(pomodoroCommands.summaryPomodoroToday).mockResolvedValue({
+      count: 2,
+      focusMs: 20 * 60_000,
+    });
+    vi.mocked(pomodoroCommands.getActivePomodoroSession).mockResolvedValue(
+      null,
+    );
+    vi.mocked(pomodoroCommands.listPomodoroSessions).mockResolvedValue([
+      createPomodoroSession({
+        id: 2,
+        status: "completed",
+        endTime: Date.now(),
+        focusMs: 19 * 60_000,
+      }),
+    ]);
+
+    await act(async () => {
+      handleActiveSessionChanged(null);
+    });
+    await flushPromises();
+
+    expect(hook.current.data.activeSession).toBeNull();
+    expect(hook.current.data.summary.pomodoroToday).toEqual({
+      count: 2,
+      focusMs: 20 * 60_000,
+    });
+    expect(hook.current.data.pomodoroRecentSessions).toHaveLength(1);
 
     await hook.unmount();
   });

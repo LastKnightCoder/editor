@@ -138,6 +138,16 @@ const renderPanelWithRecentSessions = (recentSessions: PomodoroSession[]) => (
   />
 );
 
+const renderPanelWithTodaySessions = (todaySessions: PomodoroSession[]) => (
+  <PomodoroPanel
+    todayStats={{ count: todaySessions.length, focusMs: 45 * 60_000 }}
+    activeSession={null}
+    presets={presets}
+    recentSessions={todaySessions}
+    todaySessions={todaySessions}
+  />
+);
+
 describe("PomodoroPanel", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -339,6 +349,39 @@ describe("PomodoroPanel", () => {
       .map((button) => button.textContent)
       .filter((text) => text && text !== "查看全部");
     expect(buttons).toEqual(["专注25m", "阅读15m", "写作"]);
+
+    await unmount(root, container);
+  });
+
+  it("显示今日已完成的专注记录", async () => {
+    const todaySessions = [
+      createSession({
+        id: 21,
+        presetId: 2,
+        endTime: BASE_TIME + 45 * 60_000,
+        focusMs: 15 * 60_000,
+        status: "completed",
+        updateTime: BASE_TIME + 45 * 60_000,
+      }),
+      createSession({
+        id: 22,
+        presetId: 3,
+        endTime: BASE_TIME + 90 * 60_000,
+        focusMs: 30 * 60_000,
+        status: "completed",
+        updateTime: BASE_TIME + 90 * 60_000,
+      }),
+    ];
+
+    const { root, container } = await mount(
+      renderPanelWithTodaySessions(todaySessions),
+    );
+
+    expect(container.textContent).toContain("今日记录");
+    expect(container.textContent).toContain("写作");
+    expect(container.textContent).toContain("阅读");
+    expect(container.textContent).toContain("30分钟");
+    expect(container.textContent).toContain("15分钟");
 
     await unmount(root, container);
   });

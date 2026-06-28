@@ -198,6 +198,7 @@ const HomePage: React.FC = () => {
                   activeSession={data.activeSession}
                   presets={data.pomodoroPresets}
                   recentSessions={data.pomodoroRecentSessions}
+                  todaySessions={data.pomodoroTodaySessions}
                   onStartSession={handleStartPomodoro}
                   onPauseSession={handlePausePomodoro}
                   onResumeSession={handleResumePomodoro}

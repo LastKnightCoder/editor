@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   useQueries,
   useQueryClient,
@@ -57,6 +57,7 @@ import type { ICard, IArticle, IDocumentItem, ProjectItem } from "@/types";
 import type { DiaryEntry, DiarySegment, DiaryTagSetting } from "@/types/diary";
 import type { RssEntry, RssFeed } from "@/types/rss";
 import type { IItem } from "@/components/CalendarHeatmap";
+import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 
 const HOME_QUERY_KEY = ["home"] as const;
 const TODO_QUERY_KEY = [...HOME_QUERY_KEY, "todo"] as const;
@@ -115,6 +116,7 @@ export interface HomeData {
   activeSession: PomodoroSession | null;
   pomodoroPresets: PomodoroPreset[];
   pomodoroRecentSessions: PomodoroSession[];
+  pomodoroTodaySessions: PomodoroSession[];
   recentActivity: {
     cards: ICard[];
     articles: IArticle[];
@@ -161,6 +163,7 @@ interface HomePomodoroData {
   activeSession: PomodoroSession | null;
   pomodoroPresets: PomodoroPreset[];
   pomodoroRecentSessions: PomodoroSession[];
+  pomodoroTodaySessions: PomodoroSession[];
 }
 
 interface HomeActivityData {
@@ -201,6 +204,7 @@ const INITIAL_DATA: HomeData = {
   activeSession: null,
   pomodoroPresets: [],
   pomodoroRecentSessions: [],
+  pomodoroTodaySessions: [],
   recentActivity: EMPTY_RECENT_ACTIVITY,
   activityHeatmap: [],
   contentTrend: [],
@@ -324,16 +328,24 @@ const fetchHomeRssData = async (): Promise<HomeRssData> => {
 };
 
 const fetchHomePomodoroData = async (): Promise<HomePomodoroData> => {
+  const todayStart = dayjs().startOf("day").valueOf();
+  const todayEnd = dayjs().endOf("day").valueOf();
   const [
     pomodoroToday,
     activeSession,
     pomodoroPresets,
     pomodoroRecentSessions,
+    pomodoroTodaySessions,
   ] = await Promise.all([
     summaryPomodoroToday(),
     getActivePomodoroSession(),
     listPomodoroPresets(),
     listPomodoroSessions({ limit: POMODORO_RECENT_SESSION_LIMIT }),
+    listPomodoroSessions({
+      start: todayStart,
+      end: todayEnd,
+      limit: POMODORO_RECENT_SESSION_LIMIT,
+    }),
   ]);
 
   return {
@@ -341,6 +353,7 @@ const fetchHomePomodoroData = async (): Promise<HomePomodoroData> => {
     activeSession,
     pomodoroPresets,
     pomodoroRecentSessions,
+    pomodoroTodaySessions,
   };
 };
 
@@ -454,6 +467,8 @@ const buildHomeData = ({
   pomodoroPresets: pomodoro?.pomodoroPresets ?? INITIAL_DATA.pomodoroPresets,
   pomodoroRecentSessions:
     pomodoro?.pomodoroRecentSessions ?? INITIAL_DATA.pomodoroRecentSessions,
+  pomodoroTodaySessions:
+    pomodoro?.pomodoroTodaySessions ?? INITIAL_DATA.pomodoroTodaySessions,
   recentActivity: activity?.recentActivity ?? INITIAL_DATA.recentActivity,
   activityHeatmap: activity?.activityHeatmap ?? INITIAL_DATA.activityHeatmap,
   contentTrend: activity?.contentTrend ?? INITIAL_DATA.contentTrend,
@@ -498,6 +513,7 @@ const updateDiaryCache = (
 
 const useHomeData = () => {
   const queryClient = useQueryClient();
+  const websocketClient = useBackendWebsocketStore((state) => state.client);
   const [
     todoQuery,
     questionQuery,
@@ -587,6 +603,54 @@ const useHomeData = () => {
   const refreshPomodoro = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: POMODORO_QUERY_KEY });
   }, [queryClient]);
+
+  useEffect(() => {
+    if (!websocketClient) return;
+
+    const updatePomodoroCache = (
+      updater: (prev: HomePomodoroData) => HomePomodoroData,
+    ) => {
+      queryClient.setQueryData<HomePomodoroData>(POMODORO_QUERY_KEY, (prev) => {
+        if (!prev) return prev;
+        return updater(prev);
+      });
+    };
+
+    const handleActiveSessionChanged = (payload: unknown) => {
+      const activeSession = payload as PomodoroSession | null;
+      updatePomodoroCache((prev) => ({ ...prev, activeSession }));
+
+      if (!activeSession) {
+        void queryClient.invalidateQueries({ queryKey: POMODORO_QUERY_KEY });
+      }
+    };
+
+    const handleTick = (payload: unknown) => {
+      const tick = payload as { session?: PomodoroSession | null };
+      if (!tick.session) return;
+      updatePomodoroCache((prev) => ({
+        ...prev,
+        activeSession: tick.session ?? prev.activeSession,
+      }));
+    };
+
+    websocketClient.registerNotificationHandler(
+      "pomodoro:active-session-changed",
+      handleActiveSessionChanged,
+    );
+    websocketClient.registerNotificationHandler("pomodoro:tick", handleTick);
+
+    return () => {
+      websocketClient.unregisterNotificationHandler(
+        "pomodoro:active-session-changed",
+        handleActiveSessionChanged,
+      );
+      websocketClient.unregisterNotificationHandler(
+        "pomodoro:tick",
+        handleTick,
+      );
+    };
+  }, [queryClient, websocketClient]);
 
   // 乐观更新当前活动会话，避免等待完整查询刷新导致的卡顿
   const setActiveSession = useCallback(

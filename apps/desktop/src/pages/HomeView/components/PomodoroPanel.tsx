@@ -1,13 +1,14 @@
 import React from "react";
 import classNames from "classnames";
 import useThemeColors from "@/hooks/useThemeColors";
-import { Timer, Play, Pause, Square, ArrowRight } from "lucide-react";
+import { Timer, Play, Pause, Square, ArrowRight, Clock3 } from "lucide-react";
 import type { PomodoroPreset, PomodoroSession } from "@/types/pomodoro";
 import { TabType } from "@/types/tab";
 import useTabStore from "@/stores/useTabStore";
 
 const MINUTE_MS = 60_000;
 const SECOND_MS = 1_000;
+const TODAY_SESSION_PREVIEW_LIMIT = 3;
 
 const fmt = (ms: number) => {
   const s = Math.floor(ms / SECOND_MS);
@@ -79,6 +80,7 @@ interface PomodoroPanelProps {
   activeSession: PomodoroSession | null;
   presets: PomodoroPreset[];
   recentSessions?: PomodoroSession[];
+  todaySessions?: PomodoroSession[];
   onStartSession?: (presetId: number, expectedMs?: number) => void;
   onPauseSession?: () => void;
   onResumeSession?: () => void;
@@ -90,6 +92,7 @@ const PomodoroPanel: React.FC<PomodoroPanelProps> = ({
   activeSession,
   presets,
   recentSessions = [],
+  todaySessions = [],
   onStartSession,
   onPauseSession,
   onResumeSession,
@@ -140,6 +143,21 @@ const PomodoroPanel: React.FC<PomodoroPanelProps> = ({
   const activePreset = React.useMemo(
     () => presets.find((p) => p.id === activeSession?.presetId),
     [presets, activeSession],
+  );
+  const presetsById = React.useMemo(
+    () => new Map(presets.map((preset) => [preset.id, preset])),
+    [presets],
+  );
+  const todaySessionPreview = React.useMemo(
+    () =>
+      todaySessions
+        .filter((session) => session.status === "completed")
+        .slice()
+        .sort(
+          (a, b) => (b.endTime ?? b.updateTime) - (a.endTime ?? a.updateTime),
+        )
+        .slice(0, TODAY_SESSION_PREVIEW_LIMIT),
+    [todaySessions],
   );
 
   const isRunning = activeSession?.status === "running";
@@ -220,6 +238,87 @@ const PomodoroPanel: React.FC<PomodoroPanelProps> = ({
         <span className={classNames("text-xs", themeColors.secondaryTextClass)}>
           今日专注 · {todayStats.count} 次
         </span>
+      </div>
+
+      <div className="mb-3 space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <span
+            className={classNames(
+              "text-xs font-medium",
+              themeColors.secondaryTextClass,
+            )}
+          >
+            今日记录
+          </span>
+          {todaySessions.length > todaySessionPreview.length && (
+            <span
+              className={classNames(
+                "text-[11px]",
+                themeColors.secondaryTextClass,
+              )}
+            >
+              +{todaySessions.length - todaySessionPreview.length}
+            </span>
+          )}
+        </div>
+        {todaySessionPreview.length > 0 ? (
+          <div className="space-y-1">
+            {todaySessionPreview.map((session) => {
+              const presetName =
+                presetsById.get(session.presetId)?.name ?? "未知番茄钟";
+              const completedAt = session.endTime ?? session.updateTime;
+
+              return (
+                <div
+                  key={session.id}
+                  className={classNames(
+                    "flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-xs",
+                    themeColors.hoverClass,
+                  )}
+                >
+                  <Clock3
+                    className={classNames(
+                      "h-3 w-3 flex-shrink-0",
+                      themeColors.secondaryTextClass,
+                    )}
+                  />
+                  <span
+                    title={presetName}
+                    className={classNames(
+                      "min-w-0 flex-1 truncate",
+                      themeColors.textClass,
+                    )}
+                  >
+                    {presetName}
+                  </span>
+                  <span
+                    className={classNames(
+                      "flex-shrink-0 tabular-nums",
+                      themeColors.secondaryTextClass,
+                    )}
+                  >
+                    {new Date(completedAt).toLocaleTimeString("zh-CN", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                  <span
+                    className={classNames(
+                      "flex-shrink-0 font-medium tabular-nums",
+                      themeColors.activeTextClass,
+                    )}
+                  >
+                    {formatMs(session.focusMs)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className={classNames("text-xs", themeColors.secondaryTextClass)}>
+            今天还没有完成的专注
+          </p>
+        )}
       </div>
 
       {/* 底部区域：计时中显示计时条，否则显示快捷开始 */}
