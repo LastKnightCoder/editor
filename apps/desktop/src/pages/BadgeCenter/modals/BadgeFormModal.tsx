@@ -49,6 +49,7 @@ const defaultDraft = (): BadgeCreateDraft => ({
   rangeEnd: "",
   awardType: "streak",
   target: 7,
+  openEnded: false,
   milestones: [],
   failureEnabled: false,
   graceDays: 1,
@@ -150,7 +151,9 @@ const BadgeFormModal = ({
         : null;
       const awardPolicy = {
         type: draft.awardType,
-        target: Math.max(1, Math.floor(draft.target || 1)),
+        target: draft.openEnded
+          ? 0
+          : Math.max(1, Math.floor(draft.target || 1)),
         failureEnabled: draft.failureEnabled,
         graceDays: Math.max(0, Math.floor(draft.graceDays || 0)),
       };
@@ -334,23 +337,36 @@ const BadgeFormModal = ({
               }
             />
           </Field>
-          <Field label="目标值">
-            <input
-              className={inputClass}
-              min={1}
-              type="number"
-              value={draft.target}
-              onChange={(e) =>
-                setDraft((c) => ({ ...c, target: Number(e.target.value) }))
-              }
-            />
-          </Field>
+          {!draft.openEnded && (
+            <Field label="目标值">
+              <input
+                className={inputClass}
+                min={1}
+                type="number"
+                value={draft.target}
+                onChange={(e) =>
+                  setDraft((c) => ({ ...c, target: Number(e.target.value) }))
+                }
+              />
+            </Field>
+          )}
+        </div>
+
+        <div
+          className={`rounded-2xl border border-dashed px-4 py-3 ${themeColors.borderClass}`}
+        >
+          <Toggle
+            checked={draft.openEnded}
+            onChange={(v) => setDraft((c) => ({ ...c, openEnded: v }))}
+            label="长期任务"
+            description="不设置最终目标，持续记录进度，可通过阶段目标获得里程碑徽章。"
+          />
         </div>
 
         <MilestoneManager
           milestones={draft.milestones}
           badgeName={draft.name}
-          finalTarget={draft.target}
+          finalTarget={draft.openEnded ? 0 : draft.target}
           onChange={(milestones) => setDraft((c) => ({ ...c, milestones }))}
         />
 

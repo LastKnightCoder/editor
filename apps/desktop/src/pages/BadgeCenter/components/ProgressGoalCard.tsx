@@ -35,16 +35,20 @@ const ProgressGoalCard = ({
   const themeColors = useThemeColors();
   const design = normalizeDesign(definition.successDesign, definition.name);
   const nextMilestone = getNextMilestone(definition, awards);
+  const hasFinalTarget = definition.awardPolicy.target > 0;
   const target = nextMilestone?.targetValue ?? definition.awardPolicy.target;
+  const hasProgressTarget = target > 0;
   const isStreak = definition.awardPolicy.type === "streak";
   const value = getProgressValue(definition, progress);
-  const ratio = Math.min(1, target > 0 ? value / target : 0);
+  const ratio = Math.min(1, hasProgressTarget ? value / target : 0);
   const dashOffset = CIRCUMFERENCE * (1 - ratio);
   const targetLabel = nextMilestone
     ? `下一阶段 ${nextMilestone.targetValue}`
-    : `目标 ${target}`;
+    : hasFinalTarget
+      ? `目标 ${target}`
+      : "长期任务";
 
-  const completed = value >= target;
+  const completed = hasProgressTarget && value >= target;
 
   return (
     <motion.div
@@ -89,9 +93,11 @@ const ProgressGoalCard = ({
           <span className={`text-lg font-bold ${themeColors.activeTextClass}`}>
             {value}
           </span>
-          <span className={`text-[10px] ${themeColors.secondaryTextClass}`}>
-            / {target}
-          </span>
+          {hasProgressTarget && (
+            <span className={`text-[10px] ${themeColors.secondaryTextClass}`}>
+              / {target}
+            </span>
+          )}
         </div>
       </div>
 

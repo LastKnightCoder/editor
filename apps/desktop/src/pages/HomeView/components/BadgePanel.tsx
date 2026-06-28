@@ -62,8 +62,9 @@ const GoalRow: React.FC<GoalRowProps> = ({
   const design = normalizeDesign(definition.successDesign, definition.name);
   const nextMilestone = getNextMilestone(definition);
   const target = nextMilestone?.targetValue ?? definition.awardPolicy.target;
+  const hasProgressTarget = target > 0;
   const value = getGoalValue(definition, progress);
-  const completed = value >= target;
+  const completed = hasProgressTarget && value >= target;
 
   // 今日打卡情况：手动打卡项才需要展示
   const hasManual = manualKeys.length > 0;
@@ -109,6 +110,12 @@ const GoalRow: React.FC<GoalRowProps> = ({
               <span>{nextMilestone.title}</span>
             </>
           )}
+          {!nextMilestone && !hasProgressTarget && (
+            <>
+              <span className="opacity-40">·</span>
+              <span>长期任务</span>
+            </>
+          )}
           {hasManual && (
             <>
               <span className="opacity-40">·</span>
@@ -150,7 +157,9 @@ const GoalRow: React.FC<GoalRowProps> = ({
             )}
           >
             {value}
-            <span className={themeColors.secondaryTextClass}>/{target}</span>
+            {hasProgressTarget && (
+              <span className={themeColors.secondaryTextClass}>/{target}</span>
+            )}
           </span>
         )}
       </span>

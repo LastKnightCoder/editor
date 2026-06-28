@@ -56,6 +56,7 @@ export interface BadgeCreateDraft {
   rangeEnd?: string;
   awardType: BadgeAwardPolicyType;
   target: number;
+  openEnded: boolean;
   milestones: BadgeMilestoneDraft[];
   failureEnabled: boolean;
   graceDays: number;
@@ -169,6 +170,9 @@ export function validateMilestoneTargets(
   milestones: BadgeMilestoneDraft[],
   finalTarget: number,
 ): string | null {
+  if (Number(finalTarget) <= 0) {
+    return null;
+  }
   const normalizedFinalTarget = Math.max(
     1,
     Math.floor(Number(finalTarget) || 1),
@@ -443,6 +447,7 @@ export function definitionToDraft(
         : "",
     awardType: definition.awardPolicy.type,
     target: definition.awardPolicy.target,
+    openEnded: definition.awardPolicy.target <= 0,
     milestones: normalizeMilestoneDrafts(
       definition.milestones?.map((milestone) => ({
         id: `milestone-${milestone.id}`,

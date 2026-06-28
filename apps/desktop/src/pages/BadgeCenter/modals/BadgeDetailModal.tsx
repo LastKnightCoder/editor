@@ -81,6 +81,7 @@ const BadgeDetailModal = ({
   const failureDesign = definition.failureDesign;
   const isStreak = definition.awardPolicy.type === "streak";
   const target = definition.awardPolicy.target;
+  const targetText = target > 0 ? `目标 ${target}` : "长期任务";
   const progressValue = progress ? getProgressValue(definition, progress) : 0;
   const sortedMilestones = [...(definition.milestones ?? [])].sort(
     (a, b) => a.targetValue - b.targetValue,
@@ -101,7 +102,7 @@ const BadgeDetailModal = ({
     {
       icon: Target,
       label: "颁发策略",
-      value: `${policyLabel[definition.awardPolicy.type]} · 目标 ${target}`,
+      value: `${policyLabel[definition.awardPolicy.type]} · ${targetText}`,
     },
     {
       icon: Info,

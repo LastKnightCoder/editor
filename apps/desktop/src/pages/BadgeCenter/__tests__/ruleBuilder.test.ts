@@ -185,6 +185,18 @@ describe("BadgeCenter rule builder", () => {
     ).toBe("阶段目标必须小于总目标");
   });
 
+  it("allows milestones for open-ended long-term targets", () => {
+    expect(
+      validateMilestoneTargets(
+        [
+          { id: "m-1", targetValue: 7, title: "7 天" },
+          { id: "m-2", targetValue: 365, title: "365 天" },
+        ],
+        0,
+      ),
+    ).toBeNull();
+  });
+
   it("does not create a milestone draft when definitions have no milestones", () => {
     const draft = definitionToDraft({
       id: 1,

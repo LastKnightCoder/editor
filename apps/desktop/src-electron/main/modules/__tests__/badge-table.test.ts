@@ -19,7 +19,7 @@ vi.mock("../video-note-index-queue", () => ({
   },
 }));
 
-import { BADGE_SYSTEM_DEFINITIONS } from "../tables/badge";
+import BadgeTable, { BADGE_SYSTEM_DEFINITIONS } from "../tables/badge";
 
 describe("BadgeTable", () => {
   it("每日输出连续坚持系统徽章覆盖多个里程碑", () => {
@@ -38,7 +38,7 @@ describe("BadgeTable", () => {
     expect(definition.schedule).toEqual({ type: "daily" });
     expect(definition.awardPolicy).toMatchObject({
       type: "streak",
-      target: 2000,
+      target: 0,
       failureEnabled: false,
       graceDays: 1,
     });
@@ -67,5 +67,23 @@ describe("BadgeTable", () => {
         String(definition.awardPolicy.target),
       );
     });
+  });
+
+  it("长期任务没有显式阶段时不生成默认目标阶段", () => {
+    const milestones = (
+      BadgeTable as unknown as {
+        getDefaultMilestoneInput: (definition: {
+          name: string;
+          successDesign: { title: string };
+          awardPolicy: { target: number };
+        }) => unknown;
+      }
+    ).getDefaultMilestoneInput({
+      name: "每天输出",
+      successDesign: { title: "每天输出" },
+      awardPolicy: { target: 0 },
+    });
+
+    expect(milestones).toBeNull();
   });
 });
