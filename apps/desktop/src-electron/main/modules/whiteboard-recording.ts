@@ -107,10 +107,6 @@ class WhiteboardRecordingModule implements Module {
     });
   }
 
-  prewarmControlWindow() {
-    this.createControlWindow();
-  }
-
   private async getSources(): Promise<RecordingSource[]> {
     const sources = await this.getScreenSources();
     const mainWindow = this.mainWindowProvider?.();

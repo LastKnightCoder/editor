@@ -23,7 +23,6 @@ import userSettingModule from "./modules/user-setting";
 import { resolveEmbeddingConfig } from "./utils/embedding-config";
 import moduleInitManager from "./module-init/ModuleInitManager";
 import whiteboardRecordingModule from "./modules/whiteboard-recording";
-import { ensureMacOSForegroundApplication } from "./utils/macos-activation";
 
 (async (): Promise<void> => {
   const contextMenu = await import("electron-context-menu");
@@ -98,29 +97,11 @@ app.setAsDefaultProtocolClient("tau");
 
 let windowManager: Awaited<ReturnType<typeof windowManagerModule.init>>;
 let trayManager: Awaited<ReturnType<typeof trayModule.init>>;
-let hasPrewarmedWhiteboardRecordingControls = false;
 
 // 添加全局变量，存储启动时传入的文件路径
 let filesToOpen: string[] = [];
 // 存储启动时要打开的窗口类型
 let windowTypeToOpen: string | null = null;
-
-const prewarmWhiteboardRecordingControlsAfterMainWindowReady = (
-  mainWindow: BrowserWindow,
-) => {
-  if (hasPrewarmedWhiteboardRecordingControls) {
-    return;
-  }
-
-  mainWindow.once("ready-to-show", () => {
-    setTimeout(() => {
-      hasPrewarmedWhiteboardRecordingControls = true;
-      ensureMacOSForegroundApplication(app);
-      whiteboardRecordingModule.prewarmControlWindow();
-      ensureMacOSForegroundApplication(app);
-    }, 500);
-  });
-};
 
 // 捕获命令行参数中的文件路径
 const gotTheLock = app.requestSingleInstanceLock();
@@ -172,7 +153,6 @@ if (!gotTheLock) {
 
   app.whenReady().then(async () => {
     log.info("应用就绪");
-    ensureMacOSForegroundApplication(app);
     const totalStartTime = Date.now();
 
     try {
@@ -214,8 +194,7 @@ if (!gotTheLock) {
         windowTypeToOpen = null;
       } else if (filesToOpen.length === 0) {
         log.info("创建主窗口");
-        const mainWindow = windowManager.createMainWindow();
-        prewarmWhiteboardRecordingControlsAfterMainWindowReady(mainWindow);
+        windowManager.createMainWindow();
       } else {
         log.info("检测到通过文件关联(.md)启动，跳过创建主窗口");
       }
