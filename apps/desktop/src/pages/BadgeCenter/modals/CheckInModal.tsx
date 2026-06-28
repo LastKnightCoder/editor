@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
 import type { Descendant } from "slate";
-import { Editor } from "@tau/editor/src";
+import { Editor, normalizeEditorContent } from "@tau/editor/src";
 import type { BadgeDefinition } from "@/types";
 import { createBadgeManualEntry } from "@/commands/badge";
 import { badgeConditionSources } from "../ruleBuilder";
@@ -11,11 +11,11 @@ import Button from "../components/Button";
 import useThemeColors from "@/hooks/useThemeColors";
 
 // 模块级常量：避免每次渲染创建新引用，导致 Editor 等子组件无意义重渲染
-const EMPTY_EDITOR_VALUE: Descendant[] = [];
+const EMPTY_EDITOR_VALUE: Descendant[] = normalizeEditorContent([]);
 const EMPTY_DETAIL: unknown[] = [];
 const EMPTY_ATTACHMENTS: Array<Record<string, unknown>> = [];
 const EDITOR_STYLE: CSSProperties = { minHeight: 240 };
-const EDITOR_PLACEHOLDER = "补充今天的完成情况、感受、图片或链接";
+const EDITOR_PLACEHOLDER = "记录今天完成了什么、感受或补充说明";
 const TODAY_LABEL = "打卡已记录";
 const SAVE_FAIL_LABEL = "打卡失败";
 
