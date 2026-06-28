@@ -245,6 +245,60 @@ describe("badge rule engine", () => {
     expect(result.successAward).toBeNull();
   });
 
+  it("keeps yesterday's streak while the current daily period is still open", () => {
+    const schedule: BadgeSchedule = { type: "daily" };
+    const period = computeBadgePeriodRange(
+      schedule,
+      new Date("2026-06-18T08:00:00.000Z").getTime(),
+    );
+
+    const result = evaluateBadgeAward({
+      schedule,
+      policy: { type: "streak", target: 7 },
+      currentPeriodPassed: false,
+      currentValue: 0,
+      previousProgress: {
+        currentStreak: 1,
+        bestStreak: 1,
+        accumulatedCount: 1,
+        lastPassedPeriodKey: "2026-06-17",
+      },
+      period,
+      now: new Date("2026-06-18T08:00:00.000Z").getTime(),
+    });
+
+    expect(result.nextProgress.currentStreak).toBe(1);
+    expect(result.nextProgress.bestStreak).toBe(1);
+    expect(result.nextProgress.lastPassedPeriodKey).toBe("2026-06-17");
+  });
+
+  it("does not keep stale streaks when the previous day was missed", () => {
+    const schedule: BadgeSchedule = { type: "daily" };
+    const period = computeBadgePeriodRange(
+      schedule,
+      new Date("2026-06-19T08:00:00.000Z").getTime(),
+    );
+
+    const result = evaluateBadgeAward({
+      schedule,
+      policy: { type: "streak", target: 7 },
+      currentPeriodPassed: false,
+      currentValue: 0,
+      previousProgress: {
+        currentStreak: 1,
+        bestStreak: 1,
+        accumulatedCount: 1,
+        lastPassedPeriodKey: "2026-06-17",
+      },
+      period,
+      now: new Date("2026-06-19T08:00:00.000Z").getTime(),
+    });
+
+    expect(result.nextProgress.currentStreak).toBe(0);
+    expect(result.nextProgress.bestStreak).toBe(1);
+    expect(result.nextProgress.lastPassedPeriodKey).toBe("2026-06-17");
+  });
+
   it("emits success awards for every reached milestone", () => {
     const schedule: BadgeSchedule = { type: "daily" };
     const result = evaluateBadgeAward({

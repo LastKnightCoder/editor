@@ -1,7 +1,7 @@
 {
   "name": "tau",
   "private": true,
-  "version": "0.49.0",
+  "version": "0.50.0",
   "scripts": {
     "start:win": "chcp 65001 && pnpm --filter desktop dev",
     "dev": "pnpm --filter desktop dev",

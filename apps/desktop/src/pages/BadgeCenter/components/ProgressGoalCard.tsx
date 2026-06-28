@@ -69,8 +69,7 @@ const ProgressGoalCard = ({
             r={RADIUS}
             fill="none"
             strokeWidth="6"
-            className={themeColors.tagBgClass}
-            stroke="currentColor"
+            className="stroke-neutral-300/70 dark:stroke-neutral-600/60"
           />
           <motion.circle
             cx="40"
