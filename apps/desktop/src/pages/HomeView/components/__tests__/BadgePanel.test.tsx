@@ -153,4 +153,43 @@ describe("BadgePanel", () => {
 
     await unmount(root, container, queryClient);
   });
+
+  it("长目标名称和阶段名称保持单行省略", async () => {
+    badgeCommandsMock.dashboard.definitions = [
+      {
+        ...definition,
+        name: "阅读（非网络小说）连续坚持阅读（非网络小说）连续坚持阅读",
+        milestones: [
+          {
+            id: 1,
+            definitionId: definition.id,
+            milestoneKey: "streak-7",
+            targetValue: 7,
+            title: "阅读（非网络小说）连续坚持阅读（非网络小说）7",
+            sortOrder: 1,
+            createTime: 1,
+            updateTime: 1,
+          },
+        ],
+        awardPolicy: { type: "streak", target: 7 },
+      },
+    ];
+    badgeCommandsMock.dashboard.progress = [progress];
+    badgeCommandsMock.dashboard.awards = [];
+    badgeCommandsMock.dashboard.todayManualEntries = [];
+
+    const { root, container, queryClient } = await mount(<BadgePanel />);
+
+    const title = container.querySelector('[title^="阅读（非网络小说）"]');
+    expect(title?.className).toContain("truncate");
+
+    const row = title?.closest("button");
+    expect(row?.className).toContain("min-w-0");
+
+    const meta = title?.nextElementSibling;
+    expect(meta?.className).toContain("whitespace-nowrap");
+    expect(meta?.className).toContain("overflow-hidden");
+
+    await unmount(root, container, queryClient);
+  });
 });

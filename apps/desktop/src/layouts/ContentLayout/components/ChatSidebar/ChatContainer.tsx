@@ -70,6 +70,10 @@ import {
   getRequestMessageText,
   shouldGenerateChatTitle,
 } from "./editingUtils";
+import {
+  getStreamingScrollKey,
+  withStreamingUpdateTime,
+} from "./streamingUtils";
 
 const ENABLE_TITLE_SUMMARY = true;
 interface ChatScrollAnchor {
@@ -432,6 +436,17 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       return `${chatScope}:${chatId}`;
     });
 
+    const publishStreamingChatSnapshot = useMemoizedFn((chat: ChatMessage) => {
+      const nextChat = withStreamingUpdateTime(chat);
+      actualChatRef.current = nextChat;
+      setUpdateCounter((prev) => prev + 1);
+      updateCurrentChat(nextChat);
+      setTimeout(() => {
+        scrollToBottom();
+      }, 0);
+      return nextChat;
+    });
+
     const buildSystemMessageWithRequest = useMemoizedFn((chat: ChatMessage) => {
       const defaultSystemPromptForSend =
         customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
@@ -754,16 +769,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               }
             });
 
-            // 更新状态和ref
-            actualCurrentChat = updatedChat;
-            actualChatRef.current = updatedChat;
-            setUpdateCounter((prev) => prev + 1);
-            updateCurrentChat(updatedChat);
-
-            // 更新内容时滚动到底部（如果自动滚动启用）
-            setTimeout(() => {
-              scrollToBottom();
-            }, 0);
+            actualCurrentChat = publishStreamingChatSnapshot(updatedChat);
           },
 
           onReasoning: (full: string, _inc: string, turnId?: string) => {
@@ -789,16 +795,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               }
             });
 
-            // 更新状态和ref
-            actualCurrentChat = updatedChat;
-            actualChatRef.current = updatedChat;
-            setUpdateCounter((prev) => prev + 1);
-            updateCurrentChat(updatedChat);
-
-            // 推理内容更新时滚动到底部（如果自动滚动启用）
-            setTimeout(() => {
-              scrollToBottom();
-            }, 0);
+            actualCurrentChat = publishStreamingChatSnapshot(updatedChat);
           },
 
           onToolCallsUpdate: (
@@ -829,11 +826,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               }
             });
 
-            // 更新状态和ref
-            actualCurrentChat = updatedChat;
-            actualChatRef.current = updatedChat;
-            setUpdateCounter((prev) => prev + 1);
-            updateCurrentChat(updatedChat);
+            const publishedChat = publishStreamingChatSnapshot(updatedChat);
+            actualCurrentChat = publishedChat;
 
             // ask-question 进入等待态时，立即持久化快照，确保应用重启后可恢复
             const pendingAskQuestionExecutions = executions.filter(
@@ -855,15 +849,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   buildAskQuestionExecutionSnapshotKey(execution),
                 );
               });
-              void updateChatMessage(updatedChat).catch((error) => {
+              void updateChatMessage(publishedChat).catch((error) => {
                 console.error("持久化 ask-question 快照失败:", error);
               });
             }
-
-            // 工具执行状态更新时滚动到底部（如果自动滚动启用）
-            setTimeout(() => {
-              scrollToBottom();
-            }, 0);
           },
 
           onError: (error) => {
@@ -1491,7 +1480,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           error={null}
           forceScrollToBottomKey={
             sendLoading
-              ? `${actualChatRef.current.id}:${coreMessages.length}`
+              ? getStreamingScrollKey(
+                  actualChatRef.current,
+                  coreMessages.length,
+                )
               : undefined
           }
           hideInput={hideInput}
