@@ -101,13 +101,21 @@ const progress: BadgeProgress = {
   updateTime: 1,
 };
 
-const mount = async () => {
+const mount = async (
+  props: {
+    definition?: BadgeDefinition;
+    progress?: BadgeProgress;
+  } = {},
+) => {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
   await act(async () => {
     root.render(
-      <ProgressGoalCard definition={definition} progress={progress} />,
+      <ProgressGoalCard
+        definition={props.definition ?? definition}
+        progress={props.progress ?? progress}
+      />,
     );
   });
   return { root, container };
@@ -131,6 +139,21 @@ describe("ProgressGoalCard", () => {
 
     expect(container.querySelector("h3")?.textContent).toBe("减肥");
     expect(container.textContent).not.toContain("卡片写作 30 天");
+
+    await unmount(root, container);
+  });
+
+  it("长期任务没有阶段时不显示 / 0", async () => {
+    const { root, container } = await mount({
+      definition: {
+        ...definition,
+        awardPolicy: { type: "streak", target: 0 },
+        milestones: [],
+      },
+    });
+
+    expect(container.textContent).toContain("长期任务");
+    expect(container.textContent).not.toContain("/ 0");
 
     await unmount(root, container);
   });

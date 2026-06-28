@@ -371,10 +371,13 @@ export function evaluateBadgeAward(
       : policy.type === "accumulation"
         ? accumulatedCount
         : currentValue;
+  const hasFinalTarget = policy.target > 0;
   const awardMilestones =
     milestones && milestones.length > 0
       ? milestones
-      : [{ id: null as unknown as number, targetValue: policy.target }];
+      : hasFinalTarget
+        ? [{ id: null as unknown as number, targetValue: policy.target }]
+        : [];
   const successAwards = currentPeriodPassed
     ? awardMilestones
         .filter((milestone) => progressValue >= milestone.targetValue)

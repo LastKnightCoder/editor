@@ -32,6 +32,7 @@ const MilestoneManager = ({
 }: MilestoneManagerProps) => {
   const themeColors = useThemeColors();
   const inputClass = useBadgeInputClass();
+  const openEnded = Number(finalTarget) <= 0;
   const normalizedFinalTarget = Math.max(
     1,
     Math.floor(Number(finalTarget) || 1),
@@ -62,11 +63,13 @@ const MilestoneManager = ({
 
   const addMilestone = () => {
     const availableCommonTarget = commonMilestoneTargets.find(
-      (target) => target < normalizedFinalTarget && !seenTargets.has(target),
+      (target) =>
+        (openEnded || target < normalizedFinalTarget) &&
+        !seenTargets.has(target),
     );
     const currentMax = normalizedMilestones.at(-1)?.targetValue ?? 0;
     const fallbackTarget =
-      currentMax + 1 < normalizedFinalTarget
+      openEnded || currentMax + 1 < normalizedFinalTarget
         ? currentMax + 1
         : Math.max(1, normalizedFinalTarget - 1);
     const nextTarget =
@@ -86,7 +89,7 @@ const MilestoneManager = ({
   const applyCommonMilestones = () => {
     onChange(
       commonMilestoneTargets
-        .filter((target) => target < normalizedFinalTarget)
+        .filter((target) => openEnded || target < normalizedFinalTarget)
         .map((target) =>
           createMilestoneDraft(
             target,
@@ -113,7 +116,9 @@ const MilestoneManager = ({
             阶段徽章
           </h3>
           <p className={`mt-1 text-xs ${themeColors.secondaryTextClass}`}>
-            可选。阶段必须小于总目标，达到阶段时分别颁发徽章。
+            {openEnded
+              ? "可选。长期任务可通过阶段目标分别颁发徽章。"
+              : "可选。阶段必须小于总目标，达到阶段时分别颁发徽章。"}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -135,7 +140,9 @@ const MilestoneManager = ({
           <div
             className={`rounded-xl px-3 py-4 text-sm ${themeColors.tagBgClass} ${themeColors.secondaryTextClass}`}
           >
-            尚未设置阶段徽章，达成总目标时仍会颁发徽章。
+            {openEnded
+              ? "尚未设置阶段徽章，系统会持续记录进度。"
+              : "尚未设置阶段徽章，达成总目标时仍会颁发徽章。"}
           </div>
         )}
         {milestones.map((milestone, index) => {
@@ -146,6 +153,7 @@ const MilestoneManager = ({
             Number.isFinite(targetValue) && duplicateTargets.has(targetValue);
           const reachesFinalTarget =
             Number.isFinite(targetValue) &&
+            !openEnded &&
             targetValue >= normalizedFinalTarget;
 
           return (
@@ -162,7 +170,11 @@ const MilestoneManager = ({
                 <input
                   className={`${inputClass} px-3 py-2`}
                   min={1}
-                  max={Math.max(1, normalizedFinalTarget - 1)}
+                  max={
+                    openEnded
+                      ? undefined
+                      : Math.max(1, normalizedFinalTarget - 1)
+                  }
                   type="number"
                   value={milestone.targetValue}
                   onChange={(event) =>

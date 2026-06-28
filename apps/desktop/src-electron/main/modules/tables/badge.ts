@@ -49,7 +49,7 @@ export const BADGE_SYSTEM_DEFINITIONS: CreateBadgeDefinitionInput[] = [
     schedule: { type: "daily" },
     awardPolicy: {
       type: "streak",
-      target: 2000,
+      target: 0,
       failureEnabled: false,
       graceDays: 1,
     },
@@ -317,7 +317,10 @@ export default class BadgeTable {
 
   private static getDefaultMilestoneInput(
     definition: BadgeDefinition | CreateBadgeDefinitionInput,
-  ): CreateBadgeMilestoneInput {
+  ): CreateBadgeMilestoneInput | null {
+    if (definition.awardPolicy.target <= 0) {
+      return null;
+    }
     return {
       milestoneKey: "default",
       targetValue: definition.awardPolicy.target,
@@ -338,7 +341,10 @@ export default class BadgeTable {
     const milestones =
       definition.milestones && definition.milestones.length > 0
         ? definition.milestones
-        : [this.getDefaultMilestoneInput(definition)];
+        : [this.getDefaultMilestoneInput(definition)].filter(
+            (milestone): milestone is CreateBadgeMilestoneInput =>
+              milestone !== null,
+          );
 
     const keepIds: number[] = [];
     for (const [index, milestone] of milestones.entries()) {
@@ -398,8 +404,20 @@ export default class BadgeTable {
       }
     }
 
-    const placeholders = keepIds.map(() => "?").join(",");
-    if (keepIds.length > 0) {
+    if (keepIds.length === 0) {
+      db.prepare(
+        `UPDATE badge_award
+         SET milestone_id = NULL
+         WHERE milestone_id IN (
+           SELECT id FROM badge_milestone
+           WHERE definition_id = ?
+         )`,
+      ).run(definitionId);
+      db.prepare(`DELETE FROM badge_milestone WHERE definition_id = ?`).run(
+        definitionId,
+      );
+    } else {
+      const placeholders = keepIds.map(() => "?").join(",");
       db.prepare(
         `UPDATE badge_award
          SET milestone_id = NULL

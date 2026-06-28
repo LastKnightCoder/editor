@@ -334,4 +334,30 @@ describe("badge rule engine", () => {
       ]),
     );
   });
+
+  it("does not emit a final success award for open-ended goals without milestones", () => {
+    const schedule: BadgeSchedule = { type: "daily" };
+    const result = evaluateBadgeAward({
+      schedule,
+      policy: { type: "streak", target: 0 },
+      milestones: [],
+      currentPeriodPassed: true,
+      currentValue: 1,
+      previousProgress: {
+        currentStreak: 2,
+        bestStreak: 2,
+        accumulatedCount: 2,
+        lastPassedPeriodKey: "2026-06-16",
+      },
+      period: computeBadgePeriodRange(
+        schedule,
+        new Date("2026-06-17T08:00:00.000Z").getTime(),
+      ),
+      now: new Date("2026-06-17T08:00:00.000Z").getTime(),
+    });
+
+    expect(result.nextProgress.currentStreak).toBe(3);
+    expect(result.successAward).toBeNull();
+    expect(result.successAwards).toEqual([]);
+  });
 });
