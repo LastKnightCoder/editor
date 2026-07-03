@@ -70,10 +70,7 @@ import {
   getRequestMessageText,
   shouldGenerateChatTitle,
 } from "./editingUtils";
-import {
-  getStreamingScrollKey,
-  withStreamingUpdateTime,
-} from "./streamingUtils";
+import { withStreamingUpdateTime } from "./streamingUtils";
 
 const ENABLE_TITLE_SUMMARY = true;
 interface ChatScrollAnchor {
@@ -1480,10 +1477,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           error={null}
           forceScrollToBottomKey={
             sendLoading
-              ? getStreamingScrollKey(
-                  actualChatRef.current,
-                  coreMessages.length,
-                )
+              ? `${actualChatRef.current.id}:${coreMessages.length}`
               : undefined
           }
           hideInput={hideInput}
