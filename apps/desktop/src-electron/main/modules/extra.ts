@@ -12,6 +12,9 @@ import { exportPdfWithDialog } from "./pdf-exporter";
 
 class Extra implements Module {
   name: string;
+  private nodeFetchControllers = new Map<string, AbortController>();
+  private abortedNodeFetchRequestIds = new Set<string>();
+
   constructor() {
     this.name = "extra";
   }
@@ -23,6 +26,21 @@ class Extra implements Module {
     ipcMain.handle("node-fetch", async (_event, url, options) => {
       return await this.nodeFetch(url, options);
     });
+
+    ipcMain.on(
+      "node-fetch:abort",
+      (_event, payload: { requestId?: string }) => {
+        if (!payload?.requestId) {
+          return;
+        }
+        const controller = this.nodeFetchControllers.get(payload.requestId);
+        if (controller) {
+          controller.abort();
+          return;
+        }
+        this.abortedNodeFetchRequestIds.add(payload.requestId);
+      },
+    );
 
     ipcMain.handle("get-versions", () => {
       return {
@@ -67,17 +85,31 @@ class Extra implements Module {
     );
   }
 
-  nodeFetch(
+  async nodeFetch(
     url: string,
     options: AxiosRequestConfig & {
       form?: Record<string, string>;
+      multipart?: {
+        fields?: Record<string, string>;
+        files?: Array<{
+          fieldName: string;
+          fileName: string;
+          mimeType: string;
+          base64: string;
+        }>;
+      };
       httpProxy?: string;
       isRaw?: boolean;
       timeoutMs?: number;
       allowHttpErrorStatus?: boolean;
+      requestId?: string;
     },
   ) {
     const newOptions = { ...options };
+    const requestId =
+      typeof newOptions.requestId === "string" ? newOptions.requestId : null;
+    delete newOptions.requestId;
+
     if (newOptions.form) {
       const formBody = Object.entries(newOptions.form)
         .map(([key, value]) => `${key}=${value}`)
@@ -90,6 +122,30 @@ class Extra implements Module {
       };
       delete newOptions.form;
     }
+    if (newOptions.multipart) {
+      const formData = new FormData();
+      Object.entries(newOptions.multipart.fields || {}).forEach(
+        ([key, value]) => {
+          formData.append(key, value);
+        },
+      );
+      (newOptions.multipart.files || []).forEach((file) => {
+        const bytes = Buffer.from(file.base64, "base64");
+        const arrayBuffer = bytes.buffer.slice(
+          bytes.byteOffset,
+          bytes.byteOffset + bytes.byteLength,
+        );
+        const blob = new Blob([arrayBuffer], { type: file.mimeType });
+        formData.append(file.fieldName, blob, file.fileName);
+      });
+      newOptions.data = formData;
+      newOptions.method = newOptions.method || "POST";
+      if (newOptions.headers) {
+        delete (newOptions.headers as Record<string, unknown>)["Content-Type"];
+        delete (newOptions.headers as Record<string, unknown>)["content-type"];
+      }
+      delete newOptions.multipart;
+    }
 
     if (typeof newOptions.timeout === "undefined") {
       newOptions.timeout =
@@ -100,7 +156,16 @@ class Extra implements Module {
       delete newOptions.allowHttpErrorStatus;
     }
 
-    // 代理支持（http/https）：如果传入 httpProxy，则注入 agent，并禁用 axios 内置 proxy 选项
+    if (requestId) {
+      const controller = new AbortController();
+      this.nodeFetchControllers.set(requestId, controller);
+      newOptions.signal = controller.signal;
+      if (this.abortedNodeFetchRequestIds.has(requestId)) {
+        this.abortedNodeFetchRequestIds.delete(requestId);
+        controller.abort();
+      }
+    }
+
     if (newOptions.httpProxy) {
       const agent = new HttpsProxyAgent(newOptions.httpProxy);
       newOptions.httpsAgent = agent;
@@ -110,19 +175,20 @@ class Extra implements Module {
     }
 
     try {
-      const response = axios.request({ url, ...newOptions });
+      const response = await axios.request({ url, ...newOptions });
       if (newOptions.isRaw) {
-        // 返回可序列化的响应对象（用于 IPC 传输）
-        return response.then((res) => ({
-          data: res.data,
-          status: res.status,
-          statusText: res.statusText,
-          headers: res.headers,
+        return {
+          data: response.data,
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
           finalUrl:
-            res.request?.res?.responseUrl || res.request?.responseURL || url,
-        }));
+            response.request?.res?.responseUrl ||
+            response.request?.responseURL ||
+            url,
+        };
       }
-      return response.then((res) => res.data);
+      return response.data;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const code = (err as any)?.code || (err as any)?.response?.status;
@@ -133,6 +199,11 @@ class Extra implements Module {
         timeout: newOptions.timeout,
       };
       throw Object.assign(new Error(`nodeFetch failed: ${msg}`), details);
+    } finally {
+      if (requestId) {
+        this.nodeFetchControllers.delete(requestId);
+        this.abortedNodeFetchRequestIds.delete(requestId);
+      }
     }
   }
 
