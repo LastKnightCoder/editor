@@ -5,6 +5,7 @@ import {
   ChatGroup,
   CreateChatGroup,
   UpdateChatGroup,
+  ChatAgentType,
 } from "@/types";
 
 export const createChatMessage = (
@@ -15,6 +16,8 @@ export const createChatMessage = (
   branchIndex?: number,
   orderNum?: number | null,
   titleDirty?: boolean,
+  agentType?: ChatAgentType,
+  agentSessionId?: string | null,
 ): Promise<ChatMessage> => {
   return invoke(
     "create-chat-message",
@@ -25,6 +28,8 @@ export const createChatMessage = (
     branchIndex,
     orderNum,
     titleDirty,
+    agentType,
+    agentSessionId,
   );
 };
 

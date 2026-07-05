@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { produce } from "immer";
 import { VLChatMessage, CreateVLChat } from "@/types/vibe-learning";
-import { ChatSessionMessage } from "@/types";
+import { ChatAgentType, ChatSessionMessage } from "@/types";
 import {
   createVLChat,
   updateVLChat,
@@ -35,6 +35,8 @@ interface IAction {
   createChat: (
     messages: ChatSessionMessage[],
     title?: string,
+    agentType?: ChatAgentType,
+    agentSessionId?: string | null,
   ) => Promise<VLChatMessage>;
   updateChat: (
     chat: Omit<VLChatMessage, "updateTime">,
@@ -47,6 +49,7 @@ interface IAction {
     parentChatId: number,
     messages: ChatSessionMessage[],
     title?: string,
+    agentType?: ChatAgentType,
   ) => Promise<VLChatMessage>;
   getChatBranches: (parentChatId: number) => Promise<VLChatMessage[]>;
   getChildBranchesCount: (parentChatId: number) => Promise<number>;
@@ -83,7 +86,7 @@ const useVLChatStore = create<IState & IAction>()((set, get) => ({
     });
   },
 
-  createChat: async (messages, title) => {
+  createChat: async (messages, title, agentType, agentSessionId) => {
     const { projectId, chats } = get();
     if (!projectId) {
       throw new Error("Project ID is not set");
@@ -93,6 +96,8 @@ const useVLChatStore = create<IState & IAction>()((set, get) => ({
       projectId,
       messages,
       title: title || "新对话",
+      agentType: agentType ?? "local",
+      agentSessionId: agentSessionId ?? null,
     };
 
     const createdChat = await createVLChat(params);
@@ -113,6 +118,8 @@ const useVLChatStore = create<IState & IAction>()((set, get) => ({
       archived: chat.archived,
       parentChatId: chat.parentChatId,
       branchIndex: chat.branchIndex,
+      agentType: chat.agentType ?? "local",
+      agentSessionId: chat.agentSessionId ?? null,
     });
 
     if (!updatedChat) {
@@ -175,7 +182,7 @@ const useVLChatStore = create<IState & IAction>()((set, get) => ({
     set({ chats: newChats, currentChatId: newCurrentChatId });
   },
 
-  createChatBranch: async (parentChatId, messages, title) => {
+  createChatBranch: async (parentChatId, messages, title, agentType) => {
     const { projectId, chats } = get();
     if (!projectId) {
       throw new Error("Project ID is not set");
@@ -197,6 +204,8 @@ const useVLChatStore = create<IState & IAction>()((set, get) => ({
       title: branchTitle,
       parentChatId,
       branchIndex,
+      agentType: agentType ?? parentChat.agentType ?? "local",
+      agentSessionId: null,
     };
 
     const createdBranch = await createVLChat(params);

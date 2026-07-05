@@ -3,7 +3,7 @@ import classnames from "classnames";
 import { useShallow } from "zustand/react/shallow";
 import { useState, useMemo, memo, lazy, Suspense, useRef } from "react";
 import { LoadingOutlined } from "@ant-design/icons";
-import { useMemoizedFn } from "ahooks";
+import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import "katex/dist/katex.min.css";
 
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
@@ -28,10 +28,19 @@ import {
 } from "../ChatSidebar/MarkdownContext";
 import { shouldRenderAsBlockCode } from "../ChatSidebar/codeBlockUtils";
 
-import { ResponseMessage, ChatMessage, ChatSessionMessage } from "@/types";
+import {
+  ResponseMessage,
+  ChatMessage,
+  ChatSessionMessage,
+  ChatAgentType,
+} from "@/types";
 import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import type { ChatContainerHandle } from "../ChatSidebar/ChatContainer";
 import ChatDropdownSelector from "./ChatDropdownSelector";
+import {
+  CHAT_AGENT_TYPE_STORAGE_KEY,
+  normalizeChatAgentType,
+} from "@/constants/chatAgent";
 
 const ChatContainer = lazy(() => import("../ChatSidebar/ChatContainer"));
 
@@ -63,6 +72,7 @@ const DEFAULT_CHAT: ChatMessage = {
   archived: false,
   parentChatId: null,
   branchIndex: 0,
+  agentSessionId: null,
 };
 
 interface RightChatSidebarProps {
@@ -75,6 +85,12 @@ const RightChatSidebar = memo(
     const { message } = App.useApp();
     const editTitleRef = useRef<EditTextHandle>(null);
     const chatContainerRef = useRef<ChatContainerHandle>(null);
+    const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(
+      CHAT_AGENT_TYPE_STORAGE_KEY,
+      {
+        defaultValue: "local",
+      },
+    );
 
     const { activePanel, width, currentChatId, setWidth, setCurrentChatId } =
       useRightChatSidebarStore(
@@ -126,7 +142,13 @@ const RightChatSidebar = memo(
 
       try {
         const { createChatMessage } = useChatMessageStore.getState();
-        const newChat = await createChatMessage(messages);
+        const newChat = await createChatMessage(
+          messages,
+          undefined,
+          undefined,
+          false,
+          normalizeChatAgentType(rememberedAgentType),
+        );
         setCurrentChatId(newChat.id);
       } catch (error) {
         message.error("Failed to create new chat");
@@ -180,12 +202,20 @@ const RightChatSidebar = memo(
 
     // ChatContainer 需要的创建对话回调
     const handleCreateChat = useMemoizedFn(
-      async (messages: ChatSessionMessage[], title?: string) => {
+      async (
+        messages: ChatSessionMessage[],
+        title?: string,
+        agentType?: ChatAgentType,
+        agentSessionId?: string | null,
+      ) => {
         const { createChatMessage } = useChatMessageStore.getState();
         return await createChatMessage(
           messages,
           title,
           currentChat?.groupId ?? null,
+          false,
+          agentType,
+          agentSessionId,
         );
       },
     );

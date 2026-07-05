@@ -22,7 +22,7 @@ export interface MentionRef {
 /** 消息内容类型 */
 export type MessageContentItem =
   | { type: "text"; text: string; mentions?: MentionRef[] }
-  | { type: "image"; image: string; resourceId?: number }
+  | { type: "image"; image: string; path?: string; resourceId?: number }
   | { type: "file"; file: string; resourceId?: number; fileName?: string };
 
 /** 资源来源 */

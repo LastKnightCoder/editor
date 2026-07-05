@@ -10,6 +10,7 @@ import serverModule from "../modules/server";
 import databaseModule from "../modules/database";
 import llmModule from "../modules/llm";
 import streamFetchModule from "../modules/stream-fetch";
+import codexAgentModule from "../modules/codex-agent";
 import mcpModule from "../modules/mcp";
 import aliOssModule from "../modules/ali-oss";
 import s3Module from "../modules/s3";
@@ -267,6 +268,15 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     dependencies: ["logger"],
     init: async () => {
       streamFetchModule.init();
+    },
+  },
+  {
+    name: "codex-agent",
+    group: ModuleGroup.AI,
+    layer: InitLayer.ON_DEMAND,
+    dependencies: ["logger"],
+    init: async () => {
+      codexAgentModule.init();
     },
   },
   {

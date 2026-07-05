@@ -1,5 +1,7 @@
 import type { ChatMessageType } from "@tau/shared";
 
+export type ChatAgentType = "local" | "codex";
+
 /**
  * 聊天会话元数据
  * 用于管理浏览器扩展中的聊天会话
@@ -23,6 +25,10 @@ export interface ChatSession {
   schemaVersion?: number;
   /** 创建会话时固化的 system prompt 快照 */
   systemPromptSnapshot?: string;
+  /** 当前会话使用的聊天代理 */
+  agentType?: ChatAgentType;
+  /** Codex 侧线程 ID，用于继续同一代理会话 */
+  agentSessionId?: string | null;
 }
 
 /**

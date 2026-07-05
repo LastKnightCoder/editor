@@ -17,6 +17,8 @@ interface PdfChatRecord {
   parent_chat_id: number | null;
   branch_index: number;
   message_schema_version?: number | null;
+  agent_type?: string | null;
+  agent_session_id?: string | null;
 }
 
 export default class PdfChatTable {
@@ -27,10 +29,25 @@ export default class PdfChatTable {
     const hasMessageSchemaVersion = tableInfo.some(
       (col) => col.name === "message_schema_version",
     );
+    const hasAgentType = tableInfo.some((col) => col.name === "agent_type");
+    const hasAgentSessionId = tableInfo.some(
+      (col) => col.name === "agent_session_id",
+    );
     if (!hasMessageSchemaVersion) {
       db.exec(
         "ALTER TABLE pdf_chats ADD COLUMN message_schema_version INTEGER DEFAULT 1",
       );
+    }
+    if (!hasAgentType) {
+      db.exec(
+        "ALTER TABLE pdf_chats ADD COLUMN agent_type TEXT DEFAULT 'local'",
+      );
+      db.exec(
+        "UPDATE pdf_chats SET agent_type = 'local' WHERE agent_type IS NULL",
+      );
+    }
+    if (!hasAgentSessionId) {
+      db.exec("ALTER TABLE pdf_chats ADD COLUMN agent_session_id TEXT");
     }
     db.exec(
       "UPDATE pdf_chats SET message_schema_version = 1 WHERE message_schema_version IS NULL",
@@ -74,6 +91,8 @@ export default class PdfChatTable {
         archived: Boolean(record.archived),
         parentChatId: record.parent_chat_id,
         branchIndex: record.branch_index ?? 0,
+        agentType: record.agent_type === "codex" ? "codex" : "local",
+        agentSessionId: record.agent_session_id ?? null,
       },
       migrated:
         migration.changed ||
@@ -98,8 +117,8 @@ export default class PdfChatTable {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO pdf_chats
-      (pdf_id, create_time, update_time, messages, title, archived, parent_chat_id, branch_index, message_schema_version)
-      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)
+      (pdf_id, create_time, update_time, messages, title, archived, parent_chat_id, branch_index, message_schema_version, agent_type, agent_session_id)
+      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
     `);
     const getNextBranchIndexStmt = db.prepare(`
       SELECT COALESCE(MAX(branch_index), -1) + 1 AS next_index
@@ -129,6 +148,8 @@ export default class PdfChatTable {
         params.parentChatId ?? null,
         branchIndex,
         CHAT_MESSAGE_SCHEMA_VERSION,
+        params.agentType ?? "local",
+        params.agentSessionId ?? null,
       );
 
       const chatId = Number(res.lastInsertRowid);
@@ -163,7 +184,9 @@ export default class PdfChatTable {
         archived = ?,
         parent_chat_id = ?,
         branch_index = ?,
-        message_schema_version = ?
+        message_schema_version = ?,
+        agent_type = ?,
+        agent_session_id = ?
       WHERE id = ?
     `);
 
@@ -186,6 +209,10 @@ export default class PdfChatTable {
         : existing.parentChatId,
       params.branchIndex ?? existing.branchIndex ?? 0,
       CHAT_MESSAGE_SCHEMA_VERSION,
+      params.agentType ?? existing.agentType ?? "local",
+      params.agentSessionId !== undefined
+        ? params.agentSessionId
+        : (existing.agentSessionId ?? null),
       params.id,
     );
 

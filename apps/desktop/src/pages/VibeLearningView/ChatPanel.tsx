@@ -15,7 +15,7 @@ import {
 } from "react";
 import { App } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
-import { useMemoizedFn } from "ahooks";
+import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { useShallow } from "zustand/react/shallow";
 import "katex/dist/katex.min.css";
 
@@ -40,12 +40,16 @@ import { blockRegistry } from "@/utils/blockRegistry";
 import type { BlockData } from "@/types/block-preview";
 import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
 
-import { ResponseMessage, ChatMessage } from "@/types";
+import { ResponseMessage, ChatAgentType, ChatMessage } from "@/types";
 import { Role } from "@/constants";
 import type { VLResource } from "@/types/vibe-learning";
 
 import useVLChatStore, { EVLChatStatus } from "@/stores/useVLChatStore";
 import { useVibeLearningChat } from "./useVibeLearningChat";
+import {
+  CHAT_AGENT_TYPE_STORAGE_KEY,
+  normalizeChatAgentType,
+} from "@/constants/chatAgent";
 
 const ChatContainer = lazy(
   () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer"),
@@ -191,6 +195,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const { message } = App.useApp();
   const editTitleRef = useRef<EditTextHandle>(null);
   const chatContainerRef = useRef<ChatContainerHandle>(null);
+  const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(
+    CHAT_AGENT_TYPE_STORAGE_KEY,
+    {
+      defaultValue: "local",
+    },
+  );
 
   const database = useSettingStore((state) => state.setting.database.active);
   const isConnected = useDatabaseConnected();
@@ -258,6 +268,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       archived: currentChat.archived,
       parentChatId: currentChat.parentChatId,
       branchIndex: currentChat.branchIndex,
+      agentType: currentChat.agentType,
+      agentSessionId: currentChat.agentSessionId,
     };
   }, [currentChat, projectId, systemPrompt]);
 
@@ -273,6 +285,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       archived: chat.archived,
       parentChatId: chat.parentChatId,
       branchIndex: chat.branchIndex,
+      agentType: chat.agentType,
+      agentSessionId: chat.agentSessionId,
     }));
   }, [chats]);
 
@@ -290,7 +304,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     setCreateMessageLoading(true);
 
     try {
-      await createChat(messages);
+      await createChat(
+        messages,
+        undefined,
+        normalizeChatAgentType(rememberedAgentType),
+      );
     } catch (error) {
       message.error("创建对话失败");
       console.error(error);
@@ -334,8 +352,15 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     async (
       messages: ChatMessage["messages"],
       title?: string,
+      agentType?: ChatAgentType,
+      agentSessionId?: string | null,
     ): Promise<ChatMessage> => {
-      const created = await createChat(messages, title);
+      const created = await createChat(
+        messages,
+        title,
+        agentType,
+        agentSessionId,
+      );
       return {
         id: created.id,
         createTime: created.createTime,
@@ -346,6 +371,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         archived: created.archived,
         parentChatId: created.parentChatId,
         branchIndex: created.branchIndex,
+        agentType: created.agentType,
+        agentSessionId: created.agentSessionId,
       };
     },
   );
@@ -367,6 +394,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         archived: created.archived,
         parentChatId: created.parentChatId,
         branchIndex: created.branchIndex,
+        agentType: created.agentType,
+        agentSessionId: created.agentSessionId,
       };
     },
   );
@@ -383,6 +412,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         messages: chat.messages,
         title: chat.title,
         archived: chat.archived,
+        agentType: chat.agentType,
+        agentSessionId: chat.agentSessionId,
       });
       return {
         id: updated.id,
@@ -394,6 +425,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         archived: updated.archived,
         parentChatId: updated.parentChatId,
         branchIndex: updated.branchIndex,
+        agentType: updated.agentType,
+        agentSessionId: updated.agentSessionId,
       };
     },
   );
@@ -410,6 +443,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       archived: chat.archived,
       parentChatId: chat.parentChatId,
       branchIndex: chat.branchIndex,
+      agentType: chat.agentType,
+      agentSessionId: chat.agentSessionId,
     });
   });
 

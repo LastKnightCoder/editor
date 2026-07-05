@@ -11,12 +11,21 @@ import {
   BranchesOutlined,
   PushpinFilled,
 } from "@ant-design/icons";
-import { useMemoizedFn } from "ahooks";
+import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import dayjs from "dayjs";
 import classnames from "classnames";
 import useChatMessageStore from "@/stores/useChatMessageStore";
-import type { ChatMessage, ChatGroup, ResponseMessage } from "@/types";
+import type {
+  ChatAgentType,
+  ChatMessage,
+  ChatGroup,
+  ResponseMessage,
+} from "@/types";
 import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
+import {
+  CHAT_AGENT_TYPE_STORAGE_KEY,
+  normalizeChatAgentType,
+} from "@/constants/chatAgent";
 import useThemeColors from "@/hooks/useThemeColors";
 import CustomModal from "@/components/CustomModal";
 
@@ -31,6 +40,12 @@ const ChatManagementSidebar = memo(
   ({ selectedChatId, onChatSelect }: ChatManagementSidebarProps) => {
     const { message: messageApi, modal } = App.useApp();
     const { hoverClass, activeClass, hoverTextClass } = useThemeColors();
+    const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(
+      CHAT_AGENT_TYPE_STORAGE_KEY,
+      {
+        defaultValue: "local",
+      },
+    );
 
     const {
       chats,
@@ -107,7 +122,13 @@ const ChatManagementSidebar = memo(
       ];
 
       try {
-        const newChat = await createChatMessage(messages, "新对话", null);
+        const newChat = await createChatMessage(
+          messages,
+          "新对话",
+          null,
+          false,
+          normalizeChatAgentType(rememberedAgentType),
+        );
         onChatSelect?.(newChat.id);
         messageApi.success("对话已创建");
       } catch (error) {
@@ -142,7 +163,13 @@ const ChatManagementSidebar = memo(
       ];
 
       try {
-        const newChat = await createChatMessage(messages, "新对话", groupId);
+        const newChat = await createChatMessage(
+          messages,
+          "新对话",
+          groupId,
+          false,
+          normalizeChatAgentType(rememberedAgentType),
+        );
         onChatSelect?.(newChat.id);
         messageApi.success("对话已创建");
       } catch (error) {

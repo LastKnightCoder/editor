@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildFullHistoryMessages,
   buildResetBaseChat,
+  buildTitleSummaryMessages,
   formatGeneratedChatTitle,
   getLastUserMessageIndex,
   getRequestMessageText,
@@ -104,6 +105,64 @@ describe("ChatContainer 编辑辅助逻辑", () => {
     expect(shouldGenerateChatTitle({ titleDirty: true }, true)).toBe(false);
     expect(shouldGenerateChatTitle({}, true)).toBe(false);
     expect(shouldGenerateChatTitle({ titleDirty: false }, false)).toBe(false);
+  });
+
+  it("构造标题总结消息时只保留最近一轮对话的文本内容", () => {
+    const chat: ChatMessage = {
+      id: 1,
+      createTime: 1,
+      updateTime: 2,
+      title: "新对话",
+      titleDirty: false,
+      agentType: "codex",
+      messages: [
+        { role: Role.System, content: "system" },
+        createUserMessage([{ type: "text", text: "旧问题" }]),
+        createAssistantMessage("旧回答"),
+        createUserMessage([
+          { type: "image", image: "file://image.png" },
+          { type: "text", text: "请解释 Codex 模式" },
+          { type: "file", file: "/tmp/demo.pdf", fileName: "demo.pdf" },
+          { type: "text", text: "并总结风险" },
+        ]),
+        createAssistantMessage("Codex 模式会通过本地 agent 流式返回回答。"),
+      ],
+    };
+
+    expect(buildTitleSummaryMessages(chat)).toEqual([
+      createUserMessage([
+        { type: "text", text: "请解释 Codex 模式" },
+        { type: "text", text: "并总结风险" },
+      ]),
+      {
+        role: Role.Assistant,
+        content: [
+          {
+            type: "text",
+            text: "Codex 模式会通过本地 agent 流式返回回答。",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("构造标题总结消息时会过滤没有文本的最近消息", () => {
+    const chat: ChatMessage = {
+      id: 1,
+      createTime: 1,
+      updateTime: 2,
+      title: "新对话",
+      titleDirty: false,
+      messages: [
+        { role: Role.System, content: "system" },
+        createUserMessage([{ type: "text", text: "旧问题" }]),
+        createAssistantMessage("旧回答"),
+        createUserMessage([{ type: "image", image: "file://image.png" }]),
+        createAssistantMessage(""),
+      ],
+    };
+
+    expect(buildTitleSummaryMessages(chat)).toEqual([]);
   });
 
   it("构造请求历史时不应截断超过 20 组的对话", () => {

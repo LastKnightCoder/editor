@@ -1,5 +1,6 @@
 import { Descendant } from "slate";
 import type { PdfAnnotationObject, PdfBookmarkObject } from "@embedpdf/models";
+import type { ChatAgentType } from "./chat-message";
 import type { ChatSessionMessage } from "./llm";
 
 export enum EHighlightColor {
@@ -180,6 +181,8 @@ export interface PdfChatMessage {
   archived?: boolean;
   parentChatId?: number | null;
   branchIndex?: number;
+  agentType?: ChatAgentType;
+  agentSessionId?: string | null;
 }
 
 export interface CreatePdfChat {
@@ -188,6 +191,8 @@ export interface CreatePdfChat {
   title?: string;
   parentChatId?: number | null;
   branchIndex?: number;
+  agentType?: ChatAgentType;
+  agentSessionId?: string | null;
 }
 
 export interface UpdatePdfChat {
@@ -197,4 +202,6 @@ export interface UpdatePdfChat {
   archived?: boolean;
   parentChatId?: number | null;
   branchIndex?: number;
+  agentType?: ChatAgentType;
+  agentSessionId?: string | null;
 }

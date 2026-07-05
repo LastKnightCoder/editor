@@ -10,6 +10,7 @@ import React, {
 import { App } from "antd";
 import { produce } from "immer";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
+import { selectDirectoryWithDialog } from "@/commands";
 
 import ChatInputArea from "@/components/ChatInputArea";
 import type { ChatInputAreaHandle } from "@/components/ChatInputArea";
@@ -21,10 +22,10 @@ import {
   ChatMessage,
   RequestMessage,
   ResponseMessage,
-  TextContent,
   ReasoningEffort,
   ToolCallPayload,
   ToolCallExecutionState,
+  ChatAgentType,
 } from "@/types";
 import {
   Role,
@@ -65,12 +66,25 @@ import { createChatMessageClientId } from "@/services/chatMessageSchema";
 import {
   buildFullHistoryMessages,
   buildResetBaseChat,
+  buildTitleSummaryMessages,
   formatGeneratedChatTitle,
   getLastUserMessageIndex,
   getRequestMessageText,
   shouldGenerateChatTitle,
 } from "./editingUtils";
 import { withStreamingUpdateTime } from "./streamingUtils";
+import { streamCodexChat } from "@/services/codex/codexChatStream";
+import type { CodexMappedEvent } from "@/services/codex/codexEventAdapter";
+import { buildCodexInputFromMessageContent } from "@/services/codex/codexInputAdapter";
+import {
+  buildCodexSystemPrompt,
+  prependCodexSystemPromptToInput,
+} from "@/services/codex/codexSystemPrompt";
+import {
+  CHAT_AGENT_TYPE_STORAGE_KEY,
+  CHAT_AGENT_WORKING_DIRECTORY_STORAGE_KEY,
+  normalizeChatAgentType,
+} from "@/constants/chatAgent";
 
 const ENABLE_TITLE_SUMMARY = true;
 interface ChatScrollAnchor {
@@ -112,6 +126,8 @@ interface ChatContainerProps {
   onCreateChat: (
     messages: ChatMessage["messages"],
     title?: string,
+    agentType?: ChatAgentType,
+    agentSessionId?: string | null,
   ) => Promise<ChatMessage>;
   onCreateBranch: (
     parentChatId: number,
@@ -244,6 +260,19 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         defaultValue: "none",
       });
     const effectiveReasoningEffort = reasoningEffort ?? "none";
+    const [rememberedAgentType, setRememberedAgentType] =
+      useLocalStorageState<ChatAgentType>(CHAT_AGENT_TYPE_STORAGE_KEY, {
+        defaultValue: "local",
+      });
+    const [codexWorkingDirectory, setCodexWorkingDirectory] =
+      useLocalStorageState<string | null>(
+        CHAT_AGENT_WORKING_DIRECTORY_STORAGE_KEY,
+        {
+          defaultValue: null,
+        },
+      );
+    const effectiveRememberedAgentType =
+      normalizeChatAgentType(rememberedAgentType);
 
     const editTextRef = useRef<ChatInputAreaHandle>(null);
     const messagesRef = useRef<HTMLDivElement>(null);
@@ -284,10 +313,14 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     // 强制更新计数器，用于触发visibleMessages重新计算
     const [updateCounter, setUpdateCounter] = useState(0);
 
+    const selectedAgentType =
+      actualChatRef.current.agentType ?? effectiveRememberedAgentType;
+    const isCodexAgent = selectedAgentType === "codex";
     const modelFeatureSupport = chatModelConfig?.features;
     const supportImage =
-      modelFeatureSupport?.image ?? modelFeatureSupport?.multimodal ?? false;
-    const supportFile = modelFeatureSupport?.file ?? false;
+      isCodexAgent ||
+      (modelFeatureSupport?.image ?? modelFeatureSupport?.multimodal ?? false);
+    const supportFile = !isCodexAgent && (modelFeatureSupport?.file ?? false);
 
     const abortControllerRef = useRef<AbortController | null>(null);
     const activeAssistantTurnIdRef = useRef<string | null>(null);
@@ -470,6 +503,87 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       ) => buildFullHistoryMessages(chat, options),
     );
 
+    const persistFinishedChatAndGenerateTitle = useMemoizedFn(
+      async (finishedChat: ChatMessage) => {
+        const updatedChatMessage = await updateChatMessage(finishedChat);
+        actualChatRef.current = updatedChatMessage;
+        setUpdateCounter((prev) => prev + 1);
+        updateCurrentChat(updatedChatMessage);
+        scrollToBottom();
+
+        try {
+          if (
+            ENABLE_TITLE_SUMMARY &&
+            shouldGenerateChatTitle(
+              updatedChatMessage,
+              Boolean(titleProviderConfig && titleModelConfig),
+            )
+          ) {
+            if (!titleProviderConfig || !titleModelConfig) {
+              return updatedChatMessage;
+            }
+
+            const titleMessages = buildTitleSummaryMessages(updatedChatMessage);
+            if (titleMessages.length === 0) {
+              return updatedChatMessage;
+            }
+
+            chatLLMStream(
+              titleProviderConfig,
+              titleModelConfig,
+              [
+                {
+                  role: Role.System,
+                  content: [{ type: "text", text: SUMMARY_TITLE_PROMPT }],
+                },
+                ...titleMessages,
+                {
+                  role: Role.User,
+                  content: [
+                    {
+                      type: "text",
+                      text: "请根据以上对话内容生成一个简洁的标题",
+                    },
+                  ],
+                },
+              ],
+              {
+                onFinish: async (content) => {
+                  const nextTitle = content
+                    ? formatGeneratedChatTitle(content)
+                    : "";
+                  if (nextTitle) {
+                    const updateChat = produce(updatedChatMessage, (draft) => {
+                      draft.title = nextTitle;
+                      draft.titleDirty = true;
+                    });
+                    const saved = await updateChatMessage(updateChat);
+                    actualChatRef.current = saved;
+                    setUpdateCounter((prev) => prev + 1);
+                    updateCurrentChat(saved);
+                    titleRef.current?.setValue(nextTitle);
+                  }
+                },
+              },
+            );
+          }
+        } catch (e) {
+          console.error("Failed to generate title:", e);
+        }
+
+        return updatedChatMessage;
+      },
+    );
+
+    const getPersistedSystemContent = useMemoizedFn((chat: ChatMessage) => {
+      const systemMessage = chat.messages.find(
+        (message) => message.role === Role.System,
+      ) as ResponseMessage | undefined;
+      return (
+        systemMessage?.content || customSystemPrompt || DEFAULT_SYSTEM_PROMPT
+      );
+    });
+
     // 抽离的公共方法：处理消息发送逻辑
     const processMessageSending = useMemoizedFn(
       async (
@@ -514,9 +628,16 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                 ?.content || defaultSystemPrompt;
             const systemMessage: ResponseMessage = {
               role: Role.System,
-              content: buildSessionAwareSystemPrompt(
-                systemContent || defaultSystemPrompt,
-              ),
+              content:
+                (actualCurrentChat.agentType ?? selectedAgentType) === "codex"
+                  ? buildCodexSystemPrompt(
+                      buildSessionAwareSystemPrompt(
+                        systemContent || defaultSystemPrompt,
+                      ),
+                    )
+                  : buildSessionAwareSystemPrompt(
+                      systemContent || defaultSystemPrompt,
+                    ),
             };
 
             const newChatMessages = [systemMessage];
@@ -525,6 +646,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             actualCurrentChat = await onCreateChat(
               newChatMessages,
               actualCurrentChat.title || "新对话",
+              actualCurrentChat.agentType ?? selectedAgentType,
+              actualCurrentChat.agentSessionId ?? null,
             );
 
             // 立即更新ref，确保UI使用新创建的对话
@@ -573,6 +696,184 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           editTextRef.current?.clear();
         }
 
+        if (actualCurrentChat.agentType === "codex") {
+          const rawCodexInput = await buildCodexInputFromMessageContent(
+            requestMessage.content,
+          );
+          const codexInput = actualCurrentChat.agentSessionId
+            ? rawCodexInput
+            : prependCodexSystemPromptToInput(
+                rawCodexInput,
+                buildCodexSystemPrompt(
+                  getPersistedSystemContent(actualCurrentChat),
+                ),
+              );
+          if (codexInput.length === 0) {
+            message.warning("请输入内容");
+            setSendLoading(false);
+            return false;
+          }
+
+          const codexTurnId = `${streamId}:codex`;
+          const codexTurnIds = new Set<string>();
+          const resolveCodexTurnId = (turnId?: string) => {
+            const resolvedTurnId = turnId
+              ? `${codexTurnId}:${turnId}`
+              : codexTurnId;
+            codexTurnIds.add(resolvedTurnId);
+            return resolvedTurnId;
+          };
+          const finalizeCodexTurns = (message: ResponseMessage) => {
+            const turnIds =
+              codexTurnIds.size > 0 ? Array.from(codexTurnIds) : [codexTurnId];
+            turnIds.forEach((turnId) => {
+              finalizeAssistantTurn(message, turnId);
+            });
+          };
+          activeAssistantTurnIdRef.current = codexTurnId;
+          const controller = new AbortController();
+          abortControllerRef.current = controller;
+
+          const applyCodexMappedEvent = (event: CodexMappedEvent) => {
+            if (event.type === "thread-started") {
+              const updatedChat = {
+                ...actualCurrentChat,
+                agentSessionId: event.threadId,
+              };
+              actualCurrentChat = publishStreamingChatSnapshot(updatedChat);
+              return;
+            }
+
+            if (event.type === "text-delta") {
+              const eventTurnId = resolveCodexTurnId(event.turnId);
+              const updatedChat = produce(actualCurrentChat, (draft) => {
+                const lastMessageIndex = draft.messages.length - 1;
+                if (
+                  lastMessageIndex >= 0 &&
+                  draft.messages[lastMessageIndex].role === Role.Assistant
+                ) {
+                  applyAssistantTextSnapshot(
+                    draft.messages[lastMessageIndex] as ResponseMessage,
+                    eventTurnId,
+                    event.responseText,
+                  );
+                }
+              });
+              actualCurrentChat = publishStreamingChatSnapshot(updatedChat);
+              return;
+            }
+
+            if (event.type === "reasoning-delta") {
+              const eventTurnId = resolveCodexTurnId(event.turnId);
+              const updatedChat = produce(actualCurrentChat, (draft) => {
+                const lastMessageIndex = draft.messages.length - 1;
+                if (
+                  lastMessageIndex >= 0 &&
+                  draft.messages[lastMessageIndex].role === Role.Assistant
+                ) {
+                  applyAssistantReasoningSnapshot(
+                    draft.messages[lastMessageIndex] as ResponseMessage,
+                    eventTurnId,
+                    event.reasoningText,
+                  );
+                }
+              });
+              actualCurrentChat = publishStreamingChatSnapshot(updatedChat);
+              return;
+            }
+
+            if (event.type === "tool-calls-update") {
+              const eventTurnId = resolveCodexTurnId(event.turnId);
+              const updatedChat = produce(actualCurrentChat, (draft) => {
+                const lastMessageIndex = draft.messages.length - 1;
+                if (
+                  lastMessageIndex >= 0 &&
+                  draft.messages[lastMessageIndex].role === Role.Assistant
+                ) {
+                  applyAssistantToolCallsSnapshot(
+                    draft.messages[lastMessageIndex] as ResponseMessage,
+                    eventTurnId,
+                    event.executions,
+                    event.toolCalls,
+                  );
+                }
+              });
+              actualCurrentChat = publishStreamingChatSnapshot(updatedChat);
+              return;
+            }
+
+            if (event.type === "error") {
+              console.error("Codex stream error:", event.error);
+            }
+          };
+
+          try {
+            await streamCodexChat({
+              input: codexInput,
+              agentSessionId: actualCurrentChat.agentSessionId ?? null,
+              workingDirectory: codexWorkingDirectory ?? null,
+              signal: controller.signal,
+              onEvent: applyCodexMappedEvent,
+            });
+
+            const finalizedChat = produce(actualCurrentChat, (draft) => {
+              const lastMessageIndex = draft.messages.length - 1;
+              if (
+                lastMessageIndex >= 0 &&
+                draft.messages[lastMessageIndex].role === Role.Assistant
+              ) {
+                finalizeCodexTurns(
+                  draft.messages[lastMessageIndex] as ResponseMessage,
+                );
+              }
+            });
+
+            activeAssistantTurnIdRef.current = null;
+            actualCurrentChat =
+              await persistFinishedChatAndGenerateTitle(finalizedChat);
+          } catch (error) {
+            const isAbortError =
+              error instanceof Error && error.name === "AbortError";
+            const finalizedChat = produce(actualCurrentChat, (draft) => {
+              const lastMessageIndex = draft.messages.length - 1;
+              if (
+                lastMessageIndex >= 0 &&
+                draft.messages[lastMessageIndex].role === Role.Assistant
+              ) {
+                finalizeCodexTurns(
+                  draft.messages[lastMessageIndex] as ResponseMessage,
+                );
+              }
+            });
+            actualCurrentChat = finalizedChat;
+            actualChatRef.current = finalizedChat;
+            setUpdateCounter((prev) => prev + 1);
+            updateCurrentChat(finalizedChat);
+            void updateChatMessage(finalizedChat).catch((persistError) => {
+              console.error("Codex 失败后持久化对话失败:", persistError);
+            });
+            if (activeAssistantTurnIdRef.current === codexTurnId) {
+              activeAssistantTurnIdRef.current = null;
+            }
+            if (!isAbortError) {
+              message.error(
+                error instanceof Error ? error.message : "Codex 请求失败",
+              );
+            }
+          } finally {
+            setSendLoading(false);
+            abortControllerRef.current = null;
+            perf.end();
+            if (shouldClearInput) {
+              setTimeout(() => {
+                editTextRef.current?.focusEnd();
+              }, 100);
+            }
+          }
+
+          return true;
+        }
+
         if (!chatProviderConfig || !chatModelConfig) {
           message.error("请先在设置中配置对话功能的大模型");
           setSendLoading(false);
@@ -614,115 +915,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             }
 
             try {
-              const updatedChatMessage = await updateChatMessage(finalizedChat);
-              actualChatRef.current = updatedChatMessage;
-              setUpdateCounter((prev) => prev + 1);
-              updateCurrentChat(updatedChatMessage);
-              scrollToBottom();
-
-              try {
-                if (
-                  ENABLE_TITLE_SUMMARY &&
-                  shouldGenerateChatTitle(
-                    updatedChatMessage,
-                    Boolean(titleProviderConfig && titleModelConfig),
-                  )
-                ) {
-                  if (!titleProviderConfig || !titleModelConfig) {
-                    return;
-                  }
-                  const titleMessages: RequestMessage[] =
-                    updatedChatMessage.messages
-                      .slice(1)
-                      .slice(-2)
-                      .map((message): RequestMessage => {
-                        if (message.role === Role.User) {
-                          const userMessage = message as RequestMessage;
-                          const sourceContent = userMessage.content;
-                          const textContent = Array.isArray(sourceContent)
-                            ? sourceContent.filter(
-                                (item): item is TextContent =>
-                                  item.type === "text" &&
-                                  item.text.trim().length > 0,
-                              )
-                            : sourceContent
-                              ? [
-                                  {
-                                    type: "text",
-                                    text: sourceContent,
-                                  } as TextContent,
-                                ]
-                              : [];
-                          return {
-                            role: message.role,
-                            content: textContent,
-                          };
-                        }
-
-                        const responseMsg = message as ResponseMessage;
-                        return {
-                          role: message.role,
-                          content: [
-                            { type: "text", text: responseMsg.content },
-                          ],
-                        };
-                      })
-                      .filter(
-                        (message) =>
-                          Array.isArray(message.content) &&
-                          message.content.length > 0 &&
-                          message.content.some(
-                            (item) =>
-                              item.type === "text" &&
-                              item.text.trim().length > 0,
-                          ),
-                      );
-
-                  chatLLMStream(
-                    titleProviderConfig,
-                    titleModelConfig,
-                    [
-                      {
-                        role: Role.System,
-                        content: [{ type: "text", text: SUMMARY_TITLE_PROMPT }],
-                      },
-                      ...titleMessages,
-                      {
-                        role: Role.User,
-                        content: [
-                          {
-                            type: "text",
-                            text: "请根据以上对话内容生成一个简洁的标题",
-                          },
-                        ],
-                      },
-                    ],
-                    {
-                      onFinish: async (content) => {
-                        const nextTitle = content
-                          ? formatGeneratedChatTitle(content)
-                          : "";
-                        if (nextTitle) {
-                          const updateChat = produce(
-                            updatedChatMessage,
-                            (draft) => {
-                              draft.title = nextTitle;
-                              draft.titleDirty = true;
-                            },
-                          );
-                          const saved = await updateChatMessage(updateChat);
-                          actualChatRef.current = saved;
-                          setUpdateCounter((prev) => prev + 1);
-                          updateCurrentChat(saved);
-                          titleRef.current?.setValue(nextTitle);
-                        }
-                      },
-                    },
-                  );
-                }
-              } catch (e) {
-                console.error("Failed to generate title:", e);
-              }
+              actualCurrentChat =
+                await persistFinishedChatAndGenerateTitle(finalizedChat);
             } catch (error) {
               message.error("Failed to update chat");
               console.error(error);
@@ -1085,6 +1279,48 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       );
     }, [updateCounter]);
 
+    const handleAgentTypeChange = useMemoizedFn(
+      async (agentType: ChatAgentType) => {
+        if (visibleMessages.length > 0 || sendLoading) {
+          return;
+        }
+
+        const updatedChat = {
+          ...actualChatRef.current,
+          agentType,
+          agentSessionId:
+            agentType === actualChatRef.current.agentType
+              ? (actualChatRef.current.agentSessionId ?? null)
+              : null,
+        };
+        actualChatRef.current = updatedChat;
+        setRememberedAgentType(agentType);
+        setUpdateCounter((prev) => prev + 1);
+        updateCurrentChat(updatedChat);
+      },
+    );
+    const handleSelectCodexWorkingDirectory = useMemoizedFn(async () => {
+      if (sendLoading) {
+        return;
+      }
+
+      try {
+        const selectedDirectory = await selectDirectoryWithDialog();
+        if (selectedDirectory) {
+          setCodexWorkingDirectory(selectedDirectory);
+        }
+      } catch (error) {
+        console.warn("选择 Codex 工作目录失败:", error);
+      }
+    });
+    const handleClearCodexWorkingDirectory = useMemoizedFn(() => {
+      if (sendLoading) {
+        return;
+      }
+
+      setCodexWorkingDirectory(null);
+    });
+
     const lastUserMessageIndex = useMemo(
       () => getLastUserMessageIndex(visibleMessages),
       [visibleMessages],
@@ -1273,6 +1509,16 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           return;
         }
 
+        if (isCodexAgent && userContent.some((item) => item.type === "file")) {
+          message.warning("Codex 当前暂不支持 PDF/文件输入");
+          return;
+        }
+
+        if (isCodexAgent && editingDraft) {
+          message.warning("Codex 会话暂不支持编辑后重新发送");
+          return;
+        }
+
         if (beforeSendUserMessage) {
           const shouldContinue = await beforeSendUserMessage(userContent);
           if (shouldContinue === false) {
@@ -1352,6 +1598,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     // 重新生成消息
     const handleRegenerateMessage = useMemoizedFn(
       async (messageIndex: number) => {
+        if (isCodexAgent) {
+          message.warning("Codex 会话暂不支持重新生成");
+          return;
+        }
+
         const actualIndex = messageIndex + 1; // +1 因为跳过了系统消息
         const targetMessage = actualChatRef.current.messages[actualIndex];
         if (!targetMessage || targetMessage.role !== Role.User) {
@@ -1379,6 +1630,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
     const handleEditMessage = useMemoizedFn(
       (messageIndex: number, content: string) => {
+        if (isCodexAgent) {
+          message.warning("Codex 会话暂不支持编辑消息");
+          return;
+        }
+
         if (hideInput || sendLoading) {
           return;
         }
@@ -1408,6 +1664,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const handleCreateBranch = useMemoizedFn(async (messageIndex: number) => {
       try {
         const currentChat = actualChatRef.current;
+        if ((currentChat.agentType ?? "local") === "codex") {
+          message.warning("Codex 会话暂不支持创建分支");
+          return;
+        }
+
         if (currentChat.id === 0) {
           message.warning("请先保存当前对话");
           return;
@@ -1482,19 +1743,21 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           }
           hideInput={hideInput}
           reasoningEffort={
-            chatModelConfig?.features?.thinking
+            !isCodexAgent && chatModelConfig?.features?.thinking
               ? effectiveReasoningEffort
               : undefined
           }
           onReasoningEffortChange={
-            chatModelConfig?.features?.thinking
+            !isCodexAgent && chatModelConfig?.features?.thinking
               ? (value) => setReasoningEffort(value)
               : undefined
           }
-          reasoningEffortDisabled={!chatModelConfig?.features?.thinking}
-          currentModelName={chatModelConfig?.name}
-          modelSelectItems={modelSelectItems}
-          onModelSelect={handleModelSelect}
+          reasoningEffortDisabled={
+            isCodexAgent || !chatModelConfig?.features?.thinking
+          }
+          currentModelName={isCodexAgent ? "Codex" : chatModelConfig?.name}
+          modelSelectItems={isCodexAgent ? [] : modelSelectItems}
+          onModelSelect={isCodexAgent ? undefined : handleModelSelect}
           isSupportImage={supportImage}
           isSupportFile={supportFile}
           onSendMessageContent={sendMessageContent}
@@ -1571,6 +1834,18 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     ref={chatInputRef}
                     className="flex-1 min-w-0"
                     {...desktopInputProps}
+                    agentType={selectedAgentType}
+                    onAgentTypeChange={handleAgentTypeChange}
+                    agentTypeDisabled={
+                      visibleMessages.length > 0 || sendLoading
+                    }
+                    codexWorkingDirectory={codexWorkingDirectory ?? null}
+                    onSelectCodexWorkingDirectory={
+                      handleSelectCodexWorkingDirectory
+                    }
+                    onClearCodexWorkingDirectory={
+                      handleClearCodexWorkingDirectory
+                    }
                     placeholder={
                       hiddenPromptContext?.label ||
                       desktopInputProps.placeholder
@@ -1581,8 +1856,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             );
           }}
           onDeleteMessage={handleDeleteMessage}
-          onRegenerateMessage={handleRegenerateMessage}
-          onCreateBranch={handleCreateBranch}
+          onRegenerateMessage={
+            isCodexAgent ? undefined : handleRegenerateMessage
+          }
+          onCreateBranch={isCodexAgent ? undefined : handleCreateBranch}
           renderMessage={({ messageIndex }) => {
             const item = visibleMessages[messageIndex];
             if (!item) return null;
@@ -1606,6 +1883,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   onDeleteMessage={handleDeleteMessage}
                   onRegenerateMessage={handleRegenerateMessage}
                   onEditMessage={
+                    !isCodexAgent &&
                     !hideInput &&
                     !sendLoading &&
                     item.role === Role.User &&
@@ -1615,7 +1893,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                       ? handleEditMessage
                       : undefined
                   }
-                  onCreateBranch={handleCreateBranch}
+                  onCreateBranch={isCodexAgent ? undefined : handleCreateBranch}
                   messageMeta={{
                     chatId: actualChatRef.current.id,
                     messageIndex,

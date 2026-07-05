@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { ChatSessionMessage, ChatMessage } from "@/types";
+import { ChatSessionMessage, ChatMessage, ChatAgentType } from "@/types";
 import {
   CHAT_MESSAGE_SCHEMA_VERSION,
   migrateChatSessionMessages,
@@ -21,6 +21,10 @@ export default class ChatMessageTable {
       (col) => col.name === "message_schema_version",
     );
     const hasTitleDirty = tableInfo.some((col) => col.name === "title_dirty");
+    const hasAgentType = tableInfo.some((col) => col.name === "agent_type");
+    const hasAgentSessionId = tableInfo.some(
+      (col) => col.name === "agent_session_id",
+    );
 
     if (!hasGroupId) {
       db.exec("ALTER TABLE chat_message ADD COLUMN group_id INTEGER");
@@ -57,6 +61,19 @@ export default class ChatMessageTable {
       db.exec(
         "UPDATE chat_message SET title_dirty = 1 WHERE title_dirty IS NULL",
       );
+    }
+
+    if (!hasAgentType) {
+      db.exec(
+        "ALTER TABLE chat_message ADD COLUMN agent_type TEXT DEFAULT 'local'",
+      );
+      db.exec(
+        "UPDATE chat_message SET agent_type = 'local' WHERE agent_type IS NULL",
+      );
+    }
+
+    if (!hasAgentSessionId) {
+      db.exec("ALTER TABLE chat_message ADD COLUMN agent_session_id TEXT");
     }
 
     db.exec(
@@ -111,6 +128,8 @@ export default class ChatMessageTable {
     order_num: number | null;
     message_schema_version?: number | null;
     title_dirty?: number | null;
+    agent_type?: string | null;
+    agent_session_id?: string | null;
   }): { chat: ChatMessage; migrated: boolean } {
     const storedSchemaVersion =
       typeof chatMessage.message_schema_version === "number"
@@ -136,6 +155,8 @@ export default class ChatMessageTable {
             : null,
         branchIndex: chatMessage.branch_index ?? 0,
         orderNum: chatMessage.order_num ?? null,
+        agentType: chatMessage.agent_type === "codex" ? "codex" : "local",
+        agentSessionId: chatMessage.agent_session_id ?? null,
       },
       migrated:
         migration.changed ||
@@ -162,9 +183,11 @@ export default class ChatMessageTable {
     branchIndex: number | undefined,
     orderNum: number | null | undefined,
     titleDirty = false,
+    agentType: ChatAgentType = "local",
+    agentSessionId: string | null = null,
   ): ChatMessage {
     const stmt = db.prepare(
-      "INSERT INTO chat_message (create_time, update_time, title, messages, group_id, archived, parent_chat_id, branch_index, order_num, message_schema_version, title_dirty) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)",
+      "INSERT INTO chat_message (create_time, update_time, title, messages, group_id, archived, parent_chat_id, branch_index, order_num, message_schema_version, title_dirty, agent_type, agent_session_id) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)",
     );
     const now = Date.now();
     const migration = migrateChatSessionMessages(messages);
@@ -179,6 +202,8 @@ export default class ChatMessageTable {
       orderNum ?? null,
       CHAT_MESSAGE_SCHEMA_VERSION,
       titleDirty ? 1 : 0,
+      agentType,
+      agentSessionId,
     );
     const createdId = res.lastInsertRowid;
     return this.getChatMessageById(db, createdId);
@@ -228,9 +253,11 @@ export default class ChatMessageTable {
       branchIndex,
       orderNum,
       titleDirty,
+      agentType,
+      agentSessionId,
     } = chatMessage;
     const stmt = db.prepare(
-      "UPDATE chat_message SET update_time = ?, title = ?, messages = ?, group_id = ?, archived = ?, parent_chat_id = ?, branch_index = ?, order_num = ?, message_schema_version = ?, title_dirty = ? WHERE id = ?",
+      "UPDATE chat_message SET update_time = ?, title = ?, messages = ?, group_id = ?, archived = ?, parent_chat_id = ?, branch_index = ?, order_num = ?, message_schema_version = ?, title_dirty = ?, agent_type = ?, agent_session_id = ? WHERE id = ?",
     );
     const now = Date.now();
     const migration = migrateChatSessionMessages(messages);
@@ -245,6 +272,8 @@ export default class ChatMessageTable {
       orderNum ?? null,
       CHAT_MESSAGE_SCHEMA_VERSION,
       titleDirty === false ? 0 : 1,
+      agentType ?? "local",
+      agentSessionId ?? null,
       id,
     );
     return this.getChatMessageById(db, id);

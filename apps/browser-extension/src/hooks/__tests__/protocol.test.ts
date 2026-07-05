@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import type { ChatMessageType } from "@tau/shared";
 import {
   buildAiChatRpcPayload,
+  fetchCodexAvailabilityViaRpc,
   mapChatMessageToAiRequestMessage,
 } from "../useAiChat";
 import { fetchSkillsViaRpc } from "../useSkills";
@@ -19,6 +20,34 @@ describe("ai.chat 协议映射", () => {
     expect(payload.conversationKey).toBe("conv-1");
     expect(Array.isArray(payload.browserTools)).toBe(true);
     expect(payload.browserTools?.length).toBeGreaterThan(0);
+  });
+
+  it("透传 Codex 代理类型和会话 ID", () => {
+    const payload = buildAiChatRpcPayload({
+      requestId: "req-codex",
+      messages: [{ role: "user", content: "hello codex" }],
+      enableTools: true,
+      agentType: "codex",
+      agentSessionId: "codex-thread-1",
+    } as any);
+
+    expect(payload.agentType).toBe("codex");
+    expect(payload.agentSessionId).toBe("codex-thread-1");
+  });
+
+  it("通过 codex.getAvailability 查询 Codex 可用性", async () => {
+    const sendRequest = vi.fn().mockResolvedValue({
+      available: true,
+      reason: null,
+    });
+    const wsClient = {
+      sendRequest,
+    } as unknown as import("@/utils/WebSocketClient").default;
+
+    const availability = await fetchCodexAvailabilityViaRpc(wsClient);
+
+    expect(sendRequest).toHaveBeenCalledWith("codex.getAvailability", {});
+    expect(availability).toEqual({ available: true, reason: null });
   });
 
   it("支持 user/assistant/tool 历史消息映射", () => {

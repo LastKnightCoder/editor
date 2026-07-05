@@ -17,7 +17,7 @@ import {
 } from "@ant-design/icons";
 import { GitBranch, ChevronDown } from "lucide-react";
 import { Dropdown } from "antd";
-import { useMemoizedFn } from "ahooks";
+import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import "katex/dist/katex.min.css";
 
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
@@ -40,11 +40,15 @@ import type { BlockData } from "@/types/block-preview";
 import { TabType } from "@/types/tab";
 import useTabStore from "@/stores/useTabStore";
 
-import { ResponseMessage, ChatMessage } from "@/types";
+import { ResponseMessage, ChatMessage, ChatAgentType } from "@/types";
 import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
 import type { ChatContainerHandle } from "./ChatContainer";
+import {
+  CHAT_AGENT_TYPE_STORAGE_KEY,
+  normalizeChatAgentType,
+} from "@/constants/chatAgent";
 
 const ChatContainer = lazy(() => import("./ChatContainer"));
 
@@ -65,6 +69,7 @@ const DEFAULT_CHAT: ChatMessage = {
   archived: false,
   parentChatId: null,
   branchIndex: 0,
+  agentSessionId: null,
 };
 
 // 检查代码块是否已经完成生成
@@ -119,6 +124,12 @@ const ChatSidebar = memo(() => {
   );
   // 添加 ModelSidebar 可见性状态
   const [modelSidebarVisible, setModelSidebarVisible] = useState(false);
+  const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(
+    CHAT_AGENT_TYPE_STORAGE_KEY,
+    {
+      defaultValue: "local",
+    },
+  );
 
   useEffect(() => {
     if (isConnected) {
@@ -219,7 +230,13 @@ const ChatSidebar = memo(() => {
     setCreateMessageLoading(true);
 
     try {
-      await createChatMessage(messages);
+      await createChatMessage(
+        messages,
+        undefined,
+        undefined,
+        false,
+        normalizeChatAgentType(rememberedAgentType),
+      );
     } catch (error) {
       message.error("Failed to create new chat");
       console.error(error);
@@ -261,12 +278,20 @@ const ChatSidebar = memo(() => {
 
   // ChatContainer 需要的创建对话回调
   const handleCreateChat = useMemoizedFn(
-    async (messages: ChatMessage["messages"], title?: string) => {
+    async (
+      messages: ChatMessage["messages"],
+      title?: string,
+      agentType?: ChatAgentType,
+      agentSessionId?: string | null,
+    ) => {
       const currentChatData = currentChat;
       return await createChatMessage(
         messages,
         title,
         currentChatData?.groupId ?? null,
+        false,
+        agentType,
+        agentSessionId,
       );
     },
   );

@@ -430,8 +430,10 @@ export class WindowManager {
   // 创建基础窗口配置
   private createBaseWindowConfig(options?: {
     nativeTitlebar?: boolean;
+    macTrafficLights?: boolean;
   }): BrowserWindowConstructorOptions {
     const nativeTitlebar = options?.nativeTitlebar ?? false;
+    const macTrafficLights = options?.macTrafficLights ?? false;
 
     return {
       width: 800,
@@ -442,11 +444,14 @@ export class WindowManager {
         preload,
         spellcheck: false,
       },
-      frame: nativeTitlebar,
+      frame:
+        nativeTitlebar || (process.platform === "darwin" && macTrafficLights),
       ...(!nativeTitlebar &&
         process.platform === "darwin" && {
           titleBarStyle: "hidden" as const,
-          trafficLightPosition: { x: -1000, y: -1000 }, // 隐藏原生交通灯，使用自绘的
+          ...(!macTrafficLights && {
+            trafficLightPosition: { x: -1000, y: -1000 }, // 隐藏原生交通灯，使用自绘的
+          }),
         }),
     };
   }
@@ -853,7 +858,14 @@ export class WindowManager {
       }
     }
 
-    const baseConfig = this.createBaseWindowConfig();
+    const baseConfig = this.createBaseWindowConfig(
+      type === "markdown"
+        ? {
+            nativeTitlebar: process.platform === "win32",
+            macTrafficLights: true,
+          }
+        : undefined,
+    );
     if (type === "markdown") {
       const display = screen.getDisplayNearestPoint(
         screen.getCursorScreenPoint(),

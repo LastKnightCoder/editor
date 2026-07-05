@@ -12,6 +12,7 @@ export interface TextContent {
 export interface ImageContent {
   type: "image";
   image: string; // base64 或 url
+  path?: string; // 原始本地路径，供 Codex 等本地代理直接读取
   resourceId?: number;
 }
 

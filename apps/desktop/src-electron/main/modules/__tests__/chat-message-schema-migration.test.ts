@@ -207,6 +207,369 @@ describe("chat message schema migration", () => {
     expect(updateRuns[0]?.[1]).toBe(CHAT_MESSAGE_SCHEMA_VERSION);
   });
 
+  it("读取旧 chat_message 记录时默认使用本地代理", () => {
+    const db = {
+      prepare: vi.fn((sql: string) => {
+        if (sql === "SELECT * FROM chat_message WHERE id = ?") {
+          return {
+            get: () => ({
+              id: 1,
+              create_time: 1000,
+              update_time: 1000,
+              title: "旧对话",
+              messages: JSON.stringify(buildCurrentMessages()),
+              group_id: null,
+              archived: 0,
+              parent_chat_id: null,
+              branch_index: 0,
+              order_num: null,
+              message_schema_version: CHAT_MESSAGE_SCHEMA_VERSION,
+              title_dirty: 1,
+            }),
+          };
+        }
+
+        if (
+          sql ===
+          "UPDATE chat_message SET messages = ?, message_schema_version = ? WHERE id = ?"
+        ) {
+          return {
+            run: vi.fn(),
+          };
+        }
+
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    } as any;
+
+    const chat = ChatMessageTable.getChatMessageById(db, 1);
+
+    expect(chat.agentType).toBe("local");
+    expect(chat.agentSessionId).toBeNull();
+  });
+
+  it("新建和更新 chat_message 时保存 Codex 代理会话信息", () => {
+    const now = 1234;
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    let storedRow: any = null;
+    const db = {
+      prepare: vi.fn((sql: string) => {
+        if (sql.startsWith("INSERT INTO chat_message")) {
+          return {
+            run: (...args: unknown[]) => {
+              storedRow = {
+                id: 1,
+                create_time: args[0],
+                update_time: args[1],
+                title: args[2],
+                messages: args[3],
+                group_id: args[4],
+                archived: 0,
+                parent_chat_id: args[5],
+                branch_index: args[6],
+                order_num: args[7],
+                message_schema_version: args[8],
+                title_dirty: args[9],
+                agent_type: args[10],
+                agent_session_id: args[11],
+              };
+              return { lastInsertRowid: 1 };
+            },
+          };
+        }
+
+        if (sql === "SELECT * FROM chat_message WHERE id = ?") {
+          return {
+            get: () => storedRow,
+          };
+        }
+
+        if (sql.startsWith("UPDATE chat_message SET update_time")) {
+          return {
+            run: (...args: unknown[]) => {
+              storedRow = {
+                ...storedRow,
+                update_time: args[0],
+                title: args[1],
+                messages: args[2],
+                group_id: args[3],
+                archived: args[4],
+                parent_chat_id: args[5],
+                branch_index: args[6],
+                order_num: args[7],
+                message_schema_version: args[8],
+                title_dirty: args[9],
+                agent_type: args[10],
+                agent_session_id: args[11],
+              };
+            },
+          };
+        }
+
+        if (
+          sql ===
+          "UPDATE chat_message SET messages = ?, message_schema_version = ? WHERE id = ?"
+        ) {
+          return {
+            run: vi.fn(),
+          };
+        }
+
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    } as any;
+
+    const created = ChatMessageTable.createChatMessage(
+      db,
+      buildCurrentMessages(),
+      "Codex 对话",
+      null,
+      null,
+      0,
+      null,
+      false,
+      "codex",
+      "codex-thread-1",
+    );
+
+    expect(created.agentType).toBe("codex");
+    expect(created.agentSessionId).toBe("codex-thread-1");
+
+    const updated = ChatMessageTable.updateChatMessage(db, {
+      ...created,
+      agentSessionId: "codex-thread-2",
+    });
+
+    expect(updated.agentType).toBe("codex");
+    expect(updated.agentSessionId).toBe("codex-thread-2");
+  });
+
+  it("新建和更新外部聊天记录时保存 Codex 代理会话信息", () => {
+    const now = 2345;
+    vi.spyOn(Date, "now").mockReturnValue(now);
+
+    const buildExternalDb = (
+      tableName: "pdf_chats" | "video_note_chats" | "vibe_learning_chats",
+      ownerColumn: "pdf_id" | "video_note_id" | "project_id",
+      ownerId: number,
+    ) => {
+      let storedRow: any = null;
+      return {
+        prepare: vi.fn((sql: string) => {
+          if (sql.includes(`INSERT INTO ${tableName}`)) {
+            return {
+              run: (...args: unknown[]) => {
+                storedRow = {
+                  id: ownerId,
+                  [ownerColumn]: ownerId,
+                  create_time: args[1],
+                  update_time: args[2],
+                  messages: args[3],
+                  title: args[4],
+                  archived: 0,
+                  parent_chat_id: args[5],
+                  branch_index: args[6],
+                  message_schema_version: args[7],
+                  agent_type: args[8],
+                  agent_session_id: args[9],
+                };
+                return { lastInsertRowid: ownerId };
+              },
+            };
+          }
+
+          if (sql === `SELECT * FROM ${tableName} WHERE id = ?`) {
+            return {
+              get: () => storedRow,
+            };
+          }
+
+          if (sql.includes("SELECT COALESCE(MAX(branch_index), -1) + 1")) {
+            return {
+              get: () => ({ next_index: 0 }),
+            };
+          }
+
+          if (sql.trimStart().startsWith(`UPDATE ${tableName} SET`)) {
+            return {
+              run: (...args: unknown[]) => {
+                storedRow = {
+                  ...storedRow,
+                  update_time: args[0],
+                  messages: args[1],
+                  title: args[2],
+                  archived: args[3],
+                  parent_chat_id: args[4],
+                  branch_index: args[5],
+                  message_schema_version: args[6],
+                  agent_type: args[7],
+                  agent_session_id: args[8],
+                };
+              },
+            };
+          }
+
+          if (
+            sql ===
+            `UPDATE ${tableName} SET messages = ?, message_schema_version = ? WHERE id = ?`
+          ) {
+            return {
+              run: vi.fn(),
+            };
+          }
+
+          throw new Error(`Unexpected SQL: ${sql}`);
+        }),
+        transaction: vi.fn((fn: () => number) => fn),
+      } as any;
+    };
+
+    const pdfDb = buildExternalDb("pdf_chats", "pdf_id", 10);
+    const pdfChat = PdfChatTable.createChat(pdfDb, {
+      pdfId: 10,
+      messages: buildCurrentMessages(),
+      title: "PDF Codex",
+      agentType: "codex",
+      agentSessionId: "pdf-thread-1",
+    });
+    const updatedPdfChat = PdfChatTable.updateChat(pdfDb, {
+      ...pdfChat,
+      agentSessionId: "pdf-thread-2",
+    });
+
+    const videoDb = buildExternalDb("video_note_chats", "video_note_id", 20);
+    const videoChat = VideoNoteChatTable.createChat(videoDb, {
+      videoNoteId: 20,
+      messages: buildCurrentMessages(),
+      title: "视频 Codex",
+      agentType: "codex",
+      agentSessionId: "video-thread-1",
+    });
+    const updatedVideoChat = VideoNoteChatTable.updateChat(videoDb, {
+      ...videoChat,
+      agentSessionId: "video-thread-2",
+    });
+
+    const vibeDb = buildExternalDb("vibe_learning_chats", "project_id", 30);
+    const vibeChat = VibeLearningChatTable.createChat(vibeDb, {
+      projectId: 30,
+      messages: buildCurrentMessages(),
+      title: "学习 Codex",
+      agentType: "codex",
+      agentSessionId: "vibe-thread-1",
+    });
+    const updatedVibeChat = VibeLearningChatTable.updateChat(vibeDb, {
+      ...vibeChat,
+      agentSessionId: "vibe-thread-2",
+    });
+
+    expect(pdfChat.agentType).toBe("codex");
+    expect(pdfChat.agentSessionId).toBe("pdf-thread-1");
+    expect(updatedPdfChat?.agentSessionId).toBe("pdf-thread-2");
+    expect(videoChat.agentType).toBe("codex");
+    expect(videoChat.agentSessionId).toBe("video-thread-1");
+    expect(updatedVideoChat?.agentSessionId).toBe("video-thread-2");
+    expect(vibeChat.agentType).toBe("codex");
+    expect(vibeChat.agentSessionId).toBe("vibe-thread-1");
+    expect(updatedVibeChat?.agentSessionId).toBe("vibe-thread-2");
+
+    vi.restoreAllMocks();
+  });
+
+  it("更新外部聊天记录时支持显式清空 Codex 会话 ID", () => {
+    const now = 3456;
+    vi.spyOn(Date, "now").mockReturnValue(now);
+
+    const buildExternalDb = (
+      tableName: "pdf_chats" | "video_note_chats" | "vibe_learning_chats",
+      ownerColumn: "pdf_id" | "video_note_id" | "project_id",
+      ownerId: number,
+    ) => {
+      let storedRow: any = {
+        id: ownerId,
+        [ownerColumn]: ownerId,
+        create_time: now,
+        update_time: now,
+        messages: JSON.stringify(buildCurrentMessages()),
+        title: "Codex 对话",
+        archived: 0,
+        parent_chat_id: null,
+        branch_index: 0,
+        message_schema_version: CHAT_MESSAGE_SCHEMA_VERSION,
+        agent_type: "codex",
+        agent_session_id: `${tableName}-thread`,
+      };
+
+      return {
+        prepare: vi.fn((sql: string) => {
+          if (sql === `SELECT * FROM ${tableName} WHERE id = ?`) {
+            return {
+              get: () => storedRow,
+            };
+          }
+
+          if (sql.trimStart().startsWith(`UPDATE ${tableName} SET`)) {
+            return {
+              run: (...args: unknown[]) => {
+                storedRow = {
+                  ...storedRow,
+                  update_time: args[0],
+                  messages: args[1],
+                  title: args[2],
+                  archived: args[3],
+                  parent_chat_id: args[4],
+                  branch_index: args[5],
+                  message_schema_version: args[6],
+                  agent_type: args[7],
+                  agent_session_id: args[8],
+                };
+              },
+            };
+          }
+
+          if (
+            sql ===
+            `UPDATE ${tableName} SET messages = ?, message_schema_version = ? WHERE id = ?`
+          ) {
+            return {
+              run: vi.fn(),
+            };
+          }
+
+          throw new Error(`Unexpected SQL: ${sql}`);
+        }),
+      } as any;
+    };
+
+    const pdfChat = PdfChatTable.updateChat(
+      buildExternalDb("pdf_chats", "pdf_id", 10),
+      {
+        id: 10,
+        agentSessionId: null,
+      },
+    );
+    const videoChat = VideoNoteChatTable.updateChat(
+      buildExternalDb("video_note_chats", "video_note_id", 20),
+      {
+        id: 20,
+        agentSessionId: null,
+      },
+    );
+    const vibeChat = VibeLearningChatTable.updateChat(
+      buildExternalDb("vibe_learning_chats", "project_id", 30),
+      {
+        id: 30,
+        agentSessionId: null,
+      },
+    );
+
+    expect(pdfChat?.agentSessionId).toBeNull();
+    expect(videoChat?.agentSessionId).toBeNull();
+    expect(vibeChat?.agentSessionId).toBeNull();
+
+    vi.restoreAllMocks();
+  });
+
   it("新建各类聊天记录时直接写入最新 schema version", () => {
     const now = 1234;
     vi.spyOn(Date, "now").mockReturnValue(now);
