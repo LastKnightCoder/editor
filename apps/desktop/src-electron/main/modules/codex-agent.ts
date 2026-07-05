@@ -19,6 +19,7 @@ import {
 import {
   createCodexCliEnvironment,
   resolveCodexCliPath,
+  resolveCodexCliRuntime,
 } from "./codex-agent-cli";
 import { getTauToolAnnotations } from "./codex-agent-mcp-annotations";
 
@@ -458,11 +459,13 @@ export default class CodexAgent extends EventEmitter {
       }
 
       const mcpUrl = await mcpBridge.ensure(sender, params.mcpTools || []);
-      const codexCliPath = resolveCodexCliPath();
-      const codexEnv = createCodexCliEnvironment();
+      const codexRuntime = resolveCodexCliRuntime();
+      const codexEnv = createCodexCliEnvironment({
+        extraPathEntries: codexRuntime.pathDirs,
+      });
       const { Codex } = await import("@openai/codex-sdk");
       const codex = new Codex({
-        codexPathOverride: codexCliPath,
+        codexPathOverride: codexRuntime.executablePath,
         env: codexEnv,
         config: {
           mcp_servers: {
