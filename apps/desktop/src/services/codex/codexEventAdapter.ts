@@ -43,6 +43,8 @@ type CodexItem = {
   result?: unknown;
   output?: unknown;
   aggregated_output?: unknown;
+  structured_content?: unknown;
+  structuredContent?: unknown;
   command?: unknown;
   cwd?: unknown;
   working_directory?: unknown;
@@ -234,6 +236,42 @@ const buildResultOutput = (item: CodexItem): string => {
   return extractTextContent(result);
 };
 
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+
+const getStructuredContent = (
+  value: unknown,
+): Record<string, unknown> | null => {
+  const record = asRecord(value);
+  if (!record) {
+    return null;
+  }
+
+  return (
+    asRecord(record.structured_content) ||
+    asRecord(record.structuredContent) ||
+    null
+  );
+};
+
+const getLocalToolMetadata = (
+  item: CodexItem,
+): Record<string, unknown> | null => {
+  if (item.type !== "mcp_tool_call") {
+    return null;
+  }
+
+  return (
+    getStructuredContent(item.result) ||
+    getStructuredContent(item.output) ||
+    getStructuredContent(item.aggregated_output) ||
+    asRecord(item.structured_content) ||
+    asRecord(item.structuredContent)
+  );
+};
+
 export const mapCodexItemToToolExecution = (
   item: CodexItem,
 ): ToolCallExecutionState => {
@@ -263,6 +301,12 @@ export const mapCodexItemToToolExecution = (
     codexItemType === "web_search"
       ? String(item.query ?? extractItemText(item) ?? "")
       : buildResultOutput(item);
+  const localToolMetadata = getLocalToolMetadata(item);
+  const localRender = asRecord(localToolMetadata?.render);
+  const render = localRender || {
+    rendererKey: `codex.${codexItemType}`,
+    payload: item,
+  };
 
   return {
     toolCallId: String(item.id || `${codexItemType}:${toolName}`),
@@ -273,14 +317,12 @@ export const mapCodexItemToToolExecution = (
     error: status === "failed" ? output || "Codex 工具调用失败" : undefined,
     timestamp: Date.now(),
     metadata: {
+      ...(localToolMetadata || {}),
       codexItemType,
       server: item.server,
       command: commandText || undefined,
       rawItem: item,
-      render: {
-        rendererKey: `codex.${codexItemType}`,
-        payload: item,
-      },
+      render,
     },
   };
 };
