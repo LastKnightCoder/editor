@@ -462,6 +462,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           content.push({
             type: "image",
             image: image.previewUrl,
+            path: image.path,
             resourceId: image.resourceId,
           });
         });

@@ -13,7 +13,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useMemoizedFn } from "ahooks";
+import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { useShallow } from "zustand/react/shallow";
 import "katex/dist/katex.min.css";
 
@@ -32,7 +32,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import usePdfChatStore, { EPdfChatStatus } from "@/stores/usePdfChatStore";
 import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
 import { buildSessionAwareSystemPrompt, Role } from "@/constants";
-import type { ChatMessage, Pdf, ResponseMessage } from "@/types";
+import type { ChatAgentType, ChatMessage, Pdf, ResponseMessage } from "@/types";
 import { ensurePdfIndex, openExternal } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 import usePdfChat from "./usePdfChat";
@@ -40,6 +40,10 @@ import {
   buildPdfCitationMarkerLabel,
   type PdfCitationTarget,
 } from "./pdfCitation";
+import {
+  CHAT_AGENT_TYPE_STORAGE_KEY,
+  normalizeChatAgentType,
+} from "@/constants/chatAgent";
 
 const ChatContainer = lazy(
   () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer"),
@@ -204,6 +208,12 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
     const editTitleRef = useRef<EditTextHandle>(null);
     const chatContainerRef = useRef<ChatContainerHandle>(null);
     const [chatContainerReady, setChatContainerReady] = useState(false);
+    const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(
+      CHAT_AGENT_TYPE_STORAGE_KEY,
+      {
+        defaultValue: "local",
+      },
+    );
     const database = useSettingStore((state) => state.setting.database.active);
     const isConnected = useDatabaseConnected();
 
@@ -262,6 +272,8 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
         archived: currentChat.archived,
         parentChatId: currentChat.parentChatId,
         branchIndex: currentChat.branchIndex,
+        agentType: currentChat.agentType,
+        agentSessionId: currentChat.agentSessionId,
       };
     }, [currentChat, systemPrompt]);
 
@@ -277,6 +289,8 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
           archived: chat.archived,
           parentChatId: chat.parentChatId,
           branchIndex: chat.branchIndex,
+          agentType: chat.agentType,
+          agentSessionId: chat.agentSessionId,
         })),
       [chats],
     );
@@ -345,7 +359,11 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
       ];
       setCreateMessageLoading(true);
       try {
-        await createChat(messages);
+        await createChat(
+          messages,
+          undefined,
+          normalizeChatAgentType(rememberedAgentType),
+        );
       } catch (error) {
         message.error("创建对话失败");
         console.error(error);
@@ -370,8 +388,18 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
     });
 
     const handleExternalCreateChat = useMemoizedFn(
-      async (messages: ChatMessage["messages"], title?: string) => {
-        const created = await createChat(messages, title);
+      async (
+        messages: ChatMessage["messages"],
+        title?: string,
+        agentType?: ChatAgentType,
+        agentSessionId?: string | null,
+      ) => {
+        const created = await createChat(
+          messages,
+          title,
+          agentType,
+          agentSessionId,
+        );
         return {
           id: created.id,
           createTime: created.createTime,
@@ -382,6 +410,8 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
           archived: created.archived,
           parentChatId: created.parentChatId,
           branchIndex: created.branchIndex,
+          agentType: created.agentType,
+          agentSessionId: created.agentSessionId,
         };
       },
     );
@@ -399,6 +429,8 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
           archived: created.archived,
           parentChatId: created.parentChatId,
           branchIndex: created.branchIndex,
+          agentType: created.agentType,
+          agentSessionId: created.agentSessionId,
         };
       },
     );
@@ -413,6 +445,8 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
         messages: chat.messages,
         title: chat.title,
         archived: chat.archived,
+        agentType: chat.agentType,
+        agentSessionId: chat.agentSessionId,
       });
       return {
         ...chat,
@@ -431,6 +465,8 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
         archived: chat.archived,
         parentChatId: chat.parentChatId,
         branchIndex: chat.branchIndex,
+        agentType: chat.agentType,
+        agentSessionId: chat.agentSessionId,
       });
     });
 

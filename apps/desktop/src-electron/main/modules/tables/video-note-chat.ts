@@ -22,6 +22,8 @@ interface VideoNoteChatRecord {
   parent_chat_id: number | null;
   branch_index: number;
   message_schema_version?: number | null;
+  agent_type?: string | null;
+  agent_session_id?: string | null;
 }
 
 export default class VideoNoteChatTable {
@@ -32,10 +34,25 @@ export default class VideoNoteChatTable {
     const hasMessageSchemaVersion = tableInfo.some(
       (col) => col.name === "message_schema_version",
     );
+    const hasAgentType = tableInfo.some((col) => col.name === "agent_type");
+    const hasAgentSessionId = tableInfo.some(
+      (col) => col.name === "agent_session_id",
+    );
     if (!hasMessageSchemaVersion) {
       db.exec(
         "ALTER TABLE video_note_chats ADD COLUMN message_schema_version INTEGER DEFAULT 1",
       );
+    }
+    if (!hasAgentType) {
+      db.exec(
+        "ALTER TABLE video_note_chats ADD COLUMN agent_type TEXT DEFAULT 'local'",
+      );
+      db.exec(
+        "UPDATE video_note_chats SET agent_type = 'local' WHERE agent_type IS NULL",
+      );
+    }
+    if (!hasAgentSessionId) {
+      db.exec("ALTER TABLE video_note_chats ADD COLUMN agent_session_id TEXT");
     }
     db.exec(
       "UPDATE video_note_chats SET message_schema_version = 1 WHERE message_schema_version IS NULL",
@@ -81,6 +98,8 @@ export default class VideoNoteChatTable {
         archived: Boolean(record.archived),
         parentChatId: record.parent_chat_id,
         branchIndex: record.branch_index ?? 0,
+        agentType: record.agent_type === "codex" ? "codex" : "local",
+        agentSessionId: record.agent_session_id ?? null,
       },
       migrated:
         migration.changed ||
@@ -105,8 +124,8 @@ export default class VideoNoteChatTable {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO video_note_chats
-      (video_note_id, create_time, update_time, messages, title, archived, parent_chat_id, branch_index, message_schema_version)
-      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)
+      (video_note_id, create_time, update_time, messages, title, archived, parent_chat_id, branch_index, message_schema_version, agent_type, agent_session_id)
+      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
     `);
 
     const migration = migrateChatSessionMessages(params.messages);
@@ -119,6 +138,8 @@ export default class VideoNoteChatTable {
       params.parentChatId ?? null,
       params.branchIndex ?? 0,
       CHAT_MESSAGE_SCHEMA_VERSION,
+      params.agentType ?? "local",
+      params.agentSessionId ?? null,
     );
 
     const chatId = Number(res.lastInsertRowid);
@@ -149,7 +170,9 @@ export default class VideoNoteChatTable {
         archived = ?,
         parent_chat_id = ?,
         branch_index = ?,
-        message_schema_version = ?
+        message_schema_version = ?,
+        agent_type = ?,
+        agent_session_id = ?
       WHERE id = ?
     `);
 
@@ -172,6 +195,10 @@ export default class VideoNoteChatTable {
         : existing.parentChatId,
       params.branchIndex ?? existing.branchIndex ?? 0,
       CHAT_MESSAGE_SCHEMA_VERSION,
+      params.agentType ?? existing.agentType ?? "local",
+      params.agentSessionId !== undefined
+        ? params.agentSessionId
+        : (existing.agentSessionId ?? null),
       params.id,
     );
 

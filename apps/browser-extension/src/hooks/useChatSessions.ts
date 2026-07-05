@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import type { ChatSession } from "../types/chat-session";
+import type { ChatAgentType } from "../types/chat-session";
 import type { ChatMessageType, MessageContentItem } from "@tau/shared";
 
 interface UseChatSessionsReturn {
@@ -8,10 +9,17 @@ interface UseChatSessionsReturn {
   currentSession: ChatSession;
   messages: ChatMessageType[];
   isLoading: boolean;
-  createSession: (systemPromptSnapshot?: string) => Promise<void>;
+  createSession: (
+    systemPromptSnapshot?: string,
+    agentType?: ChatAgentType,
+  ) => Promise<void>;
   ensureSessionSystemPrompt: (
     sessionId: string,
     systemPromptSnapshot: string,
+  ) => Promise<void>;
+  updateCurrentSessionAgentType: (agentType: ChatAgentType) => Promise<void>;
+  updateCurrentSessionAgentSessionId: (
+    agentSessionId: string | null,
   ) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
   updateSessionTitle: (sessionId: string, title: string) => Promise<void>;
@@ -31,7 +39,7 @@ interface UseChatSessionsReturn {
 
 const STORAGE_PREFIX_META = "tau-chats-meta:";
 const STORAGE_PREFIX_MESSAGES = "tau-chat-messages:";
-const STORAGE_SCHEMA_VERSION = 2;
+const STORAGE_SCHEMA_VERSION = 3;
 
 interface StoredSessionMessages {
   schemaVersion: number;
@@ -40,6 +48,9 @@ interface StoredSessionMessages {
 
 const normalizeSessionMeta = (session: ChatSession): ChatSession => ({
   ...session,
+  agentType: session.agentType === "codex" ? "codex" : "local",
+  agentSessionId:
+    typeof session.agentSessionId === "string" ? session.agentSessionId : null,
   schemaVersion: STORAGE_SCHEMA_VERSION,
 });
 
@@ -221,6 +232,7 @@ const buildStoredMessages = (
 export const __chatSessionTestUtils = {
   parseStoredMessages,
   normalizeStoredMessages,
+  normalizeSessionMeta,
   buildStoredMessages,
   STORAGE_SCHEMA_VERSION,
 };
@@ -232,6 +244,8 @@ const DEFAULT_SESSION: ChatSession = {
   createTime: Date.now(),
   updateTime: Date.now(),
   schemaVersion: STORAGE_SCHEMA_VERSION,
+  agentType: "local",
+  agentSessionId: null,
 };
 
 export function useChatSessions(url: string | null): UseChatSessionsReturn {
@@ -350,7 +364,10 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
 
   // 创建新会话
   const createSession = useCallback(
-    async (systemPromptSnapshot?: string) => {
+    async (
+      systemPromptSnapshot?: string,
+      agentType: ChatAgentType = "local",
+    ) => {
       if (!currentUrlRef.current) return;
 
       const nextIndex = sessions.length + 1;
@@ -361,6 +378,8 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
         updateTime: Date.now(),
         schemaVersion: STORAGE_SCHEMA_VERSION,
         systemPromptSnapshot,
+        agentType,
+        agentSessionId: null,
       };
 
       const updatedSessions = [...sessions, newSession];
@@ -379,6 +398,68 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
       });
     },
     [sessions, saveSessionsMeta],
+  );
+
+  const updateCurrentSessionAgentType = useCallback(
+    async (agentType: ChatAgentType) => {
+      if (!currentUrlRef.current) return;
+      const sessionId = currentSessionIdRef.current;
+      if (!sessionId) return;
+
+      const updatedSessions = sessions.map((session) =>
+        session.id === sessionId
+          ? {
+              ...session,
+              agentType,
+              agentSessionId:
+                agentType === session.agentType
+                  ? (session.agentSessionId ?? null)
+                  : null,
+              schemaVersion: STORAGE_SCHEMA_VERSION,
+            }
+          : session,
+      );
+
+      setSessions(updatedSessions);
+      await saveSessionsMeta(currentUrlRef.current, updatedSessions);
+
+      const updatedCurrentSession = updatedSessions.find(
+        (session) => session.id === sessionId,
+      );
+      if (updatedCurrentSession) {
+        setCurrentSession(updatedCurrentSession);
+      }
+    },
+    [saveSessionsMeta, sessions],
+  );
+
+  const updateCurrentSessionAgentSessionId = useCallback(
+    async (agentSessionId: string | null) => {
+      if (!currentUrlRef.current) return;
+      const sessionId = currentSessionIdRef.current;
+      if (!sessionId) return;
+
+      const updatedSessions = sessions.map((session) =>
+        session.id === sessionId
+          ? {
+              ...session,
+              agentSessionId,
+              schemaVersion: STORAGE_SCHEMA_VERSION,
+            }
+          : session,
+      );
+
+      setSessions(updatedSessions);
+      await saveSessionsMeta(currentUrlRef.current, updatedSessions);
+
+      const updatedCurrentSession = updatedSessions.find(
+        (session) => session.id === sessionId,
+      );
+      if (updatedCurrentSession) {
+        setCurrentSession(updatedCurrentSession);
+      }
+    },
+    [saveSessionsMeta, sessions],
   );
 
   const ensureSessionSystemPrompt = useCallback(
@@ -475,6 +556,8 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
             updateTime: Date.now(),
             schemaVersion: STORAGE_SCHEMA_VERSION,
             systemPromptSnapshot: undefined,
+            agentType: "local",
+            agentSessionId: null,
           };
 
           setSessions([newSession]);
@@ -625,6 +708,9 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
         parentChatId: parentId || undefined,
         branchIndex,
         schemaVersion: STORAGE_SCHEMA_VERSION,
+        systemPromptSnapshot: currentSession.systemPromptSnapshot,
+        agentType: currentSession.agentType ?? "local",
+        agentSessionId: null,
       };
 
       const updatedSessions = [...sessions, newSession];
@@ -642,7 +728,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
       currentSessionIdRef.current = newSession.id;
       setMessages(branchMessages);
     },
-    [messages, sessions, saveSessionsMeta],
+    [currentSession, messages, sessions, saveSessionsMeta],
   );
 
   // URL 变化时重新加载会话列表
@@ -679,6 +765,8 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
           updateTime: Date.now(),
           schemaVersion: STORAGE_SCHEMA_VERSION,
           systemPromptSnapshot: undefined,
+          agentType: "local",
+          agentSessionId: null,
         };
 
         setSessions([initialSession]);
@@ -712,6 +800,8 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
     isLoading,
     createSession,
     ensureSessionSystemPrompt,
+    updateCurrentSessionAgentType,
+    updateCurrentSessionAgentSessionId,
     deleteSession,
     updateSessionTitle,
     selectSession,

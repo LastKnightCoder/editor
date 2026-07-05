@@ -13,7 +13,9 @@ import {
   ApiOutlined,
   CheckOutlined,
   CloseOutlined,
+  DownOutlined,
   FilePdfOutlined,
+  FolderOpenOutlined,
   PictureOutlined,
   SendOutlined,
   SettingOutlined,
@@ -48,6 +50,7 @@ import {
   incrementResourceRefCount,
 } from "@/commands";
 import type { IResourceSource } from "@/types";
+import type { ChatAgentType } from "@/types";
 import useMCPManagerModalStore from "@/stores/useMCPManagerModalStore";
 import useTheme from "@/hooks/useTheme";
 import { contentLinkExtension } from "@/editor-extensions";
@@ -74,6 +77,12 @@ interface ChatInputAreaProps {
   onReasoningEffortChange?: (level: ReasoningEffort) => void;
   reasoningEffortDisabled?: boolean;
   showMcpManager?: boolean;
+  agentType?: ChatAgentType;
+  onAgentTypeChange?: (agentType: ChatAgentType) => void;
+  agentTypeDisabled?: boolean;
+  codexWorkingDirectory?: string | null;
+  onSelectCodexWorkingDirectory?: () => void;
+  onClearCodexWorkingDirectory?: () => void;
 }
 
 interface ChatImageItem {
@@ -198,6 +207,12 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       onReasoningEffortChange,
       reasoningEffortDisabled = false,
       showMcpManager = true,
+      agentType = "local",
+      onAgentTypeChange,
+      agentTypeDisabled = false,
+      codexWorkingDirectory = null,
+      onSelectCodexWorkingDirectory,
+      onClearCodexWorkingDirectory,
     },
     ref,
   ) => {
@@ -507,6 +522,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           content.push({
             type: "image",
             image: image.previewUrl,
+            path: image.path,
             resourceId: image.resourceId,
           });
         });
@@ -590,6 +606,57 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     );
     const reasoningControlDisabled =
       reasoningEffortDisabled || sendLoading || !contentEditable;
+    const agentTypeMenuItems = useMemo(
+      () => [
+        {
+          key: "local",
+          label: (
+            <div className="flex min-w-[160px] items-center justify-between gap-3">
+              <span>本地代理</span>
+              {agentType === "local" && <CheckOutlined />}
+            </div>
+          ),
+        },
+        {
+          key: "codex",
+          label: (
+            <div className="flex min-w-[160px] items-center justify-between gap-3">
+              <span>Codex</span>
+              {agentType === "codex" && <CheckOutlined />}
+            </div>
+          ),
+        },
+      ],
+      [agentType],
+    );
+    const agentTypeControlDisabled =
+      agentTypeDisabled || sendLoading || !contentEditable;
+    const codexWorkspaceControlDisabled = sendLoading || !contentEditable;
+    const codexWorkspaceLabel = useMemo(() => {
+      if (!codexWorkingDirectory) {
+        return "临时目录";
+      }
+      const normalized = codexWorkingDirectory.replace(/\\/g, "/");
+      const parts = normalized.split("/").filter(Boolean);
+      if (parts.length <= 2) {
+        return normalized;
+      }
+      return `.../${parts.slice(-2).join("/")}`;
+    }, [codexWorkingDirectory]);
+    const codexWorkspaceMenuItems = useMemo<MenuProps["items"]>(
+      () => [
+        {
+          key: "select",
+          label: "选择工作区目录",
+        },
+        {
+          key: "temporary",
+          label: "使用临时目录",
+          disabled: !codexWorkingDirectory,
+        },
+      ],
+      [codexWorkingDirectory],
+    );
 
     const handleCreateNewMessageClick = useMemoizedFn(() => {
       setIsNewChatTooltipOpen(false);
@@ -703,6 +770,104 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                   className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400!"
                 />
               </Tooltip>
+            )}
+
+            {onAgentTypeChange && (
+              <Dropdown
+                menu={{
+                  items: agentTypeMenuItems,
+                  onClick: ({ key }) => onAgentTypeChange(key as ChatAgentType),
+                }}
+                trigger={["click"]}
+                disabled={agentTypeControlDisabled}
+              >
+                <span
+                  style={{
+                    display: "inline-block",
+                    cursor: agentTypeControlDisabled
+                      ? "not-allowed"
+                      : "pointer",
+                  }}
+                >
+                  <Tooltip
+                    placement="left"
+                    title={
+                      agentTypeControlDisabled
+                        ? "本次会话已锁定代理"
+                        : "选择代理"
+                    }
+                  >
+                    <Button
+                      type="text"
+                      size="small"
+                      disabled={agentTypeControlDisabled}
+                      className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400! flex items-center gap-1.5"
+                      style={{
+                        pointerEvents: agentTypeControlDisabled
+                          ? "none"
+                          : "auto",
+                      }}
+                    >
+                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                        {agentType === "codex" ? "Codex" : "本地代理"}
+                      </span>
+                      <DownOutlined className="text-[10px] text-gray-500 dark:text-gray-400" />
+                    </Button>
+                  </Tooltip>
+                </span>
+              </Dropdown>
+            )}
+
+            {agentType === "codex" && onSelectCodexWorkingDirectory && (
+              <Dropdown
+                menu={{
+                  items: codexWorkspaceMenuItems,
+                  onClick: ({ key }) => {
+                    if (key === "temporary") {
+                      onClearCodexWorkingDirectory?.();
+                      return;
+                    }
+                    onSelectCodexWorkingDirectory();
+                  },
+                }}
+                trigger={["click"]}
+                disabled={codexWorkspaceControlDisabled}
+              >
+                <span
+                  style={{
+                    display: "inline-block",
+                    cursor: codexWorkspaceControlDisabled
+                      ? "not-allowed"
+                      : "pointer",
+                  }}
+                >
+                  <Tooltip
+                    placement="right"
+                    title={
+                      codexWorkingDirectory ||
+                      "未选择工作区，每次请求使用临时目录"
+                    }
+                  >
+                    <Button
+                      type="text"
+                      size="small"
+                      disabled={codexWorkspaceControlDisabled}
+                      icon={<FolderOpenOutlined />}
+                      className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400! flex max-w-[220px] items-center gap-1.5"
+                      style={{
+                        pointerEvents: codexWorkspaceControlDisabled
+                          ? "none"
+                          : "auto",
+                      }}
+                    >
+                      <span className="min-w-0 truncate text-xs font-medium text-gray-600 dark:text-gray-400">
+                        工作区: {codexWorkspaceLabel}
+                      </span>
+                      <DownOutlined className="text-[10px] text-gray-500 dark:text-gray-400" />
+                    </Button>
+                  </Tooltip>
+                </span>
+              </Dropdown>
             )}
 
             {modelSelectItems.length > 0 && onModelSelect && (

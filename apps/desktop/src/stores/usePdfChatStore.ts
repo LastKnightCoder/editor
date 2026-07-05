@@ -1,6 +1,10 @@
 import { create } from "zustand";
 import { produce } from "immer";
-import type { ChatSessionMessage, PdfChatMessage } from "@/types";
+import type {
+  ChatAgentType,
+  ChatSessionMessage,
+  PdfChatMessage,
+} from "@/types";
 import {
   createPdfChat,
   updatePdfChat,
@@ -29,6 +33,8 @@ interface IAction {
   createChat: (
     messages: ChatSessionMessage[],
     title?: string,
+    agentType?: ChatAgentType,
+    agentSessionId?: string | null,
   ) => Promise<PdfChatMessage>;
   updateChat: (
     chat: Omit<PdfChatMessage, "updateTime">,
@@ -39,6 +45,7 @@ interface IAction {
     parentChatId: number,
     messages: ChatSessionMessage[],
     title?: string,
+    agentType?: ChatAgentType,
   ) => Promise<PdfChatMessage>;
   getChildBranchesCount: (parentChatId: number) => Promise<number>;
 }
@@ -91,7 +98,7 @@ const usePdfChatStore = create<IState & IAction>()((set, get) => ({
     });
   },
 
-  createChat: async (messages, title) => {
+  createChat: async (messages, title, agentType, agentSessionId) => {
     const { pdfId, chats } = get();
     if (!pdfId) {
       throw new Error("PDF ID is not set");
@@ -101,6 +108,8 @@ const usePdfChatStore = create<IState & IAction>()((set, get) => ({
       pdfId,
       messages,
       title: title || "新对话",
+      agentType: agentType ?? "local",
+      agentSessionId: agentSessionId ?? null,
     });
     const newChats = produce(chats, (draft) => {
       draft.unshift(createdChat);
@@ -118,6 +127,8 @@ const usePdfChatStore = create<IState & IAction>()((set, get) => ({
       archived: chat.archived,
       parentChatId: chat.parentChatId,
       branchIndex: chat.branchIndex,
+      agentType: chat.agentType ?? "local",
+      agentSessionId: chat.agentSessionId ?? null,
     });
     if (!updatedChat) {
       throw new Error("Failed to update chat");
@@ -171,7 +182,7 @@ const usePdfChatStore = create<IState & IAction>()((set, get) => ({
     set({ chats: newChats, currentChatId: newCurrentChatId });
   },
 
-  createChatBranch: async (parentChatId, messages, title) => {
+  createChatBranch: async (parentChatId, messages, title, agentType) => {
     const { pdfId, chats } = get();
     if (!pdfId) {
       throw new Error("PDF ID is not set");
@@ -194,6 +205,8 @@ const usePdfChatStore = create<IState & IAction>()((set, get) => ({
       messages,
       title: title || `${parentChat.title} - 分支 ${fallbackBranchIndex + 1}`,
       parentChatId,
+      agentType: agentType ?? parentChat.agentType ?? "local",
+      agentSessionId: null,
     });
 
     const newChats = produce(chats, (draft) => {

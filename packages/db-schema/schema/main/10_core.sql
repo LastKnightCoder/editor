@@ -113,7 +113,9 @@ CREATE TABLE IF NOT EXISTS pdf_chats (
         archived INTEGER DEFAULT 0,
         parent_chat_id INTEGER,
         branch_index INTEGER DEFAULT 0,
-        message_schema_version INTEGER DEFAULT 3
+        message_schema_version INTEGER DEFAULT 3,
+        agent_type TEXT DEFAULT 'local',
+        agent_session_id TEXT
       );
 CREATE TABLE IF NOT EXISTS daily_notes (
             id INTEGER PRIMARY KEY,
@@ -187,7 +189,9 @@ CREATE TABLE IF NOT EXISTS video_note_chats (
         archived INTEGER DEFAULT 0,
         parent_chat_id INTEGER,
         branch_index INTEGER DEFAULT 0,
-        message_schema_version INTEGER DEFAULT 3
+        message_schema_version INTEGER DEFAULT 3,
+        agent_type TEXT DEFAULT 'local',
+        agent_session_id TEXT
       );
 CREATE TABLE IF NOT EXISTS audio_notes (
         id INTEGER PRIMARY KEY,

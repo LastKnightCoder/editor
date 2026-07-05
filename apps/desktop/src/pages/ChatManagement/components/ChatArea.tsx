@@ -12,7 +12,7 @@ import { App, Spin, Dropdown } from "antd";
 import { GitBranch, ChevronDown } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { LoadingOutlined } from "@ant-design/icons";
-import { useMemoizedFn } from "ahooks";
+import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 import "katex/dist/katex.min.css";
 
@@ -27,8 +27,12 @@ import {
   MarkdownProvider,
   useMarkdownContext,
 } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
-import { ResponseMessage, ChatSessionMessage } from "@/types";
+import { ChatAgentType, ResponseMessage, ChatSessionMessage } from "@/types";
 import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
+import {
+  CHAT_AGENT_TYPE_STORAGE_KEY,
+  normalizeChatAgentType,
+} from "@/constants/chatAgent";
 import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
 import BlockCard from "@/components/BlockCard";
 import { blockRegistry } from "@/utils/blockRegistry";
@@ -55,6 +59,7 @@ const DEFAULT_CHAT = {
   archived: false,
   parentChatId: null,
   branchIndex: 0,
+  agentSessionId: null,
 };
 
 // 简单的字符串hash函数
@@ -86,6 +91,12 @@ const ChatArea = memo(
       const { message } = App.useApp();
       const editTitleRef = useRef<EditTextHandle>(null);
       const chatContainerRef = useRef<ChatContainerHandle>(null);
+      const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(
+        CHAT_AGENT_TYPE_STORAGE_KEY,
+        {
+          defaultValue: "local",
+        },
+      );
 
       const {
         chats,
@@ -194,7 +205,13 @@ const ChatArea = memo(
         setCreateMessageLoading(true);
 
         try {
-          const newChat = await createChatMessage(messages, "新对话", null);
+          const newChat = await createChatMessage(
+            messages,
+            "新对话",
+            null,
+            false,
+            normalizeChatAgentType(rememberedAgentType),
+          );
           onSelectChat(newChat.id);
         } catch (error) {
           message.error("Failed to create new chat");
@@ -220,11 +237,19 @@ const ChatArea = memo(
 
       // ChatContainer 需要的创建对话回调
       const handleCreateChat = useMemoizedFn(
-        async (messages: ChatSessionMessage[], title?: string) => {
+        async (
+          messages: ChatSessionMessage[],
+          title?: string,
+          agentType?: ChatAgentType,
+          agentSessionId?: string | null,
+        ) => {
           return await createChatMessage(
             messages,
             title,
             currentChat?.groupId ?? null,
+            false,
+            agentType,
+            agentSessionId,
           );
         },
       );

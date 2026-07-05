@@ -9,7 +9,7 @@ import {
 } from "react";
 import { App } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
-import { useMemoizedFn } from "ahooks";
+import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { useShallow } from "zustand/react/shallow";
 import "katex/dist/katex.min.css";
 import type { EditTextHandle } from "@/components/EditText";
@@ -26,13 +26,17 @@ import {
 } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
 import { shouldRenderAsBlockCode } from "@/layouts/ContentLayout/components/ChatSidebar/codeBlockUtils";
 import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
-import { ResponseMessage, ChatMessage } from "@/types";
+import { ResponseMessage, ChatAgentType, ChatMessage } from "@/types";
 import { Role, buildSessionAwareSystemPrompt } from "@/constants";
 import useVideoNoteChatStore, {
   EVideoNoteChatStatus,
 } from "@/stores/useVideoNoteChatStore";
 import { buildVideoNoteSystemPrompt } from "@/tools/videoNoteSearchTool";
 import { useVideoNoteChat } from "./useVideoNoteChat";
+import {
+  CHAT_AGENT_TYPE_STORAGE_KEY,
+  normalizeChatAgentType,
+} from "@/constants/chatAgent";
 
 const ChatContainer = lazy(
   () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer"),
@@ -122,6 +126,12 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
   const { message } = App.useApp();
   const editTitleRef = useRef<EditTextHandle>(null);
   const chatContainerRef = useRef<ChatContainerHandle>(null);
+  const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(
+    CHAT_AGENT_TYPE_STORAGE_KEY,
+    {
+      defaultValue: "local",
+    },
+  );
 
   const database = useSettingStore((state) => state.setting.database.active);
   const isConnected = useDatabaseConnected();
@@ -184,6 +194,8 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
       archived: currentChat.archived,
       parentChatId: currentChat.parentChatId,
       branchIndex: currentChat.branchIndex,
+      agentType: currentChat.agentType,
+      agentSessionId: currentChat.agentSessionId,
     };
   }, [currentChat, systemPrompt]);
 
@@ -199,6 +211,8 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
         archived: chat.archived,
         parentChatId: chat.parentChatId,
         branchIndex: chat.branchIndex,
+        agentType: chat.agentType,
+        agentSessionId: chat.agentSessionId,
       })),
     [chats],
   );
@@ -215,7 +229,11 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
     ];
     setCreateMessageLoading(true);
     try {
-      await createChat(messages);
+      await createChat(
+        messages,
+        undefined,
+        normalizeChatAgentType(rememberedAgentType),
+      );
     } catch (error) {
       message.error("创建对话失败");
       console.error(error);
@@ -240,11 +258,23 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
   });
 
   const handleExternalCreateChat = useMemoizedFn(
-    async (messages: ChatMessage["messages"], title?: string) => {
-      const created = await createChat(messages, title);
+    async (
+      messages: ChatMessage["messages"],
+      title?: string,
+      agentType?: ChatAgentType,
+      agentSessionId?: string | null,
+    ) => {
+      const created = await createChat(
+        messages,
+        title,
+        agentType,
+        agentSessionId,
+      );
       return {
         ...currentChatAsMessage,
         ...created,
+        agentType: created.agentType,
+        agentSessionId: created.agentSessionId,
       } as ChatMessage;
     },
   );
@@ -255,6 +285,8 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
       return {
         ...currentChatAsMessage,
         ...created,
+        agentType: created.agentType,
+        agentSessionId: created.agentSessionId,
       } as ChatMessage;
     },
   );
@@ -269,6 +301,8 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
       messages: chat.messages,
       title: chat.title,
       archived: chat.archived,
+      agentType: chat.agentType,
+      agentSessionId: chat.agentSessionId,
     });
     return {
       ...chat,
@@ -287,6 +321,8 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
       archived: chat.archived,
       parentChatId: chat.parentChatId,
       branchIndex: chat.branchIndex,
+      agentType: chat.agentType,
+      agentSessionId: chat.agentSessionId,
     });
   });
 

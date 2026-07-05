@@ -38,6 +38,13 @@ class Extra implements Module {
       return resolve(path);
     });
 
+    ipcMain.handle("select-directory-with-dialog", async () => {
+      const result = await dialog.showOpenDialog({
+        properties: ["openDirectory", "createDirectory"],
+      });
+      return result.canceled ? null : (result.filePaths[0] ?? null);
+    });
+
     ipcMain.handle(
       "download-file-with-dialog",
       async (_event, url: string, defaultFileName?: string) => {

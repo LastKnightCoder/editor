@@ -37,6 +37,50 @@ export const shouldGenerateChatTitle = (
   hasTitleModelConfig: boolean,
 ): boolean => chat.titleDirty === false && hasTitleModelConfig;
 
+export const buildTitleSummaryMessages = (
+  chat: ChatMessage,
+): RequestMessage[] =>
+  chat.messages
+    .slice(1)
+    .slice(-2)
+    .map((message): RequestMessage => {
+      if (message.role === Role.User) {
+        const userMessage = message as RequestMessage;
+        const sourceContent = userMessage.content;
+        const textContent = Array.isArray(sourceContent)
+          ? sourceContent.filter(
+              (item): item is TextContent =>
+                item.type === "text" && item.text.trim().length > 0,
+            )
+          : sourceContent
+            ? [
+                {
+                  type: "text",
+                  text: sourceContent,
+                } as TextContent,
+              ]
+            : [];
+        return {
+          role: message.role,
+          content: textContent,
+        };
+      }
+
+      const responseMsg = message as ResponseMessage;
+      return {
+        role: message.role,
+        content: [{ type: "text", text: responseMsg.content }],
+      };
+    })
+    .filter(
+      (message) =>
+        Array.isArray(message.content) &&
+        message.content.length > 0 &&
+        message.content.some(
+          (item) => item.type === "text" && item.text.trim().length > 0,
+        ),
+    );
+
 export const buildResetBaseChat = (
   chat: ChatMessage,
   visibleMessageIndex: number,

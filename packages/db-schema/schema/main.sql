@@ -120,7 +120,9 @@ CREATE TABLE IF NOT EXISTS pdf_chats (
         archived INTEGER DEFAULT 0,
         parent_chat_id INTEGER,
         branch_index INTEGER DEFAULT 0,
-        message_schema_version INTEGER DEFAULT 3
+        message_schema_version INTEGER DEFAULT 3,
+        agent_type TEXT DEFAULT 'local',
+        agent_session_id TEXT
       );
 CREATE TABLE IF NOT EXISTS daily_notes (
             id INTEGER PRIMARY KEY,
@@ -194,7 +196,9 @@ CREATE TABLE IF NOT EXISTS video_note_chats (
         archived INTEGER DEFAULT 0,
         parent_chat_id INTEGER,
         branch_index INTEGER DEFAULT 0,
-        message_schema_version INTEGER DEFAULT 3
+        message_schema_version INTEGER DEFAULT 3,
+        agent_type TEXT DEFAULT 'local',
+        agent_session_id TEXT
       );
 CREATE TABLE IF NOT EXISTS audio_notes (
         id INTEGER PRIMARY KEY,
@@ -247,7 +251,7 @@ CREATE TABLE IF NOT EXISTS chat_message (
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL,
             messages TEXT
-        , title TEXT, group_id INTEGER, archived INTEGER DEFAULT 0, parent_chat_id INTEGER, branch_index INTEGER DEFAULT 0, order_num INTEGER, message_schema_version INTEGER DEFAULT 3, title_dirty INTEGER DEFAULT 0);
+        , title TEXT, group_id INTEGER, archived INTEGER DEFAULT 0, parent_chat_id INTEGER, branch_index INTEGER DEFAULT 0, order_num INTEGER, message_schema_version INTEGER DEFAULT 3, title_dirty INTEGER DEFAULT 0, agent_type TEXT DEFAULT 'local', agent_session_id TEXT);
 CREATE TABLE IF NOT EXISTS question_group (
         id INTEGER PRIMARY KEY,
         title TEXT NOT NULL,
@@ -882,6 +886,8 @@ CREATE TABLE IF NOT EXISTS vibe_learning_chats (
         parent_chat_id INTEGER,
         branch_index INTEGER DEFAULT 0,
         message_schema_version INTEGER DEFAULT 3,
+        agent_type TEXT DEFAULT 'local',
+        agent_session_id TEXT,
         FOREIGN KEY(project_id) REFERENCES project(id)
       );
 CREATE TABLE IF NOT EXISTS vl_note (

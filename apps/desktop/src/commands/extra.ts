@@ -16,6 +16,10 @@ export const resolvePath = async (path: string) => {
   return await invoke("resolve-path", path);
 };
 
+export const selectDirectoryWithDialog = async (): Promise<string | null> => {
+  return await invoke("select-directory-with-dialog");
+};
+
 /**
  * 下载文件并弹出保存对话框
  * @param url 文件 URL

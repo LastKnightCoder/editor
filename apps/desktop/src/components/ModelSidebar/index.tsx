@@ -10,13 +10,18 @@ import {
 } from "@ant-design/icons";
 import classnames from "classnames";
 import { useShallow } from "zustand/react/shallow";
+import { useLocalStorageState } from "ahooks";
 import dayjs from "dayjs";
 import useChatMessageStore from "@/stores/useChatMessageStore";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
-import { ChatMessage } from "@/types/chat-message";
+import type { ChatAgentType, ChatMessage } from "@/types/chat-message";
 import { ResponseMessage } from "@/types";
 import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
+import {
+  CHAT_AGENT_TYPE_STORAGE_KEY,
+  normalizeChatAgentType,
+} from "@/constants/chatAgent";
 import ChatModal from "./ChatModal";
 
 const { Title } = Typography;
@@ -55,6 +60,12 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
   const [chatModalVisible, setChatModalVisible] = useState(false);
   const [chatAction, setChatAction] = useState<"create" | "edit">("create");
   const [editingChat, setEditingChat] = useState<ChatMessage | null>(null);
+  const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(
+    CHAT_AGENT_TYPE_STORAGE_KEY,
+    {
+      defaultValue: "local",
+    },
+  );
 
   const database = useSettingStore((state) => state.setting.database.active);
   const isConnected = useDatabaseConnected();
@@ -133,7 +144,13 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
               content: systemPrompt,
             },
           ];
-          await createChatMessage(messages, data.title, undefined, true);
+          await createChatMessage(
+            messages,
+            data.title,
+            undefined,
+            true,
+            normalizeChatAgentType(rememberedAgentType),
+          );
         }
         messageApi.success("对话创建成功");
       } else if (data.id) {

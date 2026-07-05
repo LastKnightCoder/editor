@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { ChatMessage, ChatGroup } from "@/types";
+import { ChatMessage, ChatGroup, ChatAgentType } from "@/types";
 import {
   createChatMessage,
   deleteChatMessage,
@@ -43,6 +43,8 @@ interface IAction {
     title?: string,
     groupId?: number | null,
     titleDirty?: boolean,
+    agentType?: ChatAgentType,
+    agentSessionId?: string | null,
   ) => Promise<ChatMessage>;
   // 以下二者的区别在于，一个存数据库了，一个没存
   updateCurrentChat: (chatMessage: ChatMessage) => void;
@@ -66,6 +68,7 @@ interface IAction {
     parentChatId: number,
     messages: ChatMessage["messages"],
     title?: string,
+    agentType?: ChatAgentType,
   ) => Promise<ChatMessage>;
   getChatBranches: (parentChatId: number) => Promise<ChatMessage[]>;
   getChildBranchesCount: (parentChatId: number) => Promise<number>;
@@ -93,7 +96,14 @@ const useChatMessageStore = create<IState & IAction>()(
         const groups = await getAllChatGroups();
         set({ groups });
       },
-      createChatMessage: async (messages, title, groupId, titleDirty) => {
+      createChatMessage: async (
+        messages,
+        title,
+        groupId,
+        titleDirty,
+        agentType,
+        agentSessionId,
+      ) => {
         const { chats } = get();
         const createdChatMessage = await createChatMessage(
           messages,
@@ -103,6 +113,8 @@ const useChatMessageStore = create<IState & IAction>()(
           undefined, // branchIndex
           null, // orderNum
           titleDirty ?? false,
+          agentType ?? "local",
+          agentSessionId ?? null,
         );
         const newChats = produce(chats, (draft) => {
           draft.push(createdChatMessage);
@@ -237,7 +249,7 @@ const useChatMessageStore = create<IState & IAction>()(
         set({ groups: newGroups });
         return res;
       },
-      createChatBranch: async (parentChatId, messages, title) => {
+      createChatBranch: async (parentChatId, messages, title, agentType) => {
         const { chats } = get();
         const parentChat = chats.find((c) => c.id === parentChatId);
         if (!parentChat) throw new Error("Parent chat not found");
@@ -256,6 +268,8 @@ const useChatMessageStore = create<IState & IAction>()(
           branchIndex,
           undefined,
           true,
+          agentType ?? parentChat.agentType ?? "local",
+          null,
         );
 
         const newChats = produce(chats, (draft) => {

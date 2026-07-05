@@ -14,6 +14,7 @@ import OpenAIImageResultRenderer from "./OpenAIImageResultRenderer";
 import { OPENAI_IMAGE_RENDERER_KEY } from "@/tools/openaiImageTools";
 import SubAgentResearchRenderer from "./SubAgentResearchRenderer";
 import { SUBAGENT_RESEARCH_RENDERER_KEY } from "@/tools/subagentTool";
+import CodexCommandExecutionRenderer from "./CodexCommandExecutionRenderer";
 
 export function initToolCallRenderers(): void {
   registerToolCallRenderers([
@@ -28,6 +29,10 @@ export function initToolCallRenderers(): void {
     {
       toolName: SUBAGENT_RESEARCH_RENDERER_KEY,
       renderer: SubAgentResearchRenderer,
+    },
+    {
+      toolName: "codex.command_execution",
+      renderer: CodexCommandExecutionRenderer,
     },
     {
       toolName: "query_todos",

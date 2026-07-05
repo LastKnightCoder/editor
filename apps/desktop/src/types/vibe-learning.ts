@@ -1,4 +1,5 @@
-import { ChatSessionMessage } from "@/types";
+import type { ChatAgentType } from "./chat-message";
+import type { ChatSessionMessage } from "./llm";
 
 export type VLResourceType =
   | "pdf"
@@ -191,6 +192,8 @@ export interface VLChatMessage {
   archived?: boolean;
   parentChatId?: number | null;
   branchIndex?: number;
+  agentType?: ChatAgentType;
+  agentSessionId?: string | null;
 }
 
 export interface CreateVLChat {
@@ -199,6 +202,8 @@ export interface CreateVLChat {
   title?: string;
   parentChatId?: number | null;
   branchIndex?: number;
+  agentType?: ChatAgentType;
+  agentSessionId?: string | null;
 }
 
 export interface UpdateVLChat {
@@ -208,6 +213,8 @@ export interface UpdateVLChat {
   archived?: boolean;
   parentChatId?: number | null;
   branchIndex?: number;
+  agentType?: ChatAgentType;
+  agentSessionId?: string | null;
 }
 
 export type VLNoteType =

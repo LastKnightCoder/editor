@@ -2,6 +2,35 @@ import { describe, it, expect } from "vitest";
 import { __chatSessionTestUtils } from "../useChatSessions";
 
 describe("useChatSessions migration", () => {
+  it("迁移会话元数据时默认使用 local 代理并保留 Codex 会话", () => {
+    const { normalizeSessionMeta, STORAGE_SCHEMA_VERSION } =
+      __chatSessionTestUtils as any;
+
+    expect(
+      normalizeSessionMeta({
+        id: "legacy",
+        title: "旧会话",
+        createTime: 1,
+        updateTime: 2,
+      }).agentType,
+    ).toBe("local");
+
+    expect(
+      normalizeSessionMeta({
+        id: "codex",
+        title: "Codex 会话",
+        createTime: 1,
+        updateTime: 2,
+        agentType: "codex",
+        agentSessionId: "thread-1",
+      }),
+    ).toMatchObject({
+      schemaVersion: STORAGE_SCHEMA_VERSION,
+      agentType: "codex",
+      agentSessionId: "thread-1",
+    });
+  });
+
   it("支持 v1 消息数组迁移并保留 tool 角色上下文", () => {
     const rawV1Messages = [
       {
