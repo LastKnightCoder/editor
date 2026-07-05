@@ -1,11 +1,47 @@
-import { invoke } from "@/electron";
+import { invoke, send } from "@/electron";
+import { v4 as uuidv4 } from "uuid";
 
 export const openExternal = async (url: string) => {
   return await invoke("open-external", url);
 };
 
-export const nodeFetch = async (url: string, options: any) => {
-  return await invoke("node-fetch", url, options);
+const createAbortError = () => {
+  const error = new Error("nodeFetch aborted");
+  error.name = "AbortError";
+  return error;
+};
+
+const createNodeFetchRequestId = () => `node-fetch:${uuidv4()}`;
+
+export const nodeFetch = async (url: string, options: any = {}) => {
+  const { signal, ...serializableOptions } = options;
+  if (!signal) {
+    return await invoke("node-fetch", url, serializableOptions);
+  }
+
+  if (signal.aborted) {
+    throw createAbortError();
+  }
+
+  const requestId = createNodeFetchRequestId();
+  const handleAbort = () => {
+    send("node-fetch:abort", { requestId });
+  };
+
+  signal.addEventListener("abort", handleAbort, { once: true });
+  try {
+    return await invoke("node-fetch", url, {
+      ...serializableOptions,
+      requestId,
+    });
+  } catch (error) {
+    if (signal.aborted) {
+      throw createAbortError();
+    }
+    throw error;
+  } finally {
+    signal.removeEventListener("abort", handleAbort);
+  }
 };
 
 export const getVersions = async () => {
