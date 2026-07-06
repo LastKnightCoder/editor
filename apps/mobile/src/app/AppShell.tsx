@@ -9,12 +9,10 @@ import type { Descendant } from "slate";
 import {
   BilibiliVideoDepsProvider,
   YoutubeVideoDepsProvider,
-  NotionVideoDepsProvider,
   RemoteVideoDepsProvider,
   EditDatabaseDepsProvider,
   UseBilibiliVideoDeps,
   UseYoutubeVideoDeps,
-  UseNotionVideoDeps,
   UseRemoteVideoDeps,
   UseEditDatabaseDeps,
   type DataTable,
@@ -121,21 +119,6 @@ const youtubeDeps: UseYoutubeVideoDeps = {
   convertFileSrc: (path) => path,
   showError: (message) => {
     console.warn("[mobile-youtube]", message);
-  },
-};
-
-const notionDeps: UseNotionVideoDeps = {
-  getToken: async () => ({ token: "", enabled: false }),
-  getBlockInfo: async () => ({
-    success: false,
-    error: buildUnsupportedMessage("notion.getBlockInfo"),
-  }),
-  getCacheStatus: async () => null,
-  cacheVideo: async () => {
-    throw new Error(buildUnsupportedMessage("notion.cacheVideo"));
-  },
-  showError: (message) => {
-    console.warn("[mobile-notion]", message);
   },
 };
 
@@ -1480,92 +1463,90 @@ export default function AppShell() {
         <EditorServicesProvider services={services}>
           <BilibiliVideoDepsProvider deps={bilibiliDeps}>
             <YoutubeVideoDepsProvider deps={youtubeDeps}>
-              <NotionVideoDepsProvider deps={notionDeps}>
-                <RemoteVideoDepsProvider deps={remoteVideoDeps}>
-                  <EditDatabaseDepsProvider deps={editDatabaseDeps}>
-                    <DndProvider backend={HTML5Backend}>
-                      <main className="min-h-dvh bg-gray-50 dark:bg-black">
-                        <div ref={homeRootRef}>
-                          {/* 顶部导航栏 */}
-                          <Header title="卡片" />
-                          <ToastViewport />
+              <RemoteVideoDepsProvider deps={remoteVideoDeps}>
+                <EditDatabaseDepsProvider deps={editDatabaseDeps}>
+                  <DndProvider backend={HTML5Backend}>
+                    <main className="min-h-dvh bg-gray-50 dark:bg-black">
+                      <div ref={homeRootRef}>
+                        {/* 顶部导航栏 */}
+                        <Header title="卡片" />
+                        <ToastViewport />
 
-                          {/* 主内容区域 */}
-                          <div className="px-4 pt-4">
-                            <CardsPage
-                              cards={cards.cards}
-                              queryState={cards.queryState}
-                              totalPages={cards.totalPages}
-                              isLoadingCards={cards.isLoadingCards}
-                              isPreviewOpen={previewOpen}
-                              onPreviewCard={handlePreviewCard}
-                              onUpdateCardCategory={handleUpdateCardCategory}
-                              onDeleteCard={handleDeleteCard}
-                              setQueryState={cards.setQueryState}
-                              refreshCards={refreshCardsSafe}
-                            />
-                          </div>
-
-                          {/* 悬浮工具栏 */}
-                          <FloatingToolbar
-                            onSearchClick={() => navigate("screen.search")}
-                            onAddClick={handleAddCard}
-                            onDiaryClick={() => {
-                              navigate("screen.diaryHome");
-                            }}
-                            showDiaryEntry={diaryModuleEnabled}
-                            onTodoClick={() => {
-                              const todoDatabaseName =
-                                syncSettings.safeSetting?.database?.active ??
-                                bootstrap.databases?.activeDatabase ??
-                                null;
-                              void useTodoStore
-                                .getState()
-                                .initialize(todoDatabaseName);
-                              navigate("screen.todo");
-                            }}
-                            showTodoEntry={todoModuleEnabled}
-                            onSettingsClick={() => navigate("screen.settings")}
+                        {/* 主内容区域 */}
+                        <div className="px-4 pt-4">
+                          <CardsPage
+                            cards={cards.cards}
+                            queryState={cards.queryState}
+                            totalPages={cards.totalPages}
+                            isLoadingCards={cards.isLoadingCards}
+                            isPreviewOpen={previewOpen}
+                            onPreviewCard={handlePreviewCard}
+                            onUpdateCardCategory={handleUpdateCardCategory}
+                            onDeleteCard={handleDeleteCard}
+                            setQueryState={cards.setQueryState}
+                            refreshCards={refreshCardsSafe}
                           />
                         </div>
 
-                        <ScreenStackHost
-                          screenStack={screenStack}
-                          activeScreenId={activeScreenId}
-                          renderScreen={renderScreenEntry}
-                        />
-
-                        {/* 卡片预览弹窗 */}
-                        <CardPreviewSheet
-                          open={shouldRenderPreviewSheet}
-                          panelState={previewPanelState}
-                          loading={previewLoading}
-                          cardId={previewCardId}
-                          cardDetail={previewCardDetail}
-                          initialScrollTop={previewScrollTop}
-                          onClose={() => dispatchBack("ui")}
-                          onPanelStateChange={handlePreviewPanelStateChange}
-                          onScrollTopChange={handlePreviewScrollTopChange}
-                        />
-
-                        {/* 快速闪念抽屉 */}
-                        <QuickCaptureSheet
-                          open={quickCaptureOpen}
-                          saving={quickCaptureSaving}
-                          category={quickCaptureCategory}
-                          onContentChange={handleQuickCaptureContentChange}
-                          onCategoryChange={handleQuickCaptureCategoryChange}
-                          onClear={handleQuickCaptureClear}
-                          onRequestClose={(content) => {
-                            void handleQuickCaptureClose(content);
+                        {/* 悬浮工具栏 */}
+                        <FloatingToolbar
+                          onSearchClick={() => navigate("screen.search")}
+                          onAddClick={handleAddCard}
+                          onDiaryClick={() => {
+                            navigate("screen.diaryHome");
                           }}
+                          showDiaryEntry={diaryModuleEnabled}
+                          onTodoClick={() => {
+                            const todoDatabaseName =
+                              syncSettings.safeSetting?.database?.active ??
+                              bootstrap.databases?.activeDatabase ??
+                              null;
+                            void useTodoStore
+                              .getState()
+                              .initialize(todoDatabaseName);
+                            navigate("screen.todo");
+                          }}
+                          showTodoEntry={todoModuleEnabled}
+                          onSettingsClick={() => navigate("screen.settings")}
                         />
-                        {/* <KeyboardDebugPanel /> */}
-                      </main>
-                    </DndProvider>
-                  </EditDatabaseDepsProvider>
-                </RemoteVideoDepsProvider>
-              </NotionVideoDepsProvider>
+                      </div>
+
+                      <ScreenStackHost
+                        screenStack={screenStack}
+                        activeScreenId={activeScreenId}
+                        renderScreen={renderScreenEntry}
+                      />
+
+                      {/* 卡片预览弹窗 */}
+                      <CardPreviewSheet
+                        open={shouldRenderPreviewSheet}
+                        panelState={previewPanelState}
+                        loading={previewLoading}
+                        cardId={previewCardId}
+                        cardDetail={previewCardDetail}
+                        initialScrollTop={previewScrollTop}
+                        onClose={() => dispatchBack("ui")}
+                        onPanelStateChange={handlePreviewPanelStateChange}
+                        onScrollTopChange={handlePreviewScrollTopChange}
+                      />
+
+                      {/* 快速闪念抽屉 */}
+                      <QuickCaptureSheet
+                        open={quickCaptureOpen}
+                        saving={quickCaptureSaving}
+                        category={quickCaptureCategory}
+                        onContentChange={handleQuickCaptureContentChange}
+                        onCategoryChange={handleQuickCaptureCategoryChange}
+                        onClear={handleQuickCaptureClear}
+                        onRequestClose={(content) => {
+                          void handleQuickCaptureClose(content);
+                        }}
+                      />
+                      {/* <KeyboardDebugPanel /> */}
+                    </main>
+                  </DndProvider>
+                </EditDatabaseDepsProvider>
+              </RemoteVideoDepsProvider>
             </YoutubeVideoDepsProvider>
           </BilibiliVideoDepsProvider>
         </EditorServicesProvider>

@@ -96,18 +96,6 @@ CREATE TABLE IF NOT EXISTS pomodoro_calendar_mapping (
         create_time INTEGER NOT NULL,
         UNIQUE(pomodoro_session_id, calendar_event_id)
       );
-CREATE TABLE IF NOT EXISTS notion_sync (
-        id INTEGER PRIMARY KEY,
-        page_id TEXT NOT NULL UNIQUE,
-        sync_mode TEXT NOT NULL,
-        code_block_id TEXT,
-        last_local_content_hash TEXT,
-        pending_sync INTEGER DEFAULT 0,
-        last_sync_attempt INTEGER,
-        sync_error TEXT,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      );
 CREATE TABLE IF NOT EXISTS calendar_group (
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL,

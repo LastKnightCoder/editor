@@ -53,21 +53,14 @@ import {
   deleteBilibiliCache,
   clearBilibiliCache,
 } from "@/commands/bilibili-cache";
-import {
-  listNotionCache,
-  deleteNotionCache,
-  clearNotionCache,
-} from "@/commands/notion-cache";
 
 type YoutubeCacheItem = Awaited<ReturnType<typeof listYoutubeCache>>[number];
 type BilibiliCacheItem = Awaited<ReturnType<typeof listBilibiliCache>>[number];
-type NotionCacheItem = Awaited<ReturnType<typeof listNotionCache>>[number];
 
 type CacheSectionKey =
   | "remote"
   | "youtube"
   | "bilibili"
-  | "notion"
   | "image"
   | "audio"
   | "youtubeAudio"
@@ -126,10 +119,6 @@ type BilibiliCacheWithPreview = BilibiliCacheItem & {
   previewUrl: string | null;
 };
 
-type NotionCacheWithPreview = NotionCacheItem & {
-  previewUrl: string | null;
-};
-
 const MiscSetting = () => {
   const { message } = App.useApp();
 
@@ -168,7 +157,6 @@ const MiscSetting = () => {
   const [bilibiliCache, setBilibiliCache] = useState<
     BilibiliCacheWithPreview[]
   >([]);
-  const [notionCache, setNotionCache] = useState<NotionCacheWithPreview[]>([]);
   const [clearing, setClearing] = useState<Record<CacheSectionKey, boolean>>({
     remote: false,
     image: false,
@@ -177,7 +165,6 @@ const MiscSetting = () => {
     bilibiliAudio: false,
     youtube: false,
     bilibili: false,
-    notion: false,
   });
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
   const [batchDeleting, setBatchDeleting] = useState<
@@ -190,7 +177,6 @@ const MiscSetting = () => {
     bilibiliAudio: false,
     youtube: false,
     bilibili: false,
-    notion: false,
   });
   const [expandedSections, setExpandedSections] = useState<
     Record<CacheSectionKey, boolean>
@@ -202,7 +188,6 @@ const MiscSetting = () => {
     bilibiliAudio: false,
     youtube: false,
     bilibili: false,
-    notion: false,
   });
   const [selectedRows, setSelectedRows] = useState<
     Record<CacheSectionKey, Set<string>>
@@ -214,7 +199,6 @@ const MiscSetting = () => {
     bilibiliAudio: new Set(),
     youtube: new Set(),
     bilibili: new Set(),
-    notion: new Set(),
   }));
   const [previewModal, setPreviewModal] = useState<{
     open: boolean;
@@ -450,30 +434,6 @@ const MiscSetting = () => {
     }
   }, [message]);
 
-  const refreshNotionCache = useCallback(async () => {
-    try {
-      const data = await listNotionCache();
-      const enhanced = await Promise.all(
-        data.map(async (item) => {
-          let previewUrl: string | null = null;
-          try {
-            previewUrl = await convertFileSrc(item.localPath);
-          } catch (error) {
-            console.error("生成 Notion 缓存预览失败:", error);
-          }
-          return {
-            ...item,
-            previewUrl,
-          };
-        }),
-      );
-      setNotionCache(enhanced);
-    } catch (error) {
-      console.error("加载 Notion 视频缓存失败:", error);
-      message.error("加载 Notion 视频缓存失败");
-    }
-  }, [message]);
-
   useEffect(() => {
     void (async () => {
       await Promise.all([
@@ -484,7 +444,6 @@ const MiscSetting = () => {
         refreshBilibiliAudioCache(),
         refreshYoutubeCache(),
         refreshBilibiliCache(),
-        refreshNotionCache(),
       ]);
     })();
   }, [
@@ -495,7 +454,6 @@ const MiscSetting = () => {
     refreshBilibiliAudioCache,
     refreshYoutubeCache,
     refreshBilibiliCache,
-    refreshNotionCache,
   ]);
 
   const handleClearRemoteCache = useCallback(async () => {
@@ -595,20 +553,6 @@ const MiscSetting = () => {
       setClearingState("bilibili", false);
     }
   }, [message, refreshBilibiliCache, setClearingState]);
-
-  const handleClearNotionCache = useCallback(async () => {
-    setClearingState("notion", true);
-    try {
-      await clearNotionCache();
-      await refreshNotionCache();
-      message.success("已清空 Notion 视频缓存");
-    } catch (error) {
-      console.error("清除 Notion 视频缓存失败:", error);
-      message.error("清除 Notion 视频缓存失败");
-    } finally {
-      setClearingState("notion", false);
-    }
-  }, [message, refreshNotionCache, setClearingState]);
 
   const handleDeleteRemoteRow = useCallback(
     async (row: CacheRow<RemoteCacheItem>) => {
@@ -771,28 +715,6 @@ const MiscSetting = () => {
     [message, refreshBilibiliCache],
   );
 
-  const handleDeleteNotionRow = useCallback(
-    async (row: CacheRow<NotionCacheWithPreview>) => {
-      const key = `notion:${row.id}`;
-      setDeletingKey(key);
-      try {
-        const removed = await deleteNotionCache(row.payload.blockId);
-        if (removed) {
-          message.success("已删除该 Notion 视频缓存");
-        } else {
-          message.warning("未找到该 Notion 缓存记录");
-        }
-        await refreshNotionCache();
-      } catch (error) {
-        console.error("删除 Notion 视频缓存失败:", error);
-        message.error("删除 Notion 视频缓存失败");
-      } finally {
-        setDeletingKey((prev) => (prev === key ? null : prev));
-      }
-    },
-    [message, refreshNotionCache],
-  );
-
   const remoteRows = useMemo<CacheRow<RemoteCacheItem>[]>(() => {
     return remoteCache.map((item) => ({
       id: item.id,
@@ -863,16 +785,6 @@ const MiscSetting = () => {
     }));
   }, [bilibiliCache]);
 
-  const notionRows = useMemo<CacheRow<NotionCacheWithPreview>[]>(() => {
-    return notionCache.map((item) => ({
-      id: item.blockId,
-      name: item.title || item.blockId,
-      subtitle: item.blockId,
-      sizeLabel: formatBytes(item.fileSize),
-      payload: item,
-    }));
-  }, [notionCache]);
-
   useEffect(() => {
     setSelectedRows((prev) => {
       const configs: Array<[CacheSectionKey, CacheRow[]]> = [
@@ -883,7 +795,6 @@ const MiscSetting = () => {
         ["bilibiliAudio", bilibiliAudioRows],
         ["youtube", youtubeRows],
         ["bilibili", bilibiliRows],
-        ["notion", notionRows],
       ];
       let changed = false;
       const next = { ...prev };
@@ -907,7 +818,6 @@ const MiscSetting = () => {
     bilibiliAudioRows,
     youtubeRows,
     bilibiliRows,
-    notionRows,
   ]);
 
   const handleBatchDelete = useCallback(
@@ -1303,10 +1213,6 @@ const MiscSetting = () => {
     (row) => [`缓存路径：${row.payload.localPath}`],
   );
 
-  const renderNotionRows = renderVideoRowsFactory<NotionCacheWithPreview>(
-    (row) => [`缓存路径：${row.payload.localPath}`],
-  );
-
   const renderImageRows = renderVideoRowsFactory<RemoteImageCacheItem>(
     (row) => [`缓存路径：${row.payload.localPath}`],
     {
@@ -1404,17 +1310,6 @@ const MiscSetting = () => {
             handleClearBilibiliCache,
             {
               renderRows: renderBilibiliRows,
-            },
-          )}
-          {renderCacheSection(
-            "notion",
-            "Notion 视频缓存",
-            "缓存的 Notion 视频块文件",
-            notionRows,
-            handleDeleteNotionRow,
-            handleClearNotionCache,
-            {
-              renderRows: renderNotionRows,
             },
           )}
         </SettingSection>

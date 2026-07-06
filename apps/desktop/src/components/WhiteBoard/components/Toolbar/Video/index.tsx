@@ -2,14 +2,7 @@ import { useRef, useState } from "react";
 import SVG from "react-inlinesvg";
 import { App, Popover, Tooltip } from "antd";
 import { useMemoizedFn } from "ahooks";
-import {
-  Upload,
-  FolderOpen,
-  Link,
-  MonitorPlay,
-  Youtube,
-  FileText,
-} from "lucide-react";
+import { Upload, FolderOpen, Link, MonitorPlay, Youtube } from "lucide-react";
 import videoIcon from "@/assets/white-board/video.svg";
 import ResourcePickerModal from "@/components/ResourcePickerModal";
 import YoutubeVideoSelectModal, {
@@ -18,9 +11,6 @@ import YoutubeVideoSelectModal, {
 import BilibiliVideoSelectModal, {
   type BilibiliVideoSelectResult,
 } from "@/components/BilibiliVideoSelectModal";
-import NotionVideoSelectModal, {
-  type NotionVideoSelectResult,
-} from "@/components/NotionVideoSelectModal";
 import RemoteVideoSelectModal, {
   type RemoteVideoSelectResult,
 } from "@/components/RemoteVideoSelectModal";
@@ -85,7 +75,6 @@ const Video = (props: VideoProps) => {
   const [remoteModalOpen, setRemoteModalOpen] = useState(false);
   const [biliModalOpen, setBiliModalOpen] = useState(false);
   const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
-  const [notionModalOpen, setNotionModalOpen] = useState(false);
 
   const handleRemoteConfirm = useMemoizedFn(
     async (result: RemoteVideoSelectResult) => {
@@ -127,20 +116,6 @@ const Video = (props: VideoProps) => {
       } catch (error) {
         console.error("添加 YouTube 视频失败:", error);
         message.error("添加 YouTube 视频失败");
-      }
-    },
-  );
-
-  const handleNotionConfirm = useMemoizedFn(
-    async (result: NotionVideoSelectResult) => {
-      try {
-        await VideoUtil.insertVideoFromMeta(board, result.metaInfo);
-        setNotionModalOpen(false);
-        setPopoverOpen(false);
-        message.success("Notion 视频添加成功");
-      } catch (error) {
-        console.error("添加 Notion 视频失败:", error);
-        message.error("添加 Notion 视频失败");
       }
     },
   );
@@ -194,16 +169,6 @@ const Video = (props: VideoProps) => {
       onSelect: () => {
         setPopoverOpen(false);
         setYoutubeModalOpen(true);
-      },
-    },
-    {
-      key: "notion",
-      label: "Notion",
-      icon: <FileText size={16} />,
-      description: "从 Notion 添加视频",
-      onSelect: () => {
-        setPopoverOpen(false);
-        setNotionModalOpen(true);
       },
     },
   ];
@@ -264,11 +229,6 @@ const Video = (props: VideoProps) => {
         open={youtubeModalOpen}
         onCancel={() => setYoutubeModalOpen(false)}
         onConfirm={handleYoutubeConfirm}
-      />
-      <NotionVideoSelectModal
-        open={notionModalOpen}
-        onCancel={() => setNotionModalOpen(false)}
-        onConfirm={handleNotionConfirm}
       />
     </>
   );

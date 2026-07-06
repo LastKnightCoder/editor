@@ -3,8 +3,6 @@ export enum ModalKey {
   Webview = "webview",
   Bilibili = "bilibili",
   Youtube = "youtube",
-  Notion = "notion",
-  NotionSync = "notionSync",
   RemotePdf = "remotePdf",
   RemoteEpub = "remoteEpub",
   SelectPdf = "selectPdf",

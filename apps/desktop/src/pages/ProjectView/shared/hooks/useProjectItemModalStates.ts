@@ -7,8 +7,6 @@ export const useProjectItemModalStates = () => {
     [ModalKey.Webview]: false,
     [ModalKey.Bilibili]: false,
     [ModalKey.Youtube]: false,
-    [ModalKey.Notion]: false,
-    [ModalKey.NotionSync]: false,
     [ModalKey.RemotePdf]: false,
     [ModalKey.RemoteEpub]: false,
     [ModalKey.SelectPdf]: false,

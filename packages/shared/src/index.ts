@@ -186,16 +186,6 @@ export {
 } from "./hooks/useYoutubeVideo";
 
 export {
-  useNotionVideo,
-  useNotionVideoWithContext,
-  NotionVideoDepsProvider,
-  type UseNotionVideoDeps,
-  type UseNotionVideoResult,
-  type NotionVideoMetaInfo,
-  type NotionCacheProgress,
-} from "./hooks/useNotionVideo";
-
-export {
   useEditDatabase,
   useEditDatabaseWithContext,
   EditDatabaseDepsProvider,

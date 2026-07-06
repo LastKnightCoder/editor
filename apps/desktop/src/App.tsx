@@ -8,12 +8,10 @@ import { EditorServicesProvider } from "@tau/editor/src";
 import {
   BilibiliVideoDepsProvider,
   YoutubeVideoDepsProvider,
-  NotionVideoDepsProvider,
   EditDatabaseDepsProvider,
   RemoteVideoDepsProvider,
   type UseBilibiliVideoDeps,
   type UseYoutubeVideoDeps,
-  type UseNotionVideoDeps,
   type UseEditDatabaseDeps,
   type UseRemoteVideoDeps,
 } from "@tau/shared";
@@ -57,11 +55,6 @@ import {
   onPythonRuntimeProgress,
   retryPythonRuntimeDownload,
 } from "@/commands";
-import { getNotionBlockInfo } from "@/commands/notion";
-import {
-  cacheNotionVideo,
-  getNotionCacheStatus,
-} from "@/commands/notion-cache";
 import {
   downloadRemoteVideoWithProgress,
   getRemoteVideoCacheStatus,
@@ -132,23 +125,6 @@ const Application = () => {
       },
       cacheVideo: cacheYoutubeVideo,
       convertFileSrc,
-      showError: (msg) => antdMessage.error(msg),
-    }),
-    [],
-  );
-
-  const notionDeps: UseNotionVideoDeps = useMemo(
-    () => ({
-      getToken: async () => {
-        const { setting } = useSettingStore.getState();
-        return {
-          token: setting.integration.notion.token,
-          enabled: setting.integration.notion.enabled,
-        };
-      },
-      getBlockInfo: getNotionBlockInfo,
-      getCacheStatus: getNotionCacheStatus,
-      cacheVideo: cacheNotionVideo,
       showError: (msg) => antdMessage.error(msg),
     }),
     [],
@@ -539,32 +515,30 @@ const Application = () => {
       <WindowFocusContext.Provider value={isFocused}>
         <BilibiliVideoDepsProvider deps={bilibiliDeps}>
           <YoutubeVideoDepsProvider deps={youtubeDeps}>
-            <NotionVideoDepsProvider deps={notionDeps}>
-              <RemoteVideoDepsProvider deps={remoteVideoDeps}>
-                <EditDatabaseDepsProvider deps={editDatabaseDeps}>
-                  <EditorServicesProvider services={editorServices}>
-                    <App
-                      style={{
-                        height: "100%",
-                        fontSize: "var(--font-size)",
-                        color: "var(--text-normal)",
-                      }}
-                    >
-                      <AutoSyncManager />
-                      <ConversationFlashcardModal />
-                      <ExtNoteInsertModal />
-                      <MCPManagerModal
-                        open={isMcpManagerOpen}
-                        onClose={closeMcpManagerModal}
-                      />
-                      <DndProvider backend={HTML5Backend}>
-                        <RouterProvider router={router} />
-                      </DndProvider>
-                    </App>
-                  </EditorServicesProvider>
-                </EditDatabaseDepsProvider>
-              </RemoteVideoDepsProvider>
-            </NotionVideoDepsProvider>
+            <RemoteVideoDepsProvider deps={remoteVideoDeps}>
+              <EditDatabaseDepsProvider deps={editDatabaseDeps}>
+                <EditorServicesProvider services={editorServices}>
+                  <App
+                    style={{
+                      height: "100%",
+                      fontSize: "var(--font-size)",
+                      color: "var(--text-normal)",
+                    }}
+                  >
+                    <AutoSyncManager />
+                    <ConversationFlashcardModal />
+                    <ExtNoteInsertModal />
+                    <MCPManagerModal
+                      open={isMcpManagerOpen}
+                      onClose={closeMcpManagerModal}
+                    />
+                    <DndProvider backend={HTML5Backend}>
+                      <RouterProvider router={router} />
+                    </DndProvider>
+                  </App>
+                </EditorServicesProvider>
+              </EditDatabaseDepsProvider>
+            </RemoteVideoDepsProvider>
           </YoutubeVideoDepsProvider>
         </BilibiliVideoDepsProvider>
       </WindowFocusContext.Provider>

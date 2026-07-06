@@ -9,7 +9,6 @@ import LocalVideo from "@/components/LocalVideo";
 import useThemeColors from "@/hooks/useThemeColors";
 import BilibiliVideoLoader from "@/components/BilibiliVideoLoader";
 import YoutubeVideoLoader from "@/components/YoutubeVideoLoader";
-import NotionVideoLoader from "@/components/NotionVideoLoader";
 import RemoteVideoLoader from "@/components/RemoteVideoLoader";
 import useSettingStore from "@/stores/useSettingStore";
 import { getProjectItemById, getVideoNoteById } from "@/commands";
@@ -17,12 +16,10 @@ import {
   type VideoNote as IVideoNote,
   BiliBiliVideoMetaInfo,
   YouTubeVideoMetaInfo,
-  NotionVideoMetaInfo,
   RemoteVideoMetaInfo,
 } from "@/types";
 import { useBilibiliVideo } from "@/hooks/useBilibiliVideo";
 import { useYoutubeVideo } from "@/hooks/useYoutubeVideo";
-import { useNotionVideo } from "@/hooks/useNotionVideo";
 import { useRemoteVideo } from "@/hooks/useRemoteVideo";
 import { shouldUseLocalVideoCache } from "@/utils/video";
 import { buildWebVtt } from "./subtitle";
@@ -75,12 +72,6 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     error: youtubeError,
     streamProgress: youtubeStreamProgress,
   } = useYoutubeVideo(videoNote?.metaInfo as YouTubeVideoMetaInfo);
-  const {
-    videoUrl: notionVideoUrl,
-    loading: notionLoading,
-    error: notionError,
-    streamProgress: notionStreamProgress,
-  } = useNotionVideo(videoNote?.metaInfo as NotionVideoMetaInfo);
   const {
     videoUrl: remoteVideoUrl,
     loading: remoteLoading,
@@ -161,18 +152,10 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         return bilibiliVideoUrl;
       case "youtube":
         return youtubeVideoUrl;
-      case "notion":
-        return notionVideoUrl;
       default:
         return null;
     }
-  }, [
-    videoNote,
-    remoteVideoUrl,
-    bilibiliVideoUrl,
-    youtubeVideoUrl,
-    notionVideoUrl,
-  ]);
+  }, [videoNote, remoteVideoUrl, bilibiliVideoUrl, youtubeVideoUrl]);
 
   const videoLoading = useMemo(() => {
     if (!videoNote) {
@@ -183,20 +166,12 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         return bilibiliLoading;
       case "youtube":
         return youtubeLoading;
-      case "notion":
-        return notionLoading;
       case "remote":
         return remoteLoading;
       default:
         return false;
     }
-  }, [
-    videoNote,
-    bilibiliLoading,
-    youtubeLoading,
-    notionLoading,
-    remoteLoading,
-  ]);
+  }, [videoNote, bilibiliLoading, youtubeLoading, remoteLoading]);
 
   const videoError = useMemo(() => {
     if (!videoNote) {
@@ -207,14 +182,12 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         return bilibiliError;
       case "youtube":
         return youtubeError;
-      case "notion":
-        return notionError;
       case "remote":
         return remoteError;
       default:
         return null;
     }
-  }, [videoNote, bilibiliError, youtubeError, notionError, remoteError]);
+  }, [videoNote, bilibiliError, youtubeError, remoteError]);
 
   const useLocalVideo = useMemo(() => {
     if (!videoNote) {
@@ -227,8 +200,6 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         return true;
       case "remote":
         return shouldUseLocalVideoCache(metaInfo.url, autoCacheRemoteVideo);
-      case "notion":
-        return (metaInfo as NotionVideoMetaInfo).cache !== false;
       default:
         return false;
     }
@@ -282,14 +253,6 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
             loading={youtubeLoading}
             error={youtubeError}
             streamProgress={youtubeStreamProgress}
-          />
-        );
-      case "notion":
-        return (
-          <NotionVideoLoader
-            loading={notionLoading}
-            error={notionError}
-            streamProgress={notionStreamProgress}
           />
         );
       case "remote":
@@ -364,7 +327,6 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     remote: "远程视频",
     bilibili: "哔哩哔哩",
     youtube: "YouTube",
-    notion: "Notion",
   };
   const sourceLabel = videoNote
     ? (sourceLabels[videoNote.metaInfo.type] ?? "视频")

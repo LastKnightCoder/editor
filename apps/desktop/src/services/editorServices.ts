@@ -28,7 +28,6 @@ import {
   createOrUpdateResource,
   decrementResourceRefCount,
 } from "@/commands/resource";
-import { getNotionBlockInfo } from "@/commands/notion";
 import { TTSProviderFactory } from "@/utils/tts/TTSProviderFactory";
 import { compileTypst } from "@/commands/typst";
 import { getYoutubeVideoInfo } from "@/commands/youtube-cache";
@@ -41,8 +40,6 @@ import BilibiliVideoLoader from "@/components/BilibiliVideoLoader";
 import BilibiliVideoSelectModal from "@/components/BilibiliVideoSelectModal";
 import YoutubeVideoLoader from "@/components/YoutubeVideoLoader";
 import YoutubeVideoSelectModal from "@/components/YoutubeVideoSelectModal";
-import NotionVideoLoader from "@/components/NotionVideoLoader";
-import NotionVideoSelectModal from "@/components/NotionVideoSelectModal";
 import RemoteVideoLoader from "@/components/RemoteVideoLoader";
 import LocalImage from "@/components/LocalImage";
 import LocalVideo from "@/components/LocalVideo";
@@ -55,7 +52,6 @@ import {
 } from "@/utils";
 import { isYoutubeUrl } from "@/utils/youtube/parser";
 import { isBilibiliUrl, getVideoInfoByUrl } from "@/utils/bilibili";
-import { parseNotionBlockId } from "@/utils/notion";
 import { chatStreamInner } from "@/hooks/useChatLLM";
 import { shouldUseLocalVideoCache } from "@/utils/video";
 import { getGithubCdnUrl } from "@/hooks/useGithubCdnUrl";
@@ -677,26 +673,6 @@ export function createEditorServices(): EditorServices {
         };
       },
 
-      getNotionInfo: async (input: string) => {
-        const blockId = parseNotionBlockId(input);
-        if (!blockId) {
-          throw new Error("无法解析 Notion 区块标识");
-        }
-        const token =
-          useSettingStore.getState().setting.integration.notion.token;
-        if (!token) {
-          throw new Error("尚未配置 Notion 集成");
-        }
-        const info = await getNotionBlockInfo(token, blockId);
-        if (!info.success) {
-          throw new Error(info.error || "获取 Notion 视频信息失败");
-        }
-        return {
-          title: info.blockType ? `Notion ${info.blockType}` : "Notion 视频",
-          thumbnail: info.videoUrl,
-        };
-      },
-
       isYoutubeUrl,
       isBilibiliUrl,
       quickCheckBilibiliUrl: quickCheckBilibiliUrlSync,
@@ -894,11 +870,9 @@ export function createEditorServices(): EditorServices {
       ResourcePickerModal,
       BilibiliVideoLoader,
       YoutubeVideoLoader,
-      NotionVideoLoader,
       RemoteVideoLoader,
       BilibiliVideoSelectModal,
       YoutubeVideoSelectModal,
-      NotionVideoSelectModal,
     },
   };
 }

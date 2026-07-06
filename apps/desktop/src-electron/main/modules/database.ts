@@ -45,7 +45,6 @@ import QuestionGroupTable from "./tables/question-group";
 import PomodoroPresetTable from "./tables/pomodoro-preset";
 import PomodoroSessionTable from "./tables/pomodoro-session";
 import PomodoroCalendarMappingTable from "./tables/pomodoro-calendar-mapping";
-import NotionSyncTable from "./tables/notion-sync";
 import CalendarGroupTable from "./tables/calendar-group";
 import CalendarTable from "./tables/calendar";
 import CalendarEventTable from "./tables/calendar-event";
@@ -232,7 +231,6 @@ class DatabaseModule implements Module {
       PomodoroPresetTable,
       PomodoroSessionTable,
       PomodoroCalendarMappingTable,
-      NotionSyncTable,
       CalendarGroupTable, // 必须在 TodoCalendarSyncTable 和 PomodoroSessionTable 之前
       CalendarTable,
       CalendarEventTable,

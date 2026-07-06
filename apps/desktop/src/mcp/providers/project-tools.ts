@@ -20,7 +20,6 @@ import {
 } from "@/commands/epub";
 import { getWhiteBoardById } from "@/commands/white-board";
 import { getDataTableDetail } from "@/commands/data-table";
-import { getNotionSync } from "@/commands/notion-sync";
 import type { Project, ProjectItem } from "@/types/project";
 import type { MCPProviderDefinition } from "./types";
 
@@ -419,7 +418,7 @@ export const projectToolsProvider: MCPProviderDefinition = {
     {
       name: "get_project_item_details",
       description:
-        "获取项目项的完整详情信息，包括 meta 信息（类型、refType、refId）和根据类型自动获取的关联数据。支持文档、网页、视频、白板、PDF、EPUB、数据表格、Notion 同步等所有类型。如果 refType 不存在，则作为文档类型处理。",
+        "获取项目项的完整详情信息，包括 meta 信息（类型、refType、refId）和根据类型自动获取的关联数据。支持文档、网页、视频、白板、PDF、EPUB、数据表格等类型。如果 refType 不存在，则作为文档类型处理。",
       parameters: {
         type: "object",
         properties: {
@@ -584,22 +583,6 @@ export const projectToolsProvider: MCPProviderDefinition = {
                     type: v.type,
                   })),
                 };
-              }
-              break;
-
-            case "notion-sync":
-              if (projectItem.refId) {
-                const notionSync = await getNotionSync(projectItem.refId);
-                if (notionSync) {
-                  result.notionSync = {
-                    id: notionSync.id,
-                    pageId: notionSync.pageId,
-                    syncMode: notionSync.syncMode,
-                    pendingSync: notionSync.pendingSync,
-                    lastSyncAttempt: notionSync.lastSyncAttempt,
-                    syncError: notionSync.syncError,
-                  };
-                }
               }
               break;
 

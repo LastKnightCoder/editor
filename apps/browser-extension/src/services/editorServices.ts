@@ -102,7 +102,6 @@ export function createExtensionEditorServices({
     media: {
       getYoutubeInfo: async () => UNSUPPORTED("YouTube 信息获取") as never,
       getBilibiliInfo: async () => UNSUPPORTED("Bilibili 信息获取") as never,
-      getNotionInfo: async () => UNSUPPORTED("Notion 信息获取") as never,
       isYoutubeUrl: (url: string) => /youtube\.com|youtu\.be/.test(url),
       isBilibiliUrl: (url: string) => /bilibili\.com|b23\.tv/.test(url),
       quickCheckBilibiliUrl: (url: string) => /bilibili\.com|b23\.tv/.test(url),

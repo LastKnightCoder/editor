@@ -84,9 +84,6 @@ export { default as EditorContextMenu } from "./components/EditorContextMenu";
 // Hooks
 export { useDragHandlerMenu } from "./hooks/useDragHandlerMenu";
 
-// Extensions
-export { notionCompatibleExtensions } from "./extensions/notion-compatible";
-
 // Constants
 export * from "./constants";
 

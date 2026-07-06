@@ -50,7 +50,6 @@ export * from "./data-table-commands";
 export * from "./todo";
 export * from "./rpc";
 export * from "./pomodoro";
-export * from "./notion-sync";
 export * from "./calendar";
 export * from "./file-tree";
 export * from "./podcast";

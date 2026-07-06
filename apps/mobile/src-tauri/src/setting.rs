@@ -226,11 +226,6 @@ fn default_setting_value() -> Value {
           "enabled": false,
           "proxy": ""
         },
-        "notion": {
-          "enabled": false,
-          "token": "",
-          "userInfo": { "name": "", "email": "", "avatar": "", "isConnected": false }
-        },
         "minimax": {
           "enabled": false,
           "apiKey": "",

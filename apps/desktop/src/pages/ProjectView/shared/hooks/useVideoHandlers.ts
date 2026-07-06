@@ -10,7 +10,6 @@ import {
 import { ModalKey } from "../constants/modalKeys";
 import type { YoutubeVideoSelectResult } from "@/components/YoutubeVideoSelectModal";
 import type { BilibiliVideoSelectResult } from "@/components/BilibiliVideoSelectModal";
-import type { NotionVideoSelectResult } from "@/components/NotionVideoSelectModal";
 import type { RemoteVideoSelectResult } from "@/components/RemoteVideoSelectModal";
 
 /**
@@ -196,39 +195,6 @@ export const useVideoHandlers = (options: UseVideoHandlersOptions) => {
   );
 
   /**
-   * 处理 Notion 视频添加
-   */
-  const handleNotionConfirm = useMemoizedFn(
-    async (result: NotionVideoSelectResult) => {
-      try {
-        const item = await createEmptyVideoNote(result.metaInfo);
-        if (!item) {
-          message.error("创建视频笔记失败");
-          return;
-        }
-
-        const createProjectItem: CreateProjectItem = {
-          title: "Notion 视频笔记",
-          content: [],
-          children: [],
-          refType: "video-note",
-          refId: item.id,
-          projectItemType: EProjectItemType.VideoNote,
-          count: 0,
-          whiteBoardContentId: 0,
-        };
-
-        await strategy.addProjectItem(createProjectItem);
-        closeModal(ModalKey.Notion);
-        message.success("Notion 视频添加成功");
-      } catch (error) {
-        console.error("添加 Notion 视频失败:", error);
-        message.error("添加 Notion 视频失败");
-      }
-    },
-  );
-
-  /**
    * 处理远程视频添加
    */
   const handleRemoteVideoConfirm = useMemoizedFn(
@@ -268,7 +234,6 @@ export const useVideoHandlers = (options: UseVideoHandlersOptions) => {
   return {
     handleYoutubeConfirm,
     handleBilibiliConfirm,
-    handleNotionConfirm,
     handleRemoteVideoConfirm,
   };
 };

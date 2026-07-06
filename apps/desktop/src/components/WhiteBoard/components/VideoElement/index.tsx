@@ -7,10 +7,8 @@ import LocalVideo from "@/components/LocalVideo";
 // keep single If import
 import BilibiliVideoLoader from "@/components/BilibiliVideoLoader";
 import YoutubeVideoLoader from "@/components/YoutubeVideoLoader";
-import NotionVideoLoader from "@/components/NotionVideoLoader";
 import { useBilibiliVideo } from "@/hooks/useBilibiliVideo";
 import { useYoutubeVideo } from "@/hooks/useYoutubeVideo";
-import { useNotionVideo } from "@/hooks/useNotionVideo";
 import { isBilibiliUrl } from "@/utils/bilibili";
 import { isYoutubeUrl } from "@/utils/youtube/parser";
 import ResizeCircle from "../ResizeCircle";
@@ -76,13 +74,6 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
     return isYoutubeUrl(src);
   }, [src, metaInfo]);
 
-  const isNotion = useMemo(() => {
-    if (!src) return false;
-    if (metaInfo && "type" in metaInfo && metaInfo.type === "notion")
-      return true;
-    return false; // Notion 视频没有 URL 特征，只能通过 metaInfo 判断
-  }, [src, metaInfo]);
-
   const biliMeta =
     metaInfo && "type" in metaInfo && metaInfo.type === "bilibili"
       ? metaInfo
@@ -91,11 +82,6 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
     metaInfo && "type" in metaInfo && metaInfo.type === "youtube"
       ? metaInfo
       : undefined;
-  const notionMeta =
-    metaInfo && "type" in metaInfo && metaInfo.type === "notion"
-      ? metaInfo
-      : undefined;
-
   const {
     videoUrl: bilibiliVideoUrl,
     loading: bilibiliLoading,
@@ -109,13 +95,6 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
     error: youtubeError,
     streamProgress: youtubeProgress,
   } = useYoutubeVideo(ytMeta);
-
-  const {
-    videoUrl: notionVideoUrl,
-    loading: notionLoading,
-    error: notionError,
-    streamProgress: notionProgress,
-  } = useNotionVideo(notionMeta);
 
   const board = useBoard();
   const { isSelected } = useSelectState(id);
@@ -261,43 +240,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
               </If>
             </>
           </If>
-          <If condition={isNotion}>
-            <>
-              <NotionVideoLoader
-                loading={notionLoading}
-                error={notionError}
-                streamProgress={notionProgress}
-              />
-              <If
-                condition={!!notionVideoUrl && !notionLoading && !notionError}
-              >
-                {notionMeta && notionMeta.cache !== false ? (
-                  <LocalVideo
-                    ref={setVideoRef}
-                    src={notionVideoUrl as string}
-                    controls
-                    style={{ padding: 16, boxSizing: "border-box" }}
-                    width={"100%"}
-                    height={"100%"}
-                  />
-                ) : (
-                  <video
-                    ref={setVideoRef}
-                    src={notionVideoUrl as string}
-                    controls
-                    style={{
-                      padding: 16,
-                      boxSizing: "border-box",
-                      display: "block",
-                    }}
-                    width={"100%"}
-                    height={"100%"}
-                  />
-                )}
-              </If>
-            </>
-          </If>
-          <If condition={!isBilibili && !isYoutube && !isNotion}>
+          <If condition={!isBilibili && !isYoutube}>
             {shouldUseLocalVideo ? (
               <LocalVideo
                 ref={setVideoRef}

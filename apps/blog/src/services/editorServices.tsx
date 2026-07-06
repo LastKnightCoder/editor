@@ -105,9 +105,6 @@ const createComponentRegistry = (): ComponentService => {
     YoutubeVideoLoader: () => (
       <VideoLoader message="YouTube 视频在桌面端可播放" />
     ),
-    NotionVideoLoader: () => (
-      <VideoLoader message="Notion 视频仅支持在桌面端预览" />
-    ),
   };
 };
 
@@ -200,7 +197,6 @@ export function createBlogEditorServices(
     media: {
       getYoutubeInfo: resolveMediaInfo,
       getBilibiliInfo: resolveMediaInfo,
-      getNotionInfo: resolveMediaInfo,
       isYoutubeUrl: isYoutube,
       isBilibiliUrl: isBilibili,
       quickCheckBilibiliUrl: (url: string) => isBilibili(url),
