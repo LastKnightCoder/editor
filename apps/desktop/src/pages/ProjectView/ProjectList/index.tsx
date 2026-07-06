@@ -51,7 +51,6 @@ import {
   useEpubHandlers,
   createProjectItemFromEpub,
 } from "../shared/hooks/useEpubHandlers";
-import { useNotionSyncHandlers } from "../shared/hooks/useNotionSyncHandlers";
 import { ADD_MENU_ITEMS } from "../shared/constants/menuItems";
 import { ModalKey } from "../shared/constants/modalKeys";
 import {
@@ -76,13 +75,11 @@ import { importLocalBook } from "../shared/utils/bookImport";
 import useSettingStore from "@/stores/useSettingStore";
 import YoutubeVideoSelectModal from "@/components/YoutubeVideoSelectModal";
 import BilibiliVideoSelectModal from "@/components/BilibiliVideoSelectModal";
-import NotionVideoSelectModal from "@/components/NotionVideoSelectModal";
 import RemoteVideoSelectModal from "@/components/RemoteVideoSelectModal";
 import RemotePdfSelectModal from "@/components/RemotePdfSelectModal";
 import RemoteEpubSelectModal from "@/components/RemoteEpubSelectModal";
 import RemoteAudioSelectModal from "@/components/RemoteAudioSelectModal";
 import XiaoyuzhouInput from "@/pages/ProjectView/AudioNoteView/components/XiaoyuzhouInput";
-import NotionSyncModal from "@/components/NotionSyncModal";
 import WebViewSelectModal, {
   type WebViewSelectResult,
 } from "@/components/WebViewSelectModal";
@@ -317,7 +314,6 @@ const Project = () => {
   const {
     handleYoutubeConfirm,
     handleBilibiliConfirm,
-    handleNotionConfirm,
     handleRemoteVideoConfirm,
   } = useVideoHandlers({
     closeModal,
@@ -342,31 +338,6 @@ const Project = () => {
   } = useAudioHandlers({
     closeModal,
     strategy: targetAwareAddStrategy,
-  });
-
-  const { handleNotionSyncModalOk } = useNotionSyncHandlers({
-    closeModal,
-    strategy: {
-      addProjectItem: async (createItem) => {
-        if (!project) {
-          message.error("项目尚未加载完成");
-          return;
-        }
-        const [newProject, projectItem] = await addProjectItemToTarget(
-          createItem,
-          addingParentProjectItemId,
-        );
-        if (projectItem) {
-          navigateTo(TabType.ProjectDetail, {
-            id: newProject.id,
-            itemId: projectItem.id,
-          });
-        }
-        setProject(newProject);
-        setAddingParentProjectItemId(undefined);
-      },
-    },
-    getSetting: () => useSettingStore.getState().setting,
   });
 
   const handleWebviewConfirm = useMemoizedFn(
@@ -602,9 +573,6 @@ const Project = () => {
             `项目 - ${item.title || `#${item.id}`}`,
           );
         }
-      } else if (key === "add-notion-document-project-item") {
-        setAddingParentProjectItemId(parentProjectItemId);
-        openModal(ModalKey.NotionSync);
       } else if (key === "add-white-board-project-item") {
         const whiteBoardContent = await createWhiteBoardContent({
           name: "新白板",
@@ -703,9 +671,6 @@ const Project = () => {
       } else if (key === "add-youtube-video-note-project-item") {
         setAddingParentProjectItemId(parentProjectItemId);
         openModal(ModalKey.Youtube);
-      } else if (key === "add-notion-video-note-project-item") {
-        setAddingParentProjectItemId(parentProjectItemId);
-        openModal(ModalKey.Notion);
       } else if (key === "add-local-audio-note-project-item") {
         const filePath = await selectFile({
           properties: ["openFile"],
@@ -1089,12 +1054,6 @@ const Project = () => {
             onConfirm={handleBilibiliConfirm}
           />
 
-          <NotionVideoSelectModal
-            open={modalStates.notion}
-            onCancel={() => closeModal(ModalKey.Notion)}
-            onConfirm={handleNotionConfirm}
-          />
-
           <SelectPdfModal
             open={selectPdfModalOpen}
             pdfs={pdfs}
@@ -1113,13 +1072,6 @@ const Project = () => {
             onOk={onSelectEpubOk}
             onCancel={onSelectEpubCancel}
             excludeEpubIds={excludeEpubIds}
-          />
-
-          <NotionSyncModal
-            open={modalStates.notionSync}
-            token={setting.integration.notion.token}
-            onOk={handleNotionSyncModalOk}
-            onCancel={() => closeModal(ModalKey.NotionSync)}
           />
 
           <RemoteAudioSelectModal

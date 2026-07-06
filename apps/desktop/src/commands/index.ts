@@ -47,7 +47,6 @@ export * from "./data-table";
 export * from "./todo";
 export * from "./typst";
 export * from "./pomodoro";
-export * from "./notion-sync";
 export * from "./calendar-group";
 export * from "./calendar";
 export * from "./pomodoro-calendar-mapping";

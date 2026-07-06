@@ -84,7 +84,6 @@ export interface MediaInfo {
 export interface MediaService {
   getYoutubeInfo: (url: string) => Promise<MediaInfo>;
   getBilibiliInfo: (url: string) => Promise<MediaInfo>;
-  getNotionInfo: (url: string) => Promise<MediaInfo>;
   isYoutubeUrl: (url: string) => boolean;
   isBilibiliUrl: (url: string) => boolean;
   quickCheckBilibiliUrl: (url: string) => boolean;
@@ -233,11 +232,9 @@ export interface ComponentService {
   ResourcePickerModal: ComponentType<any>;
   BilibiliVideoLoader?: ComponentType<any>;
   YoutubeVideoLoader?: ComponentType<any>;
-  NotionVideoLoader?: ComponentType<any>;
   RemoteVideoLoader?: ComponentType<any>;
   BilibiliVideoSelectModal?: ComponentType<any>;
   YoutubeVideoSelectModal?: ComponentType<any>;
-  NotionVideoSelectModal?: ComponentType<any>;
 }
 
 export interface IResource {
@@ -252,7 +249,6 @@ export enum WebLinkSourceType {
   URL = "url",
   YOUTUBE = "youtube",
   BILIBILI = "bilibili",
-  NOTION = "notion",
   REMOTE = "remote",
   LOCAL = "local",
 }

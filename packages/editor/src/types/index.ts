@@ -72,12 +72,10 @@ export type {
   VideoMetaInfo,
   BiliBiliVideoMetaInfo,
   YouTubeVideoMetaInfo,
-  NotionVideoMetaInfo,
   LocalVideoMetaInfo,
   RemoteVideoMetaInfo,
   BilibiliVideoSelectResult,
   YoutubeVideoSelectResult,
-  NotionVideoSelectResult,
 } from "./element/video";
 export type { WebviewElement } from "./element/webview";
 

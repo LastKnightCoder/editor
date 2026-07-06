@@ -8,9 +8,6 @@ import YoutubeVideoSelectModal, {
 import BilibiliVideoSelectModal, {
   type BilibiliVideoSelectResult,
 } from "@/components/BilibiliVideoSelectModal";
-import NotionVideoSelectModal, {
-  type NotionVideoSelectResult,
-} from "@/components/NotionVideoSelectModal";
 import RemoteVideoSelectModal, {
   type RemoteVideoSelectResult,
 } from "@/components/RemoteVideoSelectModal";
@@ -22,7 +19,7 @@ interface VideoSelectorModalProps {
   open: boolean;
   onClose: () => void;
   board: Board;
-  action?: string; // "local" | "resource" | "url" | "bilibili" | "youtube" | "notion"
+  action?: string; // "local" | "resource" | "url" | "bilibili" | "youtube"
 }
 
 const VideoSelectorModal = ({
@@ -38,7 +35,6 @@ const VideoSelectorModal = ({
   const [urlModalOpen, setUrlModalOpen] = useState(false);
   const [biliModalOpen, setBiliModalOpen] = useState(false);
   const [ytModalOpen, setYtModalOpen] = useState(false);
-  const [notionModalOpen, setNotionModalOpen] = useState(false);
   const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
 
   // 根据 action 自动触发对应操作
@@ -61,9 +57,6 @@ const VideoSelectorModal = ({
       case "youtube":
         setYtModalOpen(true);
         break;
-      case "notion":
-        setNotionModalOpen(true);
-        break;
     }
   }, [open, action]);
 
@@ -71,7 +64,6 @@ const VideoSelectorModal = ({
     setUrlModalOpen(false);
     setBiliModalOpen(false);
     setYtModalOpen(false);
-    setNotionModalOpen(false);
     setResourcePickerOpen(false);
   });
 
@@ -165,20 +157,6 @@ const VideoSelectorModal = ({
     },
   );
 
-  const handleNotionConfirm = useMemoizedFn(
-    async (result: NotionVideoSelectResult) => {
-      try {
-        await VideoUtil.insertVideoFromMeta(board, result.metaInfo);
-        setNotionModalOpen(false);
-        handleClose();
-        message.success("Notion 视频添加成功");
-      } catch (error) {
-        console.error("添加 Notion 视频失败:", error);
-        message.error("添加 Notion 视频失败");
-      }
-    },
-  );
-
   return (
     <>
       <input
@@ -208,13 +186,6 @@ const VideoSelectorModal = ({
         open={ytModalOpen}
         onCancel={handleClose}
         onConfirm={handleYoutubeConfirm}
-      />
-
-      {/* Notion 弹窗 */}
-      <NotionVideoSelectModal
-        open={notionModalOpen}
-        onCancel={handleClose}
-        onConfirm={handleNotionConfirm}
       />
 
       {/* 资源库弹窗 */}

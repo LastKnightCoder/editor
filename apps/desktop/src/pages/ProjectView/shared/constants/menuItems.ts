@@ -6,10 +6,6 @@ export const ADD_MENU_ITEMS: MenuProps["items"] = [
     label: "添加文档",
   },
   {
-    key: "add-notion-document-project-item",
-    label: "添加 Notion 文档",
-  },
-  {
     key: "add-white-board-project-item",
     label: "添加白板",
   },
@@ -32,10 +28,6 @@ export const ADD_MENU_ITEMS: MenuProps["items"] = [
       {
         key: "add-youtube-video-note-project-item",
         label: "YouTube 视频",
-      },
-      {
-        key: "add-notion-video-note-project-item",
-        label: "Notion 视频",
       },
     ],
   },

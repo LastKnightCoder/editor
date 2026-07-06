@@ -449,16 +449,6 @@ export interface ISetting {
       enabled: boolean;
       proxy: string;
     };
-    notion: {
-      enabled: boolean;
-      token: string;
-      userInfo: {
-        name: string;
-        email: string;
-        avatar: string;
-        isConnected: boolean;
-      };
-    };
     minimax: {
       enabled: boolean;
       apiKey: string;
@@ -592,11 +582,6 @@ interface IActions {
   setBilibiliEnabled: (enabled: boolean) => void;
   setYoutubeEnabled: (enabled: boolean) => void;
   updateYoutubeProxy: (proxy: string) => void;
-  updateNotionToken: (token: string) => void;
-  updateNotionUserInfo: (
-    userInfo: ISetting["integration"]["notion"]["userInfo"],
-  ) => void;
-  setNotionEnabled: (enabled: boolean) => void;
   updateMinimaxApiKey: (apiKey: string) => void;
   setMinimaxEnabled: (enabled: boolean) => void;
   updateWeReadApiKey: (apiKey: string) => void;
@@ -979,16 +964,6 @@ const initialState: IState = {
         enabled: false,
         proxy: "",
       },
-      notion: {
-        enabled: false,
-        token: "",
-        userInfo: {
-          name: "",
-          email: "",
-          avatar: "",
-          isConnected: false,
-        },
-      },
       minimax: {
         enabled: false,
         apiKey: "",
@@ -1262,30 +1237,6 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, (draft) => {
         draft.integration.youtube.proxy = proxy;
-      }),
-    });
-  },
-  updateNotionToken: (token) => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, (draft) => {
-        draft.integration.notion.token = token;
-      }),
-    });
-  },
-  updateNotionUserInfo: (userInfo) => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, (draft) => {
-        draft.integration.notion.userInfo = userInfo;
-      }),
-    });
-  },
-  setNotionEnabled: (enabled) => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, (draft) => {
-        draft.integration.notion.enabled = enabled;
       }),
     });
   },

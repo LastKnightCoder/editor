@@ -1,7 +1,6 @@
 import React from "react";
 import BilibiliSetting from "./BilibiliSetting";
 import YouTubeSetting from "./YouTubeSetting";
-import NotionSetting from "./NotionSetting";
 import MinimaxSetting from "./MinimaxSetting";
 import GithubSetting from "./GithubSetting";
 import S3Setting from "./S3Setting";
@@ -32,7 +31,6 @@ const IntegrationSetting: React.FC = () => {
         <div className="grid grid-cols-1 @md:grid-cols-2 @2xl:grid-cols-3 @5xl:grid-cols-4 gap-4">
           <BilibiliSetting />
           <YouTubeSetting />
-          <NotionSetting />
           <MinimaxSetting />
           <GithubSetting />
           <S3Setting />

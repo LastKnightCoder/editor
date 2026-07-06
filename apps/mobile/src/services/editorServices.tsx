@@ -217,7 +217,6 @@ export function createMobileEditorServices(): EditorServices {
     media: {
       getYoutubeInfo: (_url) => rejectUnsupported("media.getYoutubeInfo"),
       getBilibiliInfo: (_url) => rejectUnsupported("media.getBilibiliInfo"),
-      getNotionInfo: (_url) => rejectUnsupported("media.getNotionInfo"),
       isYoutubeUrl: (url) =>
         /(?:youtube\.com\/watch\?v=|youtu\.be\/)/i.test(url),
       isBilibiliUrl: (url) => /(?:bilibili\.com|b23\.tv)/i.test(url),
@@ -275,11 +274,9 @@ export function createMobileEditorServices(): EditorServices {
       ResourcePickerModal: PlaceholderModal,
       BilibiliVideoLoader: PlaceholderVideoLoader,
       YoutubeVideoLoader: PlaceholderVideoLoader,
-      NotionVideoLoader: PlaceholderVideoLoader,
       RemoteVideoLoader: PlaceholderVideoLoader,
       BilibiliVideoSelectModal: PlaceholderModal,
       YoutubeVideoSelectModal: PlaceholderModal,
-      NotionVideoSelectModal: PlaceholderModal,
     },
   };
 }

@@ -45,10 +45,6 @@ vi.mock("@/commands/data-table", () => ({
   getDataTableDetail: vi.fn(),
 }));
 
-vi.mock("@/commands/notion-sync", () => ({
-  getNotionSync: vi.fn(),
-}));
-
 import {
   getProjectById,
   getProjectItemsByIds,

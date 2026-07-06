@@ -13,10 +13,6 @@ import EditorOutline from "@/components/EditorOutline";
 import { EditCardContext } from "@/context.ts";
 import useEditContent from "@/hooks/useEditContent";
 import useRegisterActiveEditingContext from "@/hooks/useRegisterActiveEditingContext";
-import NotionSyncStatus from "@/components/NotionSyncStatus";
-import NotionConflictModal from "@/components/NotionConflictModal";
-import { notionCompatibleExtensions } from "@tau/editor/src";
-import { useNotionSyncIntegration } from "./useNotionSyncIntegration";
 import useThemeColors from "@/hooks/useThemeColors";
 import ImmersiveEditorMode, {
   type ImmersiveEditorExitPayload,
@@ -73,35 +69,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     ];
   }, [dynamicExtensions, projectItemId]);
 
-  // Notion 同步集成
-  const {
-    notionSync,
-    isNotionDocument,
-    syncStatus,
-    conflictModalOpen,
-    localContent,
-    notionContent,
-    handleManualSync,
-    handleSyncFromNotion,
-    handleDisconnect,
-    handleOpenInNotion,
-    handleUseLocalContent,
-    handleUseNotionContent,
-    handleCancelConflictModal,
-    useNotionExtensions,
-  } = useNotionSyncIntegration(projectItem, setProjectItem, (content) =>
-    editorRef.current?.setEditorValue(content),
-  );
-
-  // 根据是否是 Notion 文档决定使用的扩展集
-  const extensions = useMemo(() => {
-    if (isNotionDocument && useNotionExtensions) {
-      // 双向编辑模式：使用 Notion 兼容扩展
-      return notionCompatibleExtensions;
-    }
-    // 普通文档或 JSON 模式：使用默认扩展（支持所有功能）
-    return editorExtensions;
-  }, [isNotionDocument, useNotionExtensions, editorExtensions]);
+  const extensions = editorExtensions;
 
   const { throttleHandleEditorContentChange } = useEditContent(
     projectItem?.contentId,
@@ -256,7 +224,6 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                 onBlur={handleEditorBlur}
                 readonly={false}
                 extensions={extensions}
-                disableStartExtensions={useNotionExtensions}
               />
             </ErrorBoundary>
           </EditCardContext.Provider>
@@ -280,29 +247,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
             <Maximize2 size={14} />
           </div>
         </Tooltip>
-        {isNotionDocument && notionSync && (
-          <NotionSyncStatus
-            notionSync={notionSync}
-            status={syncStatus}
-            onManualSync={handleManualSync}
-            onSyncFromNotion={handleSyncFromNotion}
-            onDisconnect={handleDisconnect}
-            onOpenInNotion={handleOpenInNotion}
-          />
-        )}
       </div>
-
-      {/* Notion 冲突解决模态框 */}
-      {conflictModalOpen && localContent && notionContent && (
-        <NotionConflictModal
-          open={conflictModalOpen}
-          localContent={localContent}
-          notionContent={notionContent}
-          onUseLocal={handleUseLocalContent}
-          onUseNotion={handleUseNotionContent}
-          onCancel={handleCancelConflictModal}
-        />
-      )}
 
       {/* 沉浸模式 */}
       {immersiveMode && (

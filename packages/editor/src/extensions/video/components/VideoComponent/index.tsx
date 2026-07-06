@@ -21,7 +21,6 @@ import useIsLastElement from "../../../../hooks/useIsLastElement";
 import {
   BilibiliVideoSelectResult,
   YoutubeVideoSelectResult,
-  NotionVideoSelectResult,
 } from "../../../../types";
 
 import {
@@ -29,7 +28,6 @@ import {
   ModernTabs,
   useBilibiliVideoWithContext,
   useYoutubeVideoWithContext,
-  useNotionVideoWithContext,
   useRemoteVideoWithContext,
 } from "@tau/shared";
 
@@ -38,7 +36,6 @@ import type {
   VideoMetaInfo,
   BiliBiliVideoMetaInfo,
   YouTubeVideoMetaInfo,
-  NotionVideoMetaInfo,
 } from "../../../types";
 
 import styles from "./index.module.less";
@@ -52,10 +49,6 @@ function isBiliMetaInfo(m?: VideoMetaInfo): m is BiliBiliVideoMetaInfo {
 
 function isYoutubeMetaInfo(m?: VideoMetaInfo): m is YouTubeVideoMetaInfo {
   return !!m && (m as YouTubeVideoMetaInfo).type === "youtube";
-}
-
-function isNotionMetaInfo(m?: VideoMetaInfo): m is NotionVideoMetaInfo {
-  return !!m && (m as NotionVideoMetaInfo).type === "notion";
 }
 
 const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
@@ -77,19 +70,15 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   // Modal 状态
   const [biliModalOpen, setBiliModalOpen] = useState(false);
   const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
-  const [notionModalOpen, setNotionModalOpen] = useState(false);
   const { isDark } = useTheme();
 
   const ResourcePickerModal = editor.services?.components?.ResourcePickerModal;
   const BilibiliVideoLoader = editor.services?.components?.BilibiliVideoLoader;
   const YoutubeVideoLoader = editor.services?.components?.YoutubeVideoLoader;
-  const NotionVideoLoader = editor.services?.components?.NotionVideoLoader;
   const BilibiliVideoSelectModal =
     editor.services?.components?.BilibiliVideoSelectModal;
   const YoutubeVideoSelectModal =
     editor.services?.components?.YoutubeVideoSelectModal;
-  const NotionVideoSelectModal =
-    editor.services?.components?.NotionVideoSelectModal;
   const RemoteVideoLoader = editor.services?.components?.RemoteVideoLoader;
 
   const isBilibiliUrl = (url: string) =>
@@ -107,15 +96,8 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     () => isYoutubeMetaInfo(element.metaInfo),
     [element.metaInfo],
   );
-  const isNotion = useMemo(() => {
-    return isNotionMetaInfo(element.metaInfo);
-  }, [element.metaInfo]);
-
   const biliMeta = isBiliMetaInfo(element.metaInfo) ? element.metaInfo : null;
   const ytMeta = isYoutubeMetaInfo(element.metaInfo)
-    ? element.metaInfo
-    : undefined;
-  const notionMeta = isNotionMetaInfo(element.metaInfo)
     ? element.metaInfo
     : undefined;
 
@@ -133,24 +115,17 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     streamProgress: youtubeProgress,
   } = useYoutubeVideoWithContext(ytMeta);
 
-  const {
-    videoUrl: notionVideoUrl,
-    loading: notionVideoLoading,
-    error: notionVideoError,
-    streamProgress: notionProgress,
-  } = useNotionVideoWithContext(notionMeta || undefined);
-
   // Get src from element for use in isRegularRemoteVideo check
   const elementSrc = element.src;
 
-  // Check if this is a regular remote video (not Bilibili/YouTube/Notion)
+  // Check if this is a regular remote video (not Bilibili/YouTube)
   const isRegularRemoteVideo = useMemo(() => {
     if (!elementSrc) return false;
-    if (isBilibili || isYoutube || isNotion) return false;
+    if (isBilibili || isYoutube) return false;
     return (
       elementSrc.startsWith("http://") || elementSrc.startsWith("https://")
     );
-  }, [elementSrc, isBilibili, isYoutube, isNotion]);
+  }, [elementSrc, isBilibili, isYoutube]);
 
   const {
     videoUrl: remoteVideoUrl,
@@ -338,29 +313,6 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
       } catch (error) {
         console.error("添加 YouTube 视频失败:", error);
         message.error("添加 YouTube 视频失败");
-      }
-    },
-  );
-
-  // 处理 Notion 视频确认
-  const handleNotionConfirm = useMemoizedFn(
-    async (result: NotionVideoSelectResult) => {
-      try {
-        const path = ReactEditor.findPath(editor, element);
-        Transforms.setNodes<VideoElement>(
-          editor,
-          {
-            metaInfo: result.metaInfo,
-            src: `notion://${result.blockId}`,
-          },
-          { at: path },
-        );
-
-        setNotionModalOpen(false);
-        message.success("Notion 视频添加成功");
-      } catch (error) {
-        console.error("添加 Notion 视频失败:", error);
-        message.error("添加 Notion 视频失败");
       }
     },
   );
@@ -649,26 +601,6 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
                 </div>
               ),
             },
-            {
-              key: "notion",
-              label: "Notion",
-              children: (
-                <div className="flex flex-col gap-[1em]">
-                  <p className="m-0 text-[0.8125em] text-gray-500 dark:text-zinc-400">
-                    从 Notion 添加视频块，可选是否缓存到本地
-                  </p>
-                  <div className="flex justify-start">
-                    <button
-                      type="button"
-                      className="px-[1.25em] py-[0.625em] rounded-[0.75em] border-none text-[0.875em] font-semibold cursor-pointer transition-all bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-[var(--th-btn-hover)]"
-                      onClick={() => setNotionModalOpen(true)}
-                    >
-                      打开 Notion 视频选择器
-                    </button>
-                  </div>
-                </div>
-              ),
-            },
           ]}
         />
       </div>
@@ -738,35 +670,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
               )}
             </If>
 
-            <If condition={isNotion}>
-              {notionMeta && NotionVideoLoader ? (
-                <>
-                  <NotionVideoLoader
-                    loading={notionVideoLoading}
-                    error={notionVideoError}
-                    streamProgress={notionProgress}
-                  />
-                  <If
-                    condition={
-                      !!notionVideoUrl &&
-                      !notionVideoLoading &&
-                      !notionVideoError
-                    }
-                  >
-                    {renderVideoContainer(
-                      notionVideoUrl as string,
-                      (notionMeta as any).cache !== false,
-                    )}
-                  </If>
-                </>
-              ) : (
-                <div style={{ color: "#ff4d4f", padding: 8 }}>
-                  缺少 Notion metaInfo，请通过添加视频入口创建
-                </div>
-              )}
-            </If>
-
-            <If condition={!isBilibili && !isYoutube && !isNotion}>
+            <If condition={!isBilibili && !isYoutube}>
               {isRegularRemoteVideo && RemoteVideoLoader ? (
                 <>
                   <RemoteVideoLoader
@@ -840,15 +744,6 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
           open={youtubeModalOpen}
           onCancel={() => setYoutubeModalOpen(false)}
           onConfirm={handleYoutubeConfirm}
-        />
-      )}
-
-      {/* Notion 视频选择弹窗 */}
-      {NotionVideoSelectModal && (
-        <NotionVideoSelectModal
-          open={notionModalOpen}
-          onCancel={() => setNotionModalOpen(false)}
-          onConfirm={handleNotionConfirm}
         />
       )}
     </div>

@@ -585,18 +585,6 @@ CREATE TABLE IF NOT EXISTS pomodoro_calendar_mapping (
         create_time INTEGER NOT NULL,
         UNIQUE(pomodoro_session_id, calendar_event_id)
       );
-CREATE TABLE IF NOT EXISTS notion_sync (
-        id INTEGER PRIMARY KEY,
-        page_id TEXT NOT NULL UNIQUE,
-        sync_mode TEXT NOT NULL,
-        code_block_id TEXT,
-        last_local_content_hash TEXT,
-        pending_sync INTEGER DEFAULT 0,
-        last_sync_attempt INTEGER,
-        sync_error TEXT,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      );
 CREATE TABLE IF NOT EXISTS calendar_group (
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL,
@@ -1022,8 +1010,6 @@ CREATE INDEX IF NOT EXISTS idx_session_start ON pomodoro_sessions(start_time);
 CREATE INDEX IF NOT EXISTS idx_session_preset ON pomodoro_sessions(preset_id);
 CREATE INDEX IF NOT EXISTS idx_mapping_session ON pomodoro_calendar_mapping(pomodoro_session_id);
 CREATE INDEX IF NOT EXISTS idx_mapping_event ON pomodoro_calendar_mapping(calendar_event_id);
-CREATE INDEX IF NOT EXISTS idx_notion_sync_page_id ON notion_sync(page_id);
-CREATE INDEX IF NOT EXISTS idx_notion_sync_pending ON notion_sync(pending_sync);
 CREATE INDEX IF NOT EXISTS idx_calendar_group_is_system ON calendar_group(is_system);
 CREATE INDEX IF NOT EXISTS idx_calendar_group_order_index ON calendar_group(order_index);
 CREATE INDEX IF NOT EXISTS idx_calendar_group_parent ON calendar_group(parent_group_id);

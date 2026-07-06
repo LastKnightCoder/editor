@@ -66,14 +66,12 @@ import {
   getRemoteVideoCacheStatus,
 } from "@/commands/remote-video-cache";
 import { getYoutubeCacheStatus } from "@/commands/youtube-cache";
-import { getNotionCacheStatus } from "@/commands/notion-cache";
 import {
   type VideoNote as IVideoNote,
   type VideoNoteItem,
   type TranscriptSegment,
   BiliBiliVideoMetaInfo,
   YouTubeVideoMetaInfo,
-  NotionVideoMetaInfo,
   LocalVideoMetaInfo,
   RemoteVideoMetaInfo,
 } from "@/types";
@@ -591,11 +589,6 @@ const VideoNotePanel = ({
       case "youtube": {
         const ytMeta = metaInfo as YouTubeVideoMetaInfo;
         const status = await getYoutubeCacheStatus(ytMeta.url);
-        return status?.localPath || null;
-      }
-      case "notion": {
-        const notionMeta = metaInfo as NotionVideoMetaInfo;
-        const status = await getNotionCacheStatus(notionMeta.blockId);
         return status?.localPath || null;
       }
       default:

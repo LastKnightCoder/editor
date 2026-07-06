@@ -15,9 +15,7 @@ overrides:
   slate-history: 0.113.1
 
 patchedDependencies:
-  better-sqlite3@12.10.0:
-    hash: 28e507a141733e7011377e4879c00f5fc51e4360f7736bbfeee8fe8ed0c8126f
-    path: patches/better-sqlite3@12.10.0.patch
+  better-sqlite3@12.10.0: 28e507a141733e7011377e4879c00f5fc51e4360f7736bbfeee8fe8ed0c8126f
 
 importers:
 
@@ -555,9 +553,6 @@ importers:
       '@mozilla/readability':
         specifier: ^0.5.0
         version: 0.5.0
-      '@notionhq/client':
-        specifier: ^5.3.0
-        version: 5.4.0
       '@openai/codex-sdk':
         specifier: 0.142.5
         version: 0.142.5
@@ -3616,10 +3611,6 @@ packages:
   '@nodelib/fs.walk@1.2.8':
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
-
-  '@notionhq/client@5.4.0':
-    resolution: {integrity: sha512-SJsprS26S0Wi9CoTQp4vC8/nPpAIo1gMB4H7aJ2E/k0fWnNGIEAg984KwtzK6h9ZGaPcEaryVRSz1VVClJcVUw==}
-    engines: {node: '>=18'}
 
   '@octokit/auth-token@4.0.0':
     resolution: {integrity: sha512-tY/msAuJo6ARbK6SPIxZrPBms3xPbfwBrulZe0Wtr/DIY9lje2HeV1uoebShn6mx7SjCHif6EjMvoREj+gZ+SA==}
@@ -13833,8 +13824,6 @@ snapshots:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.19.1
-
-  '@notionhq/client@5.4.0': {}
 
   '@octokit/auth-token@4.0.0': {}
 

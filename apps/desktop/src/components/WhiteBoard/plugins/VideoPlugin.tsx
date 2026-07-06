@@ -137,18 +137,6 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
               });
             },
           },
-          {
-            key: "video-notion",
-            label: "Notion",
-            icon: <FileText size={14} />,
-            priority: 5,
-            onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("context-menu:open-modal", {
-                type: "video",
-                action: "notion",
-              });
-            },
-          },
         ],
         onSelect: () => {},
       });

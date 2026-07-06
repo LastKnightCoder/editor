@@ -92,7 +92,6 @@
     "@modelcontextprotocol/sdk": "^1.24.3",
     "@mozilla/readability": "^0.5.0",
     "@openai/codex-sdk": "0.142.5",
-    "@notionhq/client": "^5.3.0",
     "@tailwindcss/vite": "^4.1.17",
     "@tanstack/react-virtual": "3.13.12",
     "@tau/agent": "workspace:*",

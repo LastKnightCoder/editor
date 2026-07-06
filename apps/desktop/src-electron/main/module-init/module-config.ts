@@ -26,9 +26,7 @@ import youtubeAudioCacheModule from "../modules/youtube-audio-cache";
 import remoteVideoCacheModule from "../modules/remote-video-cache";
 import remoteAudioCacheModule from "../modules/remote-audio-cache";
 import remoteImageCacheModule from "../modules/remote-image-cache";
-import notionCacheModule from "../modules/notion-cache";
 import podcastAudioModule from "../modules/podcast-audio";
-import notionModule from "../modules/notion";
 import wereadModule from "../modules/weread";
 import publishModule from "../modules/publish";
 import todoReminderModule from "../modules/todo-reminder";
@@ -209,13 +207,6 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     init: () => remoteImageCacheModule.init(),
   },
   {
-    name: "notion-cache",
-    group: ModuleGroup.CACHE,
-    layer: InitLayer.ON_DEMAND,
-    dependencies: ["logger", "resource"],
-    init: () => notionCacheModule.init(),
-  },
-  {
     name: "podcast-audio",
     group: ModuleGroup.CACHE,
     layer: InitLayer.ON_DEMAND,
@@ -316,13 +307,6 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   },
 
   // 集成模块
-  {
-    name: "notion",
-    group: ModuleGroup.INTEGRATION,
-    layer: InitLayer.ON_DEMAND,
-    dependencies: ["logger", "setting"],
-    init: () => notionModule.init(),
-  },
   {
     name: "weread",
     group: ModuleGroup.INTEGRATION,

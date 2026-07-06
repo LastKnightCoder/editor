@@ -26,18 +26,11 @@ export interface YouTubeVideoMetaInfo {
   audioStream: StreamOption;
 }
 
-export interface NotionVideoMetaInfo {
-  type: "notion";
-  blockId: string;
-  cache?: boolean; // 是否缓存视频，默认 true
-}
-
 export type VideoMetaInfo =
   | LocalVideoMetaInfo
   | RemoteVideoMetaInfo
   | BiliBiliVideoMetaInfo
-  | YouTubeVideoMetaInfo
-  | NotionVideoMetaInfo;
+  | YouTubeVideoMetaInfo;
 
 export interface TranscriptSegment {
   text: string;

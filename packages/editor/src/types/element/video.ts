@@ -19,14 +19,6 @@ export interface YouTubeVideoMetaInfo {
   thumbnail?: string;
 }
 
-export interface NotionVideoMetaInfo {
-  type: "notion";
-  blockId: string;
-  pageId?: string;
-  title?: string;
-  cover?: string;
-}
-
 export interface LocalVideoMetaInfo {
   type: "local";
   path: string;
@@ -47,7 +39,6 @@ export interface OtherVideoMetaInfo {
 export type VideoMetaInfo =
   | BiliBiliVideoMetaInfo
   | YouTubeVideoMetaInfo
-  | NotionVideoMetaInfo
   | LocalVideoMetaInfo
   | RemoteVideoMetaInfo
   | OtherVideoMetaInfo;
@@ -73,9 +64,4 @@ export interface YoutubeVideoSelectResult {
   url: string;
   videoStream?: string;
   audioStream?: string;
-}
-
-export interface NotionVideoSelectResult {
-  metaInfo: NotionVideoMetaInfo;
-  blockId: string;
 }
