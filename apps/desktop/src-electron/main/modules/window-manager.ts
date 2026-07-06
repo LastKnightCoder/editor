@@ -862,7 +862,6 @@ export class WindowManager {
       type === "markdown"
         ? {
             nativeTitlebar: process.platform === "win32",
-            macTrafficLights: true,
           }
         : undefined,
     );
