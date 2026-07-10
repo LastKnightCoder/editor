@@ -92,6 +92,7 @@ export type Events =
   | "onGlobalPointerDown"
   | "onGlobalPointerUp"
   | "onGlobalPointerMove"
+  | "onGlobalPointerCancel"
   | "onPaste"
   | "onCopy"
   | "onCut"
@@ -121,6 +122,7 @@ export interface IBoardPlugin {
   onGlobalPointerDown?: EventHandler;
   onGlobalPointerUp?: EventHandler;
   onGlobalPointerMove?: EventHandler;
+  onGlobalPointerCancel?: EventHandler;
   onPaste?: EventHandler;
   onCopy?: EventHandler;
   onCut?: EventHandler;

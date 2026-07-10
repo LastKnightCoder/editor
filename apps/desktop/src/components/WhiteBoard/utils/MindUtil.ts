@@ -8,6 +8,10 @@ import useSettingStore from "@/stores/useSettingStore.ts";
 
 const MARGIN_X = 36;
 
+export const MIND_DRAG_HORIZONTAL_THRESHOLD_PX = 120;
+export const MIND_DRAG_VERTICAL_THRESHOLD_PX = 80;
+export const MIND_DRAG_TARGET_RETENTION_SCALE = 1.2;
+
 const MARGIN_Y: Record<string, number> = {
   "1": 24,
   "2": 16,
@@ -264,6 +268,24 @@ export class MindUtil {
         },
       });
     });
+  }
+
+  static createRootDragLayout(
+    root: MindNodeElement,
+    position: { x: number; y: number },
+    direction: "left" | "right" | null,
+  ) {
+    const movedRoot = this.moveAll(
+      root,
+      position.x - root.x,
+      position.y - root.y,
+    );
+    if (!direction) return movedRoot;
+
+    const directedRoot = produce(movedRoot, (draft) => {
+      this.updateNodeDirectionAndLevel(draft, direction, 0);
+    });
+    return this.layout(directedRoot);
   }
 
   static getParent(
@@ -644,74 +666,62 @@ export class MindUtil {
     return this.layout(newRoot);
   }
 
-  /**
-   * 根据候选父节点的 direction 计算连接距离
-   * 算法：先判断 Y 范围，在范围内只计算 X 距离，否则距离为无穷大
-   * @param draggedNode 被拖拽的节点
-   * @param candidateParent 候选父节点
-   * @returns 连接距离，如果不在 Y 范围内返回 Infinity
-   */
-  static calculateDistanceToDirectionEdge(
+  static calculateDragTargetDistance(
     draggedNode: MindNodeElement,
     candidateParent: MindNodeElement,
-  ): { distance: number; direction: "left" | "right" } {
-    // 计算拖拽节点的中心 Y 坐标
-    const draggedMidY = draggedNode.y + draggedNode.height / 2;
+    direction: "left" | "right",
+    zoom: number,
+  ): Omit<MindDragTarget, "node" | "insertIndex"> | null {
+    const parentLeft = candidateParent.x;
+    const parentRight = candidateParent.x + candidateParent.width;
+    const draggedLeft = draggedNode.x;
+    const draggedRight = draggedNode.x + draggedNode.width;
+    const isCompletelyOnDirectionSide =
+      direction === "right"
+        ? draggedLeft >= parentRight
+        : draggedRight <= parentLeft;
 
-    const actualHeight = candidateParent.actualHeight;
-    const midY = candidateParent.y + candidateParent.height / 2;
-    // 判断拖拽节点中心 Y 是否在候选父节点的 Y 范围内
-    const parentTopY = midY - actualHeight / 2 - 10;
-    const parentBottomY = midY + actualHeight / 2 + 10;
-    const isInYRange =
-      draggedMidY >= parentTopY && draggedMidY <= parentBottomY;
-
-    // 如果不在 Y 范围内，返回无穷大
-    if (!isInYRange) {
-      return { distance: Infinity, direction: "right" };
+    if (!isCompletelyOnDirectionSide) {
+      return null;
     }
 
-    // 如果是 root 节点，计算离两侧的距离，取最近的 direction
-    if (this.isRoot(candidateParent)) {
-      const parentRightEdgeX = candidateParent.x + candidateParent.width;
-      const draggedLeftEdgeX = draggedNode.x;
-      const rightDistance = Math.abs(draggedLeftEdgeX - parentRightEdgeX);
+    const horizontalDistance =
+      direction === "right"
+        ? draggedLeft - parentRight
+        : parentLeft - draggedRight;
+    const verticalDistance = Math.max(
+      0,
+      candidateParent.y - (draggedNode.y + draggedNode.height),
+      draggedNode.y - (candidateParent.y + candidateParent.height),
+    );
+    const safeZoom = Math.max(zoom, 0.01);
+    const score = Math.hypot(
+      (horizontalDistance * safeZoom) / MIND_DRAG_HORIZONTAL_THRESHOLD_PX,
+      (verticalDistance * safeZoom) / MIND_DRAG_VERTICAL_THRESHOLD_PX,
+    );
+    const parentCenterY = candidateParent.y + candidateParent.height / 2;
+    const draggedCenterY = draggedNode.y + draggedNode.height / 2;
 
-      const parentLeftEdgeX = candidateParent.x;
-      const draggedRightEdgeX = draggedNode.x + draggedNode.width;
-      const leftDistance = Math.abs(draggedRightEdgeX - parentLeftEdgeX);
-
-      if (rightDistance <= leftDistance) {
-        return { distance: rightDistance, direction: "right" };
-      } else {
-        return { distance: leftDistance, direction: "left" };
-      }
-    }
-
-    // 非 root 节点，根据节点的 direction 计算距离
-    const direction = candidateParent.direction || "right";
-
-    switch (direction) {
-      case "right": {
-        const parentRightEdgeX = candidateParent.x + candidateParent.width;
-        const draggedLeftEdgeX = draggedNode.x;
-        const rightDistance = Math.abs(draggedLeftEdgeX - parentRightEdgeX);
-
-        return { distance: rightDistance, direction };
-      }
-
-      case "left": {
-        const parentLeftEdgeX = candidateParent.x;
-        const draggedRightEdgeX = draggedNode.x + draggedNode.width;
-        const leftDistance = Math.abs(draggedRightEdgeX - parentLeftEdgeX);
-
-        return { distance: leftDistance, direction };
-      }
-      default: {
-        console.error("direction is not right or left", direction);
-        return { distance: Infinity, direction: "right" };
-      }
-    }
+    return {
+      direction,
+      horizontalDistance,
+      verticalDistance,
+      score,
+      connectionStart: {
+        x:
+          direction === "right"
+            ? candidateParent.x + candidateParent.width
+            : candidateParent.x,
+        y: parentCenterY,
+      },
+      connectionEnd: {
+        x:
+          direction === "right"
+            ? draggedNode.x
+            : draggedNode.x + draggedNode.width,
+        y: draggedCenterY,
+      },
+    };
   }
 
   /**
@@ -755,62 +765,99 @@ export class MindUtil {
 
   static findNearestMindNode(
     board: Board,
-    point: { x: number; y: number },
     dragNode: MindNodeElement,
+    currentTarget: MindDragTarget | null = null,
   ): MindDragTarget | null {
-    let nearestParent: MindNodeElement | null = null;
-    let minDistance = Infinity;
-    let nearestDirection: "left" | "right" = "right";
+    const draggedNodeIds = new Set<string>();
+    this.dfs(dragNode, {
+      before: (node) => draggedNodeIds.add(node.id),
+    });
 
-    // 距离阈值：超过此距离认为拖拽到空白区域
-    const DISTANCE_THRESHOLD = 20;
-
-    // 第一步：找到最近的节点作为父节点
+    const visibleMindNodes: MindNodeElement[] = [];
+    const roots: MindNodeElement[] = [];
     BoardUtil.dfs(board, (element) => {
-      if (element.type !== "mind-node") return;
-
-      const node = element as MindNodeElement;
-
-      // 排除自己
-      if (node.id === dragNode.id) {
-        return;
-      }
-
-      // 排除子孙节点
-      if (this.isDescendantOf(dragNode, node)) {
-        return;
-      }
-
-      // 根据节点边缘计算连接距离
-      const { distance, direction } = this.calculateDistanceToDirectionEdge(
-        dragNode,
-        node,
-      );
-
-      if (distance < minDistance) {
-        minDistance = distance;
-        nearestParent = node;
-        nearestDirection = direction;
+      if (
+        element.type === "mind-node" &&
+        this.isRoot(element as MindNodeElement)
+      ) {
+        roots.push(element as MindNodeElement);
       }
     });
 
-    // 检查距离阈值
-    if (!nearestParent || minDistance > DISTANCE_THRESHOLD) {
-      return null;
-    }
+    const collectVisibleNodes = (node: MindNodeElement) => {
+      visibleMindNodes.push(node);
+      node.children.forEach((child) => {
+        const isFolded =
+          child.direction === "left" ? node.isLeftFold : node.isRightFold;
+        if (!isFolded) collectVisibleNodes(child);
+      });
+    };
+    roots.forEach(collectVisibleNodes);
 
-    // 第二步：确定在该父节点的哪个位置插入
-    return this.calculateInsertPosition(nearestParent, point, nearestDirection);
+    let nearestTarget: MindDragTarget | null = null;
+    const dragCenterPoint = {
+      x: dragNode.x + dragNode.width / 2,
+      y: dragNode.y + dragNode.height / 2,
+    };
+
+    visibleMindNodes.forEach((node) => {
+      if (draggedNodeIds.has(node.id)) return;
+
+      const directions: Array<"left" | "right"> = this.isRoot(node)
+        ? ["left", "right"]
+        : [node.direction];
+
+      directions.forEach((direction) => {
+        const distance = this.calculateDragTargetDistance(
+          dragNode,
+          node,
+          direction,
+          board.viewPort.zoom,
+        );
+        if (!distance) return;
+
+        const retentionScale =
+          currentTarget?.node.id === node.id &&
+          currentTarget.direction === direction
+            ? MIND_DRAG_TARGET_RETENTION_SCALE
+            : 1;
+        if (distance.score > retentionScale) return;
+
+        const placement = this.calculateInsertPosition(
+          node,
+          dragCenterPoint,
+          direction,
+          dragNode.id,
+        );
+        const target: MindDragTarget = {
+          ...placement,
+          ...distance,
+        };
+
+        if (
+          !nearestTarget ||
+          target.score < nearestTarget.score ||
+          (target.score === nearestTarget.score &&
+            target.verticalDistance < nearestTarget.verticalDistance)
+        ) {
+          nearestTarget = target;
+        }
+      });
+    });
+
+    return nearestTarget;
   }
 
   static calculateInsertPosition(
     parentNode: MindNodeElement,
-    mousePoint: { x: number; y: number },
+    dragCenterPoint: { x: number; y: number },
     direction: "left" | "right",
-  ): MindDragTarget {
-    const children = parentNode.children;
+    draggedNodeId?: string,
+  ): Pick<MindDragTarget, "node" | "insertIndex" | "direction"> {
+    const children = draggedNodeId
+      ? parentNode.children.filter((child) => child.id !== draggedNodeId)
+      : parentNode.children;
 
-    // 如果没有子节点，直接作为第一个子节点
     if (children.length === 0) {
       return {
         node: parentNode,
@@ -843,15 +890,12 @@ export class MindUtil {
     // 查找应该插入的位置
     let insertIndex = children.length; // 默认插入到最后
 
-    // 使用鼠标位置来计算插入位置
-    const dragMouseY = mousePoint.y;
-
     // 只比较同方向的兄弟节点
     for (let i = 0; i < sameDirectionSiblings.length; i++) {
       const sibling = sameDirectionSiblings[i];
       const siblingCenterY = sibling.y + sibling.height / 2;
 
-      if (dragMouseY < siblingCenterY) {
+      if (dragCenterPoint.y < siblingCenterY) {
         // 鼠标在这个兄弟节点上方，应该插入在它之前
         // 需要找到这个兄弟节点在原始 children 数组中的索引
         const originalIndex = children.findIndex(
@@ -1018,7 +1062,7 @@ export class MindUtil {
   }
 
   static canMoveNode(root: MindNodeElement, node: MindNodeElement): boolean {
-    if (MindUtil.isRoot(node)) return false;
+    if (root.id === node.id) return true;
     const parent = this.findParentInTree(root, node.id);
     return parent !== null;
   }

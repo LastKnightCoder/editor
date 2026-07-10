@@ -21,3 +21,6 @@ export const MIND_LINE_COLORS = [
   "rgb(249, 220, 78)",
   "rgb(189, 206, 111)",
 ];
+
+export const getMindDragSourceId = (nodeId: string) =>
+  `whiteboard-mind-drag-source-${nodeId}`;

@@ -358,6 +358,13 @@ class Board {
     executeSequence(fns, event, this);
   }
 
+  onGlobalPointerCancel(event: PointerEvent) {
+    const fns = this.plugins
+      .map(bindHandler("onGlobalPointerCancel"))
+      .filter(isValid);
+    executeSequence(fns, event, this);
+  }
+
   onPaste(event: ClipboardEvent) {
     if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onPaste")).filter(isValid);

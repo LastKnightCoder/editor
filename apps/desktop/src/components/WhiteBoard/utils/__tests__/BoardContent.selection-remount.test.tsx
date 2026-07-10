@@ -4,7 +4,17 @@
 import { memo, useEffect, useRef, useSyncExternalStore } from "react";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+const electronMocks = vi.hoisted(() => ({
+  invoke: vi.fn(() => Promise.resolve({})),
+  send: vi.fn(),
+  sendSync: vi.fn(),
+  on: vi.fn(),
+  off: vi.fn(),
+  platform: "web",
+}));
+vi.mock("@/electron", () => electronMocks);
 import Board from "../../Board";
 import BoardContent from "../../components/BoardContent";
 import { BoardContext, SelectionContext, ViewPortContext } from "../../context";

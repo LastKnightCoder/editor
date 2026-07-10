@@ -1,4 +1,5 @@
 import { Descendant } from "slate";
+import type { Point } from "./point";
 
 export interface MindNodeElement {
   id: string;
@@ -31,6 +32,25 @@ export interface MindNodeElement {
 
 export interface MindDragTarget {
   node: MindNodeElement;
-  insertIndex?: number;
+  insertIndex: number;
   direction: "left" | "right";
+  horizontalDistance: number;
+  verticalDistance: number;
+  score: number;
+  connectionStart: Point;
+  connectionEnd: Point;
+}
+
+export interface MindDragState {
+  mode: "preview" | "root-translate" | null;
+  isDragging: boolean;
+  draggedNode: MindNodeElement | null;
+  sourceRootId: string | null;
+  originalParentId: string | null;
+  startPoint: Point | null;
+  dragOffset: Point;
+  previewNode: MindNodeElement | null;
+  currentTarget: MindDragTarget | null;
+  connectionLineColor: string | null;
+  pointerId: number | null;
 }

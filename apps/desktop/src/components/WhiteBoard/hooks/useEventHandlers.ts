@@ -102,6 +102,9 @@ const useEventHandlers = (board: Board) => {
     "onGlobalPointerMove",
   );
   const handleOnGlobalPointerUp = eventHandlerGenerator("onGlobalPointerUp");
+  const handleOnGlobalPointerCancel = eventHandlerGenerator(
+    "onGlobalPointerCancel",
+  );
   const handleOnPaste = eventHandlerGenerator("onPaste");
   const handleOnCopy = eventHandlerGenerator("onCopy");
   const handleOnCut = eventHandlerGenerator("onCut");
@@ -133,6 +136,7 @@ const useEventHandlers = (board: Board) => {
     handleOnGlobalPointerDown,
     handleOnGlobalPointerMove,
     handleOnGlobalPointerUp,
+    handleOnGlobalPointerCancel,
     handleOnPaste,
     handleOnCopy,
     handleOnCut,

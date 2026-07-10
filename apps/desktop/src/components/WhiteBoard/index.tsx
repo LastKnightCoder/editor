@@ -802,6 +802,7 @@ const WhiteBoard = memo(
       handleOnGlobalPointerDown,
       handleOnGlobalPointerMove,
       handleOnGlobalPointerUp,
+      handleOnGlobalPointerCancel,
       handleOnPaste,
       handleOnCopy,
       handleOnCut,
@@ -1167,6 +1168,7 @@ const WhiteBoard = memo(
       document.addEventListener("pointerdown", handleOnGlobalPointerDown);
       document.addEventListener("pointermove", handleOnGlobalPointerMove);
       document.addEventListener("pointerup", handleOnGlobalPointerUp);
+      document.addEventListener("pointercancel", handleOnGlobalPointerCancel);
 
       const observer = new ResizeObserver(handleContainerResize);
       observer.observe(container);
@@ -1192,6 +1194,10 @@ const WhiteBoard = memo(
         document.removeEventListener("pointerdown", handleOnGlobalPointerDown);
         document.removeEventListener("pointermove", handleOnGlobalPointerMove);
         document.removeEventListener("pointerup", handleOnGlobalPointerUp);
+        document.removeEventListener(
+          "pointercancel",
+          handleOnGlobalPointerCancel,
+        );
         document.removeEventListener("paste", handleOnPaste);
         document.removeEventListener("copy", handleOnCopy);
         document.removeEventListener("cut", handleOnCut);

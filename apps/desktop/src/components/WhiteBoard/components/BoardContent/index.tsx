@@ -7,6 +7,7 @@ import GroupSelectionBounds from "../GroupSelectionBounds";
 import ReferenceLines from "../ReferenceLines";
 import ArrowMarkers from "../ArrowMarkers";
 import ArrowCustomConnectOverlay from "../ArrowCustomConnectOverlay";
+import MindDragOverlay from "../MindDragOverlay";
 import Board from "../../Board";
 import { SelectionContext } from "../../context";
 
@@ -142,6 +143,7 @@ const BoardContent = memo(
         <g data-layer="selected-interaction-elements">
           {visibleCenterConnectAndSelectedArrows}
         </g>
+        <MindDragOverlay board={board} />
         {showAssistLayers && (
           <>
             <g data-export-ignore="true">
