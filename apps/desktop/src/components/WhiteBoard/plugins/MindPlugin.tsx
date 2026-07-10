@@ -1,5 +1,4 @@
-import { produce } from "immer";
-import type { ReactNode } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
 import { v4 as getUuid } from "uuid";
 import {
   Network,
@@ -21,9 +20,10 @@ import {
   Board,
   IBoardPlugin,
   MindNodeElement,
+  MindDragTarget,
   Operation,
   Selection,
-  MindDragTarget,
+  MindDragState,
   ContextMenuContext,
   PluginContextMenuItem,
   ECreateBoardElementType,
@@ -43,7 +43,8 @@ import {
   BoardUtil,
 } from "../utils";
 import MindNode from "../components/MindNode";
-import { MIND_COLORS } from "../constants";
+import { BOARD_TO_CONTAINER, getMindDragSourceId } from "../constants";
+import { getThemeById } from "../constants/mind-themes";
 import { Descendant } from "slate";
 import { createContent } from "@/commands/content";
 import useSettingStore from "@/stores/useSettingStore.ts";
@@ -56,19 +57,48 @@ const DEFAULT_CONTENT: Descendant[] = [
   },
 ];
 
-interface DragState {
-  isDragging: boolean;
-  draggedNode: MindNodeElement | null;
-  sourceRoot: MindNodeElement | null;
-  startPoint: { x: number; y: number };
-  originalParent: MindNodeElement | null;
-  dragOffset: { x: number; y: number };
-  previewElement: HTMLElement | null;
-  currentTarget?: MindDragTarget | null;
-  isDetachedFromSource: boolean; // 是否已从源树分离
-  currentAttachedParent: MindNodeElement | null; // 当前连接的父节点
-  independentRoot: MindNodeElement | null; // 独立的拖拽树根节点
-}
+export const EMPTY_MIND_DRAG_STATE: MindDragState = {
+  mode: null,
+  isDragging: false,
+  draggedNode: null,
+  sourceRootId: null,
+  originalParentId: null,
+  startPoint: null,
+  dragOffset: { x: 0, y: 0 },
+  previewNode: null,
+  currentTarget: null,
+  connectionLineColor: null,
+  pointerId: null,
+};
+
+const MindNodeTree = ({
+  plugin,
+  element,
+  children,
+}: {
+  plugin: MindPlugin;
+  element: MindNodeElement;
+  children?: ReactNode;
+}) => {
+  const isDraggedSubtree = useSyncExternalStore(
+    (listener) => plugin.subscribe(listener),
+    () => plugin.isDraggingNode(element.id),
+    () => plugin.isDraggingNode(element.id),
+  );
+
+  return (
+    <g
+      data-mind-node-id={element.id}
+      opacity={isDraggedSubtree ? 0.35 : 1}
+      style={{ transition: "opacity 120ms ease" }}
+    >
+      <g id={getMindDragSourceId(element.id)}>
+        <MindNode element={element} />
+        {children}
+      </g>
+    </g>
+  );
+};
 
 export class MindPlugin implements IBoardPlugin {
   name = "mind-node";
@@ -105,18 +135,15 @@ export class MindPlugin implements IBoardPlugin {
     };
   }
 
-  private dragState: DragState = {
-    isDragging: false,
-    draggedNode: null,
-    sourceRoot: null,
-    startPoint: { x: 0, y: 0 },
-    originalParent: null,
-    dragOffset: { x: 0, y: 0 },
-    previewElement: null,
-    isDetachedFromSource: false,
-    currentAttachedParent: null,
-    independentRoot: null,
-  };
+  private dragState: MindDragState = EMPTY_MIND_DRAG_STATE;
+
+  private dragAnimationFrame: number | null = null;
+
+  private pendingPointerMove: {
+    clientX: number;
+    clientY: number;
+    pointerId: number;
+  } | null = null;
 
   private listeners: Set<() => void> = new Set();
 
@@ -661,7 +688,9 @@ export class MindPlugin implements IBoardPlugin {
 
   subscribe(listener: () => void) {
     this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 
   getSnapshot() {
@@ -670,6 +699,14 @@ export class MindPlugin implements IBoardPlugin {
 
   getServerSnapshot() {
     return this.dragState;
+  }
+
+  isDraggingNode(nodeId: string) {
+    return (
+      this.dragState.mode === "preview" &&
+      this.dragState.isDragging &&
+      this.dragState.draggedNode?.id === nodeId
+    );
   }
 
   private createMindRoot(x: number, y: number): MindNodeElement {
@@ -744,8 +781,13 @@ export class MindPlugin implements IBoardPlugin {
   }
 
   onPointerDown(e: PointerEvent, board: Board) {
-    // 如果是右键，直接 return
-    if (e.button === 2) return;
+    if (
+      e.button !== 0 ||
+      board.readonly ||
+      board.presentationManager.isPresentationMode
+    ) {
+      return;
+    }
 
     const startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!startPoint) return;
@@ -760,19 +802,8 @@ export class MindPlugin implements IBoardPlugin {
 
     let mindNode: MindNodeElement | null = null;
     const hitElement = hitElements[hitElements.length - 1];
-    if (
-      hitElement.type === "mind-node" &&
-      !MindUtil.isRoot(hitElement as MindNodeElement)
-    ) {
+    if (hitElement.type === "mind-node") {
       mindNode = hitElement as MindNodeElement;
-      board.apply({
-        type: "set_selection",
-        properties: board.selection,
-        newProperties: {
-          selectedElements: [],
-          selectArea: null,
-        },
-      });
     }
 
     if (!mindNode) return;
@@ -783,386 +814,432 @@ export class MindPlugin implements IBoardPlugin {
     if (!MindUtil.canMoveNode(sourceRoot, mindNode)) return;
 
     const originalParent = MindUtil.findParentInTree(sourceRoot, mindNode.id);
-    if (!originalParent) return;
+    if (!MindUtil.isRoot(mindNode) && !originalParent) return;
 
     const dragOffset = {
       x: startPoint.x - mindNode.x,
       y: startPoint.y - mindNode.y,
     };
 
-    // 成功开始拖拽准备
-    this.dragState = {
+    this.cancelScheduledPointerMove();
+    if (
+      board.selection.selectedElements.length > 0 ||
+      board.selection.selectArea
+    ) {
+      board.apply(
+        {
+          type: "set_selection",
+          properties: board.selection,
+          newProperties: {
+            selectedElements: [],
+            selectArea: null,
+          },
+        },
+        false,
+      );
+    }
+
+    e.preventDefault();
+    window.getSelection?.()?.removeAllRanges();
+
+    this.setDragState({
+      mode: MindUtil.isRoot(mindNode) ? "root-translate" : "preview",
       isDragging: false,
       draggedNode: mindNode,
-      sourceRoot,
+      sourceRootId: sourceRoot.id,
+      originalParentId: originalParent?.id ?? null,
       startPoint,
-      originalParent,
       dragOffset,
-      previewElement: null,
+      previewNode: null,
       currentTarget: null,
-      isDetachedFromSource: false,
-      currentAttachedParent: null,
-      independentRoot: null,
-    };
+      connectionLineColor: null,
+      pointerId: e.pointerId,
+    });
 
-    this.emitChange();
+    return false;
   }
 
-  onPointerMove(e: PointerEvent, board: Board) {
-    if (!this.dragState.draggedNode) {
+  onGlobalPointerMove(e: PointerEvent, board: Board) {
+    if (
+      !this.dragState.draggedNode ||
+      this.dragState.pointerId !== e.pointerId
+    ) {
       return;
     }
 
-    const { draggedNode, startPoint, sourceRoot, dragOffset } = this.dragState;
-    if (!draggedNode || !sourceRoot) {
-      this.cleanup();
-      return;
-    }
-
-    const currentPoint = PointUtil.screenToViewPort(
-      board,
-      e.clientX,
-      e.clientY,
-    );
-    if (!currentPoint) {
-      this.cleanup();
-      return;
-    }
-
-    const dx = currentPoint.x - startPoint.x;
-    const dy = currentPoint.y - startPoint.y;
-    const threshold = 5 / board.viewPort.zoom;
-    const distance = Math.hypot(dx, dy);
-
-    // 只有移动距离超过阈值才开始拖拽
-    if (!this.dragState.isDragging && distance > threshold) {
-      this.dragState.isDragging = true;
-
-      this.detachFromSource(board);
-    }
-
-    if (!this.dragState.isDragging) {
-      return;
-    }
-
-    // 计算拖拽节点的新位置（跟随鼠标）
-    const newX = currentPoint.x - dragOffset.x;
-    const newY = currentPoint.y - dragOffset.y;
-
-    // 更新拖拽节点位置
-    const updatedDraggedNode = {
-      ...draggedNode,
-      x: newX,
-      y: newY,
+    this.pendingPointerMove = {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      pointerId: e.pointerId,
     };
 
-    // 查找最近的目标节点
-    const target = MindUtil.findNearestMindNode(
-      board,
-      currentPoint,
-      updatedDraggedNode,
+    if (this.dragAnimationFrame === null) {
+      const requestFrame =
+        globalThis.requestAnimationFrame ??
+        ((callback: FrameRequestCallback) =>
+          globalThis.setTimeout(() => callback(performance.now()), 16));
+      this.dragAnimationFrame = requestFrame(() => {
+        this.dragAnimationFrame = null;
+        const pending = this.pendingPointerMove;
+        this.pendingPointerMove = null;
+        if (!pending || pending.pointerId !== this.dragState.pointerId) return;
+        this.updateDragPreview(board, pending.clientX, pending.clientY);
+      });
+    }
+
+    return false;
+  }
+
+  onGlobalPointerUp(e: PointerEvent, board: Board) {
+    if (
+      !this.dragState.draggedNode ||
+      this.dragState.pointerId !== e.pointerId
+    ) {
+      return;
+    }
+
+    this.cancelScheduledPointerMove();
+    if (!this.isPointerInsideBoard(board, e.clientX, e.clientY)) {
+      this.cancelDrag(board);
+      return false;
+    }
+
+    this.updateDragPreview(board, e.clientX, e.clientY);
+    if (this.dragState.isDragging) {
+      this.commitDrop(board);
+    }
+    if (this.dragState.mode === "root-translate" && this.dragState.isDragging) {
+      board.emit("element:move-end");
+    }
+
+    this.cleanup();
+    return false;
+  }
+
+  onGlobalPointerCancel(e: PointerEvent, board: Board) {
+    if (
+      !this.dragState.draggedNode ||
+      this.dragState.pointerId !== e.pointerId
+    ) {
+      return;
+    }
+
+    this.cancelDrag(board);
+    return false;
+  }
+
+  onKeyDown(e: KeyboardEvent, board: Board) {
+    if (e.key !== "Escape" || !this.dragState.draggedNode) return;
+    this.cancelDrag(board);
+    return false;
+  }
+
+  private updateDragPreview(board: Board, clientX: number, clientY: number) {
+    const { draggedNode, startPoint, dragOffset, currentTarget } =
+      this.dragState;
+    if (!draggedNode || !startPoint) return;
+
+    const currentPoint = PointUtil.screenToViewPort(board, clientX, clientY);
+    if (!currentPoint) return;
+
+    const distanceFromStart = Math.hypot(
+      currentPoint.x - startPoint.x,
+      currentPoint.y - startPoint.y,
     );
+    const isDragging =
+      this.dragState.isDragging ||
+      distanceFromStart > 5 / Math.max(board.viewPort.zoom, 0.01);
+    if (!isDragging) return;
 
-    const previousTarget = this.dragState.currentAttachedParent;
-    const currentTargetNode = target?.node || null;
+    const nextX = currentPoint.x - dragOffset.x;
+    const nextY = currentPoint.y - dragOffset.y;
+    let previewNode: MindNodeElement;
+    let target: MindDragTarget | null;
 
-    if (previousTarget?.id !== currentTargetNode?.id) {
-      // 目标节点发生变化
-      if (previousTarget && !currentTargetNode) {
-        // 从已连接状态脱离到独立状态
-        this.detachFromTarget(board);
-      } else if (!previousTarget && currentTargetNode && target) {
-        // 从独立状态连接到目标节点
-        this.attachToTarget(board, target);
-      } else if (previousTarget && currentTargetNode && target) {
-        // 从一个目标切换到另一个目标
-        this.detachFromTarget(board);
-        this.attachToTarget(board, target);
+    if (this.dragState.mode === "root-translate") {
+      const latestRoot = BoardUtil.getElementById(
+        board,
+        draggedNode.id,
+      ) as MindNodeElement | null;
+      const rootPath = latestRoot
+        ? PathUtil.getPathByElement(board, latestRoot)
+        : null;
+      if (!latestRoot || latestRoot.type !== "mind-node" || !rootPath) return;
+
+      target = MindUtil.findNearestMindNode(
+        board,
+        { ...latestRoot, x: nextX, y: nextY },
+        currentTarget,
+      );
+
+      if (currentTarget?.direction !== target?.direction) {
+        const desiredRoot = MindUtil.createRootDragLayout(
+          draggedNode,
+          { x: nextX, y: nextY },
+          target?.direction ?? null,
+        );
+        const layoutOperations = BoardUtil.diffNode(
+          latestRoot,
+          desiredRoot,
+          rootPath,
+        );
+        if (layoutOperations.length > 0) {
+          BoardUtil.normalizeOperations(layoutOperations);
+          board.apply(layoutOperations, false);
+        }
+      } else {
+        const translateOperations = BoardUtil.buildTranslateSubtreeOps(
+          latestRoot,
+          rootPath,
+          nextX - latestRoot.x,
+          nextY - latestRoot.y,
+        );
+        if (translateOperations.length > 0) {
+          board.apply(translateOperations, false);
+        }
+      }
+
+      const movedRoot = BoardUtil.getElementById(
+        board,
+        draggedNode.id,
+      ) as MindNodeElement | null;
+      if (!movedRoot || movedRoot.type !== "mind-node") return;
+      previewNode = movedRoot;
+      board.emit("element:move", [movedRoot]);
+    } else {
+      previewNode = {
+        ...draggedNode,
+        x: nextX,
+        y: nextY,
+      };
+      target = MindUtil.findNearestMindNode(board, previewNode, currentTarget);
+    }
+    const connectionLineColor = target
+      ? this.getConnectionLineColor(board, target.node)
+      : null;
+
+    this.setDragState({
+      ...this.dragState,
+      isDragging: true,
+      previewNode,
+      currentTarget: target,
+      connectionLineColor,
+    });
+  }
+
+  private getConnectionLineColor(board: Board, targetNode: MindNodeElement) {
+    const root = MindUtil.getRoot(board, targetNode);
+    const theme = getThemeById(root?.themeId || MindUtil.getDefaultThemeId());
+    const colorIndex = Math.max(0, targetNode.level - 1) % theme.palette.length;
+    return theme.palette[colorIndex]?.background || theme.root.background;
+  }
+
+  private commitDrop(board: Board) {
+    const { draggedNode, sourceRootId, previewNode, currentTarget } =
+      this.dragState;
+    if (!draggedNode || !sourceRootId || !previewNode) return;
+
+    const sourceRoot = BoardUtil.getElementById(
+      board,
+      sourceRootId,
+    ) as MindNodeElement | null;
+    if (!sourceRoot || sourceRoot.type !== "mind-node") return;
+
+    const latestDraggedNode = MindUtil.findNodeInTree(
+      sourceRoot,
+      draggedNode.id,
+    );
+    if (
+      !latestDraggedNode ||
+      !MindUtil.canMoveNode(sourceRoot, latestDraggedNode)
+    ) {
+      return;
+    }
+
+    const sourcePath = PathUtil.getPathByElement(board, sourceRoot);
+    if (!sourcePath) return;
+
+    const operations: Operation[] = [];
+    if (currentTarget) {
+      const targetNode = BoardUtil.getElementById(
+        board,
+        currentTarget.node.id,
+      ) as MindNodeElement | null;
+      if (
+        !targetNode ||
+        targetNode.type !== "mind-node" ||
+        !MindUtil.isValidDrop(latestDraggedNode, targetNode) ||
+        (!MindUtil.isRoot(targetNode) &&
+          targetNode.direction !== currentTarget.direction)
+      ) {
+        return;
+      }
+
+      const targetRoot = MindUtil.getRoot(board, targetNode);
+      const targetPath = targetRoot
+        ? PathUtil.getPathByElement(board, targetRoot)
+        : null;
+      if (!targetRoot || !targetPath) return;
+
+      const placement = MindUtil.calculateInsertPosition(
+        targetNode,
+        {
+          x: previewNode.x + previewNode.width / 2,
+          y: previewNode.y + previewNode.height / 2,
+        },
+        currentTarget.direction,
+        latestDraggedNode.id,
+      );
+
+      if (targetRoot.id === sourceRoot.id) {
+        const updatedRoot = MindUtil.layout(
+          MindUtil.moveNodeToNewParent(
+            sourceRoot,
+            sourceRoot,
+            latestDraggedNode,
+            targetNode,
+            placement.insertIndex,
+            placement.direction,
+          ),
+        );
+        operations.push(
+          ...BoardUtil.diffNode(sourceRoot, updatedRoot, sourcePath),
+        );
+      } else {
+        const updatedTargetRoot = MindUtil.layout(
+          MindUtil.moveNodeToNewParent(
+            sourceRoot,
+            targetRoot,
+            latestDraggedNode,
+            targetNode,
+            placement.insertIndex,
+            placement.direction,
+          ),
+        );
+
+        if (MindUtil.isRoot(latestDraggedNode)) {
+          const removeSourceOperation: Operation = {
+            type: "remove_node",
+            path: sourcePath,
+            node: draggedNode,
+          };
+          const adjustedTargetPath = PathUtil.transformPath(
+            targetPath,
+            removeSourceOperation,
+          );
+          if (!adjustedTargetPath) return;
+
+          operations.push(
+            removeSourceOperation,
+            ...BoardUtil.diffNode(
+              targetRoot,
+              updatedTargetRoot,
+              adjustedTargetPath,
+            ),
+          );
+        } else {
+          const updatedSourceRoot = MindUtil.deleteNode(
+            sourceRoot,
+            latestDraggedNode,
+          );
+          operations.push(
+            ...BoardUtil.diffNode(sourceRoot, updatedSourceRoot, sourcePath),
+            ...BoardUtil.diffNode(targetRoot, updatedTargetRoot, targetPath),
+          );
+        }
+      }
+    } else {
+      if (MindUtil.isRoot(latestDraggedNode)) {
+        operations.push(
+          ...BoardUtil.buildTranslateSubtreeOps(
+            draggedNode,
+            sourcePath,
+            previewNode.x - draggedNode.x,
+            previewNode.y - draggedNode.y,
+          ),
+        );
+      } else {
+        const updatedSourceRoot = MindUtil.deleteNode(
+          sourceRoot,
+          latestDraggedNode,
+        );
+        const independentRoot = MindUtil.createNewRootNode(latestDraggedNode, {
+          x: previewNode.x,
+          y: previewNode.y,
+        });
+        operations.push(
+          ...BoardUtil.diffNode(sourceRoot, updatedSourceRoot, sourcePath),
+          {
+            type: "insert_node",
+            path: [board.children.length],
+            node: independentRoot,
+          },
+        );
       }
     }
 
-    // 如果当前处于独立根节点状态，更新根节点位置
-    if (
-      this.dragState.independentRoot &&
-      !this.dragState.currentAttachedParent
-    ) {
-      this.updateIndependentRootPosition(board, newX, newY);
-    }
+    if (operations.length === 0) return;
+    BoardUtil.normalizeOperations(operations);
+    board.apply(operations);
+  }
 
-    // 更新拖拽状态
-    this.dragState = {
-      ...this.dragState,
-      draggedNode: updatedDraggedNode,
-      currentTarget: target,
-    };
+  private isPointerInsideBoard(board: Board, clientX: number, clientY: number) {
+    const container = BOARD_TO_CONTAINER.get(board);
+    if (!container) return false;
+    const rect = container.getBoundingClientRect();
+    return (
+      clientX >= rect.left &&
+      clientX <= rect.right &&
+      clientY >= rect.top &&
+      clientY <= rect.bottom
+    );
+  }
 
+  private setDragState(nextState: MindDragState) {
+    this.dragState = nextState;
     this.emitChange();
   }
 
-  onGlobalPointerUp(_e: PointerEvent, board: Board) {
-    if (!this.dragState.isDragging) {
-      this.cleanup();
-      return;
+  private cancelScheduledPointerMove() {
+    if (this.dragAnimationFrame !== null) {
+      const cancelFrame =
+        globalThis.cancelAnimationFrame ?? globalThis.clearTimeout;
+      cancelFrame(this.dragAnimationFrame);
+      this.dragAnimationFrame = null;
     }
+    this.pendingPointerMove = null;
+  }
 
-    const { draggedNode } = this.dragState;
-    if (!draggedNode) {
-      this.cleanup();
-      return;
-    }
-
-    // 为最终的独立根节点设置正确的颜色
-    if (
-      this.dragState.independentRoot &&
-      !this.dragState.currentAttachedParent
-    ) {
-      const { independentRoot } = this.dragState;
-
-      const finalRoot = produce(independentRoot, (draft) => {
-        draft.textColor = MIND_COLORS[0].textColor;
-        draft.background = MIND_COLORS[0].background;
-      });
-
-      // 更新独立根节点的颜色
-      const rootPath = PathUtil.getPathByElement(board, independentRoot);
-      if (rootPath) {
-        const ops = BoardUtil.diffNode(independentRoot, finalRoot, rootPath);
-        BoardUtil.normalizeOperations(ops);
-        board.apply(ops);
+  private cancelDrag(board: Board) {
+    const { mode, isDragging, draggedNode } = this.dragState;
+    if (mode === "root-translate" && isDragging && draggedNode) {
+      const latestRoot = BoardUtil.getElementById(
+        board,
+        draggedNode.id,
+      ) as MindNodeElement | null;
+      const rootPath = latestRoot
+        ? PathUtil.getPathByElement(board, latestRoot)
+        : null;
+      if (latestRoot?.type === "mind-node" && rootPath) {
+        const restoreOperations = BoardUtil.diffNode(
+          latestRoot,
+          draggedNode,
+          rootPath,
+        );
+        if (restoreOperations.length > 0) {
+          BoardUtil.normalizeOperations(restoreOperations);
+          board.apply(restoreOperations, false);
+        }
+        board.emit("element:move-end");
       }
     }
 
     this.cleanup();
   }
 
-  /**
-   * 从源树分离拖拽节点，创建独立的拖拽树
-   */
-  private detachFromSource(board: Board) {
-    const { draggedNode, sourceRoot, originalParent } = this.dragState;
-    if (!draggedNode || !sourceRoot || !originalParent) return;
-
-    // 从源树移除节点
-    let newSourceRoot = produce(sourceRoot, (draft) => {
-      const parent = MindUtil.findParentInTree(draft, draggedNode.id);
-      if (parent) {
-        parent.children = parent.children.filter(
-          (child) => child.id !== draggedNode.id,
-        );
-      }
-    });
-    newSourceRoot = MindUtil.layout(newSourceRoot);
-
-    // 创建独立的拖拽树
-    const independentRoot = MindUtil.createNewRootNode(draggedNode, {
-      x: draggedNode.x,
-      y: draggedNode.y,
-    });
-
-    // 更新白板状态
-    const sourcePath = PathUtil.getPathByElement(board, sourceRoot);
-    if (sourcePath) {
-      const ops: Operation[] = [
-        ...BoardUtil.diffNode(sourceRoot, newSourceRoot, sourcePath),
-        {
-          type: "insert_node",
-          path: [board.children.length],
-          node: independentRoot,
-        },
-      ];
-      BoardUtil.normalizeOperations(ops);
-      board.apply(ops);
-    }
-
-    // 更新拖拽状态
-    this.dragState.isDetachedFromSource = true;
-    this.dragState.independentRoot = independentRoot;
-  }
-
-  /**
-   * 将拖拽节点连接到目标父节点
-   */
-  private attachToTarget(board: Board, target: MindDragTarget) {
-    const { draggedNode, independentRoot } = this.dragState;
-    if (!draggedNode || !independentRoot) return;
-
-    const independentPath = PathUtil.getPathByElement(board, independentRoot);
-
-    const targetRoot = MindUtil.getRoot(board, target.node);
-    if (!targetRoot) return;
-
-    const finalInsertIndex =
-      target.insertIndex !== undefined
-        ? target.insertIndex
-        : target.node.children.length;
-
-    let newTargetRoot = MindUtil.moveNodeToNewParent(
-      independentRoot,
-      targetRoot,
-      draggedNode,
-      target.node,
-      finalInsertIndex,
-      target.direction,
-    );
-    newTargetRoot = MindUtil.layout(newTargetRoot);
-
-    const targetPath = PathUtil.getPathByElement(board, targetRoot);
-
-    if (independentPath && targetPath) {
-      const removeOp: Operation = {
-        type: "remove_node",
-        path: independentPath,
-        node: independentRoot,
-      };
-      const adjustedTargetPath = [...targetPath];
-      if (independentPath[0] < targetPath[0]) {
-        adjustedTargetPath[0] -= 1;
-      }
-
-      const ops: Operation[] = [
-        removeOp,
-        ...BoardUtil.diffNode(targetRoot, newTargetRoot, adjustedTargetPath),
-      ];
-      BoardUtil.normalizeOperations(ops);
-      board.apply(ops);
-    }
-
-    // 更新拖拽状态
-    this.dragState.currentAttachedParent = target.node;
-    this.dragState.independentRoot = null;
-  }
-
-  /**
-   * 从目标父节点分离，重新创建独立树
-   */
-  private detachFromTarget(board: Board) {
-    const { draggedNode, currentAttachedParent } = this.dragState;
-    if (!draggedNode || !currentAttachedParent) return;
-
-    const targetRoot = MindUtil.getRoot(board, currentAttachedParent);
-    if (!targetRoot) return;
-
-    // 从目标树移除节点
-    let newTargetRoot = produce(targetRoot, (draft) => {
-      const parent = MindUtil.findParentInTree(draft, draggedNode.id);
-      if (parent) {
-        parent.children = parent.children.filter(
-          (child) => child.id !== draggedNode.id,
-        );
-      }
-    });
-    newTargetRoot = MindUtil.layout(newTargetRoot);
-
-    // 创建新的独立树
-    const independentRoot = MindUtil.createNewRootNode(draggedNode, {
-      x: draggedNode.x,
-      y: draggedNode.y,
-    });
-
-    const targetPath = PathUtil.getPathByElement(board, targetRoot);
-    if (targetPath) {
-      const ops: Operation[] = [
-        ...BoardUtil.diffNode(targetRoot, newTargetRoot, targetPath),
-        {
-          type: "insert_node",
-          path: [board.children.length],
-          node: independentRoot,
-        },
-      ];
-      BoardUtil.normalizeOperations(ops);
-      board.apply(ops);
-    }
-
-    // 更新拖拽状态
-    this.dragState.currentAttachedParent = null;
-    this.dragState.independentRoot = independentRoot;
-  }
-
-  /**
-   * 更新独立根节点的位置
-   */
-  private updateIndependentRootPosition(
-    board: Board,
-    newX: number,
-    newY: number,
-  ) {
-    const { independentRoot } = this.dragState;
-    if (!independentRoot) return;
-
-    // 计算移动偏移量
-    const dx = newX - independentRoot.x;
-    const dy = newY - independentRoot.y;
-
-    // 使用 MindUtil.moveAll 移动整个子树
-    const updatedRoot = MindUtil.moveAll(independentRoot, dx, dy);
-
-    const rootPath = PathUtil.getPathByElement(board, independentRoot);
-    if (rootPath) {
-      const ops = this.buildTranslateSubtreeOps(board, rootPath, dx, dy);
-      BoardUtil.normalizeOperations(ops);
-      board.apply(ops);
-
-      // 更新拖拽状态中的独立根节点引用
-      this.dragState.independentRoot = updatedRoot;
-    }
-  }
-
-  private buildTranslateSubtreeOps(
-    board: Board,
-    rootPath: number[],
-    dx: number,
-    dy: number,
-  ): Operation[] {
-    if ((!dx && !dy) || !rootPath || rootPath.length === 0) return [];
-
-    let root: BoardElement;
-    try {
-      root = PathUtil.getElementByPath(board, rootPath);
-    } catch {
-      return [];
-    }
-
-    const ops: Operation[] = [];
-    const currentPath = [...rootPath];
-
-    const dfs = (node: BoardElement) => {
-      if (typeof node.x === "number" && typeof node.y === "number") {
-        ops.push({
-          type: "set_node",
-          path: [...currentPath],
-          properties: { x: node.x, y: node.y },
-          newProperties: { x: node.x + dx, y: node.y + dy },
-        });
-      }
-
-      const children = node.children;
-      if (!children || children.length === 0) return;
-      for (let i = 0; i < children.length; i++) {
-        currentPath.push(i);
-        dfs(children[i]);
-        currentPath.pop();
-      }
-    };
-
-    dfs(root);
-    return ops;
-  }
-
   private cleanup() {
-    this.dragState = {
-      isDragging: false,
-      draggedNode: null,
-      sourceRoot: null,
-      startPoint: { x: 0, y: 0 },
-      originalParent: null,
-      dragOffset: { x: 0, y: 0 },
-      previewElement: null,
-      currentTarget: null,
-      isDetachedFromSource: false,
-      currentAttachedParent: null,
-      independentRoot: null,
-    };
-    this.emitChange();
+    this.cancelScheduledPointerMove();
+    this.setDragState(EMPTY_MIND_DRAG_STATE);
   }
 
   render(
@@ -1170,10 +1247,12 @@ export class MindPlugin implements IBoardPlugin {
     { element, children }: { element: MindNodeElement; children?: ReactNode },
   ) {
     return (
-      <g key={element.id}>
-        <MindNode element={element} />
-        {children}
-      </g>
+      <MindNodeTree
+        key={element.id}
+        plugin={this}
+        element={element}
+        children={children}
+      />
     );
   }
 }
