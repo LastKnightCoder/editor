@@ -143,6 +143,7 @@ const ArticleCard = (props: IArticleCardProps) => {
       onOk: async () => {
         if (deleteArticle) {
           await deleteArticle(article.id);
+          articleEventBus.publishArticleEvent("article:deleted", article);
           message.success("删除成功");
         }
       },
@@ -153,7 +154,6 @@ const ArticleCard = (props: IArticleCardProps) => {
       },
     });
     setSettingOpen(false);
-    articleEventBus.publishArticleEvent("article:deleted", article);
   });
 
   const handleClickArticle = useMemoizedFn(() => {

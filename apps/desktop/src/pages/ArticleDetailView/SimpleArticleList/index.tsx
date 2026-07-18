@@ -126,9 +126,6 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
         setArticles((prev) => prev.filter((a) => a.id !== article.id));
         articleEventBus.publishArticleEvent("article:deleted", article);
         message.success("删除成功");
-        if (article.id === activeArticleId) {
-          navigateTo(TabType.ArticleList);
-        }
       },
       okText: "确定",
       cancelText: "取消",
