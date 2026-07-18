@@ -139,6 +139,14 @@ export class WindowManager {
     );
 
     ipcMain.handle(
+      "close-article-window",
+      (_event, databaseName, articleId) => {
+        log.info(`关闭文章编辑器窗口: ${databaseName}, ${articleId}`);
+        this.closeEditorWindow("article", databaseName, articleId);
+      },
+    );
+
+    ipcMain.handle(
       "open-project-item-in-new-window",
       (
         _event,
@@ -920,6 +928,19 @@ export class WindowManager {
       log.debug(`${editorName}编辑器窗口关闭: ${windowKey}`);
       windowMap.delete(windowKey);
     });
+  }
+
+  // 关闭指定的编辑器窗口（窗口关闭后会自动从映射中移除）
+  public closeEditorWindow(
+    type: EditorType,
+    databaseName: string,
+    itemId: number,
+  ) {
+    const windowKey = `${databaseName}-${itemId}`;
+    const win = this.windowsMap.get(type)?.get(windowKey);
+    if (win && !win.isDestroyed()) {
+      win.close();
+    }
   }
 
   // 为向后兼容而保留的方法

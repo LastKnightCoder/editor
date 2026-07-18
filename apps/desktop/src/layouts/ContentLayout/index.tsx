@@ -9,6 +9,7 @@ import CommandPanel from "@/components/CommandPanel";
 
 import useInitDatabase from "@/hooks/useInitDatabase.ts";
 import useBackgroundMode from "@/hooks/useBackgroundMode";
+import useArticleDeletedCleanup from "@/hooks/useArticleDeletedCleanup";
 
 import { openMarkdownInNewWindow, selectFile } from "@/commands";
 
@@ -20,6 +21,7 @@ import { initAiServer } from "@/services/aiServer";
 
 const ShortSidebarLayout = memo(() => {
   useInitDatabase();
+  useArticleDeletedCleanup();
 
   const { backgroundType, isGradient, isAnimationEnabled } =
     useBackgroundMode();

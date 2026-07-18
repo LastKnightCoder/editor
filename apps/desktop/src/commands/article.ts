@@ -55,6 +55,13 @@ export async function openArticleInNewWindow(
   });
 }
 
+export async function closeArticleWindow(
+  databaseName: string,
+  articleId: number,
+): Promise<void> {
+  return await invoke("close-article-window", databaseName, articleId);
+}
+
 export async function getArticlesByDates(
   dates: string[],
 ): Promise<Record<string, IArticle[]>> {
