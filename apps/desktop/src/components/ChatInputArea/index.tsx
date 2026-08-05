@@ -55,6 +55,7 @@ import useMCPManagerModalStore from "@/stores/useMCPManagerModalStore";
 import useTheme from "@/hooks/useTheme";
 import { contentLinkExtension } from "@/editor-extensions";
 import { importFromMarkdown, getMarkdown } from "@/utils/markdown";
+import styles from "./index.module.less";
 
 export type { ChatInputAreaHandle };
 
@@ -718,7 +719,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           })}
           onPasteCapture={handlePasteCapture}
         >
-          <div className="overflow-hidden">
+          <div className={styles.editorScrollContainer}>
             <Editor
               ref={editorRef}
               initValue={editorContent}
@@ -730,7 +731,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
               hotkeyConfigs={hotkeyConfigs}
               placeHolder={resolvedPlaceholder}
               theme={theme}
-              className="min-h-[24px]"
+              className={classnames("min-h-[24px]", styles.editorInput)}
             />
           </div>
         </div>

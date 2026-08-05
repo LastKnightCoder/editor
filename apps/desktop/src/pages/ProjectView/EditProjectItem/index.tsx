@@ -75,6 +75,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     projectItem?.contentId,
     (content) => {
       editorRef.current?.setEditorValue(content);
+      onContentChangeFromEditProjectItem(content);
     },
   );
   const {

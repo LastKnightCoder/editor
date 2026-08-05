@@ -129,6 +129,7 @@ const EditCard = (props: IEditCardProps) => {
     editingCard?.contentId,
     (content) => {
       editorRef.current?.setEditorValue(content);
+      onContentChangeFromEditCard(content);
     },
   );
 
