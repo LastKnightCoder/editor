@@ -109,6 +109,7 @@ vi.mock("@tau/editor/src", () => {
     {
       initValue?: Descendant[];
       onChange?: (value: Descendant[]) => void;
+      className?: string;
       hotkeyConfigs?: Array<{
         hotKey: string | string[];
         action: (
@@ -117,7 +118,7 @@ vi.mock("@tau/editor/src", () => {
         ) => void;
       }>;
     }
-  >(({ initValue = [], onChange, hotkeyConfigs = [] }, ref) => {
+  >(({ initValue = [], onChange, className, hotkeyConfigs = [] }, ref) => {
     const [value, setValue] = useState<Descendant[]>(initValue);
 
     capturedHotkeyConfigs = hotkeyConfigs;
@@ -146,7 +147,11 @@ vi.mock("@tau/editor/src", () => {
       )
       .join("\n");
 
-    return <div data-testid="chat-editor">{renderedText}</div>;
+    return (
+      <div data-testid="chat-editor" className={className}>
+        {renderedText}
+      </div>
+    );
   });
 
   return {
@@ -204,6 +209,20 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
     expect(editor).toBeTruthy();
     expect(editor?.textContent).toContain("测试卡片");
     expect(editor?.textContent).not.toContain(":content-link[");
+  });
+
+  it("应限制编辑器区域高度，并允许长内容在输入区内部滚动", async () => {
+    const ref = {
+      current: null,
+    } as React.RefObject<ChatInputAreaHandle | null>;
+    await renderChatInputArea(ref);
+
+    const editor = container?.querySelector(
+      '[data-testid="chat-editor"]',
+    ) as HTMLElement | null;
+
+    expect(editor?.className).toContain("editorInput");
+    expect(editor?.parentElement?.className).toContain("editorScrollContainer");
   });
 
   it("应使用 mod+enter 发送，并保留 Enter 用于编辑器换行", async () => {

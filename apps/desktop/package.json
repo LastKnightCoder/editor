@@ -147,7 +147,7 @@
     "dnd-core": "^16.0.1",
     "dompurify": "^3.3.0",
     "echarts": "^6.0.0",
-    "electron": "42.4.0",
+    "electron": "43.1.1",
     "electron-builder": "^26.8.1",
     "electron-builder-squirrel-windows": "26.8.1",
     "electron-context-menu": "^4.0.5",

@@ -471,6 +471,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
     editingArticle?.contentId,
     (content) => {
       editorRef.current?.setEditorValue(content);
+      onContentChangeFromEditArticle(content);
     },
   );
 

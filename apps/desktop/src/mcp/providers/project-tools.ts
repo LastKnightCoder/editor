@@ -191,7 +191,7 @@ export const projectToolsProvider: MCPProviderDefinition = {
     {
       name: "get_project_document_tree",
       description:
-        "按树形结构列出指定项目的文档树。必须传入 projectId；可选传入 projectItemId 作为子树根节点。返回结果包含类似 tree 命令的文本，每一行都带有文档标题和 projectItemId。",
+        "按树形结构列出指定项目的文档树。读取整个项目树时只传 projectId，不要传 projectItemId；只有需要读取某个文档节点及其后代组成的子树时，才传 projectItemId 作为子树根节点。返回结果包含类似 tree 命令的文本，每一行都带有文档标题和 projectItemId。",
       parameters: {
         type: "object",
         properties: {
@@ -202,7 +202,7 @@ export const projectToolsProvider: MCPProviderDefinition = {
           projectItemId: {
             type: "number",
             description:
-              "可选，作为树根的项目项 ID。不传时返回整个项目的文档树。",
+              "可选，子树根项目项 ID。传入后只返回该项目项及其后代；不传时返回整个项目的文档树。不要把当前打开的文档 ID 当作此参数传入，除非你只想读取这个文档节点的子树。",
           },
         } as Record<string, ToolParameterSchema>,
         required: ["projectId"],

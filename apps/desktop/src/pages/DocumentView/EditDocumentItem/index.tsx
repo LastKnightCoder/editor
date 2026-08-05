@@ -91,6 +91,7 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     documentItem?.contentId,
     (content) => {
       editorRef.current?.setEditorValue(content);
+      onContentChangeFromEditDoc(content);
     },
   );
   const {
