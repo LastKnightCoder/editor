@@ -15,6 +15,7 @@ import useProjectsStore from "@/stores/useProjectsStore.ts";
 import EditProjectInfoModal from "@/pages/ProjectsView/EditProjectInfoModal";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
+import BatchExportModal from "@/components/BatchExportModal";
 
 import styles from "./index.module.less";
 
@@ -30,6 +31,7 @@ const ProjectCard = (props: ProjectCardProps) => {
   const editorRef = useRef<EditorRef>(null);
   const { modal } = App.useApp();
   const [editOpen, setEditOpen] = useState(false);
+  const [batchExportOpen, setBatchExportOpen] = useState(false);
   const navigateTo = useTabStore((state) => state.navigateTo);
 
   const {
@@ -117,6 +119,11 @@ const ProjectCard = (props: ProjectCardProps) => {
         project.archived ? handleUnarchiveProject() : handleArchiveProject(),
     },
     {
+      key: "batch-export",
+      label: "整体导出",
+      onClick: () => setBatchExportOpen(true),
+    },
+    {
       key: "delete",
       label: "删除项目",
       onClick: handleDeleteProject,
@@ -181,6 +188,11 @@ const ProjectCard = (props: ProjectCardProps) => {
           desc={project.desc}
           onCancel={() => setEditOpen(false)}
           onOk={handleEditProject}
+        />
+        <BatchExportModal
+          open={batchExportOpen}
+          onClose={() => setBatchExportOpen(false)}
+          scope={{ type: "project", id: project.id, title: project.title }}
         />
       </div>
     </div>

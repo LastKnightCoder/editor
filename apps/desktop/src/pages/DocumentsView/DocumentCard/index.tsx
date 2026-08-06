@@ -11,6 +11,7 @@ import useTheme from "@/hooks/useTheme.ts";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
+import BatchExportModal from "@/components/BatchExportModal";
 
 import { IDocument } from "@/types";
 
@@ -27,6 +28,7 @@ const DocumentCard = (props: DocumentCardProps) => {
 
   const { isDark } = useTheme();
   const [editOpen, setEditOpen] = useState(false);
+  const [batchExportOpen, setBatchExportOpen] = useState(false);
   const { modal } = App.useApp();
   const navigateTo = useTabStore((state) => state.navigateTo);
 
@@ -79,6 +81,13 @@ const DocumentCard = (props: DocumentCardProps) => {
       label: "编辑知识库",
       onClick: () => {
         setEditOpen(true);
+      },
+    },
+    {
+      key: "batch-export",
+      label: "整体导出",
+      onClick: () => {
+        setBatchExportOpen(true);
       },
     },
     {
@@ -143,6 +152,11 @@ const DocumentCard = (props: DocumentCardProps) => {
         }}
         defaultTitle={document.title}
         defaultDesc={document.desc}
+      />
+      <BatchExportModal
+        open={batchExportOpen}
+        onClose={() => setBatchExportOpen(false)}
+        scope={{ type: "document", id: document.id, title: document.title }}
       />
     </div>
   );

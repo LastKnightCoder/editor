@@ -7,6 +7,8 @@ export * from "./pdf";
 export * from "./epub";
 export * from "./epub-export";
 export * from "./pdf-export";
+export * from "./batch-export";
+export * from "./save-file";
 export * from "./white-board";
 export * from "./llm";
 export * from "./embedding";

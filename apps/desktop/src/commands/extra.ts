@@ -1,5 +1,9 @@
 import { invoke, send } from "@/electron";
 import { v4 as uuidv4 } from "uuid";
+import type {
+  SaveFileWithDialogPayload,
+  SaveFileWithDialogResult,
+} from "@/types";
 
 export const openExternal = async (url: string) => {
   return await invoke("open-external", url);
@@ -67,4 +71,13 @@ export const downloadFileWithDialog = async (
   defaultFileName?: string,
 ): Promise<string | null> => {
   return await invoke("download-file-with-dialog", url, defaultFileName);
+};
+
+/**
+ * 通用保存：弹保存对话框并把文本/二进制内容写入所选路径
+ */
+export const saveFileWithDialog = async (
+  payload: SaveFileWithDialogPayload,
+): Promise<SaveFileWithDialogResult> => {
+  return await invoke("save-file-with-dialog", payload);
 };

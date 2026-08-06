@@ -5,7 +5,7 @@ import { htmlSerializerRegistry } from "@/utils/html-serializers";
  * PDF 导出的基础样式
  * 复用 EPUB 导出的样式，确保一致性
  */
-const PDF_BASE_STYLES = `
+export const PDF_BASE_STYLES = `
 html, body {
   margin: 0;
   padding: 0;
