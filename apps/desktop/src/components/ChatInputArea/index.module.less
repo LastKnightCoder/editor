@@ -76,6 +76,10 @@
 
 .editorInput {
   min-height: 24px;
+  // 段落拖拽手柄是绝对定位且比行高高（高 1.8em + hover 扩展向下 0.5em），
+  // 其溢出会被计入外层滚动容器的 scrollHeight，导致未达到最大高度时也出现滚动条。
+  // 在此裁剪后溢出不再向外传播，拖拽手柄的渲染与交互逻辑不受影响
+  overflow: hidden;
 }
 
 .toolbar {
