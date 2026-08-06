@@ -7,6 +7,10 @@ import pkg from "../../../package.json";
 import { Module } from "../types/module";
 import type { EpubExportPayload } from "@/types/epub-export";
 import type { PdfExportPayload } from "@/types/pdf-export";
+import type {
+  SaveFileWithDialogPayload,
+  SaveFileWithDialogResult,
+} from "@/types/save-file";
 import { exportEpubWithDialog } from "./epub-exporter";
 import { exportPdfWithDialog } from "./pdf-exporter";
 
@@ -67,6 +71,13 @@ class Extra implements Module {
       "download-file-with-dialog",
       async (_event, url: string, defaultFileName?: string) => {
         return await this.downloadFileWithDialog(url, defaultFileName);
+      },
+    );
+
+    ipcMain.handle(
+      "save-file-with-dialog",
+      async (_event, payload: SaveFileWithDialogPayload) => {
+        return await this.saveFileWithDialog(payload);
       },
     );
 
@@ -204,6 +215,36 @@ class Extra implements Module {
         this.nodeFetchControllers.delete(requestId);
         this.abortedNodeFetchRequestIds.delete(requestId);
       }
+    }
+  }
+
+  /**
+   * 通用保存：弹保存对话框并把文本/二进制内容写入所选路径
+   */
+  async saveFileWithDialog(
+    payload: SaveFileWithDialogPayload,
+  ): Promise<SaveFileWithDialogResult> {
+    try {
+      const result = await dialog.showSaveDialog({
+        title: "保存文件",
+        defaultPath: payload.defaultFileName,
+        filters: payload.filters || [{ name: "所有文件", extensions: ["*"] }],
+      });
+
+      if (result.canceled || !result.filePath) {
+        return { canceled: true, filePath: null };
+      }
+
+      const data =
+        typeof payload.data === "string"
+          ? payload.data
+          : Buffer.from(payload.data);
+      await writeFile(result.filePath, data);
+
+      return { canceled: false, filePath: result.filePath };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`保存文件失败: ${msg}`);
     }
   }
 
