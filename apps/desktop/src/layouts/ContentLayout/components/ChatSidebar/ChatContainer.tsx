@@ -26,6 +26,7 @@ import {
   ToolCallPayload,
   ToolCallExecutionState,
   ChatAgentType,
+  ModelConfig,
 } from "@/types";
 import {
   Role,
@@ -55,6 +56,7 @@ import { ToolRendererInteractionProvider } from "@/tool-call-renderers/ToolRende
 import { useAskQuestionSessionStore } from "@/tools/askQuestionSessionStore";
 import {
   applyAssistantReasoningSnapshot,
+  applyAssistantProviderMetadataSnapshot,
   applyAssistantTextSnapshot,
   applyAssistantToolCallsSnapshot,
   createAssistantMessage,
@@ -87,6 +89,43 @@ import {
 } from "@/constants/chatAgent";
 
 const ENABLE_TITLE_SUMMARY = true;
+const DEFAULT_REASONING_EFFORT_OPTIONS: ReasoningEffort[] = [
+  "none",
+  "low",
+  "medium",
+  "high",
+];
+
+const getReasoningEffortOptions = (
+  modelConfig?: ModelConfig | null,
+): ReasoningEffort[] => {
+  if (modelConfig?.messageFormat !== "claude") {
+    return DEFAULT_REASONING_EFFORT_OPTIONS;
+  }
+
+  const modelName = modelConfig.name.toLowerCase();
+  const thinkingAlwaysOn =
+    /claude[-_.]?(?:fable|mythos)[-_.]?[5-9](?:[-_.]|$)/.test(modelName) ||
+    /claude[-_.]?mythos[-_.]?preview/.test(modelName);
+  const baseOptions = thinkingAlwaysOn
+    ? DEFAULT_REASONING_EFFORT_OPTIONS.filter((option) => option !== "none")
+    : DEFAULT_REASONING_EFFORT_OPTIONS;
+  const supportsMax =
+    /claude.*4[-_.]?[6-9](?:[-_.]|$)/.test(modelName) ||
+    /claude[-_.]?(?:opus|sonnet|fable|mythos)[-_.]?[5-9](?:[-_.]|$)/.test(
+      modelName,
+    );
+  const supportsXHigh =
+    /opus[-_.]?4[-_.]?[78](?:[-_.]|$)/.test(modelName) ||
+    /(?:opus|sonnet|fable|mythos)[-_.]?[5-9](?:[-_.]|$)/.test(modelName);
+
+  return [
+    ...baseOptions,
+    ...(supportsXHigh ? (["xhigh"] as const) : []),
+    ...(supportsMax ? (["max"] as const) : []),
+  ];
+};
+
 interface ChatScrollAnchor {
   index: number;
   messageId?: string;
@@ -259,7 +298,15 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       useLocalStorageState<ReasoningEffort>("reasoningEffort", {
         defaultValue: "none",
       });
-    const effectiveReasoningEffort = reasoningEffort ?? "none";
+    const reasoningEffortOptions = useMemo(
+      () => getReasoningEffortOptions(chatModelConfig),
+      [chatModelConfig],
+    );
+    const effectiveReasoningEffort = reasoningEffortOptions.includes(
+      reasoningEffort ?? "none",
+    )
+      ? (reasoningEffort ?? "none")
+      : (reasoningEffortOptions[0] ?? "none");
     const [rememberedAgentType, setRememberedAgentType] =
       useLocalStorageState<ChatAgentType>(CHAT_AGENT_TYPE_STORAGE_KEY, {
         defaultValue: "local",
@@ -890,7 +937,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             : undefined,
           onFinish: () => {},
 
-          onAssistantTurnEnd: async ({ turnId, resultType }) => {
+          onAssistantTurnEnd: async ({
+            turnId,
+            resultType,
+            providerMetadata,
+          }) => {
             activeAssistantTurnIdRef.current = null;
             const finalizedChat = produce(actualCurrentChat, (draft) => {
               const lastMessageIndex = draft.messages.length - 1;
@@ -901,6 +952,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                 const lastMessage = draft.messages[
                   lastMessageIndex
                 ] as ResponseMessage;
+                applyAssistantProviderMetadataSnapshot(
+                  lastMessage,
+                  turnId,
+                  providerMetadata,
+                );
                 finalizeAssistantTurn(lastMessage, turnId);
               }
             });
@@ -1747,6 +1803,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               ? effectiveReasoningEffort
               : undefined
           }
+          reasoningEffortOptions={reasoningEffortOptions}
           onReasoningEffortChange={
             !isCodexAgent && chatModelConfig?.features?.thinking
               ? (value) => setReasoningEffort(value)

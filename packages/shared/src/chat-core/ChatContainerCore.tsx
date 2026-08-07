@@ -147,6 +147,7 @@ export interface ChatContainerCoreProps {
   isLoading: boolean;
   error?: string | null;
   reasoningEffort?: ReasoningEffort;
+  reasoningEffortOptions?: ReasoningEffort[];
   reasoningEffortDisabled?: boolean;
   currentModelName?: string;
   isSupportImage?: boolean;
@@ -212,6 +213,7 @@ export const ChatContainerCore = forwardRef<
     isLoading,
     error = null,
     reasoningEffort,
+    reasoningEffortOptions,
     reasoningEffortDisabled = false,
     currentModelName = "未选择模型",
     isSupportImage = false,
@@ -547,6 +549,7 @@ export const ChatContainerCore = forwardRef<
     isSupportFile,
     resourceSource,
     reasoningEffort,
+    reasoningEffortOptions,
     onReasoningEffortChange,
     reasoningEffortDisabled,
     onMcpManagerClick,

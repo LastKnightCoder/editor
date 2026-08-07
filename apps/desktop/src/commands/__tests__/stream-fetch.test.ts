@@ -745,4 +745,40 @@ describe("stream", () => {
     });
     expect(finalContent).toBe("\n 结束");
   });
+
+  it("流结束时返回解析器累积的供应商元数据", async () => {
+    fetchEventSourceMock.mockImplementation(async (_url, options) => {
+      await options.onopen(
+        new Response("", {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        }),
+      );
+      options.onmessage({ data: "[DONE]" });
+    });
+    const providerMetadata = {
+      claude: {
+        content: [
+          { type: "thinking", thinking: "先分析", signature: "signed" },
+        ],
+      },
+    };
+
+    const result = await stream(
+      "https://example.com/v1/messages",
+      { messages: [] },
+      { "x-api-key": "test" },
+      new AbortController(),
+      {
+        parse: () => undefined,
+        getProviderMetadata: () => providerMetadata,
+      },
+      { disableAnimation: true },
+    );
+
+    expect(result).toMatchObject({
+      type: "response",
+      provider_metadata: providerMetadata,
+    });
+  });
 });

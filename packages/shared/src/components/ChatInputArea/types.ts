@@ -2,7 +2,13 @@ import type { ReactNode } from "react";
 import type { MenuProps } from "antd";
 
 /** 推理强度 */
-export type ReasoningEffort = "none" | "low" | "medium" | "high";
+export type ReasoningEffort =
+  | "none"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh"
+  | "max";
 
 export type MentionEntityType =
   | "card"
@@ -110,6 +116,8 @@ export interface ChatInputAreaProps {
   resourceSource?: IResourceSource | null;
   /** 推理强度 */
   reasoningEffort?: ReasoningEffort;
+  /** 当前模型支持的推理强度 */
+  reasoningEffortOptions?: ReasoningEffort[];
   /** 推理强度变化回调 */
   onReasoningEffortChange?: (level: ReasoningEffort) => void;
   /** 推理强度是否禁用 */

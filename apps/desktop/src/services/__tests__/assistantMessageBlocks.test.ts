@@ -4,6 +4,7 @@ import { Role } from "@/constants";
 import type { AssistantReasoningBlock, RequestMessage } from "@/types";
 import {
   applyAssistantReasoningSnapshot,
+  applyAssistantProviderMetadataSnapshot,
   applyAssistantTextSnapshot,
   applyAssistantToolCallsSnapshot,
   buildAssistantHistoryMessages,
@@ -302,6 +303,37 @@ describe("assistant reasoning timing", () => {
         role: Role.Assistant,
         content: [{ type: "text", text: "最终答案" }],
         reasoning_content: "先整理思路",
+      },
+    ]);
+  });
+
+  it("重建 Claude assistant 历史时保留供应商原始思考块", () => {
+    const message = createAssistantMessage();
+    const turnId = "turn-claude-thinking";
+    const providerMetadata = {
+      claude: {
+        content: [
+          {
+            type: "thinking",
+            thinking: "先分析",
+            signature: "signed-thinking",
+          },
+          { type: "text", text: "最终答案" },
+        ],
+      },
+    };
+
+    applyAssistantReasoningSnapshot(message, turnId, "先分析", 1000);
+    applyAssistantTextSnapshot(message, turnId, "最终答案");
+    applyAssistantProviderMetadataSnapshot(message, turnId, providerMetadata);
+    finalizeAssistantTurn(message, turnId);
+
+    expect(buildAssistantHistoryMessages(message)).toEqual([
+      {
+        role: Role.Assistant,
+        content: [{ type: "text", text: "最终答案" }],
+        reasoning_content: "先分析",
+        provider_metadata: providerMetadata,
       },
     ]);
   });
