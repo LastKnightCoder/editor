@@ -75,6 +75,7 @@ interface ChatInputAreaProps {
   isSupportFile?: boolean;
   resourceSource?: IResourceSource | null;
   reasoningEffort?: ReasoningEffort;
+  reasoningEffortOptions?: ReasoningEffort[];
   onReasoningEffortChange?: (level: ReasoningEffort) => void;
   reasoningEffortDisabled?: boolean;
   showMcpManager?: boolean;
@@ -132,7 +133,17 @@ const REASONING_EFFORT_OPTIONS: Array<{
   {
     value: "high",
     label: "穷尽求索",
-    description: "深度推理，追求最强分析能力",
+    description: "深度推理，适合复杂任务",
+  },
+  {
+    value: "xhigh",
+    label: "远谋深算",
+    description: "长程推演，适合复杂代理任务",
+  },
+  {
+    value: "max",
+    label: "极尽推演",
+    description: "使用模型允许的最高推理强度",
   },
 ];
 
@@ -205,6 +216,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       isSupportFile = false,
       resourceSource = null,
       reasoningEffort,
+      reasoningEffortOptions,
       onReasoningEffortChange,
       reasoningEffortDisabled = false,
       showMcpManager = true,
@@ -580,7 +592,11 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     );
     const reasoningEffortMenuItems = useMemo(
       () =>
-        REASONING_EFFORT_OPTIONS.map((option) => ({
+        REASONING_EFFORT_OPTIONS.filter(
+          (option) =>
+            !reasoningEffortOptions ||
+            reasoningEffortOptions.includes(option.value),
+        ).map((option) => ({
           key: option.value,
           label: (
             <div
@@ -603,7 +619,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             </div>
           ),
         })),
-      [reasoningEffort],
+      [reasoningEffort, reasoningEffortOptions],
     );
     const reasoningControlDisabled =
       reasoningEffortDisabled || sendLoading || !contentEditable;

@@ -40,6 +40,7 @@ import {
 } from "@/services/content-editing";
 import {
   applyAssistantReasoningSnapshot,
+  applyAssistantProviderMetadataSnapshot,
   applyAssistantTextSnapshot,
   applyAssistantToolCallsSnapshot,
   buildAssistantHistoryMessages,
@@ -445,8 +446,13 @@ const InlineAIComposerPanel = ({
               );
             });
           },
-          onAssistantTurnEnd: ({ turnId, resultType }) => {
+          onAssistantTurnEnd: ({ turnId, resultType, providerMetadata }) => {
             patchAssistantMessage((assistantMessage) => {
+              applyAssistantProviderMetadataSnapshot(
+                assistantMessage,
+                turnId,
+                providerMetadata,
+              );
               finalizeAssistantTurn(assistantMessage, turnId);
             });
             if (resultType !== "response") {

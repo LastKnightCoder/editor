@@ -24,13 +24,22 @@ export interface FileContent {
 }
 
 export type MessageContent = TextContent | ImageContent | FileContent;
-export type ReasoningEffort = "none" | "low" | "medium" | "high";
+export type ReasoningEffort =
+  | "none"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh"
+  | "max";
+
+export type ProviderMetadata = Record<string, unknown>;
 
 export interface RequestMessage {
   clientId?: string;
   role: Role;
   content: MessageContent[] | string;
   reasoning_content?: string;
+  provider_metadata?: ProviderMetadata;
   name?: string;
   tool_call_id?: string;
   tool_calls?: ToolCallPayload[];
@@ -116,6 +125,7 @@ export interface ResponseMessage {
   role: Role;
   content: string;
   reasoning_content?: string;
+  provider_metadata_by_turn?: Record<string, ProviderMetadata>;
   tool_calls?: ToolCallPayload[];
   assistant_blocks?: AssistantBlock[];
 }

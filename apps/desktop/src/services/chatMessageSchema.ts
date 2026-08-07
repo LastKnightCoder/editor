@@ -12,7 +12,7 @@ import type {
   ToolCallPayload,
 } from "@/types";
 
-export const CHAT_MESSAGE_SCHEMA_VERSION = 3;
+export const CHAT_MESSAGE_SCHEMA_VERSION = 4;
 
 const SYNTHETIC_MIGRATION_TURN_ID = "turn:migrated:0";
 
@@ -219,6 +219,7 @@ export const migrateAssistantMessage = (
     role: Role.Assistant,
     content: derived.content,
     reasoning_content: derived.reasoning_content,
+    provider_metadata_by_turn: message.provider_metadata_by_turn,
     tool_calls: derived.tool_calls,
     assistant_blocks: assistantBlocks,
   };

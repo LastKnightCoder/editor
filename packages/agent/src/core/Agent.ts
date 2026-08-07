@@ -21,6 +21,7 @@ import type {
   AgentTraceSpan,
   AgentToolExecutionState,
   AgentToolSource,
+  AgentTurnResult,
   AgentMutableState,
   AgentSystemState,
 } from "../types";
@@ -68,12 +69,14 @@ const buildAssistantToolCallMessage = (
   options?: {
     content?: string;
     reasoningContent?: string;
+    providerMetadata?: Record<string, unknown>;
   },
 ): AgentMessage => ({
   role: "assistant",
   content: buildTextMessageContent(options?.content ?? ""),
   tool_calls: toolCalls,
   reasoning_content: options?.reasoningContent ?? "",
+  provider_metadata: options?.providerMetadata,
 });
 
 const buildToolResultMessage = (
@@ -360,21 +363,7 @@ export class Agent {
       let text = "";
       let reasoningContent = "";
       let streamedToolCalls: AgentToolCall[] = [];
-      let turnResult:
-        | {
-            type: "response";
-            content: string;
-            reasoningContent: string;
-            finishReason: string | null;
-          }
-        | {
-            type: "tool_calls";
-            content: string;
-            reasoningContent: string;
-            finishReason: "tool_calls";
-            toolCalls: AgentToolCall[];
-          }
-        | null = null;
+      let turnResult: AgentTurnResult | null = null;
       const turnSpan = await runtime.tracing.startSpan({
         name: "agent.turn",
         attributes: {
@@ -551,6 +540,7 @@ export class Agent {
         resultType: turnResult.type,
         content: turnResult.content,
         reasoningContent: turnResult.reasoningContent,
+        providerMetadata: turnResult.providerMetadata,
         toolCalls:
           turnResult.type === "tool_calls" ? turnResult.toolCalls : undefined,
       });
@@ -570,6 +560,7 @@ export class Agent {
           role: "assistant",
           content: buildTextMessageContent(turnResult.content),
           reasoning_content: turnResult.reasoningContent || undefined,
+          provider_metadata: turnResult.providerMetadata,
         };
         state.messages = [...state.messages, finalMessage];
         const result: AgentRunResult = {
@@ -579,6 +570,7 @@ export class Agent {
           finishReason: turnResult.finishReason,
           content: turnResult.content,
           reasoningContent: turnResult.reasoningContent,
+          providerMetadata: turnResult.providerMetadata,
           finalMessage,
         };
         await runRuntimeHooks((hook) => hook.onRunFinish, {
@@ -664,6 +656,7 @@ export class Agent {
         buildAssistantToolCallMessage(currentToolCalls, {
           content: turnResult.content,
           reasoningContent: turnResult.reasoningContent,
+          providerMetadata: turnResult.providerMetadata,
         }),
       ];
 
