@@ -91,6 +91,13 @@ vi.mock("@/editor-extensions", () => ({
   contentLinkExtension: { type: "content-link" },
 }));
 
+const wrapContentLinkMock = vi.hoisted(() => vi.fn());
+const insertTextMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/editor-extensions/content-link/components/utils", () => ({
+  wrapContentLink: wrapContentLinkMock,
+}));
+
 let capturedHotkeyConfigs: Array<{
   hotKey: string | string[];
   action: (editor: unknown, event: React.KeyboardEvent<HTMLDivElement>) => void;
@@ -101,7 +108,7 @@ vi.mock("@tau/editor/src", () => {
     {
       focus: () => void;
       setEditorValue: (nodes: Descendant[]) => void;
-      getEditor: () => Record<string, never>;
+      getEditor: () => { insertText: (text: string) => void };
       isFocus: () => boolean;
       deselect: () => void;
       scrollHeaderIntoView: () => void;
@@ -133,7 +140,7 @@ vi.mock("@tau/editor/src", () => {
         setValue(nodes);
         onChange?.(nodes);
       },
-      getEditor: () => ({}),
+      getEditor: () => ({ insertText: insertTextMock }),
       isFocus: () => true,
       deselect: () => undefined,
       scrollHeaderIntoView: () => undefined,
@@ -180,6 +187,8 @@ const renderChatInputArea = async (
 describe("桌面端 ChatInputArea Editor 输入", () => {
   afterEach(async () => {
     capturedHotkeyConfigs = [];
+    wrapContentLinkMock.mockReset();
+    insertTextMock.mockReset();
     if (root) {
       await act(async () => {
         root?.unmount();
@@ -259,5 +268,32 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
 
     expect(preventDefault).toHaveBeenCalledTimes(1);
     expect(onPressEnter).toHaveBeenCalledTimes(1);
+  });
+
+  it("应通过 ref 将拖入内容追加为 content-link 引用", async () => {
+    const ref = {
+      current: null,
+    } as React.RefObject<ChatInputAreaHandle | null>;
+    await renderChatInputArea(ref);
+
+    await act(async () => {
+      ref.current?.appendMention?.({
+        entityType: "project-item",
+        entityId: 42,
+        contentId: 301,
+        title: "项目文档",
+        previewText: "项目摘要",
+      });
+    });
+
+    expect(wrapContentLinkMock).toHaveBeenCalledWith(
+      expect.anything(),
+      301,
+      "project-item",
+      "项目文档",
+      42,
+      "项目文档",
+    );
+    expect(insertTextMock).toHaveBeenCalledWith(" ");
   });
 });

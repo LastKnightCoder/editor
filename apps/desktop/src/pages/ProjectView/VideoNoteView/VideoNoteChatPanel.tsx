@@ -372,6 +372,7 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
       <div className="h-full box-border p-4 flex flex-col">
         <div className="flex justify-between items-center mb-2">
           <ChatDropdownSelector
+            chatSource="video-note-chat"
             chats={chatsAsMessages}
             currentChat={currentChatAsMessage}
             onChatSelect={handleChatSelect}
@@ -379,7 +380,6 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
             onCreateNewChat={onCreateNewMessage}
             onChatDelete={handleChatDelete}
             getChildBranchesCount={getChildBranchesCount}
-            disabled={sendLoading}
             titleRef={editTitleRef}
           />
         </div>

@@ -16,6 +16,7 @@ export type {
   AgentModelTransport,
   AgentModelAdapter,
   AgentModelEvent,
+  AgentModelUsage,
   AgentPreparedModelTurn,
   AgentModelTurnRequest,
   AgentNotice,

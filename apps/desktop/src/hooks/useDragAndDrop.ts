@@ -1,7 +1,10 @@
 import { useState, useRef } from "react";
 import { useDrag, useDrop } from "react-dnd";
+import type { MentionRef } from "@tau/shared";
 
-export const type = "sidebar-item";
+import { SIDEBAR_ITEM_DND_TYPE } from "@/utils/chat-content-dnd";
+
+export const type = SIDEBAR_ITEM_DND_TYPE;
 
 export interface IDragItem {
   itemId: number;
@@ -10,6 +13,7 @@ export interface IDragItem {
   path: number[];
   children: number[];
   parentChildren: number[];
+  chatContentReference?: MentionRef;
 }
 
 type IDragAndDropParams = IDragItem & {

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useMemo, useState, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 import classnames from "classnames";
 import { Dropdown, message, Spin, Typography, App } from "antd";
@@ -22,7 +22,12 @@ import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 
 import { IArticle } from "@/types";
 
-import { formatDate, getMarkdown, downloadMarkdown } from "@/utils";
+import {
+  formatDate,
+  getEditorText,
+  getMarkdown,
+  downloadMarkdown,
+} from "@/utils";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 import styles from "./index.module.less";
@@ -35,6 +40,7 @@ import {
 import useSettingStore from "@/stores/useSettingStore";
 import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
 import useEditContent from "@/hooks/useEditContent";
+import useChatContentDrag from "@/hooks/useChatContentDrag";
 
 const { Text } = Typography;
 
@@ -84,6 +90,17 @@ const ArticleCard = (props: IArticleCardProps) => {
   const editorRef = useRef<EditorRef>(null);
   const { modal } = App.useApp();
   const uploadResource = useUploadResource();
+  const chatReference = useMemo(
+    () => ({
+      entityType: "article" as const,
+      entityId: article.id,
+      contentId: article.contentId,
+      title: article.title || `文章 #${article.id}`,
+      previewText: getEditorText(article.content, 160),
+    }),
+    [article.content, article.contentId, article.id, article.title],
+  );
+  const { drag, isDragging } = useChatContentDrag(chatReference);
 
   const randomTheme = allThemes[article.id % allThemes.length];
   const cardClassName = classnames(styles.articleCard, randomTheme, {
@@ -170,7 +187,14 @@ const ArticleCard = (props: IArticleCardProps) => {
   };
 
   return (
-    <div className={classnames(styles.cardContainer, className)}>
+    <div
+      ref={(node) => {
+        drag(node);
+      }}
+      className={classnames(styles.cardContainer, className, {
+        "opacity-50": isDragging,
+      })}
+    >
       <Spin spinning={bannerUploading}>
         <div className={cardClassName} style={style}>
           <div

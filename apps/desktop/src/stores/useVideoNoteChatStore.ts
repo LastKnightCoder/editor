@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { produce } from "immer";
+import { chatRunManager } from "@/services/chatRunManager";
 import type { ChatAgentType, ChatSessionMessage } from "@/types";
 import type {
   CreateVideoNoteChat,
@@ -136,13 +137,11 @@ const useVideoNoteChatStore = create<IState & IAction>()((set, get) => ({
         draft[index] = chat;
       }
     });
-    set({ chats: newChats, currentChatId: chat.id });
+    set({ chats: newChats });
   },
 
   deleteChat: async (id) => {
     const { chats, currentChatId } = get();
-    await deleteVideoNoteChat(id);
-
     const allIdsToDelete = new Set<number>([id]);
     const findChildren = (parentId: number) => {
       chats.forEach((chat) => {
@@ -153,6 +152,13 @@ const useVideoNoteChatStore = create<IState & IAction>()((set, get) => ({
       });
     };
     findChildren(id);
+
+    await Promise.all(
+      Array.from(allIdsToDelete, (chatId) =>
+        chatRunManager.discardSession(`video-note-chat:${chatId}`),
+      ),
+    );
+    await deleteVideoNoteChat(id);
 
     const newChats = produce(chats, (draft) =>
       draft.filter((chat) => !allIdsToDelete.has(chat.id)),

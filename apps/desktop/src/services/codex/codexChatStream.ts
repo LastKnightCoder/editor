@@ -12,6 +12,8 @@ const CODEX_MCP_RESPONSE_CHANNEL = "codex-mcp-bridge:response";
 
 interface CodexAgentEventPayload {
   requestId: number;
+  runId?: string;
+  sessionKey?: string;
   event: Record<string, unknown>;
 }
 
@@ -39,6 +41,8 @@ type ExternalMcpToolExecutor = (
 
 interface CodexStreamOptions {
   input: string | CodexInputItem[];
+  runId?: string;
+  sessionKey?: string;
   agentSessionId?: string | null;
   workingDirectory?: string | null;
   externalMcpTools?: CodexMcpToolDefinition[];
@@ -100,6 +104,8 @@ const getCodexMcpToolsSnapshot = () => {
 
 export const streamCodexChat = async ({
   input,
+  runId,
+  sessionKey,
   agentSessionId,
   workingDirectory,
   externalMcpTools = [],
@@ -202,7 +208,10 @@ export const streamCodexChat = async ({
       return;
     }
     if (activeRequestId !== null) {
-      void invoke("codex-agent:cancel", { requestId: activeRequestId });
+      void invoke("codex-agent:cancel", {
+        requestId: activeRequestId,
+        runId,
+      });
     }
     settled = true;
     cleanup();
@@ -213,6 +222,11 @@ export const streamCodexChat = async ({
     if (payload.requestId !== activeRequestId) {
       return;
     }
+    if (
+      (runId && payload.runId !== runId) ||
+      (sessionKey && payload.sessionKey !== sessionKey)
+    )
+      return;
 
     if (payload.event.type === "done") {
       settled = true;
@@ -258,6 +272,8 @@ export const streamCodexChat = async ({
       "codex-agent:stream",
       {
         input,
+        runId,
+        sessionKey,
         agentSessionId,
         workingDirectory,
         mcpTools,

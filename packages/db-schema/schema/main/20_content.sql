@@ -23,6 +23,25 @@ CREATE TABLE IF NOT EXISTS question_group (
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL
       );
+CREATE TABLE IF NOT EXISTS chat_run (
+        run_id TEXT PRIMARY KEY,
+        session_key TEXT NOT NULL,
+        source TEXT NOT NULL,
+        chat_id INTEGER NOT NULL,
+        agent_type TEXT NOT NULL DEFAULT 'local',
+        status TEXT NOT NULL,
+        request_payload TEXT NOT NULL,
+        user_message_client_id TEXT NOT NULL,
+        assistant_message_client_id TEXT NOT NULL,
+        agent_session_id TEXT,
+        attempt INTEGER NOT NULL DEFAULT 0,
+        assistant_snapshot TEXT NOT NULL DEFAULT '',
+        reasoning_snapshot TEXT NOT NULL DEFAULT '',
+        tool_snapshot TEXT NOT NULL DEFAULT '[]',
+        error_message TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
 CREATE TABLE IF NOT EXISTS questions (
         id INTEGER PRIMARY KEY,
         create_time INTEGER NOT NULL,

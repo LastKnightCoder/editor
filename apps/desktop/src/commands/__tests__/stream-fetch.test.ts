@@ -9,11 +9,57 @@ vi.mock("@fortaine/fetch-event-source", () => ({
   fetchEventSource: fetchEventSourceMock,
 }));
 
-import { createResponsesStreamParser, stream } from "../stream-fetch";
+import {
+  createResponsesStreamParser,
+  normalizeOpenAIUsage,
+  stream,
+} from "../stream-fetch";
 
 describe("stream", () => {
   beforeEach(() => {
     fetchEventSourceMock.mockReset();
+  });
+
+  it("规范化 OpenAI usage 及缓存读取 token", () => {
+    expect(
+      normalizeOpenAIUsage({
+        prompt_tokens: 1200,
+        completion_tokens: 340,
+        prompt_tokens_details: { cached_tokens: 800 },
+      }),
+    ).toEqual({
+      inputTokens: 1200,
+      outputTokens: 340,
+      cacheReadTokens: 800,
+      cacheWriteTokens: 0,
+    });
+  });
+
+  it("Responses 完成事件返回统一 usage", () => {
+    const parser = createResponsesStreamParser();
+    expect(
+      parser.parse(
+        JSON.stringify({
+          type: "response.completed",
+          response: {
+            output: [],
+            usage: {
+              input_tokens: 2000,
+              output_tokens: 500,
+              input_tokens_details: { cached_tokens: 1200 },
+            },
+          },
+        }),
+      ),
+    ).toMatchObject({
+      finish_reason: "stop",
+      usage: {
+        inputTokens: 2000,
+        outputTokens: 500,
+        cacheReadTokens: 1200,
+        cacheWriteTokens: 0,
+      },
+    });
   });
 
   it("在 tool_calls 结束时返回本轮 content 与 reasoning_content", async () => {
@@ -138,6 +184,69 @@ describe("stream", () => {
     ).rejects.toMatchObject({
       name: "AbortError",
     });
+  });
+
+  it("HTTP 上下文超限响应应作为错误向上抛出", async () => {
+    fetchEventSourceMock.mockImplementation(async (_url, options) => {
+      await options.onopen(
+        new Response(
+          JSON.stringify({
+            error: {
+              message: "maximum context length is 128k tokens",
+            },
+          }),
+          {
+            status: 400,
+            headers: {
+              "content-type": "application/json",
+            },
+          },
+        ),
+      );
+    });
+
+    await expect(
+      stream(
+        "https://example.com/chat/completions",
+        { messages: [] },
+        { Authorization: "Bearer test" },
+        new AbortController(),
+        { parse: (text) => JSON.parse(text) },
+        { disableAnimation: true },
+      ),
+    ).rejects.toThrow(/maximum context length/i);
+  });
+
+  it("Responses SSE 失败事件应作为错误向上抛出", async () => {
+    fetchEventSourceMock.mockImplementation(async (_url, options) => {
+      await options.onopen(
+        new Response("", {
+          status: 200,
+          headers: {
+            "content-type": "text/event-stream",
+          },
+        }),
+      );
+      options.onmessage({
+        data: JSON.stringify({
+          type: "response.failed",
+          response: {
+            error: { message: "upstream request failed" },
+          },
+        }),
+      });
+    });
+
+    await expect(
+      stream(
+        "https://example.com/v1/responses",
+        { input: [] },
+        { Authorization: "Bearer test" },
+        new AbortController(),
+        createResponsesStreamParser(),
+        { disableAnimation: true },
+      ),
+    ).rejects.toThrow("upstream request failed");
   });
 
   it("解析 Responses SSE 的文本、思考摘要与函数调用", async () => {

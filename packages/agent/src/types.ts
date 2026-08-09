@@ -41,6 +41,13 @@ export interface AgentToolCallDelta {
   };
 }
 
+export interface AgentModelUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+}
+
 export interface AgentMessage {
   role: AgentRole | string;
   content: AgentMessageContent[] | string;
@@ -196,6 +203,10 @@ export type AgentModelEvent =
       toolCalls: AgentToolCall[];
     }
   | {
+      type: "model-usage";
+      usage: AgentModelUsage;
+    }
+  | {
       type: "notice";
       notice: AgentNotice;
     }
@@ -233,6 +244,7 @@ export interface AgentModelRawChunk {
     [key: string]: unknown;
   };
   finish_reason?: string | null;
+  usage?: AgentModelUsage;
 }
 
 export interface AgentModelRawChunkParser {
@@ -468,6 +480,11 @@ export type AgentEvent =
       turnId: string;
       delta: string;
       reasoningContent: string;
+    })
+  | (AgentBaseEvent & {
+      type: "model-usage";
+      turnId: string;
+      usage: AgentModelUsage;
     })
   | (AgentBaseEvent & {
       type: "tool-call-planned";

@@ -13,6 +13,7 @@ export * from "./white-board";
 export * from "./llm";
 export * from "./embedding";
 export * from "./chat-message";
+export * from "./chat-run";
 export * from "./vec-document";
 export * from "./operation";
 export * from "./statistic";

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { produce } from "immer";
+import { chatRunManager } from "@/services/chatRunManager";
 import type {
   ChatAgentType,
   ChatSessionMessage,
@@ -152,13 +153,11 @@ const usePdfChatStore = create<IState & IAction>()((set, get) => ({
         draft[index] = chat;
       }
     });
-    set({ chats: newChats, currentChatId: chat.id });
+    set({ chats: newChats });
   },
 
   deleteChat: async (id) => {
     const { chats, currentChatId } = get();
-    await deletePdfChat(id);
-
     const allIdsToDelete = new Set<number>([id]);
     const findChildren = (parentId: number) => {
       chats.forEach((chat) => {
@@ -169,6 +168,13 @@ const usePdfChatStore = create<IState & IAction>()((set, get) => ({
       });
     };
     findChildren(id);
+
+    await Promise.all(
+      Array.from(allIdsToDelete, (chatId) =>
+        chatRunManager.discardSession(`pdf-chat:${chatId}`),
+      ),
+    );
+    await deletePdfChat(id);
 
     const newChats = produce(chats, (draft) =>
       draft.filter((chat) => !allIdsToDelete.has(chat.id)),

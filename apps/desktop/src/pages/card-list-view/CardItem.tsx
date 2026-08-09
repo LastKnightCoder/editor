@@ -27,6 +27,7 @@ import useSettingStore from "@/stores/useSettingStore.ts";
 import { ECardCategory, ICard } from "@/types";
 import { cardCategoryName } from "@/constants";
 import useEditContent from "@/hooks/useEditContent";
+import useChatContentDrag from "@/hooks/useChatContentDrag";
 import { useThemeColors } from "@/hooks";
 
 interface CardItemProps {
@@ -70,6 +71,17 @@ const CardItem = memo(
     );
 
     const { content, tags, isTop, contentId } = card;
+    const chatReference = useMemo(
+      () => ({
+        entityType: "card" as const,
+        entityId: card.id,
+        contentId,
+        title: getEditorText(content, 40) || `卡片 #${card.id}`,
+        previewText: getEditorText(content, 160),
+      }),
+      [card.id, content, contentId],
+    );
+    const { drag, isDragging } = useChatContentDrag(chatReference);
 
     const {
       hoverClass,
@@ -192,12 +204,16 @@ const CardItem = memo(
     return (
       <>
         <div
+          ref={(node) => {
+            drag(node);
+          }}
           className={classnames(
             "p-5 border rounded-lg relative hover:cursor-pointer",
             cardBgClass,
             cardBorderClass,
             { [pinnedCardBgClass]: isTop, [pinnedCardBorderClass]: isTop },
             className,
+            { "opacity-50": isDragging },
           )}
           style={style}
           onClick={onClick}

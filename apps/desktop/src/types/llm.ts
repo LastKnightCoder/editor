@@ -24,7 +24,13 @@ export interface FileContent {
 }
 
 export type MessageContent = TextContent | ImageContent | FileContent;
-export type ReasoningEffort = "none" | "low" | "medium" | "high";
+export type ReasoningEffort =
+  | "none"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh"
+  | "max";
 
 export interface RequestMessage {
   clientId?: string;
@@ -118,6 +124,16 @@ export interface ResponseMessage {
   reasoning_content?: string;
   tool_calls?: ToolCallPayload[];
   assistant_blocks?: AssistantBlock[];
+  usage?: ModelUsage;
+}
+
+export interface ModelUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  providerId?: string;
+  modelName?: string;
 }
 
 export type ChatSessionMessage = RequestMessage | ResponseMessage;
@@ -151,6 +167,8 @@ export interface ModelConfig {
   apiProtocol?: LLMApiProtocol;
   /** 最大输出 token。Claude Messages API 使用 max_tokens，未配置时使用应用默认值。 */
   maxOutputTokens?: number;
+  /** 上下文窗口大小，单位为 k tokens。 */
+  contextWindowK?: number;
 }
 
 export interface LLMUsageConfig {

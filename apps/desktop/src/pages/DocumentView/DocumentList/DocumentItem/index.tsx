@@ -21,6 +21,7 @@ import useDragAndDrop, {
 import {
   defaultDocumentItemEventBus,
   downloadMarkdown,
+  getEditorText,
   getMarkdown,
   copyMarkdownToClipboard,
   copyWechatHtmlToClipboard,
@@ -240,6 +241,15 @@ const DocumentItem = memo((props: IDocumentItemProps) => {
     onDrop,
     children: item?.children || [],
     parentChildren,
+    chatContentReference: item?.contentId
+      ? {
+          entityType: "document-item",
+          entityId: item.id,
+          contentId: item.contentId,
+          title: item.title || `知识库文档 #${item.id}`,
+          previewText: getEditorText(item.content, 160),
+        }
+      : undefined,
   });
 
   const onAddNewDocumentItem = useMemoizedFn(async () => {

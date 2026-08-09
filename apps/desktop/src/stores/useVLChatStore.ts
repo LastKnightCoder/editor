@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { produce } from "immer";
+import { chatRunManager } from "@/services/chatRunManager";
 import { VLChatMessage, CreateVLChat } from "@/types/vibe-learning";
 import { ChatAgentType, ChatSessionMessage } from "@/types";
 import {
@@ -145,13 +146,11 @@ const useVLChatStore = create<IState & IAction>()((set, get) => ({
         draft[index] = chat;
       }
     });
-    set({ chats: newChats, currentChatId: chat.id });
+    set({ chats: newChats });
   },
 
   deleteChat: async (id) => {
     const { chats, currentChatId } = get();
-    await deleteVLChat(id);
-
     // 获取所有需要删除的对话 ID（包括子分支）
     const chatToDelete = chats.find((c) => c.id === id);
     const allIdsToDelete = new Set<number>([id]);
@@ -167,6 +166,13 @@ const useVLChatStore = create<IState & IAction>()((set, get) => ({
       };
       findChildren(id);
     }
+
+    await Promise.all(
+      Array.from(allIdsToDelete, (chatId) =>
+        chatRunManager.discardSession(`vibe-learning-chat:${chatId}`),
+      ),
+    );
+    await deleteVLChat(id);
 
     const newChats = produce(chats, (draft) => {
       // 删除所有相关的对话（包括子分支）

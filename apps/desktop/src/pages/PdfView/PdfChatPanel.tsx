@@ -644,6 +644,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
               <div className="flex-1 min-h-0 p-4 flex flex-col">
                 <div className="flex justify-between items-center mb-2">
                   <ChatDropdownSelector
+                    chatSource="pdf-chat"
                     chats={chatsAsMessages}
                     currentChat={currentChatAsMessage}
                     onChatSelect={handleChatSelect}
@@ -651,7 +652,6 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
                     onCreateNewChat={onCreateNewMessage}
                     onChatDelete={handleChatDelete}
                     getChildBranchesCount={getChildBranchesCount}
-                    disabled={sendLoading}
                     titleRef={editTitleRef}
                   />
                 </div>

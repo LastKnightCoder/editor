@@ -112,6 +112,12 @@ export class DesktopModelTransport implements AgentModelTransport {
             delta: fetchText,
           });
         },
+        onUsage: (usage) => {
+          queue.push({
+            type: "model-usage",
+            usage,
+          });
+        },
         onToolCallsDelta: (toolCalls) => {
           queue.push({
             type: "tool-calls-delta",

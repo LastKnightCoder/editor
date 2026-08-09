@@ -16,6 +16,7 @@ import {
   unpinChatMessage,
   reorderChatMessage,
 } from "@/commands";
+import { chatRunManager } from "@/services/chatRunManager";
 import { produce } from "immer";
 import { persist } from "zustand/middleware";
 
@@ -131,7 +132,7 @@ const useChatMessageStore = create<IState & IAction>()(
             draft[index] = chatMessage;
           }
         });
-        set({ chats: newChats, currentChatId: chatMessage.id });
+        set({ chats: newChats });
       },
       updateChatMessage: async (chatMessage) => {
         const { chats } = get();
@@ -144,15 +145,12 @@ const useChatMessageStore = create<IState & IAction>()(
             draft[index] = updatedChatMessage;
           }
         });
-        set({ chats: newChats, currentChatId: updatedChatMessage.id });
+        set({ chats: newChats });
 
         return updatedChatMessage;
       },
       deleteChatMessage: async (id) => {
         const { chats } = get();
-        const deletedCount = await deleteChatMessage(id);
-
-        // 获取所有需要删除的对话 ID（包括子分支）
         const chatToDelete = chats.find((c) => c.id === id);
         const allIdsToDelete = new Set<number>([id]);
         if (chatToDelete) {
@@ -167,6 +165,13 @@ const useChatMessageStore = create<IState & IAction>()(
           };
           findChildren(id);
         }
+
+        await Promise.all(
+          Array.from(allIdsToDelete, (chatId) =>
+            chatRunManager.discardSession(`main-chat:${chatId}`),
+          ),
+        );
+        const deletedCount = await deleteChatMessage(id);
 
         const newChats = produce(chats, (draft) => {
           // 删除所有相关的对话（包括子分支）

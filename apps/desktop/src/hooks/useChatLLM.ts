@@ -7,7 +7,12 @@ import {
   ToolExecutionMetadata,
   ToolExecutionResult,
 } from "@/types";
-import { Agent, composeAgentModel, type AgentEvent } from "@tau/agent";
+import {
+  Agent,
+  composeAgentModel,
+  type AgentEvent,
+  type AgentModelUsage,
+} from "@tau/agent";
 import { useMemoizedFn } from "ahooks";
 import type { ProviderConfig, ModelConfig } from "@/types/llm";
 import { ensureToolingReady } from "@/tools";
@@ -50,6 +55,7 @@ interface IChatStreamOptions {
     fetchText: string,
     turnId?: string,
   ) => void;
+  onUsage?: (usage: AgentModelUsage, turnId?: string) => void;
   onError?: (e: Error) => void;
   onNotice?: (notice: ChatRuntimeNotice) => void;
   onController?: (controller: AbortController) => void;
@@ -102,6 +108,7 @@ export interface ChatStreamCoreOptions {
     fetchText: string,
     turnId?: string,
   ) => void;
+  onUsage?: (usage: AgentModelUsage, turnId?: string) => void;
   onError?: (e: Error) => void;
   onNotice?: (notice: ChatRuntimeNotice) => void;
   onController?: (controller: AbortController) => void;
@@ -393,6 +400,7 @@ export const chatStreamCore = async (
     onFinish,
     onUpdate,
     onReasoning,
+    onUsage,
     onError,
     onNotice,
     onController,
@@ -475,6 +483,11 @@ export const chatStreamCore = async (
 
       if (event.type === "reasoning-delta") {
         onReasoning?.(event.reasoningContent, event.delta, event.turnId);
+        continue;
+      }
+
+      if (event.type === "model-usage") {
+        onUsage?.(event.usage, event.turnId);
         continue;
       }
 
@@ -587,6 +600,7 @@ export const chatStreamInner = async (
     },
     onUpdate: options.onUpdate,
     onReasoning: options.onReasoning,
+    onUsage: options.onUsage,
     onError: options.onError,
     onNotice: options.onNotice,
     onController: options.onController,

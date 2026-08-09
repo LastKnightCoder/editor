@@ -31,6 +31,7 @@ import AutoSyncManager from "@/components/AutoSyncManager";
 import ConversationFlashcardModal from "@/components/ConversationFlashcardModal";
 import ExtNoteInsertModal from "@/components/ExtNoteInsertModal";
 import MCPManagerModal from "@/components/MCPManagerModal";
+import GlobalFindBar from "@/components/GlobalFindBar";
 import { createEditorServices } from "@/services/editorServices";
 import useSettingStore from "@/stores/useSettingStore";
 import useMCPManagerModalStore from "@/stores/useMCPManagerModalStore";
@@ -533,6 +534,7 @@ const Application = () => {
                       onClose={closeMcpManagerModal}
                     />
                     <DndProvider backend={HTML5Backend}>
+                      <GlobalFindBar />
                       <RouterProvider router={router} />
                     </DndProvider>
                   </App>

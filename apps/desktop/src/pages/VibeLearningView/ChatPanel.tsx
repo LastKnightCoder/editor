@@ -612,6 +612,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         <div className="box-border p-4 h-full flex flex-col">
           <div className="flex justify-between items-center mb-2">
             <ChatDropdownSelector
+              chatSource="vibe-learning-chat"
               chats={chatsAsMessages}
               currentChat={currentChatAsMessage}
               onChatSelect={handleChatSelect}
@@ -619,7 +620,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               onCreateNewChat={onCreateNewMessage}
               onChatDelete={handleChatDelete}
               getChildBranchesCount={getChildBranchesCount}
-              disabled={sendLoading}
               titleRef={editTitleRef}
             />
           </div>
@@ -638,7 +638,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 isDark={isDark}
                 markdownComponents={markdownComponents}
                 isVisible={true}
-                chatScope={`vibe-chat:${projectId}`}
+                chatScope={`vibe-learning-chat:${projectId}`}
                 updateChatMessage={handleUpdateChatMessage}
                 updateCurrentChat={handleUpdateCurrentChat}
                 sendLoading={sendLoading}

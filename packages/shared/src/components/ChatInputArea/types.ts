@@ -2,7 +2,13 @@ import type { ReactNode } from "react";
 import type { MenuProps } from "antd";
 
 /** 推理强度 */
-export type ReasoningEffort = "none" | "low" | "medium" | "high";
+export type ReasoningEffort =
+  | "none"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh"
+  | "max";
 
 export type MentionEntityType =
   | "card"
@@ -73,7 +79,15 @@ export interface ChatInputAreaHandle {
   getValue: () => MessageContentItem[];
   clear: (options?: { releaseResources?: boolean }) => void;
   setValue: (content: string) => void;
+  appendMention?: (mention: MentionRef) => void;
   focusEnd: () => void;
+}
+
+export interface ChatContextUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
 }
 
 /** ChatInputArea 的 props */
@@ -102,6 +116,10 @@ export interface ChatInputAreaProps {
   onModelSelect?: ({ key }: { key: string }) => void;
   /** 当前模型名称 */
   currentModelName?: string;
+  /** 当前模型上下文窗口，单位为 k tokens */
+  contextWindowK?: number;
+  /** 当前聊天最近一次模型请求的 token 用量 */
+  contextUsage?: ChatContextUsage | null;
   /** 是否支持图片上传 */
   isSupportImage?: boolean;
   /** 是否支持文件上传 */
@@ -110,6 +128,8 @@ export interface ChatInputAreaProps {
   resourceSource?: IResourceSource | null;
   /** 推理强度 */
   reasoningEffort?: ReasoningEffort;
+  /** 当前模型可用的推理强度 */
+  reasoningEffortOptions?: readonly ReasoningEffort[];
   /** 推理强度变化回调 */
   onReasoningEffortChange?: (level: ReasoningEffort) => void;
   /** 推理强度是否禁用 */

@@ -15,6 +15,7 @@ import PdfChatTable from "./tables/pdf-chat";
 import DailyNoteTable from "./tables/daily-note";
 import DiaryTable from "./tables/diary";
 import ChatMessageTable from "./tables/chat-message";
+import ChatRunTable from "./tables/chat-run";
 import ChatGroupTable from "./tables/chat-group";
 import OperationTable from "./tables/operation";
 import StatisticTable from "./tables/statistic";
@@ -208,6 +209,7 @@ class DatabaseModule implements Module {
       DiaryTable,
       ChatGroupTable,
       ChatMessageTable,
+      ChatRunTable,
       OperationTable,
       StatisticTable,
       VideoNoteItemTable, // Must be before VideoNoteTable for migration
