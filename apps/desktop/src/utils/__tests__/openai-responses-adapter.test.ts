@@ -3,6 +3,17 @@ import { Role } from "@/constants/llm";
 import { buildResponsesPayload } from "../openai-responses-adapter";
 
 describe("openai-responses-adapter", () => {
+  it("透传 OpenAI 的 max 推理强度", () => {
+    const payload = buildResponsesPayload({
+      model: "gpt-5.6",
+      stream: true,
+      reasoningEffort: "max",
+      messages: [{ role: Role.User, content: "你好" }],
+    });
+
+    expect(payload.reasoning).toEqual({ effort: "max" });
+  });
+
   it("将 system 消息合并到 instructions，不放入 input", () => {
     const payload = buildResponsesPayload({
       model: "gpt-5.1",

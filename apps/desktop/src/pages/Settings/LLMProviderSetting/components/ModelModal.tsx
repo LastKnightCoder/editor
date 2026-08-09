@@ -42,6 +42,7 @@ const ModelModal = ({
     "chat-completions" | "responses"
   >("chat-completions");
   const [maxOutputTokens, setMaxOutputTokens] = useState("");
+  const [contextWindowK, setContextWindowK] = useState("");
   const themeColors = useThemeColors();
 
   useEffect(() => {
@@ -53,6 +54,11 @@ const ModelModal = ({
       setMaxOutputTokens(
         typeof initialData.maxOutputTokens === "number"
           ? String(initialData.maxOutputTokens)
+          : "",
+      );
+      setContextWindowK(
+        typeof initialData.contextWindowK === "number"
+          ? String(initialData.contextWindowK)
           : "",
       );
       const normalizedFeatures = {
@@ -75,6 +81,7 @@ const ModelModal = ({
       setMessageFormat("openai");
       setApiProtocol("chat-completions");
       setMaxOutputTokens("");
+      setContextWindowK("");
     }
   }, [initialData, open]);
 
@@ -88,6 +95,7 @@ const ModelModal = ({
       file: selectedFeatures.includes("file"),
     };
     const parsedMaxOutputTokens = Number.parseInt(maxOutputTokens, 10);
+    const parsedContextWindowK = Number.parseInt(contextWindowK, 10);
     onFinish({
       name: modelName,
       description,
@@ -101,6 +109,10 @@ const ModelModal = ({
         parsedMaxOutputTokens > 0
           ? parsedMaxOutputTokens
           : undefined,
+      contextWindowK:
+        Number.isFinite(parsedContextWindowK) && parsedContextWindowK > 0
+          ? parsedContextWindowK
+          : undefined,
     });
     setModelName("");
     setDescription("");
@@ -108,6 +120,7 @@ const ModelModal = ({
     setMessageFormat("openai");
     setApiProtocol("chat-completions");
     setMaxOutputTokens("");
+    setContextWindowK("");
   };
 
   const handleCancel = () => {
@@ -118,6 +131,7 @@ const ModelModal = ({
     setMessageFormat("openai");
     setApiProtocol("chat-completions");
     setMaxOutputTokens("");
+    setContextWindowK("");
   };
 
   const toggleFeature = (value: string) => {
@@ -280,6 +294,16 @@ const ModelModal = ({
           description="用于 Claude Messages API 的 max_tokens。不同 Claude 模型和中转渠道允许的最大值不同，超出后服务端会拒绝请求。"
         />
       )}
+      <SettingInput
+        label="上下文窗口（k tokens）"
+        type="number"
+        min={1}
+        step={1}
+        value={contextWindowK}
+        onChange={(e) => setContextWindowK(e.target.value)}
+        placeholder="例如 128，表示 128k tokens"
+        description="用于聊天输入框显示上下文用量；不同模型请分别填写。"
+      />
     </SettingModalShell>
   );
 };

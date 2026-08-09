@@ -32,6 +32,7 @@ import classnames from "classnames";
 import { v4 as uuid } from "uuid";
 import { LuBrain } from "react-icons/lu";
 import PortalToBody from "../PortalToBody";
+import ContextUsageIndicator from "./ContextUsageIndicator";
 import {
   extractMentionRefsFromText,
   findActiveMentionQuery,
@@ -63,6 +64,8 @@ export type {
   MentionEntityType,
   MentionRef,
 } from "./types";
+export { ContextUsageIndicator } from "./ContextUsageIndicator";
+export type { ChatContextUsage } from "./types";
 
 const { TextArea } = Input;
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -94,6 +97,23 @@ const REASONING_EFFORT_OPTIONS: ReasoningEffortOption[] = [
     label: "穷尽求索",
     description: "深度推理，追求最强分析能力",
   },
+  {
+    value: "xhigh",
+    label: "深研不辍",
+    description: "适合长程任务与深度研究，耗时和成本更高",
+  },
+  {
+    value: "max",
+    label: "极限求解",
+    description: "最高推理强度，仅适合最复杂的问题",
+  },
+];
+
+const DEFAULT_REASONING_EFFORT_OPTIONS: readonly ReasoningEffort[] = [
+  "none",
+  "low",
+  "medium",
+  "high",
 ];
 
 interface ChatImageItem {
@@ -162,10 +182,13 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       modelSelectItems = [],
       onModelSelect,
       currentModelName,
+      contextWindowK,
+      contextUsage,
       isSupportImage = false,
       isSupportFile = false,
       resourceSource = null,
       reasoningEffort,
+      reasoningEffortOptions,
       onReasoningEffortChange,
       reasoningEffortDisabled = false,
       onMcpManagerClick,
@@ -213,12 +236,18 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     const showReasoningEffortControl =
       typeof reasoningEffort !== "undefined" &&
       typeof onReasoningEffortChange === "function";
-    const currentReasoningOption = REASONING_EFFORT_OPTIONS.find(
+    const availableReasoningEffortOptions = REASONING_EFFORT_OPTIONS.filter(
+      (option) =>
+        (reasoningEffortOptions ?? DEFAULT_REASONING_EFFORT_OPTIONS).includes(
+          option.value,
+        ),
+    );
+    const currentReasoningOption = availableReasoningEffortOptions.find(
       (option) => option.value === reasoningEffort,
     );
     const reasoningEffortMenuItems = useMemo(
       () =>
-        REASONING_EFFORT_OPTIONS.map((option) => ({
+        availableReasoningEffortOptions.map((option) => ({
           key: option.value,
           label: (
             <div
@@ -241,7 +270,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             </div>
           ),
         })),
-      [reasoningEffort],
+      [availableReasoningEffortOptions, reasoningEffort],
     );
     const reasoningControlDisabled =
       reasoningEffortDisabled || sendLoading || !contentEditable;
@@ -842,7 +871,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         </div>
 
         <div className="flex items-center justify-between mt-1">
-          <div className="flex items-center gap-1.5">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             {onCreateNewMessage && (
               <Tooltip
                 title="新建对话"
@@ -945,6 +974,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 />
               </Tooltip>
             )}
+            <ContextUsageIndicator
+              contextWindowK={contextWindowK}
+              usage={contextUsage}
+            />
             {isSupportImage && (
               <Tooltip title="上传图片">
                 <Upload

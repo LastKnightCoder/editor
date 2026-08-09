@@ -32,6 +32,7 @@ vi.mock("@/utils/thinkTagNormalizer", () => ({
 import {
   buildClaudeMessages,
   mapToStreamPayload,
+  normalizeClaudeUsage,
 } from "../DesktopModelProtocolAdapter";
 
 const toolImageMessages: RequestMessage[] = [
@@ -61,6 +62,22 @@ const toolImageMessages: RequestMessage[] = [
 ];
 
 describe("DesktopModelProtocolAdapter tool image bridging", () => {
+  it("Claude usage 将未缓存、缓存读取和缓存写入合并为总输入", () => {
+    expect(
+      normalizeClaudeUsage({
+        input_tokens: 200,
+        output_tokens: 50,
+        cache_read_input_tokens: 700,
+        cache_creation_input_tokens: 100,
+      }),
+    ).toEqual({
+      inputTokens: 1000,
+      outputTokens: 50,
+      cacheReadTokens: 700,
+      cacheWriteTokens: 100,
+    });
+  });
+
   it("Chat Completions 保留 tool 文本，并追加 synthetic user 图片消息", () => {
     const payload = mapToStreamPayload(toolImageMessages) as any[];
 

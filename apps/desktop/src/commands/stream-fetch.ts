@@ -5,6 +5,7 @@ import {
   fetchEventSource,
 } from "@fortaine/fetch-event-source";
 import { createAbortError } from "@tau/agent";
+import type { AgentModelRawChunk, AgentModelUsage } from "@tau/agent";
 
 function prettyObject(msg: any) {
   const obj = msg;
@@ -47,9 +48,36 @@ type StreamCallbacks = {
   onUpdate?: (full: string, inc: string, reasoningText?: string) => void;
   onReasoning?: (full: string, inc: string) => void;
   onToolCallsDelta?: (toolCalls: ToolCallPayload[]) => void;
+  onUsage?: (usage: AgentModelUsage) => void;
   deferAssistantTextUntilFinish?: boolean;
   /** 禁用 requestAnimationFrame 动画缓冲，SSE 数据直接透传回调（用于 WebSocket 转发场景） */
   disableAnimation?: boolean;
+};
+
+const toTokenCount = (value: unknown): number =>
+  typeof value === "number" && Number.isFinite(value)
+    ? Math.max(0, Math.floor(value))
+    : 0;
+
+export const normalizeOpenAIUsage = (
+  usage: Record<string, any> | null | undefined,
+): AgentModelUsage | null => {
+  if (!usage) {
+    return null;
+  }
+
+  const inputDetails =
+    usage.prompt_tokens_details || usage.input_tokens_details || {};
+  return {
+    inputTokens: toTokenCount(usage.prompt_tokens ?? usage.input_tokens),
+    outputTokens: toTokenCount(usage.completion_tokens ?? usage.output_tokens),
+    cacheReadTokens: toTokenCount(
+      inputDetails.cached_tokens ?? usage.cache_read_input_tokens,
+    ),
+    cacheWriteTokens: toTokenCount(
+      inputDetails.cache_creation_tokens ?? usage.cache_creation_input_tokens,
+    ),
+  };
 };
 
 type ToolCallDelta = {
@@ -245,7 +273,7 @@ export const createResponsesStreamParser = () => {
             }
           }
           if (addedFromCompleted) {
-            return toolCallsDelta(
+            const deltaResult = toolCallsDelta(
               new Map(
                 Array.from(functionCalls.entries()).map(([index, call]) => [
                   index,
@@ -253,10 +281,17 @@ export const createResponsesStreamParser = () => {
                 ]),
               ),
             );
+            return {
+              ...(deltaResult || {}),
+              usage: normalizeOpenAIUsage(event.response?.usage) || undefined,
+            };
           }
-          return functionCalls.size > 0
-            ? { finish_reason: "tool_calls" as const }
-            : { finish_reason: "stop" as const };
+          return {
+            ...(functionCalls.size > 0
+              ? { finish_reason: "tool_calls" as const }
+              : { finish_reason: "stop" as const }),
+            usage: normalizeOpenAIUsage(event.response?.usage) || undefined,
+          };
         }
         case "response.failed":
         case "response.incomplete":
@@ -385,10 +420,8 @@ export function stream(
   headers: Record<string, string>,
   controller: AbortController,
   parseSSE: {
-    parse: (
-      text: string,
-    ) => { delta?: any; finish_reason?: string | null } | undefined;
-    flush?: () => { delta?: any; finish_reason?: string | null } | undefined;
+    parse: (text: string) => AgentModelRawChunk | undefined;
+    flush?: () => AgentModelRawChunk | undefined;
   },
   options: StreamCallbacks,
 ): Promise<StreamLifecycleResult> {
@@ -417,13 +450,14 @@ export function stream(
       reasoningRemainText = "";
     };
 
-    const applyParsedChunk = (
-      parsed: { delta?: any; finish_reason?: string | null } | undefined,
-    ) => {
+    const applyParsedChunk = (parsed: AgentModelRawChunk | undefined) => {
       const delta =
         parsed && "delta" in parsed ? parsed.delta : (parsed as any);
       if (parsed?.finish_reason) {
         finishReason = parsed.finish_reason;
+      }
+      if (parsed?.usage) {
+        options.onUsage?.(parsed.usage);
       }
       if (!delta) {
         return;
@@ -591,16 +625,10 @@ export function stream(
           const contentType = res.headers.get("content-type");
           responseRes = res;
 
-          if (contentType?.startsWith("text/plain")) {
-            responseText = await res.clone().text();
-            return finish();
-          }
-
           if (
             !res.ok ||
-            !res.headers
-              .get("content-type")
-              ?.startsWith(EventStreamContentType) ||
+            (!contentType?.startsWith(EventStreamContentType) &&
+              !contentType?.startsWith("text/plain")) ||
             res.status !== 200
           ) {
             const responseTexts = [responseText];
@@ -625,8 +653,11 @@ export function stream(
               responseTexts.push(extraInfo);
             }
 
-            responseText = responseTexts.join("\n\n");
+            throw new Error(responseTexts.join("\n\n"));
+          }
 
+          if (contentType?.startsWith("text/plain")) {
+            responseText = await res.clone().text();
             return finish();
           }
         },
@@ -645,6 +676,7 @@ export function stream(
               return;
             }
             console.error("[Request] parse error", text, msg, error);
+            throw error;
           }
         },
         onclose() {

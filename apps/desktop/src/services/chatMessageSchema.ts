@@ -221,6 +221,7 @@ export const migrateAssistantMessage = (
     reasoning_content: derived.reasoning_content,
     tool_calls: derived.tool_calls,
     assistant_blocks: assistantBlocks,
+    usage: message.usage,
   };
 
   const changed =

@@ -44,6 +44,8 @@ interface CodexToolDefinitionSnapshot {
 
 interface CodexStreamParams {
   input: CodexInput;
+  runId?: string;
+  sessionKey?: string;
   agentSessionId?: string | null;
   workingDirectory?: string | null;
   mcpTools?: CodexToolDefinitionSnapshot[];
@@ -398,6 +400,11 @@ export default class CodexAgent extends EventEmitter {
   private static requestCounter = 0;
   private static senders = new Map<number, WebContents>();
   private static activeTurns = new Map<number, AbortController>();
+  private static activeRunIds = new Map<string, number>();
+  private static requestMetadata = new Map<
+    number,
+    { runId?: string; sessionKey?: string }
+  >();
 
   public static init() {
     ipcMain.handle("codex-agent:getAvailability", async () => {
@@ -418,6 +425,11 @@ export default class CodexAgent extends EventEmitter {
       async (event, params: CodexStreamParams) => {
         const requestId = ++CodexAgent.requestCounter;
         CodexAgent.senders.set(requestId, event.sender);
+        CodexAgent.requestMetadata.set(requestId, {
+          runId: params.runId,
+          sessionKey: params.sessionKey,
+        });
+        if (params.runId) CodexAgent.activeRunIds.set(params.runId, requestId);
         void CodexAgent.runStream(requestId, event.sender, params);
         return { requestId };
       },
@@ -425,11 +437,19 @@ export default class CodexAgent extends EventEmitter {
 
     ipcMain.handle(
       "codex-agent:cancel",
-      async (_event, { requestId }: { requestId: number }) => {
-        const controller = CodexAgent.activeTurns.get(requestId);
+      async (
+        _event,
+        { requestId, runId }: { requestId?: number; runId?: string },
+      ) => {
+        const resolvedRequestId =
+          requestId ?? (runId ? CodexAgent.activeRunIds.get(runId) : undefined);
+        if (resolvedRequestId === undefined) return;
+        const controller = CodexAgent.activeTurns.get(resolvedRequestId);
         controller?.abort();
-        CodexAgent.activeTurns.delete(requestId);
-        CodexAgent.senders.delete(requestId);
+        CodexAgent.activeTurns.delete(resolvedRequestId);
+        CodexAgent.senders.delete(resolvedRequestId);
+        CodexAgent.requestMetadata.delete(resolvedRequestId);
+        if (runId) CodexAgent.activeRunIds.delete(runId);
       },
     );
   }
@@ -510,6 +530,8 @@ export default class CodexAgent extends EventEmitter {
         }
         CodexAgent.activeTurns.delete(requestId);
         CodexAgent.senders.delete(requestId);
+        CodexAgent.requestMetadata.delete(requestId);
+        if (params.runId) CodexAgent.activeRunIds.delete(params.runId);
       }
     }
   }
@@ -519,8 +541,11 @@ export default class CodexAgent extends EventEmitter {
     if (!sender || sender.isDestroyed()) {
       return;
     }
+    const metadata = CodexAgent.requestMetadata.get(requestId);
     sender.send(CODEX_EVENT_CHANNEL, {
       requestId,
+      runId: metadata?.runId,
+      sessionKey: metadata?.sessionKey,
       event,
     });
   }

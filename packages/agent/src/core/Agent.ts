@@ -476,6 +476,16 @@ export class Agent {
             continue;
           }
 
+          if (event.type === "model-usage") {
+            yield await emit({
+              type: "model-usage",
+              ...buildBaseEvent(),
+              turnId,
+              usage: event.usage,
+            });
+            continue;
+          }
+
           if (event.type === "notice") {
             yield await emit({
               type: "notice",

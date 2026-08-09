@@ -1,0 +1,115 @@
+.findBar {
+  position: fixed;
+  top: 58px;
+  right: 24px;
+  z-index: 10020;
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 4px 5px 4px 10px;
+  color: var(--text-normal);
+  background: var(--main-bg-color);
+  border: 1px solid var(--line-color);
+  border-radius: 7px;
+  box-shadow: 0 4px 8px rgb(15 23 42 / 14%);
+}
+
+.searchIcon {
+  flex: none;
+  color: var(--text-secondary, #64748b);
+}
+
+.input {
+  width: 220px;
+  height: 30px;
+  padding: 0 8px;
+  color: inherit;
+  font: inherit;
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--text-secondary, #64748b);
+  opacity: 1;
+}
+
+.input:focus-visible {
+  box-shadow: inset 0 -2px 0 var(--th-border-focus, #2563eb);
+}
+
+.resultCount {
+  min-width: 58px;
+  padding: 0 6px;
+  color: var(--text-secondary, #64748b);
+  font-size: 12px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.iconButton:hover:not(:disabled) {
+  color: var(--th-hover-text);
+  background: var(--th-hover-bg);
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid var(--th-border-focus, #2563eb);
+  outline-offset: -2px;
+}
+
+.iconButton:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: var(--line-color);
+}
+
+@media (max-width: 520px) {
+  .findBar {
+    top: 56px;
+    right: 8px;
+    left: 8px;
+  }
+
+  .input {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+  }
+}
+
+:global(.dark) .findBar {
+  box-shadow: 0 4px 8px rgb(0 0 0 / 32%);
+}
+
+:global(::highlight(tau-global-find)) {
+  background-color: rgb(250 204 21 / 48%);
+  color: inherit;
+}
+
+:global(::highlight(tau-global-find-current)) {
+  background-color: rgb(245 158 11 / 78%);
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}

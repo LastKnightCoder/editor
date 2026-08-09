@@ -17,6 +17,8 @@ CREATE INDEX IF NOT EXISTS idx_chat_message_group_id ON chat_message(group_id);
 CREATE INDEX IF NOT EXISTS idx_chat_message_archived ON chat_message(archived);
 CREATE INDEX IF NOT EXISTS idx_chat_message_parent_chat_id ON chat_message(parent_chat_id);
 CREATE INDEX IF NOT EXISTS idx_chat_message_order_num ON chat_message(order_num);
+CREATE INDEX IF NOT EXISTS idx_chat_run_session_status ON chat_run(session_key, status);
+CREATE INDEX IF NOT EXISTS idx_chat_run_updated_at ON chat_run(updated_at);
 CREATE INDEX IF NOT EXISTS idx_question_group_sort ON question_group(sort_index);
 CREATE INDEX IF NOT EXISTS idx_question_group_default ON question_group(is_default);
 CREATE INDEX IF NOT EXISTS idx_questions_group_id ON questions(group_id);

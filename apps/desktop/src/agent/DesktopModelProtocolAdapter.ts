@@ -6,7 +6,7 @@ import type {
   AgentToolSchema,
 } from "@tau/agent";
 
-import { createResponsesStreamParser } from "@/commands";
+import { createResponsesStreamParser, normalizeOpenAIUsage } from "@/commands";
 import { Role } from "@/constants";
 import { sanitizeToolMessages } from "@/services/assistantMessageBlocks";
 import { normalizeRequestMessages } from "@/services/chatMessageNormalization";
@@ -17,6 +17,7 @@ import type {
   ReasoningEffort,
   RequestMessage,
 } from "@/types";
+import type { AgentModelUsage } from "@tau/agent";
 import { buildResponsesPayload } from "@/utils/openai-responses-adapter";
 import { getModelRequestOverrides } from "@/utils/model-overrides";
 import { createThinkTagNormalizer } from "@/utils/thinkTagNormalizer";
@@ -69,6 +70,28 @@ const logClaudeCacheDebug = (event: string, payload: unknown) => {
   console.info(
     `${CLAUDE_CACHE_DEBUG_PREFIX} ${event} ${JSON.stringify(payload)}`,
   );
+};
+
+const toTokenCount = (value: unknown): number =>
+  typeof value === "number" && Number.isFinite(value)
+    ? Math.max(0, Math.floor(value))
+    : 0;
+
+export const normalizeClaudeUsage = (
+  usage: Record<string, unknown> | null | undefined,
+): AgentModelUsage | null => {
+  if (!usage) {
+    return null;
+  }
+  const inputTokens = toTokenCount(usage.input_tokens);
+  const cacheReadTokens = toTokenCount(usage.cache_read_input_tokens);
+  const cacheWriteTokens = toTokenCount(usage.cache_creation_input_tokens);
+  return {
+    inputTokens: inputTokens + cacheReadTokens + cacheWriteTokens,
+    outputTokens: toTokenCount(usage.output_tokens),
+    cacheReadTokens,
+    cacheWriteTokens,
+  };
 };
 
 const getClaudeContentBlockCount = (content: ClaudeMessage["content"]) =>
@@ -565,87 +588,110 @@ const convertToolsToClaudeFormat = (tools: AgentToolSchema[]) =>
     input_schema: tool.function.parameters,
   }));
 
-const createClaudeSSEParser = (): AgentModelRawChunkParser => ({
-  parse: (text: string) => {
-    const json = JSON.parse(text);
-    const type = json.type as string;
+const createClaudeSSEParser = (): AgentModelRawChunkParser => {
+  let latestUsage: AgentModelUsage | null = null;
 
-    if (type === "message_start" && json.message?.usage) {
-      logClaudeCacheDebug("usage", {
-        eventType: type,
-        usage: json.message.usage,
-      });
-    }
+  return {
+    parse: (text: string) => {
+      const json = JSON.parse(text);
+      const type = json.type as string;
 
-    if (type === "content_block_start") {
-      const block = json.content_block;
-      if (block?.type === "tool_use") {
-        return {
-          delta: {
-            tool_calls: [
-              {
-                index: json.index as number,
-                id: block.id as string,
-                type: "function",
-                function: { name: block.name as string, arguments: "" },
-              },
-            ],
-          },
-        };
-      }
-      return undefined;
-    }
-
-    if (type === "content_block_delta") {
-      const delta = json.delta;
-      if (delta?.type === "text_delta") {
-        return { delta: { content: delta.text as string } };
-      }
-      if (delta?.type === "thinking_delta") {
-        return { delta: { reasoning_content: delta.thinking as string } };
-      }
-      if (delta?.type === "input_json_delta") {
-        return {
-          delta: {
-            tool_calls: [
-              {
-                index: json.index as number,
-                function: { arguments: delta.partial_json as string },
-              },
-            ],
-          },
-        };
-      }
-      return undefined;
-    }
-
-    if (type === "message_delta") {
-      if (json.usage) {
+      if (type === "message_start" && json.message?.usage) {
+        latestUsage = normalizeClaudeUsage(json.message.usage);
         logClaudeCacheDebug("usage", {
           eventType: type,
-          usage: json.usage,
+          usage: json.message.usage,
         });
       }
-      const stopReason = json.delta?.stop_reason as string | null;
-      if (stopReason === "tool_use") {
-        return { finish_reason: "tool_calls" as const };
-      }
-      if (stopReason === "end_turn" || stopReason === "stop_sequence") {
-        return { finish_reason: "stop" as const };
-      }
-      if (stopReason === "max_tokens") {
-        return { finish_reason: "length" as const };
-      }
-      return undefined;
-    }
 
-    if (type === "error") {
-      throw new Error(json.error?.message || "Unknown Claude API error");
-    }
+      if (type === "content_block_start") {
+        const block = json.content_block;
+        if (block?.type === "tool_use") {
+          return {
+            delta: {
+              tool_calls: [
+                {
+                  index: json.index as number,
+                  id: block.id as string,
+                  type: "function",
+                  function: { name: block.name as string, arguments: "" },
+                },
+              ],
+            },
+          };
+        }
+        return undefined;
+      }
 
-    return undefined;
-  },
-});
+      if (type === "content_block_delta") {
+        const delta = json.delta;
+        if (delta?.type === "text_delta") {
+          return { delta: { content: delta.text as string } };
+        }
+        if (delta?.type === "thinking_delta") {
+          return { delta: { reasoning_content: delta.thinking as string } };
+        }
+        if (delta?.type === "input_json_delta") {
+          return {
+            delta: {
+              tool_calls: [
+                {
+                  index: json.index as number,
+                  function: { arguments: delta.partial_json as string },
+                },
+              ],
+            },
+          };
+        }
+        return undefined;
+      }
+
+      if (type === "message_delta") {
+        if (json.usage) {
+          const outputTokens = toTokenCount(json.usage.output_tokens);
+          latestUsage = {
+            ...(latestUsage || {
+              inputTokens: 0,
+              cacheReadTokens: 0,
+              cacheWriteTokens: 0,
+            }),
+            outputTokens,
+          };
+          logClaudeCacheDebug("usage", {
+            eventType: type,
+            usage: json.usage,
+          });
+        }
+        const stopReason = json.delta?.stop_reason as string | null;
+        if (stopReason === "tool_use") {
+          return {
+            finish_reason: "tool_calls" as const,
+            usage: latestUsage || undefined,
+          };
+        }
+        if (stopReason === "end_turn" || stopReason === "stop_sequence") {
+          return {
+            finish_reason: "stop" as const,
+            usage: latestUsage || undefined,
+          };
+        }
+        if (stopReason === "max_tokens") {
+          return {
+            finish_reason: "length" as const,
+            usage: latestUsage || undefined,
+          };
+        }
+        return latestUsage ? { usage: latestUsage } : undefined;
+      }
+
+      if (type === "error") {
+        throw new Error(json.error?.message || "Unknown Claude API error");
+      }
+
+      return latestUsage ? { usage: latestUsage } : undefined;
+    },
+  };
+};
 
 const normalizeContentText = (content: any): string => {
   if (!content) {
@@ -802,6 +848,7 @@ export class DesktopModelProtocolAdapter implements AgentModelProtocolAdapter {
       const thinkTagNormalizer = createThinkTagNormalizer();
       payload = {
         ...basePayload,
+        stream_options: { include_usage: true },
         messages: mapToStreamPayload(transportMessages),
         ...(request.tools?.length ? { tools: request.tools } : {}),
       };
@@ -810,7 +857,8 @@ export class DesktopModelProtocolAdapter implements AgentModelProtocolAdapter {
           const json = JSON.parse(text);
           const choice = json.choices?.[0];
           if (!choice) {
-            return undefined;
+            const usage = normalizeOpenAIUsage(json.usage);
+            return usage ? { usage } : undefined;
           }
           const delta = choice.delta || {};
           const normalizedContent = normalizeContentText(delta.content);
@@ -826,6 +874,7 @@ export class DesktopModelProtocolAdapter implements AgentModelProtocolAdapter {
               reasoning_content: `${normalizedReasoning}${extracted.reasoning_content}`,
             },
             finish_reason: choice.finish_reason,
+            usage: normalizeOpenAIUsage(json.usage) || undefined,
           };
         },
         flush: () => {

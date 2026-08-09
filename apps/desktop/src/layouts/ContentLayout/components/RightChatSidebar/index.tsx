@@ -461,12 +461,11 @@ const RightChatSidebar = memo(
                   onCreateNewChat={onCreateNewMessage}
                   onChatDelete={handleChatDelete}
                   getChildBranchesCount={getChildBranchesCount}
-                  disabled={sendLoading}
                   titleRef={editTitleRef}
                 />
               </div>
 
-              {open && (
+              <div className={open ? "flex-1 min-h-0" : "hidden"}>
                 <Suspense
                   fallback={
                     <div className="flex items-center justify-center h-full">
@@ -494,7 +493,7 @@ const RightChatSidebar = memo(
                     onCreateBranch={handleCreateBranch}
                   />
                 </Suspense>
-              )}
+              </div>
             </div>
           </div>
         </MarkdownProvider>

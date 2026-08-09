@@ -15,7 +15,7 @@ import {
 } from "react";
 import { Tooltip } from "antd";
 import type { MenuProps } from "antd";
-import { Trash2, AlertTriangle, Unplug } from "lucide-react";
+import { Trash2, AlertTriangle, LoaderCircle, Unplug } from "lucide-react";
 import classNames from "classnames";
 import {
   useVirtualizer,
@@ -29,6 +29,7 @@ import ChatInputArea, {
   type IResourceSource,
   type MessageContentItem,
   type ReasoningEffort,
+  type ChatContextUsage,
 } from "../components/ChatInputArea";
 import {
   ChatMessage,
@@ -146,9 +147,13 @@ export interface ChatContainerCoreProps {
   messages: ChatMessageType[];
   isLoading: boolean;
   error?: string | null;
+  retryStatus?: { attempt: number; maxRetries: number } | null;
   reasoningEffort?: ReasoningEffort;
+  reasoningEffortOptions?: readonly ReasoningEffort[];
   reasoningEffortDisabled?: boolean;
   currentModelName?: string;
+  contextWindowK?: number;
+  contextUsage?: ChatContextUsage | null;
   isSupportImage?: boolean;
   isSupportFile?: boolean;
   placeholder?: string;
@@ -211,9 +216,13 @@ export const ChatContainerCore = forwardRef<
     messages,
     isLoading,
     error = null,
+    retryStatus = null,
     reasoningEffort,
+    reasoningEffortOptions,
     reasoningEffortDisabled = false,
     currentModelName = "未选择模型",
+    contextWindowK,
+    contextUsage,
     isSupportImage = false,
     isSupportFile = false,
     placeholder = DEFAULT_CHAT_INPUT_PLACEHOLDER,
@@ -543,10 +552,13 @@ export const ChatContainerCore = forwardRef<
     modelSelectItems,
     onModelSelect,
     currentModelName,
+    contextWindowK,
+    contextUsage,
     isSupportImage,
     isSupportFile,
     resourceSource,
     reasoningEffort,
+    reasoningEffortOptions,
     onReasoningEffortChange,
     reasoningEffortDisabled,
     onMcpManagerClick,
@@ -688,7 +700,17 @@ export const ChatContainerCore = forwardRef<
         )}
       </div>
 
-      {error ? (
+      {retryStatus ? (
+        <div className="px-4 py-2 bg-yellow-500/10 border-t border-yellow-500/20">
+          <div className="flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400">
+            <LoaderCircle className="h-3.5 w-3.5 shrink-0 animate-spin" />
+            <span>
+              请求失败，正在重试（第 {retryStatus.attempt}/
+              {retryStatus.maxRetries} 次）...
+            </span>
+          </div>
+        </div>
+      ) : error ? (
         <div className="px-4 py-2 bg-red-500/10 border-t border-red-500/20">
           <div className="flex items-center gap-2 text-xs text-red-500">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0" />

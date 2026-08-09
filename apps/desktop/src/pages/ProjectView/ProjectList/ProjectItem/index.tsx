@@ -89,6 +89,7 @@ import {
 } from "@ant-design/icons";
 import {
   getContentLength,
+  getEditorText,
   importFromMarkdown,
   defaultProjectItemEventBus,
 } from "@/utils";
@@ -537,6 +538,18 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     onDrop,
     children: projectItem?.children || [],
     parentChildren,
+    chatContentReference: projectItem?.contentId
+      ? {
+          entityType: "project-item",
+          entityId: projectItem.id,
+          contentId: projectItem.contentId,
+          title:
+            (projectItem.projectItemType === EProjectItemType.WebView
+              ? projectItemTitle
+              : projectItem.title) || `项目文档 #${projectItem.id}`,
+          previewText: getEditorText(projectItem.content, 160),
+        }
+      : undefined,
   });
 
   const { moreMenuItems, handleMoreMenuClick, moreActionModals } =

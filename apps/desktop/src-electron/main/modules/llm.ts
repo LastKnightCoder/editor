@@ -16,8 +16,13 @@ interface KimiThinkingParams {
   thinking?: { type: "enabled" | "disabled" };
 }
 
-type ChatCompletionParams = ChatCompletionCreateParamsNonStreaming &
-  KimiThinkingParams;
+type ChatCompletionParams = Omit<
+  ChatCompletionCreateParamsNonStreaming,
+  "reasoning_effort"
+> &
+  KimiThinkingParams & {
+    reasoning_effort?: Exclude<ReasoningEffort, "none">;
+  };
 
 class LLMModule implements Module {
   name: string;
@@ -161,7 +166,9 @@ class LLMModule implements Module {
       ...restOverrides,
     };
 
-    const res = await client.chat.completions.create(params);
+    const res = await client.chat.completions.create(
+      params as ChatCompletionCreateParamsNonStreaming,
+    );
 
     const responseMessage = res.choices[0].message;
     const responseReasoningContent =

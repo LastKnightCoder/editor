@@ -1,5 +1,6 @@
 import { useDatabaseChangeEffect } from "./useDatabaseChangeEffect";
 import useChatMessageStore from "@/stores/useChatMessageStore";
+import { chatRunManager } from "@/services/chatRunManager";
 
 /**
  * 全局初始化聊天数据的 Hook
@@ -14,5 +15,6 @@ export const useInitChatData = () => {
   useDatabaseChangeEffect(() => {
     initChatMessage();
     initChatGroups();
+    void chatRunManager.hydrate();
   });
 };

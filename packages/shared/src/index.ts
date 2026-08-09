@@ -80,6 +80,8 @@ export {
   type MessageContentItem,
   type MentionEntityType,
   type MentionRef,
+  type ChatContextUsage,
+  ContextUsageIndicator,
   resolveNewChatTooltipOpen,
   shouldCloseNewChatTooltip,
 } from "./components/ChatInputArea";

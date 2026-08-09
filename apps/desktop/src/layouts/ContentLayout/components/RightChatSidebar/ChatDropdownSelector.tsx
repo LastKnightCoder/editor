@@ -1,5 +1,12 @@
 import { memo, useMemo, useState, useRef } from "react";
-import { ChevronDown, GitBranch, MoreHorizontal, Plus } from "lucide-react";
+import {
+  AlertCircle,
+  ChevronDown,
+  GitBranch,
+  LoaderCircle,
+  MoreHorizontal,
+  Plus,
+} from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import { App, Dropdown } from "antd";
 import type { MenuProps } from "antd";
@@ -8,6 +15,8 @@ import { SelectDropDown } from "@tau/shared";
 import EditText from "@/components/EditText";
 import type { EditTextHandle } from "@/components/EditText";
 import { ChatMessage } from "@/types";
+import type { ChatRunStatus, ChatSource } from "@/types/chat-run";
+import useChatRunStore from "@/stores/useChatRunStore";
 
 interface ChatDropdownSelectorProps {
   /** 对话列表 */
@@ -20,6 +29,7 @@ interface ChatDropdownSelectorProps {
   getChildBranchesCount?: (chatId: number) => Promise<number>;
   disabled?: boolean;
   titleRef?: React.RefObject<EditTextHandle | null>;
+  chatSource?: ChatSource;
 }
 
 interface MenuItem {
@@ -29,6 +39,7 @@ interface MenuItem {
   title: string;
   isCurrentChat?: boolean;
   hasBranches?: boolean;
+  runStatus?: ChatRunStatus;
 }
 
 interface BranchItem {
@@ -49,10 +60,12 @@ const ChatDropdownSelector = memo(
     getChildBranchesCount,
     disabled,
     titleRef,
+    chatSource = "main-chat",
   }: ChatDropdownSelectorProps) => {
     const [showDropdown, setShowDropdown] = useState(false);
     const triggerRef = useRef<HTMLDivElement>(null);
     const { modal, message } = App.useApp();
+    const chatRuns = useChatRunStore((state) => state.runs);
 
     // 获取相关分支
     const siblingBranches = useMemo(() => {
@@ -128,11 +141,14 @@ const ChatDropdownSelector = memo(
           title: root.title,
           isCurrentChat,
           hasBranches: branches.length > 0,
+          runStatus: Object.values(chatRuns)
+            .filter((run) => run.sessionKey === `${chatSource}:${root.id}`)
+            .sort((a, b) => b.updatedAt - a.updatedAt)[0]?.status,
         });
       });
 
       return items;
-    }, [chats, currentChat]);
+    }, [chatRuns, chatSource, chats, currentChat]);
 
     const handleSelect = useMemoizedFn((item: MenuItem) => {
       if (item.type === "new") {
@@ -216,6 +232,18 @@ const ChatDropdownSelector = memo(
           <div className="flex items-center gap-2 flex-1 min-w-0">
             {item.hasBranches && (
               <GitBranch size={14} className="opacity-60 shrink-0" />
+            )}
+            {item.runStatus &&
+              ["queued", "running", "retrying", "waiting_input"].includes(
+                item.runStatus,
+              ) && (
+                <LoaderCircle
+                  size={13}
+                  className="shrink-0 animate-spin text-blue-500"
+                />
+              )}
+            {item.runStatus === "failed" && (
+              <AlertCircle size={13} className="shrink-0 text-red-500" />
             )}
             <span
               className={`truncate ${item.isCurrentChat ? "font-medium text-blue-500" : ""}`}
