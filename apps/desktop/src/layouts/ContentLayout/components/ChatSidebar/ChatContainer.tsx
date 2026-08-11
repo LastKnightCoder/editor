@@ -1185,6 +1185,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   _reasoningText?: string,
                   turnId?: string,
                 ) => {
+                  setChatRetryStatus(null);
                   if (turnId) {
                     activeLocalAssistantTurnId = turnId;
                   }
@@ -1215,6 +1216,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                 },
 
                 onReasoning: (full: string, _inc: string, turnId?: string) => {
+                  setChatRetryStatus(null);
                   if (turnId) {
                     activeLocalAssistantTurnId = turnId;
                   }
@@ -1264,6 +1266,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   turnId?: string,
                   toolCalls?: ToolCallPayload[],
                 ) => {
+                  setChatRetryStatus(null);
                   if (turnId) {
                     activeLocalAssistantTurnId = turnId;
                   }

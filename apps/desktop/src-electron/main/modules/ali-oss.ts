@@ -3,6 +3,8 @@ import { Module } from "../types/module";
 import { ipcMain } from "electron";
 import { basename } from "node:path";
 
+const ALI_OSS_UPLOAD_TIMEOUT_MS = 5 * 60 * 1000;
+
 interface IPutObject {
   accessKeyId: string;
   accessKeySecret: string;
@@ -96,7 +98,9 @@ class AliOss implements Module {
       bucket,
       region,
     });
-    const result = await oss.put(objectName, Buffer.from(file));
+    const result = await oss.put(objectName, Buffer.from(file), {
+      timeout: ALI_OSS_UPLOAD_TIMEOUT_MS,
+    });
     return result.url;
   }
 
@@ -144,7 +148,10 @@ class AliOss implements Module {
       "x-oss-object-acl": "private",
       "x-oss-forbid-overwrite": "false",
     };
-    return await oss.put(objectName, Buffer.from(content), { headers });
+    return await oss.put(objectName, Buffer.from(content), {
+      headers,
+      timeout: ALI_OSS_UPLOAD_TIMEOUT_MS,
+    });
   }
 
   async createObject(objInfo: IGetObject, content: Uint8Array) {
@@ -161,7 +168,10 @@ class AliOss implements Module {
       "x-oss-object-acl": "private",
       "x-oss-forbid-overwrite": "true",
     };
-    return await oss.put(objectName, Buffer.from(content), { headers });
+    return await oss.put(objectName, Buffer.from(content), {
+      headers,
+      timeout: ALI_OSS_UPLOAD_TIMEOUT_MS,
+    });
   }
 
   async deleteObject(objInfo: IGetObject) {
