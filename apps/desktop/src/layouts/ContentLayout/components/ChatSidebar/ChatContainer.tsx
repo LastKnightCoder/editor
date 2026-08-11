@@ -56,6 +56,7 @@ import { ToolRendererInteractionProvider } from "@/tool-call-renderers/ToolRende
 import { useAskQuestionSessionStore } from "@/tools/askQuestionSessionStore";
 import {
   applyAssistantReasoningSnapshot,
+  applyAssistantProviderMetadataSnapshot,
   applyAssistantTextSnapshot,
   applyAssistantToolCallsSnapshot,
   createAssistantMessage,
@@ -317,10 +318,14 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       () => getReasoningEffortOptions(chatModelConfig),
       [chatModelConfig],
     );
-    const normalizedReasoningEffort = normalizeReasoningEffort(
-      effectiveReasoningEffort,
-      reasoningEffortOptions,
-    );
+    const normalizedReasoningEffort =
+      chatModelConfig?.messageFormat === "claude" &&
+      !reasoningEffortOptions.includes(effectiveReasoningEffort)
+        ? (reasoningEffortOptions[0] ?? "none")
+        : normalizeReasoningEffort(
+            effectiveReasoningEffort,
+            reasoningEffortOptions,
+          );
     const [rememberedAgentType, setRememberedAgentType] =
       useLocalStorageState<ChatAgentType>(CHAT_AGENT_TYPE_STORAGE_KEY, {
         defaultValue: "local",
@@ -1125,7 +1130,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   : undefined,
                 onFinish: () => {},
 
-                onAssistantTurnEnd: async ({ turnId, resultType }) => {
+                onAssistantTurnEnd: async ({
+                  turnId,
+                  resultType,
+                  providerMetadata,
+                }) => {
                   activeLocalAssistantTurnId = null;
                   const finalizedChat = produce(actualCurrentChat, (draft) => {
                     const lastMessageIndex = draft.messages.length - 1;
@@ -1136,6 +1145,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                       const lastMessage = draft.messages[
                         lastMessageIndex
                       ] as ResponseMessage;
+                      applyAssistantProviderMetadataSnapshot(
+                        lastMessage,
+                        turnId,
+                        providerMetadata,
+                      );
                       finalizeAssistantTurn(lastMessage, turnId);
                     }
                   });

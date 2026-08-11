@@ -52,6 +52,7 @@ export interface AgentMessage {
   role: AgentRole | string;
   content: AgentMessageContent[] | string;
   reasoning_content?: string;
+  provider_metadata?: Record<string, unknown>;
   name?: string;
   tool_call_id?: string;
   tool_calls?: AgentToolCall[];
@@ -179,12 +180,14 @@ export type AgentTurnResult =
       type: "response";
       content: string;
       reasoningContent: string;
+      providerMetadata?: Record<string, unknown>;
       finishReason: string | null;
     }
   | {
       type: "tool_calls";
       content: string;
       reasoningContent: string;
+      providerMetadata?: Record<string, unknown>;
       finishReason: "tool_calls";
       toolCalls: AgentToolCall[];
     };
@@ -250,6 +253,7 @@ export interface AgentModelRawChunk {
 export interface AgentModelRawChunkParser {
   parse: (text: string) => AgentModelRawChunk | undefined;
   flush?: () => AgentModelRawChunk | undefined;
+  getProviderMetadata?: () => Record<string, unknown> | undefined;
 }
 
 export interface AgentPreparedModelTurn {
@@ -355,6 +359,7 @@ export interface AgentRunResult {
   finishReason: string | null;
   content: string;
   reasoningContent: string;
+  providerMetadata?: Record<string, unknown>;
   finalMessage: AgentMessage;
 }
 
@@ -525,6 +530,7 @@ export type AgentEvent =
       resultType: "response" | "tool_calls";
       content: string;
       reasoningContent: string;
+      providerMetadata?: Record<string, unknown>;
       toolCalls?: AgentToolCall[];
     })
   | (AgentBaseEvent & {

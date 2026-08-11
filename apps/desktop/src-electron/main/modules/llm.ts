@@ -135,7 +135,7 @@ class LLMModule implements Module {
 
     const { reasoningEffort, tools } = options || {};
     const normalizedReasoningEffort =
-      reasoningEffort && reasoningEffort !== "none"
+      reasoningEffort && ["low", "medium", "high"].includes(reasoningEffort)
         ? reasoningEffort
         : undefined;
 
@@ -158,7 +158,11 @@ class LLMModule implements Module {
       reasoning_effort:
         overrideReasoningEffort !== undefined
           ? undefined
-          : normalizedReasoningEffort,
+          : (normalizedReasoningEffort as
+              | "low"
+              | "medium"
+              | "high"
+              | undefined),
       frequency_penalty: 0,
       tools: tools as ChatCompletionTool[] | undefined,
       tool_choice: tools && tools.length > 0 ? "auto" : undefined,

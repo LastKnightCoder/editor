@@ -141,6 +141,7 @@ export class DesktopModelTransport implements AgentModelTransport {
               type: "tool_calls",
               content: result.content,
               reasoningContent: result.reasoning_content,
+              providerMetadata: result.provider_metadata,
               finishReason: "tool_calls",
               toolCalls: result.toolCalls as AgentToolCall[],
             },
@@ -152,6 +153,7 @@ export class DesktopModelTransport implements AgentModelTransport {
               type: "response",
               content: finalContent,
               reasoningContent: finalReasoning,
+              providerMetadata: result.provider_metadata,
               finishReason: result.finishReason,
             },
           });

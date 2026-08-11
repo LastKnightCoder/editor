@@ -9,6 +9,7 @@ import type {
   AssistantTextBlock,
   AssistantToolCallBlock,
   RequestMessage,
+  ProviderMetadata,
   ResponseContentBlock,
   ResponseMessage,
   ToolCallExecutionState,
@@ -40,12 +41,14 @@ const createSyntheticExecution = (
 const buildTextMessage = (
   text: string,
   reasoningContent?: string,
+  providerMetadata?: ProviderMetadata,
 ): RequestMessage => ({
   role: Role.Assistant,
   content: [{ type: "text", text }],
   ...(typeof reasoningContent === "string"
     ? { reasoning_content: reasoningContent }
     : {}),
+  ...(providerMetadata ? { provider_metadata: providerMetadata } : {}),
 });
 
 const buildToolResultText = (execution: ToolCallExecutionState) => {
@@ -409,6 +412,20 @@ export const finalizeAssistantTurn = (
   syncAssistantDerivedFields(message);
 };
 
+export const applyAssistantProviderMetadataSnapshot = (
+  message: ResponseMessage,
+  turnId: string,
+  providerMetadata?: ProviderMetadata,
+) => {
+  if (!providerMetadata) {
+    return;
+  }
+  message.provider_metadata_by_turn = {
+    ...(message.provider_metadata_by_turn || {}),
+    [turnId]: providerMetadata,
+  };
+};
+
 export const buildAssistantHistoryMessages = (
   message: ResponseMessage,
 ): RequestMessage[] => {
@@ -438,6 +455,7 @@ export const buildAssistantHistoryMessages = (
     const toolBlocks = turnBlocks.filter(
       (block): block is AssistantToolCallBlock => block.type === "tool_call",
     );
+    const providerMetadata = message.provider_metadata_by_turn?.[turnId];
 
     if (toolBlocks.length > 0) {
       const assistantToolMessage: RequestMessage = {
@@ -445,6 +463,7 @@ export const buildAssistantHistoryMessages = (
         content: text ? [{ type: "text", text }] : "",
         tool_calls: toolBlocks.map((block) => block.toolCall),
         reasoning_content: reasoning,
+        ...(providerMetadata ? { provider_metadata: providerMetadata } : {}),
       };
 
       const toolMessages = toolBlocks.map((block): RequestMessage => {
@@ -462,7 +481,7 @@ export const buildAssistantHistoryMessages = (
     }
 
     if (text) {
-      return [buildTextMessage(text, reasoning || undefined)];
+      return [buildTextMessage(text, reasoning || undefined, providerMetadata)];
     }
 
     return [];
