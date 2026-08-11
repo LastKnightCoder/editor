@@ -6,6 +6,7 @@ import {
   formatGeneratedChatTitle,
   getLastUserMessageIndex,
   getRequestMessageText,
+  shouldRestoreInputAfterSendError,
   shouldGenerateChatTitle,
 } from "../editingUtils";
 import { Role } from "@/constants";
@@ -62,6 +63,16 @@ describe("ChatContainer 编辑辅助逻辑", () => {
     ]);
 
     expect(getRequestMessageText(message)).toBe("第一行\n第二行");
+  });
+
+  it("主动终止发送时不应恢复已发送内容，真实错误仍应恢复", () => {
+    expect(
+      shouldRestoreInputAfterSendError({
+        name: "AbortError",
+        message: "用户主动终止",
+      }),
+    ).toBe(false);
+    expect(shouldRestoreInputAfterSendError(new Error("网络异常"))).toBe(true);
   });
 
   it("编辑发送时应只保留目标用户消息之前的上下文", () => {

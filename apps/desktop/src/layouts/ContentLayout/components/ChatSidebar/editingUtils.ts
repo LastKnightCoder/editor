@@ -7,6 +7,10 @@ import type {
 } from "@/types";
 import { Role } from "@/constants";
 import { buildAssistantHistoryMessages } from "@/services/assistantMessageBlocks";
+import { isAbortError } from "@tau/agent";
+
+export const shouldRestoreInputAfterSendError = (error: unknown): boolean =>
+  !isAbortError(error);
 
 export const getRequestMessageText = (message: RequestMessage): string => {
   if (typeof message.content === "string") {
