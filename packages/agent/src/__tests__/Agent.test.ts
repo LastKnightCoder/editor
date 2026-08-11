@@ -614,6 +614,87 @@ describe("Agent", () => {
     expect(toolFinished?.execution.output).toBe("inline:agent");
   });
 
+  it("工具续轮保留模型供应商元数据", async () => {
+    const providerMetadata = {
+      claude: {
+        content: [
+          {
+            type: "thinking",
+            thinking: "先分析",
+            signature: "signed-thinking",
+          },
+        ],
+      },
+    };
+    let turnIndex = 0;
+    let secondTurnMessages: AgentMessage[] = [];
+    const model: AgentModelAdapter = {
+      async *streamTurn(request) {
+        if (turnIndex === 0) {
+          turnIndex += 1;
+          yield {
+            type: "turn-complete",
+            result: {
+              type: "tool_calls",
+              content: "",
+              reasoningContent: "先分析",
+              providerMetadata,
+              finishReason: "tool_calls",
+              toolCalls: [
+                {
+                  id: "call_provider_metadata",
+                  function: { name: "lookup", arguments: "{}" },
+                },
+              ],
+            },
+          };
+          return;
+        }
+
+        secondTurnMessages = request.messages;
+        yield {
+          type: "turn-complete",
+          result: {
+            type: "response",
+            content: "done",
+            reasoningContent: "",
+            finishReason: "stop",
+          },
+        };
+      },
+    };
+    const agent = new Agent({
+      model,
+      tools: [
+        {
+          name: "lookup",
+          description: "lookup",
+          source: "test",
+          parameters: {
+            type: "object",
+            properties: {},
+            additionalProperties: false,
+          },
+          async execute() {
+            return "ok";
+          },
+        },
+      ],
+    });
+
+    await collectEvents(
+      agent.run({
+        messages: [createTextMessage("hello")],
+        enableTools: true,
+      }),
+    );
+
+    expect(
+      secondTurnMessages.find((message) => message.role === "assistant")
+        ?.provider_metadata,
+    ).toEqual(providerMetadata);
+  });
+
   it("仅在传入 skills 时注入内置 skill 工具", async () => {
     const seenToolNames: string[][] = [];
     let turnIndex = 0;

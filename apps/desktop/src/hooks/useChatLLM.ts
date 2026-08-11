@@ -69,6 +69,7 @@ interface IChatStreamOptions {
     turnId: string;
     finishReason: string | null;
     resultType: "response" | "tool_calls";
+    providerMetadata?: Record<string, unknown>;
   }) => void;
   enableTools?: boolean;
   /** 会话键，用于工具跨页面/重启恢复 */
@@ -121,6 +122,7 @@ export interface ChatStreamCoreOptions {
     turnId: string;
     finishReason: string | null;
     resultType: "response" | "tool_calls";
+    providerMetadata?: Record<string, unknown>;
   }) => void;
   // 配置选项
   reasoningEffort?: ReasoningEffort;
@@ -567,6 +569,7 @@ export const chatStreamCore = async (
           turnId: event.turnId,
           finishReason: event.finishReason,
           resultType: event.resultType,
+          providerMetadata: event.providerMetadata,
         });
         continue;
       }

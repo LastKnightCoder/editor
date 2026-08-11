@@ -19,6 +19,11 @@ const model = (name: string): ModelConfig => ({
   apiProtocol: "responses",
 });
 
+const claudeModel = (name: string): ModelConfig => ({
+  ...model(name),
+  messageFormat: "claude",
+});
+
 describe("openai-reasoning-effort", () => {
   it("仅为官方 OpenAI GPT-5.6 开放 xhigh 与 max", () => {
     expect(getReasoningEffortOptions(model("gpt-5.6"))).toEqual([
@@ -52,5 +57,29 @@ describe("openai-reasoning-effort", () => {
 
     expect(options).toEqual(["none", "low", "medium", "high"]);
     expect(normalizeReasoningEffort("max", options)).toBe("high");
+  });
+
+  it("根据 Claude 型号开放扩展档位", () => {
+    expect(getReasoningEffortOptions(claudeModel("claude-opus-4-7"))).toEqual([
+      "none",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+    ]);
+    expect(getReasoningEffortOptions(claudeModel("claude-sonnet-4-5"))).toEqual(
+      ["none", "low", "medium", "high"],
+    );
+  });
+
+  it("Claude thinking 永远开启时移除 none", () => {
+    expect(getReasoningEffortOptions(claudeModel("claude-mythos-5"))).toEqual([
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+    ]);
   });
 });

@@ -95,17 +95,17 @@ const REASONING_EFFORT_OPTIONS: ReasoningEffortOption[] = [
   {
     value: "high",
     label: "穷尽求索",
-    description: "深度推理，追求最强分析能力",
+    description: "深度推理，适合复杂任务",
   },
   {
     value: "xhigh",
-    label: "深研不辍",
-    description: "适合长程任务与深度研究，耗时和成本更高",
+    label: "远谋深算",
+    description: "长程推演，适合复杂代理任务",
   },
   {
     value: "max",
-    label: "极限求解",
-    description: "最高推理强度，仅适合最复杂的问题",
+    label: "极尽推演",
+    description: "使用模型允许的最高推理强度",
   },
 ];
 

@@ -26,6 +26,8 @@ type ClaudeCacheControl = { type: "ephemeral" };
 
 type ClaudeContentBlock = (
   | { type: "text"; text: string }
+  | { type: "thinking"; thinking: string; signature: string }
+  | { type: "redacted_thinking"; data: string }
   | {
       type: "image";
       source: { type: "base64"; media_type: string; data: string };
@@ -57,6 +59,79 @@ type ClaudeMessage = {
 
 const CLAUDE_CACHE_DEBUG_PREFIX = "[ClaudeCacheDebug]";
 const DEFAULT_CLAUDE_MAX_OUTPUT_TOKENS = 8192;
+
+const isLegacyClaudeThinkingModel = (modelName: string) => {
+  const normalized = modelName.toLowerCase();
+  return (
+    /claude[-_.]?3(?:[-_.]|$)/.test(normalized) ||
+    /claude(?:[-_.][a-z]+)*[-_.]?4[-_.]?[0-5](?:[-_.]|$)/.test(normalized)
+  );
+};
+
+const isClaudeThinkingAlwaysOn = (modelName: string) => {
+  const normalized = modelName.toLowerCase();
+  return (
+    /claude[-_.]?(?:fable|mythos)[-_.]?[5-9](?:[-_.]|$)/.test(normalized) ||
+    /claude[-_.]?mythos[-_.]?preview/.test(normalized)
+  );
+};
+
+const supportsClaudeThinkingDisabled = (modelName: string) =>
+  /claude[-_.]?(?:opus|sonnet)[-_.]?[5-9](?:[-_.]|$)/.test(
+    modelName.toLowerCase(),
+  );
+
+const getManualThinkingBudget = (
+  effort: Exclude<ReasoningEffort, "none">,
+  maxOutputTokens: number,
+) => {
+  const budgetRatios: Record<Exclude<ReasoningEffort, "none">, number> = {
+    low: 0.25,
+    medium: 0.5,
+    high: 0.75,
+    xhigh: 0.85,
+    max: 0.9,
+  };
+  const target = Math.floor(maxOutputTokens * budgetRatios[effort]);
+  return Math.max(1024, Math.min(maxOutputTokens - 1, target));
+};
+
+const buildClaudeThinkingPayload = (
+  modelName: string,
+  reasoningEffort: Exclude<ReasoningEffort, "none"> | undefined,
+  maxOutputTokens: number,
+) => {
+  if (!reasoningEffort) {
+    if (isClaudeThinkingAlwaysOn(modelName)) {
+      return {};
+    }
+    return supportsClaudeThinkingDisabled(modelName)
+      ? { thinking: { type: "disabled" as const } }
+      : {};
+  }
+
+  if (isLegacyClaudeThinkingModel(modelName)) {
+    return {
+      thinking: {
+        type: "enabled" as const,
+        budget_tokens: getManualThinkingBudget(
+          reasoningEffort,
+          maxOutputTokens,
+        ),
+      },
+    };
+  }
+
+  return {
+    thinking: {
+      type: "adaptive" as const,
+      display: "summarized" as const,
+    },
+    output_config: {
+      effort: reasoningEffort,
+    },
+  };
+};
 
 const normalizeMaxOutputTokens = (value: unknown): number => {
   if (typeof value !== "number" || !Number.isFinite(value)) {
@@ -136,6 +211,29 @@ const toClaudeContentBlocks = (
   content: ClaudeMessage["content"],
 ): ClaudeContentBlock[] =>
   typeof content === "string" ? [{ type: "text", text: content }] : content;
+
+const getClaudeProviderContent = (
+  message: RequestMessage,
+  modelName?: string,
+): ClaudeContentBlock[] | undefined => {
+  const claudeMetadata = message.provider_metadata?.claude;
+  if (!claudeMetadata || typeof claudeMetadata !== "object") {
+    return undefined;
+  }
+  const sourceModel = (claudeMetadata as { model?: unknown }).model;
+  if (
+    modelName &&
+    typeof sourceModel === "string" &&
+    sourceModel !== modelName
+  ) {
+    return undefined;
+  }
+  const content = (claudeMetadata as { content?: unknown }).content;
+  if (!Array.isArray(content) || content.length === 0) {
+    return undefined;
+  }
+  return content as ClaudeContentBlock[];
+};
 
 const addCacheControlToLastContentBlock = (
   message: ClaudeMessage,
@@ -461,7 +559,10 @@ export const mapToStreamPayload = (messages: RequestMessage[]) => {
   return result.filter(Boolean);
 };
 
-export const buildClaudeMessages = (messages: RequestMessage[]) => {
+export const buildClaudeMessages = (
+  messages: RequestMessage[],
+  modelName?: string,
+) => {
   const systemParts: string[] = [];
   const claudeMessages: ClaudeMessage[] = [];
 
@@ -487,6 +588,14 @@ export const buildClaudeMessages = (messages: RequestMessage[]) => {
       index -= 1;
       claudeMessages.push({ role: "user", content: toolResults });
       continue;
+    }
+
+    if (message.role === Role.Assistant) {
+      const providerContent = getClaudeProviderContent(message, modelName);
+      if (providerContent) {
+        claudeMessages.push({ role: "assistant", content: providerContent });
+        continue;
+      }
     }
 
     if (message.role === Role.Assistant && message.tool_calls?.length) {
@@ -588,8 +697,38 @@ const convertToolsToClaudeFormat = (tools: AgentToolSchema[]) =>
     input_schema: tool.function.parameters,
   }));
 
-const createClaudeSSEParser = (): AgentModelRawChunkParser => {
+const createClaudeSSEParser = (modelName: string): AgentModelRawChunkParser => {
+  const contentBlocks: ClaudeContentBlock[] = [];
+  const toolInputBuffers = new Map<number, string>();
   let latestUsage: AgentModelUsage | null = null;
+
+  const getProviderMetadata = () => {
+    const content = contentBlocks
+      .map((block, index) => {
+        if (block?.type !== "tool_use") {
+          return block;
+        }
+        const inputBuffer = toolInputBuffers.get(index);
+        if (!inputBuffer) {
+          return block;
+        }
+        try {
+          return { ...block, input: JSON.parse(inputBuffer) };
+        } catch {
+          return block;
+        }
+      })
+      .filter(Boolean);
+
+    return content.length > 0
+      ? {
+          claude: {
+            model: modelName,
+            content: JSON.parse(JSON.stringify(content)),
+          },
+        }
+      : undefined;
+  };
 
   return {
     parse: (text: string) => {
@@ -606,12 +745,38 @@ const createClaudeSSEParser = (): AgentModelRawChunkParser => {
 
       if (type === "content_block_start") {
         const block = json.content_block;
+        const index = json.index as number;
+        if (block?.type === "thinking") {
+          contentBlocks[index] = {
+            type: "thinking",
+            thinking: block.thinking || "",
+            signature: block.signature || "",
+          };
+          return undefined;
+        }
+        if (block?.type === "redacted_thinking") {
+          contentBlocks[index] = {
+            type: "redacted_thinking",
+            data: block.data as string,
+          };
+          return undefined;
+        }
+        if (block?.type === "text") {
+          contentBlocks[index] = { type: "text", text: block.text || "" };
+          return undefined;
+        }
         if (block?.type === "tool_use") {
+          contentBlocks[index] = {
+            type: "tool_use",
+            id: block.id as string,
+            name: block.name as string,
+            input: block.input || {},
+          };
           return {
             delta: {
               tool_calls: [
                 {
-                  index: json.index as number,
+                  index,
                   id: block.id as string,
                   type: "function",
                   function: { name: block.name as string, arguments: "" },
@@ -626,17 +791,37 @@ const createClaudeSSEParser = (): AgentModelRawChunkParser => {
       if (type === "content_block_delta") {
         const delta = json.delta;
         if (delta?.type === "text_delta") {
+          const block = contentBlocks[json.index as number];
+          if (block?.type === "text") {
+            block.text += delta.text as string;
+          }
           return { delta: { content: delta.text as string } };
         }
         if (delta?.type === "thinking_delta") {
+          const block = contentBlocks[json.index as number];
+          if (block?.type === "thinking") {
+            block.thinking += delta.thinking as string;
+          }
           return { delta: { reasoning_content: delta.thinking as string } };
         }
+        if (delta?.type === "signature_delta") {
+          const block = contentBlocks[json.index as number];
+          if (block?.type === "thinking") {
+            block.signature = delta.signature as string;
+          }
+          return undefined;
+        }
         if (delta?.type === "input_json_delta") {
+          const index = json.index as number;
+          toolInputBuffers.set(
+            index,
+            `${toolInputBuffers.get(index) || ""}${delta.partial_json || ""}`,
+          );
           return {
             delta: {
               tool_calls: [
                 {
-                  index: json.index as number,
+                  index,
                   function: { arguments: delta.partial_json as string },
                 },
               ],
@@ -690,6 +875,7 @@ const createClaudeSSEParser = (): AgentModelRawChunkParser => {
 
       return latestUsage ? { usage: latestUsage } : undefined;
     },
+    getProviderMetadata,
   };
 };
 
@@ -768,9 +954,11 @@ export class DesktopModelProtocolAdapter implements AgentModelProtocolAdapter {
     );
     const sanitizedMessages = sanitizeToolMessages(normalizedMessages);
     const transportMessages = mergeSystemMessages(sanitizedMessages);
-    const normalizedReasoningEffort =
+    const normalizedReasoningEffort:
+      | Exclude<ReasoningEffort, "none">
+      | undefined =
       request.reasoningEffort && request.reasoningEffort !== "none"
-        ? (request.reasoningEffort as ReasoningEffort)
+        ? (request.reasoningEffort as Exclude<ReasoningEffort, "none">)
         : undefined;
     const modelOverrides = getModelRequestOverrides({
       modelName,
@@ -796,11 +984,22 @@ export class DesktopModelProtocolAdapter implements AgentModelProtocolAdapter {
     let parser: AgentModelRawChunkParser;
 
     if (isClaudeFormat) {
-      const { system, messages } = buildClaudeMessages(transportMessages);
+      const { system, messages } = buildClaudeMessages(
+        transportMessages,
+        modelName,
+      );
+      const maxOutputTokens = normalizeMaxOutputTokens(
+        this.modelConfig.maxOutputTokens,
+      );
       payload = {
         model: modelName,
-        max_tokens: normalizeMaxOutputTokens(this.modelConfig.maxOutputTokens),
+        max_tokens: maxOutputTokens,
         stream: true,
+        ...buildClaudeThinkingPayload(
+          modelName,
+          normalizedReasoningEffort,
+          maxOutputTokens,
+        ),
         ...(system
           ? {
               system: [
@@ -834,7 +1033,7 @@ export class DesktopModelProtocolAdapter implements AgentModelProtocolAdapter {
           cacheControlBlockCount: 0,
         },
       });
-      parser = createClaudeSSEParser();
+      parser = createClaudeSSEParser(modelName);
     } else if (isResponsesApi) {
       payload = buildResponsesPayload({
         model: modelName,

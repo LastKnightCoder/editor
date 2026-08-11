@@ -312,6 +312,7 @@ export type StreamLifecycleResult =
   | {
       type: "response";
       finishReason: string | null;
+      provider_metadata?: Record<string, unknown>;
     }
   | {
       type: "tool_calls";
@@ -319,6 +320,7 @@ export type StreamLifecycleResult =
       toolCalls: ToolCallPayload[];
       content: string;
       reasoning_content: string;
+      provider_metadata?: Record<string, unknown>;
     };
 
 export const streamFetch = async (
@@ -422,6 +424,7 @@ export function stream(
   parseSSE: {
     parse: (text: string) => AgentModelRawChunk | undefined;
     flush?: () => AgentModelRawChunk | undefined;
+    getProviderMetadata?: () => Record<string, unknown> | undefined;
   },
   options: StreamCallbacks,
 ): Promise<StreamLifecycleResult> {
@@ -561,6 +564,7 @@ export function stream(
       finishReason = reason ?? finishReason;
       flushReasoningText();
       flushRemainText();
+      const providerMetadata = parseSSE.getProviderMetadata?.();
 
       const pendingToolCalls = toolCallBuffer.size
         ? buildToolCallList(toolCallBuffer)
@@ -581,6 +585,7 @@ export function stream(
           toolCalls: executableToolCalls,
           content: responseText + remainText,
           reasoning_content: reasoningText + reasoningRemainText,
+          provider_metadata: providerMetadata,
         });
         return;
       }
@@ -593,6 +598,7 @@ export function stream(
       resolve({
         type: "response",
         finishReason: finishReason ?? null,
+        provider_metadata: providerMetadata,
       });
     };
 
