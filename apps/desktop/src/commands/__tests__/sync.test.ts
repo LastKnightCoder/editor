@@ -112,6 +112,7 @@ describe("sync commands reconnect source", () => {
       },
     });
     mockContext.syncProvider.uploadFile.mockClear();
+    mockContext.syncProvider.uploadFile.mockResolvedValue(true);
     mockContext.syncProvider.downloadFile.mockClear();
     mockContext.syncProvider.fileExists.mockClear();
     mockContext.useSettingStoreMock.getState.mockClear();
@@ -135,9 +136,54 @@ describe("sync commands reconnect source", () => {
     const success = await upload();
 
     expect(success).toBe(true);
+    expect(mockContext.syncProvider.uploadFile).toHaveBeenNthCalledWith(
+      1,
+      "data.db",
+      new Uint8Array([9, 9, 9]),
+    );
+    expect(mockContext.syncProvider.uploadFile).toHaveBeenNthCalledWith(
+      2,
+      "database_data.db.json",
+      new TextEncoder().encode(JSON.stringify({ version: 2 })),
+    );
+    expect(mockContext.settingState.setting.database.databases[0].version).toBe(
+      2,
+    );
     expect(mockContext.reconnectDatabaseFast).toHaveBeenCalledWith(
       "data.db",
       "sync_upload_reconnect",
+    );
+  });
+
+  it("数据库文件上传失败时不发布版本信息且不更新本地版本", async () => {
+    mockContext.syncProvider.uploadFile.mockResolvedValueOnce(false);
+
+    const success = await upload();
+
+    expect(success).toBe(false);
+    expect(mockContext.syncProvider.uploadFile).toHaveBeenCalledTimes(1);
+    expect(mockContext.syncProvider.uploadFile).toHaveBeenCalledWith(
+      "data.db",
+      new Uint8Array([9, 9, 9]),
+    );
+    expect(mockContext.useSettingStoreMock.setState).not.toHaveBeenCalled();
+    expect(mockContext.settingState.setting.database.databases[0].version).toBe(
+      1,
+    );
+  });
+
+  it("版本信息上传失败时不更新本地版本", async () => {
+    mockContext.syncProvider.uploadFile
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
+
+    const success = await upload();
+
+    expect(success).toBe(false);
+    expect(mockContext.syncProvider.uploadFile).toHaveBeenCalledTimes(2);
+    expect(mockContext.useSettingStoreMock.setState).not.toHaveBeenCalled();
+    expect(mockContext.settingState.setting.database.databases[0].version).toBe(
+      1,
     );
   });
 

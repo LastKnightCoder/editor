@@ -143,20 +143,29 @@ export const upload = async (options?: SyncCommandOptions) => {
   const textEncoder = new TextEncoder();
 
   try {
-    // 上传数据库信息文件
-    emitProgress(options, 40, "正在上传版本信息...");
+    // 上传数据库文件
+    emitProgress(options, 40, "正在上传数据库文件...");
+    const contents = await readBinaryFile(databasePath);
+    const dataObjectName = databaseName;
+    const dataSuccess = await syncProvider.uploadFile(dataObjectName, contents);
+
+    if (!dataSuccess) {
+      message.error("上传数据库文件失败");
+      return false;
+    }
+
+    // 数据库上传成功后再发布新版本，避免失败时远程版本提前生效。
+    emitProgress(options, 75, "正在上传版本信息...");
     const infoSuccess = await syncProvider.uploadFile(
       databaseInfoObjectName,
       textEncoder.encode(JSON.stringify(newDatabaseInfo)),
     );
     if (!infoSuccess) {
       message.error("上传数据库信息失败");
-      await reconnectAfterSync(databaseName, "sync_upload_reconnect");
       return false;
     }
 
-    // 更新本地版本号
-    emitProgress(options, 55, "正在更新本地版本记录...");
+    emitProgress(options, 90, "正在更新本地版本记录...");
     useSettingStore.setState(
       produce(useSettingStore.getState(), (draft) => {
         const databases = draft.setting.database.databases;
@@ -164,43 +173,11 @@ export const upload = async (options?: SyncCommandOptions) => {
         databases[index].version = currentVersion + 1;
       }),
     );
-  } catch (e) {
-    message.error("上传数据库信息失败: " + e);
-    await reconnectAfterSync(databaseName, "sync_upload_reconnect");
-    return false;
-  }
-
-  try {
-    // 上传数据库文件
-    emitProgress(options, 70, "正在上传数据库文件...");
-    const contents = await readBinaryFile(databasePath);
-    const dataObjectName = databaseName;
-    const dataSuccess = await syncProvider.uploadFile(dataObjectName, contents);
-
-    if (!dataSuccess) {
-      // 恢复数据库信息
-      await syncProvider.uploadFile(
-        databaseInfoObjectName,
-        textEncoder.encode(JSON.stringify(databaseInfo)),
-      );
-      message.error("上传数据库文件失败");
-      await reconnectAfterSync(databaseName, "sync_upload_reconnect");
-      return false;
-    }
 
     emitProgress(options, 100, "同步完成");
     return true;
   } catch (e) {
-    // 恢复数据库信息
-    try {
-      await syncProvider.uploadFile(
-        databaseInfoObjectName,
-        textEncoder.encode(JSON.stringify(databaseInfo)),
-      );
-    } catch (restoreError) {
-      message.error("上传数据库文件失败后恢复数据库信息失败");
-    }
-    message.error("上传数据库文件失败: " + e);
+    message.error("上传数据库失败: " + e);
     return false;
   } finally {
     await reconnectAfterSync(databaseName, "sync_upload_reconnect");
