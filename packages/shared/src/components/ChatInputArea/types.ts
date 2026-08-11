@@ -106,6 +106,10 @@ export interface ChatInputAreaProps {
   placeholder?: string;
   /** 是否正在发送 */
   sendLoading?: boolean;
+  /** 生成期间是否仍允许编辑并将消息加入发送队列 */
+  allowSendWhileLoading?: boolean;
+  /** 当前等待发送的消息数量 */
+  queuedMessageCount?: number;
   /** 是否正在创建新消息 */
   createMessageLoading?: boolean;
   /** 创建新消息的回调 */

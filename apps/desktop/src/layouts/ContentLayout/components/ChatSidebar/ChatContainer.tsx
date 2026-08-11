@@ -72,9 +72,11 @@ import {
   formatGeneratedChatTitle,
   getLastUserMessageIndex,
   getRequestMessageText,
+  shouldRestoreInputAfterSendError,
   shouldGenerateChatTitle,
 } from "./editingUtils";
 import { withStreamingUpdateTime } from "./streamingUtils";
+import { ConversationMessageQueue } from "./messageQueue";
 import { streamCodexChat } from "@/services/codex/codexChatStream";
 import { chatRunManager } from "@/services/chatRunManager";
 import type { ChatSource, ChatSessionKey } from "@/types/chat-run";
@@ -415,6 +417,16 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
     const abortControllerRef = useRef<AbortController | null>(null);
     const displayedChatIdRef = useRef(currentChat.id);
+    const messageQueueRef = useRef(
+      new ConversationMessageQueue<MessageContentItem[]>(),
+    );
+    const queueConversationKeyRef = useRef(`${chatScope}:${currentChat.id}`);
+    const queueDrainInProgressRef = useRef(false);
+    const [queueConversationKey, setQueueConversationKey] = useState(
+      queueConversationKeyRef.current,
+    );
+    const [queuedMessageCount, setQueuedMessageCount] = useState(0);
+    const [queueDrainRevision, setQueueDrainRevision] = useState(0);
     const activeAssistantTurnIdRef = useRef<string | null>(null);
     const persistedAskQuestionSnapshotsRef = useRef<Set<string>>(new Set());
     const resumingAskQuestionRef = useRef<Set<string>>(new Set());
@@ -422,6 +434,31 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const resumedRunIdsRef = useRef<Set<string>>(new Set());
     const hasRestoredScrollPositionRef = useRef(false);
     const isRestoringScrollPositionRef = useRef(false);
+
+    const activateConversationQueue = useMemoizedFn(
+      (conversationKey: string) => {
+        queueConversationKeyRef.current = conversationKey;
+        setQueueConversationKey(conversationKey);
+        setQueuedMessageCount(messageQueueRef.current.size(conversationKey));
+      },
+    );
+
+    const migrateConversationQueue = useMemoizedFn(
+      (sourceKey: string, targetKey: string) => {
+        const shouldActivateTarget =
+          queueConversationKeyRef.current === sourceKey;
+        messageQueueRef.current.move(sourceKey, targetKey);
+        if (shouldActivateTarget) {
+          activateConversationQueue(targetKey);
+        } else if (queueConversationKeyRef.current === targetKey) {
+          setQueuedMessageCount(messageQueueRef.current.size(targetKey));
+        }
+      },
+    );
+
+    const getQueueConversationKey = useMemoizedFn(
+      (chatId: number) => `${chatScope}:${chatId}`,
+    );
 
     const getScrollPositionKey = useMemoizedFn((chatId: number) => {
       if (!preserveScrollPosition || chatId === 0) {
@@ -537,6 +574,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       const actualChat = actualChatRef.current;
       const isDifferentChat = currentChat.id !== actualChat.id;
       const hasExternalSnapshot = currentChat !== actualChat;
+      const nextConversationKey = getQueueConversationKey(currentChat.id);
+      const isDifferentQueue =
+        nextConversationKey !== queueConversationKeyRef.current;
 
       if (isDifferentChat || hasExternalSnapshot) {
         actualChatRef.current = currentChat;
@@ -552,7 +592,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         }
         setUpdateCounter((prev) => prev + 1);
       }
-    }, [currentChat]);
+      if (isDifferentQueue) {
+        activateConversationQueue(nextConversationKey);
+      }
+    }, [activateConversationQueue, currentChat, getQueueConversationKey]);
 
     useEffect(() => {
       if (hideInput) {
@@ -735,6 +778,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
         // 如果当前没有真实的对话（id为0），则先创建一个新对话
         if (shouldCreateNewChat && actualCurrentChat.id === 0) {
+          const provisionalConversationKey = queueConversationKeyRef.current;
           try {
             const defaultSystemPrompt =
               customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
@@ -770,6 +814,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             setSessionPending(pendingSessionKey, false);
             pendingSessionKey = createdSessionKey;
             setSessionPending(pendingSessionKey, true);
+            migrateConversationQueue(
+              provisionalConversationKey,
+              getQueueConversationKey(actualCurrentChat.id),
+            );
 
             // 立即更新ref，确保UI使用新创建的对话
             actualChatRef.current = actualCurrentChat;
@@ -1408,6 +1456,17 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
             if (shouldStopRetrying) {
               const errorMessage = getErrorMessage(error);
+              const shouldRestoreInput =
+                shouldRestoreInputAfterSendError(error);
+              const failedQueueConversationKey = getQueueConversationKey(
+                actualCurrentChat.id,
+              );
+              const shouldRestoreFailedInput =
+                shouldClearInput &&
+                shouldRestoreInput &&
+                queueConversationKeyRef.current ===
+                  failedQueueConversationKey &&
+                messageQueueRef.current.size(failedQueueConversationKey) === 0;
               setChatRetryStatus(null);
               setChatError(isAbortError ? null : errorMessage);
               clearPending();
@@ -1419,8 +1478,12 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   isAbortError ? null : errorMessage,
                 );
               perf.end();
-              if (shouldClearInput) {
+              if (shouldRestoreFailedInput) {
                 setTimeout(() => {
+                  const currentInput = editTextRef.current?.getValue() || [];
+                  const hasCurrentDraft = currentInput.some((item) =>
+                    item.type === "text" ? item.text.trim().length > 0 : true,
+                  );
                   const textContent = Array.isArray(requestMessage.content)
                     ? requestMessage.content
                         .filter((item) => item.type === "text")
@@ -1429,7 +1492,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     : typeof requestMessage.content === "string"
                       ? requestMessage.content
                       : "";
-                  editTextRef.current?.setValue(textContent);
+                  if (!hasCurrentDraft) {
+                    editTextRef.current?.setValue(textContent);
+                  }
                   editTextRef.current?.focusEnd();
                 }, 100);
               }
@@ -1685,12 +1750,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         editTextRef.current?.setValue(value);
       },
       sendUserMessage: async (content: MessageContentItem[]) => {
-        if (sendLoading) {
-          message.warning("当前已有生成任务，请稍后再试");
-          return false;
-        }
-        await sendMessageContent(content);
-        return true;
+        return await submitMessageContent(content);
       },
     }));
 
@@ -1962,10 +2022,21 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     }, [visibleMessages, scrollToBottom]);
 
     const sendMessageContent = useMemoizedFn(
-      async (userContent: MessageContentItem[]) => {
+      async (
+        userContent: MessageContentItem[],
+        expectedConversationKey = queueConversationKeyRef.current,
+      ) => {
+        if (
+          expectedConversationKey !== queueConversationKeyRef.current ||
+          expectedConversationKey !==
+            getQueueConversationKey(actualChatRef.current.id)
+        ) {
+          return false;
+        }
+
         if (!userContent || userContent.length === 0) {
           message.warning("请输入内容");
-          return;
+          return false;
         }
 
         const hasMeaningfulContent = userContent.some((item) => {
@@ -1976,23 +2047,30 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         });
         if (!hasMeaningfulContent) {
           message.warning("请输入内容");
-          return;
+          return false;
         }
 
         if (isCodexAgent && userContent.some((item) => item.type === "file")) {
           message.warning("Codex 当前暂不支持 PDF/文件输入");
-          return;
+          return false;
         }
 
         if (isCodexAgent && editingDraft) {
           message.warning("Codex 会话暂不支持编辑后重新发送");
-          return;
+          return false;
         }
 
         if (beforeSendUserMessage) {
           const shouldContinue = await beforeSendUserMessage(userContent);
           if (shouldContinue === false) {
-            return;
+            return false;
+          }
+          if (
+            expectedConversationKey !== queueConversationKeyRef.current ||
+            expectedConversationKey !==
+              getQueueConversationKey(actualChatRef.current.id)
+          ) {
+            return false;
           }
         }
 
@@ -2026,7 +2104,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         if (editingDraft && !resetBaseChat) {
           setEditingDraft(null);
           message.warning("只能编辑最后一条用户消息");
-          return;
+          return false;
         }
 
         setEditingDraft(null);
@@ -2040,8 +2118,104 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         if (sent) {
           setHiddenPromptContext(null);
         }
+        return sent;
       },
     );
+
+    const submitMessageContent = useMemoizedFn(
+      async (content: MessageContentItem[]): Promise<boolean> => {
+        const conversationKey = queueConversationKeyRef.current;
+        if (sendLoading) {
+          setQueuedMessageCount(
+            messageQueueRef.current.enqueue(conversationKey, content),
+          );
+          return true;
+        }
+
+        if (
+          conversationKey !== getQueueConversationKey(actualChatRef.current.id)
+        ) {
+          setQueuedMessageCount(
+            messageQueueRef.current.enqueue(conversationKey, content),
+          );
+          return true;
+        }
+
+        const sent = await sendMessageContent(content, conversationKey);
+        const isConversationInactive =
+          conversationKey !== queueConversationKeyRef.current ||
+          conversationKey !== getQueueConversationKey(actualChatRef.current.id);
+        if (!sent && isConversationInactive) {
+          const queueSize = messageQueueRef.current.enqueue(
+            conversationKey,
+            content,
+          );
+          if (queueConversationKeyRef.current === conversationKey) {
+            setQueuedMessageCount(queueSize);
+          }
+          return true;
+        }
+        return sent;
+      },
+    );
+
+    useEffect(() => {
+      if (
+        sendLoading ||
+        queuedMessageCount === 0 ||
+        queueDrainInProgressRef.current ||
+        queueConversationKey !==
+          getQueueConversationKey(actualChatRef.current.id)
+      ) {
+        return;
+      }
+
+      const conversationKey = queueConversationKey;
+      queueDrainInProgressRef.current = true;
+      void (async () => {
+        while (
+          queueConversationKeyRef.current === conversationKey &&
+          messageQueueRef.current.size(conversationKey) > 0
+        ) {
+          const nextMessage = messageQueueRef.current.dequeue(conversationKey);
+          setQueuedMessageCount(messageQueueRef.current.size(conversationKey));
+          if (!nextMessage) {
+            return;
+          }
+
+          const sent = await sendMessageContent(nextMessage, conversationKey);
+          const isConversationInactive =
+            queueConversationKeyRef.current !== conversationKey ||
+            getQueueConversationKey(actualChatRef.current.id) !==
+              conversationKey;
+          if (!sent && isConversationInactive) {
+            const queueSize = messageQueueRef.current.prepend(
+              conversationKey,
+              nextMessage,
+            );
+            if (queueConversationKeyRef.current === conversationKey) {
+              setQueuedMessageCount(queueSize);
+            }
+            return;
+          }
+          if (sent) {
+            return;
+          }
+        }
+      })().finally(() => {
+        queueDrainInProgressRef.current = false;
+        if (queueConversationKeyRef.current !== conversationKey) {
+          setQueueDrainRevision((revision) => revision + 1);
+        }
+      });
+    }, [
+      queueConversationKey,
+      queueDrainRevision,
+      queuedMessageCount,
+      sendLoading,
+      sendMessageContent,
+      updateCounter,
+    ]);
 
     // 删除消息
     const handleDeleteMessage = useMemoizedFn(async (messageIndex: number) => {
@@ -2216,6 +2390,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             isConnected={true}
             messages={coreMessages}
             isLoading={sendLoading}
+            allowSendWhileLoading
+            queuedMessageCount={queuedMessageCount}
             error={chatError}
             retryStatus={chatRetryStatus}
             forceScrollToBottomKey={
@@ -2247,7 +2423,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             onModelSelect={isCodexAgent ? undefined : handleModelSelect}
             isSupportImage={supportImage}
             isSupportFile={supportFile}
-            onSendMessageContent={sendMessageContent}
+            onSendMessageContent={async (content) => {
+              await submitMessageContent(content);
+            }}
             onStopGeneration={stopStreaming}
             createMessageLoading={createMessageLoading}
             onCreateNewMessage={onCreateNewMessage}

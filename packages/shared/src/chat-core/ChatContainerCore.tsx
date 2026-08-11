@@ -169,6 +169,8 @@ export interface ChatContainerCoreProps {
   extraToolbarButtons?: ReactNode;
   modelSelectItems?: MenuProps["items"];
   createMessageLoading?: boolean;
+  allowSendWhileLoading?: boolean;
+  queuedMessageCount?: number;
   onCreateNewMessage?: () => void;
   resourceSource?: IResourceSource | null;
   onMcpManagerClick?: () => void;
@@ -238,6 +240,8 @@ export const ChatContainerCore = forwardRef<
     extraToolbarButtons,
     modelSelectItems = [],
     createMessageLoading = false,
+    allowSendWhileLoading = false,
+    queuedMessageCount = 0,
     onCreateNewMessage,
     resourceSource = null,
     onMcpManagerClick,
@@ -492,7 +496,7 @@ export const ChatContainerCore = forwardRef<
   );
 
   const handleSend = useCallback(() => {
-    if (isLoading) return;
+    if (isLoading && !allowSendWhileLoading) return;
     const messageContent = resolvedChatInputRef.current?.getValue() || [];
     const textContent = extractTextContent(messageContent);
     const hasAttachment = hasNonTextContent(messageContent);
@@ -511,6 +515,7 @@ export const ChatContainerCore = forwardRef<
 
     resolvedChatInputRef.current?.clear();
   }, [
+    allowSendWhileLoading,
     hasNonTextContent,
     isLoading,
     onUserSend,
@@ -543,8 +548,10 @@ export const ChatContainerCore = forwardRef<
   } = {
     className: chatInputClassName,
     placeholder: resolvedPlaceholder,
-    contentEditable: !isLoading,
+    contentEditable: !isLoading || allowSendWhileLoading,
     sendLoading: isLoading,
+    allowSendWhileLoading,
+    queuedMessageCount,
     createMessageLoading,
     onCreateNewMessage,
     onPressEnter: handleSend,
