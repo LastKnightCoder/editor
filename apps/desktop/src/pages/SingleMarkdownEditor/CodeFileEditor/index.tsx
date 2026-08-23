@@ -1,4 +1,11 @@
-import React, { memo, useEffect, useRef, useState } from "react";
+import {
+  forwardRef,
+  memo,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { UnControlled as CodeMirrorEditor } from "react-codemirror2";
 import { Editor, InputStyle } from "codemirror";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
@@ -45,108 +52,122 @@ interface CodeFileEditorProps {
   isDark?: boolean;
 }
 
-const CodeFileEditor: React.FC<CodeFileEditorProps> = memo(
-  ({ filePath, isDark = false }) => {
-    const [content, setContent] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
-    const editorRef = useRef<Editor | null>(null);
-    const currentContent = useRef<string>("");
-    const filePathRef = useRef(filePath);
+export interface CodeFileEditorRef {
+  save: () => Promise<void>;
+}
 
-    useEffect(() => {
-      filePathRef.current = filePath;
-    }, [filePath]);
+const CodeFileEditor = memo(
+  forwardRef<CodeFileEditorRef, CodeFileEditorProps>(
+    ({ filePath, isDark = false }, ref) => {
+      const [content, setContent] = useState<string | null>(null);
+      const [loading, setLoading] = useState(true);
+      const editorRef = useRef<Editor | null>(null);
+      const currentContent = useRef<string>("");
+      const filePathRef = useRef(filePath);
 
-    useEffect(() => {
-      let cancelled = false;
-      setLoading(true);
+      useEffect(() => {
+        filePathRef.current = filePath;
+      }, [filePath]);
 
-      readTextFile(filePath)
-        .then((text) => {
-          if (!cancelled) {
-            setContent(text);
-            currentContent.current = text;
+      useEffect(() => {
+        let cancelled = false;
+        setLoading(true);
+
+        readTextFile(filePath)
+          .then((text) => {
+            if (!cancelled) {
+              setContent(text);
+              currentContent.current = text;
+            }
+          })
+          .catch((err) => {
+            console.error("读取文件失败:", err);
+            if (!cancelled) {
+              setContent("");
+              currentContent.current = "";
+            }
+          })
+          .finally(() => {
+            if (!cancelled) setLoading(false);
+          });
+
+        return () => {
+          cancelled = true;
+        };
+      }, [filePath]);
+
+      const saveFile = useMemoizedFn(async (notify = true) => {
+        try {
+          await writeTextFile(filePathRef.current, currentContent.current);
+          if (notify) message.success("已保存");
+        } catch (err) {
+          console.error("保存文件失败:", err);
+          if (notify) {
+            message.error("保存失败");
+            return;
           }
-        })
-        .catch((err) => {
-          console.error("读取文件失败:", err);
-          if (!cancelled) {
-            setContent("");
-            currentContent.current = "";
-          }
-        })
-        .finally(() => {
-          if (!cancelled) setLoading(false);
-        });
-
-      return () => {
-        cancelled = true;
-      };
-    }, [filePath]);
-
-    const saveFile = useMemoizedFn(async () => {
-      try {
-        await writeTextFile(filePathRef.current, currentContent.current);
-        message.success("已保存");
-      } catch (err) {
-        console.error("保存文件失败:", err);
-        message.error("保存失败");
-      }
-    });
-
-    const { run: throttledSave } = useThrottleFn(saveFile, { wait: 1000 });
-
-    const handleKeyDown = useMemoizedFn(
-      (_editor: Editor, event: KeyboardEvent) => {
-        if (isHotkey("mod+s", event)) {
-          event.preventDefault();
-          throttledSave();
+          throw err;
         }
-      },
-    );
+      });
 
-    const mode = getCodeMirrorMode(filePath);
+      useImperativeHandle(ref, () => ({
+        save: () => (content === null ? Promise.resolve() : saveFile(false)),
+      }));
 
-    const options = {
-      inputStyle: "textarea" as InputStyle,
-      mode,
-      theme: isDark ? "blackboard" : "one-light",
-      viewportMargin: Infinity,
-      lineNumbers: true,
-      firstLineNumber: 1,
-      lineWrapping: true,
-      smartIndent: true,
-      cursorHeight: 1,
-      tabindex: -1,
-      extraKeys: {
-        "Shift-Tab": "indentLess",
-      },
-      indentUnit: 2,
-      tabSize: 2,
-      autoCloseBrackets: true,
-    };
+      const { run: throttledSave } = useThrottleFn(saveFile, { wait: 1000 });
 
-    if (loading || content === null) {
-      return <div className={styles.loading}>加载中...</div>;
-    }
+      const handleKeyDown = useMemoizedFn(
+        (_editor: Editor, event: KeyboardEvent) => {
+          if (isHotkey("mod+s", event)) {
+            event.preventDefault();
+            throttledSave();
+          }
+        },
+      );
 
-    return (
-      <div className={styles.CodeMirrorContainer}>
-        <CodeMirrorEditor
-          value={content}
-          options={options}
-          onChange={(_editor, _data, value) => {
-            currentContent.current = value;
-          }}
-          editorDidMount={(editor) => {
-            editorRef.current = editor;
-          }}
-          onKeyDown={handleKeyDown}
-          className={styles.codeMirror}
-        />
-      </div>
-    );
-  },
+      const mode = getCodeMirrorMode(filePath);
+
+      const options = {
+        inputStyle: "textarea" as InputStyle,
+        mode,
+        theme: isDark ? "blackboard" : "one-light",
+        viewportMargin: Infinity,
+        lineNumbers: true,
+        firstLineNumber: 1,
+        lineWrapping: true,
+        smartIndent: true,
+        cursorHeight: 1,
+        tabindex: -1,
+        extraKeys: {
+          "Shift-Tab": "indentLess",
+        },
+        indentUnit: 2,
+        tabSize: 2,
+        autoCloseBrackets: true,
+      };
+
+      if (loading || content === null) {
+        return <div className={styles.loading}>加载中...</div>;
+      }
+
+      return (
+        <div className={styles.CodeMirrorContainer}>
+          <CodeMirrorEditor
+            value={content}
+            options={options}
+            onChange={(_editor, _data, value) => {
+              currentContent.current = value;
+            }}
+            editorDidMount={(editor) => {
+              editorRef.current = editor;
+            }}
+            onKeyDown={handleKeyDown}
+            className={styles.codeMirror}
+          />
+        </div>
+      );
+    },
+  ),
 );
 
 CodeFileEditor.displayName = "CodeFileEditor";

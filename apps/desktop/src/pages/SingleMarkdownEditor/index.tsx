@@ -37,6 +37,8 @@ import {
   pathExists,
   isDirectory,
   openFileWithDefaultApp,
+  removeFile,
+  renameFileOrDirectory,
   watchTextFile,
   unwatchTextFile,
   onTextFileChanged,
@@ -83,8 +85,9 @@ import { fileAttachmentExtension } from "@/editor-extensions";
 import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
 import { getFileCategory } from "./fileTypes";
-import CodeFileEditor from "./CodeFileEditor";
+import CodeFileEditor, { type CodeFileEditorRef } from "./CodeFileEditor";
 import MediaPreview from "./MediaPreview";
+import { scrollSourceCursorIntoView } from "./scrollSourceCursorIntoView";
 
 import styles from "./index.module.less";
 import classnames from "classnames";
@@ -269,7 +272,11 @@ const SingleMarkdownEditor = () => {
   } = useTerminalStore();
 
   const editorRef = useRef<EditorRef>(null);
+  const codeFileEditorRef = useRef<CodeFileEditorRef>(null);
   const sourceEditorRef = useRef<CodeMirrorEditor | null>(null);
+  const isSourceModeRef = useRef(isSourceMode);
+  const sourceEditorCursorActivityRef = useRef<(() => void) | null>(null);
+  const sourceEditorScrollFrameRef = useRef<number | null>(null);
   const beforeSaveSourceText = useRef("");
   const currentSourceText = useRef("");
   const currentFilePathRef = useRef(initialFilePath);
@@ -277,6 +284,8 @@ const SingleMarkdownEditor = () => {
   const lastWrittenFilePathRef = useRef("");
   const lastWrittenSourceTextRef = useRef("");
   const isWritingLocalFileRef = useRef(false);
+  const pendingLocalWriteRef = useRef<Promise<void> | null>(null);
+  const fileOperationInProgressRef = useRef(false);
   const writingFilePathRef = useRef("");
   const externalSyncPromptOpenRef = useRef(false);
   const externalSyncModalDestroyRef = useRef<(() => void) | null>(null);
@@ -305,6 +314,7 @@ const SingleMarkdownEditor = () => {
   const CODE_BLOCK_FOCUS_RETRY_INTERVAL = 80;
   const CODE_BLOCK_FOCUS_MAX_WAIT = 2000;
   const resolvedEditorViewMode = editorViewMode || "standard";
+  isSourceModeRef.current = isSourceMode;
 
   const getNodeByPath = (
     nodes: Descendant[],
@@ -924,35 +934,97 @@ const SingleMarkdownEditor = () => {
     }
   });
 
-  const saveMarkdownFile = useMemoizedFn(async (filePathToSave?: string) => {
-    const pathToSave = filePathToSave || currentFilePathRef.current;
-    if (!pathToSave || isWritingLocalFileRef.current) return;
+  const saveMarkdownFile = useMemoizedFn(
+    async (
+      filePathToSave?: string,
+      options?: { allowDuringFileOperation?: boolean },
+    ) => {
+      const pathToSave = filePathToSave || currentFilePathRef.current;
+      if (
+        !pathToSave ||
+        (fileOperationInProgressRef.current &&
+          !options?.allowDuringFileOperation)
+      )
+        return;
+      if (isWritingLocalFileRef.current) {
+        await pendingLocalWriteRef.current;
+        return;
+      }
 
-    try {
-      const markdownText = isSourceMode
-        ? currentSourceText.current
-        : getMarkdown(content);
-      if (markdownText === beforeSaveSourceText.current) return;
+      const writeOperation = (async () => {
+        try {
+          const markdownText = isSourceMode
+            ? currentSourceText.current
+            : getMarkdown(content);
+          if (markdownText === beforeSaveSourceText.current) return;
 
-      isWritingLocalFileRef.current = true;
-      writingFilePathRef.current = pathToSave;
-      lastWrittenFilePathRef.current = pathToSave;
-      lastWrittenSourceTextRef.current = markdownText;
-      await writeTextFile(pathToSave, markdownText);
-      beforeSaveSourceText.current = markdownText;
-      currentSourceText.current = markdownText;
-    } catch (error) {
-      console.error("保存Markdown文件失败:", error);
-      message.error("保存失败");
-    } finally {
-      isWritingLocalFileRef.current = false;
-      writingFilePathRef.current = "";
-    }
-  });
+          isWritingLocalFileRef.current = true;
+          writingFilePathRef.current = pathToSave;
+          lastWrittenFilePathRef.current = pathToSave;
+          lastWrittenSourceTextRef.current = markdownText;
+          await writeTextFile(pathToSave, markdownText);
+          beforeSaveSourceText.current = markdownText;
+          currentSourceText.current = markdownText;
+        } catch (error) {
+          console.error("保存Markdown文件失败:", error);
+          message.error("保存失败");
+          throw error;
+        } finally {
+          isWritingLocalFileRef.current = false;
+          writingFilePathRef.current = "";
+        }
+      })();
+
+      pendingLocalWriteRef.current = writeOperation;
+      try {
+        await writeOperation;
+      } finally {
+        if (pendingLocalWriteRef.current === writeOperation) {
+          pendingLocalWriteRef.current = null;
+        }
+      }
+    },
+  );
 
   const onSourceEditorDidMount = useMemoizedFn((editor: CodeMirrorEditor) => {
     sourceEditorRef.current = editor;
+
+    const scheduleCursorScroll = () => {
+      if (!isSourceModeRef.current) return;
+
+      if (sourceEditorScrollFrameRef.current !== null) {
+        cancelAnimationFrame(sourceEditorScrollFrameRef.current);
+      }
+
+      sourceEditorScrollFrameRef.current = requestAnimationFrame(() => {
+        sourceEditorScrollFrameRef.current = null;
+        const container = editorContainerRef.current;
+        if (container) {
+          scrollSourceCursorIntoView(editor, container);
+        }
+      });
+    };
+
+    sourceEditorCursorActivityRef.current = scheduleCursorScroll;
+    editor.on("cursorActivity", scheduleCursorScroll);
+    editor.on("change", scheduleCursorScroll);
   });
+
+  const onSourceEditorWillUnmount = useMemoizedFn(
+    (editor: CodeMirrorEditor) => {
+      const cursorActivity = sourceEditorCursorActivityRef.current;
+      if (cursorActivity) {
+        editor.off("cursorActivity", cursorActivity);
+        editor.off("change", cursorActivity);
+      }
+      sourceEditorCursorActivityRef.current = null;
+      if (sourceEditorScrollFrameRef.current !== null) {
+        cancelAnimationFrame(sourceEditorScrollFrameRef.current);
+        sourceEditorScrollFrameRef.current = null;
+      }
+      sourceEditorRef.current = null;
+    },
+  );
 
   const syncSearchParamsWithFilePath = useMemoizedFn((nextFilePath: string) => {
     const params = new URLSearchParams(searchParams);
@@ -1151,6 +1223,82 @@ const SingleMarkdownEditor = () => {
     setActiveFileType(category as ActiveFileType);
     setCurrentFilePath(newFilePath);
     currentFilePathRef.current = newFilePath;
+  });
+
+  const handleFileRenamed = useMemoizedFn(
+    async (oldFilePath: string, newFilePath: string) => {
+      const isCurrentFile = oldFilePath === currentFilePathRef.current;
+      if (!isCurrentFile) {
+        await renameFileOrDirectory(oldFilePath, newFilePath);
+        return;
+      }
+
+      fileOperationInProgressRef.current = true;
+      try {
+        await pendingLocalWriteRef.current;
+        if (activeFileType === "markdown") {
+          await saveMarkdownFile(oldFilePath, {
+            allowDuringFileOperation: true,
+          });
+          await stopWatchingFile(oldFilePath);
+        } else if (activeFileType === "code") {
+          await codeFileEditorRef.current?.save();
+        }
+
+        await renameFileOrDirectory(oldFilePath, newFilePath);
+
+        currentFilePathRef.current = newFilePath;
+        setCurrentFilePath(newFilePath);
+        syncSearchParamsWithFilePath(newFilePath);
+        lastWrittenFilePathRef.current = newFilePath;
+
+        if (activeFileType === "markdown") {
+          await startWatchingFile(newFilePath);
+        }
+      } catch (error) {
+        if (activeFileType === "markdown" && currentFilePathRef.current) {
+          await startWatchingFile(currentFilePathRef.current);
+        }
+        throw error;
+      } finally {
+        fileOperationInProgressRef.current = false;
+      }
+    },
+  );
+
+  const handleFileDeleted = useMemoizedFn(async (deletedFilePath: string) => {
+    const isCurrentFile = deletedFilePath === currentFilePathRef.current;
+    if (!isCurrentFile) {
+      await removeFile(deletedFilePath);
+      return;
+    }
+
+    fileOperationInProgressRef.current = true;
+    try {
+      await pendingLocalWriteRef.current;
+      if (activeFileType === "markdown") {
+        await stopWatchingFile(deletedFilePath);
+      } else if (activeFileType === "code") {
+        await codeFileEditorRef.current?.save();
+      }
+      await removeFile(deletedFilePath);
+
+      currentFilePathRef.current = "";
+      setCurrentFilePath("");
+      setActiveFileType("none");
+      setContent([]);
+      setError(null);
+      beforeSaveSourceText.current = "";
+      currentSourceText.current = "";
+      syncSearchParamsWithFilePath("");
+    } catch (error) {
+      if (activeFileType === "markdown" && currentFilePathRef.current) {
+        await startWatchingFile(currentFilePathRef.current);
+      }
+      throw error;
+    } finally {
+      fileOperationInProgressRef.current = false;
+    }
   });
 
   const uploadLocalImageToCurrentDocumentDir = useMemoizedFn(
@@ -1407,6 +1555,8 @@ const SingleMarkdownEditor = () => {
                 <FileTree
                   currentFilePath={currentFilePath}
                   onFileClick={onFileClick}
+                  onFileRenamed={handleFileRenamed}
+                  onFileDeleted={handleFileDeleted}
                   rootPath={rootPath}
                 />
               )}
@@ -1427,6 +1577,7 @@ const SingleMarkdownEditor = () => {
                     value={currentSourceText.current}
                     onChange={onSourceTextChange}
                     editorDidMount={onSourceEditorDidMount}
+                    editorWillUnmount={onSourceEditorWillUnmount}
                     isDark={isDark}
                     readonly={isReadonly}
                   />
@@ -1466,6 +1617,7 @@ const SingleMarkdownEditor = () => {
             ) : activeFileType === "code" && currentFilePath ? (
               <div className={styles.sourceEditor}>
                 <CodeFileEditor
+                  ref={codeFileEditorRef}
                   key={currentFilePath}
                   filePath={currentFilePath}
                   isDark={isDark}

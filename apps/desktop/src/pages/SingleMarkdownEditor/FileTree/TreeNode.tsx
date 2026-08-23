@@ -1,5 +1,6 @@
-import { memo, useState } from "react";
+import { memo } from "react";
 import { FileTreeNode } from "@/types/file-tree";
+import { Dropdown, type MenuProps } from "antd";
 import classnames from "classnames";
 import {
   FolderOutlined,
@@ -12,6 +13,8 @@ import {
   FilePdfOutlined,
   RightOutlined,
   DownOutlined,
+  EditOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
 import { getFileCategory, type FileCategory } from "../fileTypes";
@@ -24,7 +27,10 @@ interface TreeNodeProps {
   currentFilePath: string;
   onFileClick: (filePath: string) => void;
   onFolderExpand: (folderPath: string) => Promise<void>;
-  defaultExpanded?: boolean;
+  onFolderToggle: (folderPath: string, expanded: boolean) => void;
+  expandedPaths: ReadonlySet<string>;
+  onRename?: (node: FileTreeNode) => void;
+  onDelete?: (node: FileTreeNode) => void;
 }
 
 const TreeNode = memo(
@@ -34,15 +40,18 @@ const TreeNode = memo(
     currentFilePath,
     onFileClick,
     onFolderExpand,
-    defaultExpanded = false,
+    onFolderToggle,
+    expandedPaths,
+    onRename,
+    onDelete,
   }: TreeNodeProps) => {
-    const [expanded, setExpanded] = useState(defaultExpanded);
+    const expanded = expandedPaths.has(node.path);
 
     const handleToggle = useMemoizedFn(async (e: React.MouseEvent) => {
       e.stopPropagation();
       if (node.isDirectory) {
         const newExpanded = !expanded;
-        setExpanded(newExpanded);
+        onFolderToggle(node.path, newExpanded);
 
         // 如果展开且尚未加载，则加载子项
         if (newExpanded && !node.loaded) {
@@ -54,7 +63,7 @@ const TreeNode = memo(
     const handleClick = useMemoizedFn(async () => {
       if (node.isDirectory) {
         const newExpanded = !expanded;
-        setExpanded(newExpanded);
+        onFolderToggle(node.path, newExpanded);
 
         // 如果展开且尚未加载，则加载子项
         if (newExpanded && !node.loaded) {
@@ -86,7 +95,25 @@ const TreeNode = memo(
       }
     };
 
-    return (
+    const contextMenuItems: MenuProps["items"] = node.isDirectory
+      ? []
+      : [
+          { key: "rename", label: "重命名", icon: <EditOutlined /> },
+          { type: "divider" },
+          {
+            key: "delete",
+            label: "删除",
+            icon: <DeleteOutlined />,
+            danger: true,
+          },
+        ];
+
+    const handleContextMenuClick: MenuProps["onClick"] = ({ key }) => {
+      if (key === "rename") onRename?.(node);
+      if (key === "delete") onDelete?.(node);
+    };
+
+    const nodeContent = (
       <div className={styles.treeNodeContainer}>
         <div
           className={classnames(styles.treeNode, {
@@ -127,12 +154,26 @@ const TreeNode = memo(
                 currentFilePath={currentFilePath}
                 onFileClick={onFileClick}
                 onFolderExpand={onFolderExpand}
-                defaultExpanded={false}
+                onFolderToggle={onFolderToggle}
+                expandedPaths={expandedPaths}
+                onRename={onRename}
+                onDelete={onDelete}
               />
             ))}
           </div>
         )}
       </div>
+    );
+
+    if (node.isDirectory) return nodeContent;
+
+    return (
+      <Dropdown
+        menu={{ items: contextMenuItems, onClick: handleContextMenuClick }}
+        trigger={["contextMenu"]}
+      >
+        {nodeContent}
+      </Dropdown>
     );
   },
 );
