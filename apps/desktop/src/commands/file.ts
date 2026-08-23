@@ -4,6 +4,10 @@ export interface TextFileChangedPayload {
   filePath: string;
 }
 
+export interface DirectoryChangedPayload {
+  directoryPath: string;
+}
+
 export type TextFileChangedListener = (
   _event: unknown,
   payload: TextFileChangedPayload,
@@ -63,6 +67,13 @@ export const writeTextFile = async (
   return await invoke("write-text-file", filePath, contents);
 };
 
+export const createTextFileExclusive = async (
+  filePath: string,
+  contents: string,
+): Promise<void> => {
+  return await invoke("create-text-file-exclusive", filePath, contents);
+};
+
 export const watchTextFile = async (filePath: string): Promise<void> => {
   return await invoke("watch-text-file", filePath);
 };
@@ -77,6 +88,40 @@ export const onTextFileChanged = (listener: TextFileChangedListener): void => {
 
 export const offTextFileChanged = (listener: TextFileChangedListener): void => {
   off("text-file-changed", listener as (...args: unknown[]) => void);
+};
+
+export type DirectoryChangedListener = (
+  _event: unknown,
+  payload: DirectoryChangedPayload,
+) => void;
+
+export const watchDirectory = async (directoryPath: string): Promise<void> => {
+  return await invoke("watch-directory", directoryPath);
+};
+
+export const unwatchDirectory = async (
+  directoryPath: string,
+): Promise<void> => {
+  return await invoke("unwatch-directory", directoryPath);
+};
+
+export const onDirectoryChanged = (
+  listener: DirectoryChangedListener,
+): void => {
+  on("directory-changed", listener as (...args: unknown[]) => void);
+};
+
+export const offDirectoryChanged = (
+  listener: DirectoryChangedListener,
+): void => {
+  off("directory-changed", listener as (...args: unknown[]) => void);
+};
+
+export const renameFileOrDirectory = async (
+  oldPath: string,
+  newPath: string,
+): Promise<void> => {
+  return await invoke("rename-file-or-directory", oldPath, newPath);
 };
 
 export const createDir = async (dirPath: string): Promise<void> => {

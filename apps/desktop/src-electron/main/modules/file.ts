@@ -1,6 +1,14 @@
 import { ipcMain, type IpcMainInvokeEvent, type WebContents } from "electron";
-import { watch, type FSWatcher } from "node:fs";
-import { readFile, writeFile, readdir, stat } from "node:fs/promises";
+import { constants as fsConstants, watch, type FSWatcher } from "node:fs";
+import {
+  copyFile,
+  readFile,
+  readdir,
+  rename,
+  stat,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import { ensureDir, pathExists, remove } from "fs-extra/esm";
 import { sep, dirname, join, resolve } from "node:path";
 import { Module } from "../types/module";
@@ -12,11 +20,21 @@ interface FileWatcherRegistration {
   restartTimer: ReturnType<typeof setTimeout> | null;
 }
 
+interface DirectoryWatcherRegistration {
+  directoryPath: string;
+  senderId: number;
+  watcher: FSWatcher;
+}
+
 class File implements Module {
   name: string;
   private watcherRegistrations = new Map<string, FileWatcherRegistration>();
   private senderWatchKeys = new Map<number, Set<string>>();
   private senderCleanupRegistered = new Set<number>();
+  private directoryWatcherRegistrations = new Map<
+    string,
+    DirectoryWatcherRegistration
+  >();
 
   constructor() {
     this.name = "file";
@@ -35,6 +53,12 @@ class File implements Module {
     ipcMain.handle("write-text-file", async (_event, filePath, content) => {
       return await this.writeTextFile(filePath, content);
     });
+    ipcMain.handle(
+      "create-text-file-exclusive",
+      async (_event, filePath, content) => {
+        return await this.createTextFileExclusive(filePath, content);
+      },
+    );
     ipcMain.handle("create-dir", async (_event, dirPath) => {
       return await this.createDir(dirPath);
     });
@@ -47,6 +71,12 @@ class File implements Module {
     ipcMain.handle("remove-file", async (_event, path) => {
       return remove(path);
     });
+    ipcMain.handle(
+      "rename-file-or-directory",
+      async (_event, oldPath, newPath) => {
+        return await this.renameFileOrDirectory(oldPath, newPath);
+      },
+    );
     ipcMain.handle("read-directory", async (_event, dirPath) => {
       return await this.readDirectory(dirPath);
     });
@@ -62,6 +92,18 @@ class File implements Module {
     ipcMain.handle("is-directory", async (_event, path) => {
       return await this.isDirectory(path);
     });
+    ipcMain.handle(
+      "watch-directory",
+      async (event: IpcMainInvokeEvent, directoryPath: string) => {
+        return this.watchDirectory(event, directoryPath);
+      },
+    );
+    ipcMain.handle(
+      "unwatch-directory",
+      async (event: IpcMainInvokeEvent, directoryPath: string) => {
+        return this.unwatchDirectory(event.sender.id, directoryPath);
+      },
+    );
     ipcMain.handle(
       "watch-text-file",
       async (event: IpcMainInvokeEvent, filePath: string) => {
@@ -90,6 +132,13 @@ class File implements Module {
 
   async writeTextFile(filePath: string, contents: string): Promise<void> {
     return await writeFile(filePath, contents, { encoding: "utf-8" });
+  }
+
+  async createTextFileExclusive(
+    filePath: string,
+    contents: string,
+  ): Promise<void> {
+    await writeFile(filePath, contents, { encoding: "utf-8", flag: "wx" });
   }
 
   async createDir(dirPath: string): Promise<void> {
@@ -132,6 +181,82 @@ class File implements Module {
     }
   }
 
+  async renameFileOrDirectory(oldPath: string, newPath: string): Promise<void> {
+    const sourceStats = await stat(oldPath);
+    const targetStats = await stat(newPath).catch(
+      (error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return null;
+        throw error;
+      },
+    );
+    if (sourceStats.isDirectory()) {
+      if (targetStats) {
+        const conflictError = new Error("目标已存在") as NodeJS.ErrnoException;
+        conflictError.code = "EEXIST";
+        throw conflictError;
+      }
+      await rename(oldPath, newPath);
+      return;
+    }
+
+    if (
+      targetStats &&
+      targetStats.dev === sourceStats.dev &&
+      targetStats.ino === sourceStats.ino
+    ) {
+      await rename(oldPath, newPath);
+      return;
+    }
+
+    await copyFile(oldPath, newPath, fsConstants.COPYFILE_EXCL);
+    try {
+      await unlink(oldPath);
+    } catch (error) {
+      await unlink(newPath).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  private getDirectoryWatchKey(
+    senderId: number,
+    directoryPath: string,
+  ): string {
+    return `${senderId}:${directoryPath}`;
+  }
+
+  watchDirectory(event: IpcMainInvokeEvent, directoryPath: string): void {
+    const sender = event.sender;
+    const watchKey = this.getDirectoryWatchKey(sender.id, directoryPath);
+    if (this.directoryWatcherRegistrations.has(watchKey)) return;
+
+    this.ensureSenderCleanup(sender);
+
+    let watcher: FSWatcher;
+    try {
+      watcher = watch(directoryPath, { persistent: false }, () => {
+        if (!sender.isDestroyed()) {
+          sender.send("directory-changed", { directoryPath });
+        }
+      });
+    } catch {
+      return;
+    }
+
+    this.directoryWatcherRegistrations.set(watchKey, {
+      directoryPath,
+      senderId: sender.id,
+      watcher,
+    });
+    watcher.once("error", () => {
+      this.disposeDirectoryWatcher(watchKey);
+    });
+  }
+
+  unwatchDirectory(senderId: number, directoryPath: string): void {
+    const watchKey = this.getDirectoryWatchKey(senderId, directoryPath);
+    this.disposeDirectoryWatcher(watchKey);
+  }
+
   private getWatchKey(senderId: number, filePath: string): string {
     return `${senderId}:${filePath}`;
   }
@@ -156,16 +281,33 @@ class File implements Module {
 
   private cleanupSenderWatchers(senderId: number): void {
     const watchKeys = this.senderWatchKeys.get(senderId);
-    if (!watchKeys) {
-      this.senderCleanupRegistered.delete(senderId);
-      return;
+    if (watchKeys) {
+      Array.from(watchKeys).forEach((watchKey) => {
+        this.disposeWatcher(watchKey);
+      });
+      this.senderWatchKeys.delete(senderId);
     }
 
-    Array.from(watchKeys).forEach((watchKey) => {
-      this.disposeWatcher(watchKey);
-    });
-    this.senderWatchKeys.delete(senderId);
+    Array.from(this.directoryWatcherRegistrations.entries()).forEach(
+      ([watchKey, registration]) => {
+        if (registration.senderId === senderId) {
+          this.disposeDirectoryWatcher(watchKey);
+        }
+      },
+    );
     this.senderCleanupRegistered.delete(senderId);
+  }
+
+  private disposeDirectoryWatcher(watchKey: string): void {
+    const registration = this.directoryWatcherRegistrations.get(watchKey);
+    if (!registration) return;
+
+    try {
+      registration.watcher.close();
+    } catch {
+      // watcher 已关闭时无需处理
+    }
+    this.directoryWatcherRegistrations.delete(watchKey);
   }
 
   private disposeWatcher(watchKey: string): void {
