@@ -177,6 +177,8 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       onStop,
       placeholder = DEFAULT_CHAT_INPUT_PLACEHOLDER,
       sendLoading = false,
+      allowSendWhileLoading = false,
+      queuedMessageCount = 0,
       createMessageLoading = false,
       onCreateNewMessage,
       modelSelectItems = [],
@@ -605,6 +607,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
 
     const handlePaste = useMemoizedFn(
       (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+        if (sendLoading) return;
         const clipboardData = event.clipboardData;
         if (!clipboardData) return;
 
@@ -984,13 +987,13 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                   accept="image/png, image/jpeg, image/webp"
                   showUploadList={false}
                   beforeUpload={handleImageUpload}
-                  disabled={!contentEditable || uploadingImage}
+                  disabled={!contentEditable || sendLoading || uploadingImage}
                 >
                   <Button
                     type="text"
                     icon={<PictureOutlined />}
                     size="small"
-                    disabled={!contentEditable || uploadingImage}
+                    disabled={!contentEditable || sendLoading || uploadingImage}
                     loading={uploadingImage}
                     className="p-1! rounded! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400!"
                   />
@@ -1003,13 +1006,13 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                   accept="application/pdf"
                   showUploadList={false}
                   beforeUpload={handlePdfUpload}
-                  disabled={!contentEditable || uploadingPdf}
+                  disabled={!contentEditable || sendLoading || uploadingPdf}
                 >
                   <Button
                     type="text"
                     icon={<FilePdfOutlined />}
                     size="small"
-                    disabled={!contentEditable || uploadingPdf}
+                    disabled={!contentEditable || sendLoading || uploadingPdf}
                     loading={uploadingPdf}
                     className="p-1! rounded! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400!"
                   />
@@ -1019,8 +1022,8 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             {extraToolbarButtons}
           </div>
 
-          <div>
-            {sendLoading ? (
+          <div className="flex items-center gap-1">
+            {sendLoading && (
               <Button
                 type="text"
                 size="small"
@@ -1029,14 +1032,23 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 className="p-1 rounded border-none! bg-none! text-gray-600! dark:text-gray-400! hover:text-red-500! hover:bg-red-50! dark:hover:bg-red-900/20! shadow-none!"
                 title="停止生成"
               />
-            ) : (
-              <Button
-                type="text"
-                size="small"
-                onClick={onPressEnter}
-                icon={<SendOutlined />}
-                className="p-1 rounded border-none! bg-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400! shadow-none!"
-              />
+            )}
+            {(!sendLoading || allowSendWhileLoading) && (
+              <span className="relative inline-flex">
+                <Button
+                  type="text"
+                  size="small"
+                  onClick={onPressEnter}
+                  icon={<SendOutlined />}
+                  className="p-1 rounded border-none! bg-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400! shadow-none!"
+                  title={sendLoading ? "加入发送队列" : "发送"}
+                />
+                {queuedMessageCount > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 min-w-4 rounded-full bg-blue-500 px-1 text-center text-[10px] leading-4 text-white">
+                    {queuedMessageCount}
+                  </span>
+                )}
+              </span>
             )}
           </div>
         </div>
