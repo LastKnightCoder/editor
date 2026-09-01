@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import ChatRunTable from "../tables/chat-run";
 import type { ChatRunRecord } from "@/types/chat-run";
+import { Role } from "@/constants";
 
 let nativeAvailable = true;
 try {
@@ -63,6 +64,83 @@ describe.skipIf(!nativeAvailable)("ChatRunTable", () => {
     expect(ChatRunTable.deleteForSession(db, "main-chat:1")).toBe(1);
     expect(ChatRunTable.get(db, "run-1")).toBeNull();
     expect(ChatRunTable.get(db, "run-2")?.runId).toBe("run-2");
+  });
+
+  it("终态任务保留诊断元数据并清空恢复快照", () => {
+    const run = createRecord("final-run", "main-chat:3");
+    ChatRunTable.update(db, {
+      ...run,
+      requestPayload: [{ role: Role.User, content: "问题" }],
+      assistantSnapshot: "回答",
+      reasoningSnapshot: "推理",
+      toolSnapshot: [{ output: "工具结果" }],
+    });
+
+    const finalized = ChatRunTable.finalize(db, "final-run", "completed");
+
+    expect(finalized).toMatchObject({
+      runId: "final-run",
+      sessionKey: "main-chat:3",
+      status: "completed",
+      requestPayload: [],
+      assistantSnapshot: "",
+      reasoningSnapshot: "",
+      toolSnapshot: [],
+    });
+  });
+
+  it("仅压缩能够与已持久化消息可靠关联的历史终态任务", () => {
+    db.exec(
+      "CREATE TABLE chat_message (id INTEGER PRIMARY KEY, messages TEXT)",
+    );
+    const reconciled = createRecord("reconciled", "main-chat:4");
+    const unresolved = createRecord("unresolved", "main-chat:5");
+    const malformed = createRecord("malformed", "main-chat:6");
+    ChatRunTable.update(db, {
+      ...reconciled,
+      assistantMessageClientId: "",
+      status: "completed",
+      requestPayload: [{ role: Role.User, content: "已保存的问题" }],
+      assistantSnapshot: "已保存的回答",
+    });
+    ChatRunTable.update(db, {
+      ...unresolved,
+      status: "completed",
+      requestPayload: [{ role: Role.User, content: "未确认的问题" }],
+      assistantSnapshot: "未确认的回答",
+    });
+    ChatRunTable.update(db, {
+      ...malformed,
+      status: "completed",
+      requestPayload: [{ role: Role.User, content: "损坏会话的问题" }],
+      assistantSnapshot: "损坏会话的回答",
+    });
+    db.prepare("INSERT INTO chat_message (id,messages) VALUES (?,?)").run(
+      4,
+      JSON.stringify([
+        { role: "user", clientId: "reconciled-user", content: "已保存的问题" },
+        {
+          role: "assistant",
+          clientId: "reconciled-assistant",
+          content: "已保存的回答",
+        },
+      ]),
+    );
+    db.prepare("INSERT INTO chat_message (id,messages) VALUES (?,?)").run(
+      5,
+      JSON.stringify([
+        { role: "user", clientId: "unresolved-user", content: "未确认的问题" },
+      ]),
+    );
+    db.prepare("INSERT INTO chat_message (id,messages) VALUES (?,?)").run(
+      6,
+      "not-json",
+    );
+
+    expect(ChatRunTable.compactReconciledTerminalRuns(db)).toBe(1);
+    expect(ChatRunTable.get(db, "reconciled")?.requestPayload).toEqual([]);
+    expect(ChatRunTable.get(db, "unresolved")?.requestPayload).toHaveLength(1);
+    expect(ChatRunTable.get(db, "malformed")?.requestPayload).toHaveLength(1);
   });
 
   it("按任务 ID 删除不会影响同一会话的新任务", () => {

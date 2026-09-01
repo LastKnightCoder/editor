@@ -227,13 +227,13 @@ export const createAssistantMessage = (
   initial?: Partial<ResponseMessage>,
 ): ResponseMessage => {
   const message: ResponseMessage = {
-    clientId: createChatMessageClientId(),
     role: Role.Assistant,
     content: "",
     reasoning_content: "",
     tool_calls: undefined,
     assistant_blocks: [],
     ...initial,
+    clientId: initial?.clientId || createChatMessageClientId(),
   };
   return ensureAssistantMessage(message);
 };

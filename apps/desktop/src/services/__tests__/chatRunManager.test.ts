@@ -4,6 +4,7 @@ const commandMocks = vi.hoisted(() => ({
   create: vi.fn(),
   deleteRun: vi.fn(),
   deleteSession: vi.fn(),
+  finalize: vi.fn(),
   getActive: vi.fn(),
   update: vi.fn(),
 }));
@@ -12,6 +13,7 @@ vi.mock("@/commands/chat-run", () => ({
   createChatRun: commandMocks.create,
   deleteChatRun: commandMocks.deleteRun,
   deleteChatRunsForSession: commandMocks.deleteSession,
+  finalizeChatRun: commandMocks.finalize,
   getActiveChatRuns: commandMocks.getActive,
   updateChatRun: commandMocks.update,
 }));
@@ -56,6 +58,7 @@ describe("ChatRunManager", () => {
     commandMocks.deleteRun.mockResolvedValue(1);
     commandMocks.deleteSession.mockResolvedValue(0);
     commandMocks.getActive.mockResolvedValue([]);
+    commandMocks.finalize.mockResolvedValue(null);
     commandMocks.update.mockResolvedValue(null);
   });
 
@@ -154,6 +157,35 @@ describe("ChatRunManager", () => {
     expect(commandMocks.update).toHaveBeenLastCalledWith(
       expect.objectContaining({ assistantSnapshot: "完整内容" }),
     );
+  });
+
+  it("会话已持久化后按写入顺序压缩终态快照", async () => {
+    const manager = new ChatRunManager();
+    const run = await manager.start(createRun("final-run", "main-chat:8"));
+
+    manager.update(run.runId, { assistantSnapshot: "完整回答" });
+    await vi.advanceTimersByTimeAsync(250);
+    manager.finalizePersisted(run.runId, "completed");
+    await vi.waitFor(() => expect(commandMocks.finalize).toHaveBeenCalled());
+
+    expect(commandMocks.update).toHaveBeenCalledWith(
+      expect.objectContaining({ assistantSnapshot: "完整回答" }),
+    );
+    expect(commandMocks.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: "completed" }),
+    );
+    expect(
+      commandMocks.update.mock.invocationCallOrder.at(-1) ?? Infinity,
+    ).toBeLessThan(commandMocks.finalize.mock.invocationCallOrder[0]);
+    expect(commandMocks.finalize).toHaveBeenCalledWith(
+      "final-run",
+      "completed",
+      null,
+    );
+    expect(manager.getSnapshot("main-chat:8")).toMatchObject({
+      status: "completed",
+      assistantSnapshot: "完整回答",
+    });
   });
 
   it("创建任务期间删除会话会精确清理迟到的任务", async () => {

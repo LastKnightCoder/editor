@@ -4,6 +4,7 @@ import { ipcMain } from "electron";
 import { basename } from "node:path";
 
 const ALI_OSS_UPLOAD_TIMEOUT_MS = 5 * 60 * 1000;
+const ALI_OSS_DOWNLOAD_TIMEOUT_MS = 5 * 60 * 1000;
 
 interface IPutObject {
   accessKeyId: string;
@@ -113,7 +114,9 @@ class AliOss implements Module {
       bucket,
       region,
     });
-    return await oss.get(objectName);
+    return await oss.get(objectName, {
+      timeout: ALI_OSS_DOWNLOAD_TIMEOUT_MS,
+    });
   }
 
   async isObjectExist(objInfo: IGetObject) {
