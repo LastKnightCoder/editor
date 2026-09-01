@@ -1079,19 +1079,28 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               actualChatRef.current = finalizedChat;
               setUpdateCounter((prev) => prev + 1);
             }
-            if (activeRunId)
-              chatRunManager.finish(
-                activeRunId,
-                isAbortError ? "cancelled" : "failed",
-                isAbortError
-                  ? null
-                  : error instanceof Error
-                    ? error.message
-                    : "Codex 请求失败",
-              );
-            void updateChatMessage(finalizedChat).catch((persistError) => {
+            let finalizedChatPersisted = false;
+            try {
+              actualCurrentChat = await updateChatMessage(finalizedChat);
+              finalizedChatPersisted = true;
+            } catch (persistError) {
               console.error("Codex 失败后持久化对话失败:", persistError);
-            });
+            }
+            if (activeRunId) {
+              if (isAbortError && finalizedChatPersisted) {
+                chatRunManager.finalizePersisted(activeRunId, "cancelled");
+              } else {
+                chatRunManager.finish(
+                  activeRunId,
+                  isAbortError ? "cancelled" : "failed",
+                  isAbortError
+                    ? null
+                    : error instanceof Error
+                      ? error.message
+                      : "Codex 请求失败",
+                );
+              }
+            }
             if (activeAssistantTurnIdRef.current === codexTurnId) {
               activeAssistantTurnIdRef.current = null;
             }
@@ -1104,7 +1113,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             clearPending();
             abortControllerRef.current = null;
             if (activeRunId && codexRunCompleted)
-              chatRunManager.finish(activeRunId, "completed");
+              chatRunManager.finalizePersisted(activeRunId, "completed");
             perf.end();
             if (shouldClearInput) {
               setTimeout(() => {
@@ -1212,7 +1221,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     chatRunManager.update(
                       activeRunId,
                       {
-                        status: "completed",
                         assistantSnapshot:
                           (finalizedChat.messages.at(-1) as ResponseMessage)
                             ?.content || "",
@@ -1231,7 +1239,22 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   try {
                     actualCurrentChat =
                       await persistFinishedChatAndGenerateTitle(finalizedChat);
+                    if (activeRunId) {
+                      chatRunManager.finalizePersisted(
+                        activeRunId,
+                        "completed",
+                      );
+                    }
                   } catch (error) {
+                    if (activeRunId) {
+                      chatRunManager.finish(
+                        activeRunId,
+                        "failed",
+                        error instanceof Error
+                          ? error.message
+                          : "最终会话持久化失败",
+                      );
+                    }
                     message.error("Failed to update chat");
                     console.error(error);
                   } finally {
@@ -1471,12 +1494,24 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               setChatError(isAbortError ? null : errorMessage);
               clearPending();
               abortControllerRef.current = null;
-              if (activeRunId)
-                chatRunManager.finish(
-                  activeRunId,
-                  isAbortError ? "cancelled" : "failed",
-                  isAbortError ? null : errorMessage,
-                );
+              let finalizedChatPersisted = false;
+              try {
+                actualCurrentChat = await updateChatMessage(actualCurrentChat);
+                finalizedChatPersisted = true;
+              } catch (persistError) {
+                console.error("聊天终止后持久化对话失败:", persistError);
+              }
+              if (activeRunId) {
+                if (isAbortError && finalizedChatPersisted) {
+                  chatRunManager.finalizePersisted(activeRunId, "cancelled");
+                } else {
+                  chatRunManager.finish(
+                    activeRunId,
+                    isAbortError ? "cancelled" : "failed",
+                    isAbortError ? null : errorMessage,
+                  );
+                }
+              }
               perf.end();
               if (shouldRestoreFailedInput) {
                 setTimeout(() => {

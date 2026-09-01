@@ -76,6 +76,7 @@ import VibeLearningChatTable from "./tables/vibe-learning-chat";
 import VLNoteTable from "./tables/vl-note";
 import VLQuizTable from "./tables/vl-quiz";
 import { shouldWrapDatabaseEventInTransaction } from "./database-event-transaction";
+import { shouldVacuumDatabase } from "./database-maintenance";
 import mainContentIndexDBManager, {
   EnsureIndexReadyResult,
   IndexRebuildState,
@@ -352,14 +353,22 @@ class DatabaseModule implements Module {
 
       database.exec("DROP TABLE IF EXISTS shortcuts");
 
-      try {
-        const vacuumStartAt = Date.now();
-        database.exec("VACUUM");
-        log.info(
-          `[database] openDatabase vacuum done: db=${name}, elapsedMs=${Date.now() - vacuumStartAt}`,
-        );
-      } catch (e) {
-        console.error(e);
+      const pageCount = Number(database.pragma("page_count", { simple: true }));
+      const freelistCount = Number(
+        database.pragma("freelist_count", { simple: true }),
+      );
+      const pageSize = Number(database.pragma("page_size", { simple: true }));
+      if (shouldVacuumDatabase({ pageCount, freelistCount, pageSize })) {
+        try {
+          const vacuumStartAt = Date.now();
+          database.exec("VACUUM");
+          database.pragma("wal_checkpoint(TRUNCATE)");
+          log.info(
+            `[database] openDatabase vacuum done: db=${name}, reclaimedPages=${freelistCount}, elapsedMs=${Date.now() - vacuumStartAt}`,
+          );
+        } catch (e) {
+          console.error(e);
+        }
       }
     }
 

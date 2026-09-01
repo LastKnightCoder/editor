@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import type { ChatRunRecord } from "@/types/chat-run";
+import type { ChatRunRecord, ChatRunStatus } from "@/types/chat-run";
 
 type ChatRunRow = Record<string, any>;
 const parse = (row: ChatRunRow): ChatRunRecord => ({
@@ -38,6 +38,55 @@ export default class ChatRunTable {
       CREATE INDEX IF NOT EXISTS idx_chat_run_session_status ON chat_run(session_key, status);
       CREATE INDEX IF NOT EXISTS idx_chat_run_updated_at ON chat_run(updated_at);
     `);
+    this.compactReconciledTerminalRuns(db);
+  }
+
+  static compactReconciledTerminalRuns(db: Database.Database) {
+    const hasChatMessageTable = db
+      .prepare(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='chat_message'",
+      )
+      .get();
+    if (!hasChatMessageTable) return 0;
+
+    return db
+      .prepare(
+        `UPDATE chat_run AS run
+         SET request_payload='[]',assistant_snapshot='',reasoning_snapshot='',tool_snapshot='[]'
+         WHERE run.status IN ('completed','cancelled')
+           AND (run.request_payload<>'[]' OR run.assistant_snapshot<>''
+             OR run.reasoning_snapshot<>'' OR run.tool_snapshot<>'[]')
+           AND EXISTS (
+             SELECT 1 FROM chat_message AS chat
+             WHERE chat.id=run.chat_id AND json_valid(chat.messages)
+           )
+           AND (
+             (run.assistant_message_client_id<>'' AND EXISTS (
+               SELECT 1 FROM chat_message AS chat,
+                 json_each(CASE WHEN json_valid(chat.messages) THEN chat.messages ELSE '[]' END) AS message
+               WHERE chat.id=run.chat_id
+                 AND json_extract(message.value,'$.role')='assistant'
+                 AND json_extract(message.value,'$.clientId')=run.assistant_message_client_id
+             ))
+             OR
+             (run.assistant_message_client_id='' AND EXISTS (
+               SELECT 1 FROM chat_message AS chat,
+                 json_each(CASE WHEN json_valid(chat.messages) THEN chat.messages ELSE '[]' END) AS message
+               WHERE chat.id=run.chat_id
+                 AND json_extract(message.value,'$.clientId')=run.user_message_client_id
+             ) AND (
+               (run.status='cancelled' AND run.assistant_snapshot='')
+               OR EXISTS (
+                 SELECT 1 FROM chat_message AS chat,
+                   json_each(CASE WHEN json_valid(chat.messages) THEN chat.messages ELSE '[]' END) AS message
+                 WHERE chat.id=run.chat_id
+                   AND json_extract(message.value,'$.role')='assistant'
+                   AND json_extract(message.value,'$.content')=run.assistant_snapshot
+               )
+             ))
+           )`,
+      )
+      .run().changes;
   }
 
   static getListenEvents() {
@@ -46,6 +95,7 @@ export default class ChatRunTable {
       "chat-run:update": this.update.bind(this),
       "chat-run:get": this.get.bind(this),
       "chat-run:get-active": this.getActive.bind(this),
+      "chat-run:finalize": this.finalize.bind(this),
       "chat-run:delete": this.delete.bind(this),
       "chat-run:delete-session": this.deleteForSession.bind(this),
     };
@@ -117,6 +167,19 @@ export default class ChatRunTable {
       )
       .all() as ChatRunRow[];
     return rows.map(parse);
+  }
+
+  static finalize(
+    db: Database.Database,
+    runId: string,
+    status: Extract<ChatRunStatus, "completed" | "cancelled">,
+    errorMessage?: string | null,
+  ) {
+    db.prepare(
+      `UPDATE chat_run SET status=?,request_payload='[]',assistant_snapshot='',
+       reasoning_snapshot='',tool_snapshot='[]',error_message=?,updated_at=? WHERE run_id=?`,
+    ).run(status, errorMessage ?? null, Date.now(), runId);
+    return this.get(db, runId);
   }
 
   static delete(db: Database.Database, runId: string) {

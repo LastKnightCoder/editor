@@ -2,6 +2,7 @@ import {
   createChatRun,
   deleteChatRun,
   deleteChatRunsForSession,
+  finalizeChatRun,
   getActiveChatRuns,
   updateChatRun,
 } from "@/commands/chat-run";
@@ -167,6 +168,45 @@ export class ChatRunManager {
   ) {
     this.update(runId, { status, errorMessage: errorMessage ?? null }, true);
     this.controllers.delete(runId);
+  }
+
+  finalizePersisted(
+    runId: string,
+    status: Extract<ChatRunStatus, "completed" | "cancelled">,
+    errorMessage?: string | null,
+  ) {
+    const current = useChatRunStore.getState().runs[runId];
+    if (!current) return;
+    const next = {
+      ...current,
+      status,
+      errorMessage: errorMessage ?? null,
+      updatedAt: Date.now(),
+    };
+    const timer = this.persistTimers.get(runId);
+    if (timer) clearTimeout(timer);
+    this.persistTimers.delete(runId);
+    useChatRunStore.getState().setRun(next);
+    this.emit(next);
+    this.controllers.delete(runId);
+
+    const previous = this.persistChains.get(runId) || Promise.resolve();
+    const finalize = previous
+      .catch(() => undefined)
+      .then(async () => {
+        try {
+          await updateChatRun(next);
+        } catch {
+          // 压缩命令仍会尝试原子写入终态，避免恢复已经完成的请求。
+        }
+        try {
+          await finalizeChatRun(runId, status, errorMessage ?? null);
+        } catch {
+          // 终态压缩失败不会影响已持久化的会话，下次维护时会再次清理。
+        }
+      });
+    this.persistChains.set(runId, finalize);
+    void finalize;
   }
 
   cancel(sessionKey: ChatSessionKey) {

@@ -367,7 +367,7 @@ const createUniqueNamer = () => {
 /**
  * 构建保持目录层级的 Markdown ZIP：
  * 每个可导出条目一个 .md 文件，子级放在同名文件夹下；
- * 无正文但被勾选的条目只作为文件夹保留层级。
+ * 无正文条目在存在选中后代时只作为文件夹保留层级。
  * ZIP 按目录分文件，导出规则（分页/标题）不适用，文件名即标题
  */
 export const buildMarkdownZipBytes = async (
@@ -376,6 +376,23 @@ export const buildMarkdownZipBytes = async (
 ): Promise<Uint8Array> => {
   configureZip({ useWebWorkers: false });
   const zipWriter = new ZipWriter(new Uint8ArrayWriter());
+  const includedNodeIds = new Set<number>();
+
+  const markIncludedNodes = (nodes: BatchExportTreeNode[]): boolean => {
+    let hasIncludedNode = false;
+    nodes.forEach((node) => {
+      const hasIncludedChild = markIncludedNodes(node.children);
+      const included = node.exportable
+        ? selectedIds.has(node.id)
+        : hasIncludedChild;
+      if (included) {
+        includedNodeIds.add(node.id);
+        hasIncludedNode = true;
+      }
+    });
+    return hasIncludedNode;
+  };
+  markIncludedNodes(tree);
 
   const walk = async (
     nodes: BatchExportTreeNode[],
@@ -385,7 +402,7 @@ export const buildMarkdownZipBytes = async (
     const uniqueFileName = createUniqueNamer();
 
     for (const node of nodes) {
-      if (!selectedIds.has(node.id)) {
+      if (!includedNodeIds.has(node.id)) {
         continue;
       }
       const dirName = uniqueDirName(sanitizeFileName(node.title));

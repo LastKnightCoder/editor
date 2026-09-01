@@ -37,6 +37,18 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe("assistant message identity", () => {
+  it("调用方未提供有效 clientId 时保留自动生成的消息标识", () => {
+    expect(createAssistantMessage({ clientId: undefined }).clientId).toMatch(
+      /^msg:/,
+    );
+    expect(createAssistantMessage({ clientId: "" }).clientId).toMatch(/^msg:/);
+    expect(createAssistantMessage({ clientId: "existing-id" }).clientId).toBe(
+      "existing-id",
+    );
+  });
+});
+
 describe("assistant reasoning timing", () => {
   it("在首个正文增量到达时立即结束 reasoning 计时", () => {
     vi.useFakeTimers();
