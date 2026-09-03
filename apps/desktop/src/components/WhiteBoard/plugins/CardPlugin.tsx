@@ -1,12 +1,15 @@
 import { CreditCard } from "lucide-react";
 import {
   Board,
+  BoardElement,
   IBoardPlugin,
   EHandlerPosition,
   Point,
   ContextMenuContext,
   PluginContextMenuItem,
+  IElementCapabilities,
 } from "../types";
+import { ContainmentBehavior } from "../types/capabilities";
 import { BoardUtil, getResizedBBox, PathUtil } from "../utils";
 import Card from "../components/Card";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
@@ -37,6 +40,18 @@ export class CardPlugin extends CommonPlugin implements IBoardPlugin {
     super();
     this.onEditorSizeChange = this.onEditorSizeChange.bind(this);
     this.onResize = this.onResize.bind(this);
+  }
+
+  getCapabilities(): IElementCapabilities {
+    return {
+      containment: {
+        asContainer: ContainmentBehavior.None,
+        canBeContained: true,
+        // 声明可入 Column（准入与否由子方声明反转决定，见 CapabilityService.canContain）
+        canBeContainedBy: (container: BoardElement) =>
+          container.type === "column",
+      },
+    };
   }
 
   getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {

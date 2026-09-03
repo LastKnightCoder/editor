@@ -15,7 +15,6 @@ import {
 } from "../../../types";
 import { PointUtil, ColumnUtil, PathUtil, BoardUtil } from "../../../utils";
 import { BOARD_TO_CONTAINER } from "../../../constants";
-import { COLUMN_ALLOWED_CHILDREN } from "../../../types/column";
 
 export const useCreateColumn = () => {
   const board = useBoard();
@@ -63,8 +62,10 @@ export const useCreateColumn = () => {
         // Check for elements that should be contained
         const elementsInArea = board.children.filter(
           (element: BoardElement) => {
-            // Only allow specific types
-            if (!COLUMN_ALLOWED_CHILDREN.includes(element.type as any))
+            // 准入由元素方能力声明决定（canBeContainedBy）
+            if (
+              !board.capabilityService.canBeContainedByType(element, "column")
+            )
               return false;
 
             // Skip elements already in a container
@@ -158,7 +159,9 @@ export const useCreateColumn = () => {
         // Find new elements in area
         const newElementsInArea = board.children.filter(
           (element: BoardElement) => {
-            if (!COLUMN_ALLOWED_CHILDREN.includes(element.type as any))
+            if (
+              !board.capabilityService.canBeContainedByType(element, "column")
+            )
               return false;
 
             const parent = BoardUtil.getParent(board, element);

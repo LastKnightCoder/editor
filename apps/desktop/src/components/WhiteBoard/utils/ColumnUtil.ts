@@ -1,7 +1,7 @@
 import { produce } from "immer";
 import { v4 as getUuid } from "uuid";
 import { BoardElement, ColumnElement, Board, Operation } from "../types";
-import { COLUMN_DEFAULTS, COLUMN_ALLOWED_CHILDREN } from "../types/column";
+import { COLUMN_DEFAULTS } from "../types/column";
 import { PathUtil } from "./PathUtil";
 import BoardUtil from "./BoardUtil";
 
@@ -213,15 +213,6 @@ export class ColumnUtil {
   }
 
   /**
-   * Check if element type can be added to column
-   */
-  static canContainType(type: string): boolean {
-    return COLUMN_ALLOWED_CHILDREN.includes(
-      type as (typeof COLUMN_ALLOWED_CHILDREN)[number],
-    );
-  }
-
-  /**
    * Check if point is within column bounds
    */
   static isPointInColumn(
@@ -337,24 +328,6 @@ export class ColumnUtil {
         child.x += dx;
         child.y += dy;
       });
-    });
-  }
-
-  /**
-   * Add child to column at specific index
-   */
-  static addChild(
-    column: ColumnElement,
-    child: BoardElement,
-    index?: number,
-  ): ColumnElement {
-    if (!this.canContainType(child.type)) {
-      return column;
-    }
-
-    return produce(column, (draft) => {
-      const insertIndex = index ?? draft.children.length;
-      draft.children.splice(insertIndex, 0, child);
     });
   }
 
