@@ -136,9 +136,29 @@ export class MindPlugin implements IBoardPlugin {
           });
           return subtree;
         },
+        // 图层排序等结构变化移动节点后，重排受影响的导图
+        afterMove: (board, element) => {
+          const root = MindUtil.getRoot(board, element as MindNodeElement);
+          MindUtil.relayoutAffectedRootsAfterMindMove(
+            board,
+            element.id,
+            root?.id ?? null,
+          );
+        },
       },
       render: {
         childrenOrder: ChildrenRenderOrder.Normal,
+        // 折叠方向上的子节点不渲染
+        filterVisibleChildren: (element, children) =>
+          children.filter((child) => {
+            if (child.type !== "mind-node") return true;
+            const childMindNode = child as MindNodeElement;
+            const isChildLeftDirection = childMindNode.direction === "left";
+            const mindNode = element as MindNodeElement;
+            return isChildLeftDirection
+              ? !mindNode.isLeftFold
+              : !mindNode.isRightFold;
+          }),
         getColorTheme: () => "orange",
       },
       refLine: {

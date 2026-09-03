@@ -282,6 +282,13 @@ export class CapabilityService {
     );
   }
 
+  /**
+   * 结构/图层变化移动元素后的 relayout 通知（如思维导图重排受影响的导图）
+   */
+  notifyAfterMove(element: BoardElement): void {
+    this.getMovementCapability(element.type).afterMove?.(this.board, element);
+  }
+
   // ===========================================================================
   // 便捷查询方法 - 渲染相关
   // ===========================================================================
@@ -299,6 +306,20 @@ export class CapabilityService {
    */
   getChildrenRenderOrder(element: BoardElement): ChildrenRenderOrder {
     return this.getRenderCapability(element.type).childrenOrder;
+  }
+
+  /**
+   * 过滤渲染期可见的子元素（未声明能力时全部可见）
+   */
+  getVisibleChildren(
+    element: BoardElement,
+    children: BoardElement[],
+  ): BoardElement[] {
+    const render = this.getRenderCapability(element.type);
+    if (render.filterVisibleChildren) {
+      return render.filterVisibleChildren(element, children);
+    }
+    return children;
   }
 
   /**

@@ -234,6 +234,14 @@ export interface IRenderCapability {
   childrenOrder: ChildrenRenderOrder;
 
   /**
+   * 过滤渲染期可见的子元素（如思维导图按折叠方向隐藏子树），默认全部可见
+   */
+  filterVisibleChildren?: (
+    element: BoardElement,
+    children: BoardElement[],
+  ) => BoardElement[];
+
+  /**
    * 获取显示名称
    */
   getDisplayName?: (element: BoardElement) => string;
