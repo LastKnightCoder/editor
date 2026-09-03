@@ -177,6 +177,7 @@ export class MindPlugin implements IBoardPlugin {
     clientX: number;
     clientY: number;
     pointerId: number;
+    altKey: boolean;
   } | null = null;
 
   private listeners: Set<() => void> = new Set();
@@ -889,6 +890,7 @@ export class MindPlugin implements IBoardPlugin {
       clientX: e.clientX,
       clientY: e.clientY,
       pointerId: e.pointerId,
+      altKey: e.altKey,
     };
 
     if (this.dragAnimationFrame === null) {
@@ -901,7 +903,12 @@ export class MindPlugin implements IBoardPlugin {
         const pending = this.pendingPointerMove;
         this.pendingPointerMove = null;
         if (!pending || pending.pointerId !== this.dragState.pointerId) return;
-        this.updateDragPreview(board, pending.clientX, pending.clientY);
+        this.updateDragPreview(
+          board,
+          pending.clientX,
+          pending.clientY,
+          pending.altKey,
+        );
       });
     }
   }
@@ -914,7 +921,7 @@ export class MindPlugin implements IBoardPlugin {
       return;
     }
 
-    this.updateDragPreview(board, e.clientX, e.clientY);
+    this.updateDragPreview(board, e.clientX, e.clientY, e.altKey);
     if (this.dragState.isDragging) {
       this.commitDrop(board);
     }
@@ -924,7 +931,7 @@ export class MindPlugin implements IBoardPlugin {
       this.selectClickedNode(e, board);
     }
 
-    this.cleanup();
+    this.cleanup(board);
   }
 
   /**
@@ -956,7 +963,12 @@ export class MindPlugin implements IBoardPlugin {
     });
   }
 
-  updateDragPreview(board: Board, clientX: number, clientY: number) {
+  updateDragPreview(
+    board: Board,
+    clientX: number,
+    clientY: number,
+    altKey = false,
+  ) {
     const { draggedNode, startPoint, dragOffset, currentTarget } =
       this.dragState;
     if (!draggedNode || !startPoint) return;
@@ -1013,6 +1025,36 @@ export class MindPlugin implements IBoardPlugin {
         currentTarget,
       );
 
+      // 吸附优先级：有合并候选时优先合并吸附；无候选且未按 Alt 时
+      // 与其他元素对齐吸附（与通用拖拽管线同规则）
+      let snapX = nextX;
+      let snapY = nextY;
+      if (!target && !altKey) {
+        board.refLine.setCurrentRects([
+          {
+            key: draggedNode.id,
+            x: nextX,
+            y: nextY,
+            width: latestRoot.width,
+            height: latestRoot.height,
+          },
+        ]);
+        const newCurrent = board.refLine.getUpdateCurrent(
+          true,
+          5 / board.viewPort.zoom,
+        );
+        const snappedRect = newCurrent.rects.find(
+          (rect) => rect.key === draggedNode.id,
+        );
+        if (snappedRect) {
+          snapX = snappedRect.x;
+          snapY = snappedRect.y;
+        }
+        board.refLine.setCurrent(newCurrent);
+      } else {
+        board.clearRefLines();
+      }
+
       if (currentTarget?.direction !== target?.direction) {
         const desiredRoot = MindUtil.createRootDragLayout(
           draggedNode,
@@ -1032,8 +1074,8 @@ export class MindPlugin implements IBoardPlugin {
         const translateOperations = BoardUtil.buildTranslateSubtreeOps(
           latestRoot,
           rootPath,
-          nextX - latestRoot.x,
-          nextY - latestRoot.y,
+          snapX - latestRoot.x,
+          snapY - latestRoot.y,
         );
         if (translateOperations.length > 0) {
           board.apply(translateOperations, false);
@@ -1275,11 +1317,13 @@ export class MindPlugin implements IBoardPlugin {
       }
     }
 
-    this.cleanup();
+    this.cleanup(board);
   }
 
-  private cleanup() {
+  private cleanup(board: Board) {
     this.cancelScheduledPointerMove();
+    // 清除拖拽期间的对齐参考线
+    board.clearRefLines();
     this.setDragState(EMPTY_MIND_DRAG_STATE);
   }
 

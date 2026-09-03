@@ -68,9 +68,21 @@ const pointerEvent = (
     ...overrides,
   }) as unknown as PointerEvent;
 
-const createBoard = (children: MindNodeElement[]) => {
+const createBoard = (children: any[]) => {
   const plugin = new MindPlugin();
-  const board = new Board(children, viewPort, emptySelection, [plugin]);
+  // 普通元素桩：作为思维导图根节点拖拽时的对齐吸附目标
+  const geometryStub = {
+    name: "geometry",
+    isHit: (_board: unknown, element: any, x: number, y: number) =>
+      x >= element.x &&
+      x <= element.x + element.width &&
+      y >= element.y &&
+      y <= element.y + element.height,
+  };
+  const board = new Board(children, viewPort, emptySelection, [
+    plugin,
+    geometryStub as any,
+  ]);
   const container = document.createElement("div");
   container.getBoundingClientRect = () =>
     ({
@@ -443,6 +455,58 @@ describe("MindPlugin 思维导图节点拖拽", () => {
     expect(board.selection.selectedElements.map((el) => el.id)).toEqual([
       "dragged",
     ]);
+  });
+
+  it("拖拽根节点靠近其他元素时对齐吸附，子树整体对齐", () => {
+    const child = createMindNode("child", { x: 136, y: 0, level: 2 });
+    const root = createMindNode("root", { children: [child] });
+    const geometry = {
+      id: "geo",
+      type: "geometry",
+      x: 300,
+      y: 100,
+      width: 100,
+      height: 40,
+      children: [],
+    };
+    const { board } = createBoard([root, geometry]);
+
+    // 从根节点按下（offset 10,20），移动使预览位置为 (298, 96)，
+    // 与 geometry(300,100) 的左/上边缘距离均在吸附阈值内
+    board.onPointerDown(pointerEvent(10, 20));
+    board.onGlobalPointerMove(pointerEvent(308, 116));
+    flushPointerMove();
+
+    expect(board.children[0]).toMatchObject({ id: "root", x: 300, y: 100 });
+    expect((board.children[0] as MindNodeElement).children[0]).toMatchObject({
+      id: "child",
+      x: 436,
+      y: 100,
+    });
+
+    board.onGlobalPointerUp(pointerEvent(308, 116));
+    expect(board.children[0]).toMatchObject({ id: "root", x: 300, y: 100 });
+  });
+
+  it("按住 Alt 拖拽根节点不吸附", () => {
+    const child = createMindNode("child", { x: 136, y: 0, level: 2 });
+    const root = createMindNode("root", { children: [child] });
+    const geometry = {
+      id: "geo",
+      type: "geometry",
+      x: 300,
+      y: 100,
+      width: 100,
+      height: 40,
+      children: [],
+    };
+    const { board } = createBoard([root, geometry]);
+
+    board.onPointerDown(pointerEvent(10, 20));
+    board.onGlobalPointerMove(pointerEvent(308, 116, 1, { altKey: true }));
+    flushPointerMove();
+
+    expect(board.children[0]).toMatchObject({ id: "root", x: 298, y: 96 });
   });
 
   it("ctrl 点击 mind 节点在多选中切换", () => {
