@@ -62,6 +62,9 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
         isDropFeedbackActive: (container: BoardElement) =>
           (container as FrameElement).isChildMoveIn === true,
 
+        calculateBounds: (board, container) =>
+          FrameUtil.calculateFrameBounds(board, container as FrameElement),
+
         // 容器协议实现
         isElementInContainer: (
           _board: Board,
