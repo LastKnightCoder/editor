@@ -18,6 +18,7 @@ import type {
   ChatModelConfig,
 } from "@tau/editor/src/types/services";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
+import { ACCENT_COLORS, ACCENT_OKLCH } from "@/constants/accent";
 import {
   selectFile,
   readTextFile,
@@ -89,330 +90,33 @@ type ChatStreamInnerOptions = Parameters<typeof chatStreamInner>[3];
 
 type ThemeClassConfig = ThemeColors;
 
-type ThemePreset = {
-  light: ThemeColors;
-  dark: ThemeColors;
-};
-
-const SOLID_THEME: ThemeClassConfig = {
-  hoverClass: "hover:bg-gray-100 dark:hover:bg-zinc-800",
-  activeClass: "bg-[#eee] text-gray-900 dark:bg-zinc-800 dark:text-gray-100",
-  hoverTextClass: "hover:text-gray-900 dark:hover:text-gray-100",
-  borderClass: "border-[#f0f0f0] dark:border-[#2a2a2a]",
-  hoverBorderClass: "hover:border-[#eaeaea] dark:hover:border-[#3a3a3a]",
-  focusBorderClass: "border-[#f0f0f0] dark:border-[#2a2a2a]",
-  textClass: "text-gray-600 dark:text-gray-400",
-  secondaryTextClass: "text-gray-400 dark:text-gray-500",
-  activeTextClass: "text-gray-900 dark:text-gray-100",
-  cardBorderClass: "border-gray-200 dark:border-gray-800",
-  cardBgClass: "bg-gray-50/80 dark:bg-zinc-900/50",
-};
-
-const GRADIENT_THEME_CLASS_MAP: Record<string, ThemeClassConfig> = {
-  gradient1: {
-    hoverClass: "hover:bg-purple-500/10 dark:hover:bg-purple-400/15",
-    activeClass:
-      "bg-purple-500/20 text-purple-700 dark:bg-purple-400/25 dark:text-purple-200 backdrop-blur-sm",
-    hoverTextClass: "hover:text-purple-600 dark:hover:text-purple-400",
-    borderClass: "border-purple-200/30 dark:border-purple-400/20",
-    hoverBorderClass:
-      "hover:border-purple-300/50 dark:hover:border-purple-400/30",
-    focusBorderClass: "border-purple-500/60 dark:border-purple-400/50",
-    textClass: "text-gray-700 dark:text-gray-300",
-    secondaryTextClass: "text-gray-400 dark:text-gray-500",
-    activeTextClass: "text-purple-700 dark:text-purple-200",
-    cardBorderClass: "border-purple-200/30 dark:border-purple-400/20",
-    cardBgClass: "bg-purple-50 dark:bg-purple-950/60",
-  },
-  gradient2: {
-    hoverClass: "hover:bg-blue-500/10 dark:hover:bg-blue-400/15",
-    activeClass:
-      "bg-blue-500/20 text-blue-700 dark:bg-blue-400/25 dark:text-blue-200 backdrop-blur-sm",
-    hoverTextClass: "hover:text-blue-600 dark:hover:text-blue-400",
-    borderClass: "border-blue-200/30 dark:border-blue-400/20",
-    hoverBorderClass: "hover:border-blue-300/50 dark:hover:border-blue-400/30",
-    focusBorderClass: "border-blue-500/60 dark:border-blue-400/50",
-    textClass: "text-gray-700 dark:text-gray-300",
-    secondaryTextClass: "text-gray-400 dark:text-gray-500",
-    activeTextClass: "text-blue-700 dark:text-blue-200",
-    cardBorderClass: "border-blue-200/30 dark:border-blue-400/20",
-    cardBgClass: "bg-blue-50 dark:bg-blue-950/60",
-  },
-  gradient3: {
-    hoverClass: "hover:bg-orange-500/10 dark:hover:bg-orange-400/15",
-    activeClass:
-      "bg-orange-500/20 text-orange-700 dark:bg-orange-400/25 dark:text-orange-200 backdrop-blur-sm",
-    hoverTextClass: "hover:text-orange-600 dark:hover:text-orange-400",
-    borderClass: "border-orange-200/30 dark:border-orange-400/20",
-    hoverBorderClass:
-      "hover:border-orange-300/50 dark:hover:border-orange-400/30",
-    focusBorderClass: "border-orange-500/60 dark:border-orange-400/50",
-    textClass: "text-gray-700 dark:text-gray-300",
-    secondaryTextClass: "text-gray-400 dark:text-gray-500",
-    activeTextClass: "text-orange-700 dark:text-orange-200",
-    cardBorderClass: "border-orange-200/30 dark:border-orange-400/20",
-    cardBgClass: "bg-orange-50 dark:bg-orange-950/60",
-  },
-  gradient4: {
-    hoverClass: "hover:bg-green-500/10 dark:hover:bg-green-400/15",
-    activeClass:
-      "bg-green-500/20 text-green-700 dark:bg-green-400/25 dark:text-green-200 backdrop-blur-sm",
-    hoverTextClass: "hover:text-green-600 dark:hover:text-green-400",
-    borderClass: "border-green-200/30 dark:border-green-400/20",
-    hoverBorderClass:
-      "hover:border-green-300/50 dark:hover:border-green-400/30",
-    focusBorderClass: "border-green-500/60 dark:border-green-400/50",
-    textClass: "text-gray-700 dark:text-gray-300",
-    secondaryTextClass: "text-gray-400 dark:text-gray-500",
-    activeTextClass: "text-green-700 dark:text-green-200",
-    cardBorderClass: "border-green-200/30 dark:border-green-400/20",
-    cardBgClass: "bg-green-50 dark:bg-green-950/60",
-  },
-  gradient5: {
-    hoverClass: "hover:bg-pink-500/10 dark:hover:bg-pink-400/15",
-    activeClass:
-      "bg-pink-500/20 text-pink-700 dark:bg-pink-400/25 dark:text-pink-200 backdrop-blur-sm",
-    hoverTextClass: "hover:text-pink-600 dark:hover:text-pink-400",
-    borderClass: "border-pink-200/30 dark:border-pink-400/20",
-    hoverBorderClass: "hover:border-pink-300/50 dark:hover:border-pink-400/30",
-    focusBorderClass: "border-pink-500/60 dark:border-pink-400/50",
-    textClass: "text-gray-700 dark:text-gray-300",
-    secondaryTextClass: "text-gray-400 dark:text-gray-500",
-    activeTextClass: "text-pink-700 dark:text-pink-200",
-    cardBorderClass: "border-pink-200/30 dark:border-pink-400/20",
-    cardBgClass: "bg-pink-50 dark:bg-pink-950/60",
-  },
-  gradient6: {
-    hoverClass: "hover:bg-gray-500/10 dark:hover:bg-gray-400/15",
-    activeClass:
-      "bg-gray-500/20 text-gray-700 dark:bg-gray-400/25 dark:text-gray-200 backdrop-blur-sm",
-    hoverTextClass: "hover:text-gray-600 dark:hover:text-gray-400",
-    borderClass: "border-gray-200/30 dark:border-gray-400/20",
-    hoverBorderClass: "hover:border-gray-300/50 dark:hover:border-gray-400/30",
-    focusBorderClass: "border-gray-500/60 dark:border-gray-400/50",
-    textClass: "text-gray-700 dark:text-gray-300",
-    secondaryTextClass: "text-gray-400 dark:text-gray-500",
-    activeTextClass: "text-gray-700 dark:text-gray-200",
-    cardBorderClass: "border-gray-200/30 dark:border-gray-400/20",
-    cardBgClass: "bg-gray-50 dark:bg-zinc-800/60",
-  },
-  gradient7: {
-    hoverClass: "hover:bg-cyan-500/10 dark:hover:bg-cyan-400/15",
-    activeClass:
-      "bg-cyan-500/20 text-cyan-700 dark:bg-cyan-400/25 dark:text-cyan-200 backdrop-blur-sm",
-    hoverTextClass: "hover:text-cyan-600 dark:hover:text-cyan-400",
-    borderClass: "border-cyan-200/30 dark:border-cyan-400/20",
-    hoverBorderClass: "hover:border-cyan-300/50 dark:hover:border-cyan-400/30",
-    focusBorderClass: "border-cyan-500/60 dark:border-cyan-400/50",
-    textClass: "text-gray-700 dark:text-gray-300",
-    secondaryTextClass: "text-gray-400 dark:text-gray-500",
-    activeTextClass: "text-cyan-700 dark:text-cyan-200",
-    cardBorderClass: "border-cyan-200/30 dark:border-cyan-400/20",
-    cardBgClass: "bg-cyan-50 dark:bg-cyan-950/60",
-  },
-  gradient8: {
-    hoverClass: "hover:bg-amber-500/10 dark:hover:bg-amber-400/15",
-    activeClass:
-      "bg-amber-500/20 text-amber-700 dark:bg-amber-400/25 dark:text-amber-200 backdrop-blur-sm",
-    hoverTextClass: "hover:text-amber-600 dark:hover:text-amber-400",
-    borderClass: "border-amber-200/30 dark:border-amber-400/20",
-    hoverBorderClass:
-      "hover:border-amber-300/50 dark:hover:border-amber-400/30",
-    focusBorderClass: "border-amber-500/60 dark:border-amber-400/50",
-    textClass: "text-gray-700 dark:text-gray-300",
-    secondaryTextClass: "text-gray-400 dark:text-gray-500",
-    activeTextClass: "text-amber-700 dark:text-amber-200",
-    cardBorderClass: "border-amber-200/30 dark:border-amber-400/20",
-    cardBgClass: "bg-amber-50 dark:bg-amber-950/60",
-  },
-  gradient9: {
-    hoverClass: "hover:bg-red-500/10 dark:hover:bg-red-400/15",
-    activeClass:
-      "bg-red-500/20 text-red-700 dark:bg-red-400/25 dark:text-red-200 backdrop-blur-sm",
-    hoverTextClass: "hover:text-red-600 dark:hover:text-red-400",
-    borderClass: "border-red-200/30 dark:border-red-400/20",
-    hoverBorderClass: "hover:border-red-300/50 dark:hover:border-red-400/30",
-    focusBorderClass: "border-red-500/60 dark:border-red-400/50",
-    textClass: "text-gray-700 dark:text-gray-300",
-    secondaryTextClass: "text-gray-400 dark:text-gray-500",
-    activeTextClass: "text-red-700 dark:text-red-200",
-    cardBorderClass: "border-red-200/30 dark:border-red-400/20",
-    cardBgClass: "bg-red-50 dark:bg-red-950/60",
-  },
-};
-
-const GRADIENT_ACCENTS = {
-  gradient1: {
-    light: {
-      accentColor: "rgb(147, 51, 234)",
-      accentSoftBg: "rgba(147, 51, 234, 0.2)",
-    },
-    dark: {
-      accentColor: "rgb(168, 85, 247)",
-      accentSoftBg: "rgba(168, 85, 247, 0.35)",
-    },
-  },
-  gradient2: {
-    light: {
-      accentColor: "rgb(37, 99, 235)",
-      accentSoftBg: "rgba(37, 99, 235, 0.2)",
-    },
-    dark: {
-      accentColor: "rgb(59, 130, 246)",
-      accentSoftBg: "rgba(59, 130, 246, 0.35)",
-    },
-  },
-  gradient3: {
-    light: {
-      accentColor: "rgb(249, 115, 22)",
-      accentSoftBg: "rgba(249, 115, 22, 0.2)",
-    },
-    dark: {
-      accentColor: "rgb(251, 146, 60)",
-      accentSoftBg: "rgba(251, 146, 60, 0.35)",
-    },
-  },
-  gradient4: {
-    light: {
-      accentColor: "rgb(22, 163, 74)",
-      accentSoftBg: "rgba(22, 163, 74, 0.2)",
-    },
-    dark: {
-      accentColor: "rgb(34, 197, 94)",
-      accentSoftBg: "rgba(34, 197, 94, 0.35)",
-    },
-  },
-  gradient5: {
-    light: {
-      accentColor: "rgb(219, 39, 119)",
-      accentSoftBg: "rgba(219, 39, 119, 0.2)",
-    },
-    dark: {
-      accentColor: "rgb(236, 72, 153)",
-      accentSoftBg: "rgba(236, 72, 153, 0.35)",
-    },
-  },
-  gradient6: {
-    light: {
-      accentColor: "rgb(75, 85, 99)",
-      accentSoftBg: "rgba(75, 85, 99, 0.2)",
-    },
-    dark: {
-      accentColor: "rgb(107, 114, 128)",
-      accentSoftBg: "rgba(107, 114, 128, 0.35)",
-    },
-  },
-  gradient7: {
-    light: {
-      accentColor: "rgb(6, 182, 212)",
-      accentSoftBg: "rgba(6, 182, 212, 0.2)",
-    },
-    dark: {
-      accentColor: "rgb(34, 211, 238)",
-      accentSoftBg: "rgba(34, 211, 238, 0.35)",
-    },
-  },
-  gradient8: {
-    light: {
-      accentColor: "rgb(245, 158, 11)",
-      accentSoftBg: "rgba(245, 158, 11, 0.2)",
-    },
-    dark: {
-      accentColor: "rgb(251, 191, 36)",
-      accentSoftBg: "rgba(251, 191, 36, 0.35)",
-    },
-  },
-  gradient9: {
-    light: {
-      accentColor: "rgb(239, 68, 68)",
-      accentSoftBg: "rgba(239, 68, 68, 0.2)",
-    },
-    dark: {
-      accentColor: "rgb(248, 113, 113)",
-      accentSoftBg: "rgba(248, 113, 113, 0.35)",
-    },
-  },
-} as const;
-
-const createThemePreset = (
-  base: ThemeClassConfig,
-  accent: {
-    light: { accentColor: string; accentSoftBg: string };
-    dark: { accentColor: string; accentSoftBg: string };
-  },
-): ThemePreset => {
-  const lightTheme: ThemeColors = {
-    ...base,
-    accentColor: accent.light.accentColor,
-    accentSoftBg: accent.light.accentSoftBg,
-  };
-
-  const darkTheme: ThemeColors = {
-    ...base,
-    accentColor: accent.dark.accentColor,
-    accentSoftBg: accent.dark.accentSoftBg,
-  };
-
-  return {
-    light: lightTheme,
-    dark: darkTheme,
-  };
-};
-
-const THEME_PRESETS: Record<string, ThemePreset> = {
-  solid: createThemePreset(SOLID_THEME, {
-    light: {
-      accentColor: "hsl(168, 50%, 30%)",
-      accentSoftBg: "hsla(168, 50%, 30%, 0.25)",
-    },
-    dark: {
-      accentColor: "hsl(168, 50%, 70%)",
-      accentSoftBg: "hsla(168, 50%, 70%, 0.35)",
-    },
-  }),
-  gradient1: createThemePreset(
-    GRADIENT_THEME_CLASS_MAP.gradient1,
-    GRADIENT_ACCENTS.gradient1,
-  ),
-  gradient2: createThemePreset(
-    GRADIENT_THEME_CLASS_MAP.gradient2,
-    GRADIENT_ACCENTS.gradient2,
-  ),
-  gradient3: createThemePreset(
-    GRADIENT_THEME_CLASS_MAP.gradient3,
-    GRADIENT_ACCENTS.gradient3,
-  ),
-  gradient4: createThemePreset(
-    GRADIENT_THEME_CLASS_MAP.gradient4,
-    GRADIENT_ACCENTS.gradient4,
-  ),
-  gradient5: createThemePreset(
-    GRADIENT_THEME_CLASS_MAP.gradient5,
-    GRADIENT_ACCENTS.gradient5,
-  ),
-  gradient6: createThemePreset(
-    GRADIENT_THEME_CLASS_MAP.gradient6,
-    GRADIENT_ACCENTS.gradient6,
-  ),
-  gradient7: createThemePreset(
-    GRADIENT_THEME_CLASS_MAP.gradient7,
-    GRADIENT_ACCENTS.gradient7,
-  ),
-  gradient8: createThemePreset(
-    GRADIENT_THEME_CLASS_MAP.gradient8,
-    GRADIENT_ACCENTS.gradient8,
-  ),
-  gradient9: createThemePreset(
-    GRADIENT_THEME_CLASS_MAP.gradient9,
-    GRADIENT_ACCENTS.gradient9,
-  ),
+const EDITOR_THEME_CLASSES: ThemeClassConfig = {
+  hoverClass: "hover:bg-[var(--th-bg-hover)]",
+  activeClass: "bg-[var(--th-accent-soft)] text-[var(--th-active-text)]",
+  hoverTextClass: "hover:text-[var(--th-hover-text)]",
+  borderClass: "border-[var(--th-border)]",
+  hoverBorderClass: "hover:border-[var(--th-border-hover)]",
+  focusBorderClass: "border-[var(--th-border-focus)]",
+  textClass: "text-[var(--th-text)]",
+  secondaryTextClass: "text-[var(--th-text-secondary)]",
+  activeTextClass: "text-[var(--th-active-text)]",
+  cardBorderClass: "border-[var(--th-border)]",
+  cardBgClass: "bg-[var(--th-card-bg)]",
 };
 
 const getThemeColorsFromSetting = (setting: ISetting): ThemeColors => {
   const isDarkMode = !!setting.darkMode;
-  const backgroundType = setting.appearance?.backgroundType ?? "solid";
-  const preset = THEME_PRESETS[backgroundType] ?? THEME_PRESETS.gradient1;
-  return isDarkMode ? preset.dark : preset.light;
+  const accent = setting.appearance?.accent ?? "indigo";
+  const accentPair = ACCENT_COLORS[accent] ?? ACCENT_COLORS.indigo;
+  const { h, c } = ACCENT_OKLCH[accent] ?? ACCENT_OKLCH.indigo;
+  const s = Math.min(Math.round(c * 380), 70);
+  return {
+    ...EDITOR_THEME_CLASSES,
+    accentColor: isDarkMode ? accentPair[1] : accentPair[0],
+    accentSoftBg: isDarkMode
+      ? `hsla(${h}, ${s}%, 70%, 0.35)`
+      : `hsla(${h}, ${s}%, 30%, 0.25)`,
+  };
 };
 
 const parseDurationToSeconds = (duration?: string): number | undefined => {

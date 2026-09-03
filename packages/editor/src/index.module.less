@@ -1,18 +1,18 @@
 .editor {
-  color: var(--text-normal);
-  caret-color: var(--text-normal);
-  --selection-color: #d9f0ff;
-  --text-normal: black;
+  color: var(--th-text);
+  caret-color: var(--th-text);
+  --th-accent-soft: #d9f0ff;
+  --th-text: black;
 
   &.dark {
-    --selection-color: #182f3f;
-    --text-normal: rgba(255, 255, 255, 0.9);
+    --th-accent-soft: #182f3f;
+    --th-text: rgba(255, 255, 255, 0.9);
   }
 
   ::selection {
-    background: var(--selection-color);
-    color: var(--text-normal);
-    -webkit-text-fill-color: var(--text-normal);
+    background: var(--th-accent-soft);
+    color: var(--th-text);
+    -webkit-text-fill-color: var(--th-text);
   }
 
   // Chunk 容器样式 - 支持 Slate chunking 性能优化

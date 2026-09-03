@@ -136,7 +136,7 @@ const GroupItem = memo(
             <span
               className={classNames(
                 "text-[10px] px-1 py-0.5 rounded",
-                themeColors.tagCountBg,
+                themeColors.tagBgClass,
               )}
             >
               默认
@@ -148,7 +148,7 @@ const GroupItem = memo(
             <span
               className={classNames(
                 "text-[11px] px-1.5 py-0.5 rounded-full",
-                themeColors.tagCountBg,
+                themeColors.tagBgClass,
                 themeColors.textClass,
               )}
             >

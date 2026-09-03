@@ -1,0 +1,35 @@
+/*
+ * 明暗主题的公共 antd 浮层样式(毛玻璃)。
+ * 颜色 token 统一见 styles/theme-colors.css;此处只保留结构样式。
+ */
+html[data-theme="dark"],
+html[data-theme="light"] {
+  .ant-dropdown,
+  .ant-popover-inner {
+    backdrop-filter: blur(18px) saturate(180%);
+    border-radius: 18px !important;
+  }
+
+  .ant-dropdown-menu {
+    border-radius: 18px;
+    padding: 8px;
+  }
+
+  .ant-dropdown-menu-item,
+  .ant-dropdown-menu-submenu-title {
+    border-radius: 14px;
+    margin-bottom: 2px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .ant-popover-inner {
+    border-radius: 18px;
+  }
+
+  .ant-popover-inner-content {
+    padding: 12px;
+  }
+}

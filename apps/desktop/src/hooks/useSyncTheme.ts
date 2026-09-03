@@ -1,10 +1,11 @@
 import { useEffect } from "react";
 import useSettingStore from "@/stores/useSettingStore";
+import { DEFAULT_ACCENT } from "@/constants/accent";
 
 const useSyncTheme = () => {
   const darkMode = useSettingStore((state) => state.setting.darkMode);
-  const backgroundType = useSettingStore(
-    (state) => state.setting.appearance?.backgroundType || "solid",
+  const accent = useSettingStore(
+    (state) => state.setting.appearance?.accent ?? DEFAULT_ACCENT,
   );
 
   useEffect(() => {
@@ -13,8 +14,8 @@ const useSyncTheme = () => {
   }, [darkMode]);
 
   useEffect(() => {
-    document.documentElement.dataset.accent = backgroundType;
-  }, [backgroundType]);
+    document.documentElement.dataset.accent = accent;
+  }, [accent]);
 };
 
 export default useSyncTheme;

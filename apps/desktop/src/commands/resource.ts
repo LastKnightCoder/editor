@@ -67,6 +67,10 @@ export const moveResourceToGroup = async (
   return invoke("resource:move-to-group", resourceId, groupId);
 };
 
+export const deleteResources = async (ids: number[]): Promise<number> => {
+  return invoke("resource:delete", ids);
+};
+
 // Resource Group commands
 export const createResourceGroup = async (
   data: CreateResourceGroup,

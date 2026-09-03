@@ -162,6 +162,7 @@ export default defineConfig(() => {
     ],
     clearScreen: false,
     server: {
+      port: 6174,
       strictPort: true,
       watch: {
         followSymlinks: false,

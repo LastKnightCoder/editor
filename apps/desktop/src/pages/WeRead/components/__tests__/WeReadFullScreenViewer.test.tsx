@@ -29,8 +29,7 @@ vi.mock("@/hooks/useThemeColors", () => ({
 
 vi.mock("@/hooks/useBackgroundMode", () => ({
   default: () => ({
-    backgroundType: "solid",
-    isGradient: false,
+    accent: "indigo",
   }),
 }));
 

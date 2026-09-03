@@ -65,7 +65,7 @@ const CardItem2 = memo((props: ICardItem2Props) => {
           tags={showedTags}
           showIcon
           className={styles.tags}
-          tagStyle={active ? { backgroundColor: "var(--active-icon-bg)" } : {}}
+          tagStyle={active ? { backgroundColor: "var(--th-accent-soft)" } : {}}
         />
       </If>
       <If condition={showTime}>

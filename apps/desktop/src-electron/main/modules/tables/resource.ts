@@ -158,6 +158,7 @@ export default class ResourceTable {
       "resource:scan-and-update": this.scanAndUpdateResources.bind(this),
       "resource:update-name": this.updateResourceName.bind(this),
       "resource:move-to-group": this.moveResourceToGroup.bind(this),
+      "resource:delete": this.deleteResources.bind(this),
     };
   }
 
@@ -899,5 +900,22 @@ export default class ResourceTable {
       throw new Error(`Resource with id ${resourceId} not found`);
     }
     return resource;
+  }
+  /** 批量删除资源记录(仅移除记录,不删除源文件;仍被引用的资源重新扫描后会再次出现) */
+  static deleteResources(db: Database.Database, ids: number[]): number {
+    const now = Date.now();
+    const stmt = db.prepare("DELETE FROM resources WHERE id = ?");
+    const deleteMany = db.transaction((resourceIds: number[]) => {
+      let deleted = 0;
+      for (const id of resourceIds) {
+        const result = stmt.run(id);
+        if (result.changes > 0) {
+          Operation.insertOperation(db, "resource", "delete", id, now);
+          deleted++;
+        }
+      }
+      return deleted;
+    });
+    return deleteMany(ids);
   }
 }

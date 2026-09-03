@@ -17,7 +17,7 @@
     bottom: 0.5em;
     left: 50%;
     width: 2px;
-    background: var(--line-color);
+    background: var(--th-border);
     transform: translateX(-50%);
     transition:
       background-color 0.2s,
@@ -27,6 +27,6 @@
   &:hover::before,
   &.resizing::before {
     width: 4px;
-    background: var(--active-text-color);
+    background: var(--th-active-text);
   }
 }

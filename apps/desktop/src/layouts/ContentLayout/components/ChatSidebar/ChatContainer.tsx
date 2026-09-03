@@ -259,7 +259,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       modelConfig: titleModelConfig,
     } = useLLMConfig("titleSummary");
 
-    const { chatInputBg } = useThemeColors();
+    const { inputBgClass } = useThemeColors();
     const chatRuns = useChatRunStore((state) => state.runs);
     const sessionKey =
       `${chatScope.split(":")[0]}:${currentChat.id}` as ChatSessionKey;
@@ -2415,7 +2415,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           className={classNames(
             "h-full min-h-0 flex flex-col rounded-xl transition-colors motion-reduce:transition-none",
             isChatContentDragOver && canDropChatContent
-              ? "ring-2 ring-[var(--active-text-color)] bg-[var(--active-bg-color)]"
+              ? "ring-2 ring-[var(--th-active-text)] bg-[var(--th-accent-soft)]"
               : undefined,
           )}
         >
@@ -2476,7 +2476,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               <div
                 className={classNames(
                   "m-1 mt-3 flex-none px-3 py-3 box-border shadow-sm rounded-3xl",
-                  chatInputBg,
+                  inputBgClass,
                 )}
               >
                 {editingDraft ? (

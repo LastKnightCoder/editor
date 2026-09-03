@@ -178,7 +178,7 @@ const Search = memo(() => {
           isDark ? "bg-[rgba(49,49,52,1)]" : "bg-white",
         )}
       >
-        <div className="flex w-full h-14 py-4 box-border items-center border-b border-(--line-color)">
+        <div className="flex w-full h-14 py-4 box-border items-center border-b border-(--th-border)">
           <div className="flex-none w-10 h-full flex items-center justify-center">
             {searchLoading ? <LoadingOutlined /> : <SearchOutlined />}
           </div>

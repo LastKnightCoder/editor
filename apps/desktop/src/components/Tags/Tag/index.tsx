@@ -39,14 +39,14 @@ const Tag = (props: ITagProps) => {
     onEditBlur,
   } = props;
 
-  const { tagBgClass, tagHoverBgClass, tagTextClass } = useThemeColors();
+  const { tagBgClass, hoverClass, tagTextClass } = useThemeColors();
 
   const tagClassName = classnames(
     styles.tagContainer,
     tagBgClass,
     tagTextClass,
     {
-      [tagHoverBgClass]: hoverAble,
+      [hoverClass]: hoverAble,
     },
     className,
   );

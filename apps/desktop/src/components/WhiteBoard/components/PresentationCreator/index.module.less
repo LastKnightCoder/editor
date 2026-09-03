@@ -1,10 +1,10 @@
 // ==================== 主色变量（与项目主题一致） ====================
-@primary: var(--color-primary);
-@primary-hover: var(--color-primary-hover);
-@text-primary: var(--color-text-primary);
-@text-secondary: var(--color-text-secondary);
-@text-tertiary: var(--color-text-tertiary);
-@border-primary: var(--color-border-primary);
+@primary: var(--th-accent);
+@primary-hover: var(--th-accent-hover);
+@text-primary: var(--th-text);
+@text-secondary: var(--th-text-secondary);
+@text-tertiary: var(--th-text-tertiary);
+@border-primary: var(--th-border);
 
 .creatorContainer {
   position: absolute;
@@ -357,7 +357,7 @@
 
 .deleteButton {
   &:hover:not(:disabled) {
-    color: var(--color-error) !important;
+    color: var(--th-danger) !important;
     background: rgba(239, 68, 68, 0.1) !important;
   }
 
@@ -615,7 +615,7 @@
 
 .saveDialog {
   width: 380px;
-  background: var(--color-bg-container);
+  background: var(--th-card-bg);
   border-radius: 14px;
   padding: 24px;
   box-shadow:

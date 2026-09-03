@@ -9,7 +9,7 @@
 .tabs {
   display: flex;
   position: relative;
-  border-bottom: 1px solid var(--line-color);
+  border-bottom: 1px solid var(--th-border);
   overflow-x: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -32,11 +32,11 @@
   gap: 8px;
 
   &:hover {
-    color: var(--active-text-color);
+    color: var(--th-active-text);
   }
 
   &.active {
-    color: var(--active-text-color);
+    color: var(--th-active-text);
   }
 }
 
@@ -77,7 +77,7 @@
 
   &:hover {
     background-color: var(--hover-bg-color, rgba(0, 0, 0, 0.05));
-    color: var(--active-text-color);
+    color: var(--th-active-text);
   }
 }
 
@@ -94,7 +94,7 @@
 
   &:hover {
     background-color: var(--hover-bg-color, rgba(0, 0, 0, 0.05));
-    color: var(--active-text-color);
+    color: var(--th-active-text);
   }
 }
 
@@ -102,7 +102,7 @@
   position: absolute;
   bottom: 0;
   height: 2px;
-  background-color: var(--active-text-color);
+  background-color: var(--th-active-text);
 }
 
 .icon {

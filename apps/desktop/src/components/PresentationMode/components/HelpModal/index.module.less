@@ -13,7 +13,7 @@
 }
 
 .helpModalContent {
-  background-color: var(--main-bg-color);
+  background-color: var(--th-bg-page);
   border-radius: 16px;
   padding: 24px;
   width: 450px;
@@ -26,7 +26,7 @@
   h3 {
     margin-top: 0;
     margin-bottom: 20px;
-    color: var(--text-normal);
+    color: var(--th-text);
     font-size: 1.5rem;
     text-align: center;
     font-weight: 600;
@@ -35,7 +35,7 @@
   h4 {
     margin-top: 20px;
     margin-bottom: 12px;
-    color: var(--text-normal);
+    color: var(--th-text);
     font-size: 1.2rem;
     font-weight: 500;
   }
@@ -47,14 +47,14 @@
 
     li {
       margin-bottom: 12px;
-      color: var(--text-normal);
+      color: var(--th-text);
       font-size: 1.1rem;
       display: flex;
       align-items: center;
 
       &:before {
         content: "•";
-        color: var(--active-text-color);
+        color: var(--th-active-text);
         font-weight: bold;
         display: inline-block;
         width: 1em;
@@ -69,9 +69,9 @@
     font-family: "SF Mono", "Menlo", "Monaco", "Courier New", monospace;
     font-size: 0.9rem;
     line-height: 1.2;
-    color: var(--text-normal);
+    color: var(--th-text);
     background-color: var(--background-secondary);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--th-border);
     border-radius: 5px;
     box-shadow:
       0 2px 4px rgba(0, 0, 0, 0.1),
@@ -85,11 +85,11 @@
   top: 16px;
   right: 16px;
   font-size: 18px;
-  color: var(--text-normal);
+  color: var(--th-text);
   cursor: pointer;
   transition: color 0.2s ease;
 
   &:hover {
-    color: var(--active-text-color);
+    color: var(--th-active-text);
   }
 }

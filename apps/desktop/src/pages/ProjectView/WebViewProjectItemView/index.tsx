@@ -1292,7 +1292,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           <div className="relative min-w-0 max-w-[720px] flex-1">
             {isAnyClipping && (
               <div
-                className={`mb-4 flex items-center gap-2 rounded-lg border ${themeColors.borderClass} ${themeColors.quoteBgClass} px-4 py-3 text-sm ${themeColors.textClass}`}
+                className={`mb-4 flex items-center gap-2 rounded-lg border ${themeColors.borderClass} ${"bg-[var(--th-bg-hover)]"} px-4 py-3 text-sm ${themeColors.textClass}`}
               >
                 <LoadingOutlined />
                 <span>正在解析网页内容，请稍候...</span>

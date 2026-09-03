@@ -119,14 +119,14 @@ const TOP_DROP_INDICATOR_CLASS = [
   "before:[top:-2px]",
   "before:h-[2px]",
   "before:w-[calc(100%-4px)]",
-  "before:bg-[var(--active-text-color)]",
+  "before:bg-[var(--th-active-text)]",
   "after:content-['']",
   "after:absolute",
   "after:[top:-5px]",
   "after:left-0",
   "after:border-[4px]",
   "after:border-transparent",
-  "after:[border-left-color:var(--active-text-color)]",
+  "after:[border-left-color:var(--th-active-text)]",
 ].join(" ");
 
 const BOTTOM_DROP_INDICATOR_CLASS = [
@@ -136,21 +136,21 @@ const BOTTOM_DROP_INDICATOR_CLASS = [
   "before:[bottom:-2px]",
   "before:h-[2px]",
   "before:w-[calc(100%-4px)]",
-  "before:bg-[var(--active-text-color)]",
+  "before:bg-[var(--th-active-text)]",
   "after:content-['']",
   "after:absolute",
   "after:[bottom:-5px]",
   "after:left-0",
   "after:border-[4px]",
   "after:border-transparent",
-  "after:[border-left-color:var(--active-text-color)]",
+  "after:[border-left-color:var(--th-active-text)]",
 ].join(" ");
 
 const INSIDE_DROP_INDICATOR_CLASS = [
   "border",
   "border-dashed",
-  "border-[var(--active-text-color)]",
-  "bg-[var(--active-bg-color)]",
+  "border-[var(--th-active-text)]",
+  "bg-[var(--th-accent-soft)]",
 ].join(" ");
 
 interface IProjectItemProps {

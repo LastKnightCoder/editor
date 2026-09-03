@@ -1,250 +1,58 @@
-import useSettingStore from "@/stores/useSettingStore";
 import useTheme from "./useTheme";
-
-type ThemeColors = {
-  colorPrimary: string;
-  colorPrimaryHover: string;
-  colorPrimaryActive: string;
-  colorLink: string;
-};
-
-type OverlayColors = {
-  background: string;
-  hoverBackground: string;
-  activeBackground: string;
-  borderColor: string;
-  textColor: string;
-  secondaryTextColor: string;
-  shadow: string;
-  dropdownShadow: string;
-};
-
-type OverlayPalette = {
-  light: OverlayColors;
-  dark: OverlayColors;
-};
-
-const lightTextColor = "#1f1f1f";
-const darkTextColor = "#f5f5f5";
-const lightSecondaryTextColor = "#666666";
-const darkSecondaryTextColor = "#bfbfbf";
-const LIGHT_DROPDOWN_SHADOW = "0 6px 14px rgba(15, 23, 42, 0.12)";
-const DARK_DROPDOWN_SHADOW = "0 10px 22px rgba(0, 0, 0, 0.58)";
-
-const createOverlayPalette = (config: {
-  lightBg: string;
-  darkBg: string;
-  lightHoverBg: string;
-  darkHoverBg: string;
-  lightActiveBg: string;
-  darkActiveBg: string;
-  lightBorderColor: string;
-  darkBorderColor: string;
-  lightShadow: string;
-  darkShadow: string;
-  lightDropdownShadow?: string;
-  darkDropdownShadow?: string;
-}): OverlayPalette => ({
-  light: {
-    background: config.lightBg,
-    hoverBackground: config.lightHoverBg,
-    activeBackground: config.lightActiveBg,
-    borderColor: config.lightBorderColor,
-    textColor: lightTextColor,
-    secondaryTextColor: lightSecondaryTextColor,
-    shadow: config.lightShadow,
-    dropdownShadow: config.lightDropdownShadow || LIGHT_DROPDOWN_SHADOW,
-  },
-  dark: {
-    background: config.darkBg,
-    hoverBackground: config.darkHoverBg,
-    activeBackground: config.darkActiveBg,
-    borderColor: config.darkBorderColor,
-    textColor: darkTextColor,
-    secondaryTextColor: darkSecondaryTextColor,
-    shadow: config.darkShadow,
-    dropdownShadow: config.darkDropdownShadow || DARK_DROPDOWN_SHADOW,
-  },
-});
-
-const themeTokenMap: Record<string, ThemeColors> = {
-  solid: {
-    colorPrimary: "#6b7280", // gray-500
-    colorPrimaryHover: "#4b5563", // gray-600
-    colorPrimaryActive: "#374151", // gray-700
-    colorLink: "#6b7280",
-  },
-  gradient1: {
-    // Purple theme
-    colorPrimary: "#9333ea", // purple-600
-    colorPrimaryHover: "#a855f7", // purple-500
-    colorPrimaryActive: "#7c3aed", // purple-600 darker
-    colorLink: "#9333ea",
-  },
-  gradient2: {
-    // Blue theme
-    colorPrimary: "#2563eb", // blue-600
-    colorPrimaryHover: "#3b82f6", // blue-500
-    colorPrimaryActive: "#1d4ed8", // blue-700
-    colorLink: "#2563eb",
-  },
-  gradient3: {
-    // Orange theme
-    colorPrimary: "#ea580c", // orange-600
-    colorPrimaryHover: "#f97316", // orange-500
-    colorPrimaryActive: "#c2410c", // orange-700
-    colorLink: "#ea580c",
-  },
-  gradient4: {
-    // Green theme
-    colorPrimary: "#16a34a", // green-600
-    colorPrimaryHover: "#22c55e", // green-500
-    colorPrimaryActive: "#15803d", // green-700
-    colorLink: "#16a34a",
-  },
-  gradient5: {
-    // Pink theme
-    colorPrimary: "#db2777", // pink-600
-    colorPrimaryHover: "#ec4899", // pink-500
-    colorPrimaryActive: "#be185d", // pink-700
-    colorLink: "#db2777",
-  },
-  gradient6: {
-    // Gray theme
-    colorPrimary: "#4b5563", // gray-600
-    colorPrimaryHover: "#6b7280", // gray-500
-    colorPrimaryActive: "#374151", // gray-700
-    colorLink: "#4b5563",
-  },
-};
-
-const overlayTokenMap: Record<string, OverlayPalette> = {
-  solid: createOverlayPalette({
-    lightBg: "#ffffff",
-    darkBg: "#1f1f1f",
-    lightHoverBg: "#f5f5f5",
-    darkHoverBg: "#262626",
-    lightActiveBg: "#ededed",
-    darkActiveBg: "#333333",
-    lightBorderColor: "#e5e5e5",
-    darkBorderColor: "#2a2a2a",
-    lightShadow: "0 20px 50px rgba(15, 23, 42, 0.12)",
-    darkShadow: "0 25px 60px rgba(0, 0, 0, 0.75)",
-  }),
-  gradient1: createOverlayPalette({
-    lightBg: "rgba(250, 245, 255, 0.95)",
-    darkBg: "rgba(26, 11, 46, 0.9)",
-    lightHoverBg: "rgba(147, 51, 234, 0.08)",
-    darkHoverBg: "rgba(168, 85, 247, 0.25)",
-    lightActiveBg: "rgba(147, 51, 234, 0.18)",
-    darkActiveBg: "rgba(168, 85, 247, 0.4)",
-    lightBorderColor: "rgba(167, 139, 250, 0.45)",
-    darkBorderColor: "rgba(168, 85, 247, 0.45)",
-    lightShadow: "0 25px 60px rgba(147, 51, 234, 0.25)",
-    darkShadow: "0 30px 70px rgba(7, 3, 14, 0.85)",
-  }),
-  gradient2: createOverlayPalette({
-    lightBg: "rgba(239, 246, 255, 0.95)",
-    darkBg: "rgba(11, 26, 46, 0.9)",
-    lightHoverBg: "rgba(37, 99, 235, 0.1)",
-    darkHoverBg: "rgba(59, 130, 246, 0.25)",
-    lightActiveBg: "rgba(37, 99, 235, 0.18)",
-    darkActiveBg: "rgba(59, 130, 246, 0.38)",
-    lightBorderColor: "rgba(96, 165, 250, 0.45)",
-    darkBorderColor: "rgba(59, 130, 246, 0.45)",
-    lightShadow: "0 25px 60px rgba(37, 99, 235, 0.25)",
-    darkShadow: "0 30px 70px rgba(3, 8, 18, 0.85)",
-  }),
-  gradient3: createOverlayPalette({
-    lightBg: "rgba(255, 247, 237, 0.95)",
-    darkBg: "rgba(46, 26, 11, 0.9)",
-    lightHoverBg: "rgba(234, 88, 12, 0.12)",
-    darkHoverBg: "rgba(249, 115, 22, 0.25)",
-    lightActiveBg: "rgba(234, 88, 12, 0.2)",
-    darkActiveBg: "rgba(249, 115, 22, 0.4)",
-    lightBorderColor: "rgba(251, 146, 60, 0.4)",
-    darkBorderColor: "rgba(249, 115, 22, 0.45)",
-    lightShadow: "0 25px 60px rgba(234, 88, 12, 0.25)",
-    darkShadow: "0 30px 70px rgba(18, 6, 2, 0.85)",
-  }),
-  gradient4: createOverlayPalette({
-    lightBg: "rgba(240, 253, 244, 0.95)",
-    darkBg: "rgba(11, 46, 26, 0.9)",
-    lightHoverBg: "rgba(22, 163, 74, 0.1)",
-    darkHoverBg: "rgba(34, 197, 94, 0.22)",
-    lightActiveBg: "rgba(22, 163, 74, 0.18)",
-    darkActiveBg: "rgba(34, 197, 94, 0.35)",
-    lightBorderColor: "rgba(74, 222, 128, 0.4)",
-    darkBorderColor: "rgba(34, 197, 94, 0.45)",
-    lightShadow: "0 25px 60px rgba(22, 163, 74, 0.22)",
-    darkShadow: "0 30px 70px rgba(4, 14, 8, 0.85)",
-  }),
-  gradient5: createOverlayPalette({
-    lightBg: "rgba(253, 242, 248, 0.95)",
-    darkBg: "rgba(46, 11, 26, 0.9)",
-    lightHoverBg: "rgba(219, 39, 119, 0.1)",
-    darkHoverBg: "rgba(236, 72, 153, 0.25)",
-    lightActiveBg: "rgba(219, 39, 119, 0.2)",
-    darkActiveBg: "rgba(236, 72, 153, 0.38)",
-    lightBorderColor: "rgba(244, 114, 182, 0.4)",
-    darkBorderColor: "rgba(236, 72, 153, 0.45)",
-    lightShadow: "0 25px 60px rgba(219, 39, 119, 0.25)",
-    darkShadow: "0 30px 70px rgba(18, 2, 8, 0.85)",
-  }),
-  gradient6: createOverlayPalette({
-    lightBg: "rgba(249, 250, 251, 0.95)",
-    darkBg: "rgba(26, 26, 26, 0.9)",
-    lightHoverBg: "rgba(75, 85, 99, 0.08)",
-    darkHoverBg: "rgba(107, 114, 128, 0.2)",
-    lightActiveBg: "rgba(75, 85, 99, 0.16)",
-    darkActiveBg: "rgba(107, 114, 128, 0.32)",
-    lightBorderColor: "rgba(148, 163, 184, 0.4)",
-    darkBorderColor: "rgba(107, 114, 128, 0.45)",
-    lightShadow: "0 25px 60px rgba(15, 23, 42, 0.2)",
-    darkShadow: "0 30px 70px rgba(0, 0, 0, 0.8)",
-  }),
-};
+import useBackgroundMode from "./useBackgroundMode";
+import { ACCENT_COLORS } from "@/constants/accent";
 
 /**
- * 根据当前背景类型和深色模式返回 antd 主题 token
+ * antd 主题 token — 全部从 accent 预设与中性表面体系派生,无 per-theme 硬编码。
  */
 const useAntdThemeToken = () => {
-  const backgroundType = useSettingStore(
-    (state) => state.setting.appearance?.backgroundType || "solid",
-  );
+  const { accent } = useBackgroundMode();
   const { isDark } = useTheme();
 
-  const currentTheme = themeTokenMap[backgroundType] || themeTokenMap.solid;
-  const isSolid = backgroundType === "solid";
-  const overlayPalette =
-    overlayTokenMap[backgroundType] || overlayTokenMap.solid;
-  const overlayTokens = isDark ? overlayPalette.dark : overlayPalette.light;
+  const accentPair = ACCENT_COLORS[accent] ?? ACCENT_COLORS.indigo;
+  const colorPrimary = isDark ? accentPair[1] : accentPair[0];
 
-  // 根据是否为渐变模式和深色模式返回不同的 token
+  const isSolid = true;
+
+  const overlayTokens = {
+    background: isDark ? "#212428" : "#ffffff",
+    hoverBackground: isDark
+      ? "rgba(255, 255, 255, 0.08)"
+      : "rgba(0, 0, 0, 0.05)",
+    activeBackground: isDark
+      ? "rgba(255, 255, 255, 0.14)"
+      : "rgba(0, 0, 0, 0.09)",
+    borderColor: isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.1)",
+    textColor: isDark ? "#f0f1f3" : "#1f2430",
+    secondaryTextColor: isDark ? "#b4b8c0" : "#565d6b",
+    shadow: isDark
+      ? "0 10px 30px rgba(0, 0, 0, 0.55)"
+      : "0 10px 30px rgba(15, 23, 42, 0.14)",
+    dropdownShadow: isDark
+      ? "0 10px 22px rgba(0, 0, 0, 0.58)"
+      : "0 6px 14px rgba(15, 23, 42, 0.12)",
+  };
+
   const token = {
     // 主色
-    colorPrimary: currentTheme.colorPrimary,
-    colorLink: currentTheme.colorLink,
-    colorLinkHover: currentTheme.colorPrimaryHover,
-    colorLinkActive: currentTheme.colorPrimaryActive,
+    colorPrimary,
+    colorLink: colorPrimary,
 
-    // 背景色 - 渐变模式使用透明背景
+    // 背景色 — 柔光模式下容器半透明,配合毛玻璃
     ...(isSolid
       ? {
-          // 纯色模式
-          colorBgContainer: isDark ? "#141414" : "#ffffff",
-          colorBgElevated: isDark ? "#1f1f1f" : "#ffffff",
-          colorBgLayout: isDark ? "#0a0a0a" : "#f5f5f5",
-          colorBgSpotlight: isDark ? "#2a2a2a" : "#f0f0f0",
+          colorBgContainer: isDark ? "#1d2024" : "#ffffff",
+          colorBgElevated: isDark ? "#212428" : "#ffffff",
+          colorBgLayout: isDark ? "#16181b" : "#f2f3f5",
+          colorBgSpotlight: isDark ? "#272a2f" : "#e9eaee",
         }
       : {
-          // 渐变模式 - 使用半透明背景
           colorBgContainer: isDark
-            ? "rgba(0, 0, 0, 0.3)"
-            : "rgba(255, 255, 255, 0.5)",
+            ? "rgba(30, 33, 37, 0.6)"
+            : "rgba(255, 255, 255, 0.6)",
           colorBgElevated: isDark
-            ? "rgba(0, 0, 0, 0.6)"
-            : "rgba(255, 255, 255, 0.9)",
+            ? "rgba(33, 36, 40, 0.85)"
+            : "rgba(255, 255, 255, 0.85)",
           colorBgLayout: "transparent",
           colorBgSpotlight: isDark
             ? "rgba(255, 255, 255, 0.1)"
@@ -252,14 +60,14 @@ const useAntdThemeToken = () => {
         }),
 
     // 边框色
-    colorBorder: isDark ? "#2a2a2a" : "#e5e5e5",
-    colorBorderSecondary: isDark ? "#1f1f1f" : "#f0f0f0",
+    colorBorder: isDark ? "#33373d" : "#e2e4e9",
+    colorBorderSecondary: isDark ? "#26292e" : "#eceef1",
 
     // 文字色
-    colorText: isDark ? "#e5e5e5" : "#262626",
-    colorTextSecondary: isDark ? "#a3a3a3" : "#737373",
-    colorTextTertiary: isDark ? "#737373" : "#a3a3a3",
-    colorTextQuaternary: isDark ? "#525252" : "#d4d4d4",
+    colorText: isDark ? "#eceef1" : "#22262e",
+    colorTextSecondary: isDark ? "#b4b8c0" : "#565d6b",
+    colorTextTertiary: isDark ? "#8a8f99" : "#878e9a",
+    colorTextQuaternary: isDark ? "#5c616b" : "#c3c7ce",
 
     // 圆角
     borderRadius: 8,
