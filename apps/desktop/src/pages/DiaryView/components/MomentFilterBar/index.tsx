@@ -221,8 +221,8 @@ const MomentFilterBar = memo(
       <div
         className="absolute left-0 top-[calc(100%+10px)] z-30 w-[360px] rounded-xl border p-3 shadow-[0_18px_45px_rgba(15,23,42,0.16)]"
         style={{
-          borderColor: "var(--th-card-border)",
-          background: "var(--th-modal)",
+          borderColor: "var(--th-border)",
+          background: "var(--th-bg-elevated)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -268,7 +268,7 @@ const MomentFilterBar = memo(
                 style={{
                   borderColor: isActive
                     ? themeColors.accentColor
-                    : "var(--th-card-border)",
+                    : "var(--th-border)",
                   background: isActive
                     ? colorWithAlpha(themeColors.accentColor || "#1890ff", 0.12)
                     : isDarkMode
@@ -283,10 +283,7 @@ const MomentFilterBar = memo(
           })}
         </div>
 
-        <div
-          className="my-3 h-px"
-          style={{ background: "var(--th-card-border)" }}
-        />
+        <div className="my-3 h-px" style={{ background: "var(--th-border)" }} />
 
         <div
           className="mb-2 text-[11px] font-medium"
@@ -335,8 +332,8 @@ const MomentFilterBar = memo(
       <div
         className="absolute left-0 top-[calc(100%+10px)] z-30 w-[280px] rounded-xl border p-2 shadow-[0_18px_45px_rgba(15,23,42,0.16)]"
         style={{
-          borderColor: "var(--th-card-border)",
-          background: "var(--th-modal)",
+          borderColor: "var(--th-border)",
+          background: "var(--th-bg-elevated)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -385,7 +382,7 @@ const MomentFilterBar = memo(
                   style={{
                     borderColor: isActive
                       ? themeColors.accentColor
-                      : "var(--th-card-border)",
+                      : "var(--th-border)",
                     background: isActive
                       ? themeColors.accentColor
                       : "transparent",
@@ -421,7 +418,7 @@ const MomentFilterBar = memo(
                 ? themeColors.accentColor
                 : isDarkMode
                   ? "rgba(255, 255, 255, 0.12)"
-                  : "var(--th-card-border)",
+                  : "var(--th-border)",
               background: isDarkMode
                 ? "rgba(255, 255, 255, 0.06)"
                 : "var(--th-input-bg)",
@@ -465,7 +462,7 @@ const MomentFilterBar = memo(
               style={{
                 borderColor: hasDateFilter
                   ? themeColors.accentColor
-                  : "var(--th-card-border)",
+                  : "var(--th-border)",
                 background: hasDateFilter
                   ? colorWithAlpha(themeColors.accentColor || "#1890ff", 0.1)
                   : "transparent",
@@ -500,7 +497,7 @@ const MomentFilterBar = memo(
                 style={{
                   borderColor: hasTagFilter
                     ? themeColors.accentColor
-                    : "var(--th-card-border)",
+                    : "var(--th-border)",
                   background: hasTagFilter
                     ? colorWithAlpha(themeColors.accentColor || "#1890ff", 0.1)
                     : "transparent",

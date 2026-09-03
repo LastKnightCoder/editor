@@ -1,388 +1,195 @@
 /*
- * Theme Color System — OKLCH
+ * Theme Token System — 中性表面 + 单一 Accent
  *
- * Gradient themes share formulas derived from --th-h (hue) and --th-c (chroma).
- * The solid theme overrides all variables with explicit values.
- * Dark mode is handled by .dark class on :root — no dark: prefix needed in Tailwind.
+ * 设计原则(参考 Raycast / Linear):
+ *   - 表面层(页面/卡片/浮层)全部中性,靠亮度分层,不随主题染色
+ *   - 色彩只出现在 accent(选中/主按钮/焦点)与语义状态色
+ *   - accent 由每个预设的 h/c/l 三个输入经公式派生全套变体
+ *
+ * 暗色模式由 html 上的 .dark class 切换(:root.dark)。
  */
 
 /* ========================================================================
-   Gradient theme — light mode formulas
+   Light — 中性表面与文字
    ======================================================================== */
 :root {
-  --th-h: 300;
-  --th-c: 0.22;
+  /* 表面(亮度分层) */
+  --th-bg-page: oklch(0.972 0.0035 255);
+  --th-card-bg: oklch(1 0 0);
+  --th-bg-elevated: oklch(1 0 0);
+  --th-bg-hover: oklch(0.5 0.02 258 / 0.07);
+  --th-input-bg: oklch(0.965 0.0035 255);
+  --th-glass: oklch(1 0 0 / 0.75);
 
-  /* Derived chroma scales */
-  --th-c80: calc(var(--th-c) * 0.8);
-  --th-c60: calc(var(--th-c) * 0.6);
-  --th-c50: calc(var(--th-c) * 0.5);
-  --th-c40: calc(var(--th-c) * 0.4);
-  --th-c30: calc(var(--th-c) * 0.3);
-  --th-c15: calc(var(--th-c) * 0.15);
-  --th-c12: calc(var(--th-c) * 0.12);
+  /* 文字 */
+  --th-text: oklch(0.26 0.014 262);
+  --th-text-secondary: oklch(0.5 0.016 260);
+  --th-text-tertiary: oklch(0.63 0.014 258);
 
-  /* Interactive */
-  --th-hover-bg: oklch(0.55 var(--th-c) var(--th-h) / 0.1);
-  --th-active-bg: oklch(0.55 var(--th-c) var(--th-h) / 0.2);
-  --th-active-text: oklch(0.38 var(--th-c) var(--th-h));
-  --th-hover-text: oklch(0.45 var(--th-c) var(--th-h));
+  /* 边框 */
+  --th-border: oklch(0.905 0.004 255);
+  --th-border-hover: oklch(0.84 0.005 255);
+  --th-border-focus: oklch(
+    var(--th-accent-l) var(--th-accent-c) var(--th-accent-h)
+  );
+  --th-divide: oklch(0.93 0.0035 255);
 
-  /* Borders */
-  --th-border: oklch(0.83 var(--th-c40) var(--th-h) / 0.3);
-  --th-divide: oklch(0.83 var(--th-c40) var(--th-h) / 0.3);
-  --th-border-hover: oklch(0.75 var(--th-c50) var(--th-h) / 0.5);
-  --th-border-focus: oklch(0.55 var(--th-c) var(--th-h) / 0.6);
-  --th-border-active: oklch(0.55 var(--th-c) var(--th-h) / 0.4);
+  /* 标签 */
+  --th-tag-bg: oklch(0.955 0.0035 255);
+  --th-tag-text: oklch(0.5 0.016 260);
 
-  /* Focus ring (full shadow value) */
-  --th-focus-ring:
-    inset 0 2px 4px oklch(0 0 0 / 0.05),
-    0 0 0 3px oklch(0.55 var(--th-c) var(--th-h) / 0.15);
+  /* 状态色 */
+  --th-success: oklch(0.55 0.13 152);
+  --th-warning: oklch(0.63 0.14 70);
+  --th-danger: oklch(0.55 0.19 27);
+  --th-info: oklch(0.55 0.13 245);
 
-  /* Active state gradient */
-  --th-active-from: oklch(0.55 var(--th-c) var(--th-h) / 0.2);
-  --th-active-to: oklch(0.97 var(--th-c15) var(--th-h));
+  /* 其它 */
+  --th-overlay: oklch(0.25 0.015 260 / 0.45);
+  --th-shadow-sm: 0 1px 2px oklch(0.3 0.02 260 / 0.06);
+  --th-shadow-md:
+    0 2px 4px oklch(0.3 0.02 260 / 0.05), 0 6px 16px oklch(0.3 0.02 260 / 0.08);
 
-  /* Badge */
-  --th-badge-active: oklch(0.93 var(--th-c30) var(--th-h) / 0.6);
-
-  /* Icons */
-  --th-icon-from: oklch(0.93 var(--th-c30) var(--th-h));
-  --th-icon-to: oklch(0.87 var(--th-c40) var(--th-h));
-  --th-icon-deep-from: oklch(0.5 var(--th-c) var(--th-h));
-  --th-icon-deep-to: oklch(0.45 var(--th-c) var(--th-h));
-  --th-icon-text: oklch(0.45 var(--th-c) var(--th-h));
-  --th-icon-hover: oklch(0.55 var(--th-c) var(--th-h) / 0.1);
-
-  /* Gradient decoration */
-  --th-gradient-from: oklch(0.55 var(--th-c) var(--th-h));
-  --th-gradient-via: oklch(0.65 var(--th-c80) var(--th-h));
-  --th-gradient-to: oklch(0.55 var(--th-c) var(--th-h));
-
-  /* Buttons */
-  --th-btn-bg: oklch(0.45 var(--th-c) var(--th-h) / 0.8);
-  --th-btn-text: oklch(0.99 0.002 var(--th-h));
-  --th-btn-hover: oklch(0.4 var(--th-c) var(--th-h) / 0.9);
-  --th-btn-active: oklch(0.35 var(--th-c) var(--th-h) / 0.95);
-
-  /* Inputs */
-  --th-input-bg: oklch(0.97 var(--th-c12) var(--th-h) / 0.5);
-
-  /* Chat */
-  --th-chat-msg: oklch(0.97 var(--th-c15) var(--th-h));
-  --th-chat-input: oklch(0.97 var(--th-c12) var(--th-h) / 0.8);
-  --th-chat-input-border: transparent;
-
-  /* Tags */
-  --th-tag-count: oklch(0.93 var(--th-c30) var(--th-h) / 0.6);
-  --th-tag-bg: oklch(0.93 var(--th-c30) var(--th-h) / 0.6);
-  --th-tag-hover: oklch(0.87 var(--th-c40) var(--th-h) / 0.7);
-  --th-tag-text: oklch(0.38 var(--th-c) var(--th-h));
-
-  /* Text */
-  --th-text: oklch(0.37 0.008 var(--th-h));
-  --th-text-secondary: oklch(0.55 0.005 var(--th-h));
-
-  /* Cards */
-  --th-card-bg: oklch(0.97 var(--th-c15) var(--th-h));
-  --th-card-border: oklch(0.83 var(--th-c40) var(--th-h) / 0.3);
-  --th-pinned-from: oklch(0.55 var(--th-c) var(--th-h) / 0.2);
-  --th-pinned-to: oklch(0.97 var(--th-c15) var(--th-h));
-  --th-pinned-border: oklch(0.55 var(--th-c) var(--th-h) / 0.4);
-
-  /* Panels */
-  --th-glass: oklch(0.97 var(--th-c15) var(--th-h) / 0.95);
-  --th-modal: oklch(0.97 var(--th-c15) var(--th-h));
-
-  /* Misc */
-  --th-quote: oklch(0 0 0 / 0.05);
-  --th-badge-bg: oklch(0.45 var(--th-c) var(--th-h) / 0.8);
-  --th-badge-text: oklch(0.99 0.002 var(--th-h));
+  /* ===== Accent 派生(light:深色文字用较低亮度) ===== */
+  --th-accent: oklch(var(--th-accent-l) var(--th-accent-c) var(--th-accent-h));
+  --th-accent-hover: oklch(
+    calc(var(--th-accent-l) - 0.06) var(--th-accent-c) var(--th-accent-h)
+  );
+  --th-accent-active: oklch(
+    calc(var(--th-accent-l) - 0.11) var(--th-accent-c) var(--th-accent-h)
+  );
+  --th-accent-soft: oklch(
+    var(--th-accent-l) var(--th-accent-c) var(--th-accent-h) / 0.12
+  );
+  --th-active-text: oklch(
+    calc(var(--th-accent-l) - 0.08) var(--th-accent-c) var(--th-accent-h)
+  );
+  --th-hover-text: oklch(
+    calc(var(--th-accent-l) - 0.08) var(--th-accent-c) var(--th-accent-h)
+  );
+  --th-btn-bg: oklch(var(--th-accent-l) var(--th-accent-c) var(--th-accent-h));
+  --th-btn-hover: oklch(
+    calc(var(--th-accent-l) - 0.06) var(--th-accent-c) var(--th-accent-h)
+  );
+  --th-btn-active: oklch(
+    calc(var(--th-accent-l) - 0.11) var(--th-accent-c) var(--th-accent-h)
+  );
+  --th-btn-text: oklch(0.995 0.002 var(--th-accent-h));
+  --th-focus-ring: 0 0 0 3px
+    oklch(var(--th-accent-l) var(--th-accent-c) var(--th-accent-h) / 0.22);
 }
 
 /* ========================================================================
-   Gradient theme — dark mode formulas
+   Dark — 表面亮度抬升,accent 提亮
    ======================================================================== */
 :root.dark {
-  /* Interactive */
-  --th-hover-bg: oklch(0.72 var(--th-c) var(--th-h) / 0.15);
-  --th-active-bg: oklch(0.72 var(--th-c) var(--th-h) / 0.25);
-  --th-active-text: oklch(0.88 var(--th-c50) var(--th-h));
-  --th-hover-text: oklch(0.72 var(--th-c) var(--th-h));
+  --th-bg-page: oklch(0.165 0.008 262);
+  --th-card-bg: oklch(0.205 0.009 262);
+  --th-bg-elevated: oklch(0.245 0.01 262);
+  --th-bg-hover: oklch(0.78 0.015 262 / 0.1);
+  --th-input-bg: oklch(0.185 0.008 262);
+  --th-glass: oklch(0.22 0.01 262 / 0.72);
 
-  /* Borders */
-  --th-border: oklch(0.72 var(--th-c) var(--th-h) / 0.2);
-  --th-divide: oklch(0.72 var(--th-c) var(--th-h) / 0.2);
-  --th-border-hover: oklch(0.72 var(--th-c) var(--th-h) / 0.3);
-  --th-border-focus: oklch(0.72 var(--th-c) var(--th-h) / 0.5);
-  --th-border-active: oklch(0.72 var(--th-c) var(--th-h) / 0.4);
+  --th-text: oklch(0.93 0.008 262);
+  --th-text-secondary: oklch(0.7 0.012 262);
+  --th-text-tertiary: oklch(0.54 0.012 262);
 
-  /* Focus ring */
-  --th-focus-ring:
-    inset 0 2px 4px oklch(0 0 0 / 0.2),
-    0 0 0 3px oklch(0.72 var(--th-c) var(--th-h) / 0.25);
+  --th-border: oklch(0.315 0.012 262);
+  --th-border-hover: oklch(0.4 0.014 262);
+  --th-border-focus: oklch(
+    calc(var(--th-accent-l) + 0.17) calc(var(--th-accent-c) * 0.85)
+      var(--th-accent-h)
+  );
+  --th-divide: oklch(0.28 0.01 262);
 
-  /* Active state gradient */
-  --th-active-from: oklch(0.72 var(--th-c) var(--th-h) / 0.2);
-  --th-active-to: oklch(0.15 var(--th-c40) var(--th-h) / 0.6);
+  --th-tag-bg: oklch(0.26 0.01 262);
+  --th-tag-text: oklch(0.7 0.012 262);
 
-  /* Badge */
-  --th-badge-active: oklch(0.25 var(--th-c60) var(--th-h) / 0.4);
+  --th-success: oklch(0.72 0.15 152);
+  --th-warning: oklch(0.79 0.15 75);
+  --th-danger: oklch(0.68 0.18 25);
+  --th-info: oklch(0.7 0.13 245);
 
-  /* Icons */
-  --th-icon-from: oklch(0.25 var(--th-c50) var(--th-h) / 0.4);
-  --th-icon-to: oklch(0.28 var(--th-c40) var(--th-h) / 0.4);
-  --th-icon-deep-from: oklch(0.45 var(--th-c80) var(--th-h) / 0.8);
-  --th-icon-deep-to: oklch(0.4 var(--th-c80) var(--th-h) / 0.8);
-  --th-icon-text: oklch(0.72 var(--th-c) var(--th-h));
-  --th-icon-hover: oklch(0.72 var(--th-c) var(--th-h) / 0.15);
+  --th-overlay: oklch(0 0 0 / 0.6);
+  --th-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.3);
+  --th-shadow-md: 0 4px 12px oklch(0 0 0 / 0.35), 0 8px 24px oklch(0 0 0 / 0.3);
 
-  /* Gradient decoration */
-  --th-gradient-from: oklch(0.45 var(--th-c) var(--th-h));
-  --th-gradient-via: oklch(0.55 var(--th-c80) var(--th-h));
-  --th-gradient-to: oklch(0.45 var(--th-c) var(--th-h));
-
-  /* Buttons */
-  --th-btn-bg: oklch(0.38 var(--th-c) var(--th-h) / 0.8);
-  --th-btn-text: oklch(0.92 var(--th-c15) var(--th-h));
-  --th-btn-hover: oklch(0.45 var(--th-c) var(--th-h) / 0.9);
-  --th-btn-active: oklch(0.5 var(--th-c) var(--th-h) / 0.95);
-
-  /* Inputs */
-  --th-input-bg: oklch(0.15 var(--th-c30) var(--th-h) / 0.3);
-
-  /* Chat */
-  --th-chat-msg: oklch(0.15 var(--th-c40) var(--th-h) / 0.6);
-  --th-chat-input: oklch(0.15 var(--th-c30) var(--th-h) / 0.5);
-
-  /* Tags */
-  --th-tag-count: oklch(0.25 var(--th-c60) var(--th-h) / 0.4);
-  --th-tag-bg: oklch(0.25 var(--th-c60) var(--th-h) / 0.5);
-  --th-tag-hover: oklch(0.28 var(--th-c50) var(--th-h) / 0.6);
-  --th-tag-text: oklch(0.75 var(--th-c60) var(--th-h));
-
-  /* Text */
-  --th-text: oklch(0.78 0.008 var(--th-h));
-  --th-text-secondary: oklch(0.55 0.005 var(--th-h));
-
-  /* Cards */
-  --th-card-bg: oklch(0.15 var(--th-c40) var(--th-h) / 0.6);
-  --th-card-border: oklch(0.72 var(--th-c) var(--th-h) / 0.2);
-  --th-pinned-from: oklch(0.72 var(--th-c) var(--th-h) / 0.2);
-  --th-pinned-to: oklch(0.15 var(--th-c40) var(--th-h) / 0.6);
-  --th-pinned-border: oklch(0.72 var(--th-c) var(--th-h) / 0.4);
-
-  /* Panels */
-  --th-glass: oklch(0.12 var(--th-c30) var(--th-h) / 0.9);
-  --th-modal: oklch(0.12 var(--th-c30) var(--th-h));
-
-  /* Misc */
-  --th-quote: oklch(1 0 0 / 0.1);
-  --th-badge-bg: oklch(0.38 var(--th-c) var(--th-h) / 0.8);
-  --th-badge-text: oklch(0.92 var(--th-c15) var(--th-h));
+  /* ===== Accent 派生(dark:提亮,按钮文字用深色) ===== */
+  --th-accent: oklch(
+    calc(var(--th-accent-l) + 0.17) calc(var(--th-accent-c) * 0.85)
+      var(--th-accent-h)
+  );
+  --th-accent-hover: oklch(
+    calc(var(--th-accent-l) + 0.21) calc(var(--th-accent-c) * 0.85)
+      var(--th-accent-h)
+  );
+  --th-accent-active: oklch(
+    calc(var(--th-accent-l) + 0.13) calc(var(--th-accent-c) * 0.85)
+      var(--th-accent-h)
+  );
+  --th-accent-soft: oklch(
+    calc(var(--th-accent-l) + 0.17) calc(var(--th-accent-c) * 0.85)
+      var(--th-accent-h) / 0.2
+  );
+  --th-active-text: oklch(
+    calc(var(--th-accent-l) + 0.24) calc(var(--th-accent-c) * 0.7)
+      var(--th-accent-h)
+  );
+  --th-hover-text: oklch(
+    calc(var(--th-accent-l) + 0.24) calc(var(--th-accent-c) * 0.7)
+      var(--th-accent-h)
+  );
+  --th-btn-bg: oklch(
+    calc(var(--th-accent-l) + 0.17) calc(var(--th-accent-c) * 0.85)
+      var(--th-accent-h)
+  );
+  --th-btn-hover: oklch(
+    calc(var(--th-accent-l) + 0.21) calc(var(--th-accent-c) * 0.85)
+      var(--th-accent-h)
+  );
+  --th-btn-active: oklch(
+    calc(var(--th-accent-l) + 0.13) calc(var(--th-accent-c) * 0.85)
+      var(--th-accent-h)
+  );
+  --th-btn-text: oklch(0.18 0.015 var(--th-accent-h));
+  --th-focus-ring: 0 0 0 3px
+    oklch(
+      calc(var(--th-accent-l) + 0.17) calc(var(--th-accent-c) * 0.85)
+        var(--th-accent-h) / 0.28
+    );
 }
 
 /* ========================================================================
-   Gradient theme hue/chroma definitions
+   Accent 预设 — 每个预设只有 h / c / l 三个输入
    ======================================================================== */
-:root[data-accent="gradient1"] {
-  --th-h: 300;
-  --th-c: 0.22;
-} /* Purple */
-:root[data-accent="gradient2"] {
-  --th-h: 255;
-  --th-c: 0.18;
-} /* Blue */
-:root[data-accent="gradient3"] {
-  --th-h: 55;
-  --th-c: 0.16;
-} /* Orange */
-:root[data-accent="gradient4"] {
-  --th-h: 150;
-  --th-c: 0.18;
-} /* Green */
-:root[data-accent="gradient5"] {
-  --th-h: 340;
-  --th-c: 0.2;
-} /* Pink */
-:root[data-accent="gradient6"] {
-  --th-h: 250;
-  --th-c: 0.02;
-} /* Gray */
-:root[data-accent="gradient7"] {
-  --th-h: 195;
-  --th-c: 0.14;
-} /* Cyan */
-:root[data-accent="gradient8"] {
-  --th-h: 75;
-  --th-c: 0.15;
-} /* Amber */
-:root[data-accent="gradient9"] {
-  --th-h: 25;
-  --th-c: 0.2;
-} /* Red */
-
-/* ========================================================================
-   Solid theme — light mode (overrides formula-derived values)
-   ======================================================================== */
-:root[data-accent="solid"] {
-  /* Interactive */
-  --th-hover-bg: oklch(0.95 0.003 250);
-  --th-active-bg: oklch(0.92 0.003 250);
-  --th-active-text: oklch(0.13 0.01 250);
-  --th-hover-text: oklch(0.13 0.01 250);
-
-  /* Borders */
-  --th-border: oklch(0.94 0.003 250);
-  --th-divide: oklch(0.94 0.003 250);
-  --th-border-hover: oklch(0.92 0.003 250);
-  --th-border-focus: oklch(0.94 0.003 250);
-  --th-border-active: oklch(0.75 0.005 250);
-
-  /* Focus ring */
-  --th-focus-ring:
-    inset 0 2px 4px oklch(0 0 0 / 0.05), 0 0 0 3px oklch(0.5 0.01 250 / 0.15);
-
-  /* Active state gradient */
-  --th-active-from: oklch(1 0.003 250);
-  --th-active-to: oklch(0.97 0.005 250);
-
-  /* Badge */
-  --th-badge-active: oklch(0.95 0.003 250);
-
-  /* Icons */
-  --th-icon-from: oklch(0.95 0.005 250);
-  --th-icon-to: oklch(0.88 0.01 250);
-  --th-icon-deep-from: oklch(0.35 0.01 250);
-  --th-icon-deep-to: oklch(0.3 0.01 250);
-  --th-icon-text: oklch(0.37 0.01 250);
-  --th-icon-hover: oklch(0.95 0.003 250);
-
-  /* Gradient decoration */
-  --th-gradient-from: oklch(0.55 0.01 250);
-  --th-gradient-via: oklch(0.62 0.008 250);
-  --th-gradient-to: oklch(0.55 0.01 250);
-
-  /* Buttons */
-  --th-btn-bg: oklch(0.16 0.01 250);
-  --th-btn-text: oklch(0.99 0 0);
-  --th-btn-hover: oklch(0.22 0.01 250);
-  --th-btn-active: oklch(0.28 0.01 250);
-
-  /* Inputs */
-  --th-input-bg: oklch(0.97 0.003 250);
-
-  /* Chat */
-  --th-chat-msg: oklch(0.97 0.003 250 / 0.8);
-  --th-chat-input: oklch(0.99 0 0);
-  --th-chat-input-border: oklch(0.9 0.005 250);
-
-  /* Tags */
-  --th-tag-count: oklch(0.95 0.003 250);
-  --th-tag-bg: oklch(0.95 0.003 250);
-  --th-tag-hover: oklch(0.88 0.005 250);
-  --th-tag-text: oklch(0.37 0.01 250);
-
-  /* Text */
-  --th-text: oklch(0.44 0.008 250);
-  --th-text-secondary: oklch(0.62 0.005 250);
-
-  /* Cards */
-  --th-card-bg: oklch(0.97 0.003 250 / 0.8);
-  --th-card-border: oklch(0.88 0.005 250 / 0.6);
-  --th-pinned-from: oklch(0.87 0.005 250 / 0.5);
-  --th-pinned-to: oklch(0.97 0.003 250 / 0.8);
-  --th-pinned-border: oklch(0.75 0.005 250);
-
-  /* Panels */
-  --th-glass: oklch(0.99 0.002 250 / 0.95);
-  --th-modal: oklch(0.99 0.002 250);
-
-  /* Misc */
-  --th-quote: oklch(0.95 0.003 250);
-  --th-badge-bg: oklch(0.55 0.1 255);
-  --th-badge-text: oklch(0.99 0 0);
+:root,
+:root[data-accent="indigo"] {
+  --th-accent-h: 265;
+  --th-accent-c: 0.17;
+  --th-accent-l: 0.55;
 }
-
-/* ========================================================================
-   Solid theme — dark mode
-   ======================================================================== */
-:root[data-accent="solid"].dark {
-  /* Interactive */
-  --th-hover-bg: oklch(0.27 0.005 250);
-  --th-active-bg: oklch(0.32 0.005 250);
-  --th-active-text: oklch(0.93 0.005 250);
-  --th-hover-text: oklch(0.93 0.005 250);
-
-  /* Borders */
-  --th-border: oklch(0.22 0.005 250);
-  --th-divide: oklch(0.22 0.005 250);
-  --th-border-hover: oklch(0.28 0.005 250);
-  --th-border-focus: oklch(0.22 0.005 250);
-  --th-border-active: oklch(0.37 0.005 250);
-
-  /* Focus ring */
-  --th-focus-ring:
-    inset 0 2px 4px oklch(0 0 0 / 0.2), 0 0 0 3px oklch(0.6 0.01 250 / 0.25);
-
-  /* Active state gradient */
-  --th-active-from: oklch(0.25 0.01 250);
-  --th-active-to: oklch(0.18 0.01 250);
-
-  /* Badge */
-  --th-badge-active: oklch(0.27 0.005 250);
-
-  /* Icons */
-  --th-icon-from: oklch(0.25 0.008 250 / 0.4);
-  --th-icon-to: oklch(0.32 0.008 250 / 0.4);
-  --th-icon-deep-from: oklch(0.42 0.005 250 / 0.6);
-  --th-icon-deep-to: oklch(0.37 0.005 250 / 0.6);
-  --th-icon-text: oklch(0.75 0.005 250);
-  --th-icon-hover: oklch(0.27 0.005 250);
-
-  /* Gradient decoration */
-  --th-gradient-from: oklch(0.45 0.01 250);
-  --th-gradient-via: oklch(0.52 0.008 250);
-  --th-gradient-to: oklch(0.45 0.01 250);
-
-  /* Buttons — inverted for solid dark (light bg, dark text) */
-  --th-btn-bg: oklch(0.93 0.005 250);
-  --th-btn-text: oklch(0.13 0.01 250);
-  --th-btn-hover: oklch(0.88 0.005 250);
-  --th-btn-active: oklch(0.83 0.005 250);
-
-  /* Inputs */
-  --th-input-bg: oklch(0.1 0.005 250);
-
-  /* Chat */
-  --th-chat-msg: oklch(0.27 0.005 250 / 0.7);
-  --th-chat-input: oklch(0.27 0.005 250 / 0.7);
-  --th-chat-input-border: oklch(0.35 0.005 250 / 0.6);
-
-  /* Tags */
-  --th-tag-count: oklch(0.27 0.005 250);
-  --th-tag-bg: oklch(0.27 0.005 250);
-  --th-tag-hover: oklch(0.32 0.005 250);
-  --th-tag-text: oklch(0.75 0.005 250);
-
-  /* Text */
-  --th-text: oklch(0.62 0.005 250);
-  --th-text-secondary: oklch(0.52 0.005 250);
-
-  /* Cards */
-  --th-card-bg: oklch(0.27 0.005 250 / 0.7);
-  --th-card-border: oklch(0.35 0.005 250 / 0.6);
-  --th-pinned-from: oklch(0.25 0.01 250 / 0.5);
-  --th-pinned-to: oklch(0.18 0.01 250 / 0.5);
-  --th-pinned-border: oklch(0.37 0.005 250);
-
-  /* Panels */
-  --th-glass: oklch(0.27 0.005 250 / 0.65);
-  --th-modal: oklch(0.27 0.005 250);
-
-  /* Misc */
-  --th-quote: oklch(0.27 0.005 250);
-  --th-badge-bg: oklch(0.55 0.1 255);
-  --th-badge-text: oklch(0.99 0 0);
+:root[data-accent="violet"] {
+  --th-accent-h: 295;
+  --th-accent-c: 0.19;
+  --th-accent-l: 0.56;
+}
+:root[data-accent="rose"] {
+  --th-accent-h: 15;
+  --th-accent-c: 0.19;
+  --th-accent-l: 0.58;
+}
+:root[data-accent="emerald"] {
+  --th-accent-h: 160;
+  --th-accent-c: 0.135;
+  --th-accent-l: 0.54;
+}
+:root[data-accent="amber"] {
+  --th-accent-h: 70;
+  --th-accent-c: 0.15;
+  --th-accent-l: 0.63;
+}
+:root[data-accent="graphite"] {
+  --th-accent-h: 255;
+  --th-accent-c: 0.012;
+  --th-accent-l: 0.52;
 }

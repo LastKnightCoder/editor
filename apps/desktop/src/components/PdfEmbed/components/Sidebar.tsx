@@ -470,7 +470,7 @@ const NotesTab = ({
             <div
               className={classNames(
                 "px-2.5 py-2 pl-3 border-l-[3px] rounded-r-md mb-2.5",
-                themeColors.quoteBgClass,
+                "bg-[var(--th-bg-hover)]",
                 themeColors.focusBorderClass,
               )}
             >

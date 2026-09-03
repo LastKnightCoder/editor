@@ -165,7 +165,7 @@ const GroupForm = memo(
               "px-6 py-2 text-sm font-medium rounded-lg transition-colors",
               value.trim() || initialData?.isDefault
                 ? classNames(themeColors.buttonBg, themeColors.buttonTextClass)
-                : classNames(themeColors.tagCountBg, "cursor-not-allowed"),
+                : classNames(themeColors.tagBgClass, "cursor-not-allowed"),
             )}
           >
             {submitText}

@@ -27,20 +27,20 @@
 .overviewSlide {
   position: relative;
   height: 160px;
-  background-color: var(--main-bg-color);
+  background-color: var(--th-bg-page);
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
-  border: 2px solid var(--line-color);
+  border: 2px solid var(--th-border);
   transition: border-color 0.2s ease;
   box-sizing: border-box;
 
   &.active {
-    border: 2px solid var(--active-text-color);
+    border: 2px solid var(--th-active-text);
   }
 
   &:hover {
-    border: 2px solid var(--active-text-color);
+    border: 2px solid var(--th-active-text);
   }
 }
 
@@ -73,7 +73,7 @@
   bottom: 5px;
   right: 10px;
   font-size: 0.8rem;
-  color: var(--text-normal);
+  color: var(--th-text);
   background-color: rgba(var(--main-bg-color-rgb), 0.7);
   padding: 2px 6px;
   border-radius: 10px;

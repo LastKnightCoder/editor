@@ -66,7 +66,7 @@ const DivideLineElement: React.FC<PropsWithChildren<DivideLineProps>> = (
       {isOverCurrent && canDrop && isBefore && (
         <div
           className="absolute -top-[0.625em] left-0 right-0 h-[0.125em]"
-          style={{ backgroundColor: "var(--active-text-color)" }}
+          style={{ backgroundColor: "var(--th-active-text)" }}
         />
       )}
 
@@ -92,12 +92,12 @@ const DivideLineElement: React.FC<PropsWithChildren<DivideLineProps>> = (
         )}
         onClick={dragHandlerProps.onClick}
       >
-        <MdDragIndicator className="-translate-y-0.5 text-(--text-normal)" />
+        <MdDragIndicator className="-translate-y-0.5 text-(--th-text)" />
       </div>
       {isOverCurrent && canDrop && !isBefore && (
         <div
           className="absolute bottom-[0.375em] left-0 right-0 h-[0.125em]"
-          style={{ backgroundColor: "var(--active-text-color)" }}
+          style={{ backgroundColor: "var(--th-active-text)" }}
         />
       )}
       <EditorContextMenu {...menuProps} readonly={readOnly} />

@@ -5,8 +5,6 @@ import { CloseOutlined } from "@ant-design/icons";
 import { ITab } from "@/types/tab";
 import useTabStore from "@/stores/useTabStore";
 import useThemeColors from "@/hooks/useThemeColors";
-import useBackgroundMode from "@/hooks/useBackgroundMode";
-import useSettingStore from "@/stores/useSettingStore";
 
 interface DraggableTabProps {
   tab: ITab;
@@ -63,77 +61,10 @@ const DraggableTab = memo((props: DraggableTabProps) => {
   const reorderTabGroup = useTabStore((state) => state.reorderTabGroup);
   const moveTabGroupToTab = useTabStore((state) => state.moveTabGroupToTab);
   const { hoverClass, divideClass } = useThemeColors();
-  const { backgroundType } = useBackgroundMode();
-  const isDarkMode = useSettingStore((state) => state.setting.darkMode);
 
-  // 获取 active 状态的背景色类（纯色，类似 hover 但稍深）
-  const getActiveClass = () => {
-    if (backgroundType === "solid") {
-      return "bg-gray-100 dark:bg-zinc-800";
-    }
-    const themeMap: Record<string, string> = {
-      gradient1: "bg-purple-500/[0.18] dark:bg-purple-400/[0.22]",
-      gradient2: "bg-blue-500/[0.18] dark:bg-blue-400/[0.22]",
-      gradient3: "bg-orange-500/[0.18] dark:bg-orange-400/[0.22]",
-      gradient4: "bg-green-500/[0.18] dark:bg-green-400/[0.22]",
-      gradient5: "bg-pink-500/[0.18] dark:bg-pink-400/[0.22]",
-      gradient6: "bg-gray-500/[0.18] dark:bg-gray-400/[0.22]",
-      gradient7: "bg-cyan-500/[0.18] dark:bg-cyan-400/[0.22]",
-      gradient8: "bg-amber-500/[0.18] dark:bg-amber-400/[0.22]",
-      gradient9: "bg-red-500/[0.18] dark:bg-red-400/[0.22]",
-    };
-    return themeMap[backgroundType] || themeMap.gradient1;
-  };
-
-  // 根据主题获取激活 tab 的背景色（用于圆弧）
-  const getActiveTabBgColor = () => {
-    if (backgroundType === "solid") {
-      return isDarkMode ? "rgba(39, 39, 42, 1)" : "rgba(243, 244, 246, 1)"; // zinc-800 : gray-100
-    }
-    // 使用和 active 背景一致的颜色（xxx-500/18% 或 xxx-400/22%）
-    const themeColors: Record<string, { light: string; dark: string }> = {
-      gradient1: {
-        light: "rgba(168, 85, 247, 0.18)",
-        dark: "rgba(192, 132, 252, 0.22)",
-      },
-      gradient2: {
-        light: "rgba(59, 130, 246, 0.18)",
-        dark: "rgba(96, 165, 250, 0.22)",
-      },
-      gradient3: {
-        light: "rgba(249, 115, 22, 0.18)",
-        dark: "rgba(251, 146, 60, 0.22)",
-      },
-      gradient4: {
-        light: "rgba(34, 197, 94, 0.18)",
-        dark: "rgba(74, 222, 128, 0.22)",
-      },
-      gradient5: {
-        light: "rgba(236, 72, 153, 0.18)",
-        dark: "rgba(244, 114, 182, 0.22)",
-      },
-      gradient6: {
-        light: "rgba(107, 114, 128, 0.18)",
-        dark: "rgba(156, 163, 175, 0.22)",
-      },
-      gradient7: {
-        light: "rgba(6, 182, 212, 0.18)",
-        dark: "rgba(34, 211, 238, 0.22)",
-      },
-      gradient8: {
-        light: "rgba(245, 158, 11, 0.18)",
-        dark: "rgba(251, 191, 36, 0.22)",
-      },
-      gradient9: {
-        light: "rgba(239, 68, 68, 0.18)",
-        dark: "rgba(248, 113, 113, 0.22)",
-      },
-    };
-    const theme = themeColors[backgroundType] || themeColors.gradient1;
-    return isDarkMode ? theme.dark : theme.light;
-  };
-
-  const activeTabBgColor = getActiveTabBgColor();
+  // 激活 tab 背景:accent 淡色;圆弧直接内嵌同一 CSS 变量
+  const getActiveClass = () => "bg-[var(--th-accent-soft)]";
+  const activeTabBgColor = "var(--th-accent-soft)";
 
   const [{ isDragging }, drag] = useDrag<
     TabDragItem,

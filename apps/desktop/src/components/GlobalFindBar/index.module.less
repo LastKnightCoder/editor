@@ -7,16 +7,16 @@
   align-items: center;
   min-height: 38px;
   padding: 4px 5px 4px 10px;
-  color: var(--text-normal);
-  background: var(--main-bg-color);
-  border: 1px solid var(--line-color);
+  color: var(--th-text);
+  background: var(--th-bg-page);
+  border: 1px solid var(--th-border);
   border-radius: 7px;
   box-shadow: 0 4px 8px rgb(15 23 42 / 14%);
 }
 
 .searchIcon {
   flex: none;
-  color: var(--text-secondary, #64748b);
+  color: var(--th-text-secondary, #64748b);
 }
 
 .input {
@@ -31,7 +31,7 @@
 }
 
 .input::placeholder {
-  color: var(--text-secondary, #64748b);
+  color: var(--th-text-secondary, #64748b);
   opacity: 1;
 }
 
@@ -42,7 +42,7 @@
 .resultCount {
   min-width: 58px;
   padding: 0 6px;
-  color: var(--text-secondary, #64748b);
+  color: var(--th-text-secondary, #64748b);
   font-size: 12px;
   text-align: right;
   white-space: nowrap;
@@ -64,7 +64,7 @@
 
 .iconButton:hover:not(:disabled) {
   color: var(--th-hover-text);
-  background: var(--th-hover-bg);
+  background: var(--th-bg-hover);
 }
 
 .iconButton:focus-visible {
@@ -81,7 +81,7 @@
   width: 1px;
   height: 18px;
   margin: 0 3px;
-  background: var(--line-color);
+  background: var(--th-border);
 }
 
 @media (max-width: 520px) {

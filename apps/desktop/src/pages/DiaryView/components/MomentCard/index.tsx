@@ -201,8 +201,8 @@ export const TagEditor = ({
             bottom: "auto",
             marginTop: 8,
             transform: "translateX(-100%)",
-            borderColor: "var(--th-card-border)",
-            background: "var(--th-modal)",
+            borderColor: "var(--th-border)",
+            background: "var(--th-bg-elevated)",
           } as AnchorPositionStyle
         }
         onClick={(e) => e.stopPropagation()}
@@ -280,7 +280,7 @@ export const TagEditor = ({
           <div
             className="mb-3 rounded-lg border border-dashed px-3 py-2 text-xs"
             style={{
-              borderColor: "var(--th-card-border)",
+              borderColor: "var(--th-border)",
               color: "var(--th-text-secondary)",
             }}
           >
@@ -291,7 +291,7 @@ export const TagEditor = ({
         {editingColorFor && (
           <div
             className="mb-3 rounded-lg p-2"
-            style={{ background: "var(--th-hover-bg)" }}
+            style={{ background: "var(--th-bg-hover)" }}
           >
             <div
               className="mb-2 text-[11px]"
@@ -347,7 +347,7 @@ export const TagEditor = ({
           <>
             <div
               className="my-3 h-px"
-              style={{ background: "var(--th-card-border)" }}
+              style={{ background: "var(--th-border)" }}
             />
             <div className="mb-2 flex items-center justify-between">
               <span
@@ -544,7 +544,7 @@ const MomentCard = memo(
         {/* 中列：竖线 + 圆点 */}
         <div className="relative flex justify-center">
           {!isLast && (
-            <span className="absolute bottom-[-1rem] top-3 w-px bg-[var(--th-card-border)]" />
+            <span className="absolute bottom-[-1rem] top-3 w-px bg-[var(--th-border)]" />
           )}
           <span
             className="relative z-[1] mt-3 h-2 w-2 shrink-0 rounded-full"

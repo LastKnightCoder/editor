@@ -200,7 +200,7 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
           </div>
           {!readonly && !column.readonly && (
             <Dropdown menu={{ items: moreMenuItems }} trigger={["hover"]}>
-              <div className="w-4 h-4 text-[12px] p-1 cursor-pointer hover:bg-(--common-hover-bg) rounded-full flex items-center justify-center shrink-0">
+              <div className="w-4 h-4 text-[12px] p-1 cursor-pointer hover:bg-(--th-bg-hover) rounded-full flex items-center justify-center shrink-0">
                 <MoreOutlined />
               </div>
             </Dropdown>

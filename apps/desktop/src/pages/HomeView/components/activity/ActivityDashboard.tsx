@@ -108,7 +108,7 @@ const ActivityDashboard: React.FC<ActivityDashboardProps> = ({
               metric={metric}
             />
           </div>
-          <div className="shrink-0 rounded-xl p-4 bg-[var(--th-hover-bg)] @3xl:self-center">
+          <div className="shrink-0 rounded-xl p-4 bg-[var(--th-bg-hover)] @3xl:self-center">
             <div
               className={classNames(
                 "mb-3 text-xs font-medium",

@@ -61,7 +61,7 @@ const CommentCard: React.FC<CommentCardProps> = ({
         <div
           className={classNames(
             "mb-2 rounded-r-md border-l-4 px-3 py-2 text-xs leading-relaxed wrap-break-word",
-            themeColors.quoteBgClass,
+            "bg-[var(--th-bg-hover)]",
             themeColors.textClass,
           )}
           style={{ borderLeftColor: accentColor }}

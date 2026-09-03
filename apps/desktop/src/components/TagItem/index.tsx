@@ -42,7 +42,7 @@ const areEqual = (prevProps: ITagItemProps, nextProps: ITagItemProps) => {
 const TagItem = memo((props: ITagItemProps) => {
   const [open, setOpen] = useState(false);
   const { item, onClickTag, activeTag } = props;
-  const { hoverClass, activeClass, tagCountBg, textClass, activeTextClass } =
+  const { hoverClass, activeClass, tagBgClass, textClass, activeTextClass } =
     useThemeColors();
 
   const { children, tag, cardIds } = item;
@@ -92,7 +92,7 @@ const TagItem = memo((props: ITagItemProps) => {
           {tag}
         </div>
         <div
-          className={classnames(styles.tagCount, tagCountBg)}
+          className={classnames(styles.tagCount, tagBgClass)}
           onClick={handleClickTagCount}
         >
           {cardIds.length}

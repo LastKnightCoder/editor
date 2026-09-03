@@ -1,5 +1,4 @@
-@import "./themes/dark.less";
-@import "./themes/light.less";
+@import "./themes/overlay.less";
 
 .app-region-drag {
   -webkit-app-region: drag;
@@ -29,20 +28,20 @@ body {
   --mono-font: monospace;
   --font-size: 16px;
   --block-distance: 1.25em;
-  --sidebar-bg: var(--primary-bg-color);
-  --right-sidebar-bg: var(--primary-bg-color);
-  --search-tips-bg: var(--primary-bg-color);
-  --card-item-bg: var(--primary-bg-color);
-  --block-panel-bg: var(--primary-bg-color);
+  --sidebar-bg: var(--th-bg-page);
+  --right-sidebar-bg: var(--th-bg-page);
+  --search-tips-bg: var(--th-bg-page);
+  --card-item-bg: var(--th-bg-page);
+  --block-panel-bg: var(--th-bg-page);
   font-family: var(--font);
-  color: var(--text-normal);
+  color: var(--th-text);
   font-size: var(--font-size);
   padding: 0;
   margin: 0;
 }
 
 ::selection {
-  background: var(--selection-color);
+  background: var(--th-accent-soft);
 }
 
 pre,
@@ -65,13 +64,13 @@ code {
 
 &::-webkit-scrollbar-track {
   border-radius: 4px;
-  background: var(--scroller-track-background-color);
+  background: var(--th-bg-hover);
   -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.08);
 }
 
 &::-webkit-scrollbar-thumb {
   border-radius: 3px;
-  background: var(--scroller-thumb-background-color);
+  background: var(--th-border-hover);
   -webkit-box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
 }
 
@@ -123,13 +122,13 @@ code {
   }
 
   .CodeMirror-gutters {
-    border-right: 1px solid var(--border-color);
+    border-right: 1px solid var(--th-border);
     padding-right: 10px;
   }
 
   .CodeMirror-linenumber {
     cursor: pointer;
-    color: var(--text-muted);
+    color: var(--th-text-tertiary);
     padding: 0 8px 0 5px;
   }
 
@@ -138,10 +137,10 @@ code {
   }
 
   .CodeMirror-selected {
-    background: var(--selection-color);
+    background: var(--th-accent-soft);
   }
 
   .CodeMirror-activeline-background {
-    background: var(--selection-color);
+    background: var(--th-accent-soft);
   }
 }

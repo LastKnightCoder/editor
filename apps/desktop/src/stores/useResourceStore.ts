@@ -9,8 +9,14 @@ import {
   deleteResourceGroup,
   moveResourceToGroup,
   updateResourceName,
+  deleteResources,
 } from "@/commands";
 import { produce } from "immer";
+import type {
+  ResourceSortBy,
+  ResourceSortOrder,
+  ResourceViewMode,
+} from "@/pages/ResourceManagement/constants";
 
 export enum EStatus {
   UN_INIT,
@@ -37,6 +43,12 @@ interface IState {
   selectedGroupId: number | null;
   selectedSystemFilter: SystemFilterType | null;
   searchKeyword: string;
+  // 多选集合(批量操作)
+  selectedResourceIds: number[];
+  // 视图与排序(持久化)
+  viewMode: ResourceViewMode;
+  sortBy: ResourceSortBy;
+  sortOrder: ResourceSortOrder;
   // 展开状态
   expandedSystemGroups: string[];
   expandedUserGroups: number[];
@@ -62,6 +74,15 @@ interface IAction {
   setSelectedSystemFilter: (filter: SystemFilterType | null) => void;
   setSearchKeyword: (keyword: string) => void;
   refreshResources: () => Promise<void>;
+  // 多选
+  toggleResourceSelected: (id: number) => void;
+  setSelectedResourceIds: (ids: number[]) => void;
+  clearResourceSelection: () => void;
+  deleteResources: (ids: number[]) => Promise<number>;
+  // 视图与排序
+  setViewMode: (mode: ResourceViewMode) => void;
+  setSortBy: (by: ResourceSortBy) => void;
+  setSortOrder: (order: ResourceSortOrder) => void;
   // 展开状态管理
   toggleSystemGroup: (groupKey: string) => void;
   toggleUserGroup: (groupId: number) => void;
@@ -78,6 +99,10 @@ const useResourceStore = create<IState & IAction>()(
       selectedGroupId: null,
       selectedSystemFilter: null,
       searchKeyword: "",
+      selectedResourceIds: [],
+      viewMode: "grid",
+      sortBy: "updateTime",
+      sortOrder: "desc",
       expandedSystemGroups: [],
       expandedUserGroups: [],
       expandedUngrouped: true,
@@ -191,6 +216,52 @@ const useResourceStore = create<IState & IAction>()(
         set({ searchKeyword: keyword });
       },
 
+      toggleResourceSelected: (id) => {
+        const { selectedResourceIds } = get();
+        set({
+          selectedResourceIds: selectedResourceIds.includes(id)
+            ? selectedResourceIds.filter((rid) => rid !== id)
+            : [...selectedResourceIds, id],
+        });
+      },
+
+      setSelectedResourceIds: (ids) => {
+        set({ selectedResourceIds: ids });
+      },
+
+      clearResourceSelection: () => {
+        set({ selectedResourceIds: [] });
+      },
+
+      deleteResources: async (ids) => {
+        const deleted = await deleteResources(ids);
+        const { resources, selectedResourceId, selectedResourceIds } = get();
+        const idSet = new Set(ids);
+        set({
+          resources: resources.filter((r) => !idSet.has(r.id)),
+          selectedResourceIds: selectedResourceIds.filter(
+            (rid) => !idSet.has(rid),
+          ),
+          selectedResourceId:
+            selectedResourceId !== null && idSet.has(selectedResourceId)
+              ? null
+              : selectedResourceId,
+        });
+        return deleted;
+      },
+
+      setViewMode: (mode) => {
+        set({ viewMode: mode });
+      },
+
+      setSortBy: (by) => {
+        set({ sortBy: by });
+      },
+
+      setSortOrder: (order) => {
+        set({ sortOrder: order });
+      },
+
       refreshResources: async () => {
         const resources = await getAllResources();
         set({ resources });
@@ -223,6 +294,9 @@ const useResourceStore = create<IState & IAction>()(
         expandedSystemGroups: state.expandedSystemGroups,
         expandedUserGroups: state.expandedUserGroups,
         expandedUngrouped: state.expandedUngrouped,
+        viewMode: state.viewMode,
+        sortBy: state.sortBy,
+        sortOrder: state.sortOrder,
       }),
     },
   ),
