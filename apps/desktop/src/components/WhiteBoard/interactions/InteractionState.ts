@@ -21,6 +21,7 @@ export interface InteractionState {
 
   onPointerMove?(event: PointerEvent, board: Board): void;
   onPointerUp?(event: PointerEvent, board: Board): void;
+  onGlobalPointerUp?(event: PointerEvent, board: Board): void;
   onKeyDown?(event: KeyboardEvent, board: Board): void;
   onKeyUp?(event: KeyboardEvent, board: Board): void;
 }

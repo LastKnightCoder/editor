@@ -358,6 +358,7 @@ class Board {
   }
 
   onGlobalPointerUp(event: PointerEvent) {
+    this.interactions.routeGlobalPointerUp(event);
     const fns = this.plugins
       .map(bindHandler("onGlobalPointerUp"))
       .filter(isValid);

@@ -2,6 +2,7 @@ import type Board from "../Board";
 import type { InteractionState } from "./InteractionState";
 import { DraggingState } from "./states/DraggingState";
 import { KeyboardMoveState } from "./states/KeyboardMoveState";
+import { SelectingState } from "./states/SelectingState";
 
 /**
  * 交互内核：输入手势的唯一裁决与路由层。
@@ -28,15 +29,24 @@ export class InteractionManager {
   }
 
   /**
-   * pointerdown 广播完整执行后调用：裁决本次按下是否开启指针手势。
-   * 必须在广播之后（而非之前）仲裁，因为拖拽判定依赖选择插件在
+   * pointerdown 广播完整执行后调用：裁决本次按下开启哪种指针手势。
+   * 必须在广播之后（而非之前）仲裁，因为手势判定依赖选择插件在
    * pointerdown 阶段同步更新的选区状态。
+   * 仲裁顺序（原注册顺序的显式化）：先选择手势（记录命中 + 更新选区），
+   * 再在其内部尝试挂接拖拽阶段；选择手势守卫退出（如创建序列模式）时
+   * 拖拽仍可独立开启。
    */
   tryStartPointerGesture(event: PointerEvent): void {
     if (this.pointerState) return;
-    const state = DraggingState.tryStart(this.board, event);
-    if (state) {
-      this.pointerState = state;
+    const selecting = SelectingState.tryStart(this.board, event);
+    if (selecting) {
+      selecting.attachDrag(DraggingState.tryStart(this.board, event));
+      this.pointerState = selecting;
+      return;
+    }
+    const dragging = DraggingState.tryStart(this.board, event);
+    if (dragging) {
+      this.pointerState = dragging;
     }
   }
 
@@ -44,12 +54,22 @@ export class InteractionManager {
     this.pointerState?.onPointerMove?.(event, this.board);
   }
 
-  /** 指针手势在 pointerup 处理完成后销毁 */
   routePointerUp(event: PointerEvent): void {
     const state = this.pointerState;
     if (!state) return;
     state.onPointerUp?.(event, this.board);
-    this.exitPointerState();
+    if (state.isFinished) {
+      this.exitPointerState();
+    }
+  }
+
+  routeGlobalPointerUp(event: PointerEvent): void {
+    const state = this.pointerState;
+    if (!state) return;
+    state.onGlobalPointerUp?.(event, this.board);
+    if (state.isFinished) {
+      this.exitPointerState();
+    }
   }
 
   routeKeyDown(event: KeyboardEvent): void {
