@@ -266,6 +266,21 @@ export class DraggingState implements InteractionState {
   }
 
   /**
+   * 获取参与拖入/拖出判定的容器：排除正随拖动集合移动的容器自身。
+   * 运动中的容器与鼠标的相对位置恒定（如全选拖动时从 Column 内部按下），
+   * "鼠标在容器内"是拖动集合自身造成的伪状态，会把集合外的元素误判为拖入。
+   */
+  private getDropTargetContainers(
+    board: Board,
+    movedElements: BoardElement[],
+  ): BoardElement[] {
+    const movingIds = new Set(movedElements.map((element) => element.id));
+    return this.getDragContainers(board).filter(
+      (container) => !movingIds.has(container.id),
+    );
+  }
+
+  /**
    * Column 不允许被包含，永远在根层；构建 childId -> Column 的索引用于拖拽过程的特殊处理。
    */
   private getColumnChildMap(board: Board): Map<string, ColumnElement> {
@@ -555,8 +570,8 @@ export class DraggingState implements InteractionState {
 
     const capService = board.capabilityService;
 
-    // 使用能力检测获取所有容器元素（Frame/Column 等）
-    const containers = this.getDragContainers(board);
+    // 使用能力检测获取所有容器元素（Frame/Column 等），排除随拖动集合移动的容器
+    const containers = this.getDropTargetContainers(board, movedElements);
     if (containers.length === 0) {
       this.clearAllContainerDragState(board);
       return;
@@ -807,8 +822,8 @@ export class DraggingState implements InteractionState {
 
     const capService = board.capabilityService;
 
-    // 获取所有容器元素（Frame/Column 等）
-    const containers = this.getDragContainers(board);
+    // 获取所有容器元素（Frame/Column 等），排除随拖动集合移动的容器
+    const containers = this.getDropTargetContainers(board, movedElements);
 
     if (containers.length === 0) {
       return;
