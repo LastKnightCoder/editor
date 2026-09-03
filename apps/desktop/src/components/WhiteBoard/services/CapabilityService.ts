@@ -159,22 +159,36 @@ export class CapabilityService {
       return false;
     }
 
-    // 检查子元素是否可以被此类型容器包含
-    if (childCaps.canBeContainedBy && !childCaps.canBeContainedBy(container)) {
-      return false;
-    }
-
     // 检查容器的包含能力
     switch (containerCaps.asContainer) {
       case ContainmentBehavior.None:
         return false;
       case ContainmentBehavior.Any:
+        // Any 容器（如 frame）接受一切可被包含的元素，由容器方黑名单兜底；
+        // 子方 canBeContainedBy 声明只用于向 Restricted 容器 opt-in，
+        // 不构成对 Any 容器的排他限制
         return containerCaps.canContain?.(child) ?? true;
       case ContainmentBehavior.Restricted:
+        // Restricted 容器（如 column/mind-node）的准入由子方声明反转决定，
+        // 子方未声明时回退容器方的 canContain
+        if (childCaps.canBeContainedBy) {
+          return childCaps.canBeContainedBy(container);
+        }
         return containerCaps.canContain?.(child) ?? false;
       default:
         return false;
     }
+  }
+
+  /**
+   * 检查元素能否被指定类型的容器包含（无需真实容器实例，
+   * 供创建流程等尚无容器元素的场合预判准入）。
+   */
+  canBeContainedByType(element: BoardElement, containerType: string): boolean {
+    return this.canContain(
+      { id: "", type: containerType } as BoardElement,
+      element,
+    );
   }
 
   // ===========================================================================

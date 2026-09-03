@@ -18,7 +18,6 @@ import {
   MovementBehavior,
   ChildrenRenderOrder,
 } from "../types/capabilities";
-import { COLUMN_ALLOWED_CHILDREN } from "../types/column";
 import { ARROW_CONNECT_ID } from "../constants";
 import { CommonPlugin } from "./CommonPlugin";
 import { ColumnUtil, PathUtil, BoardUtil } from "../utils";
@@ -35,11 +34,8 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
       containment: {
         asContainer: ContainmentBehavior.Restricted,
         canBeContained: false,
-        canContain: (child: BoardElement) => {
-          return COLUMN_ALLOWED_CHILDREN.includes(
-            child.type as (typeof COLUMN_ALLOWED_CHILDREN)[number],
-          );
-        },
+        // 准入由子方声明反转决定：各元素在自己的 canBeContainedBy 中
+        // 声明可入 column（见 CapabilityService.canContain 的 Restricted 分支）
 
         // 容器协议实现
         isElementInContainer: (

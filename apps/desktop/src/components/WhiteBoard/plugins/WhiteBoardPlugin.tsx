@@ -49,6 +49,8 @@ export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
       containment: {
         asContainer: ContainmentBehavior.None,
         canBeContained: true,
+        // 58f0660e53ef5165 ColumnFf0851c651654e0e542675315b5065b958f0660e53cd8f6c51b35b9aFf0c89c1 CapabilityService.canContainFf09
+        canBeContainedBy: (container) => container.type === "column",
       },
       movement: { behavior: MovementBehavior.Normal },
       render: {

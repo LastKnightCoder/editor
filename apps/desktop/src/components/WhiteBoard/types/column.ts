@@ -70,14 +70,3 @@ export const columnTheme = {
     dragPreviewStroke: "rgba(96, 165, 250, 0.5)",
   },
 } as const;
-
-export const COLUMN_ALLOWED_CHILDREN = [
-  "richtext",
-  "card",
-  "image",
-  "video",
-  "audio",
-  "whiteboard",
-] as const;
-
-export type ColumnAllowedChildType = (typeof COLUMN_ALLOWED_CHILDREN)[number];

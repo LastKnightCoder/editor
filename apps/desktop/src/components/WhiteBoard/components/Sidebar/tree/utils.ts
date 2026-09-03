@@ -17,14 +17,8 @@ export const canDropElementIntoParent = (
   child: BoardElement,
 ): boolean => {
   if (!parent) return true;
-
-  const capService = board.capabilityService;
-  if (!capService.canContain(parent, child)) return false;
-
-  const containment = capService.getContainmentCapability(child.type);
-  return containment.canBeContainedBy
-    ? containment.canBeContainedBy(parent)
-    : true;
+  // 准入（含子方 canBeContainedBy 声明）由 canContain 统一裁决
+  return board.capabilityService.canContain(parent, child);
 };
 
 export const simulateChildrenAfterOps = (
