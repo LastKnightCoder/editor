@@ -516,6 +516,16 @@ export class CapabilityService {
     const caps = this.getContainmentCapability(container.type);
     return caps.isDropFeedbackActive?.(container) ?? false;
   }
+
+  /**
+   * 重算容器的外包 bounds（无声明返回 null，表示容器不自适应）
+   */
+  calculateContainerBounds(
+    container: BoardElement,
+  ): { x: number; y: number; width: number; height: number } | null {
+    const caps = this.getContainmentCapability(container.type);
+    return caps.calculateBounds?.(this.board, container) ?? null;
+  }
 }
 
 export default CapabilityService;

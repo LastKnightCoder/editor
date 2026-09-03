@@ -5,7 +5,6 @@ import {
   Selection,
   EHandlerPosition,
   Point,
-  FrameElement,
   CustomOffset,
 } from "../types";
 import {
@@ -14,7 +13,6 @@ import {
   getResizedBBox,
   PathUtil,
   BoardUtil,
-  FrameUtil,
   Rect,
   isValid,
 } from "../utils";
@@ -266,10 +264,12 @@ export abstract class CommonPlugin implements IBoardPlugin {
     if (!path) return;
 
     let childRects: Rect[] = [];
-    // 使用能力查询判断是否是容器，而非类型硬编码
+    // 容器整体参与参考线：子元素边界也不显示为参考线（能力查询，无类型硬编码）
     const capService = board.capabilityService;
     if (capService.isContainer(newElement)) {
-      childRects = (newElement as FrameElement).children
+      childRects = capService
+        .collectMoveSubtree(newElement)
+        .slice(1)
         .map((child) => {
           if (
             "x" in child &&
@@ -346,23 +346,23 @@ export abstract class CommonPlugin implements IBoardPlugin {
 
   protected onResizeEnd(board: Board) {
     if (!this.originResizeElement) return;
-    // 获取当前元素的 parent，如果 parent 是容器，则需要更新容器的 bounds
+    // 获取当前元素的 parent，如果 parent 是自适应容器（如 Frame），
+    // 则按容器能力重算 bounds（Column 等有序容器由自身 relayout 管理）
     const parent = BoardUtil.getParent(board, this.originResizeElement);
     const capService = board.capabilityService;
     if (parent && capService.isContainer(parent)) {
-      const frame = parent as FrameElement;
-      const newBounds = FrameUtil.calculateFrameBounds(board, frame);
-      const framePath = PathUtil.getPathByElement(board, frame);
-      if (framePath) {
+      const newBounds = capService.calculateContainerBounds(parent);
+      const parentPath = PathUtil.getPathByElement(board, parent);
+      if (newBounds && parentPath) {
         board.apply([
           {
             type: "set_node",
-            path: framePath,
+            path: parentPath,
             properties: {
-              x: frame.x,
-              y: frame.y,
-              width: frame.width,
-              height: frame.height,
+              x: parent.x,
+              y: parent.y,
+              width: parent.width,
+              height: parent.height,
             },
             newProperties: {
               x: newBounds.x,

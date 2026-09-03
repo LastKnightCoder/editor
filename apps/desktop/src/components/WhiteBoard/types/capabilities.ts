@@ -139,6 +139,15 @@ export interface IContainmentCapability {
    */
   isDropFeedbackActive?: (container: BoardElement) => boolean;
 
+  /**
+   * 重算容器的外包 bounds（子元素变化后容器自适应）。
+   * 返回 null 表示容器不自适应（如 Column 由 relayout 管理）。
+   */
+  calculateBounds?: (
+    board: Board,
+    container: BoardElement,
+  ) => { x: number; y: number; width: number; height: number } | null;
+
   // ============ 容器协议方法 ============
 
   /**
