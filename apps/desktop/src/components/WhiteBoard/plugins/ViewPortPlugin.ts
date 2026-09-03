@@ -72,15 +72,22 @@ export class ViewPortPlugin implements IBoardPlugin {
   }
 
   onKeyDown(e: KeyboardEvent, board: Board) {
+    // 画板接管的快捷键需同时阻止默认行为（Electron/Chromium 的窗口缩放角色
+    // 在 renderer 标记事件已处理后才触发）与冒泡（md 导入等功能监听在 window 层）
     if (isHotkey("mod+=", e)) {
+      e.preventDefault();
+      e.stopPropagation();
       const newZoom = Math.min(board.viewPort.zoom * 1.1, 10);
       ViewPortTransforms.updateZoom(board, newZoom);
     } else if (isHotkey("mod+-", e)) {
+      e.preventDefault();
+      e.stopPropagation();
       const newZoom = Math.max(board.viewPort.zoom / 1.1, 0.1);
       ViewPortTransforms.updateZoom(board, newZoom);
     } else if (isHotkey("mod+o", e)) {
       // 添加mod+o快捷键支持，用于全览
       e.preventDefault();
+      e.stopPropagation();
 
       // 获取当前选中的元素并创建副本
       const selectedElements = [...board.selection.selectedElements];
