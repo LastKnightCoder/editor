@@ -20,7 +20,6 @@ import RssPanel from "./components/RssPanel";
 import RecentActivity from "./components/RecentActivity";
 import ActivityDashboard from "./components/activity/ActivityDashboard";
 import DiaryTimelineSection from "./components/DiaryTimelineSection";
-import BadgePanel from "./components/BadgePanel";
 import { useTabContext } from "@/contexts/TabContext";
 import useTabStore from "@/stores/useTabStore";
 import type { PomodoroSession } from "@/types/pomodoro";
@@ -192,7 +191,6 @@ const HomePage: React.FC = () => {
                   loading={data.flashcardsLoading}
                   onRefresh={refreshFlashcards}
                 />
-                <BadgePanel />
                 <PomodoroPanel
                   todayStats={data.summary.pomodoroToday}
                   activeSession={data.activeSession}

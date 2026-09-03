@@ -67,7 +67,6 @@ export * from "./flashcard";
 export * from "./components-workbench";
 export * from "./resource-sync-blacklist";
 export * from "./publish";
-export * from "./badge";
 export type {
   TranscriptionOptions,
   TranscriptionSegment,

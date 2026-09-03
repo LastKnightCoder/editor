@@ -157,7 +157,7 @@ const initialState: IState = {
 
 initialState.activePaneId = initialState.panes[0].id;
 
-const TAB_STORE_VERSION = 5;
+const TAB_STORE_VERSION = 6;
 
 const createHomeTab = (): ITab<TabType.Home> => ({
   id: uuidv4(),
@@ -187,7 +187,12 @@ const migrateTabStoreState = (persistedState: unknown): IState => {
     const tabs = rawTabs
       .filter((tab) => {
         const type = tab.type as string;
-        return type !== "goals" && type !== "slides" && type !== "slideDetail";
+        return (
+          type !== "goals" &&
+          type !== "slides" &&
+          type !== "slideDetail" &&
+          type !== "badgeCenter"
+        );
       })
       .map((tab) => {
         const type = tab.type as string;

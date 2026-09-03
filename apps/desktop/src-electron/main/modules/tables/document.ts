@@ -19,7 +19,6 @@ import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
 import CardTable from "./card";
 import ArticleTable from "./article";
-import BadgeTable from "./badge";
 
 type TreeMovePosition = "top" | "bottom" | "inside";
 
@@ -394,20 +393,6 @@ export default class DocumentTable {
       Number(res.lastInsertRowid),
       Date.now(),
     );
-    BadgeTable.recordContentEvent(
-      db,
-      "document-item.created",
-      "document-item",
-      Number(res.lastInsertRowid),
-      now,
-    );
-    BadgeTable.recordContentEvent(
-      db,
-      "output.created",
-      "document-item",
-      Number(res.lastInsertRowid),
-      now,
-    );
 
     return [document, this.getDocumentItem(db, Number(res.lastInsertRowid))];
   }
@@ -461,20 +446,6 @@ export default class DocumentTable {
       "insert",
       Number(res.lastInsertRowid),
       Date.now(),
-    );
-    BadgeTable.recordContentEvent(
-      db,
-      "document-item.created",
-      "document-item",
-      Number(res.lastInsertRowid),
-      now,
-    );
-    BadgeTable.recordContentEvent(
-      db,
-      "output.created",
-      "document-item",
-      Number(res.lastInsertRowid),
-      now,
     );
 
     return [
@@ -1246,14 +1217,6 @@ export default class DocumentTable {
     );
 
     Operation.insertOperation(db, "document-item", "update", item.id, now);
-    BadgeTable.recordContentEvent(
-      db,
-      "output.created",
-      "document-item",
-      item.id,
-      now,
-      { source: "update" },
-    );
 
     BrowserWindow.getAllWindows().forEach((window) => {
       if (window !== win && !window.isDestroyed()) {

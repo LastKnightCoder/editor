@@ -14,7 +14,6 @@ import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
 import ProjectTable from "./project";
-import BadgeTable from "./badge";
 
 import log from "electron-log";
 
@@ -215,22 +214,6 @@ export default class CardTable {
     );
     const createdCardId = res.lastInsertRowid;
     Operation.insertOperation(db, "card", "insert", createdCardId, now);
-    if (category === ECardCategory.Permanent) {
-      BadgeTable.recordContentEvent(
-        db,
-        "card.permanent.created",
-        "card",
-        createdCardId,
-        now,
-      );
-    }
-    BadgeTable.recordContentEvent(
-      db,
-      "output.created",
-      "card",
-      createdCardId,
-      now,
-    );
 
     return this.getCardById(db, createdCardId) as ICard;
   }
@@ -263,22 +246,6 @@ export default class CardTable {
     const createdCardId = res.lastInsertRowid;
 
     Operation.insertOperation(db, "card", "insert", createdCardId, now);
-    BadgeTable.recordContentEvent(
-      db,
-      "card.permanent.created",
-      "card",
-      createdCardId,
-      now,
-      { source: "project-item" },
-    );
-    BadgeTable.recordContentEvent(
-      db,
-      "output.created",
-      "card",
-      createdCardId,
-      now,
-      { source: "project-item" },
-    );
     return this.getCardById(db, createdCardId) as ICard;
   }
 
@@ -289,7 +256,6 @@ export default class CardTable {
   ): ICard {
     const win: BrowserWindow = res[res.length - 1];
     const { tags, links, category, id, isTop } = card;
-    const previousCard = this.getCardById(db, id);
 
     // 更新card记录
     const stmt = db.prepare(
@@ -306,22 +272,6 @@ export default class CardTable {
     );
 
     Operation.insertOperation(db, "card", "update", card.id, now);
-    if (
-      category === ECardCategory.Permanent &&
-      previousCard?.category !== ECardCategory.Permanent
-    ) {
-      BadgeTable.recordContentEvent(
-        db,
-        "card.permanent.created",
-        "card",
-        id,
-        now,
-        { source: "category-change" },
-      );
-    }
-    BadgeTable.recordContentEvent(db, "output.created", "card", id, now, {
-      source: "update",
-    });
 
     BrowserWindow.getAllWindows().forEach((window) => {
       if (window !== win && !window.isDestroyed()) {
@@ -579,17 +529,6 @@ export default class CardTable {
     const cardId = res.lastInsertRowid;
     ContentTable.incrementRefCount(db, contentId);
     Operation.insertOperation(db, "card", "insert", cardId, now);
-    BadgeTable.recordContentEvent(
-      db,
-      "card.permanent.created",
-      "card",
-      cardId,
-      now,
-      { source: "content" },
-    );
-    BadgeTable.recordContentEvent(db, "output.created", "card", cardId, now, {
-      source: "content",
-    });
     return this.getCardById(db, cardId) as ICard;
   }
 

@@ -2,7 +2,6 @@ import Database from "better-sqlite3";
 import type { Descendant } from "slate";
 import Operation from "./operation";
 import ContentTable from "./content";
-import BadgeTable from "./badge";
 import { getContentLength } from "@/utils/helper.ts";
 import { getMarkdown } from "@/utils/markdown.ts";
 import log from "electron-log";
@@ -637,22 +636,6 @@ export default class DiaryTable {
     });
 
     Operation.insertOperation(db, "diary-entry", "insert", diaryId, now);
-    BadgeTable.recordContentEvent(
-      db,
-      "diary.created",
-      "diary-entry",
-      diaryId,
-      now,
-      { type: entry.type },
-    );
-    BadgeTable.recordContentEvent(
-      db,
-      "output.created",
-      "diary-entry",
-      diaryId,
-      now,
-      { type: entry.type },
-    );
 
     return this.getDiaryEntryById(db, diaryId);
   }
@@ -706,14 +689,6 @@ export default class DiaryTable {
     }
 
     Operation.insertOperation(db, "diary-entry", "update", entry.id, now);
-    BadgeTable.recordContentEvent(
-      db,
-      "output.created",
-      "diary-entry",
-      entry.id,
-      now,
-      { source: "update" },
-    );
 
     return this.getDiaryEntryById(db, entry.id);
   }
@@ -1016,14 +991,6 @@ export default class DiaryTable {
       diaryId,
     );
     Operation.insertOperation(db, "diary-entry", "update", diaryId, now);
-    BadgeTable.recordContentEvent(
-      db,
-      "output.created",
-      "diary-entry",
-      diaryId,
-      now,
-      { source: "new-segment" },
-    );
 
     const created = this.getDiarySegmentById(db, Number(res.lastInsertRowid));
     if (!created) {

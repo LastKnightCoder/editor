@@ -26,7 +26,6 @@ import VideoNoteTable from "./video-note";
 import AudioNoteTable from "./audio-note";
 import WhiteBoardContentTable from "./white-board-content";
 import WebLinkTable from "./web-link";
-import BadgeTable from "./badge";
 import { WebLinkSourceType } from "@/types";
 import VibeLearningResourceTable from "./vibe-learning-resource";
 import VibeLearningChatTable from "./vibe-learning-chat";
@@ -662,14 +661,6 @@ export default class ProjectTable {
     }
 
     Operation.insertOperation(db, "project-item", "update", item.id, now);
-    BadgeTable.recordContentEvent(
-      db,
-      "output.created",
-      "project-item",
-      item.id,
-      now,
-      { source: "update" },
-    );
 
     return this.getProjectItem(db, item.id);
   }
@@ -983,20 +974,6 @@ export default class ProjectTable {
 
     const createdItemId = Number(res.lastInsertRowid);
     Operation.insertOperation(db, "project-item", "insert", createdItemId, now);
-    BadgeTable.recordContentEvent(
-      db,
-      "project-item.created",
-      "project-item",
-      createdItemId,
-      now,
-    );
-    BadgeTable.recordContentEvent(
-      db,
-      "output.created",
-      "project-item",
-      createdItemId,
-      now,
-    );
 
     const project = this.getProject(db, projectId);
     project.children.push(createdItemId);
@@ -1050,20 +1027,6 @@ export default class ProjectTable {
 
     const createdItemId = Number(res.lastInsertRowid);
     Operation.insertOperation(db, "project-item", "insert", createdItemId, now);
-    BadgeTable.recordContentEvent(
-      db,
-      "project-item.created",
-      "project-item",
-      createdItemId,
-      now,
-    );
-    BadgeTable.recordContentEvent(
-      db,
-      "output.created",
-      "project-item",
-      createdItemId,
-      now,
-    );
 
     const currentChildren = new Set(parentProjectItem.children);
     currentChildren.add(createdItemId);
