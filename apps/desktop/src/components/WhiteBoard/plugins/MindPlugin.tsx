@@ -42,6 +42,7 @@ import {
   PathUtil,
   BoardUtil,
 } from "../utils";
+import { SelectTransforms } from "../transforms";
 import MindNode from "../components/MindNode";
 import { BOARD_TO_CONTAINER, getMindDragSourceId } from "../constants";
 import type { InteractionState } from "../interactions/InteractionState";
@@ -819,22 +820,8 @@ export class MindPlugin implements IBoardPlugin {
     };
 
     this.cancelScheduledPointerMove();
-    if (
-      board.selection.selectedElements.length > 0 ||
-      board.selection.selectArea
-    ) {
-      board.apply(
-        {
-          type: "set_selection",
-          properties: board.selection,
-          newProperties: {
-            selectedElements: [],
-            selectArea: null,
-          },
-        },
-        false,
-      );
-    }
+    // 注意：此处不清空选区——未越过拖拽阈值的点击要回落为点选语义，
+    // 清空选区的时机后移到拖拽真正开始时（updateDragPreview）。
 
     e.preventDefault();
     window.getSelection?.()?.removeAllRanges();
@@ -887,7 +874,7 @@ export class MindPlugin implements IBoardPlugin {
     }
   }
 
-  /** 拖拽收尾：提交落点或越界取消（原 onGlobalPointerUp 主体） */
+  /** 拖拽收尾：提交落点或越界取消；未构成拖拽的点击回落为点选（原 onGlobalPointerUp 主体） */
   finishDrag(e: PointerEvent, board: Board) {
     this.cancelScheduledPointerMove();
     if (!this.isPointerInsideBoard(board, e.clientX, e.clientY)) {
@@ -901,9 +888,40 @@ export class MindPlugin implements IBoardPlugin {
     }
     if (this.dragState.mode === "root-translate" && this.dragState.isDragging) {
       board.emit("element:move-end");
+    } else if (!this.dragState.isDragging) {
+      this.selectClickedNode(e, board);
     }
 
     this.cleanup();
+  }
+
+  /**
+   * 未越过拖拽阈值的点击：回落为点选语义，与其他元素的点击选中保持一致
+   * （ctrl/cmd 点击在多选中切换该节点）。
+   */
+  private selectClickedNode(e: PointerEvent, board: Board) {
+    const draggedNode = this.dragState.draggedNode;
+    if (!draggedNode) return;
+    const latestNode = BoardUtil.getElementById(board, draggedNode.id);
+    if (!latestNode || latestNode.type !== "mind-node") return;
+
+    const isMultiSelect = e.ctrlKey || e.metaKey;
+    const current = board.selection.selectedElements;
+    let selectedElements: BoardElement[];
+    if (isMultiSelect) {
+      const existingIndex = current.findIndex((el) => el.id === latestNode.id);
+      selectedElements =
+        existingIndex >= 0
+          ? current.filter((el) => el.id !== latestNode.id)
+          : [...current, latestNode];
+    } else {
+      selectedElements = [latestNode];
+    }
+
+    SelectTransforms.updateSelectArea(board, {
+      selectArea: null,
+      selectedElements,
+    });
   }
 
   updateDragPreview(board: Board, clientX: number, clientY: number) {
@@ -922,6 +940,25 @@ export class MindPlugin implements IBoardPlugin {
       this.dragState.isDragging ||
       distanceFromStart > 5 / Math.max(board.viewPort.zoom, 0.01);
     if (!isDragging) return;
+
+    // 拖拽首次越过阈值时隐藏选中态（点击场景保留选区供点选回落）
+    if (
+      !this.dragState.isDragging &&
+      (board.selection.selectedElements.length > 0 ||
+        board.selection.selectArea)
+    ) {
+      board.apply(
+        {
+          type: "set_selection",
+          properties: board.selection,
+          newProperties: {
+            selectedElements: [],
+            selectArea: null,
+          },
+        },
+        false,
+      );
+    }
 
     const nextX = currentPoint.x - dragOffset.x;
     const nextY = currentPoint.y - dragOffset.y;

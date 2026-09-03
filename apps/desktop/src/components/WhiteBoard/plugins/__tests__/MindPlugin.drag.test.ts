@@ -52,7 +52,12 @@ const createMindNode = (
   ...overrides,
 });
 
-const pointerEvent = (clientX: number, clientY: number, pointerId = 1) =>
+const pointerEvent = (
+  clientX: number,
+  clientY: number,
+  pointerId = 1,
+  overrides: Record<string, unknown> = {},
+) =>
   ({
     button: 0,
     clientX,
@@ -60,6 +65,7 @@ const pointerEvent = (clientX: number, clientY: number, pointerId = 1) =>
     pointerId,
     preventDefault: vi.fn(),
     target: document.body,
+    ...overrides,
   }) as unknown as PointerEvent;
 
 const createBoard = (children: MindNodeElement[]) => {
@@ -420,5 +426,61 @@ describe("MindPlugin 思维导图节点拖拽", () => {
     board.onGlobalPointerUp(pointerEvent(150, 20));
     expect(JSON.stringify(board.children)).toBe(beforeDrag);
     expect(board.undos).toHaveLength(0);
+  });
+
+  it("点击 mind 节点（未拖动）选中该节点", () => {
+    const dragged = createMindNode("dragged", {
+      x: 136,
+      y: 0,
+      level: 2,
+    });
+    const root = createMindNode("root", { children: [dragged] });
+    const { board } = createBoard([root]);
+
+    board.onPointerDown(pointerEvent(146, 20));
+    board.onGlobalPointerUp(pointerEvent(146, 20));
+
+    expect(board.selection.selectedElements.map((el) => el.id)).toEqual([
+      "dragged",
+    ]);
+  });
+
+  it("ctrl 点击 mind 节点在多选中切换", () => {
+    const dragged = createMindNode("dragged", {
+      x: 136,
+      y: 0,
+      level: 2,
+    });
+    const root = createMindNode("root", { children: [dragged] });
+    const { board } = createBoard([root]);
+
+    // 已选中 root，ctrl 点击 dragged → 两个都在选中集
+    board.apply(
+      {
+        type: "set_selection",
+        properties: board.selection,
+        newProperties: { selectedElements: [root] },
+      },
+      false,
+    );
+
+    board.onPointerDown(pointerEvent(146, 20));
+    board.onGlobalPointerUp(
+      pointerEvent(146, 20, 1, { ctrlKey: true } as Partial<PointerEvent>),
+    );
+
+    expect(board.selection.selectedElements.map((el) => el.id)).toEqual([
+      "root",
+      "dragged",
+    ]);
+
+    // 再次 ctrl 点击 dragged → 从选中集移除
+    board.onPointerDown(pointerEvent(146, 20));
+    board.onGlobalPointerUp(
+      pointerEvent(146, 20, 1, { ctrlKey: true } as Partial<PointerEvent>),
+    );
+    expect(board.selection.selectedElements.map((el) => el.id)).toEqual([
+      "root",
+    ]);
   });
 });
