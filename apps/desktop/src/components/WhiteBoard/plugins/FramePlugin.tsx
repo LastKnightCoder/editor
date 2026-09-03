@@ -37,6 +37,31 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
         // 这里只需排除 frame 以防止嵌套
         canContain: (child: BoardElement) => child.type !== "frame",
 
+        buildDragFeedbackOps: (
+          board: Board,
+          container: BoardElement,
+          feedback,
+        ) => {
+          const frame = container as FrameElement;
+          const path = PathUtil.getPathByElement(board, frame);
+          if (!path) return [];
+          const isChildMoveIn = feedback
+            ? feedback.isTarget && !feedback.isCurrent
+            : false;
+          if (frame.isChildMoveIn === isChildMoveIn) return [];
+          return [
+            {
+              type: "set_node",
+              path,
+              properties: { isChildMoveIn: frame.isChildMoveIn },
+              newProperties: { isChildMoveIn },
+            },
+          ];
+        },
+
+        isDropFeedbackActive: (container: BoardElement) =>
+          (container as FrameElement).isChildMoveIn === true,
+
         // 容器协议实现
         isElementInContainer: (
           _board: Board,

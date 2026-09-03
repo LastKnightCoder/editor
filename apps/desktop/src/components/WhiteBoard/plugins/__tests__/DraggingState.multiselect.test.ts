@@ -27,7 +27,7 @@ import {
   ContainmentBehavior,
   MovementBehavior,
 } from "../../types/capabilities";
-import { ColumnUtil } from "../../utils";
+import { ColumnUtil, PathUtil } from "../../utils";
 
 const viewPort: ViewPort = {
   minX: 0,
@@ -100,6 +100,60 @@ const columnStub: IBoardPlugin = {
         asContainer: ContainmentBehavior.Restricted,
         canBeContained: false,
         canContain: (child) => child.type === "richtext",
+        orderedChildren: true,
+        buildChildDragFeedbackOps: (board, container, childId, position) => {
+          const path = PathUtil.getPathByElement(board, container);
+          if (!path) return [];
+          return [
+            {
+              type: "set_node",
+              path,
+              properties: {},
+              newProperties: {
+                draggingChildId: childId,
+                draggingPosition: position,
+              },
+            },
+          ];
+        },
+        buildDragFeedbackOps: (board, container, feedback) => {
+          const path = PathUtil.getPathByElement(board, container);
+          if (!path) return [];
+          const column = container as ColumnElement;
+          if (!feedback) {
+            if (
+              !column.isChildDraggingOver &&
+              column.dropIndex === undefined &&
+              !column.draggingChildId &&
+              !column.draggingPosition
+            ) {
+              return [];
+            }
+            return [
+              {
+                type: "set_node",
+                path,
+                properties: {},
+                newProperties: {
+                  isChildDraggingOver: false,
+                  dropIndex: undefined,
+                  draggingChildId: undefined,
+                  draggingPosition: undefined,
+                },
+              },
+            ];
+          }
+          return [
+            {
+              type: "set_node",
+              path,
+              properties: {},
+              newProperties: { isChildDraggingOver: feedback.isTarget },
+            },
+          ];
+        },
+        isDropFeedbackActive: (container) =>
+          (container as ColumnElement).isChildDraggingOver === true,
         isElementInContainer: (board, container, element, pointerPosition) =>
           ColumnUtil.isElementInColumn(
             board,
