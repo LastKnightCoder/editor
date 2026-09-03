@@ -8,7 +8,6 @@ import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
 import ProjectTable from "./project";
-import BadgeTable from "./badge";
 import log from "electron-log";
 
 export default class ArticleTable {
@@ -240,20 +239,6 @@ export default class ArticleTable {
     const createdArticleId = res.lastInsertRowid;
 
     Operation.insertOperation(db, "article", "insert", createdArticleId, now);
-    BadgeTable.recordContentEvent(
-      db,
-      "article.created",
-      "article",
-      createdArticleId,
-      now,
-    );
-    BadgeTable.recordContentEvent(
-      db,
-      "output.created",
-      "article",
-      createdArticleId,
-      now,
-    );
 
     return this.getArticleById(db, createdArticleId);
   }
@@ -289,22 +274,6 @@ export default class ArticleTable {
     const createdArticleId = res.lastInsertRowid;
 
     Operation.insertOperation(db, "article", "insert", createdArticleId, now);
-    BadgeTable.recordContentEvent(
-      db,
-      "article.created",
-      "article",
-      createdArticleId,
-      now,
-      { source: "project-item" },
-    );
-    BadgeTable.recordContentEvent(
-      db,
-      "output.created",
-      "article",
-      createdArticleId,
-      now,
-      { source: "project-item" },
-    );
 
     return this.getArticleById(db, createdArticleId);
   }
@@ -347,9 +316,6 @@ export default class ArticleTable {
     );
 
     Operation.insertOperation(db, "article", "update", id, now);
-    BadgeTable.recordContentEvent(db, "output.created", "article", id, now, {
-      source: "update",
-    });
 
     BrowserWindow.getAllWindows().forEach((window) => {
       if (window !== win && !window.isDestroyed()) {

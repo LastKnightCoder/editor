@@ -12,45 +12,6 @@ import WhiteBoardContentTable from "./white-board-content";
 import CardTable from "./card";
 import QuestionTable from "./question";
 import ResourceTable from "./resource";
-import BadgeTable from "./badge";
-
-export interface OutputSubjectForContent {
-  subjectType: string;
-  subjectId: number;
-  contentId: number;
-}
-
-export function findOutputSubjectsForContent(
-  db: Database.Database,
-  contentId: number,
-): OutputSubjectForContent[] {
-  const queries = [
-    {
-      sql: `SELECT 'article' as subjectType, id as subjectId, content_id as contentId
-            FROM articles WHERE content_id = ? AND is_delete = 0`,
-    },
-    {
-      sql: `SELECT 'card' as subjectType, id as subjectId, content_id as contentId
-            FROM cards WHERE content_id = ?`,
-    },
-    {
-      sql: `SELECT 'project-item' as subjectType, id as subjectId, content_id as contentId
-            FROM project_item WHERE content_id = ?`,
-    },
-    {
-      sql: `SELECT 'document-item' as subjectType, id as subjectId, content_id as contentId
-            FROM document_items WHERE content_id = ?`,
-    },
-    {
-      sql: `SELECT 'diary' as subjectType, diary_id as subjectId, content_id as contentId
-            FROM diary_segments WHERE content_id = ?`,
-    },
-  ];
-
-  return queries.flatMap(({ sql }) =>
-    db.prepare(sql).all(contentId),
-  ) as OutputSubjectForContent[];
-}
 
 export default class ContentTable {
   static getListenEvents() {
@@ -207,16 +168,6 @@ export default class ContentTable {
     const actualCount = count || (content ? getContentLength(content) : 0);
     stmt.run(now, JSON.stringify(content || []), actualCount, contentId);
     Operation.insertOperation(db, "content", "update", contentId, now);
-    for (const subject of findOutputSubjectsForContent(db, contentId)) {
-      BadgeTable.recordContentEvent(
-        db,
-        "output.created",
-        subject.subjectType,
-        subject.subjectId,
-        now,
-        { source: "content-update", contentId },
-      );
-    }
     BrowserWindow.getAllWindows().forEach((window) => {
       if (window !== win && !window.isDestroyed()) {
         window.webContents.send("content:updated", {
