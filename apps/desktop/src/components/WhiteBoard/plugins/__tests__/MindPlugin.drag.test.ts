@@ -121,8 +121,9 @@ describe("MindPlugin 思维导图节点拖拽", () => {
     const { board, plugin } = createBoard([sourceRoot]);
     const beforeDrag = JSON.stringify(board.children);
 
-    expect(plugin.onPointerDown(pointerEvent(146, 20), board)).toBe(false);
-    plugin.onGlobalPointerMove(pointerEvent(600, 300), board);
+    board.onPointerDown(pointerEvent(146, 20));
+    expect(board.interactions.activePointerState?.name).toBe("mind-drag");
+    board.onGlobalPointerMove(pointerEvent(600, 300));
     flushPointerMove();
 
     expect(plugin.getSnapshot().isDragging).toBe(true);
@@ -130,7 +131,7 @@ describe("MindPlugin 思维导图节点拖拽", () => {
     expect(JSON.stringify(board.children)).toBe(beforeDrag);
     expect(board.undos).toHaveLength(0);
 
-    plugin.onGlobalPointerUp(pointerEvent(600, 300), board);
+    board.onGlobalPointerUp(pointerEvent(600, 300));
 
     expect(board.children).toHaveLength(2);
     expect((board.children[0] as MindNodeElement).children).toHaveLength(0);
@@ -166,14 +167,14 @@ describe("MindPlugin 思维导图节点拖拽", () => {
     const { board, plugin } = createBoard([root]);
     const beforeDrag = JSON.stringify(board.children);
 
-    plugin.onPointerDown(pointerEvent(146, 20), board);
-    plugin.onGlobalPointerMove(pointerEvent(282, 120), board);
+    board.onPointerDown(pointerEvent(146, 20));
+    board.onGlobalPointerMove(pointerEvent(282, 120));
     flushPointerMove();
 
     expect(plugin.getSnapshot().currentTarget?.node.id).toBe("target");
     expect(JSON.stringify(board.children)).toBe(beforeDrag);
 
-    plugin.onGlobalPointerUp(pointerEvent(282, 120), board);
+    board.onGlobalPointerUp(pointerEvent(282, 120));
 
     const updatedRoot = board.children[0] as MindNodeElement;
     expect(updatedRoot.children.map((node) => node.id)).toEqual(["target"]);
@@ -197,14 +198,14 @@ describe("MindPlugin 思维导图节点拖拽", () => {
     const { board, plugin } = createBoard([sourceRoot, targetRoot]);
     const beforeDrag = JSON.stringify(board.children);
 
-    plugin.onPointerDown(pointerEvent(146, 20), board);
-    plugin.onGlobalPointerMove(pointerEvent(446, 120), board);
+    board.onPointerDown(pointerEvent(146, 20));
+    board.onGlobalPointerMove(pointerEvent(446, 120));
     flushPointerMove();
 
     expect(plugin.getSnapshot().currentTarget?.node.id).toBe("target");
     expect(JSON.stringify(board.children)).toBe(beforeDrag);
 
-    plugin.onGlobalPointerUp(pointerEvent(446, 120), board);
+    board.onGlobalPointerUp(pointerEvent(446, 120));
 
     expect((board.children[0] as MindNodeElement).children).toHaveLength(0);
     expect(
@@ -229,8 +230,9 @@ describe("MindPlugin 思维导图节点拖拽", () => {
     const { board, plugin } = createBoard([sourceRoot, targetRoot]);
     const beforeDrag = JSON.stringify(board.children);
 
-    expect(plugin.onPointerDown(pointerEvent(10, 20), board)).toBe(false);
-    plugin.onGlobalPointerMove(pointerEvent(446, 120), board);
+    board.onPointerDown(pointerEvent(10, 20));
+    expect(board.interactions.activePointerState?.name).toBe("mind-drag");
+    board.onGlobalPointerMove(pointerEvent(446, 120));
     flushPointerMove();
 
     expect(plugin.getSnapshot().mode).toBe("root-translate");
@@ -243,7 +245,7 @@ describe("MindPlugin 思维导图节点拖拽", () => {
     });
     expect(board.undos).toHaveLength(0);
 
-    plugin.onGlobalPointerUp(pointerEvent(446, 120), board);
+    board.onGlobalPointerUp(pointerEvent(446, 120));
 
     expect(board.children).toHaveLength(1);
     const updatedTarget = board.children[0] as MindNodeElement;
@@ -286,8 +288,8 @@ describe("MindPlugin 思维导图节点拖拽", () => {
     const { board, plugin } = createBoard([targetRoot, sourceRoot]);
     const beforeDrag = JSON.stringify(board.children);
 
-    plugin.onPointerDown(pointerEvent(710, 120), board);
-    plugin.onGlobalPointerMove(pointerEvent(174, 120), board);
+    board.onPointerDown(pointerEvent(710, 120));
+    board.onGlobalPointerMove(pointerEvent(174, 120));
     flushPointerMove();
 
     expect(plugin.getSnapshot().currentTarget).toMatchObject({
@@ -306,7 +308,7 @@ describe("MindPlugin 思维导图节点拖拽", () => {
     );
     expect(board.undos).toHaveLength(0);
 
-    plugin.onGlobalPointerUp(pointerEvent(174, 120), board);
+    board.onGlobalPointerUp(pointerEvent(174, 120));
 
     expect(board.children).toHaveLength(1);
     const attachedRoot = (board.children[0] as MindNodeElement).children[0];
@@ -335,15 +337,15 @@ describe("MindPlugin 思维导图节点拖拽", () => {
       level: 2,
     });
     const root = createMindNode("root", { children: [child] });
-    const { board, plugin } = createBoard([root]);
+    const { board } = createBoard([root]);
     const beforeDrag = JSON.stringify(board.children);
     const onMove = vi.fn();
     const onMoveEnd = vi.fn();
     board.on("element:move", onMove);
     board.on("element:move-end", onMoveEnd);
 
-    plugin.onPointerDown(pointerEvent(10, 20), board);
-    plugin.onGlobalPointerMove(pointerEvent(600, 300), board);
+    board.onPointerDown(pointerEvent(10, 20));
+    board.onGlobalPointerMove(pointerEvent(600, 300));
     flushPointerMove();
 
     expect(board.children[0]).toMatchObject({ id: "root", x: 590, y: 280 });
@@ -357,7 +359,7 @@ describe("MindPlugin 思维导图节点拖拽", () => {
       expect.objectContaining({ id: "root", x: 590, y: 280 }),
     ]);
 
-    plugin.onGlobalPointerUp(pointerEvent(600, 300), board);
+    board.onGlobalPointerUp(pointerEvent(600, 300));
 
     expect(board.children).toHaveLength(1);
     expect(board.children[0]).toMatchObject({ id: "root", x: 590, y: 280 });
@@ -383,12 +385,12 @@ describe("MindPlugin 思维导图节点拖拽", () => {
     const { board, plugin } = createBoard([root]);
     const beforeDrag = JSON.stringify(board.children);
 
-    plugin.onPointerDown(pointerEvent(10, 20), board);
-    plugin.onGlobalPointerMove(pointerEvent(600, 300), board);
+    board.onPointerDown(pointerEvent(10, 20));
+    board.onGlobalPointerMove(pointerEvent(600, 300));
     flushPointerMove();
     expect(JSON.stringify(board.children)).not.toBe(beforeDrag);
 
-    plugin.onGlobalPointerCancel(pointerEvent(600, 300), board);
+    board.onGlobalPointerCancel(pointerEvent(600, 300));
 
     expect(JSON.stringify(board.children)).toBe(beforeDrag);
     expect(plugin.getSnapshot().mode).toBeNull();
@@ -405,17 +407,17 @@ describe("MindPlugin 思维导图节点拖拽", () => {
     const { board, plugin } = createBoard([root]);
     const beforeDrag = JSON.stringify(board.children);
 
-    plugin.onPointerDown(pointerEvent(146, 20), board);
-    plugin.onGlobalPointerMove(pointerEvent(400, 300), board);
+    board.onPointerDown(pointerEvent(146, 20));
+    board.onGlobalPointerMove(pointerEvent(400, 300));
     flushPointerMove();
-    plugin.onGlobalPointerCancel(pointerEvent(400, 300), board);
+    board.onGlobalPointerCancel(pointerEvent(400, 300));
 
     expect(plugin.getSnapshot().isDragging).toBe(false);
     expect(JSON.stringify(board.children)).toBe(beforeDrag);
     expect(board.undos).toHaveLength(0);
 
-    plugin.onPointerDown(pointerEvent(146, 20), board);
-    plugin.onGlobalPointerUp(pointerEvent(150, 20), board);
+    board.onPointerDown(pointerEvent(146, 20));
+    board.onGlobalPointerUp(pointerEvent(150, 20));
     expect(JSON.stringify(board.children)).toBe(beforeDrag);
     expect(board.undos).toHaveLength(0);
   });

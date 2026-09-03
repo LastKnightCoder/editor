@@ -319,18 +319,20 @@ class Board {
   }
 
   onKeyDown(event: KeyboardEvent) {
-    this.interactions.routeKeyDown(event);
+    if (this.interactions.routeKeyDown(event)) return;
     const fns = this.plugins.map(bindHandler("onKeyDown")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onKeyUp(event: KeyboardEvent) {
-    this.interactions.routeKeyUp(event);
+    if (this.interactions.routeKeyUp(event)) return;
     const fns = this.plugins.map(bindHandler("onKeyUp")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onPointerDown(event: PointerEvent) {
+    // 元素类型自定义手势优先（原插件 return false 抢占的显式化）
+    if (this.interactions.tryStartClaimedGesture(event)) return;
     const fns = this.plugins.map(bindHandler("onPointerDown")).filter(isValid);
     // 广播未被插件中断时，交互内核才有机会接管本次手势（双轨：未接管路径行为不变）
     if (executeSequence(fns, event, this)) {
@@ -339,13 +341,13 @@ class Board {
   }
 
   onPointerUp(event: PointerEvent) {
-    this.interactions.routePointerUp(event);
+    if (this.interactions.routePointerUp(event)) return;
     const fns = this.plugins.map(bindHandler("onPointerUp")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onPointerMove(event: PointerEvent) {
-    this.interactions.routePointerMove(event);
+    if (this.interactions.routePointerMove(event)) return;
     const fns = this.plugins.map(bindHandler("onPointerMove")).filter(isValid);
     executeSequence(fns, event, this);
   }
@@ -358,7 +360,7 @@ class Board {
   }
 
   onGlobalPointerUp(event: PointerEvent) {
-    this.interactions.routeGlobalPointerUp(event);
+    if (this.interactions.routeGlobalPointerUp(event)) return;
     const fns = this.plugins
       .map(bindHandler("onGlobalPointerUp"))
       .filter(isValid);
@@ -366,6 +368,7 @@ class Board {
   }
 
   onGlobalPointerMove(event: PointerEvent) {
+    if (this.interactions.routeGlobalPointerMove(event)) return;
     const fns = this.plugins
       .map(bindHandler("onGlobalPointerMove"))
       .filter(isValid);
@@ -373,6 +376,7 @@ class Board {
   }
 
   onGlobalPointerCancel(event: PointerEvent) {
+    if (this.interactions.routeGlobalPointerCancel(event)) return;
     const fns = this.plugins
       .map(bindHandler("onGlobalPointerCancel"))
       .filter(isValid);

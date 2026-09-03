@@ -44,6 +44,7 @@ import {
 } from "../utils";
 import MindNode from "../components/MindNode";
 import { BOARD_TO_CONTAINER, getMindDragSourceId } from "../constants";
+import type { InteractionState } from "../interactions/InteractionState";
 import { getThemeById } from "../constants/mind-themes";
 import { Descendant } from "slate";
 import { createContent } from "@/commands/content";
@@ -780,41 +781,37 @@ export class MindPlugin implements IBoardPlugin {
     board.currentCreateType = ECreateBoardElementType.None;
   }
 
-  onPointerDown(e: PointerEvent, board: Board) {
+  /**
+   * 思维导图节点拖拽的手势声明：pointerdown 命中 mind-node 且节点可移动时，
+   * 初始化拖拽状态机并返回 MindDragInteraction 交由交互内核接管路由。
+   * （原 onPointerDown 的 return false 抢占已由内核仲裁取代）
+   */
+  claimPointerGesture(
+    board: Board,
+    e: PointerEvent,
+    hitElement: BoardElement,
+  ): MindDragInteraction | null {
     if (
       e.button !== 0 ||
       board.readonly ||
       board.presentationManager.isPresentationMode
     ) {
-      return;
+      return null;
     }
+
+    if (hitElement.type !== "mind-node") return null;
+    const mindNode = hitElement as MindNodeElement;
 
     const startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
-    if (!startPoint) return;
-
-    const hitElements = BoardUtil.getHitElements(
-      board,
-      startPoint.x,
-      startPoint.y,
-    );
-
-    if (hitElements.length === 0) return;
-
-    let mindNode: MindNodeElement | null = null;
-    const hitElement = hitElements[hitElements.length - 1];
-    if (hitElement.type === "mind-node") {
-      mindNode = hitElement as MindNodeElement;
-    }
-
-    if (!mindNode) return;
+    if (!startPoint) return null;
 
     const sourceRoot = MindUtil.getRoot(board, mindNode);
-    if (!sourceRoot) return;
+    if (!sourceRoot) return null;
 
-    if (!MindUtil.canMoveNode(sourceRoot, mindNode)) return;
+    if (!MindUtil.canMoveNode(sourceRoot, mindNode)) return null;
 
     const originalParent = MindUtil.findParentInTree(sourceRoot, mindNode.id);
-    if (!MindUtil.isRoot(mindNode) && !originalParent) return;
+    if (!MindUtil.isRoot(mindNode) && !originalParent) return null;
 
     const dragOffset = {
       x: startPoint.x - mindNode.x,
@@ -856,17 +853,19 @@ export class MindPlugin implements IBoardPlugin {
       pointerId: e.pointerId,
     });
 
-    return false;
+    return new MindDragInteraction(this);
   }
 
-  onGlobalPointerMove(e: PointerEvent, board: Board) {
-    if (
-      !this.dragState.draggedNode ||
-      this.dragState.pointerId !== e.pointerId
-    ) {
-      return;
-    }
+  /** 当前拖拽是否由该指针发起（由 MindDragInteraction 转发前校验） */
+  isDragPointer(pointerId: number): boolean {
+    return (
+      Boolean(this.dragState.draggedNode) &&
+      this.dragState.pointerId === pointerId
+    );
+  }
 
+  /** 拖拽移动调度（rAF 合帧，原 onGlobalPointerMove 主体） */
+  scheduleDragPreview(e: PointerEvent, board: Board) {
     this.pendingPointerMove = {
       clientX: e.clientX,
       clientY: e.clientY,
@@ -886,22 +885,14 @@ export class MindPlugin implements IBoardPlugin {
         this.updateDragPreview(board, pending.clientX, pending.clientY);
       });
     }
-
-    return false;
   }
 
-  onGlobalPointerUp(e: PointerEvent, board: Board) {
-    if (
-      !this.dragState.draggedNode ||
-      this.dragState.pointerId !== e.pointerId
-    ) {
-      return;
-    }
-
+  /** 拖拽收尾：提交落点或越界取消（原 onGlobalPointerUp 主体） */
+  finishDrag(e: PointerEvent, board: Board) {
     this.cancelScheduledPointerMove();
     if (!this.isPointerInsideBoard(board, e.clientX, e.clientY)) {
       this.cancelDrag(board);
-      return false;
+      return;
     }
 
     this.updateDragPreview(board, e.clientX, e.clientY);
@@ -913,28 +904,9 @@ export class MindPlugin implements IBoardPlugin {
     }
 
     this.cleanup();
-    return false;
   }
 
-  onGlobalPointerCancel(e: PointerEvent, board: Board) {
-    if (
-      !this.dragState.draggedNode ||
-      this.dragState.pointerId !== e.pointerId
-    ) {
-      return;
-    }
-
-    this.cancelDrag(board);
-    return false;
-  }
-
-  onKeyDown(e: KeyboardEvent, board: Board) {
-    if (e.key !== "Escape" || !this.dragState.draggedNode) return;
-    this.cancelDrag(board);
-    return false;
-  }
-
-  private updateDragPreview(board: Board, clientX: number, clientY: number) {
+  updateDragPreview(board: Board, clientX: number, clientY: number) {
     const { draggedNode, startPoint, dragOffset, currentTarget } =
       this.dragState;
     if (!draggedNode || !startPoint) return;
@@ -1034,7 +1006,7 @@ export class MindPlugin implements IBoardPlugin {
     return theme.palette[colorIndex]?.background || theme.root.background;
   }
 
-  private commitDrop(board: Board) {
+  commitDrop(board: Board) {
     const { draggedNode, sourceRootId, previewNode, currentTarget } =
       this.dragState;
     if (!draggedNode || !sourceRootId || !previewNode) return;
@@ -1183,7 +1155,7 @@ export class MindPlugin implements IBoardPlugin {
     board.apply(operations);
   }
 
-  private isPointerInsideBoard(board: Board, clientX: number, clientY: number) {
+  isPointerInsideBoard(board: Board, clientX: number, clientY: number) {
     const container = BOARD_TO_CONTAINER.get(board);
     if (!container) return false;
     const rect = container.getBoundingClientRect();
@@ -1195,12 +1167,12 @@ export class MindPlugin implements IBoardPlugin {
     );
   }
 
-  private setDragState(nextState: MindDragState) {
+  setDragState(nextState: MindDragState) {
     this.dragState = nextState;
     this.emitChange();
   }
 
-  private cancelScheduledPointerMove() {
+  cancelScheduledPointerMove() {
     if (this.dragAnimationFrame !== null) {
       const cancelFrame =
         globalThis.cancelAnimationFrame ?? globalThis.clearTimeout;
@@ -1210,7 +1182,7 @@ export class MindPlugin implements IBoardPlugin {
     this.pendingPointerMove = null;
   }
 
-  private cancelDrag(board: Board) {
+  cancelDrag(board: Board) {
     const { mode, isDragging, draggedNode } = this.dragState;
     if (mode === "root-translate" && isDragging && draggedNode) {
       const latestRoot = BoardUtil.getElementById(
@@ -1258,3 +1230,43 @@ export class MindPlugin implements IBoardPlugin {
 }
 
 export default MindPlugin;
+
+/**
+ * 思维导图拖拽的交互内核适配：由 MindPlugin.claimPointerGesture 创建，
+ * 将内核路由的指针/键盘事件转发给插件的拖拽状态机并消费。
+ * 取代旧机制中插件 onGlobalPointerMove 等通过 return false 的抢占，
+ * 拖拽状态机（含 MindDragOverlay 的订阅）仍留在插件内。
+ */
+class MindDragInteraction implements InteractionState {
+  readonly name = "mind-drag";
+  isFinished = false;
+
+  constructor(private plugin: MindPlugin) {}
+
+  onGlobalPointerMove(e: PointerEvent, board: Board): boolean {
+    if (!this.plugin.isDragPointer(e.pointerId)) return false;
+    this.plugin.scheduleDragPreview(e, board);
+    return true;
+  }
+
+  onGlobalPointerUp(e: PointerEvent, board: Board): boolean {
+    if (!this.plugin.isDragPointer(e.pointerId)) return false;
+    this.plugin.finishDrag(e, board);
+    this.isFinished = true;
+    return true;
+  }
+
+  onGlobalPointerCancel(e: PointerEvent, board: Board): boolean {
+    if (!this.plugin.isDragPointer(e.pointerId)) return false;
+    this.plugin.cancelDrag(board);
+    this.isFinished = true;
+    return true;
+  }
+
+  onKeyDown(e: KeyboardEvent, board: Board): boolean {
+    if (e.key !== "Escape") return false;
+    this.plugin.cancelDrag(board);
+    this.isFinished = true;
+    return true;
+  }
+}

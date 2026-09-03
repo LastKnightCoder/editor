@@ -4,6 +4,7 @@ import Board from "../Board.tsx";
 import { Point } from "./point.ts";
 import { CustomOffset } from "./arrow.ts";
 import type { IElementCapabilities } from "./capabilities.ts";
+import type { InteractionState } from "../interactions/InteractionState.ts";
 
 export { default as Board } from "../Board.tsx";
 
@@ -103,6 +104,16 @@ export type Events =
 
 export interface IBoardPlugin {
   name: string;
+  /**
+   * 元素类型自定义指针手势声明：pointerdown 命中该类型元素时由交互内核
+   * 在广播前调用，返回手势状态则由内核接管路由（取代通用选择/拖拽并消费
+   * 本次 pointerdown）；null 表示不接管。
+   */
+  claimPointerGesture?(
+    board: Board,
+    event: PointerEvent,
+    hitElement: BoardElement,
+  ): InteractionState | null;
   onMouseDown?: EventHandler;
   onGlobalMouseDown?: EventHandler;
   onMouseMove?: EventHandler;
