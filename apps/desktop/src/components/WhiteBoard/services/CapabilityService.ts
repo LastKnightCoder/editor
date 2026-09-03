@@ -8,6 +8,7 @@ import {
   type IMovementCapability,
   type IRenderCapability,
   type IMeasurementCapability,
+  type ContainerDragFeedback,
   SnapBehavior,
   ContainmentBehavior,
   MovementBehavior,
@@ -467,6 +468,53 @@ export class CapabilityService {
   ): void {
     const caps = this.getContainmentCapability(container.type);
     caps.onChildRemoved?.(this.board, container, removedChild);
+  }
+
+  /**
+   * 是否为有序容器（子元素位置由容器布局管理）
+   */
+  hasOrderedChildren(container: BoardElement): boolean {
+    return (
+      this.getContainmentCapability(container.type).orderedChildren === true
+    );
+  }
+
+  /**
+   * 生成子元素拖拽时的容器反馈 ops（无声明返回空数组）
+   */
+  buildChildDragFeedbackOps(
+    container: BoardElement,
+    childId: string,
+    position: { x: number; y: number },
+  ): Operation[] {
+    const caps = this.getContainmentCapability(container.type);
+    if (!caps.buildChildDragFeedbackOps) return [];
+    return caps.buildChildDragFeedbackOps(
+      this.board,
+      container,
+      childId,
+      position,
+    );
+  }
+
+  /**
+   * 生成容器拖拽悬停反馈 ops；feedback 为 null 表示清除（无声明返回空数组）
+   */
+  buildDragFeedbackOps(
+    container: BoardElement,
+    feedback: ContainerDragFeedback | null,
+  ): Operation[] {
+    const caps = this.getContainmentCapability(container.type);
+    if (!caps.buildDragFeedbackOps) return [];
+    return caps.buildDragFeedbackOps(this.board, container, feedback);
+  }
+
+  /**
+   * 容器拖拽悬停反馈是否激活（无声明视为未激活）
+   */
+  isDropFeedbackActive(container: BoardElement): boolean {
+    const caps = this.getContainmentCapability(container.type);
+    return caps.isDropFeedbackActive?.(container) ?? false;
   }
 }
 

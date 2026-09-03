@@ -37,6 +37,91 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
         // 准入由子方声明反转决定：各元素在自己的 canBeContainedBy 中
         // 声明可入 column（见 CapabilityService.canContain 的 Restricted 分支）
 
+        // 有序容器：子元素位置由 Column 布局管理，拖拽反馈由本插件维护
+        orderedChildren: true,
+
+        buildChildDragFeedbackOps: (
+          board: Board,
+          container: BoardElement,
+          childId: string,
+          position: { x: number; y: number },
+        ) => {
+          const column = container as ColumnElement;
+          const path = PathUtil.getPathByElement(board, column);
+          if (!path) return [];
+          return BoardUtil.diffNodePatchOnly(
+            column,
+            {
+              ...column,
+              draggingChildId: childId,
+              draggingPosition: position,
+            },
+            path,
+          );
+        },
+
+        buildDragFeedbackOps: (
+          board: Board,
+          container: BoardElement,
+          feedback,
+        ) => {
+          const column = container as ColumnElement;
+          const path = PathUtil.getPathByElement(board, column);
+          if (!path) return [];
+
+          if (!feedback) {
+            // 清除：有残留状态才生成 ops
+            if (
+              !column.isChildDraggingOver &&
+              column.dropIndex === undefined &&
+              !column.draggingChildId &&
+              !column.draggingPosition
+            ) {
+              return [];
+            }
+            return BoardUtil.diffNodePatchOnly(
+              column,
+              {
+                ...column,
+                isChildDraggingOver: false,
+                dropIndex: undefined,
+                draggingChildId: undefined,
+                draggingPosition: undefined,
+              },
+              path,
+            );
+          }
+
+          const { isTarget, draggingElement, pointer } = feedback;
+          let dropIndex: number | undefined;
+          if (isTarget && pointer) {
+            dropIndex = ColumnUtil.getDropIndex(
+              board,
+              column,
+              pointer.y,
+              draggingElement?.id,
+            );
+          }
+          let draggingPosition: { x: number; y: number } | undefined;
+          if (draggingElement) {
+            draggingPosition = { x: draggingElement.x, y: draggingElement.y };
+          }
+          return BoardUtil.diffNodePatchOnly(
+            column,
+            {
+              ...column,
+              isChildDraggingOver: isTarget,
+              dropIndex,
+              draggingChildId: draggingElement?.id,
+              draggingPosition,
+            },
+            path,
+          );
+        },
+
+        isDropFeedbackActive: (container: BoardElement) =>
+          (container as ColumnElement).isChildDraggingOver === true,
+
         // 容器协议实现
         isElementInContainer: (
           board: Board,

@@ -1,4 +1,5 @@
 import type { BoardElement } from "./board";
+import type { Operation } from "./operation";
 import type { Point } from "./point";
 import type Board from "../Board";
 
@@ -76,6 +77,18 @@ export interface ISnapCapability {
   moveAll?: (element: BoardElement, dx: number, dy: number) => BoardElement;
 }
 
+/** 容器拖拽悬停反馈（由交互内核在拖拽循环中计算，容器自行映射为视觉状态） */
+export interface ContainerDragFeedback {
+  /** 是否有元素悬停于该容器（候选目标） */
+  isTarget: boolean;
+  /** 是否有元素正从该容器拖出 */
+  isCurrent: boolean;
+  /** 正从该容器拖出的元素（预览显示用），无则 null */
+  draggingElement: BoardElement | null;
+  /** 鼠标位置（计算插入索引用），无则 undefined */
+  pointer: Point | undefined;
+}
+
 /**
  * 容纳能力接口
  */
@@ -95,6 +108,36 @@ export interface IContainmentCapability {
    * 检查是否可以被指定容器包含
    */
   canBeContainedBy?: (container: BoardElement) => boolean;
+
+  /**
+   * 有序容器：子元素位置由容器布局管理。拖拽中子元素的位置更新转交容器反馈，
+   * 同容器内支持重排序，移出时按拖拽落点写回位置。
+   */
+  orderedChildren?: boolean;
+
+  /**
+   * 子元素拖拽时的容器反馈 ops（如 Column 的拖拽位置指示）
+   */
+  buildChildDragFeedbackOps?: (
+    board: Board,
+    container: BoardElement,
+    childId: string,
+    position: { x: number; y: number },
+  ) => Operation[];
+
+  /**
+   * 拖拽悬停反馈 ops；feedback 为 null 表示清除（无变化时返回空数组）
+   */
+  buildDragFeedbackOps?: (
+    board: Board,
+    container: BoardElement,
+    feedback: ContainerDragFeedback | null,
+  ) => Operation[];
+
+  /**
+   * 拖拽悬停反馈是否激活（pointerup 提交时优先信任，避免重算）
+   */
+  isDropFeedbackActive?: (container: BoardElement) => boolean;
 
   // ============ 容器协议方法 ============
 

@@ -1,11 +1,5 @@
 import type Board from "../../Board";
-import {
-  BoardElement,
-  ECreateBoardElementType,
-  FrameElement,
-  ColumnElement,
-  Operation,
-} from "../../types";
+import { BoardElement, ECreateBoardElementType, Operation } from "../../types";
 import { SnapBehavior } from "../../types/capabilities";
 import {
   BoardUtil,
@@ -281,18 +275,21 @@ export class DraggingState implements InteractionState {
   }
 
   /**
-   * Column 不允许被包含，永远在根层；构建 childId -> Column 的索引用于拖拽过程的特殊处理。
+   * 找到管理该元素布局的有序容器（如 Column）：拖拽中子元素的位置更新
+   * 转交容器反馈，不直接提交位置。
    */
-  private getColumnChildMap(board: Board): Map<string, ColumnElement> {
-    const columnChildMap = new Map<string, ColumnElement>();
-    for (const element of board.children) {
-      if (element.type !== "column") continue;
-      const column = element as ColumnElement;
-      for (const child of column.children) {
-        columnChildMap.set(child.id, column);
+  private findManagedChildContainer(
+    board: Board,
+    element: BoardElement,
+  ): BoardElement | null {
+    const capService = board.capabilityService;
+    for (const candidate of board.children) {
+      if (!capService.hasOrderedChildren(candidate)) continue;
+      if (capService.isChildInContainer(candidate, element)) {
+        return candidate;
       }
     }
-    return columnChildMap;
+    return null;
   }
 
   onPointerMove(e: PointerEvent, board: Board) {
@@ -324,14 +321,11 @@ export class DraggingState implements InteractionState {
     const { movedElements } = this.getUpdatedInfo(e, board);
     const capService = board.capabilityService;
 
-    // 找出哪些元素是 Column 的子元素，以及对应的 Column
-    const columnChildMap = this.getColumnChildMap(board); // childId -> Column
-
-    // 收集需要更新拖拽位置的 Column
-    const columnDragUpdates = new Map<
+    // 收集需要更新拖拽反馈的有序容器（如 Column 的拖拽位置指示）
+    const childDragUpdates = new Map<
       string,
       {
-        column: ColumnElement;
+        container: BoardElement;
         childId: string;
         position: { x: number; y: number };
       }
@@ -344,11 +338,14 @@ export class DraggingState implements InteractionState {
       const path = PathUtil.getPathByElement(board, movedElement);
       if (!path || !element) return;
 
-      // 如果元素是 Column 的子元素，更新 Column 的拖拽位置而不是元素位置
-      const parentColumn = columnChildMap.get(movedElement.id);
-      if (parentColumn) {
-        columnDragUpdates.set(parentColumn.id, {
-          column: parentColumn,
+      // 有序容器的子元素：更新容器的拖拽反馈而不是元素位置
+      const managedContainer = this.findManagedChildContainer(
+        board,
+        movedElement,
+      );
+      if (managedContainer) {
+        childDragUpdates.set(managedContainer.id, {
+          container: managedContainer,
           childId: movedElement.id,
           position: { x: movedElement.x, y: movedElement.y },
         });
@@ -368,20 +365,10 @@ export class DraggingState implements InteractionState {
       );
     });
 
-    // 更新 Column 的拖拽状态
-    columnDragUpdates.forEach(({ column, childId, position }) => {
-      const columnPath = PathUtil.getPathByElement(board, column);
-      if (!columnPath) return;
+    // 更新有序容器的子元素拖拽反馈
+    childDragUpdates.forEach(({ container, childId, position }) => {
       operations.push(
-        ...BoardUtil.diffNodePatchOnly(
-          column,
-          {
-            ...column,
-            draggingChildId: childId,
-            draggingPosition: position,
-          },
-          columnPath,
-        ),
+        ...capService.buildChildDragFeedbackOps(container, childId, position),
       );
     });
 
@@ -440,9 +427,6 @@ export class DraggingState implements InteractionState {
     // 这样即便拖拽过程中是 apply(..., false)，Undo 也能还原位置。
     const commitOps: Operation[] = [];
 
-    // Column 子元素在拖拽中不直接更新位置，交给容器移动/relayout 处理，因此这里跳过。
-    const columnChildMap = this.getColumnChildMap(board); // childId -> Column
-
     movedElements.forEach((movedElement) => {
       const originElement = this.moveElements?.find(
         (el) => el.id === movedElement.id,
@@ -450,7 +434,9 @@ export class DraggingState implements InteractionState {
       const path = PathUtil.getPathByElement(board, movedElement);
       if (!path || !originElement) return;
 
-      if (columnChildMap.has(movedElement.id)) return;
+      // 有序容器的子元素在拖拽中不直接更新位置，
+      // 交给容器移动/relayout 处理，因此这里跳过
+      if (this.findManagedChildContainer(board, movedElement)) return;
 
       // 子树元素生成整树平移 ops，普通元素只 patch 变化字段（能力判定在 service 内）
       commitOps.push(
@@ -548,23 +534,12 @@ export class DraggingState implements InteractionState {
         }
       }
 
-      // 优化：如果容器已经有 isChildDraggingOver 状态，优先信任该状态
-      // 避免在 onPointerUp 时重新计算导致性能问题
+      // 优化：如果容器已有激活的拖拽悬停反馈，优先信任该状态
+      // 避免在 pointerup 时重新计算导致性能问题
       for (const container of containers) {
-        if (container.type === "column") {
-          const column = container as ColumnElement;
-          // 如果该 Column 显示了拖拽指示器，说明拖拽过程中判断为在容器内
-          if (column.isChildDraggingOver) {
-            targetContainer = container;
-            break;
-          }
-        } else if (container.type === "frame") {
-          const frame = container as FrameElement;
-          // 如果该 Frame 高亮，说明拖拽过程中判断为进入该容器
-          if (frame.isChildMoveIn) {
-            targetContainer = container;
-            break;
-          }
+        if (capService.isDropFeedbackActive(container)) {
+          targetContainer = container;
+          break;
         }
       }
 
@@ -598,7 +573,7 @@ export class DraggingState implements InteractionState {
       targetContainer: BoardElement | null;
     }> = [];
 
-    // 收集同一 Column 内重排序的操作
+    // 收集同一有序容器内重排序的操作
     const reorderOperations: Operation[] = [];
 
     moveInfos.forEach(({ element, currentContainer, targetContainer }) => {
@@ -607,8 +582,8 @@ export class DraggingState implements InteractionState {
         targetContainer &&
         currentContainer.id === targetContainer.id;
 
-      // 场景1：同一 Column 内重排序
-      if (isSameContainer && currentContainer.type === "column") {
+      // 场景1：同一有序容器（如 Column）内重排序
+      if (isSameContainer && capService.hasOrderedChildren(currentContainer)) {
         const oldPath = PathUtil.getPathByElement(board, element);
         if (!oldPath || !pointerPosition) return;
 
@@ -646,14 +621,15 @@ export class DraggingState implements InteractionState {
     // 生成元素移动操作
     const elementMoveOperations: Operation[] = [];
 
-    // 先处理从 Column 移出的元素的位置更新（保留在 Column 中调整过的宽高）
+    // 先处理从有序容器移出的元素的位置更新（保留在容器中调整过的宽高）
     elementsToMove.forEach(({ element, currentContainer, targetContainer }) => {
-      // 如果从 Column 移出（到画布或其他容器），需要先更新元素位置
-      // 注意：只更新位置，保留当前元素的宽高（在 Column 中已调整过）
-      const isMovingOutOfColumn =
-        currentContainer?.type === "column" &&
+      // 如果从有序容器（如 Column）移出到画布或其他容器，
+      // 需要先按拖拽落点更新元素位置（保留容器中调整过的宽高）
+      const isMovingOutOfManagedContainer =
+        currentContainer !== null &&
+        capService.hasOrderedChildren(currentContainer) &&
         (!targetContainer || targetContainer.id !== currentContainer.id);
-      if (isMovingOutOfColumn) {
+      if (isMovingOutOfManagedContainer) {
         const elementPath = PathUtil.getPathByElement(board, element);
         if (elementPath) {
           const currentElement = PathUtil.getElementByPath(board, elementPath);
@@ -860,60 +836,16 @@ export class DraggingState implements InteractionState {
       }
     });
 
-    // 更新每个容器的状态
+    // 拖拽中：只更新视觉状态，反馈字段的映射由各容器插件实现
     for (const container of containers) {
-      const path = PathUtil.getPathByElement(board, container);
-      if (!path) continue;
-
-      const isTarget = targetContainerIds.has(container.id);
-      const isCurrent = currentContainerIds.has(container.id);
-      const draggingElement = draggingElements.get(container.id);
-
-      if (container.type === "column") {
-        const column = container as ColumnElement;
-        let dropIndex: number | undefined;
-
-        // 计算 dropIndex（使用鼠标 Y 位置）
-        if (isTarget && pointerPosition) {
-          dropIndex = capService.getDropIndex(
-            container,
-            pointerPosition.y,
-            draggingElement?.id,
-          );
-        }
-
-        // 计算拖拽位置（用于预览）
-        let draggingPosition: { x: number; y: number } | undefined;
-        if (draggingElement) {
-          draggingPosition = { x: draggingElement.x, y: draggingElement.y };
-        }
-
-        ops.push(
-          ...BoardUtil.diffNodePatchOnly(
-            column,
-            {
-              ...column,
-              isChildDraggingOver: isTarget,
-              dropIndex,
-              draggingChildId: draggingElement?.id,
-              draggingPosition,
-            },
-            path,
-          ),
-        );
-      } else if (container.type === "frame") {
-        const frame = container as FrameElement;
-        const isChildMoveIn = isTarget && !isCurrent;
-
-        if (frame.isChildMoveIn !== isChildMoveIn) {
-          ops.push({
-            type: "set_node",
-            path,
-            properties: { isChildMoveIn: frame.isChildMoveIn },
-            newProperties: { isChildMoveIn },
-          });
-        }
-      }
+      ops.push(
+        ...capService.buildDragFeedbackOps(container, {
+          isTarget: targetContainerIds.has(container.id),
+          isCurrent: currentContainerIds.has(container.id),
+          draggingElement: draggingElements.get(container.id) ?? null,
+          pointer: pointerPosition,
+        }),
+      );
     }
 
     if (ops.length > 0) {
@@ -925,47 +857,13 @@ export class DraggingState implements InteractionState {
    * 清除所有容器的拖拽状态
    */
   private clearAllContainerDragState(board: Board) {
+    const capService = board.capabilityService;
     const containers = this.getDragContainers(board);
 
     const ops: Operation[] = [];
 
     for (const container of containers) {
-      const path = PathUtil.getPathByElement(board, container);
-      if (!path) continue;
-
-      if (container.type === "column") {
-        const column = container as ColumnElement;
-        if (
-          column.isChildDraggingOver ||
-          column.dropIndex !== undefined ||
-          column.draggingChildId ||
-          column.draggingPosition
-        ) {
-          ops.push(
-            ...BoardUtil.diffNodePatchOnly(
-              column,
-              {
-                ...column,
-                isChildDraggingOver: false,
-                dropIndex: undefined,
-                draggingChildId: undefined,
-                draggingPosition: undefined,
-              },
-              path,
-            ),
-          );
-        }
-      } else if (container.type === "frame") {
-        const frame = container as FrameElement;
-        if (frame.isChildMoveIn) {
-          ops.push({
-            type: "set_node",
-            path,
-            properties: { isChildMoveIn: frame.isChildMoveIn },
-            newProperties: { isChildMoveIn: false },
-          });
-        }
-      }
+      ops.push(...capService.buildDragFeedbackOps(container, null));
     }
 
     if (ops.length > 0) {
