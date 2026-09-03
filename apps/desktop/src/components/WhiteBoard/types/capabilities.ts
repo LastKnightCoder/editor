@@ -162,6 +162,13 @@ export interface IMovementCapability {
   behavior: MovementBehavior;
 
   /**
+   * 收集移动该元素时需要一起移动的完整元素集合（含自身）。
+   * 容器（Frame/Column）返回自身与全部后代，思维导图根节点返回整棵子树；
+   * 未声明时视为仅自身移动。
+   */
+  collectMoveSubtree?: (element: BoardElement) => BoardElement[];
+
+  /**
    * 移动后的回调（如需要重新布局）
    */
   afterMove?: (board: Board, element: BoardElement) => void;

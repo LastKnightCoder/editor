@@ -133,6 +133,8 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
       },
       movement: {
         behavior: MovementBehavior.MoveWithChildren,
+        collectMoveSubtree: (element) =>
+          FrameUtil.getAllChildren(element as FrameElement),
       },
       render: {
         childrenOrder: ChildrenRenderOrder.Reversed,

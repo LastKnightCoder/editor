@@ -9,7 +9,6 @@ import {
   Operation,
   FrameElement,
 } from "@/components/WhiteBoard/types";
-import { SnapBehavior } from "@/components/WhiteBoard/types/capabilities";
 import { BoardUtil, FrameUtil, PathUtil } from "@/components/WhiteBoard/utils";
 import setterConfig from "./setter-config.ts";
 
@@ -63,31 +62,9 @@ const AttributeSetter = () => {
 
       // 容器（Frame/Column）与 RootOnly 元素（mind-node 根）移动时，
       // 子元素需要随容器一起平移：用子树平移 ops，避免 set_node 写入 children。
-      const snapCap = capService.getSnapCapability(currentElement.type);
-      const shouldTranslateSubtree =
-        capService.shouldMoveWithChildren(currentElement) ||
-        (snapCap.behavior === SnapBehavior.RootOnly &&
-          Boolean(snapCap.moveAll) &&
-          Array.isArray(currentElement.children) &&
-          currentElement.children.length > 0);
-
-      if (
-        shouldTranslateSubtree &&
-        typeof currentElement.x === "number" &&
-        typeof currentElement.y === "number" &&
-        typeof newElement.x === "number" &&
-        typeof newElement.y === "number"
-      ) {
-        const dx = newElement.x - currentElement.x;
-        const dy = newElement.y - currentElement.y;
-        ops.push(
-          ...BoardUtil.buildTranslateSubtreeOps(currentElement, path, dx, dy),
-        );
-      } else {
-        ops.push(
-          ...BoardUtil.diffNodePatchOnly(currentElement, newElement, path),
-        );
-      }
+      ops.push(
+        ...capService.buildElementMoveOps(currentElement, newElement, path),
+      );
     });
 
     ops.push({
