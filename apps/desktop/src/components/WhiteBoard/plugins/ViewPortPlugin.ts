@@ -1,104 +1,17 @@
-import {
-  IBoardPlugin,
-  ViewPort,
-  Board,
-  ECreateBoardElementType,
-  BoardContextMenuPayload,
-} from "../types";
+import { IBoardPlugin, Board, ECreateBoardElementType } from "../types";
 import { BOARD_TO_CONTAINER, MIN_ZOOM, MAX_ZOOM } from "../constants";
 import { ViewPortTransforms } from "../transforms";
-import { BoardUtil, PointUtil } from "../utils";
 import isHotkey from "is-hotkey";
 
+/**
+ * 视口的滚轮缩放/平移与缩放快捷键（mod+= / mod+- / mod+o 全览）。
+ * 右键拖拽平移已迁入交互内核（interactions/states/PanningState），
+ * 方向键平移已迁入 interactions/states/ViewportMoveState。
+ */
 export class ViewPortPlugin implements IBoardPlugin {
   name = "viewport-plugin";
 
-  isMouseDown = false;
-  boardOriginViewPort: ViewPort | null = null;
-  boardOriginOffset: { x: number; y: number } | null = null;
-  lastWheelTime = 0;
-  lastMoveTime = 0;
-  hasRightClickMoved = false;
-
-  // 方向键移动视口相关属性
-  arrowKeyMoveInterval: number | null = null;
-  currentArrowKey: string | null = null;
-  isPreciseMode = false;
-
-  onPointerDown(e: PointerEvent, board: Board) {
-    if (board.presentationManager.isPresentationMode) return;
-    // 右键
-    if (e.button === 2) {
-      this.isMouseDown = true;
-      this.boardOriginOffset = { x: e.clientX, y: e.clientY };
-      this.boardOriginViewPort = { ...board.viewPort };
-      this.hasRightClickMoved = false;
-    }
-  }
-
-  onPointerMove(e: PointerEvent, board: Board) {
-    if (
-      !this.isMouseDown ||
-      !this.boardOriginOffset ||
-      !this.boardOriginViewPort ||
-      board.presentationManager.isPresentationMode
-    )
-      return;
-
-    const now = Date.now();
-    if (now - this.lastMoveTime < 30) return;
-
-    if (this.boardOriginOffset) {
-      const diffX = e.clientX - this.boardOriginOffset.x;
-      const diffY = e.clientY - this.boardOriginOffset.y;
-      if (!this.hasRightClickMoved && Math.hypot(diffX, diffY) > 3) {
-        this.hasRightClickMoved = true;
-      }
-      if (!this.hasRightClickMoved) {
-        return;
-      }
-    }
-
-    this.lastMoveTime = now;
-
-    const { x, y } = { x: e.clientX, y: e.clientY };
-    const { x: originX, y: originY } = this.boardOriginOffset;
-    const { zoom, minX, minY } = this.boardOriginViewPort;
-    const deltaX = originX - x;
-    const deltaY = originY - y;
-    ViewPortTransforms.moveViewPort(
-      board,
-      minX + deltaX / zoom,
-      minY + deltaY / zoom,
-    );
-  }
-
-  onGlobalPointerUp(e: PointerEvent, board: Board) {
-    const shouldEmitContextMenu =
-      e.button === 2 &&
-      this.isMouseDown &&
-      !this.hasRightClickMoved &&
-      !board.presentationManager.isPresentationMode;
-
-    const container = BOARD_TO_CONTAINER.get(board);
-    const isInsideBoard = container
-      ? (() => {
-          const rect = container.getBoundingClientRect();
-          return (
-            e.clientX >= rect.left &&
-            e.clientX <= rect.right &&
-            e.clientY >= rect.top &&
-            e.clientY <= rect.bottom
-          );
-        })()
-      : false;
-
-    this.resetPointerState();
-
-    if (shouldEmitContextMenu && isInsideBoard) {
-      this.emitContextMenu(e, board);
-    }
-  }
+  private lastWheelTime = 0;
 
   onContextMenu(e: MouseEvent) {
     e.preventDefault();
@@ -158,88 +71,7 @@ export class ViewPortPlugin implements IBoardPlugin {
     }
   }
 
-  // 处理方向键移动视口
-  handleViewPortArrowNavigation(board: Board, key: string) {
-    if (board.presentationManager.isPresentationMode) return;
-
-    const moveDistance = this.isPreciseMode ? 1 : 5;
-    let offsetX = 0;
-    let offsetY = 0;
-
-    switch (key) {
-      case "ArrowUp":
-        offsetY = -moveDistance;
-        break;
-      case "ArrowDown":
-        offsetY = moveDistance;
-        break;
-      case "ArrowLeft":
-        offsetX = -moveDistance;
-        break;
-      case "ArrowRight":
-        offsetX = moveDistance;
-        break;
-    }
-
-    ViewPortTransforms.moveViewPort(
-      board,
-      board.viewPort.minX + offsetX,
-      board.viewPort.minY + offsetY,
-    );
-  }
-
-  // 开始持续移动视口
-  startContinuousViewPortMove(board: Board, key: string) {
-    if (board.presentationManager.isPresentationMode) return;
-
-    // 停止之前的移动
-    this.stopContinuousViewPortMove();
-
-    this.currentArrowKey = key;
-    // 立即执行一次移动
-    this.handleViewPortArrowNavigation(board, key);
-
-    // 设置定时器持续移动
-    this.arrowKeyMoveInterval = window.setInterval(() => {
-      if (this.currentArrowKey) {
-        this.handleViewPortArrowNavigation(board, this.currentArrowKey);
-      }
-    }, 60);
-  }
-
-  // 停止持续移动
-  stopContinuousViewPortMove() {
-    if (this.arrowKeyMoveInterval !== null) {
-      clearInterval(this.arrowKeyMoveInterval);
-      this.arrowKeyMoveInterval = null;
-      this.currentArrowKey = null;
-    }
-  }
-
   onKeyDown(e: KeyboardEvent, board: Board) {
-    // 检测精确模式 (alt/option键)
-    if (e.altKey && !this.isPreciseMode) {
-      this.isPreciseMode = true;
-    }
-
-    // 处理方向键移动视口 - 仅当没有选中元素时
-    if (
-      ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) &&
-      board.selection.selectedElements.length === 0
-    ) {
-      // 阻止默认行为（避免页面滚动）
-      e.preventDefault();
-
-      // 如果是新的方向键或者没有正在进行的移动，开始新的持续移动
-      if (
-        this.currentArrowKey !== e.key ||
-        this.arrowKeyMoveInterval === null
-      ) {
-        this.startContinuousViewPortMove(board, e.key);
-      }
-      return;
-    }
-
     if (isHotkey("mod+=", e)) {
       const newZoom = Math.min(board.viewPort.zoom * 1.1, 10);
       ViewPortTransforms.updateZoom(board, newZoom);
@@ -284,64 +116,5 @@ export class ViewPortPlugin implements IBoardPlugin {
         ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true);
       }
     }
-  }
-
-  onKeyUp(e: KeyboardEvent) {
-    // 检测精确模式结束
-    if (!e.altKey && this.isPreciseMode) {
-      this.isPreciseMode = false;
-    }
-
-    // 如果释放的是当前激活的方向键，停止持续移动
-    if (this.currentArrowKey === e.key) {
-      this.stopContinuousViewPortMove();
-    }
-  }
-
-  private emitContextMenu(event: PointerEvent, board: Board) {
-    const viewPortPoint = PointUtil.screenToViewPort(
-      board,
-      event.clientX,
-      event.clientY,
-    );
-    if (!viewPortPoint) return;
-
-    const hitElements = BoardUtil.getHitElements(
-      board,
-      viewPortPoint.x,
-      viewPortPoint.y,
-    );
-    const hitElement =
-      hitElements.length > 0 ? hitElements[hitElements.length - 1] : undefined;
-    const selectedElements = [...board.selection.selectedElements];
-    const isHitSelected = !!(
-      hitElement &&
-      selectedElements.some((element) => element.id === hitElement.id)
-    );
-    const targetElements = isHitSelected
-      ? selectedElements
-      : hitElement
-        ? [hitElement]
-        : [];
-
-    const payload: BoardContextMenuPayload = {
-      clientX: event.clientX,
-      clientY: event.clientY,
-      viewPortPoint,
-      selectedElements,
-      hitElements,
-      hitElement,
-      targetElements,
-      isHitSelected,
-    };
-
-    board.emit("context-menu", payload);
-  }
-
-  private resetPointerState() {
-    this.isMouseDown = false;
-    this.boardOriginOffset = null;
-    this.boardOriginViewPort = null;
-    this.hasRightClickMoved = false;
   }
 }
