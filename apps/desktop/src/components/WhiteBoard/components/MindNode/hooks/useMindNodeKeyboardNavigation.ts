@@ -507,19 +507,16 @@ export const useMindNodeKeyboardNavigation = (
       board.selection.selectedElements &&
       board.selection.selectedElements.length === 1;
 
-    if (isHotkey(["mod+z", "mod+o"], e)) {
-      return;
-    }
-
-    // 如果选中了当前节点且不在编辑状态
+    // 如果选中了当前节点且不在编辑状态：
+    // 仅在命中本 hook 的快捷键时才拦截，其余按键放行给 Board
+    // （如 mod+z 撤销等全局快捷键不能被误拦）
     if (isSelected && onlyOneSelected && !isEditing) {
-      e.stopImmediatePropagation();
-      e.preventDefault();
-      // 遍历非编辑状态下的快捷键配置
       for (const [hotkey, handler] of Object.entries(
         NON_EDITING_KEYBOARD_CONFIG,
       )) {
         if (isHotkey(hotkey, e)) {
+          e.stopImmediatePropagation();
+          e.preventDefault();
           handler({ board, element, setIsEditing, editor });
           return;
         }
