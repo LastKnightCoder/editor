@@ -28,6 +28,7 @@ import type { InteractionState } from "../InteractionState";
  */
 export class DraggingState implements InteractionState {
   readonly name = "dragging";
+  isFinished = false;
 
   private moveElements: BoardElement[] | null = null;
   private startPoint: { x: number; y: number } | null = null;
@@ -420,7 +421,16 @@ export class DraggingState implements InteractionState {
     board.emit("element:move", movedElements);
   }
 
+  /** 拖拽手势在 pointerup 后必然结束 */
   onPointerUp(e: PointerEvent, board: Board) {
+    try {
+      this.handlePointerUp(e, board);
+    } finally {
+      this.isFinished = true;
+    }
+  }
+
+  private handlePointerUp(e: PointerEvent, board: Board) {
     const endPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (
       !endPoint ||
