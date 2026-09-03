@@ -333,6 +333,8 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     : "视频";
   const transcriptCount = videoNote?.transcriptSegments?.length ?? 0;
   const hasSummary = !!videoNote?.summary;
+  // 视频就绪前容器用主题化背景，避免下载/错误态在亮色模式下出现黑底
+  const showVideo = !videoLoading && !videoError && !!videoSrc;
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -346,7 +348,10 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
             <div className="flex h-full flex-col overflow-y-auto">
               <div className="mx-auto w-full max-w-[960px] p-4">
                 <div
-                  className="relative w-full overflow-hidden rounded-xl bg-black"
+                  className={classNames(
+                    "relative w-full overflow-hidden rounded-xl",
+                    showVideo ? "bg-black" : "bg-gray-100 dark:bg-zinc-900",
+                  )}
                   style={{
                     aspectRatio: "16/9",
                     boxShadow: "0 10px 30px -10px rgba(0,0,0,0.3)",
@@ -354,7 +359,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                 >
                   {renderVideoLoader()}
 
-                  {!videoLoading && !videoError && videoSrc && (
+                  {showVideo && (
                     <>
                       {useLocalVideo ? (
                         <LocalVideo
