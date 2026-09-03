@@ -1,106 +1,56 @@
+import type Board from "../../Board";
 import {
-  Board,
   BoardElement,
   ECreateBoardElementType,
-  IBoardPlugin,
-  MindNodeElement,
-  Operation,
   FrameElement,
   ColumnElement,
-} from "../types";
-import { SnapBehavior } from "../types/capabilities";
+  Operation,
+} from "../../types";
+import { SnapBehavior } from "../../types/capabilities";
 import {
   BoardUtil,
+  PointUtil,
+  PathUtil,
+  Rect,
+  isValid,
+  FrameUtil,
   collectGroupMembers,
   expandSelectionByGroup,
   isPointInAnySelectedGroupBounds,
-  PointUtil,
-  PathUtil,
   getElementGroupId,
-  isValid,
-  Rect,
-  MindUtil,
-  FrameUtil,
-} from "../utils";
+} from "../../utils";
+import type { InteractionState } from "../InteractionState";
 
-export class MovePlugin implements IBoardPlugin {
-  name = "move-plugin";
+/**
+ * 元素拖拽状态（原 MovePlugin 的指针手势部分）。
+ * 由 InteractionManager 在 pointerdown 广播未被插件中断后裁决进入，
+ * pointerup 提交移动（含容器拖入/拖出）后销毁。
+ */
+export class DraggingState implements InteractionState {
+  readonly name = "dragging";
 
-  moveElements: BoardElement[] | null = null;
-  startPoint: { x: number; y: number } | null = null;
-  isHitSelected = false;
-  isMoved = false;
+  private moveElements: BoardElement[] | null = null;
+  private startPoint: { x: number; y: number } | null = null;
+  private isHitSelected = false;
+  private isMoved = false;
 
-  // 键盘移动相关属性
-  arrowKeyMoveInterval: number | null = null;
-  currentArrowKey: string | null = null;
-  isPreciseMode = false;
-
-  private isEditableEventTarget(target: EventTarget | null): boolean {
-    const element =
-      target instanceof Element
-        ? target
-        : target instanceof Node
-          ? target.parentElement
-          : null;
-    if (!element) return false;
-
-    if (
-      element instanceof HTMLInputElement ||
-      element instanceof HTMLTextAreaElement
-    ) {
-      return true;
-    }
-
-    return Boolean(
-      (element instanceof HTMLElement && element.isContentEditable) ||
-      element.closest('[contenteditable="true"]') ||
-      element.closest("[data-slate-editor]") ||
-      element.closest("input") ||
-      element.closest("textarea"),
-    );
-  }
+  private constructor() {}
 
   /**
-   * 目前支持“拖拽进出”的容器都位于根层（Frame/Column 等 canBeContained=false），
-   * 因此这里优先只扫描 root children，避免在 onPointerMove 中做全树 DFS。
+   * pointerdown 仲裁（原 MovePlugin.onPointerDown）。
+   * 返回 null 表示本次按下不属于拖拽手势（未命中、多选点击、创建模式等）。
    */
-  private getDragContainers(board: Board): BoardElement[] {
-    const capService = board.capabilityService;
-    return board.children.filter((el) => {
-      if (!capService.isContainer(el)) return false;
-      // 只有实现了 isElementInContainer 的容器才参与拖拽进出检测（例如 Frame/Column）。
-      const caps = capService.getContainmentCapability(el.type);
-      return typeof caps.isElementInContainer === "function";
-    });
-  }
-
-  /**
-   * Column 不允许被包含，永远在根层；构建 childId -> Column 的索引用于拖拽过程的特殊处理。
-   */
-  private getColumnChildMap(board: Board): Map<string, ColumnElement> {
-    const columnChildMap = new Map<string, ColumnElement>();
-    for (const element of board.children) {
-      if (element.type !== "column") continue;
-      const column = element as ColumnElement;
-      for (const child of column.children) {
-        columnChildMap.set(child.id, column);
-      }
-    }
-    return columnChildMap;
-  }
-
-  onPointerDown(e: PointerEvent, board: Board) {
+  static tryStart(board: Board, e: PointerEvent): DraggingState | null {
     if (
       e.button !== 0 ||
       board.currentCreateType !== ECreateBoardElementType.None ||
       board.presentationManager.isPresentationMode
     ) {
-      return;
+      return null;
     }
 
     const startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
-    if (!startPoint) return;
+    if (!startPoint) return null;
 
     const selectedElements = expandSelectionByGroup(
       board,
@@ -126,73 +76,78 @@ export class MovePlugin implements IBoardPlugin {
         startPoint.y,
       );
     const isHitSelected = isHitSelectedElement || isHitSelectedGroupBounds;
-    // 如果有选中元素，并且点击到其中之一，则移动所有选中的元素
+    // 如果有选中元素，并且点击到其中之一，则移动所有选中的元素，
     // 否则没有选中元素，但是有点击到元素，则移动选中的元素，
     //    经过广度优先遍历，选最后一个是最上面的
     // 否则没有选中元素，也没有点击到元素，则不移动任何元素
     // 注意：需要获取最新的元素状态（因为可能被 relayout 更新了位置）
+    let moveElements: BoardElement[] | null;
     if (selectedElements.length > 0 && isHitSelected) {
-      this.moveElements = selectedElements.map(
+      moveElements = selectedElements.map(
         (el) => BoardUtil.getElementById(board, el.id) || el,
       );
     } else if (hitElements.length > 0) {
       const hitElement = hitElements[hitElements.length - 1];
       const hitGroupId = getElementGroupId(hitElement);
-      if (hitGroupId) {
-        const groupMembers = collectGroupMembers(board, hitGroupId);
-        this.moveElements = groupMembers.map(
-          (element) => BoardUtil.getElementById(board, element.id) || element,
-        );
-      } else {
-        this.moveElements = [
-          BoardUtil.getElementById(board, hitElement.id) || hitElement,
-        ];
-      }
+      const candidates = hitGroupId
+        ? collectGroupMembers(board, hitGroupId)
+        : [hitElement];
+      moveElements = candidates.map(
+        (element) => BoardUtil.getElementById(board, element.id) || element,
+      );
     } else {
-      this.moveElements = null;
+      moveElements = null;
     }
 
-    this.isHitSelected = isHitSelected;
+    // ctrl/meta 点击交给点选逻辑处理多选，不开启拖拽
     const isMultiSelect = e.ctrlKey || e.metaKey;
+    if (!moveElements || isMultiSelect) return null;
 
-    // 找到所有的容器元素（如 frame），如果容器的 children 中包含移动的元素
-    // 把这些 children 从 this.moveElements 中移除
-    if (this.moveElements && this.moveElements.length > 1) {
+    // 找到所有的容器元素（如 frame），如果容器的 children 中包含移动的元素，
+    // 把这些 children 从 moveElements 中移除（子元素随容器整体移动）
+    if (moveElements.length > 1) {
       const capService = board.capabilityService;
-      const frameElements = this.moveElements.filter((el) =>
+      const frameElements = moveElements.filter((el) =>
         capService.shouldMoveWithChildren(el),
       ) as FrameElement[];
       frameElements.forEach((frame) => {
-        this.moveElements =
-          this.moveElements?.filter(
+        moveElements =
+          moveElements?.filter(
             (el) =>
               !frame.children.some((child: BoardElement) => child.id === el.id),
           ) || null;
       });
+      if (!moveElements) return null;
     }
 
-    // 多选情况下交给 SelectPlugin 处理
-    if (this.moveElements && !isMultiSelect) {
-      this.startPoint = startPoint;
-      if (!this.isEditableEventTarget(e.target)) {
-        e.preventDefault();
-        window.getSelection?.()?.removeAllRanges();
-      }
-      board.apply(
-        {
-          type: "set_selection",
-          properties: board.selection,
-          newProperties: {
-            selectedElements: [],
-          },
-        },
-        false,
-      );
+    const state = new DraggingState();
+    state.moveElements = moveElements;
+    state.startPoint = startPoint;
+    state.isHitSelected = isHitSelected;
+
+    if (!isEditableEventTarget(e.target)) {
+      e.preventDefault();
+      window.getSelection?.()?.removeAllRanges();
     }
+    // 拖拽期间隐藏选中态，pointerup 时恢复（点选恢复由选择逻辑负责）
+    board.apply(
+      {
+        type: "set_selection",
+        properties: board.selection,
+        newProperties: {
+          selectedElements: [],
+        },
+      },
+      false,
+    );
+    return state;
   }
 
   // 这里需要处理吸附后元素位置问题
-  getUpdatedInfo(e: PointerEvent, board: Board) {
+  private getUpdatedInfo(
+    e: PointerEvent,
+    board: Board,
+  ): { movedElements: BoardElement[] } {
     let movedElements: BoardElement[] = [];
 
     if (!this.moveElements || !this.startPoint) {
@@ -295,6 +250,35 @@ export class MovePlugin implements IBoardPlugin {
     };
   }
 
+  /**
+   * 目前支持"拖拽进出"的容器都位于根层（Frame/Column 等 canBeContained=false），
+   * 因此这里优先只扫描 root children，避免在拖拽循环中做全树 DFS。
+   */
+  private getDragContainers(board: Board): BoardElement[] {
+    const capService = board.capabilityService;
+    return board.children.filter((el) => {
+      if (!capService.isContainer(el)) return false;
+      // 只有实现了 isElementInContainer 的容器才参与拖拽进出检测（例如 Frame/Column）。
+      const caps = capService.getContainmentCapability(el.type);
+      return typeof caps.isElementInContainer === "function";
+    });
+  }
+
+  /**
+   * Column 不允许被包含，永远在根层；构建 childId -> Column 的索引用于拖拽过程的特殊处理。
+   */
+  private getColumnChildMap(board: Board): Map<string, ColumnElement> {
+    const columnChildMap = new Map<string, ColumnElement>();
+    for (const element of board.children) {
+      if (element.type !== "column") continue;
+      const column = element as ColumnElement;
+      for (const child of column.children) {
+        columnChildMap.set(child.id, column);
+      }
+    }
+    return columnChildMap;
+  }
+
   onPointerMove(e: PointerEvent, board: Board) {
     if (
       !this.moveElements ||
@@ -302,7 +286,7 @@ export class MovePlugin implements IBoardPlugin {
       board.presentationManager.isPresentationMode
     )
       return;
-    if (!this.isEditableEventTarget(e.target)) {
+    if (!isEditableEventTarget(e.target)) {
       e.preventDefault();
       window.getSelection?.()?.removeAllRanges();
     }
@@ -445,9 +429,6 @@ export class MovePlugin implements IBoardPlugin {
       board.presentationManager.isPresentationMode
     ) {
       board.emit("element:move-end");
-      this.moveElements = null;
-      this.startPoint = null;
-      this.isMoved = false;
       return;
     }
 
@@ -455,9 +436,6 @@ export class MovePlugin implements IBoardPlugin {
       // 如果没有移动，也要清除参考线
       board.clearRefLines();
       board.emit("element:move-end");
-      this.moveElements = null;
-      this.startPoint = null;
-      this.isMoved = false;
       return;
     }
 
@@ -465,7 +443,7 @@ export class MovePlugin implements IBoardPlugin {
     const capService = board.capabilityService;
 
     // 先把移动本身写入 history（使用拖拽开始时的快照作为 oldProps），
-    // 这样即便 onPointerMove 是 apply(..., false)，Undo 也能还原位置。
+    // 这样即便拖拽过程中是 apply(..., false)，Undo 也能还原位置。
     const commitOps: Operation[] = [];
 
     // Column 子元素在拖拽中不直接更新位置，交给容器移动/relayout 处理，因此这里跳过。
@@ -541,7 +519,6 @@ export class MovePlugin implements IBoardPlugin {
             .filter(isValid),
         },
       });
-      this.isHitSelected = false;
     }
 
     // 确保清除参考线
@@ -553,189 +530,6 @@ export class MovePlugin implements IBoardPlugin {
     }
 
     board.emit("element:move-end");
-    this.moveElements = null;
-    this.startPoint = null;
-    this.isMoved = false;
-  }
-
-  // 执行元素移动 - 为键盘方向键移动服务
-  moveSelectedElementsByOffset(board: Board, offsetX: number, offsetY: number) {
-    const selectedElements = board.selection.selectedElements;
-    if (selectedElements.length === 0) return false;
-
-    const operations: Operation[] = [];
-    const movedElements: BoardElement[] = [];
-
-    selectedElements.forEach((element) => {
-      const capService = board.capabilityService;
-      // 使用 board.moveElement 方法获取移动后的元素位置
-      const movedElement = board.moveElement(element, offsetX, offsetY);
-      if (movedElement) {
-        const path = PathUtil.getPathByElement(board, movedElement);
-        if (path) {
-          const snapCap = capService.getSnapCapability(movedElement.type);
-          const shouldTranslateSubtree =
-            capService.shouldMoveWithChildren(movedElement) ||
-            (snapCap.behavior === SnapBehavior.RootOnly &&
-              Boolean(snapCap.moveAll) &&
-              Array.isArray(movedElement.children) &&
-              movedElement.children.length > 0);
-          if (
-            shouldTranslateSubtree &&
-            typeof element.x === "number" &&
-            typeof element.y === "number" &&
-            typeof movedElement.x === "number" &&
-            typeof movedElement.y === "number"
-          ) {
-            const dx = movedElement.x - element.x;
-            const dy = movedElement.y - element.y;
-            operations.push(
-              ...BoardUtil.buildTranslateSubtreeOps(element, path, dx, dy),
-            );
-          } else {
-            operations.push(
-              ...BoardUtil.diffNodePatchOnly(element, movedElement, path),
-            );
-          }
-          movedElements.push(movedElement);
-
-          // 对于 RootOnly 吸附类型的元素（如 mind-node），需要把所有子节点都添加到 movedElements
-          if (snapCap.behavior === SnapBehavior.RootOnly && snapCap.isRoot) {
-            if (snapCap.isRoot(movedElement)) {
-              // 把所有的子节点都移动添加到元素中
-              MindUtil.dfs(movedElement as MindNodeElement, {
-                before: (node: MindNodeElement) => {
-                  if (MindUtil.isRoot(node)) return;
-                  movedElements.push(node);
-                },
-              });
-            }
-          }
-        }
-      }
-    });
-
-    if (operations.length > 0) {
-      // 应用操作更新元素
-      board.apply(operations, false);
-
-      // 更新selection中的选中元素，确保使用最新位置
-      board.apply(
-        {
-          type: "set_selection",
-          properties: board.selection,
-          newProperties: {
-            selectArea: board.selection.selectArea,
-            selectedElements: movedElements,
-          },
-        },
-        false,
-      );
-
-      board.emit("element:move", movedElements);
-      return true;
-    }
-
-    return false;
-  }
-
-  // 处理方向键移动
-  handleArrowKeyNavigation(board: Board, key: string) {
-    if (board.presentationManager.isPresentationMode) return false;
-
-    const moveDistance = this.isPreciseMode ? 1 : 5;
-    let offsetX = 0;
-    let offsetY = 0;
-
-    switch (key) {
-      case "ArrowUp":
-        offsetY = -moveDistance;
-        break;
-      case "ArrowDown":
-        offsetY = moveDistance;
-        break;
-      case "ArrowLeft":
-        offsetX = -moveDistance;
-        break;
-      case "ArrowRight":
-        offsetX = moveDistance;
-        break;
-      default:
-        return false;
-    }
-
-    return this.moveSelectedElementsByOffset(board, offsetX, offsetY);
-  }
-
-  // 开始持续移动
-  startContinuousArrowMove(board: Board, key: string) {
-    if (board.presentationManager.isPresentationMode) return;
-
-    // 停止之前的移动
-    this.stopContinuousArrowMove();
-
-    this.currentArrowKey = key;
-    // 立即执行一次移动
-    this.handleArrowKeyNavigation(board, key);
-
-    // 设置定时器持续移动
-    this.arrowKeyMoveInterval = window.setInterval(() => {
-      if (this.currentArrowKey) {
-        this.handleArrowKeyNavigation(board, this.currentArrowKey);
-      }
-    }, 60);
-  }
-
-  // 停止持续移动
-  stopContinuousArrowMove() {
-    if (this.arrowKeyMoveInterval !== null) {
-      clearInterval(this.arrowKeyMoveInterval);
-      this.arrowKeyMoveInterval = null;
-      this.currentArrowKey = null;
-    }
-  }
-
-  onKeyDown(e: KeyboardEvent, board: Board) {
-    if (board.presentationManager.isPresentationMode) return;
-
-    // 检测精确模式 (alt/option键)
-    if (e.altKey && !this.isPreciseMode) {
-      this.isPreciseMode = true;
-    }
-
-    // 处理方向键
-    if (
-      ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) &&
-      board.selection.selectedElements.length > 0
-    ) {
-      // 阻止默认行为（避免页面滚动）
-      e.preventDefault();
-
-      // 如果是新的方向键或者没有正在进行的移动，开始新的持续移动
-      if (
-        this.currentArrowKey !== e.key ||
-        this.arrowKeyMoveInterval === null
-      ) {
-        this.startContinuousArrowMove(board, e.key);
-      }
-    }
-  }
-
-  onKeyUp(e: KeyboardEvent, board: Board) {
-    if (board.presentationManager.isPresentationMode) return;
-
-    // 检测精确模式结束
-    if (!e.altKey && this.isPreciseMode) {
-      this.isPreciseMode = false;
-    }
-
-    // 如果释放的是当前激活的方向键，停止持续移动
-    if (this.currentArrowKey === e.key) {
-      this.stopContinuousArrowMove();
-
-      // 移动结束时触发事件
-      board.emit("element:move-end");
-    }
   }
 
   /**
@@ -788,14 +582,14 @@ export class MovePlugin implements IBoardPlugin {
       for (const container of containers) {
         if (container.type === "column") {
           const column = container as ColumnElement;
-          // 如果该 Column 显示了拖拽指示器，说明 onPointerMove 时判断为在容器内
+          // 如果该 Column 显示了拖拽指示器，说明拖拽过程中判断为在容器内
           if (column.isChildDraggingOver) {
             targetContainer = container;
             break;
           }
         } else if (container.type === "frame") {
           const frame = container as FrameElement;
-          // 如果该 Frame 高亮，说明 onPointerMove 时判断为进入该容器
+          // 如果该 Frame 高亮，说明拖拽过程中判断为进入该容器
           if (frame.isChildMoveIn) {
             targetContainer = container;
             break;
@@ -1208,3 +1002,28 @@ export class MovePlugin implements IBoardPlugin {
     }
   }
 }
+
+const isEditableEventTarget = (target: EventTarget | null): boolean => {
+  const element =
+    target instanceof Element
+      ? target
+      : target instanceof Node
+        ? target.parentElement
+        : null;
+  if (!element) return false;
+
+  if (
+    element instanceof HTMLInputElement ||
+    element instanceof HTMLTextAreaElement
+  ) {
+    return true;
+  }
+
+  return Boolean(
+    (element instanceof HTMLElement && element.isContentEditable) ||
+    element.closest('[contenteditable="true"]') ||
+    element.closest("[data-slate-editor]") ||
+    element.closest("input") ||
+    element.closest("textarea"),
+  );
+};
