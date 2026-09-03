@@ -1,14 +1,8 @@
 import Board from "../Board";
-import {
-  BoardElement,
-  MindNodeElement,
-  MoveNodeOperation,
-  Operation,
-} from "../types";
+import { BoardElement, MoveNodeOperation, Operation } from "../types";
 import BoardOperations from "./BoardOperations";
 import PathUtil from "./PathUtil";
 import BoardUtil from "./BoardUtil";
-import MindUtil from "./MindUtil";
 
 export type LayerOrderAction =
   | "move-up"
@@ -26,10 +20,7 @@ export interface LayerOrderActionState {
 interface LayerOrderPlan {
   disabled: boolean;
   moveOps: MoveNodeOperation[];
-  relayoutTargets: Array<{
-    elementId: string;
-    sourceRootId: string | null;
-  }>;
+  relayoutTargets: string[];
 }
 
 const ACTIONS: LayerOrderAction[] = [
@@ -224,20 +215,11 @@ const buildPlan = (
     return { disabled: true, moveOps: [], relayoutTargets: [] };
   }
 
-  const relayoutTargets = Array.from(new Set(movedIds))
-    .map((id) => {
-      const element = BoardUtil.getElementById(board, id);
-      if (!element || !board.capabilityService.requiresRelayout(element)) {
-        return null;
-      }
-      const sourceRootId =
-        MindUtil.getRoot(board, element as MindNodeElement)?.id ?? null;
-      return { elementId: id, sourceRootId };
-    })
-    .filter(
-      (item): item is { elementId: string; sourceRootId: string | null } =>
-        Boolean(item),
-    );
+  // 需要 relayout 的元素（如思维导图节点），重排细节由其 movement.afterMove 能力处理
+  const relayoutTargets = Array.from(new Set(movedIds)).filter((id) => {
+    const element = BoardUtil.getElementById(board, id);
+    return element && board.capabilityService.requiresRelayout(element);
+  });
 
   return {
     disabled: false,
@@ -280,8 +262,11 @@ export const executeLayerOrderAction = (
   });
   board.apply(ops, true);
 
-  plan.relayoutTargets.forEach(({ elementId, sourceRootId }) => {
-    MindUtil.relayoutAffectedRootsAfterMindMove(board, elementId, sourceRootId);
+  plan.relayoutTargets.forEach((elementId) => {
+    const element = BoardUtil.getElementById(board, elementId);
+    if (element) {
+      board.capabilityService.notifyAfterMove(element);
+    }
   });
 
   return true;

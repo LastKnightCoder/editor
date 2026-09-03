@@ -15,14 +15,13 @@ import {
   ViewPort,
   ECreateBoardElementType,
   PresentationSequence,
-  MindNodeElement,
   ElementBounds,
   BoardContextMenuPayload,
   ContextMenuContext,
   PluginContextMenuItem,
   CustomOffset,
 } from "./types";
-import { isValid, executeSequence, BoardUtil, MindUtil } from "./utils";
+import { isValid, executeSequence, BoardUtil } from "./utils";
 
 import BoardOperations from "./utils/BoardOperations";
 import ResourceUsageTracker, {
@@ -549,13 +548,9 @@ class Board {
       selectionChanged = true;
     }
 
-    // 更新参考线
+    // 更新参考线（参与与否由各元素的 refLine 能力声明决定）
     metadata.changedElements.forEach((element) => {
-      if (
-        element.type !== "arrow" &&
-        (element.type !== "mind-node" ||
-          MindUtil.isRoot(element as MindNodeElement))
-      ) {
+      if (this.capabilityService.shouldParticipateInRefLines(element)) {
         this.refLine.addRefRect({
           key: element.id,
           x: element.x,
@@ -567,7 +562,7 @@ class Board {
     });
 
     metadata.removedElements.forEach((element) => {
-      if (element.type !== "arrow") {
+      if (this.capabilityService.shouldParticipateInRefLines(element)) {
         this.refLine.removeRefRect(element.id);
       }
     });
@@ -649,21 +644,10 @@ class Board {
     const plugin = this.plugins.find((plugin) => plugin.name === element.type);
     if (!plugin) return null;
 
-    // Filter children for mind-node type when folded
-    let visibleChildren = children;
-    if (element.type === "mind-node") {
-      const mindNode = element as MindNodeElement;
-      // 过滤掉被折叠方向的子节点
-      visibleChildren = children?.filter((child) => {
-        if (child.type !== "mind-node") return true;
-        const childMindNode = child as MindNodeElement;
-        const isChildLeftDirection = childMindNode.direction === "left";
-        const isParentFoldThisDirection = isChildLeftDirection
-          ? mindNode.isLeftFold
-          : mindNode.isRightFold;
-        return !isParentFoldThisDirection;
-      });
-    }
+    // 折叠等渲染期过滤由元素的 render 能力决定
+    const visibleChildren = children
+      ? this.capabilityService.getVisibleChildren(element, children)
+      : children;
 
     return plugin.render?.(this, {
       element,
@@ -808,20 +792,19 @@ class Board {
         );
         if (!plugin) return null;
 
-        let processedChildren = children;
-
-        if (element.type === "mind-node" && children) {
-          const mindNode = element as MindNodeElement;
-          processedChildren = children.filter(({ element: childElement }) => {
-            if (childElement.type !== "mind-node") return true;
-            const childMindNode = childElement as MindNodeElement;
-            const isChildLeftDirection = childMindNode.direction === "left";
-            const isParentFoldThisDirection = isChildLeftDirection
-              ? mindNode.isLeftFold
-              : mindNode.isRightFold;
-            return !isParentFoldThisDirection;
-          });
-        }
+        // 折叠等渲染期过滤由元素的 render 能力决定
+        const processedChildren =
+          children && children.length > 0
+            ? this.capabilityService
+                .getVisibleChildren(
+                  element,
+                  children.map(({ element: childElement }) => childElement),
+                )
+                .map((childElement, index) => ({
+                  element: childElement,
+                  children: children[index].children,
+                }))
+            : children;
 
         const renderedChildren =
           this.renderVisibleElements(processedChildren).filter(isValid);
