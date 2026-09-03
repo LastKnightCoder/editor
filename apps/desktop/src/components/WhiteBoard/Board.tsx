@@ -29,6 +29,7 @@ import ResourceUsageTracker, {
   ResourceSource,
 } from "./utils/ResourceUsageTracker";
 import { CapabilityService } from "./services/CapabilityService";
+import { InteractionManager } from "./interactions/InteractionManager";
 
 const boardFlag = Symbol("board");
 
@@ -52,6 +53,7 @@ class Board {
   private eventEmitter: EventEmitter;
   public refLine: RefLineUtil;
   public capabilityService: CapabilityService;
+  public interactions: InteractionManager;
 
   public presentationManager: PresentationManager;
   public boardFlag: typeof boardFlag;
@@ -108,6 +110,9 @@ class Board {
     // 初始化能力查询服务
     this.capabilityService = new CapabilityService(this);
 
+    // 初始化交互内核（手势裁决与路由）
+    this.interactions = new InteractionManager(this);
+
     // 初始化演示管理器和序列
     this.presentationManager = new PresentationManager(
       this,
@@ -156,6 +161,7 @@ class Board {
 
   destroy() {
     this.isDestroyed = true;
+    this.interactions.destroy();
     this.eventEmitter.removeAllListeners();
     this.plugins = [];
   }
@@ -313,26 +319,33 @@ class Board {
   }
 
   onKeyDown(event: KeyboardEvent) {
+    this.interactions.routeKeyDown(event);
     const fns = this.plugins.map(bindHandler("onKeyDown")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onKeyUp(event: KeyboardEvent) {
+    this.interactions.routeKeyUp(event);
     const fns = this.plugins.map(bindHandler("onKeyUp")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onPointerDown(event: PointerEvent) {
     const fns = this.plugins.map(bindHandler("onPointerDown")).filter(isValid);
-    executeSequence(fns, event, this);
+    // 广播未被插件中断时，交互内核才有机会接管本次手势（双轨：未接管路径行为不变）
+    if (executeSequence(fns, event, this)) {
+      this.interactions.tryStartPointerGesture(event);
+    }
   }
 
   onPointerUp(event: PointerEvent) {
+    this.interactions.routePointerUp(event);
     const fns = this.plugins.map(bindHandler("onPointerUp")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onPointerMove(event: PointerEvent) {
+    this.interactions.routePointerMove(event);
     const fns = this.plugins.map(bindHandler("onPointerMove")).filter(isValid);
     executeSequence(fns, event, this);
   }

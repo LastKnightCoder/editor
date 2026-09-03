@@ -22,7 +22,6 @@ import { AnimatePresence, motion } from "motion/react";
 import Board from "./Board";
 import {
   ViewPortPlugin,
-  MovePlugin,
   HistoryPlugin,
   CopyPastePlugin,
   CardPlugin,
@@ -317,7 +316,6 @@ const WhiteBoard = memo(
         new FileDragDropPlugin(),
         new HistoryPlugin(),
         new SelectPlugin(),
-        new MovePlugin(),
         new ViewPortPlugin(),
         new CopyPastePlugin(),
         new ExportImagePlugin(),

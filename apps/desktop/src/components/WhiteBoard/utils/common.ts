@@ -37,16 +37,21 @@ export const selectAreaToRect = (selectArea: SelectArea) => {
 export const isValid = <T>(value: T | null | undefined): value is T =>
   value !== null && value !== undefined;
 
+/**
+ * 按注册顺序执行事件处理器，任一处理器返回 false 则中断后续分发。
+ * @returns 是否完整执行（未被中断）
+ */
 export const executeSequence = (
   fns: EventHandler[],
   event: Event,
   board: Board,
-) => {
+): boolean => {
   for (let i = 0; i < fns.length; i++) {
     const fn = fns[i];
     const result = fn(event, board);
-    if (result === false) return;
+    if (result === false) return false;
   }
+  return true;
 };
 
 export const getResizedBBox = (
