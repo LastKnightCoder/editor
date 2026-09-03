@@ -96,7 +96,7 @@ const ModernTabs: React.FC<ModernTabsProps> = ({
           );
         })}
         <span
-          className="absolute bottom-0 h-[0.125em] bg-[var(--th-btn-bg,var(--color-primary))] rounded-full transition-all duration-200"
+          className="absolute bottom-0 h-[0.125em] bg-[var(--th-btn-bg,var(--th-accent))] rounded-full transition-all duration-200"
           style={indicatorStyle}
         />
       </div>
@@ -105,7 +105,7 @@ const ModernTabs: React.FC<ModernTabsProps> = ({
           "pt-[1em]",
           isFlat
             ? ""
-            : "border border-t-0 border-[var(--color-border-secondary,#f0f0f0)] rounded-b-[0.75em] p-[1.25em] bg-bg-elevated dark:border-[var(--color-border-primary,#2a2a2a)] dark:bg-[#222]",
+            : "border border-t-0 border-[var(--th-divide,#f0f0f0)] rounded-b-[0.75em] p-[1.25em] bg-bg-elevated dark:border-[var(--th-border,#2a2a2a)] dark:bg-[#222]",
           panelClassName,
         )}
       >

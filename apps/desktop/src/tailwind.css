@@ -10,6 +10,7 @@
 
   --animate-shimmer: shimmer 2s infinite;
   --animate-float: float 3s ease-in-out infinite;
+  --animate-fadeIn: fadeIn 120ms ease-out;
 
   @keyframes float {
     0%,
@@ -20,10 +21,6 @@
       transform: translateY(-6px);
     }
   }
-  --animate-gradient-shift: gradient-shift 6s ease infinite;
-  --animate-gradient-flow: gradient-flow 8s ease infinite;
-  --animate-gradient-dream: gradient-dream 10s ease infinite;
-  --animate-fadeIn: fadeIn 120ms ease-out;
 
   @keyframes shimmer {
     0% {
@@ -31,54 +28,6 @@
     }
     100% {
       background-position: 100% 0;
-    }
-  }
-
-  @keyframes gradient-shift {
-    0%,
-    100% {
-      background-position: 0% 50%;
-    }
-    25% {
-      background-position: 50% 0%;
-    }
-    50% {
-      background-position: 100% 50%;
-    }
-    75% {
-      background-position: 50% 100%;
-    }
-  }
-
-  @keyframes gradient-flow {
-    0%,
-    100% {
-      background-position: 0% 0%;
-    }
-    33% {
-      background-position: 100% 50%;
-    }
-    66% {
-      background-position: 50% 100%;
-    }
-  }
-
-  @keyframes gradient-dream {
-    0%,
-    100% {
-      background-position: 0% 50%;
-    }
-    20% {
-      background-position: 30% 80%;
-    }
-    40% {
-      background-position: 70% 90%;
-    }
-    60% {
-      background-position: 100% 50%;
-    }
-    80% {
-      background-position: 50% 10%;
     }
   }
 
@@ -96,222 +45,222 @@
 
 @layer utilities {
   .bg-bg-page {
-    background-color: var(--color-bg-page);
+    background-color: var(--th-bg-page);
   }
   .bg-bg-container {
-    background-color: var(--color-bg-container);
+    background-color: var(--th-card-bg);
   }
   .bg-bg-elevated {
-    background-color: var(--color-bg-elevated);
+    background-color: var(--th-bg-elevated);
   }
   .bg-bg-canvas {
-    background-color: var(--color-bg-canvas);
+    background-color: var(--th-bg-page);
   }
   .bg-bg-input {
-    background-color: var(--color-bg-input);
+    background-color: var(--th-input-bg);
   }
 
   .text-text-1 {
-    color: var(--color-text-primary);
+    color: var(--th-text);
   }
   .text-text-2 {
-    color: var(--color-text-secondary);
+    color: var(--th-text-secondary);
   }
   .text-text-3 {
-    color: var(--color-text-tertiary);
+    color: var(--th-text-tertiary);
   }
   .text-text-4 {
-    color: var(--color-text-quaternary);
+    color: var(--th-text-tertiary);
   }
 
   .border-border-1 {
-    border-color: var(--color-border-primary);
+    border-color: var(--th-border);
   }
   .border-border-2 {
-    border-color: var(--color-border-secondary);
+    border-color: var(--th-divide);
   }
 
   .bg-brand {
-    background-color: var(--color-primary);
+    background-color: var(--th-accent);
   }
   .bg-brand-hover {
-    background-color: var(--color-primary-hover);
+    background-color: var(--th-accent-hover);
   }
   .bg-brand-active {
-    background-color: var(--color-primary-active);
+    background-color: var(--th-accent-active);
   }
   .text-brand {
-    color: var(--color-primary);
+    color: var(--th-accent);
   }
   .text-brand-hover {
-    color: var(--color-primary-hover);
+    color: var(--th-accent-hover);
   }
   .text-brand-active {
-    color: var(--color-primary-active);
+    color: var(--th-accent-active);
   }
   .border-brand {
-    border-color: var(--color-primary);
+    border-color: var(--th-accent);
   }
 
   .text-status-success {
-    color: var(--color-success);
+    color: var(--th-success);
   }
   .text-status-warning {
-    color: var(--color-warning);
+    color: var(--th-warning);
   }
   .text-status-error {
-    color: var(--color-error);
+    color: var(--th-danger);
   }
   .text-status-info {
-    color: var(--color-info);
+    color: var(--th-info);
   }
   .bg-status-success {
-    background-color: var(--color-success);
+    background-color: var(--th-success);
   }
   .bg-status-warning {
-    background-color: var(--color-warning);
+    background-color: var(--th-warning);
   }
   .bg-status-error {
-    background-color: var(--color-error);
+    background-color: var(--th-danger);
   }
   .bg-status-info {
-    background-color: var(--color-info);
+    background-color: var(--th-info);
   }
 
   .bg-tag-bg {
-    background-color: var(--color-tag-bg);
+    background-color: var(--th-tag-bg);
   }
   .text-tag-text {
-    color: var(--color-tag-text);
+    color: var(--th-tag-text);
   }
 
   .bg-mask {
-    background-color: var(--color-mask);
+    background-color: var(--th-overlay);
   }
 
   .bg-primary-bg {
-    background-color: var(--primary-bg-color);
+    background-color: var(--th-bg-page);
   }
   .bg-surface {
-    background-color: var(--main-bg-color);
+    background-color: var(--th-bg-page);
   }
   .border-line {
-    border-color: var(--line-color);
+    border-color: var(--th-border);
   }
   .text-text-normal {
-    color: var(--text-normal);
+    color: var(--th-text);
   }
   .text-code {
-    color: var(--code-normal);
+    color: var(--th-active-text);
   }
   .bg-code-bg {
-    background-color: var(--code-bg);
+    background-color: transparent;
   }
 
   .bg-panel-active {
-    background-color: var(--block-panel-active-bg);
+    background-color: var(--th-bg-hover);
   }
   .bg-hover {
-    background-color: var(--common-hover-bg);
+    background-color: var(--th-bg-hover);
   }
   .bg-item-hover {
-    background-color: var(--item-common-hover-bg);
+    background-color: var(--th-bg-hover);
   }
   .border-divider {
-    border-color: var(--table-border-color);
+    border-color: var(--th-border);
   }
   .bg-table-odd {
-    background-color: var(--table-odd-bg);
+    background-color: var(--th-bg-hover);
   }
   .bg-card-bg {
-    background-color: var(--card-bg-color);
+    background-color: var(--th-glass);
   }
   .border-card-line {
-    border-color: var(--card-line-color);
+    border-color: var(--th-border);
   }
 
   .bg-bottom-line {
-    background-color: var(--bottom-line-bg);
+    background-color: var(--th-accent);
   }
   .text-tab-active {
-    color: var(--tab-active-color);
+    color: var(--th-accent-soft);
   }
   .bg-selection {
-    background-color: var(--selection-color);
+    background-color: var(--th-accent-soft);
   }
 
   .bg-scroll-track {
-    background-color: var(--scroller-track-background-color);
+    background-color: var(--th-bg-hover);
   }
   .bg-scroll-thumb {
-    background-color: var(--scroller-thumb-background-color);
+    background-color: var(--th-border-hover);
   }
 
   .bg-normal-card {
-    background-color: var(--normal-card-bg);
+    background-color: var(--th-card-bg);
   }
   .bg-normal-icon {
-    background-color: var(--normal-icon-bg);
+    background-color: var(--th-tag-bg);
   }
   .bg-active {
-    background-color: var(--active-bg-color);
+    background-color: var(--th-accent-soft);
   }
   .text-active-text {
-    color: var(--active-text-color);
+    color: var(--th-active-text);
   }
   .bg-active-icon {
-    background-color: var(--active-icon-bg);
+    background-color: var(--th-accent-soft);
   }
 
   .bg-sidebar {
-    background-color: var(--sidebar-background);
+    background-color: transparent;
   }
   .bg-sidebar-active {
-    background-color: var(--sidebar-active-bg);
+    background-color: var(--th-accent-soft);
   }
   .bg-sidebar-2nd {
-    background-color: var(--second-sidevar-background);
+    background-color: var(--th-bg-elevated);
   }
 
   .bg-bg-secondary {
-    background-color: var(--bg-secondary);
+    background-color: var(--th-bg-page);
   }
   .bg-bg-tertiary {
-    background-color: var(--bg-tertiary);
+    background-color: var(--th-input-bg);
   }
   .text-text-primary {
-    color: var(--text-primary);
+    color: var(--th-text);
   }
   .text-text-secondary {
-    color: var(--text-secondary);
+    color: var(--th-text-secondary);
   }
   .border-ui-border {
-    border-color: var(--ui-border);
+    border-color: var(--th-border);
   }
   .border-ui-outline {
-    border-color: var(--ui-outline);
+    border-color: var(--th-focus-ring);
   }
 
   .shadow-1 {
-    box-shadow: var(--box-shadow1);
+    box-shadow: var(--th-shadow-sm);
   }
   .shadow-2 {
-    box-shadow: var(--box-shadow2);
+    box-shadow: var(--th-shadow-md);
   }
   .shadow-layer {
-    box-shadow: var(--shadow);
+    box-shadow: var(--th-shadow-md);
   }
 
   /* 演示模式备注文字颜色 - 覆盖主题 CSS 变量 */
   .slide-player-notes-container {
-    --text-normal: rgba(255, 255, 255, 0.9);
-    --color-text-primary: rgba(255, 255, 255, 0.9);
-    --text-primary: rgba(255, 255, 255, 0.9);
-    --color-text-secondary: rgba(255, 255, 255, 0.7);
-    --text-secondary: rgba(255, 255, 255, 0.7);
-    --color-text-tertiary: rgba(255, 255, 255, 0.5);
-    --code-normal: rgba(255, 255, 255, 0.85);
-    --code-bg: rgba(255, 255, 255, 0.1);
+    --th-text: rgba(255, 255, 255, 0.9);
+    --th-text: rgba(255, 255, 255, 0.9);
+    --th-text: rgba(255, 255, 255, 0.9);
+    --th-text-secondary: rgba(255, 255, 255, 0.7);
+    --th-text-secondary: rgba(255, 255, 255, 0.7);
+    --th-text-tertiary: rgba(255, 255, 255, 0.5);
+    --th-active-text: rgba(255, 255, 255, 0.85);
+    transparent: rgba(255, 255, 255, 0.1);
     color: rgba(255, 255, 255, 0.9);
   }
 
@@ -348,7 +297,7 @@
     border-radius: 9999px;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: var(--th-tag-hover, rgba(0, 0, 0, 0.2));
+    background: var(--th-bg-hover, rgba(0, 0, 0, 0.2));
   }
 }
 

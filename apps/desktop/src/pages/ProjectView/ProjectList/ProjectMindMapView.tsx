@@ -305,7 +305,7 @@ const MindMapNodeContent = memo(
           isDragging && "opacity-50",
           activeDropPlacement?.indicator === "inside" &&
             activeDropPlacement.referenceNodeId === meta.nodeId &&
-            "rounded outline outline-2 outline-[var(--active-text-color)]",
+            "rounded outline outline-2 outline-[var(--th-active-text)]",
         )}
         onContextMenu={(event) => {
           if (!isProject) {
@@ -659,7 +659,7 @@ const ProjectMindMapView = (props: ProjectMindMapViewProps) => {
         >
           <path
             d={dropGuide.d}
-            stroke="var(--active-text-color)"
+            stroke="var(--th-active-text)"
             strokeWidth={3}
             strokeLinecap="round"
             fill="none"

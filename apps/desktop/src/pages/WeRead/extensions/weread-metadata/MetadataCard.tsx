@@ -2,11 +2,9 @@ import { memo } from "react";
 import classNames from "classnames";
 import type { RenderElementProps } from "slate-react";
 import type { WeReadMetadataElement } from "../../types/elements";
-import useBackgroundMode from "@/hooks/useBackgroundMode";
 
 export const MetadataCard: React.FC<RenderElementProps> = memo((props) => {
   const { attributes, children, element } = props;
-  const { isGradient } = useBackgroundMode();
 
   const metaElement = element as any as WeReadMetadataElement;
   const { metaData } = metaElement;
@@ -24,9 +22,7 @@ export const MetadataCard: React.FC<RenderElementProps> = memo((props) => {
       <div
         className={classNames(
           "rounded-lg p-6 border",
-          isGradient
-            ? "bg-white/50 dark:bg-black/30 backdrop-blur-xl backdrop-saturate-150 border-white/40 dark:border-white/10 shadow-sm"
-            : "bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-gray-800",
+          "bg-[var(--th-card-bg)] border-[var(--th-border)] shadow-sm",
         )}
       >
         {/* 标题和作者 */}

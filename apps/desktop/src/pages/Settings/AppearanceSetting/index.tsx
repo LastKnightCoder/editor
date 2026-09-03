@@ -4,6 +4,13 @@ import { useState } from "react";
 import type { ImageBorderRadiusPreset, ImageShadowPreset } from "@tau/editor";
 import useSettingStore from "@/stores/useSettingStore";
 import useThemeColors from "@/hooks/useThemeColors";
+import {
+  ACCENT_PRESETS,
+  ACCENT_LABELS,
+  ACCENT_COLORS,
+  DEFAULT_ACCENT,
+  type AccentPreset,
+} from "@/constants/accent";
 import { getAllFonts } from "@/commands";
 import {
   MERMAID_THEME_NAMES,
@@ -18,37 +25,6 @@ import {
   SettingFontPicker,
   SettingSwitch,
 } from "../components";
-
-export type BackgroundType =
-  | "solid"
-  | "gradient1"
-  | "gradient2"
-  | "gradient3"
-  | "gradient4"
-  | "gradient5"
-  | "gradient6"
-  | "gradient7"
-  | "gradient8"
-  | "gradient9";
-
-interface BackgroundOption {
-  key: BackgroundType;
-  label: string;
-  description: string;
-}
-
-const backgroundOptions: BackgroundOption[] = [
-  { key: "solid", label: "纯色", description: "默认纯色背景" },
-  { key: "gradient1", label: "紫色晕染", description: "柔和紫调扩散" },
-  { key: "gradient2", label: "蓝色晕染", description: "静谧蓝调旋转" },
-  { key: "gradient3", label: "暖色晕染", description: "温暖橙调流动" },
-  { key: "gradient4", label: "绿色晕染", description: "清新绿调扩散" },
-  { key: "gradient5", label: "粉色晕染", description: "淡雅粉调流动" },
-  { key: "gradient6", label: "灰色晕染", description: "中性灰调旋转" },
-  { key: "gradient7", label: "青蓝晕染", description: "清澈青调流动" },
-  { key: "gradient8", label: "金色晕染", description: "璀璨金调扩散" },
-  { key: "gradient9", label: "红色晕染", description: "热情红调流动" },
-];
 
 const imageBorderRadiusOptions: Array<{
   label: string;
@@ -90,7 +66,8 @@ const AppearanceSetting = () => {
   const [fonts, setFonts] = useState<string[]>([]);
   const themeColors = useThemeColors();
 
-  const currentBackground = setting.appearance?.backgroundType || "solid";
+  const isDarkMode = setting.darkMode;
+  const currentAccent = setting.appearance?.accent ?? DEFAULT_ACCENT;
   const imageAppearanceSetting = setting.appearance?.image || {
     borderRadius: "none" as ImageBorderRadiusPreset,
     shadow: "none" as ImageShadowPreset,
@@ -143,14 +120,47 @@ const AppearanceSetting = () => {
     setFonts(dedupedFonts);
   }, []);
 
-  const handleBackgroundSelect = useMemoizedFn((option: BackgroundOption) => {
+  const updateAppearance = useMemoizedFn(
+    (updater: (appearance: NonNullable<typeof setting.appearance>) => void) => {
+      const newSetting = produce(setting, (draft) => {
+        if (!draft.appearance) {
+          draft.appearance = { accent: DEFAULT_ACCENT };
+        }
+        updater(draft.appearance);
+      });
+      useSettingStore.setState({ setting: newSetting });
+    },
+  );
+
+  const handleAccentSelect = useMemoizedFn((accent: AccentPreset) => {
+    updateAppearance((appearance) => {
+      appearance.accent = accent;
+    });
+  });
+
+  const handleThemeModeChange = useMemoizedFn((isDark: boolean) => {
     const newSetting = produce(setting, (draft) => {
-      if (!draft.appearance) {
-        draft.appearance = { backgroundType: "solid" };
-      }
-      draft.appearance.backgroundType = option.key;
+      draft.darkMode = isDark;
     });
     useSettingStore.setState({ setting: newSetting });
+  });
+
+  const handleImageBorderRadiusChange = useMemoizedFn((value: string) => {
+    updateAppearance((appearance) => {
+      if (!appearance.image) {
+        appearance.image = { borderRadius: "none", shadow: false };
+      }
+      appearance.image.borderRadius = value as ImageBorderRadiusPreset;
+    });
+  });
+
+  const handleImageShadowChange = useMemoizedFn((value: string) => {
+    updateAppearance((appearance) => {
+      if (!appearance.image) {
+        appearance.image = { borderRadius: "none", shadow: "none" };
+      }
+      appearance.image.shadow = value as ImageShadowPreset;
+    });
   });
 
   const onChineseFontChange = (font: string) => {
@@ -185,57 +195,6 @@ const AppearanceSetting = () => {
     );
   };
 
-  const handleThemeModeChange = useMemoizedFn((isDark: boolean) => {
-    const newSetting = produce(setting, (draft) => {
-      draft.darkMode = isDark;
-    });
-    useSettingStore.setState({ setting: newSetting });
-  });
-
-  const handleAnimationToggle = useMemoizedFn((enabled: boolean) => {
-    const newSetting = produce(setting, (draft) => {
-      if (!draft.appearance) {
-        draft.appearance = { backgroundType: "solid" };
-      }
-      draft.appearance.backgroundAnimation = enabled;
-    });
-    useSettingStore.setState({ setting: newSetting });
-  });
-
-  const isAnimationEnabled = setting.appearance?.backgroundAnimation ?? false;
-
-  const handleImageBorderRadiusChange = useMemoizedFn((value: string) => {
-    const newSetting = produce(setting, (draft) => {
-      if (!draft.appearance) {
-        draft.appearance = { backgroundType: "solid" };
-      }
-      if (!draft.appearance.image) {
-        draft.appearance.image = {
-          borderRadius: "none",
-          shadow: false,
-        };
-      }
-      draft.appearance.image.borderRadius = value as ImageBorderRadiusPreset;
-    });
-    useSettingStore.setState({ setting: newSetting });
-  });
-
-  const handleImageShadowChange = useMemoizedFn((value: string) => {
-    const newSetting = produce(setting, (draft) => {
-      if (!draft.appearance) {
-        draft.appearance = { backgroundType: "solid" };
-      }
-      if (!draft.appearance.image) {
-        draft.appearance.image = {
-          borderRadius: "none",
-          shadow: "none",
-        };
-      }
-      draft.appearance.image.shadow = value as ImageShadowPreset;
-    });
-    useSettingStore.setState({ setting: newSetting });
-  });
-
   const handleMermaidStyleChange = useMemoizedFn((style: string) => {
     setMermaidStyle(style as MermaidRenderStyle);
   });
@@ -248,167 +207,24 @@ const AppearanceSetting = () => {
     setMermaidDarkTheme(theme as MermaidThemeName);
   });
 
+  const accentSwatch = (isDark: boolean) => (accent: AccentPreset) =>
+    isDark ? ACCENT_COLORS[accent][1] : ACCENT_COLORS[accent][0];
+
   return (
     <SettingContainer>
       {/* 主题模式设置 */}
       <SettingSection title="主题模式" description="选择应用的亮色或暗色主题">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-2xl">
-          {/* 浅色主题 */}
-          <div
-            onClick={() => handleThemeModeChange(false)}
-            className={`
-              relative overflow-hidden rounded-xl cursor-pointer
-              transition-all duration-300 ease-in-out
-              shadow-sm
-              border-2
-              ${
-                !setting.darkMode
-                  ? `${themeColors.cardBorderClass}`
-                  : "border-gray-200 dark:border-gray-700"
-              }
-            `}
-          >
-            {!setting.darkMode && (
-              <div
-                className={`absolute top-0 left-0 right-0 h-1 ${themeColors.gradientClass}`}
-              />
-            )}
-            {/* 浅色主题预览 */}
-            <div className="h-32 bg-linear-to-br from-gray-50 via-white to-gray-100 relative overflow-hidden">
-              {/* 模拟浅色界面元素 */}
-              <div className="absolute inset-0 flex flex-col gap-2 p-4">
-                <div className="h-3 w-3/4 bg-zinc-800 rounded" />
-                <div className="h-2 w-1/2 bg-gray-400 rounded" />
-                <div className="mt-auto h-8 bg-white border border-gray-200 rounded-lg shadow-sm" />
-              </div>
-            </div>
-
-            {/* 信息区域 */}
-            <div className="p-4 bg-gray-50 dark:bg-zinc-800/50">
-              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                浅色主题
-              </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                明亮清晰的界面风格
-              </p>
-            </div>
-
-            {/* 选中状态标识 */}
-            {!setting.darkMode && (
-              <div
-                className={`absolute top-3 right-3 w-6 h-6 rounded-full ${themeColors.badgeBgClass} flex items-center justify-center`}
-              >
-                <svg
-                  className={`w-4 h-4 ${themeColors.badgeTextClass}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={3}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              </div>
-            )}
-          </div>
-
-          {/* 深色主题 */}
-          <div
-            onClick={() => handleThemeModeChange(true)}
-            className={`
-              relative overflow-hidden rounded-xl cursor-pointer
-              transition-all duration-300 ease-in-out
-              shadow-sm
-              border-2
-              ${
-                setting.darkMode
-                  ? `${themeColors.cardBorderClass}`
-                  : "border-gray-200 dark:border-gray-700"
-              }
-            `}
-          >
-            {setting.darkMode && (
-              <div
-                className={`absolute top-0 left-0 right-0 h-1 ${themeColors.gradientClass}`}
-              />
-            )}
-            {/* 深色主题预览 */}
-            <div className="h-32 bg-linear-to-br from-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
-              {/* 模拟深色界面元素 */}
-              <div className="absolute inset-0 flex flex-col gap-2 p-4">
-                <div className="h-3 w-3/4 bg-gray-100 rounded" />
-                <div className="h-2 w-1/2 bg-gray-400 rounded" />
-                <div className="mt-auto h-8 bg-zinc-800 border border-gray-700 rounded-lg shadow-sm" />
-              </div>
-            </div>
-
-            {/* 信息区域 */}
-            <div className="p-4 bg-gray-50 dark:bg-zinc-800/50">
-              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                深色主题
-              </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                柔和护眼的暗色风格
-              </p>
-            </div>
-
-            {/* 选中状态标识 */}
-            {setting.darkMode && (
-              <div
-                className={`absolute top-3 right-3 w-6 h-6 rounded-full ${themeColors.badgeBgClass} flex items-center justify-center`}
-              >
-                <svg
-                  className={`w-4 h-4 ${themeColors.badgeTextClass}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={3}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              </div>
-            )}
-          </div>
-        </div>
-      </SettingSection>
-
-      {/* 背景动画设置 */}
-      <SettingSection
-        title="背景动画"
-        description="控制渐变背景是否播放动画效果"
-      >
-        <SettingSwitch
-          label="启用背景动画"
-          description="开启后，渐变背景会缓慢流动变化"
-          checked={isAnimationEnabled}
-          onChange={handleAnimationToggle}
-        />
-      </SettingSection>
-
-      {/* 背景设置 */}
-      <SettingSection
-        title="背景样式"
-        description="选择设置页面的背景样式，渐变背景会让主体内容呈现磨砂质感"
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          {backgroundOptions.map((option) => {
-            const isActive = currentBackground === option.key;
+          {[false, true].map((isDark) => {
+            const isActive = isDarkMode === isDark;
             return (
               <div
-                key={option.key}
-                onClick={() => handleBackgroundSelect(option)}
+                key={String(isDark)}
+                onClick={() => handleThemeModeChange(isDark)}
                 className={`
                   relative overflow-hidden rounded-xl cursor-pointer
                   transition-all duration-300 ease-in-out
-                  shadow-sm
-                  border-2
+                  shadow-sm border-2
                   ${
                     isActive
                       ? `${themeColors.cardBorderClass}`
@@ -422,58 +238,36 @@ const AppearanceSetting = () => {
                   />
                 )}
                 <div
-                  className={`
-                    h-32 relative overflow-hidden
-                    ${option.key === "solid" ? "bg-white dark:bg-zinc-900" : ""}
-                  `}
+                  className={`h-32 relative overflow-hidden ${
+                    isDark
+                      ? "bg-linear-to-br from-gray-900 via-gray-800 to-gray-900"
+                      : "bg-linear-to-br from-gray-50 via-white to-gray-100"
+                  }`}
                 >
-                  {option.key === "gradient1" && (
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,#f3f0ff_0%,#faf5ff_40%,#ffffff_100%)] dark:bg-[radial-gradient(ellipse_at_top_left,#2d1f3d_0%,#1f1530_50%,#15101f_100%)] animate-gradient-shift bg-size-[400%_400%]" />
-                  )}
-                  {option.key === "gradient2" && (
-                    <div className="absolute inset-0 bg-[conic-gradient(from_45deg_at_50%_50%,#e8f4f8_0deg,#f0f9ff_90deg,#e8f4f8_180deg,#d4ebf7_270deg,#e8f4f8_360deg)] dark:bg-[conic-gradient(from_45deg_at_50%_50%,#1a2535_0deg,#152030_90deg,#1a2838_180deg,#0f1a28_270deg,#1a2535_360deg)] animate-gradient-flow bg-size-[400%_400%]" />
-                  )}
-                  {option.key === "gradient3" && (
-                    <div className="absolute inset-0 bg-linear-to-br from-[#fff5eb] via-[#fffbf0] to-[#fff8f0] dark:from-[#2d1f0f] dark:via-[#251a0a] dark:to-[#1f1505] animate-gradient-dream bg-size-[400%_400%]" />
-                  )}
-                  {option.key === "gradient4" && (
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,#f0fff4_0%,#f0fdf4_40%,#ffffff_100%)] dark:bg-[radial-gradient(ellipse_at_bottom_right,#1a2d1f_0%,#152318_50%,#0f1a12_100%)] animate-gradient-shift bg-size-[400%_400%]" />
-                  )}
-                  {option.key === "gradient5" && (
-                    <div className="absolute inset-0 bg-linear-to-br from-[#fef5f8] via-[#fff0f5] to-[#fffbf5] dark:from-[#2d1a25] dark:via-[#221520] dark:to-[#1a0f15] animate-gradient-dream bg-size-[400%_400%]" />
-                  )}
-                  {option.key === "gradient6" && (
-                    <div className="absolute inset-0 bg-[conic-gradient(from_45deg_at_50%_50%,#f5f5f5_0deg,#fafafa_90deg,#f5f5f5_180deg,#eeeeee_270deg,#f5f5f5_360deg)] dark:bg-[conic-gradient(from_45deg_at_50%_50%,#22222a_0deg,#1a1a22_90deg,#1f1f28_180deg,#151518_270deg,#22222a_360deg)] animate-gradient-flow bg-size-[400%_400%]" />
-                  )}
-                  {option.key === "gradient7" && (
-                    <div className="absolute inset-0 bg-linear-to-br from-[#e0f7fa] via-[#e0f2f1] to-[#e8f5e9] dark:from-[#0d2830] dark:via-[#0f2528] dark:to-[#0f2620] animate-gradient-dream bg-size-[400%_400%]" />
-                  )}
-                  {option.key === "gradient8" && (
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,#fffde7_0%,#fff8e1_40%,#ffffff_100%)] dark:bg-[radial-gradient(ellipse_at_top_right,#2d2810_0%,#252010_50%,#1f1a0a_100%)] animate-gradient-shift bg-size-[400%_400%]" />
-                  )}
-                  {option.key === "gradient9" && (
-                    <div className="absolute inset-0 bg-linear-to-br from-[#ffebee] via-[#fce4ec] to-[#fff0f0] dark:from-[#2d1518] dark:via-[#251218] dark:to-[#1f0f12] animate-gradient-dream bg-size-[400%_400%]" />
-                  )}
-
-                  {/* 磨砂卡片示例 */}
-                  {option.key !== "solid" && (
-                    <div className="absolute inset-0 flex items-center justify-center p-4">
-                      <div className="w-full h-10 rounded-lg bg-white/50 dark:bg-[#0a0a0a]/40 backdrop-blur-xl backdrop-saturate-150 border border-white/20 dark:border-white/10 shadow-lg" />
-                    </div>
-                  )}
+                  <div className="absolute inset-0 flex flex-col gap-2 p-4">
+                    <div
+                      className={`h-3 w-3/4 rounded ${isDark ? "bg-gray-100" : "bg-zinc-800"}`}
+                    />
+                    <div className="h-2 w-1/2 bg-gray-400 rounded" />
+                    <div
+                      className={`mt-auto h-8 rounded-lg shadow-sm ${
+                        isDark
+                          ? "bg-zinc-800 border border-gray-700"
+                          : "bg-white border border-gray-200"
+                      }`}
+                    />
+                  </div>
                 </div>
 
-                {/* 信息区域 */}
                 <div className="p-4 bg-gray-50 dark:bg-zinc-800/50">
                   <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                    {option.label}
+                    {isDark ? "深色主题" : "浅色主题"}
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {option.description}
+                    {isDark ? "柔和护眼的暗色风格" : "明亮清晰的界面风格"}
                   </p>
                 </div>
 
-                {/* 选中状态标识 */}
                 {isActive && (
                   <div
                     className={`absolute top-3 right-3 w-6 h-6 rounded-full ${themeColors.badgeBgClass} flex items-center justify-center`}
@@ -494,6 +288,51 @@ const AppearanceSetting = () => {
                   </div>
                 )}
               </div>
+            );
+          })}
+        </div>
+      </SettingSection>
+
+      {/* 主题色设置 */}
+      <SettingSection
+        title="主题色"
+        description="界面选中态、主按钮与焦点环使用的强调色,背景保持中性"
+      >
+        <div className="flex flex-wrap gap-4 max-w-2xl">
+          {ACCENT_PRESETS.map((accent) => {
+            const isActive = currentAccent === accent;
+            const color = accentSwatch(isDarkMode)(accent);
+            return (
+              <button
+                key={accent}
+                onClick={() => handleAccentSelect(accent)}
+                className="group flex flex-col items-center gap-2 cursor-pointer"
+                title={ACCENT_LABELS[accent]}
+              >
+                <span
+                  className={`
+                    w-10 h-10 rounded-full transition-all duration-200
+                    ${isActive ? "ring-2 ring-offset-2" : "group-hover:scale-110"}
+                  `}
+                  style={
+                    {
+                      backgroundColor: color,
+                      ...(isActive
+                        ? {
+                            "--tw-ring-color": color,
+                            "--tw-ring-offset-color":
+                              "var(--th-bg-elevated, #fff)",
+                          }
+                        : {}),
+                    } as React.CSSProperties
+                  }
+                />
+                <span
+                  className={`text-xs ${isActive ? themeColors.activeTextClass : themeColors.secondaryTextClass}`}
+                >
+                  {ACCENT_LABELS[accent]}
+                </span>
+              </button>
             );
           })}
         </div>

@@ -112,7 +112,7 @@ const DatePicker = ({
         style={
           {
             anchorName,
-            borderColor: isOpen ? accent : "var(--th-card-border)",
+            borderColor: isOpen ? accent : "var(--th-border)",
             background: isOpen
               ? colorWithAlpha(accent, 0.1)
               : isDarkMode
@@ -146,8 +146,8 @@ const DatePicker = ({
             top: "anchor(bottom)",
             left: "anchor(left)",
             marginTop: 8,
-            borderColor: "var(--th-card-border)",
-            background: "var(--th-modal)",
+            borderColor: "var(--th-border)",
+            background: "var(--th-bg-elevated)",
           } as AnchorPositionStyle
         }
         onClick={(event) => event.stopPropagation()}

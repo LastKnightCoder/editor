@@ -384,7 +384,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
                         "shrink-0 w-8 h-8 ml-3 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all",
                         themeColors.tagBgClass,
                         themeColors.textClass,
-                        themeColors.tagHoverBgClass,
+                        themeColors.hoverClass,
                         "hover:text-gray-700 dark:hover:text-gray-200",
                       )}
                       onClick={onCancel}
@@ -402,7 +402,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
                       "shrink-0 w-8 h-8 ml-auto rounded-lg border-none cursor-pointer flex items-center justify-center transition-all",
                       themeColors.tagBgClass,
                       themeColors.textClass,
-                      themeColors.tagHoverBgClass,
+                      themeColors.hoverClass,
                       "hover:text-gray-700 dark:hover:text-gray-200",
                     )}
                     onClick={onCancel}

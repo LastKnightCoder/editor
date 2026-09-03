@@ -29,7 +29,7 @@ import type {
 } from "@/types/weread";
 
 const WEREAD_GATEWAY_URL = "https://i.weread.qq.com/api/agent/gateway";
-const SKILL_VERSION = "1.0.3";
+const SKILL_VERSION = "1.0.4";
 const METADATA_SYNC_CONCURRENCY = 3;
 const METADATA_SYNC_MAX_ATTEMPTS = 3;
 const METADATA_SYNC_BATCH_DELAY_MS = 500;
@@ -40,6 +40,9 @@ type GatewayEnvelope<T> = T & {
   errmsg?: string;
   upgrade_info?: {
     message?: string;
+    latest_version?: string;
+    current_version?: string;
+    upgrade_url?: string;
   };
 };
 
@@ -904,8 +907,12 @@ class WeReadService {
 
     const data = response.data;
 
+    // 网关附带 upgrade_info 时业务数据仍正常返回，仅降级为警告，
+    // 避免官方每发布一个 Skill 新版本就中断本地同步
     if (data.upgrade_info?.message) {
-      throw new Error(data.upgrade_info.message);
+      console.warn(
+        `[WeRead] Skill 版本待升级: 当前 ${data.upgrade_info.current_version ?? SKILL_VERSION}，最新 ${data.upgrade_info.latest_version ?? "未知"}（${data.upgrade_info.message}）`,
+      );
     }
     if (data.errcode === -10102) {
       throw new WeReadRateLimitError(data.errmsg || "API 调用频率超限");

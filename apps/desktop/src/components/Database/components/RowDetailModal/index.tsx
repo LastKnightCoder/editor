@@ -285,7 +285,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                     "w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer",
                     themeColors.tagBgClass,
                     themeColors.textClass,
-                    themeColors.tagHoverBgClass,
+                    themeColors.hoverClass,
                   )}
                   onClick={() => setIsExpanded((prev) => !prev)}
                   title={isExpanded ? "退出展开" : "展开"}
@@ -302,7 +302,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                     "w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer",
                     themeColors.tagBgClass,
                     themeColors.textClass,
-                    themeColors.tagHoverBgClass,
+                    themeColors.hoverClass,
                   )}
                   onClick={handleClose}
                   title="关闭"

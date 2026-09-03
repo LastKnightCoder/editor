@@ -165,7 +165,7 @@ const SegmentNode = memo(
         {/* 中列：竖线 + 圆点 */}
         <div className="relative flex justify-center">
           {!isLast && (
-            <span className="absolute top-3 bottom-[-1rem] w-px bg-[var(--th-card-border)]" />
+            <span className="absolute top-3 bottom-[-1rem] w-px bg-[var(--th-border)]" />
           )}
           <span
             className="relative z-[1] mt-3 h-2 w-2 shrink-0 rounded-full"

@@ -11,10 +11,10 @@
     margin: 0;
   }
 
-  --bullet-list-item-bg: hsl(168, 10%, 45%);
+  --th-tag-bg: hsl(168, 10%, 45%);
 
   &.dark {
-    --bullet-list-item-bg: hsl(168, 10%, 95%);
+    --th-tag-bg: hsl(168, 10%, 95%);
   }
 
   & > li {
@@ -27,7 +27,7 @@
       width: 0.35em;
       height: 0.35em;
       border-radius: 50%;
-      background: var(--bullet-list-item-bg);
+      background: var(--th-tag-bg);
       left: -1em;
       top: 0.7em;
       transition: transform 0.3s ease-in-out;
@@ -44,7 +44,7 @@
     }
 
     &[data-fold="fold"]::before {
-      box-shadow: var(--bullet-list-item-shodow);
+      box-shadow: 0 0 0 0.3em var(--th-accent-soft);
     }
   }
 }

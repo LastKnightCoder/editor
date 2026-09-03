@@ -111,7 +111,7 @@ const CategoryBreakdown: React.FC<CategoryBreakdownProps> = ({
             onMouseLeave={() => setHovered(null)}
             className={classNames(
               "flex items-center gap-2.5 rounded-lg px-2 py-1 transition-colors cursor-pointer",
-              hovered === item.type && "bg-[var(--th-hover-bg)]",
+              hovered === item.type && "bg-[var(--th-bg-hover)]",
             )}
           >
             <span
