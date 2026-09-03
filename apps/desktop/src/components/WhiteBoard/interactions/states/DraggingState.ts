@@ -13,7 +13,6 @@ import {
   PathUtil,
   Rect,
   isValid,
-  FrameUtil,
   collectGroupMembers,
   expandSelectionByGroup,
   isPointInAnySelectedGroupBounds,
@@ -104,18 +103,20 @@ export class DraggingState implements InteractionState {
     const isMultiSelect = e.ctrlKey || e.metaKey;
     if (!moveElements || isMultiSelect) return null;
 
-    // 找到所有的容器元素（如 frame），如果容器的 children 中包含移动的元素，
-    // 把这些 children 从 moveElements 中移除（子元素随容器整体移动）
+    // 找到所有的容器元素（如 frame/column），如果移动集合包含容器的子元素，
+    // 把这些子元素从 moveElements 中移除（它们随容器整体移动）
     if (moveElements.length > 1) {
       const capService = board.capabilityService;
-      const frameElements = moveElements.filter((el) =>
+      const containers = moveElements.filter((el) =>
         capService.shouldMoveWithChildren(el),
-      ) as FrameElement[];
-      frameElements.forEach((frame) => {
+      );
+      containers.forEach((container) => {
+        const memberIds = new Set(
+          capService.collectMoveSubtree(container).map((member) => member.id),
+        );
         moveElements =
           moveElements?.filter(
-            (el) =>
-              !frame.children.some((child: BoardElement) => child.id === el.id),
+            (el) => el.id === container.id || !memberIds.has(el.id),
           ) || null;
       });
       if (!moveElements) return null;
@@ -191,13 +192,12 @@ export class DraggingState implements InteractionState {
         };
       })
       .filter(isValid);
-    // 获取所有需要带子元素一起移动的容器
+    // 获取所有需要带子元素一起移动的容器（含其自身与后代，均不作为参考线）
     const containers = movedElements.filter((el) =>
       capService.shouldMoveWithChildren(el),
-    ) as FrameElement[];
+    );
     const containerChildren = containers
-      .map((container) => FrameUtil.getAllChildren(container))
-      .flat()
+      .flatMap((container) => capService.collectMoveSubtree(container))
       .map((ele) => {
         if (!capService.shouldParticipateInRefLines(ele)) return;
         return {
@@ -355,38 +355,6 @@ export class DraggingState implements InteractionState {
         return;
       }
 
-      // 容器/RootOnly 节点移动需要带着子树一起移动：用子树平移 ops，避免 set_node 写入 children。
-      const snapCap = capService.getSnapCapability(movedElement.type);
-      const shouldTranslateSubtree =
-        capService.shouldMoveWithChildren(movedElement) ||
-        (snapCap.behavior === SnapBehavior.RootOnly &&
-          Boolean(snapCap.moveAll) &&
-          Array.isArray(movedElement.children) &&
-          movedElement.children.length > 0);
-      if (shouldTranslateSubtree) {
-        let current: BoardElement | null = null;
-        try {
-          current = PathUtil.getElementByPath(board, path);
-        } catch {
-          current = null;
-        }
-        if (
-          current &&
-          typeof current.x === "number" &&
-          typeof current.y === "number" &&
-          typeof movedElement.x === "number" &&
-          typeof movedElement.y === "number"
-        ) {
-          const dx = movedElement.x - current.x;
-          const dy = movedElement.y - current.y;
-          operations.push(
-            ...BoardUtil.buildTranslateSubtreeOps(current, path, dx, dy),
-          );
-        }
-        return;
-      }
-
-      // 普通元素：只 patch 变化字段（不含 children）
       let current: BoardElement | null = null;
       try {
         current = PathUtil.getElementByPath(board, path);
@@ -394,8 +362,9 @@ export class DraggingState implements InteractionState {
         current = null;
       }
       if (!current) return;
+      // 子树元素生成整树平移 ops，普通元素只 patch 变化字段（能力判定在 service 内）
       operations.push(
-        ...BoardUtil.diffNodePatchOnly(current, movedElement, path),
+        ...capService.buildElementMoveOps(current, movedElement, path),
       );
     });
 
@@ -483,32 +452,9 @@ export class DraggingState implements InteractionState {
 
       if (columnChildMap.has(movedElement.id)) return;
 
-      const snapCap = capService.getSnapCapability(movedElement.type);
-      const shouldTranslateSubtree =
-        capService.shouldMoveWithChildren(movedElement) ||
-        (snapCap.behavior === SnapBehavior.RootOnly &&
-          Boolean(snapCap.moveAll) &&
-          Array.isArray(movedElement.children) &&
-          movedElement.children.length > 0);
-
-      if (shouldTranslateSubtree) {
-        if (
-          typeof originElement.x === "number" &&
-          typeof originElement.y === "number" &&
-          typeof movedElement.x === "number" &&
-          typeof movedElement.y === "number"
-        ) {
-          const dx = movedElement.x - originElement.x;
-          const dy = movedElement.y - originElement.y;
-          commitOps.push(
-            ...BoardUtil.buildTranslateSubtreeOps(originElement, path, dx, dy),
-          );
-        }
-        return;
-      }
-
+      // 子树元素生成整树平移 ops，普通元素只 patch 变化字段（能力判定在 service 内）
       commitOps.push(
-        ...BoardUtil.diffNodePatchOnly(originElement, movedElement, path),
+        ...capService.buildElementMoveOps(originElement, movedElement, path),
       );
     });
 

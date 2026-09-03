@@ -1,5 +1,6 @@
 import type Board from "../Board";
-import type { BoardElement, IBoardPlugin, Point } from "../types";
+import type { BoardElement, IBoardPlugin, Operation, Point } from "../types";
+import { BoardUtil } from "../utils";
 import {
   type IElementCapabilities,
   type ISnapCapability,
@@ -193,6 +194,59 @@ export class CapabilityService {
    */
   getMovementBehavior(element: BoardElement): MovementBehavior {
     return this.getMovementCapability(element.type).behavior;
+  }
+
+  /**
+   * 收集移动该元素时需要一起移动的完整集合（含自身），
+   * 未声明 collectMoveSubtree 能力的元素仅返回自身。
+   */
+  collectMoveSubtree(element: BoardElement): BoardElement[] {
+    const movement = this.getMovementCapability(element.type);
+    if (movement.collectMoveSubtree) {
+      return movement.collectMoveSubtree(element);
+    }
+    return [element];
+  }
+
+  /**
+   * 检查元素移动是否需要以子树平移提交
+   * （MoveWithChildren 容器整体移动，或 RootOnly 元素带子节点的整树移动）。
+   */
+  shouldTranslateAsSubtree(element: BoardElement): boolean {
+    if (this.shouldMoveWithChildren(element)) return true;
+    const snap = this.getSnapCapability(element.type);
+    return (
+      snap.behavior === SnapBehavior.RootOnly &&
+      Boolean(snap.moveAll) &&
+      Array.isArray(element.children) &&
+      element.children.length > 0
+    );
+  }
+
+  /**
+   * 生成元素移动 ops：子树元素生成整树平移 ops（避免 set_node 写入 children），
+   * 普通元素只 patch 变化字段。
+   */
+  buildElementMoveOps(
+    originElement: BoardElement,
+    targetElement: BoardElement,
+    path: number[],
+  ): Operation[] {
+    if (
+      this.shouldTranslateAsSubtree(targetElement) &&
+      typeof originElement.x === "number" &&
+      typeof originElement.y === "number" &&
+      typeof targetElement.x === "number" &&
+      typeof targetElement.y === "number"
+    ) {
+      return BoardUtil.buildTranslateSubtreeOps(
+        originElement,
+        path,
+        targetElement.x - originElement.x,
+        targetElement.y - originElement.y,
+      );
+    }
+    return BoardUtil.diffNodePatchOnly(originElement, targetElement, path);
   }
 
   /**

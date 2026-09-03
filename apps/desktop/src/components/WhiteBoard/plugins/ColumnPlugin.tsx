@@ -161,6 +161,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
       },
       movement: {
         behavior: MovementBehavior.MoveWithChildren,
+        collectMoveSubtree: (element) => ColumnUtil.collectDescendants(element),
       },
       render: {
         childrenOrder: ChildrenRenderOrder.Normal,

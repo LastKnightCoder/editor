@@ -124,6 +124,18 @@ export class MindPlugin implements IBoardPlugin {
       },
       movement: {
         behavior: MovementBehavior.RequiresRelayout,
+        // 根节点移动时整棵子树一起平移；子节点移动由拖拽状态机单独处理
+        collectMoveSubtree: (element) => {
+          if (!MindUtil.isRoot(element as MindNodeElement)) return [element];
+          const subtree: BoardElement[] = [element];
+          MindUtil.dfs(element as MindNodeElement, {
+            before: (node) => {
+              if (MindUtil.isRoot(node)) return;
+              subtree.push(node);
+            },
+          });
+          return subtree;
+        },
       },
       render: {
         childrenOrder: ChildrenRenderOrder.Normal,

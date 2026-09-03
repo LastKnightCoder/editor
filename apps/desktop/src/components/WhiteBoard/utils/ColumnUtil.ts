@@ -518,4 +518,17 @@ export class ColumnUtil {
 
     return true;
   }
+
+  /** 收集容器自身与全部后代（供整体移动使用） */
+  static collectDescendants(container: BoardElement): BoardElement[] {
+    const result: BoardElement[] = [container];
+    const walk = (element: BoardElement) => {
+      element.children?.forEach((child) => {
+        result.push(child);
+        walk(child);
+      });
+    };
+    walk(container);
+    return result;
+  }
 }
