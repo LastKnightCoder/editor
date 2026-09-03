@@ -9,7 +9,7 @@ const WindowControls = memo(() => {
   const [isMaximized, setIsMaximized] = useState(false);
   const themeColors = useThemeColors();
   const iconHoverClass =
-    themeColors.iconHoverClass ||
+    themeColors.hoverClass ||
     "group-hover:bg-gray-200 dark:group-hover:bg-zinc-700";
   const baseButtonClasses = classnames(
     "group w-12 h-10 flex items-center justify-center border-0 outline-none bg-transparent cursor-default transition-colors",

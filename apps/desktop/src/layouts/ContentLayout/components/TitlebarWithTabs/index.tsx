@@ -259,7 +259,7 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
         "flex items-center h-7 px-2 mr-1 rounded-full text-xs cursor-pointer select-none border border-transparent",
         {
           "opacity-60": isDragging,
-          "bg-(--common-hover-bg)": !colorValue,
+          "bg-(--th-bg-hover)": !colorValue,
           "font-semibold": isActive,
         },
       )}

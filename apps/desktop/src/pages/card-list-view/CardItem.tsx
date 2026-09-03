@@ -87,8 +87,8 @@ const CardItem = memo(
       hoverClass,
       cardBorderClass,
       cardBgClass,
-      pinnedCardBgClass,
-      pinnedCardBorderClass,
+      activeBgClass,
+      focusBorderClass,
     } = useThemeColors();
 
     useEditContent(contentId, (content) => {
@@ -211,7 +211,7 @@ const CardItem = memo(
             "p-5 border rounded-lg relative hover:cursor-pointer",
             cardBgClass,
             cardBorderClass,
-            { [pinnedCardBgClass]: isTop, [pinnedCardBorderClass]: isTop },
+            { [activeBgClass]: isTop, [focusBorderClass]: isTop },
             className,
             { "opacity-50": isDragging },
           )}

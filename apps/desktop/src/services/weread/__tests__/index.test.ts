@@ -56,7 +56,7 @@ describe("services/weread validateSession", () => {
         },
         data: {
           api_name: "/_list",
-          skill_version: "1.0.3",
+          skill_version: "1.0.4",
         },
         isRaw: true,
         allowHttpErrorStatus: true,
@@ -67,6 +67,50 @@ describe("services/weread validateSession", () => {
     expect(weread.connectionStatus).toBe("valid");
     expect(weread.userInfo.isConnected).toBe(true);
     expect(weread.lastValidatedAt).toBeGreaterThan(0);
+  });
+
+  it("回包附带 upgrade_info 时不应中断同步，仅输出警告", async () => {
+    useSettingStore.setState((state) => ({
+      ...state,
+      setting: {
+        ...state.setting,
+        integration: {
+          ...state.setting.integration,
+          weread: {
+            ...state.setting.integration.weread,
+            apiKey: "wrk-test-key",
+          },
+        },
+      },
+    }));
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    nodeFetchMock.mockResolvedValue({
+      status: 200,
+      data: {
+        bookId: "book-1",
+        book: {
+          progress: 42,
+          updateTime: 1710000000,
+          recordReadingTime: 3600,
+        },
+        upgrade_info: {
+          latest_version: "1.0.5",
+          current_version: "1.0.4",
+          message: "微信读书 Skill 有新版本，请立即从 upgrade_url 下载最新版",
+          upgrade_url: "https://cdn.weread.qq.com/skills/weread-skills.zip",
+        },
+      },
+    });
+
+    const result = await weReadService.getBookProgress("book-1");
+
+    expect(result?.book.readingTime).toBe(3600);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Skill 版本待升级"),
+    );
+
+    warnSpy.mockRestore();
   });
 
   it("API Key 缺失时应返回 false 并重置状态", async () => {

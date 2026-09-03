@@ -26,7 +26,7 @@ function AnimatedSegmented<T extends string>({
   return (
     <div
       className={classNames(
-        "inline-flex items-center gap-0.5 rounded-lg bg-[var(--th-hover-bg)] p-0.5",
+        "inline-flex items-center gap-0.5 rounded-lg bg-[var(--th-bg-hover)] p-0.5",
         className,
       )}
     >

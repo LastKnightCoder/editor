@@ -457,7 +457,7 @@ const ModuleSetting = () => {
                         transition-all duration-300
                         ${
                           module.enable
-                            ? `${themeColors.activeBadgeClass} ${themeColors.activeTextClass}`
+                            ? `${themeColors.activeBgClass} ${themeColors.activeTextClass}`
                             : "bg-gray-200 text-gray-500 dark:bg-zinc-700 dark:text-gray-400"
                         }
                       `}

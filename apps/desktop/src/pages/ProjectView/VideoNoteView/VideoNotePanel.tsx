@@ -1769,7 +1769,7 @@ const VideoNotePanel = ({
                       )}
                       style={{
                         boxShadow:
-                          "0 10px 30px -10px var(--th-icon-to, rgba(0,0,0,0.15))",
+                          "0 10px 30px -10px var(--th-input-bg, rgba(0,0,0,0.15))",
                       }}
                     >
                       <StickyNote size={28} />

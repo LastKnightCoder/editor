@@ -131,8 +131,8 @@ const EditProjectInfoModal = (props: EditProjectInfoModalProps) => {
                     padding: "10px 16px",
                     borderRadius: 12,
                     fontSize: 14,
-                    border: "1px solid var(--border-color, #e5e7eb)",
-                    background: "var(--bg-secondary, #f9fafb)",
+                    border: "1px solid var(--th-border, #e5e7eb)",
+                    background: "var(--th-bg-page, #f9fafb)",
                   }}
                   defaultValue={titleValue}
                   onChange={setTitleValue}

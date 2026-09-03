@@ -5,6 +5,12 @@ import type { MermaidRenderStyle, MermaidThemeName } from "@tau/shared";
 import type { ImageBorderRadiusPreset, ImageShadowPreset } from "@tau/editor";
 
 import { EGithubCDN } from "@/constants/github";
+import {
+  DEFAULT_ACCENT,
+  LEGACY_BACKGROUND_TYPE_TO_ACCENT,
+  isAccentPreset,
+  type AccentPreset,
+} from "@/constants/accent";
 import type { WeReadSessionStatus } from "@/types/weread";
 import { ETTSProvider } from "@/types/tts";
 import type { EmbeddingProviderType } from "@/types/embedding";
@@ -182,6 +188,25 @@ const migrateImageGenerationConfig = <T extends Partial<ISetting>>(
   }
 };
 
+/** 旧 backgroundType(gradient1~9/solid)一次性迁移为 accent + 柔光开关 */
+const migrateAppearanceSetting = (setting: ISetting) => {
+  const appearance = setting.appearance as
+    | (NonNullable<ISetting["appearance"]> & { backgroundType?: string })
+    | undefined;
+  if (!appearance) return;
+  const legacy = appearance.backgroundType;
+  if (legacy) {
+    appearance.accent =
+      LEGACY_BACKGROUND_TYPE_TO_ACCENT[legacy] ?? DEFAULT_ACCENT;
+    delete appearance.backgroundType;
+  }
+  delete (appearance as { backgroundGlow?: unknown }).backgroundGlow;
+  delete (appearance as { backgroundAnimation?: unknown }).backgroundAnimation;
+  if (!isAccentPreset(appearance.accent)) {
+    appearance.accent = DEFAULT_ACCENT;
+  }
+};
+
 export const mergeSettingWithDefaults = (
   setting: Partial<ISetting> | ISetting,
 ): ISetting => {
@@ -194,6 +219,7 @@ export const mergeSettingWithDefaults = (
   if (imageGeneration) {
     mergedSetting.imageGeneration = imageGeneration;
   }
+  migrateAppearanceSetting(mergedSetting);
   sanitizeSettingModules(mergedSetting);
   sanitizeDeprecatedLLMUsageSettings(mergedSetting);
   migrateImageGenerationConfig(mergedSetting);
@@ -209,18 +235,7 @@ export interface ISetting {
     codeFont: string;
   };
   appearance?: {
-    backgroundType:
-      | "solid"
-      | "gradient1"
-      | "gradient2"
-      | "gradient3"
-      | "gradient4"
-      | "gradient5"
-      | "gradient6"
-      | "gradient7"
-      | "gradient8"
-      | "gradient9";
-    backgroundAnimation?: boolean;
+    accent?: AccentPreset;
     image?: {
       borderRadius?: ImageBorderRadiusPreset;
       shadow?: ImageShadowPreset | boolean;
@@ -741,8 +756,7 @@ const initialState: IState = {
       fontSize: 16,
     },
     appearance: {
-      backgroundType: "solid",
-      backgroundAnimation: false,
+      accent: DEFAULT_ACCENT,
       image: {
         borderRadius: "none",
         shadow: "none",

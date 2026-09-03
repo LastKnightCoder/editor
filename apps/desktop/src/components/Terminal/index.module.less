@@ -6,12 +6,12 @@
 
   &.bottom {
     width: 100%;
-    border-top: 1px solid var(--color-border-secondary, #e8e8e8);
+    border-top: 1px solid var(--th-divide, #e8e8e8);
   }
 
   &.right {
     height: 100%;
-    border-left: 1px solid var(--color-border-secondary, #e8e8e8);
+    border-left: 1px solid var(--th-divide, #e8e8e8);
   }
 }
 
@@ -28,7 +28,7 @@
 
     &:hover,
     &:active {
-      background: var(--color-primary, #1677ff);
+      background: var(--th-accent, #1677ff);
       opacity: 0.4;
     }
   }
@@ -42,7 +42,7 @@
 
     &:hover,
     &:active {
-      background: var(--color-primary, #1677ff);
+      background: var(--th-accent, #1677ff);
       opacity: 0.4;
     }
   }
@@ -78,18 +78,18 @@
   border-radius: 6px;
   cursor: pointer;
   font-size: 12px;
-  color: var(--color-text-tertiary, #999);
+  color: var(--th-text-tertiary, #999);
   white-space: nowrap;
   user-select: none;
   transition: all 0.15s ease;
 
   &:hover {
-    color: var(--color-text-secondary, #666);
+    color: var(--th-text-secondary, #666);
     background: var(--color-bg-hover, rgba(0, 0, 0, 0.04));
   }
 
   &.active {
-    color: var(--color-text-primary, #1f1f1f);
+    color: var(--th-text, #1f1f1f);
     background: var(--color-bg-hover, rgba(0, 0, 0, 0.06));
   }
 }
@@ -104,12 +104,12 @@
   width: 80px;
   height: 18px;
   padding: 0 4px;
-  border: 1px solid var(--color-primary, #1677ff);
+  border: 1px solid var(--th-accent, #1677ff);
   border-radius: 3px;
   outline: none;
   font-size: 12px;
-  background: var(--color-bg-container, #fff);
-  color: var(--color-text-primary, #333);
+  background: var(--th-card-bg, #fff);
+  color: var(--th-text, #333);
 }
 
 .tabClose {
@@ -142,12 +142,12 @@
   background: none;
   border-radius: 6px;
   cursor: pointer;
-  color: var(--color-text-tertiary, #999);
+  color: var(--th-text-tertiary, #999);
   transition: all 0.15s ease;
 
   &:hover {
     background: var(--color-bg-hover, rgba(0, 0, 0, 0.04));
-    color: var(--color-text-primary, #333);
+    color: var(--th-text, #333);
   }
 }
 
@@ -168,12 +168,12 @@
   background: none;
   border-radius: 6px;
   cursor: pointer;
-  color: var(--color-text-tertiary, #999);
+  color: var(--th-text-tertiary, #999);
   transition: all 0.15s ease;
 
   &:hover {
     background: var(--color-bg-hover, rgba(0, 0, 0, 0.04));
-    color: var(--color-text-primary, #333);
+    color: var(--th-text, #333);
   }
 }
 

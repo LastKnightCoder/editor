@@ -523,7 +523,7 @@ const Application = () => {
                     style={{
                       height: "100%",
                       fontSize: "var(--font-size)",
-                      color: "var(--text-normal)",
+                      color: "var(--th-text)",
                     }}
                   >
                     <AutoSyncManager />

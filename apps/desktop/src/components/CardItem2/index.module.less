@@ -4,7 +4,7 @@
   border-radius: 8px;
   position: relative;
   user-select: none;
-  background-color: var(--normal-card-bg);
+  background-color: var(--th-card-bg);
   border: 2px solid transparent;
   box-sizing: border-box;
   cursor: pointer;
@@ -17,17 +17,17 @@
     bottom: -10px;
     width: 100%;
     height: 1px;
-    background-color: var(--line-color);
+    background-color: var(--th-border);
   }
   &:not(.active):hover {
-    background-color: var(--common-hover-bg);
+    background-color: var(--th-bg-hover);
   }
   &.active {
-    border: 2px solid var(--active-text-color);
-    background-color: var(--active-bg-color);
+    border: 2px solid var(--th-active-text);
+    background-color: var(--th-accent-soft);
     .moreIcon {
-      background-color: var(--active-icon-bg);
-      color: var(--active-text-color);
+      background-color: var(--th-accent-soft);
+      color: var(--th-active-text);
     }
   }
 
@@ -52,8 +52,8 @@
       margin-top: 0;
     }
     :global(code) {
-      color: var(--code-normal, #fbde2d);
-      background-color: var(--code-bg, transparent);
+      color: var(--th-active-text, #fbde2d);
+      background-color: var(transparent, transparent);
       padding: 4px;
       font-size: 0.9em;
       font-family: var(--mono-font, "monospace");
@@ -72,7 +72,7 @@
     border-radius: 8px;
     cursor: pointer;
     display: flex;
-    background-color: var(--normal-icon-bg);
+    background-color: var(--th-tag-bg);
     color: #b5b5b5;
   }
 }

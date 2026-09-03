@@ -3,7 +3,6 @@ import { useShallow } from "zustand/react/shallow";
 import { App, Dropdown } from "antd";
 import type { MenuProps } from "antd";
 import {
-  AiOutlineSearch,
   AiOutlineFileImage,
   AiOutlineVideoCamera,
   AiOutlineAudio,
@@ -144,7 +143,6 @@ const ResourceManagementSidebar = memo(
       setSelectedResource,
       setSelectedGroup,
       setSelectedSystemFilter,
-      setSearchKeyword,
       createResourceGroup,
       updateResourceGroup,
       deleteResourceGroup,
@@ -271,10 +269,6 @@ const ResourceManagementSidebar = memo(
       } finally {
         hide();
       }
-    });
-
-    const handleSearch = useMemoizedFn((value: string) => {
-      setSearchKeyword(value);
     });
 
     // 渲染分组的右键菜单
@@ -994,33 +988,6 @@ const ResourceManagementSidebar = memo(
           themeColors.borderClass,
         )}
       >
-        {/* 搜索框 */}
-        <div
-          className={classnames("px-4 py-3 border-b", themeColors.borderClass)}
-        >
-          <div className="relative">
-            <AiOutlineSearch
-              className={classnames(
-                "absolute left-3 top-1/2 -translate-y-1/2 text-base",
-                themeColors.secondaryTextClass,
-              )}
-            />
-            <input
-              placeholder="搜索资源..."
-              value={searchKeyword}
-              onChange={(e) => handleSearch(e.target.value)}
-              className={classnames(
-                "w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none transition-all",
-                "bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700",
-                "text-gray-800 dark:text-white",
-                "placeholder:text-gray-400 dark:placeholder:text-slate-500",
-                "focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.15)]",
-                "dark:focus:shadow-[0_0_0_3px_rgba(59,130,246,0.25)]",
-              )}
-            />
-          </div>
-        </div>
-
         {/* 标题行 */}
         <div
           className={classnames(

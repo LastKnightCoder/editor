@@ -68,7 +68,7 @@ const SelectFileModal = (props: SelectFileModalProps) => {
           style={{
             width: 120,
             height: 120,
-            border: "1px solid var(--line-color)",
+            border: "1px solid var(--th-border)",
             borderRadius: 4,
             cursor: "pointer",
             display: "flex",

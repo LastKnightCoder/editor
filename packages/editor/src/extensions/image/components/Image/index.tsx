@@ -1435,7 +1435,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
           <div className="flex justify-end gap-[0.625em] flex-wrap">
             <button
               type="button"
-              className="h-[2.25em] px-[1em] rounded-[0.625em] border border-[var(--color-border-primary)] text-[0.875em] font-medium cursor-pointer bg-bg-elevated text-text-1 transition-all duration-200 hover:border-[var(--th-border-hover)] hover:bg-bg-container disabled:opacity-45 disabled:cursor-not-allowed"
+              className="h-[2.25em] px-[1em] rounded-[0.625em] border border-[var(--th-border)] text-[0.875em] font-medium cursor-pointer bg-bg-elevated text-text-1 transition-all duration-200 hover:border-[var(--th-border-hover)] hover:bg-bg-container disabled:opacity-45 disabled:cursor-not-allowed"
               disabled={aiSubmitting}
               onClick={() => {
                 setAiEditModalOpen(false);
@@ -1450,7 +1450,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
             </button>
             <button
               type="button"
-              className="h-[2.25em] px-[1em] rounded-[0.625em] border border-[var(--color-border-primary)] text-[0.875em] font-medium cursor-pointer bg-bg-elevated text-text-1 transition-all duration-200 hover:border-[var(--th-border-hover)] hover:bg-bg-container disabled:opacity-45 disabled:cursor-not-allowed"
+              className="h-[2.25em] px-[1em] rounded-[0.625em] border border-[var(--th-border)] text-[0.875em] font-medium cursor-pointer bg-bg-elevated text-text-1 transition-all duration-200 hover:border-[var(--th-border-hover)] hover:bg-bg-container disabled:opacity-45 disabled:cursor-not-allowed"
               disabled={!editPrompt.trim() || aiSubmitting}
               onClick={() => handleRunAIImage("edit")}
             >

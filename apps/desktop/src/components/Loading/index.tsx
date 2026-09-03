@@ -39,8 +39,7 @@ const Loading: React.FC<LoadingProps> = (props) => {
   const themeColors = useThemeColors();
   const accentTextClass =
     themeColors.iconTextClass || themeColors.activeTextClass || "";
-  const glowBgClass =
-    themeColors.tagCountBg || themeColors.activeBadgeClass || "";
+  const glowBgClass = themeColors.tagBgClass || themeColors.activeBgClass || "";
 
   const wrapperClasses = fullscreen
     ? "fixed inset-0 z-50 flex items-center justify-center"
