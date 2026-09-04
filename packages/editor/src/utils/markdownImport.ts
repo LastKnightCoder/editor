@@ -1,6 +1,8 @@
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
+import remarkCjkFriendly from "remark-cjk-friendly/parseOnly";
+import remarkCjkFriendlyGfmStrikethrough from "remark-cjk-friendly-gfm-strikethrough/parseOnly";
 import remarkMath from "remark-math";
 import remarkDirective from "remark-directive";
 import remarkRehype from "remark-rehype";
@@ -1088,15 +1090,20 @@ export const importFromMarkdown = (
 ): Descendant[] => {
   footnoteDefinitionsMap.clear();
 
+  // 历史版本曾为绕过 CJK 加粗解析问题在 markdown 中驻留零宽空格，导入时剥离净化
+  const sanitized = markdown.replace(/\u200B/g, "");
+
   const parseResult = unified()
     .use(remarkParse)
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(remarkHtmlProcessor)
     .use(remarkGfm)
+    .use(remarkCjkFriendly)
+    .use(remarkCjkFriendlyGfmStrikethrough)
     .use(remarkMath)
     .use(remarkDirective)
     .use(remarkFrontmatter, ["yaml"])
-    .parse(markdown);
+    .parse(sanitized);
 
   const collectFootnoteDefinitions = (nodes: typeof parseResult.children) => {
     for (const node of nodes) {

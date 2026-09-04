@@ -13,15 +13,9 @@ import {
 
 // eslint-disable-next-line no-misleading-character-class
 const ZERO_WIDTH_ONLY_REGEX = /^[\u200B\u200C\u200D\uFEFF]+$/;
-// eslint-disable-next-line no-misleading-character-class
-const ZERO_WIDTH_TRAILING_REGEX = /[\u200B\u200C\u200D\uFEFF]$/;
 
 const isZeroWidthOnlyText = (text: string): boolean => {
   return ZERO_WIDTH_ONLY_REGEX.test(text);
-};
-
-const endsWithZeroWidth = (text: string): boolean => {
-  return ZERO_WIDTH_TRAILING_REGEX.test(text);
 };
 
 export const getMarkdown = (value: Descendant[]): string => {
@@ -48,10 +42,7 @@ export const getMarkdown = (value: Descendant[]): string => {
   return content + footnoteDefinitions;
 };
 
-export const leafToMarkdown = (
-  leaf: FormattedText,
-  options?: { suppressLeadingZeroWidth?: boolean },
-): string => {
+export const leafToMarkdown = (leaf: FormattedText): string => {
   const {
     text,
     code,
@@ -63,7 +54,8 @@ export const leafToMarkdown = (
     darkColor,
     textGradient,
   } = leaf;
-  let str = text;
+  // 历史版本曾为绕过 CJK 加粗解析问题在文本中驻留零宽空格，导出时剥离兜底
+  let str = text.replace(/\u200B/g, "");
   if (code) {
     str = `\`${str}\``;
   }
@@ -74,8 +66,7 @@ export const leafToMarkdown = (
     str = `~~${str}~~`;
   }
   if (bold) {
-    const prefix = options?.suppressLeadingZeroWidth ? "" : "\u200B";
-    str = `${prefix}**${str}**`;
+    str = `**${str}**`;
   }
   if (textGradient) {
     str = `:gradient[${str}]{preset=${textGradient}}`;
@@ -103,10 +94,7 @@ export const elementToMarkdown = (
 
   children.forEach((node, index) => {
     if (node.type === "formatted") {
-      const prevOutput =
-        childrenParts.length > 0 ? childrenParts[childrenParts.length - 1] : "";
-      const suppressLeadingZeroWidth = endsWithZeroWidth(prevOutput);
-      childrenParts.push(leafToMarkdown(node, { suppressLeadingZeroWidth }));
+      childrenParts.push(leafToMarkdown(node));
       return;
     }
 
@@ -165,7 +153,6 @@ interface LeafSerializationResult {
  */
 export function leafToMarkdownStructured(
   leaf: FormattedText,
-  options?: { suppressLeadingZeroWidth?: boolean },
 ): LeafSerializationResult {
   const {
     text,
@@ -179,7 +166,8 @@ export function leafToMarkdownStructured(
     textGradient,
   } = leaf;
 
-  let output = text;
+  // 历史版本曾为绕过 CJK 加粗解析问题在文本中驻留零宽空格，导出时剥离兜底
+  let output = text.replace(/\u200B/g, "");
   let prefixLength = 0;
   let suffixLength = 0;
 
@@ -203,9 +191,8 @@ export function leafToMarkdownStructured(
   }
 
   if (bold) {
-    const prefix = options?.suppressLeadingZeroWidth ? "" : "\u200B";
-    output = `${prefix}**${output}**`;
-    prefixLength += options?.suppressLeadingZeroWidth ? 2 : 3;
+    output = `**${output}**`;
+    prefixLength += 2;
     suffixLength += 2;
   }
 
@@ -381,13 +368,8 @@ function serializeElementWithTracking(
       const textPath = [...path, index];
       const leafStart = { ...childContext };
 
-      const prevOutput =
-        childrenParts.length > 0 ? childrenParts[childrenParts.length - 1] : "";
-      const suppressLeadingZeroWidth = endsWithZeroWidth(prevOutput);
-      const { output, prefixLength, suffixLength } = leafToMarkdownStructured(
-        node,
-        { suppressLeadingZeroWidth },
-      );
+      const { output, prefixLength, suffixLength } =
+        leafToMarkdownStructured(node);
 
       childrenParts.push(output);
 

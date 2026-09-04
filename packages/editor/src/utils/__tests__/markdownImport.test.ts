@@ -35,4 +35,39 @@ describe("markdownImport", () => {
       url: "https://openai.com",
     });
   });
+
+  it("中文标点相邻加粗应解析出加粗", () => {
+    const content = importFromMarkdown("**加粗。**后续文本");
+    const paragraph = content[0] as {
+      children?: Array<{ text?: string; bold?: boolean }>;
+    };
+
+    expect(paragraph.children?.find((leaf) => leaf.bold)?.text).toBe("加粗。");
+    expect(
+      paragraph.children?.find((leaf) => leaf.text === "后续文本")?.bold,
+    ).toBeFalsy();
+  });
+
+  it("中文标点相邻删除线应解析出删除线", () => {
+    const content = importFromMarkdown("~~删除线。~~后续文本");
+    const paragraph = content[0] as {
+      children?: Array<{ text?: string; strikethrough?: boolean }>;
+    };
+
+    expect(paragraph.children?.find((leaf) => leaf.strikethrough)?.text).toBe(
+      "删除线。",
+    );
+  });
+
+  it("导入时应剥离历史驻留的零宽空格", () => {
+    const content = importFromMarkdown("中文\u200B**加粗**文本");
+    const paragraph = content[0] as {
+      children?: Array<{ text?: string; bold?: boolean }>;
+    };
+
+    expect(
+      paragraph.children?.every((leaf) => !leaf.text?.includes("\u200B")),
+    ).toBe(true);
+    expect(paragraph.children?.find((leaf) => leaf.bold)?.text).toBe("加粗");
+  });
 });

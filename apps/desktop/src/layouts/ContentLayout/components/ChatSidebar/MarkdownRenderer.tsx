@@ -13,6 +13,8 @@ import classnames from "classnames";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
+import remarkCjkFriendly from "remark-cjk-friendly/parseOnly";
+import remarkCjkFriendlyGfmStrikethrough from "remark-cjk-friendly-gfm-strikethrough/parseOnly";
 import { Tooltip } from "antd";
 import MarkdownContext, {
   useMarkdownContext,
@@ -40,6 +42,8 @@ import {
 const remarkPlugins = [
   remarkMath,
   remarkGfm,
+  remarkCjkFriendly,
+  remarkCjkFriendlyGfmStrikethrough,
   remarkDocumentReference,
   remarkPdfCitation,
 ];

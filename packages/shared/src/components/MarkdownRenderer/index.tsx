@@ -1,6 +1,8 @@
 import React, { useMemo, memo, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkCjkFriendly from "remark-cjk-friendly/parseOnly";
+import remarkCjkFriendlyGfmStrikethrough from "remark-cjk-friendly-gfm-strikethrough/parseOnly";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import type { MessageInstance } from "antd/es/message/interface";
@@ -11,7 +13,12 @@ import LazySyntaxHighlighter from "../LazySyntaxHighlighter";
 import PlantUML from "../PlantUML";
 
 // 默认的 remark 和 rehype 插件
-const defaultRemarkPlugins = [remarkGfm, remarkMath];
+const defaultRemarkPlugins = [
+  remarkGfm,
+  remarkCjkFriendly,
+  remarkCjkFriendlyGfmStrikethrough,
+  remarkMath,
+];
 const defaultRehypePlugins = [rehypeKatex];
 
 // 文档引用类型对应的颜色
