@@ -44,3 +44,4 @@ __pycache__
 .output
 .wxt/
 apps/mobile-rn/**
+.zcode/
