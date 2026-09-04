@@ -23,6 +23,8 @@ export interface ModelItem {
   apiProtocol?: "chat-completions" | "responses";
   maxOutputTokens?: number;
   contextWindowK?: number;
+  /** 可选的请求 User-Agent。 */
+  userAgent?: string;
 }
 
 export interface ConfigFormData {
@@ -48,4 +50,6 @@ export interface ModelFormData {
   apiProtocol?: "chat-completions" | "responses";
   maxOutputTokens?: number;
   contextWindowK?: number;
+  /** 可选的请求 User-Agent。 */
+  userAgent?: string;
 }
