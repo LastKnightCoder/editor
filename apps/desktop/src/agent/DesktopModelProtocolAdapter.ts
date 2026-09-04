@@ -925,6 +925,10 @@ export class DesktopModelProtocolAdapter implements AgentModelProtocolAdapter {
     const isResponsesApi =
       !isClaudeFormat && this.modelConfig.apiProtocol === "responses";
     const baseUrlNormalized = baseUrl.replace(/\/+$/, "");
+    const customUserAgent = this.modelConfig.userAgent?.trim();
+    const userAgentHeaders: Record<string, string> = customUserAgent
+      ? { "User-Agent": customUserAgent }
+      : {};
 
     const endpoint = isClaudeFormat
       ? baseUrlNormalized.endsWith("/v1")
@@ -939,14 +943,13 @@ export class DesktopModelProtocolAdapter implements AgentModelProtocolAdapter {
           "Content-Type": "application/json",
           "x-api-key": apiKey,
           "anthropic-version": "2023-06-01",
+          ...userAgentHeaders,
         }
       : {
           "Content-Type": "application/json",
           Accept: "application/json",
           Authorization: `Bearer ${apiKey}`,
-          ...(modelName === "kimi-for-coding"
-            ? { "User-Agent": "kimi-code-cli/0.14.2" }
-            : {}),
+          ...userAgentHeaders,
         };
 
     const normalizedMessages = await normalizeRequestMessages(

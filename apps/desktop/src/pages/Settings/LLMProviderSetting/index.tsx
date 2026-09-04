@@ -122,6 +122,7 @@ const LLMProviderSetting = () => {
               apiProtocol: data.apiProtocol,
               maxOutputTokens: data.maxOutputTokens,
               contextWindowK: data.contextWindowK,
+              userAgent: data.userAgent,
             });
           } else {
             const modelIndex = config.models.findIndex(
@@ -136,6 +137,7 @@ const LLMProviderSetting = () => {
                 apiProtocol: data.apiProtocol,
                 maxOutputTokens: data.maxOutputTokens,
                 contextWindowK: data.contextWindowK,
+                userAgent: data.userAgent,
               };
             }
           }

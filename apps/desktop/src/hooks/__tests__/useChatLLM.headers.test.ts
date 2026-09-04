@@ -120,11 +120,12 @@ describe("hooks/useChatLLM headers", () => {
     expect(policies.getToolTimeoutMs?.("lookup", 30000)).toBe(30000);
   });
 
-  it("kimi-for-coding 应注入 KimiCLI User-Agent", async () => {
+  it("应使用模型配置中的自定义 User-Agent", async () => {
     const onError = vi.fn();
     const modelConfig: ModelConfig = {
-      name: "kimi-for-coding",
-      description: "Kimi",
+      name: "custom-model",
+      description: "Custom model",
+      userAgent: "  CustomClient/2.0  ",
       features: {
         online: true,
         thinking: true,
@@ -149,15 +150,15 @@ describe("hooks/useChatLLM headers", () => {
       Authorization: "Bearer test-key",
       "Content-Type": "application/json",
       Accept: "application/json",
-      "User-Agent": "KimiCLI/1.37.0",
+      "User-Agent": "CustomClient/2.0",
     });
   });
 
-  it("其他模型不应额外注入 KimiCLI User-Agent", async () => {
+  it("未配置 User-Agent 时不应再按模型名称写死请求头", async () => {
     const onError = vi.fn();
     const modelConfig: ModelConfig = {
-      name: "gpt-4.1",
-      description: "OpenAI",
+      name: "kimi-for-coding",
+      description: "Kimi",
       features: {
         online: true,
         thinking: true,

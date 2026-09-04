@@ -173,6 +173,8 @@ export interface ModelConfig {
   maxOutputTokens?: number;
   /** 上下文窗口大小，单位为 k tokens。 */
   contextWindowK?: number;
+  /** 可选的请求 User-Agent。 */
+  userAgent?: string;
 }
 
 export interface LLMUsageConfig {

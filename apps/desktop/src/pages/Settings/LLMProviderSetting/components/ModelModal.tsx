@@ -43,6 +43,8 @@ const ModelModal = ({
   >("chat-completions");
   const [maxOutputTokens, setMaxOutputTokens] = useState("");
   const [contextWindowK, setContextWindowK] = useState("");
+  const [userAgent, setUserAgent] = useState("");
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const themeColors = useThemeColors();
 
   useEffect(() => {
@@ -61,6 +63,8 @@ const ModelModal = ({
           ? String(initialData.contextWindowK)
           : "",
       );
+      setUserAgent(initialData.userAgent ?? "");
+      setIsAdvancedOpen(Boolean(initialData.userAgent));
       const normalizedFeatures = {
         online: initialData.features?.online ?? false,
         thinking: initialData.features?.thinking ?? false,
@@ -82,6 +86,8 @@ const ModelModal = ({
       setApiProtocol("chat-completions");
       setMaxOutputTokens("");
       setContextWindowK("");
+      setUserAgent("");
+      setIsAdvancedOpen(false);
     }
   }, [initialData, open]);
 
@@ -113,6 +119,7 @@ const ModelModal = ({
         Number.isFinite(parsedContextWindowK) && parsedContextWindowK > 0
           ? parsedContextWindowK
           : undefined,
+      userAgent: userAgent.trim() || undefined,
     });
     setModelName("");
     setDescription("");
@@ -121,6 +128,8 @@ const ModelModal = ({
     setApiProtocol("chat-completions");
     setMaxOutputTokens("");
     setContextWindowK("");
+    setUserAgent("");
+    setIsAdvancedOpen(false);
   };
 
   const handleCancel = () => {
@@ -132,6 +141,8 @@ const ModelModal = ({
     setApiProtocol("chat-completions");
     setMaxOutputTokens("");
     setContextWindowK("");
+    setUserAgent("");
+    setIsAdvancedOpen(false);
   };
 
   const toggleFeature = (value: string) => {
@@ -149,6 +160,7 @@ const ModelModal = ({
       open={open}
       title={isEdit ? "编辑模型" : "添加模型"}
       onCancel={handleCancel}
+      bodyClassName="p-6 space-y-4 max-h-[70vh] overflow-y-auto"
       footer={
         <>
           <SettingButton variant="secondary" onClick={handleCancel}>
@@ -304,6 +316,33 @@ const ModelModal = ({
         placeholder="例如 128，表示 128k tokens"
         description="用于聊天输入框显示上下文用量；不同模型请分别填写。"
       />
+      <details
+        open={isAdvancedOpen}
+        onToggle={(event) => setIsAdvancedOpen(event.currentTarget.open)}
+        className={classNames(
+          "rounded-xl border px-4 py-3",
+          themeColors.borderClass,
+          themeColors.cardBgClass,
+        )}
+      >
+        <summary
+          className={classNames(
+            "cursor-pointer text-sm font-medium",
+            themeColors.textClass,
+          )}
+        >
+          高级设置
+        </summary>
+        <div className="pt-4">
+          <SettingInput
+            label="User Agent"
+            value={userAgent}
+            onChange={(e) => setUserAgent(e.target.value)}
+            placeholder="请输入模型服务要求的 User Agent（可选）"
+            description="设置后会作为该模型请求的 User-Agent 请求头发送；留空则使用默认请求头。"
+          />
+        </div>
+      </details>
     </SettingModalShell>
   );
 };
