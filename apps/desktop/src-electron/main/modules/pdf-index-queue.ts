@@ -1,6 +1,5 @@
 import { ipcMain, app } from "electron";
 import { promises as fs } from "node:fs";
-import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import OpenAI from "openai";
@@ -423,9 +422,7 @@ class PdfIndexQueue implements Module {
     ) => void,
   ): Promise<ExtractPdfResult> {
     const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-    const require = createRequire(import.meta.url);
-    const workerPath =
-      require.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs");
+    const workerPath = path.join(__dirname, "pdf.worker.mjs");
     pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).toString();
     const buffer = await fs.readFile(resolvedPath);
     const loadingTask = pdfjs.getDocument({

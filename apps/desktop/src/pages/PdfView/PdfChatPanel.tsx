@@ -32,8 +32,14 @@ import useSettingStore from "@/stores/useSettingStore";
 import usePdfChatStore, { EPdfChatStatus } from "@/stores/usePdfChatStore";
 import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
 import { buildSessionAwareSystemPrompt, Role } from "@/constants";
-import type { ChatAgentType, ChatMessage, Pdf, ResponseMessage } from "@/types";
-import { ensurePdfIndex, openExternal } from "@/commands";
+import type {
+  ChatAgentType,
+  ChatMessage,
+  Pdf,
+  PdfIndexStatus,
+  ResponseMessage,
+} from "@/types";
+import { ensurePdfIndex, getPdfIndexStatus, openExternal } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 import usePdfChat from "./usePdfChat";
 import {
@@ -297,6 +303,8 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
 
     const [createMessageLoading, setCreateMessageLoading] = useState(false);
     const [sendLoading, setSendLoading] = useState(false);
+    const [indexPreparing, setIndexPreparing] = useState(false);
+    const [indexStatus, setIndexStatus] = useState<PdfIndexStatus | null>(null);
     const [pendingAskPayload, setPendingAskPayload] =
       useState<PdfChatAskPayload | null>(null);
 
@@ -325,30 +333,94 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
         return false;
       }
 
-      const resolvedPath = await resolvePdfPath();
-      if (!resolvedPath) {
-        message.warning("无法定位当前 PDF 文件，暂时无法建立索引");
-        return false;
-      }
-
+      setIndexPreparing(true);
       try {
-        const status = await ensurePdfIndex({
+        const resolvedPath = await resolvePdfPath();
+        if (!resolvedPath) {
+          message.warning("无法定位当前 PDF 文件，暂时无法建立索引");
+          return false;
+        }
+
+        const nextStatus = await ensurePdfIndex({
           pdfId: pdf.id,
           resolvedPath,
           fileName: pdf.fileName,
           mainDbName,
         });
-        if (status.state === "failed") {
-          message.error(status.error || "PDF 索引构建失败");
+        setIndexStatus(nextStatus);
+        if (nextStatus.state === "failed") {
+          message.error(nextStatus.error || "PDF 索引构建失败");
           return false;
         }
         return true;
       } catch (error) {
         console.error("准备 PDF 索引失败:", error);
+        setIndexStatus({
+          pdfId: pdf.id,
+          state: "failed",
+          pageCount: 0,
+          updatedAt: Date.now(),
+          error: error instanceof Error ? error.message : String(error),
+        });
         message.error("准备 PDF 索引失败");
         return false;
+      } finally {
+        setIndexPreparing(false);
       }
     });
+
+    useEffect(() => {
+      if (!mainDbName || !pdf.id) {
+        setIndexStatus(null);
+        return;
+      }
+
+      let cancelled = false;
+      const refreshStatus = async () => {
+        try {
+          const nextStatus = await getPdfIndexStatus({
+            pdfId: pdf.id,
+            mainDbName,
+          });
+          if (!cancelled) {
+            setIndexStatus(nextStatus);
+          }
+        } catch (error) {
+          if (!cancelled) {
+            console.error("获取 PDF 索引状态失败:", error);
+          }
+        }
+      };
+
+      void refreshStatus();
+      return () => {
+        cancelled = true;
+      };
+    }, [mainDbName, pdf.id]);
+
+    useEffect(() => {
+      if (
+        !mainDbName ||
+        !pdf.id ||
+        !isConnected ||
+        (!indexPreparing && indexStatus?.state !== "building")
+      ) {
+        return;
+      }
+
+      const timer = window.setInterval(async () => {
+        try {
+          const nextStatus = await getPdfIndexStatus({
+            pdfId: pdf.id,
+            mainDbName,
+          });
+          setIndexStatus(nextStatus);
+        } catch (error) {
+          console.error("获取 PDF 索引进度失败:", error);
+        }
+      }, 1000);
+      return () => window.clearInterval(timer);
+    }, [indexPreparing, indexStatus?.state, isConnected, mainDbName, pdf.id]);
 
     const onCreateNewMessage = useMemoizedFn(async () => {
       const messages: ResponseMessage[] = [
@@ -642,6 +714,51 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
           ) : (
             <>
               <div className="flex-1 min-h-0 p-4 flex flex-col">
+                {indexPreparing || indexStatus?.state === "building" ? (
+                  <div className="mb-3 rounded-lg border border-sky-500/20 bg-sky-500/6 px-3 py-2 text-xs text-sky-700 dark:border-sky-400/20 dark:bg-sky-400/8 dark:text-sky-200">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <LoadingOutlined />
+                        <span className="truncate">
+                          {indexStatus?.progressLabel || "正在准备 PDF 索引"}
+                        </span>
+                      </span>
+                      {indexStatus?.progressTotal ? (
+                        <span className="shrink-0 tabular-nums">
+                          {indexStatus.progressCurrent || 0}/
+                          {indexStatus.progressTotal}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="mt-2 h-1 overflow-hidden rounded-full bg-sky-500/15 dark:bg-sky-400/15">
+                      <div
+                        className="h-full rounded-full bg-sky-500 transition-[width] duration-300"
+                        style={{
+                          width:
+                            indexStatus?.progressTotal &&
+                            typeof indexStatus.progressCurrent === "number"
+                              ? `${Math.max(
+                                  4,
+                                  Math.min(
+                                    100,
+                                    (indexStatus.progressCurrent /
+                                      indexStatus.progressTotal) *
+                                      100,
+                                  ),
+                                )}%`
+                              : "35%",
+                        }}
+                      />
+                    </div>
+                    <div className="mt-1.5 opacity-75">
+                      索引完成后即可进行 PDF 问答
+                    </div>
+                  </div>
+                ) : indexStatus?.state === "failed" ? (
+                  <div className="mb-3 rounded-lg border border-red-500/20 bg-red-500/6 px-3 py-2 text-xs text-red-700 dark:border-red-400/20 dark:bg-red-400/8 dark:text-red-200">
+                    PDF 索引失败：{indexStatus.error || "未知错误"}
+                  </div>
+                ) : null}
                 <div className="flex justify-between items-center mb-2">
                   <ChatDropdownSelector
                     chatSource="pdf-chat"
