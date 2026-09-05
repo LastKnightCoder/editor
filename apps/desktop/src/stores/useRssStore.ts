@@ -203,7 +203,10 @@ const useRssStore = create<IState & IAction>()(
       },
 
       loadEntries: async (feedId: number) => {
-        set({ entriesStatus: RssStatus.LOADING });
+        set({
+          entriesScope: { kind: "feed", feedId },
+          entriesStatus: RssStatus.LOADING,
+        });
         try {
           const search = get().entriesSearch;
           const [entries, total] = await Promise.all([
@@ -224,7 +227,10 @@ const useRssStore = create<IState & IAction>()(
       },
 
       loadUnreadEntries: async () => {
-        set({ entriesStatus: RssStatus.LOADING });
+        set({
+          entriesScope: { kind: "unread" },
+          entriesStatus: RssStatus.LOADING,
+        });
         try {
           const search = get().entriesSearch;
           const [entries, total] = await Promise.all([
@@ -245,7 +251,10 @@ const useRssStore = create<IState & IAction>()(
       },
 
       loadStarredEntries: async () => {
-        set({ entriesStatus: RssStatus.LOADING });
+        set({
+          entriesScope: { kind: "starred" },
+          entriesStatus: RssStatus.LOADING,
+        });
         try {
           const search = get().entriesSearch;
           const [entries, total] = await Promise.all([
@@ -266,7 +275,10 @@ const useRssStore = create<IState & IAction>()(
       },
 
       loadAllEntries: async () => {
-        set({ entriesStatus: RssStatus.LOADING });
+        set({
+          entriesScope: { kind: "all" },
+          entriesStatus: RssStatus.LOADING,
+        });
         try {
           const search = get().entriesSearch;
           const [entries, total] = await Promise.all([
@@ -287,7 +299,10 @@ const useRssStore = create<IState & IAction>()(
       },
 
       loadCategoryEntries: async (category: string) => {
-        set({ entriesStatus: RssStatus.LOADING });
+        set({
+          entriesScope: { kind: "category", category },
+          entriesStatus: RssStatus.LOADING,
+        });
         try {
           const search = get().entriesSearch;
           const [entries, total] = await Promise.all([
