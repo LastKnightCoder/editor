@@ -369,3 +369,73 @@ describe("buildBatchEpubPayload 分组目录", () => {
     ]);
   });
 });
+
+describe("批量构建进度回调", () => {
+  it("buildBatchPdfPayload 按章节推进进度（分组跳过步也计数）", async () => {
+    const events: Array<[number, number, string | undefined]> = [];
+    await buildBatchPdfPayload({
+      chapters: [
+        { id: 1, title: "分组", depth: 0, content: [], isGroup: true },
+        { id: 11, title: "文档1", depth: 1, content: [] },
+        { id: 12, title: "文档2", depth: 1, content: [] },
+      ],
+      title: "测试书",
+      rule: pdfRule,
+      onProgress: (processed, total, label) =>
+        events.push([processed, total, label]),
+    });
+
+    expect(events).toEqual([
+      [1, 3, undefined],
+      [2, 3, "文档1"],
+      [3, 3, "文档2"],
+    ]);
+  });
+
+  it("buildBatchEpubPayload 按章节推进进度", async () => {
+    const events: Array<[number, number, string | undefined]> = [];
+    await buildBatchEpubPayload({
+      chapters: [
+        { id: 11, title: "文档1", depth: 0, content: [] },
+        { id: 1, title: "分组", depth: 0, content: [], isGroup: true },
+        { id: 12, title: "文档2", depth: 1, content: [] },
+      ],
+      metadata: {
+        title: "测试书",
+        author: "",
+        language: "zh-CN",
+        description: "",
+      },
+      rule: pdfRule,
+      onProgress: (processed, total, label) =>
+        events.push([processed, total, label]),
+    });
+
+    expect(events).toEqual([
+      [1, 3, "文档1"],
+      [2, 3, undefined],
+      [3, 3, "文档2"],
+    ]);
+  });
+
+  it("buildMarkdownZipBytes 按文件推进进度", async () => {
+    vi.stubGlobal("Blob", NodeBlob);
+    try {
+      const events: Array<[number, number, string | undefined]> = [];
+      const tree = [
+        createNode({ id: 11, title: "文档1", exportable: true }),
+        createNode({ id: 12, title: "文档2", exportable: true }),
+      ];
+      await buildMarkdownZipBytes(tree, new Set([11, 12]), (p, t, l) =>
+        events.push([p, t, l]),
+      );
+
+      expect(events).toEqual([
+        [1, 2, "文档1"],
+        [2, 2, "文档2"],
+      ]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

@@ -121,6 +121,10 @@ const BatchExportModal = (props: BatchExportModalProps) => {
 
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState<{
+    percent: number;
+    label?: string;
+  } | null>(null);
   const [tree, setTree] = useState<BatchExportTreeNode[]>([]);
   const [checkedKeys, setCheckedKeys] = useState<number[]>([]);
   const [formats, setFormats] = useState(DEFAULT_SETTINGS.formats);
@@ -209,6 +213,27 @@ const BatchExportModal = (props: BatchExportModalProps) => {
       const warnings: string[] = [];
       let canceled = false;
 
+      // 进度按处理单元推进：每章序列化 / 每个 ZIP 文件各 1 单元，每种格式收尾（生成文件）再 1 单元
+      const contentCount = chapters.filter(
+        (chapter) => !chapter.isGroup,
+      ).length;
+      const epubUnits = formats.epub ? chapters.length + 1 : 0;
+      const pdfUnits = formats.pdf ? chapters.length + 1 : 0;
+      const markdownUnits = formats.markdown ? 1 : 0;
+      const zipUnits = formats.markdownZip ? contentCount + 1 : 0;
+      const totalUnits = epubUnits + pdfUnits + markdownUnits + zipUnits;
+      let finishedUnits = 0;
+      const report = (processed: number, label?: string) => {
+        if (totalUnits <= 0) {
+          return;
+        }
+        const percent = Math.min(
+          99,
+          Math.round(((finishedUnits + processed) / totalUnits) * 100),
+        );
+        setExportProgress({ percent, label });
+      };
+
       if (formats.epub) {
         const metadata: EpubMetadataInput = {
           title,
@@ -221,9 +246,12 @@ const BatchExportModal = (props: BatchExportModalProps) => {
             chapters,
             metadata,
             rule,
+            onProgress: (processed, _total, label) => report(processed, label),
           },
         );
+        report(epubUnits - 1, "正在生成 EPUB 文件...");
         const result = await exportEpubWithDialog(payload);
+        finishedUnits += epubUnits;
         warnings.push(...epubWarnings, ...(result.warnings || []));
         if (result.canceled) {
           canceled = true;
@@ -239,8 +267,11 @@ const BatchExportModal = (props: BatchExportModalProps) => {
           author: normalizeText(author) || undefined,
           rule,
           pdf: pdfSettings,
+          onProgress: (processed, _total, label) => report(processed, label),
         });
+        report(pdfUnits - 1, "正在生成 PDF 文件...");
         const result = await exportPdfWithDialog(payload);
+        finishedUnits += pdfUnits;
         warnings.push(...(result.warnings || []));
         if (result.canceled) {
           canceled = true;
@@ -250,12 +281,14 @@ const BatchExportModal = (props: BatchExportModalProps) => {
       }
 
       if (formats.markdown && !canceled) {
+        report(0, "正在生成 Markdown...");
         const markdown = buildMergedMarkdown(chapters, rule);
         const result = await saveFileWithDialog({
           defaultFileName: `${title}.md`,
           filters: [{ name: "Markdown", extensions: ["md"] }],
           data: markdown,
         });
+        finishedUnits += markdownUnits;
         if (result.canceled) {
           canceled = true;
         } else if (result.filePath) {
@@ -267,18 +300,23 @@ const BatchExportModal = (props: BatchExportModalProps) => {
         const zipBytes = await buildMarkdownZipBytes(
           tree,
           new Set(checkedKeys),
+          (processed, _total, label) => report(processed, label),
         );
+        report(zipUnits - 1, "正在保存 ZIP 文件...");
         const result = await saveFileWithDialog({
           defaultFileName: `${title}.zip`,
           filters: [{ name: "ZIP", extensions: ["zip"] }],
           data: zipBytes,
         });
+        finishedUnits += zipUnits;
         if (result.canceled) {
           canceled = true;
         } else if (result.filePath) {
           savedPaths.push(result.filePath);
         }
       }
+
+      setExportProgress({ percent: 100 });
 
       setRemembered({
         excludedIds: exportableIds.filter((id) => !checkedKeys.includes(id)),
@@ -317,6 +355,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
       message.error(`导出失败：${msg}`);
     } finally {
       setExporting(false);
+      setExportProgress(null);
     }
   });
 
@@ -332,7 +371,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
       open={open}
       onCancel={onClose}
       onOk={handleConfirm}
-      okText="导出"
+      okText={exporting ? `导出中 ${exportProgress?.percent ?? 0}%` : "导出"}
       confirmLoading={exporting}
       okButtonProps={{ disabled: !canExport }}
       width={880}
@@ -553,6 +592,25 @@ const BatchExportModal = (props: BatchExportModalProps) => {
           )}
         </div>
       </div>
+
+      {exporting && exportProgress && (
+        <div className="mt-4 flex flex-col gap-1.5">
+          <div className="flex items-center justify-between gap-3 text-xs text-gray-500 dark:text-slate-400">
+            <span className="truncate min-w-0">
+              {exportProgress.label || "正在导出..."}
+            </span>
+            <span className="shrink-0 tabular-nums">
+              {exportProgress.percent}%
+            </span>
+          </div>
+          <div className="h-1.5 rounded-full bg-gray-200 dark:bg-zinc-800 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-indigo-500 transition-all duration-300"
+              style={{ width: `${exportProgress.percent}%` }}
+            />
+          </div>
+        </div>
+      )}
     </CustomModal>
   );
 };

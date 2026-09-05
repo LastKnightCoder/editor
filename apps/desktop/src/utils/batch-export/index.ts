@@ -232,6 +232,16 @@ const getChapterHeadingHtml = (
 const getChapterAnchorId = (index: number) => `batch-chapter-${index}`;
 
 /**
+ * 批量构建的进度回调：processed/total 为本次构建内的处理单元数，
+ * label 为正在处理的条目标题
+ */
+export type BatchProgressListener = (
+  processed: number,
+  total: number,
+  label?: string,
+) => void;
+
+/**
  * 构建正文开头的目录页：条目链接到章节标题锚点，
  * Chromium 打印为 PDF 时会保留为内部跳转链接
  */
@@ -260,6 +270,7 @@ export const buildBatchPdfPayload = async (input: {
     outline: boolean;
     tocPage: boolean;
   };
+  onProgress?: BatchProgressListener;
 }): Promise<PdfExportPayload> => {
   const tailwindCssCollector: string[] = [];
   const sections: string[] = [];
@@ -279,6 +290,7 @@ export const buildBatchPdfPayload = async (input: {
           ),
         );
       }
+      input.onProgress?.(index + 1, input.chapters.length);
       continue;
     }
     const serialized = await htmlSerializerRegistry.serializeAsync(
@@ -288,6 +300,7 @@ export const buildBatchPdfPayload = async (input: {
         tailwindCssCollector,
       },
     );
+    input.onProgress?.(index + 1, input.chapters.length, chapter.title);
     const heading = input.rule.asHeading
       ? getChapterHeadingHtml(
           chapter.title,
@@ -356,14 +369,16 @@ export const buildBatchEpubPayload = async (input: {
   chapters: BatchExportChapter[];
   metadata: EpubMetadataInput;
   rule: BatchExportRule;
+  onProgress?: BatchProgressListener;
 }): Promise<{ payload: EpubExportPayload; warnings: string[] }> => {
   const chapters: EpubChapter[] = [];
   const navItems: EpubNavItem[] = [];
   let pendingGroups: BatchExportChapter[] = [];
 
-  for (const chapter of input.chapters) {
+  for (const [index, chapter] of input.chapters.entries()) {
     if (chapter.isGroup) {
       pendingGroups.push(chapter);
+      input.onProgress?.(index + 1, input.chapters.length);
       continue;
     }
 
@@ -374,6 +389,7 @@ export const buildBatchEpubPayload = async (input: {
         codeTheme: "github-light",
       },
     );
+    input.onProgress?.(index + 1, input.chapters.length, chapter.title);
     const groupHeadings = pendingGroups
       .map((group, groupIndex) =>
         getChapterHeadingHtml(
@@ -509,6 +525,7 @@ const createUniqueNamer = () => {
 export const buildMarkdownZipBytes = async (
   tree: BatchExportTreeNode[],
   selectedIds: Set<number>,
+  onProgress?: BatchProgressListener,
 ): Promise<Uint8Array> => {
   configureZip({ useWebWorkers: false });
   const zipWriter = new ZipWriter(new Uint8ArrayWriter());
@@ -530,6 +547,17 @@ export const buildMarkdownZipBytes = async (
   };
   markIncludedNodes(tree);
 
+  const countFiles = (nodes: BatchExportTreeNode[]): number =>
+    nodes.reduce(
+      (sum, node) =>
+        sum +
+        (includedNodeIds.has(node.id) && node.exportable ? 1 : 0) +
+        countFiles(node.children),
+      0,
+    );
+  const totalFiles = countFiles(tree);
+  let processedFiles = 0;
+
   const walk = async (
     nodes: BatchExportTreeNode[],
     dirSegments: string[],
@@ -549,6 +577,8 @@ export const buildMarkdownZipBytes = async (
           [...dirSegments, `${fileName}.md`].join("/"),
           new TextReader(markdown),
         );
+        processedFiles += 1;
+        onProgress?.(processedFiles, totalFiles, node.title);
       }
       await walk(node.children, [...dirSegments, dirName]);
     }
