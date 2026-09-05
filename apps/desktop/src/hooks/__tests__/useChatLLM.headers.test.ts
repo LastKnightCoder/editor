@@ -126,6 +126,7 @@ describe("hooks/useChatLLM headers", () => {
       name: "custom-model",
       description: "Custom model",
       userAgent: "  CustomClient/2.0  ",
+      temperature: 1,
       features: {
         online: true,
         thinking: true,
@@ -152,6 +153,44 @@ describe("hooks/useChatLLM headers", () => {
       Accept: "application/json",
       "User-Agent": "CustomClient/2.0",
     });
+    expect(streamMock.mock.calls[0]?.[1]).toMatchObject({
+      temperature: 1,
+    });
+  });
+
+  it("K3 不使用特殊参数，temperature 和 reasoning_effort 按通用链路发送", async () => {
+    const onError = vi.fn();
+    const modelConfig: ModelConfig = {
+      name: "k3",
+      description: "K3",
+      temperature: 1,
+      features: {
+        online: true,
+        thinking: true,
+        image: false,
+        video: false,
+        audio: false,
+        file: false,
+      },
+    };
+
+    await chatStreamCore({
+      providerConfig,
+      modelConfig,
+      messages,
+      enableTools: false,
+      reasoningEffort: "high",
+      onError,
+    });
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(streamMock.mock.calls[0]?.[1]).toMatchObject({
+      model: "k3",
+      temperature: 1,
+      top_p: 1,
+      reasoning_effort: "high",
+    });
+    expect(streamMock.mock.calls[0]?.[1]).not.toHaveProperty("thinking");
   });
 
   it("未配置 User-Agent 时不应再按模型名称写死请求头", async () => {

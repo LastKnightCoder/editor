@@ -175,6 +175,8 @@ export interface ModelConfig {
   contextWindowK?: number;
   /** 可选的请求 User-Agent。 */
   userAgent?: string;
+  /** 可选的采样温度。 */
+  temperature?: number;
 }
 
 export interface LLMUsageConfig {

@@ -298,16 +298,65 @@ ${chapterBody}
 </html>`;
 };
 
+interface NavSourceItem {
+  fileName: string;
+  title: string;
+  anchor?: string;
+  level?: number;
+}
+
+interface NavTreeItem {
+  title: string;
+  href: string;
+  children: NavTreeItem[];
+}
+
+/** 平铺 level 序列（DFS 顺序）重建为嵌套树 */
+const buildNavTree = (items: NavSourceItem[]): NavTreeItem[] => {
+  const roots: NavTreeItem[] = [];
+  const stack: { level: number; node: NavTreeItem }[] = [];
+  for (const item of items) {
+    const level = item.level ?? 0;
+    while (stack.length > 0 && stack[stack.length - 1].level >= level) {
+      stack.pop();
+    }
+    const href = item.anchor
+      ? `${item.fileName}#${item.anchor}`
+      : item.fileName;
+    const node: NavTreeItem = { title: item.title, href, children: [] };
+    if (stack.length === 0) {
+      roots.push(node);
+    } else {
+      stack[stack.length - 1].node.children.push(node);
+    }
+    stack.push({ level, node });
+  }
+  return roots;
+};
+
 const buildNavXhtml = (
-  chapters: Array<{ fileName: string; title: string }>,
+  navItems: NavSourceItem[],
   metadata: EpubMetadataInput,
 ) => {
-  const navItems = chapters
-    .map(
-      (chapter) =>
-        `      <li><a href="${escapeXml(chapter.fileName)}">${escapeXml(chapter.title)}</a></li>`,
-    )
-    .join("\n");
+  const tree = buildNavTree(navItems);
+
+  const renderList = (nodes: NavTreeItem[], depth: number): string =>
+    nodes
+      .map((node) => {
+        const indent = " ".repeat(6 + depth * 2);
+        const link = `<a href="${escapeXml(node.href)}">${escapeXml(node.title)}</a>`;
+        if (node.children.length === 0) {
+          return `${indent}<li>${link}</li>`;
+        }
+        return [
+          `${indent}<li>${link}`,
+          `${indent}  <ol>`,
+          renderList(node.children, depth + 1),
+          `${indent}  </ol>`,
+          `${indent}</li>`,
+        ].join("\n");
+      })
+      .join("\n");
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
@@ -321,7 +370,7 @@ const buildNavXhtml = (
     <nav epub:type="toc" id="toc" role="doc-toc">
       <h1>目录</h1>
       <ol>
-${navItems}
+${renderList(tree, 0)}
       </ol>
     </nav>
   </body>
@@ -329,27 +378,43 @@ ${navItems}
 };
 
 const buildTocNcx = (
-  chapters: Array<{ fileName: string; title: string }>,
+  navItems: NavSourceItem[],
   metadata: EpubMetadataInput,
   bookId: string,
 ) => {
-  const navPoints = chapters
-    .map(
-      (
-        chapter,
-        index,
-      ) => `    <navPoint id="navPoint-${index + 1}" playOrder="${index + 1}">
-      <navLabel><text>${escapeXml(chapter.title)}</text></navLabel>
-      <content src="${escapeXml(chapter.fileName)}" />
-    </navPoint>`,
-    )
-    .join("\n");
+  const tree = buildNavTree(navItems);
+
+  let navPointCounter = 0;
+  let playOrder = 0;
+  const renderNavPoints = (nodes: NavTreeItem[], depth: number): string =>
+    nodes
+      .map((node) => {
+        navPointCounter += 1;
+        playOrder += 1;
+        const indent = " ".repeat(4 + depth * 2);
+        const lines = [
+          `${indent}<navPoint id="navPoint-${navPointCounter}" playOrder="${playOrder}">`,
+          `${indent}  <navLabel><text>${escapeXml(node.title)}</text></navLabel>`,
+          `${indent}  <content src="${escapeXml(node.href)}" />`,
+        ];
+        if (node.children.length > 0) {
+          lines.push(renderNavPoints(node.children, depth + 1));
+        }
+        lines.push(`${indent}</navPoint>`);
+        return lines.join("\n");
+      })
+      .join("\n");
+
+  const countDepth = (nodes: NavTreeItem[]): number =>
+    nodes.length === 0
+      ? 0
+      : 1 + Math.max(...nodes.map((node) => countDepth(node.children)));
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
   <head>
     <meta name="dtb:uid" content="${escapeXml(bookId)}" />
-    <meta name="dtb:depth" content="1" />
+    <meta name="dtb:depth" content="${Math.max(1, countDepth(tree))}" />
     <meta name="dtb:totalPageCount" content="0" />
     <meta name="dtb:maxPageNumber" content="0" />
   </head>
@@ -357,7 +422,7 @@ const buildTocNcx = (
     <text>${escapeXml(metadata.title)}</text>
   </docTitle>
   <navMap>
-${navPoints}
+${renderNavPoints(tree, 0)}
   </navMap>
 </ncx>`;
 };
@@ -468,8 +533,31 @@ const buildEpubBytes = async (
     warnings.push(`封面资源未找到：${metadata.coverImageSrc}，已忽略封面`);
   }
 
-  const navXhtml = buildNavXhtml(chapterItems, metadata);
-  const tocNcx = buildTocNcx(chapterItems, metadata, bookId);
+  // nav 缺省时按章节平铺（单文档导出兼容）；有分组层级时由渲染端提供
+  const navSource: Array<{
+    title: string;
+    chapterIndex: number;
+    anchor?: string;
+    level?: number;
+  }> =
+    payload.nav && payload.nav.length > 0
+      ? payload.nav
+      : chapterItems.map((chapter, index) => ({
+          title: chapter.title,
+          chapterIndex: index,
+          level: 0,
+        }));
+  const navItems: NavSourceItem[] = navSource
+    .filter((item) => chapterItems[item.chapterIndex])
+    .map((item) => ({
+      fileName: chapterItems[item.chapterIndex].fileName,
+      title: normalizeText(item.title) || chapterItems[item.chapterIndex].title,
+      anchor: item.anchor,
+      level: item.level ?? 0,
+    }));
+
+  const navXhtml = buildNavXhtml(navItems, metadata);
+  const tocNcx = buildTocNcx(navItems, metadata, bookId);
   const contentOpf = buildContentOpf({
     metadata,
     chapterItems,

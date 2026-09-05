@@ -25,6 +25,8 @@ export interface ModelItem {
   contextWindowK?: number;
   /** 可选的请求 User-Agent。 */
   userAgent?: string;
+  /** 可选的采样温度。 */
+  temperature?: number;
 }
 
 export interface ConfigFormData {
@@ -52,4 +54,6 @@ export interface ModelFormData {
   contextWindowK?: number;
   /** 可选的请求 User-Agent。 */
   userAgent?: string;
+  /** 可选的采样温度。 */
+  temperature?: number;
 }

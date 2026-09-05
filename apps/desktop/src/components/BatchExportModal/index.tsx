@@ -1,7 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
 import { App, Checkbox, Select, Tree } from "antd";
 import type { TreeDataNode } from "antd";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
+import {
+  MdDescription,
+  MdFolderZip,
+  MdMenuBook,
+  MdPictureAsPdf,
+} from "react-icons/md";
 import {
   exportEpubWithDialog,
   exportPdfWithDialog,
@@ -33,12 +39,59 @@ interface BatchExportModalProps {
   scope: BatchExportScope;
 }
 
+const DEFAULT_PDF_SETTINGS: NonNullable<BatchExportSettings["pdf"]> = {
+  outline: true,
+  tocPage: true,
+};
+
 const DEFAULT_SETTINGS: BatchExportSettings = {
   excludedIds: [],
   formats: { pdf: true, epub: false, markdown: false, markdownZip: false },
   rule: { pageBreak: true, asHeading: true, headingLevel: 1 },
+  pdf: DEFAULT_PDF_SETTINGS,
   epubMeta: {},
 };
+
+type FormatKey = keyof BatchExportSettings["formats"];
+
+interface FormatCard {
+  key: FormatKey;
+  label: string;
+  description: string;
+  icon: ComponentType<{ className?: string }>;
+  iconClass: string;
+}
+
+const FORMAT_CARDS: FormatCard[] = [
+  {
+    key: "pdf",
+    label: "PDF",
+    description: "适合打印分享，支持目录导航",
+    icon: MdPictureAsPdf,
+    iconClass: "text-red-500",
+  },
+  {
+    key: "epub",
+    label: "EPUB",
+    description: "电子书格式，阅读器中翻阅",
+    icon: MdMenuBook,
+    iconClass: "text-teal-500",
+  },
+  {
+    key: "markdown",
+    label: "Markdown",
+    description: "合并为单个 .md 文件",
+    icon: MdDescription,
+    iconClass: "text-sky-500",
+  },
+  {
+    key: "markdownZip",
+    label: "Markdown ZIP",
+    description: "保持目录结构，逐篇打包",
+    icon: MdFolderZip,
+    iconClass: "text-amber-500",
+  },
+];
 
 const normalizeText = (value?: string) => (value || "").trim();
 
@@ -72,6 +125,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
   const [checkedKeys, setCheckedKeys] = useState<number[]>([]);
   const [formats, setFormats] = useState(DEFAULT_SETTINGS.formats);
   const [rule, setRule] = useState<BatchExportRule>(DEFAULT_SETTINGS.rule);
+  const [pdfSettings, setPdfSettings] = useState(DEFAULT_PDF_SETTINGS);
   const [bookTitle, setBookTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [language, setLanguage] = useState("zh-CN");
@@ -95,6 +149,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
         setCheckedKeys(exportableIds.filter((id) => !excluded.has(id)));
         setFormats(remembered?.formats || DEFAULT_SETTINGS.formats);
         setRule(remembered?.rule || DEFAULT_SETTINGS.rule);
+        setPdfSettings(remembered?.pdf || DEFAULT_PDF_SETTINGS);
         setBookTitle(scope.title || "未命名文档");
         setAuthor(remembered?.epubMeta?.author || "");
         setLanguage(remembered?.epubMeta?.language || "zh-CN");
@@ -143,7 +198,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
     }
 
     const chapters = flattenSelectedChapters(tree, new Set(checkedKeys));
-    if (chapters.length === 0) {
+    if (chapters.filter((chapter) => !chapter.isGroup).length === 0) {
       message.error("请至少选择一篇要导出的内容");
       return;
     }
@@ -183,6 +238,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
           title,
           author: normalizeText(author) || undefined,
           rule,
+          pdf: pdfSettings,
         });
         const result = await exportPdfWithDialog(payload);
         warnings.push(...(result.warnings || []));
@@ -228,6 +284,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
         excludedIds: exportableIds.filter((id) => !checkedKeys.includes(id)),
         formats,
         rule,
+        pdf: pdfSettings,
         epubMeta: {
           author: normalizeText(author) || undefined,
           language: normalizeText(language) || "zh-CN",
@@ -271,17 +328,17 @@ const BatchExportModal = (props: BatchExportModalProps) => {
   return (
     <CustomModal
       title={`整体导出 - ${scope.title || "未命名"}`}
-      subtitle="勾选要导出的内容，支持 PDF 与 EPUB；排除项会按数据库记住，下次打开自动应用。"
+      subtitle="勾选要导出的内容，可同时选择多种格式；排除项会按数据库记住，下次打开自动应用。"
       open={open}
       onCancel={onClose}
       onOk={handleConfirm}
       okText="导出"
       confirmLoading={exporting}
       okButtonProps={{ disabled: !canExport }}
-      width={800}
+      width={880}
       bodyClassName="p-5 overflow-y-auto"
     >
-      <div className="space-y-4">
+      <div className="grid grid-cols-[minmax(230px,290px)_1fr] gap-5 items-start">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <label className={labelClass}>导出内容</label>
@@ -289,7 +346,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
               已选 {selectedCount} / 共 {exportableIds.length} 篇
             </span>
           </div>
-          <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-zinc-950 px-3 py-2 max-h-56 overflow-y-auto">
+          <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-zinc-950 px-3 py-2 max-h-[440px] min-h-[280px] overflow-y-auto">
             {loading ? (
               <div className="py-6 text-center text-xs text-gray-500 dark:text-slate-400">
                 正在加载内容...
@@ -311,140 +368,190 @@ const BatchExportModal = (props: BatchExportModalProps) => {
           </div>
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label className={labelClass}>导出格式</label>
-          <div className="flex items-center flex-wrap gap-x-6 gap-y-2">
-            <Checkbox
-              checked={formats.pdf}
-              onChange={(event) =>
-                setFormats((prev) => ({ ...prev, pdf: event.target.checked }))
-              }
-            >
-              PDF
-            </Checkbox>
-            <Checkbox
-              checked={formats.epub}
-              onChange={(event) =>
-                setFormats((prev) => ({ ...prev, epub: event.target.checked }))
-              }
-            >
-              EPUB
-            </Checkbox>
-            <Checkbox
-              checked={formats.markdown}
-              onChange={(event) =>
-                setFormats((prev) => ({
-                  ...prev,
-                  markdown: event.target.checked,
-                }))
-              }
-            >
-              Markdown（单文件）
-            </Checkbox>
-            <Checkbox
-              checked={formats.markdownZip}
-              onChange={(event) =>
-                setFormats((prev) => ({
-                  ...prev,
-                  markdownZip: event.target.checked,
-                }))
-              }
-            >
-              Markdown（ZIP，保持目录结构）
-            </Checkbox>
+        <div className="flex flex-col gap-4 min-w-0">
+          <div className="flex flex-col gap-1.5">
+            <label className={labelClass}>导出格式</label>
+            <div className="grid grid-cols-2 gap-2">
+              {FORMAT_CARDS.map((card) => {
+                const selected = formats[card.key];
+                const Icon = card.icon;
+                return (
+                  <button
+                    key={card.key}
+                    type="button"
+                    onClick={() =>
+                      setFormats((prev) => ({
+                        ...prev,
+                        [card.key]: !prev[card.key],
+                      }))
+                    }
+                    className={`relative flex items-start gap-2.5 rounded-xl border p-3 text-left transition-all cursor-pointer ${
+                      selected
+                        ? "border-indigo-500 bg-indigo-50/70 dark:bg-indigo-500/10"
+                        : "border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-zinc-950 hover:border-gray-300 dark:hover:border-slate-600"
+                    }`}
+                  >
+                    <Icon
+                      className={`w-5 h-5 mt-0.5 shrink-0 ${card.iconClass}`}
+                    />
+                    <span className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-sm font-medium text-gray-800 dark:text-white">
+                        {card.label}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-slate-400">
+                        {card.description}
+                      </span>
+                    </span>
+                    {selected && (
+                      <span className="absolute top-2 right-2 flex items-center justify-center w-[18px] h-[18px] rounded-full bg-indigo-500 text-white">
+                        <svg
+                          className="w-3 h-3"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                        >
+                          <path
+                            d="M5 13l4 4L19 7"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <label className={labelClass}>导出规则</label>
-            {!rulesApplicable && (
-              <span className="text-xs text-gray-400 dark:text-slate-500">
-                ZIP 按目录分文件导出，规则不适用
-              </span>
-            )}
-          </div>
-          <div className="flex flex-col gap-2">
-            <Checkbox
-              checked={rule.pageBreak}
-              disabled={!rulesApplicable}
-              onChange={(event) =>
-                setRule((prev) => ({
-                  ...prev,
-                  pageBreak: event.target.checked,
-                }))
-              }
-            >
-              每个文档分页（EPUB 中每个文档天然一章）
-            </Checkbox>
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <label className={labelClass}>导出规则</label>
+              {!rulesApplicable && (
+                <span className="text-xs text-gray-400 dark:text-slate-500">
+                  ZIP 按目录分文件导出，规则不适用
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col gap-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-zinc-950 px-3.5 py-2.5">
               <Checkbox
-                checked={rule.asHeading}
+                checked={rule.pageBreak}
                 disabled={!rulesApplicable}
                 onChange={(event) =>
                   setRule((prev) => ({
                     ...prev,
-                    asHeading: event.target.checked,
+                    pageBreak: event.target.checked,
                   }))
                 }
               >
-                文档标题作为标题插入正文
+                每个文档分页（EPUB 中每个文档天然一章）
               </Checkbox>
-              <Select
-                size="small"
-                value={rule.headingLevel}
-                disabled={!rulesApplicable || !rule.asHeading}
-                onChange={(value) =>
-                  setRule((prev) => ({
-                    ...prev,
-                    headingLevel: value as BatchExportRule["headingLevel"],
-                  }))
-                }
-                options={[
-                  { value: 1, label: "H1" },
-                  { value: 2, label: "H2" },
-                  { value: 3, label: "H3" },
-                ]}
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  checked={rule.asHeading}
+                  disabled={!rulesApplicable}
+                  onChange={(event) =>
+                    setRule((prev) => ({
+                      ...prev,
+                      asHeading: event.target.checked,
+                    }))
+                  }
+                >
+                  文档标题作为标题插入正文
+                </Checkbox>
+                <Select
+                  size="small"
+                  value={rule.headingLevel}
+                  disabled={!rulesApplicable || !rule.asHeading}
+                  onChange={(value) =>
+                    setRule((prev) => ({
+                      ...prev,
+                      headingLevel: value as BatchExportRule["headingLevel"],
+                    }))
+                  }
+                  options={[
+                    { value: 1, label: "H1" },
+                    { value: 2, label: "H2" },
+                    { value: 3, label: "H3" },
+                  ]}
+                />
+              </div>
+            </div>
+          </div>
+
+          {formats.pdf && (
+            <div className="flex flex-col gap-1.5">
+              <label className={labelClass}>PDF 目录</label>
+              <div className="flex flex-col gap-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-zinc-950 px-3.5 py-2.5">
+                <Checkbox
+                  checked={pdfSettings.outline}
+                  onChange={(event) =>
+                    setPdfSettings((prev) => ({
+                      ...prev,
+                      outline: event.target.checked,
+                    }))
+                  }
+                >
+                  生成书签导航（PDF 阅读器侧边栏大纲，按标题层级展示）
+                </Checkbox>
+                <Checkbox
+                  checked={pdfSettings.tocPage && rule.asHeading}
+                  disabled={!rule.asHeading}
+                  onChange={(event) =>
+                    setPdfSettings((prev) => ({
+                      ...prev,
+                      tocPage: event.target.checked,
+                    }))
+                  }
+                >
+                  插入目录页（正文开头单独一页，点击条目跳转）
+                </Checkbox>
+                {!rule.asHeading && (
+                  <span className="text-xs text-gray-400 dark:text-slate-500">
+                    目录页需开启“文档标题作为标题插入正文”
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className={labelClass}>书名</label>
+              <input
+                type="text"
+                value={bookTitle}
+                placeholder="请输入书名"
+                onChange={(event) => setBookTitle(event.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className={labelClass}>作者</label>
+              <input
+                type="text"
+                value={author}
+                placeholder="可选"
+                onChange={(event) => setAuthor(event.target.value)}
+                className={inputClass}
               />
             </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className={labelClass}>书名</label>
-            <input
-              type="text"
-              value={bookTitle}
-              placeholder="请输入书名"
-              onChange={(event) => setBookTitle(event.target.value)}
-              className={inputClass}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className={labelClass}>作者</label>
-            <input
-              type="text"
-              value={author}
-              placeholder="可选"
-              onChange={(event) => setAuthor(event.target.value)}
-              className={inputClass}
-            />
-          </div>
+          {formats.epub && (
+            <div className="flex flex-col gap-1.5">
+              <label className={labelClass}>语言（EPUB）</label>
+              <input
+                type="text"
+                value={language}
+                placeholder="例如 zh-CN / en"
+                onChange={(event) => setLanguage(event.target.value)}
+                className={inputClass}
+              />
+            </div>
+          )}
         </div>
-
-        {formats.epub && (
-          <div className="flex flex-col gap-1.5">
-            <label className={labelClass}>语言（EPUB）</label>
-            <input
-              type="text"
-              value={language}
-              placeholder="例如 zh-CN / en"
-              onChange={(event) => setLanguage(event.target.value)}
-              className={inputClass}
-            />
-          </div>
-        )}
       </div>
     </CustomModal>
   );

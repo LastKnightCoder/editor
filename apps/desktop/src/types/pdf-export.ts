@@ -32,6 +32,8 @@ export interface PdfExportOptions {
   footerTemplate?: string;
   chapterBreak: boolean; // H1 是否强制换页
   codeBlockBreak: CodeBlockBreakOptions; // 代码块分页策略
+  /** 生成书签大纲（PDF 阅读器侧边栏，基于 HTML 标题层级） */
+  generateOutline?: boolean;
 }
 
 export interface PdfExportPayload {

@@ -44,6 +44,7 @@ const ModelModal = ({
   const [maxOutputTokens, setMaxOutputTokens] = useState("");
   const [contextWindowK, setContextWindowK] = useState("");
   const [userAgent, setUserAgent] = useState("");
+  const [temperature, setTemperature] = useState("");
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const themeColors = useThemeColors();
 
@@ -64,7 +65,14 @@ const ModelModal = ({
           : "",
       );
       setUserAgent(initialData.userAgent ?? "");
-      setIsAdvancedOpen(Boolean(initialData.userAgent));
+      setTemperature(
+        typeof initialData.temperature === "number"
+          ? String(initialData.temperature)
+          : "",
+      );
+      setIsAdvancedOpen(
+        Boolean(initialData.userAgent || initialData.temperature !== undefined),
+      );
       const normalizedFeatures = {
         online: initialData.features?.online ?? false,
         thinking: initialData.features?.thinking ?? false,
@@ -87,6 +95,7 @@ const ModelModal = ({
       setMaxOutputTokens("");
       setContextWindowK("");
       setUserAgent("");
+      setTemperature("");
       setIsAdvancedOpen(false);
     }
   }, [initialData, open]);
@@ -102,6 +111,7 @@ const ModelModal = ({
     };
     const parsedMaxOutputTokens = Number.parseInt(maxOutputTokens, 10);
     const parsedContextWindowK = Number.parseInt(contextWindowK, 10);
+    const parsedTemperature = Number.parseFloat(temperature);
     onFinish({
       name: modelName,
       description,
@@ -120,6 +130,10 @@ const ModelModal = ({
           ? parsedContextWindowK
           : undefined,
       userAgent: userAgent.trim() || undefined,
+      temperature:
+        Number.isFinite(parsedTemperature) && parsedTemperature >= 0
+          ? parsedTemperature
+          : undefined,
     });
     setModelName("");
     setDescription("");
@@ -129,6 +143,7 @@ const ModelModal = ({
     setMaxOutputTokens("");
     setContextWindowK("");
     setUserAgent("");
+    setTemperature("");
     setIsAdvancedOpen(false);
   };
 
@@ -142,6 +157,7 @@ const ModelModal = ({
     setMaxOutputTokens("");
     setContextWindowK("");
     setUserAgent("");
+    setTemperature("");
     setIsAdvancedOpen(false);
   };
 
@@ -340,6 +356,17 @@ const ModelModal = ({
             onChange={(e) => setUserAgent(e.target.value)}
             placeholder="请输入模型服务要求的 User Agent（可选）"
             description="设置后会作为该模型请求的 User-Agent 请求头发送；留空则使用默认请求头。"
+          />
+          <SettingInput
+            label="Temperature"
+            type="number"
+            min={0}
+            max={2}
+            step={0.1}
+            value={temperature}
+            onChange={(e) => setTemperature(e.target.value)}
+            placeholder="可选，例如 1"
+            description="覆盖模型默认的采样温度。部分模型（如 Kimi K3）只接受固定值，请按服务商要求填写。"
           />
         </div>
       </details>

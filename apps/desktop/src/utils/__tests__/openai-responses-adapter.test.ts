@@ -14,6 +14,17 @@ describe("openai-responses-adapter", () => {
     expect(payload.reasoning).toEqual({ effort: "max" });
   });
 
+  it("透传模型配置的 temperature", () => {
+    const payload = buildResponsesPayload({
+      model: "kimi-k3",
+      stream: true,
+      temperature: 1,
+      messages: [{ role: Role.User, content: "你好" }],
+    });
+
+    expect(payload.temperature).toBe(1);
+  });
+
   it("将 system 消息合并到 instructions，不放入 input", () => {
     const payload = buildResponsesPayload({
       model: "gpt-5.1",
