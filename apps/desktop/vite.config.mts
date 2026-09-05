@@ -117,6 +117,15 @@ export default defineConfig(() => {
                     },
                   },
                   {
+                    name: "copy-pdfjs-worker",
+                    closeBundle() {
+                      fs.copySync(
+                        "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+                        "dist-electron/main/pdf.worker.mjs"
+                      );
+                    },
+                  },
+                  {
                     name: "jieba-dict-copy",
                     closeBundle() {
                       // 构建完成后触发

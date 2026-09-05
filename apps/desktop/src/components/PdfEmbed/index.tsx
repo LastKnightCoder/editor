@@ -907,6 +907,44 @@ const PdfEmbedLayout = ({
   }, [mainDbName, pdf.id]);
 
   useEffect(() => {
+    if (!mainDbName || !resolvedPath || !pluginsReady) {
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void ensurePdfIndex({
+        pdfId: pdf.id,
+        resolvedPath,
+        fileName: pdf.fileName,
+        mainDbName,
+      })
+        .then((status) => {
+          if (!cancelled) {
+            setIndexStatus(status);
+          }
+        })
+        .catch((error) => {
+          if (!cancelled) {
+            console.error("自动准备 PDF 索引失败", error);
+            setIndexStatus({
+              pdfId: pdf.id,
+              state: "failed",
+              pageCount: 0,
+              updatedAt: Date.now(),
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        });
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [mainDbName, pdf.fileName, pdf.id, pluginsReady, resolvedPath]);
+
+  useEffect(() => {
     if (!mainDbName || indexStatus?.state !== "building") {
       return;
     }
