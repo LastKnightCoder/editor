@@ -32,4 +32,4 @@ npm run build
 
 ## 项目结构
 
-`src` 下是前端的代码，基于 Vite + React。`src-electron` 下是 Electron 的代码，数据库使用了 sqlite。
+仓库使用 pnpm workspace 管理，`apps` 下是各个应用（`desktop`、`blog`、`browser-extension`、`cli`、`mobile`），`packages` 下是共享包（`editor`、`slate-markdown`、`shared`、`db-schema` 等）。桌面应用的前端代码在 `apps/desktop/src` 下，基于 Vite + React；Electron 的代码在 `apps/desktop/src-electron` 下，数据库使用了 sqlite。

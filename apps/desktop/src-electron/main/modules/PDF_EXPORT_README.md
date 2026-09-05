@@ -235,10 +235,10 @@ const processCodeBlocks = (html: string): string => {
 
 ## 测试
 
-运行单元测试：
+运行单元测试（在 `apps/desktop` 下，无 `test` 脚本，直接通过 vitest 运行）：
 
 ```bash
-npm test pdf-exporter
+npx vitest run src-electron/main/modules/__tests__/pdf-exporter.test.ts
 ```
 
 测试覆盖：
@@ -250,13 +250,14 @@ npm test pdf-exporter
 
 ## 未来优化方向
 
-1. **批量导出** - 支持选择多个文档批量导出为单个 PDF
-2. **目录书签** - 使用 pdf-lib 添加 PDF 书签（基于 H1/H2）
-3. **水印支持** - 添加文字或图片水印
-4. **模板系统** - 预设多种导出模板（学术论文、技术文档等）
-5. **云端导出** - 支持导出后直接上传到云存储
-6. **图片优化** - 自动将远程图片转换为 Data URI
-7. **进度显示** - 显示详细的导出进度（渲染中、生成中等）
+1. **目录书签** - 使用 pdf-lib 添加 PDF 书签（基于 H1/H2）
+2. **水印支持** - 添加文字或图片水印
+3. **模板系统** - 预设多种导出模板（学术论文、技术文档等）
+4. **云端导出** - 支持导出后直接上传到云存储
+5. **图片优化** - 自动将远程图片转换为 Data URI
+6. **进度显示** - 显示详细的导出进度（渲染中、生成中等）
+
+> 批量导出（多文档合并导出为单个 PDF）已实现，见 `src/components/BatchExportModal` 与 `src/utils/batch-export` 的 `buildBatchPdfPayload`。
 
 ## 相关资源
 

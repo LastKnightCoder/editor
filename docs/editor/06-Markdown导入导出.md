@@ -10,7 +10,7 @@
 
 ### MarkdownSerializerRegistry 类
 
-**文件位置**: `apps/desktop/src/utils/markdownSerializerRegistry.ts:23`
+**文件位置**: `apps/desktop/src/utils/markdownSerializerRegistry.ts:135`
 
 ```typescript
 export class MarkdownSerializerRegistry {
@@ -75,7 +75,7 @@ export class MarkdownSerializerRegistry {
 
 ## 6.2 导出流程（编辑器 → Markdown）
 
-**文件位置**: `apps/desktop/src/utils/markdown-helper.ts:5`
+**文件位置**: `apps/desktop/src/utils/markdown-helper.ts:21`
 
 ```typescript
 export const getMarkdown = (value: Descendant[]): string => {
@@ -109,13 +109,14 @@ export const getMarkdown = (value: Descendant[]): string => {
 
 ## 6.3 导入流程（Markdown → 编辑器）
 
-**文件位置**: `apps/desktop/src/utils/markdown.ts:618`
+**文件位置**: `apps/desktop/src/utils/markdown.ts:1596`
 
 **使用的库**:
 
 - unified v11.0.5 - 统一文本处理框架
 - remark-parse - Markdown 解析
 - remark-gfm - GitHub Flavored Markdown
+- remark-cjk-friendly / remark-cjk-friendly-gfm-strikethrough - CJK 友好的加粗/倾斜与删除线解析
 - remark-math - 数学公式支持
 - remark-directive - 自定义指令语法
 - remark-frontmatter - YAML front matter
@@ -127,15 +128,20 @@ export const importFromMarkdown = (
 ): Descendant[] => {
   footnoteDefinitionsMap.clear();
 
+  // 历史版本曾为绕过 CJK 加粗解析问题在 markdown 中驻留零宽空格，导入时剥离净化；
+  // importFromMarkdownWithPositions 因位置映射绑定原始串，不做剥离
+  const sanitized = markdown.replace(/\u200B/g, "");
   const parseResult = unified()
     .use(remarkParse)
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(remarkHtmlProcessor)
     .use(remarkGfm)
+    .use(remarkCjkFriendly)
+    .use(remarkCjkFriendlyGfmStrikethrough)
     .use(remarkMath)
     .use(remarkDirective)
     .use(remarkFrontmatter, ["yaml"])
-    .parse(markdown);
+    .parse(sanitized);
 
   collectFootnoteDefinitions(parseResult.children);
 
