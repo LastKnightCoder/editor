@@ -32,10 +32,10 @@
 
 命中点（典型）：
 
-- `apps/desktop/src/components/WhiteBoard/plugins/MovePlugin.ts`
-  - 已迁移：Frame 拖拽视觉态 `isChildMoveIn` 仅 patch 字段
-  - 已迁移：Frame autoResize 更新 bounds 仅 patch bbox 字段
-  - 已迁移：Frame 移动改为“子树平移 ops”（对子树每个节点 patch x/y），不再 `set_node(整棵 frame)`
+- `apps/desktop/src/components/WhiteBoard/plugins/MovePlugin.ts`（文件已删除，拖拽手势现位于 `interactions/states/DraggingState.ts`）
+  - 已迁移：Frame 拖拽视觉态 `isChildMoveIn` 仅 patch 字段（反馈 ops 现由 `plugins/FramePlugin.tsx` 经能力协议生成）
+  - 已迁移：Frame autoResize 更新 bounds 仅 patch bbox 字段（现位于 `plugins/FramePlugin.tsx`）
+  - 已迁移：Frame 移动改为“子树平移 ops”（对子树每个节点 patch x/y，经 `CapabilityService.buildElementMoveOps` → `BoardUtil.buildTranslateSubtreeOps`），不再 `set_node(整棵 frame)`
 - `apps/desktop/src/components/WhiteBoard/plugins/CommonPlugin.ts`
   - 已迁移：容器 resize 仅 patch bbox 字段（避免把 children 写入历史）
 - `apps/desktop/src/components/WhiteBoard/plugins/FramePlugin.tsx`
@@ -72,8 +72,8 @@
 命中点（典型）：
 
 - `apps/desktop/src/components/WhiteBoard/utils/ColumnUtil.ts`（relayout）
-- `apps/desktop/src/components/WhiteBoard/plugins/ColumnPlugin.tsx`（resize）
-- `apps/desktop/src/components/WhiteBoard/plugins/MovePlugin.ts`（拖拽状态、移动）
+- `apps/desktop/src/components/WhiteBoard/plugins/ColumnPlugin.tsx`（resize、拖拽状态 patch）
+- `apps/desktop/src/components/WhiteBoard/interactions/states/DraggingState.ts`（拖拽状态、移动，原 MovePlugin）
 - `apps/desktop/src/components/WhiteBoard/components/Toolbar/Column/useCreateColumn.ts`（创建过程）
 
 迁移策略：

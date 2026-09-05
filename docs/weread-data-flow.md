@@ -2,6 +2,8 @@
 
 > 本文档详细分析了微信读书功能的数据获取流程，包括登录、同步、详情获取等核心功能的实现细节。
 
+> **⚠️ 过时说明（2026-09）**：本文档基于早期的 "Cookie + /web/\* HTTP 直连" 架构撰写，该架构已被整体替换。当前实现（`apps/desktop/src/services/weread/index.ts`）通过官方 API Key 走网关 `https://i.weread.qq.com/api/agent/gateway`（`Authorization: Bearer <apiKey>`，设置入口见 `pages/Settings/IntegrationSetting/WeReadSetting.tsx`），不再有二维码登录、Cookie 管理（`cookies.ts` 已删除）与 `DEFAULT_HEADERS`；API 端点改为携带 `api_name` 的 POST（如 `/shelf/sync`、`/user/notebooks`、`/book/info`）。本文档中的登录流程、API 接口、请求头与 Bug 分析章节仅作历史参考，以代码为准。
+
 ## 目录
 
 1. [架构概览](#1-架构概览)

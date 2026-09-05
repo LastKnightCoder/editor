@@ -41,7 +41,7 @@
 
 - `pnpm db:schema:build`：从分片生成 `main.sql/index.sql`
 - `pnpm db:schema:check`：校验主库表/索引数量、索引库核心表、vec 模板占位符
-- `pnpm db:schema:prepare`：`build + check + sqlite3 语法检查`
+- `pnpm db:schema:prepare`：`build + check + node:sqlite 语法检查`（`node --experimental-sqlite scripts/db/validate-schema-sql.mjs`）
 
 已接入自动触发：
 
@@ -127,4 +127,4 @@ cd apps/mobile/src-tauri && cargo check
 
 可选运行时核验：
 
-- 桌面/移动都可通过 `get_database_schema_status` 核对版本、hash、表数量
+- 移动端可通过 `get_database_schema_status` 核对版本、hash、表数量（桌面端未注册该命令）
