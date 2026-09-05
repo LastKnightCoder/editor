@@ -556,7 +556,7 @@ export interface BilibiliQRStatusResult {
 export async function getBilibiliQRCode(): Promise<BilibiliQRInfo> {
   try {
     const response = await fetchWithRetry(
-      `http://passport.bilibili.com/qrcode/getLoginUrl`,
+      `https://passport.bilibili.com/x/passport-login/web/qrcode/generate`,
       {
         method: "GET",
         headers: createHeaders(),
@@ -564,7 +564,7 @@ export async function getBilibiliQRCode(): Promise<BilibiliQRInfo> {
     );
 
     const data: BilibiliApiResponse<{
-      oauthKey: string;
+      qrcode_key: string;
       url: string;
     }> = response;
 
@@ -573,7 +573,7 @@ export async function getBilibiliQRCode(): Promise<BilibiliQRInfo> {
     }
 
     return {
-      qrcodeKey: data.data.oauthKey,
+      qrcodeKey: data.data.qrcode_key,
       url: data.data.url,
     };
   } catch (error) {
@@ -615,23 +615,75 @@ export async function checkBilibiliQRStatus(
   }
 }
 
+/**
+ * 解析 Set-Cookie 响应头为 { name: value } 映射
+ */
+function parseCookiesFromSetCookie(header: unknown): Record<string, string> {
+  const entries = Array.isArray(header)
+    ? header
+    : typeof header === "string"
+      ? [header]
+      : [];
+
+  const cookies: Record<string, string> = {};
+  for (const entry of entries) {
+    const [pair] = entry.split(";");
+    const separatorIndex = pair.indexOf("=");
+    if (separatorIndex <= 0) {
+      continue;
+    }
+    const name = pair.slice(0, separatorIndex).trim();
+    cookies[name] = pair.slice(separatorIndex + 1).trim();
+  }
+  return cookies;
+}
+
+/**
+ * 请求 crossDomain 票据链接并从第一跳响应的 Set-Cookie 中提取凭证
+ * 凭证 cookie 在 302 重定向的第一跳下发，跟随重定向会导致丢失
+ */
+async function extractCredentialsFromCrossDomain(
+  url: string,
+): Promise<BilibiliCredentials> {
+  const response = await nodeFetch(url, {
+    method: "GET",
+    headers: {
+      "User-Agent": USER_AGENT,
+      Referer: "https://passport.bilibili.com/",
+    },
+    isRaw: true,
+    maxRedirects: 0,
+    allowHttpErrorStatus: true,
+  });
+
+  const cookies = parseCookiesFromSetCookie(response?.headers?.["set-cookie"]);
+
+  return {
+    SESSDATA: cookies.SESSDATA || "",
+    bfe_id: cookies.bfe_id || "",
+  };
+}
+
 export async function extractCredentialsFromQR(
   url: string,
 ): Promise<BilibiliCredentials> {
   try {
-    // 直接从 URL 查询参数中解析 SESSDATA 和 bfe_id
+    // 旧格式：登录链接的查询参数直接携带凭证
     // 例如：...&SESSDATA=xxx&bfe_id=yyy
-    const urlObj = new URL(url);
-    const params = urlObj.searchParams;
-
+    const params = new URL(url).searchParams;
     const SESSDATA = params.get("SESSDATA") || "";
-    const bfe_id = params.get("bfe_id") || "";
 
-    if (!SESSDATA) {
+    if (SESSDATA) {
+      return { SESSDATA, bfe_id: params.get("bfe_id") || "" };
+    }
+
+    // 新格式：poll 返回 crossDomain 票据链接，需实际请求后从 Set-Cookie 提取凭证
+    const credentials = await extractCredentialsFromCrossDomain(url);
+    if (!credentials.SESSDATA) {
       throw new BilibiliAuthError("未能获取到有效的登录凭证");
     }
 
-    return { SESSDATA, bfe_id };
+    return credentials;
   } catch (error) {
     throw new BilibiliAuthError("提取登录凭证失败", error);
   }
