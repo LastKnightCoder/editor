@@ -123,6 +123,7 @@ const LLMProviderSetting = () => {
               maxOutputTokens: data.maxOutputTokens,
               contextWindowK: data.contextWindowK,
               userAgent: data.userAgent,
+              temperature: data.temperature,
             });
           } else {
             const modelIndex = config.models.findIndex(
@@ -138,6 +139,7 @@ const LLMProviderSetting = () => {
                 maxOutputTokens: data.maxOutputTokens,
                 contextWindowK: data.contextWindowK,
                 userAgent: data.userAgent,
+                temperature: data.temperature,
               };
             }
           }

@@ -12,17 +12,12 @@ import { buildResponsesPayload } from "@/utils/openai-responses-adapter";
 import { smartChunk } from "../utils/smart-chunk";
 import { normalizeThinkTaggedText } from "@/utils/thinkTagNormalizer";
 
-interface KimiThinkingParams {
-  thinking?: { type: "enabled" | "disabled" };
-}
-
 type ChatCompletionParams = Omit<
   ChatCompletionCreateParamsNonStreaming,
   "reasoning_effort"
-> &
-  KimiThinkingParams & {
-    reasoning_effort?: Exclude<ReasoningEffort, "none">;
-  };
+> & {
+  reasoning_effort?: Exclude<ReasoningEffort, "none">;
+};
 
 class LLMModule implements Module {
   name: string;
@@ -148,6 +143,8 @@ class LLMModule implements Module {
     // 分离 reasoning_effort，因为 OpenAI SDK 的类型定义与我们的不完全一致
     const { reasoning_effort: overrideReasoningEffort, ...restOverrides } =
       modelOverrides;
+    const effectiveReasoningEffort =
+      overrideReasoningEffort ?? normalizedReasoningEffort;
 
     const params: ChatCompletionParams = {
       model,
@@ -155,14 +152,11 @@ class LLMModule implements Module {
       temperature: 0.3,
       top_p: 1,
       stream: false,
-      reasoning_effort:
-        overrideReasoningEffort !== undefined
-          ? undefined
-          : (normalizedReasoningEffort as
-              | "low"
-              | "medium"
-              | "high"
-              | undefined),
+      reasoning_effort: effectiveReasoningEffort as
+        | "low"
+        | "medium"
+        | "high"
+        | undefined,
       frequency_penalty: 0,
       tools: tools as ChatCompletionTool[] | undefined,
       tool_choice: tools && tools.length > 0 ? "auto" : undefined,

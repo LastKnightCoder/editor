@@ -193,4 +193,76 @@ describe("epub exporter", () => {
     expect(result.filePath).toBeNull();
     expect(mocks.writeFile).not.toHaveBeenCalled();
   });
+
+  it("nav 与 ncx 按层级嵌套生成且分组带锚点", () => {
+    const navItems = [
+      {
+        fileName: "text/chapter-001.xhtml",
+        title: "第一部分",
+        anchor: "epub-group-0-0",
+        level: 0,
+      },
+      { fileName: "text/chapter-001.xhtml", title: "文档1", level: 1 },
+      { fileName: "text/chapter-002.xhtml", title: "文档2", level: 0 },
+    ];
+
+    const navXhtml = __epubExporterInternals.buildNavXhtml(
+      navItems,
+      payload.metadata,
+    );
+    expect(navXhtml).toContain(
+      '<a href="text/chapter-001.xhtml#epub-group-0-0">第一部分</a>',
+    );
+    // 嵌套：分组条目内部出现子 <ol>，子条目位于其中
+    const groupStart = navXhtml.indexOf(">第一部分</a>");
+    const nestedListStart = navXhtml.indexOf("<ol>", groupStart);
+    const childItem = navXhtml.indexOf(
+      '<a href="text/chapter-001.xhtml">文档1</a>',
+    );
+    const childItemClose = navXhtml.indexOf("</li>", childItem);
+    expect(childItem).toBeGreaterThan(nestedListStart);
+    // 顶层兄弟条目在分组 li 闭合之后
+    const topLevelSibling = navXhtml.indexOf(
+      '<a href="text/chapter-002.xhtml">文档2</a>',
+    );
+    const groupLiClose = navXhtml.indexOf("</li>", childItemClose + 1);
+    expect(topLevelSibling).toBeGreaterThan(groupLiClose);
+
+    const tocNcx = __epubExporterInternals.buildTocNcx(
+      navItems,
+      payload.metadata,
+      "urn:uuid:test-book-id",
+    );
+    expect(tocNcx).toContain('<meta name="dtb:depth" content="2" />');
+    expect(tocNcx).toContain(
+      '<content src="text/chapter-001.xhtml#epub-group-0-0" />',
+    );
+    // navPoint 嵌套：navPoint-2（子）出现在 navPoint-1 的首个闭合标签之前
+    const point1 = tocNcx.indexOf('id="navPoint-1"');
+    const point2 = tocNcx.indexOf('id="navPoint-2"');
+    const firstCloseAfterPoint1 = tocNcx.indexOf("</navPoint>", point1);
+    expect(point2).toBeGreaterThan(point1);
+    expect(point2).toBeLessThan(firstCloseAfterPoint1);
+  });
+
+  it("nav 缺省 level 时平铺且 depth 为 1", () => {
+    const navItems = [
+      { fileName: "text/chapter-001.xhtml", title: "第一章" },
+      { fileName: "text/chapter-002.xhtml", title: "第二章" },
+    ];
+
+    const tocNcx = __epubExporterInternals.buildTocNcx(
+      navItems,
+      payload.metadata,
+      "urn:uuid:test-book-id",
+    );
+    expect(tocNcx).toContain('<meta name="dtb:depth" content="1" />');
+    expect(tocNcx).not.toContain('id="navPoint-3"');
+
+    const navXhtml = __epubExporterInternals.buildNavXhtml(
+      navItems,
+      payload.metadata,
+    );
+    expect(navXhtml.match(/<ol>/g)?.length).toBe(1);
+  });
 });

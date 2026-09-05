@@ -15,16 +15,14 @@ export interface ModelRequestContext {
 export interface ModelRequestOverrides {
   temperature?: number;
   top_p?: number;
-  reasoning_effort?: ReasoningEffort;
+  reasoning_effort?: Exclude<ReasoningEffort, "none">;
   frequency_penalty?: number;
-  thinking?: { type: "enabled" | "disabled" };
 }
 
 /**
  * 根据模型名称和请求上下文获取模型特定的参数覆盖配置
  *
  * 支持的模型系列：
- * - Kimi: 使用 thinking 参数替代 reasoning_effort，思考模式温度为 1，普通模式为 0.6
  * - Claude: 部分渠道不允许同时设置 temperature 和 top_p
  * - OpenAI o 系列 (o1, o3, o4) 和 GPT-5: 不支持 temperature 参数
  * - Gemini: 不支持 frequency_penalty 参数
@@ -35,19 +33,8 @@ export interface ModelRequestOverrides {
 export function getModelRequestOverrides(
   context: ModelRequestContext,
 ): ModelRequestOverrides {
-  const { modelName, reasoningEffort } = context;
+  const { modelName } = context;
   const normalizedModelName = modelName.toLowerCase();
-  const isThinking = reasoningEffort && reasoningEffort !== "none";
-
-  // Kimi 模型
-  if (normalizedModelName.startsWith("kimi")) {
-    return {
-      temperature: isThinking ? 1 : 0.6, // 思考模型用 1，普通用 0.6
-      top_p: 0.95,
-      reasoning_effort: undefined, // Kimi 不支持此参数，改用 thinking
-      thinking: { type: isThinking ? "enabled" : "disabled" },
-    };
-  }
 
   // Claude 模型（部分渠道不允许同时传 temperature 和 top_p）
   if (normalizedModelName.includes("claude")) {

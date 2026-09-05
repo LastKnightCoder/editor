@@ -370,6 +370,7 @@ export const exportPdfWithDialog = async (
     }
 
     // 6. 生成 PDF
+    const generateOutline = payload.options.generateOutline ?? false;
     const pdfData = await win.webContents.printToPDF({
       pageSize: payload.options.pageSize || "A4",
       landscape: payload.options.landscape || false,
@@ -379,6 +380,9 @@ export const exportPdfWithDialog = async (
       displayHeaderFooter: payload.options.displayHeaderFooter ?? false,
       headerTemplate: payload.options.headerTemplate || "<div></div>",
       footerTemplate: payload.options.footerTemplate || "<div></div>",
+      // 书签大纲依赖 tagged PDF 管线生成，两者一起开启
+      generateTaggedPDF: generateOutline,
+      generateDocumentOutline: generateOutline,
     });
 
     // 7. 保存文件

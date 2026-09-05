@@ -245,6 +245,56 @@ hr {
 `.trim();
 
 /**
+ * 批量导出目录页样式（仅在插入目录页时随 PDF_BASE_STYLES 一起拼接）
+ */
+export const PDF_TOC_STYLES = `
+.pdf-toc {
+  page-break-after: always;
+  break-after: page;
+  padding-top: 2em;
+}
+
+.pdf-toc .pdf-toc-title {
+  margin: 0 0 0.3em;
+  font-size: 1.8em;
+  text-align: center;
+}
+
+.pdf-toc .pdf-toc-hint {
+  display: block;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 0.85em;
+  margin-bottom: 1.8em;
+}
+
+.pdf-toc .pdf-toc-item {
+  display: flex;
+  align-items: baseline;
+  color: #111;
+  text-decoration: none;
+  line-height: 1.9;
+}
+
+.pdf-toc .pdf-toc-text {
+  flex: 0 1 auto;
+  min-width: 4em;
+  word-break: break-word;
+}
+
+.pdf-toc .pdf-toc-leader {
+  flex: 1;
+  margin-left: 0.45em;
+  border-bottom: 2px dotted #c4c4c4;
+  transform: translateY(-0.3em);
+}
+
+.pdf-toc .pdf-toc-item-top .pdf-toc-text {
+  font-weight: 600;
+}
+`.trim();
+
+/**
  * 构建 PDF 导出的完整 HTML
  */
 export const buildPdfHtml = async (options: {

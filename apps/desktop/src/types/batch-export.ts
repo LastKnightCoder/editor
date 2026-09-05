@@ -17,6 +17,11 @@ export interface BatchExportChapter {
   title: string;
   depth: number;
   content: Descendant[];
+  /**
+   * 分组条目：无正文的文件夹条目，自身不产生内容，
+   * 仅在存在选中后代时插入，用于保留目录/标题层级
+   */
+  isGroup?: boolean;
 }
 
 /**
@@ -46,6 +51,13 @@ export interface BatchExportSettings {
     markdownZip: boolean;
   };
   rule: BatchExportRule;
+  /** PDF 导出的目录相关设置 */
+  pdf?: {
+    /** 生成书签大纲（阅读器侧边栏导航） */
+    outline: boolean;
+    /** 在正文开头插入目录页（依赖 rule.asHeading） */
+    tocPage: boolean;
+  };
   epubMeta: {
     author?: string;
     language?: string;

@@ -8,6 +8,7 @@ import {
   type EpubChapter,
   type EpubExportPayload,
   type EpubMetadataInput,
+  type EpubNavItem,
   type PdfExportPayload,
 } from "@/types";
 import {
@@ -23,7 +24,11 @@ import {
 import { htmlSerializerRegistry } from "@/utils/html-serializers";
 import { processEpubAssets } from "@/utils/epub-export/assets";
 import { isMeaningfulHtmlFragment } from "@/utils/epub-export/chaptering";
-import { PDF_BASE_STYLES, processCodeBlocks } from "@/utils/pdf-html-builder";
+import {
+  PDF_BASE_STYLES,
+  PDF_TOC_STYLES,
+  processCodeBlocks,
+} from "@/utils/pdf-html-builder";
 import { getMarkdown } from "@/utils/markdown-helper";
 import {
   TextReader,
@@ -174,12 +179,20 @@ export const collectExportableIds = (tree: BatchExportTreeNode[]): number[] => {
  * 按勾选的 id 集合过滤并展平为章节列表（DFS 顺序）。
  * antd Tree 勾选是级联的：取消父节点会把整棵子树移出勾选集合，
  * 因此这里只需判断节点自身是否被勾选，无需检查祖先。
+ * 无正文的文件夹条目自身不产生内容，但存在选中后代时会作为
+ * isGroup 分组条目插入，保留目录与标题的层级结构。
  */
 export const flattenSelectedChapters = (
   tree: BatchExportTreeNode[],
   selectedIds: Set<number>,
 ): BatchExportChapter[] => {
   const chapters: BatchExportChapter[] = [];
+  const hasSelectedDescendant = (node: BatchExportTreeNode): boolean =>
+    node.children.some(
+      (child) =>
+        (child.exportable && selectedIds.has(child.id)) ||
+        hasSelectedDescendant(child),
+    );
   const walk = (nodes: BatchExportTreeNode[]) => {
     nodes.forEach((node) => {
       if (node.exportable && selectedIds.has(node.id)) {
@@ -188,6 +201,14 @@ export const flattenSelectedChapters = (
           title: node.title,
           depth: node.depth,
           content: node.content,
+        });
+      } else if (!node.exportable && hasSelectedDescendant(node)) {
+        chapters.push({
+          id: node.id,
+          title: node.title,
+          depth: node.depth,
+          content: [],
+          isGroup: true,
         });
       }
       walk(node.children);
@@ -201,25 +222,65 @@ const getChapterHeadingHtml = (
   title: string,
   depth: number,
   rule: BatchExportRule,
+  anchorId?: string,
 ) => {
   const level = Math.min(rule.headingLevel + depth, 6);
-  return `<h${level}>${escapeHtml(title)}</h${level}>`;
+  const idAttr = anchorId ? ` id="${anchorId}"` : "";
+  return `<h${level}${idAttr}>${escapeHtml(title)}</h${level}>`;
+};
+
+const getChapterAnchorId = (index: number) => `batch-chapter-${index}`;
+
+/**
+ * 构建正文开头的目录页：条目链接到章节标题锚点，
+ * Chromium 打印为 PDF 时会保留为内部跳转链接
+ */
+const buildPdfTocSection = (chapters: BatchExportChapter[]): string => {
+  const items = chapters
+    .map((chapter, index) => {
+      const indent = (chapter.depth + 1) * 1.2;
+      const strongClass =
+        chapter.isGroup || chapter.depth === 0 ? " pdf-toc-item-top" : "";
+      return `<a class="pdf-toc-item${strongClass}" href="#${getChapterAnchorId(index)}" style="padding-left:${indent}em"><span class="pdf-toc-text">${escapeHtml(chapter.title)}</span><span class="pdf-toc-leader"></span></a>`;
+    })
+    .join("\n");
+  return `<section class="pdf-toc"><h1 class="pdf-toc-title">目录</h1><span class="pdf-toc-hint">点击条目可跳转至对应章节</span>${items}</section>`;
 };
 
 /**
  * 构建批量 PDF 导出 payload：所有章节拼接为一个 HTML，
- * 按规则注入标题 / 分页
+ * 按规则注入标题 / 分页，可选插入目录页与书签大纲
  */
 export const buildBatchPdfPayload = async (input: {
   chapters: BatchExportChapter[];
   title: string;
   author?: string;
   rule: BatchExportRule;
+  pdf?: {
+    outline: boolean;
+    tocPage: boolean;
+  };
 }): Promise<PdfExportPayload> => {
   const tailwindCssCollector: string[] = [];
   const sections: string[] = [];
+  // 分组（无正文文件夹）标题延迟拼接：跟第一个内容章节同页，
+  // 避免孤悬在分页前的上一页末尾
+  let pendingGroupHeadings: string[] = [];
 
   for (const [index, chapter] of input.chapters.entries()) {
+    if (chapter.isGroup) {
+      if (input.rule.asHeading) {
+        pendingGroupHeadings.push(
+          getChapterHeadingHtml(
+            chapter.title,
+            chapter.depth,
+            input.rule,
+            getChapterAnchorId(index),
+          ),
+        );
+      }
+      continue;
+    }
     const serialized = await htmlSerializerRegistry.serializeAsync(
       chapter.content || [],
       {
@@ -228,22 +289,40 @@ export const buildBatchPdfPayload = async (input: {
       },
     );
     const heading = input.rule.asHeading
-      ? getChapterHeadingHtml(chapter.title, chapter.depth, input.rule)
+      ? getChapterHeadingHtml(
+          chapter.title,
+          chapter.depth,
+          input.rule,
+          getChapterAnchorId(index),
+        )
       : "";
-    const body = heading + serialized;
+    const body = pendingGroupHeadings.join("") + heading + serialized;
+    pendingGroupHeadings = [];
+    // 分页以"是否第一个内容章节"判断：首个章节可能排在分组条目（index > 0）
+    // 之后，若按 index 判断会与目录页的分页叠加产生空白页
     sections.push(
-      input.rule.pageBreak && index > 0
+      input.rule.pageBreak && sections.length > 0
         ? `<section style="page-break-before: always;">${body}</section>`
         : body,
     );
   }
 
-  const bodyHtml = processCodeBlocks(sections.join("\n"), "adaptive");
+  // 目录页依赖章节标题锚点，仅在标题注入正文时可用
+  const tocSection =
+    input.pdf?.tocPage && input.rule.asHeading
+      ? buildPdfTocSection(input.chapters)
+      : "";
+  const bodyHtml = processCodeBlocks(
+    tocSection + sections.join("\n"),
+    "adaptive",
+  );
   const tailwindStyles = Array.from(new Set(tailwindCssCollector)).join("\n");
 
   return {
     html: bodyHtml,
-    styles: [PDF_BASE_STYLES, tailwindStyles].join("\n\n"),
+    styles: [PDF_BASE_STYLES, tocSection ? PDF_TOC_STYLES : "", tailwindStyles]
+      .filter(Boolean)
+      .join("\n\n"),
     metadata: {
       title: input.title,
       author: input.author,
@@ -263,6 +342,7 @@ export const buildBatchPdfPayload = async (input: {
       codeBlockBreak: {
         strategy: "adaptive",
       },
+      generateOutline: input.pdf?.outline ?? false,
     },
     defaultFileName: sanitizeFileName(input.title),
   };
@@ -278,22 +358,59 @@ export const buildBatchEpubPayload = async (input: {
   rule: BatchExportRule;
 }): Promise<{ payload: EpubExportPayload; warnings: string[] }> => {
   const chapters: EpubChapter[] = [];
+  const navItems: EpubNavItem[] = [];
+  let pendingGroups: BatchExportChapter[] = [];
 
-  for (const [index, chapter] of input.chapters.entries()) {
+  for (const chapter of input.chapters) {
+    if (chapter.isGroup) {
+      pendingGroups.push(chapter);
+      continue;
+    }
+
+    const chapterIndex = chapters.length;
     const serialized = await htmlSerializerRegistry.serializeAsync(
       chapter.content || [],
       {
         codeTheme: "github-light",
       },
     );
+    const groupHeadings = pendingGroups
+      .map((group, groupIndex) =>
+        getChapterHeadingHtml(
+          group.title,
+          group.depth,
+          input.rule,
+          `epub-group-${chapterIndex}-${groupIndex}`,
+        ),
+      )
+      .join("");
     const heading = input.rule.asHeading
       ? getChapterHeadingHtml(chapter.title, chapter.depth, input.rule)
       : "";
+    const title = chapter.title || `第${chapterIndex + 1}章`;
     chapters.push({
-      id: `chapter-${index + 1}`,
-      title: chapter.title || `第${index + 1}章`,
-      xhtml: heading + serialized,
+      id: `chapter-${chapterIndex + 1}`,
+      title,
+      xhtml: (input.rule.asHeading ? groupHeadings : "") + heading + serialized,
     });
+
+    // 分组条目挂到其后第一个内容章节；标题未注入正文时无锚点，跳到章节开头
+    pendingGroups.forEach((group, groupIndex) => {
+      navItems.push({
+        title: group.title,
+        chapterIndex,
+        anchor: input.rule.asHeading
+          ? `epub-group-${chapterIndex}-${groupIndex}`
+          : undefined,
+        level: group.depth,
+      });
+    });
+    navItems.push({
+      title,
+      chapterIndex,
+      level: chapter.depth,
+    });
+    pendingGroups = [];
   }
 
   const assetResult = await processEpubAssets({
@@ -301,9 +418,24 @@ export const buildBatchEpubPayload = async (input: {
     coverImageSrc: input.metadata.coverImageSrc,
   });
 
-  const meaningfulChapters = assetResult.chapters.filter((chapter) =>
-    isMeaningfulHtmlFragment(chapter.xhtml),
+  // 空章节被过滤后重映射 nav 的章节下标
+  const meaningfulIndexes = assetResult.chapters
+    .map((chapter, index) =>
+      isMeaningfulHtmlFragment(chapter.xhtml) ? index : -1,
+    )
+    .filter((index) => index >= 0);
+  const meaningfulChapters = meaningfulIndexes.map(
+    (index) => assetResult.chapters[index],
   );
+  const chapterIndexRemap = new Map(
+    meaningfulIndexes.map((oldIndex, newIndex) => [oldIndex, newIndex]),
+  );
+  const meaningfulNavItems = navItems.flatMap((item) => {
+    const mappedIndex = chapterIndexRemap.get(item.chapterIndex);
+    return mappedIndex === undefined
+      ? []
+      : [{ ...item, chapterIndex: mappedIndex }];
+  });
 
   const payload: EpubExportPayload = {
     metadata: {
@@ -320,6 +452,7 @@ export const buildBatchEpubPayload = async (input: {
               xhtml: "<p></p>",
             },
           ],
+    nav: meaningfulChapters.length > 0 ? meaningfulNavItems : undefined,
     assets: assetResult.assets,
     defaultFileName: sanitizeFileName(input.metadata.title),
   };
@@ -344,12 +477,15 @@ export const buildMergedMarkdown = (
   chapters: BatchExportChapter[],
   rule: BatchExportRule,
 ): string => {
-  const parts = chapters.map((chapter) => {
-    const heading = rule.asHeading
-      ? getChapterHeadingMarkdown(chapter.title, chapter.depth, rule)
-      : "";
-    return heading + getMarkdown(chapter.content || []).trim();
-  });
+  // 分组条目仅用于 PDF 目录层级，Markdown 合并跳过空分组
+  const parts = chapters
+    .filter((chapter) => !chapter.isGroup)
+    .map((chapter) => {
+      const heading = rule.asHeading
+        ? getChapterHeadingMarkdown(chapter.title, chapter.depth, rule)
+        : "";
+      return heading + getMarkdown(chapter.content || []).trim();
+    });
   const separator = rule.pageBreak ? "\n\n---\n\n" : "\n\n";
   return parts.join(separator) + "\n";
 };

@@ -169,6 +169,7 @@ export const buildResponsesPayload = (params: {
   messages: RequestMessage[];
   stream: boolean;
   reasoningEffort?: ReasoningEffort;
+  temperature?: number;
   tools?: OpenAIToolSchema[];
 }) => {
   const reasoningEffort =
@@ -185,6 +186,9 @@ export const buildResponsesPayload = (params: {
       : {}),
     stream: params.stream,
     store: false,
+    ...(params.temperature !== undefined
+      ? { temperature: params.temperature }
+      : {}),
     ...(reasoningEffort ? { reasoning: { effort: reasoningEffort } } : {}),
     ...(tools?.length
       ? { tools, tool_choice: "auto", parallel_tool_calls: true }

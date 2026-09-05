@@ -926,6 +926,12 @@ export class DesktopModelProtocolAdapter implements AgentModelProtocolAdapter {
       !isClaudeFormat && this.modelConfig.apiProtocol === "responses";
     const baseUrlNormalized = baseUrl.replace(/\/+$/, "");
     const customUserAgent = this.modelConfig.userAgent?.trim();
+    const configuredTemperature =
+      typeof this.modelConfig.temperature === "number" &&
+      Number.isFinite(this.modelConfig.temperature) &&
+      this.modelConfig.temperature >= 0
+        ? this.modelConfig.temperature
+        : undefined;
     const userAgentHeaders: Record<string, string> = customUserAgent
       ? { "User-Agent": customUserAgent }
       : {};
@@ -965,10 +971,12 @@ export class DesktopModelProtocolAdapter implements AgentModelProtocolAdapter {
         : undefined;
     const modelOverrides = getModelRequestOverrides({
       modelName,
-      reasoningEffort: normalizedReasoningEffort,
+      reasoningEffort: request.reasoningEffort as ReasoningEffort | undefined,
     });
     const { reasoning_effort: overrideReasoningEffort, ...restOverrides } =
       modelOverrides;
+    const effectiveReasoningEffort =
+      overrideReasoningEffort ?? normalizedReasoningEffort;
     const basePayload = {
       stream: true,
       model: modelName,
@@ -976,11 +984,11 @@ export class DesktopModelProtocolAdapter implements AgentModelProtocolAdapter {
       presence_penalty: 0,
       frequency_penalty: 0,
       top_p: 1,
-      reasoning_effort:
-        overrideReasoningEffort !== undefined
-          ? undefined
-          : normalizedReasoningEffort,
+      reasoning_effort: effectiveReasoningEffort,
       ...restOverrides,
+      ...(configuredTemperature !== undefined
+        ? { temperature: configuredTemperature }
+        : {}),
     };
 
     let payload: unknown;
@@ -998,6 +1006,9 @@ export class DesktopModelProtocolAdapter implements AgentModelProtocolAdapter {
         model: modelName,
         max_tokens: maxOutputTokens,
         stream: true,
+        ...(configuredTemperature !== undefined
+          ? { temperature: configuredTemperature }
+          : {}),
         ...buildClaudeThinkingPayload(
           modelName,
           normalizedReasoningEffort,
@@ -1042,7 +1053,8 @@ export class DesktopModelProtocolAdapter implements AgentModelProtocolAdapter {
         model: modelName,
         messages: transportMessages,
         stream: true,
-        reasoningEffort: normalizedReasoningEffort,
+        temperature: configuredTemperature,
+        reasoningEffort: effectiveReasoningEffort,
         tools: request.tools,
       });
       parser = createResponsesStreamParser();
