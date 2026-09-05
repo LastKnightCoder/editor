@@ -142,12 +142,15 @@ export default function useFeedViewState(): FeedViewState & FeedViewActions {
   }, [isReadLaterMode]);
 
   useEffect(() => {
+    if (isReadLaterMode || rssStore.status !== RssStatus.SUCCESS) return;
     reloadCurrentSelection();
   }, [
     selection,
     isReadLaterMode,
     bilibiliFollowingsSubscription?.feedId,
     rssStore.entriesSearch,
+    rssStore.status,
+    reloadCurrentSelection,
   ]);
 
   useEffect(() => {
