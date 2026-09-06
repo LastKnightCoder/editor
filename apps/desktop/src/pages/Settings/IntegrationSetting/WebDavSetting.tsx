@@ -134,7 +134,7 @@ const WebDavSetting: React.FC = () => {
               </svg>
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className={`truncate text-base font-semibold ${themeColors.activeTextClass}`}>
+              <h3 className={`truncate text-base font-semibold ${themeColors.textClass}`}>
                 WebDAV
               </h3>
               <p className={`truncate text-xs ${themeColors.secondaryTextClass}`}>WebDAV 服务器</p>

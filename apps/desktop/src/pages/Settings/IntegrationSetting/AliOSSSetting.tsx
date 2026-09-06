@@ -125,7 +125,7 @@ const AliOSSSetting: React.FC = () => {
               </svg>
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className={`truncate text-base font-semibold ${themeColors.activeTextClass}`}>
+              <h3 className={`truncate text-base font-semibold ${themeColors.textClass}`}>
                 阿里云 OSS
               </h3>
               <p className={`truncate text-xs ${themeColors.secondaryTextClass}`}>

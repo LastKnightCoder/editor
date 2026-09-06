@@ -38,9 +38,7 @@ const YouTubeSetting: React.FC = () => {
             </svg>
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className={`truncate text-base font-semibold ${themeColors.activeTextClass}`}>
-              YouTube
-            </h3>
+            <h3 className={`truncate text-base font-semibold ${themeColors.textClass}`}>YouTube</h3>
             <p className={`truncate text-xs ${themeColors.secondaryTextClass}`}>视频平台</p>
           </div>
         </div>
@@ -66,7 +64,7 @@ const YouTubeSetting: React.FC = () => {
           </label>
           <input
             type="text"
-            className={`w-full rounded-xl px-4 py-3.5 text-sm shadow-inner outline-none transition-all ${themeColors.inputBgClass} ${themeColors.borderClass} ${themeColors.activeTextClass} ${themeColors.focusBorderClass} ${themeColors.focusRingClass} border`}
+            className={`w-full rounded-xl px-4 py-3.5 text-sm shadow-inner outline-none transition-all ${themeColors.inputBgClass} ${themeColors.borderClass} ${themeColors.textClass} ${themeColors.focusBorderClass} ${themeColors.focusRingClass} border`}
             placeholder="例如: http://127.0.0.1:7890"
             value={yt.proxy}
             onChange={e => updateYoutubeProxy(e.target.value)}

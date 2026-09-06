@@ -106,7 +106,7 @@ const MinimaxSetting: React.FC = () => {
               M
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className={`truncate text-base font-semibold ${themeColors.activeTextClass}`}>
+              <h3 className={`truncate text-base font-semibold ${themeColors.textClass}`}>
                 Minimax
               </h3>
               <p className={`truncate text-xs ${themeColors.secondaryTextClass}`}>
