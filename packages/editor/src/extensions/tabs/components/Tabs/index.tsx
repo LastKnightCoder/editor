@@ -1,9 +1,4 @@
-import {
-  ReactEditor,
-  RenderElementProps,
-  useSlate,
-  useReadOnly,
-} from "slate-react";
+import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
 import { Editor, Transforms, Element } from "slate";
 import { produce } from "immer";
 import { v4 as getUUid } from "uuid";
@@ -27,12 +22,12 @@ interface ITabsProps {
 
 const Tabs = (props: ITabsProps) => {
   const { attributes, element, children } = props;
-  const { activeKey, tabsContent } = element;
+  const { activeKey } = element;
+  const tabsContent = Array.isArray(element.tabsContent) ? element.tabsContent : [];
   const isLast = useIsLastElement(element);
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
-    useDragAndDrop({
-      element,
-    });
+  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
+    element,
+  });
 
   const editor = useSlate();
   const readOnly = useReadOnly();
@@ -40,7 +35,7 @@ const Tabs = (props: ITabsProps) => {
   const setTabsData = (
     newActiveKey: string,
     newTabsContent: ITabsContent[],
-    newChildren: BlockElement[],
+    newChildren: BlockElement[]
   ) => {
     const path = ReactEditor.findPath(editor, element);
     Transforms.delete(editor, {
@@ -57,13 +52,13 @@ const Tabs = (props: ITabsProps) => {
       },
       {
         at: path,
-      },
+      }
     );
   };
 
   const syncCurrentTabContent = () => {
-    const newTabsContent = produce(tabsContent, (draft) => {
-      const currentTab = draft.find((tab) => tab.key === activeKey);
+    const newTabsContent = produce(tabsContent, draft => {
+      const currentTab = draft.find(tab => tab.key === activeKey);
       if (currentTab) {
         currentTab.content = element.children;
       } else {
@@ -81,8 +76,8 @@ const Tabs = (props: ITabsProps) => {
     if (key === activeKey) return;
 
     const newActiveKey = key;
-    const newTabsContent = produce(tabsContent, (draft) => {
-      const currentTab = draft.find((tab) => tab.key === activeKey);
+    const newTabsContent = produce(tabsContent, draft => {
+      const currentTab = draft.find(tab => tab.key === activeKey);
       if (currentTab) {
         currentTab.content = element.children;
       } else {
@@ -93,9 +88,7 @@ const Tabs = (props: ITabsProps) => {
         });
       }
     });
-    const newChildren = newTabsContent.find(
-      (tab) => tab.key === newActiveKey,
-    )!.content;
+    const newChildren = newTabsContent.find(tab => tab.key === newActiveKey)!.content;
 
     setTabsData(newActiveKey, newTabsContent, newChildren);
   };
@@ -119,8 +112,8 @@ const Tabs = (props: ITabsProps) => {
       ],
       title: "Tab" + (tabsContent.length + 1),
     };
-    const newTabsContent = produce(tabsContent, (draft) => {
-      const currentTab = draft.find((tab) => tab.key === activeKey);
+    const newTabsContent = produce(tabsContent, draft => {
+      const currentTab = draft.find(tab => tab.key === activeKey);
       if (currentTab) {
         currentTab.content = element.children;
       }
@@ -133,9 +126,9 @@ const Tabs = (props: ITabsProps) => {
   const onDeleteTab = (key: string) => {
     if (readOnly) return;
     const path = ReactEditor.findPath(editor, element);
-    const nextKey = tabsContent.find((tab) => tab.key !== key)?.key;
-    const nextTab = tabsContent.find((tab) => tab.key === nextKey);
-    const newTabsContent = tabsContent.filter((tab) => tab.key !== key);
+    const nextKey = tabsContent.find(tab => tab.key !== key)?.key;
+    const nextTab = tabsContent.find(tab => tab.key === nextKey);
+    const newTabsContent = tabsContent.filter(tab => tab.key !== key);
     if (key === activeKey) {
       if (!nextTab) {
         Transforms.delete(editor, {
@@ -155,7 +148,7 @@ const Tabs = (props: ITabsProps) => {
           {
             at: path,
             select: true,
-          },
+          }
         );
       } else {
         const { key, content } = nextTab;
@@ -179,8 +172,8 @@ const Tabs = (props: ITabsProps) => {
 
   const onTitleChange = (key: string, title: string) => {
     if (readOnly) return;
-    const newTabsContent = produce(tabsContent, (draft) => {
-      const tab = draft.find((tab) => tab.key === key);
+    const newTabsContent = produce(tabsContent, draft => {
+      const tab = draft.find(tab => tab.key === key);
       if (!tab) return;
       tab.title = title;
     });
@@ -189,7 +182,7 @@ const Tabs = (props: ITabsProps) => {
 
   return (
     <div
-      ref={(node) => {
+      ref={node => {
         drop(node);
       }}
       onBlur={syncCurrentTabContent}
@@ -200,7 +193,7 @@ const Tabs = (props: ITabsProps) => {
         [styles.after]: !isBefore,
       })}
     >
-      <div className="rounded-xl border border-zinc-200/70 dark:border-zinc-700/40 overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-zinc-200/70 dark:border-zinc-700/40">
         <TabsHeader
           tabs={tabsContent}
           activeKey={activeKey}
@@ -216,7 +209,7 @@ const Tabs = (props: ITabsProps) => {
       {!(readOnly && isLast) && <AddParagraph element={element} />}
       <div
         contentEditable={false}
-        ref={(node) => {
+        ref={node => {
           drag(node);
         }}
         className={classnames(styles.dragHandler, {

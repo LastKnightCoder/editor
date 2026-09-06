@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useRef, type ComponentProps } from "react";
+import { LoadingOutlined } from "@ant-design/icons";
 import { Editor, type EditorRef } from "@tau/editor/src";
 import { CollaborationServices } from "@/components/CollaborationEditor";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
@@ -32,7 +33,11 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
         callback.current?.(article.content as Descendant[], editorRef.current.getEditor());
     }, [binding, article]);
     if (contentId && !binding)
-      return <div role="status">{sessionError || error || "正在加载内容"}</div>;
+      return (
+        <div role="status" className="text-text-3 flex min-h-40 items-center justify-center">
+          {sessionError || error || <LoadingOutlined spin />}
+        </div>
+      );
     return (
       <>
         {error && (

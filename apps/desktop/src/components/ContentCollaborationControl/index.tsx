@@ -6,7 +6,7 @@ import { invoke } from "@/electron";
 import useContentSession from "@/hooks/useContentSession";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 import CustomModal from "@/components/CustomModal";
-import { sessionStatus } from "@/pages/CollaborationView/session-status";
+import { useStableSessionStatus } from "@/pages/CollaborationView/session-status";
 import {
   Avatar,
   AvatarStack,
@@ -90,7 +90,7 @@ export default function ContentCollaborationControl({
     }
   };
   const active = session?.status === "active";
-  const status = session ? sessionStatus(session) : undefined;
+  const status = useStableSessionStatus(session);
   const editors = session ? editingMemberCount(session) : 0;
   const label = session ? (active ? `${editors} 人正在编辑` : "共享已结束") : "发起协作";
   const members = session

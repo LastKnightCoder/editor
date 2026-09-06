@@ -7,6 +7,11 @@ const hitEmpty = (editor: Editor, [node, path]: NodeEntry) => {
     return false;
   }
 
+  // 协作文档的 tabsContent 由块字段异步回填，缺失时不能把节点当成空 Tab 删除。
+  if (!Array.isArray((node as Partial<TabsElement>).tabsContent)) {
+    return false;
+  }
+
   // @ts-ignore
   if (!node.children) {
     return false;
@@ -33,7 +38,7 @@ const hitEmpty = (editor: Editor, [node, path]: NodeEntry) => {
         },
         {
           at: [...path, 0],
-        },
+        }
       );
     }
     return true;

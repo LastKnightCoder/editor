@@ -212,6 +212,7 @@ const CardItem = memo(
               previewBlocks={3}
               source={{ sourceType: "card", sourceId: card.id }}
               extensions={dynamicExtensions}
+              collaborationControl={false}
             />
           </ErrorBoundary>
           {tags.length > 0 && <Tags className="mt-5" tags={tags} showIcon />}
