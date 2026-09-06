@@ -10,6 +10,7 @@ import styles from "./index.module.less";
 import { MdDragIndicator } from "react-icons/md";
 import { message, Spin } from "antd";
 import { AudioPlayer, If, ModernTabs } from "@tau/shared";
+import { useAttrInput } from "../../../../hooks/useAttrInput";
 import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useMemoizedFn } from "ahooks";
@@ -61,6 +62,19 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
 
   const isTTSConfigured = editor.services?.ai?.isTTSConfigured?.() ?? false;
   const textToSpeechDisabled = !isTTSConfigured || !selectedVoiceId;
+
+  // 标题就地编辑（输入法组词期间不提交，避免打断中文输入）
+  const titleInput = useAttrInput(element.title, next => {
+    const path = ReactEditor.findPath(editor, element);
+    Transforms.setNodes(editor, { title: next }, { at: path });
+  });
+  const titleSlot = !readOnly ? (
+    <input
+      {...titleInput}
+      placeholder="音频标题…"
+      className="mb-1.5 w-full rounded-md bg-transparent px-1 py-0.5 text-sm font-medium text-gray-800 outline-none placeholder:font-normal placeholder:text-gray-400 focus:bg-gray-200/60 dark:text-zinc-200 dark:placeholder:text-zinc-500 dark:focus:bg-zinc-700/40"
+    />
+  ) : undefined;
 
   // Load voice list
   const loadVoices = useCallback(async () => {
@@ -178,6 +192,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
       editor,
       {
         src: firstSrc,
+        title: first.name,
         uploading: false,
         isFromGenerate: false,
         audioText: undefined,
@@ -195,6 +210,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
         {
           type: "audio",
           src: resourceSrc,
+          title: resource.name,
           children: [{ type: "formatted", text: "" }],
         },
         { at: referencePath }
@@ -272,6 +288,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
       editor,
       {
         src: url,
+        title: "语音配音",
         isFromGenerate: true,
         audioText: textToSpeechValue,
         uploading: false,
@@ -303,7 +320,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
       event.target.value = "";
       return;
     }
-    Transforms.setNodes(editor, { src: uploadRes }, { at: path });
+    Transforms.setNodes(editor, { src: uploadRes, title: file.name }, { at: path });
     setUploading(false);
     event.target.value = "";
   };
@@ -553,6 +570,8 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
               <Audio
                 src={src}
                 controls
+                label={element.title}
+                labelSlot={titleSlot}
                 className={classnames(styles.audio, {
                   [styles.dragging]: isDragging,
                   [styles.drop]: isOverCurrent && canDrop,
@@ -563,6 +582,8 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
             ) : (
               <AudioPlayer
                 src={src}
+                label={element.title}
+                labelSlot={titleSlot}
                 className={classnames(styles.audio, {
                   [styles.dragging]: isDragging,
                   [styles.drop]: isOverCurrent && canDrop,

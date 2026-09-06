@@ -92,7 +92,9 @@ const createComponentRegistry = (): ComponentService => {
   return {
     Image,
     Video: ({ src }: { src: string }) => <VideoPlayer src={src} className="w-full" />,
-    Audio: ({ src }: { src: string }) => <AudioPlayer src={src} className="w-full" />,
+    Audio: ({ src, label }: { src: string; label?: string }) => (
+      <AudioPlayer src={src} label={label} className="w-full" />
+    ),
     ResourcePickerModal,
     BilibiliVideoLoader: () => <VideoLoader message="Bilibili 视频在桌面端可播放" />,
     YoutubeVideoLoader: () => <VideoLoader message="YouTube 视频在桌面端可播放" />,

@@ -6,19 +6,13 @@ import { insertAudio } from "../../../utils";
  * 查找最近插入的上传中的音频节点
  * （通过 src 为空且 uploading 为 true 来识别）
  */
-function findUploadingAudioNode(
-  editor: Editor,
-  startPath: Path,
-): [any, Path] | null {
+function findUploadingAudioNode(editor: Editor, startPath: Path): [any, Path] | null {
   const nodeEntries = Array.from(
     Editor.nodes(editor, {
       at: [],
       match: (n: any) =>
-        SlateElement.isElement(n) &&
-        n.type === "audio" &&
-        n.src === "" &&
-        n.uploading === true,
-    }),
+        SlateElement.isElement(n) && n.type === "audio" && n.src === "" && n.uploading === true,
+    })
   );
 
   // 查找与 startPath 匹配的节点
@@ -48,6 +42,7 @@ export const dropAudio = (editor: Editor) => {
     // 插入占位节点
     const insertPath = insertAudio(editor, {
       src: "",
+      title: file.name,
       uploading: true,
     });
 
@@ -74,7 +69,7 @@ export const dropAudio = (editor: Editor) => {
           },
           {
             at: nodeEntry[1],
-          },
+          }
         );
       } else {
         console.error("无法找到上传中的音频节点");
@@ -94,7 +89,7 @@ export const dropAudio = (editor: Editor) => {
           },
           {
             at: nodeEntry[1],
-          },
+          }
         );
       }
     }
