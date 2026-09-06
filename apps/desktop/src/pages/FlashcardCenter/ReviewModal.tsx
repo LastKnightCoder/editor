@@ -499,7 +499,9 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                 {currentCard.type === "qa" && "问答题"}
               </span>
             </div>
-            <span className="text-sm font-bold text-blue-500">{Math.round(progress)}%</span>
+            <span className="text-sm font-bold text-[var(--th-accent)]">
+              {Math.round(progress)}%
+            </span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-zinc-800">
             <motion.div

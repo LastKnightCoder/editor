@@ -299,7 +299,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
             <button
               type="button"
               onClick={selectAll}
-              className="text-xs font-medium text-blue-500 transition-colors hover:text-[var(--th-active-text)] dark:hover:text-blue-300"
+              className="text-xs font-medium text-[var(--th-accent)] transition-colors hover:text-[var(--th-active-text)] dark:hover:text-blue-300"
             >
               全选
             </button>
@@ -448,7 +448,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
       destroyOnClose
       title={getModalTitle()}
       subtitle={getModalSubtitle()}
-      icon={<Sparkles className="h-5 w-5 text-blue-500" />}
+      icon={<Sparkles className="h-5 w-5 text-[var(--th-accent)]" />}
       iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-[var(--th-border-focus)]/30"
       footer={renderFooter()}
       showCloseButton={step !== "generating"}

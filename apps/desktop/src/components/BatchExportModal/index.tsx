@@ -77,7 +77,7 @@ const FORMAT_CARDS: FormatCard[] = [
     label: "Markdown",
     description: "合并为单个 .md 文件",
     icon: MdDescription,
-    iconClass: "text-sky-500",
+    iconClass: "text-status-info",
   },
   {
     key: "markdownZip",

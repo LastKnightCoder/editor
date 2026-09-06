@@ -70,9 +70,7 @@ const ChaptersPanel = (props: ChaptersPanelProps) => {
                 <div
                   className={classNames(
                     "text-sm font-medium leading-5",
-                    isActive
-                      ? "text-blue-700 dark:text-blue-300"
-                      : "text-gray-800 dark:text-gray-200"
+                    isActive ? "text-[var(--th-active-text)]" : "text-gray-800 dark:text-gray-200"
                   )}
                 >
                   {chapter.title}

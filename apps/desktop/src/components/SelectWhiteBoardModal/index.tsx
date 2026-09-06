@@ -122,7 +122,10 @@ const SelectWhiteBoardModal = (props: ISelectWhiteBoardModalProps) => {
         {/* 选中提示 */}
         <If condition={selectedWhiteBoards.length > 0}>
           <div className="text-sm text-gray-600 dark:text-gray-400">
-            已选择 <span className="font-semibold text-blue-500">{selectedWhiteBoards.length}</span>{" "}
+            已选择{" "}
+            <span className="font-semibold text-[var(--th-accent)]">
+              {selectedWhiteBoards.length}
+            </span>{" "}
             个白板
             {multiple && <span className="ml-2 text-gray-500">（多选）</span>}
           </div>

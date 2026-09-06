@@ -147,7 +147,7 @@ const AIJudgementResultView: React.FC<AIJudgementResultProps> = ({ result }) => 
             <ul className="space-y-1 pl-1 text-sm text-gray-600 dark:text-gray-400">
               {result.suggestions.map((item, idx) => (
                 <li key={idx} className="flex items-baseline gap-2">
-                  <span className="text-[8px] text-blue-500">●</span>
+                  <span className="text-[8px] text-[var(--th-accent)]">●</span>
                   <span className="flex-1">{item}</span>
                 </li>
               ))}

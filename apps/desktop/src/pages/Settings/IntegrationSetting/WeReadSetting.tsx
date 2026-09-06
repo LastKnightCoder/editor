@@ -130,7 +130,7 @@ const WeReadSetting: React.FC = () => {
           <button
             type="button"
             onClick={handleOpenApiKeyPage}
-            className="cursor-pointer text-blue-500 hover:text-[var(--th-active-text)] hover:underline dark:hover:text-blue-300"
+            className="cursor-pointer text-[var(--th-accent)] hover:text-[var(--th-active-text)] hover:underline dark:hover:text-blue-300"
           >
             获取微信读书 API Key
           </button>

@@ -74,7 +74,7 @@ const QuestionGroupList = memo(
 
     const createIcon = (
       <svg
-        className="h-5 w-5 text-indigo-500"
+        className="h-5 w-5 text-[var(--th-accent)]"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"

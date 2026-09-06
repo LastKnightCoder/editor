@@ -5,19 +5,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PomodoroPanel from "../PomodoroPanel";
 import type { PomodoroPreset, PomodoroSession } from "@/types/pomodoro";
 
-(
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock("@/hooks/useThemeColors", () => ({
   default: () => ({
     textClass: "text-gray-800",
     secondaryTextClass: "text-gray-500",
-    activeTextClass: "text-blue-500",
+    activeTextClass: "text-[var(--th-accent)]",
     cardBorderClass: "border-gray-200",
     cardBgClass: "bg-white",
     iconBgClass: "bg-blue-50",
-    iconTextClass: "text-blue-500",
+    iconTextClass: "text-[var(--th-accent)]",
     hoverClass: "hover:bg-gray-100",
     accentColor: "rgb(37, 99, 235)",
     accentSoftBg: "rgba(37, 99, 235, 0.2)",
@@ -27,9 +25,8 @@ vi.mock("@/hooks/useThemeColors", () => ({
 const openInNewTab = vi.fn();
 vi.mock("@/stores/useTabStore", () => ({
   __esModule: true,
-  default: (
-    selector: (state: { openInNewTab: typeof openInNewTab }) => unknown,
-  ) => selector({ openInNewTab }),
+  default: (selector: (state: { openInNewTab: typeof openInNewTab }) => unknown) =>
+    selector({ openInNewTab }),
 }));
 
 const BASE_TIME = new Date("2026-06-21T08:00:00.000Z").getTime();
@@ -77,9 +74,7 @@ const presets: PomodoroPreset[] = [
   },
 ];
 
-const createSession = (
-  overrides: Partial<PomodoroSession> = {},
-): PomodoroSession => ({
+const createSession = (overrides: Partial<PomodoroSession> = {}): PomodoroSession => ({
   id: 1,
   presetId: 1,
   startTime: BASE_TIME,
@@ -117,7 +112,7 @@ const renderPanel = (
     onPauseSession?: () => void;
     onResumeSession?: () => void;
     onStopSession?: () => void;
-  } = {},
+  } = {}
 ) => (
   <PomodoroPanel
     todayStats={{ count: 0, focusMs: 0 }}
@@ -203,8 +198,8 @@ describe("PomodoroPanel", () => {
         createSession({
           expectedMs: undefined,
           focusMs: 0,
-        }),
-      ),
+        })
+      )
     );
 
     expect(container.textContent).toContain("00:30");
@@ -228,13 +223,9 @@ describe("PomodoroPanel", () => {
 
   it("运行中点击暂停按钮应触发 onPauseSession", async () => {
     const onPauseSession = vi.fn();
-    const { root, container } = await mount(
-      renderPanel(createSession(), { onPauseSession }),
-    );
+    const { root, container } = await mount(renderPanel(createSession(), { onPauseSession }));
 
-    const pauseBtn = container.querySelector(
-      'button[title="暂停"]',
-    ) as HTMLButtonElement;
+    const pauseBtn = container.querySelector('button[title="暂停"]') as HTMLButtonElement;
     expect(pauseBtn).toBeTruthy();
 
     await act(async () => {
@@ -256,13 +247,9 @@ describe("PomodoroPanel", () => {
       updateTime: pauseStart,
     });
 
-    const { root, container } = await mount(
-      renderPanel(session, { onResumeSession }),
-    );
+    const { root, container } = await mount(renderPanel(session, { onResumeSession }));
 
-    const resumeBtn = container.querySelector(
-      'button[title="继续"]',
-    ) as HTMLButtonElement;
+    const resumeBtn = container.querySelector('button[title="继续"]') as HTMLButtonElement;
     expect(resumeBtn).toBeTruthy();
 
     await act(async () => {
@@ -276,13 +263,9 @@ describe("PomodoroPanel", () => {
 
   it("进行中点击停止按钮应触发 onStopSession", async () => {
     const onStopSession = vi.fn();
-    const { root, container } = await mount(
-      renderPanel(createSession(), { onStopSession }),
-    );
+    const { root, container } = await mount(renderPanel(createSession(), { onStopSession }));
 
-    const stopBtn = container.querySelector(
-      'button[title="停止"]',
-    ) as HTMLButtonElement;
+    const stopBtn = container.querySelector('button[title="停止"]') as HTMLButtonElement;
     expect(stopBtn).toBeTruthy();
 
     await act(async () => {
@@ -297,8 +280,8 @@ describe("PomodoroPanel", () => {
   it("点击查看全部应通过 openInNewTab 跳转番茄钟 Tab", async () => {
     const { root, container } = await mount(renderPanel(null));
 
-    const viewAllBtn = Array.from(container.querySelectorAll("button")).find(
-      (b) => b.textContent?.includes("查看全部"),
+    const viewAllBtn = Array.from(container.querySelectorAll("button")).find(b =>
+      b.textContent?.includes("查看全部")
     ) as HTMLButtonElement;
     expect(viewAllBtn).toBeTruthy();
 
@@ -329,13 +312,11 @@ describe("PomodoroPanel", () => {
         startTime: BASE_TIME + 1_000,
       }),
     ];
-    const { root, container } = await mount(
-      renderPanelWithRecentSessions(recentSessions),
-    );
+    const { root, container } = await mount(renderPanelWithRecentSessions(recentSessions));
 
     const buttons = Array.from(container.querySelectorAll("button"))
-      .map((button) => button.textContent)
-      .filter((text) => text && text !== "查看全部");
+      .map(button => button.textContent)
+      .filter(text => text && text !== "查看全部");
     expect(buttons).toEqual(["写作", "阅读15m", "专注25m"]);
     expect(container.textContent).not.toContain("很少用");
 
@@ -346,8 +327,8 @@ describe("PomodoroPanel", () => {
     const { root, container } = await mount(renderPanelWithRecentSessions([]));
 
     const buttons = Array.from(container.querySelectorAll("button"))
-      .map((button) => button.textContent)
-      .filter((text) => text && text !== "查看全部");
+      .map(button => button.textContent)
+      .filter(text => text && text !== "查看全部");
     expect(buttons).toEqual(["专注25m", "阅读15m", "写作"]);
 
     await unmount(root, container);
@@ -373,9 +354,7 @@ describe("PomodoroPanel", () => {
       }),
     ];
 
-    const { root, container } = await mount(
-      renderPanelWithTodaySessions(todaySessions),
-    );
+    const { root, container } = await mount(renderPanelWithTodaySessions(todaySessions));
 
     expect(container.textContent).toContain("今日记录");
     expect(container.textContent).toContain("写作");

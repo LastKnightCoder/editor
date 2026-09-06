@@ -41,7 +41,7 @@ const iconColors: Record<ResourceType, string> = {
   video: "",
   audio: "",
   pdf: "bg-gradient-to-br from-red-100 to-red-200 dark:from-red-900/40 dark:to-red-800/40 text-red-500 dark:text-red-400",
-  epub: "bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/40 dark:to-blue-800/40 text-blue-500 dark:text-blue-400",
+  epub: "bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/40 dark:to-blue-800/40 text-[var(--th-accent)]",
   attachment:
     "bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800/60 dark:to-gray-700/60 text-gray-500 dark:text-gray-400",
 };

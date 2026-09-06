@@ -795,13 +795,13 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
         <div className="py-8">
           {uploading ? (
             <div className="flex flex-col items-center gap-3">
-              <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
+              <Loader2 className="h-10 w-10 animate-spin text-[var(--th-accent)]" />
               <p className="m-0 text-sm text-gray-600 dark:text-gray-400">上传中...</p>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3">
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--th-accent-soft)]">
-                <UploadIcon className="h-6 w-6 text-blue-500" />
+                <UploadIcon className="h-6 w-6 text-[var(--th-accent)]" />
               </div>
               <div>
                 <p className="m-0 text-sm font-medium text-gray-700 dark:text-gray-200">
@@ -898,7 +898,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
         >
           <div className="relative">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--th-accent-soft)]">
-              <Globe className="h-7 w-7 text-blue-500" />
+              <Globe className="h-7 w-7 text-[var(--th-accent)]" />
             </div>
             <motion.div
               className="absolute inset-0 h-16 w-16 rounded-full border-2 border-blue-500 border-t-transparent"
@@ -1391,7 +1391,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       destroyOnClose
       title="添加资料"
       subtitle="上传文件、剪藏网页或添加视频"
-      icon={<Plus className="h-5 w-5 text-blue-500" />}
+      icon={<Plus className="h-5 w-5 text-[var(--th-accent)]" />}
       iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-[var(--th-border-focus)]/30"
       footer={renderFooter()}
       showCloseButton={canClose}

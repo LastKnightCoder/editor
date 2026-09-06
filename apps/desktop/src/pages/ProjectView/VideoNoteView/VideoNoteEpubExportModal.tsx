@@ -224,7 +224,7 @@ const StepIndicator = ({ currentStep }: { currentStep: Step }) => {
                 isActive
                   ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400"
                   : isPast
-                    ? "text-indigo-500/70 dark:text-indigo-400/60"
+                    ? "text-[var(--th-accent)]/70 dark:text-indigo-400/60"
                     : "text-gray-400 dark:text-slate-500"
               )}
             >
@@ -913,7 +913,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                   </p>
                 </div>
                 {isSelected && (
-                  <span className="mt-1 text-base font-semibold text-blue-500">✓</span>
+                  <span className="mt-1 text-base font-semibold text-[var(--th-accent)]">✓</span>
                 )}
               </div>
             );
@@ -1017,7 +1017,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                       className={classNames(
                         "text-[11px]",
                         isSelected
-                          ? "text-indigo-500/80 dark:text-indigo-400/70"
+                          ? "text-[var(--th-accent)]/80 dark:text-indigo-400/70"
                           : "text-gray-400 dark:text-slate-500"
                       )}
                     >

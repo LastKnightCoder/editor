@@ -543,7 +543,7 @@ const QuestionWindowPage = () => {
           subtitle="修改问题内容和描述"
           icon={
             <svg
-              className="h-5 w-5 text-blue-500"
+              className="h-5 w-5 text-[var(--th-accent)]"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"

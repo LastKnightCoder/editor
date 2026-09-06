@@ -89,7 +89,7 @@ const PresetModal: React.FC<PresetModalProps> = ({ open, onClose, onSubmit, init
             {/* Header */}
             <div className="mb-5 flex shrink-0 items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-indigo-200 bg-indigo-50 dark:border-indigo-500/30 dark:bg-indigo-500/20">
-                <MdTimer className="h-5 w-5 text-indigo-500" />
+                <MdTimer className="h-5 w-5 text-[var(--th-accent)]" />
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="m-0 text-base font-bold text-gray-800 dark:text-white">

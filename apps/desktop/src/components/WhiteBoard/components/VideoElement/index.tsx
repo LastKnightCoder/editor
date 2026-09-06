@@ -38,14 +38,14 @@ interface VideoElementProps {
     startPoint: Point,
     endPoint: Point,
     isPreserveRatio?: boolean,
-    isAdsorb?: boolean,
+    isAdsorb?: boolean
   ) => void;
   onResizeEnd?: (
     board: Board,
     element: VideoElement,
     position: EHandlerPosition,
     startPoint: Point,
-    endPoint: Point,
+    endPoint: Point
   ) => void;
 }
 
@@ -53,35 +53,27 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
   const { element, onResize, onResizeStart, onResizeEnd } = props;
 
   const { id, x, y, width, height, src, metaInfo, resizable = true } = element;
-  const autoCacheRemoteVideo = useSettingStore(
-    (state) => state.setting.misc.video.autoCacheRemote,
-  );
+  const autoCacheRemoteVideo = useSettingStore(state => state.setting.misc.video.autoCacheRemote);
   const shouldUseLocalVideo = useMemo(
     () => shouldUseLocalVideoCache(src, autoCacheRemoteVideo),
-    [src, autoCacheRemoteVideo],
+    [src, autoCacheRemoteVideo]
   );
   const isBilibili = useMemo(() => {
     if (!src) return false;
-    if (metaInfo && "type" in metaInfo && metaInfo.type === "bilibili")
-      return true;
+    if (metaInfo && "type" in metaInfo && metaInfo.type === "bilibili") return true;
     return isBilibiliUrl(src);
   }, [src, metaInfo]);
 
   const isYoutube = useMemo(() => {
     if (!src) return false;
-    if (metaInfo && "type" in metaInfo && metaInfo.type === "youtube")
-      return true;
+    if (metaInfo && "type" in metaInfo && metaInfo.type === "youtube") return true;
     return isYoutubeUrl(src);
   }, [src, metaInfo]);
 
   const biliMeta =
-    metaInfo && "type" in metaInfo && metaInfo.type === "bilibili"
-      ? metaInfo
-      : undefined;
+    metaInfo && "type" in metaInfo && metaInfo.type === "bilibili" ? metaInfo : undefined;
   const ytMeta =
-    metaInfo && "type" in metaInfo && metaInfo.type === "youtube"
-      ? metaInfo
-      : undefined;
+    metaInfo && "type" in metaInfo && metaInfo.type === "youtube" ? metaInfo : undefined;
   const {
     videoUrl: bilibiliVideoUrl,
     loading: bilibiliLoading,
@@ -105,15 +97,11 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
         video,
       });
     },
-    [board, id],
+    [board, id]
   );
 
-  const {
-    isMoveArrowClosing,
-    activeConnectId,
-    arrowConnectPoints,
-    arrowConnectExtendPoints,
-  } = useDropArrow(element);
+  const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } =
+    useDropArrow(element);
 
   const [resizePoints] = useMemo(() => {
     const resizePoints = PointUtil.getResizePointFromRect({
@@ -136,33 +124,23 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
       startPoint: Point,
       endPoint: Point,
       isPreserveRatio?: boolean,
-      isAdsorb?: boolean,
+      isAdsorb?: boolean
     ) => {
-      onResize(
-        board,
-        element,
-        position,
-        startPoint,
-        endPoint,
-        isPreserveRatio,
-        isAdsorb,
-      );
-    },
+      onResize(board, element, position, startPoint, endPoint, isPreserveRatio, isAdsorb);
+    }
   );
 
   const handleOnResizeEnd = useMemoizedFn(
     (position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
       onResizeEnd?.(board, element, position, startPoint, endPoint);
-    },
+    }
   );
 
-  const handleOpenVideoNote = useMemoizedFn(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-      board.emit("video-note:open", element);
-    },
-  );
+  const handleOpenVideoNote = useMemoizedFn((event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    board.emit("video-note:open", element);
+  });
 
   return (
     <>
@@ -177,18 +155,15 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
           height,
         }}
       >
-        <div
-          className="group relative h-full w-full"
-          data-whiteboard-stop-keyboard="true"
-        >
+        <div className="group relative h-full w-full" data-whiteboard-stop-keyboard="true">
           <Tooltip title="视频笔记">
             <button
               type="button"
-              className="absolute right-5 top-5 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-black/10 bg-white/90 text-gray-600 opacity-0 shadow-sm transition-opacity hover:bg-white hover:text-blue-500 group-hover:opacity-100 dark:border-white/10 dark:bg-zinc-900/90 dark:text-gray-300 dark:hover:bg-zinc-900"
+              className="absolute right-5 top-5 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-black/10 bg-white/90 text-gray-600 opacity-0 shadow-sm transition-opacity hover:bg-white hover:text-[var(--th-accent)] group-hover:opacity-100 dark:border-white/10 dark:bg-zinc-900/90 dark:text-gray-300 dark:hover:bg-zinc-900"
               style={{ display: isSelected ? "none" : undefined }}
               onClick={handleOpenVideoNote}
-              onPointerDown={(event) => event.stopPropagation()}
-              onMouseDown={(event) => event.stopPropagation()}
+              onPointerDown={event => event.stopPropagation()}
+              onMouseDown={event => event.stopPropagation()}
             >
               <StickyNote size={16} />
             </button>
@@ -201,11 +176,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
                 error={bilibiliError}
                 streamProgress={bilibiliProgress}
               />
-              <If
-                condition={
-                  !!bilibiliVideoUrl && !bilibiliLoading && !bilibiliError
-                }
-              >
+              <If condition={!!bilibiliVideoUrl && !bilibiliLoading && !bilibiliError}>
                 <LocalVideo
                   ref={setVideoRef}
                   src={bilibiliVideoUrl as string}
@@ -224,11 +195,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
                 error={youtubeError}
                 streamProgress={youtubeProgress}
               />
-              <If
-                condition={
-                  !!youtubeVideoUrl && !youtubeLoading && !youtubeError
-                }
-              >
+              <If condition={!!youtubeVideoUrl && !youtubeLoading && !youtubeError}>
                 <LocalVideo
                   ref={setVideoRef}
                   src={youtubeVideoUrl as string}
@@ -284,10 +251,10 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
           <Tooltip title="视频笔记">
             <button
               type="button"
-              className="flex h-8 w-8 items-center justify-center rounded-md border border-black/10 bg-white text-gray-600 shadow-sm transition-colors hover:text-blue-500 dark:border-white/10 dark:bg-zinc-900 dark:text-gray-300"
+              className="flex h-8 w-8 items-center justify-center rounded-md border border-black/10 bg-white text-gray-600 shadow-sm transition-colors hover:text-[var(--th-accent)] dark:border-white/10 dark:bg-zinc-900 dark:text-gray-300"
               onClick={handleOpenVideoNote}
-              onPointerDown={(event) => event.stopPropagation()}
-              onMouseDown={(event) => event.stopPropagation()}
+              onPointerDown={event => event.stopPropagation()}
+              onMouseDown={event => event.stopPropagation()}
             >
               <StickyNote size={16} />
             </button>
@@ -330,7 +297,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
         disabled={isMoveArrowClosing}
       />
       <If condition={isMoveArrowClosing}>
-        {arrowConnectPoints.map((point) => (
+        {arrowConnectPoints.map(point => (
           <ArrowDropConnectPoint
             key={point.connectId}
             cx={point.point.x}

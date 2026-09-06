@@ -193,12 +193,12 @@ const ResourceSyncBlacklistModal = ({
             <span className="text-gray-500 dark:text-slate-400">
               共 {filteredResources.length} 个资源
               {selectedNames.size > 0 && (
-                <span className="ml-2 text-indigo-500">· 已选 {selectedNames.size} 个</span>
+                <span className="ml-2 text-[var(--th-accent)]">· 已选 {selectedNames.size} 个</span>
               )}
             </span>
             {selectedNames.size > 0 && (
               <button
-                className="text-indigo-500 transition-colors hover:text-indigo-600"
+                className="text-[var(--th-accent)] transition-colors hover:text-indigo-600"
                 onClick={() => setSelectedNames(new Set())}
               >
                 清空选择

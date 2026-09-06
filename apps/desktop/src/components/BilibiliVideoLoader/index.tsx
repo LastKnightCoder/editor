@@ -93,7 +93,7 @@ const BilibiliVideoLoader = ({ loading, error, streamProgress }: BilibiliVideoLo
                   <div className="flex items-center justify-between text-xs">
                     <span className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-300">
                       <svg
-                        className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400"
+                        className="h-3.5 w-3.5 text-[var(--th-accent)]"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"

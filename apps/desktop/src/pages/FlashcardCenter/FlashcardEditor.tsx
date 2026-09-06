@@ -544,7 +544,7 @@ const FlashcardEditor = ({
                 {referenceList.map((ref, index) => (
                   <div key={index} className="relative">
                     <div className="absolute -left-2 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-500/20">
-                      <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                      <span className="text-xs font-semibold text-[var(--th-active-text)]">
                         {index + 1}
                       </span>
                     </div>

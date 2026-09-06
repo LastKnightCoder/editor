@@ -18,10 +18,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import type { ChatAgentType, ChatMessage } from "@/types/chat-message";
 import { ResponseMessage } from "@/types";
 import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
-import {
-  CHAT_AGENT_TYPE_STORAGE_KEY,
-  normalizeChatAgentType,
-} from "@/constants/chatAgent";
+import { CHAT_AGENT_TYPE_STORAGE_KEY, normalizeChatAgentType } from "@/constants/chatAgent";
 import ChatModal from "./ChatModal";
 
 const { Title } = Typography;
@@ -60,14 +57,11 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
   const [chatModalVisible, setChatModalVisible] = useState(false);
   const [chatAction, setChatAction] = useState<"create" | "edit">("create");
   const [editingChat, setEditingChat] = useState<ChatMessage | null>(null);
-  const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(
-    CHAT_AGENT_TYPE_STORAGE_KEY,
-    {
-      defaultValue: "local",
-    },
-  );
+  const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(CHAT_AGENT_TYPE_STORAGE_KEY, {
+    defaultValue: "local",
+  });
 
-  const database = useSettingStore((state) => state.setting.database.active);
+  const database = useSettingStore(state => state.setting.database.active);
   const isConnected = useDatabaseConnected();
 
   // 对话存储（仅在非外部数据模式下使用）
@@ -78,13 +72,13 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
     updateChatMessage,
     deleteChatMessage,
   } = useChatMessageStore(
-    useShallow((state) => ({
+    useShallow(state => ({
       initChatMessage: state.initChatMessage,
       chats: state.chats,
       createChatMessage: state.createChatMessage,
       updateChatMessage: state.updateChatMessage,
       deleteChatMessage: state.deleteChatMessage,
-    })),
+    }))
   );
 
   // 根据模式选择数据源
@@ -128,10 +122,7 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
   };
 
   // 处理对话弹窗提交
-  const handleChatModalFinish = async (data: {
-    title: string;
-    id?: number;
-  }) => {
+  const handleChatModalFinish = async (data: { title: string; id?: number }) => {
     try {
       if (chatAction === "create") {
         if (useExternalData && onExternalChatCreate) {
@@ -149,12 +140,12 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
             data.title,
             undefined,
             true,
-            normalizeChatAgentType(rememberedAgentType),
+            normalizeChatAgentType(rememberedAgentType)
           );
         }
         messageApi.success("对话创建成功");
       } else if (data.id) {
-        const chatToUpdate = chats.find((chat) => chat.id === data.id);
+        const chatToUpdate = chats.find(chat => chat.id === data.id);
         if (chatToUpdate) {
           const updatedChat = {
             ...chatToUpdate,
@@ -172,9 +163,7 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
       setChatModalVisible(false);
       setEditingChat(null);
     } catch (error) {
-      messageApi.error(
-        chatAction === "create" ? "创建对话失败" : "更新对话失败",
-      );
+      messageApi.error(chatAction === "create" ? "创建对话失败" : "更新对话失败");
       console.error(error);
     }
   };
@@ -194,25 +183,25 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
       <List.Item
         key={chat.id}
         className={classnames(
-          "cursor-pointer rounded-lg p-3 mb-2 border border-gray-200 dark:border-gray-700 transition-all duration-200 ease-in-out group",
+          "group mb-2 cursor-pointer rounded-lg border border-gray-200 p-3 transition-all duration-200 ease-in-out dark:border-gray-700",
           "hover:bg-slate-100 dark:hover:bg-zinc-700",
           {
             "bg-slate-200 dark:bg-zinc-900": isSelected,
             "bg-white dark:bg-stone-900": !isSelected,
-          },
+          }
         )}
         onClick={() => onChatSelect?.(chat.id)}
       >
         <div className="w-full">
           <div
             className={classnames(
-              "font-medium text-sm leading-tight mb-1.5 overflow-hidden text-ellipsis whitespace-nowrap max-w-full",
+              "mb-1.5 max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium leading-tight"
             )}
           >
             {chat.title}
           </div>
           <div className="flex items-center justify-between text-xs text-black dark:text-white">
-            <div className="flex items-center flex-1">
+            <div className="flex flex-1 items-center">
               <ClockCircleOutlined className={classnames("mr-1 text-xs")} />
               <span className={classnames("text-xs")}>{formattedTime}</span>
             </div>
@@ -223,7 +212,7 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
                 "group-hover:opacity-100",
                 {
                   "opacity-100": isSelected,
-                },
+                }
               )}
             >
               <Tooltip title="编辑">
@@ -231,7 +220,7 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
                   type="text"
                   size="small"
                   icon={<EditOutlined />}
-                  onClick={(e) => {
+                  onClick={e => {
                     e.stopPropagation();
                     handleEditChat(chat);
                   }}
@@ -243,7 +232,7 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
                   size="small"
                   icon={<DeleteOutlined />}
                   danger
-                  onClick={(e) => {
+                  onClick={e => {
                     e.stopPropagation();
                     handleDeleteChat(chat.id);
                   }}
@@ -259,19 +248,19 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
   return (
     <div
       className={classnames(
-        "absolute left-0 top-0 h-full w-75 max-w-[80%] bg-white dark:bg-stone-800 border-l border-gray-200 dark:border-gray-600",
-        "transform transition-transform duration-300 ease-in-out z-50 overflow-hidden",
+        "w-75 absolute left-0 top-0 h-full max-w-[80%] border-l border-gray-200 bg-white dark:border-gray-600 dark:bg-stone-800",
+        "z-50 transform overflow-hidden transition-transform duration-300 ease-in-out",
         {
           "translate-x-0": visible,
           "-translate-x-full": !visible,
-        },
+        }
       )}
     >
-      <div className="h-full flex flex-col">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-500 flex justify-between items-center min-h-15">
-          <div className="flex items-center gap-2 flex-1">
-            <MessageOutlined className="text-blue-500 text-base" />
-            <Title level={4} className="m-0 text-gray-900 mb-0!">
+      <div className="flex h-full flex-col">
+        <div className="min-h-15 flex items-center justify-between border-b border-gray-200 p-4 dark:border-gray-500">
+          <div className="flex flex-1 items-center gap-2">
+            <MessageOutlined className="text-base text-[var(--th-accent)]" />
+            <Title level={4} className="mb-0! m-0 text-gray-900">
               对话列表
             </Title>
           </div>

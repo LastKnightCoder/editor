@@ -93,7 +93,7 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
       {/* 动画图标 */}
       <div className="relative">
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[var(--th-accent-soft)]">
-          <Sparkles className="h-8 w-8 animate-pulse text-blue-500" />
+          <Sparkles className="h-8 w-8 animate-pulse text-[var(--th-accent)]" />
         </div>
         <motion.div
           className="absolute inset-0 h-20 w-20 rounded-full border-2 border-blue-500 border-t-transparent"
@@ -110,7 +110,7 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
         <motion.p
           initial={{ opacity: 0, y: 5 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mt-2 text-sm font-medium text-blue-500"
+          className="mt-2 text-sm font-medium text-[var(--th-accent)]"
         >
           已生成 {generatedCount} {generatedUnit}
         </motion.p>
@@ -129,7 +129,7 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
         >
           <FileCode2 className="h-4 w-4 shrink-0" />
           <div className="min-w-0">
-            <div className="text-[11px] font-medium text-blue-500 dark:text-blue-300">
+            <div className="text-[11px] font-medium text-[var(--th-accent)] dark:text-blue-300">
               {outputLabel} 大小
             </div>
             <div className="text-base font-semibold text-gray-800 dark:text-gray-100">
@@ -157,7 +157,7 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
                 className="flex items-center gap-2 text-xs"
               >
                 {execution.status === "executing" ? (
-                  <Loader2 className="h-3 w-3 shrink-0 animate-spin text-blue-500" />
+                  <Loader2 className="h-3 w-3 shrink-0 animate-spin text-[var(--th-accent)]" />
                 ) : execution.status === "success" ? (
                   <Check className="text-status-success h-3 w-3 shrink-0" />
                 ) : execution.status === "pending" ? (

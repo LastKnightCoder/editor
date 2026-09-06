@@ -351,7 +351,7 @@ const SearchModelSection = () => {
                   ) : (
                     <button
                       onClick={() => handleDownloadModel(model.name)}
-                      className="dark:hover:bg-[var(--th-btn-hover)]/10 rounded-lg px-3 py-1.5 text-sm text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400"
+                      className="dark:hover:bg-[var(--th-btn-hover)]/10 rounded-lg px-3 py-1.5 text-sm text-blue-600 transition-colors hover:bg-[var(--th-accent-soft)] hover:text-blue-700 dark:text-blue-400"
                     >
                       下载
                     </button>
