@@ -44,10 +44,7 @@ const STATUS_LABEL: Record<IQuestion["status"], string> = {
   resolved: "已解决",
 };
 
-const STATUS_STYLE: Record<
-  IQuestion["status"],
-  { title: string; badge: string; dot: string }
-> = {
+const STATUS_STYLE: Record<IQuestion["status"], { title: string; badge: string; dot: string }> = {
   not_started: {
     title: "text-zinc-600 dark:text-zinc-300",
     badge:
@@ -61,10 +58,9 @@ const STATUS_STYLE: Record<
     dot: "bg-amber-500",
   },
   resolved: {
-    title: "text-emerald-700 dark:text-emerald-300",
-    badge:
-      "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30",
-    dot: "bg-emerald-500",
+    title: "text-status-success",
+    badge: "bg-[var(--th-success)]/10 text-status-success border-[var(--th-success)]/30",
+    dot: "bg-status-success",
   },
 };
 
@@ -73,9 +69,7 @@ function getQuestSummary(question: IQuestion): string {
   if (text) {
     return text.length > 96 ? `${text.slice(0, 96)}...` : text;
   }
-  return question.answers.length > 0
-    ? `已有 ${question.answers.length} 个答案`
-    : "暂未记录答案";
+  return question.answers.length > 0 ? `已有 ${question.answers.length} 个答案` : "暂未记录答案";
 }
 
 function extractText(nodes: unknown[]): string {
@@ -97,13 +91,13 @@ function extractText(nodes: unknown[]): string {
 function resolveSelectedIds(
   group: QuestGroupItem,
   selected: boolean,
-  scope?: EntityScope,
+  scope?: EntityScope
 ): Set<number> {
   if (!selected) {
     return new Set();
   }
   if (!scope || scope.mode === "all") {
-    return new Set(group.questions.map((question) => question.id));
+    return new Set(group.questions.map(question => question.id));
   }
   return new Set(scope.nodeIds);
 }
@@ -111,21 +105,13 @@ function resolveSelectedIds(
 function getGroupSelectedCount(
   group: QuestGroupItem,
   isItemSelected: (type: PublishContentType, id: number) => boolean,
-  scope?: EntityScope,
+  scope?: EntityScope
 ): number {
-  return resolveSelectedIds(group, isItemSelected("quest", group.id), scope)
-    .size;
+  return resolveSelectedIds(group, isItemSelected("quest", group.id), scope).size;
 }
 
 export const QuestSelector = memo<QuestSelectorProps>(
-  ({
-    groups,
-    questions,
-    isItemSelected,
-    scopes,
-    onToggleGroup,
-    onUpdateScope,
-  }) => {
+  ({ groups, questions, isItemSelected, scopes, onToggleGroup, onUpdateScope }) => {
     const themeColors = useThemeColors();
     const [activeGroupId, setActiveGroupId] = useState<number | null>(null);
     const [onlySelected, setOnlySelected] = useState(false);
@@ -133,33 +119,29 @@ export const QuestSelector = memo<QuestSelectorProps>(
 
     const groupItems = useMemo<QuestGroupItem[]>(() => {
       const questionsByGroup = new Map<number, IQuestion[]>();
-      questions.forEach((question) => {
+      questions.forEach(question => {
         const items = questionsByGroup.get(question.groupId) || [];
         items.push(question);
         questionsByGroup.set(question.groupId, items);
       });
 
       return groups
-        .map((group) => ({
+        .map(group => ({
           id: group.id,
           title: group.title || `分组 #${group.id}`,
           questions: (questionsByGroup.get(group.id) || []).sort(
-            (a, b) => a.sortIndex - b.sortIndex || a.createTime - b.createTime,
+            (a, b) => a.sortIndex - b.sortIndex || a.createTime - b.createTime
           ),
           raw: group,
         }))
-        .filter((group) => group.questions.length > 0);
+        .filter(group => group.questions.length > 0);
     }, [groups, questions]);
 
     const activeGroup = useMemo(() => {
       if (activeGroupId == null) {
         return groupItems[0] || null;
       }
-      return (
-        groupItems.find((group) => group.id === activeGroupId) ||
-        groupItems[0] ||
-        null
-      );
+      return groupItems.find(group => group.id === activeGroupId) || groupItems[0] || null;
     }, [activeGroupId, groupItems]);
 
     const activeSelectedIds = useMemo(
@@ -168,15 +150,15 @@ export const QuestSelector = memo<QuestSelectorProps>(
           ? resolveSelectedIds(
               activeGroup,
               isItemSelected("quest", activeGroup.id),
-              scopes.get(activeGroup.id),
+              scopes.get(activeGroup.id)
             )
           : new Set<number>(),
-      [activeGroup, isItemSelected, scopes],
+      [activeGroup, isItemSelected, scopes]
     );
 
     const searchItems = useMemo<QuestSearchItem[]>(
       () =>
-        (activeGroup?.questions || []).map((question) => ({
+        (activeGroup?.questions || []).map(question => ({
           ...question,
           searchable: [
             question.questionContent,
@@ -184,7 +166,7 @@ export const QuestSelector = memo<QuestSelectorProps>(
             STATUS_LABEL[question.status],
           ].join(" "),
         })),
-      [activeGroup],
+      [activeGroup]
     );
 
     const { query, setQuery, filteredItems, isFiltering } = useSearch({
@@ -195,10 +177,10 @@ export const QuestSelector = memo<QuestSelectorProps>(
     const displayQuestions = useMemo(() => {
       let items = filteredItems;
       if (statusFilter !== "all") {
-        items = items.filter((question) => question.status === statusFilter);
+        items = items.filter(question => question.status === statusFilter);
       }
       if (onlySelected) {
-        items = items.filter((question) => activeSelectedIds.has(question.id));
+        items = items.filter(question => activeSelectedIds.has(question.id));
       }
       return items;
     }, [activeSelectedIds, filteredItems, onlySelected, statusFilter]);
@@ -206,10 +188,8 @@ export const QuestSelector = memo<QuestSelectorProps>(
     const allSelected = useMemo(
       () =>
         displayQuestions.length > 0 &&
-        displayQuestions.every((question) =>
-          activeSelectedIds.has(question.id),
-        ),
-      [activeSelectedIds, displayQuestions],
+        displayQuestions.every(question => activeSelectedIds.has(question.id)),
+      [activeSelectedIds, displayQuestions]
     );
 
     const updateActiveScope = useCallback(
@@ -219,30 +199,24 @@ export const QuestSelector = memo<QuestSelectorProps>(
           activeGroup.id,
           nextIds.size === activeGroup.questions.length
             ? { mode: "all" }
-            : { mode: "partial", nodeIds: nextIds },
+            : { mode: "partial", nodeIds: nextIds }
         );
       },
-      [activeGroup, onUpdateScope],
+      [activeGroup, onUpdateScope]
     );
 
     const handleSelectAll = useCallback(async () => {
       if (!activeGroup) return;
       if (allSelected) {
         const nextIds = new Set(activeSelectedIds);
-        displayQuestions.forEach((question) => nextIds.delete(question.id));
+        displayQuestions.forEach(question => nextIds.delete(question.id));
         await updateActiveScope(nextIds);
         return;
       }
       const nextIds = new Set(activeSelectedIds);
-      displayQuestions.forEach((question) => nextIds.add(question.id));
+      displayQuestions.forEach(question => nextIds.add(question.id));
       await updateActiveScope(nextIds);
-    }, [
-      activeGroup,
-      activeSelectedIds,
-      allSelected,
-      displayQuestions,
-      updateActiveScope,
-    ]);
+    }, [activeGroup, activeSelectedIds, allSelected, displayQuestions, updateActiveScope]);
 
     const toggleQuestion = useCallback(
       async (questionId: number) => {
@@ -254,61 +228,50 @@ export const QuestSelector = memo<QuestSelectorProps>(
         }
         await updateActiveScope(nextIds);
       },
-      [activeSelectedIds, updateActiveScope],
+      [activeSelectedIds, updateActiveScope]
     );
 
     return (
       <div
         className={classNames(
           "flex max-h-[560px] min-h-[480px] overflow-hidden rounded-xl border",
-          themeColors.cardBorderClass,
+          themeColors.cardBorderClass
         )}
       >
         <div
           className={classNames(
             "flex w-60 flex-shrink-0 flex-col border-r",
-            themeColors.cardBorderClass,
+            themeColors.cardBorderClass
           )}
         >
           <div
             className={classNames(
               "flex flex-shrink-0 items-center justify-between border-b px-4 py-3 text-sm font-medium",
               themeColors.cardBorderClass,
-              themeColors.textClass,
+              themeColors.textClass
             )}
           >
             <span>分类</span>
-            <span
-              className={classNames("text-xs", themeColors.secondaryTextClass)}
-            >
+            <span className={classNames("text-xs", themeColors.secondaryTextClass)}>
               {groupItems.length}
             </span>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto py-2">
             {groupItems.length === 0 ? (
               <div
-                className={classNames(
-                  "p-4 text-center text-sm",
-                  themeColors.secondaryTextClass,
-                )}
+                className={classNames("p-4 text-center text-sm", themeColors.secondaryTextClass)}
               >
                 暂无分类
               </div>
             ) : (
-              groupItems.map((group) => (
+              groupItems.map(group => (
                 <QuestGroupButton
                   key={group.id}
                   group={group}
                   active={activeGroup?.id === group.id}
-                  selectedCount={getGroupSelectedCount(
-                    group,
-                    isItemSelected,
-                    scopes.get(group.id),
-                  )}
+                  selectedCount={getGroupSelectedCount(group, isItemSelected, scopes.get(group.id))}
                   onSelect={() => setActiveGroupId(group.id)}
-                  onToggle={() =>
-                    onToggleGroup(group.id, !isItemSelected("quest", group.id))
-                  }
+                  onToggle={() => onToggleGroup(group.id, !isItemSelected("quest", group.id))}
                 />
               ))
             )}
@@ -346,7 +309,7 @@ export const QuestSelector = memo<QuestSelectorProps>(
               />
             ) : (
               <div className="space-y-2">
-                {displayQuestions.map((question) => (
+                {displayQuestions.map(question => (
                   <QuestQuestionRow
                     key={question.id}
                     question={question}
@@ -360,7 +323,7 @@ export const QuestSelector = memo<QuestSelectorProps>(
         </div>
       </div>
     );
-  },
+  }
 );
 
 QuestSelector.displayName = "QuestSelector";
@@ -381,14 +344,12 @@ const QuestGroupButton = memo<{
           "flex items-center gap-2 rounded-lg px-2 py-2 transition-colors",
           active
             ? "bg-zinc-200/70 dark:bg-zinc-700/60"
-            : "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
+            : "hover:bg-gray-50 dark:hover:bg-zinc-800/30"
         )}
       >
         <SelectionCheckbox
           checked={selectedCount === group.questions.length}
-          indeterminate={
-            selectedCount > 0 && selectedCount < group.questions.length
-          }
+          indeterminate={selectedCount > 0 && selectedCount < group.questions.length}
           onChange={onToggle}
           size="sm"
         />
@@ -400,9 +361,7 @@ const QuestGroupButton = memo<{
           <span
             className={classNames(
               "min-w-0 flex-1 truncate text-sm",
-              active
-                ? "font-medium text-zinc-900 dark:text-zinc-100"
-                : themeColors.textClass,
+              active ? "font-medium text-zinc-900 dark:text-zinc-100" : themeColors.textClass
             )}
           >
             {group.title}
@@ -412,7 +371,7 @@ const QuestGroupButton = memo<{
               "flex-shrink-0 text-xs",
               selectedCount > 0
                 ? "font-medium text-zinc-800 dark:text-zinc-100"
-                : themeColors.secondaryTextClass,
+                : themeColors.secondaryTextClass
             )}
           >
             {selectedCount > 0
@@ -462,7 +421,7 @@ const QuestToolbar = memo<{
                 className={classNames(
                   "h-4 w-4",
                   isFiltering ? "animate-spin" : "",
-                  themeColors.secondaryTextClass,
+                  themeColors.secondaryTextClass
                 )}
                 fill="none"
                 stroke="currentColor"
@@ -479,7 +438,7 @@ const QuestToolbar = memo<{
             <input
               type="text"
               value={query}
-              onChange={(event) => onQueryChange(event.target.value)}
+              onChange={event => onQueryChange(event.target.value)}
               placeholder="搜索标题或描述..."
               className={classNames(
                 "w-full rounded-lg border py-2 pl-10 pr-4 text-sm transition-colors",
@@ -488,7 +447,7 @@ const QuestToolbar = memo<{
                 themeColors.textClass,
                 "placeholder:text-gray-400 dark:placeholder:text-gray-500",
                 "focus:outline-none",
-                themeColors.focusRingClass,
+                themeColors.focusRingClass
               )}
             />
             {query && (
@@ -498,15 +457,10 @@ const QuestToolbar = memo<{
                 className={classNames(
                   "absolute inset-y-0 right-0 flex items-center pr-3",
                   themeColors.secondaryTextClass,
-                  "hover:text-gray-600 dark:hover:text-gray-300",
+                  "hover:text-gray-600 dark:hover:text-gray-300"
                 )}
               >
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -528,7 +482,7 @@ const QuestToolbar = memo<{
                   themeColors.cardBgClass,
                   themeColors.cardBorderClass,
                   themeColors.hoverClass,
-                  themeColors.textClass,
+                  themeColors.textClass
                 )}
               >
                 <span>{allSelected ? "取消全选" : "全选"}</span>
@@ -546,7 +500,7 @@ const QuestToolbar = memo<{
                       themeColors.cardBorderClass,
                       themeColors.hoverClass,
                       themeColors.textClass,
-                    ],
+                    ]
               )}
             >
               仅显示已选
@@ -555,7 +509,7 @@ const QuestToolbar = memo<{
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {STATUS_OPTIONS.map((option) => (
+          {STATUS_OPTIONS.map(option => (
             <button
               key={option.value}
               type="button"
@@ -569,7 +523,7 @@ const QuestToolbar = memo<{
                       themeColors.cardBorderClass,
                       themeColors.hoverClass,
                       themeColors.secondaryTextClass,
-                    ],
+                    ]
               )}
             >
               {option.label}
@@ -578,7 +532,7 @@ const QuestToolbar = memo<{
         </div>
       </div>
     );
-  },
+  }
 );
 
 QuestToolbar.displayName = "QuestToolbar";
@@ -599,7 +553,7 @@ const QuestQuestionRow = memo<{
         "flex w-full items-start gap-3 rounded-lg px-4 py-3.5 text-left transition-colors",
         selected
           ? "bg-zinc-200/60 dark:bg-zinc-700/50"
-          : "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
+          : "hover:bg-gray-50 dark:hover:bg-zinc-800/30"
       )}
     >
       <SelectionCheckbox
@@ -610,27 +564,20 @@ const QuestQuestionRow = memo<{
       />
       <div className="min-w-0 flex-1">
         <div className="mb-1.5 flex flex-wrap items-center gap-2">
+          <span className={classNames("h-2 w-2 rounded-full", statusStyle.dot)} />
           <span
-            className={classNames("h-2 w-2 rounded-full", statusStyle.dot)}
-          />
-          <span
-            className={classNames(
-              "rounded-md border px-1.5 py-0.5 text-[11px]",
-              statusStyle.badge,
-            )}
+            className={classNames("rounded-md border px-1.5 py-0.5 text-[11px]", statusStyle.badge)}
           >
             {STATUS_LABEL[question.status]}
           </span>
-          <span
-            className={classNames("text-xs", themeColors.secondaryTextClass)}
-          >
+          <span className={classNames("text-xs", themeColors.secondaryTextClass)}>
             {question.answers.length} 答案
           </span>
         </div>
         <div
           className={classNames(
             "line-clamp-2 text-sm font-medium leading-5",
-            selected ? "text-zinc-950 dark:text-zinc-50" : statusStyle.title,
+            selected ? "text-zinc-950 dark:text-zinc-50" : statusStyle.title
           )}
         >
           {question.questionContent || `条目 #${question.id}`}
@@ -638,7 +585,7 @@ const QuestQuestionRow = memo<{
         <div
           className={classNames(
             "mt-1 line-clamp-2 text-xs leading-5",
-            themeColors.secondaryTextClass,
+            themeColors.secondaryTextClass
           )}
         >
           {getQuestSummary(question)}

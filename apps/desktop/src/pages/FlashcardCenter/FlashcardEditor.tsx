@@ -1,10 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Descendant } from "slate";
-import type {
-  Flashcard,
-  FlashcardReferenceInput,
-  FlashcardType,
-} from "@/types";
+import type { Flashcard, FlashcardReferenceInput, FlashcardType } from "@/types";
 import useFlashcardStore from "@/stores/useFlashcardStore";
 import {
   FLASHCARD_TYPE_META,
@@ -51,10 +47,10 @@ const FlashcardEditor = ({
   isDark,
   initialReferences,
 }: FlashcardEditorProps) => {
-  const editingCard = useFlashcardStore((state) => state.editingCard);
-  const setEditingCard = useFlashcardStore((state) => state.setEditingCard);
-  const createCard = useFlashcardStore((state) => state.createCard);
-  const updateCard = useFlashcardStore((state) => state.updateCard);
+  const editingCard = useFlashcardStore(state => state.editingCard);
+  const setEditingCard = useFlashcardStore(state => state.setEditingCard);
+  const createCard = useFlashcardStore(state => state.createCard);
+  const updateCard = useFlashcardStore(state => state.updateCard);
 
   const [form, setForm] = useState<FormState>({
     prompt: textToDescendants(""),
@@ -74,8 +70,7 @@ const FlashcardEditor = ({
   const deckMissing = mode === "create" && activeDeckId == null;
 
   // 计算当前应该的 key
-  const currentKey =
-    mode === "create" ? "create" : `edit-${editingCard?.id ?? "none"}`;
+  const currentKey = mode === "create" ? "create" : `edit-${editingCard?.id ?? "none"}`;
 
   const initializeForm = (card?: Flashcard | null) => {
     if (!card) {
@@ -98,12 +93,11 @@ const FlashcardEditor = ({
       difficulty: card.difficulty,
       tags: card.tags ?? [],
       references:
-        card.references?.map((ref) => ({
+        card.references?.map(ref => ({
           refType: ref.refType,
           title: ref.title,
           contentId: ref.refType === "content" ? ref.contentId : undefined,
-          customContent:
-            ref.refType === "custom" ? ref.content?.content : undefined,
+          customContent: ref.refType === "custom" ? ref.content?.content : undefined,
         })) ?? [],
       data: card.data ?? createEmptyFlashcardData(card.type),
     });
@@ -134,7 +128,7 @@ const FlashcardEditor = ({
   };
 
   const handleTypeChange = (type: FlashcardType) => {
-    setForm((prev) => ({
+    setForm(prev => ({
       ...prev,
       type,
       data: prev.type === type ? prev.data : createEmptyFlashcardData(type),
@@ -144,17 +138,13 @@ const FlashcardEditor = ({
   const handleOptionChange = (
     optionId: string,
     field: "label" | "isCorrect",
-    value: string | boolean,
+    value: string | boolean
   ) => {
-    setForm((prev) => {
+    setForm(prev => {
       const options = prev.data.options ?? [];
       const updated = options.map((opt: any) => {
         if (opt.id !== optionId) {
-          if (
-            prev.type === "single-choice" &&
-            field === "isCorrect" &&
-            value === true
-          ) {
+          if (prev.type === "single-choice" && field === "isCorrect" && value === true) {
             return { ...opt, isCorrect: false };
           }
           return opt;
@@ -172,7 +162,7 @@ const FlashcardEditor = ({
   };
 
   const addOption = () => {
-    setForm((prev) => ({
+    setForm(prev => ({
       ...prev,
       data: {
         ...prev.data,
@@ -189,7 +179,7 @@ const FlashcardEditor = ({
   };
 
   const addReference = () => {
-    setForm((prev) => ({
+    setForm(prev => ({
       ...prev,
       references: [
         ...prev.references,
@@ -216,7 +206,7 @@ const FlashcardEditor = ({
         difficulty: form.difficulty,
         tags: form.tags,
         data: form.data,
-        references: form.references.filter((ref) => ref.title?.trim()),
+        references: form.references.filter(ref => ref.title?.trim()),
       };
       if (mode === "create" && activeDeckId) {
         await createCard({
@@ -244,26 +234,18 @@ const FlashcardEditor = ({
           {options.map((option: any, index: number) => (
             <div
               key={option.id}
-              className="flex items-center gap-3 rounded-xl p-3 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700"
+              className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-slate-700 dark:bg-zinc-950"
             >
               <input
                 value={option.label}
-                onChange={(e) =>
-                  handleOptionChange(option.id, "label", e.target.value)
-                }
+                onChange={e => handleOptionChange(option.id, "label", e.target.value)}
                 placeholder={`选项 ${index + 1}`}
-                className="flex-1 bg-transparent text-sm outline-none text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500"
+                className="flex-1 bg-transparent text-sm text-gray-800 outline-none placeholder:text-gray-400 dark:text-white dark:placeholder:text-slate-500"
               />
-              <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-slate-400 cursor-pointer">
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-gray-600 dark:text-slate-400">
                 <CustomCheckbox
                   checked={option.isCorrect}
-                  onChange={() =>
-                    handleOptionChange(
-                      option.id,
-                      "isCorrect",
-                      !option.isCorrect,
-                    )
-                  }
+                  onChange={() => handleOptionChange(option.id, "isCorrect", !option.isCorrect)}
                 />
                 <span>正确</span>
               </label>
@@ -272,7 +254,7 @@ const FlashcardEditor = ({
           <button
             type="button"
             onClick={addOption}
-            className="w-full rounded-xl border-2 border-dashed border-gray-300 dark:border-slate-700 py-3 text-sm text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+            className="w-full rounded-xl border-2 border-dashed border-gray-300 py-3 text-sm text-gray-500 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-zinc-800"
           >
             + 添加选项
           </button>
@@ -284,15 +266,15 @@ const FlashcardEditor = ({
       return (
         <textarea
           value={form.data.answer ?? ""}
-          onChange={(e) =>
-            setForm((prev) => ({
+          onChange={e =>
+            setForm(prev => ({
               ...prev,
               data: { ...prev.data, answer: e.target.value },
             }))
           }
           placeholder="标准答案或要点"
           rows={4}
-          className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)] resize-none"
+          className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
         />
       );
     }
@@ -304,20 +286,20 @@ const FlashcardEditor = ({
           {[
             { value: true, label: "正确 ✓" },
             { value: false, label: "错误 ✗" },
-          ].map((option) => (
+          ].map(option => (
             <button
               key={option.value ? "true" : "false"}
               type="button"
               onClick={() =>
-                setForm((prev) => ({
+                setForm(prev => ({
                   ...prev,
                   data: { ...prev.data, booleanAnswer: option.value },
                 }))
               }
-              className={`px-4 py-3 rounded-xl text-sm font-medium transition-all border-2 ${
+              className={`rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all ${
                 current === option.value
-                  ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                  : "border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 hover:border-gray-300 dark:hover:border-slate-600"
+                  ? "border-[var(--th-border-focus)] bg-[var(--th-accent-soft)] text-[var(--th-active-text)]"
+                  : "border-gray-200 text-gray-600 hover:border-gray-300 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-600"
               }`}
             >
               {option.label}
@@ -341,20 +323,20 @@ const FlashcardEditor = ({
       footer={null}
       title={mode === "create" ? "新建闪卡" : "编辑闪卡"}
       subtitle="管理闪卡内容和详情"
-      icon={<CreditCard className="w-5 h-5" />}
+      icon={<CreditCard className="h-5 w-5" />}
       iconBgColor="bg-indigo-50 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/30"
       bodyClassName="flashcard-editor-scroll"
     >
       <>
         {deckMissing && (
-          <div className="px-3.5 py-2.5 mb-4 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 dark:border-amber-500/20 dark:bg-amber-500/10">
             <p className="text-sm text-amber-600 dark:text-amber-400">
               请先创建并选择一个卡组后再添加闪卡。
             </p>
           </div>
         )}
 
-        <div className="space-y-4 border-r-20 border-transparent">
+        <div className="border-r-20 space-y-4 border-transparent">
           {/* Prompt */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
@@ -364,8 +346,8 @@ const FlashcardEditor = ({
               <RichTextEditor
                 key={`prompt-${currentKey}`}
                 value={form.prompt}
-                onChange={(value) =>
-                  setForm((prev) => ({
+                onChange={value =>
+                  setForm(prev => ({
                     ...prev,
                     prompt:
                       !value || value.length === 0
@@ -385,7 +367,7 @@ const FlashcardEditor = ({
               />
             ) : (
               <div
-                className="rounded-xl bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700"
+                className="rounded-xl border border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-zinc-950"
                 style={{ minHeight: "100px" }}
               />
             )}
@@ -400,8 +382,8 @@ const FlashcardEditor = ({
               <RichTextEditor
                 key={`detail-${currentKey}`}
                 value={form.detail}
-                onChange={(value) =>
-                  setForm((prev) => ({
+                onChange={value =>
+                  setForm(prev => ({
                     ...prev,
                     detail:
                       !value || value.length === 0
@@ -421,7 +403,7 @@ const FlashcardEditor = ({
               />
             ) : (
               <div
-                className="rounded-xl bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700"
+                className="rounded-xl border border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-zinc-950"
                 style={{ minHeight: "80px" }}
               />
             )}
@@ -433,31 +415,29 @@ const FlashcardEditor = ({
               问题类型
             </label>
             <div className="grid grid-cols-2 gap-3">
-              {(Object.keys(FLASHCARD_TYPE_META) as FlashcardType[]).map(
-                (type) => {
-                  const meta = FLASHCARD_TYPE_META[type];
-                  const active = form.type === type;
-                  return (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => handleTypeChange(type)}
-                      className={`rounded-xl border-2 px-3 py-2.5 text-left transition-all ${
-                        active
-                          ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10"
-                          : "border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600"
-                      }`}
-                    >
-                      <div className="text-sm font-semibold text-gray-800 dark:text-white">
-                        {meta.label}
-                      </div>
-                      <p className="text-xs text-gray-500 dark:text-slate-400 line-clamp-2 mt-0.5">
-                        {meta.description}
-                      </p>
-                    </button>
-                  );
-                },
-              )}
+              {(Object.keys(FLASHCARD_TYPE_META) as FlashcardType[]).map(type => {
+                const meta = FLASHCARD_TYPE_META[type];
+                const active = form.type === type;
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => handleTypeChange(type)}
+                    className={`rounded-xl border-2 px-3 py-2.5 text-left transition-all ${
+                      active
+                        ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10"
+                        : "border-gray-200 hover:border-gray-300 dark:border-slate-700 dark:hover:border-slate-600"
+                    }`}
+                  >
+                    <div className="text-sm font-semibold text-gray-800 dark:text-white">
+                      {meta.label}
+                    </div>
+                    <p className="mt-0.5 line-clamp-2 text-xs text-gray-500 dark:text-slate-400">
+                      {meta.description}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -480,22 +460,22 @@ const FlashcardEditor = ({
             <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
               标签
             </label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {form.tags.map((tag) => (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {form.tags.map(tag => (
                 <span
                   key={tag}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-slate-300"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-2.5 py-1 text-xs text-gray-700 dark:bg-zinc-800 dark:text-slate-300"
                 >
                   {tag}
                   <button
                     type="button"
                     onClick={() =>
-                      setForm((prev) => ({
+                      setForm(prev => ({
                         ...prev,
-                        tags: prev.tags.filter((item) => item !== tag),
+                        tags: prev.tags.filter(item => item !== tag),
                       }))
                     }
-                    className="text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
+                    className="text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
                   >
                     ×
                   </button>
@@ -504,12 +484,12 @@ const FlashcardEditor = ({
             </div>
             <input
               value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={(e) => {
+              onChange={e => setTagInput(e.target.value)}
+              onKeyDown={e => {
                 if (e.key === "Enter") {
                   e.preventDefault();
                   if (tagInput.trim() && !form.tags.includes(tagInput.trim())) {
-                    setForm((prev) => ({
+                    setForm(prev => ({
                       ...prev,
                       tags: [...prev.tags, tagInput.trim()],
                     }));
@@ -518,7 +498,7 @@ const FlashcardEditor = ({
                 }
               }}
               placeholder="输入标签后按回车添加"
-              className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
             />
           </div>
 
@@ -528,28 +508,20 @@ const FlashcardEditor = ({
               难度
             </label>
             <div className="grid grid-cols-3 gap-3">
-              {(["foundation", "standard", "advanced"] as const).map(
-                (level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() =>
-                      setForm((prev) => ({ ...prev, difficulty: level }))
-                    }
-                    className={`px-4 py-3 rounded-xl text-sm font-medium transition-all border-2 ${
-                      form.difficulty === level
-                        ? "border-cyan-500 bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
-                        : "border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 hover:border-gray-300 dark:hover:border-slate-600"
-                    }`}
-                  >
-                    {level === "foundation"
-                      ? "基础"
-                      : level === "advanced"
-                        ? "进阶"
-                        : "常规"}
-                  </button>
-                ),
-              )}
+              {(["foundation", "standard", "advanced"] as const).map(level => (
+                <button
+                  key={level}
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, difficulty: level }))}
+                  className={`rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all ${
+                    form.difficulty === level
+                      ? "border-cyan-500 bg-cyan-50 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400"
+                      : "border-gray-200 text-gray-600 hover:border-gray-300 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-600"
+                  }`}
+                >
+                  {level === "foundation" ? "基础" : level === "advanced" ? "进阶" : "常规"}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -557,13 +529,12 @@ const FlashcardEditor = ({
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                参考资料{" "}
-                {referenceList.length > 0 && `(${referenceList.length})`}
+                参考资料 {referenceList.length > 0 && `(${referenceList.length})`}
               </label>
               <button
                 type="button"
                 onClick={addReference}
-                className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium transition-colors"
+                className="text-xs font-medium text-indigo-600 transition-colors hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
               >
                 + 添加参考
               </button>
@@ -572,7 +543,7 @@ const FlashcardEditor = ({
               <div className="space-y-3">
                 {referenceList.map((ref, index) => (
                   <div key={index} className="relative">
-                    <div className="absolute -left-2 top-4 w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center">
+                    <div className="absolute -left-2 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-500/20">
                       <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
                         {index + 1}
                       </span>
@@ -580,19 +551,17 @@ const FlashcardEditor = ({
                     <div className="ml-6">
                       <ReferenceEditor
                         reference={ref}
-                        onChange={(updatedRef) => {
-                          setForm((prev) => {
+                        onChange={updatedRef => {
+                          setForm(prev => {
                             const next = [...prev.references];
                             next[index] = updatedRef;
                             return { ...prev, references: next };
                           });
                         }}
                         onRemove={() => {
-                          setForm((prev) => ({
+                          setForm(prev => ({
                             ...prev,
-                            references: prev.references.filter(
-                              (_, i) => i !== index,
-                            ),
+                            references: prev.references.filter((_, i) => i !== index),
                           }));
                         }}
                         isDark={isDark}
@@ -602,10 +571,8 @@ const FlashcardEditor = ({
                 ))}
               </div>
             ) : (
-              <div className="rounded-xl border-2 border-dashed border-gray-300 dark:border-slate-700 py-8 px-4 text-center">
-                <p className="text-sm text-gray-500 dark:text-slate-400 mb-2">
-                  暂无参考资料
-                </p>
+              <div className="rounded-xl border-2 border-dashed border-gray-300 px-4 py-8 text-center dark:border-slate-700">
+                <p className="mb-2 text-sm text-gray-500 dark:text-slate-400">暂无参考资料</p>
                 <p className="text-xs text-gray-400 dark:text-slate-500">
                   点击上方"添加参考"按钮来添加参考资料
                 </p>
@@ -615,19 +582,19 @@ const FlashcardEditor = ({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 pt-4 mr-5 mt-4 border-t border-gray-200 dark:border-slate-800">
+        <div className="mr-5 mt-4 flex items-center justify-end gap-3 border-t border-gray-200 pt-4 dark:border-slate-800">
           <button
             type="button"
             onClick={handleClose}
             disabled={saving}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-200 dark:bg-zinc-700 text-gray-700 dark:text-slate-200 hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-700 dark:text-slate-200 dark:hover:bg-slate-600"
           >
             取消
           </button>
           <button
             onClick={handleSubmit}
             disabled={saving || deckMissing || isEmptyContent(form.prompt)}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving ? "保存中..." : mode === "create" ? "创建闪卡" : "保存修改"}
           </button>
