@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useState } from "react";
 import type { SyntheticEvent } from "react";
 import { resolveLocalMediaSource } from "./localMedia";
+import { AudioPlayer } from "@tau/shared";
 
 type LocalAudioProps = React.AudioHTMLAttributes<HTMLAudioElement> & {
   src: string;
@@ -40,15 +41,8 @@ const LocalAudio = forwardRef<HTMLAudioElement, LocalAudioProps>(
       onError?.(event);
     };
 
-    return (
-      <audio
-        ref={ref}
-        src={resolvedSrc || src}
-        onError={handleError}
-        {...restProps}
-      />
-    );
-  },
+    return <AudioPlayer ref={ref} src={resolvedSrc || src} onError={handleError} {...restProps} />;
+  }
 );
 
 LocalAudio.displayName = "LocalAudio";

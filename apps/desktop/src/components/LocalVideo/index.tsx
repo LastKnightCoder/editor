@@ -1,11 +1,4 @@
-import React, {
-  useEffect,
-  useRef,
-  useState,
-  memo,
-  forwardRef,
-  useCallback,
-} from "react";
+import React, { useEffect, useRef, useState, memo, forwardRef, useCallback } from "react";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { getHomeDir } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
@@ -17,6 +10,7 @@ import {
   resolveLocalMediaPath,
   toLocalMediaPreviewUrl,
 } from "@/utils/localMediaPath";
+import { VideoPlayer } from "@tau/shared";
 
 type LocalVideoProps = React.VideoHTMLAttributes<HTMLVideoElement> & {
   src: string;
@@ -33,8 +27,7 @@ const LocalVideo = memo(
     console.log("[LocalVideo] normalizedSrc:", normalizedSrc);
 
     const [previewUrl, setPreviewUrl] = useState<string>("");
-    const videoTitle =
-      typeof rest?.title === "string" ? (rest.title as string) : undefined;
+    const videoTitle = typeof rest?.title === "string" ? (rest.title as string) : undefined;
 
     const innerRef = useRef<HTMLVideoElement>(null);
     const currentTime = useRef(0);
@@ -50,7 +43,7 @@ const LocalVideo = memo(
           ref.current = element;
         }
       },
-      [ref],
+      [ref]
     );
 
     const getVideoElement = useMemoizedFn(() => {
@@ -60,25 +53,23 @@ const LocalVideo = memo(
       return innerRef.current;
     });
 
-    const registerRemoteVideoCache = useMemoizedFn(
-      async (remoteUrl: string, localPath: string) => {
-        if (!remoteUrl || !remoteUrl.startsWith("http")) {
-          return;
-        }
-        if (!isLikelyVideoSource(remoteUrl)) {
-          return;
-        }
-        try {
-          await addRemoteVideoCacheEntry({
-            url: remoteUrl,
-            localPath,
-            title: videoTitle,
-          });
-        } catch (error) {
-          console.error("记录远程视频缓存失败:", error);
-        }
-      },
-    );
+    const registerRemoteVideoCache = useMemoizedFn(async (remoteUrl: string, localPath: string) => {
+      if (!remoteUrl || !remoteUrl.startsWith("http")) {
+        return;
+      }
+      if (!isLikelyVideoSource(remoteUrl)) {
+        return;
+      }
+      try {
+        await addRemoteVideoCacheEntry({
+          url: remoteUrl,
+          localPath,
+          title: videoTitle,
+        });
+      } catch (error) {
+        console.error("记录远程视频缓存失败:", error);
+      }
+    });
 
     useAsyncEffect(async () => {
       let localUrl = normalizedSrc;
@@ -94,10 +85,7 @@ const LocalVideo = memo(
         localUrl = await resolveLocalMediaPath(normalizedSrc);
 
         if (isDirectMediaUrl(localUrl)) {
-          console.log(
-            "[LocalVideo] 直接使用 URL (data/blob/localhost/ltoh):",
-            localUrl,
-          );
+          console.log("[LocalVideo] 直接使用 URL (data/blob/localhost/ltoh):", localUrl);
           setPreviewUrl(localUrl);
           currentMethod.current = "default";
           return;
@@ -116,13 +104,9 @@ const LocalVideo = memo(
         }
 
         const homeDir = await getHomeDir();
-        const absolutePath = localUrl.startsWith("~")
-          ? `${homeDir}${localUrl.slice(1)}`
-          : localUrl;
-        const { url: videoUrl, method } =
-          await toLocalMediaPreviewUrl(absolutePath);
-        currentMethod.current =
-          method === "app-protocol" ? "localhost" : "read-file";
+        const absolutePath = localUrl.startsWith("~") ? `${homeDir}${localUrl.slice(1)}` : localUrl;
+        const { url: videoUrl, method } = await toLocalMediaPreviewUrl(absolutePath);
+        currentMethod.current = method === "app-protocol" ? "localhost" : "read-file";
 
         const videoElement = getVideoElement();
         if (videoElement) {
@@ -159,11 +143,7 @@ const LocalVideo = memo(
         const savedPosition = localStorage.getItem(storageKey);
         if (savedPosition && currentTime.current === 0) {
           const position = parseFloat(savedPosition);
-          if (
-            !isNaN(position) &&
-            position >= 0 &&
-            position < videoElement.duration
-          ) {
+          if (!isNaN(position) && position >= 0 && position < videoElement.duration) {
             videoElement.currentTime = position;
             currentTime.current = position;
           }
@@ -185,10 +165,7 @@ const LocalVideo = memo(
       videoElement.addEventListener("ended", handleEnded);
 
       return () => {
-        videoElement.removeEventListener(
-          "loadedmetadata",
-          handleLoadedMetadata,
-        );
+        videoElement.removeEventListener("loadedmetadata", handleLoadedMetadata);
         videoElement.removeEventListener("timeupdate", handleTimeUpdate);
         videoElement.removeEventListener("ended", handleEnded);
       };
@@ -236,7 +213,7 @@ const LocalVideo = memo(
           setPreviewUrl(normalizedSrc);
           currentMethod.current = "default";
         }
-      },
+      }
     );
 
     if (!previewUrl) {
@@ -247,7 +224,7 @@ const LocalVideo = memo(
     console.log("[LocalVideo] 最终渲染的 previewUrl:", previewUrl);
 
     return (
-      <video
+      <VideoPlayer
         ref={setVideoRef}
         onError={handleOnError}
         src={previewUrl}
@@ -255,9 +232,9 @@ const LocalVideo = memo(
         {...rest}
       >
         {children}
-      </video>
+      </VideoPlayer>
     );
-  }),
+  })
 );
 
 export default LocalVideo;

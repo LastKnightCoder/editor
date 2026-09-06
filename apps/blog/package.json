@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tau/shared": "workspace:*",
     "abcjs": "^6.5.2",
     "ahooks": "^3.9.6",
     "antd": "^6.0.0",

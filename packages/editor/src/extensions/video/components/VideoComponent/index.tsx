@@ -12,20 +12,15 @@ import AddParagraph from "../../../../components/AddParagraph";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import useUploadResource from "../../../../hooks/useUploadResource";
-import {
-  useImageResize,
-  ResizeDirection,
-} from "../../../../hooks/useImageResize";
+import { useImageResize, ResizeDirection } from "../../../../hooks/useImageResize";
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
-import {
-  BilibiliVideoSelectResult,
-  YoutubeVideoSelectResult,
-} from "../../../../types";
+import { BilibiliVideoSelectResult, YoutubeVideoSelectResult } from "../../../../types";
 
 import {
   If,
   ModernTabs,
+  VideoPlayer,
   useBilibiliVideoWithContext,
   useYoutubeVideoWithContext,
   useRemoteVideoWithContext,
@@ -75,31 +70,19 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const ResourcePickerModal = editor.services?.components?.ResourcePickerModal;
   const BilibiliVideoLoader = editor.services?.components?.BilibiliVideoLoader;
   const YoutubeVideoLoader = editor.services?.components?.YoutubeVideoLoader;
-  const BilibiliVideoSelectModal =
-    editor.services?.components?.BilibiliVideoSelectModal;
-  const YoutubeVideoSelectModal =
-    editor.services?.components?.YoutubeVideoSelectModal;
+  const BilibiliVideoSelectModal = editor.services?.components?.BilibiliVideoSelectModal;
+  const YoutubeVideoSelectModal = editor.services?.components?.YoutubeVideoSelectModal;
   const RemoteVideoLoader = editor.services?.components?.RemoteVideoLoader;
 
-  const isBilibiliUrl = (url: string) =>
-    editor.services?.media.isBilibiliUrl(url) ?? false;
-  const isYoutubeUrl = (url: string) =>
-    editor.services?.media.isYoutubeUrl(url) ?? false;
+  const isBilibiliUrl = (url: string) => editor.services?.media.isBilibiliUrl(url) ?? false;
+  const isYoutubeUrl = (url: string) => editor.services?.media.isYoutubeUrl(url) ?? false;
   const shouldUseLocalVideoCache = (src: string) =>
     editor.services?.media.shouldUseLocalCache(src) ?? true;
 
-  const isBilibili = useMemo(
-    () => isBiliMetaInfo(element.metaInfo),
-    [element.metaInfo],
-  );
-  const isYoutube = useMemo(
-    () => isYoutubeMetaInfo(element.metaInfo),
-    [element.metaInfo],
-  );
+  const isBilibili = useMemo(() => isBiliMetaInfo(element.metaInfo), [element.metaInfo]);
+  const isYoutube = useMemo(() => isYoutubeMetaInfo(element.metaInfo), [element.metaInfo]);
   const biliMeta = isBiliMetaInfo(element.metaInfo) ? element.metaInfo : null;
-  const ytMeta = isYoutubeMetaInfo(element.metaInfo)
-    ? element.metaInfo
-    : undefined;
+  const ytMeta = isYoutubeMetaInfo(element.metaInfo) ? element.metaInfo : undefined;
 
   const {
     videoUrl: bilibiliVideoUrl,
@@ -122,9 +105,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const isRegularRemoteVideo = useMemo(() => {
     if (!elementSrc) return false;
     if (isBilibili || isYoutube) return false;
-    return (
-      elementSrc.startsWith("http://") || elementSrc.startsWith("https://")
-    );
+    return elementSrc.startsWith("http://") || elementSrc.startsWith("https://");
   }, [elementSrc, isBilibili, isYoutube]);
 
   const {
@@ -134,18 +115,17 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     streamProgress: remoteVideoProgress,
   } = useRemoteVideoWithContext(isRegularRemoteVideo ? elementSrc : undefined);
 
-  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } =
-    useDragAndDrop({
-      element,
-    });
+  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
+    element,
+  });
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
     element,
     editor,
-    buildMenuItems: (params) => buildVideoMenuItems(params),
+    buildMenuItems: params => buildVideoMenuItems(params),
   });
 
   const uploadFile = useUploadResource();
-  const setUploading = useMemoizedFn((uploading) => {
+  const setUploading = useMemoizedFn(uploading => {
     const path = ReactEditor.findPath(editor, element);
     Transforms.setNodes(
       editor,
@@ -154,7 +134,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
       },
       {
         at: path,
-      },
+      }
     );
   });
 
@@ -165,10 +145,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
       return;
     }
 
-    if (
-      (isBilibiliUrl(trimmed) || isYoutubeUrl(trimmed)) &&
-      !element.metaInfo
-    ) {
+    if ((isBilibiliUrl(trimmed) || isYoutubeUrl(trimmed)) && !element.metaInfo) {
       message.error("缺少 metaInfo，请通过对应入口创建该平台视频");
       return;
     }
@@ -182,140 +159,132 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
       },
       {
         at: path,
-      },
+      }
     );
     setNetworkUrl("");
   });
-  const handleUploadFileChange = useMemoizedFn(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) {
-        message.warning("请选择文件");
-        e.target.value = "";
-        return;
-      }
-      setUploading(true);
-      if (!uploadFile) {
-        message.warning("尚未配置任何资源上传设置，无法上传资源");
-        return null;
-      }
-      const path = ReactEditor.findPath(editor, element);
-      const uploadRes = await uploadFile(file);
-      if (!uploadRes) {
-        setUploading(false);
-        e.target.value = "";
-        return;
-      }
-      Transforms.setNodes(
-        editor,
-        {
-          src: uploadRes,
-        },
-        {
-          at: path,
-        },
-      );
+  const handleUploadFileChange = useMemoizedFn(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      message.warning("请选择文件");
+      e.target.value = "";
+      return;
+    }
+    setUploading(true);
+    if (!uploadFile) {
+      message.warning("尚未配置任何资源上传设置，无法上传资源");
+      return null;
+    }
+    const path = ReactEditor.findPath(editor, element);
+    const uploadRes = await uploadFile(file);
+    if (!uploadRes) {
       setUploading(false);
       e.target.value = "";
-    },
-  );
+      return;
+    }
+    Transforms.setNodes(
+      editor,
+      {
+        src: uploadRes,
+      },
+      {
+        at: path,
+      }
+    );
+    setUploading(false);
+    e.target.value = "";
+  });
 
-  const handleInsertFromResource = useMemoizedFn(
-    async (selected: IResource[]) => {
-      if (!selected.length) {
-        setResourcePickerOpen(false);
+  const handleInsertFromResource = useMemoizedFn(async (selected: IResource[]) => {
+    if (!selected.length) {
+      setResourcePickerOpen(false);
+      return;
+    }
+    const [first, ...rest] = selected;
+    const firstSrc = first.path ?? first.url;
+    const path = ReactEditor.findPath(editor, element);
+    Transforms.setNodes(
+      editor,
+      {
+        src: firstSrc,
+        uploading: false,
+        metaInfo: undefined,
+      },
+      { at: path }
+    );
+
+    let referencePath = path;
+    rest.forEach(resource => {
+      const resourceSrc = resource.path ?? resource.url;
+      if (!resourceSrc) {
         return;
       }
-      const [first, ...rest] = selected;
-      const firstSrc = first.path ?? first.url;
+      referencePath = Path.next(referencePath);
+      Transforms.insertNodes(
+        editor,
+        {
+          type: "video",
+          src: resourceSrc,
+          children: [
+            {
+              type: "formatted",
+              text: "",
+            },
+          ],
+        },
+        { at: referencePath }
+      );
+    });
+
+    setResourcePickerOpen(false);
+  });
+
+  // 处理 Bilibili 视频确认
+  const handleBilibiliConfirm = useMemoizedFn(async (result: BilibiliVideoSelectResult) => {
+    try {
       const path = ReactEditor.findPath(editor, element);
       Transforms.setNodes(
         editor,
         {
-          src: firstSrc,
-          uploading: false,
-          metaInfo: undefined,
+          src: result.url,
+          metaInfo: result.metaInfo,
         },
-        { at: path },
+        { at: path }
       );
 
-      let referencePath = path;
-      rest.forEach((resource) => {
-        const resourceSrc = resource.path ?? resource.url;
-        if (!resourceSrc) {
-          return;
-        }
-        referencePath = Path.next(referencePath);
-        Transforms.insertNodes(
-          editor,
-          {
-            type: "video",
-            src: resourceSrc,
-            children: [
-              {
-                type: "formatted",
-                text: "",
-              },
-            ],
-          },
-          { at: referencePath },
-        );
-      });
-
-      setResourcePickerOpen(false);
-    },
-  );
-
-  // 处理 Bilibili 视频确认
-  const handleBilibiliConfirm = useMemoizedFn(
-    async (result: BilibiliVideoSelectResult) => {
-      try {
-        const path = ReactEditor.findPath(editor, element);
-        Transforms.setNodes(
-          editor,
-          {
-            src: result.url,
-            metaInfo: result.metaInfo,
-          },
-          { at: path },
-        );
-
-        setBiliModalOpen(false);
-      } catch (error) {
-        console.error("添加 Bilibili 视频失败:", error);
-        message.error("添加 Bilibili 视频失败");
-      }
-    },
-  );
+      setBiliModalOpen(false);
+    } catch (error) {
+      console.error("添加 Bilibili 视频失败:", error);
+      message.error("添加 Bilibili 视频失败");
+    }
+  });
 
   // 解析并写入YouTube metaInfo
-  const handleYoutubeConfirm = useMemoizedFn(
-    async (result: YoutubeVideoSelectResult) => {
-      try {
-        const meta: YouTubeVideoMetaInfo = {
-          type: "youtube",
-          url: result.url,
-          videoStream: result.videoStream,
-          audioStream: result.audioStream,
-        };
+  const handleYoutubeConfirm = useMemoizedFn(async (result: YoutubeVideoSelectResult) => {
+    try {
+      const meta: YouTubeVideoMetaInfo = {
+        type: "youtube",
+        url: result.url,
+        videoStream: result.videoStream,
+        audioStream: result.audioStream,
+      };
 
-        const path = ReactEditor.findPath(editor, element);
-        Transforms.setNodes(
-          editor,
-          {
-            src: result.url,
-            metaInfo: meta,
-          },
-          { at: path },
-        );
+      const path = ReactEditor.findPath(editor, element);
+      Transforms.setNodes(
+        editor,
+        {
+          src: result.url,
+          metaInfo: meta,
+        },
+        { at: path }
+      );
 
-        setYoutubeModalOpen(false);
-      } catch (error) {
-        console.error("添加 YouTube 视频失败:", error);
-        message.error("添加 YouTube 视频失败");
-      }
-    },
-  );
+      setYoutubeModalOpen(false);
+    } catch (error) {
+      console.error("添加 YouTube 视频失败:", error);
+      message.error("添加 YouTube 视频失败");
+    }
+  });
 
   const { src, uploading, playbackRate = 1, width, align = "center" } = element;
 
@@ -335,7 +304,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   // 计算编辑器可用最大宽度
   useEffect(() => {
     const editorEl = containerRef.current?.closest(
-      '[data-slate-editor="true"]',
+      '[data-slate-editor="true"]'
     ) as HTMLElement | null;
     if (editorEl) {
       setMaxWidth(editorEl.clientWidth);
@@ -366,13 +335,10 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
 
       if (!width) {
         const editorEl = containerRef.current?.closest(
-          '[data-slate-editor="true"]',
+          '[data-slate-editor="true"]'
         ) as HTMLElement | null;
         const editorWidth = editorEl?.clientWidth || 0;
-        const initialWidth = Math.min(
-          videoNaturalWidth,
-          editorWidth || videoNaturalWidth,
-        );
+        const initialWidth = Math.min(videoNaturalWidth, editorWidth || videoNaturalWidth);
         updateElementWidth(initialWidth);
         resize.setSize({ width: initialWidth });
       }
@@ -385,10 +351,8 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     maxWidth,
     minHeight: 100,
     aspectRatio:
-      naturalSize.width && naturalSize.height
-        ? naturalSize.width / naturalSize.height
-        : undefined,
-    onResizeEnd: (size) => {
+      naturalSize.width && naturalSize.height ? naturalSize.width / naturalSize.height : undefined,
+    onResizeEnd: size => {
       if (size.width) {
         updateElementWidth(size.width);
       }
@@ -420,11 +384,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
           [styles.alignRight]: align === "right",
         })}
         style={{
-          width: resize.size.width
-            ? `${resize.size.width}px`
-            : width
-              ? `${width}px`
-              : "auto",
+          width: resize.size.width ? `${resize.size.width}px` : width ? `${width}px` : "auto",
           maxWidth: "100%",
         }}
       >
@@ -440,15 +400,13 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
             onLoadedMetadata={handleVideoLoad}
           />
         ) : (
-          <video
+          <VideoPlayer
             ref={videoRef}
             className={styles.video}
-            width={"100%"}
-            controls
             src={videoUrl}
+            playbackRate={playbackRate}
             onClick={handleSelect}
             onLoadedMetadata={handleVideoLoad}
-            style={{ display: "block" }}
           />
         )}
         {!readOnly && isSelected && (
@@ -459,16 +417,14 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
                 className={classnames(
                   styles.resizeHandle,
                   // @ts-ignore
-                  styles[`resize-${direction}`],
+                  styles[`resize-${direction}`]
                 )}
                 style={{ cursor }}
-                onPointerDown={(e) => resize.handleResizeStart(e, direction)}
+                onPointerDown={e => resize.handleResizeStart(e, direction)}
               />
             ))}
             {resize.isResizing && (
-              <div className={styles.videoInfo}>
-                {Math.round(resize.size.width || 0)} px
-              </div>
+              <div className={styles.videoInfo}>{Math.round(resize.size.width || 0)} px</div>
             )}
           </>
         )}
@@ -479,7 +435,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const renderEmpty = () => {
     if (readOnly) return null;
     return (
-      <div className="rounded-[0.75em] p-[1.25em] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
+      <div className="rounded-[0.75em] border border-gray-200 bg-white p-[1.25em] dark:border-zinc-700 dark:bg-zinc-900">
         <ModernTabs
           variant="flat"
           isDark={isDark}
@@ -495,7 +451,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
                   <div className="flex justify-start">
                     <button
                       type="button"
-                      className="px-[1.25em] py-[0.625em] rounded-[0.75em] border-none text-[0.875em] font-semibold cursor-pointer transition-all bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-[var(--th-btn-hover)] flex items-center gap-[0.5em]"
+                      className="flex cursor-pointer items-center gap-[0.5em] rounded-[0.75em] border-none bg-[var(--th-btn-bg)] px-[1.25em] py-[0.625em] text-[0.875em] font-semibold text-[var(--th-btn-text)] transition-all hover:bg-[var(--th-btn-hover)]"
                       onClick={() => uploadRef.current?.click()}
                     >
                       <FolderOpenOutlined />
@@ -516,7 +472,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
                   <div className="flex justify-start">
                     <button
                       type="button"
-                      className="px-[1.25em] py-[0.625em] rounded-[0.75em] text-[0.875em] font-semibold cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 hover:bg-gray-200 dark:hover:bg-zinc-700"
+                      className="cursor-pointer rounded-[0.75em] border border-gray-200 bg-gray-100 px-[1.25em] py-[0.625em] text-[0.875em] font-semibold text-gray-700 transition-all hover:bg-gray-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
                       onClick={() => setResourcePickerOpen(true)}
                     >
                       打开资源库
@@ -533,26 +489,25 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
                   <p className="m-0 text-[0.8125em] text-gray-500 dark:text-zinc-400">
                     支持直接嵌入公网直链视频，建议使用 MP4 或流媒体链接。
                   </p>
-                  <div className="flex gap-[0.75em] flex-wrap items-center">
-                    <div className="flex-1 relative">
-                      <span className="absolute left-[0.75em] top-1/2 -translate-y-1/2 text-gray-400 dark:text-zinc-500 pointer-events-none">
+                  <div className="flex flex-wrap items-center gap-[0.75em]">
+                    <div className="relative flex-1">
+                      <span className="pointer-events-none absolute left-[0.75em] top-1/2 -translate-y-1/2 text-gray-400 dark:text-zinc-500">
                         <LinkOutlined />
                       </span>
                       <input
                         type="text"
-                        className="w-full px-[1em] py-[0.875em] pl-[2.25em] rounded-[0.75em] border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-950 text-gray-800 dark:text-white text-[0.875em] outline-none transition-all duration-200 shadow-inner placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:border-[var(--th-border-focus)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_var(--th-border-focus)/20] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_var(--th-border-focus)/25]"
+                        className="w-full rounded-[0.75em] border border-gray-200 bg-gray-50 px-[1em] py-[0.875em] pl-[2.25em] text-[0.875em] text-gray-800 shadow-inner outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_var(--th-border-focus)/20] dark:border-zinc-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_var(--th-border-focus)/25]"
                         placeholder="https://example.com/video.mp4"
                         value={networkUrl}
-                        onChange={(e) => setNetworkUrl(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter")
-                            handleOnNetworkUrlInputFinish();
+                        onChange={e => setNetworkUrl(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") handleOnNetworkUrlInputFinish();
                         }}
                       />
                     </div>
                     <button
                       type="button"
-                      className="px-[1.25em] py-[0.75em] rounded-[0.75em] border-none text-[0.875em] font-semibold bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] cursor-pointer transition-all duration-200 hover:bg-[var(--th-btn-hover)]"
+                      className="cursor-pointer rounded-[0.75em] border-none bg-[var(--th-btn-bg)] px-[1.25em] py-[0.75em] text-[0.875em] font-semibold text-[var(--th-btn-text)] transition-all duration-200 hover:bg-[var(--th-btn-hover)]"
                       onClick={handleOnNetworkUrlInputFinish}
                     >
                       插入
@@ -572,7 +527,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
                   <div className="flex justify-start">
                     <button
                       type="button"
-                      className="px-[1.25em] py-[0.625em] rounded-[0.75em] border-none text-[0.875em] font-semibold cursor-pointer transition-all bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-[var(--th-btn-hover)]"
+                      className="cursor-pointer rounded-[0.75em] border-none bg-[var(--th-btn-bg)] px-[1.25em] py-[0.625em] text-[0.875em] font-semibold text-[var(--th-btn-text)] transition-all hover:bg-[var(--th-btn-hover)]"
                       onClick={() => setBiliModalOpen(true)}
                     >
                       打开 Bilibili 视频选择器
@@ -592,7 +547,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
                   <div className="flex justify-start">
                     <button
                       type="button"
-                      className="px-[1.25em] py-[0.625em] rounded-[0.75em] border-none text-[0.875em] font-semibold cursor-pointer transition-all bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-[var(--th-btn-hover)]"
+                      className="cursor-pointer rounded-[0.75em] border-none bg-[var(--th-btn-bg)] px-[1.25em] py-[0.625em] text-[0.875em] font-semibold text-[var(--th-btn-text)] transition-all hover:bg-[var(--th-btn-hover)]"
                       onClick={() => setYoutubeModalOpen(true)}
                     >
                       打开 YouTube 视频选择器
@@ -610,7 +565,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   return (
     <div
       contentEditable={false}
-      ref={(node) => {
+      ref={node => {
         drop(node);
       }}
       className={classnames(styles.container, {
@@ -632,11 +587,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
                     error={bilibiliError}
                     streamProgress={bilibiliProgress}
                   />
-                  <If
-                    condition={
-                      !!bilibiliVideoUrl && !bilibiliLoading && !bilibiliError
-                    }
-                  >
+                  <If condition={!!bilibiliVideoUrl && !bilibiliLoading && !bilibiliError}>
                     {renderVideoContainer(bilibiliVideoUrl as string)}
                   </If>
                 </>
@@ -655,11 +606,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
                     error={youtubeError}
                     streamProgress={youtubeProgress}
                   />
-                  <If
-                    condition={
-                      !!youtubeVideoUrl && !youtubeLoading && !youtubeError
-                    }
-                  >
+                  <If condition={!!youtubeVideoUrl && !youtubeLoading && !youtubeError}>
                     {renderVideoContainer(youtubeVideoUrl as string)}
                   </If>
                 </>
@@ -678,13 +625,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
                     error={remoteVideoError}
                     streamProgress={remoteVideoProgress}
                   />
-                  <If
-                    condition={
-                      !!remoteVideoUrl &&
-                      !remoteVideoLoading &&
-                      !remoteVideoError
-                    }
-                  >
+                  <If condition={!!remoteVideoUrl && !remoteVideoLoading && !remoteVideoError}>
                     {renderVideoContainer(remoteVideoUrl as string, false)}
                   </If>
                 </>
@@ -697,7 +638,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
         {children}
         <div
           contentEditable={false}
-          ref={(node) => {
+          ref={node => {
             drag(node);
           }}
           className={classnames(styles.dragHandler, {

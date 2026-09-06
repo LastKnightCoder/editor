@@ -9,14 +9,8 @@ import classnames from "classnames";
 import styles from "./index.module.less";
 import { MdDragIndicator } from "react-icons/md";
 import { message, Spin } from "antd";
-import { If, ModernTabs } from "@tau/shared";
-import React, {
-  useRef,
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-} from "react";
+import { AudioPlayer, If, ModernTabs } from "@tau/shared";
+import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useMemoizedFn } from "ahooks";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
@@ -62,8 +56,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
   const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
 
   const [textToSpeechValue, setTextToSpeechValue] = useState("");
-  const [textToSpeechTransformLoading, setTextToSpeechTransformLoading] =
-    useState(false);
+  const [textToSpeechTransformLoading, setTextToSpeechTransformLoading] = useState(false);
   const [textToSpeechAudio, setTextToSpeechAudio] = useState("");
 
   const isTTSConfigured = editor.services?.ai?.isTTSConfigured?.() ?? false;
@@ -96,10 +89,10 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
     if (!voiceQuery.trim()) return voices;
     const q = voiceQuery.toLowerCase();
     return voices.filter(
-      (v) =>
+      v =>
         v.name.toLowerCase().includes(q) ||
         v.id.toLowerCase().includes(q) ||
-        (v.description || "").toLowerCase().includes(q),
+        (v.description || "").toLowerCase().includes(q)
     );
   }, [voices, voiceQuery]);
 
@@ -117,10 +110,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
     calcPos();
     const onDocClick = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (
-        voiceTriggerRef.current?.contains(target) ||
-        voiceDropdownRef.current?.contains(target)
-      )
+      if (voiceTriggerRef.current?.contains(target) || voiceDropdownRef.current?.contains(target))
         return;
       setVoiceDropdownOpen(false);
       setVoiceQuery("");
@@ -136,14 +126,13 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
   }, [voiceDropdownOpen]);
 
   const { src, uploading } = element;
-  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } =
-    useDragAndDrop({
-      element,
-    });
+  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
+    element,
+  });
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
     element,
     editor,
-    buildMenuItems: (params) => buildAudioMenuItems(params),
+    buildMenuItems: params => buildAudioMenuItems(params),
   });
 
   const uploadFile = useUploadResource();
@@ -152,9 +141,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
     Transforms.setNodes(editor, { uploading }, { at: path });
   };
 
-  const handleNetworkUrlChange = (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
+  const handleNetworkUrlChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setNetworkUrl(event.target.value);
   };
 
@@ -173,55 +160,51 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
     return resource.path || resource.url || "";
   };
 
-  const handleInsertFromResource = useMemoizedFn(
-    async (selected: IResource[]) => {
-      if (!selected.length) {
-        setResourcePickerOpen(false);
-        return;
-      }
-      const [first, ...rest] = selected;
-      const firstSrc = resolveResourcePath(first);
-      if (!firstSrc) {
-        message.warning("资源没有可用的路径");
-        setResourcePickerOpen(false);
-        return;
-      }
+  const handleInsertFromResource = useMemoizedFn(async (selected: IResource[]) => {
+    if (!selected.length) {
+      setResourcePickerOpen(false);
+      return;
+    }
+    const [first, ...rest] = selected;
+    const firstSrc = resolveResourcePath(first);
+    if (!firstSrc) {
+      message.warning("资源没有可用的路径");
+      setResourcePickerOpen(false);
+      return;
+    }
 
-      const path = ReactEditor.findPath(editor, element);
-      Transforms.setNodes(
+    const path = ReactEditor.findPath(editor, element);
+    Transforms.setNodes(
+      editor,
+      {
+        src: firstSrc,
+        uploading: false,
+        isFromGenerate: false,
+        audioText: undefined,
+      },
+      { at: path }
+    );
+
+    let referencePath = path;
+    rest.forEach(resource => {
+      const resourceSrc = resolveResourcePath(resource);
+      if (!resourceSrc) return;
+      referencePath = Path.next(referencePath);
+      Transforms.insertNodes(
         editor,
         {
-          src: firstSrc,
-          uploading: false,
-          isFromGenerate: false,
-          audioText: undefined,
+          type: "audio",
+          src: resourceSrc,
+          children: [{ type: "formatted", text: "" }],
         },
-        { at: path },
+        { at: referencePath }
       );
+    });
 
-      let referencePath = path;
-      rest.forEach((resource) => {
-        const resourceSrc = resolveResourcePath(resource);
-        if (!resourceSrc) return;
-        referencePath = Path.next(referencePath);
-        Transforms.insertNodes(
-          editor,
-          {
-            type: "audio",
-            src: resourceSrc,
-            children: [{ type: "formatted", text: "" }],
-          },
-          { at: referencePath },
-        );
-      });
+    setResourcePickerOpen(false);
+  });
 
-      setResourcePickerOpen(false);
-    },
-  );
-
-  const handleTextToSpeechContentChange = (
-    event: React.ChangeEvent<HTMLTextAreaElement>,
-  ) => {
+  const handleTextToSpeechContentChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     setTextToSpeechValue(event.target.value);
   };
 
@@ -240,10 +223,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
     }
     setTextToSpeechTransformLoading(true);
     try {
-      const audioBlob = await editor.services?.ai.textToSpeech(
-        textToSpeechValue,
-        selectedVoiceId,
-      );
+      const audioBlob = await editor.services?.ai.textToSpeech(textToSpeechValue, selectedVoiceId);
       if (!audioBlob) {
         message.warning("文本转语音失败");
         return;
@@ -296,16 +276,14 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
         audioText: textToSpeechValue,
         uploading: false,
       },
-      { at: path },
+      { at: path }
     );
     setTextToSpeechValue("");
     setTextToSpeechAudio("");
     setTextToSpeechTransformLoading(false);
   };
 
-  const handleUploadFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
+  const handleUploadFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) {
       message.warning("尚未选择文件");
@@ -333,7 +311,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
   const renderNoContent = () => {
     if (readOnly) return null;
     return (
-      <div className="rounded-[0.75em] p-[1.25em] border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
+      <div className="rounded-[0.75em] border border-gray-200 bg-white p-[1.25em] dark:border-zinc-700 dark:bg-zinc-900">
         <ModernTabs
           variant="flat"
           isDark={isDark}
@@ -349,7 +327,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
                   <div className="flex justify-start">
                     <button
                       type="button"
-                      className="px-[1.25em] py-[0.625em] rounded-[0.75em] border-none text-[0.875em] font-semibold cursor-pointer transition-all bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-[var(--th-btn-hover)] flex items-center gap-[0.5em]"
+                      className="flex cursor-pointer items-center gap-[0.5em] rounded-[0.75em] border-none bg-[var(--th-btn-bg)] px-[1.25em] py-[0.625em] text-[0.875em] font-semibold text-[var(--th-btn-text)] transition-all hover:bg-[var(--th-btn-hover)]"
                       onClick={() => uploadRef.current?.click()}
                     >
                       <FolderOpenOutlined />
@@ -367,26 +345,25 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
                   <p className="m-0 text-[0.8125em] text-gray-500 dark:text-zinc-400">
                     贴上可直接访问的音频链接，我们会自动加载。
                   </p>
-                  <div className="flex gap-[0.75em] flex-wrap items-center">
-                    <div className="flex-1 relative">
-                      <span className="absolute left-[0.75em] top-1/2 -translate-y-1/2 text-gray-400 dark:text-zinc-500 pointer-events-none">
+                  <div className="flex flex-wrap items-center gap-[0.75em]">
+                    <div className="relative flex-1">
+                      <span className="pointer-events-none absolute left-[0.75em] top-1/2 -translate-y-1/2 text-gray-400 dark:text-zinc-500">
                         <LinkOutlined />
                       </span>
                       <input
                         type="text"
-                        className="w-full px-[1em] py-[0.875em] pl-[2.25em] rounded-[0.75em] border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-950 text-gray-800 dark:text-white text-[0.875em] outline-none transition-all duration-200 shadow-inner placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:border-[var(--th-border-focus)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_var(--th-border-focus)/20] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_var(--th-border-focus)/25]"
+                        className="w-full rounded-[0.75em] border border-gray-200 bg-gray-50 px-[1em] py-[0.875em] pl-[2.25em] text-[0.875em] text-gray-800 shadow-inner outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_var(--th-border-focus)/20] dark:border-zinc-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_var(--th-border-focus)/25]"
                         placeholder="https://example.com/audio.mp3"
                         value={networkUrl}
                         onChange={handleNetworkUrlChange}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter")
-                            handleOnNetworkUrlInputFinish();
+                        onKeyDown={e => {
+                          if (e.key === "Enter") handleOnNetworkUrlInputFinish();
                         }}
                       />
                     </div>
                     <button
                       type="button"
-                      className="px-[1.25em] py-[0.75em] rounded-[0.75em] border-none text-[0.875em] font-semibold bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] cursor-pointer transition-all duration-200 hover:bg-[var(--th-btn-hover)]"
+                      className="cursor-pointer rounded-[0.75em] border-none bg-[var(--th-btn-bg)] px-[1.25em] py-[0.75em] text-[0.875em] font-semibold text-[var(--th-btn-text)] transition-all duration-200 hover:bg-[var(--th-btn-hover)]"
                       onClick={handleOnNetworkUrlInputFinish}
                     >
                       插入
@@ -406,7 +383,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
                   <div className="flex justify-start">
                     <button
                       type="button"
-                      className="px-[1.25em] py-[0.625em] rounded-[0.75em] text-[0.875em] font-semibold cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 hover:bg-gray-200 dark:hover:bg-zinc-700"
+                      className="cursor-pointer rounded-[0.75em] border border-gray-200 bg-gray-100 px-[1.25em] py-[0.625em] text-[0.875em] font-semibold text-gray-700 transition-all hover:bg-gray-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
                       onClick={() => setResourcePickerOpen(true)}
                     >
                       打开资源库
@@ -431,29 +408,25 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
                     <>
                       <div className="relative">
                         <div className="flex items-center gap-[0.5em]">
-                          <span className="text-[0.8125em] text-gray-600 dark:text-zinc-300 whitespace-nowrap">
+                          <span className="whitespace-nowrap text-[0.8125em] text-gray-600 dark:text-zinc-300">
                             音色：
                           </span>
                           <div
                             ref={voiceTriggerRef}
-                            className="flex-1 min-w-[9em] h-[2.25em] px-[0.75em] rounded-[0.75em] bg-white dark:bg-zinc-900 text-[0.8125em] text-gray-800 dark:text-zinc-100 flex items-center justify-between cursor-pointer transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-zinc-800 shadow-[0_0_0_1px_rgba(34,42,53,0.1),0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
+                            className="flex h-[2.25em] min-w-[9em] flex-1 cursor-pointer items-center justify-between rounded-[0.75em] bg-white px-[0.75em] text-[0.8125em] text-gray-800 shadow-[0_0_0_1px_rgba(34,42,53,0.1),0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-gray-50 dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)] dark:hover:bg-zinc-800"
                             onClick={() => {
-                              if (!voicesLoading)
-                                setVoiceDropdownOpen((v) => !v);
+                              if (!voicesLoading) setVoiceDropdownOpen(v => !v);
                             }}
                           >
-                            <span className="truncate flex-1 min-w-0">
-                              {voices.find((v) => v.id === selectedVoiceId)
-                                ?.name || (
-                                <span className="text-gray-400 dark:text-zinc-500">
-                                  选择音色
-                                </span>
+                            <span className="min-w-0 flex-1 truncate">
+                              {voices.find(v => v.id === selectedVoiceId)?.name || (
+                                <span className="text-gray-400 dark:text-zinc-500">选择音色</span>
                               )}
                             </span>
                             <svg
                               className={classnames(
-                                "w-[1em] h-[1em] shrink-0 ml-[0.5em] transition-transform text-gray-400 dark:text-zinc-500",
-                                voiceDropdownOpen && "rotate-180",
+                                "ml-[0.5em] h-[1em] w-[1em] shrink-0 text-gray-400 transition-transform dark:text-zinc-500",
+                                voiceDropdownOpen && "rotate-180"
                               )}
                               viewBox="0 0 24 24"
                               fill="none"
@@ -468,7 +441,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
                           createPortal(
                             <div
                               ref={voiceDropdownRef}
-                              className="fixed z-[9999] p-[0.375em] rounded-[0.75em] bg-white dark:bg-zinc-900 shadow-[0_0_0_1px_rgba(34,42,53,0.08),0_1px_5px_-4px_rgba(19,19,22,0.7),0_4px_8px_rgba(34,42,53,0.05)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_4px_16px_rgba(0,0,0,0.4)]"
+                              className="fixed z-[9999] rounded-[0.75em] bg-white p-[0.375em] shadow-[0_0_0_1px_rgba(34,42,53,0.08),0_1px_5px_-4px_rgba(19,19,22,0.7),0_4px_8px_rgba(34,42,53,0.05)] dark:bg-zinc-900 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_4px_16px_rgba(0,0,0,0.4)]"
                               style={{
                                 top: voiceDropdownPos.top,
                                 left: voiceDropdownPos.left,
@@ -477,11 +450,11 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
                             >
                               <input
                                 value={voiceQuery}
-                                onChange={(e) => setVoiceQuery(e.target.value)}
+                                onChange={e => setVoiceQuery(e.target.value)}
                                 placeholder="搜索音色..."
-                                className="w-full h-[2em] px-[0.75em] mb-[0.375em] rounded-[0.5em] border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-[0.8125em] text-gray-800 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10"
+                                className="mb-[0.375em] h-[2em] w-full rounded-[0.5em] border border-gray-200 bg-gray-50 px-[0.75em] text-[0.8125em] text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:ring-white/10"
                                 autoFocus
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={e => e.stopPropagation()}
                               />
                               <div className="max-h-[15em] overflow-y-auto overflow-x-hidden">
                                 {filteredVoices.length === 0 && (
@@ -489,14 +462,14 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
                                     无匹配项
                                   </div>
                                 )}
-                                {filteredVoices.map((v) => (
+                                {filteredVoices.map(v => (
                                   <div
                                     key={v.id}
                                     className={classnames(
-                                      "px-[0.75em] py-[0.375em] mx-[0.125em] mb-[0.125em] rounded-[0.5em] text-[0.8125em] cursor-pointer transition-colors duration-100",
+                                      "mx-[0.125em] mb-[0.125em] cursor-pointer rounded-[0.5em] px-[0.75em] py-[0.375em] text-[0.8125em] transition-colors duration-100",
                                       v.id === selectedVoiceId
-                                        ? "bg-gray-900/[0.06] text-gray-900 dark:bg-white/[0.08] dark:text-white font-medium"
-                                        : "hover:bg-gray-100 dark:hover:bg-zinc-700/50 text-gray-700 dark:text-zinc-200",
+                                        ? "bg-gray-900/[0.06] font-medium text-gray-900 dark:bg-white/[0.08] dark:text-white"
+                                        : "text-gray-700 hover:bg-gray-100 dark:text-zinc-200 dark:hover:bg-zinc-700/50"
                                     )}
                                     onClick={() => {
                                       setSelectedVoiceId(v.id);
@@ -506,7 +479,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
                                   >
                                     <div>{v.name}</div>
                                     {v.description && (
-                                      <div className="text-[0.85em] text-gray-400 dark:text-zinc-500 mt-[0.125em]">
+                                      <div className="mt-[0.125em] text-[0.85em] text-gray-400 dark:text-zinc-500">
                                         {v.description}
                                       </div>
                                     )}
@@ -514,11 +487,11 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
                                 ))}
                               </div>
                             </div>,
-                            document.body,
+                            document.body
                           )}
                       </div>
                       <textarea
-                        className="w-full min-h-[7.5em] resize-y px-[1em] py-[0.875em] rounded-[0.75em] border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-950 text-gray-800 dark:text-white text-[0.875em] leading-[1.6] outline-none transition-all duration-200 shadow-inner placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:border-[var(--th-border-focus)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_var(--th-border-focus)/20] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_var(--th-border-focus)/25]"
+                        className="min-h-[7.5em] w-full resize-y rounded-[0.75em] border border-gray-200 bg-gray-50 px-[1em] py-[0.875em] text-[0.875em] leading-[1.6] text-gray-800 shadow-inner outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_var(--th-border-focus)/20] dark:border-zinc-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_var(--th-border-focus)/25]"
                         rows={4}
                         value={textToSpeechValue}
                         onChange={handleTextToSpeechContentChange}
@@ -527,10 +500,8 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
                       <div className="flex justify-start">
                         <button
                           type="button"
-                          className="px-[1.25em] py-[0.625em] rounded-[0.75em] border-none text-[0.875em] font-semibold cursor-pointer transition-all bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-[var(--th-btn-hover)] disabled:opacity-40 disabled:cursor-not-allowed"
-                          disabled={
-                            textToSpeechDisabled || textToSpeechTransformLoading
-                          }
+                          className="cursor-pointer rounded-[0.75em] border-none bg-[var(--th-btn-bg)] px-[1.25em] py-[0.625em] text-[0.875em] font-semibold text-[var(--th-btn-text)] transition-all hover:bg-[var(--th-btn-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+                          disabled={textToSpeechDisabled || textToSpeechTransformLoading}
                           onClick={handleOnTextToSpeechInputFinish}
                         >
                           {textToSpeechTransformLoading
@@ -541,15 +512,14 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
                         </button>
                       </div>
                       {textToSpeechAudio && (
-                        <div className="flex items-center justify-between gap-[1em] p-[1em] rounded-[0.75em] border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-950">
-                          <audio
-                            controls
+                        <div className="flex items-center justify-between gap-[1em] rounded-[0.75em] border border-gray-200 bg-gray-50 p-[1em] dark:border-zinc-700 dark:bg-zinc-950">
+                          <AudioPlayer
                             src={`data:audio/mp3;base64,${textToSpeechAudio}`}
-                            className="flex-1"
+                            className="border-none! bg-transparent! px-0! py-0! dark:bg-transparent! flex-1"
                           />
                           <button
                             type="button"
-                            className="px-[1.25em] py-[0.625em] rounded-[0.75em] text-[0.875em] font-semibold cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 hover:bg-gray-200 dark:hover:bg-zinc-700 shrink-0"
+                            className="shrink-0 cursor-pointer rounded-[0.75em] border border-gray-200 bg-gray-100 px-[1.25em] py-[0.625em] text-[0.875em] font-semibold text-gray-700 transition-all hover:bg-gray-200 dark:border-zinc-700 dark:bg-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
                             onClick={applyGeneratedAudio}
                           >
                             应用到文档
@@ -569,7 +539,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
 
   return (
     <div
-      ref={(node) => {
+      ref={node => {
         drop(node);
       }}
       className={styles.container}
@@ -591,9 +561,8 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
                 })}
               />
             ) : (
-              <audio
+              <AudioPlayer
                 src={src}
-                controls
                 className={classnames(styles.audio, {
                   [styles.dragging]: isDragging,
                   [styles.drop]: isOverCurrent && canDrop,
@@ -610,7 +579,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
         <div
           suppressContentEditableWarning
           contentEditable={false}
-          ref={(node) => {
+          ref={node => {
             drag(node);
           }}
           className={classnames(styles.dragHandler, {

@@ -1,26 +1,16 @@
-import React, {
-  forwardRef,
-  useState,
-  useRef,
-  useEffect,
-  useCallback,
-  memo,
-} from "react";
+import React, { forwardRef, useState, useRef, useEffect, useCallback, memo } from "react";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import type WebSocketClient from "../../utils/WebSocketClient";
+import { AudioPlayer } from "@tau/shared";
 
 interface RpcLocalAudioProps {
   src: string;
   wsClient: WebSocketClient | null;
 }
 
-type RpcLocalAudioElementProps = Omit<
-  React.AudioHTMLAttributes<HTMLAudioElement>,
-  "src"
->;
+type RpcLocalAudioElementProps = Omit<React.AudioHTMLAttributes<HTMLAudioElement>, "src">;
 
-type RpcLocalAudioCombinedProps = RpcLocalAudioProps &
-  RpcLocalAudioElementProps;
+type RpcLocalAudioCombinedProps = RpcLocalAudioProps & RpcLocalAudioElementProps;
 
 const AUDIO_POSITION_PREFIX = "audio_position_";
 
@@ -53,7 +43,7 @@ const RpcLocalAudio = memo(
         }
         return wsClient.sendRequest(method, params) as Promise<T>;
       },
-      [wsClient],
+      [wsClient]
     );
 
     useAsyncEffect(async () => {
@@ -87,10 +77,7 @@ const RpcLocalAudio = memo(
           // 处理 ~ 开头的路径
           let absolutePath = src;
           if (src.startsWith("~")) {
-            const { homeDir } = await rpc<{ homeDir: string }>(
-              "file.getHomeDir",
-              {},
-            );
+            const { homeDir } = await rpc<{ homeDir: string }>("file.getHomeDir", {});
             absolutePath = `${homeDir}${src.slice(1)}`;
           }
 
@@ -152,15 +139,8 @@ const RpcLocalAudio = memo(
 
     if (loading || !previewUrl) return null;
 
-    return (
-      <audio
-        ref={audioRef}
-        src={previewUrl}
-        crossOrigin="anonymous"
-        {...rest}
-      />
-    );
-  }),
+    return <AudioPlayer ref={audioRef} src={previewUrl} crossOrigin="anonymous" {...rest} />;
+  })
 );
 
 RpcLocalAudio.displayName = "RpcLocalAudio";
