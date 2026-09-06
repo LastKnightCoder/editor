@@ -157,12 +157,6 @@
   .text-text-normal {
     color: var(--th-text);
   }
-  .text-code {
-    color: var(--th-active-text);
-  }
-  .bg-code-bg {
-    background-color: transparent;
-  }
 
   .bg-panel-active {
     background-color: var(--th-bg-hover);
