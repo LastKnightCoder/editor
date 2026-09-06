@@ -320,7 +320,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
       >
         <div
           className={classNames(
-            "flex max-h-[calc(100vh-200px)] flex-col rounded-2xl border bg-white/95 p-6 shadow-2xl backdrop-blur dark:bg-zinc-900/95",
+            "flex max-h-[calc(100vh-200px)] flex-col rounded-2xl border border-[var(--th-border)] bg-[var(--th-bg-elevated)] p-6 shadow-2xl",
             themeColors.cardBorderClass,
             contentClassName
           )}
