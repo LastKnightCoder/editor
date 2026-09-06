@@ -21,12 +21,9 @@ import HtmlBlockExtension from "./html-block";
 import TikzExtension from "./tikz";
 import TypstExtension from "./typst";
 import CustomBlockExtension from "./custom-block";
-import {
-  MultiColumnsContainerExtension,
-  MultiColumnItemExtension,
-} from "./multi-column-layout";
+import { MultiColumnsContainerExtension, MultiColumnItemExtension } from "./multi-column-layout";
 import HighlightBlockExtension from "./highlight-block";
-import TabsExtension from "./tabs";
+import TabsExtension, { TabPaneExtension } from "./tabs";
 import StyledTextExtension from "./styled-text";
 import AudioExtension from "./audio";
 import VideoExtension from "./video";
@@ -77,6 +74,7 @@ export const multiColumnItem = new MultiColumnItemExtension();
 
 export const highlightBlock = new HighlightBlockExtension();
 export const tabs = new TabsExtension();
+export const tabPane = new TabPaneExtension();
 export const styledText = new StyledTextExtension();
 export const audio = new AudioExtension();
 export const video = new VideoExtension();
@@ -103,6 +101,7 @@ export const startExtensions = [
   listItem,
   codeBlock,
   tabs,
+  tabPane,
   detail,
   highlightBlock,
   inlineMath,

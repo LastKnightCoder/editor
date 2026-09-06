@@ -1,21 +1,21 @@
-import { Editor, Path, Transforms } from "slate";
-import type { TabsElement } from "../../../types";
+import { Editor, NodeEntry, Path, Transforms } from "slate";
+import type { TabPaneElement, TabsElement } from "../../../types";
 
-export const deleteCurTab = (editor: Editor, tabsEle: TabsElement, tabsPath: Path) => {
-  // 删除当前 Tab
-  const { activeKey } = tabsEle;
-  // 协作文档初始化时标签页元数据可能尚未投影到 Slate 节点。
-  if (!Array.isArray(tabsEle.tabsContent)) {
-    return;
-  }
-  const { tabsContent } = tabsEle;
-  const nextTab = tabsContent.find(tab => tab.key !== activeKey);
-  const newTabsContent = tabsContent.filter(tab => tab.key !== activeKey);
-  if (!nextTab) {
-    Editor.withoutNormalizing(editor, () => {
-      Transforms.delete(editor, {
-        at: tabsPath,
-      });
+/**
+ * 删除指定 pane 节点；若删除后 tabs 无剩余 pane 则整个 tabs 块退化为空段落。
+ */
+export const deleteCurTab = (editor: Editor, panePath: Path) => {
+  const [pane] = Editor.node(editor, panePath) as NodeEntry<TabPaneElement>;
+  const tabsPath = Path.parent(panePath);
+  const [tabsNode] = Editor.node(editor, tabsPath) as NodeEntry<TabsElement>;
+  const panes = ((tabsNode as TabsElement).children || []).filter(
+    child => child.type === "tab-pane"
+  ) as TabPaneElement[];
+  const remaining = panes.filter(item => item.tabKey !== pane.tabKey);
+
+  Editor.withoutNormalizing(editor, () => {
+    if (remaining.length === 0) {
+      Transforms.removeNodes(editor, { at: tabsPath });
       Transforms.insertNodes(
         editor,
         {
@@ -32,25 +32,16 @@ export const deleteCurTab = (editor: Editor, tabsEle: TabsElement, tabsPath: Pat
           select: true,
         }
       );
-    });
-  } else {
-    const { key, content } = nextTab;
-    Editor.withoutNormalizing(editor, () => {
-      Transforms.delete(editor, {
-        at: tabsPath,
-      });
-      Transforms.insertNodes(
-        editor,
-        {
-          type: "tabs",
-          tabsContent: newTabsContent,
-          activeKey: key,
-          children: content as any,
-        },
-        {
-          at: tabsPath,
-        }
-      );
-    });
-  }
+    } else {
+      Transforms.removeNodes(editor, { at: panePath });
+      const activeKey = remaining.some(item => item.tabKey === tabsNode.activeKey)
+        ? tabsNode.activeKey
+        : remaining[0].tabKey;
+      if (activeKey !== tabsNode.activeKey) {
+        Transforms.setNodes(editor, { activeKey }, { at: tabsPath });
+        const nextIndex = remaining.findIndex(item => item.tabKey === activeKey);
+        Transforms.select(editor, Editor.start(editor, [...tabsPath, nextIndex]));
+      }
+    }
+  });
 };

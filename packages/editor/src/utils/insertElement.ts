@@ -1,12 +1,7 @@
 import { Editor, Path, Transforms, Element, Range, Node } from "slate";
 import { v4 as getUuid } from "uuid";
 
-import {
-  isParagraphAndEmpty,
-  isCollapsed,
-  replaceNode,
-  getCurrentTextNode,
-} from "./editor";
+import { isParagraphAndEmpty, isCollapsed, replaceNode, getCurrentTextNode } from "./editor";
 
 import {
   BlockElement,
@@ -17,7 +12,7 @@ import {
   LinkElement,
   MultiColumnItemElement,
   Color,
-  ITabsContent,
+  TabPaneElement,
   AudioElement,
   VideoElement,
   HTMLInlineElement,
@@ -42,21 +37,14 @@ const getSelectionSnapshot = (selection: Editor["selection"]) => {
   return `${anchorPath}:${selection.anchor.offset}-${focusPath}:${selection.focus.offset}`;
 };
 
-const isSelectionSnapshotUnchanged = (
-  editor: Editor,
-  expectedSnapshot: string | null,
-) => {
+const isSelectionSnapshotUnchanged = (editor: Editor, expectedSnapshot: string | null) => {
   if (!expectedSnapshot) {
     return false;
   }
   return getSelectionSnapshot(editor.selection) === expectedSnapshot;
 };
 
-const focusInsertedPreviewElement = (
-  editor: Editor,
-  path?: Path,
-  retry = 5,
-) => {
+const focusInsertedPreviewElement = (editor: Editor, path?: Path, retry = 5) => {
   if (!path || retry <= 0 || typeof document === "undefined") {
     return;
   }
@@ -65,10 +53,7 @@ const focusInsertedPreviewElement = (
     return;
   }
   const focusEditor = (leftTryCount: number) => {
-    if (
-      leftTryCount <= 0 ||
-      !isSelectionSnapshotUnchanged(editor, selectionSnapshot)
-    ) {
+    if (leftTryCount <= 0 || !isSelectionSnapshotUnchanged(editor, selectionSnapshot)) {
       return;
     }
     setTimeout(() => {
@@ -102,8 +87,7 @@ const focusInsertedCodeBlock = (editor: Editor, uuid: string, retry = 5) => {
   }
   const selectionSnapshot = getSelectionSnapshot(editor.selection);
   const shouldKeepFocusing = () =>
-    !selectionSnapshot ||
-    isSelectionSnapshotUnchanged(editor, selectionSnapshot);
+    !selectionSnapshot || isSelectionSnapshotUnchanged(editor, selectionSnapshot);
 
   const focusEditor = (leftTryCount: number) => {
     if (leftTryCount <= 0 || !shouldKeepFocusing()) {
@@ -132,20 +116,20 @@ const focusInsertedCodeBlock = (editor: Editor, uuid: string, retry = 5) => {
 export const setOrInsertNode = (
   editor: Editor,
   node: BlockElement,
-  options: InsertElementOptions = {},
+  options: InsertElementOptions = {}
 ) => {
   if (!isCollapsed(editor)) {
     return;
   }
   const [match] = Editor.nodes(editor, {
-    match: (n) => n.type === "paragraph",
+    match: n => n.type === "paragraph",
     mode: "lowest",
   });
   if (!match) {
     return;
   }
   if (isParagraphAndEmpty(editor)) {
-    return replaceNode(editor, node, (n) => n.type === "paragraph", options);
+    return replaceNode(editor, node, n => n.type === "paragraph", options);
   } else {
     Transforms.insertNodes(editor, node, options);
     return Path.next(match[1]);
@@ -162,13 +146,13 @@ export const insertHeader = (editor: Editor, level: 1 | 2 | 3 | 4 | 5 | 6) => {
     },
     {
       select: true,
-    },
+    }
   );
 };
 
 export const insertCallout = (
   editor: Editor,
-  type: "tip" | "warning" | "info" | "danger" | "note",
+  type: "tip" | "warning" | "info" | "danger" | "note"
 ) => {
   setOrInsertNode(
     editor,
@@ -190,7 +174,7 @@ export const insertCallout = (
     },
     {
       select: true,
-    },
+    }
   );
 };
 
@@ -215,7 +199,7 @@ export const insertDetails = (editor: Editor) => {
     },
     {
       select: true,
-    },
+    }
   );
 };
 
@@ -238,7 +222,7 @@ export const insertBlockquote = (editor: Editor) => {
     },
     {
       select: true,
-    },
+    }
   );
 };
 
@@ -305,10 +289,7 @@ interface InlineImageParams {
   uuid?: string;
 }
 
-export const insertInlineImage = (
-  editor: Editor,
-  params: InlineImageParams,
-) => {
+export const insertInlineImage = (editor: Editor, params: InlineImageParams) => {
   const inlineImage: InlineImageElement = {
     type: "inline-image",
     ...params,
@@ -427,22 +408,20 @@ export const insertBlockMath = (editor: Editor) => {
 
 export const insertTable = (editor: Editor, rows: number, cols: number) => {
   // 根据行数和列数创建一个表格
-  const tableRowElements: TableRowElement[] = Array.from({ length: rows }).map(
-    () => {
-      const tableCellElements: TableCellElement[] = Array.from({
-        length: cols,
-      }).map(() => {
-        return {
-          type: "table-cell",
-          children: [{ type: "formatted", text: "" }],
-        };
-      });
+  const tableRowElements: TableRowElement[] = Array.from({ length: rows }).map(() => {
+    const tableCellElements: TableCellElement[] = Array.from({
+      length: cols,
+    }).map(() => {
       return {
-        type: "table-row",
-        children: tableCellElements,
+        type: "table-cell",
+        children: [{ type: "formatted", text: "" }],
       };
-    },
-  );
+    });
+    return {
+      type: "table-row",
+      children: tableCellElements,
+    };
+  });
   const tableElement: TableElement = {
     type: "table",
     children: tableRowElements,
@@ -458,11 +437,7 @@ export const insertTable = (editor: Editor, rows: number, cols: number) => {
   return insertPath;
 };
 
-export const insertCodeBlock = (
-  editor: Editor,
-  language = "javascript",
-  code = "",
-) => {
+export const insertCodeBlock = (editor: Editor, language = "javascript", code = "") => {
   const uuid = getUuid();
   const res = setOrInsertNode(editor, {
     type: "code-block",
@@ -632,7 +607,7 @@ export const insertMultiColumnsContainer = (editor: Editor, columns = 2) => {
     },
     {
       select: true,
-    },
+    }
   );
 
   if (res) {
@@ -645,10 +620,7 @@ export const insertMultiColumnsContainer = (editor: Editor, columns = 2) => {
   return res;
 };
 
-export const insertHighlightBlock = (
-  editor: Editor,
-  color = "red" as Color,
-) => {
+export const insertHighlightBlock = (editor: Editor, color = "red" as Color) => {
   return setOrInsertNode(
     editor,
     {
@@ -668,7 +640,7 @@ export const insertHighlightBlock = (
     },
     {
       select: true,
-    },
+    }
   );
 };
 
@@ -688,67 +660,52 @@ export const insertImageGallery = (editor: Editor) => {
 
 export const insertTabs = (editor: Editor) => {
   const key = getUuid();
-  const tabs: ITabsContent[] = [
-    {
-      key,
-      title: "Tab 1",
-      content: [
-        {
-          type: "paragraph",
-          children: [
-            {
-              type: "formatted",
-              text: "",
-            },
-          ],
-        },
-      ],
-    },
-  ];
+  const pane: TabPaneElement = {
+    type: "tab-pane",
+    tabKey: key,
+    title: "Tab 1",
+    children: [
+      {
+        type: "paragraph",
+        children: [
+          {
+            type: "formatted",
+            text: "",
+          },
+        ],
+      },
+    ],
+  };
 
   return setOrInsertNode(
     editor,
     {
       type: "tabs",
-      tabsContent: tabs,
       activeKey: key,
-      children: [
-        {
-          type: "paragraph",
-          children: [
-            {
-              type: "formatted",
-              text: "",
-            },
-          ],
-        },
-      ],
+      children: [pane],
     },
     {
       select: true,
-    },
+    }
   );
 };
 
 const isLinkActive = (editor: Editor) => {
   const [link] = Editor.nodes(editor, {
-    match: (n) =>
-      !Editor.isEditor(n) && Element.isElement(n) && n.type === "link",
+    match: n => !Editor.isEditor(n) && Element.isElement(n) && n.type === "link",
   });
   return !!link;
 };
 
 export const unwrapLink = (editor: Editor) => {
   Transforms.unwrapNodes(editor, {
-    match: (n) =>
-      !Editor.isEditor(n) && Element.isElement(n) && n.type === "link",
+    match: n => !Editor.isEditor(n) && Element.isElement(n) && n.type === "link",
   });
 };
 
 export const isAnnotationActive = (editor: Editor) => {
   const [annotation] = Editor.nodes(editor, {
-    match: (n) =>
-      !Editor.isEditor(n) && Element.isElement(n) && n.type === "annotation",
+    match: n => !Editor.isEditor(n) && Element.isElement(n) && n.type === "annotation",
   });
   return !!annotation;
 };
@@ -777,7 +734,7 @@ export const wrapLink = (editor: Editor, url: string, open = false) => {
 
 export const unWrapInlineMath = (editor: Editor) => {
   Transforms.unwrapNodes(editor, {
-    match: (n) => n.type === "inline-math",
+    match: n => n.type === "inline-math",
   });
 };
 
@@ -786,11 +743,9 @@ export const wrapInlineMath = (editor: Editor) => {
   const [node] = getCurrentTextNode(editor);
   if (selection && !Range.isCollapsed(selection) && node.type === "formatted") {
     const text = Editor.string(editor, selection);
-    ["bold", "code", "italic", "underline", "highlight", "color"].forEach(
-      (type) => {
-        Editor.removeMark(editor, type);
-      },
-    );
+    ["bold", "code", "italic", "underline", "highlight", "color"].forEach(type => {
+      Editor.removeMark(editor, type);
+    });
     editor.deleteBackward("character");
     Transforms.wrapNodes(
       editor,
@@ -802,14 +757,14 @@ export const wrapInlineMath = (editor: Editor) => {
       {
         at: selection,
         split: true,
-      },
+      }
     );
   }
 };
 
 export const unwrapUnderline = (editor: Editor) => {
   Transforms.unwrapNodes(editor, {
-    match: (n) => n.type === "underline",
+    match: n => n.type === "underline",
   });
 };
 
@@ -831,14 +786,14 @@ export const wrapUnderline = (editor: Editor) => {
       {
         at: selection,
         split: true,
-      },
+      }
     );
   }
 };
 
 export const unwrapStyledText = (editor: Editor) => {
   Transforms.unwrapNodes(editor, {
-    match: (n) => n.type === "styled-text",
+    match: n => n.type === "styled-text",
   });
 };
 
@@ -853,22 +808,20 @@ export const wrapStyledText = (editor: Editor) => {
       {
         type: "styled-text",
         color:
-          (localStorage.getItem(
-            STYLED_TEXT_SELECT_COLOR_KEY,
-          ) as EStyledColor) || EStyledColor.Red,
+          (localStorage.getItem(STYLED_TEXT_SELECT_COLOR_KEY) as EStyledColor) || EStyledColor.Red,
         children: [{ type: "formatted", text }],
       },
       {
         at: selection,
         split: true,
-      },
+      }
     );
   }
 };
 
 export const unwrapKbd = (editor: Editor) => {
   Transforms.unwrapNodes(editor, {
-    match: (n) => n.type === "kbd",
+    match: n => n.type === "kbd",
   });
 };
 
@@ -887,7 +840,7 @@ export const wrapKbd = (editor: Editor) => {
       {
         at: selection,
         split: true,
-      },
+      }
     );
   }
 };
@@ -910,23 +863,19 @@ export const wrapComment = (editor: Editor) => {
       {
         at: selection,
         split: true,
-      },
+      }
     );
   }
 };
 
 export const unwrapComment = (editor: Editor, path?: Path) => {
   Transforms.unwrapNodes(editor, {
-    match: (n) => Element.isElement(n) && n.type === "comment",
+    match: n => Element.isElement(n) && n.type === "comment",
     at: path,
   });
 };
 
-export const insertInlineHtmlElement = (
-  editor: Editor,
-  html: string,
-  openEdit?: boolean,
-) => {
+export const insertInlineHtmlElement = (editor: Editor, html: string, openEdit?: boolean) => {
   if (!editor.selection) return;
 
   const inlineHtml: HTMLInlineElement = {

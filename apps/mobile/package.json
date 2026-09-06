@@ -30,6 +30,7 @@
   "dependencies": {
     "@ant-design/icons": "^6.0.6",
     "@tanstack/react-virtual": "3.13.12",
+    "@tau/collaboration": "workspace:*",
     "@tau/editor": "workspace:*",
     "@tau/shared": "workspace:*",
     "@tauri-apps/api": "^2",

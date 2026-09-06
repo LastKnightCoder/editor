@@ -8,6 +8,7 @@ import {
   type ContentNode,
   type SharedContent,
 } from "./protocol";
+import { migrateTabsToPanes } from "./tabs-normalize";
 
 export const SOURCE_FIELDS: Record<string, string[]> = {
   "code-block": ["code"],
@@ -198,41 +199,12 @@ export function prepareNodes(
         delete node[key];
       }
     }
-    if (node.type === "tabs") {
-      const tabs = Array.isArray(input.tabsContent)
-        ? (input.tabsContent as {
-            key: string;
-            title: string;
-            content: ContentNode[];
-          }[])
-        : [];
-      const block = getBlockFields(doc, id);
-      const order = new Y.Array<string>();
-      const entries = new Y.Map<Y.Map<unknown>>();
-      block.set("tabOrder", order);
-      block.set("tabs", entries);
-      for (const tab of tabs) {
-        const key = newIds ? crypto.randomUUID() : tab.key;
-        const entry = new Y.Map<unknown>();
-        entries.set(key, entry);
-        setSharedValue(entry, "title", tab.title);
-        const root = new Y.XmlText();
-        entry.set("content", root);
-        const content = tab.key === input.activeKey ? input.children || tab.content : tab.content;
-        root.applyDelta(
-          slateNodesToInsertDelta(prepareNodes(doc, content, privateNodes, newIds) as Descendant[])
-        );
-        order.push([key]);
-      }
-      delete node.tabsContent;
-      node.children = [{ type: "formatted", text: "" }];
-    } else
-      node.children = prepareNodes(
-        doc,
-        input.children || [{ type: "formatted", text: "" }],
-        privateNodes,
-        newIds
-      );
+    node.children = prepareNodes(
+      doc,
+      input.children?.length ? input.children : [{ type: "formatted", text: "" }],
+      privateNodes,
+      newIds
+    );
     return node;
   });
 }
@@ -242,7 +214,8 @@ const UNSAFE_KEYS = ["__proto__", "constructor", "prototype"];
 export function materializeNodes(
   doc: Y.Doc,
   nodes: ContentNode[],
-  privateNodes?: Map<string, ContentNode>
+  privateNodes?: Map<string, ContentNode>,
+  activeKeyOverrides?: Map<string, string>
 ): ContentNode[] {
   return nodes.map(input => {
     // Yjs 不保留空文本的属性，还原时必须恢复项目要求的文本类型。
@@ -257,34 +230,103 @@ export function materializeNodes(
         if (key !== "tabs" && key !== "tabOrder" && !UNSAFE_KEYS.includes(key))
           node[key] = value instanceof Y.AbstractType ? value.toJSON() : value;
       }
-      if (input.type === "tabs") {
-        const order = block.get("tabOrder") as Y.Array<string> | undefined;
-        const tabs = block.get("tabs") as Y.Map<Y.Map<unknown>> | undefined;
-        const entries = [...new Set(order?.toArray() || [])].flatMap(key => {
-          const tab = tabs?.get(key);
-          const root = tab?.get("content");
-          if (!(root instanceof Y.XmlText)) return [];
-          return [
-            {
-              key,
-              title: String(tab?.get("title") || ""),
-              content: materializeNodes(
-                doc,
-                yTextToSlateElement(root).children as ContentNode[],
-                privateNodes
-              ),
-            },
-          ];
-        });
-        node.tabsContent = entries;
-        node.activeKey = entries[0]?.key;
-        node.children = entries[0]?.content || emptyContent();
-      }
     }
-    if (input.type !== "tabs" && input.children)
-      node.children = materializeNodes(doc, input.children, privateNodes);
+    if (input.children)
+      node.children = materializeNodes(doc, input.children, privateNodes, activeKeyOverrides);
+    // activeKey 是本机视图状态不进 Yjs，落库投影时优先取上报的视图激活，
+    // 失效时兜底为第一个 pane，保证 tabs 节点始终持有合法激活 key。
+    if (node.type === "tabs") {
+      const panes = (node.children || []).filter(
+        child => child && typeof child === "object" && child.type === "tab-pane"
+      ) as { tabKey?: string }[];
+      const isValid = (key: unknown) => panes.some(pane => pane.tabKey === key);
+      const override = activeKeyOverrides?.get(id);
+      if (override !== undefined && isValid(override)) node.activeKey = override;
+      else if (!isValid(node.activeKey)) node.activeKey = panes[0]?.tabKey;
+    }
     return node;
   });
+}
+
+/**
+ * 存量协作缓存结构转换：旧版本把 tabs 内容外置在块字段（tabOrder + tabs Y.Map），
+ * 在同一 Y.Doc 内整体重建正文为 tab-pane 树内形态并清理块字段。幂等：无旧块字段时不动。
+ * 返回是否发生了转换。
+ */
+export function migrateTabsBlocksInDoc(
+  doc: Y.Doc,
+  privateNodes?: Map<string, ContentNode>
+): boolean {
+  const fields = getFields(doc);
+  const legacyBlockIds: string[] = [];
+  for (const [id, block] of fields.entries()) {
+    if (block instanceof Y.Map && (block.has("tabs") || block.has("tabOrder")))
+      legacyBlockIds.push(id);
+  }
+  if (legacyBlockIds.length === 0) return false;
+
+  // 块字段中的旧 Tab 内容（title + Y.XmlText 内容）按 collabId 收集
+  const legacyTabs = new Map<string, { key: string; title: string; content: ContentNode[] }[]>();
+  for (const id of legacyBlockIds) {
+    const block = fields.get(id) as Y.Map<unknown>;
+    const order = block.get("tabOrder") as Y.Array<string> | undefined;
+    const tabs = block.get("tabs") as Y.Map<Y.Map<unknown>> | undefined;
+    const entries = [...new Set(order?.toArray() || [])].flatMap(key => {
+      const tab = tabs?.get(key);
+      const root = tab?.get("content");
+      if (!(root instanceof Y.XmlText)) return [];
+      return [
+        {
+          key,
+          title: String(tab?.get("title") || ""),
+          content: materializeNodes(
+            doc,
+            yTextToSlateElement(root).children as ContentNode[],
+            privateNodes
+          ),
+        },
+      ];
+    });
+    legacyTabs.set(id, entries);
+  }
+
+  // 物化正文后把旧 Tab 内容补回 tabs 节点，再走统一的 JSON 迁移
+  const article = readSharedContent(doc, privateNodes);
+  const injectedIds = new Set<string>();
+  const injectLegacyTabs = (nodes: ContentNode[]): ContentNode[] =>
+    nodes.map(node => {
+      if (typeof node.text === "string" || !Array.isArray(node.children)) return node;
+      const next: ContentNode = { ...node, children: injectLegacyTabs(node.children) };
+      if (next.type === "tabs" && legacyTabs.has(String(next.collabId))) {
+        const entries = legacyTabs.get(String(next.collabId))!;
+        injectedIds.add(String(next.collabId));
+        return {
+          ...next,
+          activeKey: next.activeKey ?? entries[0]?.key,
+          tabsContent: entries,
+        };
+      }
+      return next;
+    });
+  const injected = injectLegacyTabs(article.content);
+  // 树中找不到对应 tabs 节点时不清理块字段，避免内容随块字段一起丢失
+  const removableIds = legacyBlockIds.filter(id => injectedIds.has(id));
+  if (removableIds.length === 0) return false;
+  const { content: migrated } = migrateTabsToPanes(injected);
+
+  doc.transact(() => {
+    const body = getBody(doc);
+    body.delete(0, body.length);
+    body.applyDelta(
+      slateNodesToInsertDelta(prepareNodes(doc, migrated, privateNodes) as Descendant[])
+    );
+    for (const id of removableIds) {
+      const block = fields.get(id) as Y.Map<unknown> | undefined;
+      block?.delete("tabs");
+      block?.delete("tabOrder");
+    }
+  });
+  return true;
 }
 
 export function createSharedDocument(
@@ -293,6 +335,8 @@ export function createSharedDocument(
   mode: "local" | "shared" = "shared"
 ): Y.Doc {
   const doc = new Y.Doc();
+  // 旧数据（tabsContent 形态）进 Yjs 树前统一迁移为 tab-pane 子节点形态
+  const { content } = migrateTabsToPanes(article.content.length ? article.content : emptyContent());
   doc.transact(() => {
     doc.getMap("meta").set("version", COLLABORATION_VERSION);
     doc.getMap("meta").set("mode", mode);
@@ -300,13 +344,7 @@ export function createSharedDocument(
     doc.getMap("meta").set("bannerBg", article.bannerBg || "");
     doc.getMap("meta").set("bannerPosition", article.bannerPosition || "center");
     getBody(doc).applyDelta(
-      slateNodesToInsertDelta(
-        prepareNodes(
-          doc,
-          article.content.length ? article.content : emptyContent(),
-          privateNodes
-        ) as Descendant[]
-      )
+      slateNodesToInsertDelta(prepareNodes(doc, content, privateNodes) as Descendant[])
     );
   });
   return doc;
@@ -314,7 +352,8 @@ export function createSharedDocument(
 
 export function readSharedContent(
   doc: Y.Doc,
-  privateNodes?: Map<string, ContentNode>
+  privateNodes?: Map<string, ContentNode>,
+  activeKeyOverrides?: Map<string, string>
 ): SharedContent {
   return {
     title: doc.getText("title").toString(),
@@ -323,7 +362,8 @@ export function readSharedContent(
     content: materializeNodes(
       doc,
       yTextToSlateElement(getBody(doc)).children as ContentNode[],
-      privateNodes
+      privateNodes,
+      activeKeyOverrides
     ),
   };
 }

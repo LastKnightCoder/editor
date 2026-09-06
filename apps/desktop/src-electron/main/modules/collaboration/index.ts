@@ -9,6 +9,7 @@ import { basename, join } from "node:path";
 import {
   DEFAULT_COLLABORATION_URL,
   createSharedDocument,
+  migrateTabsBlocksInDoc,
   readSharedContent,
   replaceText,
   type ContentSessionTarget,
@@ -188,6 +189,9 @@ class CollaborationManager {
     doc: Y.Doc,
     privateNodes = new Map<string, ContentNode>()
   ) {
+    // 存量缓存（旧块字段 tabs 结构）惰性转换为 tab-pane 树内形态，幂等；
+    // 转换结果随初始投影（projectionDirty）与 compact 全量快照持久化并同步到服务器
+    migrateTabsBlocksInDoc(doc, privateNodes);
     if (info.source && !Number.isSafeInteger(info.source.contentCreatedAt))
       info.source = this.findLocalSource(info.id, info.serverUrl);
     const session: RuntimeSession = {
@@ -199,6 +203,7 @@ class CollaborationManager {
       doc,
       awareness: new Awareness(doc),
       privateNodes,
+      viewActiveTabs: new Map(),
       dirty: true,
       projectionDirty: true,
     };
@@ -238,6 +243,14 @@ class CollaborationManager {
     const session = this.sessions.get(id);
     if (!session || session.info.leaving) throw new Error("这段内容已退出协作");
     return session;
+  }
+
+  /** 记录视图上报的激活 Tab，随下轮投影落库（激活态是本机视图状态，不进共享文档） */
+  noteActiveTab(session: RuntimeSession, blockId: string, tabKey: string) {
+    if (typeof blockId !== "string" || typeof tabKey !== "string" || !blockId || !tabKey)
+      throw new Error("激活 Tab 参数不合法");
+    session.viewActiveTabs.set(blockId, tabKey);
+    session.projectionDirty = true;
   }
 
   private openContent(
@@ -737,12 +750,13 @@ class CollaborationManager {
         this.store.privateNodes(session.info.id, session.privateNodes);
       }
       session.projectionDirty = false;
+      const viewActiveTabs = new Map(session.viewActiveTabs);
       const value = local
-        ? readSharedContent(session.doc)
+        ? readSharedContent(session.doc, undefined, viewActiveTabs)
         : await this.assets.localize(
             session.info.serverUrl,
             session.info.id,
-            readSharedContent(session.doc, session.privateNodes),
+            readSharedContent(session.doc, session.privateNodes, viewActiveTabs),
             file => registerLocalizedResource(database, source.contentId, file)
           );
       if (
@@ -895,6 +909,7 @@ class CollaborationManager {
       refresh: this.refresh.bind(this),
       databaseForEvent: this.databaseForEvent.bind(this),
       requireSession: this.requireSession.bind(this),
+      noteActiveTab: this.noteActiveTab.bind(this),
       openContent: this.openContent.bind(this),
       acknowledgeFreeze: this.acknowledgeFreeze.bind(this),
       prepareLeave: this.prepareLeave.bind(this),

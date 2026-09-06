@@ -204,6 +204,8 @@ export function withCollaboration<T extends Editor>(base: T, binding: EditorColl
               const local = localProperties.get(node.collabId as string) || {};
               local[key] = newProperties[key];
               localProperties.set(node.collabId as string, local);
+              // 本机视图状态变更（如激活 Tab）回调宿主，由其决定是否上报持久化
+              binding.onLocalFieldChange?.(node.collabId as string, key, newProperties[key]);
             } else if (sharedProperty(node.type || "", key)) {
               const fields = getBlockFields(binding.doc, node.collabId as string);
               if (newProperties[key] === undefined) fields.delete(key);

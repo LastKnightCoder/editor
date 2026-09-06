@@ -14,6 +14,8 @@ export interface RuntimeSession {
   doc: Y.Doc;
   awareness: Awareness;
   privateNodes: Map<string, ContentNode>;
+  /** 视图上报的激活 Tab（tabs 块 collabId → pane tabKey），落库投影时合并 */
+  viewActiveTabs: Map<string, string>;
   provider?: HocuspocusProvider;
   dirty: boolean;
   projectionDirty?: boolean;
@@ -32,6 +34,7 @@ export interface CollaborationIpcContext {
   refresh(): Promise<void>;
   databaseForEvent(event: IpcMainInvokeEvent): { db: Database.Database; name: string };
   requireSession(id: string): RuntimeSession;
+  noteActiveTab(session: RuntimeSession, blockId: string, tabKey: string): void;
   openContent(event: IpcMainInvokeEvent, target: ContentSessionTarget): ContentSessionSnapshot;
   acknowledgeFreeze(viewId: string): void;
   prepareLeave(session: RuntimeSession): Promise<void>;

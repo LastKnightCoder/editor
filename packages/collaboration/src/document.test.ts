@@ -67,7 +67,7 @@ describe("共享文档", () => {
     }
   });
 
-  it("标签页的独立 Y 文档应还原为 formatted 文本", () => {
+  it("标签页内容应迁移为 tab-pane 子节点并完整还原", () => {
     const paragraph = { type: "paragraph", children: [{ type: "formatted", text: "" }] };
     const doc = createSharedDocument({
       ...article,
@@ -77,13 +77,14 @@ describe("共享文档", () => {
           activeKey: "a",
           tabsContent: [{ key: "a", title: "A", content: [paragraph] }],
           children: [paragraph],
-        },
+        } as never,
       ],
     });
     try {
       expect(readSharedContent(doc).content[0]).toMatchObject({
-        children: [paragraph],
-        tabsContent: [{ key: "a", content: [paragraph] }],
+        type: "tabs",
+        activeKey: "a",
+        children: [{ type: "tab-pane", tabKey: "a", title: "A", children: [paragraph] }],
       });
     } finally {
       doc.destroy();
@@ -196,7 +197,42 @@ describe("共享文档", () => {
     }
   });
 
-  it("标签页保存各自内容，并拒绝本地文件路径", () => {
+  it("投影时 activeKeyOverrides 应覆盖 tabs 激活态，失效覆盖回落第一个", () => {
+    const paragraph = (text: string) => ({
+      type: "paragraph",
+      children: [{ type: "formatted", text }],
+    });
+    const doc = createSharedDocument({
+      ...article,
+      content: [
+        {
+          type: "tabs",
+          activeKey: "a",
+          children: [
+            { type: "tab-pane", tabKey: "a", title: "A", children: [paragraph("内容 A")] },
+            { type: "tab-pane", tabKey: "b", title: "B", children: [paragraph("内容 B")] },
+          ],
+        } as never,
+      ],
+    });
+    try {
+      const overrides = new Map([["whatever", "b"]]);
+      // collabId 未知，覆盖无效：shared 模式 activeKey 被剥离，回落第一个
+      const fallback = readSharedContent(doc, undefined, overrides);
+      expect(fallback.content[0].activeKey).toBe("a");
+      // 用树中 tabs 块真实 collabId 覆盖
+      const tabsId = String(fallback.content[0].collabId);
+      const applied = readSharedContent(doc, undefined, new Map([[tabsId, "b"]]));
+      expect(applied.content[0].activeKey).toBe("b");
+      // 覆盖值非法（pane 不存在）时回落
+      const invalid = readSharedContent(doc, undefined, new Map([[tabsId, "gone"]]));
+      expect(invalid.content[0].activeKey).toBe("a");
+    } finally {
+      doc.destroy();
+    }
+  });
+
+  it("标签页激活内容（children）应覆盖快照迁移进 pane，并拒绝本地文件路径", () => {
     const doc = createSharedDocument({
       ...article,
       content: [
@@ -212,13 +248,12 @@ describe("共享文档", () => {
             { key: "b", title: "B", content: [] },
           ],
           children: [{ type: "paragraph", children: [{ text: "最新 B" }] }],
-        },
+        } as never,
       ],
     });
-    const content = readSharedContent(doc).content[0].tabsContent as {
-      content: unknown;
-    }[];
-    expect(JSON.stringify(content[1])).toContain("最新 B");
+    const panes = readSharedContent(doc).content[0].children as unknown[];
+    expect(JSON.stringify(panes[1])).toContain("最新 B");
+    expect(JSON.stringify(panes)).not.toContain("tabsContent");
     doc.getMap("meta").set("bannerBg", "file:///etc/passwd");
     expect(() => validateDocument(doc)).toThrow("本地路径");
     doc.destroy();
