@@ -17,7 +17,7 @@ import CustomModal from "@/components/CustomModal";
 import useThemeColors from "@/hooks/useThemeColors";
 
 const SelectDatabase = () => {
-  const { database } = useSettingStore((state) => ({
+  const { database } = useSettingStore(state => ({
     database: state.setting.database,
   }));
 
@@ -28,20 +28,18 @@ const SelectDatabase = () => {
 
   const { message, modal } = App.useApp();
   const themeColors = useThemeColors();
-  const accentColor = themeColors.accentColor || "#6366F1";
-  const accentSoftBg = themeColors.accentSoftBg || "rgba(99,102,241,0.12)";
 
   const { active, databases } = database;
 
   const handleCreateDatabase = (databaseName: string) => {
     useSettingStore.setState(
-      produce((state) => {
+      produce(state => {
         state.setting.database.databases.push({
           name: databaseName,
           version: 1,
         });
         state.setting.database.active = databaseName;
-      }),
+      })
     );
     setCreateDatabaseModalOpen(false);
     setDatabaseDropdownOpen(false);
@@ -54,13 +52,13 @@ const SelectDatabase = () => {
 
   const dropdownOptions = useMemo<DatabaseDropdownOption[]>(
     () => [
-      ...databases.map((item) => ({
+      ...databases.map(item => ({
         type: "database" as const,
         database: item,
       })),
       { type: "action", action: "create" } as const,
     ],
-    [databases],
+    [databases]
   );
 
   const handleDeleteDatabase = (databaseName: string) => {
@@ -75,12 +73,11 @@ const SelectDatabase = () => {
       okButtonProps: { danger: true },
       onOk: async () => {
         useSettingStore.setState(
-          produce((state) => {
-            state.setting.database.databases =
-              state.setting.database.databases.filter(
-                (item: { name: string }) => item.name !== databaseName,
-              );
-          }),
+          produce(state => {
+            state.setting.database.databases = state.setting.database.databases.filter(
+              (item: { name: string }) => item.name !== databaseName
+            );
+          })
         );
         await closeDatabase(databaseName);
         const databasePath = await getDatabasePath(databaseName);
@@ -97,9 +94,9 @@ const SelectDatabase = () => {
     }
 
     useSettingStore.setState(
-      produce((state) => {
+      produce(state => {
         state.setting.database.active = option.database.name;
-      }),
+      })
     );
     setDatabaseDropdownOpen(false);
   };
@@ -115,11 +112,7 @@ const SelectDatabase = () => {
       message.error("请输入数据库名称");
       return;
     }
-    if (
-      databases.some(
-        (dbItem) => dbItem.name.toLowerCase() === trimmed.toLowerCase(),
-      )
-    ) {
+    if (databases.some(dbItem => dbItem.name.toLowerCase() === trimmed.toLowerCase())) {
       message.error("同名数据库已存在");
       return;
     }
@@ -135,23 +128,17 @@ const SelectDatabase = () => {
       <button
         ref={triggerRef}
         type="button"
-        onClick={() => setDatabaseDropdownOpen((open) => !open)}
+        onClick={() => setDatabaseDropdownOpen(open => !open)}
         className={classNames(
-          "w-full md:w-auto inline-flex items-center justify-between gap-3 px-4 py-2.5 rounded-2xl border transition-all",
+          "inline-flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-2.5 transition-all md:w-auto",
           themeColors.cardBgClass,
           themeColors.borderClass,
-          themeColors.hoverBorderClass,
+          themeColors.hoverBorderClass
         )}
       >
         <div className="flex flex-col text-left">
-          <span
-            className={`text-sm font-semibold ${themeColors.activeTextClass}`}
-          >
-            {activeLabel}
-          </span>
-          <span className={`text-xs ${themeColors.secondaryTextClass}`}>
-            当前数据库
-          </span>
+          <span className={`text-sm font-semibold ${themeColors.textClass}`}>{activeLabel}</span>
+          <span className={`text-xs ${themeColors.secondaryTextClass}`}>当前数据库</span>
         </div>
         <IoCaretDownOutline className={`text-lg ${themeColors.textClass}`} />
       </button>
@@ -166,34 +153,24 @@ const SelectDatabase = () => {
         width={360}
         maxHeight={400}
         preferredPlacement="bottom"
-        getKey={(item) =>
-          item.type === "database" ? item.database.name : "create-action"
-        }
-        renderItem={(item) => {
+        getKey={item => (item.type === "database" ? item.database.name : "create-action")}
+        renderItem={item => {
           if (item.type === "database") {
             const isActive = item.database.name === active;
             const displayName = item.database.name.replace(/\.db$/i, "");
             return (
-              <div className="flex items-center gap-3 w-full">
+              <div className="flex w-full items-center gap-3">
                 {/* 左侧数据库图标 */}
                 <div
                   className={classNames(
-                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all",
-                    isActive ? "" : `${themeColors.inputBgClass}`,
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all",
+                    themeColors.inputBgClass
                   )}
-                  style={
-                    isActive
-                      ? {
-                          backgroundColor: accentSoftBg,
-                          color: accentColor,
-                        }
-                      : undefined
-                  }
                 >
                   <IoCubeOutline
                     className={classNames(
                       "text-base",
-                      !isActive && themeColors.secondaryTextClass,
+                      isActive ? themeColors.textClass : themeColors.secondaryTextClass
                     )}
                   />
                 </div>
@@ -202,10 +179,10 @@ const SelectDatabase = () => {
                 <div className="min-w-0 flex-1">
                   <p
                     className={classNames(
-                      "text-sm truncate transition-all",
+                      "truncate text-sm transition-all",
                       isActive
-                        ? `font-semibold ${themeColors.activeTextClass}`
-                        : `font-medium ${themeColors.textClass}`,
+                        ? `font-semibold ${themeColors.textClass}`
+                        : `font-medium ${themeColors.textClass}`
                     )}
                   >
                     {displayName}
@@ -213,22 +190,16 @@ const SelectDatabase = () => {
                 </div>
 
                 {/* 右侧图标 */}
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex shrink-0 items-center gap-1">
                   {isActive ? (
-                    <div
-                      className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
-                      style={{
-                        backgroundColor: accentSoftBg,
-                        color: accentColor,
-                      }}
-                    >
-                      <IoCheckmarkCircleOutline className="text-base" />
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg transition-all">
+                      <IoCheckmarkCircleOutline className="text-base text-[var(--th-accent)]" />
                     </div>
                   ) : (
                     <button
                       type="button"
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
-                      onClick={(e) => {
+                      className="flex h-7 w-7 items-center justify-center rounded-lg text-red-500 transition-all hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
+                      onClick={e => {
                         e.stopPropagation();
                         handleDeleteDatabase(item.database.name);
                       }}
@@ -243,20 +214,18 @@ const SelectDatabase = () => {
 
           // "创建新的数据库" - 分隔线在外层，避免被 hover 背景覆盖
           return (
-            <div className="flex items-center gap-3 w-full pt-2">
+            <div className="flex w-full items-center gap-3 pt-2">
               <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                style={{
-                  backgroundColor: accentSoftBg,
-                  color: accentColor,
-                }}
+                className={classNames(
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                  themeColors.inputBgClass,
+                  themeColors.secondaryTextClass
+                )}
               >
                 <IoAddCircleOutline className="text-base" />
               </div>
-              <div className="flex flex-col min-w-0">
-                <span
-                  className={`text-sm font-medium ${themeColors.activeTextClass}`}
-                >
+              <div className="flex min-w-0 flex-col">
+                <span className={`text-sm font-medium ${themeColors.textClass}`}>
                   创建新的数据库
                 </span>
                 <span className={`text-xs ${themeColors.secondaryTextClass}`}>
@@ -278,21 +247,15 @@ const SelectDatabase = () => {
         <div className="flex flex-col gap-5">
           <div className="flex items-start gap-3">
             <div
-              className="w-12 h-12 rounded-2xl border flex items-center justify-center"
-              style={{
-                backgroundColor: accentSoftBg,
-                color: accentColor,
-                borderColor: accentSoftBg,
-              }}
+              className={classNames(
+                "flex h-12 w-12 items-center justify-center rounded-2xl border",
+                "border-[var(--th-border)] bg-[var(--th-bg-hover)] text-[var(--th-text-secondary)]"
+              )}
             >
               <IoCubeOutline className="text-xl" />
             </div>
             <div className="flex-1">
-              <p
-                className={`text-base font-semibold ${themeColors.activeTextClass}`}
-              >
-                新建数据库
-              </p>
+              <p className={`text-base font-semibold ${themeColors.textClass}`}>新建数据库</p>
               <p className={`text-sm ${themeColors.secondaryTextClass}`}>
                 为不同用途创建独立的数据空间，名称会自动保存为 .db 文件
               </p>
@@ -300,21 +263,19 @@ const SelectDatabase = () => {
           </div>
 
           <div className="space-y-2">
-            <label className={`text-sm font-medium ${themeColors.textClass}`}>
-              数据库名称
-            </label>
+            <label className={`text-sm font-medium ${themeColors.textClass}`}>数据库名称</label>
             <input
               type="text"
               value={newDatabaseName}
-              onChange={(e) => setNewDatabaseName(e.target.value)}
+              onChange={e => setNewDatabaseName(e.target.value)}
               placeholder="例如：work-notes"
               className={classNames(
-                "w-full my-4 px-4 py-3 rounded-xl border outline-none transition-all",
+                "my-4 w-full rounded-xl border px-4 py-3 outline-none transition-all",
                 themeColors.inputBgClass,
                 themeColors.borderClass,
-                themeColors.activeTextClass,
+                themeColors.textClass,
                 themeColors.focusBorderClass,
-                themeColors.focusRingClass,
+                themeColors.focusRingClass
               )}
             />
             <p className={`text-xs ${themeColors.secondaryTextClass}`}>
@@ -324,17 +285,17 @@ const SelectDatabase = () => {
 
           <div
             className={classNames(
-              "flex items-center justify-end gap-4 pt-4 border-t",
-              themeColors.borderClass,
+              "flex items-center justify-end gap-4 border-t pt-4",
+              themeColors.borderClass
             )}
           >
             <button
               type="button"
               className={classNames(
-                "px-4 py-3 rounded-xl text-sm font-medium border transition-colors",
+                "rounded-xl border px-4 py-3 text-sm font-medium transition-colors",
                 themeColors.textClass,
                 themeColors.borderClass,
-                themeColors.hoverClass,
+                themeColors.hoverClass
               )}
               onClick={handleCreateModalCancel}
             >
@@ -342,10 +303,7 @@ const SelectDatabase = () => {
             </button>
             <button
               type="button"
-              className="px-4 py-3 rounded-xl text-sm font-semibold text-white shadow-[0_8px_20px_rgba(79,70,229,0.25)]"
-              style={{
-                backgroundColor: accentColor,
-              }}
+              className="rounded-xl bg-[var(--th-btn-bg)] px-4 py-3 text-sm font-semibold text-[var(--th-btn-text)] shadow-sm transition-colors hover:bg-[var(--th-btn-hover)]"
               onClick={handleCreateModalConfirm}
             >
               创建数据库
