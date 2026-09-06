@@ -24,25 +24,25 @@ const SettingTabs: React.FC<SettingTabsProps> = ({
   const themeColors = useThemeColors();
 
   return (
-    <div className={`flex gap-2 mb-4 flex-wrap ${className}`}>
-      {items.map((item) => (
+    <div className={`mb-4 flex flex-wrap gap-2 ${className}`}>
+      {items.map(item => (
         <button
           key={item.key}
           onClick={() => onChange(item.key)}
           className={classNames(
-            "px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 border",
+            "flex items-center gap-1.5 rounded-lg border px-4 py-2.5 text-sm font-medium transition-all",
             activeKey === item.key
               ? [
-                  themeColors.activeClass,
-                  themeColors.activeTextClass,
-                  themeColors.activeBorderClass,
+                  "bg-[var(--th-bg-hover)]",
+                  themeColors.textClass,
+                  "border-[var(--th-border-hover)]",
                 ]
               : [
                   themeColors.cardBgClass,
                   "text-gray-600 dark:text-slate-400",
                   themeColors.cardBorderClass,
                   themeColors.hoverClass,
-                ],
+                ]
           )}
         >
           {item.icon}
