@@ -34,11 +34,11 @@
 
 .bulletedList {
   list-style-type: none;
-  --list-bullet-color: hsl(168, 10%, 45%);
+  --list-bullet-color: var(--th-accent, hsl(168, 10%, 45%));
 }
 
 :global(.dark) .bulletedList {
-  --list-bullet-color: hsl(168, 10%, 95%);
+  --list-bullet-color: var(--th-accent, hsl(168, 10%, 95%));
 }
 
 .numberedList {
@@ -78,4 +78,5 @@
   line-height: 1.5em;
   left: -1.5em;
   top: 0.1em;
+  color: var(--th-accent, inherit);
 }
