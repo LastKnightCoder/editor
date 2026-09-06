@@ -17,36 +17,28 @@ interface WhiteBoardItemProps {
   showDelete?: boolean;
 }
 
-const defaultSnapshot =
-  "https://d2hulr7xnfjroe.cloudfront.net/Frame_1321315996_35405ab097.png";
+const defaultSnapshot = "https://d2hulr7xnfjroe.cloudfront.net/Frame_1321315996_35405ab097.png";
 
 const WhiteBoardItem = memo((props: WhiteBoardItemProps) => {
-  const {
-    whiteBoard,
-    onClick,
-    onDelete,
-    active = false,
-    showDelete = true,
-  } = props;
+  const { whiteBoard, onClick, onDelete, active = false, showDelete = true } = props;
   const { updateTime, tags, title, description, snapshot } = whiteBoard;
 
   return (
     <div
       className={classnames(
-        "relative flex flex-col rounded-2xl cursor-pointer transition-all overflow-hidden",
+        "relative flex cursor-pointer flex-col overflow-hidden rounded-2xl transition-all",
         "h-[340px]", // 固定卡片高度
         "bg-white dark:bg-zinc-800",
         "shadow-[0_1.5px_3px_0_rgba(0,0,0,0.15)] hover:shadow-[0_3px_6px_0_rgba(0,0,0,0.15)]",
         {
-          "bg-gradient-to-br from-blue-50/50 to-transparent dark:from-blue-900/20":
-            active,
-        },
+          "from-[var(--th-accent-soft)]/50 bg-gradient-to-br to-transparent": active,
+        }
       )}
       onClick={onClick}
     >
       {/* 选中标识 - 右上角 */}
       <If condition={active}>
-        <div className="absolute top-2 right-2 w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white shadow-lg z-10">
+        <div className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--th-accent)] text-white shadow-lg">
           <CheckCircleFilled className="text-lg" />
         </div>
       </If>
@@ -54,24 +46,24 @@ const WhiteBoardItem = memo((props: WhiteBoardItemProps) => {
       {/* 删除按钮 - 只在显示删除且未选中时显示在右上角 */}
       <If condition={showDelete && !active}>
         <div
-          onClick={(e) => {
+          onClick={e => {
             e.stopPropagation();
             onDelete && onDelete(e);
           }}
-          className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100/90 dark:bg-zinc-700/90 text-gray-500 dark:text-gray-400 cursor-pointer transition-all hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-700 dark:hover:text-gray-200 z-10"
+          className="absolute right-2 top-2 z-10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-gray-100/90 text-gray-500 transition-all hover:bg-gray-200 hover:text-gray-700 dark:bg-zinc-700/90 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-200"
         >
           <CloseOutlined />
         </div>
       </If>
 
       {/* 封面图 - 固定高度 */}
-      <div className="w-full h-[180px] shrink-0 overflow-hidden bg-gray-50 dark:bg-zinc-900">
+      <div className="h-[180px] w-full shrink-0 overflow-hidden bg-gray-50 dark:bg-zinc-900">
         <LocalImage url={snapshot || defaultSnapshot} />
       </div>
 
       {/* 内容区域 - 固定高度，超出隐藏 */}
-      <div className="flex-1 p-4 flex flex-col gap-2 overflow-hidden">
-        <div className="font-semibold text-lg overflow-hidden text-ellipsis whitespace-nowrap text-gray-900 dark:text-gray-100">
+      <div className="flex flex-1 flex-col gap-2 overflow-hidden p-4">
+        <div className="overflow-hidden text-ellipsis whitespace-nowrap text-lg font-semibold text-gray-900 dark:text-gray-100">
           {title}
         </div>
 
@@ -81,12 +73,12 @@ const WhiteBoardItem = memo((props: WhiteBoardItemProps) => {
           </div>
         </If>
 
-        <div className="text-xs text-gray-500 dark:text-gray-400 shrink-0">
+        <div className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
           更新于 {formatDate(updateTime, true)}
         </div>
 
         <If condition={!!description}>
-          <div className="text-sm text-gray-600 dark:text-gray-300 overflow-hidden text-ellipsis line-clamp-2 leading-relaxed">
+          <div className="line-clamp-2 overflow-hidden text-ellipsis text-sm leading-relaxed text-gray-600 dark:text-gray-300">
             {description}
           </div>
         </If>

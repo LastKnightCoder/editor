@@ -53,7 +53,7 @@ const MemoizedRenderer = memo(
         onCellValueChange={onCellValueChange}
       />
     );
-  },
+  }
 );
 
 const MemoizedEditor = memo(
@@ -80,7 +80,7 @@ const MemoizedEditor = memo(
   }) => {
     const Editor = plugin.Editor;
     return (
-      <div className="w-full h-full relative">
+      <div className="relative h-full w-full">
         <Editor
           value={value}
           column={column}
@@ -93,7 +93,7 @@ const MemoizedEditor = memo(
         />
       </div>
     );
-  },
+  }
 );
 
 const Cell: React.FC<CellProps> = memo(
@@ -134,8 +134,10 @@ const Cell: React.FC<CellProps> = memo(
     });
 
     // 设置单元格编辑器状态
-    const { draftValue, handleChange, handleSave, handleCancel } =
-      useCellEditor(value, handleValueChange);
+    const { draftValue, handleChange, handleSave, handleCancel } = useCellEditor(
+      value,
+      handleValueChange
+    );
 
     // 设置验证
     const { error } = useValidation(draftValue, column.validation);
@@ -174,17 +176,14 @@ const Cell: React.FC<CellProps> = memo(
     // 根据模式渲染
     if (isEditing) {
       return (
-        <div
-          className={classNames("relative p-0 h-10 overflow-hidden z[3]")}
-          style={cellStyle}
-        >
+        <div className={classNames("z[3] relative h-10 overflow-hidden p-0")} style={cellStyle}>
           <div
             className={classNames(
-              "absolute box-border h-full w-full border pointer-events-none left-0 top-0",
+              "pointer-events-none absolute left-0 top-0 box-border h-full w-full border",
               {
-                "border-blue-700": !isDark,
-                "border-blue-200": isDark,
-              },
+                "border-[var(--th-border-focus)]": !isDark,
+                "border-[var(--th-border-focus)]/30": isDark,
+              }
             )}
           ></div>
           {plugin?.Editor ? (
@@ -209,7 +208,7 @@ const Cell: React.FC<CellProps> = memo(
 
     return (
       <div
-        className={classNames("relative p-0 h-10 overflow-hidden")}
+        className={classNames("relative h-10 overflow-hidden p-0")}
         style={cellStyle}
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
@@ -217,16 +216,16 @@ const Cell: React.FC<CellProps> = memo(
         {isSelected ? (
           <div
             className={classNames(
-              "absolute box-border h-full w-full border pointer-events-none left-0 top-0",
+              "pointer-events-none absolute left-0 top-0 box-border h-full w-full border",
               {
-                "border-blue-700": !isDark,
-                "border-blue-200": isDark,
-              },
+                "border-[var(--th-border-focus)]": !isDark,
+                "border-[var(--th-border-focus)]/30": isDark,
+              }
             )}
           />
         ) : (
           <div
-            className={classNames("absolute h-full border-r right-0 top-0", {
+            className={classNames("absolute right-0 top-0 h-full border-r", {
               "border-gray-400/50": theme === "light",
               "border-[#fff]/10": theme === "dark",
             })}
@@ -254,7 +253,7 @@ const Cell: React.FC<CellProps> = memo(
         ) : null}
       </div>
     );
-  },
+  }
 );
 
 export default Cell;

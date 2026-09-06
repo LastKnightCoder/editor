@@ -72,14 +72,11 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerHeight, setContainerHeight] = useState(0);
     const [moreEventsDay, setMoreEventsDay] = useState<number | null>(null);
-    const [moreEventsList, setMoreEventsList] = useState<CalendarRowEvent[]>(
-      [],
-    );
+    const [moreEventsList, setMoreEventsList] = useState<CalendarRowEvent[]>([]);
     const [isDragging, setIsDragging] = useState(false);
     const [dragStartIndex, setDragStartIndex] = useState<number | null>(null);
     const [dragEndIndex, setDragEndIndex] = useState<number | null>(null);
-    const [contextMenuEvent, setContextMenuEvent] =
-      useState<CalendarRowEvent | null>(null);
+    const [contextMenuEvent, setContextMenuEvent] = useState<CalendarRowEvent | null>(null);
     const [contextMenuPosition, setContextMenuPosition] = useState<{
       x: number;
       y: number;
@@ -90,7 +87,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
     useEffect(() => {
       if (!containerRef.current) return;
 
-      const resizeObserver = new ResizeObserver((entries) => {
+      const resizeObserver = new ResizeObserver(entries => {
         for (const entry of entries) {
           setContainerHeight(entry.contentRect.height);
         }
@@ -133,11 +130,9 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
         .date(day)
         .startOf("day")
         .valueOf();
-      return events.filter((event) => {
+      return events.filter(event => {
         const eventStart = dayjs(event.startDate).startOf("day").valueOf();
-        const eventEnd = event.endDate
-          ? dayjs(event.endDate).startOf("day").valueOf()
-          : eventStart;
+        const eventEnd = event.endDate ? dayjs(event.endDate).startOf("day").valueOf() : eventStart;
         return dayDate >= eventStart && dayDate <= eventEnd;
       });
     };
@@ -145,9 +140,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
     // 计算事件的渲染信息
     const getEventRenderInfo = (event: CalendarRowEvent) => {
       const eventStart = dayjs(event.startDate).startOf("day");
-      const eventEnd = event.endDate
-        ? dayjs(event.endDate).startOf("day")
-        : eventStart;
+      const eventEnd = event.endDate ? dayjs(event.endDate).startOf("day") : eventStart;
 
       // 限制事件在当月显示的范围
       const monthStart = dayjs()
@@ -166,9 +159,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
       }
 
       // 将事件时间限制在当月范围内
-      const displayStart = eventStart.isBefore(monthStart)
-        ? monthStart
-        : eventStart;
+      const displayStart = eventStart.isBefore(monthStart) ? monthStart : eventStart;
       const displayEnd = eventEnd.isAfter(monthEnd) ? monthEnd : eventEnd;
 
       // 获取显示范围内的日期数字
@@ -249,7 +240,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
       if (!events || events.length === 0) return [];
 
       const result = events
-        .map((event) => {
+        .map(event => {
           const renderInfo = getEventRenderInfo(event);
           return {
             event,
@@ -272,29 +263,24 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
 
       // 可用于事件的高度
       const availableHeight = rowHeight - dateAreaHeight - moreButtonHeight;
-      const maxEventLevels = Math.max(
-        1,
-        Math.floor(availableHeight / eventHeight),
-      );
+      const maxEventLevels = Math.max(1, Math.floor(availableHeight / eventHeight));
 
       // 转换为算法需要的格式（模拟 CalendarEvent 类型）
-      const eventsForAlgorithm = topLayoutEvents.map(
-        ({ event, renderInfo }) => ({
-          event: {
-            id: parseInt(event.id) || 0,
-            startDate: event.startDate,
-            endDate: event.endDate,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any,
-          spans: renderInfo.spans,
-        }),
-      );
+      const eventsForAlgorithm = topLayoutEvents.map(({ event, renderInfo }) => ({
+        event: {
+          id: parseInt(event.id) || 0,
+          startDate: event.startDate,
+          endDate: event.endDate,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
+        spans: renderInfo.spans,
+      }));
 
       // 使用新算法分配层级
       const layoutResult = assignMonthViewLevels(
         eventsForAlgorithm,
         maxEventLevels,
-        "durationFirst",
+        "durationFirst"
       );
 
       // 转换为需要的格式
@@ -315,9 +301,9 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
         }
         const rowLayout = layout.get(row);
         if (!rowLayout) return;
-        rowItems.forEach((item) => {
+        rowItems.forEach(item => {
           // 找到对应的事件
-          const eventInfo = topLayoutEvents.find((e) => {
+          const eventInfo = topLayoutEvents.find(e => {
             const eventId = parseInt(e.event.id) || 0;
             return eventId === item.eventId;
           });
@@ -335,15 +321,13 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
     }, [topLayoutEvents, containerHeight, totalRows]);
 
     // 处理日期范围拖拽
-    const handleMouseDown = useMemoizedFn(
-      (index: number, e: React.MouseEvent) => {
-        if (readonly) return;
-        e.preventDefault();
-        setIsDragging(true);
-        setDragStartIndex(index);
-        setDragEndIndex(index);
-      },
-    );
+    const handleMouseDown = useMemoizedFn((index: number, e: React.MouseEvent) => {
+      if (readonly) return;
+      e.preventDefault();
+      setIsDragging(true);
+      setDragStartIndex(index);
+      setDragEndIndex(index);
+    });
 
     const handleMouseEnter = useMemoizedFn((index: number) => {
       if (isDragging) {
@@ -353,7 +337,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
 
     const handleMouseUp = useMemoizedFn(() => {
       if (isDragging && dragStartIndex !== null && dragEndIndex !== null) {
-        const validDays = dateGrid.filter((d) => d !== null) as number[];
+        const validDays = dateGrid.filter(d => d !== null) as number[];
         const start = Math.min(dragStartIndex, dragEndIndex);
         const end = Math.max(dragStartIndex, dragEndIndex);
 
@@ -397,14 +381,12 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
     }, [isDragging, handleMouseUp]);
 
     // 处理事件右键菜单
-    const handleEventContextMenu = useMemoizedFn(
-      (e: React.MouseEvent, event: CalendarRowEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setContextMenuEvent(event);
-        setContextMenuPosition({ x: e.clientX, y: e.clientY });
-      },
-    );
+    const handleEventContextMenu = useMemoizedFn((e: React.MouseEvent, event: CalendarRowEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setContextMenuEvent(event);
+      setContextMenuPosition({ x: e.clientX, y: e.clientY });
+    });
 
     const handleCloseContextMenu = useMemoizedFn(() => {
       setContextMenuEvent(null);
@@ -439,22 +421,17 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
 
     return (
       <div className="flex h-full flex-col overflow-hidden">
-        <div
-          className={classnames(
-            "grid grid-cols-7 border-b",
-            themeColors.borderClass,
-          )}
-        >
+        <div className={classnames("grid grid-cols-7 border-b", themeColors.borderClass)}>
           {weekDays.map((day, index) => (
             <div
               key={day}
               className={classnames(
-                "py-3 text-center text-sm font-medium border-r",
+                "border-r py-3 text-center text-sm font-medium",
                 themeColors.secondaryTextClass,
                 themeColors.borderClass,
                 {
                   "border-l": index === 0,
-                },
+                }
               )}
             >
               {day}
@@ -478,13 +455,9 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
               return (
                 <div
                   key={`empty-${index}`}
-                  className={classnames(
-                    "border-b border-r",
-                    themeColors.borderClass,
-                    {
-                      "border-l": isFirstCol,
-                    },
-                  )}
+                  className={classnames("border-b border-r", themeColors.borderClass, {
+                    "border-l": isFirstCol,
+                  })}
                 />
               );
             }
@@ -501,22 +474,20 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
             // 计算当前单元格所在行需要的事件区域高度
             const rowSpans = rowEventLayout.get(row) || [];
             const maxLevel =
-              rowSpans.length > 0
-                ? Math.max(...rowSpans.map((item) => item.level))
-                : -1;
+              rowSpans.length > 0 ? Math.max(...rowSpans.map(item => item.level)) : -1;
             const numLevels = maxLevel + 1;
             const topEventsHeight = numLevels * 24;
 
             // 统计当天实际渲染在顶部的事件数量（去重）
             const renderedTopEventIds = new Set(
               rowSpans
-                .filter((item) => {
+                .filter(item => {
                   const span = item.span;
                   const spanStart = span.startCol;
                   const spanEnd = span.endCol;
                   return col >= spanStart && col <= spanEnd;
                 })
-                .map((item) => item.event.id),
+                .map(item => item.event.id)
             );
             const displayedTopCount = renderedTopEventIds.size;
 
@@ -524,25 +495,23 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
             const moreCount = totalEvents - displayedTopCount;
 
             // 计算实际的日期索引（排除空白格）
-            const validDayIndex = dateGrid
-              .slice(0, index)
-              .filter((d) => d !== null).length;
+            const validDayIndex = dateGrid.slice(0, index).filter(d => d !== null).length;
 
             const inDragRange = isInDragRange(validDayIndex);
 
             return (
               <div
                 key={day}
-                onMouseDown={(e) => handleMouseDown(validDayIndex, e)}
+                onMouseDown={e => handleMouseDown(validDayIndex, e)}
                 onMouseEnter={() => handleMouseEnter(validDayIndex)}
                 className={classnames(
-                  "group relative flex flex-col p-2 cursor-pointer select-none border-b border-r",
+                  "group relative flex cursor-pointer select-none flex-col border-b border-r p-2",
                   themeColors.hoverClass,
                   themeColors.borderClass,
                   {
-                    "bg-indigo-100 dark:bg-indigo-900/30": inDragRange,
+                    "bg-[var(--th-accent-soft)]": inDragRange,
                     "border-l": isFirstCol,
-                  },
+                  }
                 )}
               >
                 <div className="mb-1 flex justify-end">
@@ -550,34 +519,31 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                     className={classnames(
                       "flex h-7 w-7 items-center justify-center rounded-full text-sm",
                       {
-                        "bg-indigo-600 font-bold text-white": isTodayDate,
+                        "bg-[var(--th-btn-bg)] font-bold text-white": isTodayDate,
                       },
-                      !isTodayDate && themeColors.textClass,
+                      !isTodayDate && themeColors.textClass
                     )}
                   >
                     {day}
                   </span>
                 </div>
 
-                <div className="flex flex-col flex-1">
-                  <div
-                    className="flex-1"
-                    style={{ marginTop: `${topEventsHeight}px` }}
-                  ></div>
+                <div className="flex flex-1 flex-col">
+                  <div className="flex-1" style={{ marginTop: `${topEventsHeight}px` }}></div>
                   {moreCount > 0 && (
                     <div
                       className={classnames(
-                        "cursor-pointer text-xs px-1 shrink-0",
+                        "shrink-0 cursor-pointer px-1 text-xs",
                         themeColors.secondaryTextClass,
-                        themeColors.hoverTextClass,
+                        themeColors.hoverTextClass
                       )}
                       style={{ paddingBottom: "2px", lineHeight: "16px" }}
-                      onClick={(e) => {
+                      onClick={e => {
                         e.stopPropagation();
                         setMoreEventsDay(day);
                         setMoreEventsList(dayEvents);
                       }}
-                      onMouseDown={(e) => {
+                      onMouseDown={e => {
                         e.stopPropagation();
                       }}
                     >
@@ -590,7 +556,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
           })}
 
           {/* 事件渲染层 */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
             {Array.from(rowEventLayout.entries()).map(([, rowEvents]) => {
               return rowEvents.map(({ event, span, level }) => {
                 const cellWidth = 100 / 7;
@@ -612,10 +578,10 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                     onClick={() => {
                       onEventClick(event.rowData);
                     }}
-                    onMouseDown={(e) => {
+                    onMouseDown={e => {
                       e.stopPropagation();
                     }}
-                    onContextMenu={(e) => handleEventContextMenu(e, event)}
+                    onContextMenu={e => handleEventContextMenu(e, event)}
                   />
                 );
               });
@@ -634,17 +600,17 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
           >
             <div
               className={classnames(
-                "w-full max-w-3xl rounded-lg shadow-xl flex flex-col",
-                themeColors.modalPanelBg,
+                "flex w-full max-w-3xl flex-col rounded-lg shadow-xl",
+                themeColors.modalPanelBg
               )}
               style={{ height: "800px", maxHeight: "calc(100vh - 200px)" }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={e => e.stopPropagation()}
             >
               {/* 头部 */}
               <div
                 className={classnames(
-                  "flex items-center justify-between border-b px-6 py-4 shrink-0",
-                  themeColors.borderClass,
+                  "flex shrink-0 items-center justify-between border-b px-6 py-4",
+                  themeColors.borderClass
                 )}
               >
                 <h3 className="text-lg font-semibold">
@@ -655,10 +621,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                     setMoreEventsDay(null);
                     setMoreEventsList([]);
                   }}
-                  className={classnames(
-                    "rounded-lg p-1",
-                    themeColors.hoverClass,
-                  )}
+                  className={classnames("rounded-lg p-1", themeColors.hoverClass)}
                 >
                   <MdClose className="h-5 w-5" />
                 </button>
@@ -668,9 +631,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
               <div className="flex-1 overflow-y-auto">
                 {moreEventsList.map((event, index) => {
                   const startDate = dayjs(event.startDate);
-                  const endDate = event.endDate
-                    ? dayjs(event.endDate)
-                    : startDate;
+                  const endDate = event.endDate ? dayjs(event.endDate) : startDate;
 
                   // 判断是否是跨天事件（日期不同）
                   const isMultiDay = !startDate.isSame(endDate, "day");
@@ -718,7 +679,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                       className={classnames(
                         "group flex cursor-pointer gap-4 border-b px-6 py-4 transition-colors last:border-b-0",
                         themeColors.borderClass,
-                        themeColors.hoverClass,
+                        themeColors.hoverClass
                       )}
                     >
                       {/* 左侧：日期显示（仅第一个事件） */}
@@ -727,27 +688,16 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                           <div
                             className={classnames(
                               "text-4xl font-light",
-                              themeColors.activeTextClass,
+                              themeColors.activeTextClass
                             )}
                           >
                             {moreEventsDay}
                           </div>
                           <div
-                            className={classnames(
-                              "mt-1 text-xs",
-                              themeColors.secondaryTextClass,
-                            )}
+                            className={classnames("mt-1 text-xs", themeColors.secondaryTextClass)}
                           >
                             {
-                              [
-                                "周日",
-                                "周一",
-                                "周二",
-                                "周三",
-                                "周四",
-                                "周五",
-                                "周六",
-                              ][
+                              ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][
                                 dayjs()
                                   .year(year)
                                   .month(month - 1)
@@ -757,10 +707,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                             }
                           </div>
                           <div
-                            className={classnames(
-                              "mt-1 text-xs",
-                              themeColors.secondaryTextClass,
-                            )}
+                            className={classnames("mt-1 text-xs", themeColors.secondaryTextClass)}
                           >
                             {month}月
                           </div>
@@ -769,20 +716,20 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                       {index > 0 && <div className="w-16 shrink-0"></div>}
 
                       {/* 中间：时间轴 */}
-                      <div className="flex flex-col items-center shrink-0 pt-2">
+                      <div className="flex shrink-0 flex-col items-center pt-2">
                         {/* 圆圈 */}
                         <div
                           className={classnames(
-                            "w-3 h-3 rounded-full border-2",
-                            themeColors.cardBgClass,
+                            "h-3 w-3 rounded-full border-2",
+                            themeColors.cardBgClass
                           )}
                           style={{ borderColor: event.color }}
                         ></div>
                         {/* 时间标签 */}
                         <div
                           className={classnames(
-                            "mt-1 text-xs whitespace-nowrap",
-                            themeColors.secondaryTextClass,
+                            "mt-1 whitespace-nowrap text-xs",
+                            themeColors.secondaryTextClass
                           )}
                         >
                           {timeLabel}
@@ -790,9 +737,9 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                       </div>
 
                       {/* 右侧：事件卡片 */}
-                      <div className="flex-1 min-w-0 relative ml-4">
+                      <div className="relative ml-4 min-w-0 flex-1">
                         <div
-                          className="border-l-4 px-4 py-3 rounded"
+                          className="rounded border-l-4 px-4 py-3"
                           style={{
                             borderLeftColor: event.color,
                             backgroundColor: `${event.color}1a`, // 添加透明度
@@ -801,7 +748,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                           {/* 时间范围（同一天且有时间时显示） */}
                           {showTimeRange && (
                             <div
-                              className="text-sm font-medium mb-1"
+                              className="mb-1 text-sm font-medium"
                               style={{ color: event.color }}
                             >
                               {timeRangeText}
@@ -811,11 +758,10 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                           {/* 日期范围（跨天事件显示） */}
                           {isMultiDay && (
                             <div
-                              className="text-sm font-medium mb-1"
+                              className="mb-1 text-sm font-medium"
                               style={{ color: event.color }}
                             >
-                              {startDate.format("M月D日")} -{" "}
-                              {endDate.format("M月D日")}
+                              {startDate.format("M月D日")} - {endDate.format("M月D日")}
                             </div>
                           )}
 
@@ -823,7 +769,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                           <div
                             className={classnames(
                               "text-base font-medium",
-                              themeColors.activeTextClass,
+                              themeColors.activeTextClass
                             )}
                           >
                             {event.title}
@@ -841,20 +787,20 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
         {contextMenuPosition && contextMenuEvent && (
           <div
             className={classnames(
-              "fixed z-50 rounded-lg shadow-lg py-1 min-w-[120px]",
-              themeColors.glassPanelBg,
+              "fixed z-50 min-w-[120px] rounded-lg py-1 shadow-lg",
+              themeColors.glassPanelBg
             )}
             style={{
               left: `${contextMenuPosition.x}px`,
               top: `${contextMenuPosition.y}px`,
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
           >
             <button
               onClick={handleDeleteEvent}
               className={classnames(
                 "w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400",
-                themeColors.hoverClass,
+                themeColors.hoverClass
               )}
             >
               删除事件
@@ -863,7 +809,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
         )}
       </div>
     );
-  },
+  }
 );
 
 MonthGrid.displayName = "MonthGrid";

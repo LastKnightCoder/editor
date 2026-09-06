@@ -562,7 +562,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                     className={classNames(
                       "block w-full px-3 py-1.5 text-left text-xs transition-colors",
                       lang.value === selectedLanguage
-                        ? "bg-blue-50 font-medium text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                        ? "dark: bg-[var(--th-accent-soft)] font-medium text-[var(--th-active-text)]"
                         : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-zinc-700"
                     )}
                     onClick={() => {
@@ -632,7 +632,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                   <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-gray-200 py-4 dark:border-zinc-700">
                     <span className="text-xs text-gray-400 dark:text-gray-500">暂无章节</span>
                     <button
-                      className="flex items-center gap-1.5 rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[var(--th-btn-hover)] disabled:opacity-50"
+                      className="flex items-center gap-1.5 rounded-lg bg-[var(--th-accent)] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[var(--th-btn-hover)] disabled:opacity-50"
                       disabled={isGeneratingInsights}
                       onClick={() => void handleGenerateInsights(transcriptSegments)}
                     >
@@ -687,7 +687,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                   {activeTab === "summary" &&
                     (audioNote?.summary || summaryContent || isSummarizing) && (
                       <button
-                        className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[var(--th-accent)] hover:bg-[var(--th-accent-soft)] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-blue-900/20"
+                        className="dark:hover: flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[var(--th-accent)] hover:bg-[var(--th-accent-soft)] disabled:cursor-not-allowed disabled:opacity-50"
                         disabled={isSummarizing || isTranscribing || !transcriptSegments.length}
                         onClick={handleStartSummary}
                       >
@@ -726,7 +726,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                               <span className="text-sm">暂无转录内容</span>
                             </div>
                             <button
-                              className="flex items-center gap-1.5 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--th-btn-hover)] disabled:opacity-50"
+                              className="flex items-center gap-1.5 rounded-lg bg-[var(--th-accent)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--th-btn-hover)] disabled:opacity-50"
                               onClick={handleStartTranscription}
                               disabled={isTranscribing}
                             >
@@ -782,7 +782,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                                 className={classNames(
                                   "group flex cursor-pointer items-start gap-3 rounded-md p-2 transition-colors",
                                   idx === currentSegmentIndex
-                                    ? "bg-blue-100 dark:bg-blue-900/30"
+                                    ? "bg-[var(--th-info)]/15 dark:"
                                     : "hover:bg-gray-100 dark:hover:bg-zinc-800"
                                 )}
                                 onClick={() => {
@@ -814,7 +814,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                         <span className="text-sm">暂无高亮片段</span>
                         {transcriptSegments.length > 0 && (
                           <button
-                            className="flex items-center gap-1.5 rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[var(--th-btn-hover)] disabled:opacity-50"
+                            className="flex items-center gap-1.5 rounded-lg bg-[var(--th-accent)] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[var(--th-btn-hover)] disabled:opacity-50"
                             disabled={isGeneratingInsights}
                             onClick={() => void handleGenerateInsights(transcriptSegments)}
                           >
@@ -837,7 +837,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                         {highlights.map(h => (
                           <div
                             key={h.id}
-                            className="hover:bg-[var(--th-accent-soft)]/50 cursor-pointer rounded-xl border border-transparent bg-gray-50 px-3 py-2.5 transition-all hover:border-blue-300 dark:bg-zinc-800/50 dark:hover:border-blue-600 dark:hover:bg-blue-900/10"
+                            className="hover:bg-[var(--th-accent-soft)]/50 hover:border-[var(--th-border-focus)]/40 cursor-pointer rounded-xl border border-transparent bg-gray-50 px-3 py-2.5 transition-all dark:bg-zinc-800/50"
                             onClick={() => handleSeek(h.start)}
                           >
                             <div className="text-sm font-medium text-gray-800 dark:text-gray-200">
@@ -864,7 +864,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                         </div>
                         {transcriptSegments.length > 0 && (
                           <button
-                            className="flex items-center gap-1.5 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--th-btn-hover)] disabled:opacity-50"
+                            className="flex items-center gap-1.5 rounded-lg bg-[var(--th-accent)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--th-btn-hover)] disabled:opacity-50"
                             onClick={handleStartSummary}
                             disabled={isSummarizing}
                           >
@@ -898,7 +898,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                           <span className="text-sm">暂无笔记</span>
                         </div>
                         <button
-                          className="flex items-center gap-1.5 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--th-btn-hover)]"
+                          className="flex items-center gap-1.5 rounded-lg bg-[var(--th-accent)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--th-btn-hover)]"
                           onClick={handleCreateNoteItem}
                         >
                           <Pencil size={14} />

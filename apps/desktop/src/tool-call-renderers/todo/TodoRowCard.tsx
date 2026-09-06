@@ -49,8 +49,8 @@ const TodoRowCard = ({ item, isDark, onToggleComplete }: TodoRowCardProps) => {
                   ? "bg-purple-500/20 text-purple-300"
                   : "bg-purple-100 text-purple-700"
                 : isDark
-                  ? "bg-blue-500/20 text-blue-300"
-                  : "bg-blue-100 text-blue-700"
+                  ? "bg-[var(--th-accent)]/20"
+                  : "bg-[var(--th-info)]/15 text-status-info"
             }`}
           >
             {typeLabelMap[item.type]}

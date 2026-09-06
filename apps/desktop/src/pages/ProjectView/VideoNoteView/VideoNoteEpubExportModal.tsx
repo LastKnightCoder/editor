@@ -212,9 +212,7 @@ const StepIndicator = ({ currentStep }: { currentStep: Step }) => {
               <div
                 className={classNames(
                   "h-px w-5 transition-colors",
-                  isPast || isActive
-                    ? "bg-indigo-400 dark:bg-indigo-500"
-                    : "bg-gray-200 dark:bg-zinc-700"
+                  isPast || isActive ? "bg-[var(--th-accent)]" : "bg-gray-200 dark:bg-zinc-700"
                 )}
               />
             )}
@@ -222,9 +220,9 @@ const StepIndicator = ({ currentStep }: { currentStep: Step }) => {
               className={classNames(
                 "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all",
                 isActive
-                  ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400"
+                  ? "dark:bg-[var(--th-accent)]/15 bg-[var(--th-accent-soft)] text-[var(--th-active-text)]"
                   : isPast
-                    ? "text-[var(--th-accent)]/70 dark:text-indigo-400/60"
+                    ? "text-[var(--th-accent)]/70/60"
                     : "text-gray-400 dark:text-slate-500"
               )}
             >
@@ -232,9 +230,9 @@ const StepIndicator = ({ currentStep }: { currentStep: Step }) => {
                 className={classNames(
                   "h-4.5 w-4.5 flex items-center justify-center rounded-full text-[10px] font-bold",
                   isActive
-                    ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] dark:bg-indigo-500"
+                    ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] dark:bg-[var(--th-accent)]"
                     : isPast
-                      ? "bg-indigo-200 text-indigo-600 dark:bg-indigo-500/30 dark:text-indigo-400"
+                      ? "bg-[var(--th-accent-soft)] text-[var(--th-active-text)]"
                       : "bg-gray-200 text-gray-500 dark:bg-zinc-700 dark:text-slate-400"
                 )}
               >
@@ -823,7 +821,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     "w-full px-3.5 py-2.5 rounded-xl text-sm outline-none transition-all",
     "bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700",
     "text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500",
-    "focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 dark:focus:border-[var(--th-border-focus)] dark:focus:ring-indigo-500/20"
+    "focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-[var(--th-accent)]/20"
   );
 
   const renderRewriteStep = () => (
@@ -900,7 +898,9 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                   <div
                     className={classNames(
                       "text-[15px] font-semibold leading-6",
-                      isSelected ? "text-blue-600" : "text-gray-800 dark:text-slate-100"
+                      isSelected
+                        ? "text-[var(--th-active-text)]"
+                        : "text-gray-800 dark:text-slate-100"
                     )}
                   >
                     {option.label}
@@ -998,7 +998,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                     className={classNames(
                       "flex flex-col items-start rounded-xl border p-3 text-left transition-all",
                       isSelected
-                        ? "border-indigo-400 bg-indigo-50/80 ring-2 ring-indigo-500/25 dark:border-indigo-500 dark:bg-indigo-500/10 dark:ring-indigo-500/20"
+                        ? "bg-[var(--th-accent-soft)]/80 ring-[var(--th-accent)]/25 border-[var(--th-border-focus)] ring-2"
                         : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/80 dark:border-slate-700 dark:bg-zinc-900/50 dark:hover:border-slate-600 dark:hover:bg-zinc-800/50"
                     )}
                   >
@@ -1007,7 +1007,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                       className={classNames(
                         "text-xs font-semibold",
                         isSelected
-                          ? "text-indigo-700 dark:text-indigo-300"
+                          ? "text-[var(--th-active-text)]"
                           : "text-gray-700 dark:text-slate-200"
                       )}
                     >
@@ -1017,7 +1017,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                       className={classNames(
                         "text-[11px]",
                         isSelected
-                          ? "text-[var(--th-accent)]/80 dark:text-indigo-400/70"
+                          ? "text-[var(--th-accent)]/80/70"
                           : "text-gray-400 dark:text-slate-500"
                       )}
                     >
@@ -1151,7 +1151,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                         className={classNames(
                           "overflow-hidden rounded-lg border-2 transition-all",
                           isSelected
-                            ? "border-indigo-500 ring-2 ring-indigo-500/25"
+                            ? "ring-[var(--th-accent)]/25 border-[var(--th-accent)] ring-2"
                             : "border-transparent hover:border-gray-300 dark:hover:border-slate-600"
                         )}
                       >

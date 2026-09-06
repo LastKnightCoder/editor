@@ -32,27 +32,15 @@ import useSettingStore from "@/stores/useSettingStore";
 import usePdfChatStore, { EPdfChatStatus } from "@/stores/usePdfChatStore";
 import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
 import { buildSessionAwareSystemPrompt, Role } from "@/constants";
-import type {
-  ChatAgentType,
-  ChatMessage,
-  Pdf,
-  PdfIndexStatus,
-  ResponseMessage,
-} from "@/types";
+import type { ChatAgentType, ChatMessage, Pdf, PdfIndexStatus, ResponseMessage } from "@/types";
 import { ensurePdfIndex, getPdfIndexStatus, openExternal } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 import usePdfChat from "./usePdfChat";
-import {
-  buildPdfCitationMarkerLabel,
-  type PdfCitationTarget,
-} from "./pdfCitation";
-import {
-  CHAT_AGENT_TYPE_STORAGE_KEY,
-  normalizeChatAgentType,
-} from "@/constants/chatAgent";
+import { buildPdfCitationMarkerLabel, type PdfCitationTarget } from "./pdfCitation";
+import { CHAT_AGENT_TYPE_STORAGE_KEY, normalizeChatAgentType } from "@/constants/chatAgent";
 
 const ChatContainer = lazy(
-  () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer"),
+  () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer")
 );
 
 const extractTextFromReactNode = (node: React.ReactNode): string => {
@@ -152,12 +140,7 @@ const CodeRenderer: React.FC<{
   children?: React.ReactNode;
   className?: string;
   "data-markdown-block-code"?: string;
-}> = ({
-  children,
-  className,
-  "data-markdown-block-code": markdownBlockCode,
-  ...rest
-}) => {
+}> = ({ children, className, "data-markdown-block-code": markdownBlockCode, ...rest }) => {
   const { message } = App.useApp();
   const mermaidRenderPreference = useMermaidRenderPreference();
   const { isDark } = useTheme();
@@ -205,22 +188,16 @@ const CodeRenderer: React.FC<{
 };
 
 const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
-  (
-    { pdf, mainDbName, collapsed, onToggleCollapsed, onCitationNavigate },
-    ref,
-  ) => {
+  ({ pdf, mainDbName, collapsed, onToggleCollapsed, onCitationNavigate }, ref) => {
     const { message } = App.useApp();
     const { isDark } = useTheme();
     const editTitleRef = useRef<EditTextHandle>(null);
     const chatContainerRef = useRef<ChatContainerHandle>(null);
     const [chatContainerReady, setChatContainerReady] = useState(false);
-    const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(
-      CHAT_AGENT_TYPE_STORAGE_KEY,
-      {
-        defaultValue: "local",
-      },
-    );
-    const database = useSettingStore((state) => state.setting.database.active);
+    const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(CHAT_AGENT_TYPE_STORAGE_KEY, {
+      defaultValue: "local",
+    });
+    const database = useSettingStore(state => state.setting.database.active);
     const isConnected = useDatabaseConnected();
 
     usePdfChat(pdf.id, mainDbName);
@@ -239,7 +216,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
       deleteChat,
       getChildBranchesCount,
     } = usePdfChatStore(
-      useShallow((state) => ({
+      useShallow(state => ({
         initChats: state.initChats,
         chats: state.chats,
         currentChatId: state.currentChatId,
@@ -250,7 +227,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
         createChatBranch: state.createChatBranch,
         deleteChat: state.deleteChat,
         getChildBranchesCount: state.getChildBranchesCount,
-      })),
+      }))
     );
 
     useEffect(() => {
@@ -260,8 +237,8 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
     }, [database, initChats, isConnected, pdf.id]);
 
     const currentChat = useMemo(
-      () => chats.find((chat) => chat.id === currentChatId),
-      [chats, currentChatId],
+      () => chats.find(chat => chat.id === currentChatId),
+      [chats, currentChatId]
     );
 
     const currentChatAsMessage = useMemo((): ChatMessage => {
@@ -285,7 +262,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
 
     const chatsAsMessages = useMemo(
       (): ChatMessage[] =>
-        chats.map((chat) => ({
+        chats.map(chat => ({
           id: chat.id,
           createTime: chat.createTime,
           updateTime: chat.updateTime,
@@ -298,23 +275,19 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
           agentType: chat.agentType,
           agentSessionId: chat.agentSessionId,
         })),
-      [chats],
+      [chats]
     );
 
     const [createMessageLoading, setCreateMessageLoading] = useState(false);
     const [sendLoading, setSendLoading] = useState(false);
     const [indexPreparing, setIndexPreparing] = useState(false);
     const [indexStatus, setIndexStatus] = useState<PdfIndexStatus | null>(null);
-    const [pendingAskPayload, setPendingAskPayload] =
-      useState<PdfChatAskPayload | null>(null);
+    const [pendingAskPayload, setPendingAskPayload] = useState<PdfChatAskPayload | null>(null);
 
-    const handleChatContainerRef = useCallback(
-      (instance: ChatContainerHandle | null) => {
-        chatContainerRef.current = instance;
-        setChatContainerReady(Boolean(instance));
-      },
-      [],
-    );
+    const handleChatContainerRef = useCallback((instance: ChatContainerHandle | null) => {
+      chatContainerRef.current = instance;
+      setChatContainerReady(Boolean(instance));
+    }, []);
 
     const resolvePdfPath = useMemoizedFn(async () => {
       const candidatePath = String(pdf.filePath || "").trim();
@@ -431,11 +404,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
       ];
       setCreateMessageLoading(true);
       try {
-        await createChat(
-          messages,
-          undefined,
-          normalizeChatAgentType(rememberedAgentType),
-        );
+        await createChat(messages, undefined, normalizeChatAgentType(rememberedAgentType));
       } catch (error) {
         message.error("创建对话失败");
         console.error(error);
@@ -464,14 +433,9 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
         messages: ChatMessage["messages"],
         title?: string,
         agentType?: ChatAgentType,
-        agentSessionId?: string | null,
+        agentSessionId?: string | null
       ) => {
-        const created = await createChat(
-          messages,
-          title,
-          agentType,
-          agentSessionId,
-        );
+        const created = await createChat(messages, title, agentType, agentSessionId);
         return {
           id: created.id,
           createTime: created.createTime,
@@ -485,7 +449,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
           agentType: created.agentType,
           agentSessionId: created.agentSessionId,
         };
-      },
+      }
     );
 
     const handleExternalCreateBranch = useMemoizedFn(
@@ -504,11 +468,11 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
           agentType: created.agentType,
           agentSessionId: created.agentSessionId,
         };
-      },
+      }
     );
 
     const handleUpdateChatMessage = useMemoizedFn(async (chat: ChatMessage) => {
-      const localChat = chats.find((item) => item.id === chat.id);
+      const localChat = chats.find(item => item.id === chat.id);
       if (!localChat) {
         throw new Error("Chat not found");
       }
@@ -550,10 +514,10 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
       (event: React.MouseEvent<HTMLAnchorElement>, href?: string) => {
         if (!href) return;
         event.preventDefault();
-        openExternal(href).catch((err) => {
+        openExternal(href).catch(err => {
           console.error("打开链接失败:", err);
         });
-      },
+      }
     );
 
     const markdownComponents = useMemo(
@@ -570,9 +534,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
               Number.isFinite(pageNumber) && pageNumber > 0
                 ? {
                     pageNumber,
-                    charStart: Number.isFinite(charStart)
-                      ? charStart
-                      : undefined,
+                    charStart: Number.isFinite(charStart) ? charStart : undefined,
                     charEnd: Number.isFinite(charEnd) ? charEnd : undefined,
                     previewText: props["data-preview-text"] || undefined,
                     label: props["data-label"] || label,
@@ -599,9 +561,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
                 }}
                 content={
                   <div className="max-w-[320px]">
-                    <div className="text-xs font-semibold mb-1">
-                      第 {citation.pageNumber} 页
-                    </div>
+                    <div className="mb-1 text-xs font-semibold">第 {citation.pageNumber} 页</div>
                     <div className="text-xs leading-6 opacity-85">
                       {citation.previewText || label || "引用位置"}
                     </div>
@@ -610,13 +570,13 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
               >
                 <button
                   type="button"
-                  className="inline-flex items-center rounded-md border border-sky-200 bg-sky-50 px-1.5 py-[1px] text-[11px] leading-none font-semibold text-sky-700 transition-colors cursor-pointer translate-y-[-0.2em] hover:border-sky-300 hover:bg-sky-100 hover:text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200 dark:hover:border-sky-700 dark:hover:bg-sky-900 dark:hover:text-sky-100"
+                  className="border-[var(--th-info)]/30 bg-[var(--th-info)]/10 text-status-info hover:border-[var(--th-info)]/30 hover:bg-[var(--th-info)]/15 hover:text-status-info inline-flex translate-y-[-0.2em] cursor-pointer items-center rounded-md border px-1.5 py-[1px] text-[11px] font-semibold leading-none transition-colors"
                   aria-label={`跳转到第 ${citation.pageNumber} 页引用`}
-                  onMouseDown={(event) => {
+                  onMouseDown={event => {
                     event.preventDefault();
                     event.stopPropagation();
                   }}
-                  onClick={(event) => {
+                  onClick={event => {
                     event.preventDefault();
                     event.stopPropagation();
                     onCitationNavigate?.(citation);
@@ -640,16 +600,14 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
             <a
               {...props}
               href={href}
-              onClick={(event: React.MouseEvent<HTMLAnchorElement>) =>
-                handleLinkClick(event, href)
-              }
+              onClick={(event: React.MouseEvent<HTMLAnchorElement>) => handleLinkClick(event, href)}
             >
               {children}
             </a>
           );
         },
       }),
-      [handleLinkClick, onCitationNavigate],
+      [handleLinkClick, onCitationNavigate]
     );
 
     useImperativeHandle(ref, () => ({
@@ -704,18 +662,18 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
 
     return (
       <MarkdownProvider isDark={isDark} isVisible={!collapsed}>
-        <div className="h-full flex flex-col border-l border-black/6 dark:border-white/8 bg-white/70 dark:bg-zinc-950/40 backdrop-blur-sm overflow-hidden">
+        <div className="border-black/6 dark:border-white/8 flex h-full flex-col overflow-hidden border-l bg-white/70 backdrop-blur-sm dark:bg-zinc-950/40">
           {collapsed ? null : status === EPdfChatStatus.LOADING ? (
             <>
-              <div className="flex-1 flex items-center justify-center">
+              <div className="flex flex-1 items-center justify-center">
                 <LoadingOutlined />
               </div>
             </>
           ) : (
             <>
-              <div className="flex-1 min-h-0 p-4 flex flex-col">
+              <div className="flex min-h-0 flex-1 flex-col p-4">
                 {indexPreparing || indexStatus?.state === "building" ? (
-                  <div className="mb-3 rounded-lg border border-sky-500/20 bg-sky-500/6 px-3 py-2 text-xs text-sky-700 dark:border-sky-400/20 dark:bg-sky-400/8 dark:text-sky-200">
+                  <div className="border-[var(--th-info)]/20 bg-[var(--th-info)]/10 text-status-info mb-3 rounded-lg border px-3 py-2 text-xs">
                     <div className="flex items-center justify-between gap-3">
                       <span className="flex min-w-0 items-center gap-2">
                         <LoadingOutlined />
@@ -725,14 +683,13 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
                       </span>
                       {indexStatus?.progressTotal ? (
                         <span className="shrink-0 tabular-nums">
-                          {indexStatus.progressCurrent || 0}/
-                          {indexStatus.progressTotal}
+                          {indexStatus.progressCurrent || 0}/{indexStatus.progressTotal}
                         </span>
                       ) : null}
                     </div>
-                    <div className="mt-2 h-1 overflow-hidden rounded-full bg-sky-500/15 dark:bg-sky-400/15">
+                    <div className="bg-[var(--th-info)]/15 dark:bg-[var(--th-info)]/15 mt-2 h-1 overflow-hidden rounded-full">
                       <div
-                        className="h-full rounded-full bg-sky-500 transition-[width] duration-300"
+                        className="h-full rounded-full bg-[var(--th-info)] transition-[width] duration-300"
                         style={{
                           width:
                             indexStatus?.progressTotal &&
@@ -741,25 +698,21 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
                                   4,
                                   Math.min(
                                     100,
-                                    (indexStatus.progressCurrent /
-                                      indexStatus.progressTotal) *
-                                      100,
-                                  ),
+                                    (indexStatus.progressCurrent / indexStatus.progressTotal) * 100
+                                  )
                                 )}%`
                               : "35%",
                         }}
                       />
                     </div>
-                    <div className="mt-1.5 opacity-75">
-                      索引完成后即可进行 PDF 问答
-                    </div>
+                    <div className="mt-1.5 opacity-75">索引完成后即可进行 PDF 问答</div>
                   </div>
                 ) : indexStatus?.state === "failed" ? (
-                  <div className="mb-3 rounded-lg border border-red-500/20 bg-red-500/6 px-3 py-2 text-xs text-red-700 dark:border-red-400/20 dark:bg-red-400/8 dark:text-red-200">
+                  <div className="bg-red-500/6 dark:bg-red-400/8 mb-3 rounded-lg border border-red-500/20 px-3 py-2 text-xs text-red-700 dark:border-red-400/20 dark:text-red-200">
                     PDF 索引失败：{indexStatus.error || "未知错误"}
                   </div>
                 ) : null}
-                <div className="flex justify-between items-center mb-2">
+                <div className="mb-2 flex items-center justify-between">
                   <ChatDropdownSelector
                     chatSource="pdf-chat"
                     chats={chatsAsMessages}
@@ -776,7 +729,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
                 {currentChat || (!currentChat && !createMessageLoading) ? (
                   <Suspense
                     fallback={
-                      <div className="flex items-center justify-center h-full">
+                      <div className="flex h-full items-center justify-center">
                         <LoadingOutlined />
                       </div>
                     }
@@ -795,7 +748,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
                       titleRef={editTitleRef}
                       onCreateNewMessage={onCreateNewMessage}
                       createMessageLoading={createMessageLoading}
-                      onChatCreated={(chatId) => {
+                      onChatCreated={chatId => {
                         usePdfChatStore.setState({ currentChatId: chatId });
                       }}
                       customSystemPrompt={systemPrompt}
@@ -805,7 +758,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
                     />
                   </Suspense>
                 ) : (
-                  <div className="flex-1 flex items-center justify-center">
+                  <div className="flex flex-1 items-center justify-center">
                     <Empty description="暂无对话" />
                   </div>
                 )}
@@ -815,7 +768,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
         </div>
       </MarkdownProvider>
     );
-  },
+  }
 );
 
 PdfChatPanel.displayName = "PdfChatPanel";

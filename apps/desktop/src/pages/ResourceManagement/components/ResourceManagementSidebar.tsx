@@ -704,7 +704,7 @@ const ResourceManagementSidebar = memo(({ onFoldSidebar }: ResourceManagementSid
             <div
               className={classnames(
                 "mx-2 my-0.5 flex cursor-pointer items-center rounded-md px-3 py-2 transition-colors duration-200",
-                isDragOver && "bg-blue-500/10",
+                isDragOver && "bg-[var(--th-accent)]/10",
                 isSelected ? themeColors.activeClass : !isDragOver && themeColors.hoverClass
               )}
               style={{ paddingLeft: `${item.level * 16 + 12}px` }}

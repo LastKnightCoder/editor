@@ -145,7 +145,7 @@ const TypeSelect: FC<TypeSelectProps> = ({ value, onChange, options }) => {
                       onClick={() => handleSelect(opt.value)}
                       className={`mx-2 mb-1 cursor-pointer rounded-lg px-3 py-2 text-sm transition-all duration-150 last:mb-0 ${
                         isSelected
-                          ? "border border-white/40 bg-white/40 font-medium text-indigo-600 dark:border-white/20 dark:bg-white/10 dark:text-indigo-400"
+                          ? "border border-white/40 bg-white/40 font-medium text-[var(--th-active-text)] dark:border-white/20 dark:bg-white/10"
                           : "text-gray-700 hover:bg-white/20 dark:text-gray-200 dark:hover:bg-white/10"
                       } `}
                     >

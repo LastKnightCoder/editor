@@ -425,7 +425,7 @@ const FlashcardEditor = ({
                     onClick={() => handleTypeChange(type)}
                     className={`rounded-xl border-2 px-3 py-2.5 text-left transition-all ${
                       active
-                        ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10"
+                        ? "border-[var(--th-border-focus)] bg-[var(--th-accent-soft)]"
                         : "border-gray-200 hover:border-gray-300 dark:border-slate-700 dark:hover:border-slate-600"
                     }`}
                   >
@@ -534,7 +534,7 @@ const FlashcardEditor = ({
               <button
                 type="button"
                 onClick={addReference}
-                className="text-xs font-medium text-indigo-600 transition-colors hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+                className="text-xs font-medium text-[var(--th-active-text)] transition-colors hover:text-[var(--th-active-text)]"
               >
                 + 添加参考
               </button>
@@ -543,7 +543,7 @@ const FlashcardEditor = ({
               <div className="space-y-3">
                 {referenceList.map((ref, index) => (
                   <div key={index} className="relative">
-                    <div className="absolute -left-2 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-500/20">
+                    <div className="absolute -left-2 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--th-accent-soft)]">
                       <span className="text-xs font-semibold text-[var(--th-active-text)]">
                         {index + 1}
                       </span>
@@ -594,7 +594,7 @@ const FlashcardEditor = ({
           <button
             onClick={handleSubmit}
             disabled={saving || deckMissing || isEmptyContent(form.prompt)}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg bg-[var(--th-btn-bg)] px-4 py-2 text-sm font-medium text-[var(--th-btn-text)] transition-colors hover:bg-[var(--th-btn-hover)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving ? "保存中..." : mode === "create" ? "创建闪卡" : "保存修改"}
           </button>

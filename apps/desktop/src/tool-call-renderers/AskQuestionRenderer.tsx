@@ -212,8 +212,8 @@ const AskQuestionRenderer = ({
             className={classNames(
               "flex h-8 w-8 items-center justify-center rounded-xl",
               isDark
-                ? "border border-sky-400/30 bg-sky-400/15 text-sky-300"
-                : "border border-sky-200 bg-sky-50 text-sky-600"
+                ? "border-[var(--th-info)]/40 bg-[var(--th-info)]/15 text-status-info border"
+                : "border-[var(--th-info)]/30 bg-[var(--th-info)]/10 text-status-info border"
             )}
           >
             ?
@@ -298,11 +298,11 @@ const AskQuestionRenderer = ({
                       }
                       className={classNames(
                         "w-full rounded-lg border px-3 py-2 text-left transition-all",
-                        "focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70",
+                        "focus-visible:ring-[var(--th-info)]/70 focus:outline-none focus-visible:ring-2",
                         active
                           ? isDark
-                            ? "border-sky-300/60 bg-sky-400/15 text-slate-100"
-                            : "border-sky-300 bg-sky-50 text-slate-900"
+                            ? "border-[var(--th-info)]/30/60 bg-[var(--th-info)]/15 text-slate-100"
+                            : "border-[var(--th-info)]/30 bg-[var(--th-info)]/10 text-slate-900"
                           : isDark
                             ? "border-white/10 bg-zinc-900/40 text-slate-300 hover:bg-zinc-800/60"
                             : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
@@ -324,8 +324,8 @@ const AskQuestionRenderer = ({
                               "flex h-[16px] w-[16px] shrink-0 items-center justify-center self-center rounded-full border-[1.5px] transition-all",
                               active
                                 ? isDark
-                                  ? "border-sky-300 bg-sky-400/20"
-                                  : "border-sky-500 bg-sky-100"
+                                  ? "border-[var(--th-info)]/30 bg-[var(--th-info)]/20"
+                                  : "border-[var(--th-info)]/40 bg-[var(--th-info)]/15"
                                 : isDark
                                   ? "border-slate-600 bg-transparent"
                                   : "border-slate-300 bg-transparent"
@@ -334,7 +334,11 @@ const AskQuestionRenderer = ({
                             <span
                               className={classNames(
                                 "h-[6px] w-[6px] rounded-full transition-all",
-                                active ? (isDark ? "bg-sky-300" : "bg-sky-500") : "bg-transparent"
+                                active
+                                  ? isDark
+                                    ? "bg-[var(--th-info)]"
+                                    : "bg-[var(--th-info)]"
+                                  : "bg-transparent"
                               )}
                             />
                           </span>
@@ -369,7 +373,7 @@ const AskQuestionRenderer = ({
                   placeholder="其他选项（可自定义输入）"
                   className={classNames(
                     "w-full rounded-xl border px-3 py-2 text-sm outline-none transition-all",
-                    "focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-sky-300/30",
+                    "focus:ring-[var(--th-accent)]/30 focus:border-[var(--th-border-focus)] focus:ring-2",
                     isDark
                       ? "border-slate-700 bg-zinc-900 text-slate-100 placeholder:text-slate-500"
                       : "border-slate-200 bg-white text-slate-800 placeholder:text-slate-400",
@@ -417,12 +421,12 @@ const AskQuestionRenderer = ({
             disabled={isLocked}
             className={classNames(
               "rounded-xl px-4 py-2 text-sm font-semibold transition-all",
-              "focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--th-accent)]",
               isLocked
                 ? isDark
                   ? "cursor-not-allowed bg-zinc-700 text-slate-400"
                   : "cursor-not-allowed bg-slate-100 text-slate-400"
-                : "bg-sky-500 text-white hover:bg-sky-600"
+                : "bg-[var(--th-info)] text-white hover:opacity-90"
             )}
           >
             {payload.submitLabel || "提交答案"}

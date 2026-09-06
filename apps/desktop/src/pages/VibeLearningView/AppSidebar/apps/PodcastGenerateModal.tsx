@@ -345,7 +345,7 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
                 notice.type === "warning" &&
                   "border-yellow-200 bg-yellow-50 text-yellow-700 dark:border-yellow-500/30 dark:bg-yellow-500/10 dark:text-yellow-400",
                 notice.type === "info" &&
-                  "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-400"
+                  "border-[var(--th-border-focus)]/30 bg-[var(--th-info)]/10 text-status-info dark:border-[var(--th-border-focus)]/30 dark:bg-[var(--th-accent)]/10"
               )}
             >
               {notice.text}
@@ -603,8 +603,8 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
       destroyOnClose
       title={getModalTitle()}
       subtitle={getModalSubtitle()}
-      icon={<Mic className="h-5 w-5 text-purple-500" />}
-      iconBgColor="bg-purple-50 dark:bg-purple-500/20 border-purple-200 dark:border-purple-500/30"
+      icon={<Mic className="h-5 w-5 text-[var(--th-accent)]" />}
+      iconBgColor="bg-[var(--th-accent-soft)] border-[var(--th-border-focus)]/30"
       footer={renderFooter()}
       showCloseButton={step !== "generating"}
       bodyClassName="overflow-y-auto pt-3"

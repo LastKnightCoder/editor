@@ -102,7 +102,7 @@ const MinimaxSetting: React.FC = () => {
         {/* Header */}
         <div className="p-6 pb-4">
           <div className="flex items-center gap-3">
-            <div className="bg-linear-to-br flex h-12 w-12 items-center justify-center rounded-lg from-purple-500 to-indigo-600 text-xl font-bold text-white shadow-sm">
+            <div className="bg-linear-to-br flex h-12 w-12 items-center justify-center rounded-lg from-[var(--th-accent)] to-[var(--th-accent-hover)] text-xl font-bold text-white shadow-sm">
               M
             </div>
             <div className="min-w-0 flex-1">
@@ -132,7 +132,7 @@ const MinimaxSetting: React.FC = () => {
           {!minimax.enabled ? (
             <button
               onClick={() => setModalOpen(true)}
-              className="w-full rounded-lg bg-purple-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-600"
+              className="w-full rounded-lg bg-[var(--th-btn-bg)] px-4 py-2 text-sm font-medium text-[var(--th-btn-text)] transition-colors hover:bg-[var(--th-btn-hover)]"
             >
               连接 Minimax
             </button>
@@ -178,8 +178,8 @@ const MinimaxSetting: React.FC = () => {
               >
                 <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
                   <div className="mb-5 flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-purple-200 bg-purple-50 dark:border-purple-500/30 dark:bg-purple-500/20">
-                      <span className="text-lg font-bold text-purple-500">M</span>
+                    <div className="border-[var(--th-border-focus)]/30 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border bg-[var(--th-accent-soft)]">
+                      <span className="text-lg font-bold text-[var(--th-accent)]">M</span>
                     </div>
                     <div className="min-w-0 flex-1">
                       <h2 className="m-0 text-base font-bold text-gray-800 dark:text-white">
@@ -227,7 +227,7 @@ const MinimaxSetting: React.FC = () => {
                         }}
                         placeholder="请输入 Minimax API Key..."
                         rows={4}
-                        className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-purple-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(168,85,247,0.15)] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(168,85,247,0.25)]"
+                        className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                         disabled={loading}
                       />
                     </div>
@@ -246,7 +246,7 @@ const MinimaxSetting: React.FC = () => {
                     )}
 
                     <button
-                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-none bg-purple-500 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(168,85,247,0.35),0_1px_2px_rgba(0,0,0,0.05)] transition-all hover:-translate-y-px hover:bg-purple-600 active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700 dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
+                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-none bg-[var(--th-btn-bg)] px-5 py-3.5 text-sm font-semibold text-[var(--th-btn-text)] shadow-sm transition-all hover:-translate-y-px hover:bg-[var(--th-btn-hover)] active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700 dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
                       onClick={checkApiKey}
                       disabled={!apiKeyValue.trim() || loading}
                     >

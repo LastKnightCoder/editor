@@ -201,7 +201,7 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
                     className={classnames(
                       "cursor-pointer rounded-xl border p-4 transition-all",
                       "border-gray-200 dark:border-slate-700",
-                      "hover:border-blue-500 dark:hover:border-blue-500",
+                      "hover:border-[var(--th-border-focus)] dark:hover:border-[var(--th-border-focus)]",
                       "dark:hover:bg-[var(--th-btn-hover)]/5 hover:bg-[var(--th-accent-soft)]/50"
                     )}
                     onClick={handleItemClick.bind(null, item)}

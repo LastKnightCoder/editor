@@ -505,7 +505,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-zinc-800">
             <motion.div
-              className="h-full rounded-full bg-blue-500"
+              className="h-full rounded-full bg-[var(--th-accent)]"
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
               transition={{ duration: 0.4, ease: "easeOut" }}

@@ -257,13 +257,13 @@ const AudioPlayer = (props: AudioPlayerProps) => {
         <div className="relative flex h-3 items-center">
           <div className="absolute inset-x-0 h-1 rounded-full bg-gray-200 transition-[height] group-hover:h-1.5 dark:bg-zinc-600">
             <div
-              className="absolute left-0 top-0 h-full rounded-full bg-blue-500 transition-[width] duration-100 dark:bg-blue-400"
+              className="absolute left-0 top-0 h-full rounded-full bg-[var(--th-accent)] transition-[width] duration-100 dark:bg-[var(--th-accent)]"
               style={{ width: `${progress}%` }}
             />
           </div>
           {/* Playback indicator dot */}
           <div
-            className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 dark:bg-blue-400"
+            className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--th-accent)] opacity-0 shadow-sm transition-opacity group-hover:opacity-100 dark:bg-[var(--th-accent)]"
             style={{ left: `${progress}%` }}
           />
           {/* Chapter markers */}
@@ -302,7 +302,7 @@ const AudioPlayer = (props: AudioPlayerProps) => {
         <button
           className={classNames(
             "flex items-center justify-center rounded-full transition-colors",
-            "h-11 w-11 bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] shadow-md hover:bg-[var(--th-btn-hover)] dark:bg-blue-500 dark:hover:bg-blue-400"
+            "h-11 w-11 bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] shadow-md hover:bg-[var(--th-btn-hover)] dark:bg-[var(--th-accent)] dark:hover:bg-[var(--th-accent)]"
           )}
           onClick={togglePlay}
         >
@@ -334,7 +334,7 @@ const AudioPlayer = (props: AudioPlayerProps) => {
                   className={classNames(
                     "block w-full whitespace-nowrap px-4 py-1.5 text-left text-xs transition-colors",
                     speed === playbackRate
-                      ? "bg-blue-50 font-semibold text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                      ? "dark: bg-[var(--th-accent-soft)] font-semibold text-[var(--th-active-text)]"
                       : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-zinc-700"
                   )}
                   onClick={() => selectSpeed(speed)}

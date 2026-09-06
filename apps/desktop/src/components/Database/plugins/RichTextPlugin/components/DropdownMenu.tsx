@@ -14,13 +14,13 @@ const DropdownMenu: React.FC<DropdownMenuProps> = memo(
 
     const menuItems = [
       {
-        icon: <MdSearch className="w-4 h-4" />,
+        icon: <MdSearch className="h-4 w-4" />,
         text: "关联文档",
         onClick: onLinkDocument,
         description: "搜索并关联现有文档",
       },
       {
-        icon: <MdAdd className="w-4 h-4" />,
+        icon: <MdAdd className="h-4 w-4" />,
         text: "新建文档",
         onClick: onCreateDocument,
         description: "创建新的富文本文档",
@@ -29,33 +29,24 @@ const DropdownMenu: React.FC<DropdownMenuProps> = memo(
 
     return (
       <div
-        className={classNames(
-          "w-56 rounded-lg shadow-lg border overflow-hidden",
-          {
-            "bg-white border-gray-200": !isDark,
-            "bg-zinc-800 border-gray-700": isDark,
-          },
-        )}
+        className={classNames("w-56 overflow-hidden rounded-lg border shadow-lg", {
+          "border-gray-200 bg-white": !isDark,
+          "border-gray-700 bg-zinc-800": isDark,
+        })}
       >
         {menuItems.map((item, index) => (
           <div
             key={index}
             className={classNames(
-              "flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors",
+              "flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors",
               {
-                "hover:bg-gray-50 text-gray-700": !isDark,
-                "hover:bg-zinc-700 text-gray-200": isDark,
-              },
+                "text-gray-700 hover:bg-gray-50": !isDark,
+                "text-gray-200 hover:bg-zinc-700": isDark,
+              }
             )}
             onClick={item.onClick}
           >
-            <div
-              className={classNames("text-blue-500", {
-                "text-blue-400": isDark,
-              })}
-            >
-              {item.icon}
-            </div>
+            <div className="text-[var(--th-accent)]">{item.icon}</div>
             <div className="flex flex-col">
               <div className="text-sm font-medium">{item.text}</div>
               <div
@@ -71,7 +62,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = memo(
         ))}
       </div>
     );
-  },
+  }
 );
 
 DropdownMenu.displayName = "DropdownMenu";

@@ -178,7 +178,7 @@ const ChatSelectorModal = memo(({ open, onCancel, onSelect }: IChatSelectorModal
           "mx-2 my-0.5 flex cursor-pointer items-center rounded-md px-3 py-2 transition-all duration-200",
           {
             "bg-[var(--th-accent-soft)] text-[var(--th-active-text)]": isSelected,
-            "hover:bg-[var(--th-accent-soft)] dark:hover:bg-blue-900/20": !isSelected,
+            "dark:hover: hover:bg-[var(--th-accent-soft)]": !isSelected,
             "text-gray-400 opacity-50": isArchived,
           }
         )}

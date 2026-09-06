@@ -31,7 +31,7 @@ const difficultyLabels: Record<string, { label: string; color: string }> = {
   },
   standard: {
     label: "常规",
-    color: "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400",
+    color: "bg-[var(--th-info)]/15 text-status-info dark:bg-[var(--th-accent)]/20",
   },
   advanced: {
     label: "进阶",
@@ -94,8 +94,8 @@ const FlashcardGenerationModal = ({
       footer={null}
       title="AI 生成闪卡"
       subtitle="基于卡片内容智能生成复习卡片"
-      icon={<Sparkles className="h-5 w-5 text-purple-600 dark:text-purple-400" />}
-      iconBgColor="bg-purple-50 dark:bg-purple-500/20 border-purple-200 dark:border-purple-500/30"
+      icon={<Sparkles className="h-5 w-5 text-[var(--th-accent)]" />}
+      iconBgColor="bg-[var(--th-accent-soft)] border-[var(--th-border-focus)]/30"
       bodyClassName="flashcard-generation-modal-body"
     >
       {/* Deck Selection Header */}
@@ -108,7 +108,7 @@ const FlashcardGenerationModal = ({
         </div>
         <button
           onClick={onChangeDeck}
-          className="text-sm text-indigo-600 hover:underline dark:text-indigo-400"
+          className="text-sm text-[var(--th-active-text)] hover:underline"
         >
           更换卡组
         </button>
@@ -116,8 +116,8 @@ const FlashcardGenerationModal = ({
 
       {/* Status Display */}
       {isGenerating && (
-        <div className="mb-4 rounded-lg border border-purple-200 bg-purple-50 p-4 dark:border-purple-500/30 dark:bg-purple-500/10">
-          <div className="flex items-center gap-2 text-purple-700 dark:text-purple-400">
+        <div className="border-[var(--th-border-focus)]/30 mb-4 rounded-lg border bg-[var(--th-accent-soft)] p-4">
+          <div className="flex items-center gap-2 text-[var(--th-active-text)]">
             <LoadingOutlined className="text-lg" />
             <span>{isPending ? "等待模型输出..." : "正在生成闪卡..."}</span>
           </div>
@@ -140,7 +140,7 @@ const FlashcardGenerationModal = ({
             <div className="flex gap-2">
               <button
                 onClick={onSelectAll}
-                className="rounded px-2 py-1 text-xs text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/10"
+                className="dark:hover:bg-[var(--th-accent)]/10 rounded px-2 py-1 text-xs text-[var(--th-active-text)] hover:bg-[var(--th-accent-soft)]"
               >
                 全选
               </button>
@@ -159,7 +159,7 @@ const FlashcardGenerationModal = ({
                 key={card.id}
                 className={`rounded-xl border p-4 transition-all ${
                   card.selected
-                    ? "border-indigo-300 bg-indigo-50/50 dark:border-indigo-500/50 dark:bg-indigo-500/10"
+                    ? "border-[var(--th-border-focus)]/40 bg-[var(--th-accent-soft)]/50"
                     : "border-gray-200 hover:border-gray-300 dark:border-slate-700 dark:hover:border-slate-600"
                 }`}
               >
@@ -204,7 +204,7 @@ const FlashcardGenerationModal = ({
                   </div>
                   <button
                     onClick={() => onEditCard(card)}
-                    className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-400"
+                    className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-[var(--th-accent-soft)] hover:text-[var(--th-active-text)]"
                     title="编辑闪卡"
                   >
                     <Edit2 className="h-4 w-4" />
@@ -235,7 +235,7 @@ const FlashcardGenerationModal = ({
         <button
           onClick={onConfirm}
           disabled={isGenerating || selectedCount === 0 || !selectedDeck}
-          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex items-center gap-2 rounded-lg bg-[var(--th-btn-bg)] px-4 py-2 text-sm font-medium text-[var(--th-btn-text)] transition-colors hover:bg-[var(--th-btn-hover)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Check className="h-4 w-4" />
           添加 {selectedCount} 张闪卡

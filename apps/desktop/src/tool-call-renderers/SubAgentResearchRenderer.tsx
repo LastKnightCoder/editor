@@ -340,8 +340,8 @@ const SubAgentResearchRenderer = ({
             type="button"
             className={`inline-flex rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${
               isDark
-                ? "border-sky-400/30 bg-sky-400/10 text-sky-200 hover:bg-sky-400/15"
-                : "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100"
+                ? "border-[var(--th-info)]/40 bg-[var(--th-info)]/10 hover:bg-[var(--th-info)]/15"
+                : "border-[var(--th-info)]/30 bg-[var(--th-info)]/10 text-status-info hover:bg-[var(--th-info)]/15"
             }`}
             onClick={() => setDetailOpen(true)}
           >

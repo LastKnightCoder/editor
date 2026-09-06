@@ -93,8 +93,8 @@ export const ChangePreviewCard = ({ preview, isDark }: ChangePreviewCardProps) =
           className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs ${
             opInfo.color === "blue"
               ? isDark
-                ? "bg-blue-900/30 text-blue-300"
-                : "bg-blue-50 text-blue-700"
+                ? " "
+                : "bg-[var(--th-info)]/10 text-status-info"
               : opInfo.color === "red"
                 ? isDark
                   ? "bg-red-900/30 text-red-300"

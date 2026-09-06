@@ -443,14 +443,14 @@ const CalendarSidebar = memo(() => {
               <div className="ml-2">
                 {/* 合并模式提示 */}
                 {mergeModeEnabled && (
-                  <div className="mb-3 rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
-                    <p className="text-xs text-blue-800 dark:text-blue-200">
+                  <div className="dark: mb-3 rounded-lg bg-[var(--th-accent-soft)] p-3">
+                    <p className="text-xs text-[var(--th-active-text)]">
                       选择至少 2 个日历进行合并
                     </p>
                     {selectedCalendarsForMerge.length >= 2 && (
                       <button
                         onClick={() => setShowMergeDialog(true)}
-                        className="mt-2 w-full rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-[var(--th-btn-hover)]"
+                        className="mt-2 w-full rounded-lg bg-[var(--th-btn-bg)] px-3 py-1.5 text-sm font-medium text-white hover:bg-[var(--th-btn-hover)] dark:bg-[var(--th-accent)] dark:hover:bg-[var(--th-btn-hover)]"
                       >
                         合并选中的 {selectedCalendarsForMerge.length} 个日历
                       </button>

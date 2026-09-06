@@ -346,7 +346,7 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
             "rounded-lg px-4 py-2 text-sm font-medium transition-all",
             "flex items-center gap-2",
             userPrompt.trim()
-              ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-blue-700"
+              ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-[var(--th-btn-hover)]"
               : "cursor-not-allowed bg-gray-300 text-gray-500 dark:bg-zinc-700 dark:text-gray-400"
           )}
         >

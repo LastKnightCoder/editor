@@ -66,8 +66,7 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
   const modelInfo = useEmbeddingConfig();
 
   const [search, setSearch] = useState("");
-  const [searchedItems, setSearchedItems] =
-    useState<SearchResult[]>(initialContents);
+  const [searchedItems, setSearchedItems] = useState<SearchResult[]>(initialContents);
   const [searching, setSearching] = useState(false);
 
   const searchItems = useMemoizedFn(async () => {
@@ -99,8 +98,8 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
     getScrollElement: () => listRef.current,
     estimateSize: () => 350,
     overscan: 3,
-    getItemKey: (index) => searchedItems[index].id,
-    measureElement: (el) => {
+    getItemKey: index => searchedItems[index].id,
+    measureElement: el => {
       const item = el.firstElementChild;
       if (!item) return 350;
       return el.getBoundingClientRect().height;
@@ -115,9 +114,9 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
   });
 
   return (
-    <div className="h-full min-h-0 box-border flex flex-col">
-      <div className="shrink-0 flex w-full p-0 box-border items-center mb-4 relative">
-        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 z-1 text-gray-400 dark:text-slate-500 text-base pointer-events-none">
+    <div className="box-border flex h-full min-h-0 flex-col">
+      <div className="relative mb-4 box-border flex w-full shrink-0 items-center p-0">
+        <div className="z-1 pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-base text-gray-400 dark:text-slate-500">
           {searching ? <LoadingOutlined /> : <SearchOutlined />}
         </div>
         <EditText
@@ -126,7 +125,7 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
           contentEditable={true}
           onChange={setSearch}
           onPressEnter={searchItems}
-          className="flex-1 py-3 pl-11 pr-4 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-900 dark:text-white relative focus:border-purple-500 focus:shadow-[0_0_0_3px_rgba(168,85,247,0.15)] focus:bg-white dark:focus:bg-zinc-900 placeholder:text-gray-400 dark:placeholder:text-slate-500"
+          className="relative flex-1 rounded-xl border border-gray-200 bg-gray-50 py-3 pl-11 pr-4 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:bg-white focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:bg-zinc-900"
           onDeleteEmpty={() => {
             setSearch("");
             setSearchedItems(initialContents);
@@ -135,22 +134,22 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
       </div>
       <div
         className={classnames(
-          "mt-5 border-20 border-transparent px-5 flex-1 min-h-0 box-border flex flex-col",
+          "border-20 mt-5 box-border flex min-h-0 flex-1 flex-col border-transparent px-5",
           {
             "overflow-y-auto": !searching,
-          },
+          }
         )}
         ref={listRef}
       >
         <If condition={searching}>
-          <div className="flex items-center justify-center h-full w-full text-[2em]">
+          <div className="flex h-full w-full items-center justify-center text-[2em]">
             <LoadingOutlined />
           </div>
         </If>
         <If condition={!searching && searchedItems.length === 0}>
-          <div className="flex flex-col items-center justify-center h-full w-full py-10 px-5 text-gray-400 dark:text-slate-500">
+          <div className="flex h-full w-full flex-col items-center justify-center px-5 py-10 text-gray-400 dark:text-slate-500">
             <svg
-              className="w-16 h-16 mb-4 opacity-50"
+              className="mb-4 h-16 w-16 opacity-50"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -159,7 +158,7 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
-            <p className="text-sm m-0">{emptyDescription}</p>
+            <p className="m-0 text-sm">{emptyDescription}</p>
           </div>
         </If>
         <If condition={!searching && searchedItems.length > 0}>
@@ -170,7 +169,7 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
               position: "relative",
             }}
           >
-            {virtualizer.getVirtualItems().map((virtualItem) => {
+            {virtualizer.getVirtualItems().map(virtualItem => {
               const item = searchedItems[virtualItem.index];
               const selected = isItemSelected ? isItemSelected(item) : false;
               const disabled = isItemDisabled ? isItemDisabled(item) : false;
@@ -191,34 +190,32 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
                 >
                   <div
                     className={classnames(
-                      "p-5 border rounded-lg relative",
+                      "relative rounded-lg border p-5",
                       "border-gray-200 dark:border-slate-700",
                       {
-                        "border-purple-500 dark:border-purple-500": selected,
-                        "opacity-50 cursor-not-allowed": disabled,
+                        "border-[var(--th-border-focus)]": selected,
+                        "cursor-not-allowed opacity-50": disabled,
                         "cursor-pointer": !disabled,
-                      },
+                      }
                     )}
                     onClick={handleItemClick.bind(null, item)}
                     style={{ contentVisibility: "auto" }}
                   >
                     <div className="mb-5 flex items-center gap-2">
                       <div>
-                        <Tag color={getTypeColor(item.type)}>
-                          {getTypeLabel(item.type)}
-                        </Tag>
+                        <Tag color={getTypeColor(item.type)}>{getTypeLabel(item.type)}</Tag>
                       </div>
                       {showTitle && (
-                        <div className="text-base font-bold overflow-hidden text-ellipsis whitespace-nowrap">
+                        <div className="overflow-hidden text-ellipsis whitespace-nowrap text-base font-bold">
                           {item.title}
                         </div>
                       )}
                     </div>
-                    <div className="mb-3 flex gap-2.5 text-gray-500 dark:text-slate-400 text-xs">
+                    <div className="mb-3 flex gap-2.5 text-xs text-gray-500 dark:text-slate-400">
                       <span>更新于：{formatDate(item.updateTime, true)}</span>
                     </div>
                     <ErrorBoundary>
-                      <div className="text-gray-600 dark:text-slate-400 text-sm">
+                      <div className="text-sm text-gray-600 dark:text-slate-400">
                         <Editor
                           readonly={true}
                           initValue={item.content.slice(0, 3)}

@@ -210,7 +210,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
                     type="button"
                     onClick={() => setLandscape(!landscape)}
                     className={`relative h-6 w-11 rounded-full transition-colors ${
-                      landscape ? "bg-indigo-500" : "bg-gray-200 dark:bg-zinc-700"
+                      landscape ? "bg-[var(--th-accent)]" : "bg-gray-200 dark:bg-zinc-700"
                     }`}
                   >
                     <span
@@ -288,7 +288,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
                     type="button"
                     onClick={() => setPrintBackground(!printBackground)}
                     className={`relative h-6 w-11 rounded-full transition-colors ${
-                      printBackground ? "bg-indigo-500" : "bg-gray-200 dark:bg-zinc-700"
+                      printBackground ? "bg-[var(--th-accent)]" : "bg-gray-200 dark:bg-zinc-700"
                     }`}
                   >
                     <span
@@ -313,7 +313,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
                     type="button"
                     onClick={() => setChapterBreak(!chapterBreak)}
                     className={`relative h-6 w-11 rounded-full transition-colors ${
-                      chapterBreak ? "bg-indigo-500" : "bg-gray-200 dark:bg-zinc-700"
+                      chapterBreak ? "bg-[var(--th-accent)]" : "bg-gray-200 dark:bg-zinc-700"
                     }`}
                   >
                     <span

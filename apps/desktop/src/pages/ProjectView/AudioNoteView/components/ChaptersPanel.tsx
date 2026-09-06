@@ -51,7 +51,7 @@ const ChaptersPanel = (props: ChaptersPanelProps) => {
               className={classNames(
                 "flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition-all",
                 isActive
-                  ? "border-blue-300 bg-blue-50 dark:border-blue-600 dark:bg-blue-900/20"
+                  ? "border-[var(--th-border-focus)]/40 bg-[var(--th-accent-soft)]"
                   : "border-transparent hover:border-gray-200 hover:bg-gray-50 dark:hover:border-zinc-700 dark:hover:bg-zinc-800/50"
               )}
               onClick={() => onSeek(chapter.startTime)}
@@ -60,7 +60,7 @@ const ChaptersPanel = (props: ChaptersPanelProps) => {
                 className={classNames(
                   "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
                   isActive
-                    ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] dark:bg-blue-500"
+                    ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] dark:bg-[var(--th-accent)]"
                     : "bg-gray-200 text-gray-600 dark:bg-zinc-700 dark:text-gray-300"
                 )}
               >

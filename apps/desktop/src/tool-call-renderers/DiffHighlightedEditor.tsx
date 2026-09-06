@@ -44,7 +44,7 @@ export const DiffHighlightedEditor = ({
       if (diffLeaf.reviewSyntheticKind === "collapsed") {
         syntheticClass = isDark ? "italic text-slate-500" : "italic text-slate-400";
       } else if (diffLeaf.reviewSyntheticKind === "meta") {
-        syntheticClass = isDark ? "italic text-sky-300" : "italic text-sky-700";
+        syntheticClass = "italic text-status-info";
       } else if (diffLeaf.reviewSyntheticKind === "code") {
         syntheticClass = isDark ? "font-mono whitespace-pre-wrap" : "font-mono whitespace-pre-wrap";
       }

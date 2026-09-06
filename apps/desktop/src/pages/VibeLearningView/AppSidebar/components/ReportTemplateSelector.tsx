@@ -59,7 +59,7 @@ const TemplateCard = memo((props: TemplateCardProps) => {
         "relative cursor-pointer overflow-hidden rounded-xl transition-all duration-200",
         "border-2",
         isSelected
-          ? "border-blue-500 shadow-lg shadow-blue-500/20"
+          ? "border-[var(--th-border-focus)] shadow-lg shadow-blue-500/20"
           : "border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600"
       )}
     >
@@ -94,7 +94,7 @@ const TemplateCard = memo((props: TemplateCardProps) => {
         )}
 
         {isSelected && (
-          <div className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-blue-500">
+          <div className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--th-accent)]">
             <Check className="h-3 w-3 text-white" strokeWidth={3} />
           </div>
         )}

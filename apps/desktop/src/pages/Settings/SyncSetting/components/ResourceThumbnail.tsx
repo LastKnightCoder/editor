@@ -41,7 +41,7 @@ const iconColors: Record<ResourceType, string> = {
   video: "",
   audio: "",
   pdf: "bg-gradient-to-br from-red-100 to-red-200 dark:from-red-900/40 dark:to-red-800/40 text-red-500 dark:text-red-400",
-  epub: "bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/40 dark:to-blue-800/40 text-[var(--th-accent)]",
+  epub: "bg-[var(--th-accent-soft)] text-[var(--th-accent)]",
   attachment:
     "bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800/60 dark:to-gray-700/60 text-gray-500 dark:text-gray-400",
 };
@@ -82,17 +82,13 @@ const ResourceThumbnail = ({
   if (resource.type === "video") {
     return (
       <div
-        className={classNames(
-          baseClass,
-          "bg-linear-to-br cursor-pointer from-violet-100 to-violet-200 dark:from-violet-900/40 dark:to-violet-800/40",
-          className
-        )}
+        className={classNames(baseClass, "cursor-pointer bg-[var(--th-accent-soft)]", className)}
         onClick={e => {
           e.stopPropagation();
           onVideoClick?.();
         }}
       >
-        <Video className="h-5 w-5 text-violet-500 dark:text-violet-400" />
+        <Video className="h-5 w-5 text-[var(--th-accent)]" />
         <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
           <Play className="h-4 w-4 text-white" fill="white" />
         </div>

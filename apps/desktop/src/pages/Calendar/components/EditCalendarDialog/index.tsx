@@ -108,7 +108,7 @@ const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
               onChange={e => setTitle(e.target.value)}
               placeholder="输入日历名称"
               disabled={calendar?.isInSystemGroup}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[var(--th-border-focus)] focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-zinc-700 dark:text-gray-100 dark:focus:border-blue-400"
+              className="focus:ring-[var(--th-accent)]/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[var(--th-border-focus)] focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-zinc-700 dark:text-gray-100 dark:focus:border-[var(--th-border-focus)]"
               autoFocus={!calendar?.isInSystemGroup}
             />
             {calendar?.isInSystemGroup && (
@@ -182,7 +182,7 @@ const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
             </button>
             <button
               type="submit"
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-[var(--th-btn-hover)]"
+              className="rounded-lg bg-[var(--th-btn-bg)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--th-btn-hover)] dark:bg-[var(--th-accent)] dark:hover:bg-[var(--th-btn-hover)]"
             >
               保存
             </button>

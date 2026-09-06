@@ -70,15 +70,13 @@ const PublishProgressCard = ({
         "rounded-xl p-4",
         themeColors.cardBgClass,
         themeColors.borderClass,
-        "border",
+        "border"
       )}
     >
-      <div className="flex items-center justify-between mb-3">
+      <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-          <span
-            className={classNames("text-sm font-medium", themeColors.textClass)}
-          >
+          <div className="h-2 w-2 animate-pulse rounded-full bg-[var(--th-accent)]" />
+          <span className={classNames("text-sm font-medium", themeColors.textClass)}>
             {phaseLabels[progress.phase] || progress.phase}
           </span>
         </div>
@@ -88,20 +86,15 @@ const PublishProgressCard = ({
       </div>
 
       {/* 进度条 */}
-      <div className="h-2 rounded-full bg-gray-200 dark:bg-zinc-700 overflow-hidden mb-2">
+      <div className="mb-2 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-zinc-700">
         <div
-          className="h-full bg-blue-500 transition-all duration-300"
+          className="h-full bg-[var(--th-accent)] transition-all duration-300"
           style={{ width: `${percent}%` }}
         />
       </div>
 
       {progress.currentFile && (
-        <p
-          className={classNames(
-            "text-xs truncate mb-3",
-            themeColors.secondaryTextClass,
-          )}
-        >
+        <p className={classNames("mb-3 truncate text-xs", themeColors.secondaryTextClass)}>
           {progress.currentFile}
         </p>
       )}
@@ -118,7 +111,7 @@ const PublishSetting = () => {
   const { client } = useBackendWebsocketStore();
   const themeColors = useThemeColors();
 
-  const { publish, integration, appearance } = useSettingStore((state) => ({
+  const { publish, integration, appearance } = useSettingStore(state => ({
     publish: state.setting.publish,
     integration: state.setting.integration,
     appearance: state.setting.appearance,
@@ -153,41 +146,39 @@ const PublishSetting = () => {
 
   const onTabChange = (key: string) => {
     useSettingStore.setState(
-      produce((state) => {
+      produce(state => {
         state.setting.publish.active = key as EPublishProvider;
-      }),
+      })
     );
   };
 
   const onSiteConfigChange = useMemoizedFn(
     (field: "title" | "description" | "publicUrl", value: string) => {
       useSettingStore.setState(
-        produce((state) => {
+        produce(state => {
           state.setting.publish.site[field] = value;
-        }),
+        })
       );
-    },
+    }
   );
 
-  const onSiteFaviconChange = useMemoizedFn(
-    (favicon?: IPublishFaviconConfig) => {
-      useSettingStore.setState(
-        produce((state) => {
-          state.setting.publish.site.favicon = favicon;
-        }),
-      );
-    },
-  );
+  const onSiteFaviconChange = useMemoizedFn((favicon?: IPublishFaviconConfig) => {
+    useSettingStore.setState(
+      produce(state => {
+        state.setting.publish.site.favicon = favicon;
+      })
+    );
+  });
 
   const removeCachedFaviconFiles = useMemoizedFn(async () => {
     const userDataDir = await getUserDataDir();
     const targets = buildPublishFaviconCachePaths(userDataDir);
     await Promise.all(
-      targets.map(async (targetPath) => {
+      targets.map(async targetPath => {
         if (await pathExists(targetPath)) {
           await removeFile(targetPath);
         }
-      }),
+      })
     );
   });
 
@@ -207,18 +198,14 @@ const PublishSetting = () => {
       }
 
       const filePath = paths[0];
-      const extension = normalizePublishFaviconExtension(
-        await getFileExtension(filePath),
-      );
+      const extension = normalizePublishFaviconExtension(await getFileExtension(filePath));
       if (!extension) {
         message.error("仅支持 SVG、PNG、ICO 格式的 favicon");
         return;
       }
 
       const userDataDir = await getUserDataDir();
-      const cacheDir = getParentDirFromPath(
-        buildPublishFaviconCachePath(userDataDir, extension),
-      );
+      const cacheDir = getParentDirFromPath(buildPublishFaviconCachePath(userDataDir, extension));
       await createDir(cacheDir);
       await removeCachedFaviconFiles();
 
@@ -234,15 +221,10 @@ const PublishSetting = () => {
       onSiteFaviconChange(favicon);
       message.success("已缓存发布 favicon");
     } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message === "User canceled file selection"
-      ) {
+      if (error instanceof Error && error.message === "User canceled file selection") {
         return;
       }
-      message.error(
-        `选择 favicon 失败: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      message.error(`选择 favicon 失败: ${error instanceof Error ? error.message : String(error)}`);
     }
   });
 
@@ -252,9 +234,7 @@ const PublishSetting = () => {
       onSiteFaviconChange(undefined);
       message.success("已清除自定义 favicon");
     } catch (error) {
-      message.error(
-        `清除 favicon 失败: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      message.error(`清除 favicon 失败: ${error instanceof Error ? error.message : String(error)}`);
     }
   });
 
@@ -353,10 +333,7 @@ const PublishSetting = () => {
         setIsPublishing(false);
       }
     } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message === "User canceled file selection"
-      ) {
+      if (error instanceof Error && error.message === "User canceled file selection") {
         return;
       }
       message.error(`选择目录失败: ${error}`);
@@ -404,30 +381,16 @@ const PublishSetting = () => {
   return (
     <SettingContainer>
       <SettingSection title="发布目标" description="选择发布服务并配置相关参数">
-        <SettingTabs
-          activeKey={activeKey}
-          onChange={onTabChange}
-          items={tabItems}
-        />
+        <SettingTabs activeKey={activeKey} onChange={onTabChange} items={tabItems} />
         <div className="mt-6">{renderProviderSetting()}</div>
 
         {!isLocalProvider && (
           <div className="mt-6 flex items-center justify-between">
             <div>
-              <div
-                className={classNames(
-                  "text-sm font-medium",
-                  themeColors.textClass,
-                )}
-              >
+              <div className={classNames("text-sm font-medium", themeColors.textClass)}>
                 测试连接
               </div>
-              <div
-                className={classNames(
-                  "text-xs",
-                  themeColors.secondaryTextClass,
-                )}
-              >
+              <div className={classNames("text-xs", themeColors.secondaryTextClass)}>
                 验证配置是否正确
               </div>
             </div>
@@ -435,12 +398,7 @@ const PublishSetting = () => {
               variant="secondary"
               onClick={handleCheckConnection}
               icon={
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -461,19 +419,19 @@ const PublishSetting = () => {
           <SettingInput
             label="站点标题"
             value={publish.site.title}
-            onChange={(e) => onSiteConfigChange("title", e.target.value)}
+            onChange={e => onSiteConfigChange("title", e.target.value)}
             placeholder="我的博客"
           />
           <SettingInput
             label="站点描述"
             value={publish.site.description}
-            onChange={(e) => onSiteConfigChange("description", e.target.value)}
+            onChange={e => onSiteConfigChange("description", e.target.value)}
             placeholder="记录学习与思考"
           />
           <SettingInput
             label="公开 URL"
             value={publish.site.publicUrl}
-            onChange={(e) => onSiteConfigChange("publicUrl", e.target.value)}
+            onChange={e => onSiteConfigChange("publicUrl", e.target.value)}
             placeholder="https://example.com"
             description="用于生成 RSS 订阅中的绝对链接；留空时会降级为站内路径"
           />
@@ -482,31 +440,31 @@ const PublishSetting = () => {
               <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
                 站点 Favicon
               </div>
-              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+              <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
                 支持 SVG、PNG、ICO。选择后会缓存到本地，后续发布自动复用。
               </p>
             </div>
             <div
               className={classNames(
-                "rounded-xl border px-4 py-3 flex items-center justify-between gap-3",
+                "flex items-center justify-between gap-3 rounded-xl border px-4 py-3",
                 themeColors.inputBgClass,
-                themeColors.borderClass,
+                themeColors.borderClass
               )}
             >
-              <div className="min-w-0 flex items-center gap-4">
-                <div className="w-16 h-16 rounded-xl shrink-0 overflow-hidden flex items-center justify-center">
+              <div className="flex min-w-0 items-center gap-4">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl">
                   {publish.site.favicon ? (
                     <LocalImage
                       url={publish.site.favicon.cachePath}
                       alt={publish.site.favicon.fileName}
                       data-testid="favicon-preview-image"
-                      className="w-full h-full object-contain"
+                      className="h-full w-full object-contain"
                     />
                   ) : (
                     <span
                       className={classNames(
                         "text-[11px] uppercase tracking-wide",
-                        themeColors.secondaryTextClass,
+                        themeColors.secondaryTextClass
                       )}
                     >
                       无预览
@@ -515,18 +473,12 @@ const PublishSetting = () => {
                 </div>
                 <div className="min-w-0">
                   <div
-                    className={classNames(
-                      "text-sm font-medium truncate",
-                      themeColors.textClass,
-                    )}
+                    className={classNames("truncate text-sm font-medium", themeColors.textClass)}
                   >
                     {publish.site.favicon?.fileName || "未选择自定义 favicon"}
                   </div>
                   <div
-                    className={classNames(
-                      "text-xs mt-1 truncate",
-                      themeColors.secondaryTextClass,
-                    )}
+                    className={classNames("mt-1 truncate text-xs", themeColors.secondaryTextClass)}
                   >
                     {publish.site.favicon
                       ? `格式：${publish.site.favicon.format.toUpperCase()}`
@@ -534,20 +486,12 @@ const PublishSetting = () => {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <SettingButton
-                  variant="secondary"
-                  type="button"
-                  onClick={handleSelectFavicon}
-                >
+              <div className="flex shrink-0 items-center gap-2">
+                <SettingButton variant="secondary" type="button" onClick={handleSelectFavicon}>
                   {publish.site.favicon ? "重新选择" : "选择文件"}
                 </SettingButton>
                 {publish.site.favicon && (
-                  <SettingButton
-                    variant="secondary"
-                    type="button"
-                    onClick={handleClearFavicon}
-                  >
+                  <SettingButton variant="secondary" type="button" onClick={handleClearFavicon}>
                     清除
                   </SettingButton>
                 )}
@@ -557,34 +501,18 @@ const PublishSetting = () => {
         </div>
       </SettingSection>
 
-      <SettingSection
-        title="发布内容"
-        description="选择要发布的卡片、文章、项目和知识库"
-      >
+      <SettingSection title="发布内容" description="选择要发布的卡片、文章、项目和知识库">
         <PublishSelector />
       </SettingSection>
 
-      <SettingSection
-        title="发布操作"
-        description="根据当前发布目标生成站点静态文件"
-      >
+      <SettingSection title="发布操作" description="根据当前发布目标生成站点静态文件">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <div
-                className={classNames(
-                  "text-sm font-medium",
-                  themeColors.textClass,
-                )}
-              >
+              <div className={classNames("text-sm font-medium", themeColors.textClass)}>
                 {isLocalProvider ? "导出静态站点" : "开始发布"}
               </div>
-              <div
-                className={classNames(
-                  "text-xs",
-                  themeColors.secondaryTextClass,
-                )}
-              >
+              <div className={classNames("text-xs", themeColors.secondaryTextClass)}>
                 {isLocalProvider
                   ? "生成静态文件至本地文件夹，便于自行部署"
                   : "将选中的内容发布到目标服务"}
@@ -595,12 +523,7 @@ const PublishSetting = () => {
               onClick={handlePublish}
               loading={isPublishing}
               icon={
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -615,10 +538,7 @@ const PublishSetting = () => {
           </div>
 
           {isPublishing && progress && (
-            <PublishProgressCard
-              progress={progress}
-              onCancel={handleCancelPublish}
-            />
+            <PublishProgressCard progress={progress} onCancel={handleCancelPublish} />
           )}
         </div>
       </SettingSection>

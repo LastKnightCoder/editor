@@ -14,25 +14,19 @@ interface MergeCalendarsDialogProps {
 
 const MergeCalendarsDialog = memo(
   ({ isOpen, onClose, sourceCalendarIds }: MergeCalendarsDialogProps) => {
-    const { calendars, mergeCalendars, toggleCalendarForMerge } =
-      useCalendarStore();
-    const setting = useSettingStore((state) => state.setting);
+    const { calendars, mergeCalendars, toggleCalendarForMerge } = useCalendarStore();
+    const setting = useSettingStore(state => state.setting);
     const { modal, message } = App.useApp();
     const theme = setting.darkMode ? "dark" : "light";
 
-    const [targetCalendarId, setTargetCalendarId] = useState<number | null>(
-      null,
-    );
+    const [targetCalendarId, setTargetCalendarId] = useState<number | null>(null);
     const [eventCounts, setEventCounts] = useState<Record<number, number>>({});
     const [loading, setLoading] = useState(false);
 
     // 获取源日历和可选的目标日历
-    const sourceCalendars = calendars.filter((c) =>
-      sourceCalendarIds.includes(c.id),
-    );
+    const sourceCalendars = calendars.filter(c => sourceCalendarIds.includes(c.id));
     const availableTargetCalendars = calendars.filter(
-      (c) =>
-        !sourceCalendarIds.includes(c.id) && !c.isInSystemGroup && !c.archived,
+      c => !sourceCalendarIds.includes(c.id) && !c.isInSystemGroup && !c.archived
     );
 
     // 加载事件数量
@@ -55,10 +49,7 @@ const MergeCalendarsDialog = memo(
     }, [isOpen, sourceCalendarIds]);
 
     // 计算总事件数
-    const totalEvents = Object.values(eventCounts).reduce(
-      (sum, count) => sum + count,
-      0,
-    );
+    const totalEvents = Object.values(eventCounts).reduce((sum, count) => sum + count, 0);
 
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -78,8 +69,7 @@ const MergeCalendarsDialog = memo(
         content: (
           <div>
             <p>
-              将 <strong>{sourceCalendars.length}</strong> 个日历（共{" "}
-              <strong>{totalEvents}</strong>{" "}
+              将 <strong>{sourceCalendars.length}</strong> 个日历（共 <strong>{totalEvents}</strong>{" "}
               个事件）合并到目标日历，源日历将被删除。
             </p>
             <p className="mt-2 text-gray-500">此操作不可撤销，确定要继续吗？</p>
@@ -91,19 +81,14 @@ const MergeCalendarsDialog = memo(
         onOk: async () => {
           setLoading(true);
           try {
-            const result = await mergeCalendars(
-              sourceCalendarIds,
-              targetCalendarId,
-            );
+            const result = await mergeCalendars(sourceCalendarIds, targetCalendarId);
             message.success(
-              `成功合并 ${result.deletedCalendars} 个日历，转移了 ${result.transferredEvents} 个事件`,
+              `成功合并 ${result.deletedCalendars} 个日历，转移了 ${result.transferredEvents} 个事件`
             );
             onClose();
           } catch (error) {
             console.error("Failed to merge calendars:", error);
-            message.error(
-              error instanceof Error ? error.message : "合并日历失败，请重试",
-            );
+            message.error(error instanceof Error ? error.message : "合并日历失败，请重试");
           } finally {
             setLoading(false);
           }
@@ -122,9 +107,7 @@ const MergeCalendarsDialog = memo(
         <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl dark:bg-zinc-800">
           {/* 头部 */}
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              合并日历
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">合并日历</h3>
             <button
               onClick={onClose}
               className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-zinc-700 dark:hover:text-gray-300"
@@ -138,14 +121,13 @@ const MergeCalendarsDialog = memo(
             {/* 源日历列表 */}
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                要合并的日历（{sourceCalendars.length} 个，共 {totalEvents}{" "}
-                个事件）
+                要合并的日历（{sourceCalendars.length} 个，共 {totalEvents} 个事件）
               </label>
               <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-zinc-900">
-                {sourceCalendars.map((calendar) => {
+                {sourceCalendars.map(calendar => {
                   const color = getProjectColorValue(
                     calendar.color,
-                    theme === "dark" ? "dark" : "light",
+                    theme === "dark" ? "dark" : "light"
                   );
                   const eventCount = eventCounts[calendar.id] || 0;
 
@@ -155,10 +137,7 @@ const MergeCalendarsDialog = memo(
                       className="flex items-center justify-between rounded-lg bg-white px-3 py-2 dark:bg-zinc-800"
                     >
                       <div className="flex items-center gap-2">
-                        <div
-                          className="h-3 w-3 rounded-full"
-                          style={{ backgroundColor: color }}
-                        />
+                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
                         <span className="text-sm text-gray-900 dark:text-gray-100">
                           {calendar.title}
                         </span>
@@ -190,10 +169,10 @@ const MergeCalendarsDialog = memo(
                 </div>
               ) : (
                 <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-zinc-900">
-                  {availableTargetCalendars.map((calendar) => {
+                  {availableTargetCalendars.map(calendar => {
                     const color = getProjectColorValue(
                       calendar.color,
-                      theme === "dark" ? "dark" : "light",
+                      theme === "dark" ? "dark" : "light"
                     );
                     const isSelected = targetCalendarId === calendar.id;
 
@@ -204,14 +183,11 @@ const MergeCalendarsDialog = memo(
                         onClick={() => setTargetCalendarId(calendar.id)}
                         className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors ${
                           isSelected
-                            ? "bg-blue-100 dark:bg-blue-900/30"
+                            ? "bg-[var(--th-info)]/15 dark:"
                             : "bg-white hover:bg-gray-100 dark:bg-zinc-800 dark:hover:bg-zinc-700"
                         }`}
                       >
-                        <div
-                          className="h-3 w-3 rounded-full"
-                          style={{ backgroundColor: color }}
-                        />
+                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
                         <span className="text-sm text-gray-900 dark:text-gray-100">
                           {calendar.title}
                         </span>
@@ -221,9 +197,7 @@ const MergeCalendarsDialog = memo(
                             {
                               useCalendarStore
                                 .getState()
-                                .calendarGroups.find(
-                                  (g) => g.id === calendar.groupId,
-                                )?.name
+                                .calendarGroups.find(g => g.id === calendar.groupId)?.name
                             }
                             )
                           </span>
@@ -238,8 +212,7 @@ const MergeCalendarsDialog = memo(
             {/* 提示信息 */}
             <div className="rounded-lg bg-yellow-50 p-3 dark:bg-yellow-900/20">
               <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                ⚠️
-                合并后，源日历将被删除，所有事件将转移到目标日历。此操作不可撤销。
+                ⚠️ 合并后，源日历将被删除，所有事件将转移到目标日历。此操作不可撤销。
               </p>
             </div>
 
@@ -270,7 +243,7 @@ const MergeCalendarsDialog = memo(
         </div>
       </div>
     );
-  },
+  }
 );
 
 MergeCalendarsDialog.displayName = "MergeCalendarsDialog";

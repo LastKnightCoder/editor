@@ -69,7 +69,7 @@ const EditTitleModal: React.FC<EditTitleModalProps> = ({
       <div className="m-4 w-full max-w-[460px]" onClick={e => e.stopPropagation()}>
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
           <div className="mb-5 flex items-center gap-3">
-            <div className="border-[var(--th-border-focus)]/30 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border bg-blue-50 dark:bg-blue-500/20">
+            <div className="border-[var(--th-border-focus)]/30 dark:bg-[var(--th-accent)]/20 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border bg-[var(--th-accent-soft)]">
               <svg
                 className="h-5 w-5 text-[var(--th-accent)]"
                 viewBox="0 0 24 24"

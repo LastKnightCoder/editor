@@ -394,7 +394,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                       className={classNames(
                         "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs",
                         hasSummary
-                          ? "bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400"
+                          ? "dark:bg-[var(--th-accent)]/15 bg-[var(--th-accent-soft)] text-[var(--th-active-text)]"
                           : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400"
                       )}
                     >

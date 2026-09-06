@@ -125,7 +125,7 @@ const PreviewPane = ({ content, onRefresh }: { content: string; onRefresh: () =>
             className={classNames(
               "rounded p-1 transition-all",
               viewMode === "desktop"
-                ? "bg-blue-100 text-[var(--th-active-text)] dark:bg-blue-500/15"
+                ? "bg-[var(--th-info)]/15 dark:bg-[var(--th-accent)]/15 text-[var(--th-active-text)]"
                 : classNames(themeColors.secondaryTextClass, themeColors.hoverClass)
             )}
             title="桌面视图"
@@ -137,7 +137,7 @@ const PreviewPane = ({ content, onRefresh }: { content: string; onRefresh: () =>
             className={classNames(
               "rounded p-1 transition-all",
               viewMode === "mobile"
-                ? "bg-blue-100 text-[var(--th-active-text)] dark:bg-blue-500/15"
+                ? "bg-[var(--th-info)]/15 dark:bg-[var(--th-accent)]/15 text-[var(--th-active-text)]"
                 : classNames(themeColors.secondaryTextClass, themeColors.hoverClass)
             )}
             title="移动视图"

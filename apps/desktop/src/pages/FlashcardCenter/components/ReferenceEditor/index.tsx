@@ -13,12 +13,7 @@ interface ReferenceEditorProps {
   isDark: boolean;
 }
 
-const ReferenceEditor = ({
-  reference,
-  onChange,
-  onRemove,
-  isDark,
-}: ReferenceEditorProps) => {
+const ReferenceEditor = ({ reference, onChange, onRemove, isDark }: ReferenceEditorProps) => {
   const [showContentSelector, setShowContentSelector] = useState(false);
   const extensions = useDynamicExtensions();
 
@@ -38,9 +33,7 @@ const ReferenceEditor = ({
         refType: "custom",
         title: "",
         contentId: undefined,
-        customContent: [
-          { type: "paragraph", children: [{ type: "formatted", text: "" }] },
-        ],
+        customContent: [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }],
       });
     }
   };
@@ -78,19 +71,19 @@ const ReferenceEditor = ({
       }}
     >
       {/* 类型选择 */}
-      <div className="flex items-center gap-3 mb-3">
+      <div className="mb-3 flex items-center gap-3">
         <div className="flex gap-2">
           <button
             type="button"
             onClick={() => handleTypeChange("content")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
               reference.refType === "content"
                 ? isDark
-                  ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/50"
-                  : "bg-indigo-50 text-indigo-600 border border-indigo-200"
+                  ? "bg-[var(--th-accent)]/20 border-[var(--th-accent)]/50 border text-[var(--th-active-text)]"
+                  : "border-[var(--th-border-focus)]/30 border bg-[var(--th-accent-soft)] text-[var(--th-active-text)]"
                 : isDark
-                  ? "bg-zinc-800 text-slate-400 border border-slate-700 hover:border-slate-600"
-                  : "bg-white text-gray-600 border border-gray-300 hover:border-gray-400"
+                  ? "border border-slate-700 bg-zinc-800 text-slate-400 hover:border-slate-600"
+                  : "border border-gray-300 bg-white text-gray-600 hover:border-gray-400"
             }`}
           >
             引用内容
@@ -98,14 +91,14 @@ const ReferenceEditor = ({
           <button
             type="button"
             onClick={() => handleTypeChange("custom")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
               reference.refType === "custom"
                 ? isDark
-                  ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/50"
-                  : "bg-indigo-50 text-indigo-600 border border-indigo-200"
+                  ? "bg-[var(--th-accent)]/20 border-[var(--th-accent)]/50 border text-[var(--th-active-text)]"
+                  : "border-[var(--th-border-focus)]/30 border bg-[var(--th-accent-soft)] text-[var(--th-active-text)]"
                 : isDark
-                  ? "bg-zinc-800 text-slate-400 border border-slate-700 hover:border-slate-600"
-                  : "bg-white text-gray-600 border border-gray-300 hover:border-gray-400"
+                  ? "border border-slate-700 bg-zinc-800 text-slate-400 hover:border-slate-600"
+                  : "border border-gray-300 bg-white text-gray-600 hover:border-gray-400"
             }`}
           >
             自定义内容
@@ -115,15 +108,11 @@ const ReferenceEditor = ({
         <button
           type="button"
           onClick={onRemove}
-          className="ml-auto text-xs px-3 py-1.5 rounded-lg transition-all border hover:border-red-400 dark:hover:border-red-500"
+          className="ml-auto rounded-lg border px-3 py-1.5 text-xs transition-all hover:border-red-400 dark:hover:border-red-500"
           style={{
             color: isDark ? "#ef4444" : "#dc2626",
-            backgroundColor: isDark
-              ? "rgba(239, 68, 68, 0.1)"
-              : "rgba(239, 68, 68, 0.05)",
-            borderColor: isDark
-              ? "rgba(239, 68, 68, 0.2)"
-              : "rgba(239, 68, 68, 0.1)",
+            backgroundColor: isDark ? "rgba(239, 68, 68, 0.1)" : "rgba(239, 68, 68, 0.05)",
+            borderColor: isDark ? "rgba(239, 68, 68, 0.2)" : "rgba(239, 68, 68, 0.1)",
           }}
         >
           删除
@@ -133,7 +122,7 @@ const ReferenceEditor = ({
       {/* 标题输入 */}
       <div className="mb-3">
         <label
-          className="block text-xs font-medium mb-1.5"
+          className="mb-1.5 block text-xs font-medium"
           style={{ color: isDark ? "#94a3b8" : "#6b7280" }}
         >
           标题
@@ -141,9 +130,9 @@ const ReferenceEditor = ({
         <input
           type="text"
           value={reference.title}
-          onChange={(e) => handleTitleChange(e.target.value)}
+          onChange={e => handleTitleChange(e.target.value)}
           placeholder="输入参考资料标题"
-          className="w-full px-3 py-2 rounded-lg text-sm border outline-none transition-colors"
+          className="w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
           style={{
             borderColor: isDark ? "#475569" : "#d1d5db",
             backgroundColor: isDark ? "#1e293b" : "white",
@@ -157,7 +146,7 @@ const ReferenceEditor = ({
         <div>
           {reference.contentId ? (
             <div
-              className="p-3 rounded-lg border text-sm"
+              className="rounded-lg border p-3 text-sm"
               style={{
                 borderColor: isDark ? "#475569" : "#e5e7eb",
                 backgroundColor: isDark ? "#0f172a" : "#f9fafb",
@@ -169,7 +158,7 @@ const ReferenceEditor = ({
                 <button
                   type="button"
                   onClick={() => setShowContentSelector(true)}
-                  className="text-xs px-2 py-1 rounded"
+                  className="rounded px-2 py-1 text-xs"
                   style={{
                     color: isDark ? "#60a5fa" : "#3b82f6",
                   }}
@@ -182,7 +171,7 @@ const ReferenceEditor = ({
             <button
               type="button"
               onClick={() => setShowContentSelector(true)}
-              className="w-full py-3 rounded-lg border-2 border-dashed text-sm transition-colors"
+              className="w-full rounded-lg border-2 border-dashed py-3 text-sm transition-colors"
               style={{
                 borderColor: isDark ? "#475569" : "#d1d5db",
                 color: isDark ? "#94a3b8" : "#6b7280",
@@ -195,7 +184,7 @@ const ReferenceEditor = ({
       ) : (
         <div>
           <label
-            className="block text-xs font-medium mb-1.5"
+            className="mb-1.5 block text-xs font-medium"
             style={{ color: isDark ? "#94a3b8" : "#6b7280" }}
           >
             自定义内容
@@ -215,18 +204,12 @@ const ReferenceEditor = ({
       <ContentSelectorModal
         open={showContentSelector}
         onCancel={() => setShowContentSelector(false)}
-        onSelect={(item) => {
+        onSelect={item => {
           if (!Array.isArray(item)) {
             handleContentSelect(item);
           }
         }}
-        contentType={[
-          "card",
-          "article",
-          "document-item",
-          "project-item",
-          "diary-daily",
-        ]}
+        contentType={["card", "article", "document-item", "project-item", "diary-daily"]}
         extensions={extensions}
         emptyDescription="无可用内容"
         showTitle={true}

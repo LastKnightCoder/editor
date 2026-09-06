@@ -279,7 +279,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
             "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all",
             "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
             "text-gray-800 placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500",
-            "focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-blue-500/20"
+            "focus:ring-[var(--th-accent)]/20 focus:border-[var(--th-border-focus)] focus:ring-2"
           )}
         />
       </div>
@@ -291,7 +291,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
             <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
               生成的题目
             </label>
-            <span className="rounded-md bg-blue-100 px-2 py-0.5 text-xs font-bold text-[var(--th-active-text)] dark:bg-blue-500/20">
+            <span className="bg-[var(--th-info)]/15 dark:bg-[var(--th-accent)]/20 rounded-md px-2 py-0.5 text-xs font-bold text-[var(--th-active-text)]">
               {selectedCount}/{generatedItems.length}
             </span>
           </div>
@@ -299,7 +299,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
             <button
               type="button"
               onClick={selectAll}
-              className="text-xs font-medium text-[var(--th-accent)] transition-colors hover:text-[var(--th-active-text)] dark:hover:text-blue-300"
+              className="dark:hover: text-xs font-medium text-[var(--th-accent)] transition-colors hover:text-[var(--th-active-text)]"
             >
               全选
             </button>
@@ -449,7 +449,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
       title={getModalTitle()}
       subtitle={getModalSubtitle()}
       icon={<Sparkles className="h-5 w-5 text-[var(--th-accent)]" />}
-      iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-[var(--th-border-focus)]/30"
+      iconBgColor="bg-[var(--th-accent-soft)] dark:bg-[var(--th-accent)]/20 border-[var(--th-border-focus)]/30"
       footer={renderFooter()}
       showCloseButton={step !== "generating"}
     >
@@ -530,7 +530,9 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
       <div
         className={classNames(
           "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all",
-          item.selected ? "border-blue-500 bg-blue-500" : "border-gray-300 dark:border-gray-600"
+          item.selected
+            ? "border-[var(--th-accent)] bg-[var(--th-accent)]"
+            : "border-gray-300 dark:border-gray-600"
         )}
       >
         {item.selected && <Check className="h-3 w-3 text-white" />}
@@ -538,7 +540,7 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
       <div className="min-w-0 flex-1">
         <div className="mb-1.5 flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium text-gray-400 dark:text-gray-500">#{index + 1}</span>
-          <span className="rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-[var(--th-active-text)] dark:bg-blue-500/20">
+          <span className="bg-[var(--th-info)]/15 dark:bg-[var(--th-accent)]/20 rounded-md px-2 py-0.5 text-[10px] font-semibold text-[var(--th-active-text)]">
             {typeLabel}
           </span>
           <span
