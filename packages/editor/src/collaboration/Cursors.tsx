@@ -1,12 +1,46 @@
 import { memo } from "react";
 import { useRemoteCursorOverlayPositions } from "@slate-yjs/react";
-import type { RefObject } from "react";
+import type { CSSProperties, RefObject } from "react";
 import { memberColor } from "@tau/collaboration";
 
 const LABEL_MAX_WIDTH = 160;
 const DEFAULT_COLOR = "oklch(0.62 0.11 185)";
+// 标签固定样式推导的高度：11.5px 字号 × 1.4 行高 + 上下 padding 6px，向上取整留余量
+const LABEL_HEIGHT = 23;
+const LABEL_GAP = 3;
 
 type CursorUser = { id?: string; name: string; color: string };
+
+// 标签默认在光标上方；第一行放不下时翻转到下方，上下都放不下（单行文档）时退到光标右侧，
+// 避免被外层 overflow 容器截断。
+function getLabelPlacementStyle(
+  caret: { top: number; left: number; height: number },
+  containerWidth: number,
+  containerHeight: number
+): CSSProperties {
+  const clampedLeft = Math.max(
+    -caret.left,
+    Math.min(-2, containerWidth - caret.left - LABEL_MAX_WIDTH)
+  );
+  const fitsAbove = caret.top >= LABEL_HEIGHT + LABEL_GAP;
+  const fitsBelow = containerHeight - caret.top - caret.height >= LABEL_HEIGHT + LABEL_GAP;
+  if (!fitsAbove && !fitsBelow) {
+    return { top: 0, left: 4, borderRadius: 7 };
+  }
+  return fitsAbove
+    ? {
+        bottom: "100%",
+        marginBottom: LABEL_GAP,
+        left: clampedLeft,
+        borderRadius: "7px 7px 7px 2px",
+      }
+    : {
+        top: "100%",
+        marginTop: LABEL_GAP,
+        left: clampedLeft,
+        borderRadius: "7px 7px 2px 7px",
+      };
+}
 
 const CollaborationCursors = memo(function CollaborationCursors({
   containerRef,
@@ -14,7 +48,9 @@ const CollaborationCursors = memo(function CollaborationCursors({
   containerRef: RefObject<HTMLDivElement>;
 }) {
   const [cursors] = useRemoteCursorOverlayPositions<CursorUser>({ containerRef });
-  const containerWidth = containerRef.current?.clientWidth || LABEL_MAX_WIDTH;
+  const container = containerRef.current;
+  const containerWidth = container?.clientWidth || LABEL_MAX_WIDTH;
+  const containerHeight = container?.clientHeight || 0;
   return (
     <div
       aria-hidden
@@ -62,14 +98,12 @@ const CollaborationCursors = memo(function CollaborationCursors({
                     className="animate-fadeIn"
                     style={{
                       position: "absolute",
-                      bottom: "100%",
-                      left: Math.max(
-                        -cursor.caretPosition.left,
-                        Math.min(-2, containerWidth - cursor.caretPosition.left - LABEL_MAX_WIDTH)
+                      ...getLabelPlacementStyle(
+                        cursor.caretPosition,
+                        containerWidth,
+                        containerHeight
                       ),
-                      marginBottom: 3,
                       padding: "3px 8px",
-                      borderRadius: "7px 7px 7px 2px",
                       fontSize: 11.5,
                       fontWeight: 500,
                       lineHeight: 1.4,
