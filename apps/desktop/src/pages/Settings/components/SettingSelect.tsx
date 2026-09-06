@@ -34,7 +34,7 @@ const SettingSelect: React.FC<SettingSelectProps> = ({
           value={value}
           onChange={e => onChange(e.target.value)}
           disabled={disabled}
-          className={`w-full cursor-pointer appearance-none rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-3.5 pr-9 text-sm text-gray-800 outline-none transition-all focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:focus:shadow-[0_0_0_3px_rgba(59,130,246,0.25)] [&_option]:dark:bg-zinc-900 [&_option]:dark:text-white ${className}`}
+          className={`w-full cursor-pointer appearance-none rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-3.5 pr-9 text-sm text-gray-800 outline-none transition-all focus:border-gray-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:focus:border-slate-500 [&_option]:dark:bg-zinc-900 [&_option]:dark:text-white ${className}`}
         >
           {options.map(option => (
             <option key={option.value} value={option.value}>

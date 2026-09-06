@@ -19,25 +19,13 @@ const SettingInput = forwardRef<HTMLInputElement, SettingInputProps>(
         )}
         <input
           ref={ref}
-          className={`w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all
-            ${themeColors.inputBgClass}
-            border border-gray-200 dark:border-slate-700
-            text-gray-800 dark:text-white
-            shadow-inner
-            placeholder:text-gray-400 dark:placeholder:text-slate-500
-            ${themeColors.focusBorderClass} ${themeColors.focusRingClass}
-            disabled:opacity-60 disabled:cursor-not-allowed
-            ${className}`}
+          className={`w-full rounded-xl px-4 py-3.5 text-sm outline-none transition-all ${themeColors.inputBgClass} border border-gray-200 text-gray-800 shadow-inner placeholder:text-gray-400 focus:border-gray-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-slate-500 ${className}`}
           {...props}
         />
-        {description && (
-          <p className="text-xs text-gray-500 dark:text-slate-400">
-            {description}
-          </p>
-        )}
+        {description && <p className="text-xs text-gray-500 dark:text-slate-400">{description}</p>}
       </div>
     );
-  },
+  }
 );
 
 SettingInput.displayName = "SettingInput";
