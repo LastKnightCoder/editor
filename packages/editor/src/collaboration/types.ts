@@ -16,6 +16,8 @@ export interface EditorCollaborationBinding {
   privateNodes: Map<string, ContentNode>;
   /** 共享模式下插入私有块后通知宿主持久化私有数据。 */
   putPrivateNode?: (collabId: string, node: ContentNode) => void;
+  /** 本机字段（LOCAL_FIELDS）变更时回调，宿主可借以上报视图状态（如激活 Tab） */
+  onLocalFieldChange?: (collabId: string, key: string, value: unknown) => void;
   uploadResource: (file: File) => Promise<string>;
   resolveResource: (url: string) => Promise<string>;
 }

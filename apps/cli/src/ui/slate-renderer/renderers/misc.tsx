@@ -51,9 +51,7 @@ registry.register({
   render: (element: any) => {
     return (
       <Box marginTop={1} marginBottom={1}>
-        <Text dimColor>
-          [File: {element.fileName || element.src || "unknown"}]
-        </Text>
+        <Text dimColor>[File: {element.fileName || element.src || "unknown"}]</Text>
       </Box>
     );
   },
@@ -175,11 +173,7 @@ registry.register({
 // Mermaid diagram
 registry.register({
   type: "mermaid",
-  render: (
-    element: any,
-    _children: ReactNode,
-    context: TerminalRendererContext,
-  ) => {
+  render: (element: any, _children: ReactNode, context: TerminalRendererContext) => {
     return (
       <Box
         flexDirection="column"
@@ -311,16 +305,16 @@ registry.register({
 // Tabs
 registry.register({
   type: "tabs",
-  render: (
-    element: any,
-    _children: ReactNode,
-    context: TerminalRendererContext,
-  ) => {
-    const tabsContent = element.tabsContent || [];
+  render: (element: any, _children: ReactNode, context: TerminalRendererContext) => {
+    // 兼容两种形态：旧 tabsContent 元数据或新 tab-pane 子节点
+    const legacyTitles = (element.tabsContent || []).map((t: any) => t.title || "Tab");
+    const panes = (element.children || []).filter((child: any) => child?.type === "tab-pane");
+    const tabLabels = (
+      panes.length > 0 ? panes.map((p: any) => p.title || "Tab") : legacyTitles
+    ).join(" | ");
     const blocks = (element.children || []).map((child: any, i: number) =>
-      renderNode(child, i, context, element),
+      renderNode(child, i, context, element)
     );
-    const tabLabels = tabsContent.map((t: any) => t.title || "Tab").join(" | ");
 
     return (
       <Box flexDirection="column" marginTop={1} marginBottom={1}>
@@ -331,16 +325,23 @@ registry.register({
   },
 });
 
+// Tab Pane
+registry.register({
+  type: "tab-pane",
+  render: (element: any, _children: ReactNode, context: TerminalRendererContext) => {
+    const blocks = (element.children || []).map((child: any, i: number) =>
+      renderNode(child, i, context, element)
+    );
+    return <Box flexDirection="column">{blocks}</Box>;
+  },
+});
+
 // Multi-column container
 registry.register({
   type: "multi-column-container",
-  render: (
-    element: any,
-    _children: ReactNode,
-    context: TerminalRendererContext,
-  ) => {
+  render: (element: any, _children: ReactNode, context: TerminalRendererContext) => {
     const items = (element.children || []).map((child: any, i: number) =>
-      renderNode(child, i, context, element),
+      renderNode(child, i, context, element)
     );
     return (
       <Box flexDirection="column" marginTop={1} marginBottom={1}>
@@ -353,13 +354,9 @@ registry.register({
 // Multi-column item
 registry.register({
   type: "multi-column-item",
-  render: (
-    element: any,
-    _children: ReactNode,
-    context: TerminalRendererContext,
-  ) => {
+  render: (element: any, _children: ReactNode, context: TerminalRendererContext) => {
     const blocks = (element.children || []).map((child: any, i: number) =>
-      renderNode(child, i, context, element),
+      renderNode(child, i, context, element)
     );
     return <Box flexDirection="column">{blocks}</Box>;
   },

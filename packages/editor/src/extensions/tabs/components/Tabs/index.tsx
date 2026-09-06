@@ -1,9 +1,8 @@
 import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
-import { Editor, Transforms, Element } from "slate";
-import { produce } from "immer";
+import { Editor, Transforms } from "slate";
 import { v4 as getUUid } from "uuid";
 
-import { ITabsContent, TabsElement } from "../../../types";
+import { ITabItem, TabPaneElement, TabsElement } from "../../../types";
 import AddParagraph from "../../../../components/AddParagraph";
 import TabsHeader from "../TabsHeader";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
@@ -11,19 +10,40 @@ import useIsLastElement from "../../../../hooks/useIsLastElement";
 import styles from "./index.module.less";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
 import classnames from "classnames";
-import { MdDragIndicator } from "react-icons/md";
-import { BlockElement } from "../../../../types/custom-element";
+import { GripVertical } from "lucide-react";
+import { TabsActiveContext } from "../../context";
 
 interface ITabsProps {
   element: TabsElement;
   attributes: RenderElementProps["attributes"];
-  children: RenderElementProps["children"];
+  children: React.ReactNode;
 }
+
+const createEmptyPane = (title: string): TabPaneElement => ({
+  type: "tab-pane",
+  tabKey: getUUid(),
+  title,
+  children: [
+    {
+      type: "paragraph",
+      children: [
+        {
+          type: "formatted",
+          text: "",
+        },
+      ],
+    },
+  ],
+});
 
 const Tabs = (props: ITabsProps) => {
   const { attributes, element, children } = props;
-  const { activeKey } = element;
-  const tabsContent = Array.isArray(element.tabsContent) ? element.tabsContent : [];
+  const panes = (Array.isArray(element.children) ? element.children : []).filter(
+    child => child.type === "tab-pane"
+  ) as TabPaneElement[];
+  const activeKey = panes.some(pane => pane.tabKey === element.activeKey)
+    ? element.activeKey
+    : panes[0]?.tabKey || "";
   const isLast = useIsLastElement(element);
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
     element,
@@ -32,108 +52,53 @@ const Tabs = (props: ITabsProps) => {
   const editor = useSlate();
   const readOnly = useReadOnly();
 
-  const setTabsData = (
-    newActiveKey: string,
-    newTabsContent: ITabsContent[],
-    newChildren: BlockElement[]
-  ) => {
+  const getPanes = (): TabPaneElement[] => {
+    // element 是渲染快照，连续操作前需从编辑器读最新节点
     const path = ReactEditor.findPath(editor, element);
-    Transforms.delete(editor, {
-      at: path,
-    });
-
-    Transforms.insertNodes(
-      editor,
-      {
-        type: "tabs",
-        activeKey: newActiveKey,
-        tabsContent: newTabsContent,
-        children: newChildren,
-      },
-      {
-        at: path,
-      }
-    );
-  };
-
-  const syncCurrentTabContent = () => {
-    const newTabsContent = produce(tabsContent, draft => {
-      const currentTab = draft.find(tab => tab.key === activeKey);
-      if (currentTab) {
-        currentTab.content = element.children;
-      } else {
-        draft.push({
-          key: activeKey,
-          content: element.children,
-          title: "New Tab",
-        });
-      }
-    });
-    setTabsData(activeKey, newTabsContent, element.children);
+    const [node] = Editor.node(editor, path);
+    return ((node as TabsElement).children || []).filter(
+      child => child.type === "tab-pane"
+    ) as TabPaneElement[];
   };
 
   const handleClickTab = (key: string) => {
     if (key === activeKey) return;
-
-    const newActiveKey = key;
-    const newTabsContent = produce(tabsContent, draft => {
-      const currentTab = draft.find(tab => tab.key === activeKey);
-      if (currentTab) {
-        currentTab.content = element.children;
-      } else {
-        draft.push({
-          key: activeKey,
-          content: element.children,
-          title: "New Tab",
-        });
+    const path = ReactEditor.findPath(editor, element);
+    Editor.withoutNormalizing(editor, () => {
+      Transforms.setNodes(editor, { activeKey: key }, { at: path });
+      // 选区不能留在被隐藏的旧 pane 里，否则后续输入会打到看不见的 Tab
+      if (!readOnly && editor.selection) {
+        const index = getPanes().findIndex(pane => pane.tabKey === key);
+        if (index >= 0) {
+          Transforms.select(editor, Editor.start(editor, [...path, index]));
+        }
       }
     });
-    const newChildren = newTabsContent.find(tab => tab.key === newActiveKey)!.content;
-
-    setTabsData(newActiveKey, newTabsContent, newChildren);
   };
 
-  // 直接设置 children 没有用，需要先删除再插入
   const onAddTab = () => {
     if (readOnly) return;
-    const newAddKey = getUUid();
-    const tab: ITabsContent = {
-      key: newAddKey,
-      content: [
-        {
-          type: "paragraph",
-          children: [
-            {
-              type: "formatted",
-              text: "",
-            },
-          ],
-        },
-      ],
-      title: "Tab" + (tabsContent.length + 1),
-    };
-    const newTabsContent = produce(tabsContent, draft => {
-      const currentTab = draft.find(tab => tab.key === activeKey);
-      if (currentTab) {
-        currentTab.content = element.children;
-      }
-      draft.push(tab);
+    const path = ReactEditor.findPath(editor, element);
+    const currentPanes = getPanes();
+    const pane = createEmptyPane("Tab" + (currentPanes.length + 1));
+    Editor.withoutNormalizing(editor, () => {
+      Transforms.insertNodes(editor, pane, { at: [...path, currentPanes.length] });
+      Transforms.setNodes(editor, { activeKey: pane.tabKey }, { at: path });
+      Transforms.select(editor, Editor.start(editor, [...path, currentPanes.length]));
     });
-
-    setTabsData(newAddKey, newTabsContent, tab.content);
   };
 
   const onDeleteTab = (key: string) => {
     if (readOnly) return;
     const path = ReactEditor.findPath(editor, element);
-    const nextKey = tabsContent.find(tab => tab.key !== key)?.key;
-    const nextTab = tabsContent.find(tab => tab.key === nextKey);
-    const newTabsContent = tabsContent.filter(tab => tab.key !== key);
-    if (key === activeKey) {
-      if (!nextTab) {
-        Transforms.delete(editor, {
-          at: path,
-        });
+    const currentPanes = getPanes();
+    const index = currentPanes.findIndex(pane => pane.tabKey === key);
+    if (index < 0) return;
+    const remaining = currentPanes.filter(pane => pane.tabKey !== key);
+    Editor.withoutNormalizing(editor, () => {
+      Transforms.removeNodes(editor, { at: [...path, index] });
+      if (remaining.length === 0) {
+        Transforms.removeNodes(editor, { at: path });
         Transforms.insertNodes(
           editor,
           {
@@ -150,42 +115,46 @@ const Tabs = (props: ITabsProps) => {
             select: true,
           }
         );
-      } else {
-        const { key, content } = nextTab;
-        setTabsData(key, newTabsContent, content);
-      }
-    } else {
-      const selection = editor.selection;
-      setTabsData(activeKey, newTabsContent, element.children);
-      ReactEditor.focus(editor);
-      if (selection) {
-        const focus = selection.focus;
-        const focusPath = focus.path;
-        focusPath.pop();
-        const [element] = Editor.node(editor, focusPath);
-        if (!Editor.isVoid(editor, element as Element)) {
-          Transforms.select(editor, selection);
+      } else if (key === activeKey) {
+        const next = remaining[Math.min(index, remaining.length - 1)];
+        Transforms.setNodes(editor, { activeKey: next.tabKey }, { at: path });
+        const nextIndex = remaining.findIndex(pane => pane.tabKey === next.tabKey);
+        if (nextIndex >= 0 && editor.selection) {
+          Transforms.select(editor, Editor.start(editor, [...path, nextIndex]));
         }
       }
-    }
+    });
   };
 
   const onTitleChange = (key: string, title: string) => {
     if (readOnly) return;
-    const newTabsContent = produce(tabsContent, draft => {
-      const tab = draft.find(tab => tab.key === key);
-      if (!tab) return;
-      tab.title = title;
-    });
-    setTabsData(activeKey, newTabsContent, element.children);
+    const path = ReactEditor.findPath(editor, element);
+    const currentPanes = getPanes();
+    const index = currentPanes.findIndex(pane => pane.tabKey === key);
+    if (index < 0) return;
+    Transforms.setNodes(editor, { title }, { at: [...path, index] });
   };
+
+  const onMoveTab = (fromKey: string, insertAt: number) => {
+    if (readOnly) return;
+    const path = ReactEditor.findPath(editor, element);
+    const currentPanes = getPanes();
+    const fromIndex = currentPanes.findIndex(pane => pane.tabKey === fromKey);
+    if (fromIndex < 0) return;
+    // moveNodes 的目标是移除自身后的插入位置
+    let to = fromIndex < insertAt ? insertAt - 1 : insertAt;
+    to = Math.max(0, Math.min(to, currentPanes.length - 1));
+    if (to === fromIndex) return;
+    Transforms.moveNodes(editor, { at: [...path, fromIndex], to: [...path, to] });
+  };
+
+  const tabs: ITabItem[] = panes.map(pane => ({ key: pane.tabKey, title: pane.title }));
 
   return (
     <div
       ref={node => {
         drop(node);
       }}
-      onBlur={syncCurrentTabContent}
       className={classnames(styles.dropContainer, {
         [styles.dragging]: isDragging,
         [styles.drop]: isOverCurrent && canDrop,
@@ -193,18 +162,24 @@ const Tabs = (props: ITabsProps) => {
         [styles.after]: !isBefore,
       })}
     >
-      <div className="overflow-hidden rounded-xl border border-zinc-200/70 dark:border-zinc-700/40">
+      <div className="overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_3px_10px_rgba(15,23,42,0.03)] dark:border-zinc-700/50 dark:bg-zinc-900/40 dark:shadow-none">
         <TabsHeader
-          tabs={tabsContent}
+          tabs={tabs}
           activeKey={activeKey}
           onClickTab={handleClickTab}
           onDeleteTab={onDeleteTab}
           onAddTab={onAddTab}
           onTitleChange={onTitleChange}
+          onMoveTab={onMoveTab}
         />
-        <div className="p-[1em]" {...attributes}>
-          {children}
-        </div>
+        <TabsActiveContext.Provider value={activeKey}>
+          <div
+            className="relative border-t border-zinc-950/[0.055] px-5 py-4 dark:border-white/[0.07]"
+            {...attributes}
+          >
+            {children}
+          </div>
+        </TabsActiveContext.Provider>
       </div>
       {!(readOnly && isLast) && <AddParagraph element={element} />}
       <div
@@ -216,7 +191,7 @@ const Tabs = (props: ITabsProps) => {
           [styles.canDrag]: canDrag,
         })}
       >
-        <MdDragIndicator className={styles.icon} />
+        <GripVertical className={styles.icon} />
       </div>
     </div>
   );
