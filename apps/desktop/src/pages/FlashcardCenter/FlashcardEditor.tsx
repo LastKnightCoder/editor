@@ -324,7 +324,6 @@ const FlashcardEditor = ({
       title={mode === "create" ? "新建闪卡" : "编辑闪卡"}
       subtitle="管理闪卡内容和详情"
       icon={<CreditCard className="h-5 w-5" />}
-      iconBgColor="bg-[var(--th-accent-soft)] border-[var(--th-border-focus)]/30"
       bodyClassName="flashcard-editor-scroll"
     >
       <>

@@ -1391,8 +1391,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       destroyOnClose
       title="添加资料"
       subtitle="上传文件、剪藏网页或添加视频"
-      icon={<Plus className="h-5 w-5 text-[var(--th-accent)]" />}
-      iconBgColor="bg-[var(--th-accent-soft)] dark:bg-[var(--th-accent)]/20 border-[var(--th-border-focus)]/30"
+      icon={<Plus className="h-5 w-5 text-[var(--th-text-secondary)]" />}
       footer={renderFooter()}
       showCloseButton={canClose}
     >

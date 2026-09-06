@@ -94,8 +94,7 @@ const FlashcardGenerationModal = ({
       footer={null}
       title="AI 生成闪卡"
       subtitle="基于卡片内容智能生成复习卡片"
-      icon={<Sparkles className="h-5 w-5 text-[var(--th-accent)]" />}
-      iconBgColor="bg-[var(--th-accent-soft)] border-[var(--th-border-focus)]/30"
+      icon={<Sparkles className="h-5 w-5 text-[var(--th-text-secondary)]" />}
       bodyClassName="flashcard-generation-modal-body"
     >
       {/* Deck Selection Header */}

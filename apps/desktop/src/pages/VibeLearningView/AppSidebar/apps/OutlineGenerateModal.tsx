@@ -259,8 +259,7 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
       destroyOnClose
       title="生成学习大纲"
       subtitle="选择资源，AI 将自动分析并生成结构化学习大纲"
-      icon={<ListOrdered className="h-5 w-5 text-[var(--th-accent)]" />}
-      iconBgColor="bg-[var(--th-accent-soft)] dark:bg-[var(--th-accent)]/20 border-[var(--th-border-focus)]/30"
+      icon={<ListOrdered className="h-5 w-5 text-[var(--th-text-secondary)]" />}
       footer={renderFooter()}
       showCloseButton={!isCreating}
     >

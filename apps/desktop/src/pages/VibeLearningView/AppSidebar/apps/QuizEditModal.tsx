@@ -173,8 +173,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
       destroyOnClose
       title="编辑测验"
       subtitle="修改测验信息和题目内容"
-      icon={<Pencil className="h-5 w-5 text-[var(--th-accent)]" />}
-      iconBgColor="bg-[var(--th-accent-soft)] dark:bg-[var(--th-accent)]/20 border-[var(--th-border-focus)]/30"
+      icon={<Pencil className="h-5 w-5 text-[var(--th-text-secondary)]" />}
       footer={null}
     >
       <div className="space-y-6">
