@@ -28,7 +28,7 @@ const ColorPicker = memo(({ value, onChange, theme }: ColorPickerProps) => {
         className={classNames(
           "flex h-10 w-full cursor-pointer items-center rounded-lg border bg-white px-3 transition-all duration-200 dark:bg-zinc-700",
           isOpen
-            ? "border-blue-500 shadow-sm ring-1 ring-blue-200 dark:ring-blue-800/50"
+            ? "ring-[var(--th-accent)]/30 border-[var(--th-border-focus)] shadow-sm ring-1"
             : "border-gray-200 hover:border-[var(--th-border-hover)] dark:border-gray-600"
         )}
         onClick={() => setIsOpen(!isOpen)}

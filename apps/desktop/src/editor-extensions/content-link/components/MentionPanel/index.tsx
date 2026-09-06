@@ -159,7 +159,7 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
       }}
     >
       {loading && (
-        <div className="text-[var(--th-accent)]/80 flex flex-col items-center justify-center gap-3 px-5 py-10 dark:text-indigo-400/80">
+        <div className="text-[var(--th-accent)]/80 py-10/80 flex flex-col items-center justify-center gap-3 px-5">
           <Loader2 className="h-8 w-8 animate-spin" />
           <span className="text-[13px] font-medium text-slate-800/70 dark:text-slate-300/70">
             正在搜索...

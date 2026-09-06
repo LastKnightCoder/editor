@@ -606,7 +606,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           label: (
             <div
               className={classnames("flex min-w-[180px] items-center justify-between gap-3", {
-                "text-blue-600": option.value === reasoningEffort,
+                "text-[var(--th-active-text)]": option.value === reasoningEffort,
               })}
             >
               <div className="flex flex-col">
@@ -1002,7 +1002,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                   title={sendLoading ? "加入发送队列" : "发送"}
                 />
                 {queuedMessageCount > 0 && (
-                  <span className="absolute -right-1.5 -top-1.5 min-w-4 rounded-full bg-blue-500 px-1 text-center text-[10px] leading-4 text-white">
+                  <span className="absolute -right-1.5 -top-1.5 min-w-4 rounded-full bg-[var(--th-accent)] px-1 text-center text-[10px] leading-4 text-white">
                     {queuedMessageCount}
                   </span>
                 )}

@@ -400,7 +400,7 @@ const ModelTable = ({ providerType, onOpenConfig, onAddModel, onEditModel }: Mod
                         <div className="mt-3">
                           <div className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-zinc-700">
                             <div
-                              className="h-full bg-blue-500 transition-all"
+                              className="h-full bg-[var(--th-accent)] transition-all"
                               style={{ width: `${downloadProgress}%` }}
                             />
                           </div>
@@ -439,7 +439,7 @@ const ModelTable = ({ providerType, onOpenConfig, onAddModel, onEditModel }: Mod
                       ) : (
                         <button
                           onClick={() => handleDownloadLocalModel(model.name)}
-                          className="dark:hover:bg-[var(--th-btn-hover)]/10 rounded-lg px-3 py-1.5 text-sm text-blue-600 transition-colors hover:bg-[var(--th-accent-soft)] hover:text-blue-700 dark:text-blue-400"
+                          className="dark:hover:bg-[var(--th-btn-hover)]/10 rounded-lg px-3 py-1.5 text-sm text-[var(--th-active-text)] transition-colors hover:bg-[var(--th-accent-soft)] hover:text-[var(--th-active-text)]"
                         >
                           下载
                         </button>

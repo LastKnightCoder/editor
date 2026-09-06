@@ -18,22 +18,13 @@ const ProgressEditor: React.FC<ProgressEditorProps> = memo(
   ({ value, onCellValueChange, onFinishEdit, theme, readonly }) => {
     // 确保 value 是正确的格式
     const progressValue =
-      value &&
-      typeof value === "object" &&
-      "current" in value &&
-      "target" in value
+      value && typeof value === "object" && "current" in value && "target" in value
         ? (value as ProgressValue)
         : { current: 0, target: 100 };
 
-    const [currentValue, setCurrentValue] = useState(
-      String(progressValue.current),
-    );
-    const [targetValue, setTargetValue] = useState(
-      String(progressValue.target),
-    );
-    const [focusedInput, setFocusedInput] = useState<"current" | "target">(
-      "current",
-    );
+    const [currentValue, setCurrentValue] = useState(String(progressValue.current));
+    const [targetValue, setTargetValue] = useState(String(progressValue.target));
+    const [focusedInput, setFocusedInput] = useState<"current" | "target">("current");
 
     const currentInputRef = useRef<InputRef>(null);
     const targetInputRef = useRef<InputRef>(null);
@@ -108,36 +99,31 @@ const ProgressEditor: React.FC<ProgressEditorProps> = memo(
       if (!regex.test(value)) return false;
 
       const num = parseFloat(value);
-      if (isNaN(num))
-        return value === "" || value === "-" || value.endsWith(".");
+      if (isNaN(num)) return value === "" || value === "-" || value.endsWith(".");
 
       if (!allowZero && num <= 0) return false;
       return true;
     });
 
-    const handleCurrentChange = useMemoizedFn(
-      (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newValue = e.target.value;
-        if (validateNumber(newValue, true)) {
-          // 当前进度可以为 0，但不能为负数
-          if (newValue === "" || parseFloat(newValue) >= 0) {
-            setCurrentValue(newValue);
-          }
+    const handleCurrentChange = useMemoizedFn((e: React.ChangeEvent<HTMLInputElement>) => {
+      const newValue = e.target.value;
+      if (validateNumber(newValue, true)) {
+        // 当前进度可以为 0，但不能为负数
+        if (newValue === "" || parseFloat(newValue) >= 0) {
+          setCurrentValue(newValue);
         }
-      },
-    );
+      }
+    });
 
-    const handleTargetChange = useMemoizedFn(
-      (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newValue = e.target.value;
-        if (validateNumber(newValue, false)) {
-          // 目标值必须为正数，可以是任意大小
-          if (newValue === "" || parseFloat(newValue) > 0) {
-            setTargetValue(newValue);
-          }
+    const handleTargetChange = useMemoizedFn((e: React.ChangeEvent<HTMLInputElement>) => {
+      const newValue = e.target.value;
+      if (validateNumber(newValue, false)) {
+        // 目标值必须为正数，可以是任意大小
+        if (newValue === "" || parseFloat(newValue) > 0) {
+          setTargetValue(newValue);
         }
-      },
-    );
+      }
+    });
 
     useUnmount(() => {
       updateValue();
@@ -150,10 +136,8 @@ const ProgressEditor: React.FC<ProgressEditorProps> = memo(
 
     if (readonly) {
       return (
-        <div className="flex items-center gap-2 px-2 py-1 h-full w-full">
-          <span
-            className={`text-sm ${isDark ? "text-gray-300" : "text-gray-700"}`}
-          >
+        <div className="flex h-full w-full items-center gap-2 px-2 py-1">
+          <span className={`text-sm ${isDark ? "text-gray-300" : "text-gray-700"}`}>
             {currentValue}/{targetValue}
           </span>
         </div>
@@ -161,10 +145,7 @@ const ProgressEditor: React.FC<ProgressEditorProps> = memo(
     }
 
     return (
-      <div
-        className="flex items-center gap-2 px-2 py-1 h-full w-full"
-        onKeyDown={handleKeyDown}
-      >
+      <div className="flex h-full w-full items-center gap-2 px-2 py-1" onKeyDown={handleKeyDown}>
         <Input
           ref={currentInputRef}
           value={currentValue}
@@ -172,24 +153,17 @@ const ProgressEditor: React.FC<ProgressEditorProps> = memo(
           onBlur={updateValue}
           onFocus={() => setFocusedInput("current")}
           placeholder="当前"
-          className={`text-center ${focusedInput === "current" ? "ring-2 ring-blue-500" : ""}`}
+          className={`text-center ${focusedInput === "current" ? "ring-2 ring-[var(--th-accent)]" : ""}`}
           style={{
             width: "60px",
             fontSize: "12px",
             backgroundColor: isDark ? "#374151" : "#ffffff",
-            borderColor:
-              focusedInput === "current"
-                ? "#3b82f6"
-                : isDark
-                  ? "#6b7280"
-                  : "#d1d5db",
+            borderColor: focusedInput === "current" ? "#3b82f6" : isDark ? "#6b7280" : "#d1d5db",
             color: isDark ? "#f3f4f6" : "#111827",
           }}
         />
 
-        <span
-          className={`text-sm font-medium ${isDark ? "text-gray-400" : "text-gray-500"}`}
-        >
+        <span className={`text-sm font-medium ${isDark ? "text-gray-400" : "text-gray-500"}`}>
           /
         </span>
 
@@ -200,30 +174,23 @@ const ProgressEditor: React.FC<ProgressEditorProps> = memo(
           onBlur={updateValue}
           onFocus={() => setFocusedInput("target")}
           placeholder="目标"
-          className={`text-center ${focusedInput === "target" ? "ring-2 ring-blue-500" : ""}`}
+          className={`text-center ${focusedInput === "target" ? "ring-2 ring-[var(--th-accent)]" : ""}`}
           style={{
             width: "60px",
             fontSize: "12px",
             backgroundColor: isDark ? "#374151" : "#ffffff",
-            borderColor:
-              focusedInput === "target"
-                ? "#3b82f6"
-                : isDark
-                  ? "#6b7280"
-                  : "#d1d5db",
+            borderColor: focusedInput === "target" ? "#3b82f6" : isDark ? "#6b7280" : "#d1d5db",
             color: isDark ? "#f3f4f6" : "#111827",
           }}
         />
 
         {/* 快捷键提示 */}
-        <div
-          className={`text-xs flex-none ${isDark ? "text-gray-500" : "text-gray-400"} ml-2`}
-        >
+        <div className={`flex-none text-xs ${isDark ? "text-gray-500" : "text-gray-400"} ml-2`}>
           Ctrl+← →
         </div>
       </div>
     );
-  },
+  }
 );
 
 ProgressEditor.displayName = "ProgressEditor";

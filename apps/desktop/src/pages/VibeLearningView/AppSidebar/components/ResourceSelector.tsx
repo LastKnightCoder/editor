@@ -84,7 +84,7 @@ const ResourceSelector = memo((props: ResourceSelectorProps) => {
           <button
             type="button"
             onClick={onToggleAll}
-            className="text-xs font-medium text-[var(--th-accent)] transition-colors hover:text-[var(--th-active-text)] dark:hover:text-blue-300"
+            className="dark:hover: text-xs font-medium text-[var(--th-accent)] transition-colors hover:text-[var(--th-active-text)]"
           >
             {isAllSelected ? "取消全选" : "全选"}
           </button>
@@ -116,7 +116,7 @@ const ResourceSelector = memo((props: ResourceSelectorProps) => {
                 className={classNames(
                   "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all",
                   isSelected
-                    ? "border-blue-500 bg-blue-500"
+                    ? "border-[var(--th-accent)] bg-[var(--th-accent)]"
                     : "border-gray-300 dark:border-gray-600"
                 )}
               >

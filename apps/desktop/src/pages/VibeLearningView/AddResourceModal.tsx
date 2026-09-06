@@ -790,7 +790,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       <Upload.Dragger
         {...uploadProps}
         disabled={uploading}
-        className="bg-gray-50! dark:bg-zinc-800/50! border-dashed! border-gray-200! dark:border-gray-700! rounded-xl! hover:border-blue-500! transition-all"
+        className="bg-gray-50! dark:bg-zinc-800/50! border-dashed! border-gray-200! dark:border-gray-700! rounded-xl! hover:border-[var(--th-border-focus)]! transition-all"
       >
         <div className="py-8">
           {uploading ? (
@@ -855,7 +855,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
             "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all",
             "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
             "text-gray-800 placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500",
-            "focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-blue-500/20",
+            "focus:ring-[var(--th-accent)]/20 focus:border-[var(--th-border-focus)] focus:ring-2",
             "disabled:cursor-not-allowed disabled:opacity-60"
           )}
         />
@@ -878,7 +878,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
             "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all",
             "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
             "text-gray-800 placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500",
-            "focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-blue-500/20",
+            "focus:ring-[var(--th-accent)]/20 focus:border-[var(--th-border-focus)] focus:ring-2",
             "disabled:cursor-not-allowed disabled:opacity-60"
           )}
           onKeyDown={e => {
@@ -901,7 +901,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
               <Globe className="h-7 w-7 text-[var(--th-accent)]" />
             </div>
             <motion.div
-              className="absolute inset-0 h-16 w-16 rounded-full border-2 border-blue-500 border-t-transparent"
+              className="absolute inset-0 h-16 w-16 rounded-full border-2 border-[var(--th-border-focus)] border-t-transparent"
               animate={{ rotate: 360 }}
               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
             />
@@ -1200,11 +1200,11 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           className="flex flex-col items-center py-8"
         >
           <div className="relative">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-50 dark:bg-purple-500/10">
-              <StickyNote className="h-7 w-7 text-purple-500" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--th-accent-soft)]">
+              <StickyNote className="h-7 w-7 text-[var(--th-accent)]" />
             </div>
             <motion.div
-              className="absolute inset-0 h-16 w-16 rounded-full border-2 border-purple-500 border-t-transparent"
+              className="absolute inset-0 h-16 w-16 rounded-full border-2 border-[var(--th-accent)] border-t-transparent"
               animate={{ rotate: 360 }}
               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
             />
@@ -1392,7 +1392,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       title="添加资料"
       subtitle="上传文件、剪藏网页或添加视频"
       icon={<Plus className="h-5 w-5 text-[var(--th-accent)]" />}
-      iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-[var(--th-border-focus)]/30"
+      iconBgColor="bg-[var(--th-accent-soft)] dark:bg-[var(--th-accent)]/20 border-[var(--th-border-focus)]/30"
       footer={renderFooter()}
       showCloseButton={canClose}
     >

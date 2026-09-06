@@ -89,7 +89,7 @@ const WeReadSetting: React.FC = () => {
 
       <div className="p-6 pb-4">
         <div className="flex items-center gap-3">
-          <div className="bg-linear-to-br flex h-12 w-12 items-center justify-center rounded-lg from-blue-500 to-indigo-600 text-xl font-bold text-white shadow-sm">
+          <div className="bg-linear-to-br flex h-12 w-12 items-center justify-center rounded-lg from-[var(--th-accent)] to-[var(--th-accent-hover)] text-xl font-bold text-white shadow-sm">
             <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
               <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
             </svg>
@@ -130,7 +130,7 @@ const WeReadSetting: React.FC = () => {
           <button
             type="button"
             onClick={handleOpenApiKeyPage}
-            className="cursor-pointer text-[var(--th-accent)] hover:text-[var(--th-active-text)] hover:underline dark:hover:text-blue-300"
+            className="dark:hover: cursor-pointer text-[var(--th-accent)] hover:text-[var(--th-active-text)] hover:underline"
           >
             获取微信读书 API Key
           </button>

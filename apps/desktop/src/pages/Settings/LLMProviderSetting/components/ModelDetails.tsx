@@ -21,7 +21,7 @@ const featureMap: Array<{
   {
     key: "online",
     label: "联网",
-    colorClass: "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400",
+    colorClass: "bg-[var(--th-info)]/15 text-status-info dark:bg-[var(--th-accent)]/20",
   },
   {
     key: "thinking",

@@ -489,7 +489,7 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
       title={getModalTitle()}
       subtitle={getModalSubtitle()}
       icon={<Network className="h-5 w-5 text-[var(--th-accent)]" />}
-      iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-[var(--th-border-focus)]/30"
+      iconBgColor="bg-[var(--th-accent-soft)] dark:bg-[var(--th-accent)]/20 border-[var(--th-border-focus)]/30"
       footer={renderFooter()}
       showCloseButton={step !== "generating"}
     >

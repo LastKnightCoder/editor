@@ -282,7 +282,7 @@ const GithubPublishSetting = () => {
         </div>
       </div>
 
-      <div className="rounded-lg border border-blue-200 bg-[var(--th-accent-soft)] p-3 text-sm text-[var(--th-active-text)] dark:border-blue-500/20">
+      <div className="border-[var(--th-border-focus)]/30 dark:border-[var(--th-border-focus)]/20 rounded-lg border bg-[var(--th-accent-soft)] p-3 text-sm text-[var(--th-active-text)]">
         <p className="mb-1 font-medium">提示</p>
         <p className="text-xs">
           发布后访问地址将自动推导：

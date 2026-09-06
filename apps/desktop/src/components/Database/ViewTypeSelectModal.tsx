@@ -123,7 +123,7 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
                   {
                     "hover:bg-[var(--th-accent-soft)]/50 cursor-pointer border-gray-300 bg-white hover:border-[var(--th-border-hover)]":
                       theme === "light" && !viewType.disabled && selectedType !== viewType.type,
-                    "cursor-pointer border-blue-500 bg-blue-100/50 bg-white":
+                    "cursor-pointer border-[var(--th-border-focus)] bg-white":
                       theme === "light" && selectedType === viewType.type,
                     "cursor-not-allowed border-gray-300 bg-gray-100 opacity-50":
                       theme === "light" && viewType.disabled,

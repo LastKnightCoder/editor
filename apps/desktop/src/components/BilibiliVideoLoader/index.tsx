@@ -22,7 +22,7 @@ const BilibiliVideoLoader = ({ loading, error, streamProgress }: BilibiliVideoLo
           {/* Header */}
           <div className="mb-6 flex items-center justify-center gap-3">
             <div className="relative">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-pink-500/30 bg-gradient-to-br from-pink-500/20 to-blue-500/20 dark:border-pink-400/40 dark:from-pink-500/30 dark:to-blue-500/30">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-pink-500/30 bg-[var(--th-accent-soft)]">
                 <svg
                   className="h-7 w-7 animate-pulse text-pink-600 dark:text-pink-400"
                   viewBox="0 0 24 24"
@@ -112,7 +112,7 @@ const BilibiliVideoLoader = ({ loading, error, streamProgress }: BilibiliVideoLo
                   </div>
                   <div className="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-zinc-700">
                     <div
-                      className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300 ease-out dark:from-blue-400 dark:to-blue-500"
+                      className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[var(--th-accent)] to-[var(--th-accent-hover)] transition-all duration-300 ease-out"
                       style={{
                         width: `${Math.min(
                           ((streamProgress.audioDownloaded || 0) /

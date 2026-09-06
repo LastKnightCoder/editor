@@ -17,13 +17,13 @@ const getTypeIcon = (type: TodoNoteLink["type"]) => {
   const iconProps = "w-4 h-4";
   switch (type) {
     case "card":
-      return <MdNote className={`${iconProps} text-blue-500`} />;
+      return <MdNote className={`${iconProps} text-[var(--th-accent)]`} />;
     case "article":
       return <MdArticle className={`${iconProps} text-status-success`} />;
     case "project-item":
       return <MdFolder className={`${iconProps} text-orange-500`} />;
     case "document-item":
-      return <MdDescription className={`${iconProps} text-purple-500`} />;
+      return <MdDescription className={`${iconProps} text-[var(--th-accent)]`} />;
     case "custom":
     default:
       return <MdDescription className={`${iconProps} text-gray-500`} />;
@@ -97,7 +97,7 @@ const NoteCard = memo(
       >
         <motion.div
           className={classNames(
-            "group relative flex min-w-0 flex-none cursor-pointer items-center gap-2 overflow-visible rounded border border-gray-200 px-2 py-1 transition-all hover:border-blue-400 hover:bg-blue-50",
+            "group relative flex min-w-0 flex-none cursor-pointer items-center gap-2 overflow-visible rounded border border-gray-200 px-2 py-1 transition-all hover:border-[var(--th-border-hover)] hover:bg-[var(--th-accent-soft)]",
             {
               "border-gray-700 bg-zinc-800 hover:border-gray-600 hover:bg-zinc-700": isDark,
             }

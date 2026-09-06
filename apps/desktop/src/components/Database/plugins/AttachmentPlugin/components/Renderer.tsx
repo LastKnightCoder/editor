@@ -164,7 +164,7 @@ const AttachmentRenderer: React.FC<AttachmentRendererProps> = memo(
               <motion.div
                 key={attachment.id}
                 className={classNames(
-                  "group relative flex min-w-0 flex-none cursor-pointer items-center gap-2 overflow-visible rounded border border-gray-200 px-2 py-1 transition-all hover:border-blue-400 hover:bg-blue-50",
+                  "group relative flex min-w-0 flex-none cursor-pointer items-center gap-2 overflow-visible rounded border border-gray-200 px-2 py-1 transition-all hover:border-[var(--th-border-hover)] hover:bg-[var(--th-accent-soft)]",
                   {
                     "border-gray-700 bg-zinc-800 hover:border-gray-600 hover:bg-zinc-700": isDark,
                   }
@@ -174,7 +174,7 @@ const AttachmentRenderer: React.FC<AttachmentRendererProps> = memo(
                 onClick={() => handleFileClick(attachment)}
               >
                 <div className="flex flex-none items-center">
-                  <MdInsertDriveFile className="h-4 w-4 text-blue-500" />
+                  <MdInsertDriveFile className="h-4 w-4 text-[var(--th-accent)]" />
                   {attachment.isLocal ? (
                     <MdFolder className="text-status-success -ml-1 h-2 w-2" title="本地文件" />
                   ) : (

@@ -188,11 +188,11 @@ const Resizer = memo(
     return (
       <div
         className={classnames(
-          "z-10 bg-gray-300 transition-colors hover:bg-blue-400 dark:bg-zinc-700 dark:hover:bg-[var(--th-btn-hover)]",
+          "z-10 bg-gray-300 transition-colors hover:bg-[var(--th-accent)] dark:bg-zinc-700 dark:hover:bg-[var(--th-btn-hover)]",
           {
             "w-1 cursor-col-resize": isHorizontal,
             "h-1 cursor-row-resize": !isHorizontal,
-            "bg-blue-500 dark:bg-blue-500": isDragging,
+            "bg-[var(--th-accent)]": isDragging,
           }
         )}
         onMouseDown={handleMouseDown}

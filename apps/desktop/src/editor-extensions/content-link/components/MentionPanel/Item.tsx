@@ -58,11 +58,11 @@ const Item = memo((props: IItemProps) => {
         "hover:bg-white/60 dark:hover:bg-slate-400/15",
         "active:scale-[0.98]",
         {
-          "bg-indigo-500/10 dark:bg-indigo-400/15": active,
+          "bg-[var(--th-accent)]/10": active,
         }
       )}
     >
-      <div className="bg-indigo-500/12 absolute right-3 top-2.5 rounded-lg border border-indigo-500/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--th-accent)] backdrop-blur-sm dark:border-indigo-400/25 dark:bg-indigo-400/15 dark:text-indigo-400">
+      <div className="bg-[var(--th-accent)]/12 border-[var(--th-accent)]/20 absolute right-3 top-2.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--th-accent)] backdrop-blur-sm">
         {typeMap[item.type] || item.type}
       </div>
       <ErrorBoundary>

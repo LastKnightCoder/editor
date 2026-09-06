@@ -553,7 +553,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
       footer={null}
       title={
         <div className="flex items-center gap-2">
-          <Presentation className="h-5 w-5 text-blue-600" />
+          <Presentation className="h-5 w-5 text-[var(--th-active-text)]" />
           <span>{getStepTitle()}</span>
           {note && <span className="text-sm text-gray-500 dark:text-gray-400">- {note.title}</span>}
         </div>

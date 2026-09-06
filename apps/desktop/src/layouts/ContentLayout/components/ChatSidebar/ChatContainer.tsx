@@ -2272,7 +2272,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   </div>
                 ) : null}
                 {!editingDraft && hiddenPromptContext ? (
-                  <div className="bg-blue-500/8 mb-3 flex items-center justify-between gap-3 rounded-2xl border border-blue-500/20 px-4 py-3 text-sm text-blue-700 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200">
+                  <div className="bg-[var(--th-accent)]/8 border-[var(--th-border-focus)]/20 dark:border-[var(--th-border-focus)]/20 dark:bg-[var(--th-accent)]/10 mb-3 flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm text-[var(--th-active-text)]">
                     <div className="min-w-0">
                       <div className="font-medium">正在编辑生成图片</div>
                       <div className="truncate text-xs opacity-80">
@@ -2281,7 +2281,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     </div>
                     <button
                       type="button"
-                      className="hover:bg-[var(--th-btn-hover)]/10 shrink-0 rounded-lg px-2.5 py-1 text-xs text-blue-700 transition-colors dark:text-blue-200 dark:hover:bg-blue-400/10"
+                      className="hover:bg-[var(--th-btn-hover)]/10 dark:hover:bg-[var(--th-accent)]/10 shrink-0 rounded-lg px-2.5 py-1 text-xs text-[var(--th-active-text)] transition-colors"
                       onClick={() => {
                         setHiddenPromptContext(null);
                       }}

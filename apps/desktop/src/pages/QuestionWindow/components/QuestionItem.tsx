@@ -40,14 +40,14 @@ const getTypeIcon = (type?: string) => {
   const iconProps = "w-4 h-4";
   switch (type) {
     case "card":
-      return <MdNote className={`${iconProps} text-blue-500`} />;
+      return <MdNote className={`${iconProps} text-[var(--th-accent)]`} />;
     case "article":
       return <MdArticle className={`${iconProps} text-status-success`} />;
     case "project-item":
       return <MdFolder className={`${iconProps} text-orange-500`} />;
     case "document-item":
     case "document":
-      return <MdDescription className={`${iconProps} text-purple-500`} />;
+      return <MdDescription className={`${iconProps} text-[var(--th-accent)]`} />;
     default:
       return <MdDescription className={`${iconProps} text-gray-500`} />;
   }

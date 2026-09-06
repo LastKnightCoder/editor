@@ -83,7 +83,7 @@ const EditProjectInfoModal = (props: EditProjectInfoModalProps) => {
           <div className="flex flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
             {/* Header */}
             <div className="mb-5 flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-indigo-200 bg-indigo-50 dark:border-indigo-500/30 dark:bg-indigo-500/20">
+              <div className="border-[var(--th-border-focus)]/30 dark:border-[var(--th-border-focus)]/30 dark:bg-[var(--th-accent)]/20 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border bg-[var(--th-accent-soft)]">
                 <svg
                   className="h-5 w-5 text-[var(--th-accent)]"
                   viewBox="0 0 24 24"
@@ -144,7 +144,7 @@ const EditProjectInfoModal = (props: EditProjectInfoModalProps) => {
                       onClick={() => setProjectType(option.value)}
                       className={`flex cursor-pointer flex-col items-center gap-2 rounded-xl border p-3 transition-all ${
                         projectType === option.value
-                          ? "border-indigo-500 bg-indigo-50 shadow-[0_0_0_3px_rgba(99,102,241,0.15)] dark:bg-indigo-500/10"
+                          ? "dark:bg-[var(--th-accent)]/10 border-[var(--th-accent)] bg-[var(--th-accent-soft)] shadow-[0_0_0_3px_rgba(99,102,241,0.15)]"
                           : "border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100 dark:border-slate-700 dark:bg-zinc-950 dark:hover:border-slate-600 dark:hover:bg-zinc-900"
                       }`}
                     >

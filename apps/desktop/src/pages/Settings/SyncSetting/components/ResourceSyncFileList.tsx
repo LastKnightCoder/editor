@@ -127,7 +127,7 @@ const ResourceSyncFileList = ({
               className={classNames(
                 "rounded-full border px-3 py-1 text-xs font-medium transition",
                 activeFilter === tab.key
-                  ? "border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-100"
+                  ? "border-[var(--th-border-focus)]/30 bg-[var(--th-accent-soft)] text-[var(--th-active-text)]"
                   : themeColors.cardBorderClass
               )}
               onClick={() => setActiveFilter(tab.key)}

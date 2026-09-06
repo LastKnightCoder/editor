@@ -277,7 +277,7 @@ const GeneratedFlashcardEditModal = ({
                     onClick={() => setType(t)}
                     className={`rounded-xl border-2 px-3 py-2.5 text-left transition-all ${
                       active
-                        ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10"
+                        ? "border-[var(--th-border-focus)] bg-[var(--th-accent-soft)]"
                         : "border-gray-200 hover:border-gray-300 dark:border-slate-700 dark:hover:border-slate-600"
                     }`}
                   >
@@ -320,7 +320,7 @@ const GeneratedFlashcardEditModal = ({
                   onClick={() => setDifficulty(opt.value)}
                   className={`rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-all ${
                     difficulty === opt.value
-                      ? "border-indigo-500 bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400"
+                      ? "border-[var(--th-border-focus)] bg-[var(--th-accent-soft)] text-[var(--th-active-text)]"
                       : "border-gray-200 text-gray-600 hover:border-gray-300 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-600"
                   }`}
                 >
@@ -383,7 +383,7 @@ const GeneratedFlashcardEditModal = ({
           </button>
           <button
             onClick={handleSave}
-            className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
+            className="rounded-xl bg-[var(--th-btn-bg)] px-5 py-2.5 text-sm font-medium text-[var(--th-btn-text)] transition-colors hover:bg-[var(--th-btn-hover)]"
           >
             保存
           </button>

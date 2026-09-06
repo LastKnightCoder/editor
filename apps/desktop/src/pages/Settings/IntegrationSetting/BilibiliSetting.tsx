@@ -273,7 +273,7 @@ const BilibiliSetting: React.FC = () => {
                   className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${
                     bilibili.userInfo.vipStatus === 1
                       ? "bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300"
-                      : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                      : "bg-[var(--th-info)]/15 text-status-info"
                   }`}
                 >
                   {getVipStatusText(bilibili.userInfo.vipStatus)}

@@ -25,8 +25,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   },
   in_progress: {
     label: "进行中",
-    className:
-      "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+    className: "bg-[var(--th-info)]/15 text-status-info dark:",
   },
 };
 
@@ -36,50 +35,38 @@ const QuestionPanel: React.FC<QuestionPanelProps> = ({ items, groups }) => {
   const previewItems = items.slice(0, 5);
 
   const getGroupName = (groupId: number): string => {
-    const group = groups.find((g) => g.group.id === groupId);
+    const group = groups.find(g => g.group.id === groupId);
     return group?.group.title || "";
   };
 
-  const totalCount = groups.reduce(
-    (sum, g) => sum + g.notStarted + g.inProgress,
-    0,
-  );
+  const totalCount = groups.reduce((sum, g) => sum + g.notStarted + g.inProgress, 0);
 
   return (
     <div
       className={classNames(
-        "rounded-xl border p-4 min-h-[200px] flex flex-col",
+        "flex min-h-[200px] flex-col rounded-xl border p-4",
         themeColors.cardBorderClass,
-        themeColors.cardBgClass,
+        themeColors.cardBgClass
       )}
     >
       {/* 标题行 */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div
             className={classNames(
-              "w-8 h-8 rounded-lg flex items-center justify-center",
-              themeColors.iconBgClass,
+              "flex h-8 w-8 items-center justify-center rounded-lg",
+              themeColors.iconBgClass
             )}
           >
-            <HelpCircle
-              className={classNames("w-4 h-4", themeColors.iconTextClass)}
-            />
+            <HelpCircle className={classNames("h-4 w-4", themeColors.iconTextClass)} />
           </div>
-          <h3
-            className={classNames(
-              "text-sm font-semibold",
-              themeColors.textClass,
-            )}
-          >
-            待解决问题
-          </h3>
+          <h3 className={classNames("text-sm font-semibold", themeColors.textClass)}>待解决问题</h3>
           {totalCount > 0 && (
             <span
               className={classNames(
-                "text-xs px-1.5 py-0.5 rounded-full font-medium",
+                "rounded-full px-1.5 py-0.5 text-xs font-medium",
                 themeColors.badgeBgClass,
-                themeColors.badgeTextClass,
+                themeColors.badgeTextClass
               )}
             >
               {totalCount}
@@ -89,13 +76,13 @@ const QuestionPanel: React.FC<QuestionPanelProps> = ({ items, groups }) => {
         <button
           onClick={() => createTab(TabType.Questions)}
           className={classNames(
-            "text-xs flex items-center gap-1 transition-colors cursor-pointer",
+            "flex cursor-pointer items-center gap-1 text-xs transition-colors",
             themeColors.secondaryTextClass,
-            "hover:opacity-80",
+            "hover:opacity-80"
           )}
         >
           查看全部
-          <ArrowRight className="w-3 h-3" />
+          <ArrowRight className="h-3 w-3" />
         </button>
       </div>
 
@@ -103,15 +90,15 @@ const QuestionPanel: React.FC<QuestionPanelProps> = ({ items, groups }) => {
       {items.length === 0 ? (
         <div
           className={classNames(
-            "flex-1 flex items-center justify-center text-sm",
-            themeColors.secondaryTextClass,
+            "flex flex-1 items-center justify-center text-sm",
+            themeColors.secondaryTextClass
           )}
         >
           没有待解决的问题 ✅
         </div>
       ) : (
-        <div className="flex-1 space-y-1 overflow-y-auto min-h-0 pr-1">
-          {previewItems.map((question) => {
+        <div className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+          {previewItems.map(question => {
             const statusConfig = STATUS_CONFIG[question.status];
             const groupName = getGroupName(question.groupId);
 
@@ -119,46 +106,28 @@ const QuestionPanel: React.FC<QuestionPanelProps> = ({ items, groups }) => {
               <div
                 key={question.id}
                 className={classNames(
-                  "group px-2 py-1.5 rounded-lg transition-colors cursor-pointer",
-                  themeColors.hoverClass,
+                  "group cursor-pointer rounded-lg px-2 py-1.5 transition-colors",
+                  themeColors.hoverClass
                 )}
                 onClick={() => createTab(TabType.Questions)}
               >
-                <p
-                  className={classNames(
-                    "text-sm truncate",
-                    themeColors.textClass,
-                  )}
-                >
+                <p className={classNames("truncate text-sm", themeColors.textClass)}>
                   {question.questionContent}
                 </p>
-                <div className="flex items-center gap-2 mt-1">
+                <div className="mt-1 flex items-center gap-2">
                   {statusConfig && (
                     <span
-                      className={classNames(
-                        "text-xs px-1 py-0.5 rounded",
-                        statusConfig.className,
-                      )}
+                      className={classNames("rounded px-1 py-0.5 text-xs", statusConfig.className)}
                     >
                       {statusConfig.label}
                     </span>
                   )}
                   {groupName && (
-                    <span
-                      className={classNames(
-                        "text-xs",
-                        themeColors.secondaryTextClass,
-                      )}
-                    >
+                    <span className={classNames("text-xs", themeColors.secondaryTextClass)}>
                       {groupName}
                     </span>
                   )}
-                  <span
-                    className={classNames(
-                      "text-xs",
-                      themeColors.secondaryTextClass,
-                    )}
-                  >
+                  <span className={classNames("text-xs", themeColors.secondaryTextClass)}>
                     {dayjs(question.createTime).fromNow()}
                   </span>
                 </div>

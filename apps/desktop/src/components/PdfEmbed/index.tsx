@@ -21,34 +21,17 @@ import type {
   PdfEngine,
   PdfDocumentObject,
 } from "@embedpdf/models";
-import {
-  PdfActionType,
-  PdfAnnotationSubtype,
-  PdfBlendMode,
-  PdfZoomMode,
-} from "@embedpdf/models";
-import {
-  LoaderPluginPackage,
-  useLoaderCapability,
-} from "@embedpdf/plugin-loader/react";
-import {
-  ViewportPluginPackage,
-  Viewport,
-} from "@embedpdf/plugin-viewport/react";
+import { PdfActionType, PdfAnnotationSubtype, PdfBlendMode, PdfZoomMode } from "@embedpdf/models";
+import { LoaderPluginPackage, useLoaderCapability } from "@embedpdf/plugin-loader/react";
+import { ViewportPluginPackage, Viewport } from "@embedpdf/plugin-viewport/react";
 import {
   ScrollPluginPackage,
   ScrollStrategy,
   Scroller,
   useScroll,
 } from "@embedpdf/plugin-scroll/react";
-import {
-  RenderPluginPackage,
-  RenderLayer,
-} from "@embedpdf/plugin-render/react";
-import {
-  TilingPluginPackage,
-  TilingLayer,
-} from "@embedpdf/plugin-tiling/react";
+import { RenderPluginPackage, RenderLayer } from "@embedpdf/plugin-render/react";
+import { TilingPluginPackage, TilingLayer } from "@embedpdf/plugin-tiling/react";
 import {
   InteractionManagerPluginPackage,
   PagePointerProvider,
@@ -64,10 +47,7 @@ import {
   AnnotationLayer,
   useAnnotationCapability,
 } from "@embedpdf/plugin-annotation/react";
-import type {
-  TrackedAnnotation,
-  AnnotationEvent,
-} from "@embedpdf/plugin-annotation";
+import type { TrackedAnnotation, AnnotationEvent } from "@embedpdf/plugin-annotation";
 import type { Rect, AnnotationCreateContext } from "@embedpdf/models";
 
 type ImportAnnotationItem = {
@@ -85,11 +65,7 @@ interface SelectionMenuProps {
   };
 }
 import { HistoryPluginPackage } from "@embedpdf/plugin-history/react";
-import {
-  ZoomPluginPackage,
-  MarqueeZoom,
-  useZoom,
-} from "@embedpdf/plugin-zoom/react";
+import { ZoomPluginPackage, MarqueeZoom, useZoom } from "@embedpdf/plugin-zoom/react";
 import { ZoomMode } from "@embedpdf/plugin-zoom";
 import { PanPluginPackage } from "@embedpdf/plugin-pan/react";
 import {
@@ -115,11 +91,7 @@ import { v4 as uuidv4 } from "uuid";
 import { Editor } from "@tau/editor/src";
 import useThemeColors from "@/hooks/useThemeColors";
 import useSettingStore from "@/stores/useSettingStore";
-import {
-  ensurePdfIndex,
-  getPdfIndexStatus,
-  searchPdfContent,
-} from "@/commands";
+import { ensurePdfIndex, getPdfIndexStatus, searchPdfContent } from "@/commands";
 import type { PdfCitationTarget } from "@/pages/PdfView/pdfCitation";
 import { usePdfFileSource } from "./hooks/usePdfFileSource";
 import { usePdfAnnotations } from "./hooks/usePdfAnnotations";
@@ -172,8 +144,8 @@ const buildCitationLocatorSnippets = (previewText?: string): string[] => {
     normalized.slice(0, 32),
     normalized.slice(0, 20),
   ]
-    .map((item) => item.trim())
-    .filter((item) => item.length >= 8);
+    .map(item => item.trim())
+    .filter(item => item.length >= 8);
 
   return [...new Set(snippets)];
 };
@@ -186,16 +158,13 @@ const buildSearchLocatorTerms = (query: string): string[] => {
 
   const phrases = normalized
     .split(/\s+/)
-    .map((item) => item.trim())
-    .filter((item) => item.length >= 2);
+    .map(item => item.trim())
+    .filter(item => item.length >= 2);
 
   return [...new Set([normalized, ...phrases])];
 };
 
-const buildSearchNavigationTarget = (
-  result: PdfSearchResult,
-  query: string,
-): PdfCitationTarget => {
+const buildSearchNavigationTarget = (result: PdfSearchResult, query: string): PdfCitationTarget => {
   const terms = buildSearchLocatorTerms(query);
   const content = result.content || result.snippet || "";
   const lowerContent = content.toLowerCase();
@@ -235,19 +204,19 @@ const uniqueCitationElements = (
     end: number;
   }>,
   start: number,
-  end: number,
+  end: number
 ): HTMLElement[] => [
   ...new Set(
     segments
-      .filter((segment) => segment.end > start && segment.start < end)
-      .map((segment) => segment.node.parentElement)
-      .filter((element): element is HTMLElement => Boolean(element)),
+      .filter(segment => segment.end > start && segment.start < end)
+      .map(segment => segment.node.parentElement)
+      .filter((element): element is HTMLElement => Boolean(element))
   ),
 ];
 
 const locateCitationTextInPage = (
   pageElement: HTMLElement,
-  target: PdfCitationTarget,
+  target: PdfCitationTarget
 ): HTMLElement[] => {
   if (typeof document === "undefined") {
     return [];
@@ -284,16 +253,10 @@ const locateCitationTextInPage = (
     const normalizedCharStart = Math.max(0, target.charStart);
     const normalizedCharEnd = Math.max(
       normalizedCharStart + 1,
-      typeof target.charEnd === "number"
-        ? target.charEnd
-        : normalizedCharStart + 1,
+      typeof target.charEnd === "number" ? target.charEnd : normalizedCharStart + 1
     );
 
-    const directMatch = uniqueCitationElements(
-      segments,
-      normalizedCharStart,
-      normalizedCharEnd,
-    );
+    const directMatch = uniqueCitationElements(segments, normalizedCharStart, normalizedCharEnd);
     if (directMatch.length > 0) {
       return directMatch;
     }
@@ -301,7 +264,7 @@ const locateCitationTextInPage = (
     const expandedMatch = uniqueCitationElements(
       segments,
       Math.max(0, normalizedCharStart - 48),
-      Math.min(combined.length, normalizedCharEnd + 48),
+      Math.min(combined.length, normalizedCharEnd + 48)
     );
     if (expandedMatch.length > 0) {
       return expandedMatch;
@@ -316,11 +279,7 @@ const locateCitationTextInPage = (
     }
 
     const matchEnd = matchIndex + snippet.length;
-    const matchedElements = uniqueCitationElements(
-      segments,
-      matchIndex,
-      matchEnd,
-    );
+    const matchedElements = uniqueCitationElements(segments, matchIndex, matchEnd);
 
     if (matchedElements.length > 0) {
       return matchedElements;
@@ -330,9 +289,7 @@ const locateCitationTextInPage = (
   return [];
 };
 
-const extractBookmarkDestination = (
-  bookmark: PdfBookmarkObject,
-): PdfDestinationObject | null => {
+const extractBookmarkDestination = (bookmark: PdfBookmarkObject): PdfDestinationObject | null => {
   if (!bookmark.target) return null;
 
   if (bookmark.target.type === "destination") {
@@ -341,10 +298,7 @@ const extractBookmarkDestination = (
 
   if (bookmark.target.type === "action") {
     const action = bookmark.target.action;
-    if (
-      action.type === PdfActionType.Goto ||
-      action.type === PdfActionType.RemoteGoto
-    ) {
+    if (action.type === PdfActionType.Goto || action.type === PdfActionType.RemoteGoto) {
       return action.destination;
     }
   }
@@ -352,13 +306,7 @@ const extractBookmarkDestination = (
   return null;
 };
 
-const PdfEmbedViewer = ({
-  pdf,
-  className,
-  style,
-  onAskAI,
-  jumpTarget,
-}: PdfEmbedViewerProps) => {
+const PdfEmbedViewer = ({ pdf, className, style, onAskAI, jumpTarget }: PdfEmbedViewerProps) => {
   const { engine, error: engineError } = usePdfiumEngine({
     worker: true,
   });
@@ -367,16 +315,14 @@ const PdfEmbedViewer = ({
 
   const panDefaultMode = useMemo<"mobile" | "never">(() => {
     if (typeof window === "undefined") return "never";
-    const hasTouchPoints =
-      typeof navigator !== "undefined" && navigator.maxTouchPoints > 0;
+    const hasTouchPoints = typeof navigator !== "undefined" && navigator.maxTouchPoints > 0;
     const supportsMatchMedia = typeof window.matchMedia === "function";
     if (!supportsMatchMedia) {
       return hasTouchPoints ? "mobile" : "never";
     }
     const prefersCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
     const hasFinePointer = window.matchMedia("(any-pointer: fine)").matches;
-    const isTouchOnlyDevice =
-      hasTouchPoints && prefersCoarsePointer && !hasFinePointer;
+    const isTouchOnlyDevice = hasTouchPoints && prefersCoarsePointer && !hasFinePointer;
     return isTouchOnlyDevice ? "mobile" : "never";
   }, []);
 
@@ -436,17 +382,13 @@ const PdfEmbedViewer = ({
     return (
       <div
         className={classNames(
-          "w-full h-full flex items-center justify-center",
+          "flex h-full w-full items-center justify-center",
           themeColors.textClass,
-          className,
+          className
         )}
         style={style}
       >
-        <Result
-          status="error"
-          title="PDF 加载失败"
-          subTitle={fatalError.message}
-        />
+        <Result status="error" title="PDF 加载失败" subTitle={fatalError.message} />
       </div>
     );
   }
@@ -455,9 +397,9 @@ const PdfEmbedViewer = ({
     return (
       <div
         className={classNames(
-          "w-full h-full flex items-center justify-center",
+          "flex h-full w-full items-center justify-center",
           themeColors.textClass,
-          className,
+          className
         )}
         style={style}
       >
@@ -468,11 +410,7 @@ const PdfEmbedViewer = ({
 
   return (
     <div
-      className={classNames(
-        "flex flex-col w-full h-full",
-        themeColors.activeTextClass,
-        className,
-      )}
+      className={classNames("flex h-full w-full flex-col", themeColors.activeTextClass, className)}
       style={style}
     >
       <EmbedPDF
@@ -534,48 +472,43 @@ const NoteEditPanel = ({
   const panelBg = classNames(
     themeColors.glassPanelBg,
     "backdrop-blur-xl backdrop-saturate-150",
-    themeColors.cardBorderClass,
+    themeColors.cardBorderClass
   );
 
-  const editorContainerBg = classNames(
-    themeColors.cardBgClass,
-    themeColors.cardBorderClass,
-  );
+  const editorContainerBg = classNames(themeColors.cardBgClass, themeColors.cardBorderClass);
   const titleTextClass = themeColors.activeTextClass;
   const closeButtonClass = classNames(
     themeColors.textClass,
     themeColors.hoverClass,
-    themeColors.hoverTextClass,
+    themeColors.hoverTextClass
   );
   const cancelButtonClass = classNames(
     themeColors.textClass,
     themeColors.hoverClass,
-    themeColors.hoverTextClass,
+    themeColors.hoverTextClass
   );
   const submitButtonClass = classNames(
     themeColors.buttonBg,
     themeColors.buttonTextClass,
-    "hover:opacity-90",
+    "hover:opacity-90"
   );
 
   return (
     <div
       className={classNames(
-        "absolute left-1/2 bottom-8 -translate-x-1/2 z-20 w-[min(720px,calc(100%-64px))]",
-        "border rounded-2xl p-5 flex flex-col gap-4",
+        "absolute bottom-8 left-1/2 z-20 w-[min(720px,calc(100%-64px))] -translate-x-1/2",
+        "flex flex-col gap-4 rounded-2xl border p-5",
         "shadow-[0_20px_60px_rgba(0,0,0,0.25)]",
-        panelBg,
+        panelBg
       )}
     >
       <div className="flex items-center justify-between">
-        <h3 className={classNames("m-0 text-base font-bold", titleTextClass)}>
-          编辑笔记
-        </h3>
+        <h3 className={classNames("m-0 text-base font-bold", titleTextClass)}>编辑笔记</h3>
         <button
           type="button"
           className={classNames(
-            "inline-flex items-center justify-center w-8 h-8 rounded-lg bg-transparent transition disabled:opacity-50",
-            closeButtonClass,
+            "inline-flex h-8 w-8 items-center justify-center rounded-lg bg-transparent transition disabled:opacity-50",
+            closeButtonClass
           )}
           onClick={onClose}
           disabled={noteSaving}
@@ -588,9 +521,9 @@ const NoteEditPanel = ({
         <>
           <div
             className={classNames(
-              "border rounded-xl p-3 min-h-[140px] transition",
-              "focus-within:ring-2 focus-within:ring-blue-500/20",
-              editorContainerBg,
+              "min-h-[140px] rounded-xl border p-3 transition",
+              "focus-within:ring-[var(--th-accent)]/20 focus-within:ring-2",
+              editorContainerBg
             )}
           >
             <Editor
@@ -604,8 +537,8 @@ const NoteEditPanel = ({
             <button
               type="button"
               className={classNames(
-                "inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium bg-transparent transition disabled:opacity-50",
-                cancelButtonClass,
+                "inline-flex items-center gap-2 rounded-lg bg-transparent px-5 py-2.5 text-sm font-medium transition disabled:opacity-50",
+                cancelButtonClass
               )}
               onClick={onClose}
               disabled={noteSaving}
@@ -615,8 +548,8 @@ const NoteEditPanel = ({
             <button
               type="button"
               className={classNames(
-                "inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition disabled:opacity-50",
-                submitButtonClass,
+                "inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition disabled:opacity-50",
+                submitButtonClass
               )}
               onClick={onSubmit}
               disabled={noteSaving}
@@ -633,12 +566,7 @@ const NoteEditPanel = ({
           </div>
         </>
       ) : (
-        <div
-          className={classNames(
-            "text-sm text-center p-6",
-            themeColors.textClass,
-          )}
-        >
+        <div className={classNames("p-6 text-center text-sm", themeColors.textClass)}>
           标注正在保存，请稍后再试...
         </div>
       )}
@@ -661,9 +589,7 @@ const PdfEmbedLayout = ({
   const [searchResultQuery, setSearchResultQuery] = useState("");
   const [searchResults, setSearchResults] = useState<PdfSearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [selectedSearchResultKey, setSelectedSearchResultKey] = useState<
-    string | null
-  >(null);
+  const [selectedSearchResultKey, setSelectedSearchResultKey] = useState<string | null>(null);
   const [indexStatus, setIndexStatus] = useState<PdfIndexStatus | null>(null);
   const [selectedTextForAskAI, setSelectedTextForAskAI] = useState("");
 
@@ -679,10 +605,7 @@ const PdfEmbedLayout = ({
 
   // 持久化侧边栏状态
   useEffect(() => {
-    localStorage.setItem(
-      "pdf-sidebar-collapsed",
-      JSON.stringify(sidebarCollapsed),
-    );
+    localStorage.setItem("pdf-sidebar-collapsed", JSON.stringify(sidebarCollapsed));
   }, [sidebarCollapsed]);
 
   useEffect(() => {
@@ -697,7 +620,7 @@ const PdfEmbedLayout = ({
   const { provides: annotationCapability } = useAnnotationCapability();
   const { provides: selectionCapability } = useSelectionCapability();
   const { provides: zoomCapability } = useZoom();
-  const mainDbName = useSettingStore((state) => state.setting.database.active);
+  const mainDbName = useSettingStore(state => state.setting.database.active);
   const annotationStore = usePdfAnnotations({ pdfId: pdf.id });
   const bookmarkStore = usePdfBookmarks({ pdfId: pdf.id });
   const importedAnnotationIdsRef = useRef<Set<string>>(new Set());
@@ -709,7 +632,7 @@ const PdfEmbedLayout = ({
   const highlightedCitationElementsRef = useRef<HTMLElement[]>([]);
 
   const clearCitationHighlights = useCallback(() => {
-    highlightedCitationElementsRef.current.forEach((element) => {
+    highlightedCitationElementsRef.current.forEach(element => {
       element.style.removeProperty("background-color");
       element.style.removeProperty("box-shadow");
       element.style.removeProperty("border-radius");
@@ -719,7 +642,7 @@ const PdfEmbedLayout = ({
   }, []);
 
   const clearCitationNavigationTimers = useCallback(() => {
-    citationNavigationTimerRefs.current.forEach((timer) => {
+    citationNavigationTimerRefs.current.forEach(timer => {
       window.clearTimeout(timer);
     });
     citationNavigationTimerRefs.current = [];
@@ -737,7 +660,7 @@ const PdfEmbedLayout = ({
       const vy = centerY - rect.top;
       zoomCapability.requestZoomBy(delta, { vx, vy });
     },
-    [zoomCapability],
+    [zoomCapability]
   );
 
   // 绑定双指缩放手势
@@ -761,17 +684,13 @@ const PdfEmbedLayout = ({
     pageIndex: number;
     annotation: PdfAnnotationObject;
   } | null>(null);
-  const [activeNoteAnnotationId, setActiveNoteAnnotationId] = useState<
-    string | null
-  >(null);
-  const [noteEditorValue, setNoteEditorValue] = useState<Descendant[]>(
-    createEmptyNoteValue(),
-  );
+  const [activeNoteAnnotationId, setActiveNoteAnnotationId] = useState<string | null>(null);
+  const [noteEditorValue, setNoteEditorValue] = useState<Descendant[]>(createEmptyNoteValue());
   const [noteSaving, setNoteSaving] = useState(false);
 
   const annotationIdToRecordId = useMemo(() => {
     const map = new Map<string, number>();
-    annotations.forEach((entry) => {
+    annotations.forEach(entry => {
       if (entry.annotation?.id) {
         map.set(entry.annotation.id, entry.id);
       }
@@ -784,9 +703,9 @@ const PdfEmbedLayout = ({
     try {
       const task = selectionCapability.getSelectedText();
       task.wait(
-        (lines) => {
+        lines => {
           const normalized = lines
-            .map((line) => line.trim())
+            .map(line => line.trim())
             .join(" ")
             .replace(/\s+/g, " ")
             .trim();
@@ -796,7 +715,7 @@ const PdfEmbedLayout = ({
         () => {
           latestSelectionTextRef.current = null;
           setSelectedTextForAskAI("");
-        },
+        }
       );
     } catch {
       latestSelectionTextRef.current = null;
@@ -806,7 +725,7 @@ const PdfEmbedLayout = ({
 
   useEffect(() => {
     if (!selectionCapability) return;
-    const unsubscribe = selectionCapability.onSelectionChange((range) => {
+    const unsubscribe = selectionCapability.onSelectionChange(range => {
       if (range) {
         if (selectionClearTimeoutRef.current) {
           window.clearTimeout(selectionClearTimeoutRef.current);
@@ -834,10 +753,7 @@ const PdfEmbedLayout = ({
   }, [selectionCapability, captureSelectionText]);
 
   const enhanceAnnotationWithSnippet = useCallback(
-    (
-      annotation: PdfAnnotationObject,
-      eventType: AnnotationEvent["type"],
-    ): PdfAnnotationObject => {
+    (annotation: PdfAnnotationObject, eventType: AnnotationEvent["type"]): PdfAnnotationObject => {
       if (
         eventType !== "create" ||
         !TEXT_MARKUP_SUBTYPES.has(annotation.type as PdfAnnotationSubtype)
@@ -858,7 +774,7 @@ const PdfEmbedLayout = ({
         contents: snippet,
       };
     },
-    [],
+    []
   );
 
   useEffect(() => {
@@ -919,12 +835,12 @@ const PdfEmbedLayout = ({
         fileName: pdf.fileName,
         mainDbName,
       })
-        .then((status) => {
+        .then(status => {
           if (!cancelled) {
             setIndexStatus(status);
           }
         })
-        .catch((error) => {
+        .catch(error => {
           if (!cancelled) {
             console.error("自动准备 PDF 索引失败", error);
             setIndexStatus({
@@ -961,15 +877,15 @@ const PdfEmbedLayout = ({
 
   useEffect(() => {
     if (!annotationCapability || !pluginsReady) return;
-    const missing = annotations.filter((entry) => {
+    const missing = annotations.filter(entry => {
       const uid = entry.annotation?.id;
       return uid && !importedAnnotationIdsRef.current.has(uid);
     });
     if (!missing.length) return;
     const payload: ImportAnnotationItem[] = missing
-      .map((entry) => ({ annotation: entry.annotation }))
+      .map(entry => ({ annotation: entry.annotation }))
       .filter((item): item is ImportAnnotationItem => Boolean(item.annotation));
-    payload.forEach((item) => {
+    payload.forEach(item => {
       const uid = item.annotation?.id;
       if (!uid) return;
       importingAnnotationIdsRef.current.add(uid);
@@ -985,10 +901,7 @@ const PdfEmbedLayout = ({
     const handler = (event: AnnotationEvent) => {
       if (event.type === "loaded") return;
       if (!event.annotation) return;
-      const processedAnnotation = enhanceAnnotationWithSnippet(
-        event.annotation,
-        event.type,
-      );
+      const processedAnnotation = enhanceAnnotationWithSnippet(event.annotation, event.type);
       const uid = processedAnnotation.id;
       if (uid && importingAnnotationIdsRef.current.has(uid)) {
         importingAnnotationIdsRef.current.delete(uid);
@@ -1007,9 +920,7 @@ const PdfEmbedLayout = ({
       // 文本标记类型标注创建完成后，自动切换回指针模式
       if (
         event.type === "create" &&
-        TEXT_MARKUP_SUBTYPES.has(
-          processedAnnotation.type as PdfAnnotationSubtype,
-        )
+        TEXT_MARKUP_SUBTYPES.has(processedAnnotation.type as PdfAnnotationSubtype)
       ) {
         annotationCapability.setActiveTool(null);
       }
@@ -1063,16 +974,16 @@ const PdfEmbedLayout = ({
     const handleDocumentLoaded = (doc: PdfDocumentObject) => {
       if (!doc || cancelled) return;
       engine.getBookmarks(doc).wait(
-        (result) => {
+        result => {
           if (!cancelled) {
             setOutline(result?.bookmarks ?? []);
           }
         },
-        (error) => {
+        error => {
           if (!cancelled) {
             console.error("获取 PDF 目录失败", error);
           }
-        },
+        }
       );
     };
 
@@ -1091,7 +1002,7 @@ const PdfEmbedLayout = ({
 
   useEffect(() => {
     if (!captureCapability) return;
-    const unsubscribe = captureCapability.onCaptureArea(async (event) => {
+    const unsubscribe = captureCapability.onCaptureArea(async event => {
       // 上传截图并创建区域标注
       try {
         const file = new File([event.blob], `pdf-capture-${Date.now()}.png`, {
@@ -1139,7 +1050,7 @@ const PdfEmbedLayout = ({
         behavior: "smooth",
       });
     },
-    [scrollCapability],
+    [scrollCapability]
   );
 
   const handleBookmarkSelect = useCallback(
@@ -1152,7 +1063,7 @@ const PdfEmbedLayout = ({
         behavior: "smooth",
       });
     },
-    [scrollCapability],
+    [scrollCapability]
   );
 
   const handleAnnotationClick = useCallback(
@@ -1185,7 +1096,7 @@ const PdfEmbedLayout = ({
         annotationCapability.selectAnnotation(pageIndex, item.annotation.id);
       }
     },
-    [scrollCapability, annotationCapability],
+    [scrollCapability, annotationCapability]
   );
 
   const handleAnnotationEdit = useCallback((item: (typeof annotations)[0]) => {
@@ -1203,7 +1114,7 @@ const PdfEmbedLayout = ({
     (bookmark: PdfBookmark) => {
       removeBookmark(bookmark.id);
     },
-    [removeBookmark],
+    [removeBookmark]
   );
 
   const handleAddBookmark = useCallback(() => {
@@ -1230,10 +1141,10 @@ const PdfEmbedLayout = ({
       annotationCapability.updateAnnotation(
         selectedAnnotationState.pageIndex,
         selectedAnnotationState.annotation.id,
-        { color },
+        { color }
       );
     },
-    [annotationCapability, selectedAnnotationState],
+    [annotationCapability, selectedAnnotationState]
   );
 
   const handleAnnotationStyleChange = useCallback(
@@ -1252,10 +1163,10 @@ const PdfEmbedLayout = ({
       annotationCapability.updateAnnotation(
         selectedAnnotationState.pageIndex,
         selectedAnnotationState.annotation.id,
-        patch as Partial<PdfAnnotationObject>,
+        patch as Partial<PdfAnnotationObject>
       );
     },
-    [annotationCapability, selectedAnnotationState],
+    [annotationCapability, selectedAnnotationState]
   );
 
   const handleAnnotationDelete = useCallback(
@@ -1263,7 +1174,7 @@ const PdfEmbedLayout = ({
       if (!annotationCapability) return;
       annotationCapability.deleteAnnotation(pageIndex, annotationId);
     },
-    [annotationCapability],
+    [annotationCapability]
   );
 
   const handleOpenAnnotationNote = useCallback((annotationId?: string) => {
@@ -1272,38 +1183,30 @@ const PdfEmbedLayout = ({
   }, []);
 
   // 区域标注相关状态和处理函数
-  const [selectedAreaAnnotationId, setSelectedAreaAnnotationId] = useState<
-    number | null
-  >(null);
+  const [selectedAreaAnnotationId, setSelectedAreaAnnotationId] = useState<number | null>(null);
 
-  const handleAreaAnnotationSelect = useCallback(
-    (annotation: PdfAnnotation) => {
-      setSelectedAreaAnnotationId(annotation.id);
-    },
-    [],
-  );
+  const handleAreaAnnotationSelect = useCallback((annotation: PdfAnnotation) => {
+    setSelectedAreaAnnotationId(annotation.id);
+  }, []);
 
   const handleAreaAnnotationColorChange = useCallback(
     async (annotation: PdfAnnotation, color: EHighlightColor) => {
       await updateAreaAnnotation(annotation.id, { color });
     },
-    [updateAreaAnnotation],
+    [updateAreaAnnotation]
   );
 
-  const handleAreaAnnotationAddNote = useCallback(
-    (annotation: PdfAnnotation) => {
-      if (!annotation.annotation?.id) return;
-      setActiveNoteAnnotationId(annotation.annotation.id);
-    },
-    [],
-  );
+  const handleAreaAnnotationAddNote = useCallback((annotation: PdfAnnotation) => {
+    if (!annotation.annotation?.id) return;
+    setActiveNoteAnnotationId(annotation.annotation.id);
+  }, []);
 
   const handleAreaAnnotationDelete = useCallback(
     async (annotation: PdfAnnotation) => {
       await removeAnnotation(annotation.id);
       setSelectedAreaAnnotationId(null);
     },
-    [removeAnnotation],
+    [removeAnnotation]
   );
 
   const handleSearchSubmit = useCallback(async () => {
@@ -1346,7 +1249,7 @@ const PdfEmbedLayout = ({
         message.warning(
           status.pageCount > 0
             ? "未找到相关内容，可尝试更短关键词；如果是扫描版 PDF，当前可能没有可检索文本"
-            : "当前 PDF 索引为空，可能没有提取到可搜索文本",
+            : "当前 PDF 索引为空，可能没有提取到可搜索文本"
         );
       }
     } catch (error) {
@@ -1375,7 +1278,7 @@ const PdfEmbedLayout = ({
 
       const attemptLocate = () => {
         const pageElement = viewerPanelRef.current?.querySelector<HTMLElement>(
-          `[data-page-number="${target.pageNumber}"]`,
+          `[data-page-number="${target.pageNumber}"]`
         );
         if (!pageElement) {
           return false;
@@ -1387,9 +1290,8 @@ const PdfEmbedLayout = ({
         }
 
         highlightedCitationElementsRef.current = matchedElements;
-        matchedElements.forEach((element) => {
-          element.style.transition =
-            "background-color 0.25s ease, box-shadow 0.25s ease";
+        matchedElements.forEach(element => {
+          element.style.transition = "background-color 0.25s ease, box-shadow 0.25s ease";
           element.style.backgroundColor = "rgba(56, 189, 248, 0.18)";
           element.style.boxShadow = "0 0 0 2px rgba(56, 189, 248, 0.35)";
           element.style.borderRadius = "4px";
@@ -1407,26 +1309,22 @@ const PdfEmbedLayout = ({
         return true;
       };
 
-      [180, 420, 780].forEach((delay) => {
+      [180, 420, 780].forEach(delay => {
         const timer = window.setTimeout(() => {
           attemptLocate();
         }, delay);
         citationNavigationTimerRefs.current.push(timer);
       });
     },
-    [clearCitationHighlights, clearCitationNavigationTimers, scrollCapability],
+    [clearCitationHighlights, clearCitationNavigationTimers, scrollCapability]
   );
 
   const handleSearchResultSelect = useCallback(
     (result: PdfSearchResult) => {
-      setSelectedSearchResultKey(
-        `${result.pageNumber}-${result.chunkIndex}-${result.source}`,
-      );
-      navigateToCitationTarget(
-        buildSearchNavigationTarget(result, searchResultQuery),
-      );
+      setSelectedSearchResultKey(`${result.pageNumber}-${result.chunkIndex}-${result.source}`);
+      navigateToCitationTarget(buildSearchNavigationTarget(result, searchResultQuery));
     },
-    [navigateToCitationTarget, searchResultQuery],
+    [navigateToCitationTarget, searchResultQuery]
   );
 
   useEffect(() => {
@@ -1437,12 +1335,7 @@ const PdfEmbedLayout = ({
     return () => {
       clearCitationNavigationTimers();
     };
-  }, [
-    clearCitationNavigationTimers,
-    jumpTarget,
-    navigateToCitationTarget,
-    scrollCapability,
-  ]);
+  }, [clearCitationNavigationTimers, jumpTarget, navigateToCitationTarget, scrollCapability]);
 
   useEffect(() => {
     return () => {
@@ -1455,16 +1348,15 @@ const PdfEmbedLayout = ({
     () =>
       selectedAreaAnnotationId == null
         ? null
-        : annotations.find((item) => item.id === selectedAreaAnnotationId) ||
-          null,
-    [annotations, selectedAreaAnnotationId],
+        : annotations.find(item => item.id === selectedAreaAnnotationId) || null,
+    [annotations, selectedAreaAnnotationId]
   );
 
   const canAskAI = Boolean(
     onAskAI &&
     (selectedTextForAskAI.trim() ||
       selectedAnnotationState?.annotation.contents?.trim() ||
-      selectedAreaAnnotation?.areaData?.captureUrl),
+      selectedAreaAnnotation?.areaData?.captureUrl)
   );
 
   const handleAskAI = useCallback(() => {
@@ -1528,7 +1420,7 @@ const PdfEmbedLayout = ({
       }
       annotationCapability.deselectAnnotation?.();
     },
-    [annotationCapability, selectedAreaAnnotationId],
+    [annotationCapability, selectedAreaAnnotationId]
   );
 
   const renderSelectionMenu = useCallback(
@@ -1537,13 +1429,11 @@ const PdfEmbedLayout = ({
         {...menuProps}
         onColorChange={handleAnnotationColorChange}
         onStyleChange={handleAnnotationStyleChange}
-        onAddNote={() =>
-          handleOpenAnnotationNote(menuProps.annotation.object.id)
-        }
+        onAddNote={() => handleOpenAnnotationNote(menuProps.annotation.object.id)}
         onDelete={() =>
           handleAnnotationDelete(
             menuProps.annotation.object.id,
-            menuProps.annotation.object.pageIndex ?? 0,
+            menuProps.annotation.object.pageIndex ?? 0
           )
         }
       />
@@ -1553,14 +1443,14 @@ const PdfEmbedLayout = ({
       handleAnnotationStyleChange,
       handleOpenAnnotationNote,
       handleAnnotationDelete,
-    ],
+    ]
   );
 
   const activeNoteAnnotation = useMemo(() => {
     if (!activeNoteAnnotationId) return null;
     const recordId = annotationIdToRecordId.get(activeNoteAnnotationId);
     if (!recordId) return null;
-    return annotations.find((item) => item.id === recordId) ?? null;
+    return annotations.find(item => item.id === recordId) ?? null;
   }, [activeNoteAnnotationId, annotationIdToRecordId, annotations]);
 
   useEffect(() => {
@@ -1569,9 +1459,7 @@ const PdfEmbedLayout = ({
       return;
     }
     const existing = activeNoteAnnotation.notes?.[0]?.note;
-    setNoteEditorValue(
-      existing && existing.length ? existing : createEmptyNoteValue(),
-    );
+    setNoteEditorValue(existing && existing.length ? existing : createEmptyNoteValue());
   }, [activeNoteAnnotation]);
 
   const handleCloseNotePanel = useCallback(() => {
@@ -1601,13 +1489,13 @@ const PdfEmbedLayout = ({
         canAskAI={canAskAI}
         onAskAI={handleAskAI}
       />
-      <div className="flex flex-1 min-h-0 relative bg-inherit">
+      <div className="relative flex min-h-0 flex-1 bg-inherit">
         <ResizableAndHideableSidebar
           className="relative h-full flex-none"
           width={sidebarWidth}
           open={!sidebarCollapsed}
           onToggle={() => setSidebarCollapsed((prev: boolean) => !prev)}
-          onWidthChange={(width) => setSidebarWidth(width)}
+          onWidthChange={width => setSidebarWidth(width)}
           minWidth={320}
           maxWidth={480}
           resizeHandleSide="right"
@@ -1624,12 +1512,9 @@ const PdfEmbedLayout = ({
             onBookmarkSelect={handleBookmarkSelect}
             onBookmarkDelete={handleBookmarkDelete}
             annotations={annotations}
-            onAnnotationDelete={(item) => {
+            onAnnotationDelete={item => {
               if (!item.annotation?.id) return;
-              handleAnnotationDelete(
-                item.annotation.id,
-                item.annotation.pageIndex ?? 0,
-              );
+              handleAnnotationDelete(item.annotation.id, item.annotation.pageIndex ?? 0);
               updateAnnotationNotes(item.id, []);
             }}
             onAnnotationClick={handleAnnotationClick}
@@ -1646,25 +1531,19 @@ const PdfEmbedLayout = ({
           />
         </ResizableAndHideableSidebar>
         <div
-          className="flex-1 flex flex-col min-h-0 min-w-0 bg-inherit p-6 relative overflow-hidden"
+          className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-inherit p-6"
           ref={viewerPanelRef}
           onMouseDownCapture={handleViewerPointerDown}
         >
           {!pluginsReady ? (
-            <div className="w-full h-full flex items-center justify-center text-gray-400">
+            <div className="flex h-full w-full items-center justify-center text-gray-400">
               <LoadingOutlined spin />
             </div>
           ) : (
-            <GlobalPointerProvider className="flex flex-1 flex-col min-h-0 min-w-0">
-              <Viewport className="flex-1 min-h-0 min-w-0">
+            <GlobalPointerProvider className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <Viewport className="min-h-0 min-w-0 flex-1">
                 <Scroller
-                  renderPage={({
-                    width,
-                    height,
-                    pageIndex,
-                    scale,
-                    rotation,
-                  }) => (
+                  renderPage={({ width, height, pageIndex, scale, rotation }) => (
                     <Rotate pageSize={{ width, height }}>
                       <PagePointerProvider
                         pageIndex={pageIndex}
@@ -1674,11 +1553,11 @@ const PdfEmbedLayout = ({
                         scale={scale}
                       >
                         <div
-                          className="overflow-hidden relative my-4 mx-auto"
+                          className="relative mx-auto my-4 overflow-hidden"
                           style={{ width, height }}
                           data-page-number={pageIndex + 1}
                           draggable={false}
-                          onDragStart={(e) => e.preventDefault()}
+                          onDragStart={e => e.preventDefault()}
                         >
                           <RenderLayer pageIndex={pageIndex} scale={0.5} />
                           <TilingLayer pageIndex={pageIndex} scale={scale} />

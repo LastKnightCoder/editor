@@ -83,7 +83,7 @@ const GenerationConfigStep = memo((props: GenerationConfigStepProps) => {
             "w-full resize-none rounded-xl px-4 py-3 text-sm outline-none transition-all",
             "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
             "text-gray-800 placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500",
-            "focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-blue-500/20"
+            "focus:ring-[var(--th-accent)]/20 focus:border-[var(--th-border-focus)] focus:ring-2"
           )}
         />
       </div>

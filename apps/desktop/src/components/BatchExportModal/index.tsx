@@ -406,7 +406,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
                     }
                     className={`relative flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 text-left transition-all ${
                       selected
-                        ? "border-indigo-500 bg-indigo-50/70 dark:bg-indigo-500/10"
+                        ? "border-[var(--th-border-focus)] bg-[var(--th-accent-soft)]"
                         : "border-gray-200 bg-gray-50 hover:border-gray-300 dark:border-slate-700 dark:bg-zinc-950 dark:hover:border-slate-600"
                     }`}
                   >
@@ -575,7 +575,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-zinc-800">
             <div
-              className="h-full rounded-full bg-indigo-500 transition-all duration-300"
+              className="h-full rounded-full bg-[var(--th-accent)] transition-all duration-300"
               style={{ width: `${exportProgress.percent}%` }}
             />
           </div>

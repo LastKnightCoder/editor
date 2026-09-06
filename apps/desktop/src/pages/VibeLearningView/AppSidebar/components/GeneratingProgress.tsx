@@ -96,7 +96,7 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
           <Sparkles className="h-8 w-8 animate-pulse text-[var(--th-accent)]" />
         </div>
         <motion.div
-          className="absolute inset-0 h-20 w-20 rounded-full border-2 border-blue-500 border-t-transparent"
+          className="absolute inset-0 h-20 w-20 rounded-full border-2 border-[var(--th-border-focus)] border-t-transparent"
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
         />
@@ -123,13 +123,13 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
           animate={{ opacity: 1, y: 0 }}
           className={classNames(
             "mt-4 flex w-full max-w-xs items-center gap-3 rounded-xl",
-            "border border-blue-100 bg-blue-50/70 px-4 py-3",
-            "text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200"
+            "border border-[var(--th-border)] bg-[var(--th-accent-soft)] px-4 py-3",
+            "dark:border-[var(--th-border-focus)]/20 dark:bg-[var(--th-accent)]/10 text-[var(--th-active-text)]"
           )}
         >
           <FileCode2 className="h-4 w-4 shrink-0" />
           <div className="min-w-0">
-            <div className="text-[11px] font-medium text-[var(--th-accent)] dark:text-blue-300">
+            <div className="text-[11px] font-medium text-[var(--th-accent)]">
               {outputLabel} 大小
             </div>
             <div className="text-base font-semibold text-gray-800 dark:text-gray-100">

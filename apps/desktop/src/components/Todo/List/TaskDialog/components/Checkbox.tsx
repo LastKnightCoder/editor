@@ -21,7 +21,7 @@ const Checkbox: FC<CheckboxProps> = ({ checked, onChange, label }) => {
             checked
               ? "border-[var(--th-accent)] bg-[var(--th-accent)]"
               : "border-gray-300 bg-gray-50 dark:border-slate-700 dark:bg-zinc-950"
-          } group-hover:border-indigo-400 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500 peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-slate-900`}
+          } group-hover:border-[var(--th-accent)] peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--th-accent)] peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-slate-900`}
         >
           {checked && (
             <svg

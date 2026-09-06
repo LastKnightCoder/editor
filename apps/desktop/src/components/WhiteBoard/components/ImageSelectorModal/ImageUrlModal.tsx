@@ -60,7 +60,7 @@ const ImageUrlModal: React.FC<ImageUrlModalProps> = ({ open, onCancel, onConfirm
       <div className="m-4 w-full max-w-[460px]" onClick={e => e.stopPropagation()}>
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
           <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-blue-200 bg-blue-50 text-[var(--th-accent)] dark:border-blue-500/30 dark:bg-blue-500/20">
+            <div className="border-[var(--th-border-focus)]/30 dark:border-[var(--th-border-focus)]/30 dark:bg-[var(--th-accent)]/20 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border bg-[var(--th-accent-soft)] text-[var(--th-accent)]">
               <Link size={20} />
             </div>
             <div className="min-w-0 flex-1">

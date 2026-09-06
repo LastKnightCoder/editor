@@ -182,7 +182,7 @@ const SkillDetailModal = memo(({ skill, open, onClose }: SkillDetailModalProps) 
           className={classNames(
             "flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm",
             isSelected
-              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+              ? "bg-[var(--th-info)]/15 text-status-info dark:"
               : file.isDirectory
                 ? ""
                 : themeColors.hoverClass,

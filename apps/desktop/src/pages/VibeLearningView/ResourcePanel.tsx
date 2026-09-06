@@ -697,7 +697,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         <button
           type="button"
           onClick={handleOpenAddResourceModal}
-          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-600 transition-all hover:border-blue-500 hover:text-[var(--th-accent)] dark:border-gray-700 dark:bg-[#1f1f1f] dark:text-gray-400 dark:hover:border-blue-500 dark:hover:text-[var(--th-accent)]"
+          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-600 transition-all hover:border-[var(--th-border-focus)] hover:text-[var(--th-accent)] dark:border-gray-700 dark:bg-[#1f1f1f] dark:text-gray-400 dark:hover:border-[var(--th-border-focus)] dark:hover:text-[var(--th-accent)]"
         >
           <PlusOutlined />
           <span>添加资料</span>

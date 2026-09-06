@@ -198,7 +198,7 @@ const ResourceSyncBlacklistModal = ({
             </span>
             {selectedNames.size > 0 && (
               <button
-                className="text-[var(--th-accent)] transition-colors hover:text-indigo-600"
+                className="text-[var(--th-accent)] transition-colors hover:text-[var(--th-active-text)]"
                 onClick={() => setSelectedNames(new Set())}
               >
                 清空选择
@@ -238,7 +238,7 @@ const ResourceSyncBlacklistModal = ({
                         "flex cursor-pointer items-center gap-3 px-4 py-3 transition-all",
                         // 选中状态
                         isChecked
-                          ? "bg-indigo-50/80 dark:bg-indigo-900/20"
+                          ? "bg-[var(--th-accent-soft)]/80"
                           : "hover:bg-gray-50 dark:hover:bg-zinc-800/50",
                         // 分隔线
                         "border-b border-gray-100 last:border-b-0 dark:border-slate-800",

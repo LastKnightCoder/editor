@@ -18,20 +18,10 @@ import {
 import { Editor } from "@tau/editor/src";
 import useThemeColors from "@/hooks/useThemeColors";
 import { formatAnnotationSnippet } from "../utils/annotation";
-import type {
-  PdfAnnotation,
-  PdfBookmark,
-  PdfIndexStatus,
-  PdfSearchResult,
-} from "@/types";
+import type { PdfAnnotation, PdfBookmark, PdfIndexStatus, PdfSearchResult } from "@/types";
 import PdfEmbedThumbnails from "./Thumbnails";
 
-export type SidebarTabKey =
-  | "outline"
-  | "search"
-  | "thumbnails"
-  | "bookmarks"
-  | "notes";
+export type SidebarTabKey = "outline" | "search" | "thumbnails" | "bookmarks" | "notes";
 
 const SIDEBAR_TABS: Array<{
   key: SidebarTabKey;
@@ -80,10 +70,7 @@ const getDestinationPage = (bookmark: PdfBookmarkObject): number | null => {
   // 处理 action 类型 (Goto, RemoteGoto)
   if (bookmark.target.type === "action") {
     const action = bookmark.target.action;
-    if (
-      action.type === PdfActionType.Goto ||
-      action.type === PdfActionType.RemoteGoto
-    ) {
+    if (action.type === PdfActionType.Goto || action.type === PdfActionType.RemoteGoto) {
       const pageIndex = action.destination?.pageIndex;
       return pageIndex != null ? pageIndex + 1 : null;
     }
@@ -104,15 +91,7 @@ interface OutlineItemProps {
 }
 
 const OutlineItem = memo(
-  ({
-    item,
-    level,
-    onSelect,
-    expandedKeys,
-    onToggle,
-    themeColors,
-    itemKey,
-  }: OutlineItemProps) => {
+  ({ item, level, onSelect, expandedKeys, onToggle, themeColors, itemKey }: OutlineItemProps) => {
     const hasChildren = item.children && item.children.length > 0;
     const isExpanded = expandedKeys.has(itemKey);
     const page = getDestinationPage(item);
@@ -121,8 +100,8 @@ const OutlineItem = memo(
       <div className="select-none">
         <div
           className={classNames(
-            "group flex items-center gap-2 py-2 px-2 rounded-lg cursor-pointer transition-all duration-150",
-            themeColors.hoverClass,
+            "group flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 transition-all duration-150",
+            themeColors.hoverClass
           )}
           style={{ paddingLeft: `${level * 16 + 8}px` }}
           onClick={() => onSelect(item)}
@@ -131,11 +110,11 @@ const OutlineItem = memo(
           <button
             type="button"
             className={classNames(
-              "shrink-0 w-5 h-5 flex items-center justify-center rounded transition-all duration-200",
-              hasChildren ? "opacity-100" : "opacity-0 pointer-events-none",
-              themeColors.secondaryTextClass,
+              "flex h-5 w-5 shrink-0 items-center justify-center rounded transition-all duration-200",
+              hasChildren ? "opacity-100" : "pointer-events-none opacity-0",
+              themeColors.secondaryTextClass
             )}
-            onClick={(e) => {
+            onClick={e => {
               e.stopPropagation();
               if (hasChildren) {
                 onToggle(itemKey);
@@ -144,18 +123,15 @@ const OutlineItem = memo(
           >
             <ChevronRightIcon
               size={14}
-              className={classNames(
-                "transition-transform duration-200",
-                isExpanded && "rotate-90",
-              )}
+              className={classNames("transition-transform duration-200", isExpanded && "rotate-90")}
             />
           </button>
 
           {/* 标题 */}
           <span
             className={classNames(
-              "flex-1 text-[13px] leading-relaxed truncate",
-              themeColors.textClass,
+              "flex-1 truncate text-[13px] leading-relaxed",
+              themeColors.textClass
             )}
             title={item.title}
           >
@@ -166,8 +142,8 @@ const OutlineItem = memo(
           {page != null && (
             <span
               className={classNames(
-                "shrink-0 text-[11px] opacity-0 group-hover:opacity-100 transition-opacity",
-                themeColors.secondaryTextClass,
+                "shrink-0 text-[11px] opacity-0 transition-opacity group-hover:opacity-100",
+                themeColors.secondaryTextClass
               )}
             >
               P{page}
@@ -180,7 +156,7 @@ const OutlineItem = memo(
           <div
             className={classNames(
               "overflow-hidden transition-all duration-200",
-              isExpanded ? "max-h-[9999px] opacity-100" : "max-h-0 opacity-0",
+              isExpanded ? "max-h-[9999px] opacity-100" : "max-h-0 opacity-0"
             )}
           >
             {(item.children || []).map((child, index) => (
@@ -199,16 +175,13 @@ const OutlineItem = memo(
         )}
       </div>
     );
-  },
+  }
 );
 
 OutlineItem.displayName = "OutlineItem";
 
 // 收集所有有子节点的 key
-const collectExpandableKeys = (
-  outline: PdfBookmarkObject[],
-  prefix = "outline",
-): string[] => {
+const collectExpandableKeys = (outline: PdfBookmarkObject[], prefix = "outline"): string[] => {
   const keys: string[] = [];
   outline.forEach((item, index) => {
     const key = `${prefix}-${index}`;
@@ -235,7 +208,7 @@ const OutlineTab = ({
   });
 
   const handleToggle = useMemoizedFn((key: string) => {
-    setExpandedKeys((prev) => {
+    setExpandedKeys(prev => {
       const next = new Set(prev);
       if (next.has(key)) {
         next.delete(key);
@@ -251,12 +224,7 @@ const OutlineTab = ({
   });
 
   if (!outline.length) {
-    return (
-      <Empty
-        image={Empty.PRESENTED_IMAGE_SIMPLE}
-        description="此 PDF 未提供目录"
-      />
-    );
+    return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="此 PDF 未提供目录" />;
   }
 
   return (
@@ -298,38 +266,23 @@ const BookmarksTab = ({
 
   return (
     <div className="flex flex-col gap-0">
-      {bookmarks.map((bookmark) => {
+      {bookmarks.map(bookmark => {
         const page = getDestinationPage(bookmark.bookmark);
         return (
           <div
             key={bookmark.id}
             className={classNames(
-              "flex items-start justify-between gap-2 py-2.5 border-b",
-              themeColors.borderClass,
+              "flex items-start justify-between gap-2 border-b py-2.5",
+              themeColors.borderClass
             )}
           >
-            <div
-              className="flex-1 cursor-pointer"
-              onClick={() => onSelect?.(bookmark)}
-            >
-              <div className="font-medium">
-                {bookmark.bookmark.title || `书签 第${page} 页`}
-              </div>
-              <div
-                className={classNames(
-                  "text-xs",
-                  themeColors.secondaryTextClass,
-                )}
-              >
+            <div className="flex-1 cursor-pointer" onClick={() => onSelect?.(bookmark)}>
+              <div className="font-medium">{bookmark.bookmark.title || `书签 第${page} 页`}</div>
+              <div className={classNames("text-xs", themeColors.secondaryTextClass)}>
                 第 {page} 页
               </div>
             </div>
-            <Button
-              size="small"
-              type="text"
-              danger
-              onClick={() => onDelete?.(bookmark)}
-            >
+            <Button size="small" type="text" danger onClick={() => onDelete?.(bookmark)}>
               删除
             </Button>
           </div>
@@ -359,25 +312,17 @@ const NotesTab = ({
     return [...annotations].sort((a, b) => {
       // 获取页面索引
       const pageA =
-        a.type === "area"
-          ? (a.areaData?.pageIndex ?? 0)
-          : (a.annotation?.pageIndex ?? 0);
+        a.type === "area" ? (a.areaData?.pageIndex ?? 0) : (a.annotation?.pageIndex ?? 0);
       const pageB =
-        b.type === "area"
-          ? (b.areaData?.pageIndex ?? 0)
-          : (b.annotation?.pageIndex ?? 0);
+        b.type === "area" ? (b.areaData?.pageIndex ?? 0) : (b.annotation?.pageIndex ?? 0);
 
       if (pageA !== pageB) return pageA - pageB;
 
       // 同一页面按 Y 坐标排序
       const yA =
-        a.type === "area"
-          ? (a.areaData?.rect.y ?? 0)
-          : (a.annotation?.rect?.origin?.y ?? 0);
+        a.type === "area" ? (a.areaData?.rect.y ?? 0) : (a.annotation?.rect?.origin?.y ?? 0);
       const yB =
-        b.type === "area"
-          ? (b.areaData?.rect.y ?? 0)
-          : (b.annotation?.rect?.origin?.y ?? 0);
+        b.type === "area" ? (b.areaData?.rect.y ?? 0) : (b.annotation?.rect?.origin?.y ?? 0);
 
       return yA - yB;
     });
@@ -397,8 +342,7 @@ const NotesTab = ({
   };
 
   const getMenuItems = (annotation: PdfAnnotation): MenuProps["items"] => {
-    const hasNote =
-      annotation.notes?.[0]?.note && annotation.notes[0].note.length > 0;
+    const hasNote = annotation.notes?.[0]?.note && annotation.notes[0].note.length > 0;
     return [
       {
         key: "edit",
@@ -427,13 +371,11 @@ const NotesTab = ({
 
   return (
     <div className="flex flex-col gap-3">
-      {sortedAnnotations.map((annotation) => {
+      {sortedAnnotations.map(annotation => {
         const note = annotation.notes?.[0];
         const hasNote = note?.note && note.note.length > 0;
         const isAreaAnnotation = annotation.type === "area";
-        const quote = isAreaAnnotation
-          ? null
-          : formatAnnotationSnippet(annotation.annotation);
+        const quote = isAreaAnnotation ? null : formatAnnotationSnippet(annotation.annotation);
         const pageIndex = isAreaAnnotation
           ? (annotation.areaData?.pageIndex ?? 0)
           : (annotation.annotation?.pageIndex ?? 0);
@@ -442,8 +384,8 @@ const NotesTab = ({
           <div
             key={annotation.id}
             className={classNames(
-              "relative border rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer",
-              themeColors.cardBorderClass,
+              "relative cursor-pointer rounded-xl border p-3 shadow-sm transition-shadow hover:shadow-md",
+              themeColors.cardBorderClass
             )}
             onClick={() => onAnnotationClick?.(annotation)}
           >
@@ -456,11 +398,11 @@ const NotesTab = ({
               <button
                 type="button"
                 className={classNames(
-                  "absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-md bg-transparent opacity-0 hover:opacity-100 transition-all",
+                  "absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-md bg-transparent opacity-0 transition-all hover:opacity-100",
                   themeColors.textClass,
-                  themeColors.hoverClass,
+                  themeColors.hoverClass
                 )}
-                onClick={(e) => e.stopPropagation()}
+                onClick={e => e.stopPropagation()}
               >
                 <MoreHorizontalIcon size={16} />
               </button>
@@ -469,38 +411,33 @@ const NotesTab = ({
             {/* 引用区域 - 区域标注显示截图，文本标注显示文字 */}
             <div
               className={classNames(
-                "px-2.5 py-2 pl-3 border-l-[3px] rounded-r-md mb-2.5",
+                "mb-2.5 rounded-r-md border-l-[3px] px-2.5 py-2 pl-3",
                 "bg-[var(--th-bg-hover)]",
-                themeColors.focusBorderClass,
+                themeColors.focusBorderClass
               )}
             >
               {isAreaAnnotation && annotation.areaData?.captureUrl ? (
-                <div className="bg-white dark:bg-zinc-900 rounded p-1">
+                <div className="rounded bg-white p-1 dark:bg-zinc-900">
                   <img
                     src={annotation.areaData.captureUrl}
                     alt="区域截图"
                     className={classNames(
-                      "w-full max-h-[120px] object-contain rounded border",
-                      themeColors.borderClass,
+                      "max-h-[120px] w-full rounded border object-contain",
+                      themeColors.borderClass
                     )}
                   />
                 </div>
               ) : (
                 <span
                   className={classNames(
-                    "text-xs leading-relaxed line-clamp-3",
-                    themeColors.textClass,
+                    "line-clamp-3 text-xs leading-relaxed",
+                    themeColors.textClass
                   )}
                 >
                   {quote}
                 </span>
               )}
-              <div
-                className={classNames(
-                  "text-[11px] mt-1.5",
-                  themeColors.secondaryTextClass,
-                )}
-              >
+              <div className={classNames("mt-1.5 text-[11px]", themeColors.secondaryTextClass)}>
                 第 {pageIndex + 1} 页
               </div>
             </div>
@@ -509,17 +446,12 @@ const NotesTab = ({
             <div className="min-h-[24px]">
               {hasNote ? (
                 <Editor
-                  className="max-h-20 overflow-hidden pointer-events-none text-[13px]"
+                  className="pointer-events-none max-h-20 overflow-hidden text-[13px]"
                   initValue={note.note.slice(0, 2)}
                   readonly
                 />
               ) : (
-                <span
-                  className={classNames(
-                    "text-xs italic",
-                    themeColors.secondaryTextClass,
-                  )}
-                >
+                <span className={classNames("text-xs italic", themeColors.secondaryTextClass)}>
                   点击右上角添加笔记...
                 </span>
               )}
@@ -584,13 +516,8 @@ const SearchTab = ({
     <div className="flex flex-col gap-3">
       <div className="space-y-3">
         <div>
-          <div className="text-xs font-medium mb-1">索引状态</div>
-          <div
-            className={classNames(
-              "text-xs leading-relaxed",
-              themeColors.secondaryTextClass,
-            )}
-          >
+          <div className="mb-1 text-xs font-medium">索引状态</div>
+          <div className={classNames("text-xs leading-relaxed", themeColors.secondaryTextClass)}>
             {statusText}
           </div>
           {indexStatus?.state === "building" &&
@@ -600,8 +527,8 @@ const SearchTab = ({
             <div className="mt-2">
               <div
                 className={classNames(
-                  "flex items-center justify-between text-[11px] mb-1",
-                  themeColors.secondaryTextClass,
+                  "mb-1 flex items-center justify-between text-[11px]",
+                  themeColors.secondaryTextClass
                 )}
               >
                 <span>{indexStatus.currentStage || "building"}</span>
@@ -609,18 +536,13 @@ const SearchTab = ({
                   {indexStatus.progressCurrent}/{indexStatus.progressTotal}
                 </span>
               </div>
-              <div className="h-1.5 rounded-full bg-black/8 dark:bg-white/10 overflow-hidden">
+              <div className="bg-black/8 h-1.5 overflow-hidden rounded-full dark:bg-white/10">
                 <div
-                  className="h-full rounded-full bg-sky-500 transition-[width] duration-200"
+                  className="h-full rounded-full bg-[var(--th-info)] transition-[width] duration-200"
                   style={{
                     width: `${Math.max(
                       4,
-                      Math.min(
-                        100,
-                        (indexStatus.progressCurrent /
-                          indexStatus.progressTotal) *
-                          100,
-                      ),
+                      Math.min(100, (indexStatus.progressCurrent / indexStatus.progressTotal) * 100)
                     )}%`,
                   }}
                 />
@@ -631,8 +553,8 @@ const SearchTab = ({
         <div className="flex items-center gap-2">
           <input
             value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            onKeyDown={(event) => {
+            onChange={event => onQueryChange(event.target.value)}
+            onKeyDown={event => {
               if (event.key === "Enter") {
                 onSearch();
               }
@@ -642,7 +564,7 @@ const SearchTab = ({
               "flex-1 rounded-lg border px-3 py-2 text-sm outline-none transition-all",
               themeColors.inputBgClass,
               themeColors.borderClass,
-              themeColors.activeTextClass,
+              themeColors.activeTextClass
             )}
           />
           <Button type="primary" loading={loading} onClick={onSearch}>
@@ -653,46 +575,33 @@ const SearchTab = ({
 
       {results.length === 0 ? (
         <div className="pdf-embed-sidebar-placeholder py-8">
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={emptyDescription}
-          />
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyDescription} />
         </div>
       ) : (
         <div className={classNames("border-t pt-2", themeColors.borderClass)}>
-          <div
-            className={classNames(
-              "px-1 pb-2 text-xs",
-              themeColors.secondaryTextClass,
-            )}
-          >
+          <div className={classNames("px-1 pb-2 text-xs", themeColors.secondaryTextClass)}>
             找到 {results.length} 条结果
           </div>
-          {results.map((result) => {
+          {results.map(result => {
             const resultKey = `${result.pageNumber}-${result.chunkIndex}-${result.source}`;
             return (
               <button
                 key={resultKey}
                 type="button"
                 className={classNames(
-                  "w-full text-left px-1 py-3 border-b transition-colors",
+                  "w-full border-b px-1 py-3 text-left transition-colors",
                   themeColors.borderClass,
                   selectedResultKey === resultKey
                     ? classNames(themeColors.activeTextClass, "bg-transparent")
-                    : classNames(themeColors.textClass, themeColors.hoverClass),
+                    : classNames(themeColors.textClass, themeColors.hoverClass)
                 )}
                 onClick={() => onResultSelect(result)}
               >
-                <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <span className="text-xs font-medium">
-                    第 {result.pageNumber} 页
-                  </span>
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium">第 {result.pageNumber} 页</span>
                   {result.sectionTitle ? (
                     <span
-                      className={classNames(
-                        "text-[11px] truncate",
-                        themeColors.secondaryTextClass,
-                      )}
+                      className={classNames("truncate text-[11px]", themeColors.secondaryTextClass)}
                       title={
                         result.sectionPath?.length
                           ? result.sectionPath.join(" / ")
@@ -703,9 +612,7 @@ const SearchTab = ({
                     </span>
                   ) : null}
                 </div>
-                <div className="text-sm leading-6 line-clamp-3">
-                  {result.snippet}
-                </div>
+                <div className="line-clamp-3 text-sm leading-6">{result.snippet}</div>
               </button>
             );
           })}
@@ -799,33 +706,26 @@ const PdfEmbedSidebar = ({
   return (
     <div
       className={classNames(
-        "relative h-full border-r flex flex-col overflow-hidden",
-        themeColors.borderClass,
+        "relative flex h-full flex-col overflow-hidden border-r",
+        themeColors.borderClass
       )}
     >
       <div
-        className={classNames(
-          "grid grid-cols-5 gap-2 px-3 py-3 border-b",
-          themeColors.borderClass,
-        )}
+        className={classNames("grid grid-cols-5 gap-2 border-b px-3 py-3", themeColors.borderClass)}
       >
-        {SIDEBAR_TABS.map((tab) => {
+        {SIDEBAR_TABS.map(tab => {
           const Icon = tab.icon;
           const count =
-            tab.key === "bookmarks"
-              ? bookmarksCount
-              : tab.key === "notes"
-                ? notesCount
-                : 0;
+            tab.key === "bookmarks" ? bookmarksCount : tab.key === "notes" ? notesCount : 0;
           return (
             <button
               key={tab.key}
               type="button"
               className={classNames(
-                "rounded-xl py-2 px-1.5 bg-transparent flex flex-col items-center gap-1 text-xs transition-colors",
+                "flex flex-col items-center gap-1 rounded-xl bg-transparent px-1.5 py-2 text-xs transition-colors",
                 activeTab === tab.key
                   ? themeColors.activeClass
-                  : classNames(themeColors.textClass, themeColors.hoverClass),
+                  : classNames(themeColors.textClass, themeColors.hoverClass)
               )}
               onClick={() => onTabChange(tab.key)}
             >
@@ -834,9 +734,9 @@ const PdfEmbedSidebar = ({
                 {count > 0 && (
                   <span
                     className={classNames(
-                      "absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 text-[10px] font-semibold leading-4 text-center rounded-lg",
+                      "absolute -right-2 -top-1.5 h-4 min-w-[16px] rounded-lg px-1 text-center text-[10px] font-semibold leading-4",
                       themeColors.badgeBgClass,
-                      themeColors.badgeTextClass,
+                      themeColors.badgeTextClass
                     )}
                   >
                     {count}
@@ -848,9 +748,7 @@ const PdfEmbedSidebar = ({
           );
         })}
       </div>
-      <div className="flex-1 min-h-0 px-4 py-3 overflow-auto">
-        {renderContent()}
-      </div>
+      <div className="min-h-0 flex-1 overflow-auto px-4 py-3">{renderContent()}</div>
     </div>
   );
 };

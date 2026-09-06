@@ -164,16 +164,16 @@ export const AIJudgementLoading: React.FC = () => (
   <motion.div
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
-    className="rounded-xl border-2 border-blue-200 bg-blue-50 p-4 dark:border-blue-500/30 dark:bg-blue-500/10"
+    className="border-[var(--th-border-focus)]/30 dark:border-[var(--th-border-focus)]/30 dark:bg-[var(--th-accent)]/10 rounded-xl border-2 bg-[var(--th-accent-soft)] p-4"
   >
     <div className="flex items-center gap-3">
       <div className="relative h-8 w-8">
         <div className="border-[var(--th-border-focus)]/30 absolute inset-0 rounded-full border-2" />
-        <div className="absolute inset-0 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+        <div className="absolute inset-0 animate-spin rounded-full border-2 border-[var(--th-border-focus)] border-t-transparent" />
       </div>
       <div>
-        <div className="font-medium text-blue-700 dark:text-blue-400">AI 正在评判...</div>
-        <div className="text-xs text-blue-600/70 dark:text-blue-400/70">分析你的答案，请稍候</div>
+        <div className="font-medium text-[var(--th-active-text)]">AI 正在评判...</div>
+        <div className="text-[var(--th-active-text)]/70/70 text-xs">分析你的答案，请稍候</div>
       </div>
     </div>
   </motion.div>

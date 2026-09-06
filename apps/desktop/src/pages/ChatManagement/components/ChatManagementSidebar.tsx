@@ -699,7 +699,7 @@ const ChatManagementSidebar = memo(
               className={classnames(
                 "mx-2 my-0.5 flex cursor-pointer items-center rounded-md px-3 py-2 transition-all duration-200",
                 {
-                  "bg-blue-500/10": isDragOver,
+                  "bg-[var(--th-accent)]/10": isDragOver,
                   [hoverClass]: !isDragOver,
                 }
               )}
@@ -795,7 +795,7 @@ const ChatManagementSidebar = memo(
           className={classnames(
             "border-t-12 border-b-20 border-r-10 min-h-0 flex-1 overflow-y-auto border-transparent transition-colors duration-200",
             {
-              "bg-blue-500/5": dragOverTarget === "root",
+              "bg-[var(--th-accent)]/5": dragOverTarget === "root",
             }
           )}
           onDragOver={e => handleDragOver(e, "root")}

@@ -16,7 +16,7 @@ const featureMap: Array<{
   {
     key: "online",
     label: "联网",
-    colorClass: "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400",
+    colorClass: "bg-[var(--th-info)]/15 text-status-info dark:bg-[var(--th-accent)]/20",
   },
   {
     key: "thinking",
@@ -277,7 +277,7 @@ const ConfigList = ({
                                     </span>
                                   )}
                                   {typeof model.maxOutputTokens === "number" && (
-                                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-500/20 dark:text-blue-400">
+                                    <span className="bg-[var(--th-info)]/15 dark:bg-[var(--th-accent)]/20 rounded-full px-2 py-0.5 text-xs font-medium text-[var(--th-active-text)]">
                                       输出 {model.maxOutputTokens} tokens
                                     </span>
                                   )}

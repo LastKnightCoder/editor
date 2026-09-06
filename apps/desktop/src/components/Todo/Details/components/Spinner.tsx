@@ -13,7 +13,7 @@ const Spinner: FC<SpinnerProps> = ({ size = "default" }) => {
 
   return (
     <div
-      className={`${sizeClasses[size]} border-indigo-500 border-t-transparent rounded-full animate-spin`}
+      className={`${sizeClasses[size]} animate-spin rounded-full border-[var(--th-accent)] border-t-transparent`}
     />
   );
 };

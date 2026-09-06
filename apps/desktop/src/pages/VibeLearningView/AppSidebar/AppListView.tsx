@@ -936,7 +936,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
           </span>
           <button
             type="button"
-            className="dark:hover:bg-[var(--th-btn-hover)]/10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 transition-all hover:bg-blue-50 hover:text-blue-500"
+            className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 transition-all hover:bg-[var(--th-accent-soft)] hover:text-[var(--th-active-text)]"
             onClick={onAddToResources}
             title="添加到资源列表"
           >
@@ -992,7 +992,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
     >
       <div className="flex items-center gap-2.5">
         {isGenerating ? (
-          <Loader2 className={classNames("h-4 w-4 shrink-0 animate-spin text-blue-500")} />
+          <Loader2 className={classNames("text-status-info h-4 w-4 shrink-0 animate-spin")} />
         ) : (
           <NoteIcon className={classNames("h-4 w-4 shrink-0", themeColors.secondaryTextClass)} />
         )}
@@ -1001,7 +1001,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
         >
           {note.title || "无标题笔记"}
           {isGenerating && (
-            <span className="ml-2 text-xs font-normal text-blue-500">生成中...</span>
+            <span className="text-status-info ml-2 text-xs font-normal">生成中...</span>
           )}
         </span>
         <div className="relative flex shrink-0 items-center gap-1">
@@ -1009,7 +1009,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
           {isPPT && onEditPPT && !isGenerating && (
             <button
               type="button"
-              className="dark:hover:bg-[var(--th-btn-hover)]/10 flex h-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent px-2 text-xs font-medium text-gray-400 opacity-0 transition-all hover:bg-blue-50 hover:text-blue-500 group-hover:opacity-100"
+              className="flex h-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent px-2 text-xs font-medium text-gray-400 opacity-0 transition-all hover:bg-[var(--th-accent-soft)] hover:text-[var(--th-active-text)] group-hover:opacity-100"
               onClick={e => {
                 e.stopPropagation();
                 onEditPPT(note);
@@ -1047,7 +1047,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
           {!isGenerating && (
             <button
               type="button"
-              className="dark:hover:bg-[var(--th-btn-hover)]/10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 transition-all hover:bg-blue-50 hover:text-blue-500"
+              className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 transition-all hover:bg-[var(--th-accent-soft)] hover:text-[var(--th-active-text)]"
               onClick={onAddToResources}
               title="添加到资源列表"
             >

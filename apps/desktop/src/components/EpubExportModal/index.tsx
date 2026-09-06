@@ -462,8 +462,8 @@ const EpubExportModal = (props: EpubExportModalProps) => {
                     onClick={() => handleSelectCoverCandidate(candidate)}
                     className={`rounded-lg border p-1 text-left transition-all ${
                       selected
-                        ? "border-indigo-500 ring-2 ring-indigo-500/30"
-                        : "border-gray-200 hover:border-indigo-300 dark:border-slate-700"
+                        ? "ring-[var(--th-accent)]/30 border-[var(--th-accent)] ring-2"
+                        : "hover:border-[var(--th-border-focus)]/50 border-gray-200 dark:border-slate-700"
                     }`}
                   >
                     <img

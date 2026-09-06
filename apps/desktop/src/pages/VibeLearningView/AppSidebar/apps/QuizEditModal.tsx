@@ -174,7 +174,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
       title="编辑测验"
       subtitle="修改测验信息和题目内容"
       icon={<Pencil className="h-5 w-5 text-[var(--th-accent)]" />}
-      iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-[var(--th-border-focus)]/30"
+      iconBgColor="bg-[var(--th-accent-soft)] dark:bg-[var(--th-accent)]/20 border-[var(--th-border-focus)]/30"
       footer={null}
     >
       <div className="space-y-6">
@@ -194,7 +194,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
                   "flex-1 rounded-xl px-4 py-2.5 text-sm outline-none transition-all",
                   "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
                   "text-gray-800 dark:text-white",
-                  "focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-blue-500/20"
+                  "focus:ring-[var(--th-accent)]/20 focus:border-[var(--th-border-focus)] focus:ring-2"
                 )}
                 onKeyDown={e => {
                   if (e.key === "Enter") handleSaveName();
@@ -231,7 +231,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
               className={classNames(
                 "flex cursor-pointer items-center justify-between rounded-xl px-4 py-2.5 transition-all",
                 "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
-                "hover:border-[var(--th-border-hover)] dark:hover:border-blue-500"
+                "hover:border-[var(--th-border-hover)] dark:hover:border-[var(--th-border-focus)]"
               )}
             >
               <span className="text-sm text-gray-800 dark:text-white">
@@ -354,7 +354,7 @@ const QuizItemCard = memo((props: QuizItemCardProps) => {
             <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
               #{index + 1}
             </span>
-            <span className="rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-[var(--th-active-text)] dark:bg-blue-500/20">
+            <span className="bg-[var(--th-info)]/15 dark:bg-[var(--th-accent)]/20 rounded-md px-2 py-0.5 text-[10px] font-semibold text-[var(--th-active-text)]">
               {getTypeLabel(item.type)}
             </span>
             <span
@@ -662,7 +662,7 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
                     "flex-1 rounded-lg px-3 py-2 text-sm outline-none transition-all",
                     "border border-gray-200 bg-white dark:border-gray-700 dark:bg-zinc-800",
                     "text-gray-800 dark:text-white",
-                    "focus:border-[var(--th-border-focus)] focus:ring-1 focus:ring-blue-500/20"
+                    "focus:ring-[var(--th-accent)]/20 focus:border-[var(--th-border-focus)] focus:ring-1"
                   )}
                 />
                 {formData.options.length > 2 && (
@@ -734,7 +734,7 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
                 "w-full resize-none rounded-lg px-3 py-2 text-sm outline-none transition-all",
                 "border border-gray-200 bg-white dark:border-gray-700 dark:bg-zinc-800",
                 "text-gray-800 placeholder:text-gray-400 dark:text-white",
-                "focus:border-[var(--th-border-focus)] focus:ring-1 focus:ring-blue-500/20"
+                "focus:ring-[var(--th-accent)]/20 focus:border-[var(--th-border-focus)] focus:ring-1"
               )}
             />
           </div>
@@ -770,7 +770,7 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
             "w-full resize-none rounded-lg px-3 py-2 text-sm outline-none transition-all",
             "border border-gray-200 bg-white dark:border-gray-700 dark:bg-zinc-800",
             "text-gray-800 placeholder:text-gray-400 dark:text-white",
-            "focus:border-[var(--th-border-focus)] focus:ring-1 focus:ring-blue-500/20"
+            "focus:ring-[var(--th-accent)]/20 focus:border-[var(--th-border-focus)] focus:ring-1"
           )}
         />
       </div>

@@ -42,7 +42,7 @@ const ToggleSwitch: React.FC<{
       />
       <div
         onClick={() => !disabled && onChange(!checked)}
-        className={`h-6 w-11 cursor-pointer rounded-full transition-all duration-200 ease-in-out ${checked ? "bg-indigo-500" : "bg-gray-200 dark:bg-zinc-700"} ${disabled ? "cursor-not-allowed opacity-50" : "hover:shadow-md"} `}
+        className={`h-6 w-11 cursor-pointer rounded-full transition-all duration-200 ease-in-out ${checked ? "bg-[var(--th-accent)]" : "bg-gray-200 dark:bg-zinc-700"} ${disabled ? "cursor-not-allowed opacity-50" : "hover:shadow-md"} `}
       >
         <div
           className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out ${checked ? "translate-x-5" : "translate-x-0"} `}
@@ -67,7 +67,7 @@ const ConnectionStatusBadge: React.FC<{
       case "connecting":
         return {
           text: "连接中",
-          className: "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400",
+          className: "bg-[var(--th-info)]/15 text-status-info dark:bg-[var(--th-accent)]/20",
         };
       case "error":
         return {
@@ -421,7 +421,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
           <div className="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
             {/* Header */}
             <div className="mb-5 flex shrink-0 items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-indigo-200 bg-indigo-50 dark:border-indigo-500/30 dark:bg-indigo-500/20">
+              <div className="border-[var(--th-border-focus)]/30 dark:border-[var(--th-border-focus)]/30 dark:bg-[var(--th-accent)]/20 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border bg-[var(--th-accent-soft)]">
                 <svg
                   className="h-5 w-5 text-[var(--th-accent)]"
                   viewBox="0 0 24 24"
@@ -499,7 +499,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                               <span
                                 className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                                   enabled
-                                    ? "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400"
+                                    ? "bg-[var(--th-info)]/15 text-status-info dark:bg-[var(--th-accent)]/20"
                                     : "bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-slate-400"
                                 }`}
                               >
@@ -538,7 +538,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                       {!editingServer && (
                         <button
                           onClick={() => setShowJsonImport(!showJsonImport)}
-                          className="rounded-lg bg-indigo-100 px-3 py-1.5 text-xs font-medium text-indigo-600 transition-all hover:bg-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-400 dark:hover:bg-indigo-500/30"
+                          className="hover:bg-[var(--th-accent)]/20 rounded-lg bg-[var(--th-accent-soft)] px-3 py-1.5 text-xs font-medium text-[var(--th-active-text)] transition-all"
                         >
                           {showJsonImport ? "手动输入" : "导入配置"}
                         </button>
@@ -556,7 +556,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                             value={jsonConfig}
                             onChange={e => setJsonConfig(e.target.value)}
                             rows={8}
-                            className="w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
+                            className="focus:ring-[var(--th-accent)]/20 w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:ring-2 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                             placeholder={`{\n  "mcpServers": {\n    "服务名称": {\n      "command": "npx",\n      "args": ["-y", "@antv/mcp-server-chart"]\n    }\n  }\n}`}
                           />
                           <p className="text-xs text-gray-500 dark:text-slate-400">
@@ -585,7 +585,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                             type="text"
                             value={formName}
                             onChange={e => setFormName(e.target.value)}
-                            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
+                            className="focus:ring-[var(--th-accent)]/20 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:ring-2 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                             placeholder="例如：文件系统 MCP"
                           />
                         </div>
@@ -599,7 +599,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                             value={formDescription}
                             onChange={e => setFormDescription(e.target.value)}
                             rows={2}
-                            className="w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
+                            className="focus:ring-[var(--th-accent)]/20 w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:ring-2 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                             placeholder="可选描述，帮助记忆用途"
                           />
                         </div>
@@ -614,7 +614,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                               onClick={() => setTransportType("stdio")}
                               className={`flex-1 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all ${
                                 transportType === "stdio"
-                                  ? "border-[var(--th-border-focus)]/30 bg-[var(--th-accent-soft)] text-indigo-700 dark:text-indigo-400"
+                                  ? "border-[var(--th-border-focus)]/30 bg-[var(--th-accent-soft)] text-[var(--th-active-text)]"
                                   : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-slate-700 dark:bg-zinc-900 dark:text-slate-400 dark:hover:bg-zinc-800"
                               }`}
                             >
@@ -624,7 +624,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                               onClick={() => setTransportType("streamable-http")}
                               className={`flex-1 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all ${
                                 transportType === "streamable-http"
-                                  ? "border-[var(--th-border-focus)]/30 bg-[var(--th-accent-soft)] text-indigo-700 dark:text-indigo-400"
+                                  ? "border-[var(--th-border-focus)]/30 bg-[var(--th-accent-soft)] text-[var(--th-active-text)]"
                                   : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-slate-700 dark:bg-zinc-900 dark:text-slate-400 dark:hover:bg-zinc-800"
                               }`}
                             >
@@ -644,7 +644,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                                 type="text"
                                 value={formCommand}
                                 onChange={e => setFormCommand(e.target.value)}
-                                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
+                                className="focus:ring-[var(--th-accent)]/20 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:ring-2 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                                 placeholder="npx"
                               />
                               <p className="-mt-1 text-xs text-gray-500 dark:text-slate-400">
@@ -659,7 +659,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                                 type="text"
                                 value={formArgs}
                                 onChange={e => setFormArgs(e.target.value)}
-                                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
+                                className="focus:ring-[var(--th-accent)]/20 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:ring-2 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                                 placeholder="-y, @modelcontextprotocol/server-filesystem, /path/to/directory"
                               />
                               <p className="-mt-1 text-xs text-gray-500 dark:text-slate-400">
@@ -674,7 +674,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                                 value={formEnv}
                                 onChange={e => setFormEnv(e.target.value)}
                                 rows={2}
-                                className="w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
+                                className="focus:ring-[var(--th-accent)]/20 w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:ring-2 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                                 placeholder='{"API_KEY": "xxx"}'
                               />
                             </div>
@@ -686,7 +686,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                                 type="text"
                                 value={formCwd}
                                 onChange={e => setFormCwd(e.target.value)}
-                                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
+                                className="focus:ring-[var(--th-accent)]/20 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:ring-2 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                                 placeholder="可选，默认为当前目录"
                               />
                             </div>
@@ -704,7 +704,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                                 type="text"
                                 value={formUrl}
                                 onChange={e => setFormUrl(e.target.value)}
-                                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
+                                className="focus:ring-[var(--th-accent)]/20 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:ring-2 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                                 placeholder="https://example.com/mcp"
                               />
                             </div>
@@ -716,7 +716,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                                 value={formHeaders}
                                 onChange={e => setFormHeaders(e.target.value)}
                                 rows={2}
-                                className="w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
+                                className="focus:ring-[var(--th-accent)]/20 w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:ring-2 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                                 placeholder='{"Authorization": "Bearer xxx"}'
                               />
                             </div>

@@ -262,7 +262,7 @@ const DatePickerSimple: FC<DatePickerSimpleProps> = ({
                           isSelected
                             ? "bg-[var(--th-btn-bg)] font-semibold text-[var(--th-btn-text)]"
                             : isToday
-                              ? "border border-indigo-500 bg-white/40 font-semibold dark:bg-white/10"
+                              ? "border border-[var(--th-border-focus)] bg-white/40 font-semibold dark:bg-white/10"
                               : "dark:hover:bg-white/8 hover:bg-white/20"
                         } `}
                       >

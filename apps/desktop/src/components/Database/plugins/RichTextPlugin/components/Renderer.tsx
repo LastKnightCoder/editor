@@ -1,13 +1,6 @@
 import React, { memo, useState, useRef } from "react";
 import { Popover, App } from "antd";
-import {
-  MdAdd,
-  MdClose,
-  MdDescription,
-  MdArticle,
-  MdNote,
-  MdFolder,
-} from "react-icons/md";
+import { MdAdd, MdClose, MdDescription, MdArticle, MdNote, MdFolder } from "react-icons/md";
 import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";
 import { v4 as uuid } from "uuid";
@@ -16,11 +9,7 @@ import { RichTextPluginValue, RichTextItem } from "../types";
 import { DropdownMenu } from "./index";
 import RichTextEditModal from "@/components/RichTextEditModal";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
-import {
-  createContent,
-  deleteContent,
-  incrementContentRefCount,
-} from "@/commands/content";
+import { createContent, deleteContent, incrementContentRefCount } from "@/commands/content";
 import { SearchResult } from "@/types";
 import { Descendant } from "slate";
 import classNames from "classnames";
@@ -42,9 +31,7 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
     const [selectorModalVisible, setSelectorModalVisible] = useState(false);
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
-    const [currentEditingContentId, setCurrentEditingContentId] = useState<
-      number | null
-    >(null);
+    const [currentEditingContentId, setCurrentEditingContentId] = useState<number | null>(null);
     const [currentEditingTitle, setCurrentEditingTitle] = useState("");
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -55,7 +42,7 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
       const iconProps = "w-4 h-4";
       switch (type) {
         case "card":
-          return <MdNote className={`${iconProps} text-blue-500`} />;
+          return <MdNote className={`${iconProps} text-[var(--th-accent)]`} />;
         case "article":
           return <MdArticle className={`${iconProps} text-green-500`} />;
         case "project-item":
@@ -74,40 +61,36 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
       setEditModalVisible(true);
     });
 
-    const handleDeleteItem = useMemoizedFn(
-      (itemId: string, e: React.MouseEvent) => {
-        e.stopPropagation();
+    const handleDeleteItem = useMemoizedFn((itemId: string, e: React.MouseEvent) => {
+      e.stopPropagation();
 
-        // 找到要删除的项目
-        const itemToDelete = richTextList.find((item) => item.id === itemId);
-        if (!itemToDelete) return;
+      // 找到要删除的项目
+      const itemToDelete = richTextList.find(item => item.id === itemId);
+      if (!itemToDelete) return;
 
-        modal.confirm({
-          title: "确认删除",
-          content: "确定要删除这个富文本文档吗？",
-          okText: "确定",
-          cancelText: "取消",
-          okButtonProps: {
-            danger: true,
-          },
-          async onOk() {
-            try {
-              // 删除 content 记录（会自动减少引用计数）
-              await deleteContent(itemToDelete.contentId);
+      modal.confirm({
+        title: "确认删除",
+        content: "确定要删除这个富文本文档吗？",
+        okText: "确定",
+        cancelText: "取消",
+        okButtonProps: {
+          danger: true,
+        },
+        async onOk() {
+          try {
+            // 删除 content 记录（会自动减少引用计数）
+            await deleteContent(itemToDelete.contentId);
 
-              const newValue = richTextList.filter(
-                (item) => item.id !== itemId,
-              );
-              onCellValueChange(newValue);
-              message.success("文档删除成功");
-            } catch (error) {
-              console.error("删除文档失败:", error);
-              message.error("删除文档失败");
-            }
-          },
-        });
-      },
-    );
+            const newValue = richTextList.filter(item => item.id !== itemId);
+            onCellValueChange(newValue);
+            message.success("文档删除成功");
+          } catch (error) {
+            console.error("删除文档失败:", error);
+            message.error("删除文档失败");
+          }
+        },
+      });
+    });
 
     // 关联文档
     const handleLinkDocument = useMemoizedFn(() => {
@@ -154,49 +137,43 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
     });
 
     // 选择搜索到的文档
-    const handleSelectDocument = useMemoizedFn(
-      async (items: SearchResult | SearchResult[]) => {
-        // 处理单选情况
-        const item = Array.isArray(items) ? items[0] : items;
-        if (!item) return;
+    const handleSelectDocument = useMemoizedFn(async (items: SearchResult | SearchResult[]) => {
+      // 处理单选情况
+      const item = Array.isArray(items) ? items[0] : items;
+      if (!item) return;
 
-        // 检查是否已经关联
-        const exists = richTextList.some(
-          (doc) => doc.contentId === item.contentId,
-        );
-        if (exists) {
-          message.warning("该文档已经关联");
-          return;
-        }
+      // 检查是否已经关联
+      const exists = richTextList.some(doc => doc.contentId === item.contentId);
+      if (exists) {
+        message.warning("该文档已经关联");
+        return;
+      }
 
-        try {
-          // 增加 content 的引用计数
-          await incrementContentRefCount(item.contentId);
+      try {
+        // 增加 content 的引用计数
+        await incrementContentRefCount(item.contentId);
 
-          const newRichTextItem: RichTextItem = {
-            id: uuid(),
-            contentId: item.contentId,
-            title: item.title || "未命名文档",
-            type: item.type as RichTextItem["type"],
-          };
+        const newRichTextItem: RichTextItem = {
+          id: uuid(),
+          contentId: item.contentId,
+          title: item.title || "未命名文档",
+          type: item.type as RichTextItem["type"],
+        };
 
-          const newValue = [...richTextList, newRichTextItem];
-          onCellValueChange(newValue);
-          message.success("文档关联成功");
-        } catch (error) {
-          console.error("关联文档失败:", error);
-          message.error("关联文档失败");
-        }
-      },
-    );
+        const newValue = [...richTextList, newRichTextItem];
+        onCellValueChange(newValue);
+        message.success("文档关联成功");
+      } catch (error) {
+        console.error("关联文档失败:", error);
+        message.error("关联文档失败");
+      }
+    });
 
     // 编辑保存回调
     const handleEditSave = useMemoizedFn((title: string) => {
       // 更新列表中的标题
-      const newValue = richTextList.map((item) =>
-        item.contentId === currentEditingContentId
-          ? { ...item, title: title || item.title }
-          : item,
+      const newValue = richTextList.map(item =>
+        item.contentId === currentEditingContentId ? { ...item, title: title || item.title } : item
       );
       onCellValueChange(newValue);
     });
@@ -209,10 +186,10 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
     });
 
     const handleTypeChange = useMemoizedFn((type: string) => {
-      const newValue = richTextList.map((item) =>
+      const newValue = richTextList.map(item =>
         item.contentId === currentEditingContentId
           ? { ...item, type: type as RichTextItem["type"] }
-          : item,
+          : item
       );
       onCellValueChange(newValue);
     });
@@ -226,43 +203,34 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
     );
 
     return (
-      <div
-        className="relative items-center h-full w-full"
-        onWheel={handleWheel}
-      >
+      <div className="relative h-full w-full items-center" onWheel={handleWheel}>
         <div
-          className="w-full h-full flex px-2 py-1 overflow-x-auto scrollbar-hide"
+          className="scrollbar-hide flex h-full w-full overflow-x-auto px-2 py-1"
           ref={scrollContainerRef}
         >
           <div
-            className="flex items-center gap-2 flex-1"
+            className="flex flex-1 items-center gap-2"
             style={{
               scrollbarWidth: "none",
               msOverflowStyle: "none",
             }}
           >
-            {richTextList.map((item) => (
+            {richTextList.map(item => (
               <motion.div
                 key={item.id}
                 className={classNames(
-                  "relative group overflow-visible cursor-pointer flex-none flex items-center gap-2 px-2 py-1 rounded border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all min-w-0",
+                  "group relative flex min-w-0 flex-none cursor-pointer items-center gap-2 overflow-visible rounded border border-gray-200 px-2 py-1 transition-all hover:border-[var(--th-border-hover)] hover:bg-[var(--th-accent-soft)]",
                   {
-                    "border-gray-700 bg-zinc-800 hover:border-gray-600 hover:bg-zinc-700":
-                      isDark,
-                  },
+                    "border-gray-700 bg-zinc-800 hover:border-gray-600 hover:bg-zinc-700": isDark,
+                  }
                 )}
                 onMouseEnter={() => setHoveredItemId(item.id)}
                 onMouseLeave={() => setHoveredItemId(null)}
                 onClick={() => handleItemClick(item)}
               >
-                <div className="flex items-center flex-none">
-                  {getTypeIcon(item.type)}
-                </div>
+                <div className="flex flex-none items-center">{getTypeIcon(item.type)}</div>
 
-                <span
-                  className="text-[12px] truncate max-w-24"
-                  title={item.title}
-                >
+                <span className="max-w-24 truncate text-[12px]" title={item.title}>
                   {item.title}
                 </span>
 
@@ -275,14 +243,14 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                       className={classNames(
-                        "absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center cursor-pointer shadow-lg z-10",
+                        "absolute -right-1 -top-1 z-10 flex h-3 w-3 cursor-pointer items-center justify-center rounded-full bg-red-500 shadow-lg",
                         {
                           "bg-red-700": isDark,
-                        },
+                        }
                       )}
-                      onClick={(e) => handleDeleteItem(item.id, e)}
+                      onClick={e => handleDeleteItem(item.id, e)}
                     >
-                      <MdClose className="w-2 h-2 text-white" />
+                      <MdClose className="h-2 w-2 text-white" />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -309,16 +277,16 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
           >
             <div
               className={classNames(
-                "absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-1 rounded-md cursor-pointer transition-colors",
+                "absolute right-1 top-1/2 flex -translate-y-1/2 cursor-pointer items-center gap-1 rounded-md px-1.5 py-1 transition-colors",
                 {
                   "bg-gray-200/80 text-gray-700 hover:bg-gray-300/80": !isDark,
                   "bg-zinc-700/80 text-gray-200 hover:bg-gray-600/80": isDark,
-                },
+                }
               )}
               role="button"
               aria-label="添加富文本"
             >
-              <MdAdd className="w-4 h-4" />
+              <MdAdd className="h-4 w-4" />
             </div>
           </Popover>
         )}
@@ -328,18 +296,12 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
           open={selectorModalVisible}
           onCancel={() => setSelectorModalVisible(false)}
           onSelect={handleSelectDocument}
-          contentType={[
-            "card",
-            "article",
-            "project-item",
-            "document-item",
-            "diary-daily",
-          ]}
+          contentType={["card", "article", "project-item", "document-item", "diary-daily"]}
           extensions={[]}
           title="选择要关联的文档"
           emptyDescription="未找到相关文档"
           multiple={false}
-          excludeContentIds={richTextList.map((item) => item.contentId)}
+          excludeContentIds={richTextList.map(item => item.contentId)}
         />
 
         {currentEditingContentId && (
@@ -358,7 +320,7 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
         )}
       </div>
     );
-  },
+  }
 );
 
 RichTextRenderer.displayName = "RichTextRenderer";
