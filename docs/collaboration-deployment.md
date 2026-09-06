@@ -7,7 +7,7 @@
 - 公网地址：`https://collab.xiongtao.life`。
 - 部署目录：`/opt/tau/editor/apps/collaboration-server`。
 - 数据目录：`/srv/tau-collab/data`，挂载到容器 `/data`，所有者为 `10001:10001`。
-- 镜像版本：`tau-collaboration:20260906-165544`，架构 `linux/amd64`。
+- 镜像版本：`tau-collaboration:20260906-102208-bc0f3b5d`，架构 `linux/amd64`。
 - Nginx 配置：`/etc/nginx/conf.d/collab.xiongtao.life.conf`，反代到 `127.0.0.1:3210`，支持 HTTPS 和 WSS。
 - 证书目录：`/etc/letsencrypt/live/collab.xiongtao.life`；现有 `certbot-renew.timer` 负责续期，续期成功后检查并重载 Nginx。
 - 服务使用单实例 SQLite；Docker 自动重启策略为 `unless-stopped`，内存上限为 768 MB。
@@ -17,7 +17,7 @@
 ```yaml
 services:
   collaboration:
-    image: tau-collaboration:20260906-165544
+    image: tau-collaboration:20260906-102208-bc0f3b5d
     logging:
       driver: json-file
       options:
@@ -40,25 +40,23 @@ curl -fsS https://collab.xiongtao.life/health/ready
 
 ## 后续更新
 
-Docker Hub 在本次部署时无法连接，实际使用 AWS 公共镜像库中的 Node 官方镜像副本，在本机交叉构建。构建命令从本地项目根目录执行：
+在本地项目根目录执行：
 
 ```bash
-docker buildx build --platform linux/amd64 \
-  --build-arg NODE_IMAGE=public.ecr.aws/docker/library/node:24-bookworm-slim \
-  -f apps/collaboration-server/Dockerfile \
-  -t tau-collaboration:<新版本> --load .
-docker save tau-collaboration:<新版本> | gzip -1 | ssh ali-ecs docker load
+pnpm deploy:collaboration
 ```
 
-将 `<新版本>` 替换为本次发布标识。更新前运行备份脚本，上传最新部署配置和源码快照，并将服务器 `docker-compose.override.yml` 中的镜像改为新版本，然后执行：
+需要本地 Docker 正在运行、项目依赖已安装，以及免密 `ssh ali-ecs`。此命令部署当前工作目录中的源码，包括未提交的修改；只更新协作服务，不发布桌面客户端。
 
-```bash
-docker compose up -d --no-build --wait --wait-timeout 90
-```
+流程为完整服务端和共享协议测试、生产入口类型检查、本地 `linux/amd64` 构建、上传镜像与同源代码快照、远端备份、在备份副本上验证迁移、切换容器、HTTPS/WSS 和数据库完整性检查。默认基础镜像为 `public.ecr.aws/docker/library/node:24-bookworm-slim`，可通过 `COLLAB_NODE_IMAGE` 指定其他可信 Node 24 镜像。
 
-保留上个版本镜像。需要回滚时，将 override 中的镜像改回上个版本，再执行同一命令。数据库结构存在不兼容变化时，还需要评估数据恢复。
+部署锁防止并发切换。版本号自动采用 UTC 时间与 Git 短提交号；由于包含未提交代码，实际发布内容以保存的源码快照为准。发布快照、备份路径、上一版配置和成功部署的镜像号保存在 `/root/tau-collab-releases/<版本>`。Nginx、证书和 `.env` 保持现有配置。
+
+切换或远端健康检查失败时，脚本恢复上一版部署文件和镜像，返回非零退出码；数据库不会自动还原，以免覆盖更新期间的写入。涉及不兼容迁移时需单独制定恢复方案。手动回切可在服务器将发布目录中的 `previous-compose.override.yml` 恢复到部署目录的 `docker-compose.override.yml`，再执行 `docker compose up -d --no-build --wait --wait-timeout 90`。
 
 当前镜像发布方式不使用 `scripts/update.sh`，该脚本依赖 `git pull` 和服务器联网构建；`scripts/rollback.sh` 修改的 `local` 标签也不会覆盖此处固定的版本标签。
+
+旧镜像和发布目录不自动删除，需按磁盘情况定期清理；发布目录内含备份副本及可能包含 `.env` 的旧部署归档，目录权限为 `700`。
 
 ## 备份
 
@@ -84,3 +82,12 @@ docker compose up -d --no-build --wait --wait-timeout 90
 - 已先在备份副本上运行新镜像验证迁移，再更新线上服务；两次数据库完整性检查均通过。切换后原有 1 份活动共享内容、4 个设备及 12246 字节存储记录保留。
 - 服务端实际入口类型检查、16 项服务端专项测试和 9 项共享协议测试通过。完整测试及默认类型检查未通过：`local-content.test.ts` 引用的桌面端 `listLocalContents` 已无导出，并引入服务端测试环境无法解析的桌面端路径别名；本次未修改该跨端测试。
 - 更新后公网健康检查、WSS 事件通道、审批权限、双向实时同步、附件上传下载和持久化读取验收通过。测试共享内容已关闭；本次验收新增 2 个测试设备和 1 条关闭记录，没有额外重启线上容器。
+
+## 2026-09-06 一键部署
+
+- 已通过 `pnpm deploy:collaboration` 完成真实发布，当前版本为 `tau-collaboration:20260906-102208-bc0f3b5d`。
+- 更新前备份：`/srv/tau-collab/backups/20260906-182325`；发布记录和旧配置：`/root/tau-collab-releases/20260906-102208-bc0f3b5d`。
+- 完整服务端 26 项测试、共享协议 9 项测试及生产入口类型检查通过。默认 `check` 仍因跨端测试引入桌面端路径别名而失败，一键部署明确检查实际服务端入口。
+- 正常发布、启动失败回切、公网检查失败回切均完成隔离模拟验证。真实运行验证了备份副本迁移、数据库完整性、HTTPS、WSS 握手，以及运行容器的镜像标签和镜像 ID。
+- 远端脚本先上传再执行，避免容器命令消耗 SSH 标准输入中的脚本文本。成功标记仅在版本与健康检查全部通过后写入 `deployed-image.txt`。
+- 本次上线检查未创建测试设备或共享内容；未重复双桌面交互与负载测试。

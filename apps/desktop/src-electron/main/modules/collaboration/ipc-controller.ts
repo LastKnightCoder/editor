@@ -152,7 +152,6 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
         id: deviceId,
         name: context.state().nickname,
         color: memberColor(deviceId),
-        viewLabel: `窗口 ${window.id}`,
       },
     };
   });

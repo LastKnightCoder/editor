@@ -22,15 +22,39 @@ certbot --nginx -d collab.xiongtao.life
 
 ## 更新与备份
 
+当前 `ali-ecs` 部署在本地项目根目录执行：
+
 ```bash
-./scripts/update.sh
+pnpm deploy:collaboration
+```
+
+需要本地 Docker 已启动、项目依赖已安装，并能免密 `ssh ali-ecs`。命令会运行服务端与协议测试、检查生产入口类型，从同一份源码快照构建 `linux/amd64` 镜像并上传；随后备份现有数据、在副本上验证迁移、更新容器并检查 HTTPS/WSS。无需先提交代码，当前未提交的修改也会包含在镜像里。
+
+版本号自动生成，部署锁避免同时切换。失败时回切旧镜像和配置，但不会自动还原数据库，以免覆盖更新期间的写入；不兼容的数据库迁移仍需单独制定恢复方案。Nginx、证书和服务器 `.env` 不会被覆盖。默认使用 AWS 公共镜像库中的 Node 官方镜像副本，可通过 `COLLAB_NODE_IMAGE` 调整。
+
+服务器发布记录和备份副本保存在 `/root/tau-collab-releases/<版本>`，旧镜像和发布记录不自动删除，需要按磁盘情况定期清理。详情见 `docs/collaboration-deployment.md`。
+
+服务器上的手动备份与恢复：
+
+```bash
 ./scripts/backup.sh
 ./scripts/restore.sh /srv/tau-collab/backups/20260906-120000
 ```
 
-更新会先备份，再构建和健康检查；客户端会自动重连。备份包含 SQLite、服务器签名密钥和全部附件，必须保密。
+`scripts/update.sh` 仅用于服务器 Git 检出并联网构建的部署方式，不适用于当前固定镜像版本的部署。更新时客户端会自动重连。备份包含 SQLite、服务器签名密钥和全部附件，必须保密。
 
 ## 管理命令
+
+本地一键预览和清理服务器旧版本：
+
+```bash
+pnpm cleanup:collaboration
+pnpm cleanup:collaboration --apply
+```
+
+自动保留当前和上一版镜像（包括相同镜像 ID 的标签）、所有容器引用的镜像、当前成功发布记录，以及比当前版本更新的镜像和发布目录。旧发布记录中的迁移副本随目录删除；正式数据目录和 `/srv/tau-collab/backups` 不会删除。无法识别当前发布或回滚版本时停止清理，并与部署切换共用锁。
+
+需要同时释放服务器未使用的 Docker 构建缓存时，运行 `pnpm cleanup:collaboration --apply --build-cache`。该参数会清理整个服务器的未使用构建缓存，包括其他项目的缓存，不删除其他项目的镜像或数据卷。命令只需 SSH 可用，不要求本地 Docker 启动。
 
 ```bash
 docker compose exec collaboration node dist/admin.js status

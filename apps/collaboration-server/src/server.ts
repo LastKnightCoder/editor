@@ -144,10 +144,6 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
         state.user = {
           id: context.deviceId,
           name: context.nickname,
-          viewLabel:
-            typeof state.user?.viewLabel === "string"
-              ? state.user.viewLabel.slice(0, 80)
-              : undefined,
           color: `#${createHash("sha256").update(context.deviceId).digest("hex").slice(0, 6)}`,
         };
         if (!["editing", "viewing", "background"].includes(state.activity))

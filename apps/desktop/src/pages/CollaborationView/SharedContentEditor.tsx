@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { App } from "antd";
+import { LoadingOutlined } from "@ant-design/icons";
 import { LogOut, Ticket, Trash2, UserMinus } from "lucide-react";
 import { invoke } from "@/electron";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
@@ -13,14 +14,14 @@ import {
   editingMemberCount,
   memberActivity,
 } from "@/components/CollaborationUI";
-import { sessionStatus } from "./session-status";
+import { useStableSessionStatus } from "./session-status";
 
 export default function SharedContentEditor({ session }: { session: CollaborationSession }) {
   const { binding, article, error, frozen } = useCollaborationDocument(session.id);
   const { message } = App.useApp();
   const [busy, setBusy] = useState(false);
   const [leaving, setLeaving] = useState(false);
-  const status = sessionStatus(session);
+  const status = useStableSessionStatus(session);
   const stale =
     session.leaving ||
     session.connection === "offline" ||
@@ -137,7 +138,7 @@ export default function SharedContentEditor({ session }: { session: Collaboratio
         </div>
       ) : (
         <div className="text-text-3 flex flex-1 items-center justify-center p-6 text-[13px]">
-          {displayError || "正在加载内容…"}
+          {displayError || <LoadingOutlined spin />}
         </div>
       )}
       <CustomModal

@@ -98,6 +98,9 @@ export default function useCollaborationDocument(documentId?: string) {
     const onRemoved = (_event: unknown, payload: { documentId: string }) => {
       if (payload.documentId !== id) return;
       removed = true;
+      // off 经 contextBridge 可能注销失败，documentId 切换后旧监听器仍会收到
+      // removed 事件，若不守卫会清掉新订阅刚设置的 binding。
+      if (disposed) return;
       disposed = true;
       setBinding(undefined);
       setArticle(undefined);
@@ -124,7 +127,7 @@ export default function useCollaborationDocument(documentId?: string) {
       awareness?: Uint8Array;
       privateNodes: [string, SharedContent["content"][number]][];
       session: CollaborationSession;
-      user: { id: string; name: string; color: string; viewLabel: string };
+      user: { id: string; name: string; color: string };
     }>("collaboration:subscribe", id, viewId)
       .then(snapshot => {
         if (disposed) {
@@ -167,7 +170,6 @@ export default function useCollaborationDocument(documentId?: string) {
         awareness.setLocalStateField("user", {
           ...snapshot.user,
           viewId,
-          viewLabel: `${snapshot.user.viewLabel} · ${viewId.slice(0, 4)}`,
         });
         setFrozen(Boolean(snapshot.session.frozen));
         activeBinding = {

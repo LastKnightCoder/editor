@@ -6,7 +6,7 @@ import { memberColor } from "@tau/collaboration";
 const LABEL_MAX_WIDTH = 160;
 const DEFAULT_COLOR = "oklch(0.62 0.11 185)";
 
-type CursorUser = { id?: string; name: string; color: string; viewLabel?: string };
+type CursorUser = { id?: string; name: string; color: string };
 
 const CollaborationCursors = memo(function CollaborationCursors({
   containerRef,
@@ -83,7 +83,6 @@ const CollaborationCursors = memo(function CollaborationCursors({
                     }}
                   >
                     {cursor.data?.name || "协作者"}
-                    {cursor.data?.viewLabel ? ` · ${cursor.data.viewLabel}` : ""}
                   </span>
                 </div>
               )}

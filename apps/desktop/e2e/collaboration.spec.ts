@@ -249,7 +249,7 @@ test("本机多视图、跨窗口光标、标题和原地共享", async () => {
   try {
     guest.attach();
     await expect.poll(() => guest.synced).toBe(true);
-    guest.awareness?.setLocalStateField("user", { viewLabel: "远端窗口" });
+    guest.awareness?.setLocalStateField("user", { name: "远端用户" });
     guest.awareness?.setLocalStateField("activity", "editing");
     guestDoc.getText("title").insert(0, "远端");
     await expect(title).toHaveText("远端实时统一标题");
