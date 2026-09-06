@@ -24,17 +24,15 @@ export interface FlashcardReviewDeckListProps {
 
 export const slateToPlainText = (nodes?: Descendant[] | null): string => {
   if (!nodes) return "";
-  const read = (
-    node: Descendant | { text?: unknown; children?: unknown },
-  ): string => {
+  const read = (node: Descendant | { text?: unknown; children?: unknown }): string => {
     if ("text" in node && typeof node.text === "string") return node.text;
     if ("children" in node && Array.isArray(node.children)) {
-      return node.children.map((child) => read(child as Descendant)).join("");
+      return node.children.map(child => read(child as Descendant)).join("");
     }
     return "";
   };
   return nodes
-    .map((node) => read(node))
+    .map(node => read(node))
     .join(" ")
     .replace(/\s+/g, " ")
     .trim();
@@ -42,12 +40,12 @@ export const slateToPlainText = (nodes?: Descendant[] | null): string => {
 
 export const buildFlashcardReviewDeckSummaries = (
   reviewQueue: Flashcard[],
-  decks: FlashcardDeck[],
+  decks: FlashcardDeck[]
 ): FlashcardReviewDeckSummary[] => {
-  const deckNameMap = new Map(decks.map((deck) => [deck.id, deck.name]));
+  const deckNameMap = new Map(decks.map(deck => [deck.id, deck.name]));
   const grouped = new Map<number, FlashcardReviewDeckSummary>();
 
-  reviewQueue.forEach((card) => {
+  reviewQueue.forEach(card => {
     const current = grouped.get(card.deckId);
     if (current) {
       current.cards.push(card);
@@ -60,9 +58,7 @@ export const buildFlashcardReviewDeckSummaries = (
     });
   });
 
-  return Array.from(grouped.values()).sort(
-    (left, right) => right.cards.length - left.cards.length,
-  );
+  return Array.from(grouped.values()).sort((left, right) => right.cards.length - left.cards.length);
 };
 
 const containerClassByVariant = {
@@ -88,7 +84,7 @@ const FlashcardReviewDeckList: React.FC<FlashcardReviewDeckListProps> = ({
 }) => {
   const summaries = useMemo(
     () => buildFlashcardReviewDeckSummaries(reviewQueue, decks),
-    [decks, reviewQueue],
+    [decks, reviewQueue]
   );
   const visibleSummaries = summaries.slice(0, maxDecks);
 
@@ -104,7 +100,7 @@ const FlashcardReviewDeckList: React.FC<FlashcardReviewDeckListProps> = ({
               {onRefresh && (
                 <button
                   type="button"
-                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-900/5 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 cursor-pointer dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-slate-100"
+                  className="focus-visible:ring-[var(--th-accent)]/40 inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-900/5 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-slate-100"
                   onClick={() => void onRefresh()}
                   disabled={loading}
                   aria-label="刷新闪卡复习队列"
@@ -119,16 +115,15 @@ const FlashcardReviewDeckList: React.FC<FlashcardReviewDeckListProps> = ({
             </div>
           ) : (
             <div className="mt-2 space-y-1.5">
-              {visibleSummaries.map((deck) => {
+              {visibleSummaries.map(deck => {
                 const firstCardText =
-                  slateToPlainText(deck.cards[0]?.prompt) ||
-                  `#${deck.cards[0]?.id}`;
+                  slateToPlainText(deck.cards[0]?.prompt) || `#${deck.cards[0]?.id}`;
                 return (
                   <div
                     key={deck.deckId}
                     className={classNames(
                       "flex min-w-0 items-center justify-between gap-2",
-                      itemClassByVariant[variant],
+                      itemClassByVariant[variant]
                     )}
                   >
                     <div className="min-w-0">
@@ -140,12 +135,12 @@ const FlashcardReviewDeckList: React.FC<FlashcardReviewDeckListProps> = ({
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
-                      <span className="rounded-md bg-teal-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-teal-700 dark:text-teal-300">
+                      <span className="rounded-md bg-[var(--th-accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--th-active-text)]">
                         {deck.cards.length}
                       </span>
                       <button
                         type="button"
-                        className="h-6 rounded-md bg-teal-600 px-2 text-[11px] font-semibold text-white transition hover:bg-teal-500 disabled:opacity-50 cursor-pointer"
+                        className="h-6 cursor-pointer rounded-md bg-[var(--th-btn-bg)] px-2 text-[11px] font-semibold text-[var(--th-btn-text)] transition hover:bg-[var(--th-btn-hover)] disabled:opacity-50"
                         disabled={loading}
                         onClick={() => void onStartDeckReview(deck.deckId)}
                       >

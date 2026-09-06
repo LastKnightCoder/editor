@@ -45,7 +45,7 @@ interface RecurrenceStats {
 }
 
 const statusColorMap: Record<HeatmapStatus, string> = {
-  completed: "bg-emerald-500",
+  completed: "bg-status-success",
   missed: "bg-rose-400",
   skipped: "bg-amber-400",
   upcoming: "bg-slate-300 dark:bg-zinc-700",
