@@ -1,26 +1,16 @@
-import React, {
-  forwardRef,
-  useState,
-  useRef,
-  useEffect,
-  useCallback,
-  memo,
-} from "react";
+import React, { forwardRef, useState, useRef, useEffect, useCallback, memo } from "react";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import type WebSocketClient from "../../utils/WebSocketClient";
+import { VideoPlayer } from "@tau/shared";
 
 interface RpcLocalVideoProps {
   src: string;
   wsClient: WebSocketClient | null;
 }
 
-type RpcLocalVideoElementProps = Omit<
-  React.VideoHTMLAttributes<HTMLVideoElement>,
-  "src"
->;
+type RpcLocalVideoElementProps = Omit<React.VideoHTMLAttributes<HTMLVideoElement>, "src">;
 
-type RpcLocalVideoCombinedProps = RpcLocalVideoProps &
-  RpcLocalVideoElementProps;
+type RpcLocalVideoCombinedProps = RpcLocalVideoProps & RpcLocalVideoElementProps;
 
 const VIDEO_POSITION_PREFIX = "video_position_";
 
@@ -44,8 +34,7 @@ const RpcLocalVideo = memo(
     const { src, wsClient, ...rest } = props;
 
     const [previewUrl, setPreviewUrl] = useState<string>("");
-    const videoTitle =
-      typeof rest?.title === "string" ? (rest.title as string) : undefined;
+    const videoTitle = typeof rest?.title === "string" ? (rest.title as string) : undefined;
 
     const innerRef = useRef<HTMLVideoElement>(null);
     const currentTime = useRef(0);
@@ -69,7 +58,7 @@ const RpcLocalVideo = memo(
         }
         return wsClient.sendRequest(method, params) as Promise<T>;
       },
-      [wsClient],
+      [wsClient]
     );
 
     useAsyncEffect(async () => {
@@ -110,18 +99,12 @@ const RpcLocalVideo = memo(
           // 处理 ~ 开头的路径
           let absolutePath = src;
           if (src.startsWith("~")) {
-            const { homeDir } = await rpc<{ homeDir: string }>(
-              "file.getHomeDir",
-              {},
-            );
+            const { homeDir } = await rpc<{ homeDir: string }>("file.getHomeDir", {});
             absolutePath = `${homeDir}${src.slice(1)}`;
           }
 
           // 获取应用目录
-          const { editorDir } = await rpc<{ editorDir: string }>(
-            "file.getEditorDir",
-            {},
-          );
+          const { editorDir } = await rpc<{ editorDir: string }>("file.getEditorDir", {});
           const normalizedAppDir = editorDir.replace(/\\/g, "/");
           const normalizedPath = absolutePath.replace(/\\/g, "/");
 
@@ -134,14 +117,12 @@ const RpcLocalVideo = memo(
             currentMethod.current = "localhost";
           } else {
             // 否则读取二进制文件
-            const { base64 } = await rpc<{ base64: string }>(
-              "file.readBinaryFile",
-              { path: absolutePath },
-            );
-            const { extension } = await rpc<{ extension: string }>(
-              "file.getFileExtension",
-              { path: absolutePath },
-            );
+            const { base64 } = await rpc<{ base64: string }>("file.readBinaryFile", {
+              path: absolutePath,
+            });
+            const { extension } = await rpc<{ extension: string }>("file.getFileExtension", {
+              path: absolutePath,
+            });
 
             // 将 base64 转换为 Blob URL
             const binaryString = atob(base64);
@@ -195,11 +176,7 @@ const RpcLocalVideo = memo(
         const savedPosition = localStorage.getItem(storageKey);
         if (savedPosition && currentTime.current === 0) {
           const position = parseFloat(savedPosition);
-          if (
-            !isNaN(position) &&
-            position >= 0 &&
-            position < videoElement.duration
-          ) {
+          if (!isNaN(position) && position >= 0 && position < videoElement.duration) {
             videoElement.currentTime = position;
             currentTime.current = position;
           }
@@ -221,10 +198,7 @@ const RpcLocalVideo = memo(
       videoElement.addEventListener("ended", handleEnded);
 
       return () => {
-        videoElement.removeEventListener(
-          "loadedmetadata",
-          handleLoadedMetadata,
-        );
+        videoElement.removeEventListener("loadedmetadata", handleLoadedMetadata);
         videoElement.removeEventListener("timeupdate", handleTimeUpdate);
         videoElement.removeEventListener("ended", handleEnded);
       };
@@ -245,7 +219,7 @@ const RpcLocalVideo = memo(
     }
 
     return (
-      <video
+      <VideoPlayer
         ref={videoRef}
         onError={handleOnError}
         src={previewUrl}
@@ -253,7 +227,7 @@ const RpcLocalVideo = memo(
         {...rest}
       />
     );
-  }),
+  })
 );
 
 RpcLocalVideo.displayName = "RpcLocalVideo";

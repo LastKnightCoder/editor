@@ -5,6 +5,15 @@ export { default as ErrorBoundary } from "./components/ErrorBoundary";
 export { default as EditText } from "./components/EditText";
 export { default as ResizeHandle } from "./components/ResizeHandle";
 export { default as ModernTabs } from "./components/ModernTabs";
+export {
+  default as VideoPlayer,
+  type VideoPlayerProps,
+} from "./components/MediaPlayer/VideoPlayer";
+export {
+  default as AudioPlayer,
+  type AudioPlayerProps,
+} from "./components/MediaPlayer/AudioPlayer";
+export { formatTime } from "./components/MediaPlayer/formatTime";
 export { default as CustomCheckbox } from "./components/CustomCheckbox";
 export { default as ImageGallery } from "./components/ImageGallery";
 export { default as CustomModal } from "./components/CustomModal";
@@ -133,10 +142,7 @@ export {
   type ChatMessageType,
 } from "./components/ChatComponents";
 
-export type {
-  CropperTransform,
-  ImageCropperProps,
-} from "./components/ImageCropper/types";
+export type { CropperTransform, ImageCropperProps } from "./components/ImageCropper/types";
 
 export type {
   ColumnDef,

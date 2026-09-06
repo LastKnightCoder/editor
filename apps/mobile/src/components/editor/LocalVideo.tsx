@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useState } from "react";
 import type { SyntheticEvent } from "react";
 import { resolveLocalMediaSource } from "./localMedia";
+import { VideoPlayer } from "@tau/shared";
 
 type LocalVideoProps = React.VideoHTMLAttributes<HTMLVideoElement> & {
   src: string;
@@ -40,15 +41,8 @@ const LocalVideo = forwardRef<HTMLVideoElement, LocalVideoProps>(
       onError?.(event);
     };
 
-    return (
-      <video
-        ref={ref}
-        src={resolvedSrc || src}
-        onError={handleError}
-        {...restProps}
-      />
-    );
-  },
+    return <VideoPlayer ref={ref} src={resolvedSrc || src} onError={handleError} {...restProps} />;
+  }
 );
 
 LocalVideo.displayName = "LocalVideo";

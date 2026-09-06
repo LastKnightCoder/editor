@@ -10,6 +10,7 @@ import {
   resolveLocalMediaPath,
   toLocalMediaPreviewUrl,
 } from "@/utils/localMediaPath";
+import { AudioPlayer } from "@tau/shared";
 
 interface LocalAudioProps {
   src: string;
@@ -26,9 +27,7 @@ const LocalAudio = memo(
     const [previewUrl, setPreviewUrl] = useState<string>("");
     const [loading, setLoading] = useState(true);
     const innerRef = useRef<HTMLAudioElement>(null);
-    const autoCacheRemoteAudio = useSettingStore(
-      (state) => state.setting.misc.audio.autoCacheRemote,
-    );
+    const autoCacheRemoteAudio = useSettingStore(state => state.setting.misc.audio.autoCacheRemote);
 
     const getAudioElement = useMemoizedFn(() => {
       if (typeof ref === "function") {
@@ -66,8 +65,7 @@ const LocalAudio = memo(
               url: resolvedSrc,
               localPath: localUrl,
             });
-            const { url: localPreviewUrl } =
-              await toLocalMediaPreviewUrl(localUrl);
+            const { url: localPreviewUrl } = await toLocalMediaPreviewUrl(localUrl);
             setPreviewUrl(localPreviewUrl);
           } catch (error) {
             console.error(error);
@@ -78,8 +76,7 @@ const LocalAudio = memo(
           const absolutePath = resolvedSrc.startsWith("~")
             ? `${homeDir}${resolvedSrc.slice(1)}`
             : resolvedSrc;
-          const { url: localPreviewUrl } =
-            await toLocalMediaPreviewUrl(absolutePath);
+          const { url: localPreviewUrl } = await toLocalMediaPreviewUrl(absolutePath);
           setPreviewUrl(localPreviewUrl);
         }
       } catch (e) {
@@ -131,15 +128,8 @@ const LocalAudio = memo(
 
     if (loading || !previewUrl) return null;
 
-    return (
-      <audio
-        ref={audioRef}
-        src={previewUrl}
-        crossOrigin={"anonymous"}
-        {...rest}
-      />
-    );
-  }),
+    return <AudioPlayer ref={audioRef} src={previewUrl} crossOrigin={"anonymous"} {...rest} />;
+  })
 );
 
 export default LocalAudio;

@@ -11,6 +11,7 @@ import {
   type ThemeColors,
   type ComponentService,
 } from "@tau/editor";
+import { AudioPlayer, VideoPlayer } from "@tau/shared";
 
 export interface BlogPublishSettings {
   appearance?: {
@@ -28,10 +29,9 @@ const BLOG_DEFAULT_IMAGE_SETTINGS = {
 
 function getBlogImageSettingValue<T extends "borderRadius" | "shadow">(
   settings: BlogPublishSettings | undefined,
-  key: T,
+  key: T
 ): NonNullable<NonNullable<BlogPublishSettings["appearance"]>["image"]>[T] {
-  return (settings?.appearance?.image?.[key] ??
-    BLOG_DEFAULT_IMAGE_SETTINGS[key]) as NonNullable<
+  return (settings?.appearance?.image?.[key] ?? BLOG_DEFAULT_IMAGE_SETTINGS[key]) as NonNullable<
     NonNullable<BlogPublishSettings["appearance"]>["image"]
   >[T];
 }
@@ -64,8 +64,7 @@ const resolveMediaInfo = async (url: string): Promise<MediaInfo> => ({
 });
 
 const createComponentRegistry = (): ComponentService => {
-  const ResourcePickerModal: ComponentService["ResourcePickerModal"] = () =>
-    null;
+  const ResourcePickerModal: ComponentService["ResourcePickerModal"] = () => null;
 
   const Image = forwardRef<
     HTMLImageElement,
@@ -92,25 +91,17 @@ const createComponentRegistry = (): ComponentService => {
 
   return {
     Image,
-    Video: ({ src }: { src: string }) => (
-      <video src={src} controls className="w-full h-full object-cover" />
-    ),
-    Audio: ({ src }: { src: string }) => (
-      <audio src={src} controls className="w-full h-full object-cover" />
-    ),
+    Video: ({ src }: { src: string }) => <VideoPlayer src={src} className="w-full" />,
+    Audio: ({ src }: { src: string }) => <AudioPlayer src={src} className="w-full" />,
     ResourcePickerModal,
-    BilibiliVideoLoader: () => (
-      <VideoLoader message="Bilibili 视频在桌面端可播放" />
-    ),
-    YoutubeVideoLoader: () => (
-      <VideoLoader message="YouTube 视频在桌面端可播放" />
-    ),
+    BilibiliVideoLoader: () => <VideoLoader message="Bilibili 视频在桌面端可播放" />,
+    YoutubeVideoLoader: () => <VideoLoader message="YouTube 视频在桌面端可播放" />,
   };
 };
 
 const extractText = (nodes: Descendant[]): string => {
   return nodes
-    .map((node) => {
+    .map(node => {
       if (isTextNode(node)) {
         return node.text;
       }
@@ -122,13 +113,9 @@ const extractText = (nodes: Descendant[]): string => {
     .join("");
 };
 
-const isTextNode = (node: Descendant): node is Text =>
-  typeof (node as Text).text === "string";
+const isTextNode = (node: Descendant): node is Text => typeof (node as Text).text === "string";
 
-const formatDate = (
-  value: Date | string | number,
-  format = "YYYY-MM-DD HH:mm",
-): string => {
+const formatDate = (value: Date | string | number, format = "YYYY-MM-DD HH:mm"): string => {
   const date =
     value instanceof Date
       ? value
@@ -143,7 +130,7 @@ const formatDate = (
   }
   const pad = (input: number) => input.toString().padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(
-    date.getHours(),
+    date.getHours()
   )}:${pad(date.getMinutes())}`;
 };
 
@@ -158,9 +145,7 @@ const getDocumentTheme = (): "light" | "dark" => {
   return "light";
 };
 
-export function createBlogEditorServices(
-  settingsSnapshot?: BlogPublishSettings,
-): EditorServices {
+export function createBlogEditorServices(settingsSnapshot?: BlogPublishSettings): EditorServices {
   const components = createComponentRegistry();
 
   return {
@@ -206,10 +191,7 @@ export function createBlogEditorServices(
     settings: {
       get: <T,>(key: string): T => {
         if (key === "appearance.image.borderRadius") {
-          return getBlogImageSettingValue(
-            settingsSnapshot,
-            "borderRadius",
-          ) as T;
+          return getBlogImageSettingValue(settingsSnapshot, "borderRadius") as T;
         }
         if (key === "appearance.image.shadow") {
           return getBlogImageSettingValue(settingsSnapshot, "shadow") as T;
@@ -243,7 +225,7 @@ export function createBlogEditorServices(
       importFromMarkdown,
       isMarkdownLikeText,
       nodeFetch: async (url: string, options: RequestInit) => {
-        return await fetch(url, options).then((res) => res.text());
+        return await fetch(url, options).then(res => res.text());
       },
     },
 
