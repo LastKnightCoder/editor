@@ -826,7 +826,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
                 key={index}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="flex items-center gap-2 rounded-lg bg-green-50 px-3 py-2 text-green-600 dark:bg-green-500/10 dark:text-green-400"
+                className="bg-[var(--th-success)]/10 text-status-success flex items-center gap-2 rounded-lg px-3 py-2"
               >
                 <Check className="h-4 w-4" />
                 <span className="truncate text-sm">{fileName}</span>
@@ -921,10 +921,10 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           animate={{ opacity: 1, scale: 1 }}
           className="flex flex-col items-center py-8"
         >
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50 dark:bg-green-500/10">
-            <Check className="h-8 w-8 text-green-500" />
+          <div className="bg-[var(--th-success)]/10 flex h-16 w-16 items-center justify-center rounded-full">
+            <Check className="text-status-success h-8 w-8" />
           </div>
-          <p className="mt-4 text-sm font-medium text-green-600 dark:text-green-400">剪藏成功</p>
+          <p className="text-status-success mt-4 text-sm font-medium">剪藏成功</p>
         </motion.div>
       )}
 
@@ -1155,10 +1155,10 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           animate={{ opacity: 1, scale: 1 }}
           className="flex flex-col items-center py-8"
         >
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50 dark:bg-green-500/10">
-            <Check className="h-8 w-8 text-green-500" />
+          <div className="bg-[var(--th-success)]/10 flex h-16 w-16 items-center justify-center rounded-full">
+            <Check className="text-status-success h-8 w-8" />
           </div>
-          <p className="mt-4 text-sm font-medium text-green-600 dark:text-green-400">添加成功</p>
+          <p className="text-status-success mt-4 text-sm font-medium">添加成功</p>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             视频正在后台下载和处理中...
           </p>
@@ -1221,10 +1221,10 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           animate={{ opacity: 1, scale: 1 }}
           className="flex flex-col items-center py-8"
         >
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50 dark:bg-green-500/10">
-            <Check className="h-8 w-8 text-green-500" />
+          <div className="bg-[var(--th-success)]/10 flex h-16 w-16 items-center justify-center rounded-full">
+            <Check className="text-status-success h-8 w-8" />
           </div>
-          <p className="mt-4 text-sm font-medium text-green-600 dark:text-green-400">添加成功</p>
+          <p className="text-status-success mt-4 text-sm font-medium">添加成功</p>
         </motion.div>
       )}
     </div>

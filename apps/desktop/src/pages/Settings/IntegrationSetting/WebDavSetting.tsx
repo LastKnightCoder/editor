@@ -107,7 +107,7 @@ const WebDavSetting: React.FC = () => {
             className={`flex items-center gap-2 rounded-full px-3 py-1 ${themeColors.inputBgClass}`}
           >
             <div
-              className={`h-2 w-2 rounded-full ${webdav.enabled ? "bg-green-500" : "bg-gray-400"}`}
+              className={`h-2 w-2 rounded-full ${webdav.enabled ? "bg-status-success" : "bg-gray-400"}`}
             />
             <span className={`text-xs font-medium ${themeColors.textClass}`}>
               {webdav.enabled ? "已配置" : "未配置"}

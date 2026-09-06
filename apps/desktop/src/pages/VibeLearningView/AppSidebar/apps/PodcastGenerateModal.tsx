@@ -339,7 +339,7 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
               className={classNames(
                 "whitespace-pre-wrap rounded-lg border px-3 py-2 text-sm",
                 notice.type === "success" &&
-                  "border-green-200 bg-green-50 text-green-700 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-400",
+                  "border-[var(--th-success)]/30 bg-[var(--th-success)]/10 text-status-success",
                 notice.type === "error" &&
                   "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400",
                 notice.type === "warning" &&

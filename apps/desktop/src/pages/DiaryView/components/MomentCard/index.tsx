@@ -1,11 +1,4 @@
-import {
-  memo,
-  useCallback,
-  useState,
-  useRef,
-  useEffect,
-  type CSSProperties,
-} from "react";
+import { memo, useCallback, useState, useRef, useEffect, type CSSProperties } from "react";
 import type { Descendant } from "slate";
 import classNames from "classnames";
 import dayjs from "dayjs";
@@ -51,7 +44,7 @@ function hexToRgba(hex: string, alpha: number): string {
 }
 
 function getTagColor(tag: string, tagSettings: DiaryTagSetting[]): string {
-  const setting = tagSettings.find((s) => s.name === tag);
+  const setting = tagSettings.find(s => s.name === tag);
   return setting?.color || "#8c8c8c";
 }
 
@@ -71,11 +64,7 @@ export interface TagEditorProps {
   tagSettings: DiaryTagSetting[];
   tagUsageCounts: Map<string, number>;
   onTagsChange: (tags: string[]) => void;
-  onTagSettingChange: (setting: {
-    name: string;
-    color: string;
-    sort?: number;
-  }) => void;
+  onTagSettingChange: (setting: { name: string; color: string; sort?: number }) => void;
   onTagSettingDelete: (name: string) => Promise<void>;
   children: React.ReactNode;
 }
@@ -142,7 +131,7 @@ export const TagEditor = ({
       return;
     }
     onTagsChange([...tags, trimmed]);
-    if (!tagSettings.some((s) => s.name === trimmed)) {
+    if (!tagSettings.some(s => s.name === trimmed)) {
       const colorIndex = tagSettings.length % PRESET_COLORS.length;
       onTagSettingChange({
         name: trimmed,
@@ -154,7 +143,7 @@ export const TagEditor = ({
   };
 
   const handleRemoveTag = (tag: string) => {
-    onTagsChange(tags.filter((t) => t !== tag));
+    onTagsChange(tags.filter(t => t !== tag));
   };
 
   const handleDeleteTagSetting = async (tag: string) => {
@@ -179,7 +168,7 @@ export const TagEditor = ({
   return (
     <div className="relative">
       <div
-        onClick={(event) => {
+        onClick={event => {
           event.stopPropagation();
           togglePopover();
         }}
@@ -205,21 +194,15 @@ export const TagEditor = ({
             background: "var(--th-bg-elevated)",
           } as AnchorPositionStyle
         }
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
         onToggle={handlePopoverToggle}
       >
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <div
-              className="text-xs font-semibold"
-              style={{ color: "var(--th-text)" }}
-            >
+            <div className="text-xs font-semibold" style={{ color: "var(--th-text)" }}>
               编辑标签
             </div>
-            <div
-              className="mt-0.5 text-[11px]"
-              style={{ color: "var(--th-text-secondary)" }}
-            >
+            <div className="mt-0.5 text-[11px]" style={{ color: "var(--th-text-secondary)" }}>
               增删标签，也可以顺手换个颜色
             </div>
           </div>
@@ -228,7 +211,7 @@ export const TagEditor = ({
             onClick={closePopover}
             className={classNames(
               "flex h-6 w-6 items-center justify-center rounded-md transition-colors",
-              themeColors.hoverClass,
+              themeColors.hoverClass
             )}
             style={{ color: "var(--th-text-secondary)" }}
           >
@@ -237,29 +220,21 @@ export const TagEditor = ({
         </div>
 
         {tags.length > 0 ? (
-          <div className="mb-3 flex max-h-28 flex-wrap gap-1.5 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-black/20">
-            {tags.map((tag) => (
+          <div className="mb-3 flex max-h-28 flex-wrap gap-1.5 overflow-y-auto pr-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-black/20 [&::-webkit-scrollbar]:w-1.5">
+            {tags.map(tag => (
               <div
                 key={tag}
                 className="group/tag flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium"
                 style={{
-                  backgroundColor: hexToRgba(
-                    getTagColor(tag, tagSettings),
-                    0.12,
-                  ),
+                  backgroundColor: hexToRgba(getTagColor(tag, tagSettings), 0.12),
                   color: getTagColor(tag, tagSettings),
-                  border: `1px solid ${hexToRgba(
-                    getTagColor(tag, tagSettings),
-                    0.3,
-                  )}`,
+                  border: `1px solid ${hexToRgba(getTagColor(tag, tagSettings), 0.3)}`,
                 }}
               >
                 <button
                   type="button"
                   className="transition-opacity"
-                  onClick={() =>
-                    setEditingColorFor(editingColorFor === tag ? null : tag)
-                  }
+                  onClick={() => setEditingColorFor(editingColorFor === tag ? null : tag)}
                   title="修改颜色"
                 >
                   <Palette className="h-3 w-3 opacity-60 group-hover/tag:opacity-100" />
@@ -289,18 +264,12 @@ export const TagEditor = ({
         )}
 
         {editingColorFor && (
-          <div
-            className="mb-3 rounded-lg p-2"
-            style={{ background: "var(--th-bg-hover)" }}
-          >
-            <div
-              className="mb-2 text-[11px]"
-              style={{ color: "var(--th-text-secondary)" }}
-            >
+          <div className="mb-3 rounded-lg p-2" style={{ background: "var(--th-bg-hover)" }}>
+            <div className="mb-2 text-[11px]" style={{ color: "var(--th-text-secondary)" }}>
               {editingColorFor} 的颜色
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {PRESET_COLORS.map((color) => (
+              {PRESET_COLORS.map(color => (
                 <button
                   key={color}
                   type="button"
@@ -327,10 +296,10 @@ export const TagEditor = ({
             ref={inputRef}
             type="text"
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={e => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="新标签名..."
-            className="h-8 min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-2.5 text-xs text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-green-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(34,197,94,0.15)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(34,197,94,0.25)]"
+            className="h-8 min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-2.5 text-xs text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
           />
           <button
             type="button"
@@ -345,26 +314,17 @@ export const TagEditor = ({
 
         {tagSettings.length > 0 && (
           <>
-            <div
-              className="my-3 h-px"
-              style={{ background: "var(--th-border)" }}
-            />
+            <div className="my-3 h-px" style={{ background: "var(--th-border)" }} />
             <div className="mb-2 flex items-center justify-between">
-              <span
-                className="text-xs font-semibold"
-                style={{ color: "var(--th-text)" }}
-              >
+              <span className="text-xs font-semibold" style={{ color: "var(--th-text)" }}>
                 标签库
               </span>
-              <span
-                className="text-[11px]"
-                style={{ color: "var(--th-text-secondary)" }}
-              >
+              <span className="text-[11px]" style={{ color: "var(--th-text-secondary)" }}>
                 未使用的可以直接清理
               </span>
             </div>
-            <div className="max-h-40 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-black/20">
-              {tagSettings.map((setting) => {
+            <div className="max-h-40 overflow-y-auto pr-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-black/20 [&::-webkit-scrollbar]:w-1.5">
+              {tagSettings.map(setting => {
                 const usageCount = tagUsageCounts.get(setting.name) ?? 0;
                 const canDelete = usageCount === 0;
                 return (
@@ -372,7 +332,7 @@ export const TagEditor = ({
                     key={setting.name}
                     className={classNames(
                       "flex h-8 items-center gap-2 rounded-lg px-2 text-xs",
-                      canDelete && themeColors.hoverClass,
+                      canDelete && themeColors.hoverClass
                     )}
                     style={{ color: "var(--th-text)" }}
                   >
@@ -380,9 +340,7 @@ export const TagEditor = ({
                       className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
                       style={{ background: setting.color }}
                     />
-                    <span className="min-w-0 flex-1 truncate">
-                      {setting.name}
-                    </span>
+                    <span className="min-w-0 flex-1 truncate">{setting.name}</span>
                     <span
                       className="flex-shrink-0 text-[11px]"
                       style={{ color: "var(--th-text-secondary)" }}
@@ -402,9 +360,7 @@ export const TagEditor = ({
                         title="清理未使用标签"
                       >
                         <Trash2 className="h-3 w-3" />
-                        <span>
-                          {deletingTag === setting.name ? "清理中" : "清理"}
-                        </span>
+                        <span>{deletingTag === setting.name ? "清理中" : "清理"}</span>
                       </button>
                     )}
                   </div>
@@ -427,11 +383,7 @@ interface MomentCardProps {
   onSegmentChange: (segmentId: number, content: Descendant[]) => Promise<void>;
   onSegmentDelete: (segmentId: number) => Promise<void>;
   onTagsChange: (entryId: number, tags: string[]) => Promise<void>;
-  onTagSettingChange: (setting: {
-    name: string;
-    color: string;
-    sort?: number;
-  }) => Promise<void>;
+  onTagSettingChange: (setting: { name: string; color: string; sort?: number }) => Promise<void>;
   onTagSettingDelete: (name: string) => Promise<void>;
 }
 
@@ -449,14 +401,14 @@ const MomentCard = memo(
     onTagSettingDelete,
   }: MomentCardProps) => {
     const themeColors = useThemeColors();
-    const extensions = useDynamicExtensionsStore((state) => state.extensions);
+    const extensions = useDynamicExtensionsStore(state => state.extensions);
     const { modal, message } = App.useApp();
 
     const handleContentChange = useCallback(
       (content: Descendant[]) => {
         onSegmentChange(item.id, content);
       },
-      [item.id, onSegmentChange],
+      [item.id, onSegmentChange]
     );
 
     const handleDelete = useCallback(() => {
@@ -496,9 +448,7 @@ const MomentCard = memo(
       }
       return "";
     })();
-    const entryDate = normalizedEntryDate
-      ? dayjs(normalizedEntryDate)
-      : dayjs(item.createTime);
+    const entryDate = normalizedEntryDate ? dayjs(normalizedEntryDate) : dayjs(item.createTime);
     const createdLabel = dayjs(item.createTime).fromNow();
     const dateLabel = entryDate.isValid()
       ? entryDate.format("M月D日")
@@ -509,14 +459,13 @@ const MomentCard = memo(
     const weatherIconSrc = getIconPath(weatherStr, "weather");
     const moodIconSrc = getIconPath(moodStr, "mood");
     const weatherColor =
-      WEATHER_ICONS.find((icon) => icon.id === item.weather?.value)?.color ||
-      "#000000";
+      WEATHER_ICONS.find(icon => icon.id === item.weather?.value)?.color || "#000000";
 
     const handleTagsChange = useCallback(
       (newTags: string[]) => {
         onTagsChange(item.diaryId, newTags);
       },
-      [item.diaryId, onTagsChange],
+      [item.diaryId, onTagsChange]
     );
 
     return (
@@ -526,7 +475,7 @@ const MomentCard = memo(
           <span
             className={classNames(
               "text-xs font-medium leading-tight",
-              themeColors.secondaryTextClass,
+              themeColors.secondaryTextClass
             )}
           >
             {createdLabel}
@@ -534,7 +483,7 @@ const MomentCard = memo(
           <span
             className={classNames(
               "mt-1 text-[11px] leading-tight opacity-70",
-              themeColors.secondaryTextClass,
+              themeColors.secondaryTextClass
             )}
           >
             {dateLabel}
@@ -543,9 +492,7 @@ const MomentCard = memo(
 
         {/* 中列：竖线 + 圆点 */}
         <div className="relative flex justify-center">
-          {!isLast && (
-            <span className="absolute bottom-[-1rem] top-3 w-px bg-[var(--th-border)]" />
-          )}
+          {!isLast && <span className="absolute bottom-[-1rem] top-3 w-px bg-[var(--th-border)]" />}
           <span
             className="relative z-[1] mt-3 h-2 w-2 shrink-0 rounded-full"
             style={{
@@ -562,7 +509,7 @@ const MomentCard = memo(
               "min-w-0 rounded-xl border p-4 transition-[border-color,box-shadow,background-color]",
               isActive ? "shadow-[0_0_0_3px_rgba(99,102,241,0.18)]" : null,
               !isActive && themeColors.cardBorderClass,
-              themeColors.cardBgClass,
+              themeColors.cardBgClass
             )}
             style={
               isActive
@@ -578,7 +525,7 @@ const MomentCard = memo(
                 <div
                   className={classNames(
                     "flex items-center gap-2 text-[11px]",
-                    themeColors.secondaryTextClass,
+                    themeColors.secondaryTextClass
                   )}
                 >
                   {weatherIconSrc && item.weather && (
@@ -598,11 +545,7 @@ const MomentCard = memo(
                     />
                   )}
                   {moodIconSrc && (
-                    <img
-                      src={moodIconSrc}
-                      alt="mood"
-                      className="h-4 w-4 object-contain"
-                    />
+                    <img src={moodIconSrc} alt="mood" className="h-4 w-4 object-contain" />
                   )}
                   <span className="tabular-nums">{item.wordCount} 字</span>
                 </div>
@@ -610,15 +553,12 @@ const MomentCard = memo(
                 {/* 标签 chips */}
                 {item.tags.length > 0 && (
                   <div className="flex min-w-0 items-center gap-1 overflow-hidden">
-                    {item.tags.map((tag) => (
+                    {item.tags.map(tag => (
                       <span
                         key={tag}
                         className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
                         style={{
-                          backgroundColor: hexToRgba(
-                            getTagColor(tag, tagSettings),
-                            0.12,
-                          ),
+                          backgroundColor: hexToRgba(getTagColor(tag, tagSettings), 0.12),
                           color: getTagColor(tag, tagSettings),
                         }}
                       >
@@ -644,7 +584,7 @@ const MomentCard = memo(
                     className={classNames(
                       "flex h-5 w-5 items-center justify-center rounded transition-colors",
                       themeColors.secondaryTextClass,
-                      themeColors.hoverClass,
+                      themeColors.hoverClass
                     )}
                     title="编辑标签"
                   >
@@ -658,7 +598,7 @@ const MomentCard = memo(
                     className={classNames(
                       "flex h-5 w-5 items-center justify-center rounded transition-colors",
                       themeColors.secondaryTextClass,
-                      themeColors.hoverClass,
+                      themeColors.hoverClass
                     )}
                     title="更多"
                   >
@@ -683,7 +623,7 @@ const MomentCard = memo(
         </div>
       </div>
     );
-  },
+  }
 );
 
 MomentCard.displayName = "MomentCard";

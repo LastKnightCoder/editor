@@ -510,7 +510,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
               "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all",
               saving
                 ? "cursor-not-allowed bg-gray-300 text-gray-500 dark:bg-zinc-700"
-                : "bg-green-600 text-white hover:bg-green-700"
+                : "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-[var(--th-btn-hover)]"
             )}
           >
             {saving ? (

@@ -159,7 +159,7 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
                 {execution.status === "executing" ? (
                   <Loader2 className="h-3 w-3 shrink-0 animate-spin text-blue-500" />
                 ) : execution.status === "success" ? (
-                  <Check className="h-3 w-3 shrink-0 text-green-500" />
+                  <Check className="text-status-success h-3 w-3 shrink-0" />
                 ) : execution.status === "pending" ? (
                   <div className="h-3 w-3 shrink-0 rounded-full border border-gray-300 dark:border-gray-600" />
                 ) : (

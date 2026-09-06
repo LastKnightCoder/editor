@@ -1,14 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import {
-  Button,
-  Progress,
-  Radio,
-  Space,
-  message,
-  Tooltip,
-  Modal,
-  Select,
-} from "antd";
+import { Button, Progress, Radio, Space, message, Tooltip, Modal, Select } from "antd";
 import {
   DownloadOutlined,
   DeleteOutlined,
@@ -16,12 +7,7 @@ import {
   FolderOpenOutlined,
   ReloadOutlined,
 } from "@ant-design/icons";
-import {
-  SettingContainer,
-  SettingSection,
-  SettingSwitch,
-  SettingDropdown,
-} from "../components";
+import { SettingContainer, SettingSection, SettingSwitch, SettingDropdown } from "../components";
 import {
   getModels,
   downloadModel,
@@ -47,9 +33,7 @@ const TranscriptionSetting = () => {
   const [downloadingModel, setDownloadingModel] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const [downloadMessage, setDownloadMessage] = useState<string>("");
-  const [downloadingProgram, setDownloadingProgram] = useState<string | null>(
-    null,
-  );
+  const [downloadingProgram, setDownloadingProgram] = useState<string | null>(null);
   const [programProgress, setProgramProgress] = useState<number>(0);
   const [programMessage, setProgramMessage] = useState<string>("");
   const [modelsDir, setModelsDir] = useState<string>("");
@@ -59,49 +43,43 @@ const TranscriptionSetting = () => {
   const isMac = platform === "darwin";
 
   // 从 store 获取设置
-  const currentModel = useSettingStore(
-    (state) => state.setting.transcription.currentModel,
-  );
-  const downloadSource = useSettingStore(
-    (state) => state.setting.transcription.downloadSource,
-  );
+  const currentModel = useSettingStore(state => state.setting.transcription.currentModel);
+  const downloadSource = useSettingStore(state => state.setting.transcription.downloadSource);
 
   // 转录行为设置
   const segmentationLevel = useSettingStore(
-    (state) =>
-      state.setting.misc.transcription?.segmentationLevel ?? "sentence",
+    state => state.setting.misc.transcription?.segmentationLevel ?? "sentence"
   );
   const useLLMOptimization = useSettingStore(
-    (state) => state.setting.misc.transcription?.useLLMOptimization ?? false,
+    state => state.setting.misc.transcription?.useLLMOptimization ?? false
   );
   const enableLongVideoSegmentation = useSettingStore(
-    (state) =>
-      state.setting.misc.transcription?.enableLongVideoSegmentation ?? true,
+    state => state.setting.misc.transcription?.enableLongVideoSegmentation ?? true
   );
   const setTranscriptionSegmentationLevel = useSettingStore(
-    (state) => state.setTranscriptionSegmentationLevel,
+    state => state.setTranscriptionSegmentationLevel
   );
   const setTranscriptionUseLLMOptimization = useSettingStore(
-    (state) => state.setTranscriptionUseLLMOptimization,
+    state => state.setTranscriptionUseLLMOptimization
   );
   const setLongVideoSegmentationEnabled = useSettingStore(
-    (state) => state.setLongVideoSegmentationEnabled,
+    state => state.setLongVideoSegmentationEnabled
   );
 
   // 更新设置的方法
   const setCurrentModel = (model: string) => {
     useSettingStore.setState(
-      produce((draft) => {
+      produce(draft => {
         draft.setting.transcription.currentModel = model;
-      }),
+      })
     );
   };
 
   const setDownloadSource = (source: DownloadSource) => {
     useSettingStore.setState(
-      produce((draft) => {
+      produce(draft => {
         draft.setting.transcription.downloadSource = source;
-      }),
+      })
     );
   };
 
@@ -154,7 +132,7 @@ const TranscriptionSetting = () => {
 
   // 监听下载进度 - 只在组件挂载时设置一次
   useEffect(() => {
-    const unsubscribe = onDownloadProgress((progress) => {
+    const unsubscribe = onDownloadProgress(progress => {
       // 使用 ref 来检查，避免闭包问题
       if (progress.modelName === downloadingModelRef.current) {
         setDownloadProgress(progress.percentage);
@@ -168,7 +146,7 @@ const TranscriptionSetting = () => {
 
   // 监听程序下载进度
   useEffect(() => {
-    const unsubscribe = onProgramDownloadProgress((progress) => {
+    const unsubscribe = onProgramDownloadProgress(progress => {
       if (progress.programName === downloadingProgramRef.current) {
         setProgramProgress(progress.percentage);
         setProgramMessage(progress.message || "");
@@ -265,7 +243,7 @@ const TranscriptionSetting = () => {
 
   // 删除程序
   const handleDeleteProgram = async (programName: string) => {
-    const program = programs.find((p) => p.name === programName);
+    const program = programs.find(p => p.name === programName);
     Modal.confirm({
       title: "确认删除",
       content: `确定要删除 "${program?.label || programName}" 吗？删除后需要重新下载。`,
@@ -289,21 +267,16 @@ const TranscriptionSetting = () => {
   };
 
   // 检查是否有可用的程序
-  const hasAvailableProgram = programs.some((p) => p.downloaded);
+  const hasAvailableProgram = programs.some(p => p.downloaded);
 
   return (
     <SettingContainer>
-      <SettingSection
-        title="转录行为设置"
-        description="配置音视频转录的断句和优化行为"
-      >
+      <SettingSection title="转录行为设置" description="配置音视频转录的断句和优化行为">
         <SettingDropdown
           label="断句模式"
           description="词级别断句可以配合 AI 优化获得更好的断句效果，句子级别由模型直接生成"
           value={segmentationLevel}
-          onChange={(value) =>
-            setTranscriptionSegmentationLevel(value as "word" | "sentence")
-          }
+          onChange={value => setTranscriptionSegmentationLevel(value as "word" | "sentence")}
           options={[
             { label: "句子级别（默认，速度更快）", value: "sentence" },
             { label: "词级别（支持 AI 优化断句）", value: "word" },
@@ -332,26 +305,26 @@ const TranscriptionSetting = () => {
         {/* 转录程序（仅 Windows 显示） */}
         {!isMac && (
           <div className="mb-6">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
               转录程序
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-              下载预编译的 faster-whisper 程序，无需配置 Python 环境。GPU
-              版本自带 CUDA 依赖，适合有 NVIDIA 显卡的用户。
+            <div className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+              下载预编译的 faster-whisper 程序，无需配置 Python 环境。GPU 版本自带 CUDA 依赖，适合有
+              NVIDIA 显卡的用户。
             </div>
             {!hasAvailableProgram && (
-              <div className="mb-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg text-sm text-yellow-700 dark:text-yellow-400">
+              <div className="mb-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-700 dark:border-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400">
                 请先下载转录程序，推荐下载 GPU 版本获得更好的转录速度
               </div>
             )}
             <div className="space-y-2">
-              {programs.map((program) => (
+              {programs.map(program => (
                 <div
                   key={program.name}
-                  className={`flex items-center justify-between p-3 rounded-lg border ${
+                  className={`flex items-center justify-between rounded-lg border p-3 ${
                     program.downloaded
-                      ? "bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700"
-                      : "bg-gray-50 dark:bg-zinc-800/50 border-gray-200 dark:border-gray-700"
+                      ? "bg-[var(--th-success)]/10 border-[var(--th-success)]/40"
+                      : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50"
                   }`}
                 >
                   <div className="flex-1">
@@ -360,7 +333,7 @@ const TranscriptionSetting = () => {
                         {program.label}
                       </span>
                       <span
-                        className={`text-xs px-2 py-0.5 rounded ${
+                        className={`rounded px-2 py-0.5 text-xs ${
                           program.type === "GPU"
                             ? "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
                             : "bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-gray-400"
@@ -368,25 +341,17 @@ const TranscriptionSetting = () => {
                       >
                         {program.type}
                       </span>
-                      {program.downloaded && (
-                        <CheckCircleFilled className="text-green-500" />
-                      )}
+                      {program.downloaded && <CheckCircleFilled className="text-status-success" />}
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                       {program.size}
                       {program.type === "GPU" && " · 包含 CUDA 依赖"}
                     </div>
                     {downloadingProgram === program.name && (
                       <div className="mt-2">
-                        <Progress
-                          percent={programProgress}
-                          size="small"
-                          status="active"
-                        />
+                        <Progress percent={programProgress} size="small" status="active" />
                         {programMessage && (
-                          <div className="text-xs text-gray-400 mt-1">
-                            {programMessage}
-                          </div>
+                          <div className="mt-1 text-xs text-gray-400">{programMessage}</div>
                         )}
                       </div>
                     )}
@@ -408,8 +373,7 @@ const TranscriptionSetting = () => {
                         icon={<DownloadOutlined />}
                         loading={downloadingProgram === program.name}
                         disabled={
-                          downloadingProgram !== null &&
-                          downloadingProgram !== program.name
+                          downloadingProgram !== null && downloadingProgram !== program.name
                         }
                         onClick={() => handleDownloadProgram(program.name)}
                       >
@@ -420,7 +384,7 @@ const TranscriptionSetting = () => {
                 </div>
               ))}
               {programs.length === 0 && (
-                <div className="text-sm text-gray-500 dark:text-gray-400 p-4 text-center border border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
+                <div className="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400">
                   暂无可用的转录程序
                 </div>
               )}
@@ -430,10 +394,10 @@ const TranscriptionSetting = () => {
         {/* Mac 显示内置说明 */}
         {isMac && (
           <div className="mb-6">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
               转录程序
             </div>
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-sm text-blue-700 dark:text-blue-400">
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
               ✓ macOS 使用内置 Python 脚本运行 faster-whisper，无需额外下载程序
             </div>
           </div>
@@ -442,7 +406,7 @@ const TranscriptionSetting = () => {
         {/* faster-whisper 模型 */}
         {/* 当前使用的模型 */}
         <div className="mb-6">
-          <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
             当前使用的模型
           </div>
           <Select
@@ -451,40 +415,29 @@ const TranscriptionSetting = () => {
             style={{ width: 300 }}
             placeholder="请选择模型"
             options={models
-              .filter((m) => m.downloaded)
-              .map((m) => ({
+              .filter(m => m.downloaded)
+              .map(m => ({
                 value: m.name,
                 label: (
                   <span>
                     {m.label}
-                    <span className="text-gray-400 ml-2 text-xs">
-                      ({m.size})
-                    </span>
+                    <span className="ml-2 text-xs text-gray-400">({m.size})</span>
                   </span>
                 ),
               }))}
-            notFoundContent={
-              <span className="text-gray-400">暂无已下载的模型，请先下载</span>
-            }
+            notFoundContent={<span className="text-gray-400">暂无已下载的模型，请先下载</span>}
           />
           {currentModel && (
-            <div className="text-xs text-gray-500 mt-1">
-              已选择:{" "}
-              {models.find((m) => m.name === currentModel)?.label ||
-                currentModel}
+            <div className="mt-1 text-xs text-gray-500">
+              已选择: {models.find(m => m.name === currentModel)?.label || currentModel}
             </div>
           )}
         </div>
 
         {/* 下载源选择 */}
         <div className="mb-6">
-          <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            下载源
-          </div>
-          <Radio.Group
-            value={downloadSource}
-            onChange={(e) => setDownloadSource(e.target.value)}
-          >
+          <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">下载源</div>
+          <Radio.Group value={downloadSource} onChange={e => setDownloadSource(e.target.value)}>
             <Radio value="modelscope">ModelScope（国内推荐）</Radio>
             <Radio value="huggingface">HuggingFace（国际）</Radio>
           </Radio.Group>
@@ -492,10 +445,8 @@ const TranscriptionSetting = () => {
 
         {/* 模型目录 */}
         <div className="mb-6 flex items-center gap-2">
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            模型目录:
-          </span>
-          <code className="text-xs bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded">
+          <span className="text-sm text-gray-500 dark:text-gray-400">模型目录:</span>
+          <code className="rounded bg-gray-100 px-2 py-1 text-xs dark:bg-zinc-800">
             {modelsDir}
           </code>
           <Tooltip title="打开模型目录">
@@ -519,15 +470,15 @@ const TranscriptionSetting = () => {
 
         {/* faster-whisper 模型列表 */}
         <div className="space-y-3">
-          {models.map((model) => {
+          {models.map(model => {
             const isCurrentModel = model.name === currentModel;
             return (
               <div
                 key={model.name}
-                className={`flex items-center justify-between p-4 rounded-lg border ${
+                className={`flex items-center justify-between rounded-lg border p-4 ${
                   isCurrentModel
-                    ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700"
-                    : "bg-gray-50 dark:bg-zinc-800/50 border-gray-200 dark:border-gray-700"
+                    ? "border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20"
+                    : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50"
                 }`}
               >
                 <div className="flex-1">
@@ -536,33 +487,27 @@ const TranscriptionSetting = () => {
                       {model.label}
                     </span>
                     {model.recommended && (
-                      <span className="text-xs bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded">
+                      <span className="rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
                         推荐
                       </span>
                     )}
                     {isCurrentModel && (
-                      <span className="text-xs bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded">
+                      <span className="bg-[var(--th-success)]/15 text-status-success rounded px-2 py-0.5 text-xs">
                         当前使用
                       </span>
                     )}
                     {model.downloaded && !isCurrentModel && (
-                      <CheckCircleFilled className="text-green-500" />
+                      <CheckCircleFilled className="text-status-success" />
                     )}
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                     {model.description} · {model.size}
                   </div>
                   {downloadingModel === model.name && (
                     <div className="mt-2">
-                      <Progress
-                        percent={downloadProgress}
-                        size="small"
-                        status="active"
-                      />
+                      <Progress percent={downloadProgress} size="small" status="active" />
                       {downloadMessage && (
-                        <div className="text-xs text-gray-400 mt-1">
-                          {downloadMessage}
-                        </div>
+                        <div className="mt-1 text-xs text-gray-400">{downloadMessage}</div>
                       )}
                     </div>
                   )}
@@ -607,17 +552,13 @@ const TranscriptionSetting = () => {
         </div>
 
         {/* 使用说明 */}
-        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-          <div className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">
-            使用说明
-          </div>
-          <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1 list-disc list-inside">
+        <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+          <div className="mb-2 text-sm font-medium text-blue-800 dark:text-blue-300">使用说明</div>
+          <ul className="list-inside list-disc space-y-1 text-sm text-blue-700 dark:text-blue-400">
             <li>首次使用需要下载转录模型</li>
             <li>推荐使用 Base 模型，兼顾速度和准确度</li>
             <li>国内用户建议使用 ModelScope 下载源</li>
-            {!isMac && (
-              <li>有 NVIDIA 显卡时建议选择 GPU 版本程序，速度提升显著</li>
-            )}
+            {!isMac && <li>有 NVIDIA 显卡时建议选择 GPU 版本程序，速度提升显著</li>}
             <li>词级时间戳更精确，适合 LLM 优化断句</li>
             <li>模型越大，准确度越高，但处理速度越慢</li>
           </ul>

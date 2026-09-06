@@ -27,7 +27,7 @@ const WeReadSetting: React.FC = () => {
         };
       case "valid":
         return {
-          dotClass: "bg-green-500",
+          dotClass: "bg-status-success",
           text: "可用",
           detail: "当前 API Key 可正常同步微信读书数据",
         };

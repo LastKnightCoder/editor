@@ -62,7 +62,7 @@ const ConnectionStatusBadge: React.FC<{
       case "connected":
         return {
           text: "已连接",
-          className: "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400",
+          className: "bg-[var(--th-success)]/15 text-status-success",
         };
       case "connecting":
         return {

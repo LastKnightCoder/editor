@@ -101,7 +101,7 @@ const ContentDropZone = memo(
         {dropZone && (
           <div
             className={classnames(
-              "pointer-events-none absolute z-50 border-2 border-dashed border-green-300 bg-green-400/10 transition-all",
+              "border-[var(--th-accent)]/40 bg-[var(--th-accent)]/10 pointer-events-none absolute z-50 border-2 border-dashed transition-all",
               {
                 "left-0 top-0 h-full w-1/2": dropZone === "left",
                 "right-0 top-0 h-full w-1/2": dropZone === "right",

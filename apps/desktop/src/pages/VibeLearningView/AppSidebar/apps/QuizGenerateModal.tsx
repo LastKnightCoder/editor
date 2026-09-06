@@ -509,7 +509,7 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
   };
 
   const difficultyColors: Record<string, string> = {
-    foundation: "bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400",
+    foundation: "bg-[var(--th-success)]/15 text-status-success",
     standard: "bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400",
     advanced: "bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400",
   };

@@ -22,19 +22,8 @@ interface EntityTreeModalProps {
 }
 
 export const EntityTreeModal = memo<EntityTreeModalProps>(
-  ({
-    open,
-    loading,
-    type,
-    entity,
-    nodes,
-    currentScope,
-    onCancel,
-    onConfirm,
-  }) => {
-    const dynamicExtensions = useDynamicExtensionsStore(
-      (state) => state.extensions,
-    );
+  ({ open, loading, type, entity, nodes, currentScope, onCancel, onConfirm }) => {
+    const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
     const themeColors = useThemeColors();
     const typeLabel = type === "project" ? "项目" : "知识库";
 
@@ -76,10 +65,10 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
     // 切换节点选中状态
     const handleToggleNode = useCallback((node: DocTreeNode) => {
       const ids = collectDocNodeIds([node]);
-      setSelectedIds((prev) => {
+      setSelectedIds(prev => {
         const next = new Set(prev);
-        const shouldSelect = ids.some((id) => !next.has(id));
-        ids.forEach((id) => {
+        const shouldSelect = ids.some(id => !next.has(id));
+        ids.forEach(id => {
           if (shouldSelect) {
             next.add(id);
           } else {
@@ -92,12 +81,12 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
 
     // 点击预览节点
     const handleClickNode = useCallback((nodeId: number) => {
-      setActiveNodeId((prev) => (prev === nodeId ? null : nodeId));
+      setActiveNodeId(prev => (prev === nodeId ? null : nodeId));
     }, []);
 
     // 全选/取消全选
     const handleSelectAll = useCallback(() => {
-      setSelectedIds((prev) => {
+      setSelectedIds(prev => {
         if (prev.size === totalIds.length) {
           return new Set();
         }
@@ -122,11 +111,11 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
               <button
                 onClick={handleSelectAll}
                 className={classNames(
-                  "px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                  "rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
                   themeColors.cardBgClass,
                   themeColors.cardBorderClass,
                   "hover:bg-gray-100 dark:hover:bg-zinc-800/50",
-                  themeColors.textClass,
+                  themeColors.textClass
                 )}
               >
                 {allSelected ? "取消全选" : "全选"}
@@ -138,11 +127,11 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
             <div className="flex gap-2">
               <button
                 className={classNames(
-                  "px-4 py-1.5 rounded-lg text-sm font-medium border transition-colors",
+                  "rounded-lg border px-4 py-1.5 text-sm font-medium transition-colors",
                   themeColors.cardBgClass,
                   themeColors.cardBorderClass,
                   "hover:bg-gray-100 dark:hover:bg-zinc-800/50",
-                  themeColors.textClass,
+                  themeColors.textClass
                 )}
                 onClick={onCancel}
               >
@@ -150,8 +139,8 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
               </button>
               <button
                 className={classNames(
-                  "px-4 py-1.5 rounded-lg text-sm font-medium transition-colors",
-                  themeColors.primaryButtonClass,
+                  "rounded-lg px-4 py-1.5 text-sm font-medium transition-colors",
+                  themeColors.primaryButtonClass
                 )}
                 onClick={() => onConfirm(selectedIds)}
                 disabled={loading}
@@ -162,57 +151,49 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
           </div>
         }
       >
-        <div
-          className="flex flex-1 overflow-hidden"
-          style={{ height: "65vh", maxHeight: "65vh" }}
-        >
+        <div className="flex flex-1 overflow-hidden" style={{ height: "65vh", maxHeight: "65vh" }}>
           {/* 左侧：文档树（窄） */}
           <div
             className={classNames(
-              "w-64 flex-shrink-0 border-r flex flex-col",
-              themeColors.cardBorderClass,
+              "flex w-64 flex-shrink-0 flex-col border-r",
+              themeColors.cardBorderClass
             )}
           >
             <div
               className={classNames(
-                "px-4 py-3 border-b text-sm font-medium flex-shrink-0 flex items-center justify-between",
+                "flex flex-shrink-0 items-center justify-between border-b px-4 py-3 text-sm font-medium",
                 themeColors.cardBorderClass,
-                themeColors.textClass,
+                themeColors.textClass
               )}
             >
               <span>文档结构</span>
-              <span
-                className={classNames(
-                  "text-xs",
-                  themeColors.secondaryTextClass,
-                )}
-              >
+              <span className={classNames("text-xs", themeColors.secondaryTextClass)}>
                 {selectedIds.size}/{totalIds.length}
               </span>
             </div>
             {loading ? (
-              <div className="flex-1 flex items-center justify-center">
+              <div className="flex flex-1 items-center justify-center">
                 <div
                   className={classNames(
                     "h-8 w-8 animate-spin rounded-full border-2",
                     themeColors.cardBorderClass,
                     "border-t-current",
-                    themeColors.activeTextClass,
+                    themeColors.activeTextClass
                   )}
                 />
               </div>
             ) : nodes.length === 0 ? (
               <div
                 className={classNames(
-                  "flex-1 flex items-center justify-center text-sm",
-                  themeColors.secondaryTextClass,
+                  "flex flex-1 items-center justify-center text-sm",
+                  themeColors.secondaryTextClass
                 )}
               >
                 暂无可发布的文档
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto py-2 min-h-0">
-                {nodes.map((node) => (
+              <div className="min-h-0 flex-1 overflow-y-auto py-2">
+                {nodes.map(node => (
                   <DocTreeNodeItem
                     key={node.id}
                     node={node}
@@ -227,38 +208,35 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
           </div>
 
           {/* 右侧：预览面板（宽） */}
-          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
             {previewNode ? (
               <>
                 {/* 预览标题栏 */}
                 <div
                   className={classNames(
-                    "px-6 py-3 border-b flex-shrink-0 flex items-center gap-3",
-                    themeColors.cardBorderClass,
+                    "flex flex-shrink-0 items-center gap-3 border-b px-6 py-3",
+                    themeColors.cardBorderClass
                   )}
                 >
                   <div
                     className={classNames(
-                      "w-2 h-2 rounded-full flex-shrink-0",
+                      "h-2 w-2 flex-shrink-0 rounded-full",
                       selectedIds.has(previewNode.id)
-                        ? "bg-green-500"
-                        : "bg-gray-300 dark:bg-gray-600",
+                        ? "bg-[var(--th-accent)]"
+                        : "bg-gray-300 dark:bg-gray-600"
                     )}
                   />
                   <h3
-                    className={classNames(
-                      "text-base font-medium truncate",
-                      themeColors.textClass,
-                    )}
+                    className={classNames("truncate text-base font-medium", themeColors.textClass)}
                   >
                     {previewNode.title}
                   </h3>
                   {!previewNode.hasContent && (
                     <span
                       className={classNames(
-                        "text-xs px-2 py-0.5 rounded-full flex-shrink-0",
+                        "flex-shrink-0 rounded-full px-2 py-0.5 text-xs",
                         themeColors.tagBgClass,
-                        themeColors.secondaryTextClass,
+                        themeColors.secondaryTextClass
                       )}
                     >
                       文件夹
@@ -266,7 +244,7 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
                   )}
                 </div>
                 {/* 预览内容 */}
-                <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
+                <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
                   {previewNode.hasContent ? (
                     <Editor
                       key={previewNode.id}
@@ -278,8 +256,8 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
                   ) : (
                     <div
                       className={classNames(
-                        "flex items-center justify-center h-full text-sm",
-                        themeColors.secondaryTextClass,
+                        "flex h-full items-center justify-center text-sm",
+                        themeColors.secondaryTextClass
                       )}
                     >
                       此节点为文件夹，无内容可预览
@@ -290,12 +268,12 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
             ) : (
               <div
                 className={classNames(
-                  "flex-1 flex flex-col items-center justify-center gap-3",
-                  themeColors.secondaryTextClass,
+                  "flex flex-1 flex-col items-center justify-center gap-3",
+                  themeColors.secondaryTextClass
                 )}
               >
                 <svg
-                  className="w-12 h-12 opacity-30"
+                  className="h-12 w-12 opacity-30"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -314,7 +292,7 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
         </div>
       </CustomModal>
     );
-  },
+  }
 );
 
 EntityTreeModal.displayName = "EntityTreeModal";
@@ -331,21 +309,18 @@ const DocTreeNodeItem = memo<{
   const themeColors = useThemeColors();
 
   const descendantIds = useMemo(() => collectDocNodeIds([node]), [node]);
-  const allSelected =
-    descendantIds.length > 0 &&
-    descendantIds.every((id) => selectedIds.has(id));
-  const partiallySelected =
-    !allSelected && descendantIds.some((id) => selectedIds.has(id));
+  const allSelected = descendantIds.length > 0 && descendantIds.every(id => selectedIds.has(id));
+  const partiallySelected = !allSelected && descendantIds.some(id => selectedIds.has(id));
   const isActive = activeNodeId === node.id;
 
   return (
     <div>
       <div
         className={classNames(
-          "flex items-center gap-2 px-3 py-1.5 transition-colors cursor-pointer mx-1 rounded-md",
+          "mx-1 flex cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 transition-colors",
           isActive
             ? "bg-zinc-200/70 dark:bg-zinc-700/60"
-            : "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
+            : "hover:bg-gray-50 dark:hover:bg-zinc-800/30"
         )}
         style={{ paddingLeft: depth * 12 + 12 }}
         onClick={() => onClick(node.id)}
@@ -358,20 +333,15 @@ const DocTreeNodeItem = memo<{
         />
         <span
           className={classNames(
-            "flex-1 text-sm truncate",
-            isActive
-              ? "font-medium text-zinc-950 dark:text-zinc-50"
-              : themeColors.textClass,
+            "flex-1 truncate text-sm",
+            isActive ? "font-medium text-zinc-950 dark:text-zinc-50" : themeColors.textClass
           )}
         >
           {node.title}
         </span>
         {!node.hasContent && node.children.length > 0 && (
           <svg
-            className={classNames(
-              "w-3.5 h-3.5 flex-shrink-0",
-              themeColors.secondaryTextClass,
-            )}
+            className={classNames("h-3.5 w-3.5 flex-shrink-0", themeColors.secondaryTextClass)}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -385,7 +355,7 @@ const DocTreeNodeItem = memo<{
           </svg>
         )}
       </div>
-      {node.children.map((child) => (
+      {node.children.map(child => (
         <DocTreeNodeItem
           key={child.id}
           node={child}

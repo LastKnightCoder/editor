@@ -159,7 +159,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
   };
 
   const difficultyColors: Record<string, string> = {
-    foundation: "bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400",
+    foundation: "bg-[var(--th-success)]/15 text-status-success",
     standard: "bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400",
     advanced: "bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400",
   };
@@ -449,13 +449,13 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
                 className={classNames(
                   "flex items-center gap-2 rounded-lg px-3 py-2 text-sm",
                   opt.isCorrect
-                    ? "border border-green-200 bg-green-50 text-green-700 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-400"
+                    ? "border-[var(--th-success)]/30 bg-[var(--th-success)]/10 text-status-success border"
                     : "bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-gray-400"
                 )}
               >
                 <span className="font-medium">{String.fromCharCode(65 + idx)}.</span>
                 <span className="flex-1">{opt.label}</span>
-                {opt.isCorrect && <Check className="h-4 w-4 text-green-500" />}
+                {opt.isCorrect && <Check className="text-status-success h-4 w-4" />}
               </div>
             ))}
           </div>
@@ -470,7 +470,7 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
               className={classNames(
                 "rounded-lg px-3 py-1 text-sm font-medium",
                 answer
-                  ? "bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-400"
+                  ? "bg-[var(--th-success)]/10 text-status-success"
                   : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
               )}
             >
@@ -647,8 +647,8 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
                   className={classNames(
                     "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all",
                     opt.isCorrect
-                      ? "border-green-500 bg-green-500 text-white"
-                      : "border-gray-300 hover:border-green-400 dark:border-gray-600"
+                      ? "bg-status-success border-[var(--th-success)] text-white"
+                      : "border-gray-300 hover:border-[var(--th-success)] dark:border-gray-600"
                   )}
                 >
                   {opt.isCorrect && <Check className="h-3 w-3" />}
@@ -709,7 +709,7 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
                     "flex-1 rounded-lg border-2 py-3 font-medium transition-all",
                     formData.booleanAnswer === opt.value
                       ? opt.value
-                        ? "border-green-500 bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-400"
+                        ? "border-[var(--th-success)]/40 bg-[var(--th-success)]/10 text-status-success"
                         : "border-red-500 bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
                       : "border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-zinc-800 dark:text-gray-400"
                   )}
