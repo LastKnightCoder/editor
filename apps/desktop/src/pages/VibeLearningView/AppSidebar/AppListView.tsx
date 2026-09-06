@@ -1,11 +1,4 @@
-import {
-  memo,
-  useEffect,
-  useState,
-  useMemo,
-  forwardRef,
-  useImperativeHandle,
-} from "react";
+import { memo, useEffect, useState, useMemo, forwardRef, useImperativeHandle } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { App } from "antd";
 import {
@@ -106,9 +99,7 @@ const AppListView = memo(
 
     const [notes, setNotes] = useState<VLNote[]>([]);
     const [loading, setLoading] = useState(true);
-    const [addingResourceNoteIds, setAddingResourceNoteIds] = useState<
-      number[]
-    >([]);
+    const [addingResourceNoteIds, setAddingResourceNoteIds] = useState<number[]>([]);
 
     // 测验集相关状态
     const {
@@ -126,14 +117,12 @@ const AppListView = memo(
     const [showTestModal, setShowTestModal] = useState(false);
     const [showRecordsModal, setShowRecordsModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
-    const [selectedQuizSet, setSelectedQuizSet] = useState<VLQuizSet | null>(
-      null,
-    );
+    const [selectedQuizSet, setSelectedQuizSet] = useState<VLQuizSet | null>(null);
 
     // 获取当前项目的测验集
     const quizSets = useMemo(
       () => quizSetsByProject[projectId] ?? [],
-      [quizSetsByProject, projectId],
+      [quizSetsByProject, projectId]
     );
 
     // 加载笔记列表
@@ -162,7 +151,7 @@ const AppListView = memo(
 
     // 为每个测验集加载记录（用于显示最佳成绩）
     useEffect(() => {
-      quizSets.forEach((quizSet) => {
+      quizSets.forEach(quizSet => {
         if (!recordsByQuizSet[quizSet.id]) {
           fetchRecords({ quizSetId: quizSet.id });
         }
@@ -176,65 +165,59 @@ const AppListView = memo(
     }));
 
     // 删除笔记
-    const handleDeleteNote = useMemoizedFn(
-      (e: React.MouseEvent, note: VLNote) => {
-        e.stopPropagation(); // 阻止事件冒泡，避免触发编辑
+    const handleDeleteNote = useMemoizedFn((e: React.MouseEvent, note: VLNote) => {
+      e.stopPropagation(); // 阻止事件冒泡，避免触发编辑
 
-        modal.confirm({
-          title: "删除笔记",
-          content: `确定要删除"${note.title || "无标题笔记"}"吗？`,
-          okText: "删除",
-          cancelText: "取消",
-          okButtonProps: { danger: true },
-          onOk: async () => {
-            try {
-              await deleteVLNote(note.id);
-              message.success("笔记已删除");
-              loadNotes(); // 刷新列表
-            } catch (error) {
-              console.error("Failed to delete note:", error);
-              message.error("删除失败");
-            }
-          },
-        });
-      },
-    );
-
-    const handleAddNoteToResources = useMemoizedFn(
-      async (e: React.MouseEvent, note: VLNote) => {
-        e.stopPropagation();
-
-        if (addingResourceNoteIds.includes(note.id)) {
-          return;
-        }
-
-        setAddingResourceNoteIds((prev) => [...prev, note.id]);
-        try {
-          const result = await ensureVLNoteResource({
-            projectId,
-            mainDbName,
-            contentId: note.contentId,
-            title: note.title || "无标题笔记",
-            noteType: note.type,
-            originalId: note.id,
-          });
-
-          if (result.created) {
-            onResourcesChange();
-            message.success("已添加到资源列表");
-          } else {
-            message.info("该内容已在资源列表中");
+      modal.confirm({
+        title: "删除笔记",
+        content: `确定要删除"${note.title || "无标题笔记"}"吗？`,
+        okText: "删除",
+        cancelText: "取消",
+        okButtonProps: { danger: true },
+        onOk: async () => {
+          try {
+            await deleteVLNote(note.id);
+            message.success("笔记已删除");
+            loadNotes(); // 刷新列表
+          } catch (error) {
+            console.error("Failed to delete note:", error);
+            message.error("删除失败");
           }
-        } catch (error) {
-          console.error("Failed to add note to resources:", error);
-          message.error("添加到资源列表失败");
-        } finally {
-          setAddingResourceNoteIds((prev) =>
-            prev.filter((itemId) => itemId !== note.id),
-          );
+        },
+      });
+    });
+
+    const handleAddNoteToResources = useMemoizedFn(async (e: React.MouseEvent, note: VLNote) => {
+      e.stopPropagation();
+
+      if (addingResourceNoteIds.includes(note.id)) {
+        return;
+      }
+
+      setAddingResourceNoteIds(prev => [...prev, note.id]);
+      try {
+        const result = await ensureVLNoteResource({
+          projectId,
+          mainDbName,
+          contentId: note.contentId,
+          title: note.title || "无标题笔记",
+          noteType: note.type,
+          originalId: note.id,
+        });
+
+        if (result.created) {
+          onResourcesChange();
+          message.success("已添加到资源列表");
+        } else {
+          message.info("该内容已在资源列表中");
         }
-      },
-    );
+      } catch (error) {
+        console.error("Failed to add note to resources:", error);
+        message.error("添加到资源列表失败");
+      } finally {
+        setAddingResourceNoteIds(prev => prev.filter(itemId => itemId !== note.id));
+      }
+    });
 
     // 开始测验
     const handleStartTest = useMemoizedFn(async (quizSet: VLQuizSet) => {
@@ -258,26 +241,24 @@ const AppListView = memo(
     });
 
     // 删除测验集
-    const handleDeleteQuizSet = useMemoizedFn(
-      (e: React.MouseEvent, quizSet: VLQuizSet) => {
-        e.stopPropagation();
-        modal.confirm({
-          title: "删除测验集",
-          content: `确定要删除"${quizSet.name}"吗？相关的测验记录也会被删除。`,
-          okText: "删除",
-          cancelText: "取消",
-          okButtonProps: { danger: true },
-          onOk: async () => {
-            try {
-              await deleteQuizSet(quizSet.id);
-              message.success("测验集已删除");
-            } catch (error) {
-              message.error("删除失败");
-            }
-          },
-        });
-      },
-    );
+    const handleDeleteQuizSet = useMemoizedFn((e: React.MouseEvent, quizSet: VLQuizSet) => {
+      e.stopPropagation();
+      modal.confirm({
+        title: "删除测验集",
+        content: `确定要删除"${quizSet.name}"吗？相关的测验记录也会被删除。`,
+        okText: "删除",
+        cancelText: "取消",
+        okButtonProps: { danger: true },
+        onOk: async () => {
+          try {
+            await deleteQuizSet(quizSet.id);
+            message.success("测验集已删除");
+          } catch (error) {
+            message.error("删除失败");
+          }
+        },
+      });
+    });
 
     // 查看测验记录
     const handleViewRecords = useMemoizedFn(async (quizSet: VLQuizSet) => {
@@ -308,7 +289,7 @@ const AppListView = memo(
     const getBestScore = (quizSetId: number): number | null => {
       const records = recordsByQuizSet[quizSetId] ?? [];
       if (records.length === 0) return null;
-      return Math.max(...records.map((r) => r.score));
+      return Math.max(...records.map(r => r.score));
     };
 
     // 获取最近一次测验
@@ -322,7 +303,7 @@ const AppListView = memo(
     const apps: AppItem[] = [
       {
         key: "outline",
-        icon: <ListOrdered className="w-5 h-5" />,
+        icon: <ListOrdered className="h-5 w-5" />,
         title: "学习大纲",
         description: "梳理学习路径",
         available: true,
@@ -330,7 +311,7 @@ const AppListView = memo(
       },
       {
         key: "highlights",
-        icon: <Highlighter className="w-5 h-5" />,
+        icon: <Highlighter className="h-5 w-5" />,
         title: "重点提炼",
         description: "提取核心干货",
         available: true,
@@ -338,7 +319,7 @@ const AppListView = memo(
       },
       {
         key: "article",
-        icon: <FileText className="w-5 h-5" />,
+        icon: <FileText className="h-5 w-5" />,
         title: "文章生成",
         description: "生成可阅读长文",
         available: true,
@@ -346,7 +327,7 @@ const AppListView = memo(
       },
       {
         key: "mindmap",
-        icon: <Network className="w-5 h-5" />,
+        icon: <Network className="h-5 w-5" />,
         title: "思维导图",
         description: "可视化知识结构",
         available: true,
@@ -354,7 +335,7 @@ const AppListView = memo(
       },
       {
         key: "ppt",
-        icon: <Presentation className="w-5 h-5" />,
+        icon: <Presentation className="h-5 w-5" />,
         title: "PPT",
         description: "高效汇报和演示",
         available: true,
@@ -362,7 +343,7 @@ const AppListView = memo(
       },
       {
         key: "report",
-        icon: <FileBarChart className="w-5 h-5" />,
+        icon: <FileBarChart className="h-5 w-5" />,
         title: "报告",
         description: "数据分析报告",
         available: true,
@@ -370,7 +351,7 @@ const AppListView = memo(
       },
       {
         key: "quiz",
-        icon: <CircleHelp className="w-5 h-5" />,
+        icon: <CircleHelp className="h-5 w-5" />,
         title: "测验",
         description: "自测掌握程度",
         available: true,
@@ -378,7 +359,7 @@ const AppListView = memo(
       },
       {
         key: "podcast",
-        icon: <Mic className="w-5 h-5" />,
+        icon: <Mic className="h-5 w-5" />,
         title: "播客生成",
         description: "AI 生成对话播客",
         available: true,
@@ -387,20 +368,10 @@ const AppListView = memo(
     ];
 
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex h-full flex-col">
         {/* 标题栏 */}
-        <div
-          className={classNames(
-            "px-4 py-3 border-b shrink-0",
-            themeColors.borderClass,
-          )}
-        >
-          <h3
-            className={classNames(
-              "text-base font-semibold m-0",
-              themeColors.activeTextClass,
-            )}
-          >
+        <div className={classNames("shrink-0 border-b px-4 py-3", themeColors.borderClass)}>
+          <h3 className={classNames("m-0 text-base font-semibold", themeColors.activeTextClass)}>
             应用
           </h3>
         </div>
@@ -418,7 +389,7 @@ const AppListView = memo(
                   transition={{ delay: index * 0.05 }}
                   title={!app.available ? "开发中" : undefined}
                   className={classNames(
-                    "p-4 rounded-xl border backdrop-blur-sm transition-all cursor-pointer",
+                    "cursor-pointer rounded-xl border p-4 backdrop-blur-sm transition-all",
                     app.available
                       ? [
                           themeColors.cardBgClass,
@@ -426,46 +397,36 @@ const AppListView = memo(
                           themeColors.hoverBorderClass,
                         ]
                       : [
-                          "opacity-50 cursor-not-allowed",
+                          "cursor-not-allowed opacity-50",
                           themeColors.tagBgClass,
                           themeColors.cardBorderClass,
-                        ],
+                        ]
                   )}
                   onClick={app.available ? app.onClick : undefined}
                 >
-                  <div className="flex items-center gap-2.5 mb-1.5">
+                  <div className="mb-1.5 flex items-center gap-2.5">
                     <span
                       className={
-                        app.available
-                          ? themeColors.iconTextClass
-                          : themeColors.secondaryTextClass
+                        app.available ? themeColors.iconTextClass : themeColors.secondaryTextClass
                       }
                     >
                       {app.icon}
                     </span>
                     <span
-                      className={classNames(
-                        "text-sm font-semibold",
-                        themeColors.activeTextClass,
-                      )}
+                      className={classNames("text-sm font-semibold", themeColors.activeTextClass)}
                     >
                       {app.title}
                     </span>
                     {!app.available && (
                       <Pencil
                         className={classNames(
-                          "w-3.5 h-3.5 ml-auto",
-                          themeColors.secondaryTextClass,
+                          "ml-auto h-3.5 w-3.5",
+                          themeColors.secondaryTextClass
                         )}
                       />
                     )}
                   </div>
-                  <p
-                    className={classNames(
-                      "text-xs m-0",
-                      themeColors.secondaryTextClass,
-                    )}
-                  >
+                  <p className={classNames("m-0 text-xs", themeColors.secondaryTextClass)}>
                     {app.description}
                   </p>
                 </motion.div>
@@ -480,53 +441,28 @@ const AppListView = memo(
 
           {/* 创作内容区域 */}
           <div className="p-4">
-            <h4
-              className={classNames(
-                "text-sm font-semibold mb-3",
-                themeColors.textClass,
-              )}
-            >
+            <h4 className={classNames("mb-3 text-sm font-semibold", themeColors.textClass)}>
               创作内容
             </h4>
 
             {loading ? (
               <div className="flex flex-col items-center justify-center py-8">
                 <Loader2
-                  className={classNames(
-                    "w-6 h-6 animate-spin",
-                    themeColors.iconTextClass,
-                  )}
+                  className={classNames("h-6 w-6 animate-spin", themeColors.iconTextClass)}
                 />
-                <p
-                  className={classNames(
-                    "text-xs mt-2",
-                    themeColors.secondaryTextClass,
-                  )}
-                >
+                <p className={classNames("mt-2 text-xs", themeColors.secondaryTextClass)}>
                   加载中...
                 </p>
               </div>
             ) : notes.length === 0 ? (
               <div
                 className={classNames(
-                  "flex flex-col items-center justify-center py-8 rounded-xl border-2 border-dashed",
-                  themeColors.cardBorderClass,
+                  "flex flex-col items-center justify-center rounded-xl border-2 border-dashed py-8",
+                  themeColors.cardBorderClass
                 )}
               >
-                <Inbox
-                  className={classNames(
-                    "w-10 h-10 mb-2",
-                    themeColors.secondaryTextClass,
-                  )}
-                />
-                <p
-                  className={classNames(
-                    "text-sm",
-                    themeColors.secondaryTextClass,
-                  )}
-                >
-                  暂无笔记
-                </p>
+                <Inbox className={classNames("mb-2 h-10 w-10", themeColors.secondaryTextClass)} />
+                <p className={classNames("text-sm", themeColors.secondaryTextClass)}>暂无笔记</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -537,13 +473,9 @@ const AppListView = memo(
                       note={note}
                       index={index}
                       onClick={() => onEditNote(note)}
-                      onAddToResources={(e) =>
-                        handleAddNoteToResources(e, note)
-                      }
-                      addingToResources={addingResourceNoteIds.includes(
-                        note.id,
-                      )}
-                      onDelete={(e) => handleDeleteNote(e, note)}
+                      onAddToResources={e => handleAddNoteToResources(e, note)}
+                      addingToResources={addingResourceNoteIds.includes(note.id)}
+                      onDelete={e => handleDeleteNote(e, note)}
                       onEditPPT={onEditPPT}
                       onEditReport={onEditReport}
                     />
@@ -560,62 +492,39 @@ const AppListView = memo(
 
           {/* 测验集区域 */}
           <div className="p-4">
-            <h4
-              className={classNames(
-                "text-sm font-semibold mb-3",
-                themeColors.textClass,
-              )}
-            >
+            <h4 className={classNames("mb-3 text-sm font-semibold", themeColors.textClass)}>
               测验集
             </h4>
 
             {loadingQuizSets ? (
               <div className="flex flex-col items-center justify-center py-8">
                 <Loader2
-                  className={classNames(
-                    "w-6 h-6 animate-spin",
-                    themeColors.iconTextClass,
-                  )}
+                  className={classNames("h-6 w-6 animate-spin", themeColors.iconTextClass)}
                 />
-                <p
-                  className={classNames(
-                    "text-xs mt-2",
-                    themeColors.secondaryTextClass,
-                  )}
-                >
+                <p className={classNames("mt-2 text-xs", themeColors.secondaryTextClass)}>
                   加载中...
                 </p>
               </div>
             ) : quizSets.length === 0 ? (
               <div
                 className={classNames(
-                  "flex flex-col items-center justify-center py-8 rounded-xl border-2 border-dashed",
-                  themeColors.cardBorderClass,
+                  "flex flex-col items-center justify-center rounded-xl border-2 border-dashed py-8",
+                  themeColors.cardBorderClass
                 )}
               >
-                <Inbox
-                  className={classNames(
-                    "w-10 h-10 mb-2",
-                    themeColors.secondaryTextClass,
-                  )}
-                />
-                <p
-                  className={classNames(
-                    "text-sm mb-3",
-                    themeColors.secondaryTextClass,
-                  )}
-                >
+                <Inbox className={classNames("mb-2 h-10 w-10", themeColors.secondaryTextClass)} />
+                <p className={classNames("mb-3 text-sm", themeColors.secondaryTextClass)}>
                   暂无测验集
                 </p>
                 <button
                   type="button"
                   onClick={onOpenQuiz}
                   className={classNames(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
-                    themeColors.primaryButtonClass,
+                    "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
+                    themeColors.primaryButtonClass
                   )}
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="h-3.5 w-3.5" />
                   创建测验
                 </button>
               </div>
@@ -634,22 +543,20 @@ const AppListView = memo(
                         exit={{ opacity: 0, x: 10 }}
                         transition={{ delay: index * 0.03 }}
                         className={classNames(
-                          "group p-4 rounded-xl border backdrop-blur-sm transition-all",
+                          "group rounded-xl border p-4 backdrop-blur-sm transition-all",
                           themeColors.cardBgClass,
                           themeColors.cardBorderClass,
-                          themeColors.hoverBorderClass,
+                          themeColors.hoverBorderClass
                         )}
                       >
                         {/* 标题行 */}
-                        <div className="flex items-start justify-between gap-3 mb-3">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="text-xl shrink-0">
-                              {quizSet.emoji}
-                            </span>
+                        <div className="mb-3 flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <span className="shrink-0 text-xl">{quizSet.emoji}</span>
                             <span
                               className={classNames(
-                                "text-sm font-semibold truncate",
-                                themeColors.activeTextClass,
+                                "truncate text-sm font-semibold",
+                                themeColors.activeTextClass
                               )}
                             >
                               {quizSet.name}
@@ -657,9 +564,9 @@ const AppListView = memo(
                           </div>
                           <span
                             className={classNames(
-                              "px-2 py-0.5 rounded-md text-xs font-medium shrink-0",
+                              "shrink-0 rounded-md px-2 py-0.5 text-xs font-medium",
                               themeColors.tagBgClass,
-                              themeColors.tagTextClass,
+                              themeColors.tagTextClass
                             )}
                           >
                             {quizSet.itemCount} 题
@@ -670,19 +577,19 @@ const AppListView = memo(
                         {(bestScore !== null || latestRecord) && (
                           <div
                             className={classNames(
-                              "flex items-center gap-4 text-xs mb-3 pl-0.5",
-                              themeColors.secondaryTextClass,
+                              "mb-3 flex items-center gap-4 pl-0.5 text-xs",
+                              themeColors.secondaryTextClass
                             )}
                           >
                             {bestScore !== null && (
                               <span className="flex items-center gap-1.5">
-                                <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                                <Trophy className="h-3.5 w-3.5 text-amber-500" />
                                 最高 {bestScore.toFixed(0)}%
                               </span>
                             )}
                             {latestRecord && (
                               <span className="flex items-center gap-1.5">
-                                <Clock className="w-3.5 h-3.5" />
+                                <Clock className="h-3.5 w-3.5" />
                                 {formatDate(latestRecord.createTime, true)}
                               </span>
                             )}
@@ -696,12 +603,12 @@ const AppListView = memo(
                             onClick={() => handleStartTest(quizSet)}
                             disabled={quizSet.itemCount === 0}
                             className={classNames(
-                              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                              "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
                               themeColors.primaryButtonClass,
-                              "disabled:opacity-50 disabled:cursor-not-allowed",
+                              "disabled:cursor-not-allowed disabled:opacity-50"
                             )}
                           >
-                            <Play className="w-3.5 h-3.5" />
+                            <Play className="h-3.5 w-3.5" />
                             测验
                           </button>
                           {(bestScore !== null || latestRecord !== null) && (
@@ -710,13 +617,13 @@ const AppListView = memo(
                               onClick={() => handleViewRecords(quizSet)}
                               title="查看测验记录"
                               className={classNames(
-                                "flex items-center justify-center w-7 h-7 rounded-lg border transition-all",
+                                "flex h-7 w-7 items-center justify-center rounded-lg border transition-all",
                                 themeColors.cardBorderClass,
                                 themeColors.hoverClass,
-                                themeColors.textClass,
+                                themeColors.textClass
                               )}
                             >
-                              <History className="w-4 h-4" />
+                              <History className="h-4 w-4" />
                             </button>
                           )}
                           <button
@@ -724,28 +631,28 @@ const AppListView = memo(
                             onClick={() => handleOpenEdit(quizSet)}
                             title="编辑测验集"
                             className={classNames(
-                              "flex items-center justify-center w-7 h-7 rounded-lg border transition-all",
+                              "flex h-7 w-7 items-center justify-center rounded-lg border transition-all",
                               "opacity-0 group-hover:opacity-100",
                               themeColors.cardBorderClass,
                               themeColors.hoverClass,
-                              themeColors.textClass,
+                              themeColors.textClass
                             )}
                           >
-                            <Pencil className="w-4 h-4" />
+                            <Pencil className="h-4 w-4" />
                           </button>
                           <button
                             type="button"
-                            onClick={(e) => handleDeleteQuizSet(e, quizSet)}
+                            onClick={e => handleDeleteQuizSet(e, quizSet)}
                             title="删除测验集"
                             className={classNames(
-                              "flex items-center justify-center w-7 h-7 rounded-lg border transition-all",
+                              "flex h-7 w-7 items-center justify-center rounded-lg border transition-all",
                               "opacity-0 group-hover:opacity-100",
                               "border-red-200 dark:border-red-500/30",
                               "hover:bg-red-50 dark:hover:bg-red-500/10",
-                              "text-red-500 dark:text-red-400",
+                              "text-red-500 dark:text-red-400"
                             )}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
                       </motion.div>
@@ -758,34 +665,25 @@ const AppListView = memo(
         </div>
 
         {/* 底部新建笔记按钮 */}
-        <div
-          className={classNames(
-            "p-4 border-t shrink-0",
-            themeColors.borderClass,
-          )}
-        >
+        <div className={classNames("shrink-0 border-t p-4", themeColors.borderClass)}>
           <button
             type="button"
             className={classNames(
-              "w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all border",
+              "flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-all",
               themeColors.cardBgClass,
               themeColors.cardBorderClass,
               themeColors.textClass,
-              themeColors.hoverClass,
+              themeColors.hoverClass
             )}
             onClick={onCreateNote}
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="h-4 w-4" />
             <span>新建笔记</span>
           </button>
         </div>
 
         {/* 测验弹窗 */}
-        <QuizTestModal
-          open={showTestModal}
-          quizSet={selectedQuizSet}
-          onClose={handleCloseTest}
-        />
+        <QuizTestModal open={showTestModal} quizSet={selectedQuizSet} onClose={handleCloseTest} />
 
         {/* 记录弹窗 */}
         <CustomModal
@@ -813,14 +711,10 @@ const AppListView = memo(
         </CustomModal>
 
         {/* 编辑弹窗 */}
-        <QuizEditModal
-          open={showEditModal}
-          quizSet={selectedQuizSet}
-          onClose={handleCloseEdit}
-        />
+        <QuizEditModal open={showEditModal} quizSet={selectedQuizSet} onClose={handleCloseEdit} />
       </div>
     );
-  }),
+  })
 );
 
 // 记录列表组件
@@ -836,17 +730,8 @@ const QuizRecordsList = memo((props: QuizRecordsListProps) => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <Loader2
-          className={classNames(
-            "w-8 h-8 animate-spin",
-            themeColors.iconTextClass,
-          )}
-        />
-        <p
-          className={classNames("text-sm mt-3", themeColors.secondaryTextClass)}
-        >
-          加载中...
-        </p>
+        <Loader2 className={classNames("h-8 w-8 animate-spin", themeColors.iconTextClass)} />
+        <p className={classNames("mt-3 text-sm", themeColors.secondaryTextClass)}>加载中...</p>
       </div>
     );
   }
@@ -854,15 +739,8 @@ const QuizRecordsList = memo((props: QuizRecordsListProps) => {
   if (records.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <Inbox
-          className={classNames(
-            "w-12 h-12 mb-3",
-            themeColors.secondaryTextClass,
-          )}
-        />
-        <p className={classNames("text-sm", themeColors.secondaryTextClass)}>
-          暂无测验记录
-        </p>
+        <Inbox className={classNames("mb-3 h-12 w-12", themeColors.secondaryTextClass)} />
+        <p className={classNames("text-sm", themeColors.secondaryTextClass)}>暂无测验记录</p>
       </div>
     );
   }
@@ -876,24 +754,24 @@ const QuizRecordsList = memo((props: QuizRecordsListProps) => {
 
   const levelConfig = {
     excellent: {
-      text: "text-emerald-600 dark:text-emerald-400",
-      bg: "bg-emerald-50 dark:bg-emerald-500/10",
-      border: "border-emerald-200 dark:border-emerald-500/30",
+      text: "text-status-success",
+      bg: "bg-[var(--th-success)]/10",
+      border: "border-[var(--th-success)]/30",
     },
     good: {
-      text: "text-blue-600 dark:text-blue-400",
-      bg: "bg-blue-50 dark:bg-blue-500/10",
-      border: "border-blue-200 dark:border-blue-500/30",
+      text: "text-status-info",
+      bg: "bg-[var(--th-info)]/10",
+      border: "border-[var(--th-info)]/30",
     },
     pass: {
-      text: "text-amber-600 dark:text-amber-400",
-      bg: "bg-amber-50 dark:bg-amber-500/10",
-      border: "border-amber-200 dark:border-amber-500/30",
+      text: "text-status-warning",
+      bg: "bg-[var(--th-warning)]/10",
+      border: "border-[var(--th-warning)]/30",
     },
     fail: {
-      text: "text-red-600 dark:text-red-400",
-      bg: "bg-red-50 dark:bg-red-500/10",
-      border: "border-red-200 dark:border-red-500/30",
+      text: "text-status-error",
+      bg: "bg-[var(--th-danger)]/10",
+      border: "border-[var(--th-danger)]/30",
     },
   };
 
@@ -912,48 +790,37 @@ const QuizRecordsList = memo((props: QuizRecordsListProps) => {
               exit={{ opacity: 0, x: 10 }}
               transition={{ delay: index * 0.05 }}
               className={classNames(
-                "flex items-center justify-between p-4 rounded-xl border",
+                "flex items-center justify-between rounded-xl border p-4",
                 config.bg,
-                config.border,
+                config.border
               )}
             >
               <div className="flex items-center gap-4">
-                <div
-                  className={classNames(
-                    "text-2xl font-bold tabular-nums",
-                    config.text,
-                  )}
-                >
+                <div className={classNames("text-2xl font-bold tabular-nums", config.text)}>
                   {record.score.toFixed(0)}%
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <span
                     className={classNames(
                       "flex items-center gap-1.5 text-sm font-medium",
-                      themeColors.activeTextClass,
+                      themeColors.activeTextClass
                     )}
                   >
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    <CheckCircle2 className="text-status-success h-4 w-4" />
                     {record.correctCount}/{record.totalCount} 题正确
                   </span>
                   <span
                     className={classNames(
                       "flex items-center gap-1.5 text-xs",
-                      themeColors.secondaryTextClass,
+                      themeColors.secondaryTextClass
                     )}
                   >
-                    <Clock className="w-3 h-3" />
-                    用时 {Math.floor(record.duration / 60)}分
-                    {record.duration % 60}秒
+                    <Clock className="h-3 w-3" />
+                    用时 {Math.floor(record.duration / 60)}分{record.duration % 60}秒
                   </span>
                 </div>
               </div>
-              <div
-                className={classNames(
-                  "text-xs font-medium",
-                  themeColors.secondaryTextClass,
-                )}
-              >
+              <div className={classNames("text-xs font-medium", themeColors.secondaryTextClass)}>
                 {formatDate(record.createTime, true)}
               </div>
             </motion.div>
@@ -998,9 +865,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
   const isReport = note.type === "report";
 
   // 检查是否正在生成
-  const isGenerating = useOutlineGenerationStore((state) =>
-    state.generatingNoteIds.has(note.id),
-  );
+  const isGenerating = useOutlineGenerationStore(state => state.generatingNoteIds.has(note.id));
 
   // 播客数据（仅播客类型笔记需要）
   const [podcast, setPodcast] = useState<IPodcast | null>(null);
@@ -1048,56 +913,51 @@ const NoteListItem = memo((props: NoteListItemProps) => {
         className={classNames(
           "group rounded-xl border backdrop-blur-sm transition-all",
           themeColors.cardBgClass,
-          themeColors.cardBorderClass,
+          themeColors.cardBorderClass
         )}
       >
         {/* 标题行 */}
         <div
           className={classNames(
-            "flex items-center gap-2.5 p-3 cursor-pointer",
+            "flex cursor-pointer items-center gap-2.5 p-3",
             themeColors.hoverClass,
-            "rounded-t-xl",
+            "rounded-t-xl"
           )}
           onClick={onClick}
         >
-          <Mic
-            className={classNames(
-              "w-4 h-4 shrink-0",
-              themeColors.iconTextClass,
-            )}
-          />
+          <Mic className={classNames("h-4 w-4 shrink-0", themeColors.iconTextClass)} />
           <span
             className={classNames(
-              "flex-1 text-sm font-medium truncate",
-              themeColors.activeTextClass,
+              "flex-1 truncate text-sm font-medium",
+              themeColors.activeTextClass
             )}
           >
             {note.title || "无标题播客"}
           </span>
           <button
             type="button"
-            className="flex items-center justify-center w-6 h-6 rounded-lg bg-transparent text-gray-400 hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-500/10 transition-all border-none cursor-pointer"
+            className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 transition-all hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-500/10"
             onClick={onAddToResources}
             title="添加到资源列表"
           >
             {addingToResources ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Plus className="w-4 h-4" />
+              <Plus className="h-4 w-4" />
             )}
           </button>
           <button
             type="button"
-            className="flex items-center justify-center w-6 h-6 rounded-lg bg-transparent text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 transition-all border-none cursor-pointer"
+            className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 transition-all hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
             onClick={onDelete}
             title="删除笔记"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="h-4 w-4" />
           </button>
         </div>
         {/* 播客播放器 */}
         {podcast && (
-          <div className="px-3 pb-3" onClick={(e) => e.stopPropagation()}>
+          <div className="px-3 pb-3" onClick={e => e.stopPropagation()}>
             <PodcastPlayer defaultPodcast={podcast} compact />
           </div>
         )}
@@ -1105,10 +965,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
           <div className="px-3 pb-3">
             <div className="flex items-center justify-center py-2">
               <Loader2
-                className={classNames(
-                  "w-4 h-4 animate-spin",
-                  themeColors.secondaryTextClass,
-                )}
+                className={classNames("h-4 w-4 animate-spin", themeColors.secondaryTextClass)}
               />
             </div>
           </div>
@@ -1126,54 +983,40 @@ const NoteListItem = memo((props: NoteListItemProps) => {
       exit={{ opacity: 0, x: 10 }}
       transition={{ delay: index * 0.03 }}
       className={classNames(
-        "group p-3 rounded-xl border backdrop-blur-sm cursor-pointer transition-all",
+        "group cursor-pointer rounded-xl border p-3 backdrop-blur-sm transition-all",
         themeColors.cardBgClass,
         themeColors.cardBorderClass,
-        themeColors.hoverBorderClass,
+        themeColors.hoverBorderClass
       )}
       onClick={onClick}
     >
       <div className="flex items-center gap-2.5">
         {isGenerating ? (
-          <Loader2
-            className={classNames(
-              "w-4 h-4 shrink-0 animate-spin text-blue-500",
-            )}
-          />
+          <Loader2 className={classNames("h-4 w-4 shrink-0 animate-spin text-blue-500")} />
         ) : (
-          <NoteIcon
-            className={classNames(
-              "w-4 h-4 shrink-0",
-              themeColors.secondaryTextClass,
-            )}
-          />
+          <NoteIcon className={classNames("h-4 w-4 shrink-0", themeColors.secondaryTextClass)} />
         )}
         <span
-          className={classNames(
-            "flex-1 text-sm font-medium truncate",
-            themeColors.activeTextClass,
-          )}
+          className={classNames("flex-1 truncate text-sm font-medium", themeColors.activeTextClass)}
         >
           {note.title || "无标题笔记"}
           {isGenerating && (
-            <span className="ml-2 text-xs text-blue-500 font-normal">
-              生成中...
-            </span>
+            <span className="ml-2 text-xs font-normal text-blue-500">生成中...</span>
           )}
         </span>
-        <div className="relative shrink-0 flex items-center gap-1">
+        <div className="relative flex shrink-0 items-center gap-1">
           {/* PPT 类型显示 AI 编辑按钮 */}
           {isPPT && onEditPPT && !isGenerating && (
             <button
               type="button"
-              className="flex items-center justify-center px-2 h-6 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-500/10 text-gray-400 hover:text-blue-500 transition-all opacity-0 group-hover:opacity-100 border-none bg-transparent cursor-pointer text-xs font-medium"
-              onClick={(e) => {
+              className="flex h-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent px-2 text-xs font-medium text-gray-400 opacity-0 transition-all hover:bg-blue-50 hover:text-blue-500 group-hover:opacity-100 dark:hover:bg-blue-500/10"
+              onClick={e => {
                 e.stopPropagation();
                 onEditPPT(note);
               }}
               title="AI 编辑"
             >
-              <Sparkles className="w-3.5 h-3.5 mr-1" />
+              <Sparkles className="mr-1 h-3.5 w-3.5" />
               AI 编辑
             </button>
           )}
@@ -1181,14 +1024,14 @@ const NoteListItem = memo((props: NoteListItemProps) => {
           {isReport && onEditReport && !isGenerating && (
             <button
               type="button"
-              className="flex items-center justify-center px-2 h-6 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-500/10 text-gray-400 hover:text-emerald-500 transition-all opacity-0 group-hover:opacity-100 border-none bg-transparent cursor-pointer text-xs font-medium"
-              onClick={(e) => {
+              className="flex h-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent px-2 text-xs font-medium text-gray-400 opacity-0 transition-all hover:bg-[var(--th-accent-soft)] hover:text-[var(--th-active-text)] group-hover:opacity-100"
+              onClick={e => {
                 e.stopPropagation();
                 onEditReport(note);
               }}
               title="AI 编辑"
             >
-              <Sparkles className="w-3.5 h-3.5 mr-1" />
+              <Sparkles className="mr-1 h-3.5 w-3.5" />
               AI 编辑
             </button>
           )}
@@ -1196,9 +1039,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
             className={classNames(
               "text-xs transition-opacity",
               themeColors.secondaryTextClass,
-              (isPPT && onEditPPT) || (isReport && onEditReport)
-                ? "group-hover:opacity-0"
-                : "",
+              (isPPT && onEditPPT) || (isReport && onEditReport) ? "group-hover:opacity-0" : ""
             )}
           >
             {formatDate(note.updateTime, true)}
@@ -1206,25 +1047,25 @@ const NoteListItem = memo((props: NoteListItemProps) => {
           {!isGenerating && (
             <button
               type="button"
-              className="flex items-center justify-center w-6 h-6 rounded-lg bg-transparent text-gray-400 hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-500/10 transition-all border-none cursor-pointer"
+              className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 transition-all hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-500/10"
               onClick={onAddToResources}
               title="添加到资源列表"
             >
               {addingToResources ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Plus className="w-4 h-4" />
+                <Plus className="h-4 w-4" />
               )}
             </button>
           )}
           {!isGenerating && (
             <button
               type="button"
-              className="flex items-center justify-center w-6 h-6 rounded-lg bg-transparent text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 transition-all border-none cursor-pointer"
+              className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 transition-all hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
               onClick={onDelete}
               title="删除笔记"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="h-4 w-4" />
             </button>
           )}
         </div>

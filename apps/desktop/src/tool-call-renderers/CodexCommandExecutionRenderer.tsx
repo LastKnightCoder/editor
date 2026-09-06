@@ -9,9 +9,7 @@ const getRecord = (value: unknown): Record<string, unknown> | null =>
     ? (value as Record<string, unknown>)
     : null;
 
-const getRenderPayload = (
-  metadata?: Record<string, unknown>,
-): Record<string, unknown> | null => {
+const getRenderPayload = (metadata?: Record<string, unknown>): Record<string, unknown> | null => {
   const render = getRecord(metadata?.render);
   if (render?.rendererKey !== CODEX_COMMAND_RENDERER_KEY) {
     return null;
@@ -19,10 +17,7 @@ const getRenderPayload = (
   return getRecord(render.payload);
 };
 
-const getStringValue = (
-  record: Record<string, unknown> | null,
-  keys: string[],
-): string => {
+const getStringValue = (record: Record<string, unknown> | null, keys: string[]): string => {
   if (!record) {
     return "";
   }
@@ -51,7 +46,7 @@ const formatInputFallback = (input: unknown) => {
 
 const getCommandInfo = (
   execution: ToolCallCustomRendererProps["execution"],
-  parsedInput: unknown,
+  parsedInput: unknown
 ) => {
   const metadata = execution.metadata || {};
   const payload = getRenderPayload(metadata);
@@ -91,9 +86,7 @@ const getCommandInfo = (
   return { command, cwd, shell };
 };
 
-const getStatusLabel = (
-  status: ToolCallCustomRendererProps["execution"]["status"],
-) => {
+const getStatusLabel = (status: ToolCallCustomRendererProps["execution"]["status"]) => {
   switch (status) {
     case "pending":
       return "等待执行";
@@ -121,21 +114,20 @@ const CodexCommandExecutionRenderer = ({
   const [copied, setCopied] = useState(false);
   const commandInfo = useMemo(
     () => getCommandInfo(execution, parsedInput),
-    [execution, parsedInput],
+    [execution, parsedInput]
   );
 
   if (!payload) {
     return renderDefault();
   }
 
-  const isRunning =
-    execution.status === "executing" || execution.status === "retrying";
+  const isRunning = execution.status === "executing" || execution.status === "retrying";
   const isFailed = execution.status === "failed";
   const statusClass = isFailed
-    ? "text-rose-500"
+    ? "text-status-error"
     : isRunning
-      ? "text-sky-500"
-      : "text-emerald-500";
+      ? "text-status-info"
+      : "text-status-success";
   const outputText = execution.output || execution.error || "无输出";
 
   const copyCommand = () => {
@@ -148,19 +140,15 @@ const CodexCommandExecutionRenderer = ({
   };
 
   return (
-    <div className="my-3 w-full max-w-full min-w-0 animate-fadeIn">
+    <div className="animate-fadeIn my-3 w-full min-w-0 max-w-full">
       <button
         type="button"
         className={`flex max-w-full items-center gap-2 text-left text-sm font-medium transition ${
-          isDark
-            ? "text-slate-300 hover:text-slate-100"
-            : "text-slate-500 hover:text-slate-800"
+          isDark ? "text-slate-300 hover:text-slate-100" : "text-slate-500 hover:text-slate-800"
         }`}
-        onClick={() => setExpanded((value) => !value)}
+        onClick={() => setExpanded(value => !value)}
       >
-        <span
-          className={`flex h-5 w-5 flex-none items-center justify-center ${statusClass}`}
-        >
+        <span className={`flex h-5 w-5 flex-none items-center justify-center ${statusClass}`}>
           {isRunning ? (
             <Loader2 size={15} className="animate-spin" />
           ) : isFailed ? (
@@ -169,13 +157,9 @@ const CodexCommandExecutionRenderer = ({
             <CheckCircle size={15} />
           )}
         </span>
-        <span className="truncate">
-          {isRunning ? "正在运行命令" : "已运行命令"}
-        </span>
+        <span className="truncate">{isRunning ? "正在运行命令" : "已运行命令"}</span>
         <span
-          className={`truncate text-xs font-normal ${
-            isDark ? "text-slate-500" : "text-slate-400"
-          }`}
+          className={`truncate text-xs font-normal ${isDark ? "text-slate-500" : "text-slate-400"}`}
         >
           {commandInfo.command || "未收到命令详情"}
         </span>
@@ -188,9 +172,7 @@ const CodexCommandExecutionRenderer = ({
       {expanded ? (
         <div
           className={`relative mt-3 overflow-hidden rounded-xl px-4 pb-12 pt-3.5 ${
-            isDark
-              ? "bg-zinc-900/80 text-slate-200"
-              : "bg-zinc-100 text-zinc-800"
+            isDark ? "bg-zinc-900/80 text-slate-200" : "bg-zinc-100 text-zinc-800"
           }`}
         >
           <div className="mb-5 flex items-start justify-between gap-3">
@@ -202,10 +184,8 @@ const CodexCommandExecutionRenderer = ({
               >
                 Shell
               </div>
-              <pre className="m-0 whitespace-pre-wrap wrap-break-word font-mono text-sm leading-7">
-                <span className={isDark ? "text-slate-500" : "text-zinc-500"}>
-                  ${" "}
-                </span>
+              <pre className="wrap-break-word m-0 whitespace-pre-wrap font-mono text-sm leading-7">
+                <span className={isDark ? "text-slate-500" : "text-zinc-500"}>$ </span>
                 {commandInfo.command || "未收到命令详情"}
               </pre>
             </div>
@@ -224,7 +204,7 @@ const CodexCommandExecutionRenderer = ({
           </div>
 
           <pre
-            className={`m-0 max-h-72 overflow-auto whitespace-pre-wrap wrap-break-word font-mono text-sm leading-7 ${
+            className={`wrap-break-word m-0 max-h-72 overflow-auto whitespace-pre-wrap font-mono text-sm leading-7 ${
               outputText === "无输出"
                 ? isDark
                   ? "text-slate-500"
@@ -243,9 +223,7 @@ const CodexCommandExecutionRenderer = ({
                 isDark ? "text-slate-500" : "text-zinc-500"
               }`}
             >
-              {commandInfo.cwd ? (
-                <span className="font-mono">cwd: {commandInfo.cwd}</span>
-              ) : null}
+              {commandInfo.cwd ? <span className="font-mono">cwd: {commandInfo.cwd}</span> : null}
               {commandInfo.shell ? (
                 <span className="font-mono">shell: {commandInfo.shell}</span>
               ) : null}

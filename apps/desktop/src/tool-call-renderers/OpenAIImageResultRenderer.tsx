@@ -27,9 +27,7 @@ interface OpenAIImageRenderPayload {
   parameters: Record<string, unknown>;
 }
 
-const getPayload = (
-  metadata?: Record<string, unknown>,
-): OpenAIImageRenderPayload | null => {
+const getPayload = (metadata?: Record<string, unknown>): OpenAIImageRenderPayload | null => {
   const render =
     metadata?.render && typeof metadata.render === "object"
       ? (metadata.render as Record<string, unknown>)
@@ -64,7 +62,7 @@ const CopyButton = ({ url }: { url: string }) => {
     <button
       type="button"
       title={copied ? "已复制" : "复制链接"}
-      className={`${overlayBtnClass} ${copied ? "!text-emerald-400" : ""}`}
+      className={`${overlayBtnClass} ${copied ? "text-status-success" : ""}`}
       onClick={handleCopy}
     >
       {copied ? <Check size={14} /> : <Copy size={14} />}
@@ -105,7 +103,7 @@ const ImageCard = ({
           type="button"
           title="编辑"
           className={overlayBtnClass}
-          onClick={(e) => {
+          onClick={e => {
             e.stopPropagation();
             onEdit(image);
           }}
@@ -120,9 +118,8 @@ const ImageCard = ({
 
 const buildHiddenEditContext = (
   image: OpenAIImageRenderPayload["images"][number],
-  prompt: string,
-) =>
-  `请调用 edit_image 工具基于这张图片继续编辑：${image.url}\n\n原始生成提示：${prompt}`;
+  prompt: string
+) => `请调用 edit_image 工具基于这张图片继续编辑：${image.url}\n\n原始生成提示：${prompt}`;
 
 const OpenAIImageResultRenderer = ({
   execution,
@@ -159,9 +156,7 @@ const OpenAIImageResultRenderer = ({
             action={
               <div className="flex items-center gap-1.5">
                 {!single ? (
-                  <ToolBadge isDark={isDark}>
-                    {payload.images.length} 张图片
-                  </ToolBadge>
+                  <ToolBadge isDark={isDark}>{payload.images.length} 张图片</ToolBadge>
                 ) : null}
                 <button
                   type="button"
@@ -171,7 +166,7 @@ const OpenAIImageResultRenderer = ({
                       ? "text-slate-400 hover:bg-white/10 hover:text-slate-200"
                       : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                   }`}
-                  onClick={() => setExpanded((v) => !v)}
+                  onClick={() => setExpanded(v => !v)}
                 >
                   <ChevronDown
                     size={15}
@@ -189,9 +184,7 @@ const OpenAIImageResultRenderer = ({
         </ToolCardHeader>
         {expanded ? (
           <ToolCardBody>
-            <div
-              className={single ? "" : "grid grid-cols-1 gap-4 sm:grid-cols-2"}
-            >
+            <div className={single ? "" : "grid grid-cols-1 gap-4 sm:grid-cols-2"}>
               {payload.images.map((image, index) => (
                 <ImageCard
                   key={`${image.url}-${index}`}

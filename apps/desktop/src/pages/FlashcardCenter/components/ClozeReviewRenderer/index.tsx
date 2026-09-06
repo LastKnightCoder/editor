@@ -14,7 +14,7 @@ interface ClozeReviewRendererProps {
 const checkAnswer = (
   userAnswer: string,
   correctAnswer: string,
-  alternatives?: string[],
+  alternatives?: string[]
 ): boolean => {
   const normalize = (str: string) => str.trim().toLowerCase();
   const userNorm = normalize(userAnswer);
@@ -23,16 +23,14 @@ const checkAnswer = (
   if (userNorm === correctNorm) return true;
 
   if (alternatives && alternatives.length > 0) {
-    return alternatives.some((alt) => normalize(alt) === userNorm);
+    return alternatives.some(alt => normalize(alt) === userNorm);
   }
 
   return false;
 };
 
 // 辅助函数：从 richContent 提取所有空格
-const extractBlanksFromContent = (
-  richContent: Descendant[],
-): FlashcardBlankElement[] => {
+const extractBlanksFromContent = (richContent: Descendant[]): FlashcardBlankElement[] => {
   const blanks: FlashcardBlankElement[] = [];
 
   const traverse = (node: any) => {
@@ -62,11 +60,7 @@ const ClozeReviewRenderer = ({
     if (node.type === "flashcard-blank") {
       const element = node as FlashcardBlankElement;
       const userAnswer = userAnswers[element.blankId] || "";
-      const isCorrect = checkAnswer(
-        userAnswer,
-        element.answer,
-        element.alternativeAnswers,
-      );
+      const isCorrect = checkAnswer(userAnswer, element.answer, element.alternativeAnswers);
 
       return (
         <span
@@ -81,9 +75,9 @@ const ClozeReviewRenderer = ({
           <input
             type="text"
             value={userAnswer}
-            onChange={(e) => {
+            onChange={e => {
               const newValue = e.target.value;
-              setUserAnswers((prev) => ({
+              setUserAnswers(prev => ({
                 ...prev,
                 [element.blankId]: newValue,
               }));
@@ -101,8 +95,8 @@ const ClozeReviewRenderer = ({
               border: "none",
               borderBottom: revealed
                 ? isCorrect
-                  ? "2px solid #10b981"
-                  : "2px solid #ef4444"
+                  ? "2px solid var(--th-success)"
+                  : "2px solid var(--th-danger)"
                 : `2px solid ${isDark ? "#475569" : "#cbd5e1"}`,
               borderRadius: "2px",
               backgroundColor:
@@ -121,24 +115,20 @@ const ClozeReviewRenderer = ({
               fontWeight: revealed && !isCorrect ? "500" : "inherit",
               fieldSizing: "content" as any,
             }}
-            onFocus={(e) => {
+            onFocus={e => {
               if (!revealed && interactive) {
                 e.target.style.backgroundColor = isDark
                   ? "rgba(255, 255, 255, 0.05)"
                   : "rgba(0, 0, 0, 0.04)";
-                e.target.style.borderBottomColor = isDark
-                  ? "#60a5fa"
-                  : "#3b82f6";
+                e.target.style.borderBottomColor = "var(--th-border-focus)";
               }
             }}
-            onBlur={(e) => {
+            onBlur={e => {
               if (!revealed && interactive) {
                 e.target.style.backgroundColor = isDark
                   ? "rgba(255, 255, 255, 0.03)"
                   : "rgba(0, 0, 0, 0.02)";
-                e.target.style.borderBottomColor = isDark
-                  ? "#475569"
-                  : "#cbd5e1";
+                e.target.style.borderBottomColor = isDark ? "#475569" : "#cbd5e1";
               }
             }}
           />
@@ -147,15 +137,15 @@ const ClozeReviewRenderer = ({
               className="correct-answer-hint"
               style={{
                 marginLeft: "8px",
-                color: "#10b981",
+                color: "var(--th-success)",
                 fontSize: "inherit",
                 fontWeight: "500",
                 backgroundColor: isDark
-                  ? "rgba(16, 185, 129, 0.15)"
-                  : "rgba(16, 185, 129, 0.08)",
+                  ? "color-mix(in srgb, var(--th-success) 15%, transparent)"
+                  : "color-mix(in srgb, var(--th-success) 8%, transparent)",
                 padding: "2px 8px",
                 borderRadius: "4px",
-                border: `1px solid ${isDark ? "rgba(16, 185, 129, 0.3)" : "rgba(16, 185, 129, 0.2)"}`,
+                border: `1px solid color-mix(in srgb, var(--th-success) ${isDark ? 30 : 20}%, transparent)`,
               }}
             >
               {element.answer}
@@ -203,12 +193,8 @@ const ClozeReviewRenderer = ({
     if (!revealed) return null;
 
     const blanks = extractBlanksFromContent(richContent);
-    const correct = blanks.filter((blank) =>
-      checkAnswer(
-        userAnswers[blank.blankId] || "",
-        blank.answer,
-        blank.alternativeAnswers,
-      ),
+    const correct = blanks.filter(blank =>
+      checkAnswer(userAnswers[blank.blankId] || "", blank.answer, blank.alternativeAnswers)
     ).length;
 
     return { total: blanks.length, correct };
@@ -227,15 +213,13 @@ const ClozeReviewRenderer = ({
             marginTop: "16px",
             padding: "12px",
             borderRadius: "8px",
-            backgroundColor: isDark
-              ? "rgba(255, 255, 255, 0.05)"
-              : "rgba(0, 0, 0, 0.02)",
+            backgroundColor: isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.02)",
             fontSize: "13px",
             color: isDark ? "#94a3b8" : "#64748b",
           }}
         >
-          正确率：{stats.correct} / {stats.total} (
-          {Math.round((stats.correct / stats.total) * 100)}%)
+          正确率：{stats.correct} / {stats.total} ({Math.round((stats.correct / stats.total) * 100)}
+          %)
         </div>
       )}
     </div>

@@ -14,23 +14,13 @@ import AIJudgementResultView, {
   AIJudgementLoading,
   AIJudgementError,
 } from "./components/AIJudgementResult";
-import {
-  CheckCircle2,
-  XCircle,
-  Circle,
-  HelpCircle,
-  Check,
-  X,
-} from "lucide-react";
+import { CheckCircle2, XCircle, Circle, HelpCircle, Check, X } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 
 interface ReviewModalProps {
   open: boolean;
   reviewQueue: Flashcard[];
-  onSubmitReview: (
-    cardId: number,
-    rating: FlashcardReviewRating,
-  ) => Promise<void>;
+  onSubmitReview: (cardId: number, rating: FlashcardReviewRating) => Promise<void>;
   onClose: () => void;
 }
 
@@ -54,9 +44,7 @@ interface SlateNode {
 }
 
 // Helper function to extract blanks from richContent
-const extractBlanksFromContent = (
-  richContent: Descendant[],
-): FlashcardBlankElement[] => {
+const extractBlanksFromContent = (richContent: Descendant[]): FlashcardBlankElement[] => {
   const blanks: FlashcardBlankElement[] = [];
 
   const traverse = (node: SlateNode) => {
@@ -68,7 +56,7 @@ const extractBlanksFromContent = (
     }
   };
 
-  richContent.forEach((node) => traverse(node as SlateNode));
+  richContent.forEach(node => traverse(node as SlateNode));
   return blanks;
 };
 
@@ -138,33 +126,23 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
 
     switch (currentCard.type) {
       case "single-choice": {
-        const correctOption = data.options?.find((opt) => opt.isCorrect);
+        const correctOption = data.options?.find(opt => opt.isCorrect);
         return answerState.userAnswer.singleChoice === correctOption?.id;
       }
       case "multiple-choice": {
         const correctIds = new Set(
-          data.options?.filter((opt) => opt.isCorrect).map((opt) => opt.id) ??
-            [],
+          data.options?.filter(opt => opt.isCorrect).map(opt => opt.id) ?? []
         );
         const userIds = new Set(answerState.userAnswer.multipleChoice ?? []);
-        return (
-          correctIds.size === userIds.size &&
-          [...correctIds].every((id) => userIds.has(id))
-        );
+        return correctIds.size === userIds.size && [...correctIds].every(id => userIds.has(id));
       }
       case "cloze": {
         const blanks = extractBlanksFromContent(currentCard.prompt);
-        return blanks.every((blank) => {
-          const userAnswer = answerState.userAnswer.cloze?.[blank.blankId]
-            ?.trim()
-            .toLowerCase();
+        return blanks.every(blank => {
+          const userAnswer = answerState.userAnswer.cloze?.[blank.blankId]?.trim().toLowerCase();
           const correctAnswer = blank.answer.trim().toLowerCase();
-          const alternatives =
-            blank.alternativeAnswers?.map((a) => a.trim().toLowerCase()) ?? [];
-          return (
-            userAnswer === correctAnswer ||
-            alternatives.includes(userAnswer ?? "")
-          );
+          const alternatives = blank.alternativeAnswers?.map(a => a.trim().toLowerCase()) ?? [];
+          return userAnswer === correctAnswer || alternatives.includes(userAnswer ?? "");
         });
       }
       case "qa": {
@@ -180,18 +158,14 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
 
   const handleSubmitAnswer = () => {
     const isCorrect = checkAnswer();
-    setAnswerState((prev) => ({
+    setAnswerState(prev => ({
       ...prev,
       submitted: true,
       isCorrect,
     }));
 
     // 对 QA 类型触发 AI 评判（如果已配置）
-    if (
-      currentCard?.type === "qa" &&
-      isJudgementConfigured &&
-      answerState.userAnswer.qa
-    ) {
+    if (currentCard?.type === "qa" && isJudgementConfigured && answerState.userAnswer.qa) {
       judge(answerState.userAnswer.qa, currentCard);
     }
   };
@@ -204,7 +178,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
       await onSubmitReview(currentCard.id, rating);
 
       if (currentIndex < totalCards - 1) {
-        setCurrentIndex((prev) => prev + 1);
+        setCurrentIndex(prev => prev + 1);
       } else {
         onClose();
       }
@@ -244,7 +218,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
         const isMultiple = currentCard.type === "multiple-choice";
         return (
           <div className="space-y-3">
-            {(data.options ?? []).map((option) => {
+            {(data.options ?? []).map(option => {
               const isSelected = isMultiple
                 ? answerState.userAnswer.multipleChoice?.includes(option.id)
                 : answerState.userAnswer.singleChoice === option.id;
@@ -252,24 +226,24 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
               const showResult = answerState.submitted;
 
               let cardStyle =
-                "border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-gray-50 dark:hover:bg-zinc-800/50";
+                "border-gray-200 dark:border-gray-700 hover:border-[var(--th-border-hover)] hover:bg-gray-50 dark:hover:bg-zinc-800/50";
               let iconColor =
-                "text-gray-300 dark:text-gray-600 group-hover:text-blue-400";
+                "text-gray-300 dark:text-gray-600 group-hover:text-[var(--th-accent)]";
 
               if (!showResult) {
                 if (isSelected) {
                   cardStyle =
-                    "border-blue-500 bg-blue-50 dark:bg-blue-500/10 shadow-sm shadow-blue-500/10";
-                  iconColor = "text-blue-500";
+                    "border-[var(--th-border-focus)] bg-[var(--th-accent-soft)] shadow-sm";
+                  iconColor = "text-[var(--th-accent)]";
                 }
               } else {
                 if (isCorrect) {
                   cardStyle =
-                    "border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 ring-1 ring-emerald-500/20";
-                  iconColor = "text-emerald-500";
+                    "border-[var(--th-success)] bg-[var(--th-success)]/10 ring-1 ring-[var(--th-success)]/20";
+                  iconColor = "text-status-success";
                 } else if (isSelected && !isCorrect) {
-                  cardStyle = "border-rose-500 bg-rose-50 dark:bg-rose-500/10";
-                  iconColor = "text-rose-500";
+                  cardStyle = "border-[var(--th-danger)] bg-[var(--th-danger)]/10";
+                  iconColor = "text-status-error";
                 } else {
                   cardStyle = "border-gray-100 dark:border-gray-800 opacity-60";
                   iconColor = "text-gray-300 dark:text-gray-600";
@@ -282,19 +256,18 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                   disabled={answerState.submitted}
                   onClick={() => {
                     if (isMultiple) {
-                      const current =
-                        answerState.userAnswer.multipleChoice ?? [];
-                      setAnswerState((prev) => ({
+                      const current = answerState.userAnswer.multipleChoice ?? [];
+                      setAnswerState(prev => ({
                         ...prev,
                         userAnswer: {
                           ...prev.userAnswer,
                           multipleChoice: current.includes(option.id)
-                            ? current.filter((id) => id !== option.id)
+                            ? current.filter(id => id !== option.id)
                             : [...current, option.id],
                         },
                       }));
                     } else {
-                      setAnswerState((prev) => ({
+                      setAnswerState(prev => ({
                         ...prev,
                         userAnswer: {
                           ...prev.userAnswer,
@@ -304,40 +277,34 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                     }
                   }}
                   className={classNames(
-                    "group w-full text-left px-5 py-4 rounded-xl border-2 transition-all duration-200 flex items-start gap-3",
+                    "group flex w-full items-start gap-3 rounded-xl border-2 px-5 py-4 text-left transition-all duration-200",
                     cardStyle,
-                    { "cursor-default": answerState.submitted },
+                    { "cursor-default": answerState.submitted }
                   )}
                 >
-                  <div className="shrink-0 mt-0.5">
+                  <div className="mt-0.5 shrink-0">
                     {showResult ? (
                       isCorrect || (isSelected && !isCorrect) ? (
                         isCorrect ? (
-                          <CheckCircle2 className={`w-5 h-5 ${iconColor}`} />
+                          <CheckCircle2 className={`h-5 w-5 ${iconColor}`} />
                         ) : (
-                          <XCircle className={`w-5 h-5 ${iconColor}`} />
+                          <XCircle className={`h-5 w-5 ${iconColor}`} />
                         )
                       ) : (
-                        <Circle className={`w-5 h-5 ${iconColor}`} />
+                        <Circle className={`h-5 w-5 ${iconColor}`} />
                       )
                     ) : isSelected ? (
-                      <CheckCircle2 className={`w-5 h-5 ${iconColor}`} />
+                      <CheckCircle2 className={`h-5 w-5 ${iconColor}`} />
                     ) : (
-                      <Circle className={`w-5 h-5 ${iconColor}`} />
+                      <Circle className={`h-5 w-5 ${iconColor}`} />
                     )}
                   </div>
                   <span
-                    className={classNames(
-                      "text-base leading-relaxed transition-colors",
-                      {
-                        "text-gray-900 dark:text-gray-100 font-medium":
-                          !showResult || isCorrect,
-                        "text-gray-500 dark:text-gray-400":
-                          showResult && !isSelected && !isCorrect,
-                        "text-rose-600 dark:text-rose-400":
-                          showResult && isSelected && !isCorrect,
-                      },
-                    )}
+                    className={classNames("text-base leading-relaxed transition-colors", {
+                      "font-medium text-gray-900 dark:text-gray-100": !showResult || isCorrect,
+                      "text-gray-500 dark:text-gray-400": showResult && !isSelected && !isCorrect,
+                      "text-rose-600 dark:text-rose-400": showResult && isSelected && !isCorrect,
+                    })}
                   >
                     {option.label}
                   </span>
@@ -357,7 +324,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
             isDark={isDark}
             interactive={!answerState.submitted}
             onBlankChange={(blankId, value) => {
-              setAnswerState((prev) => ({
+              setAnswerState(prev => ({
                 ...prev,
                 userAnswer: {
                   ...prev.userAnswer,
@@ -375,24 +342,24 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
             <textarea
               disabled={answerState.submitted}
               value={answerState.userAnswer.qa ?? ""}
-              onChange={(e) => {
-                setAnswerState((prev) => ({
+              onChange={e => {
+                setAnswerState(prev => ({
                   ...prev,
                   userAnswer: { ...prev.userAnswer, qa: e.target.value },
                 }));
               }}
               placeholder="请输入你的答案..."
               className={classNames(
-                "w-full px-5 py-4 rounded-xl border-2 min-h-[160px] resize-none transition-all text-base leading-relaxed",
-                "focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10",
+                "min-h-[160px] w-full resize-none rounded-xl border-2 px-5 py-4 text-base leading-relaxed transition-all",
+                "focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10",
                 isDark
-                  ? "bg-zinc-800 border-gray-700 text-gray-100 placeholder-gray-500"
-                  : "bg-white border-gray-200 text-gray-900 placeholder-gray-400",
-                { "opacity-60 cursor-not-allowed": answerState.submitted },
+                  ? "border-gray-700 bg-zinc-800 text-gray-100 placeholder-gray-500"
+                  : "border-gray-200 bg-white text-gray-900 placeholder-gray-400",
+                { "cursor-not-allowed opacity-60": answerState.submitted }
               )}
             />
             {answerState.submitted && (
-              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="animate-in fade-in slide-in-from-bottom-2 space-y-4 duration-300">
                 {/* AI 评判结果 */}
                 {judgementStatus === "loading" && <AIJudgementLoading />}
                 {judgementStatus === "error" && (
@@ -406,28 +373,23 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                   />
                 )}
                 {judgementStatus === "success" && judgementResult && (
-                  <AIJudgementResultView
-                    result={judgementResult}
-                    isDark={isDark}
-                  />
+                  <AIJudgementResultView result={judgementResult} isDark={isDark} />
                 )}
 
                 {/* 参考答案 */}
                 <div
                   className={classNames(
-                    "p-5 rounded-xl border-l-4 shadow-sm",
+                    "rounded-xl border-l-4 p-5 shadow-sm",
                     isDark
-                      ? "bg-zinc-800 border-emerald-500/50"
-                      : "bg-white border-emerald-500 shadow-gray-100",
+                      ? "border-[var(--th-success)]/50 bg-zinc-800"
+                      : "border-[var(--th-success)] bg-white shadow-gray-100"
                   )}
                 >
-                  <p className="text-sm font-bold mb-2 flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-                    <CheckCircle2 className="w-4 h-4" /> 参考答案
+                  <p className="text-status-success mb-2 flex items-center gap-2 text-sm font-bold">
+                    <CheckCircle2 className="h-4 w-4" /> 参考答案
                   </p>
                   <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
-                    <p className="whitespace-pre-wrap">
-                      {data.answer || "未设置参考答案"}
-                    </p>
+                    <p className="whitespace-pre-wrap">{data.answer || "未设置参考答案"}</p>
                   </div>
                 </div>
               </div>
@@ -443,13 +405,11 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
               {
                 value: true,
                 label: "正确",
-                color: "emerald",
                 icon: CheckCircle2,
               },
-              { value: false, label: "错误", color: "rose", icon: XCircle },
-            ].map((option) => {
-              const isSelected =
-                answerState.userAnswer.boolean === option.value;
+              { value: false, label: "错误", icon: XCircle },
+            ].map(option => {
+              const isSelected = answerState.userAnswer.boolean === option.value;
               const isCorrect = data.booleanAnswer === option.value;
               const showResult = answerState.submitted;
               const Icon = option.icon;
@@ -460,19 +420,19 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
 
               if (!showResult) {
                 if (isSelected) {
-                  btnClass = `border-${option.color}-500 bg-${option.color}-50 dark:bg-${option.color}-500/10 shadow-sm`;
-                  textClass = `text-${option.color}-600 dark:text-${option.color}-400`;
+                  btnClass = "border-[var(--th-border-focus)] bg-[var(--th-accent-soft)] shadow-sm";
+                  textClass = "text-[var(--th-active-text)]";
                 } else {
                   btnClass += " hover:bg-gray-50 dark:hover:bg-zinc-700/50";
                 }
               } else {
                 if (isCorrect) {
                   btnClass =
-                    "border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 ring-1 ring-emerald-500/20";
-                  textClass = "text-emerald-600 dark:text-emerald-400";
+                    "border-[var(--th-success)] bg-[var(--th-success)]/10 ring-1 ring-[var(--th-success)]/20";
+                  textClass = "text-status-success";
                 } else if (isSelected && !isCorrect) {
-                  btnClass = "border-rose-500 bg-rose-50 dark:bg-rose-500/10";
-                  textClass = "text-rose-600 dark:text-rose-400";
+                  btnClass = "border-[var(--th-danger)] bg-[var(--th-danger)]/10";
+                  textClass = "text-status-error";
                 } else {
                   btnClass = "border-gray-100 dark:border-gray-800 opacity-50";
                 }
@@ -483,19 +443,19 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                   key={String(option.value)}
                   disabled={answerState.submitted}
                   onClick={() => {
-                    setAnswerState((prev) => ({
+                    setAnswerState(prev => ({
                       ...prev,
                       userAnswer: { ...prev.userAnswer, boolean: option.value },
                     }));
                   }}
                   className={classNames(
-                    "flex flex-col items-center justify-center gap-2 px-6 py-8 rounded-xl border-2 font-bold transition-all duration-200",
+                    "flex flex-col items-center justify-center gap-2 rounded-xl border-2 px-6 py-8 font-bold transition-all duration-200",
                     btnClass,
                     textClass,
-                    { "cursor-default": answerState.submitted },
+                    { "cursor-default": answerState.submitted }
                   )}
                 >
-                  <Icon className="w-8 h-8 mb-1" />
+                  <Icon className="mb-1 h-8 w-8" />
                   <span className="text-lg">{option.label}</span>
                 </button>
               );
@@ -525,10 +485,10 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
     >
       <div className="flex flex-col">
         {/* Header & Progress */}
-        <div className="pt-6 px-8 pb-4 border-b border-gray-100 dark:border-gray-800">
-          <div className="flex items-center justify-between mb-3">
+        <div className="border-b border-gray-100 px-8 pb-4 pt-6 dark:border-gray-800">
+          <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400">
+              <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-bold text-gray-500 dark:bg-zinc-800 dark:text-gray-400">
                 {currentIndex + 1} / {totalCards}
               </span>
               <span className="text-sm font-medium text-gray-400 dark:text-gray-500">
@@ -539,13 +499,11 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                 {currentCard.type === "qa" && "问答题"}
               </span>
             </div>
-            <span className="text-sm font-bold text-blue-500">
-              {Math.round(progress)}%
-            </span>
+            <span className="text-sm font-bold text-blue-500">{Math.round(progress)}%</span>
           </div>
-          <div className="h-1.5 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+          <div className="h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-zinc-800">
             <motion.div
-              className="h-full bg-blue-500 rounded-full"
+              className="h-full rounded-full bg-blue-500"
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
               transition={{ duration: 0.4, ease: "easeOut" }}
@@ -554,7 +512,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
         </div>
 
         {/* Content Area */}
-        <div className="px-8 py-6 space-y-8">
+        <div className="space-y-8 px-8 py-6">
           {/* Question */}
           <div>
             {currentCard.type !== "cloze" && (
@@ -563,10 +521,10 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                   key={`prompt-${currentCard.id}`}
                   content={currentCard.prompt}
                   isDark={isDark}
-                  className="text-xl md:text-2xl font-medium leading-normal text-gray-900 dark:text-gray-50"
+                  className="text-xl font-medium leading-normal text-gray-900 md:text-2xl dark:text-gray-50"
                 />
                 {extractPlainText(currentCard.detail).trim() && (
-                  <div className="mt-4 p-4 bg-gray-50 dark:bg-zinc-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+                  <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-zinc-800/50">
                     <RichTextRenderer
                       key={`detail-${currentCard.id}`}
                       content={currentCard.detail}
@@ -578,11 +536,11 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
               </>
             )}
             {currentCard.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-4">
-                {currentCard.tags.map((tag) => (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {currentCard.tags.map(tag => (
                   <span
                     key={tag}
-                    className="px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700"
+                    className="rounded-md border border-gray-200 bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500 dark:border-gray-700 dark:bg-zinc-800 dark:text-gray-400"
                   >
                     #{tag}
                   </span>
@@ -605,47 +563,43 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
               >
                 <div
                   className={classNames(
-                    "p-5 rounded-xl border-l-4 shadow-sm",
+                    "rounded-xl border-l-4 p-5 shadow-sm",
                     answerState.isCorrect
-                      ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-500 shadow-emerald-500/5"
-                      : "bg-amber-50 dark:bg-amber-900/10 border-amber-500 shadow-amber-500/5",
+                      ? "bg-[var(--th-success)]/10 border-[var(--th-success)] shadow-[var(--th-shadow-sm)]"
+                      : "bg-[var(--th-warning)]/10 border-[var(--th-warning)] shadow-[var(--th-shadow-sm)]"
                   )}
                 >
                   <p
                     className={classNames(
-                      "text-lg font-bold mb-2 flex items-center gap-2",
-                      answerState.isCorrect
-                        ? "text-emerald-700 dark:text-emerald-400"
-                        : "text-amber-700 dark:text-amber-400",
+                      "mb-2 flex items-center gap-2 text-lg font-bold",
+                      answerState.isCorrect ? "text-status-success" : "text-status-warning"
                     )}
                   >
                     {currentCard.type === "qa" ? (
                       <>
-                        <HelpCircle className="w-5 h-5" />
+                        <HelpCircle className="h-5 w-5" />
                         自我评估
                       </>
                     ) : answerState.isCorrect ? (
                       <>
-                        <Check className="w-5 h-5" />
+                        <Check className="h-5 w-5" />
                         回答正确！
                       </>
                     ) : (
                       <>
-                        <X className="w-5 h-5" />
+                        <X className="h-5 w-5" />
                         回答错误
                       </>
                     )}
                   </p>
                   {currentCard.data.explanation ? (
-                    <div className="mt-3 text-base text-gray-700 dark:text-gray-300 leading-relaxed">
-                      <span className="font-semibold opacity-75 block mb-1 text-sm">
-                        解析：
-                      </span>
+                    <div className="mt-3 text-base leading-relaxed text-gray-700 dark:text-gray-300">
+                      <span className="mb-1 block text-sm font-semibold opacity-75">解析：</span>
                       {currentCard.data.explanation}
                     </div>
                   ) : (
                     !answerState.isCorrect && (
-                      <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                         暂无解析，请参考正确答案。
                       </p>
                     )
@@ -657,16 +611,16 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-zinc-900/50">
+        <div className="border-t border-gray-100 bg-gray-50/50 p-6 dark:border-gray-800 dark:bg-zinc-900/50">
           {!answerState.submitted ? (
             <button
               onClick={handleSubmitAnswer}
               disabled={!canSubmit}
               className={classNames(
-                "w-full py-3.5 rounded-xl font-bold text-lg transition-all duration-200 shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0",
+                "w-full rounded-xl py-3.5 text-lg font-bold shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0",
                 canSubmit
-                  ? "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20"
-                  : "bg-gray-200 dark:bg-zinc-800 text-gray-400 cursor-not-allowed shadow-none",
+                  ? "bg-blue-600 text-white shadow-blue-500/20 hover:bg-blue-500"
+                  : "cursor-not-allowed bg-gray-200 text-gray-400 shadow-none dark:bg-zinc-800"
               )}
             >
               提交答案
@@ -675,14 +629,14 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
             <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <div className="h-px flex-1 bg-gray-200 dark:bg-zinc-700"></div>
-                <p className="text-sm font-medium text-gray-500 dark:text-gray-400 shrink-0">
+                <p className="shrink-0 text-sm font-medium text-gray-500 dark:text-gray-400">
                   反馈难度以调整复习间隔
                 </p>
                 <div className="h-px flex-1 bg-gray-200 dark:bg-zinc-700"></div>
               </div>
 
               <div className="grid grid-cols-4 gap-3">
-                {REVIEW_RATINGS.map((rating) => (
+                {REVIEW_RATINGS.map(rating => (
                   <motion.button
                     key={rating.value}
                     whileHover={{ scale: 1.02 }}
@@ -690,18 +644,16 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
                     onClick={() => handleRate(rating.value)}
                     disabled={isSubmitting}
                     className={classNames(
-                      "rounded-xl p-3 text-center border-2 transition-colors relative overflow-hidden group",
+                      "group relative overflow-hidden rounded-xl border-2 p-3 text-center transition-colors",
                       rating.bgColor,
                       rating.textColor,
                       rating.borderColor,
                       rating.hoverBgColor,
-                      { "opacity-60 cursor-not-allowed": isSubmitting },
+                      { "cursor-not-allowed opacity-60": isSubmitting }
                     )}
                   >
-                    <div className="font-bold text-base mb-0.5">
-                      {rating.label}
-                    </div>
-                    <p className="text-xs opacity-80 font-medium truncate px-1">
+                    <div className="mb-0.5 text-base font-bold">{rating.label}</div>
+                    <p className="truncate px-1 text-xs font-medium opacity-80">
                       {rating.description}
                     </p>
                   </motion.button>

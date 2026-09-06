@@ -3,13 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
 import { Sparkles } from "lucide-react";
 import type { ToolCallCustomRendererProps } from "./types";
-import {
-  ToolBadge,
-  ToolCard,
-  ToolCardBody,
-  ToolCardHeader,
-  ToolMutedText,
-} from "./ui";
+import { ToolBadge, ToolCard, ToolCardBody, ToolCardHeader, ToolMutedText } from "./ui";
 import { Editor } from "@tau/editor/src";
 import {
   getSnapshot,
@@ -23,11 +17,7 @@ import {
 } from "@/services/content-editing";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { DiffHighlightedEditor } from "./DiffHighlightedEditor";
-import {
-  CompactSummary,
-  ChangePreviewCard,
-  FeedbackTemplates,
-} from "./change-preview-components";
+import { CompactSummary, ChangePreviewCard, FeedbackTemplates } from "./change-preview-components";
 import { generateChangePreviews } from "@/utils/review-change-preview";
 import { buildMergedReviewContent } from "@/utils/review-merged-content";
 
@@ -67,7 +57,7 @@ const parseOutputResult = (output?: string): ReviewResultPayload | null => {
 };
 
 const getMetadataResult = (
-  execution: ToolCallCustomRendererProps["execution"],
+  execution: ToolCallCustomRendererProps["execution"]
 ): ReviewResultPayload | null => {
   const metadata = execution.metadata;
   if (!metadata || typeof metadata !== "object") {
@@ -85,8 +75,7 @@ const getMetadataResult = (
 
   if (
     payload &&
-    (payload.kind === "content-edit-review-result" ||
-      payload.type === "content-edit-review-result")
+    (payload.kind === "content-edit-review-result" || payload.type === "content-edit-review-result")
   ) {
     return payload;
   }
@@ -124,13 +113,11 @@ const PrimaryButton = ({
   onClick,
   disabled,
   tone = "sky",
-  isDark,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
   tone?: "sky" | "rose";
-  isDark: boolean;
 }) => (
   <button
     type="button"
@@ -138,12 +125,8 @@ const PrimaryButton = ({
     onClick={onClick}
     className={`rounded-xl border px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${
       tone === "rose"
-        ? isDark
-          ? "border-rose-400/20 bg-rose-500/10 text-rose-200 hover:bg-rose-500/15"
-          : "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
-        : isDark
-          ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15"
-          : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+        ? "border-[var(--th-danger)]/30 bg-[var(--th-danger)]/10 text-status-error hover:bg-[var(--th-danger)]/15"
+        : "border-[var(--th-success)]/30 bg-[var(--th-success)]/10 text-status-success hover:bg-[var(--th-success)]/15"
     }`}
   >
     {children}
@@ -161,16 +144,12 @@ const SectionShell = ({
 }) => (
   <div
     className={`rounded-2xl border ${
-      isDark
-        ? "border-white/10 bg-zinc-950/40"
-        : "border-slate-200 bg-slate-50/80"
+      isDark ? "border-white/10 bg-zinc-950/40" : "border-slate-200 bg-slate-50/80"
     }`}
   >
     <div
       className={`border-b px-4 py-3 text-sm font-medium ${
-        isDark
-          ? "border-white/10 text-slate-100"
-          : "border-slate-200 text-slate-800"
+        isDark ? "border-white/10 text-slate-100" : "border-slate-200 text-slate-800"
       }`}
     >
       {title}
@@ -179,14 +158,9 @@ const SectionShell = ({
   </div>
 );
 
-const ContentEditProposalRenderer = ({
-  execution,
-  isDark,
-}: ToolCallCustomRendererProps) => {
+const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRendererProps) => {
   const { message, modal } = App.useApp();
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const [busyAction, setBusyAction] = useState("");
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
@@ -194,25 +168,23 @@ const ContentEditProposalRenderer = ({
   const [expandedPreview, setExpandedPreview] = useState(false);
   const feedbackSectionRef = useRef<HTMLDivElement | null>(null);
   const feedbackTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const outputResult =
-    getMetadataResult(execution) || parseOutputResult(execution.output);
+  const outputResult = getMetadataResult(execution) || parseOutputResult(execution.output);
 
-  const session = useContentEditReviewSessionStore((state) =>
+  const session = useContentEditReviewSessionStore(state =>
     state.findRecordByExecution({
       toolCallId: execution.toolCallId,
       rawInput: execution.input,
       timestamp: execution.timestamp,
-    }),
+    })
   );
   const proposalId = session?.proposalId || outputResult?.proposalId;
-  const conversationKey =
-    session?.conversationKey || outputResult?.conversationKey;
+  const conversationKey = session?.conversationKey || outputResult?.conversationKey;
 
-  const liveProposal = useContentEditReviewStore((state) =>
-    proposalId ? state.proposals[proposalId] : undefined,
+  const liveProposal = useContentEditReviewStore(state =>
+    proposalId ? state.proposals[proposalId] : undefined
   );
-  const currentPermission = useContentEditReviewStore((state) =>
-    conversationKey ? state.permissions[conversationKey] : undefined,
+  const currentPermission = useContentEditReviewStore(state =>
+    conversationKey ? state.permissions[conversationKey] : undefined
   );
 
   const proposal = useMemo(() => {
@@ -220,11 +192,9 @@ const ContentEditProposalRenderer = ({
       const merged = {
         ...session.payload,
         ...liveProposal,
-        currentPermission:
-          currentPermission || session.payload.currentPermission,
+        currentPermission: currentPermission || session.payload.currentPermission,
       };
-      return merged as ContentEditRendererPayload &
-        Partial<ContentEditProposalRecord>;
+      return merged as ContentEditRendererPayload & Partial<ContentEditProposalRecord>;
     }
 
     if (!outputResult?.proposal) {
@@ -254,16 +224,8 @@ const ContentEditProposalRenderer = ({
       updatedAt: liveProposal?.updatedAt || outputResult.submittedAt,
       proposedMarkdown: outputResult.proposal.proposedMarkdown,
     };
-    return merged as ContentEditRendererPayload &
-      Partial<ContentEditProposalRecord>;
-  }, [
-    conversationKey,
-    currentPermission,
-    liveProposal,
-    outputResult,
-    proposalId,
-    session,
-  ]);
+    return merged as ContentEditRendererPayload & Partial<ContentEditProposalRecord>;
+  }, [conversationKey, currentPermission, liveProposal, outputResult, proposalId, session]);
 
   const previewContent = useMemo(() => {
     if (!proposal?.proposedMarkdown) {
@@ -358,11 +320,7 @@ const ContentEditProposalRenderer = ({
     return (
       <ToolCard isDark={isDark}>
         <ToolCardHeader isDark={isDark}>
-          <div
-            className={`text-sm font-medium ${
-              isDark ? "text-slate-100" : "text-slate-800"
-            }`}
-          >
+          <div className={`text-sm font-medium ${isDark ? "text-slate-100" : "text-slate-800"}`}>
             内容修改处理中
           </div>
           <ToolMutedText isDark={isDark} className="mt-2">
@@ -373,12 +331,10 @@ const ContentEditProposalRenderer = ({
     );
   }
 
-  const canReview =
-    session?.status === "pending" && execution.status !== "success";
+  const canReview = session?.status === "pending" && execution.status !== "success";
   const canUndo =
     Boolean(liveProposal?.checkpointId) &&
-    (liveProposal?.status === "applied" ||
-      liveProposal?.status === "apply_conflicted");
+    (liveProposal?.status === "applied" || liveProposal?.status === "apply_conflicted");
 
   const handleDecision = (action: "apply" | "reject" | "feedback") =>
     withBusy(action, async () => {
@@ -392,7 +348,7 @@ const ContentEditProposalRenderer = ({
           action,
           feedback: action === "feedback" ? feedbackText.trim() : undefined,
           submittedAt: Date.now(),
-        },
+        }
       );
       if (submitResult === "missing") {
         message.error("当前审阅会话已失效，请重新发起修改。");
@@ -404,9 +360,7 @@ const ContentEditProposalRenderer = ({
         message.success("修改意见已提交，AI 将基于这条意见继续调整。");
         return;
       }
-      message.success(
-        action === "apply" ? "已确认应用这次修改。" : "已拒绝这次修改。",
-      );
+      message.success(action === "apply" ? "已确认应用这次修改。" : "已拒绝这次修改。");
     });
 
   const handleUndo = () =>
@@ -441,18 +395,14 @@ const ContentEditProposalRenderer = ({
       message.success("已恢复到本次 AI 修改前。");
     });
 
-  const title = canReview
-    ? "请确认这次修改"
-    : outputResult?.message || "内容修改结果";
+  const title = canReview ? "请确认这次修改" : outputResult?.message || "内容修改结果";
 
   return (
     <ToolCard isDark={isDark}>
       <ToolCardHeader isDark={isDark} divided>
         <div className="space-y-4">
           <div
-            className={`text-base font-semibold ${
-              isDark ? "text-slate-100" : "text-slate-900"
-            }`}
+            className={`text-base font-semibold ${isDark ? "text-slate-100" : "text-slate-900"}`}
           >
             {title}
           </div>
@@ -461,12 +411,11 @@ const ContentEditProposalRenderer = ({
               <PrimaryButton
                 onClick={() => void handleDecision("apply")}
                 disabled={busyAction.length > 0}
-                isDark={isDark}
               >
                 确认应用
               </PrimaryButton>
               <SecondaryButton
-                onClick={() => setFeedbackOpen((prev) => !prev)}
+                onClick={() => setFeedbackOpen(prev => !prev)}
                 disabled={busyAction.length > 0}
                 isDark={isDark}
               >
@@ -476,7 +425,6 @@ const ContentEditProposalRenderer = ({
                 onClick={() => void handleDecision("reject")}
                 disabled={busyAction.length > 0}
                 tone="rose"
-                isDark={isDark}
               >
                 拒绝
               </PrimaryButton>
@@ -486,13 +434,9 @@ const ContentEditProposalRenderer = ({
             <div
               className={`flex items-start gap-3 rounded-2xl border px-4 py-3 ${
                 outputResult?.action === "applied"
-                  ? isDark
-                    ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-200"
-                    : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  ? "border-[var(--th-success)]/30 bg-[var(--th-success)]/10 text-status-success"
                   : outputResult?.action === "feedback"
-                    ? isDark
-                      ? "border-amber-400/20 bg-amber-500/10 text-amber-200"
-                      : "border-amber-200 bg-amber-50 text-amber-700"
+                    ? "border-[var(--th-warning)]/30 bg-[var(--th-warning)]/10 text-status-warning"
                     : isDark
                       ? "border-slate-400/20 bg-slate-500/10 text-slate-200"
                       : "border-slate-200 bg-slate-50 text-slate-700"
@@ -503,9 +447,7 @@ const ContentEditProposalRenderer = ({
                 <div className="text-sm font-medium">
                   {actionLabelMap[outputResult?.action || ""] || "已处理"}
                 </div>
-                <div className="text-sm leading-6">
-                  {outputResult?.message || title}
-                </div>
+                <div className="text-sm leading-6">{outputResult?.message || title}</div>
               </div>
             </div>
           )}
@@ -525,7 +467,7 @@ const ContentEditProposalRenderer = ({
           deletedChars={proposal.diffSummary.deletedChars}
           isDark={isDark}
           expanded={expandedPreview}
-          onToggle={() => setExpandedPreview((prev) => !prev)}
+          onToggle={() => setExpandedPreview(prev => !prev)}
           canUndo={canUndo}
           undoDisabled={busyAction.length > 0}
           onUndo={() => void handleUndo()}
@@ -534,12 +476,8 @@ const ContentEditProposalRenderer = ({
         {/* 改动预览卡片（折叠展开） */}
         {expandedPreview && changePreviews.length > 0 && (
           <div className="space-y-2">
-            {changePreviews.map((preview) => (
-              <ChangePreviewCard
-                key={preview.operationId}
-                preview={preview}
-                isDark={isDark}
-              />
+            {changePreviews.map(preview => (
+              <ChangePreviewCard key={preview.operationId} preview={preview} isDark={isDark} />
             ))}
           </div>
         )}
@@ -583,9 +521,7 @@ const ContentEditProposalRenderer = ({
           >
             <div
               className={`max-h-[420px] overflow-y-auto rounded-2xl border p-3 ${
-                isDark
-                  ? "border-white/10 bg-zinc-950/70"
-                  : "border-slate-200 bg-white"
+                isDark ? "border-white/10 bg-zinc-950/70" : "border-slate-200 bg-white"
               }`}
             >
               {showDiffView && mergedReviewContent ? (
@@ -613,16 +549,14 @@ const ContentEditProposalRenderer = ({
               <div className="space-y-3">
                 <FeedbackTemplates
                   isDark={isDark}
-                  onSelect={(template) =>
-                    setFeedbackText((prev) =>
-                      prev ? `${prev}；${template}` : template,
-                    )
+                  onSelect={template =>
+                    setFeedbackText(prev => (prev ? `${prev}；${template}` : template))
                   }
                 />
                 <textarea
                   ref={feedbackTextareaRef}
                   value={feedbackText}
-                  onChange={(event) => setFeedbackText(event.target.value)}
+                  onChange={event => setFeedbackText(event.target.value)}
                   placeholder="例如：语气更自然一些；第二段保留原意但更精炼；不要改标题。"
                   rows={4}
                   className={`min-h-28 w-full resize-y rounded-2xl border px-4 py-3 text-sm outline-none transition [field-sizing:content] ${
@@ -635,7 +569,6 @@ const ContentEditProposalRenderer = ({
                   <PrimaryButton
                     onClick={() => void handleDecision("feedback")}
                     disabled={!feedbackText.trim() || busyAction.length > 0}
-                    isDark={isDark}
                   >
                     提交修改意见
                   </PrimaryButton>

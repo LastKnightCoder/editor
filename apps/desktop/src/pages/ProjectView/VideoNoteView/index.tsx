@@ -38,25 +38,20 @@ interface IVideoNoteViewProps {
 
 const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   const { message } = App.useApp();
-  const autoCacheRemoteVideo = useSettingStore(
-    (state) => state.setting.misc.video.autoCacheRemote,
-  );
+  const autoCacheRemoteVideo = useSettingStore(state => state.setting.misc.video.autoCacheRemote);
   const { itemId: activeProjectItemId } = useProjectContext();
   const themeColors = useThemeColors();
 
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
-  const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(
-    null,
-  );
+  const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
   const [videoNote, setVideoNote] = useState<IVideoNote | null>(null);
   const [loading, setLoading] = useState(true);
   const [projectItemTitle, setProjectItemTitle] = useState("");
-  const [transcriptionLanguage, setTranscriptionLanguage] = useState<string>(
-    VIDEO_NOTE_AUTO_LANGUAGE,
-  );
+  const [transcriptionLanguage, setTranscriptionLanguage] =
+    useState<string>(VIDEO_NOTE_AUTO_LANGUAGE);
   const [subtitleMounted, setSubtitleMounted] = useLocalStorageState<boolean>(
     `${SUBTITLE_MOUNTED_STORAGE_PREFIX}${videoNoteId}`,
-    { defaultValue: false },
+    { defaultValue: false }
   );
   const [subtitleTrackUrl, setSubtitleTrackUrl] = useState("");
 
@@ -80,7 +75,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   } = useRemoteVideo(
     videoNote?.metaInfo?.type === "remote"
       ? (videoNote.metaInfo as RemoteVideoMetaInfo).url
-      : undefined,
+      : undefined
   );
 
   useEffect(() => {
@@ -123,10 +118,10 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     }
 
     void getProjectItemById(activeProjectItemId)
-      .then((item) => {
+      .then(item => {
         setProjectItemTitle(item?.title || "");
       })
-      .catch((error) => {
+      .catch(error => {
         console.error("Failed to load project item:", error);
         setProjectItemTitle("");
       });
@@ -205,10 +200,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     }
   }, [videoNote, autoCacheRemoteVideo]);
 
-  const subtitleLanguage = resolveVideoNoteOptimizationLanguage(
-    transcriptionLanguage,
-    null,
-  );
+  const subtitleLanguage = resolveVideoNoteOptimizationLanguage(transcriptionLanguage, null);
   const subtitleVttContent = useMemo(() => {
     const segments = videoNote?.transcriptSegments;
     if (!segments || segments.length === 0) {
@@ -223,9 +215,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
       return;
     }
 
-    const url = URL.createObjectURL(
-      new Blob([subtitleVttContent], { type: "text/vtt" }),
-    );
+    const url = URL.createObjectURL(new Blob([subtitleVttContent], { type: "text/vtt" }));
     setSubtitleTrackUrl(url);
 
     return () => {
@@ -275,15 +265,13 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
           <span className="absolute inset-0 rounded-full border-2 border-gray-200 dark:border-slate-700" />
           <span
             className={classNames(
-              "absolute inset-0 rounded-full border-2 border-transparent animate-spin",
-              themeColors.iconTextClass,
+              "absolute inset-0 animate-spin rounded-full border-2 border-transparent",
+              themeColors.iconTextClass
             )}
             style={{ borderTopColor: "currentColor" }}
           />
         </div>
-        <span className={classNames("text-sm", themeColors.secondaryTextClass)}>
-          加载中...
-        </span>
+        <span className={classNames("text-sm", themeColors.secondaryTextClass)}>加载中...</span>
       </div>
     );
   }
@@ -295,14 +283,12 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
           className={classNames(
             "flex h-14 w-14 items-center justify-center rounded-2xl",
             themeColors.iconBgClass,
-            themeColors.iconTextClass,
+            themeColors.iconTextClass
           )}
         >
           <Video size={26} />
         </div>
-        <p className={classNames("text-sm font-medium", themeColors.textClass)}>
-          视频笔记不存在
-        </p>
+        <p className={classNames("text-sm font-medium", themeColors.textClass)}>视频笔记不存在</p>
         <p className={classNames("text-xs", themeColors.secondaryTextClass)}>
           该笔记可能已被删除或加载异常
         </p>
@@ -328,9 +314,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     bilibili: "哔哩哔哩",
     youtube: "YouTube",
   };
-  const sourceLabel = videoNote
-    ? (sourceLabels[videoNote.metaInfo.type] ?? "视频")
-    : "视频";
+  const sourceLabel = videoNote ? (sourceLabels[videoNote.metaInfo.type] ?? "视频") : "视频";
   const transcriptCount = videoNote?.transcriptSegments?.length ?? 0;
   const hasSummary = !!videoNote?.summary;
   // 视频就绪前容器用主题化背景，避免下载/错误态在亮色模式下出现黑底
@@ -350,7 +334,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                 <div
                   className={classNames(
                     "relative w-full overflow-hidden rounded-xl",
-                    showVideo ? "bg-black" : "bg-gray-100 dark:bg-zinc-900",
+                    showVideo ? "bg-black" : "bg-gray-100 dark:bg-zinc-900"
                   )}
                   style={{
                     aspectRatio: "16/9",
@@ -399,21 +383,19 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                       className={classNames(
                         "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs",
                         transcriptCount > 0
-                          ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400"
-                          : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400",
+                          ? "bg-[var(--th-success)]/10 text-status-success"
+                          : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400"
                       )}
                     >
                       <Captions size={12} />
-                      {transcriptCount > 0
-                        ? `已转录 ${transcriptCount} 段`
-                        : "未转录"}
+                      {transcriptCount > 0 ? `已转录 ${transcriptCount} 段` : "未转录"}
                     </span>
                     <span
                       className={classNames(
                         "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs",
                         hasSummary
                           ? "bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400"
-                          : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400",
+                          : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400"
                       )}
                     >
                       <FileText size={12} />
