@@ -935,7 +935,7 @@ const RightComponentsSidebar = memo(() => {
               type="button"
               onClick={handleUpdateQuestionDetails}
               disabled={!editQuestionValue.trim()}
-              className="rounded-xl bg-blue-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:border dark:disabled:border-slate-700 dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
+              className="rounded-xl bg-[var(--th-btn-bg)] px-5 py-2.5 text-sm font-semibold text-[var(--th-btn-text)] transition hover:bg-[var(--th-btn-hover)] disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:border dark:disabled:border-slate-700 dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
             >
               保存
             </button>
@@ -952,14 +952,14 @@ const RightComponentsSidebar = memo(() => {
               placeholder="请输入问题内容"
               value={editQuestionValue}
               onChange={event => setEditQuestionValue(event.target.value)}
-              className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition placeholder:text-gray-400 focus:border-blue-500 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
+              className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition placeholder:text-gray-400 focus:border-[var(--th-border-focus)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
             />
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300">
               问题描述
             </label>
-            <div className="rounded-xl border border-gray-200 bg-gray-50 shadow-inner transition focus-within:border-blue-500 dark:border-slate-700 dark:bg-zinc-950">
+            <div className="rounded-xl border border-gray-200 bg-gray-50 shadow-inner transition focus-within:border-[var(--th-border-focus)] dark:border-slate-700 dark:bg-zinc-950">
               <Editor
                 key={`workbench-edit-question-${editQuestionId}`}
                 initValue={editQuestionDescription}

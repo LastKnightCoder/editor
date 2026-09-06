@@ -58,7 +58,7 @@ const RemoteVideoSelectModal: React.FC<RemoteVideoSelectModalProps> = ({
         handleSubmit();
       }
     },
-    [onCancel, handleSubmit],
+    [onCancel, handleSubmit]
   );
 
   if (!open) return null;
@@ -70,14 +70,14 @@ const RemoteVideoSelectModal: React.FC<RemoteVideoSelectModalProps> = ({
       onKeyDown={handleKeyDown}
     >
       <div
-        className="remote-modal-container w-full max-w-[460px] m-4"
-        onClick={(e) => e.stopPropagation()}
+        className="remote-modal-container m-4 w-full max-w-[460px]"
+        onClick={e => e.stopPropagation()}
       >
-        <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800">
-          <div className="flex items-start gap-3 mb-5">
-            <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-blue-50 dark:bg-blue-500/20 border border-blue-200 dark:border-blue-500/30">
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
+          <div className="mb-5 flex items-start gap-3">
+            <div className="border-[var(--th-border-focus)]/30 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border bg-blue-50 dark:bg-blue-500/20">
               <svg
-                className="w-5 h-5 text-blue-500"
+                className="h-5 w-5 text-blue-500"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -87,20 +87,18 @@ const RemoteVideoSelectModal: React.FC<RemoteVideoSelectModalProps> = ({
                 <path d="M21 3v5h-5" />
               </svg>
             </div>
-            <div className="flex-1 min-w-0">
-              <h2 className="text-base font-bold m-0 text-gray-800 dark:text-white">
+            <div className="min-w-0 flex-1">
+              <h2 className="m-0 text-base font-bold text-gray-800 dark:text-white">
                 添加在线视频
               </h2>
-              <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
-                输入视频的直链地址
-              </p>
+              <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-500">输入视频的直链地址</p>
             </div>
             <button
-              className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
+              className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-gray-100 text-gray-500 transition-all hover:bg-gray-200 hover:text-gray-700 dark:bg-zinc-800 dark:text-slate-400 dark:hover:bg-zinc-700 dark:hover:text-slate-200"
               onClick={onCancel}
             >
               <svg
-                className="w-[18px] h-[18px]"
+                className="h-[18px] w-[18px]"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -117,25 +115,25 @@ const RemoteVideoSelectModal: React.FC<RemoteVideoSelectModalProps> = ({
                 ref={inputRef}
                 type="text"
                 value={url}
-                onChange={(e) => {
+                onChange={e => {
                   setUrl(e.target.value);
                   setError(null);
                 }}
                 placeholder="在此粘贴视频直链，例如：https://example.com/video.mp4"
-                className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
               />
             </div>
 
             {error && (
-              <div className="px-3.5 py-2.5 rounded-lg text-[13px] bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400">
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[13px] text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
                 {error}
               </div>
             )}
 
-            <div className="px-3.5 py-2.5 rounded-lg text-[13px] bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-700 dark:text-blue-400">
+            <div className="rounded-lg border border-blue-200 bg-[var(--th-accent-soft)] px-3.5 py-2.5 text-[13px] text-blue-700 dark:border-blue-500/20 dark:text-blue-400">
               <div className="flex items-start gap-2">
                 <svg
-                  className="w-4 h-4 mt-0.5 shrink-0"
+                  className="mt-0.5 h-4 w-4 shrink-0"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -145,8 +143,8 @@ const RemoteVideoSelectModal: React.FC<RemoteVideoSelectModalProps> = ({
                   <path d="M12 16v-4M12 8h.01" />
                 </svg>
                 <div className="flex-1">
-                  <p className="font-medium mb-1">支持的视频格式</p>
-                  <ul className="text-xs space-y-0.5 opacity-90">
+                  <p className="mb-1 font-medium">支持的视频格式</p>
+                  <ul className="space-y-0.5 text-xs opacity-90">
                     <li>• MP4, WebM, OGG 等浏览器支持的格式</li>
                     <li>• 确保链接可直接访问（非需要登录的资源）</li>
                   </ul>
@@ -155,12 +153,12 @@ const RemoteVideoSelectModal: React.FC<RemoteVideoSelectModalProps> = ({
             </div>
 
             <button
-              className="w-full px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-blue-500 text-white shadow-[0_4px_14px_rgba(59,130,246,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-blue-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700"
+              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-none bg-[var(--th-btn-bg)] px-5 py-3.5 text-sm font-semibold text-[var(--th-btn-text)] shadow-sm transition-all hover:-translate-y-px hover:bg-[var(--th-btn-hover)] active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700 dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
               onClick={handleSubmit}
               disabled={!url.trim()}
             >
               <svg
-                className="w-5 h-5"
+                className="h-5 w-5"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -176,7 +174,7 @@ const RemoteVideoSelectModal: React.FC<RemoteVideoSelectModalProps> = ({
         </div>
       </div>
     </div>,
-    document.body,
+    document.body
   );
 };
 

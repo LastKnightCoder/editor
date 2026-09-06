@@ -232,7 +232,7 @@ const StepIndicator = ({ currentStep }: { currentStep: Step }) => {
                 className={classNames(
                   "h-4.5 w-4.5 flex items-center justify-center rounded-full text-[10px] font-bold",
                   isActive
-                    ? "bg-indigo-500 text-white dark:bg-indigo-500"
+                    ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] dark:bg-indigo-500"
                     : isPast
                       ? "bg-indigo-200 text-indigo-600 dark:bg-indigo-500/30 dark:text-indigo-400"
                       : "bg-gray-200 text-gray-500 dark:bg-zinc-700 dark:text-slate-400"
@@ -823,7 +823,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     "w-full px-3.5 py-2.5 rounded-xl text-sm outline-none transition-all",
     "bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700",
     "text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500",
-    "focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 dark:focus:border-indigo-500 dark:focus:ring-indigo-500/20"
+    "focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 dark:focus:border-[var(--th-border-focus)] dark:focus:ring-indigo-500/20"
   );
 
   const renderRewriteStep = () => (

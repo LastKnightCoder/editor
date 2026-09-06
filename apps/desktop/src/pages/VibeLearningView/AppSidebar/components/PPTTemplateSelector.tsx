@@ -18,12 +18,12 @@ const PPTTemplateSelector = memo((props: PPTTemplateSelectorProps) => {
 
   return (
     <div className="space-y-3">
-      <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 block">
+      <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
         {title}
       </label>
 
       <div className="grid grid-cols-3 gap-3">
-        {PPT_TEMPLATES.map((template) => (
+        {PPT_TEMPLATES.map(template => (
           <TemplateCard
             key={template.id}
             template={template}
@@ -61,11 +61,11 @@ const TemplateCard = memo((props: TemplateCardProps) => {
     <div
       onClick={onClick}
       className={classNames(
-        "relative rounded-xl overflow-hidden cursor-pointer transition-all duration-200",
+        "relative cursor-pointer overflow-hidden rounded-xl transition-all duration-200",
         "border-2",
         isSelected
           ? "border-blue-500 shadow-lg shadow-blue-500/20"
-          : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600",
+          : "border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600"
       )}
     >
       {/* 预览区域 */}
@@ -93,7 +93,7 @@ const TemplateCard = memo((props: TemplateCardProps) => {
           // 浏览器环境使用 iframe
           <iframe
             src={previewUrl}
-            className="w-full h-full border-0 pointer-events-none"
+            className="pointer-events-none h-full w-full border-0"
             sandbox="allow-scripts"
             title={`${template.name} Preview`}
             // @ts-expect-error inert is a valid HTML attribute
@@ -103,25 +103,23 @@ const TemplateCard = memo((props: TemplateCardProps) => {
 
         {/* 选中标记 */}
         {isSelected && (
-          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
-            <Check className="w-3 h-3 text-white" strokeWidth={3} />
+          <div className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-blue-500">
+            <Check className="h-3 w-3 text-white" strokeWidth={3} />
           </div>
         )}
       </div>
 
       {/* 模板信息 */}
-      <div className="px-3 py-2.5 bg-white dark:bg-zinc-800/80">
+      <div className="bg-white px-3 py-2.5 dark:bg-zinc-800/80">
         <div
           className={classNames(
-            "text-xs font-medium truncate",
-            isSelected
-              ? "text-blue-600 dark:text-blue-400"
-              : "text-gray-700 dark:text-gray-300",
+            "truncate text-xs font-medium",
+            isSelected ? "text-[var(--th-active-text)]" : "text-gray-700 dark:text-gray-300"
           )}
         >
           {template.name}
         </div>
-        <div className="text-[10px] text-gray-400 dark:text-gray-500 truncate mt-0.5">
+        <div className="mt-0.5 truncate text-[10px] text-gray-400 dark:text-gray-500">
           {template.description}
         </div>
       </div>

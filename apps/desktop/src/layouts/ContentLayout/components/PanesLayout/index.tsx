@@ -33,14 +33,10 @@ const ContentDropZone = memo(
     children: React.ReactNode;
     className?: string;
   }) => {
-    const [dropZone, setDropZone] = useState<
-      "left" | "right" | "top" | "bottom" | null
-    >(null);
+    const [dropZone, setDropZone] = useState<"left" | "right" | "top" | "bottom" | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const createPaneWithTab = useTabStore((state) => state.createPaneWithTab);
-    const createPaneWithTabGroup = useTabStore(
-      (state) => state.createPaneWithTabGroup,
-    );
+    const createPaneWithTab = useTabStore(state => state.createPaneWithTab);
+    const createPaneWithTabGroup = useTabStore(state => state.createPaneWithTabGroup);
 
     const [, drop] = useDrop<DragItem>({
       accept: ["TAB", "TAB_GROUP"],
@@ -71,15 +67,13 @@ const ContentDropZone = memo(
 
         setDropZone(zone);
       },
-      drop: (item) => {
+      drop: item => {
         const zone = dropZone;
         setDropZone(null);
 
         if (zone) {
           const direction =
-            zone === "left" || zone === "right"
-              ? PaneDirection.Horizontal
-              : PaneDirection.Vertical;
+            zone === "left" || zone === "right" ? PaneDirection.Horizontal : PaneDirection.Vertical;
 
           if (item.type === "TAB") {
             // 创建新 pane 并移动 tab（原子操作）
@@ -95,34 +89,31 @@ const ContentDropZone = memo(
     });
 
     return (
-      <div
-        ref={containerRef}
-        className={classnames("relative w-full h-full", className)}
-      >
+      <div ref={containerRef} className={classnames("relative h-full w-full", className)}>
         <div
-          ref={(node) => {
+          ref={node => {
             drop(node);
           }}
-          className="w-full h-full"
+          className="h-full w-full"
         >
           {children}
         </div>
         {dropZone && (
           <div
             className={classnames(
-              "absolute bg-green-400/10 border-2 border-dashed border-green-300 pointer-events-none z-50 transition-all",
+              "pointer-events-none absolute z-50 border-2 border-dashed border-green-300 bg-green-400/10 transition-all",
               {
-                "left-0 top-0 w-1/2 h-full": dropZone === "left",
-                "right-0 top-0 w-1/2 h-full": dropZone === "right",
-                "left-0 top-0 w-full h-1/2": dropZone === "top",
-                "left-0 bottom-0 w-full h-1/2": dropZone === "bottom",
-              },
+                "left-0 top-0 h-full w-1/2": dropZone === "left",
+                "right-0 top-0 h-full w-1/2": dropZone === "right",
+                "left-0 top-0 h-1/2 w-full": dropZone === "top",
+                "bottom-0 left-0 h-1/2 w-full": dropZone === "bottom",
+              }
             )}
           />
         )}
       </div>
     );
-  },
+  }
 );
 
 // 可拖拽的分割线组件
@@ -137,9 +128,7 @@ const Resizer = memo(
     containerRef: React.RefObject<HTMLDivElement | null>;
   }) => {
     const [isDragging, setIsDragging] = useState(false);
-    const updatePaneSplitRatio = useTabStore(
-      (state) => state.updatePaneSplitRatio,
-    );
+    const updatePaneSplitRatio = useTabStore(state => state.updatePaneSplitRatio);
 
     const handleMouseDown = useCallback(
       (e: React.MouseEvent) => {
@@ -191,7 +180,7 @@ const Resizer = memo(
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
       },
-      [direction, paneId, containerRef, updatePaneSplitRatio],
+      [direction, paneId, containerRef, updatePaneSplitRatio]
     );
 
     const isHorizontal = direction === PaneDirection.Horizontal;
@@ -199,21 +188,21 @@ const Resizer = memo(
     return (
       <div
         className={classnames(
-          "bg-gray-300 dark:bg-zinc-700 hover:bg-blue-400 dark:hover:bg-blue-600 transition-colors z-10",
+          "z-10 bg-gray-300 transition-colors hover:bg-blue-400 dark:bg-zinc-700 dark:hover:bg-[var(--th-btn-hover)]",
           {
             "w-1 cursor-col-resize": isHorizontal,
             "h-1 cursor-row-resize": !isHorizontal,
             "bg-blue-500 dark:bg-blue-500": isDragging,
-          },
+          }
         )}
         onMouseDown={handleMouseDown}
       />
     );
-  },
+  }
 );
 
 const PanesLayout = memo(() => {
-  const panes = useTabStore((state) => state.panes);
+  const panes = useTabStore(state => state.panes);
   const containerRef = useRef<HTMLDivElement>(null);
 
   if (panes.length === 0) {
@@ -222,17 +211,14 @@ const PanesLayout = memo(() => {
 
   if (panes.length === 1) {
     const pane = panes[0];
-    const activeTab = pane.tabs.find((t) => t.id === pane.activeTabId);
+    const activeTab = pane.tabs.find(t => t.id === pane.activeTabId);
 
     return (
       <div className={styles.singlePane}>
-        <div className="flex-1 min-h-0 flex overflow-hidden">
-          <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          <div className="flex min-w-0 flex-1 flex-col">
             <TitlebarWithTabs paneId={pane.id} showRightControls={true} />
-            <ContentDropZone
-              paneId={pane.id}
-              className={"flex-1 min-h-0 overflow-hidden"}
-            >
+            <ContentDropZone paneId={pane.id} className={"min-h-0 flex-1 overflow-hidden"}>
               <div className={classnames(styles.paneContent)}>
                 {activeTab && <TabContent tab={activeTab} paneId={pane.id} />}
               </div>
@@ -249,59 +235,35 @@ const PanesLayout = memo(() => {
   const direction = secondPane.direction || PaneDirection.Horizontal;
   const splitRatio = secondPane.splitRatio || 0.5;
 
-  const firstActiveTab = firstPane.tabs.find(
-    (t) => t.id === firstPane.activeTabId,
-  );
-  const secondActiveTab = secondPane.tabs.find(
-    (t) => t.id === secondPane.activeTabId,
-  );
+  const firstActiveTab = firstPane.tabs.find(t => t.id === firstPane.activeTabId);
+  const secondActiveTab = secondPane.tabs.find(t => t.id === secondPane.activeTabId);
 
   const isHorizontal = direction === PaneDirection.Horizontal;
 
   if (isHorizontal) {
     // 左右布局：只在右侧的 pane 显示控件
     return (
-      <div className="flex h-full w-full min-h-0 overflow-hidden">
-        <div
-          ref={containerRef}
-          className={classnames(styles.panesContainer, "flex-1 min-w-0")}
-        >
-          <div
-            className={styles.pane}
-            style={{ width: `${splitRatio * 100}%`, height: "100%" }}
-          >
+      <div className="flex h-full min-h-0 w-full overflow-hidden">
+        <div ref={containerRef} className={classnames(styles.panesContainer, "min-w-0 flex-1")}>
+          <div className={styles.pane} style={{ width: `${splitRatio * 100}%`, height: "100%" }}>
             <TitlebarWithTabs paneId={firstPane.id} showRightControls={false} />
-            <ContentDropZone
-              paneId={firstPane.id}
-              className="flex-1 min-h-0 overflow-hidden"
-            >
+            <ContentDropZone paneId={firstPane.id} className="min-h-0 flex-1 overflow-hidden">
               <div className={styles.paneContent}>
-                {firstActiveTab && (
-                  <TabContent tab={firstActiveTab} paneId={firstPane.id} />
-                )}
+                {firstActiveTab && <TabContent tab={firstActiveTab} paneId={firstPane.id} />}
               </div>
             </ContentDropZone>
           </div>
 
-          <Resizer
-            direction={direction}
-            paneId={secondPane.id}
-            containerRef={containerRef}
-          />
+          <Resizer direction={direction} paneId={secondPane.id} containerRef={containerRef} />
 
           <div
             className={styles.pane}
             style={{ width: `${(1 - splitRatio) * 100}%`, height: "100%" }}
           >
             <TitlebarWithTabs paneId={secondPane.id} showRightControls={true} />
-            <ContentDropZone
-              paneId={secondPane.id}
-              className="flex-1 min-h-0 overflow-hidden"
-            >
+            <ContentDropZone paneId={secondPane.id} className="min-h-0 flex-1 overflow-hidden">
               <div className={styles.paneContent}>
-                {secondActiveTab && (
-                  <TabContent tab={secondActiveTab} paneId={secondPane.id} />
-                )}
+                {secondActiveTab && <TabContent tab={secondActiveTab} paneId={secondPane.id} />}
               </div>
             </ContentDropZone>
           </div>
@@ -311,51 +273,31 @@ const PanesLayout = memo(() => {
   } else {
     // 上下布局：只在上面的 pane 显示控件
     return (
-      <div className="flex h-full w-full min-h-0 overflow-hidden">
+      <div className="flex h-full min-h-0 w-full overflow-hidden">
         <div
           ref={containerRef}
-          className={classnames(styles.panesContainer, "flex-1 min-w-0")}
+          className={classnames(styles.panesContainer, "min-w-0 flex-1")}
           style={{ flexDirection: "column" }}
         >
-          <div
-            className={styles.pane}
-            style={{ width: "100%", height: `${splitRatio * 100}%` }}
-          >
+          <div className={styles.pane} style={{ width: "100%", height: `${splitRatio * 100}%` }}>
             <TitlebarWithTabs paneId={firstPane.id} showRightControls={true} />
-            <ContentDropZone
-              paneId={firstPane.id}
-              className="flex-1 min-h-0 overflow-hidden"
-            >
+            <ContentDropZone paneId={firstPane.id} className="min-h-0 flex-1 overflow-hidden">
               <div className={styles.paneContent}>
-                {firstActiveTab && (
-                  <TabContent tab={firstActiveTab} paneId={firstPane.id} />
-                )}
+                {firstActiveTab && <TabContent tab={firstActiveTab} paneId={firstPane.id} />}
               </div>
             </ContentDropZone>
           </div>
 
-          <Resizer
-            direction={direction}
-            paneId={secondPane.id}
-            containerRef={containerRef}
-          />
+          <Resizer direction={direction} paneId={secondPane.id} containerRef={containerRef} />
 
           <div
             className={styles.pane}
             style={{ width: "100%", height: `${(1 - splitRatio) * 100}%` }}
           >
-            <TitlebarWithTabs
-              paneId={secondPane.id}
-              showRightControls={false}
-            />
-            <ContentDropZone
-              paneId={secondPane.id}
-              className="flex-1 min-h-0 overflow-hidden"
-            >
+            <TitlebarWithTabs paneId={secondPane.id} showRightControls={false} />
+            <ContentDropZone paneId={secondPane.id} className="min-h-0 flex-1 overflow-hidden">
               <div className={styles.paneContent}>
-                {secondActiveTab && (
-                  <TabContent tab={secondActiveTab} paneId={secondPane.id} />
-                )}
+                {secondActiveTab && <TabContent tab={secondActiveTab} paneId={secondPane.id} />}
               </div>
             </ContentDropZone>
           </div>

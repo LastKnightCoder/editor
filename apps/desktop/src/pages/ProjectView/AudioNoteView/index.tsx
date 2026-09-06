@@ -632,7 +632,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                   <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-gray-200 py-4 dark:border-zinc-700">
                     <span className="text-xs text-gray-400 dark:text-gray-500">暂无章节</span>
                     <button
-                      className="flex items-center gap-1.5 rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
+                      className="flex items-center gap-1.5 rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[var(--th-btn-hover)] disabled:opacity-50"
                       disabled={isGeneratingInsights}
                       onClick={() => void handleGenerateInsights(transcriptSegments)}
                     >
@@ -726,7 +726,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                               <span className="text-sm">暂无转录内容</span>
                             </div>
                             <button
-                              className="flex items-center gap-1.5 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
+                              className="flex items-center gap-1.5 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--th-btn-hover)] disabled:opacity-50"
                               onClick={handleStartTranscription}
                               disabled={isTranscribing}
                             >
@@ -814,7 +814,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                         <span className="text-sm">暂无高亮片段</span>
                         {transcriptSegments.length > 0 && (
                           <button
-                            className="flex items-center gap-1.5 rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
+                            className="flex items-center gap-1.5 rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[var(--th-btn-hover)] disabled:opacity-50"
                             disabled={isGeneratingInsights}
                             onClick={() => void handleGenerateInsights(transcriptSegments)}
                           >
@@ -864,7 +864,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                         </div>
                         {transcriptSegments.length > 0 && (
                           <button
-                            className="flex items-center gap-1.5 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
+                            className="flex items-center gap-1.5 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--th-btn-hover)] disabled:opacity-50"
                             onClick={handleStartSummary}
                             disabled={isSummarizing}
                           >
@@ -898,7 +898,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                           <span className="text-sm">暂无笔记</span>
                         </div>
                         <button
-                          className="flex items-center gap-1.5 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600"
+                          className="flex items-center gap-1.5 rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--th-btn-hover)]"
                           onClick={handleCreateNoteItem}
                         >
                           <Pencil size={14} />

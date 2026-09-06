@@ -7,10 +7,8 @@ import { openExternal } from "@/commands/extra";
 
 const WeReadSetting: React.FC = () => {
   const themeColors = useThemeColors();
-  const weread = useSettingStore((state) => state.setting.integration.weread);
-  const updateWeReadApiKey = useSettingStore(
-    (state) => state.updateWeReadApiKey,
-  );
+  const weread = useSettingStore(state => state.setting.integration.weread);
+  const updateWeReadApiKey = useSettingStore(state => state.updateWeReadApiKey);
   const [loading, setLoading] = useState(false);
   const [apiKeyValue, setApiKeyValue] = useState(weread.apiKey);
   const [errorMessage, setErrorMessage] = useState("");
@@ -63,8 +61,7 @@ const WeReadSetting: React.FC = () => {
       const isValid = await weReadService.validateSession();
       if (!isValid) {
         setErrorMessage(
-          useSettingStore.getState().setting.integration.weread.statusReason ||
-            "API Key 校验失败",
+          useSettingStore.getState().setting.integration.weread.statusReason || "API Key 校验失败"
         );
       }
     } catch (error: any) {
@@ -79,43 +76,37 @@ const WeReadSetting: React.FC = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className={`relative group rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden h-[280px] flex flex-col ${themeColors.cardBgClass} ${themeColors.cardBorderClass} border`}
+      className={`group relative flex h-[280px] flex-col overflow-hidden rounded-xl shadow-sm transition-all duration-300 hover:shadow-md ${themeColors.cardBgClass} ${themeColors.cardBorderClass} border`}
     >
-      <div className="absolute top-4 right-4">
+      <div className="absolute right-4 top-4">
         <div
-          className={`flex items-center gap-2 px-3 py-1 rounded-full ${themeColors.inputBgClass}`}
+          className={`flex items-center gap-2 rounded-full px-3 py-1 ${themeColors.inputBgClass}`}
         >
-          <div className={`w-2 h-2 rounded-full ${statusMeta.dotClass}`} />
-          <span className={`text-xs font-medium ${themeColors.textClass}`}>
-            {statusMeta.text}
-          </span>
+          <div className={`h-2 w-2 rounded-full ${statusMeta.dotClass}`} />
+          <span className={`text-xs font-medium ${themeColors.textClass}`}>{statusMeta.text}</span>
         </div>
       </div>
 
       <div className="p-6 pb-4">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-lg bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xl font-bold shadow-sm">
-            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+          <div className="bg-linear-to-br flex h-12 w-12 items-center justify-center rounded-lg from-blue-500 to-indigo-600 text-xl font-bold text-white shadow-sm">
+            <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
               <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
             </svg>
           </div>
-          <div className="flex-1 min-w-0">
-            <h3
-              className={`text-base font-semibold truncate ${themeColors.activeTextClass}`}
-            >
+          <div className="min-w-0 flex-1">
+            <h3 className={`truncate text-base font-semibold ${themeColors.activeTextClass}`}>
               微信读书
             </h3>
-            <p className={`text-xs truncate ${themeColors.secondaryTextClass}`}>
+            <p className={`truncate text-xs ${themeColors.secondaryTextClass}`}>
               通过官方 API Key 同步书架、划线与想法
             </p>
           </div>
         </div>
       </div>
 
-      <div className="px-6 py-2 flex-1 overflow-hidden space-y-3">
-        <p className={`text-sm leading-5 ${themeColors.secondaryTextClass}`}>
-          {statusMeta.detail}
-        </p>
+      <div className="flex-1 space-y-3 overflow-hidden px-6 py-2">
+        <p className={`text-sm leading-5 ${themeColors.secondaryTextClass}`}>{statusMeta.detail}</p>
 
         <div className="flex flex-col gap-2">
           <label
@@ -126,12 +117,12 @@ const WeReadSetting: React.FC = () => {
           <input
             type="password"
             value={apiKeyValue}
-            onChange={(event) => {
+            onChange={event => {
               setApiKeyValue(event.target.value);
               setErrorMessage("");
             }}
             placeholder="wrk-xxxxxxxxxxxxxxxx"
-            className={`w-full px-3.5 py-2.5 rounded-xl outline-none transition-all ${themeColors.inputBgClass} ${themeColors.textClass} border ${themeColors.cardBorderClass}`}
+            className={`w-full rounded-xl px-3.5 py-2.5 outline-none transition-all ${themeColors.inputBgClass} ${themeColors.textClass} border ${themeColors.cardBorderClass}`}
           />
         </div>
 
@@ -139,23 +130,23 @@ const WeReadSetting: React.FC = () => {
           <button
             type="button"
             onClick={handleOpenApiKeyPage}
-            className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 hover:underline cursor-pointer"
+            className="cursor-pointer text-blue-500 hover:text-[var(--th-active-text)] hover:underline dark:hover:text-blue-300"
           >
             获取微信读书 API Key
           </button>
         </div>
 
         {errorMessage && (
-          <div className="px-3.5 py-2.5 rounded-lg text-[13px] bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400">
+          <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[13px] text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
             {errorMessage}
           </div>
         )}
       </div>
 
-      <div className="p-6 pt-4 mt-auto space-y-2">
+      <div className="mt-auto space-y-2 p-6 pt-4">
         <button
           onClick={handleValidateApiKey}
-          className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
+          className="w-full rounded-lg bg-[var(--th-btn-bg)] px-4 py-2 text-sm font-medium text-[var(--th-btn-text)] transition-colors hover:bg-[var(--th-btn-hover)]"
           disabled={!apiKeyValue.trim() || loading}
         >
           {loading ? "校验中..." : isSessionValid ? "重新校验" : "保存并校验"}

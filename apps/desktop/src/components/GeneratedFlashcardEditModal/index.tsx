@@ -143,7 +143,7 @@ const GeneratedFlashcardEditModal = ({
           onChange={e => setCardData({ ...cardData, answer: e.target.value })}
           placeholder="标准答案或要点"
           rows={4}
-          className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
+          className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
         />
       );
     }
@@ -188,7 +188,7 @@ const GeneratedFlashcardEditModal = ({
       title="编辑闪卡"
       subtitle="修改 AI 生成的闪卡内容"
       icon={<CreditCard className="h-5 w-5" />}
-      iconBgColor="bg-indigo-50 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/30"
+      iconBgColor="bg-[var(--th-accent-soft)] border-[var(--th-border-focus)]/30"
       bodyClassName="flashcard-editor-scroll"
     >
       <>
@@ -349,7 +349,7 @@ const GeneratedFlashcardEditModal = ({
                   }
                 }}
                 placeholder="输入标签后按回车添加"
-                className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-indigo-500 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
+                className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
               />
             </div>
             {tags.length > 0 && (

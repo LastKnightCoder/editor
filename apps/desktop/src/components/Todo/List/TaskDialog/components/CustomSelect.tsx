@@ -106,13 +106,13 @@ const CustomSelect: FC<CustomSelectProps> = ({
     setIsOpen(false);
   };
 
-  const selectedOption = options.find((opt) => opt.value === value);
+  const selectedOption = options.find(opt => opt.value === value);
 
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
         {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
+        {required && <span className="ml-1 text-red-500">*</span>}
       </label>
 
       {/* Trigger Button */}
@@ -120,11 +120,11 @@ const CustomSelect: FC<CustomSelectProps> = ({
         ref={triggerRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 py-3.5 rounded-xl text-sm text-left flex items-center justify-between outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
+        className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-left text-sm text-gray-800 shadow-inner outline-none transition-all focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white"
       >
         <span>{selectedOption?.label || "请选择"}</span>
         <svg
-          className="w-4 h-4 ml-2 shrink-0"
+          className="ml-2 h-4 w-4 shrink-0"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -140,7 +140,7 @@ const CustomSelect: FC<CustomSelectProps> = ({
           {isOpen && (
             <motion.div
               ref={panelRef}
-              className="fixed rounded-2xl bg-white/60 dark:bg-[rgba(30,30,30,0.6)] backdrop-blur-md backdrop-saturate-150 border border-white/30 dark:border-white/20 shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]"
+              className="fixed rounded-2xl border border-white/30 bg-white/60 shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] backdrop-blur-md backdrop-saturate-150 dark:border-white/20 dark:bg-[rgba(30,30,30,0.6)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]"
               style={{
                 top: `${position.top}px`,
                 left: `${position.left}px`,
@@ -152,16 +152,16 @@ const CustomSelect: FC<CustomSelectProps> = ({
               exit={{ opacity: 0, scale: 0.95, y: -10 }}
               transition={{ duration: 0.15, ease: "easeOut" }}
             >
-              <div className="p-2 max-h-64 overflow-y-auto">
-                {options.map((option) => (
+              <div className="max-h-64 overflow-y-auto p-2">
+                {options.map(option => (
                   <button
                     key={option.value}
                     type="button"
                     onClick={() => handleSelect(option.value)}
-                    className={`w-full px-3 py-2.5 rounded-lg text-sm text-left transition-all ${
+                    className={`w-full rounded-lg px-3 py-2.5 text-left text-sm transition-all ${
                       value === option.value
-                        ? "bg-indigo-500 text-white font-semibold"
-                        : "hover:bg-white/20 dark:hover:bg-white/10 text-gray-700 dark:text-gray-200"
+                        ? "bg-[var(--th-btn-bg)] font-semibold text-[var(--th-btn-text)]"
+                        : "text-gray-700 hover:bg-white/20 dark:text-gray-200 dark:hover:bg-white/10"
                     }`}
                   >
                     {option.label}
@@ -171,7 +171,7 @@ const CustomSelect: FC<CustomSelectProps> = ({
             </motion.div>
           )}
         </AnimatePresence>,
-        document.body,
+        document.body
       )}
     </div>
   );

@@ -134,7 +134,7 @@ const AIJudgementResultView: React.FC<AIJudgementResultProps> = ({ result }) => 
         {/* Suggestions */}
         {result.suggestions.length > 0 && (
           <div>
-            <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-blue-600 dark:text-blue-400">
+            <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-[var(--th-active-text)]">
               <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
                 <path
                   fillRule="evenodd"
@@ -168,7 +168,7 @@ export const AIJudgementLoading: React.FC = () => (
   >
     <div className="flex items-center gap-3">
       <div className="relative h-8 w-8">
-        <div className="absolute inset-0 rounded-full border-2 border-blue-200 dark:border-blue-500/30" />
+        <div className="border-[var(--th-border-focus)]/30 absolute inset-0 rounded-full border-2" />
         <div className="absolute inset-0 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
       </div>
       <div>

@@ -16,12 +16,7 @@ interface Position {
   width: number;
 }
 
-const TimePicker: FC<TimePickerProps> = ({
-  value,
-  onChange,
-  disabled = false,
-  label,
-}) => {
+const TimePicker: FC<TimePickerProps> = ({ value, onChange, disabled = false, label }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [editValue, setEditValue] = useState(value || "09:00");
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -119,16 +114,14 @@ const TimePicker: FC<TimePickerProps> = ({
     setIsOpen(false);
   });
 
-  const scrollToSelectedOption = useMemoizedFn(
-    (target: HTMLButtonElement | null): void => {
-      if (!target) return;
+  const scrollToSelectedOption = useMemoizedFn((target: HTMLButtonElement | null): void => {
+    if (!target) return;
 
-      target.scrollIntoView({
-        block: "nearest",
-        inline: "nearest",
-      });
-    },
-  );
+    target.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+    });
+  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -250,7 +243,7 @@ const TimePicker: FC<TimePickerProps> = ({
         type="button"
         onClick={handleButtonClick}
         disabled={disabled}
-        className="w-full px-4 py-3.5 rounded-xl text-sm text-left flex items-center justify-between outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner focus-within:border-indigo-500 focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)] disabled:opacity-60 disabled:cursor-not-allowed"
+        className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-left text-sm text-gray-800 shadow-inner outline-none transition-all focus-within:border-indigo-500 focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
       >
         <input
           ref={inputRef}
@@ -261,11 +254,11 @@ const TimePicker: FC<TimePickerProps> = ({
           onBlur={handleInputBlur}
           onKeyDown={handleInputKeyDown}
           disabled={disabled}
-          className="bg-transparent border-none outline-none text-gray-800 dark:text-white text-sm w-20 p-0 disabled:cursor-not-allowed"
+          className="w-20 border-none bg-transparent p-0 text-sm text-gray-800 outline-none disabled:cursor-not-allowed dark:text-white"
           placeholder="HH:MM"
         />
         <svg
-          className="w-4 h-4 ml-2 flex-shrink-0 pointer-events-none"
+          className="pointer-events-none ml-2 h-4 w-4 flex-shrink-0"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -282,7 +275,7 @@ const TimePicker: FC<TimePickerProps> = ({
           {isOpen && (
             <motion.div
               ref={panelRef}
-              className="fixed rounded-2xl bg-white/60 dark:bg-[rgba(30,30,30,0.6)] backdrop-blur-md backdrop-saturate-150 border border-white/30 dark:border-white/20 shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]"
+              className="fixed rounded-2xl border border-white/30 bg-white/60 shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] backdrop-blur-md backdrop-saturate-150 dark:border-white/20 dark:bg-[rgba(30,30,30,0.6)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]"
               style={{
                 top: `${position.top}px`,
                 left: `${position.left}px`,
@@ -296,7 +289,7 @@ const TimePicker: FC<TimePickerProps> = ({
             >
               <div className="p-4">
                 {/* Time Display */}
-                <div className="text-center mb-4">
+                <div className="mb-4 text-center">
                   <div className="text-2xl font-bold text-gray-800 dark:text-white">
                     {selectedHour.toString().padStart(2, "0")}:
                     {selectedMinute.toString().padStart(2, "0")}
@@ -304,23 +297,23 @@ const TimePicker: FC<TimePickerProps> = ({
                 </div>
 
                 {/* Hour and Minute Selectors */}
-                <div className="flex gap-2 mb-4">
+                <div className="mb-4 flex gap-2">
                   {/* Hour Selector */}
                   <div className="flex-1">
-                    <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-2 text-center">
+                    <div className="mb-2 text-center text-xs font-semibold text-gray-500 dark:text-slate-400">
                       小时
                     </div>
-                    <div className="h-40 overflow-y-auto rounded-lg bg-white/20 dark:bg-black/20 p-1">
-                      {hourOptions.map((hour) => (
+                    <div className="h-40 overflow-y-auto rounded-lg bg-white/20 p-1 dark:bg-black/20">
+                      {hourOptions.map(hour => (
                         <button
                           key={hour}
                           ref={selectedHour === hour ? selectedHourRef : null}
                           type="button"
                           onClick={() => setSelectedHour(hour)}
-                          className={`w-full py-1.5 rounded text-sm transition-all ${
+                          className={`w-full rounded py-1.5 text-sm transition-all ${
                             selectedHour === hour
-                              ? "bg-indigo-500 text-white font-semibold"
-                              : "hover:bg-white/20 dark:hover:bg-white/10 text-gray-700 dark:text-gray-200"
+                              ? "bg-[var(--th-btn-bg)] font-semibold text-[var(--th-btn-text)]"
+                              : "text-gray-700 hover:bg-white/20 dark:text-gray-200 dark:hover:bg-white/10"
                           }`}
                         >
                           {hour.toString().padStart(2, "0")}
@@ -331,22 +324,20 @@ const TimePicker: FC<TimePickerProps> = ({
 
                   {/* Minute Selector */}
                   <div className="flex-1">
-                    <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-2 text-center">
+                    <div className="mb-2 text-center text-xs font-semibold text-gray-500 dark:text-slate-400">
                       分钟
                     </div>
-                    <div className="h-40 overflow-y-auto rounded-lg bg-white/20 dark:bg-black/20 p-1">
-                      {minuteOptions.map((minute) => (
+                    <div className="h-40 overflow-y-auto rounded-lg bg-white/20 p-1 dark:bg-black/20">
+                      {minuteOptions.map(minute => (
                         <button
                           key={minute}
-                          ref={
-                            selectedMinute === minute ? selectedMinuteRef : null
-                          }
+                          ref={selectedMinute === minute ? selectedMinuteRef : null}
                           type="button"
                           onClick={() => setSelectedMinute(minute)}
-                          className={`w-full py-1.5 rounded text-sm transition-all ${
+                          className={`w-full rounded py-1.5 text-sm transition-all ${
                             selectedMinute === minute
-                              ? "bg-indigo-500 text-white font-semibold"
-                              : "hover:bg-white/20 dark:hover:bg-white/10 text-gray-700 dark:text-gray-200"
+                              ? "bg-[var(--th-btn-bg)] font-semibold text-[var(--th-btn-text)]"
+                              : "text-gray-700 hover:bg-white/20 dark:text-gray-200 dark:hover:bg-white/10"
                           }`}
                         >
                           {minute.toString().padStart(2, "0")}
@@ -361,14 +352,14 @@ const TimePicker: FC<TimePickerProps> = ({
                   <button
                     type="button"
                     onClick={handleNow}
-                    className="flex-1 py-2 rounded-lg text-xs font-medium bg-white/20 dark:bg-white/10 hover:bg-white/30 dark:hover:bg-white/15 transition-colors text-gray-700 dark:text-gray-200"
+                    className="flex-1 rounded-lg bg-white/20 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-white/30 dark:bg-white/10 dark:text-gray-200 dark:hover:bg-white/15"
                   >
                     现在
                   </button>
                   <button
                     type="button"
                     onClick={handleConfirm}
-                    className="flex-1 py-2 rounded-lg text-xs font-medium bg-indigo-500 text-white hover:bg-indigo-600 transition-colors"
+                    className="flex-1 rounded-lg bg-[var(--th-btn-bg)] py-2 text-xs font-medium text-[var(--th-btn-text)] transition-colors hover:bg-[var(--th-btn-hover)]"
                   >
                     确定
                   </button>
@@ -377,7 +368,7 @@ const TimePicker: FC<TimePickerProps> = ({
             </motion.div>
           )}
         </AnimatePresence>,
-        document.body,
+        document.body
       )}
     </div>
   );

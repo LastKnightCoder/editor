@@ -2,12 +2,7 @@ import { useEffect, useMemo, useState, type ComponentType } from "react";
 import { App, Checkbox, Select, Tree } from "antd";
 import type { TreeDataNode } from "antd";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
-import {
-  MdDescription,
-  MdFolderZip,
-  MdMenuBook,
-  MdPictureAsPdf,
-} from "react-icons/md";
+import { MdDescription, MdFolderZip, MdMenuBook, MdPictureAsPdf } from "react-icons/md";
 import {
   exportEpubWithDialog,
   exportPdfWithDialog,
@@ -96,11 +91,9 @@ const FORMAT_CARDS: FormatCard[] = [
 const normalizeText = (value?: string) => (value || "").trim();
 
 const toTreeData = (nodes: BatchExportTreeNode[]): TreeDataNode[] =>
-  nodes.map((node) => ({
+  nodes.map(node => ({
     key: node.id,
-    title: node.exportable
-      ? node.title
-      : `${node.title}（${node.disabledReason || "不参与导出"}）`,
+    title: node.exportable ? node.title : `${node.title}（${node.disabledReason || "不参与导出"}）`,
     disableCheckbox: !node.exportable,
     children: toTreeData(node.children),
   }));
@@ -108,16 +101,17 @@ const toTreeData = (nodes: BatchExportTreeNode[]): TreeDataNode[] =>
 const BatchExportModal = (props: BatchExportModalProps) => {
   const { open, onClose, scope } = props;
   const { message } = App.useApp();
-  const dbName = useSettingStore((state) => state.setting.database.active);
+  const dbName = useSettingStore(state => state.setting.database.active);
 
   const storageKey = useMemo(
     () => `batch-export-settings:${dbName}:${scope.type}:${scope.id}`,
-    [dbName, scope.type, scope.id],
+    [dbName, scope.type, scope.id]
   );
 
-  const [remembered, setRemembered] = useLocalStorageState<
-    BatchExportSettings | undefined
-  >(storageKey, { defaultValue: undefined });
+  const [remembered, setRemembered] = useLocalStorageState<BatchExportSettings | undefined>(
+    storageKey,
+    { defaultValue: undefined }
+  );
 
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -143,14 +137,14 @@ const BatchExportModal = (props: BatchExportModalProps) => {
     setLoading(true);
 
     loadScopeTree(scope)
-      .then((nodes) => {
+      .then(nodes => {
         if (cancelled) {
           return;
         }
         setTree(nodes);
         const exportableIds = collectExportableIds(nodes);
         const excluded = new Set(remembered?.excludedIds || []);
-        setCheckedKeys(exportableIds.filter((id) => !excluded.has(id)));
+        setCheckedKeys(exportableIds.filter(id => !excluded.has(id)));
         setFormats(remembered?.formats || DEFAULT_SETTINGS.formats);
         setRule(remembered?.rule || DEFAULT_SETTINGS.rule);
         setPdfSettings(remembered?.pdf || DEFAULT_PDF_SETTINGS);
@@ -159,7 +153,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
         setLanguage(remembered?.epubMeta?.language || "zh-CN");
         setLoading(false);
       })
-      .catch((error) => {
+      .catch(error => {
         if (cancelled) {
           return;
         }
@@ -178,21 +172,16 @@ const BatchExportModal = (props: BatchExportModalProps) => {
   const treeData = useMemo(() => toTreeData(tree), [tree]);
   const exportableIds = useMemo(() => collectExportableIds(tree), [tree]);
   const selectedCount = useMemo(
-    () => checkedKeys.filter((id) => exportableIds.includes(id)).length,
-    [checkedKeys, exportableIds],
+    () => checkedKeys.filter(id => exportableIds.includes(id)).length,
+    [checkedKeys, exportableIds]
   );
 
-  const hasFormat =
-    formats.pdf || formats.epub || formats.markdown || formats.markdownZip;
+  const hasFormat = formats.pdf || formats.epub || formats.markdown || formats.markdownZip;
   // 导出规则只作用于 PDF / EPUB / 合并 Markdown；仅选 ZIP 时不适用
   const rulesApplicable = formats.pdf || formats.epub || formats.markdown;
   const hasRule = !rulesApplicable || rule.pageBreak || rule.asHeading;
   const canExport =
-    !loading &&
-    selectedCount > 0 &&
-    hasFormat &&
-    hasRule &&
-    normalizeText(bookTitle).length > 0;
+    !loading && selectedCount > 0 && hasFormat && hasRule && normalizeText(bookTitle).length > 0;
 
   const handleConfirm = useMemoizedFn(async () => {
     const title = normalizeText(bookTitle);
@@ -202,7 +191,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
     }
 
     const chapters = flattenSelectedChapters(tree, new Set(checkedKeys));
-    if (chapters.filter((chapter) => !chapter.isGroup).length === 0) {
+    if (chapters.filter(chapter => !chapter.isGroup).length === 0) {
       message.error("请至少选择一篇要导出的内容");
       return;
     }
@@ -214,9 +203,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
       let canceled = false;
 
       // 进度按处理单元推进：每章序列化 / 每个 ZIP 文件各 1 单元，每种格式收尾（生成文件）再 1 单元
-      const contentCount = chapters.filter(
-        (chapter) => !chapter.isGroup,
-      ).length;
+      const contentCount = chapters.filter(chapter => !chapter.isGroup).length;
       const epubUnits = formats.epub ? chapters.length + 1 : 0;
       const pdfUnits = formats.pdf ? chapters.length + 1 : 0;
       const markdownUnits = formats.markdown ? 1 : 0;
@@ -227,10 +214,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
         if (totalUnits <= 0) {
           return;
         }
-        const percent = Math.min(
-          99,
-          Math.round(((finishedUnits + processed) / totalUnits) * 100),
-        );
+        const percent = Math.min(99, Math.round(((finishedUnits + processed) / totalUnits) * 100));
         setExportProgress({ percent, label });
       };
 
@@ -241,14 +225,12 @@ const BatchExportModal = (props: BatchExportModalProps) => {
           language: normalizeText(language) || "zh-CN",
           description: "",
         };
-        const { payload, warnings: epubWarnings } = await buildBatchEpubPayload(
-          {
-            chapters,
-            metadata,
-            rule,
-            onProgress: (processed, _total, label) => report(processed, label),
-          },
-        );
+        const { payload, warnings: epubWarnings } = await buildBatchEpubPayload({
+          chapters,
+          metadata,
+          rule,
+          onProgress: (processed, _total, label) => report(processed, label),
+        });
         report(epubUnits - 1, "正在生成 EPUB 文件...");
         const result = await exportEpubWithDialog(payload);
         finishedUnits += epubUnits;
@@ -300,7 +282,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
         const zipBytes = await buildMarkdownZipBytes(
           tree,
           new Set(checkedKeys),
-          (processed, _total, label) => report(processed, label),
+          (processed, _total, label) => report(processed, label)
         );
         report(zipUnits - 1, "正在保存 ZIP 文件...");
         const result = await saveFileWithDialog({
@@ -319,7 +301,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
       setExportProgress({ percent: 100 });
 
       setRemembered({
-        excludedIds: exportableIds.filter((id) => !checkedKeys.includes(id)),
+        excludedIds: exportableIds.filter(id => !checkedKeys.includes(id)),
         formats,
         rule,
         pdf: pdfSettings,
@@ -333,9 +315,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
         message.info("已取消导出");
       } else {
         message.success(
-          savedPaths.length > 0
-            ? `导出成功，已保存：${savedPaths.join("、")}`
-            : "导出成功",
+          savedPaths.length > 0 ? `导出成功，已保存：${savedPaths.join("、")}` : "导出成功"
         );
         if (savedPaths[0]) {
           try {
@@ -360,7 +340,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
   });
 
   const inputClass =
-    "w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500";
+    "w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-[var(--th-border-focus)]";
   const labelClass =
     "text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400";
 
@@ -377,7 +357,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
       width={880}
       bodyClassName="p-5 overflow-y-auto"
     >
-      <div className="grid grid-cols-[minmax(230px,290px)_1fr] gap-5 items-start">
+      <div className="grid grid-cols-[minmax(230px,290px)_1fr] items-start gap-5">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <label className={labelClass}>导出内容</label>
@@ -385,7 +365,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
               已选 {selectedCount} / 共 {exportableIds.length} 篇
             </span>
           </div>
-          <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-zinc-950 px-3 py-2 max-h-[440px] min-h-[280px] overflow-y-auto">
+          <div className="max-h-[440px] min-h-[280px] overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-slate-700 dark:bg-zinc-950">
             {loading ? (
               <div className="py-6 text-center text-xs text-gray-500 dark:text-slate-400">
                 正在加载内容...
@@ -397,7 +377,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
                 selectable={false}
                 treeData={treeData}
                 checkedKeys={checkedKeys}
-                onCheck={(keys) => setCheckedKeys(keys as number[])}
+                onCheck={keys => setCheckedKeys(keys as number[])}
               />
             ) : (
               <div className="py-6 text-center text-xs text-gray-500 dark:text-slate-400">
@@ -407,11 +387,11 @@ const BatchExportModal = (props: BatchExportModalProps) => {
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 min-w-0">
+        <div className="flex min-w-0 flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label className={labelClass}>导出格式</label>
             <div className="grid grid-cols-2 gap-2">
-              {FORMAT_CARDS.map((card) => {
+              {FORMAT_CARDS.map(card => {
                 const selected = formats[card.key];
                 const Icon = card.icon;
                 return (
@@ -419,21 +399,19 @@ const BatchExportModal = (props: BatchExportModalProps) => {
                     key={card.key}
                     type="button"
                     onClick={() =>
-                      setFormats((prev) => ({
+                      setFormats(prev => ({
                         ...prev,
                         [card.key]: !prev[card.key],
                       }))
                     }
-                    className={`relative flex items-start gap-2.5 rounded-xl border p-3 text-left transition-all cursor-pointer ${
+                    className={`relative flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 text-left transition-all ${
                       selected
                         ? "border-indigo-500 bg-indigo-50/70 dark:bg-indigo-500/10"
-                        : "border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-zinc-950 hover:border-gray-300 dark:hover:border-slate-600"
+                        : "border-gray-200 bg-gray-50 hover:border-gray-300 dark:border-slate-700 dark:bg-zinc-950 dark:hover:border-slate-600"
                     }`}
                   >
-                    <Icon
-                      className={`w-5 h-5 mt-0.5 shrink-0 ${card.iconClass}`}
-                    />
-                    <span className="flex flex-col gap-0.5 min-w-0">
+                    <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${card.iconClass}`} />
+                    <span className="flex min-w-0 flex-col gap-0.5">
                       <span className="text-sm font-medium text-gray-800 dark:text-white">
                         {card.label}
                       </span>
@@ -442,19 +420,15 @@ const BatchExportModal = (props: BatchExportModalProps) => {
                       </span>
                     </span>
                     {selected && (
-                      <span className="absolute top-2 right-2 flex items-center justify-center w-[18px] h-[18px] rounded-full bg-indigo-500 text-white">
+                      <span className="absolute right-2 top-2 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]">
                         <svg
-                          className="w-3 h-3"
+                          className="h-3 w-3"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="3"
                         >
-                          <path
-                            d="M5 13l4 4L19 7"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
+                          <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </span>
                     )}
@@ -473,12 +447,12 @@ const BatchExportModal = (props: BatchExportModalProps) => {
                 </span>
               )}
             </div>
-            <div className="flex flex-col gap-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-zinc-950 px-3.5 py-2.5">
+            <div className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 dark:border-slate-700 dark:bg-zinc-950">
               <Checkbox
                 checked={rule.pageBreak}
                 disabled={!rulesApplicable}
-                onChange={(event) =>
-                  setRule((prev) => ({
+                onChange={event =>
+                  setRule(prev => ({
                     ...prev,
                     pageBreak: event.target.checked,
                   }))
@@ -490,8 +464,8 @@ const BatchExportModal = (props: BatchExportModalProps) => {
                 <Checkbox
                   checked={rule.asHeading}
                   disabled={!rulesApplicable}
-                  onChange={(event) =>
-                    setRule((prev) => ({
+                  onChange={event =>
+                    setRule(prev => ({
                       ...prev,
                       asHeading: event.target.checked,
                     }))
@@ -503,8 +477,8 @@ const BatchExportModal = (props: BatchExportModalProps) => {
                   size="small"
                   value={rule.headingLevel}
                   disabled={!rulesApplicable || !rule.asHeading}
-                  onChange={(value) =>
-                    setRule((prev) => ({
+                  onChange={value =>
+                    setRule(prev => ({
                       ...prev,
                       headingLevel: value as BatchExportRule["headingLevel"],
                     }))
@@ -522,11 +496,11 @@ const BatchExportModal = (props: BatchExportModalProps) => {
           {formats.pdf && (
             <div className="flex flex-col gap-1.5">
               <label className={labelClass}>PDF 目录</label>
-              <div className="flex flex-col gap-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-zinc-950 px-3.5 py-2.5">
+              <div className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 dark:border-slate-700 dark:bg-zinc-950">
                 <Checkbox
                   checked={pdfSettings.outline}
-                  onChange={(event) =>
-                    setPdfSettings((prev) => ({
+                  onChange={event =>
+                    setPdfSettings(prev => ({
                       ...prev,
                       outline: event.target.checked,
                     }))
@@ -537,8 +511,8 @@ const BatchExportModal = (props: BatchExportModalProps) => {
                 <Checkbox
                   checked={pdfSettings.tocPage && rule.asHeading}
                   disabled={!rule.asHeading}
-                  onChange={(event) =>
-                    setPdfSettings((prev) => ({
+                  onChange={event =>
+                    setPdfSettings(prev => ({
                       ...prev,
                       tocPage: event.target.checked,
                     }))
@@ -562,7 +536,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
                 type="text"
                 value={bookTitle}
                 placeholder="请输入书名"
-                onChange={(event) => setBookTitle(event.target.value)}
+                onChange={event => setBookTitle(event.target.value)}
                 className={inputClass}
               />
             </div>
@@ -572,7 +546,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
                 type="text"
                 value={author}
                 placeholder="可选"
-                onChange={(event) => setAuthor(event.target.value)}
+                onChange={event => setAuthor(event.target.value)}
                 className={inputClass}
               />
             </div>
@@ -585,7 +559,7 @@ const BatchExportModal = (props: BatchExportModalProps) => {
                 type="text"
                 value={language}
                 placeholder="例如 zh-CN / en"
-                onChange={(event) => setLanguage(event.target.value)}
+                onChange={event => setLanguage(event.target.value)}
                 className={inputClass}
               />
             </div>
@@ -596,14 +570,10 @@ const BatchExportModal = (props: BatchExportModalProps) => {
       {exporting && exportProgress && (
         <div className="mt-4 flex flex-col gap-1.5">
           <div className="flex items-center justify-between gap-3 text-xs text-gray-500 dark:text-slate-400">
-            <span className="truncate min-w-0">
-              {exportProgress.label || "正在导出..."}
-            </span>
-            <span className="shrink-0 tabular-nums">
-              {exportProgress.percent}%
-            </span>
+            <span className="min-w-0 truncate">{exportProgress.label || "正在导出..."}</span>
+            <span className="shrink-0 tabular-nums">{exportProgress.percent}%</span>
           </div>
-          <div className="h-1.5 rounded-full bg-gray-200 dark:bg-zinc-800 overflow-hidden">
+          <div className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-zinc-800">
             <div
               className="h-full rounded-full bg-indigo-500 transition-all duration-300"
               style={{ width: `${exportProgress.percent}%` }}

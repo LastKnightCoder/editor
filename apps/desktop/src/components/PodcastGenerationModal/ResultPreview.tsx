@@ -1,13 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import classNames from "classnames";
 import { Volume2, FileText, RefreshCw, Pause } from "lucide-react";
-import {
-  Button,
-  SectionTitle,
-  TextArea,
-  TextStrong,
-  TextSecondary,
-} from "./ui";
+import { Button, SectionTitle, TextArea, TextStrong, TextSecondary } from "./ui";
 import { formatTime } from "./utils";
 import type { PodcastScriptLine } from "@/types/podcast";
 import { extractPodcastSegment } from "@/commands/podcast-audio";
@@ -20,10 +14,7 @@ export interface ResultPreviewProps {
   scriptLines: PodcastScriptLine[];
   segmentAudios: Blob[];
   regenerateSegment: (index: number, newText: string) => Promise<void>;
-  notify: (
-    type: "success" | "error" | "warning" | "info",
-    text: string,
-  ) => void;
+  notify: (type: "success" | "error" | "warning" | "info", text: string) => void;
 }
 
 export const ResultPreview = ({
@@ -34,28 +25,17 @@ export const ResultPreview = ({
   regenerateSegment,
   notify,
 }: ResultPreviewProps) => {
-  const [editingSegmentIndex, setEditingSegmentIndex] = useState<number | null>(
-    null,
-  );
+  const [editingSegmentIndex, setEditingSegmentIndex] = useState<number | null>(null);
   const [editingSegmentText, setEditingSegmentText] = useState<string>("");
-  const [regeneratingSegmentIndex, setRegeneratingSegmentIndex] = useState<
-    number | null
-  >(null);
-  const [extractingAudioIndex, setExtractingAudioIndex] = useState<
-    number | null
-  >(null);
-  const [playingSegmentIndex, setPlayingSegmentIndex] = useState<number | null>(
-    null,
-  );
+  const [regeneratingSegmentIndex, setRegeneratingSegmentIndex] = useState<number | null>(null);
+  const [extractingAudioIndex, setExtractingAudioIndex] = useState<number | null>(null);
+  const [playingSegmentIndex, setPlayingSegmentIndex] = useState<number | null>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  const handleStartEditSegment = useCallback(
-    (index: number, currentText: string) => {
-      setEditingSegmentIndex(index);
-      setEditingSegmentText(currentText);
-    },
-    [],
-  );
+  const handleStartEditSegment = useCallback((index: number, currentText: string) => {
+    setEditingSegmentIndex(index);
+    setEditingSegmentText(currentText);
+  }, []);
 
   const handleCancelEditSegment = useCallback(() => {
     setEditingSegmentIndex(null);
@@ -156,12 +136,10 @@ export const ResultPreview = ({
         const { outputPath } = await extractPodcastSegment(
           localAudioPath,
           scriptLines[index].startTime,
-          scriptLines[index].duration,
+          scriptLines[index].duration
         );
 
-        const audioBuffer = (await readBinaryFile(
-          outputPath,
-        )) as Uint8Array<ArrayBuffer>;
+        const audioBuffer = (await readBinaryFile(outputPath)) as Uint8Array<ArrayBuffer>;
         const audioBlob = new Blob([audioBuffer.buffer], {
           type: "audio/mpeg",
         });
@@ -192,32 +170,24 @@ export const ResultPreview = ({
         setExtractingAudioIndex(null);
       }
     },
-    [
-      segmentAudios,
-      audioUrl,
-      notify,
-      scriptLines,
-      playingSegmentIndex,
-      stopCurrentAudio,
-    ],
+    [segmentAudios, audioUrl, notify, scriptLines, playingSegmentIndex, stopCurrentAudio]
   );
 
   return (
     <div className="space-y-4">
       <SectionTitle>
-        <Volume2 size={14} className="inline-block mr-1.5 -mt-px" /> 播客音频
+        <Volume2 size={14} className="-mt-px mr-1.5 inline-block" /> 播客音频
       </SectionTitle>
       <audio key={audioUrl} controls className="w-full" src={audioUrl} />
       <TextSecondary className="text-xs">
-        时长: {Math.floor(duration / 60)}:
-        {(duration % 60).toString().padStart(2, "0")}
+        时长: {Math.floor(duration / 60)}:{(duration % 60).toString().padStart(2, "0")}
       </TextSecondary>
 
       <details open className="mt-4">
-        <summary className="cursor-pointer text-xs font-medium text-gray-500 dark:text-zinc-400 flex items-center gap-1.5 select-none">
+        <summary className="flex cursor-pointer select-none items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-zinc-400">
           <FileText size={14} className="inline-block" /> 查看脚本
         </summary>
-        <div className="overflow-y-auto flex flex-col gap-2 pt-3 max-h-[400px]">
+        <div className="flex max-h-[400px] flex-col gap-2 overflow-y-auto pt-3">
           {scriptLines.map((line, index) => {
             const isEditing = editingSegmentIndex === index;
             const isRegenerating = regeneratingSegmentIndex === index;
@@ -228,20 +198,19 @@ export const ResultPreview = ({
               <div
                 key={index}
                 className={classNames(
-                  "p-3 rounded-lg transition-colors duration-150",
+                  "rounded-lg p-3 transition-colors duration-150",
                   isEditing
-                    ? "bg-blue-50 dark:bg-blue-500/10 shadow-[0_0_0_1px_rgba(59,130,246,0.3)]"
+                    ? "bg-[var(--th-accent-soft)] shadow-[0_0_0_1px_rgba(59,130,246,0.3)]"
                     : isRegenerating
-                      ? "bg-amber-50 dark:bg-amber-500/10 shadow-[0_0_0_1px_rgba(245,158,11,0.3)]"
-                      : "bg-gray-50 dark:bg-zinc-800/50 shadow-[0_0_0_1px_rgba(34,42,53,0.06)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.04)] hover:shadow-[0_0_0_1px_rgba(34,42,53,0.12)] dark:hover:shadow-[0_0_0_1px_rgba(255,255,255,0.08)]",
+                      ? "bg-amber-50 shadow-[0_0_0_1px_rgba(245,158,11,0.3)] dark:bg-amber-500/10"
+                      : "bg-gray-50 shadow-[0_0_0_1px_rgba(34,42,53,0.06)] hover:shadow-[0_0_0_1px_rgba(34,42,53,0.12)] dark:bg-zinc-800/50 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.04)] dark:hover:shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
                 )}
               >
-                <div className="flex justify-between items-center mb-2">
+                <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <TextStrong>{line.speaker}</TextStrong>
                     <TextSecondary className="text-xs">
-                      {formatTime(line.startTime)} -{" "}
-                      {formatTime(line.startTime + line.duration)} (
+                      {formatTime(line.startTime)} - {formatTime(line.startTime + line.duration)} (
                       {line.duration.toFixed(1)}s)
                     </TextSecondary>
                     {isRegenerating && (
@@ -255,13 +224,7 @@ export const ResultPreview = ({
                       <Button
                         size="small"
                         variant={isPlaying ? "primary" : "text"}
-                        icon={
-                          isPlaying ? (
-                            <Pause size={14} />
-                          ) : (
-                            <Volume2 size={14} />
-                          )
-                        }
+                        icon={isPlaying ? <Pause size={14} /> : <Volume2 size={14} />}
                         loading={isExtracting}
                         onClick={() => handlePlaySegment(index)}
                       >
@@ -303,7 +266,7 @@ export const ResultPreview = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="text-sm text-gray-700 dark:text-zinc-200 whitespace-pre-wrap leading-relaxed">
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700 dark:text-zinc-200">
                     {line.text}
                   </div>
                 )}

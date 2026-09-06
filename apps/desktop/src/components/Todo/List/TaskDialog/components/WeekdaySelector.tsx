@@ -18,7 +18,7 @@ const WEEKDAYS = [
 const WeekdaySelector: FC<WeekdaySelectorProps> = ({ value, onChange }) => {
   const handleToggle = (day: number) => {
     if (value.includes(day)) {
-      onChange(value.filter((d) => d !== day));
+      onChange(value.filter(d => d !== day));
     } else {
       onChange([...value, day].sort());
     }
@@ -30,17 +30,17 @@ const WeekdaySelector: FC<WeekdaySelectorProps> = ({ value, onChange }) => {
         重复日期
       </label>
       <div className="flex gap-2">
-        {WEEKDAYS.map((day) => {
+        {WEEKDAYS.map(day => {
           const isSelected = value.includes(day.value);
           return (
             <button
               key={day.value}
               type="button"
               onClick={() => handleToggle(day.value)}
-              className={`flex-1 h-10 rounded-lg text-sm font-medium transition-all ${
+              className={`h-10 flex-1 rounded-lg text-sm font-medium transition-all ${
                 isSelected
-                  ? "bg-indigo-500 text-white shadow-md"
-                  : "bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-zinc-700"
+                  ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] shadow-md"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-zinc-800 dark:text-slate-300 dark:hover:bg-zinc-700"
               }`}
             >
               {day.label}

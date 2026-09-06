@@ -20,11 +20,11 @@ function SegmentedControl<T extends string | number>({
 }: SegmentedControlProps<T>) {
   return (
     <div
-      className={`inline-flex items-center gap-1 rounded-xl bg-gray-100 dark:bg-zinc-800 p-1 ${
-        disabled ? "opacity-60 cursor-not-allowed" : ""
+      className={`inline-flex items-center gap-1 rounded-xl bg-gray-100 p-1 dark:bg-zinc-800 ${
+        disabled ? "cursor-not-allowed opacity-60" : ""
       } ${className}`}
     >
-      {options.map((option) => {
+      {options.map(option => {
         const selected = option.value === value;
         return (
           <button
@@ -32,10 +32,10 @@ function SegmentedControl<T extends string | number>({
             type="button"
             disabled={disabled}
             onClick={() => !disabled && onChange(option.value)}
-            className={`px-3.5 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all border-none cursor-pointer ${
+            className={`cursor-pointer whitespace-nowrap rounded-lg border-none px-3.5 py-1.5 text-sm font-medium transition-all ${
               selected
-                ? "bg-white dark:bg-zinc-700 shadow-sm text-blue-600 dark:text-blue-400"
-                : "bg-transparent text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
+                ? "bg-white text-[var(--th-active-text)] shadow-sm dark:bg-zinc-700"
+                : "bg-transparent text-gray-500 hover:text-gray-800 dark:text-slate-400 dark:hover:text-slate-200"
             } disabled:cursor-not-allowed`}
           >
             {option.label}

@@ -351,7 +351,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
               placeholder="请输入你的答案..."
               className={classNames(
                 "min-h-[160px] w-full resize-none rounded-xl border-2 px-5 py-4 text-base leading-relaxed transition-all",
-                "focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10",
+                "focus:ring-[var(--th-accent)]/10 focus:border-[var(--th-border-focus)] focus:outline-none focus:ring-4",
                 isDark
                   ? "border-gray-700 bg-zinc-800 text-gray-100 placeholder-gray-500"
                   : "border-gray-200 bg-white text-gray-900 placeholder-gray-400",
@@ -619,7 +619,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
               className={classNames(
                 "w-full rounded-xl py-3.5 text-lg font-bold shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0",
                 canSubmit
-                  ? "bg-blue-600 text-white shadow-blue-500/20 hover:bg-blue-500"
+                  ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] shadow-blue-500/20 hover:bg-[var(--th-btn-hover)]"
                   : "cursor-not-allowed bg-gray-200 text-gray-400 shadow-none dark:bg-zinc-800"
               )}
             >

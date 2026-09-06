@@ -800,7 +800,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-500/10">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--th-accent-soft)]">
                 <UploadIcon className="h-6 w-6 text-blue-500" />
               </div>
               <div>
@@ -855,7 +855,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
             "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all",
             "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
             "text-gray-800 placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500",
-            "focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20",
+            "focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-blue-500/20",
             "disabled:cursor-not-allowed disabled:opacity-60"
           )}
         />
@@ -878,7 +878,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
             "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all",
             "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
             "text-gray-800 placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500",
-            "focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20",
+            "focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-blue-500/20",
             "disabled:cursor-not-allowed disabled:opacity-60"
           )}
           onKeyDown={e => {
@@ -897,7 +897,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           className="flex flex-col items-center py-8"
         >
           <div className="relative">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-500/10">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--th-accent-soft)]">
               <Globe className="h-7 w-7 text-blue-500" />
             </div>
             <motion.div
@@ -1233,8 +1233,8 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
   // 按钮样式
   const primaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
-    "bg-blue-500 text-white",
-    "hover:bg-blue-600",
+    "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]",
+    "hover:bg-[var(--th-btn-hover)]",
     "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed"
   );
 
@@ -1392,7 +1392,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       title="添加资料"
       subtitle="上传文件、剪藏网页或添加视频"
       icon={<Plus className="h-5 w-5 text-blue-500" />}
-      iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
+      iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-[var(--th-border-focus)]/30"
       footer={renderFooter()}
       showCloseButton={canClose}
     >

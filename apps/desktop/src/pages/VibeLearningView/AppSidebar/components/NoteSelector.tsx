@@ -97,8 +97,8 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
     getScrollElement: () => listRef.current,
     estimateSize: () => 200,
     overscan: 3,
-    getItemKey: (index) => searchedItems[index].id,
-    measureElement: (el) => {
+    getItemKey: index => searchedItems[index].id,
+    measureElement: el => {
       const item = el.firstElementChild;
       if (!item) return 200;
       return el.getBoundingClientRect().height;
@@ -110,9 +110,9 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
   });
 
   return (
-    <div className="h-full overflow-y-auto overflow-x-hidden box-border flex flex-col max-h-[500px]">
-      <div className="shrink-0 flex w-full p-0 box-border items-center mb-4 relative">
-        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 z-1 text-gray-400 dark:text-slate-500 text-base pointer-events-none">
+    <div className="box-border flex h-full max-h-[500px] flex-col overflow-y-auto overflow-x-hidden">
+      <div className="relative mb-4 box-border flex w-full shrink-0 items-center p-0">
+        <div className="z-1 pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-base text-gray-400 dark:text-slate-500">
           {searching ? <LoadingOutlined /> : <SearchOutlined />}
         </div>
         <EditText
@@ -121,7 +121,7 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
           contentEditable={true}
           onChange={setSearch}
           onPressEnter={searchItems}
-          className="flex-1 px-4 py-3 pl-11 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-900 dark:text-white relative focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.15)] focus:bg-white dark:focus:bg-zinc-900 placeholder:text-gray-400 dark:placeholder:text-slate-500"
+          className="relative flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 pl-11 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:bg-white focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:bg-zinc-900"
           onDeleteEmpty={() => {
             setSearch("");
             setSearchedItems([]);
@@ -130,21 +130,21 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
         />
       </div>
       <div
-        className={classnames("flex-1 box-border flex flex-col", {
+        className={classnames("box-border flex flex-1 flex-col", {
           "overflow-y-auto": !searching,
           "overflow-hidden": searching,
         })}
         ref={listRef}
       >
         <If condition={searching}>
-          <div className="flex items-center justify-center h-full w-full text-[2em] py-12">
+          <div className="flex h-full w-full items-center justify-center py-12 text-[2em]">
             <LoadingOutlined />
           </div>
         </If>
         <If condition={!searching && !hasSearched}>
-          <div className="flex flex-col items-center justify-center h-full w-full py-10 px-5 text-gray-400 dark:text-slate-500">
+          <div className="flex h-full w-full flex-col items-center justify-center px-5 py-10 text-gray-400 dark:text-slate-500">
             <svg
-              className="w-12 h-12 mb-3 opacity-50"
+              className="mb-3 h-12 w-12 opacity-50"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -153,16 +153,14 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
-            <p className="text-sm m-0 text-center">{emptyDescription}</p>
-            <p className="text-xs m-0 mt-1 text-center opacity-70">
-              输入关键词后按 Enter 搜索
-            </p>
+            <p className="m-0 text-center text-sm">{emptyDescription}</p>
+            <p className="m-0 mt-1 text-center text-xs opacity-70">输入关键词后按 Enter 搜索</p>
           </div>
         </If>
         <If condition={!searching && hasSearched && searchedItems.length === 0}>
-          <div className="flex flex-col items-center justify-center h-full w-full py-10 px-5 text-gray-400 dark:text-slate-500">
+          <div className="flex h-full w-full flex-col items-center justify-center px-5 py-10 text-gray-400 dark:text-slate-500">
             <svg
-              className="w-12 h-12 mb-3 opacity-50"
+              className="mb-3 h-12 w-12 opacity-50"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -171,7 +169,7 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
-            <p className="text-sm m-0">未找到相关内容</p>
+            <p className="m-0 text-sm">未找到相关内容</p>
           </div>
         </If>
         <If condition={!searching && searchedItems.length > 0}>
@@ -182,7 +180,7 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
               position: "relative",
             }}
           >
-            {virtualizer.getVirtualItems().map((virtualItem) => {
+            {virtualizer.getVirtualItems().map(virtualItem => {
               const item = searchedItems[virtualItem.index];
 
               return (
@@ -201,31 +199,29 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
                 >
                   <div
                     className={classnames(
-                      "p-4 border rounded-xl cursor-pointer transition-all",
+                      "cursor-pointer rounded-xl border p-4 transition-all",
                       "border-gray-200 dark:border-slate-700",
                       "hover:border-blue-500 dark:hover:border-blue-500",
-                      "hover:bg-blue-50/50 dark:hover:bg-blue-500/5",
+                      "dark:hover:bg-[var(--th-btn-hover)]/5 hover:bg-blue-50/50"
                     )}
                     onClick={handleItemClick.bind(null, item)}
                     style={{ contentVisibility: "auto" }}
                   >
                     <Flex gap={8} align="center" className="mb-2">
                       <div>
-                        <Tag color={getTypeColor(item.type)}>
-                          {getTypeLabel(item.type)}
-                        </Tag>
+                        <Tag color={getTypeColor(item.type)}>{getTypeLabel(item.type)}</Tag>
                       </div>
                       {item.title && (
-                        <div className="text-sm font-semibold overflow-hidden text-ellipsis whitespace-nowrap text-gray-800 dark:text-white">
+                        <div className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-semibold text-gray-800 dark:text-white">
                           {item.title}
                         </div>
                       )}
                     </Flex>
-                    <div className="mb-2 flex gap-2.5 text-gray-500 dark:text-slate-400 text-xs">
+                    <div className="mb-2 flex gap-2.5 text-xs text-gray-500 dark:text-slate-400">
                       <span>更新于：{formatDate(item.updateTime, true)}</span>
                     </div>
                     <ErrorBoundary>
-                      <div className="text-gray-600 dark:text-slate-400 text-sm max-h-[120px] overflow-hidden">
+                      <div className="max-h-[120px] overflow-hidden text-sm text-gray-600 dark:text-slate-400">
                         <Editor
                           readonly={true}
                           initValue={item.content.slice(0, 3)}
