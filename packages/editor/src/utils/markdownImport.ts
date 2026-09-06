@@ -10,12 +10,7 @@ import remarkFrontmatter from "remark-frontmatter";
 import { Descendant } from "slate";
 import { v4 as uuid } from "uuid";
 import { visit } from "unist-util-visit";
-import type {
-  AudioElement,
-  ImageElement,
-  StyledTextElement,
-  VideoElement,
-} from "../types";
+import type { AudioElement, ImageElement, StyledTextElement, VideoElement } from "../types";
 import { TEXT_GRADIENT_PRESETS, type TextGradientPresetId } from "../constants";
 
 type MarkdownAstPoint = {
@@ -62,9 +57,7 @@ interface FileAttachmentElement {
   children: Descendant[];
 }
 
-const isMarkdownAstNode = (
-  value: unknown,
-): value is Partial<MarkdownAstNode> => {
+const isMarkdownAstNode = (value: unknown): value is Partial<MarkdownAstNode> => {
   return typeof value === "object" && value !== null;
 };
 
@@ -106,7 +99,7 @@ const remarkHtmlProcessor = () => (tree: unknown) => {
     processBuffer(htmlBuffer);
   }
 
-  visit(visitTree, (node) => {
+  visit(visitTree, node => {
     if (!isMarkdownAstNode(node) || node.type !== "html") return;
     if (typeof node.value !== "string") return;
 
@@ -116,9 +109,7 @@ const remarkHtmlProcessor = () => (tree: unknown) => {
 
     if (node.htmlType === "block" && parentIsParagraph && node.parent) {
       const parentNode = node.parent as MarkdownAstNodeWithChildren;
-      const paragraphIndex = parentNode.children.indexOf(
-        node as MarkdownAstNode,
-      );
+      const paragraphIndex = parentNode.children.indexOf(node as MarkdownAstNode);
       parentNode.children.splice(paragraphIndex, 1);
       const rootIndex = root.children.indexOf(parentNode);
       root.children.splice(rootIndex + 1, 0, node as MarkdownAstNode);
@@ -126,15 +117,13 @@ const remarkHtmlProcessor = () => (tree: unknown) => {
   });
 };
 
-function processBuffer(
-  buffer: { node: MarkdownAstNode; parent: MarkdownAstNodeWithChildren }[],
-) {
+function processBuffer(buffer: { node: MarkdownAstNode; parent: MarkdownAstNodeWithChildren }[]) {
   if (buffer.length < 2) return;
 
-  const nodes = buffer.map((item) => item.node);
+  const nodes = buffer.map(item => item.node);
   const parent = buffer[0].parent;
   const startIndex = parent.children.indexOf(nodes[0]);
-  const mergedValue = nodes.map((node) => node.value).join("\n");
+  const mergedValue = nodes.map(node => node.value).join("\n");
 
   const mergedNode: MarkdownAstNode = {
     type: "html",
@@ -160,22 +149,13 @@ function processBuffer(
 
 const KBD_OPEN_TAG_REGEX = /^<kbd(?:\s+[^>]*)?>$/i;
 const KBD_CLOSE_TAG_REGEX = /^<\/kbd>$/i;
-const STYLED_TEXT_COLOR_VALUES = [
-  "red",
-  "green",
-  "yellow",
-  "blue",
-  "purple",
-  "gray",
-] as const;
+const STYLED_TEXT_COLOR_VALUES = ["red", "green", "yellow", "blue", "purple", "gray"] as const;
 type StyledTextColorLiteral = (typeof STYLED_TEXT_COLOR_VALUES)[number];
 type StyledTextColor = StyledTextElement["color"];
 const TEXT_GRADIENT_PRESET_SET = new Set<TextGradientPresetId>(
-  Object.keys(TEXT_GRADIENT_PRESETS) as TextGradientPresetId[],
+  Object.keys(TEXT_GRADIENT_PRESETS) as TextGradientPresetId[]
 );
-const STYLED_TEXT_COLOR_SET = new Set<StyledTextColorLiteral>(
-  STYLED_TEXT_COLOR_VALUES,
-);
+const STYLED_TEXT_COLOR_SET = new Set<StyledTextColorLiteral>(STYLED_TEXT_COLOR_VALUES);
 const MAGIC_MOVE_META_PREFIX = "smm=";
 const HIGHLIGHT_META_REGEX = /\{([\d,\-\s]+)\}/;
 const MERMAID_RENDER_STYLE_META_PREFIX = "style=";
@@ -200,9 +180,7 @@ const resolveStyledTextColor = (color: unknown): StyledTextColor => {
     : ("red" as StyledTextColor);
 };
 
-const resolveTextGradientPreset = (
-  preset: unknown,
-): TextGradientPresetId | undefined => {
+const resolveTextGradientPreset = (preset: unknown): TextGradientPresetId | undefined => {
   if (typeof preset !== "string") return undefined;
   return TEXT_GRADIENT_PRESET_SET.has(preset as TextGradientPresetId)
     ? (preset as TextGradientPresetId)
@@ -212,21 +190,18 @@ const resolveTextGradientPreset = (
 const decodeBase64Url = (value: string): string => {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
   const padding = normalized.length % 4;
-  const withPadding =
-    padding === 0 ? normalized : `${normalized}${"=".repeat(4 - padding)}`;
+  const withPadding = padding === 0 ? normalized : `${normalized}${"=".repeat(4 - padding)}`;
 
   if (typeof atob === "function") {
     const binary = atob(withPadding);
-    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
     return new TextDecoder().decode(bytes);
   }
 
   return Buffer.from(withPadding, "base64").toString("utf-8");
 };
 
-const normalizeHighlightLines = (
-  highlightLines: unknown,
-): string | undefined => {
+const normalizeHighlightLines = (highlightLines: unknown): string | undefined => {
   if (typeof highlightLines !== "string" || !highlightLines.trim()) {
     return undefined;
   }
@@ -245,13 +220,9 @@ const parseHighlightMeta = (meta: unknown): string | undefined => {
   return normalizeHighlightLines(match[1]);
 };
 
-const parseMermaidRenderStyleMeta = (
-  meta: unknown,
-): "svg" | "ascii-unicode" | undefined => {
+const parseMermaidRenderStyleMeta = (meta: unknown): "svg" | "ascii-unicode" | undefined => {
   if (typeof meta !== "string" || !meta.trim()) return undefined;
-  const token = meta
-    .split(/\s+/)
-    .find((item) => item.startsWith(MERMAID_RENDER_STYLE_META_PREFIX));
+  const token = meta.split(/\s+/).find(item => item.startsWith(MERMAID_RENDER_STYLE_META_PREFIX));
   if (!token) return undefined;
   const value = token.slice(MERMAID_RENDER_STYLE_META_PREFIX.length).trim();
   if (value === "svg" || value === "ascii-unicode") {
@@ -262,15 +233,13 @@ const parseMermaidRenderStyleMeta = (
 
 const parseMagicMoveMeta = (
   meta: unknown,
-  fallbackCode: string,
+  fallbackCode: string
 ): MarkdownMagicMovePayload | undefined => {
   if (typeof meta !== "string" || !meta.trim()) {
     return undefined;
   }
 
-  const token = meta
-    .split(/\s+/)
-    .find((item) => item.startsWith(MAGIC_MOVE_META_PREFIX));
+  const token = meta.split(/\s+/).find(item => item.startsWith(MAGIC_MOVE_META_PREFIX));
   if (!token) {
     return undefined;
   }
@@ -279,9 +248,7 @@ const parseMagicMoveMeta = (
     const encoded = token.slice(MAGIC_MOVE_META_PREFIX.length);
     const parsed: unknown = JSON.parse(decodeBase64Url(encoded));
     const parsedRecord =
-      typeof parsed === "object" && parsed !== null
-        ? (parsed as Record<string, unknown>)
-        : null;
+      typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : null;
     const parsedSteps = parsedRecord?.steps;
 
     if (
@@ -295,16 +262,13 @@ const parseMagicMoveMeta = (
 
     const steps = parsedSteps.map((step: unknown, index: number) => {
       const stepRecord =
-        typeof step === "object" && step !== null
-          ? (step as Record<string, unknown>)
-          : {};
+        typeof step === "object" && step !== null ? (step as Record<string, unknown>) : {};
       return {
         id:
           typeof stepRecord.id === "string" && stepRecord.id.trim()
             ? stepRecord.id.trim()
             : `step-${index + 1}`,
-        title:
-          typeof stepRecord.title === "string" ? stepRecord.title : undefined,
+        title: typeof stepRecord.title === "string" ? stepRecord.title : undefined,
         code: typeof stepRecord.code === "string" ? stepRecord.code : "",
         highlightLines: normalizeHighlightLines(stepRecord.highlightLines),
       };
@@ -316,7 +280,7 @@ const parseMagicMoveMeta = (
 
     const activeStep = Math.min(
       Math.max(Number(parsedRecord.activeStep) || 0, 0),
-      steps.length - 1,
+      steps.length - 1
     );
     steps[activeStep].code = fallbackCode;
 
@@ -346,10 +310,7 @@ const isKbdCloseTagNode = (node: unknown): boolean => {
   return KBD_CLOSE_TAG_REGEX.test(node.value.trim());
 };
 
-const findMatchingKbdCloseIndex = (
-  astNodes: MarkdownAstNode[],
-  startIndex: number,
-) => {
+const findMatchingKbdCloseIndex = (astNodes: MarkdownAstNode[], startIndex: number) => {
   let depth = 0;
   for (let i = startIndex; i < astNodes.length; i++) {
     const node = astNodes[i];
@@ -383,11 +344,9 @@ const extractTextFromNode = (node: unknown): string => {
 const markdownToDescendant = (
   node: MarkdownAstNode,
   parentAstNode: unknown = null,
-  astChildrenOfParent: unknown[] = [],
+  astChildrenOfParent: unknown[] = []
 ): Descendant | Descendant[] | null => {
-  const parentNode = isMarkdownAstNode(parentAstNode)
-    ? (parentAstNode as MarkdownAstNode)
-    : null;
+  const parentNode = isMarkdownAstNode(parentAstNode) ? (parentAstNode as MarkdownAstNode) : null;
   const siblingNodes = astChildrenOfParent as MarkdownAstNode[];
 
   if (node.type === "heading") {
@@ -455,10 +414,7 @@ const markdownToDescendant = (
             listItemElement.icon = url.replace(/^emoji:\/?\/?/, "");
             listItemElement.iconType = "emoji";
             firstChild.children.shift();
-          } else if (
-            url.startsWith("list-icon:") ||
-            url.startsWith("list-icon://")
-          ) {
+          } else if (url.startsWith("list-icon:") || url.startsWith("list-icon://")) {
             listItemElement.iconUrl = url.replace(/^list-icon:\/?\/?/, "");
             listItemElement.iconType = "image";
             firstChild.children.shift();
@@ -522,7 +478,7 @@ const markdownToDescendant = (
     if (magicMove) {
       const safeStep = Math.min(
         Math.max(Number(magicMove.activeStep) || 0, 0),
-        magicMove.steps.length - 1,
+        magicMove.steps.length - 1
       );
       const activeStep = magicMove.steps[safeStep];
       if (activeStep) {
@@ -592,12 +548,7 @@ const markdownToDescendant = (
     if (node.name === "highlight-block") {
       return {
         type: "highlight-block",
-        color: (node.attributes.color || "red") as
-          | "red"
-          | "green"
-          | "yellow"
-          | "blue"
-          | "purple",
+        color: (node.attributes.color || "red") as "red" | "green" | "yellow" | "blue" | "purple",
         children: [],
       } as Descendant;
     }
@@ -633,9 +584,7 @@ const markdownToDescendant = (
           const decoded =
             typeof atob === "function"
               ? atob(node.attributes.metaInfo)
-              : Buffer.from(node.attributes.metaInfo, "base64").toString(
-                  "utf-8",
-                );
+              : Buffer.from(node.attributes.metaInfo, "base64").toString("utf-8");
           element.metaInfo = JSON.parse(decoded);
         } catch {
           // 忽略非法 metaInfo
@@ -662,6 +611,9 @@ const markdownToDescendant = (
       if (node.attributes.audioText) {
         element.audioText = node.attributes.audioText;
       }
+      if (node.attributes.title) {
+        element.title = node.attributes.title;
+      }
       return element as Descendant;
     }
     if (node.name === "file-attachment") {
@@ -681,16 +633,12 @@ const markdownToDescendant = (
         const data = JSON.parse(
           typeof atob === "function"
             ? atob(node.attributes.data || "W10=")
-            : Buffer.from(node.attributes.data || "W10=", "base64").toString(
-                "utf-8",
-              ),
+            : Buffer.from(node.attributes.data || "W10=", "base64").toString("utf-8")
         );
         const config = JSON.parse(
           typeof atob === "function"
             ? atob(node.attributes.config || "e30=")
-            : Buffer.from(node.attributes.config || "e30=", "base64").toString(
-                "utf-8",
-              ),
+            : Buffer.from(node.attributes.config || "e30=", "base64").toString("utf-8")
         );
         return {
           type: "chart",
@@ -781,11 +729,11 @@ const markdownToDescendant = (
       return node.children
         .map(markdownToDescendant)
         .filter(Boolean)
-        .map((item) => {
+        .map(item => {
           if (!item) return undefined;
           if (Array.isArray(item)) {
             return item
-              .map((child) => {
+              .map(child => {
                 if (child.type !== "formatted") return undefined;
                 return { ...child, ...colorAttributes };
               })
@@ -803,11 +751,11 @@ const markdownToDescendant = (
       return node.children
         .map(markdownToDescendant)
         .filter(Boolean)
-        .map((item) => {
+        .map(item => {
           if (!item) return undefined;
           if (Array.isArray(item)) {
             return item
-              .map((child) => {
+              .map(child => {
                 if (child.type !== "formatted") return undefined;
                 return { ...child, ...gradientAttributes };
               })
@@ -825,11 +773,11 @@ const markdownToDescendant = (
       return node.children
         .map(markdownToDescendant)
         .filter(Boolean)
-        .map((item) => {
+        .map(item => {
           if (!item) return undefined;
           if (Array.isArray(item)) {
             return item
-              .map((child) => {
+              .map(child => {
                 if (child.type !== "formatted") return undefined;
                 return { ...child, highlight: highlightColor };
               })
@@ -869,8 +817,7 @@ const markdownToDescendant = (
 
     if (node.name === "content-link") {
       const rawTitle = attributes.title || attributes.contentTitle || "";
-      const contentTitle =
-        typeof rawTitle === "string" ? rawTitle.replace(/&quot;/g, '"') : "";
+      const contentTitle = typeof rawTitle === "string" ? rawTitle.replace(/&quot;/g, '"') : "";
       return {
         type: "content-link",
         refId: parseInt(attributes.refId || "0", 10),
@@ -921,11 +868,11 @@ const markdownToDescendant = (
     return node.children
       .map(markdownToDescendant)
       .filter(Boolean)
-      .map((item) => {
+      .map(item => {
         if (!item) return undefined;
         if (Array.isArray(item)) {
           return item
-            .map((child) => {
+            .map(child => {
               if (child.type !== "formatted") return undefined;
               return {
                 ...child,
@@ -974,9 +921,7 @@ const markdownToDescendant = (
 
   if (
     parentNode &&
-    (parentNode.type === "paragraph" ||
-      parentNode.type === "link" ||
-      parentNode.type === "heading")
+    (parentNode.type === "paragraph" || parentNode.type === "link" || parentNode.type === "heading")
   ) {
     return {
       type: "formatted",
@@ -998,7 +943,7 @@ const markdownToDescendant = (
 const normalizeEditorContent = (
   editor: Descendant[],
   result: Descendant[] = [],
-  parent: Descendant | null = null,
+  parent: Descendant | null = null
 ): Descendant[] => {
   for (let i = 0; i < editor.length; i++) {
     const element = editor[i];
@@ -1006,25 +951,18 @@ const normalizeEditorContent = (
       continue;
     }
 
-    if (
-      element.type === "link" &&
-      element.children.some((child) => child.type !== "formatted")
-    ) {
-      while (element.children.some((child) => child.type !== "formatted")) {
+    if (element.type === "link" && element.children.some(child => child.type !== "formatted")) {
+      while (element.children.some(child => child.type !== "formatted")) {
         element.children.splice(
-          element.children.findIndex((child) => child.type !== "formatted"),
-          1,
+          element.children.findIndex(child => child.type !== "formatted"),
+          1
         );
       }
     } else if (element.type === "paragraph") {
       const firstChild = element.children[0] as unknown as
         | { type?: string; children?: Descendant[] }
         | undefined;
-      if (
-        element.children.length === 1 &&
-        firstChild &&
-        firstChild.type === "image"
-      ) {
+      if (element.children.length === 1 && firstChild && firstChild.type === "image") {
         const onlyChild = firstChild as ImageElement;
         if (onlyChild && Array.isArray(onlyChild.children)) {
           onlyChild.children = [{ type: "formatted", text: "" }];
@@ -1037,7 +975,7 @@ const normalizeEditorContent = (
         type?: string;
         [key: string]: unknown;
       }>;
-      element.children = paragraphChildren.map((child) => {
+      element.children = paragraphChildren.map(child => {
         if (child.type === "image") {
           return {
             type: "inline-image",
@@ -1070,11 +1008,7 @@ const normalizeEditorContent = (
       continue;
     }
 
-    if (
-      element.type !== "formatted" &&
-      "children" in element &&
-      Array.isArray(element.children)
-    ) {
+    if (element.type !== "formatted" && "children" in element && Array.isArray(element.children)) {
       element.children = normalizeEditorContent(element.children, [], element);
     }
 
@@ -1084,10 +1018,7 @@ const normalizeEditorContent = (
   return result;
 };
 
-export const importFromMarkdown = (
-  markdown: string,
-  ignoreTypes: string[] = [],
-): Descendant[] => {
+export const importFromMarkdown = (markdown: string, ignoreTypes: string[] = []): Descendant[] => {
   footnoteDefinitionsMap.clear();
 
   // 历史版本曾为绕过 CJK 加粗解析问题在 markdown 中驻留零宽空格，导入时剥离净化
@@ -1122,7 +1053,7 @@ export const importFromMarkdown = (
     astNodes: MarkdownAstNode[],
     slateResultArray: Descendant[],
     nextIgnoreTypes: string[] = [],
-    parentAstNodeForChildren: MarkdownAstNode | null = null,
+    parentAstNodeForChildren: MarkdownAstNode | null = null
   ) => {
     let astNodeIndex = 0;
     let skipUntilIndex = -1;
@@ -1136,12 +1067,10 @@ export const importFromMarkdown = (
       while (
         astChildNode.type === "link" &&
         astChildNode.children &&
-        astChildNode.children.some(
-          (child: MarkdownAstNode) => child.type === "html",
-        )
+        astChildNode.children.some((child: MarkdownAstNode) => child.type === "html")
       ) {
         const index = astChildNode.children.findIndex(
-          (child: MarkdownAstNode) => child.type === "html",
+          (child: MarkdownAstNode) => child.type === "html"
         );
         const paragraph = astChildNode.children[index];
         paragraph.type = "text";
@@ -1161,23 +1090,14 @@ export const importFromMarkdown = (
             children: [],
           } as Descendant;
           slateResultArray.push(kbdNode);
-          dfs(
-            innerAstNodes,
-            getDescendantChildren(kbdNode),
-            nextIgnoreTypes,
-            astChildNode,
-          );
+          dfs(innerAstNodes, getDescendantChildren(kbdNode), nextIgnoreTypes, astChildNode);
           skipUntilIndex = closeIndex;
           astNodeIndex += 1;
           continue;
         }
       }
 
-      const slateNode = markdownToDescendant(
-        astChildNode,
-        parentAstNodeForChildren,
-        astNodes,
-      );
+      const slateNode = markdownToDescendant(astChildNode, parentAstNodeForChildren, astNodes);
 
       if (!slateNode) {
         astNodeIndex += 1;
@@ -1193,7 +1113,7 @@ export const importFromMarkdown = (
             astChildNode.children,
             getDescendantChildren(slateNode),
             nextIgnoreTypes,
-            astChildNode,
+            astChildNode
           );
         }
       }
@@ -1206,16 +1126,13 @@ export const importFromMarkdown = (
     parseResult.children as unknown as MarkdownAstNode[],
     editor,
     [...ignoreTypes, "footnoteDefinition"],
-    parseResult as unknown as MarkdownAstNode,
+    parseResult as unknown as MarkdownAstNode
   );
 
   let beforeNormalize = editor;
   let afterNormalize = normalizeEditorContent(editor);
   let count = 10;
-  while (
-    JSON.stringify(beforeNormalize) !== JSON.stringify(afterNormalize) &&
-    count > 0
-  ) {
+  while (JSON.stringify(beforeNormalize) !== JSON.stringify(afterNormalize) && count > 0) {
     beforeNormalize = afterNormalize;
     afterNormalize = normalizeEditorContent(afterNormalize);
     count -= 1;
@@ -1247,13 +1164,12 @@ export const isMarkdownLikeText = (text: string): boolean => {
     /(^|\n)\s*:[a-zA-Z-]+\[/m,
   ];
 
-  if (markdownPatterns.some((pattern) => pattern.test(text))) {
+  if (markdownPatterns.some(pattern => pattern.test(text))) {
     return true;
   }
 
   const hasTableRow = /^\s*\|.*\|\s*$/m.test(text);
-  const hasTableDivider =
-    /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/m.test(text);
+  const hasTableDivider = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/m.test(text);
 
   return hasTableRow && hasTableDivider;
 };

@@ -245,6 +245,7 @@ export const insertImage = (editor: Editor, params: ImageParams) => {
 
 interface AudioParams {
   src: string;
+  title?: string;
   uploading?: boolean;
 }
 

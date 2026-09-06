@@ -9,6 +9,8 @@ import { PlayButton, RateMenu, TimeCode, VolumeControl } from "./MediaControls";
 export interface AudioPlayerProps extends React.AudioHTMLAttributes<HTMLAudioElement> {
   /** 卡片首行标题，默认从 src 提取文件名 */
   label?: string;
+  /** 标题位替换渲染（编辑器就地编辑标题时传输入框） */
+  labelSlot?: React.ReactNode;
 }
 
 /** 均衡器律动条的关键帧（内联注入，避免依赖全局样式入口） */
@@ -60,6 +62,7 @@ const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
     {
       src,
       label,
+      labelSlot,
       className,
       // 自定义控制条始终接管，忽略原生 controls
       controls: _controls,
@@ -151,10 +154,12 @@ const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
         </span>
 
         <div className="min-w-0 flex-1">
-          {/* 首行：标题 */}
-          <div className="mb-1.5 truncate text-sm font-medium text-gray-800 dark:text-zinc-200">
-            {title}
-          </div>
+          {/* 首行：标题（可被 labelSlot 替换为就地编辑输入框） */}
+          {labelSlot ?? (
+            <div className="mb-1.5 truncate text-sm font-medium text-gray-800 dark:text-zinc-200">
+              {title}
+            </div>
+          )}
           {/* 次行：控件 */}
           <div className="flex items-center gap-2.5">
             <PlayButton playing={playing} onToggle={togglePlay} tone="light" />

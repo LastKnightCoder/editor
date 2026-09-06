@@ -16,6 +16,7 @@ export const pasteAudio = (editor: Editor) => {
       }
       const insertPath = insertAudio(editor, {
         src: "",
+        title: file.name,
         uploading: true,
       });
       if (!insertPath) {
@@ -37,7 +38,7 @@ export const pasteAudio = (editor: Editor) => {
             {
               at: insertPath,
               select: true,
-            },
+            }
           );
         });
         return;
@@ -50,7 +51,7 @@ export const pasteAudio = (editor: Editor) => {
         },
         {
           at: insertPath,
-        },
+        }
       );
       return;
     }
