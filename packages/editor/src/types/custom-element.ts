@@ -4,21 +4,13 @@ import { ImageGalleryElement } from "./element/gallery";
 import { StyledTextElement } from "./element/styled-text";
 import { CalloutElement } from "./element/callout";
 import { HeaderElement } from "./element/header";
-import {
-  BulletedListElement,
-  NumberedListElement,
-  ListItemElement,
-} from "./element/list";
+import { BulletedListElement, NumberedListElement, ListItemElement } from "./element/list";
 import { CheckListElement, CheckListItemElement } from "./element/check-list";
 import { MermaidElement } from "./element/mermaid";
 import { TikzElement } from "./element/tikz";
 import { TypstElement } from "./element/typst";
 import { InlineMathElement, BlockMathElement } from "./element/math";
-import {
-  TableElement,
-  TableRowElement,
-  TableCellElement,
-} from "./element/table";
+import { TableElement, TableRowElement, TableCellElement } from "./element/table";
 import { ImageElement } from "./element/image";
 import { DetailElement } from "./element/detail";
 import { LinkElement } from "./element/link";
@@ -28,12 +20,9 @@ import { CustomBlockElement } from "./element/custom-block";
 import { HTMLBlockElement } from "./element/html-block";
 import { HTMLInlineElement } from "./element/html-inline";
 import { DivideLineElement } from "./element/divide-line";
-import {
-  MultiColumnItemElement,
-  MultiColumnContainerElement,
-} from "./element/multi-column";
+import { MultiColumnItemElement, MultiColumnContainerElement } from "./element/multi-column";
 import { HighlightBlockElement } from "./element/highlight-block";
-import { TabsElement } from "./element/tabs";
+import { TabsElement, TabPaneElement } from "./element/tabs";
 import { UnderlineElement } from "./element/underline";
 import { AudioElement } from "./element/audio";
 import { VideoElement } from "./element/video";
@@ -84,6 +73,7 @@ export interface BuiltinElementMap {
   "highlight-block": HighlightBlockElement;
   "image-gallery": ImageGalleryElement;
   tabs: TabsElement;
+  "tab-pane": TabPaneElement;
   underline: UnderlineElement;
   "styled-text": StyledTextElement;
   audio: AudioElement;
@@ -105,8 +95,8 @@ export interface ExternalElementMap {
   [__externalElementMapBrand]: never;
 }
 
-export type CustomElement = (BuiltinElementMap &
-  ExternalElementMap)[keyof (BuiltinElementMap & ExternalElementMap)];
+export type CustomElement = (BuiltinElementMap & ExternalElementMap)[keyof (BuiltinElementMap &
+  ExternalElementMap)];
 
 export interface BuiltinInlineElementMap {
   link: LinkElement;
@@ -125,8 +115,7 @@ export interface ExternalInlineElementMap {
 }
 
 export type InlineElement = (BuiltinInlineElementMap &
-  ExternalInlineElementMap)[keyof (BuiltinInlineElementMap &
-  ExternalInlineElementMap)];
+  ExternalInlineElementMap)[keyof (BuiltinInlineElementMap & ExternalInlineElementMap)];
 
 export type CustomText = FormattedText;
 export type BlockElement = Exclude<CustomElement, InlineElement>;

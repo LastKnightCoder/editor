@@ -184,6 +184,11 @@ export default function useCollaborationDocument(documentId?: string) {
             pendingPrivateNodes.set(collabId, node);
             void sendPrivateNodes().catch(() => {});
           },
+          onLocalFieldChange: (collabId, key, value) => {
+            // 激活 Tab 是本机视图状态，经主进程记录后随投影落库，实现重开恢复激活
+            if (key === "activeKey" && typeof value === "string")
+              void invoke("collaboration:set-tab-active", id, collabId, value).catch(() => {});
+          },
           uploadResource: async file =>
             invoke<string>("collaboration:upload-resource", id, {
               name: file.name,

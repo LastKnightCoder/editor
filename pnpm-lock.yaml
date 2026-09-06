@@ -1155,6 +1155,9 @@ importers:
       '@tanstack/react-virtual':
         specifier: 3.13.12
         version: 3.13.12(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@tau/collaboration':
+        specifier: workspace:*
+        version: link:../../packages/collaboration
       '@tau/editor':
         specifier: workspace:*
         version: link:../../packages/editor
