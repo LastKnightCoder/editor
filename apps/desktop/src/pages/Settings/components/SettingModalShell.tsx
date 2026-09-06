@@ -27,49 +27,35 @@ const SettingModalShell = ({
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-9999 flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onCancel}
-      />
+    <div className="z-9999 fixed inset-0 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onCancel} />
 
       <div
         className={classNames(
-          "relative w-full rounded-2xl shadow-2xl overflow-hidden",
-          themeColors.glassPanelBg,
-          widthClassName,
+          "relative w-full overflow-hidden rounded-2xl border shadow-2xl",
+          themeColors.modalPanelBg,
+          themeColors.borderClass,
+          widthClassName
         )}
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
       >
         <div
           className={classNames(
-            "flex items-center justify-between px-6 py-4 border-b",
-            themeColors.borderClass,
+            "flex items-center justify-between border-b px-6 py-4",
+            themeColors.borderClass
           )}
         >
-          <h3
-            className={classNames(
-              "text-lg font-semibold",
-              themeColors.activeTextClass,
-            )}
-          >
-            {title}
-          </h3>
+          <h3 className={classNames("text-lg font-semibold", themeColors.textClass)}>{title}</h3>
           <button
             onClick={onCancel}
             className={classNames(
-              "p-2 rounded-lg transition-colors",
+              "rounded-lg p-2 transition-colors",
               themeColors.secondaryTextClass,
               themeColors.hoverTextClass,
-              themeColors.hoverClass,
+              themeColors.hoverClass
             )}
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -85,8 +71,8 @@ const SettingModalShell = ({
         {footer && (
           <div
             className={classNames(
-              "flex items-center justify-end gap-3 px-6 py-4 border-t",
-              themeColors.borderClass,
+              "flex items-center justify-end gap-3 border-t px-6 py-4",
+              themeColors.borderClass
             )}
           >
             {footer}
@@ -94,7 +80,7 @@ const SettingModalShell = ({
         )}
       </div>
     </div>,
-    document.body,
+    document.body
   );
 };
 
