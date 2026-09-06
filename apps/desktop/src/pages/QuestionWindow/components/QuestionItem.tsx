@@ -2,23 +2,14 @@ import { useRef, useState, memo, useMemo } from "react";
 import { useDrag, useDrop } from "react-dnd";
 import { Dropdown, App } from "antd";
 import classNames from "classnames";
-import {
-  MdNote,
-  MdArticle,
-  MdFolder,
-  MdDescription,
-  MdClose,
-} from "react-icons/md";
+import { MdNote, MdArticle, MdFolder, MdDescription, MdClose } from "react-icons/md";
 import { motion, AnimatePresence } from "motion/react";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import useTheme from "@/hooks/useTheme";
 import useThemeColors from "@/hooks/useThemeColors";
 import { IQuestion } from "@/types/question";
 import { getEditorText } from "@/utils/editor";
-import {
-  getAnswerPrimaryContentType,
-  type AnswerContentStatus,
-} from "@/utils/answer-content";
+import { getAnswerPrimaryContentType, type AnswerContentStatus } from "@/utils/answer-content";
 
 type DragQuestion = { type: "QUESTION_ITEM"; id: number };
 
@@ -31,10 +22,7 @@ export interface QuestionItemHandlers {
   onReorder: (orderedIds: number[]) => void;
   onOpenAnswer: (questionId: number, answerId: number) => void;
   onDeleteAnswer: (questionId: number, answerId: number) => void;
-  onUpdateStatus: (
-    id: number,
-    status: "not_started" | "in_progress" | "resolved",
-  ) => void;
+  onUpdateStatus: (id: number, status: "not_started" | "in_progress" | "resolved") => void;
   onViewDetails: (id: number) => void;
 }
 
@@ -54,7 +42,7 @@ const getTypeIcon = (type?: string) => {
     case "card":
       return <MdNote className={`${iconProps} text-blue-500`} />;
     case "article":
-      return <MdArticle className={`${iconProps} text-green-500`} />;
+      return <MdArticle className={`${iconProps} text-status-success`} />;
     case "project-item":
       return <MdFolder className={`${iconProps} text-orange-500`} />;
     case "document-item":
@@ -96,7 +84,7 @@ const QuestionItem = memo(
 
     const [, drag] = useDrag(
       () => ({ type: "QUESTION_ITEM", item: { id: q.id } as DragQuestion }),
-      [q.id],
+      [q.id]
     );
 
     const [, drop] = useDrop<DragQuestion, void, unknown>({
@@ -206,7 +194,7 @@ const QuestionItem = memo(
       {
         key: "move-to",
         label: "移动到",
-        children: groups.map((g) => ({
+        children: groups.map(g => ({
           key: `move-${g.id}`,
           label: g.title,
           onClick: () => onMoveToGroup(q.id, g.id),
@@ -236,14 +224,14 @@ const QuestionItem = memo(
         <div
           ref={rowRef}
           className="px-3"
-          onContextMenu={(e) => {
+          onContextMenu={e => {
             e.stopPropagation();
           }}
         >
           <div
             className={classNames(
-              "transition-all duration-200 cursor-pointer px-3 py-2 my-2 rounded-lg",
-              themeColors.hoverClass,
+              "my-2 cursor-pointer rounded-lg px-3 py-2 transition-all duration-200",
+              themeColors.hoverClass
             )}
             onClick={() => {
               if (clickTimerRef.current) {
@@ -270,16 +258,16 @@ const QuestionItem = memo(
               }, 250);
             }}
           >
-            <div className="flex gap-2 w-full">
-              <div className="flex-1 min-w-0">
+            <div className="flex w-full gap-2">
+              <div className="min-w-0 flex-1">
                 <EditText
                   ref={editTextRef}
                   value={q.questionContent}
                   contentEditable={isEditing}
                   defaultFocus={isEditing}
                   className={classNames(
-                    "w-full truncate flex items-center h-7 rounded text-[14px]",
-                    isDark ? "text-gray-200" : "text-gray-900",
+                    "flex h-7 w-full items-center truncate rounded text-[14px]",
+                    isDark ? "text-gray-200" : "text-gray-900"
                   )}
                   onChange={handleTitleChange}
                   onBlur={() => setIsEditing(false)}
@@ -289,8 +277,8 @@ const QuestionItem = memo(
                 {descriptionText && (
                   <div
                     className={classNames(
-                      "mt-1 text-xs line-clamp-2",
-                      isDark ? "text-gray-400" : "text-gray-500",
+                      "mt-1 line-clamp-2 text-xs",
+                      isDark ? "text-gray-400" : "text-gray-500"
                     )}
                   >
                     {descriptionText}
@@ -299,8 +287,8 @@ const QuestionItem = memo(
 
                 {q.answers.length > 0 && (
                   <div className="mt-2">
-                    <div className="flex flex-wrap py-1 gap-2">
-                      {q.answers.map((aid) => {
+                    <div className="flex flex-wrap gap-2 py-1">
+                      {q.answers.map(aid => {
                         const title = answerTitles[aid] || "未命名答案";
                         const status = answerStatuses[aid];
                         const type = getAnswerPrimaryContentType(status);
@@ -308,12 +296,12 @@ const QuestionItem = memo(
                           <motion.div
                             key={aid}
                             className={classNames(
-                              "relative group flex items-center gap-2 px-2 py-1 text-xs rounded-lg border transition-all cursor-pointer min-w-0",
+                              "group relative flex min-w-0 cursor-pointer items-center gap-2 rounded-lg border px-2 py-1 text-xs transition-all",
                               themeColors.cardBorderClass,
                               themeColors.cardBgClass,
-                              "hover:border-opacity-80",
+                              "hover:border-opacity-80"
                             )}
-                            onClick={(e) => {
+                            onClick={e => {
                               e.stopPropagation();
                               onOpenAnswer(q.id, aid);
                             }}
@@ -321,10 +309,8 @@ const QuestionItem = memo(
                             onMouseLeave={() => setHoveredAnswerId(null)}
                           >
                             <div className="shrink-0">{getTypeIcon(type)}</div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium truncate">
-                                {title}
-                              </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-sm font-medium">{title}</div>
                             </div>
                             <AnimatePresence>
                               {hoveredAnswerId === aid && (
@@ -334,13 +320,13 @@ const QuestionItem = memo(
                                   exit={{ scale: 0, opacity: 0 }}
                                   whileHover={{ scale: 1.1 }}
                                   whileTap={{ scale: 0.9 }}
-                                  className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center cursor-pointer shadow-lg z-10"
-                                  onClick={(e) => {
+                                  className="absolute -right-1 -top-1 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-red-500 shadow-lg"
+                                  onClick={e => {
                                     e.stopPropagation();
                                     handleDeleteAnswer(aid);
                                   }}
                                 >
-                                  <MdClose className="w-3 h-3 text-white" />
+                                  <MdClose className="h-3 w-3 text-white" />
                                 </motion.div>
                               )}
                             </AnimatePresence>
@@ -353,13 +339,11 @@ const QuestionItem = memo(
               </div>
             </div>
           </div>
-          {showBorder && (
-            <div className={classNames("border-b", themeColors.borderClass)} />
-          )}
+          {showBorder && <div className={classNames("border-b", themeColors.borderClass)} />}
         </div>
       </Dropdown>
     );
-  },
+  }
 );
 
 QuestionItem.displayName = "QuestionItem";
