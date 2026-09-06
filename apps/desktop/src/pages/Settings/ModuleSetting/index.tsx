@@ -5,12 +5,7 @@ import For from "@/components/For";
 
 const Icons = {
   FileText: () => (
-    <svg
-      className="w-6 h-6"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -20,12 +15,7 @@ const Icons = {
     </svg>
   ),
   Book: () => (
-    <svg
-      className="w-6 h-6"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -35,12 +25,7 @@ const Icons = {
     </svg>
   ),
   Palette: () => (
-    <svg
-      className="w-6 h-6"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -50,12 +35,7 @@ const Icons = {
     </svg>
   ),
   Folder: () => (
-    <svg
-      className="w-6 h-6"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -65,12 +45,7 @@ const Icons = {
     </svg>
   ),
   Database: () => (
-    <svg
-      className="w-6 h-6"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -80,12 +55,7 @@ const Icons = {
     </svg>
   ),
   FilePdf: () => (
-    <svg
-      className="w-6 h-6"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -95,12 +65,7 @@ const Icons = {
     </svg>
   ),
   Clock: () => (
-    <svg
-      className="w-6 h-6"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -110,12 +75,7 @@ const Icons = {
     </svg>
   ),
   Calendar: () => (
-    <svg
-      className="w-6 h-6"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -125,12 +85,7 @@ const Icons = {
     </svg>
   ),
   Chat: () => (
-    <svg
-      className="w-6 h-6"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -140,12 +95,7 @@ const Icons = {
     </svg>
   ),
   CheckList: () => (
-    <svg
-      className="w-6 h-6"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -155,12 +105,7 @@ const Icons = {
     </svg>
   ),
   Question: () => (
-    <svg
-      className="w-6 h-6"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -170,12 +115,7 @@ const Icons = {
     </svg>
   ),
   Search: () => (
-    <svg
-      className="w-6 h-6"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -185,12 +125,7 @@ const Icons = {
     </svg>
   ),
   Chart: () => (
-    <svg
-      className="w-6 h-6"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -200,12 +135,7 @@ const Icons = {
     </svg>
   ),
   Rss: () => (
-    <svg
-      className="w-6 h-6"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -215,12 +145,7 @@ const Icons = {
     </svg>
   ),
   FolderOpen: () => (
-    <svg
-      className="w-6 h-6"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -230,12 +155,7 @@ const Icons = {
     </svg>
   ),
   Edit: () => (
-    <svg
-      className="w-6 h-6"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -245,17 +165,22 @@ const Icons = {
     </svg>
   ),
   Robot: () => (
-    <svg
-      className="w-6 h-6"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth={2}
         d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+      />
+    </svg>
+  ),
+  Users: () => (
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
       />
     </svg>
   ),
@@ -349,6 +274,11 @@ const MODULE_CONFIG: Record<
     description: "文件与资源管理",
     category: "tools",
   },
+  collaboration: {
+    icon: "Users",
+    description: "多人实时协作与内容共享",
+    category: "tools",
+  },
 };
 
 // 分类配置
@@ -360,13 +290,13 @@ const CATEGORY_CONFIG = {
 };
 
 const ModuleSetting = () => {
-  const { module, setting } = useSettingStore((state) => ({
+  const { module, setting } = useSettingStore(state => ({
     module: state.setting.module,
     setting: state.setting,
   }));
   const themeColors = useThemeColors();
 
-  const modules = Object.keys(module).map((key) => ({
+  const modules = Object.keys(module).map(key => ({
     key,
     name: module[key as keyof typeof module].name,
     enable: module[key as keyof typeof module].enable,
@@ -386,81 +316,66 @@ const ModuleSetting = () => {
       acc[category].push(mod);
       return acc;
     },
-    {} as Record<string, typeof modules>,
+    {} as Record<string, typeof modules>
   );
 
   const onModuleChange = (key: string) => {
     const currentModule = module[key as keyof typeof module];
-    const newSetting = produce(setting, (draft) => {
+    const newSetting = produce(setting, draft => {
       draft.module[key as keyof typeof module].enable = !currentModule.enable;
     });
     useSettingStore.setState({ setting: newSetting });
   };
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto">
+    <div className="mx-auto max-w-[1400px] p-6">
       {Object.entries(groupedModules).map(([category, mods]) => (
         <div key={category} className="mb-12 last:mb-0">
           <h2
-            className={`text-lg font-semibold mb-5 pl-4 border-l-4 text-gray-800 dark:text-gray-200 ${
-              CATEGORY_CONFIG[category as keyof typeof CATEGORY_CONFIG]
-                ?.color || "border-gray-400"
+            className={`mb-5 border-l-4 pl-4 text-lg font-semibold text-gray-800 dark:text-gray-200 ${
+              CATEGORY_CONFIG[category as keyof typeof CATEGORY_CONFIG]?.color || "border-gray-400"
             }`}
           >
-            {CATEGORY_CONFIG[category as keyof typeof CATEGORY_CONFIG]?.name ||
-              category}
+            {CATEGORY_CONFIG[category as keyof typeof CATEGORY_CONFIG]?.name || category}
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <For
               data={mods}
-              renderItem={(module) => {
+              renderItem={module => {
                 const IconComponent = Icons[module.config.icon];
                 return (
                   <div
                     key={module.key}
                     onClick={() => onModuleChange(module.key)}
-                    className={`
-                      relative overflow-hidden rounded-xl p-5 border-2 cursor-pointer
-                      transition-all duration-300 ease-in-out
-                      shadow-sm hover:shadow-xl hover:-translate-y-1
-                      ${
-                        module.enable
-                          ? `${themeColors.cardBorderClass} ${themeColors.activeBgClass}`
-                          : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-zinc-800/50 opacity-75 hover:opacity-85 hover:bg-gray-100 dark:hover:bg-zinc-800/70"
-                      }
-                    `}
+                    className={`relative cursor-pointer overflow-hidden rounded-xl border-2 p-5 shadow-sm transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl ${
+                      module.enable
+                        ? `${themeColors.cardBorderClass} ${themeColors.activeBgClass}`
+                        : "border-gray-200 bg-gray-50 opacity-75 hover:bg-gray-100 hover:opacity-85 dark:border-gray-700 dark:bg-zinc-800/50 dark:hover:bg-zinc-800/70"
+                    } `}
                   >
                     {module.enable && (
                       <div
-                        className={`absolute top-0 left-0 right-0 h-1 ${themeColors.gradientClass} animate-shimmer bg-size-[200%_100%]`}
+                        className={`absolute left-0 right-0 top-0 h-1 ${themeColors.gradientClass} animate-shimmer bg-size-[200%_100%]`}
                       />
                     )}
 
-                    <div className="flex items-start justify-between mb-4">
+                    <div className="mb-4 flex items-start justify-between">
                       <div
-                        className={`
-                        w-12 h-12 rounded-xl flex items-center justify-center
-                        transition-all duration-300
-                        ${
+                        className={`flex h-12 w-12 items-center justify-center rounded-xl transition-all duration-300 ${
                           module.enable
                             ? `${themeColors.iconBgClass} ${themeColors.activeTextClass}`
                             : "bg-gray-200 text-gray-500 dark:bg-zinc-700 dark:text-gray-400"
-                        }
-                      `}
+                        } `}
                       >
                         <IconComponent />
                       </div>
 
                       <span
-                        className={`
-                        px-3 py-1 rounded-full text-xs font-medium
-                        transition-all duration-300
-                        ${
+                        className={`rounded-full px-3 py-1 text-xs font-medium transition-all duration-300 ${
                           module.enable
                             ? `${themeColors.activeBgClass} ${themeColors.activeTextClass}`
                             : "bg-gray-200 text-gray-500 dark:bg-zinc-700 dark:text-gray-400"
-                        }
-                      `}
+                        } `}
                       >
                         {module.enable ? "已启用" : "未启用"}
                       </span>
@@ -468,19 +383,12 @@ const ModuleSetting = () => {
 
                     <div className="space-y-2">
                       <h3
-                        className={`
-                        text-base font-semibold transition-colors duration-300
-                        ${module.enable ? "text-gray-900 dark:text-gray-100" : "text-gray-400 dark:text-gray-500"}
-                      `}
+                        className={`text-base font-semibold transition-colors duration-300 ${module.enable ? "text-gray-900 dark:text-gray-100" : "text-gray-400 dark:text-gray-500"} `}
                       >
                         {module.name}
                       </h3>
                       <p
-                        className={`
-                        text-sm leading-relaxed min-h-[40px]
-                        transition-colors duration-300
-                        ${module.enable ? "text-gray-500 dark:text-gray-400" : "text-gray-300 dark:text-gray-600"}
-                      `}
+                        className={`min-h-[40px] text-sm leading-relaxed transition-colors duration-300 ${module.enable ? "text-gray-500 dark:text-gray-400" : "text-gray-300 dark:text-gray-600"} `}
                       >
                         {module.config.description}
                       </p>

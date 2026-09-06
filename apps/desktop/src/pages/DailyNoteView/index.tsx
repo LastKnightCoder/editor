@@ -3,7 +3,8 @@ import { App, Calendar } from "antd";
 import classnames from "classnames";
 import { useShallow } from "zustand/react/shallow";
 import { Dayjs } from "dayjs";
-import { Editor, type IExtension } from "@tau/editor/src";
+import { type IExtension } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import DailyNote from "@/pages/DailyNoteView/EditDailyNote";
 import useDailyNoteStore from "@/stores/useDailyNoteStore.ts";
 import { DeleteOutlined } from "@ant-design/icons";
@@ -16,21 +17,16 @@ const extensions: IExtension[] = [];
 
 const DailyNoteView = () => {
   const { modal } = App.useApp();
-  const {
-    dailyNotes,
-    deleteDailyNote,
-    onCreateDailyNote,
-    activeDailyId,
-    initData,
-  } = useDailyNoteStore(
-    useShallow((state) => ({
-      dailyNotes: state.dailyNotes,
-      deleteDailyNote: state.deleteDailyNote,
-      onCreateDailyNote: state.onCreateDailyNote,
-      activeDailyId: state.activeDailyId,
-      initData: state.init,
-    })),
-  );
+  const { dailyNotes, deleteDailyNote, onCreateDailyNote, activeDailyId, initData } =
+    useDailyNoteStore(
+      useShallow(state => ({
+        dailyNotes: state.dailyNotes,
+        deleteDailyNote: state.deleteDailyNote,
+        onCreateDailyNote: state.onCreateDailyNote,
+        activeDailyId: state.activeDailyId,
+        initData: state.init,
+      }))
+    );
 
   // 在数据库连接或切换时加载每日笔记数据
   useDatabaseChangeEffect(() => {
@@ -57,7 +53,7 @@ const DailyNoteView = () => {
   const onSelect = async (value: Dayjs, { source }: SelectInfo) => {
     if (source === "date") {
       const date = value.format("YYYY-MM-DD");
-      const dailyNote = dailyNotes.find((item) => item.date === date);
+      const dailyNote = dailyNotes.find(item => item.date === date);
       if (!dailyNote) {
         modal.confirm({
           title: "是否创建日记",
@@ -74,33 +70,32 @@ const DailyNoteView = () => {
   };
 
   const cellRender = (value: Dayjs) => {
-    const notes = dailyNotes.filter(
-      (item) => item.date === value.format("YYYY-MM-DD"),
-    );
+    const notes = dailyNotes.filter(item => item.date === value.format("YYYY-MM-DD"));
     if (notes.length > 0) {
       return (
         <For
           data={notes}
-          renderItem={(dailyNote) => (
+          renderItem={dailyNote => (
             <div
               key={dailyNote.contentId}
               className={styles.cellDailyNote}
               onClick={() => {
                 useDailyNoteStore.setState({
-                  activeDailyId:
-                    dailyNote.id === activeDailyId ? undefined : dailyNote.id,
+                  activeDailyId: dailyNote.id === activeDailyId ? undefined : dailyNote.id,
                   readonly: false,
                 });
               }}
             >
               <Editor
+                contentId={dailyNote.contentId}
+                previewBlocks={1}
                 initValue={dailyNote.content.slice(0, 1)}
                 extensions={extensions}
                 readonly
               />
               <div
                 className={styles.delete}
-                onClick={(e) => {
+                onClick={e => {
                   handleDeleteDailyNote(e, dailyNote.id);
                 }}
               >

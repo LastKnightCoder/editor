@@ -1,4 +1,5 @@
 import { memo, useMemo } from "react";
+import { Users } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import SidebarItem from "./SidebarItem";
 import useSettingStore from "@/stores/useSettingStore.ts";
@@ -41,7 +42,7 @@ const NavItemConfig = memo(
     isShortWidth,
   }: {
     type: TabType;
-    icon: string;
+    icon: React.ReactNode;
     desc: string;
     onClick: () => void;
     active: boolean;
@@ -55,7 +56,7 @@ const NavItemConfig = memo(
       onClick={onClick}
       isShortWidth={isShortWidth}
     />
-  ),
+  )
 );
 
 // 使用单独的NavItem组件优化每个导航项
@@ -67,11 +68,11 @@ const NavItem = memo(
     isShortWidth,
   }: {
     type: TabType;
-    icon: string;
+    icon: React.ReactNode;
     desc: string;
     isShortWidth: boolean;
   }) => {
-    const openInNewTab = useTabStore((state) => state.openInNewTab);
+    const openInNewTab = useTabStore(state => state.openInNewTab);
 
     const handleClick = useMemoizedFn(() => {
       openInNewTab(type);
@@ -87,16 +88,16 @@ const NavItem = memo(
         isShortWidth={isShortWidth}
       />
     );
-  },
+  }
 );
 
 const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
   const { isShortWidth } = props;
 
   const { module } = useSettingStore(
-    useShallow((state) => ({
+    useShallow(state => ({
       module: state.setting.module,
-    })),
+    }))
   );
 
   // 配置菜单项，避免在每次渲染时重新创建
@@ -229,18 +230,25 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         enable: module.feed?.enable ?? module.rssSubscription?.enable ?? true,
       },
       {
+        key: "collaboration",
+        icon: <Users size={18} />,
+        desc: "协作",
+        type: TabType.Collaboration,
+        enable: module.collaboration.enable,
+      },
+      {
         key: "weread",
         icon: weread,
         desc: "微信读书",
         type: TabType.WeRead,
         enable: module.weread.enable,
       },
-    ].filter((item) => item.enable);
+    ].filter(item => item.enable);
   }, [module]);
 
   return (
     <>
-      {menuItems.map((item) => (
+      {menuItems.map(item => (
         <NavItem
           key={item.key}
           type={item.type}

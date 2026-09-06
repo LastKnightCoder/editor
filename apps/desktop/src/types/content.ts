@@ -7,6 +7,7 @@ export interface IContent {
   content: Descendant[];
   count: number;
   refCount: number;
+  revision?: string;
 }
 
 export type ICreateContent = Omit<IContent, "id" | "createTime" | "updateTime">;

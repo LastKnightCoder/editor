@@ -6,8 +6,11 @@ import { Tooltip } from "antd";
 import { Maximize2 } from "lucide-react";
 import useEdit from "./useEdit";
 import { formatDate, defaultProjectItemEventBus } from "@/utils";
-import { Editor, EditorRef } from "@tau/editor/src";
-import EditText, { EditTextHandle } from "@/components/EditText";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
+import ContentCollaborationControl from "@/components/ContentCollaborationControl";
+import { EditTextHandle } from "@/components/EditText";
+import EditText from "@/components/CollaborativeTitle";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
 import { EditCardContext } from "@/context.ts";
@@ -43,10 +46,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   const titleRef = useRef<EditTextHandle>(null);
   const [immersiveMode, setImmersiveMode] = useState(false);
   const [editorRemountKey, setEditorRemountKey] = useState(0);
-  const projectItemEventBus = useCreation(
-    () => defaultProjectItemEventBus.createEditor(),
-    [],
-  );
+  const projectItemEventBus = useCreation(() => defaultProjectItemEventBus.createEditor(), []);
 
   const { borderClass } = useThemeColors();
 
@@ -59,25 +59,17 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     setProjectItem,
   } = useEdit(projectItemId);
 
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const editorExtensions = useMemo(() => {
-    return [
-      ...dynamicExtensions,
-      createProjectCardListExtension(projectItemId),
-    ];
+    return [...dynamicExtensions, createProjectCardListExtension(projectItemId)];
   }, [dynamicExtensions, projectItemId]);
 
   const extensions = editorExtensions;
 
-  const { throttleHandleEditorContentChange } = useEditContent(
-    projectItem?.contentId,
-    (content) => {
-      editorRef.current?.setEditorValue(content);
-      onContentChangeFromEditProjectItem(content);
-    },
-  );
+  const { throttleHandleEditorContentChange } = useEditContent(projectItem?.contentId, content => {
+    editorRef.current?.setEditorValue(content);
+    onContentChangeFromEditProjectItem(content);
+  });
   const {
     handleSelectionChange: handleEditorSelectionChange,
     handleFocus: handleEditorFocus,
@@ -93,10 +85,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   useRafInterval(async () => {
     const updatedProjectItem = await saveProjectItem();
     if (updatedProjectItem) {
-      projectItemEventBus.publishProjectItemEvent(
-        "project-item:updated",
-        updatedProjectItem,
-      );
+      projectItemEventBus.publishProjectItemEvent("project-item:updated", updatedProjectItem);
     }
   }, 1000);
 
@@ -104,10 +93,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     throttleHandleEditorContentChange.flush();
     const updatedProjectItem = await saveProjectItem();
     if (updatedProjectItem) {
-      projectItemEventBus.publishProjectItemEvent(
-        "project-item:updated",
-        updatedProjectItem,
-      );
+      projectItemEventBus.publishProjectItemEvent("project-item:updated", updatedProjectItem);
     }
   });
 
@@ -116,13 +102,11 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     onContentChangeFromEditProjectItem(content);
   });
 
-  const handleImmersiveExit = useMemoizedFn(
-    (payload?: ImmersiveEditorExitPayload) => {
-      pendingSelectionRef.current = payload?.selection ?? null;
-      setImmersiveMode(false);
-      setEditorRemountKey((current) => current + 1);
-    },
-  );
+  const handleImmersiveExit = useMemoizedFn((payload?: ImmersiveEditorExitPayload) => {
+    pendingSelectionRef.current = payload?.selection ?? null;
+    setImmersiveMode(false);
+    setEditorRemountKey(current => current + 1);
+  });
 
   useEffect(() => {
     if (immersiveMode || !pendingSelectionRef.current) return;
@@ -146,7 +130,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
 
   const handleEnterImmersiveMode = useMemoizedFn(() => {
     immersiveEntrySelectionRef.current = cloneRange(
-      editorRef.current?.getEditor().selection ?? null,
+      editorRef.current?.getEditor().selection ?? null
     );
     setImmersiveMode(true);
   });
@@ -161,10 +145,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     // 保存项目
     const updatedProjectItem = await saveProjectItem();
     if (updatedProjectItem) {
-      projectItemEventBus.publishProjectItemEvent(
-        "project-item:updated",
-        updatedProjectItem,
-      );
+      projectItemEventBus.publishProjectItemEvent("project-item:updated", updatedProjectItem);
     }
   });
 
@@ -172,13 +153,13 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     const unsubscribe = projectItemEventBus.subscribeToProjectItemWithId(
       "project-item:updated",
       projectItemId,
-      (data) => {
+      data => {
         setProjectItem(data.projectItem);
         if (!projectItem) return;
         if (data.projectItem.title !== projectItem?.title) {
           titleRef.current?.setValue(data.projectItem.title);
         }
-      },
+      }
     );
 
     return () => {
@@ -189,13 +170,17 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   if (!projectItem) return null;
 
   return (
-    <div className="relative h-full w-full">
-      <div className="@container/editor flex h-full w-full justify-center gap-10 overflow-y-auto px-10 py-5">
+    <div className="relative flex h-full w-full flex-col">
+      <div className="@container/editor flex min-h-0 w-full flex-1 justify-center gap-10 overflow-y-auto px-10 py-5">
         <div className="relative min-w-0 max-w-[720px] flex-1">
-          <div
-            className={`mb-5 border-b ${borderClass} pb-2.5 text-[2.2em] font-bold`}
-          >
+          <div className={`mb-5 border-b ${borderClass} pb-2.5 text-[2.2em] font-bold`}>
             <EditText
+              contentId={projectItem.contentId}
+              source={{
+                sourceType: "project-item",
+                sourceId: projectItem.id,
+                sourceTitle: projectItem.title,
+              }}
               key={projectItem.id}
               ref={titleRef}
               defaultValue={projectItem.title}
@@ -215,6 +200,8 @@ const EditProjectItem = (props: { projectItemId: number }) => {
           >
             <ErrorBoundary>
               <Editor
+                contentId={projectItem?.contentId}
+                collaborationControl={false}
                 key={`${projectItem.id}-${editorRemountKey}`}
                 ref={editorRef}
                 initValue={projectItem.content}
@@ -236,13 +223,21 @@ const EditProjectItem = (props: { projectItemId: number }) => {
           onClickHeader={onClickHeader}
         />
       </div>
-      <div className="absolute bottom-2.5 right-10 flex items-center gap-2 opacity-80">
+      <div className="flex min-h-8 shrink-0 items-center justify-end gap-2 px-4 py-1 opacity-80">
+        <ContentCollaborationControl
+          contentId={projectItem.contentId}
+          source={{
+            sourceType: "project-item",
+            sourceId: projectItem.id,
+            sourceTitle: projectItem.title,
+          }}
+        />
         <div className="text-sm leading-5 opacity-80">
           <div>字数：{projectItem.count}</div>
         </div>
         <Tooltip title="沉浸模式">
           <div
-            className="cursor-pointer p-1 hover:bg-black/10 rounded transition-colors"
+            className="cursor-pointer rounded p-1 transition-colors hover:bg-black/10"
             onClick={handleEnterImmersiveMode}
           >
             <Maximize2 size={14} />
@@ -253,6 +248,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
       {/* 沉浸模式 */}
       {immersiveMode && (
         <ImmersiveEditorMode
+          contentId={projectItem?.contentId}
           initValue={projectItem.content}
           initialSelection={immersiveEntrySelectionRef.current}
           onChange={onContentChange}

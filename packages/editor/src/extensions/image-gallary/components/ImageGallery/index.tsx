@@ -1,11 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Transforms } from "slate";
-import {
-  ReactEditor,
-  RenderElementProps,
-  useReadOnly,
-  useSlateStatic,
-} from "slate-react";
+import { ReactEditor, RenderElementProps, useReadOnly, useSlateStatic } from "slate-react";
 import classnames from "classnames";
 import { PlusOutlined } from "@ant-design/icons";
 import { CustomModal } from "@tau/shared";
@@ -24,10 +19,7 @@ import EditorContextMenu from "../../../../components/EditorContextMenu";
 import type { ImageGalleryElement } from "../../../../types";
 import { EGalleryMode } from "../../../../constants";
 import useSettings from "../../../../hooks/useSettings";
-import {
-  buildImageGalleryMenuItems,
-  imageGalleryActionsMap,
-} from "../../utils/menuItems";
+import { buildImageGalleryMenuItems, imageGalleryActionsMap } from "../../utils/menuItems";
 
 import styles from "./index.module.less";
 import { MdDragIndicator } from "react-icons/md";
@@ -52,10 +44,9 @@ const ImageGallery = (props: IImageGalleryProps) => {
     shadow,
   } = element;
   const isLast = useIsLastElement(element);
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
-    useDragAndDrop({
-      element,
-    });
+  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
+    element,
+  });
 
   const [settingModalOpen, setSettingModalOpen] = useState(false);
   const [setting, setSetting] = useState<ISetting>({
@@ -76,11 +67,8 @@ const ImageGallery = (props: IImageGalleryProps) => {
   const settingsService = useSettings();
   const [, setSettingVersion] = useState(0);
   const effectiveBorderRadius =
-    borderRadius ??
-    settingsService.get("appearance.image.borderRadius") ??
-    "none";
-  const effectiveShadow =
-    shadow ?? settingsService.get("appearance.image.shadow") ?? "none";
+    borderRadius ?? settingsService.get("appearance.image.borderRadius") ?? "none";
+  const effectiveShadow = shadow ?? settingsService.get("appearance.image.shadow") ?? "none";
 
   useEffect(() => {
     if (!settingsService.subscribe) {
@@ -88,7 +76,7 @@ const ImageGallery = (props: IImageGalleryProps) => {
     }
 
     return settingsService.subscribe(() => {
-      setSettingVersion((prev) => prev + 1);
+      setSettingVersion(prev => prev + 1);
     });
   }, [settingsService]);
 
@@ -118,8 +106,7 @@ const ImageGallery = (props: IImageGalleryProps) => {
         hoverClass: editorThemeColors.hoverClass,
         textClass: editorThemeColors.textClass,
         // Use buttonBg if available, otherwise use badgeBgClass as fallback
-        buttonBg:
-          (editorThemeColors as any).buttonBg || editorThemeColors.badgeBgClass,
+        buttonBg: (editorThemeColors as any).buttonBg || editorThemeColors.badgeBgClass,
         buttonTextClass: (editorThemeColors as any).buttonTextClass,
       };
     }
@@ -149,53 +136,8 @@ const ImageGallery = (props: IImageGalleryProps) => {
     setSettingModalOpen(false);
   };
 
-  const onOk = async () => {
+  const onOk = () => {
     setSettingModalOpen(false);
-
-    // 对比图片变化，更新资源引用计数
-    // @ts-ignore
-    const contentId = editor.contentId;
-    if (contentId) {
-      const oldImages = images || [];
-      const newImages = setting.images || [];
-
-      // 找出新增的图片
-      const addedImages = newImages.filter(
-        (newImg) => !oldImages.some((oldImg) => oldImg.url === newImg.url),
-      );
-
-      // 找出删除的图片
-      const removedImages = oldImages.filter(
-        (oldImg) => !newImages.some((newImg) => newImg.url === oldImg.url),
-      );
-
-      // 处理新增的图片
-      for (const image of addedImages) {
-        if (image.url) {
-          try {
-            await editor.services?.resource.create({
-              name: image.url.split("/").pop() || "未命名图片",
-              path: image.url,
-              type: "image",
-              source: { type: "content", id: contentId },
-            });
-          } catch (e) {
-            console.error("创建图片资源失败:", e);
-          }
-        }
-      }
-
-      // 处理删除的图片
-      for (const image of removedImages) {
-        if (image.url) {
-          try {
-            await editor.services?.resource.decrementRef(image.url);
-          } catch (e) {
-            console.error("减少图片资源引用失败:", e);
-          }
-        }
-      }
-    }
 
     const path = ReactEditor.findPath(editor, element);
     Transforms.setNodes(
@@ -205,13 +147,13 @@ const ImageGallery = (props: IImageGalleryProps) => {
       },
       {
         at: path,
-      },
+      }
     );
   };
 
   return (
     <div
-      ref={(node) => {
+      ref={node => {
         drop(node);
       }}
       className={classnames(styles.imageGalleryContainer, {
@@ -233,13 +175,9 @@ const ImageGallery = (props: IImageGalleryProps) => {
                 lastRow={lastRow}
                 borderRadius={effectiveBorderRadius}
                 shadow={effectiveShadow}
-                onUpdateDimensions={(updatedImages) => {
+                onUpdateDimensions={updatedImages => {
                   const path = ReactEditor.findPath(editor, element);
-                  Transforms.setNodes(
-                    editor,
-                    { images: updatedImages },
-                    { at: path },
-                  );
+                  Transforms.setNodes(editor, { images: updatedImages }, { at: path });
                 }}
               />
             </If>
@@ -250,13 +188,9 @@ const ImageGallery = (props: IImageGalleryProps) => {
                 gap={margins}
                 borderRadius={effectiveBorderRadius}
                 shadow={effectiveShadow}
-                onUpdateDimensions={(updatedImages) => {
+                onUpdateDimensions={updatedImages => {
                   const path = ReactEditor.findPath(editor, element);
-                  Transforms.setNodes(
-                    editor,
-                    { images: updatedImages },
-                    { at: path },
-                  );
+                  Transforms.setNodes(editor, { images: updatedImages }, { at: path });
                 }}
               />
             </If>
@@ -299,7 +233,7 @@ const ImageGallery = (props: IImageGalleryProps) => {
       </div>
       <div
         contentEditable={false}
-        ref={(node) => {
+        ref={node => {
           drag(node);
         }}
         className={classnames(styles.dragHandler, {

@@ -8,7 +8,8 @@ import {
   useCreation,
   useUnmount,
 } from "ahooks";
-import { Editor, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import {
   IndentDecrease,
   IndentIncrease,
@@ -24,8 +25,10 @@ import {
   Copy,
 } from "lucide-react";
 import AddTag from "@/components/AddTag";
-import EditText, { EditTextHandle } from "@/components/EditText";
+import { EditTextHandle } from "@/components/EditText";
+import EditText from "@/components/CollaborativeTitle";
 import { StatusBarConfig } from "@/components/StatusBar";
+import ContentCollaborationControl from "@/components/ContentCollaborationControl";
 import EditorSourceValue from "@/components/EditorSourceValue";
 import { isValid } from "@/components/WhiteBoard/utils";
 
@@ -54,10 +57,7 @@ import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
 import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
 import FlashcardEditor from "@/pages/FlashcardCenter/FlashcardEditor";
 import { findOneArticle, openArticleInNewWindow } from "@/commands/article";
-import {
-  attachPodcastToArticle,
-  detachPodcastFromArticle,
-} from "@/commands/podcast";
+import { attachPodcastToArticle, detachPodcastFromArticle } from "@/commands/podcast";
 
 import styles from "./index.module.less";
 import { EditCardContext } from "@/context.ts";
@@ -98,11 +98,9 @@ interface IEditArticleProps {
 
 const EditArticle = memo((props: IEditArticleProps) => {
   const { articleId, defaultReadonly = true, onStatusBarChange } = props;
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const { message } = App.useApp();
-  const darkMode = useSettingStore((state) => state.setting.darkMode);
+  const darkMode = useSettingStore(state => state.setting.darkMode);
 
   const {
     editingArticle,
@@ -145,10 +143,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
     }),
   });
 
-  const articleEventBus = useCreation(
-    () => defaultArticleEventBus.createEditor(),
-    [],
-  );
+  const articleEventBus = useCreation(() => defaultArticleEventBus.createEditor(), []);
   const editorRef = useRef<EditorRef>(null);
   const immersiveEntrySelectionRef = useRef<Range | null>(null);
   const pendingSelectionRef = useRef<Range | null>(null);
@@ -173,7 +168,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
   const [scrollProgress, setScrollProgress] = useState(0);
   const titleRef = useRef<EditTextHandle>(null);
   const size = useSize(containerRef);
-  const { startArticlePresentation } = useArticleManagementStore((state) => ({
+  const { startArticlePresentation } = useArticleManagementStore(state => ({
     startArticlePresentation: state.startArticlePresentation,
   }));
 
@@ -188,20 +183,15 @@ const EditArticle = memo((props: IEditArticleProps) => {
 
   const handleOpenInNewWindow = useMemoizedFn(() => {
     if (articleId) {
-      openArticleInNewWindow(
-        useSettingStore.getState().setting.database.active,
-        articleId,
-      );
+      openArticleInNewWindow(useSettingStore.getState().setting.database.active, articleId);
     }
   });
 
-  const handleImmersiveExit = useMemoizedFn(
-    (payload?: ImmersiveEditorExitPayload) => {
-      pendingSelectionRef.current = payload?.selection ?? null;
-      setImmersiveMode(false);
-      setEditorRemountKey((current) => current + 1);
-    },
-  );
+  const handleImmersiveExit = useMemoizedFn((payload?: ImmersiveEditorExitPayload) => {
+    pendingSelectionRef.current = payload?.selection ?? null;
+    setImmersiveMode(false);
+    setEditorRemountKey(current => current + 1);
+  });
 
   useEffect(() => {
     if (immersiveMode || !pendingSelectionRef.current) return;
@@ -225,7 +215,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
 
   const handleEnterImmersiveMode = useMemoizedFn(() => {
     immersiveEntrySelectionRef.current = cloneRange(
-      editorRef.current?.getEditor().selection ?? null,
+      editorRef.current?.getEditor().selection ?? null
     );
     setImmersiveMode(true);
   });
@@ -235,8 +225,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
   }, [defaultReadonly]);
 
   const updateScrollProgress = useMemoizedFn((scrollElement: HTMLElement) => {
-    const maxScrollTop =
-      scrollElement.scrollHeight - scrollElement.clientHeight;
+    const maxScrollTop = scrollElement.scrollHeight - scrollElement.clientHeight;
     if (maxScrollTop <= 0) {
       setScrollProgress(0);
       return;
@@ -244,11 +233,9 @@ const EditArticle = memo((props: IEditArticleProps) => {
     setScrollProgress(scrollElement.scrollTop / maxScrollTop);
   });
 
-  const handleMainContentScroll = useMemoizedFn(
-    (event: UIEvent<HTMLDivElement>) => {
-      updateScrollProgress(event.currentTarget);
-    },
-  );
+  const handleMainContentScroll = useMemoizedFn((event: UIEvent<HTMLDivElement>) => {
+    updateScrollProgress(event.currentTarget);
+  });
 
   const headers: Array<{
     level: number;
@@ -256,9 +243,9 @@ const EditArticle = memo((props: IEditArticleProps) => {
   }> = useMemo(() => {
     if (!editingArticle || !editingArticle.content) return [];
     const headers = editingArticle.content.filter(
-      (node) => node.type === "header",
+      node => node.type === "header"
     ) as HeaderElement[];
-    return headers.map((header) => ({
+    return headers.map(header => ({
       level: header.level,
       title: header.children.map(getInlineElementText).join(""),
     }));
@@ -270,8 +257,21 @@ const EditArticle = memo((props: IEditArticleProps) => {
         key: "words-count",
         children: <>字数：{editingArticle?.count}</>,
       },
+      {
+        key: "collaboration",
+        children: (
+          <ContentCollaborationControl
+            contentId={editingArticle?.contentId}
+            source={{
+              sourceType: "article",
+              sourceId: editingArticle?.id,
+              sourceTitle: editingArticle?.title,
+            }}
+          />
+        ),
+      },
     ];
-  }, [editingArticle?.count]);
+  }, [editingArticle?.count, editingArticle?.contentId, editingArticle?.id, editingArticle?.title]);
 
   const statusBarRightConfigs = useMemo<StatusBarConfig[]>(() => {
     return [
@@ -339,15 +339,9 @@ const EditArticle = memo((props: IEditArticleProps) => {
               ],
               onClick: async ({ key }) => {
                 if (key === "markdown") {
-                  await copyMarkdownToClipboard(
-                    editingArticle?.content || [],
-                    message,
-                  );
+                  await copyMarkdownToClipboard(editingArticle?.content || [], message);
                 } else if (key === "wechat") {
-                  await copyWechatHtmlToClipboard(
-                    editingArticle?.content || [],
-                    message,
-                  );
+                  await copyWechatHtmlToClipboard(editingArticle?.content || [], message);
                 }
               },
             }}
@@ -454,7 +448,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
         setShowOutline(false);
       }
     },
-    { wait: 500 },
+    { wait: 500 }
   );
 
   useEffect(() => {
@@ -469,10 +463,10 @@ const EditArticle = memo((props: IEditArticleProps) => {
 
   const { throttleHandleEditorContentChange } = useEditContent(
     editingArticle?.contentId,
-    (content) => {
+    content => {
       editorRef.current?.setEditorValue(content);
       onContentChangeFromEditArticle(content);
-    },
+    }
   );
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
@@ -488,10 +482,10 @@ const EditArticle = memo((props: IEditArticleProps) => {
     const unsubscribe = articleEventBus.subscribeToArticleWithId(
       "article:updated",
       articleId,
-      (data) => {
+      data => {
         setEditingArticle(data.article);
         titleRef.current?.setValue(data.article.title);
-      },
+      }
     );
 
     return () => {
@@ -526,9 +520,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
       return;
     }
     // 直接替换标签，保持顺序
-    const newTags = editingArticle.tags.map((tag) =>
-      tag === oldTag ? newTag : tag,
-    );
+    const newTags = editingArticle.tags.map(tag => (tag === oldTag ? newTag : tag));
     onTagsChange(newTags);
   });
 
@@ -554,7 +546,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
 
   const handleCoverChange = useMemoizedFn((url: string, position: string) => {
     if (!editingArticle) return;
-    const newEditingArticle = produce(editingArticle, (draft) => {
+    const newEditingArticle = produce(editingArticle, draft => {
       draft.bannerBg = url;
       draft.bannerPosition = position;
     });
@@ -574,11 +566,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
           style={{ transform: `scaleX(${scrollProgress})` }}
         />
       </div>
-      <div
-        ref={mainContentRef}
-        className={styles.mainContent}
-        onScroll={handleMainContentScroll}
-      >
+      <div ref={mainContentRef} className={styles.mainContent} onScroll={handleMainContentScroll}>
         <div className={styles.cover}>
           <LocalImage
             key={editingArticle.bannerBg}
@@ -605,6 +593,12 @@ const EditArticle = memo((props: IEditArticleProps) => {
             onCoverChange={handleCoverChange}
           />
           <EditText
+            contentId={editingArticle.contentId}
+            source={{
+              sourceType: "article",
+              sourceId: editingArticle.id,
+              sourceTitle: editingArticle.title,
+            }}
             ref={titleRef}
             key={editingArticle.id}
             className={styles.title}
@@ -647,6 +641,8 @@ const EditArticle = memo((props: IEditArticleProps) => {
             >
               <ErrorBoundary>
                 <Editor
+                  contentId={editingArticle?.contentId}
+                  collaborationControl={false}
                   key={`${editingArticle.id}-${editorRemountKey}`}
                   ref={editorRef}
                   initValue={editingArticle.content}
@@ -700,9 +696,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
         onCancel={flashcard.closeDeckSelector}
         onSelect={flashcard.handleDeckSelect}
         title={
-          flashcard.deckSelectorMode === "manual"
-            ? "选择卡组 - 手动制卡"
-            : "选择卡组 - AI 制卡"
+          flashcard.deckSelectorMode === "manual" ? "选择卡组 - 手动制卡" : "选择卡组 - AI 制卡"
         }
       />
 
@@ -747,6 +741,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
       {/* 沉浸模式 */}
       {immersiveMode && (
         <ImmersiveEditorMode
+          contentId={editingArticle?.contentId}
           initValue={editingArticle.content}
           initialSelection={immersiveEntrySelectionRef.current}
           onChange={onContentChange}

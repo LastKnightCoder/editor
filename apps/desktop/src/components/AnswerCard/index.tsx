@@ -12,7 +12,8 @@ import {
 import { BsCardText } from "react-icons/bs";
 import { IAnswer } from "@/types";
 import { defaultArticleEventBus, defaultCardEventBus } from "@/utils";
-import { Editor, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import useEditContent from "@/hooks/useEditContent";
 import { buildCardFromContent } from "@/commands/card";
 import { buildArticleFromContent } from "@/commands/article";
@@ -40,7 +41,7 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
   contentId,
 }) => {
   const { modal, message } = App.useApp();
-  const extensions = useDynamicExtensionsStore((state) => state.extensions);
+  const extensions = useDynamicExtensionsStore(state => state.extensions);
   const editorRef = useRef<EditorRef>(null);
   const [isCard, setIsCard] = useState(false);
   const [isArticle, setIsArticle] = useState(false);
@@ -50,19 +51,16 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
 
   useEffect(() => {
     if (contentId) {
-      getAnswerContentStatus(contentId).then((status) => {
+      getAnswerContentStatus(contentId).then(status => {
         setIsCard(status.isCard);
         setIsArticle(status.isArticle);
       });
     }
   }, [contentId]);
 
-  const { content, throttleHandleEditorContentChange } = useEditContent(
-    contentId,
-    (data) => {
-      editorRef.current?.setEditorValue(data);
-    },
-  );
+  const { content, throttleHandleEditorContentChange } = useEditContent(contentId, data => {
+    editorRef.current?.setEditorValue(data);
+  });
 
   const reloadContentStatus = useMemoizedFn(async () => {
     if (!contentId) return;
@@ -75,12 +73,10 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
     if (!contentId) return;
     throttleHandleEditorContentChange.flush();
 
-    buildCardFromContent(contentId).then((card) => {
+    buildCardFromContent(contentId).then(card => {
       if (card) {
         setIsCard(true);
-        defaultCardEventBus
-          .createEditor()
-          .publishCardEvent("card:created", card);
+        defaultCardEventBus.createEditor().publishCardEvent("card:created", card);
         void reloadContentStatus();
         message.success("创建卡片成功");
       } else {
@@ -98,12 +94,10 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
     if (!contentId) return;
     throttleHandleEditorContentChange.flush();
 
-    buildArticleFromContent(contentId, title).then((article) => {
+    buildArticleFromContent(contentId, title).then(article => {
       if (article) {
         setIsArticle(true);
-        defaultArticleEventBus
-          .createEditor()
-          .publishArticleEvent("article:created", article);
+        defaultArticleEventBus.createEditor().publishArticleEvent("article:created", article);
         void reloadContentStatus();
         message.success("创建文章成功");
       } else {
@@ -112,27 +106,23 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
     });
   });
 
-  const handleCreateTreeItem = useMemoizedFn(
-    (mode: "project" | "document", title: string) => {
-      if (!contentId) return;
-      throttleHandleEditorContentChange.flush();
-      useExtNoteInsertStore.getState().openModal({
-        mode,
-        sourceContentId: contentId,
-        title,
-        insertMode: "shared-content",
-        onSuccess: () => {
-          void reloadContentStatus();
-        },
-      });
-    },
-  );
+  const handleCreateTreeItem = useMemoizedFn((mode: "project" | "document", title: string) => {
+    if (!contentId) return;
+    throttleHandleEditorContentChange.flush();
+    useExtNoteInsertStore.getState().openModal({
+      mode,
+      sourceContentId: contentId,
+      title,
+      insertMode: "shared-content",
+      onSuccess: () => {
+        void reloadContentStatus();
+      },
+    });
+  });
 
-  const handleOpenTitleModal = useMemoizedFn(
-    (target: "article" | "project" | "document") => {
-      setTitleModalTarget(target);
-    },
-  );
+  const handleOpenTitleModal = useMemoizedFn((target: "article" | "project" | "document") => {
+    setTitleModalTarget(target);
+  });
 
   const handleDeleteAnswer: MenuItemProps["onClick"] = useMemoizedFn(() => {
     if (!onDeleteAnswer) return;
@@ -203,7 +193,7 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
         icon: <BookOutlined />,
         onClick: () => handleOpenTitleModal("document"),
       },
-    ].filter((val) => val !== null);
+    ].filter(val => val !== null);
   }, [
     handleBuildCard,
     handleDeleteAnswer,
@@ -230,6 +220,7 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
     >
       <div className={styles.answerContent} onClick={handleClick}>
         <Editor
+          contentId={contentId}
           ref={editorRef}
           initValue={answer.content}
           readonly={readOnly}
@@ -243,7 +234,7 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
             items,
           }}
         >
-          <div className={styles.moreIcon} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.moreIcon} onClick={e => e.stopPropagation()}>
             <MoreOutlined />
           </div>
         </Dropdown>

@@ -5,12 +5,7 @@ import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 import { PlusOutlined } from "@ant-design/icons";
 import { Component, MessageSquare } from "lucide-react";
-import {
-  useDrop,
-  useDrag,
-  DropTargetMonitor,
-  DragSourceMonitor,
-} from "react-dnd";
+import { useDrop, useDrag, DropTargetMonitor, DragSourceMonitor } from "react-dnd";
 import { motion, AnimatePresence } from "motion/react";
 
 import useTabStore from "@/stores/useTabStore";
@@ -21,14 +16,7 @@ import useNavigationHistoryStore from "@/stores/useNavigationHistoryStore";
 import DraggableTab from "./DraggableTab";
 import styles from "./index.module.less";
 
-import {
-  ITab,
-  ITabGroup,
-  TabType,
-  PaneDirection,
-  TAB_TITLES,
-  TabParams,
-} from "@/types/tab";
+import { ITab, ITabGroup, TabType, PaneDirection, TAB_TITLES, TabParams } from "@/types/tab";
 import { openExternal } from "@/commands/extra";
 import useTheme from "@/hooks/useTheme";
 import useThemeColors from "@/hooks/useThemeColors";
@@ -92,15 +80,14 @@ const QUICK_ACCESS_MODULE_TAB_MAP = {
   todo: TabType.Todo,
   question: TabType.Questions,
   weread: TabType.WeRead,
+  collaboration: TabType.Collaboration,
   webview: TabType.WebView,
   settings: TabType.Settings,
 } as const;
 
 type QuickAccessModuleKey = keyof typeof QUICK_ACCESS_MODULE_TAB_MAP;
 
-const QUICK_ACCESS_MODULE_KEYS = Object.keys(
-  QUICK_ACCESS_MODULE_TAB_MAP,
-) as QuickAccessModuleKey[];
+const QUICK_ACCESS_MODULE_KEYS = Object.keys(QUICK_ACCESS_MODULE_TAB_MAP) as QuickAccessModuleKey[];
 const TAB_TYPE_SET = new Set<TabType>(Object.values(TabType));
 const QUICK_ACCESS_MENU_MAX_HEIGHT = "360px";
 
@@ -110,16 +97,12 @@ interface TabGroupHeaderProps {
   colorValue?: string;
   isActive: boolean;
   onToggleCollapse: () => void;
-  onMoveGroup: (
-    dragGroupId: string,
-    hoverGroupId: string,
-    position: "before" | "after",
-  ) => void;
+  onMoveGroup: (dragGroupId: string, hoverGroupId: string, position: "before" | "after") => void;
   onDropTabToGroup: (tab: ITab, sourcePaneId: string) => void;
   onDragEndGroup: (
     groupId: string,
     sourcePaneId: string,
-    dropZone?: "left" | "right" | "top" | "bottom",
+    dropZone?: "left" | "right" | "top" | "bottom"
   ) => void;
 }
 
@@ -143,9 +126,7 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
     { handlerId: string | symbol | null }
   >({
     accept: ["TAB", "TAB_GROUP"],
-    collect: (
-      monitor: DropTargetMonitor<TabGroupHeaderDropItem, TabDropResult>,
-    ) => ({
+    collect: (monitor: DropTargetMonitor<TabGroupHeaderDropItem, TabDropResult>) => ({
       handlerId: monitor.getHandlerId(),
     }),
     hover: () => {
@@ -153,7 +134,7 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
     },
     drop: (
       item: TabGroupHeaderDropItem,
-      monitor: DropTargetMonitor<TabGroupHeaderDropItem, TabDropResult>,
+      monitor: DropTargetMonitor<TabGroupHeaderDropItem, TabDropResult>
     ) => {
       if (monitor.didDrop()) {
         return;
@@ -171,13 +152,11 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
 
         if (!ref.current) return undefined;
         const hoverBoundingRect = ref.current.getBoundingClientRect();
-        const hoverMiddleX =
-          (hoverBoundingRect.right - hoverBoundingRect.left) / 2;
+        const hoverMiddleX = (hoverBoundingRect.right - hoverBoundingRect.left) / 2;
         const clientOffset = monitor.getClientOffset();
         if (!clientOffset) return undefined;
         const hoverClientX = clientOffset.x - hoverBoundingRect.left;
-        const position: "before" | "after" =
-          hoverClientX < hoverMiddleX ? "before" : "after";
+        const position: "before" | "after" = hoverClientX < hoverMiddleX ? "before" : "after";
 
         onMoveGroup(item.groupId as string, group.id, position);
         return { paneId };
@@ -187,11 +166,7 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
     },
   });
 
-  const [{ isDragging }, drag] = useDrag<
-    TabGroupDragItem,
-    void,
-    { isDragging: boolean }
-  >(
+  const [{ isDragging }, drag] = useDrag<TabGroupDragItem, void, { isDragging: boolean }>(
     () => ({
       type: "TAB_GROUP",
       item: () => {
@@ -205,10 +180,7 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
       collect: (monitor: DragSourceMonitor<TabGroupDragItem, void>) => ({
         isDragging: monitor.isDragging(),
       }),
-      end: (
-        item: TabGroupDragItem,
-        monitor: DragSourceMonitor<TabGroupDragItem, void>,
-      ) => {
+      end: (item: TabGroupDragItem, monitor: DragSourceMonitor<TabGroupDragItem, void>) => {
         const didDrop = monitor.didDrop();
         const dropResult = monitor.getDropResult() as {
           paneId: string;
@@ -238,7 +210,7 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
         }
       },
     }),
-    [group.id, paneId, onDragEndGroup],
+    [group.id, paneId, onDragEndGroup]
   );
 
   const backgroundStyle = colorValue
@@ -255,24 +227,21 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
       ref={ref}
       data-handler-id={handlerId}
       className={classnames(
-        "flex items-center h-7 px-2 mr-1 rounded-full text-xs cursor-pointer select-none border border-transparent",
+        "mr-1 flex h-7 cursor-pointer select-none items-center rounded-full border border-transparent px-2 text-xs",
         {
           "opacity-60": isDragging,
           "bg-(--th-bg-hover)": !colorValue,
           "font-semibold": isActive,
-        },
+        }
       )}
       style={backgroundStyle}
-      onClick={(e) => {
+      onClick={e => {
         e.stopPropagation();
         onToggleCollapse();
       }}
     >
       {colorValue && (
-        <span
-          className="w-2 h-2 rounded-full mr-1"
-          style={{ backgroundColor: colorValue }}
-        />
+        <span className="mr-1 h-2 w-2 rounded-full" style={{ backgroundColor: colorValue }} />
       )}
       <span className="max-w-[120px] truncate">{group.title}</span>
     </div>
@@ -282,62 +251,48 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
 const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
   const { paneId, className } = props;
 
-  const panes = useTabStore((state) => state.panes);
-  const createTab = useTabStore((state) => state.createTab);
-  const closeTab = useTabStore((state) => state.closeTab);
-  const switchTab = useTabStore((state) => state.switchTab);
-  const updateTab = useTabStore((state) => state.updateTab);
-  const reorderTab = useTabStore((state) => state.reorderTab);
-  const moveTabToPane = useTabStore((state) => state.moveTabToPane);
-  const moveTabToPaneAndSetGroup = useTabStore(
-    (state) => state.moveTabToPaneAndSetGroup,
-  );
-  const createPaneWithTab = useTabStore((state) => state.createPaneWithTab);
-  const createPaneWithTabGroup = useTabStore(
-    (state) => state.createPaneWithTabGroup,
-  );
-  const moveTabGroupToPane = useTabStore((state) => state.moveTabGroupToPane);
-  const createTabGroup = useTabStore((state) => state.createTabGroup);
-  const updateTabGroup = useTabStore((state) => state.updateTabGroup);
-  const removeTabGroup = useTabStore((state) => state.removeTabGroup);
-  const setTabGroup = useTabStore((state) => state.setTabGroup);
-  const reorderTabGroup = useTabStore((state) => state.reorderTabGroup);
-  const moduleSetting = useSettingStore((state) => state.setting.module);
-  const moduleOrder = useSettingStore((state) => state.setting.moduleOrder);
-  const addToHistory = useNavigationHistoryStore((state) => state.addToHistory);
-  const getFrequentItems = useNavigationHistoryStore(
-    (state) => state.getFrequentItems,
-  );
-  const activeRightPanel = useRightChatSidebarStore(
-    (state) => state.activePanel,
-  );
+  const panes = useTabStore(state => state.panes);
+  const createTab = useTabStore(state => state.createTab);
+  const closeTab = useTabStore(state => state.closeTab);
+  const switchTab = useTabStore(state => state.switchTab);
+  const updateTab = useTabStore(state => state.updateTab);
+  const reorderTab = useTabStore(state => state.reorderTab);
+  const moveTabToPane = useTabStore(state => state.moveTabToPane);
+  const moveTabToPaneAndSetGroup = useTabStore(state => state.moveTabToPaneAndSetGroup);
+  const createPaneWithTab = useTabStore(state => state.createPaneWithTab);
+  const createPaneWithTabGroup = useTabStore(state => state.createPaneWithTabGroup);
+  const moveTabGroupToPane = useTabStore(state => state.moveTabGroupToPane);
+  const createTabGroup = useTabStore(state => state.createTabGroup);
+  const updateTabGroup = useTabStore(state => state.updateTabGroup);
+  const removeTabGroup = useTabStore(state => state.removeTabGroup);
+  const setTabGroup = useTabStore(state => state.setTabGroup);
+  const reorderTabGroup = useTabStore(state => state.reorderTabGroup);
+  const moduleSetting = useSettingStore(state => state.setting.module);
+  const moduleOrder = useSettingStore(state => state.setting.moduleOrder);
+  const addToHistory = useNavigationHistoryStore(state => state.addToHistory);
+  const getFrequentItems = useNavigationHistoryStore(state => state.getFrequentItems);
+  const activeRightPanel = useRightChatSidebarStore(state => state.activePanel);
 
   const { theme } = useTheme();
   const themeColors = useThemeColors();
 
-  const pane = panes.find((p) => p.id === paneId);
+  const pane = panes.find(p => p.id === paneId);
 
   const [groupModalOpen, setGroupModalOpen] = useState(false);
   const [groupModalTabId, setGroupModalTabId] = useState<string | null>(null);
-  const [groupModalGroupId, setGroupModalGroupId] = useState<string | null>(
-    null,
-  );
+  const [groupModalGroupId, setGroupModalGroupId] = useState<string | null>(null);
   const [groupModalName, setGroupModalName] = useState("");
-  const [groupModalColor, setGroupModalColor] =
-    useState<ProjectColorName | null>(null);
+  const [groupModalColor, setGroupModalColor] = useState<ProjectColorName | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [renameModalTabId, setRenameModalTabId] = useState<string | null>(null);
   const [renameModalValue, setRenameModalValue] = useState("");
 
-  const groups = useMemo(
-    () => (pane?.groups ? pane.groups : []),
-    [pane?.groups],
-  );
+  const groups = useMemo(() => (pane?.groups ? pane.groups : []), [pane?.groups]);
 
   const groupMap = useMemo(() => {
     const map = new Map<string, ITabGroup>();
-    groups.forEach((g) => {
+    groups.forEach(g => {
       map.set(g.id, g);
     });
     return map;
@@ -349,15 +304,13 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
 
   const quickAccessModules = useMemo(() => {
     const orderedKeys = moduleOrder.filter((key): key is QuickAccessModuleKey =>
-      QUICK_ACCESS_MODULE_KEYS.includes(key as QuickAccessModuleKey),
+      QUICK_ACCESS_MODULE_KEYS.includes(key as QuickAccessModuleKey)
     );
     const orderedSet = new Set(orderedKeys);
 
-    const enabledOrderedKeys = orderedKeys.filter(
-      (key) => moduleSetting[key].enable,
-    );
+    const enabledOrderedKeys = orderedKeys.filter(key => moduleSetting[key].enable);
     const enabledExtraKeys = QUICK_ACCESS_MODULE_KEYS.filter(
-      (key) => !orderedSet.has(key) && moduleSetting[key].enable,
+      key => !orderedSet.has(key) && moduleSetting[key].enable
     );
 
     const baseKeys = [...enabledOrderedKeys, ...enabledExtraKeys];
@@ -374,7 +327,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
       }
     }
 
-    const modules = baseKeys.map((key) => ({
+    const modules = baseKeys.map(key => ({
       key,
       type: QUICK_ACCESS_MODULE_TAB_MAP[key],
       label: moduleSetting[key].name,
@@ -416,7 +369,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
       ];
     }
 
-    return quickAccessModules.map((module) => ({
+    return quickAccessModules.map(module => ({
       key: module.type,
       label: module.label,
     }));
@@ -478,16 +431,16 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
 
   const handleCloseOtherTabs = useMemoizedFn((tabId: string) => {
     if (!pane) return;
-    const tabIds = pane.tabs.filter((t) => t.id !== tabId).map((t) => t.id);
-    tabIds.forEach((id) => {
+    const tabIds = pane.tabs.filter(t => t.id !== tabId).map(t => t.id);
+    tabIds.forEach(id => {
       closeTab(paneId, id);
     });
   });
 
   const handleCloseAllTabs = useMemoizedFn(() => {
     if (!pane) return;
-    const tabIds = pane.tabs.map((t) => t.id);
-    tabIds.forEach((id) => {
+    const tabIds = pane.tabs.map(t => t.id);
+    tabIds.forEach(id => {
       closeTab(paneId, id);
     });
   });
@@ -496,15 +449,11 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
     (dragIndex: number, hoverIndex: number) => {
       reorderTab(paneId, dragIndex, hoverIndex);
     },
-    [paneId, reorderTab],
+    [paneId, reorderTab]
   );
 
   const handleDragEnd = useCallback(
-    (
-      tab: ITab,
-      sourcePaneId: string,
-      dropZone?: "left" | "right" | "top" | "bottom",
-    ) => {
+    (tab: ITab, sourcePaneId: string, dropZone?: "left" | "right" | "top" | "bottom") => {
       // 如果有 dropZone，说明要分屏
       if (dropZone) {
         const direction =
@@ -519,15 +468,11 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
         moveTabToPane(sourcePaneId, paneId, tab.id);
       }
     },
-    [paneId, createPaneWithTab, moveTabToPane],
+    [paneId, createPaneWithTab, moveTabToPane]
   );
 
   const handleDragEndGroup = useCallback(
-    (
-      groupId: string,
-      sourcePaneId: string,
-      dropZone?: "left" | "right" | "top" | "bottom",
-    ) => {
+    (groupId: string, sourcePaneId: string, dropZone?: "left" | "right" | "top" | "bottom") => {
       // 如果有 dropZone，说明要分屏
       if (dropZone) {
         const direction =
@@ -542,28 +487,22 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
         moveTabGroupToPane(sourcePaneId, paneId, groupId);
       }
     },
-    [paneId, createPaneWithTabGroup, moveTabGroupToPane],
+    [paneId, createPaneWithTabGroup, moveTabGroupToPane]
   );
 
   // 接收拖拽的 Drop Zone
-  const [, drop] = useDrop<
-    TabDragItem | TabGroupDragItem,
-    TabDropResult,
-    { isOver: boolean }
-  >({
+  const [, drop] = useDrop<TabDragItem | TabGroupDragItem, TabDropResult, { isOver: boolean }>({
     accept: ["TAB", "TAB_GROUP"],
     drop: (
       _item: TabDragItem | TabGroupDragItem,
-      monitor: DropTargetMonitor<TabDragItem | TabGroupDragItem, TabDropResult>,
+      monitor: DropTargetMonitor<TabDragItem | TabGroupDragItem, TabDropResult>
     ) => {
       // 如果子级已经处理了 drop（例如 TabGroupHeader），则不再处理
       if (monitor.didDrop()) return undefined;
       // 标题栏 drop 返回 paneId，不带 dropZone（表示直接移动，不分屏）
       return { paneId, dropZone: undefined };
     },
-    collect: (
-      monitor: DropTargetMonitor<TabDragItem | TabGroupDragItem, TabDropResult>,
-    ) => ({
+    collect: (monitor: DropTargetMonitor<TabDragItem | TabGroupDragItem, TabDropResult>) => ({
       isOver: monitor.isOver(),
     }),
   });
@@ -629,7 +568,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
           handleCloseAllTabs();
         },
       } as MenuItemType,
-      { type: "divider" } as MenuItemType,
+      { type: "divider" } as MenuItemType
     );
 
     const moveMenuChildren: MenuProps["items"] = [];
@@ -643,7 +582,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
         },
       } as MenuItemType);
 
-      groups.forEach((group) => {
+      groups.forEach(group => {
         const color = group.color
           ? getProjectColorValue(group.color as ProjectColorName, theme)
           : undefined;
@@ -652,10 +591,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
           label: (
             <div className="flex items-center gap-2">
               {color && (
-                <span
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: color }}
-                />
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
               )}
               <span>{group.title}</span>
             </div>
@@ -700,7 +636,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
           createPaneWithTab(paneId, tab.id, PaneDirection.Horizontal, 0.5);
         } else {
           // 有多个 pane，移动到另一个 pane
-          const otherPane = panes.find((p) => p.id !== paneId);
+          const otherPane = panes.find(p => p.id !== paneId);
           if (otherPane) {
             moveTabToPane(paneId, otherPane.id, tab.id);
           }
@@ -724,7 +660,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
           setGroupModalColor(
             (group.color as ProjectColorName) ||
               (PROJECT_COLORS[0]?.name as ProjectColorName) ||
-              ("purple" as ProjectColorName),
+              ("purple" as ProjectColorName)
           );
           setGroupModalOpen(true);
         },
@@ -744,15 +680,10 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
           e.domEvent.stopPropagation();
           if (panes.length === 1) {
             // 只有一个 pane，创建新的 pane
-            createPaneWithTabGroup(
-              paneId,
-              group.id,
-              PaneDirection.Horizontal,
-              0.5,
-            );
+            createPaneWithTabGroup(paneId, group.id, PaneDirection.Horizontal, 0.5);
           } else {
             // 有多个 pane，移动到另一个 pane
-            const otherPane = panes.find((p) => p.id !== paneId);
+            const otherPane = panes.find(p => p.id !== paneId);
             if (otherPane) {
               moveTabGroupToPane(paneId, otherPane.id, group.id);
             }
@@ -797,9 +728,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
         }
       }
 
-      const isActiveGroup = groupTabs.some(
-        ({ tab: t }) => t.id === pane.activeTabId,
-      );
+      const isActiveGroup = groupTabs.some(({ tab: t }) => t.id === pane.activeTabId);
 
       const isCollapsed = group.collapsed;
 
@@ -807,16 +736,13 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
         <motion.div
           key={`group-wrap-${group.id}`}
           layout
-          className="flex items-center gap-1 mr-1 min-w-0 shrink"
+          className="mr-1 flex min-w-0 shrink items-center gap-1"
           transition={{
             duration: 0.2,
             ease: "easeInOut",
           }}
         >
-          <Dropdown
-            menu={{ items: buildGroupContextMenuItems(group) }}
-            trigger={["contextMenu"]}
-          >
+          <Dropdown menu={{ items: buildGroupContextMenuItems(group) }} trigger={["contextMenu"]}>
             <div>
               <TabGroupHeader
                 group={group}
@@ -834,12 +760,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
                 onDropTabToGroup={(droppedTab, sourcePaneId) => {
                   if (sourcePaneId !== paneId) {
                     // 跨 pane 移动：使用原子化方法一次性完成移动和设置分组
-                    moveTabToPaneAndSetGroup(
-                      sourcePaneId,
-                      paneId,
-                      droppedTab.id,
-                      group.id,
-                    );
+                    moveTabToPaneAndSetGroup(sourcePaneId, paneId, droppedTab.id, group.id);
                   } else {
                     // 同一 pane 内移动：只需设置分组
                     setTabGroup(paneId, droppedTab.id, group.id);
@@ -850,62 +771,59 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
             </div>
           </Dropdown>
 
-          <div className="relative flex items-center gap-1 pb-[2px] min-w-0">
+          <div className="relative flex min-w-0 items-center gap-1 pb-[2px]">
             {colorValue && groupTabs.length > 0 && (
               <div
-                className="pointer-events-none absolute left-0 right-0 bottom-0 h-0.5 rounded-full"
+                className="pointer-events-none absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
                 style={{ backgroundColor: colorValue }}
               />
             )}
 
             <AnimatePresence initial={false}>
               {!isCollapsed &&
-                groupTabs.map(
-                  ({ tab: groupTab, index: tabIndex }, arrayIndex) => {
-                    const isFirstInGroup = arrayIndex === 0;
-                    const isPrevTabActive =
-                      arrayIndex > 0 &&
-                      groupTabs[arrayIndex - 1].tab.id === pane.activeTabId;
-                    return (
-                      <motion.div
-                        key={groupTab.id}
-                        className="min-w-0 basis-[200px] shrink"
-                        layout
-                        initial={{ opacity: 0, width: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, width: "auto", scale: 1 }}
-                        exit={{ opacity: 0, width: 0, scale: 0.8 }}
-                        transition={{
-                          duration: 0.2,
-                          ease: "easeInOut",
-                          layout: { duration: 0.2, ease: "easeInOut" },
-                        }}
+                groupTabs.map(({ tab: groupTab, index: tabIndex }, arrayIndex) => {
+                  const isFirstInGroup = arrayIndex === 0;
+                  const isPrevTabActive =
+                    arrayIndex > 0 && groupTabs[arrayIndex - 1].tab.id === pane.activeTabId;
+                  return (
+                    <motion.div
+                      key={groupTab.id}
+                      className="min-w-0 shrink basis-[200px]"
+                      layout
+                      initial={{ opacity: 0, width: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, width: "auto", scale: 1 }}
+                      exit={{ opacity: 0, width: 0, scale: 0.8 }}
+                      transition={{
+                        duration: 0.2,
+                        ease: "easeInOut",
+                        layout: { duration: 0.2, ease: "easeInOut" },
+                      }}
+                    >
+                      <Dropdown
+                        menu={{ items: buildTabContextMenuItems(groupTab) }}
+                        trigger={["contextMenu"]}
                       >
-                        <Dropdown
-                          menu={{ items: buildTabContextMenuItems(groupTab) }}
-                          trigger={["contextMenu"]}
-                        >
-                          <div className="min-w-0">
-                            <DraggableTab
-                              tab={groupTab}
-                              paneId={paneId}
-                              index={tabIndex}
-                              isActive={groupTab.id === pane.activeTabId}
-                              isFirst={isFirstInGroup}
-                              isPrevActive={isPrevTabActive}
-                              onClose={(e) => handleCloseTab(groupTab.id, e)}
-                              onSwitch={() => handleSwitchTab(groupTab.id)}
-                              onMove={handleMoveTab}
-                              onDragEnd={handleDragEnd}
-                            />
-                          </div>
-                        </Dropdown>
-                      </motion.div>
-                    );
-                  },
-                )}
+                        <div className="min-w-0">
+                          <DraggableTab
+                            tab={groupTab}
+                            paneId={paneId}
+                            index={tabIndex}
+                            isActive={groupTab.id === pane.activeTabId}
+                            isFirst={isFirstInGroup}
+                            isPrevActive={isPrevTabActive}
+                            onClose={e => handleCloseTab(groupTab.id, e)}
+                            onSwitch={() => handleSwitchTab(groupTab.id)}
+                            onMove={handleMoveTab}
+                            onDragEnd={handleDragEnd}
+                          />
+                        </div>
+                      </Dropdown>
+                    </motion.div>
+                  );
+                })}
             </AnimatePresence>
           </div>
-        </motion.div>,
+        </motion.div>
       );
 
       index = lastIndex;
@@ -922,16 +840,13 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
         <motion.div
           key={tab.id}
           layout
-          className="min-w-0 basis-[200px] shrink"
+          className="min-w-0 shrink basis-[200px]"
           transition={{
             duration: 0.2,
             ease: "easeInOut",
           }}
         >
-          <Dropdown
-            menu={{ items: buildTabContextMenuItems(tab) }}
-            trigger={["contextMenu"]}
-          >
+          <Dropdown menu={{ items: buildTabContextMenuItems(tab) }} trigger={["contextMenu"]}>
             <div className="min-w-0">
               <DraggableTab
                 tab={tab}
@@ -940,14 +855,14 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
                 isActive={tab.id === pane.activeTabId}
                 isFirst={isFirst}
                 isPrevActive={isPrevTabActive}
-                onClose={(e) => handleCloseTab(tab.id, e)}
+                onClose={e => handleCloseTab(tab.id, e)}
                 onSwitch={() => handleSwitchTab(tab.id)}
                 onMove={handleMoveTab}
                 onDragEnd={handleDragEnd}
               />
             </div>
           </Dropdown>
-        </motion.div>,
+        </motion.div>
       );
       displayIndex += 1;
     }
@@ -955,8 +870,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
 
   const handleConfirmCreateGroup = () => {
     const fallbackColor =
-      (PROJECT_COLORS[0]?.name as ProjectColorName | undefined) ||
-      ("purple" as ProjectColorName);
+      (PROJECT_COLORS[0]?.name as ProjectColorName | undefined) || ("purple" as ProjectColorName);
 
     const color: ProjectColorName = groupModalColor ?? fallbackColor;
     const title = groupModalName.trim() || `分组 ${groups.length + 1}`;
@@ -992,17 +906,17 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
   return (
     <>
       <div
-        ref={(node) => {
+        ref={node => {
           drop(node);
         }}
         className={classnames(
-          "w-full h-15 box-border flex items-center justify-between shrink-0 border-b border-[#f0f0f0] dark:border-[#2a2a2a] relative",
-          className,
+          "h-15 relative box-border flex w-full shrink-0 items-center justify-between border-b border-[#f0f0f0] dark:border-[#2a2a2a]",
+          className
         )}
       >
         <div
           className={classnames(
-            "flex-1 min-w-0 flex items-center gap-1 overflow-hidden px-2 transition-all",
+            "flex min-w-0 flex-1 items-center gap-1 overflow-hidden px-2 transition-all"
           )}
         >
           {tabNodes}
@@ -1020,9 +934,9 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
           >
             <button
               className={classnames(
-                "flex items-center justify-center w-7 h-7 cursor-pointer rounded text-sm transition-colors app-region-no-drag bg-transparent text-(--text-color)",
+                "app-region-no-drag text-(--text-color) flex h-7 w-7 cursor-pointer items-center justify-center rounded bg-transparent text-sm transition-colors",
                 themeColors.hoverClass,
-                themeColors.hoverTextClass,
+                themeColors.hoverTextClass
               )}
               onClick={handleNewTab}
               type="button"
@@ -1035,20 +949,18 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
         {props.showRightControls && (
           <div
             className={classnames(
-              "flex items-center gap-2 px-2 app-region-no-drag",
-              "text-(--text-color)",
+              "app-region-no-drag flex items-center gap-2 px-2",
+              "text-(--text-color)"
             )}
           >
             <button
               className={classnames(
-                "flex items-center justify-center w-7 h-7 cursor-pointer rounded text-sm transition-colors app-region-no-drag bg-transparent text-(--text-color)",
+                "app-region-no-drag text-(--text-color) flex h-7 w-7 cursor-pointer items-center justify-center rounded bg-transparent text-sm transition-colors",
                 activeRightPanel === "components" && themeColors.activeClass,
                 themeColors.hoverClass,
-                themeColors.hoverTextClass,
+                themeColors.hoverTextClass
               )}
-              onClick={() =>
-                useRightChatSidebarStore.getState().toggleComponentsOpen()
-              }
+              onClick={() => useRightChatSidebarStore.getState().toggleComponentsOpen()}
               type="button"
               aria-label="切换组件工作台"
             >
@@ -1056,10 +968,10 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
             </button>
             <button
               className={classnames(
-                "flex items-center justify-center w-7 h-7 cursor-pointer rounded text-sm transition-colors app-region-no-drag bg-transparent text-(--text-color)",
+                "app-region-no-drag text-(--text-color) flex h-7 w-7 cursor-pointer items-center justify-center rounded bg-transparent text-sm transition-colors",
                 activeRightPanel === "chat" && themeColors.activeClass,
                 themeColors.hoverClass,
-                themeColors.hoverTextClass,
+                themeColors.hoverTextClass
               )}
               onClick={() => useRightChatSidebarStore.getState().toggleOpen()}
               type="button"
@@ -1076,7 +988,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
                 "transition-colors",
                 "bg-transparent",
                 themeColors.hoverClass,
-                themeColors.hoverTextClass,
+                themeColors.hoverTextClass
               )}
             />
           </div>
@@ -1106,12 +1018,8 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
           <div className="flex flex-col gap-2">
             <div className="mb-1 text-sm">颜色</div>
             <ColorPicker
-              value={
-                (groupModalColor ??
-                  PROJECT_COLORS[0]?.name ??
-                  "purple") as ProjectColorName
-              }
-              onChange={(color) => setGroupModalColor(color)}
+              value={(groupModalColor ?? PROJECT_COLORS[0]?.name ?? "purple") as ProjectColorName}
+              onChange={color => setGroupModalColor(color)}
               theme={theme}
             />
           </div>
@@ -1130,9 +1038,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
         <Input
           className="h-10"
           value={renameModalValue}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            setRenameModalValue(e.target.value)
-          }
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRenameModalValue(e.target.value)}
           placeholder="请输入标签名称"
         />
       </CustomModal>

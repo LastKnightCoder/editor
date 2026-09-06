@@ -1,4 +1,4 @@
-import { Editor } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import { Tag } from "antd";
 import { memo } from "react";
 import { SearchResult } from "@/types";
@@ -19,23 +19,17 @@ const SearchResultItem = memo(
     getTagColor: (type: string) => string;
     handleSearchResultClick: (result: SearchResult) => void;
   }) => {
-    const dynamicExtensions = useDynamicExtensionsStore(
-      (state) => state.extensions,
-    );
+    const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
     return (
-      <div
-        className={styles.item}
-        onClick={() => handleSearchResultClick(result)}
-      >
+      <div className={styles.item} onClick={() => handleSearchResultClick(result)}>
         <div>
-          <Tag
-            color={getTagColor(result.type)}
-            style={{ marginBottom: 12, flexShrink: 0 }}
-          >
+          <Tag color={getTagColor(result.type)} style={{ marginBottom: 12, flexShrink: 0 }}>
             {getRefTypeLabel(result.type)}
           </Tag>
         </div>
         <Editor
+          contentId={result.contentId}
+          previewBlocks={3}
           style={{
             flex: 1,
             overflow: "hidden",
@@ -46,7 +40,7 @@ const SearchResultItem = memo(
         />
       </div>
     );
-  },
+  }
 );
 
 export default SearchResultItem;

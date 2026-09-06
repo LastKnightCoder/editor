@@ -1,0 +1,28 @@
+services:
+  collaboration:
+    build:
+      context: ../..
+      dockerfile: apps/collaboration-server/Dockerfile
+    image: tau-collaboration:local
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    ports:
+      - "127.0.0.1:${COLLAB_PORT:-3210}:3210"
+    env_file:
+      - .env
+    environment:
+      COLLAB_DATA_DIR: /data
+      COLLAB_HOST: 0.0.0.0
+      COLLAB_PORT: 3210
+      # 容器内对端是网桥网关，信任它才能让反代传递的 X-Forwarded-For 生效（按客户端 IP 限流）。
+      # 端口只绑定 127.0.0.1 且仅由宿主 nginx 转发时才可这样配置。
+      COLLAB_TRUST_PROXY: "true"
+    volumes:
+      - ${COLLAB_DATA_DIR:-/srv/tau-collab/data}:/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 768m
+    memswap_limit: 768m

@@ -3,7 +3,8 @@ import { Button, Tooltip, App, MenuItemProps, Dropdown } from "antd";
 import { Descendant } from "slate";
 import { CloseOutlined, MoreOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
-import { Editor, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import useEditContent from "@/hooks/useEditContent";
@@ -34,9 +35,7 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
   onTitleChange,
   onTypeChange,
 }) => {
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const editorRef = useRef<EditorRef>(null);
   const titleRef = useRef<EditTextHandle>(null);
   const [content, setContent] = useState<IContent | null>(null);
@@ -50,31 +49,26 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
 
   useEffect(() => {
     if (contentId && visible) {
-      isContentIsCard(contentId).then((res) => {
+      isContentIsCard(contentId).then(res => {
         setIsCard(res);
       });
     }
   }, [contentId, visible]);
 
-  const { throttleHandleEditorContentChange } = useEditContent(
-    contentId,
-    (content) => {
-      editorRef.current?.setEditorValue(content);
-      setCount(getContentLength(content));
-      setUpdateTime(Date.now());
-    },
-  );
+  const { throttleHandleEditorContentChange } = useEditContent(contentId, content => {
+    editorRef.current?.setEditorValue(content);
+    setCount(getContentLength(content));
+    setUpdateTime(Date.now());
+  });
 
   const handleBuildCard: MenuItemProps["onClick"] = useMemoizedFn(() => {
     if (!contentId) return;
 
-    buildCardFromContent(contentId).then((card) => {
+    buildCardFromContent(contentId).then(card => {
       if (card) {
         onTypeChange?.("card");
         setIsCard(true);
-        defaultCardEventBus
-          .createEditor()
-          .publishCardEvent("card:created", card);
+        defaultCardEventBus.createEditor().publishCardEvent("card:created", card);
         message.success("创建卡片成功");
       } else {
         message.error("创建卡片失败");
@@ -92,7 +86,7 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
             onClick: handleBuildCard,
           }
         : null,
-    ].filter((val) => val !== null);
+    ].filter(val => val !== null);
   }, [handleBuildCard, isCard]);
 
   // 加载内容
@@ -150,8 +144,8 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
   }, [visible, contentId, initialTitle, loadContent]);
 
   const renderHeader = () => (
-    <div className="w-full flex justify-between items-center">
-      <div className="flex-1 mr-4">
+    <div className="flex w-full items-center justify-between">
+      <div className="mr-4 flex-1">
         <EditText
           ref={titleRef}
           defaultValue={title}
@@ -160,10 +154,10 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
             editorRef.current?.focus();
           }}
           onChange={onTitleChange}
-          className="text-lg font-medium outline-none border-none bg-transparent w-full min-h-[32px] leading-8"
+          className="min-h-[32px] w-full border-none bg-transparent text-lg font-medium leading-8 outline-none"
         />
       </div>
-      <div className="flex text-xs gap-2.5 text-gray-500">
+      <div className="flex gap-2.5 text-xs text-gray-500">
         {content && (
           <>
             <div>
@@ -177,7 +171,7 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
         )}
       </div>
 
-      <div className="flex items-center gap-2 ml-4">
+      <div className="ml-4 flex items-center gap-2">
         {items.length > 0 && (
           <Dropdown menu={{ items }}>
             <Button type="text" icon={<MoreOutlined />} />
@@ -204,13 +198,14 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
       bodyClassName="px-6 pb-6 max-h-[60vh] overflow-auto"
     >
       {loading ? (
-        <div className="flex justify-center items-center h-75 text-(length:--font-size)">
+        <div className="h-75 text-(length:--font-size) flex items-center justify-center">
           加载中...
         </div>
       ) : (
-        <div className="min-h-96 text-(length:--font-size)">
+        <div className="text-(length:--font-size) min-h-96">
           <ErrorBoundary>
             <Editor
+              contentId={contentId}
               key={contentId}
               ref={editorRef}
               onInit={onInit}

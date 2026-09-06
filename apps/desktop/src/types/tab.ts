@@ -7,6 +7,7 @@ export enum TabType {
   CardDetail = "cardDetail",
   ArticleList = "articleList",
   ArticleDetail = "articleDetail",
+  Collaboration = "collaboration",
   ProjectList = "projectList",
   ProjectDetail = "projectDetail",
   DocumentList = "documentList",
@@ -41,6 +42,7 @@ export type TabParams = {
   [TabType.CardDetail]: { id: number };
   [TabType.ArticleList]: undefined;
   [TabType.ArticleDetail]: { id: number };
+  [TabType.Collaboration]: undefined;
   [TabType.ProjectList]: undefined;
   [TabType.ProjectDetail]: { id: number; itemId?: number }; // 项目 ID 和可选的项目项 ID
   [TabType.DocumentList]: undefined;
@@ -107,6 +109,7 @@ export const TAB_TITLES: Record<TabType, string> = {
   [TabType.CardDetail]: "卡片详情",
   [TabType.ArticleList]: "文章",
   [TabType.ArticleDetail]: "文章详情",
+  [TabType.Collaboration]: "协作",
   [TabType.ProjectList]: "项目",
   [TabType.ProjectDetail]: "项目详情",
   [TabType.DocumentList]: "知识库",

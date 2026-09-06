@@ -4,7 +4,9 @@ import { Descendant, Range, Transforms } from "slate";
 import { useMemoizedFn } from "ahooks";
 import { ReactEditor } from "slate-react";
 import PortalToBody from "@/components/PortalToBody";
-import { Editor, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
+import type { EditorCollaborationBinding } from "@tau/editor/src/collaboration/types";
 import type IExtension from "@tau/editor/src/extensions/types";
 import { useTypewriterScroll } from "./useTypewriterScroll";
 import useSettingStore from "@/stores/useSettingStore";
@@ -14,6 +16,8 @@ export interface ImmersiveEditorExitPayload {
 }
 
 interface ImmersiveEditorModeProps {
+  contentId?: number;
+  collaboration?: EditorCollaborationBinding;
   initValue: Descendant[];
   initialSelection?: Range | null;
   onChange: (content: Descendant[]) => void;
@@ -51,11 +55,13 @@ export default function ImmersiveEditorMode({
   wordCount,
   readonly,
   extensions,
+  collaboration,
+  contentId,
 }: ImmersiveEditorModeProps) {
   const editorRef = useRef<EditorRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const changeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const darkMode = useSettingStore((state) => state.setting.darkMode);
+  const darkMode = useSettingStore(state => state.setting.darkMode);
 
   // 打字机滚动
   const scrollToCursor = useTypewriterScroll({
@@ -65,9 +71,7 @@ export default function ImmersiveEditorMode({
   });
 
   const handleExit = useMemoizedFn(() => {
-    const selection = cloneRange(
-      editorRef.current?.getEditor().selection ?? null,
-    );
+    const selection = cloneRange(editorRef.current?.getEditor().selection ?? null);
     onExit({ selection });
   });
 
@@ -127,17 +131,17 @@ export default function ImmersiveEditorMode({
     <PortalToBody>
       {/* 全屏遮罩层 */}
       <div
-        className="fixed border-20 border-transparent inset-0 z-1001 backdrop-blur-[10px] bg-white/95 dark:bg-[#1e1e1e]/95"
+        className="border-20 z-1001 fixed inset-0 border-transparent bg-white/95 backdrop-blur-[10px] dark:bg-[#1e1e1e]/95"
         onClick={handleExit}
       >
         {/* 内容容器 */}
         <div
-          className="w-full h-full flex items-center justify-center relative"
-          onClick={(e) => e.stopPropagation()}
+          className="relative flex h-full w-full items-center justify-center"
+          onClick={e => e.stopPropagation()}
         >
           {/* 退出按钮 */}
           <div
-            className="fixed top-[30px] right-[30px] w-[50px] h-[50px] rounded-full bg-black/10 hover:bg-black/20 hover:scale-110 flex items-center justify-center cursor-pointer transition-all z-10"
+            className="fixed right-[30px] top-[30px] z-10 flex h-[50px] w-[50px] cursor-pointer items-center justify-center rounded-full bg-black/10 transition-all hover:scale-110 hover:bg-black/20"
             onClick={handleExit}
             title="退出沉浸模式 (ESC)"
           >
@@ -147,7 +151,7 @@ export default function ImmersiveEditorMode({
           {/* 编辑器滚动容器 */}
           <div
             ref={containerRef}
-            className="w-full max-w-[1200px] h-full overflow-y-auto overflow-x-hidden py-[10vh] px-12 box-border scroll-smooth"
+            className="box-border h-full w-full max-w-[1200px] overflow-y-auto overflow-x-hidden scroll-smooth px-12 py-[10vh]"
             style={{
               scrollbarWidth: "thin",
               scrollbarColor: darkMode
@@ -158,6 +162,8 @@ export default function ImmersiveEditorMode({
             }}
           >
             <Editor
+              contentId={contentId}
+              collaboration={collaboration}
               ref={editorRef}
               initValue={initValue}
               onChange={handleChange}
@@ -168,7 +174,7 @@ export default function ImmersiveEditorMode({
           </div>
 
           {/* 字数统计 */}
-          <div className="fixed bottom-[30px] right-[30px] px-4 py-2 bg-black/10 rounded-[20px] text-sm z-10">
+          <div className="fixed bottom-[30px] right-[30px] z-10 rounded-[20px] bg-black/10 px-4 py-2 text-sm">
             字数: {wordCount}
           </div>
         </div>

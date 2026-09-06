@@ -11,6 +11,13 @@
   --animate-shimmer: shimmer 2s infinite;
   --animate-float: float 3s ease-in-out infinite;
   --animate-fadeIn: fadeIn 120ms ease-out;
+  --animate-collab-pulse: collab-pulse 1.8s ease-in-out infinite;
+
+  @keyframes collab-pulse {
+    50% {
+      opacity: 0.35;
+    }
+  }
 
   @keyframes float {
     0%,

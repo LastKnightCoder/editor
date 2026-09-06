@@ -21,10 +21,7 @@ import {
   DEFAULT_OPENAI_IMAGE_BASE_URL,
   DEFAULT_OPENAI_IMAGE_MODEL,
 } from "@/utils/image-generation";
-import type {
-  ImageGenerationStoreShape,
-  ImageProviderConfig,
-} from "@/types/imageGeneration";
+import type { ImageGenerationStoreShape, ImageProviderConfig } from "@/types/imageGeneration";
 
 export enum EImageBed {
   Local = "local",
@@ -74,6 +71,7 @@ export const DEFAULT_MODULE_ORDER = [
   "rssSubscription",
   "readLater",
   "feed",
+  "collaboration",
   "weread",
   "webview",
   "settings",
@@ -88,7 +86,7 @@ const sanitizeSettingModules = <T extends Partial<ISetting>>(setting: T): T => {
   };
 
   if (nextSetting.module && typeof nextSetting.module === "object") {
-    Object.keys(nextSetting.module).forEach((key) => {
+    Object.keys(nextSetting.module).forEach(key => {
       if (!MODULE_KEY_SET.has(key)) {
         delete nextSetting.module?.[key];
       }
@@ -96,11 +94,9 @@ const sanitizeSettingModules = <T extends Partial<ISetting>>(setting: T): T => {
   }
 
   if (Array.isArray(nextSetting.moduleOrder)) {
-    nextSetting.moduleOrder = nextSetting.moduleOrder.filter(
-      (key, index, arr) => {
-        return MODULE_KEY_SET.has(key) && arr.indexOf(key) === index;
-      },
-    );
+    nextSetting.moduleOrder = nextSetting.moduleOrder.filter((key, index, arr) => {
+      return MODULE_KEY_SET.has(key) && arr.indexOf(key) === index;
+    });
   } else {
     nextSetting.moduleOrder = [...DEFAULT_MODULE_ORDER];
   }
@@ -112,17 +108,12 @@ const sanitizeSettingModules = <T extends Partial<ISetting>>(setting: T): T => {
   return nextSetting;
 };
 
-const sanitizeDeprecatedLLMUsageSettings = <T extends Partial<ISetting>>(
-  setting: T,
-): T => {
+const sanitizeDeprecatedLLMUsageSettings = <T extends Partial<ISetting>>(setting: T): T => {
   const nextSetting = setting as T & {
     llmUsageSettings?: Record<string, unknown>;
   };
 
-  if (
-    nextSetting.llmUsageSettings &&
-    typeof nextSetting.llmUsageSettings === "object"
-  ) {
+  if (nextSetting.llmUsageSettings && typeof nextSetting.llmUsageSettings === "object") {
     delete nextSetting.llmUsageSettings.contentPolish;
     delete nextSetting.llmUsageSettings.autoTagging;
     delete nextSetting.llmUsageSettings.aiContinueWrite;
@@ -132,9 +123,7 @@ const sanitizeDeprecatedLLMUsageSettings = <T extends Partial<ISetting>>(
   return nextSetting;
 };
 
-const migrateImageGenerationConfig = <T extends Partial<ISetting>>(
-  setting: T,
-): void => {
+const migrateImageGenerationConfig = <T extends Partial<ISetting>>(setting: T): void => {
   const img = (setting as any).imageGeneration;
   if (!img) return;
   if (typeof img !== "object") {
@@ -164,9 +153,7 @@ const migrateImageGenerationConfig = <T extends Partial<ISetting>>(
 
   img.providers = Array.isArray(img.providers)
     ? img.providers
-        .filter((provider: Partial<ImageProviderConfig> | null) =>
-          Boolean(provider?.id),
-        )
+        .filter((provider: Partial<ImageProviderConfig> | null) => Boolean(provider?.id))
         .map((provider: Partial<ImageProviderConfig>) => ({
           id: String(provider.id),
           name: provider.name || "OpenAI 兼容",
@@ -179,9 +166,7 @@ const migrateImageGenerationConfig = <T extends Partial<ISetting>>(
 
   if (
     typeof img.currentProviderId !== "string" ||
-    !img.providers.some(
-      (provider: ImageProviderConfig) => provider.id === img.currentProviderId,
-    )
+    !img.providers.some((provider: ImageProviderConfig) => provider.id === img.currentProviderId)
   ) {
     img.currentProviderId = img.providers[0]?.id ?? "";
   }
@@ -195,8 +180,7 @@ const migrateAppearanceSetting = (setting: ISetting) => {
   if (!appearance) return;
   const legacy = appearance.backgroundType;
   if (legacy) {
-    appearance.accent =
-      LEGACY_BACKGROUND_TYPE_TO_ACCENT[legacy] ?? DEFAULT_ACCENT;
+    appearance.accent = LEGACY_BACKGROUND_TYPE_TO_ACCENT[legacy] ?? DEFAULT_ACCENT;
     delete appearance.backgroundType;
   }
   delete (appearance as { backgroundGlow?: unknown }).backgroundGlow;
@@ -206,14 +190,10 @@ const migrateAppearanceSetting = (setting: ISetting) => {
   }
 };
 
-export const mergeSettingWithDefaults = (
-  setting: Partial<ISetting> | ISetting,
-): ISetting => {
+export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting): ISetting => {
   migrateImageGenerationConfig(setting);
   const mergedSetting = structuredClone(defaultSetting);
-  const imageGeneration = setting.imageGeneration
-    ? structuredClone(setting.imageGeneration)
-    : null;
+  const imageGeneration = setting.imageGeneration ? structuredClone(setting.imageGeneration) : null;
   merge(mergedSetting, setting);
   if (imageGeneration) {
     mergedSetting.imageGeneration = imageGeneration;
@@ -376,6 +356,10 @@ export interface ISetting {
     feed: {
       enable: boolean;
       name: "信息流";
+    };
+    collaboration: {
+      enable: boolean;
+      name: "协作";
     };
     webview: {
       enable: boolean;
@@ -581,28 +565,24 @@ interface IActions {
   updateModuleOrder: (moduleOrder: string[]) => void;
   updateLLMUsageSetting: (
     feature: keyof ISetting["llmUsageSettings"],
-    config: LLMUsageConfig | null,
+    config: LLMUsageConfig | null
   ) => void;
   updateBilibiliCredentials: (
-    credentials: ISetting["integration"]["bilibili"]["credentials"],
+    credentials: ISetting["integration"]["bilibili"]["credentials"]
   ) => void;
-  updateBilibiliUserInfo: (
-    userInfo: ISetting["integration"]["bilibili"]["userInfo"],
-  ) => void;
+  updateBilibiliUserInfo: (userInfo: ISetting["integration"]["bilibili"]["userInfo"]) => void;
   setBilibiliEnabled: (enabled: boolean) => void;
   setYoutubeEnabled: (enabled: boolean) => void;
   updateYoutubeProxy: (proxy: string) => void;
   updateMinimaxApiKey: (apiKey: string) => void;
   setMinimaxEnabled: (enabled: boolean) => void;
   updateWeReadApiKey: (apiKey: string) => void;
-  updateWeReadUserInfo: (
-    userInfo: ISetting["integration"]["weread"]["userInfo"],
-  ) => void;
+  updateWeReadUserInfo: (userInfo: ISetting["integration"]["weread"]["userInfo"]) => void;
   setWeReadConnectionState: (
     payload: Pick<
       ISetting["integration"]["weread"],
       "connectionStatus" | "lastValidatedAt" | "statusReason"
-    >,
+    >
   ) => void;
   setWeReadEnabled: (enabled: boolean) => void;
   setWebClipTranslateToChinese: (enabled: boolean) => void;
@@ -627,9 +607,7 @@ interface SettingNotificationPayload {
   clientId?: string;
 }
 
-const isSettingNotificationPayload = (
-  payload: unknown,
-): payload is SettingNotificationPayload => {
+const isSettingNotificationPayload = (payload: unknown): payload is SettingNotificationPayload => {
   return (
     typeof payload === "object" &&
     payload !== null &&
@@ -639,9 +617,7 @@ const isSettingNotificationPayload = (
 
 const SETTING_CACHE_KEY = "user-setting-cache";
 
-const normalizeWeReadTransientState = (
-  weread: ISetting["integration"]["weread"],
-) => {
+const normalizeWeReadTransientState = (weread: ISetting["integration"]["weread"]) => {
   weread.enabled = weread.enabled || Boolean(weread.apiKey?.trim());
   weread.connectionStatus = "unknown";
   weread.lastValidatedAt = 0;
@@ -670,9 +646,7 @@ export const buildPersistedSettingSnapshot = (setting: ISetting): ISetting => {
   return normalizeTransientSettingState(structuredClone(setting));
 };
 
-export const getWeReadSettingDebugSummary = (
-  weread: ISetting["integration"]["weread"],
-) => {
+export const getWeReadSettingDebugSummary = (weread: ISetting["integration"]["weread"]) => {
   return {
     enabled: weread.enabled,
     apiKeyConfigured: Boolean(weread.apiKey?.trim()),
@@ -714,10 +688,7 @@ const persistSettingCache = (setting: ISetting) => {
 
   try {
     const persistedSetting = buildPersistedSettingSnapshot(setting);
-    window.localStorage.setItem(
-      SETTING_CACHE_KEY,
-      JSON.stringify(persistedSetting),
-    );
+    window.localStorage.setItem(SETTING_CACHE_KEY, JSON.stringify(persistedSetting));
   } catch (error) {
     console.error("Failed to persist cached setting", error);
   }
@@ -871,6 +842,10 @@ const initialState: IState = {
       feed: {
         enable: true,
         name: "信息流",
+      },
+      collaboration: {
+        enable: true,
+        name: "协作",
       },
       webview: {
         enable: true,
@@ -1089,8 +1064,7 @@ applyAppearanceFromSetting(initialState.setting);
 let registeredSettingNotificationClient:
   | ReturnType<typeof useBackendWebsocketStore.getState>["client"]
   | null = null;
-let registeredSettingNotificationHandler: ((payload: unknown) => void) | null =
-  null;
+let registeredSettingNotificationHandler: ((payload: unknown) => void) | null = null;
 
 const useSettingStore = create<IState & IActions>((set, get) => ({
   ...initialState,
@@ -1099,13 +1073,10 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     if (!client) {
       throw new Error("Client not initialized");
     }
-    if (
-      registeredSettingNotificationClient &&
-      registeredSettingNotificationHandler
-    ) {
+    if (registeredSettingNotificationClient && registeredSettingNotificationHandler) {
       registeredSettingNotificationClient.unregisterNotificationHandler(
         "user-setting-changed",
-        registeredSettingNotificationHandler,
+        registeredSettingNotificationHandler
       );
     }
 
@@ -1138,17 +1109,11 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       });
     };
 
-    client.registerNotificationHandler(
-      "user-setting-changed",
-      handleSettingChanged,
-    );
+    client.registerNotificationHandler("user-setting-changed", handleSettingChanged);
     registeredSettingNotificationClient = client;
     registeredSettingNotificationHandler = handleSettingChanged;
 
-    const setting = (await client.sendRequest(
-      "get-user-setting",
-      null,
-    )) as ISetting;
+    const setting = (await client.sendRequest("get-user-setting", null)) as ISetting;
     try {
       const newSetting = mergeSettingWithDefaults(setting);
       console.info("[SettingSync] 初始化设置完成", {
@@ -1162,112 +1127,110 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       console.error("initSetting error", e);
     }
   },
-  setSettingModalOpen: (open) => {
+  setSettingModalOpen: open => {
     set({
       settingModalOpen: open,
     });
   },
-  onFontSettingChange: (fontSetting) => {
+  onFontSettingChange: fontSetting => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         draft.fontSetting = fontSetting;
       }),
     });
   },
-  onDarkModeChange: (darkMode) => {
+  onDarkModeChange: darkMode => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         draft.darkMode = darkMode;
       }),
     });
   },
-  updateModuleOrder: (moduleOrder) => {
+  updateModuleOrder: moduleOrder => {
     const { setting } = get();
     const sanitizedModuleOrder = moduleOrder.filter((key, index, arr) => {
       return MODULE_KEY_SET.has(key) && arr.indexOf(key) === index;
     });
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         draft.moduleOrder =
-          sanitizedModuleOrder.length > 0
-            ? sanitizedModuleOrder
-            : [...DEFAULT_MODULE_ORDER];
+          sanitizedModuleOrder.length > 0 ? sanitizedModuleOrder : [...DEFAULT_MODULE_ORDER];
       }),
     });
   },
   updateLLMUsageSetting: (feature, config) => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         draft.llmUsageSettings[feature] = config;
       }),
     });
   },
-  updateBilibiliCredentials: (credentials) => {
+  updateBilibiliCredentials: credentials => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         draft.integration.bilibili.credentials = credentials;
       }),
     });
   },
-  updateBilibiliUserInfo: (userInfo) => {
+  updateBilibiliUserInfo: userInfo => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         draft.integration.bilibili.userInfo = userInfo;
       }),
     });
   },
-  setBilibiliEnabled: (enabled) => {
+  setBilibiliEnabled: enabled => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         draft.integration.bilibili.enabled = enabled;
       }),
     });
   },
-  setYoutubeEnabled: (enabled) => {
+  setYoutubeEnabled: enabled => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         draft.integration.youtube.enabled = enabled;
       }),
     });
   },
-  updateYoutubeProxy: (proxy) => {
+  updateYoutubeProxy: proxy => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         draft.integration.youtube.proxy = proxy;
       }),
     });
   },
-  updateMinimaxApiKey: (apiKey) => {
+  updateMinimaxApiKey: apiKey => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         draft.integration.minimax.apiKey = apiKey;
       }),
     });
   },
-  setMinimaxEnabled: (enabled) => {
+  setMinimaxEnabled: enabled => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         draft.integration.minimax.enabled = enabled;
       }),
     });
   },
-  updateWeReadApiKey: (apiKey) => {
+  updateWeReadApiKey: apiKey => {
     const { setting } = get();
     console.info("[WeReadDebug] 更新 API Key", {
       configured: Boolean(apiKey.trim()),
     });
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         draft.integration.weread.apiKey = apiKey;
         draft.integration.weread.enabled = Boolean(apiKey.trim());
         if (!apiKey.trim()) {
@@ -1281,15 +1244,15 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       }),
     });
   },
-  updateWeReadUserInfo: (userInfo) => {
+  updateWeReadUserInfo: userInfo => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         draft.integration.weread.userInfo = userInfo;
       }),
     });
   },
-  setWeReadConnectionState: (payload) => {
+  setWeReadConnectionState: payload => {
     const { setting } = get();
     console.info("[WeReadDebug] 更新连接状态", {
       from: setting.integration.weread.connectionStatus,
@@ -1298,57 +1261,57 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       lastValidatedAt: payload.lastValidatedAt,
     });
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         draft.integration.weread.connectionStatus = payload.connectionStatus;
         draft.integration.weread.lastValidatedAt = payload.lastValidatedAt;
         draft.integration.weread.statusReason = payload.statusReason;
       }),
     });
   },
-  setWeReadEnabled: (enabled) => {
+  setWeReadEnabled: enabled => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         draft.integration.weread.enabled = enabled;
       }),
     });
   },
-  setWebClipTranslateToChinese: (enabled) => {
+  setWebClipTranslateToChinese: enabled => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         draft.misc.webClip.translateToChinese = enabled;
       }),
     });
   },
-  setAutoCacheRemoteVideo: (enabled) => {
+  setAutoCacheRemoteVideo: enabled => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         draft.misc.video.autoCacheRemote = enabled;
       }),
     });
   },
-  setAutoCacheRemoteImage: (enabled) => {
+  setAutoCacheRemoteImage: enabled => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         draft.misc.image.autoCacheRemote = enabled;
       }),
     });
   },
-  setAutoCacheRemoteAudio: (enabled) => {
+  setAutoCacheRemoteAudio: enabled => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         draft.misc.audio.autoCacheRemote = enabled;
       }),
     });
   },
-  setMermaidStyle: (style) => {
+  setMermaidStyle: style => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         if (!draft.misc.mermaid) {
           draft.misc.mermaid = {
             style: "svg",
@@ -1361,10 +1324,10 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       }),
     });
   },
-  setMermaidLightTheme: (theme) => {
+  setMermaidLightTheme: theme => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         if (!draft.misc.mermaid) {
           draft.misc.mermaid = {
             style: "svg",
@@ -1377,10 +1340,10 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       }),
     });
   },
-  setMermaidDarkTheme: (theme) => {
+  setMermaidDarkTheme: theme => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         if (!draft.misc.mermaid) {
           draft.misc.mermaid = {
             style: "svg",
@@ -1393,10 +1356,10 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       }),
     });
   },
-  setUseBeautifulMermaid: (enabled) => {
+  setUseBeautifulMermaid: enabled => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         if (!draft.misc.mermaid) {
           draft.misc.mermaid = {
             style: "svg",
@@ -1409,18 +1372,18 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       }),
     });
   },
-  setAutoSyncEnabled: (enabled) => {
+  setAutoSyncEnabled: enabled => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         draft.sync.autoSyncEnabled = enabled;
       }),
     });
   },
-  setTranscriptionUseLLMOptimization: (enabled) => {
+  setTranscriptionUseLLMOptimization: enabled => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         if (!draft.misc.transcription) {
           draft.misc.transcription = {
             segmentationLevel: "sentence",
@@ -1432,10 +1395,10 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       }),
     });
   },
-  setTranscriptionSegmentationLevel: (level) => {
+  setTranscriptionSegmentationLevel: level => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         if (!draft.misc.transcription) {
           draft.misc.transcription = {
             segmentationLevel: "sentence",
@@ -1451,10 +1414,10 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       }),
     });
   },
-  setLongVideoSegmentationEnabled: (enabled) => {
+  setLongVideoSegmentationEnabled: enabled => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         if (!draft.misc.transcription) {
           draft.misc.transcription = {
             segmentationLevel: "sentence",
@@ -1466,10 +1429,10 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       }),
     });
   },
-  setPodcastTTSProvider: (provider) => {
+  setPodcastTTSProvider: provider => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         if (!draft.integration.podcastTTS) {
           draft.integration.podcastTTS = {
             active: provider,
@@ -1482,10 +1445,10 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       }),
     });
   },
-  setPodcastTTSMinimaxModel: (model) => {
+  setPodcastTTSMinimaxModel: model => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         if (!draft.integration.podcastTTS) {
           draft.integration.podcastTTS = {
             active: ETTSProvider.Minimax,
@@ -1498,10 +1461,10 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       }),
     });
   },
-  setPodcastTTSCurrentVoiceId: (voiceId) => {
+  setPodcastTTSCurrentVoiceId: voiceId => {
     const { setting } = get();
     set({
-      setting: produce(setting, (draft) => {
+      setting: produce(setting, draft => {
         if (!draft.integration.podcastTTS) {
           draft.integration.podcastTTS = {
             active: ETTSProvider.Minimax,
@@ -1518,10 +1481,8 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
 
 if (typeof window !== "undefined") {
   let prevSetting = useSettingStore.getState().setting;
-  let prevPersistedSettingJson = JSON.stringify(
-    buildPersistedSettingSnapshot(prevSetting),
-  );
-  useSettingStore.subscribe((state) => {
+  let prevPersistedSettingJson = JSON.stringify(buildPersistedSettingSnapshot(prevSetting));
+  useSettingStore.subscribe(state => {
     if (state.setting === prevSetting) {
       return;
     }

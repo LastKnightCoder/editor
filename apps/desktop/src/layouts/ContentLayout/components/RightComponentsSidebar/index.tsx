@@ -2,22 +2,13 @@ import { memo, useEffect, useMemo, useState } from "react";
 import classNames from "classnames";
 import { AnimatePresence, motion } from "motion/react";
 import { App } from "antd";
-import {
-  Check,
-  ChevronDown,
-  Component,
-  Loader2,
-  Sparkles,
-  SquarePen,
-  Trash2,
-} from "lucide-react";
+import { Check, ChevronDown, Component, Loader2, Sparkles, SquarePen, Trash2 } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import type { Descendant } from "slate";
 
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
-import FlashcardReviewDeckList, {
-  slateToPlainText,
-} from "@/components/FlashcardReviewDeckList";
+import CollaborationPanel from "@/components/CollaborationPanel";
+import FlashcardReviewDeckList, { slateToPlainText } from "@/components/FlashcardReviewDeckList";
 import CardPreview from "@/pages/card-list-view/CardPreview";
 import ReviewModal from "@/pages/FlashcardCenter/ReviewModal";
 import QuestionItem from "@/pages/QuestionWindow/components/QuestionItem";
@@ -45,10 +36,7 @@ import {
   updateQuestionStatus,
 } from "@/commands";
 import type { Flashcard, IAnswer, SearchResult, TodoItem } from "@/types";
-import {
-  getAnswerContentStatus,
-  type AnswerContentStatus,
-} from "@/utils/answer-content";
+import { getAnswerContentStatus, type AnswerContentStatus } from "@/utils/answer-content";
 import { useComponentsWorkbenchData } from "./useComponentsWorkbenchData";
 import "./index.css";
 
@@ -90,21 +78,21 @@ const Section = ({
       <div className="mb-2 flex items-center justify-between gap-2">
         <button
           type="button"
-          onClick={() => setOpen((value) => !value)}
+          onClick={() => setOpen(value => !value)}
           className="flex min-w-0 items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40"
         >
           <ChevronDown
             size={15}
             className={classNames(
               "shrink-0 text-slate-500 transition dark:text-slate-400",
-              !open && "-rotate-90",
+              !open && "-rotate-90"
             )}
           />
           <span className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
             {title}
           </span>
           {typeof count === "number" && (
-            <span className="rounded-md bg-slate-900/6 px-1.5 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-white/10 dark:text-slate-300">
+            <span className="bg-slate-900/6 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-white/10 dark:text-slate-300">
               {count}
             </span>
           )}
@@ -128,24 +116,14 @@ const Section = ({
   );
 };
 
-const LoadMoreButton = ({
-  loading,
-  onClick,
-}: {
-  loading: boolean;
-  onClick: () => void;
-}) => (
+const LoadMoreButton = ({ loading, onClick }: { loading: boolean; onClick: () => void }) => (
   <button
     type="button"
     onClick={onClick}
     disabled={loading}
     className="mt-2 flex h-8 w-full items-center justify-center gap-2 rounded-lg text-xs font-medium text-slate-500 transition hover:bg-slate-900/5 hover:text-slate-700 disabled:opacity-50 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-slate-200"
   >
-    {loading ? (
-      <Loader2 size={13} className="animate-spin" />
-    ) : (
-      <ChevronDown size={14} />
-    )}
+    {loading ? <Loader2 size={13} className="animate-spin" /> : <ChevronDown size={14} />}
     加载更多
   </button>
 );
@@ -166,7 +144,7 @@ const FilterChip = ({
       "rounded-lg border px-2 py-1 text-[11px] transition",
       active
         ? "border-teal-500/25 bg-teal-500/10 font-medium text-teal-700 hover:bg-teal-500/15 dark:text-teal-300"
-        : "border-slate-900/10 text-slate-600 hover:bg-slate-900/5 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/10",
+        : "border-slate-900/10 text-slate-600 hover:bg-slate-900/5 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/10"
     )}
   >
     {children}
@@ -208,7 +186,7 @@ const TodoRow = ({
             "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition",
             item.isCompleted
               ? "border-teal-500 bg-teal-500 text-white"
-              : "border-slate-300 text-transparent hover:border-teal-500 dark:border-slate-600",
+              : "border-slate-300 text-transparent hover:border-teal-500 dark:border-slate-600"
           )}
         >
           <Check size={13} />
@@ -220,13 +198,7 @@ const TodoRow = ({
           <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
             <span>{item.type}</span>
             {item.dueAt && (
-              <span
-                className={
-                  item.dueAt < Date.now() && !item.isCompleted
-                    ? "text-rose-500"
-                    : ""
-                }
-              >
+              <span className={item.dueAt < Date.now() && !item.isCompleted ? "text-rose-500" : ""}>
                 {new Date(item.dueAt).toLocaleString()}
               </span>
             )}
@@ -262,71 +234,57 @@ const TodoRow = ({
 };
 
 const RightComponentsSidebar = memo(() => {
-  const { activePanel, componentsWidth, setComponentsWidth } =
-    useRightChatSidebarStore(
-      useShallow((state) => ({
-        activePanel: state.activePanel,
-        componentsWidth: state.componentsWidth,
-        setComponentsWidth: state.setComponentsWidth,
-      })),
-    );
+  const { activePanel, componentsWidth, setComponentsWidth } = useRightChatSidebarStore(
+    useShallow(state => ({
+      activePanel: state.activePanel,
+      componentsWidth: state.componentsWidth,
+      setComponentsWidth: state.setComponentsWidth,
+    }))
+  );
   const open = activePanel === "components";
   const data = useComponentsWorkbenchData(open);
   const { modal } = App.useApp();
   const [previewCardId, setPreviewCardId] = useState<number | undefined>();
   const [now, setNow] = useState(Date.now());
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
-  const [workbenchReviewQueue, setWorkbenchReviewQueue] = useState<Flashcard[]>(
-    [],
-  );
+  const [workbenchReviewQueue, setWorkbenchReviewQueue] = useState<Flashcard[]>([]);
   const [reviewModalQueue, setReviewModalQueue] = useState<Flashcard[]>([]);
   const [reviewingDeckId, setReviewingDeckId] = useState<number | null>(null);
   const [newAnswerVisible, setNewAnswerVisible] = useState(false);
   const [contentSelectorVisible, setContentSelectorVisible] = useState(false);
   const [answerPreviewVisible, setAnswerPreviewVisible] = useState(false);
-  const [selectedQuestionId, setSelectedQuestionId] = useState<number | null>(
-    null,
-  );
-  const [selectedQuestionAnswers, setSelectedQuestionAnswers] = useState<
-    IAnswer[]
-  >([]);
+  const [selectedQuestionId, setSelectedQuestionId] = useState<number | null>(null);
+  const [selectedQuestionAnswers, setSelectedQuestionAnswers] = useState<IAnswer[]>([]);
   const [selectedAnswerId, setSelectedAnswerId] = useState<number | null>(null);
   const [todoGroupId, setTodoGroupId] = useState<number | null>(null);
-  const [todoStatus, setTodoStatus] = useState<"pending" | "completed" | "all">(
-    "pending",
-  );
+  const [todoStatus, setTodoStatus] = useState<"pending" | "completed" | "all">("pending");
   const [questionGroupId, setQuestionGroupId] = useState<number | null>(null);
   const [questionStatusFilter, setQuestionStatusFilter] = useState<
     "all" | "not_started" | "in_progress" | "resolved"
   >("all");
   const [answerTitles, setAnswerTitles] = useState<Record<number, string>>({});
-  const [answerStatuses, setAnswerStatuses] = useState<
-    Record<number, AnswerContentStatus>
-  >({});
+  const [answerStatuses, setAnswerStatuses] = useState<Record<number, AnswerContentStatus>>({});
   const [editQuestionId, setEditQuestionId] = useState<number | null>(null);
   const [editQuestionValue, setEditQuestionValue] = useState("");
   const [editQuestionDescription, setEditQuestionDescription] =
     useState<Descendant[]>(DEFAULT_CONTENT);
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const { setActiveTodo, setRightOpen } = useTodoStore(
-    useShallow((state) => ({
+    useShallow(state => ({
       setActiveTodo: state.setActiveTodo,
       setRightOpen: state.setRightOpen,
-    })),
+    }))
   );
 
-  const { loadingReview, queueReviews, submitReview, fetchDecks } =
-    useFlashcardStore(
-      useShallow((state) => ({
-        loadingReview: state.loadingReview,
-        queueReviews: state.queueReviews,
-        submitReview: state.submitReview,
-        fetchDecks: state.fetchDecks,
-      })),
-    );
-  const flashcardDecks = useFlashcardStore((state) => state.decks);
+  const { loadingReview, queueReviews, submitReview, fetchDecks } = useFlashcardStore(
+    useShallow(state => ({
+      loadingReview: state.loadingReview,
+      queueReviews: state.queueReviews,
+      submitReview: state.submitReview,
+      fetchDecks: state.fetchDecks,
+    }))
+  );
+  const flashcardDecks = useFlashcardStore(state => state.decks);
 
   const refreshWorkbenchReviewQueue = async () => {
     const queue = await getFlashcardReviewQueue({
@@ -354,21 +312,17 @@ const RightComponentsSidebar = memo(() => {
   const dueFlashcards = workbenchReviewQueue.length;
   const pendingTodos = data.todo.data?.pendingTotal ?? 0;
   const pendingQuestions =
-    (data.questions.data?.notStartedTotal ?? 0) +
-    (data.questions.data?.inProgressTotal ?? 0);
+    (data.questions.data?.notStartedTotal ?? 0) + (data.questions.data?.inProgressTotal ?? 0);
   const totalCount =
-    (data.cards.data?.total ?? 0) +
-    dueFlashcards +
-    pendingTodos +
-    pendingQuestions;
+    (data.cards.data?.total ?? 0) + dueFlashcards + pendingTodos + pendingQuestions;
 
   const selectedReviewDeckId = useMemo(
     () => reviewModalQueue[0]?.deckId ?? null,
-    [reviewModalQueue],
+    [reviewModalQueue]
   );
   const questionItems = useMemo(
     () => data.questions.data?.items ?? [],
-    [data.questions.data?.items],
+    [data.questions.data?.items]
   );
   const questionGroups = useMemo(
     () =>
@@ -376,47 +330,36 @@ const RightComponentsSidebar = memo(() => {
         id: group.id,
         title: group.title,
       })),
-    [data.questions.data?.groups],
+    [data.questions.data?.groups]
   );
   const selectedAnswer = useMemo(() => {
     if (!selectedAnswerId) return null;
-    return (
-      selectedQuestionAnswers.find(
-        (answer) => answer.id === selectedAnswerId,
-      ) ?? null
-    );
+    return selectedQuestionAnswers.find(answer => answer.id === selectedAnswerId) ?? null;
   }, [selectedAnswerId, selectedQuestionAnswers]);
   const currentAnswerIndex = useMemo(() => {
     if (!selectedAnswerId) return -1;
-    return selectedQuestionAnswers.findIndex(
-      (answer) => answer.id === selectedAnswerId,
-    );
+    return selectedQuestionAnswers.findIndex(answer => answer.id === selectedAnswerId);
   }, [selectedAnswerId, selectedQuestionAnswers]);
-  const allQuestionStatuses = useMemo<
-    Array<"not_started" | "in_progress" | "resolved">
-  >(() => ["not_started", "in_progress"], []);
-  const questionStatuses = useMemo<
-    Array<"not_started" | "in_progress" | "resolved">
-  >(
+  const allQuestionStatuses = useMemo<Array<"not_started" | "in_progress" | "resolved">>(
+    () => ["not_started", "in_progress"],
+    []
+  );
+  const questionStatuses = useMemo<Array<"not_started" | "in_progress" | "resolved">>(
     () =>
-      questionStatusFilter === "all"
-        ? ["not_started", "in_progress"]
-        : [questionStatusFilter],
-    [questionStatusFilter],
+      questionStatusFilter === "all" ? ["not_started", "in_progress"] : [questionStatusFilter],
+    [questionStatusFilter]
   );
   const selectedTodoGroupTitle = useMemo(() => {
     if (todoGroupId == null) return "全部";
     return (
-      data.todo.data?.groups.find((item) => item.group.id === todoGroupId)
-        ?.group.title ?? "当前分组"
+      data.todo.data?.groups.find(item => item.group.id === todoGroupId)?.group.title ?? "当前分组"
     );
   }, [data.todo.data?.groups, todoGroupId]);
   const selectedQuestionGroupTitle = useMemo(() => {
     if (questionGroupId == null) return "全部";
     return (
-      data.questions.data?.groups.find(
-        (item) => item.group.id === questionGroupId,
-      )?.group.title ?? "当前分组"
+      data.questions.data?.groups.find(item => item.group.id === questionGroupId)?.group.title ??
+      "当前分组"
     );
   }, [data.questions.data?.groups, questionGroupId]);
   const todoRows = useMemo(() => {
@@ -424,20 +367,20 @@ const RightComponentsSidebar = memo(() => {
     const byParent = new Map<number | null, TodoItem[]>();
     [...items]
       .sort((left, right) => left.sortIndex - right.sortIndex)
-      .forEach((item) => {
+      .forEach(item => {
         const key = item.parentId ?? null;
         byParent.set(key, [...(byParent.get(key) ?? []), item]);
       });
-    const ids = new Set(items.map((item) => item.id));
+    const ids = new Set(items.map(item => item.id));
     const roots = items
-      .filter((item) => item.parentId == null || !ids.has(item.parentId))
+      .filter(item => item.parentId == null || !ids.has(item.parentId))
       .sort((left, right) => left.sortIndex - right.sortIndex);
     const result: Array<{ item: TodoItem; depth: number }> = [];
     const walk = (item: TodoItem, depth: number) => {
       result.push({ item, depth });
-      (byParent.get(item.id) ?? []).forEach((child) => walk(child, depth + 1));
+      (byParent.get(item.id) ?? []).forEach(child => walk(child, depth + 1));
     };
-    roots.forEach((item) => walk(item, 0));
+    roots.forEach(item => walk(item, 0));
     return result;
   }, [data.todo.data?.items]);
 
@@ -448,17 +391,17 @@ const RightComponentsSidebar = memo(() => {
   useEffect(() => {
     const loadAnswerMetadata = async () => {
       const ids = new Set<number>();
-      questionItems.forEach((question) => {
-        question.answers.forEach((answerId) => ids.add(answerId));
+      questionItems.forEach(question => {
+        question.answers.forEach(answerId => ids.add(answerId));
       });
       const titles: Record<number, string> = {};
       const statuses: Record<number, AnswerContentStatus> = {};
       await Promise.all(
-        Array.from(ids).map(async (contentId) => {
+        Array.from(ids).map(async contentId => {
           const status = await getAnswerContentStatus(contentId);
           titles[contentId] = `答案 #${contentId}`;
           statuses[contentId] = status;
-        }),
+        })
       );
       setAnswerTitles(titles);
       setAnswerStatuses(statuses);
@@ -476,15 +419,13 @@ const RightComponentsSidebar = memo(() => {
     const answers = await getQuestionAnswers(questionId);
     setSelectedQuestionAnswers(answers);
     setSelectedAnswerId(
-      answers.find((answer) => answer.id === answerId)?.id ??
-        answers[0]?.id ??
-        null,
+      answers.find(answer => answer.id === answerId)?.id ?? answers[0]?.id ?? null
     );
     setAnswerPreviewVisible(true);
   };
 
   const handleViewQuestionDetails = (questionId: number) => {
-    const question = questionItems.find((item) => item.id === questionId);
+    const question = questionItems.find(item => item.id === questionId);
     if (!question) return;
     setEditQuestionId(questionId);
     setEditQuestionValue(question.questionContent);
@@ -493,21 +434,14 @@ const RightComponentsSidebar = memo(() => {
 
   const handleUpdateQuestionDetails = async () => {
     if (!editQuestionId || !editQuestionValue.trim()) return;
-    await updateQuestion(
-      editQuestionId,
-      editQuestionValue.trim(),
-      editQuestionDescription,
-    );
+    await updateQuestion(editQuestionId, editQuestionValue.trim(), editQuestionDescription);
     setEditQuestionId(null);
     setEditQuestionValue("");
     setEditQuestionDescription(DEFAULT_CONTENT);
     data.refreshQuestions();
   };
 
-  const handleRefreshTodo = (
-    nextGroupId = todoGroupId,
-    nextStatus = todoStatus,
-  ) => {
+  const handleRefreshTodo = (nextGroupId = todoGroupId, nextStatus = todoStatus) => {
     data.refreshTodo({ groupId: nextGroupId, status: nextStatus });
   };
 
@@ -523,7 +457,7 @@ const RightComponentsSidebar = memo(() => {
 
   const handleRefreshQuestions = (
     nextGroupId = questionGroupId,
-    nextStatuses = questionStatuses,
+    nextStatuses = questionStatuses
   ) => {
     data.refreshQuestions({
       groupId: nextGroupId,
@@ -537,12 +471,10 @@ const RightComponentsSidebar = memo(() => {
   };
 
   const handleSelectQuestionStatus = (
-    status: "all" | "not_started" | "in_progress" | "resolved",
+    status: "all" | "not_started" | "in_progress" | "resolved"
   ) => {
     const statuses =
-      status === "all"
-        ? allQuestionStatuses
-        : ([status] as typeof allQuestionStatuses);
+      status === "all" ? allQuestionStatuses : ([status] as typeof allQuestionStatuses);
     setQuestionStatusFilter(status);
     handleRefreshQuestions(questionGroupId, statuses);
   };
@@ -553,12 +485,12 @@ const RightComponentsSidebar = memo(() => {
     if (selectedQuestionId === questionId) {
       const answers = await getQuestionAnswers(questionId);
       setSelectedQuestionAnswers(answers);
-      setSelectedAnswerId((current) => {
+      setSelectedAnswerId(current => {
         if (answers.length === 0) {
           setAnswerPreviewVisible(false);
           return null;
         }
-        if (current && answers.some((answer) => answer.id === current)) {
+        if (current && answers.some(answer => answer.id === current)) {
           return current;
         }
         return answers[0]?.id ?? null;
@@ -567,15 +499,13 @@ const RightComponentsSidebar = memo(() => {
   };
 
   const handleOpenTodoDetails = (item: TodoItem) => {
-    useTodoStore.setState((state) => ({
+    useTodoStore.setState(state => ({
       activeGroupId: item.groupId,
       itemsByGroupId: {
         ...state.itemsByGroupId,
         [item.groupId]: [
           item,
-          ...(state.itemsByGroupId[item.groupId] ?? []).filter(
-            (current) => current.id !== item.id,
-          ),
+          ...(state.itemsByGroupId[item.groupId] ?? []).filter(current => current.id !== item.id),
         ],
       },
     }));
@@ -597,26 +527,19 @@ const RightComponentsSidebar = memo(() => {
 
   const handlePrevAnswer = () => {
     if (selectedQuestionAnswers.length === 0) return;
-    setSelectedAnswerId((current) => {
-      const index = selectedQuestionAnswers.findIndex(
-        (answer) => answer.id === current,
-      );
-      const nextIndex =
-        index <= 0 ? selectedQuestionAnswers.length - 1 : index - 1;
+    setSelectedAnswerId(current => {
+      const index = selectedQuestionAnswers.findIndex(answer => answer.id === current);
+      const nextIndex = index <= 0 ? selectedQuestionAnswers.length - 1 : index - 1;
       return selectedQuestionAnswers[nextIndex]?.id ?? null;
     });
   };
 
   const handleNextAnswer = () => {
     if (selectedQuestionAnswers.length === 0) return;
-    setSelectedAnswerId((current) => {
-      const index = selectedQuestionAnswers.findIndex(
-        (answer) => answer.id === current,
-      );
+    setSelectedAnswerId(current => {
+      const index = selectedQuestionAnswers.findIndex(answer => answer.id === current);
       const nextIndex =
-        index === -1 || index === selectedQuestionAnswers.length - 1
-          ? 0
-          : index + 1;
+        index === -1 || index === selectedQuestionAnswers.length - 1 ? 0 : index + 1;
       return selectedQuestionAnswers[nextIndex]?.id ?? null;
     });
   };
@@ -625,9 +548,9 @@ const RightComponentsSidebar = memo(() => {
     <>
       <ResizableAndHideableSidebar
         className={classNames(
-          "relative box-border flex-none h-full",
-          open && "ml-3 rounded-2xl shadow-lg border",
-          open && "bg-[var(--th-card-bg)] border-[var(--th-border)]",
+          "relative box-border h-full flex-none",
+          open && "ml-3 rounded-2xl border shadow-lg",
+          open && "border-[var(--th-border)] bg-[var(--th-card-bg)]"
         )}
         width={componentsWidth}
         open={open}
@@ -642,13 +565,11 @@ const RightComponentsSidebar = memo(() => {
           <div className="flex h-full flex-col p-3 text-slate-900 dark:text-slate-100">
             <div className="mb-3 flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-teal-500/12 text-teal-700 dark:bg-teal-400/15 dark:text-teal-300">
+                <div className="bg-teal-500/12 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-teal-700 dark:bg-teal-400/15 dark:text-teal-300">
                   <Component size={17} />
                 </div>
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold">
-                    组件工作台
-                  </div>
+                  <div className="truncate text-sm font-semibold">组件工作台</div>
                   <div className="text-[11px] text-slate-500 dark:text-slate-400">
                     {totalCount} 项待处理
                   </div>
@@ -657,22 +578,20 @@ const RightComponentsSidebar = memo(() => {
             </div>
 
             <div className="components-workbench-scroll min-h-0 flex-1 space-y-4 overflow-y-auto pl-1 pr-4">
+              <Section title="协作共享">
+                <CollaborationPanel />
+              </Section>
               <Section
                 title="临期闪念"
                 count={data.cards.data?.total ?? 0}
                 action={
                   data.cards.loading ? (
-                    <Loader2
-                      size={14}
-                      className="animate-spin text-slate-400"
-                    />
+                    <Loader2 size={14} className="animate-spin text-slate-400" />
                   ) : null
                 }
               >
                 {data.cards.error && (
-                  <div className="mb-2 text-xs text-rose-500">
-                    {data.cards.error}
-                  </div>
+                  <div className="mb-2 text-xs text-rose-500">{data.cards.error}</div>
                 )}
                 {dueCards.length === 0 && !data.cards.loading ? (
                   <EmptyState text="暂无临期闪念卡片" />
@@ -682,13 +601,9 @@ const RightComponentsSidebar = memo(() => {
                       const remainingMs = expiresAt - now;
                       const progress = Math.max(
                         0,
-                        Math.min(
-                          100,
-                          ((ONE_MONTH - remainingMs) / ONE_MONTH) * 100,
-                        ),
+                        Math.min(100, ((ONE_MONTH - remainingMs) / ONE_MONTH) * 100)
                       );
-                      const title =
-                        slateToPlainText(card.content) || `卡片 #${card.id}`;
+                      const title = slateToPlainText(card.content) || `卡片 #${card.id}`;
                       return (
                         <div
                           key={card.id}
@@ -712,18 +627,16 @@ const RightComponentsSidebar = memo(() => {
                                   "mt-1 text-[11px]",
                                   remainingMs <= 24 * 60 * 60 * 1000
                                     ? "text-rose-500"
-                                    : "text-slate-500 dark:text-slate-400",
+                                    : "text-slate-500 dark:text-slate-400"
                                 )}
                               >
                                 {formatRemaining(remainingMs)}
                               </div>
-                              <div className="mt-2 h-1 overflow-hidden rounded-full bg-slate-900/8 dark:bg-white/10">
+                              <div className="bg-slate-900/8 mt-2 h-1 overflow-hidden rounded-full dark:bg-white/10">
                                 <div
                                   className={classNames(
                                     "h-full rounded-full",
-                                    progress > 90
-                                      ? "bg-rose-500"
-                                      : "bg-teal-500",
+                                    progress > 90 ? "bg-rose-500" : "bg-teal-500"
                                   )}
                                   style={{ width: `${progress}%` }}
                                 />
@@ -731,12 +644,11 @@ const RightComponentsSidebar = memo(() => {
                             </button>
                             <button
                               type="button"
-                              onClick={(event) => {
+                              onClick={event => {
                                 event.stopPropagation();
                                 modal.confirm({
                                   title: "确认删除",
-                                  content:
-                                    "确认删除这张闪念卡片吗？该操作不可撤销。",
+                                  content: "确认删除这张闪念卡片吗？该操作不可撤销。",
                                   okText: "删除",
                                   cancelText: "取消",
                                   okButtonProps: { danger: true },
@@ -782,9 +694,7 @@ const RightComponentsSidebar = memo(() => {
 
               <Section title="TODO" count={pendingTodos}>
                 {data.todo.error && (
-                  <div className="mb-2 text-xs text-rose-500">
-                    {data.todo.error}
-                  </div>
+                  <div className="mb-2 text-xs text-rose-500">{data.todo.error}</div>
                 )}
                 <div className="mb-2 flex flex-wrap gap-1.5">
                   <FilterChip
@@ -793,7 +703,7 @@ const RightComponentsSidebar = memo(() => {
                   >
                     全部分组 {pendingTodos}
                   </FilterChip>
-                  {(data.todo.data?.groups ?? []).slice(0, 5).map((group) => (
+                  {(data.todo.data?.groups ?? []).slice(0, 5).map(group => (
                     <FilterChip
                       key={group.group.id}
                       active={todoGroupId === group.group.id}
@@ -826,8 +736,7 @@ const RightComponentsSidebar = memo(() => {
                 <div className="mb-2 text-[11px] text-slate-500 dark:text-slate-400">
                   当前：{selectedTodoGroupTitle}，保留父子层级
                 </div>
-                {(data.todo.data?.items ?? []).length === 0 &&
-                !data.todo.loading ? (
+                {(data.todo.data?.items ?? []).length === 0 && !data.todo.loading ? (
                   <EmptyState text="暂无未完成任务" />
                 ) : (
                   <div className="space-y-2">
@@ -841,10 +750,7 @@ const RightComponentsSidebar = memo(() => {
                       />
                     ))}
                     {data.todo.data?.nextCursor != null && (
-                      <LoadMoreButton
-                        loading={data.todo.loadingMore}
-                        onClick={data.loadMoreTodo}
-                      />
+                      <LoadMoreButton loading={data.todo.loadingMore} onClick={data.loadMoreTodo} />
                     )}
                   </div>
                 )}
@@ -852,9 +758,7 @@ const RightComponentsSidebar = memo(() => {
 
               <Section title="问题管理" count={pendingQuestions}>
                 {data.questions.error && (
-                  <div className="mb-2 text-xs text-rose-500">
-                    {data.questions.error}
-                  </div>
+                  <div className="mb-2 text-xs text-rose-500">{data.questions.error}</div>
                 )}
                 <div className="mb-2 flex flex-wrap gap-1.5">
                   <FilterChip
@@ -863,20 +767,15 @@ const RightComponentsSidebar = memo(() => {
                   >
                     全部分组 {pendingQuestions}
                   </FilterChip>
-                  {(data.questions.data?.groups ?? [])
-                    .slice(0, 5)
-                    .map((group) => (
-                      <FilterChip
-                        key={group.group.id}
-                        active={questionGroupId === group.group.id}
-                        onClick={() =>
-                          handleSelectQuestionGroup(group.group.id)
-                        }
-                      >
-                        {group.group.title}{" "}
-                        {group.notStarted + group.inProgress}
-                      </FilterChip>
-                    ))}
+                  {(data.questions.data?.groups ?? []).slice(0, 5).map(group => (
+                    <FilterChip
+                      key={group.group.id}
+                      active={questionGroupId === group.group.id}
+                      onClick={() => handleSelectQuestionGroup(group.group.id)}
+                    >
+                      {group.group.title} {group.notStarted + group.inProgress}
+                    </FilterChip>
+                  ))}
                 </div>
                 <div className="mb-2 flex flex-wrap gap-1.5">
                   <FilterChip
@@ -907,8 +806,7 @@ const RightComponentsSidebar = memo(() => {
                 <div className="mb-2 text-[11px] text-slate-500 dark:text-slate-400">
                   当前：{selectedQuestionGroupTitle}
                 </div>
-                {(data.questions.data?.items ?? []).length === 0 &&
-                !data.questions.loading ? (
+                {(data.questions.data?.items ?? []).length === 0 && !data.questions.loading ? (
                   <EmptyState text="暂无待处理问题" />
                 ) : (
                   <div className="-mx-2">
@@ -919,21 +817,17 @@ const RightComponentsSidebar = memo(() => {
                         question={item}
                         showBorder={index !== questionItems.length - 1}
                         groups={questionGroups}
-                        allQuestionIds={questionItems.map(
-                          (question) => question.id,
-                        )}
+                        allQuestionIds={questionItems.map(question => question.id)}
                         answerTitles={answerTitles}
                         answerStatuses={answerStatuses}
                         onUpdateTitle={(id, title) => {
-                          void updateQuestion(id, title).then(() =>
-                            data.refreshQuestions(),
-                          );
+                          void updateQuestion(id, title).then(() => data.refreshQuestions());
                         }}
-                        onOpenNewAnswer={(id) => {
+                        onOpenNewAnswer={id => {
                           setSelectedQuestionId(id);
                           setNewAnswerVisible(true);
                         }}
-                        onOpenSelectAnswer={(id) => {
+                        onOpenSelectAnswer={id => {
                           setSelectedQuestionId(id);
                           setContentSelectorVisible(true);
                         }}
@@ -941,7 +835,7 @@ const RightComponentsSidebar = memo(() => {
                           await moveQuestionToGroup(id, toGroupId);
                           data.refreshQuestions();
                         }}
-                        onDelete={async (id) => {
+                        onDelete={async id => {
                           if (!window.confirm("删除这个问题？")) return;
                           await deleteQuestion(id);
                           data.refreshQuestions();
@@ -987,11 +881,10 @@ const RightComponentsSidebar = memo(() => {
         open={reviewModalOpen}
         reviewQueue={reviewModalQueue}
         onSubmitReview={async (cardId, rating) => {
-          const card = reviewModalQueue.find((item) => item.id === cardId);
+          const card = reviewModalQueue.find(item => item.id === cardId);
           await submitReview({
             cardId,
-            deckId:
-              card?.deckId ?? reviewingDeckId ?? selectedReviewDeckId ?? 0,
+            deckId: card?.deckId ?? reviewingDeckId ?? selectedReviewDeckId ?? 0,
             rating,
           });
           if (reviewingDeckId != null) {
@@ -1058,7 +951,7 @@ const RightComponentsSidebar = memo(() => {
               rows={3}
               placeholder="请输入问题内容"
               value={editQuestionValue}
-              onChange={(event) => setEditQuestionValue(event.target.value)}
+              onChange={event => setEditQuestionValue(event.target.value)}
               className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition placeholder:text-gray-400 focus:border-blue-500 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
             />
           </div>
@@ -1070,7 +963,7 @@ const RightComponentsSidebar = memo(() => {
               <Editor
                 key={`workbench-edit-question-${editQuestionId}`}
                 initValue={editQuestionDescription}
-                onChange={(value) => setEditQuestionDescription(value)}
+                onChange={value => setEditQuestionDescription(value)}
                 readonly={false}
                 extensions={dynamicExtensions}
                 style={{
@@ -1108,19 +1001,13 @@ const RightComponentsSidebar = memo(() => {
                 contentId: selected.contentId,
                 content: [],
               },
-              true,
+              true
             );
           }
           setContentSelectorVisible(false);
           data.refreshQuestions();
         }}
-        contentType={[
-          "card",
-          "article",
-          "project-item",
-          "document-item",
-          "diary-daily",
-        ]}
+        contentType={["card", "article", "project-item", "document-item", "diary-daily"]}
         extensions={dynamicExtensions}
       />
 

@@ -1,15 +1,12 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import {
-  SoundOutlined,
-  LoadingOutlined,
-  ThunderboltOutlined,
-} from "@ant-design/icons";
+import { SoundOutlined, LoadingOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import { FileText, Pencil, ChevronDown, Sparkles } from "lucide-react";
 import { App } from "antd";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import classNames from "classnames";
 import { Descendant } from "slate";
-import { Editor, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import { importFromMarkdown } from "@/utils/markdown";
 import ResizablePanel from "@/components/ResizablePanel";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
@@ -19,7 +16,6 @@ import {
   createAudioNoteItem,
   getContentById,
   createContent,
-  updateContent,
   updateAudioNoteTranscript,
   updateAudioNoteSummary,
   updateAudioNoteInsights,
@@ -46,12 +42,7 @@ import { resolveAudioPathForTranscription } from "./audio-source";
 import AudioPlayer from "./components/AudioPlayer";
 import ChaptersPanel from "./components/ChaptersPanel";
 import useSettingStore from "@/stores/useSettingStore";
-import {
-  AudioNote,
-  AudioNoteItem,
-  TranscriptSegment,
-  AudioChapter,
-} from "@/types";
+import { AudioNote, AudioNoteItem, TranscriptSegment, AudioChapter } from "@/types";
 import {
   VIDEO_NOTE_AUTO_LANGUAGE,
   resolveVideoNoteOptimizationLanguage,
@@ -75,12 +66,9 @@ interface AudioNoteViewProps {
   title?: string;
 }
 
-const AudioNoteView = ({
-  audioNoteId,
-  title: projectItemTitle,
-}: AudioNoteViewProps) => {
+const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewProps) => {
   const { message, modal } = App.useApp();
-  const { setting } = useSettingStore((s) => ({ setting: s.setting }));
+  const { setting } = useSettingStore(s => ({ setting: s.setting }));
   const themeColors = useThemeColors();
 
   // Audio state
@@ -94,9 +82,7 @@ const AudioNoteView = ({
   // Transcription state
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcriptionProgress, setTranscriptionProgress] = useState("");
-  const [selectedLanguage, setSelectedLanguage] = useState<string>(
-    VIDEO_NOTE_AUTO_LANGUAGE,
-  );
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(VIDEO_NOTE_AUTO_LANGUAGE);
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
   const languageMenuRef = useRef<HTMLDivElement>(null);
 
@@ -105,9 +91,7 @@ const AudioNoteView = ({
 
   // Note state
   const [noteItems, setNoteItems] = useState<AudioNoteItem[]>([]);
-  const [noteContentMap, setNoteContentMap] = useState<
-    Record<number, Descendant[]>
-  >({});
+  const [noteContentMap, setNoteContentMap] = useState<Record<number, Descendant[]>>({});
   const [activeNoteItemId, setActiveNoteItemId] = useState<number | null>(null);
 
   // Segment tracking
@@ -119,13 +103,9 @@ const AudioNoteView = ({
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // LLM Config
-  const { providerConfig, modelConfig } = useLLMConfig(
-    "transcriptionOptimization",
-  );
-  const {
-    providerConfig: summaryProviderConfig,
-    modelConfig: summaryModelConfig,
-  } = useLLMConfig("videoSummary");
+  const { providerConfig, modelConfig } = useLLMConfig("transcriptionOptimization");
+  const { providerConfig: summaryProviderConfig, modelConfig: summaryModelConfig } =
+    useLLMConfig("videoSummary");
 
   // Transcription optimization
   const {
@@ -144,17 +124,16 @@ const AudioNoteView = ({
   } = useVideoSummary(summaryProviderConfig, summaryModelConfig);
 
   // Insights hook
-  const { isGenerating: isGeneratingInsights, generateInsights } =
-    useVideoInsights(summaryProviderConfig, summaryModelConfig);
-
-  // Audio controller
-  const audioController = useMemo(
-    () => new AudioControllerImpl(() => audioRef.current),
-    [],
+  const { isGenerating: isGeneratingInsights, generateInsights } = useVideoInsights(
+    summaryProviderConfig,
+    summaryModelConfig
   );
 
+  // Audio controller
+  const audioController = useMemo(() => new AudioControllerImpl(() => audioRef.current), []);
+
   // Extensions
-  const dynamicExtensions = useDynamicExtensionsStore((s) => s.extensions);
+  const dynamicExtensions = useDynamicExtensionsStore(s => s.extensions);
 
   // Editor ref
   const editorRef = useRef<EditorRef>(null);
@@ -192,7 +171,7 @@ const AudioNoteView = ({
       setCurrentTimeMs(time * 1000);
       updateCurrentSegment(time * 1000);
     },
-    { wait: 100 },
+    { wait: 100 }
   );
 
   const handleDurationChange = useCallback((_dur: number) => {}, []);
@@ -230,7 +209,7 @@ const AudioNoteView = ({
         }
       }
     },
-    [audioNote?.transcriptSegments, currentSegmentIndex],
+    [audioNote?.transcriptSegments, currentSegmentIndex]
   );
 
   // Detect user manual scroll on transcript container
@@ -255,10 +234,7 @@ const AudioNoteView = ({
   useEffect(() => {
     if (!showLanguageMenu) return;
     const handleClick = (e: MouseEvent) => {
-      if (
-        languageMenuRef.current &&
-        !languageMenuRef.current.contains(e.target as Node)
-      ) {
+      if (languageMenuRef.current && !languageMenuRef.current.contains(e.target as Node)) {
         setShowLanguageMenu(false);
       }
     };
@@ -288,13 +264,10 @@ const AudioNoteView = ({
     setTranscriptionProgress("准备转录...");
 
     try {
-      const audioPath = await resolveAudioPathForTranscription(
-        audioNote.metaInfo,
-        {
-          bilibiliCredentials: setting.integration.bilibili.credentials,
-          youtubeProxy: setting.integration.youtube.proxy,
-        },
-      );
+      const audioPath = await resolveAudioPathForTranscription(audioNote.metaInfo, {
+        bilibiliCredentials: setting.integration.bilibili.credentials,
+        youtubeProxy: setting.integration.youtube.proxy,
+      });
 
       if (!audioPath) {
         message.error("音频地址为空");
@@ -305,7 +278,7 @@ const AudioNoteView = ({
         language: selectedLanguage,
       });
 
-      const unsubscribe = onTranscriptionProgress((data) => {
+      const unsubscribe = onTranscriptionProgress(data => {
         setTranscriptionProgress(data.message);
       });
 
@@ -330,22 +303,15 @@ const AudioNoteView = ({
 
       const { text, segments, wordSegments } = result.data;
 
-      if (
-        options.useLLMOptimization &&
-        wordSegments &&
-        wordSegments.length > 0
-      ) {
-        const lang = resolveVideoNoteOptimizationLanguage(
-          selectedLanguage,
-          result.data.language,
-        );
+      if (options.useLLMOptimization && wordSegments && wordSegments.length > 0) {
+        const lang = resolveVideoNoteOptimizationLanguage(selectedLanguage, result.data.language);
         startOptimization(
           wordSegments.map((s: TranscriptSegment) => ({
             text: s.text,
             start: s.start,
             end: s.end,
           })),
-          lang,
+          lang
         );
         await updateAudioNoteTranscript(
           audioNoteId,
@@ -359,7 +325,7 @@ const AudioNoteView = ({
             text: s.text,
             start: s.start,
             end: s.end,
-          })),
+          }))
         );
       } else {
         await updateAudioNoteTranscript(
@@ -369,7 +335,7 @@ const AudioNoteView = ({
             text: s.text,
             start: s.start,
             end: s.end,
-          })),
+          }))
         );
       }
 
@@ -386,7 +352,7 @@ const AudioNoteView = ({
             text: s.text,
             start: s.start,
             end: s.end,
-          })),
+          }))
         );
       }
     } catch (error) {
@@ -401,12 +367,12 @@ const AudioNoteView = ({
   // Handle optimized segments
   useEffect(() => {
     if (optimizedFinalSegments && optimizedFinalSegments.length > 0) {
-      const text = optimizedFinalSegments.map((s) => s.text).join("");
+      const text = optimizedFinalSegments.map(s => s.text).join("");
       updateAudioNoteTranscript(
         audioNoteId,
         text,
         optimizedFinalSegments,
-        audioNote?.transcriptWordSegments,
+        audioNote?.transcriptWordSegments
       ).then(async () => {
         const updated = await getAudioNoteById(audioNoteId);
         if (updated) setAudioNote(updated);
@@ -415,60 +381,52 @@ const AudioNoteView = ({
   }, [optimizedFinalSegments]);
 
   // Generate insights / chapters
-  const handleGenerateInsights = useMemoizedFn(
-    async (segments: TranscriptSegment[]) => {
-      if (!summaryProviderConfig || !summaryModelConfig) {
-        console.warn("[AudioNote] 跳过章节生成：视频总结模型未配置");
-        message.info("提示：配置「视频总结」模型后可自动生成章节");
-        return;
-      }
+  const handleGenerateInsights = useMemoizedFn(async (segments: TranscriptSegment[]) => {
+    if (!summaryProviderConfig || !summaryModelConfig) {
+      console.warn("[AudioNote] 跳过章节生成：视频总结模型未配置");
+      message.info("提示：配置「视频总结」模型后可自动生成章节");
+      return;
+    }
 
-      try {
-        const result = await generateInsights(segments);
-        if (result) {
-          await updateAudioNoteInsights(audioNoteId, result);
-          if (result.topics && result.topics.length > 0) {
-            const chapters: AudioChapter[] = result.topics.map(
-              (topic: { id: string; name: string; summary?: string }) => {
-                const topicHighlights = (result.highlights || []).filter(
-                  (h: { topicId?: string }) => h.topicId === topic.id,
-                );
-                const startTime =
-                  topicHighlights.length > 0
-                    ? Math.min(
-                        ...topicHighlights.map(
-                          (h: { start: number }) => h.start,
-                        ),
-                      )
-                    : 0;
-                const endTime =
-                  topicHighlights.length > 0
-                    ? Math.max(
-                        ...topicHighlights.map((h: { end: number }) => h.end),
-                      )
-                    : 0;
-                return {
-                  id: topic.id,
-                  title: topic.name,
-                  startTime,
-                  endTime,
-                  summary: topic.summary,
-                };
-              },
-            );
-            chapters.sort((a, b) => a.startTime - b.startTime);
-            await updateAudioNoteChapters(audioNoteId, chapters);
-          }
-
-          const updated = await getAudioNoteById(audioNoteId);
-          if (updated) setAudioNote(updated);
+    try {
+      const result = await generateInsights(segments);
+      if (result) {
+        await updateAudioNoteInsights(audioNoteId, result);
+        if (result.topics && result.topics.length > 0) {
+          const chapters: AudioChapter[] = result.topics.map(
+            (topic: { id: string; name: string; summary?: string }) => {
+              const topicHighlights = (result.highlights || []).filter(
+                (h: { topicId?: string }) => h.topicId === topic.id
+              );
+              const startTime =
+                topicHighlights.length > 0
+                  ? Math.min(...topicHighlights.map((h: { start: number }) => h.start))
+                  : 0;
+              const endTime =
+                topicHighlights.length > 0
+                  ? Math.max(...topicHighlights.map((h: { end: number }) => h.end))
+                  : 0;
+              return {
+                id: topic.id,
+                title: topic.name,
+                startTime,
+                endTime,
+                summary: topic.summary,
+              };
+            }
+          );
+          chapters.sort((a, b) => a.startTime - b.startTime);
+          await updateAudioNoteChapters(audioNoteId, chapters);
         }
-      } catch (e) {
-        console.error("[AudioNote] 章节生成失败:", e);
-        message.error("章节生成失败");
+
+        const updated = await getAudioNoteById(audioNoteId);
+        if (updated) setAudioNote(updated);
       }
-    },
-  );
+    } catch (e) {
+      console.error("[AudioNote] 章节生成失败:", e);
+      message.error("章节生成失败");
+    }
+  });
 
   // Summary
   const handleStartSummary = useMemoizedFn(() => {
@@ -497,7 +455,7 @@ const AudioNoteView = ({
     (timeMs: number) => {
       audioController.seekTo(timeMs / 1000);
     },
-    [audioController],
+    [audioController]
   );
 
   // Create note item
@@ -511,36 +469,29 @@ const AudioNoteView = ({
       contentId: contentId as number,
       title: "",
     });
-    setNoteItems((prev) => [...prev, item]);
+    setNoteItems(prev => [...prev, item]);
     setActiveNoteItemId(item.id);
-    setNoteContentMap((prev) => ({
+    setNoteContentMap(prev => ({
       ...prev,
       [contentId as number]: defaultContent,
     }));
   });
 
-  // Save note content
-  const { run: handleNoteContentChange } = useThrottleFn(
-    (contentId: number, content: Descendant[]) => {
-      updateContent(contentId, content);
-    },
-    { wait: 1000 },
-  );
+  const handleNoteContentChange = useMemoizedFn((contentId: number, content: Descendant[]) => {
+    setNoteContentMap(current => ({ ...current, [contentId]: content }));
+  });
 
   // AI optimize
   const handleAIOptimize = useMemoizedFn(() => {
     if (!audioNote?.transcriptWordSegments?.length) return;
-    const lang = resolveVideoNoteOptimizationLanguage(
-      selectedLanguage,
-      undefined,
-    );
+    const lang = resolveVideoNoteOptimizationLanguage(selectedLanguage, undefined);
     startOptimization(
-      audioNote.transcriptWordSegments.map((s) => ({
+      audioNote.transcriptWordSegments.map(s => ({
         text: s.text,
         start: s.start,
         end: s.end,
       })),
-      lang,
+      lang
     );
   });
 
@@ -557,12 +508,7 @@ const AudioNoteView = ({
     const text = finalSummary || audioNote?.summary || "";
     if (!text) return null;
     return importFromMarkdown(text);
-  }, [
-    isSummaryStreaming,
-    streamingSummaryContent,
-    finalSummary,
-    audioNote?.summary,
-  ]);
+  }, [isSummaryStreaming, streamingSummaryContent, finalSummary, audioNote?.summary]);
 
   // Update summary editor during streaming
   useEffect(() => {
@@ -583,13 +529,12 @@ const AudioNoteView = ({
   ];
 
   const selectedLangLabel =
-    TRANSCRIPTION_LANGUAGES.find((l) => l.value === selectedLanguage)?.label ||
-    "自动检测";
+    TRANSCRIPTION_LANGUAGES.find(l => l.value === selectedLanguage)?.label || "自动检测";
 
   if (!audioNote) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <LoadingOutlined className="text-2xl animate-spin text-gray-400" />
+        <LoadingOutlined className="animate-spin text-2xl text-gray-400" />
       </div>
     );
   }
@@ -611,14 +556,14 @@ const AudioNoteView = ({
             </button>
             {showLanguageMenu && (
               <div className="absolute right-0 top-full z-50 mt-1 min-w-[120px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-zinc-600 dark:bg-zinc-800">
-                {TRANSCRIPTION_LANGUAGES.map((lang) => (
+                {TRANSCRIPTION_LANGUAGES.map(lang => (
                   <button
                     key={lang.value}
                     className={classNames(
                       "block w-full px-3 py-1.5 text-left text-xs transition-colors",
                       lang.value === selectedLanguage
                         ? "bg-blue-50 font-medium text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
-                        : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-zinc-700",
+                        : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-zinc-700"
                     )}
                     onClick={() => {
                       setSelectedLanguage(lang.value);
@@ -634,30 +579,25 @@ const AudioNoteView = ({
 
           {/* Transcribe button */}
           <button
-            className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-zinc-800"
             disabled={isTranscribing || !audioNote}
             onClick={handleStartTranscription}
             title={isTranscribing ? transcriptionProgress : "转录音频"}
           >
-            {isTranscribing ? (
-              <LoadingOutlined className="animate-spin" />
-            ) : (
-              <SoundOutlined />
-            )}
+            {isTranscribing ? <LoadingOutlined className="animate-spin" /> : <SoundOutlined />}
           </button>
 
           {/* AI optimize button */}
-          {audioNote?.transcriptWordSegments &&
-            audioNote.transcriptWordSegments.length > 0 && (
-              <button
-                className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={isTranscribing || isOptimizing}
-                onClick={handleAIOptimize}
-                title="AI 优化断句"
-              >
-                <ThunderboltOutlined />
-              </button>
-            )}
+          {audioNote?.transcriptWordSegments && audioNote.transcriptWordSegments.length > 0 && (
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-zinc-800"
+              disabled={isTranscribing || isOptimizing}
+              onClick={handleAIOptimize}
+              title="AI 优化断句"
+            >
+              <ThunderboltOutlined />
+            </button>
+          )}
         </div>
       </div>
 
@@ -690,15 +630,11 @@ const AudioNoteView = ({
                   />
                 ) : transcriptSegments.length > 0 ? (
                   <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-gray-200 py-4 dark:border-zinc-700">
-                    <span className="text-xs text-gray-400 dark:text-gray-500">
-                      暂无章节
-                    </span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">暂无章节</span>
                     <button
                       className="flex items-center gap-1.5 rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
                       disabled={isGeneratingInsights}
-                      onClick={() =>
-                        void handleGenerateInsights(transcriptSegments)
-                      }
+                      onClick={() => void handleGenerateInsights(transcriptSegments)}
                     >
                       {isGeneratingInsights ? (
                         <>
@@ -721,7 +657,7 @@ const AudioNoteView = ({
             <div className="flex h-full flex-col overflow-hidden">
               {/* Tab bar */}
               <div className="flex h-12 shrink-0 items-center gap-2 border-b border-gray-200 px-4 dark:border-gray-700">
-                {tabs.map((tab) => (
+                {tabs.map(tab => (
                   <button
                     key={tab.key}
                     onClick={() => setActiveTab(tab.key)}
@@ -738,7 +674,7 @@ const AudioNoteView = ({
                             "text-gray-600 dark:text-slate-400",
                             themeColors.cardBorderClass,
                             themeColors.hoverClass,
-                          ],
+                          ]
                     )}
                   >
                     {tab.icon}
@@ -752,11 +688,7 @@ const AudioNoteView = ({
                     (audioNote?.summary || summaryContent || isSummarizing) && (
                       <button
                         className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-blue-500 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-blue-900/20"
-                        disabled={
-                          isSummarizing ||
-                          isTranscribing ||
-                          !transcriptSegments.length
-                        }
+                        disabled={isSummarizing || isTranscribing || !transcriptSegments.length}
                         onClick={handleStartSummary}
                       >
                         {isSummarizing ? (
@@ -776,10 +708,7 @@ const AudioNoteView = ({
               </div>
 
               {/* Tab content */}
-              <div
-                className="flex-1 overflow-y-auto p-4"
-                ref={transcriptContainerRef}
-              >
+              <div className="flex-1 overflow-y-auto p-4" ref={transcriptContainerRef}>
                 {/* Transcript tab */}
                 {activeTab === "transcript" && (
                   <div className="h-full">
@@ -787,10 +716,8 @@ const AudioNoteView = ({
                       <div className="flex h-full flex-col items-center justify-center gap-4">
                         {isTranscribing ? (
                           <div className="flex flex-col items-center gap-3 text-gray-500 dark:text-gray-400">
-                            <LoadingOutlined className="text-2xl animate-spin" />
-                            <span className="text-sm">
-                              {transcriptionProgress || "转录中..."}
-                            </span>
+                            <LoadingOutlined className="animate-spin text-2xl" />
+                            <span className="text-sm">{transcriptionProgress || "转录中..."}</span>
                           </div>
                         ) : (
                           <div className="flex flex-col items-center gap-4">
@@ -822,7 +749,7 @@ const AudioNoteView = ({
                                 key={`${segment.start}-${index}`}
                                 className={classNames(
                                   "flex cursor-pointer items-start gap-3 rounded-md p-2 transition-colors hover:bg-gray-100 dark:hover:bg-zinc-800",
-                                  segment.status === "pending" && "opacity-60",
+                                  segment.status === "pending" && "opacity-60"
                                 )}
                                 onClick={() => handleSeek(segment.start)}
                               >
@@ -849,14 +776,14 @@ const AudioNoteView = ({
                             {transcriptSegments.map((segment, idx) => (
                               <div
                                 key={idx}
-                                ref={(el) => {
+                                ref={el => {
                                   if (el) segmentRefs.current.set(idx, el);
                                 }}
                                 className={classNames(
                                   "group flex cursor-pointer items-start gap-3 rounded-md p-2 transition-colors",
                                   idx === currentSegmentIndex
                                     ? "bg-blue-100 dark:bg-blue-900/30"
-                                    : "hover:bg-gray-100 dark:hover:bg-zinc-800",
+                                    : "hover:bg-gray-100 dark:hover:bg-zinc-800"
                                 )}
                                 onClick={() => {
                                   userScrolledRef.current = false;
@@ -889,9 +816,7 @@ const AudioNoteView = ({
                           <button
                             className="flex items-center gap-1.5 rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-600 disabled:opacity-50"
                             disabled={isGeneratingInsights}
-                            onClick={() =>
-                              void handleGenerateInsights(transcriptSegments)
-                            }
+                            onClick={() => void handleGenerateInsights(transcriptSegments)}
                           >
                             {isGeneratingInsights ? (
                               <>
@@ -909,7 +834,7 @@ const AudioNoteView = ({
                       </div>
                     ) : (
                       <div className="flex flex-col gap-2">
-                        {highlights.map((h) => (
+                        {highlights.map(h => (
                           <div
                             key={h.id}
                             className="cursor-pointer rounded-xl border border-transparent bg-gray-50 px-3 py-2.5 transition-all hover:border-blue-300 hover:bg-blue-50/50 dark:bg-zinc-800/50 dark:hover:border-blue-600 dark:hover:bg-blue-900/10"
@@ -982,20 +907,18 @@ const AudioNoteView = ({
                       </div>
                     ) : (
                       <div className="h-full">
-                        {noteItems.map((item) => {
+                        {noteItems.map(item => {
                           const content = noteContentMap[item.contentId];
-                          if (!content || item.id !== activeNoteItemId)
-                            return null;
+                          if (!content || item.id !== activeNoteItemId) return null;
                           return (
                             <Editor
+                              contentId={item.contentId}
                               key={item.id}
                               ref={editorRef}
                               initValue={content}
                               readonly={false}
                               extensions={dynamicExtensions}
-                              onChange={(value) =>
-                                handleNoteContentChange(item.contentId, value)
-                              }
+                              onChange={value => handleNoteContentChange(item.contentId, value)}
                             />
                           );
                         })}

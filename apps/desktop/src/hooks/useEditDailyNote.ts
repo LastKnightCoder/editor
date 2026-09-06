@@ -5,6 +5,8 @@ import { App } from "antd";
 import { Descendant, Editor } from "slate";
 
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
+import useSettingStore from "@/stores/useSettingStore";
+import useContentSessionStore, { contentSessionKey } from "@/stores/useContentSessionStore";
 
 import { getContentLength } from "@/utils";
 import { DailyNote } from "@/types/daily_note";
@@ -19,13 +21,14 @@ const useEditDailyNote = (id?: number) => {
 
   const { modal } = App.useApp();
 
-  const { dailyNotes, createDailyNote, updateDailyNote, deleteDailyNote } =
-    useDailyNoteStore((state) => ({
+  const { dailyNotes, createDailyNote, updateDailyNote, deleteDailyNote } = useDailyNoteStore(
+    state => ({
       dailyNotes: state.dailyNotes,
       createDailyNote: state.onCreateDailyNote,
       updateDailyNote: state.onUpdateDailyNote,
       deleteDailyNote: state.deleteDailyNote,
-    }));
+    })
+  );
 
   useAsyncEffect(async () => {
     if (!id) {
@@ -33,7 +36,7 @@ const useEditDailyNote = (id?: number) => {
       return;
     }
     setLoading(true);
-    const dailyNote = dailyNotes.find((item) => item.id === id);
+    const dailyNote = dailyNotes.find(item => item.id === id);
     if (dailyNote) {
       prevDailyNote.current = dailyNote;
       setEditingDailyNote(dailyNote);
@@ -47,8 +50,7 @@ const useEditDailyNote = (id?: number) => {
 
   useEffect(() => {
     contentChanged.current =
-      JSON.stringify(editingDailyNote?.content) !==
-      JSON.stringify(prevDailyNote.current?.content);
+      JSON.stringify(editingDailyNote?.content) !== JSON.stringify(prevDailyNote.current?.content);
   }, [editingDailyNote]);
 
   const onInit = useMemoizedFn((editor: Editor, content: Descendant[]) => {
@@ -57,18 +59,16 @@ const useEditDailyNote = (id?: number) => {
     setWordsCount(wordsCount);
   });
 
-  const onContentChange = useMemoizedFn(
-    (content: Descendant[], editor: Editor) => {
-      if (!editingDailyNote) return;
-      const newEditingDailyNote = produce(editingDailyNote, (draft) => {
-        draft.content = content;
-      });
-      setEditingDailyNote(newEditingDailyNote);
-      if (!editor) return;
-      const wordsCount = getContentLength(content);
-      setWordsCount(wordsCount);
-    },
-  );
+  const onContentChange = useMemoizedFn((content: Descendant[], editor: Editor) => {
+    if (!editingDailyNote) return;
+    const newEditingDailyNote = produce(editingDailyNote, draft => {
+      draft.content = content;
+    });
+    setEditingDailyNote(newEditingDailyNote);
+    if (!editor) return;
+    const wordsCount = getContentLength(content);
+    setWordsCount(wordsCount);
+  });
 
   const createNewDailyNote = useMemoizedFn(async (date: string) => {
     const createdDailyNote = await createDailyNote(date);
@@ -79,6 +79,16 @@ const useEditDailyNote = (id?: number) => {
 
   const saveDailyNote = useMemoizedFn(async () => {
     if (!editingDailyNote || !contentChanged.current) return;
+    const databaseName = useSettingStore.getState().setting.database.active;
+    if (
+      useContentSessionStore.getState().entries[
+        contentSessionKey(databaseName, editingDailyNote.contentId)
+      ]
+    ) {
+      prevDailyNote.current = editingDailyNote;
+      contentChanged.current = false;
+      return;
+    }
     await updateDailyNote(editingDailyNote);
     prevDailyNote.current = editingDailyNote;
     contentChanged.current = false;

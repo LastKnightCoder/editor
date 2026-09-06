@@ -2,7 +2,8 @@ import { memo, useRef } from "react";
 import type { Descendant } from "slate";
 import { useMemoizedFn, useUnmount } from "ahooks";
 
-import { Editor, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import useEditContent from "@/hooks/useEditContent";
 
 interface DiaryContentEditorProps {
@@ -25,13 +26,10 @@ const DiaryContentEditor = memo(
   }: DiaryContentEditorProps) => {
     const editorRef = useRef<EditorRef | null>(null);
 
-    const { throttleHandleEditorContentChange } = useEditContent(
-      contentId,
-      (content) => {
-        editorRef.current?.setEditorValue(content);
-        onContentChange?.(content);
-      },
-    );
+    const { throttleHandleEditorContentChange } = useEditContent(contentId, content => {
+      editorRef.current?.setEditorValue(content);
+      onContentChange?.(content);
+    });
 
     const handleContentChange = useMemoizedFn((value: Descendant[]) => {
       throttleHandleEditorContentChange(value);
@@ -48,6 +46,7 @@ const DiaryContentEditor = memo(
 
     return (
       <Editor
+        contentId={contentId}
         ref={editorRef}
         extensions={extensions}
         initValue={initialValue}
@@ -57,7 +56,7 @@ const DiaryContentEditor = memo(
         className={className}
       />
     );
-  },
+  }
 );
 
 export default DiaryContentEditor;

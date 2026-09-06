@@ -8,6 +8,7 @@ import fileModule from "../modules/file";
 import extraModule from "../modules/extra";
 import serverModule from "../modules/server";
 import databaseModule from "../modules/database";
+import collaborationModule from "../modules/collaboration";
 import llmModule from "../modules/llm";
 import streamFetchModule from "../modules/stream-fetch";
 import codexAgentModule from "../modules/codex-agent";
@@ -115,6 +116,13 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database"],
     init: () => mainContentFtsIndexQueue.init(),
+  },
+  {
+    name: "collaboration",
+    group: ModuleGroup.CORE,
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["logger", "database"],
+    init: () => collaborationModule.init(),
   },
   {
     name: "extra",
@@ -457,19 +465,19 @@ export const WEBSOCKET_DEPENDENT_MODULES = [
  * 根据模块名获取配置
  */
 export function getModuleConfig(name: string): ModuleConfig | undefined {
-  return MODULE_CONFIGS.find((c) => c.name === name);
+  return MODULE_CONFIGS.find(c => c.name === name);
 }
 
 /**
  * 获取指定层级的所有模块
  */
 export function getModulesByLayer(layer: InitLayer): ModuleConfig[] {
-  return MODULE_CONFIGS.filter((c) => c.layer === layer);
+  return MODULE_CONFIGS.filter(c => c.layer === layer);
 }
 
 /**
  * 获取指定分组的所有模块
  */
 export function getModulesByGroup(group: ModuleGroup): ModuleConfig[] {
-  return MODULE_CONFIGS.filter((c) => c.group === group);
+  return MODULE_CONFIGS.filter(c => c.group === group);
 }

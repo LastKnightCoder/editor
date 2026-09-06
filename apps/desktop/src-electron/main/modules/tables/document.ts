@@ -17,6 +17,7 @@ import Operation from "./operation";
 import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
+import { canonicalContentTitle } from "../collaboration/content-sessions";
 import CardTable from "./card";
 import ArticleTable from "./article";
 
@@ -44,7 +45,7 @@ const uniqueNumbers = (values: number[]) => Array.from(new Set(values));
 const hasSameNumberMembers = (left: number[], right: number[]) => {
   if (left.length !== right.length) return false;
   const rightSet = new Set(right);
-  return left.every((value) => rightSet.has(value));
+  return left.every(value => rightSet.has(value));
 };
 
 const getAdjustedInsertIndex = ({
@@ -56,11 +57,9 @@ const getAdjustedInsertIndex = ({
   dragId: number;
   insertIndex: number;
 }) => {
-  const previousIndex = children.findIndex((id) => id === dragId);
+  const previousIndex = children.findIndex(id => id === dragId);
   const adjustedIndex =
-    previousIndex >= 0 && previousIndex < insertIndex
-      ? insertIndex - 1
-      : insertIndex;
+    previousIndex >= 0 && previousIndex < insertIndex ? insertIndex - 1 : insertIndex;
   return Math.max(0, Math.min(adjustedIndex, children.length));
 };
 
@@ -91,8 +90,8 @@ export default class DocumentTable {
     const tableInfo = db.prepare(`PRAGMA table_info(document_items)`).all() as {
       name: string;
     }[];
-    const hasRefType = tableInfo.some((column) => column.name === "ref_type");
-    const hasRefId = tableInfo.some((column) => column.name === "ref_id");
+    const hasRefType = tableInfo.some(column => column.name === "ref_type");
+    const hasRefId = tableInfo.some(column => column.name === "ref_id");
 
     if (!hasRefType) {
       db.exec(`ALTER TABLE document_items ADD COLUMN ref_type TEXT DEFAULT ''`);
@@ -129,7 +128,7 @@ export default class DocumentTable {
 
     // 为所有条目创建id到对象的映射，便于快速查找
     const itemMap = new Map<number, IDocumentItem>();
-    documentItems.forEach((item) => {
+    documentItems.forEach(item => {
       itemMap.set(item.id, item);
     });
 
@@ -148,18 +147,14 @@ export default class DocumentTable {
         currentDocuments.add(document.id);
 
         // 更新文档条目的 documents 字段
-        const stmt = db.prepare(
-          `UPDATE document_items SET documents = ? WHERE id = ?`,
-        );
+        const stmt = db.prepare(`UPDATE document_items SET documents = ? WHERE id = ?`);
         const documentsArray = Array.from(currentDocuments);
         stmt.run(JSON.stringify(documentsArray), itemId);
 
         // 更新内存中的对象
         item.documents = documentsArray;
 
-        log.info(
-          `已为根文档条目 ${itemId} 设置所属文档 ${JSON.stringify(documentsArray)}`,
-        );
+        log.info(`已为根文档条目 ${itemId} 设置所属文档 ${JSON.stringify(documentsArray)}`);
 
         // 递归处理这个根文档的所有子项
         if (item.children && item.children.length > 0) {
@@ -174,7 +169,7 @@ export default class DocumentTable {
   static updateChildrenDocumentsField(
     parentItem: IDocumentItem,
     itemMap: Map<number, IDocumentItem>,
-    db: Database.Database,
+    db: Database.Database
   ): void {
     // 获取父条目的 documents 列表
     const parentDocuments = parentItem.documents || [];
@@ -185,28 +180,19 @@ export default class DocumentTable {
       if (!childItem) continue;
 
       // 合并父条目和子条目的 documents（去重）
-      const childDocuments = new Set([
-        ...(childItem.documents || []),
-        ...parentDocuments,
-      ]);
+      const childDocuments = new Set([...(childItem.documents || []), ...parentDocuments]);
       const documentsArray = Array.from(childDocuments);
 
       // 只有当 documents 发生变化时才更新数据库
-      if (
-        JSON.stringify(childItem.documents) !== JSON.stringify(documentsArray)
-      ) {
+      if (JSON.stringify(childItem.documents) !== JSON.stringify(documentsArray)) {
         // 更新子条目的 documents 字段
-        const stmt = db.prepare(
-          `UPDATE document_items SET documents = ? WHERE id = ?`,
-        );
+        const stmt = db.prepare(`UPDATE document_items SET documents = ? WHERE id = ?`);
         stmt.run(JSON.stringify(documentsArray), childId);
 
         // 更新内存中的对象
         childItem.documents = documentsArray;
 
-        log.info(
-          `已为子文档条目 ${childId} 设置所属文档 ${JSON.stringify(documentsArray)}`,
-        );
+        log.info(`已为子文档条目 ${childId} 设置所属文档 ${JSON.stringify(documentsArray)}`);
       }
 
       // 递归处理子条目的子条目
@@ -234,19 +220,14 @@ export default class DocumentTable {
       "delete-document-item": this.deleteDocumentItem.bind(this),
       "get-document-item": this.getDocumentItem.bind(this),
       "get-document-items-by-ids": this.getDocumentItemsByIds.bind(this),
-      "get-document-items-by-document-id":
-        this.getDocumentItemsByDocumentId.bind(this),
-      "get-document-items-by-content-id":
-        this.getDocumentItemsByContentId.bind(this),
+      "get-document-items-by-document-id": this.getDocumentItemsByDocumentId.bind(this),
+      "get-document-items-by-content-id": this.getDocumentItemsByContentId.bind(this),
       "get-all-document-items": this.getAllDocumentItems.bind(this),
       "is-document-item-child-of": this.isDocumentItemChildOf.bind(this),
       "init-document-item-parents": this.initAllDocumentItemParents.bind(this),
-      "init-document-item-parents-by-ids":
-        this.initDocumentItemParentsByIds.bind(this),
-      "get-document-item-all-parents":
-        this.getDocumentItemAllParents.bind(this),
-      "get-root-documents-by-document-item-id":
-        this.getRootDocumentsByDocumentItemId.bind(this),
+      "init-document-item-parents-by-ids": this.initDocumentItemParentsByIds.bind(this),
+      "get-document-item-all-parents": this.getDocumentItemAllParents.bind(this),
+      "get-root-documents-by-document-item-id": this.getRootDocumentsByDocumentItemId.bind(this),
     };
   }
 
@@ -314,10 +295,7 @@ export default class DocumentTable {
     return res;
   }
 
-  static getContentId(
-    db: Database.Database,
-    documentItem: ICreateDocumentItem,
-  ): number {
+  static getContentId(db: Database.Database, documentItem: ICreateDocumentItem): number {
     let contentId = 0;
     if (documentItem.contentId) {
       contentId = documentItem.contentId;
@@ -355,7 +333,7 @@ export default class DocumentTable {
   static addRootDocumentItem(
     db: Database.Database,
     documentId: number,
-    documentItem: ICreateDocumentItem,
+    documentItem: ICreateDocumentItem
   ): [IDocument, IDocumentItem | null] {
     const stmt = db.prepare(`
       INSERT INTO document_items (create_time, update_time, title, tags, children, is_article, article_id, is_card, card_id, ref_type, ref_id, content_id, parents, documents)
@@ -379,7 +357,7 @@ export default class DocumentTable {
       documentItem.refId || 0,
       contentId,
       JSON.stringify(documentItem.parents),
-      JSON.stringify([documentId]),
+      JSON.stringify([documentId])
     );
 
     const document = this.getDocument(db, documentId);
@@ -391,7 +369,7 @@ export default class DocumentTable {
       "document-item",
       "insert",
       Number(res.lastInsertRowid),
-      Date.now(),
+      Date.now()
     );
 
     return [document, this.getDocumentItem(db, Number(res.lastInsertRowid))];
@@ -400,7 +378,7 @@ export default class DocumentTable {
   static addChildDocumentItem(
     db: Database.Database,
     parentDocumentItemId: number,
-    documentItem: ICreateDocumentItem,
+    documentItem: ICreateDocumentItem
   ): [IDocumentItem | null, IDocumentItem | null] | null {
     const parentDocumentItem = this.getDocumentItem(db, parentDocumentItemId);
     if (!parentDocumentItem) {
@@ -432,7 +410,7 @@ export default class DocumentTable {
       documentItem.refId || 0,
       contentId,
       JSON.stringify([parentDocumentItemId]),
-      JSON.stringify(Array.from(currentDocuments)),
+      JSON.stringify(Array.from(currentDocuments))
     );
 
     const currentChildren = new Set(parentDocumentItem.children || []);
@@ -445,19 +423,16 @@ export default class DocumentTable {
       "document-item",
       "insert",
       Number(res.lastInsertRowid),
-      Date.now(),
+      Date.now()
     );
 
-    return [
-      parentDocumentItem,
-      this.getDocumentItem(db, Number(res.lastInsertRowid)),
-    ];
+    return [parentDocumentItem, this.getDocumentItem(db, Number(res.lastInsertRowid))];
   }
 
   static addRefRootDocumentItem(
     db: Database.Database,
     documentId: number,
-    documentItemId: number,
+    documentItemId: number
   ): [IDocument, IDocumentItem | null] | null {
     const document = this.getDocument(db, documentId);
     document.children.push(documentItemId);
@@ -471,21 +446,9 @@ export default class DocumentTable {
     currentDocuments.add(documentId);
     documentItem.documents = Array.from(currentDocuments);
     this.updateDocumentItem(db, documentItem);
-    this.updateDocumentSubtreeMembership(
-      db,
-      documentItemId,
-      [],
-      [documentId],
-      [],
-    );
+    this.updateDocumentSubtreeMembership(db, documentItemId, [], [documentId], []);
 
-    Operation.insertOperation(
-      db,
-      "document-item",
-      "insert",
-      documentItemId,
-      Date.now(),
-    );
+    Operation.insertOperation(db, "document-item", "insert", documentItemId, Date.now());
 
     return [document, documentItem];
   }
@@ -493,7 +456,7 @@ export default class DocumentTable {
   static addRefChildDocumentItem(
     db: Database.Database,
     parentDocumentItemId: number,
-    documentItemId: number,
+    documentItemId: number
   ): [IDocumentItem | null, IDocumentItem | null] | null {
     const parentDocumentItem = this.getDocumentItem(db, parentDocumentItemId);
     if (!parentDocumentItem) {
@@ -519,21 +482,9 @@ export default class DocumentTable {
     documentItem.parents = Array.from(currentParents);
 
     this.updateDocumentItem(db, documentItem);
-    this.updateDocumentSubtreeMembership(
-      db,
-      documentItemId,
-      [],
-      Array.from(currentDocuments),
-      [],
-    );
+    this.updateDocumentSubtreeMembership(db, documentItemId, [], Array.from(currentDocuments), []);
 
-    Operation.insertOperation(
-      db,
-      "document-item",
-      "insert",
-      documentItemId,
-      Date.now(),
-    );
+    Operation.insertOperation(db, "document-item", "insert", documentItemId, Date.now());
 
     return [parentDocumentItem, documentItem];
   }
@@ -542,10 +493,10 @@ export default class DocumentTable {
     db: Database.Database,
     documentId: number,
     documentItemId: number,
-    notDelete?: boolean,
+    notDelete?: boolean
   ): [IDocument, IDocumentItem | null] | null {
     const document = this.getDocument(db, documentId);
-    document.children = document.children.filter((id) => id !== documentItemId);
+    document.children = document.children.filter(id => id !== documentItemId);
     this.updateDocument(db, document);
 
     const documentItem = this.getDocumentItem(db, documentItemId);
@@ -555,13 +506,7 @@ export default class DocumentTable {
       return [document, documentItem];
     }
 
-    this.updateDocumentSubtreeMembership(
-      db,
-      documentItemId,
-      [documentId],
-      [],
-      [],
-    );
+    this.updateDocumentSubtreeMembership(db, documentItemId, [documentId], [], []);
 
     this.deleteUnreferencedDocumentSubtree(db, documentItemId);
 
@@ -573,7 +518,7 @@ export default class DocumentTable {
     documentId: number,
     parentDocumentItemId: number,
     documentItemId: number,
-    notDelete?: boolean,
+    notDelete?: boolean
   ): [IDocumentItem | null, IDocumentItem | null] | null {
     const parentDocumentItem = this.getDocumentItem(db, parentDocumentItemId);
     if (!parentDocumentItem) {
@@ -583,27 +528,17 @@ export default class DocumentTable {
     const documentItem = this.getDocumentItem(db, documentItemId);
     if (!documentItem) return null;
 
-    parentDocumentItem.children = parentDocumentItem.children.filter(
-      (id) => id !== documentItemId,
-    );
+    parentDocumentItem.children = parentDocumentItem.children.filter(id => id !== documentItemId);
     this.updateDocumentItem(db, parentDocumentItem);
 
     if (notDelete) {
       return [parentDocumentItem, documentItem];
     }
 
-    documentItem.parents = documentItem.parents.filter(
-      (id) => id !== parentDocumentItemId,
-    );
+    documentItem.parents = documentItem.parents.filter(id => id !== parentDocumentItemId);
     this.updateDocumentItem(db, documentItem);
 
-    this.updateDocumentSubtreeMembership(
-      db,
-      documentItemId,
-      [documentId],
-      [],
-      [],
-    );
+    this.updateDocumentSubtreeMembership(db, documentItemId, [documentId], [], []);
 
     this.deleteUnreferencedDocumentSubtree(db, documentItemId);
 
@@ -613,7 +548,7 @@ export default class DocumentTable {
   private static collectDocumentItemSubtreeIds(
     db: Database.Database,
     documentItemId: number,
-    visited = new Set<number>(),
+    visited = new Set<number>()
   ): number[] {
     if (visited.has(documentItemId)) return [];
     visited.add(documentItemId);
@@ -623,23 +558,20 @@ export default class DocumentTable {
 
     return [
       documentItemId,
-      ...documentItem.children.flatMap((childId) =>
-        this.collectDocumentItemSubtreeIds(db, childId, visited),
+      ...documentItem.children.flatMap(childId =>
+        this.collectDocumentItemSubtreeIds(db, childId, visited)
       ),
     ];
   }
 
   private static deleteUnreferencedDocumentSubtree(
     db: Database.Database,
-    rootDocumentItemId: number,
+    rootDocumentItemId: number
   ) {
-    const subtreeIds = this.collectDocumentItemSubtreeIds(
-      db,
-      rootDocumentItemId,
-    );
+    const subtreeIds = this.collectDocumentItemSubtreeIds(db, rootDocumentItemId);
     const deletedIds = new Set<number>();
 
-    [...subtreeIds].reverse().forEach((documentItemId) => {
+    [...subtreeIds].reverse().forEach(documentItemId => {
       const documentItem = this.getDocumentItem(db, documentItemId);
       if (!documentItem || documentItem.documents.length > 0) return;
       deletedIds.add(documentItemId);
@@ -648,16 +580,12 @@ export default class DocumentTable {
 
     if (deletedIds.size === 0) return;
 
-    subtreeIds.forEach((documentItemId) => {
+    subtreeIds.forEach(documentItemId => {
       if (deletedIds.has(documentItemId)) return;
       const documentItem = this.getDocumentItem(db, documentItemId);
       if (!documentItem) return;
-      const nextParents = documentItem.parents.filter(
-        (parentId) => !deletedIds.has(parentId),
-      );
-      const nextChildren = documentItem.children.filter(
-        (childId) => !deletedIds.has(childId),
-      );
+      const nextParents = documentItem.parents.filter(parentId => !deletedIds.has(parentId));
+      const nextChildren = documentItem.children.filter(childId => !deletedIds.has(childId));
       if (
         nextParents.length === documentItem.parents.length &&
         nextChildren.length === documentItem.children.length
@@ -675,17 +603,15 @@ export default class DocumentTable {
   private static isDocumentItemDescendant(
     db: Database.Database,
     ancestorId: number,
-    maybeDescendantId: number,
+    maybeDescendantId: number
   ) {
-    return this.collectDocumentItemSubtreeIds(db, ancestorId)
-      .slice(1)
-      .includes(maybeDescendantId);
+    return this.collectDocumentItemSubtreeIds(db, ancestorId).slice(1).includes(maybeDescendantId);
   }
 
   private static getDocumentMoveParentChildren(
     db: Database.Database,
     documentId: number,
-    parentId: number | null,
+    parentId: number | null
   ) {
     if (parentId === null) {
       return this.getDocument(db, documentId).children;
@@ -696,14 +622,10 @@ export default class DocumentTable {
   private static canMoveDocumentTreeItem(
     db: Database.Database,
     documentId: number,
-    params: MoveDocumentTreeItemParams,
+    params: MoveDocumentTreeItemParams
   ) {
     const { dragItem, dropTargetId, dragPosition } = params;
-    const {
-      itemId: dragId,
-      parentId: dragParentId,
-      isRoot: dragIsRoot,
-    } = dragItem;
+    const { itemId: dragId, parentId: dragParentId, isRoot: dragIsRoot } = dragItem;
 
     if (dragId === dropTargetId) return false;
 
@@ -713,7 +635,7 @@ export default class DocumentTable {
     const sourceChildren = this.getDocumentMoveParentChildren(
       db,
       documentId,
-      dragIsRoot ? null : dragParentId,
+      dragIsRoot ? null : dragParentId
     );
     if (!sourceChildren?.includes(dragId)) return false;
 
@@ -733,17 +655,10 @@ export default class DocumentTable {
       return false;
     }
 
-    const targetChildren = this.getDocumentMoveParentChildren(
-      db,
-      documentId,
-      targetParentId,
-    );
+    const targetChildren = this.getDocumentMoveParentChildren(db, documentId, targetParentId);
     if (!targetChildren) return false;
 
-    if (
-      targetParentId !== (dragIsRoot ? null : dragParentId) &&
-      targetChildren.includes(dragId)
-    ) {
+    if (targetParentId !== (dragIsRoot ? null : dragParentId) && targetChildren.includes(dragId)) {
       return false;
     }
 
@@ -771,10 +686,10 @@ export default class DocumentTable {
   }) {
     const retainedSourceDocumentSet = new Set(retainedSourceDocuments);
     const removableSourceDocumentSet = new Set(
-      sourceDocuments.filter((id) => !retainedSourceDocumentSet.has(id)),
+      sourceDocuments.filter(id => !retainedSourceDocumentSet.has(id))
     );
     return uniqueNumbers([
-      ...currentDocuments.filter((id) => !removableSourceDocumentSet.has(id)),
+      ...currentDocuments.filter(id => !removableSourceDocumentSet.has(id)),
       ...targetDocuments,
     ]);
   }
@@ -784,33 +699,28 @@ export default class DocumentTable {
     rootDocumentItemId: number,
     sourceDocuments: number[],
     targetDocuments: number[],
-    retainedSourceDocuments: number[],
+    retainedSourceDocuments: number[]
   ) {
-    const subtreeIds = this.collectDocumentItemSubtreeIds(
-      db,
-      rootDocumentItemId,
-    );
+    const subtreeIds = this.collectDocumentItemSubtreeIds(db, rootDocumentItemId);
     const subtreeIdSet = new Set(subtreeIds);
     const retainedSourceByItem = new Map<number, Set<number>>(
-      subtreeIds.map((id) => [id, new Set<number>()]),
+      subtreeIds.map(id => [id, new Set<number>()])
     );
-    retainedSourceDocuments.forEach((documentId) => {
+    retainedSourceDocuments.forEach(documentId => {
       retainedSourceByItem.get(rootDocumentItemId)?.add(documentId);
     });
 
-    subtreeIds.forEach((documentItemId) => {
+    subtreeIds.forEach(documentItemId => {
       const documentItem = this.getDocumentItem(db, documentItemId);
       if (!documentItem) return;
       documentItem.parents
-        .filter((parentId) => !subtreeIdSet.has(parentId))
-        .forEach((parentId) => {
-          this.getDocumentItem(db, parentId)?.documents.forEach(
-            (documentId) => {
-              retainedSourceByItem.get(documentItemId)?.add(documentId);
-            },
-          );
+        .filter(parentId => !subtreeIdSet.has(parentId))
+        .forEach(parentId => {
+          this.getDocumentItem(db, parentId)?.documents.forEach(documentId => {
+            retainedSourceByItem.get(documentItemId)?.add(documentId);
+          });
         });
-      sourceDocuments.forEach((sourceDocumentId) => {
+      sourceDocuments.forEach(sourceDocumentId => {
         const sourceDocument = this.getDocument(db, sourceDocumentId);
         if (sourceDocument.children.includes(documentItemId)) {
           retainedSourceByItem.get(documentItemId)?.add(sourceDocumentId);
@@ -821,17 +731,16 @@ export default class DocumentTable {
     let changed = true;
     while (changed) {
       changed = false;
-      subtreeIds.forEach((documentItemId) => {
+      subtreeIds.forEach(documentItemId => {
         const documentItem = this.getDocumentItem(db, documentItemId);
-        const parentRetainedDocuments =
-          retainedSourceByItem.get(documentItemId);
+        const parentRetainedDocuments = retainedSourceByItem.get(documentItemId);
         if (!documentItem || !parentRetainedDocuments) return;
         documentItem.children
-          .filter((childId) => subtreeIdSet.has(childId))
-          .forEach((childId) => {
+          .filter(childId => subtreeIdSet.has(childId))
+          .forEach(childId => {
             const childRetainedDocuments = retainedSourceByItem.get(childId);
             if (!childRetainedDocuments) return;
-            parentRetainedDocuments.forEach((documentId) => {
+            parentRetainedDocuments.forEach(documentId => {
               if (childRetainedDocuments.has(documentId)) return;
               childRetainedDocuments.add(documentId);
               changed = true;
@@ -840,20 +749,16 @@ export default class DocumentTable {
       });
     }
 
-    subtreeIds.forEach((documentItemId) => {
+    subtreeIds.forEach(documentItemId => {
       const documentItem = this.getDocumentItem(db, documentItemId);
       if (!documentItem) return;
       const nextDocuments = this.getMovedDocumentMembership({
         currentDocuments: documentItem.documents,
         sourceDocuments,
         targetDocuments,
-        retainedSourceDocuments: Array.from(
-          retainedSourceByItem.get(documentItemId) || [],
-        ),
+        retainedSourceDocuments: Array.from(retainedSourceByItem.get(documentItemId) || []),
       });
-      if (
-        JSON.stringify(nextDocuments) === JSON.stringify(documentItem.documents)
-      ) {
+      if (JSON.stringify(nextDocuments) === JSON.stringify(documentItem.documents)) {
         return;
       }
       this.updateDocumentItem(db, {
@@ -866,7 +771,7 @@ export default class DocumentTable {
   static moveDocumentTreeItem(
     db: Database.Database,
     documentId: number,
-    params: MoveDocumentTreeItemParams,
+    params: MoveDocumentTreeItemParams
   ) {
     const {
       dragItem,
@@ -879,11 +784,7 @@ export default class DocumentTable {
       insertParentIsRoot,
       insertIndex,
     } = params;
-    const {
-      itemId: dragId,
-      parentId: dragParentId,
-      isRoot: dragIsRoot,
-    } = dragItem;
+    const { itemId: dragId, parentId: dragParentId, isRoot: dragIsRoot } = dragItem;
     const dragDocumentItem = this.getDocumentItem(db, dragId);
     if (!dragDocumentItem) return null;
     if (!this.canMoveDocumentTreeItem(db, documentId, params)) return null;
@@ -906,44 +807,36 @@ export default class DocumentTable {
 
       const retainedSourceDocumentIds = new Set<number>();
       dragDocumentItem.parents
-        .filter((parentId) => parentId !== dragParentId)
-        .forEach((parentId) => {
-          this.getDocumentItem(db, parentId)?.documents.forEach(
-            (parentDocumentId) =>
-              retainedSourceDocumentIds.add(parentDocumentId),
+        .filter(parentId => parentId !== dragParentId)
+        .forEach(parentId => {
+          this.getDocumentItem(db, parentId)?.documents.forEach(parentDocumentId =>
+            retainedSourceDocumentIds.add(parentDocumentId)
           );
         });
 
       if (dragIsRoot) {
         const document = this.getDocument(db, documentId);
         if (!document.children.includes(dragId)) return null;
-        document.children = document.children.filter((id) => id !== dragId);
+        document.children = document.children.filter(id => id !== dragId);
         this.updateDocument(db, document);
       } else {
         const sourceParent = this.getDocumentItem(db, dragParentId);
         if (!sourceParent?.children.includes(dragId)) return null;
-        sourceParent.children = sourceParent.children.filter(
-          (id) => id !== dragId,
-        );
+        sourceParent.children = sourceParent.children.filter(id => id !== dragId);
         this.updateDocumentItem(db, sourceParent);
       }
 
       const nextDragDocumentItem = this.getDocumentItem(db, dragId);
       if (!nextDragDocumentItem) return null;
       nextDragDocumentItem.parents = nextDragDocumentItem.parents.filter(
-        (parentId) => parentId !== dragParentId,
+        parentId => parentId !== dragParentId
       );
 
-      if (
-        typeof insertParentId === "number" &&
-        typeof insertIndex === "number"
-      ) {
+      if (typeof insertParentId === "number" && typeof insertIndex === "number") {
         if (insertParentIsRoot) {
           const document = this.getDocument(db, documentId);
-          const sourceChildren = dragIsRoot
-            ? dragItem.parentChildren
-            : document.children;
-          document.children = document.children.filter((id) => id !== dragId);
+          const sourceChildren = dragIsRoot ? dragItem.parentChildren : document.children;
+          document.children = document.children.filter(id => id !== dragId);
           document.children.splice(
             getAdjustedInsertIndex({
               children: sourceChildren,
@@ -951,23 +844,17 @@ export default class DocumentTable {
               insertIndex,
             }),
             0,
-            dragId,
+            dragId
           );
           this.updateDocument(db, document);
         } else {
           const targetParent = this.getDocumentItem(db, insertParentId);
           if (!targetParent) {
-            throw new Error(
-              "Document tree move target parent no longer exists",
-            );
+            throw new Error("Document tree move target parent no longer exists");
           }
           const sourceChildren =
-            dragParentId === insertParentId
-              ? dragItem.parentChildren
-              : targetParent.children;
-          targetParent.children = targetParent.children.filter(
-            (id) => id !== dragId,
-          );
+            dragParentId === insertParentId ? dragItem.parentChildren : targetParent.children;
+          targetParent.children = targetParent.children.filter(id => id !== dragId);
           targetParent.children.splice(
             getAdjustedInsertIndex({
               children: sourceChildren,
@@ -975,7 +862,7 @@ export default class DocumentTable {
               insertIndex,
             }),
             0,
-            dragId,
+            dragId
           );
           this.updateDocumentItem(db, targetParent);
           if (!nextDragDocumentItem.parents.includes(insertParentId)) {
@@ -988,10 +875,8 @@ export default class DocumentTable {
           throw new Error("Document tree move target no longer exists");
         }
         const sourceChildren =
-          dragParentId === dropTargetId
-            ? dragItem.parentChildren
-            : targetItem.children;
-        targetItem.children = targetItem.children.filter((id) => id !== dragId);
+          dragParentId === dropTargetId ? dragItem.parentChildren : targetItem.children;
+        targetItem.children = targetItem.children.filter(id => id !== dragId);
         if (typeof childInsertIndex === "number") {
           targetItem.children.splice(
             getAdjustedInsertIndex({
@@ -1000,7 +885,7 @@ export default class DocumentTable {
               insertIndex: childInsertIndex,
             }),
             0,
-            dragId,
+            dragId
           );
         } else {
           targetItem.children.push(dragId);
@@ -1011,39 +896,27 @@ export default class DocumentTable {
         }
       } else if (dropTargetIsRoot) {
         const document = this.getDocument(db, documentId);
-        document.children = document.children.filter((id) => id !== dragId);
-        const targetIndex = document.children.findIndex(
-          (id) => id === dropTargetId,
-        );
+        document.children = document.children.filter(id => id !== dragId);
+        const targetIndex = document.children.findIndex(id => id === dropTargetId);
         if (targetIndex === -1) {
           throw new Error("Document tree move target no longer exists");
         }
-        document.children.splice(
-          dragPosition === "top" ? targetIndex : targetIndex + 1,
-          0,
-          dragId,
-        );
+        document.children.splice(dragPosition === "top" ? targetIndex : targetIndex + 1, 0, dragId);
         this.updateDocument(db, document);
       } else {
         const targetParent = this.getDocumentItem(db, dropTargetParentId);
         if (!targetParent?.children.includes(dropTargetId)) {
-          throw new Error(
-            "Document tree move target parent no longer contains target",
-          );
+          throw new Error("Document tree move target parent no longer contains target");
         }
-        targetParent.children = targetParent.children.filter(
-          (id) => id !== dragId,
-        );
-        const targetIndex = targetParent.children.findIndex(
-          (id) => id === dropTargetId,
-        );
+        targetParent.children = targetParent.children.filter(id => id !== dragId);
+        const targetIndex = targetParent.children.findIndex(id => id === dropTargetId);
         if (targetIndex === -1) {
           throw new Error("Document tree move target no longer exists");
         }
         targetParent.children.splice(
           dragPosition === "top" ? targetIndex : targetIndex + 1,
           0,
-          dragId,
+          dragId
         );
         this.updateDocumentItem(db, targetParent);
         if (!nextDragDocumentItem.parents.includes(dropTargetParentId)) {
@@ -1058,7 +931,7 @@ export default class DocumentTable {
           dragId,
           sourceDocumentIds,
           targetDocumentIds,
-          Array.from(retainedSourceDocumentIds),
+          Array.from(retainedSourceDocumentIds)
         );
       }
 
@@ -1070,17 +943,14 @@ export default class DocumentTable {
           dropTargetId,
           dropTargetParentId,
           insertParentId ?? 0,
-        ]).filter((id) => id > 0),
+        ]).filter(id => id > 0),
       };
     });
 
     return tx();
   }
 
-  static createDocument(
-    db: Database.Database,
-    document: ICreateDocument,
-  ): IDocument {
+  static createDocument(db: Database.Database, document: ICreateDocument): IDocument {
     const stmt = db.prepare(`
       INSERT INTO documents
       (title, desc, children, content, create_time, update_time, is_top)
@@ -1094,24 +964,15 @@ export default class DocumentTable {
       JSON.stringify(document.content),
       now,
       now,
-      Number(document.isTop),
+      Number(document.isTop)
     );
 
-    Operation.insertOperation(
-      db,
-      "document",
-      "insert",
-      res.lastInsertRowid,
-      now,
-    );
+    Operation.insertOperation(db, "document", "insert", res.lastInsertRowid, now);
 
     return this.getDocument(db, Number(res.lastInsertRowid));
   }
 
-  static updateDocument(
-    db: Database.Database,
-    document: IUpdateDocument,
-  ): IDocument {
+  static updateDocument(db: Database.Database, document: IUpdateDocument): IDocument {
     const stmt = db.prepare(`
       UPDATE documents SET
         title = ?,
@@ -1132,7 +993,7 @@ export default class DocumentTable {
       JSON.stringify(document.content),
       now,
       Number(document.isTop),
-      document.id,
+      document.id
     );
 
     Operation.insertOperation(db, "document", "update", document.id, now);
@@ -1164,11 +1025,9 @@ export default class DocumentTable {
   }
 
   static getAllDocuments(db: Database.Database): IDocument[] {
-    const stmt = db.prepare(
-      "SELECT * FROM documents ORDER BY create_time DESC",
-    );
+    const stmt = db.prepare("SELECT * FROM documents ORDER BY create_time DESC");
     const documents = stmt.all();
-    return documents.map((doc) => this.parseDocument(doc));
+    return documents.map(doc => this.parseDocument(doc));
   }
 
   static updateDocumentItem(
@@ -1201,7 +1060,7 @@ export default class DocumentTable {
     const now = Date.now();
     stmt.run(
       now,
-      item.title,
+      canonicalContentTitle(db, currentDocumentItem.contentId) ?? item.title,
       JSON.stringify(item.tags),
       JSON.stringify(item.children),
       Number(item.isArticle),
@@ -1213,12 +1072,12 @@ export default class DocumentTable {
       item.contentId,
       JSON.stringify(item.parents),
       JSON.stringify(item.documents),
-      item.id,
+      item.id
     );
 
     Operation.insertOperation(db, "document-item", "update", item.id, now);
 
-    BrowserWindow.getAllWindows().forEach((window) => {
+    BrowserWindow.getAllWindows().forEach(window => {
       if (window !== win && !window.isDestroyed()) {
         window.webContents.send("document-item:updated", {
           databaseName: basename(db.name),
@@ -1228,7 +1087,7 @@ export default class DocumentTable {
     });
 
     if (item.isCard && item.cardId) {
-      BrowserWindow.getAllWindows().forEach((window) => {
+      BrowserWindow.getAllWindows().forEach(window => {
         if (window !== win && !window.isDestroyed()) {
           window.webContents.send("card:updated", {
             databaseName: basename(db.name),
@@ -1239,7 +1098,7 @@ export default class DocumentTable {
     }
 
     if (item.isArticle && item.articleId) {
-      BrowserWindow.getAllWindows().forEach((window) => {
+      BrowserWindow.getAllWindows().forEach(window => {
         if (window !== win && !window.isDestroyed()) {
           window.webContents.send("article:updated", {
             databaseName: basename(db.name),
@@ -1278,10 +1137,7 @@ export default class DocumentTable {
     return changes;
   }
 
-  static getDocumentItem(
-    db: Database.Database,
-    id: number,
-  ): IDocumentItem | null {
+  static getDocumentItem(db: Database.Database, id: number): IDocumentItem | null {
     const stmt = db.prepare(`
       SELECT di.*, c.content, c.count, c.update_time as content_update_time
       FROM document_items di
@@ -1296,10 +1152,7 @@ export default class DocumentTable {
     return this.parseDocumentItem(item);
   }
 
-  static getDocumentItemsByIds(
-    db: Database.Database,
-    ids: number[],
-  ): IDocumentItem[] {
+  static getDocumentItemsByIds(db: Database.Database, ids: number[]): IDocumentItem[] {
     if (ids.length === 0) return [];
 
     const placeholders = ids.map(() => "?").join(",");
@@ -1307,10 +1160,10 @@ export default class DocumentTable {
       `SELECT di.*, c.content, c.count, c.update_time as content_update_time
        FROM document_items di
        LEFT JOIN contents c ON di.content_id = c.id
-       WHERE di.id IN (${placeholders})`,
+       WHERE di.id IN (${placeholders})`
     );
     const items = stmt.all(ids);
-    return items.map((item) => this.parseDocumentItem(item));
+    return items.map(item => this.parseDocumentItem(item));
   }
 
   static getAllDocumentItems(db: Database.Database): IDocumentItem[] {
@@ -1320,13 +1173,10 @@ export default class DocumentTable {
       LEFT JOIN contents c ON di.content_id = c.id
     `);
     const items = stmt.all();
-    return items.map((item) => this.parseDocumentItem(item));
+    return items.map(item => this.parseDocumentItem(item));
   }
 
-  static getDocumentItemsByContentId(
-    db: Database.Database,
-    contentId: number,
-  ): IDocumentItem[] {
+  static getDocumentItemsByContentId(db: Database.Database, contentId: number): IDocumentItem[] {
     const stmt = db.prepare(`
       SELECT di.*, c.content, c.count, c.update_time as content_update_time
       FROM document_items di
@@ -1335,7 +1185,7 @@ export default class DocumentTable {
       ORDER BY di.update_time DESC, di.id DESC
     `);
     const items = stmt.all(contentId);
-    return items.map((item) => this.parseDocumentItem(item));
+    return items.map(item => this.parseDocumentItem(item));
   }
 
   // root_id 是否是 child_id 的父节点，可能存在多级父节点，这里查询所有父节点，如果 root_id 是 child_id 的父节点，则返回 true
@@ -1343,11 +1193,7 @@ export default class DocumentTable {
   // 思路：先判断 root_id 是否是 child_id 的父节点，如果是，则返回 true，
   // 如果不是，则继续查询 root_id 的 children 是不是 child_id 的父节点，如果是，则返回 true，
   // 如果不是，则继续查询 root_id 的 children 的 children 是不是 child_id 的父节点，以此类推
-  static isDocumentItemChildOf(
-    db: Database.Database,
-    id: number,
-    parentId: number,
-  ): boolean {
+  static isDocumentItemChildOf(db: Database.Database, id: number, parentId: number): boolean {
     const parentDocumentItem = this.getDocumentItem(db, parentId);
     if (!parentDocumentItem) return false;
     if (parentDocumentItem.children.includes(id)) {
@@ -1386,23 +1232,14 @@ export default class DocumentTable {
         }
       }
       const stmt = db.prepare(
-        `UPDATE document_items SET update_time = ?, parents = ? WHERE id = ?`,
+        `UPDATE document_items SET update_time = ?, parents = ? WHERE id = ?`
       );
       stmt.run(now, JSON.stringify(parents), documentItem.id);
-      Operation.insertOperation(
-        db,
-        "document-item",
-        "init-parents",
-        documentItem.id,
-        now,
-      );
+      Operation.insertOperation(db, "document-item", "init-parents", documentItem.id, now);
     }
   }
 
-  static initDocumentItemParentsByIds(
-    db: Database.Database,
-    ids: number[],
-  ): void {
+  static initDocumentItemParentsByIds(db: Database.Database, ids: number[]): void {
     const documentItems = this.getAllDocumentItems(db);
 
     const now = Date.now();
@@ -1414,17 +1251,14 @@ export default class DocumentTable {
         }
       }
       const stmt = db.prepare(
-        `UPDATE document_items SET update_time = ?, parents = ? WHERE id = ?`,
+        `UPDATE document_items SET update_time = ?, parents = ? WHERE id = ?`
       );
       stmt.run(now, JSON.stringify(parents), id);
       Operation.insertOperation(db, "document-item", "init-parents", id, now);
     }
   }
 
-  static getDocumentItemAllParents(
-    db: Database.Database,
-    id: number,
-  ): number[] {
+  static getDocumentItemAllParents(db: Database.Database, id: number): number[] {
     const documentItem = this.getDocumentItem(db, id);
     if (!documentItem) return [];
     const parents = documentItem.parents;
@@ -1441,23 +1275,17 @@ export default class DocumentTable {
     return Array.from(parentsSet);
   }
 
-  static getRootDocumentsByDocumentItemId(
-    db: Database.Database,
-    id: number,
-  ): IDocument[] {
+  static getRootDocumentsByDocumentItemId(db: Database.Database, id: number): IDocument[] {
     const parents = this.getDocumentItemAllParents(db, id);
     // 获取所有的 documents
     const documents = this.getAllDocuments(db);
     // 判断 document.children 中是否存在 parents
-    return documents.filter((document) => {
-      return document.children.some((childId) => parents.includes(childId));
+    return documents.filter(document => {
+      return document.children.some(childId => parents.includes(childId));
     });
   }
 
-  static getDocumentItemsByDocumentId(
-    db: Database.Database,
-    documentId: number,
-  ): IDocumentItem[] {
+  static getDocumentItemsByDocumentId(db: Database.Database, documentId: number): IDocumentItem[] {
     const stmt = db.prepare(`
       SELECT di.*, c.content, c.count, c.update_time as content_update_time
       FROM document_items di
@@ -1468,6 +1296,6 @@ export default class DocumentTable {
       )
     `);
     const items = stmt.all(documentId);
-    return items.map((item) => this.parseDocumentItem(item));
+    return items.map(item => this.parseDocumentItem(item));
   }
 }

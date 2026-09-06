@@ -3,8 +3,10 @@ import { Descendant } from "slate";
 import { useSearchParams } from "react-router-dom";
 import classnames from "classnames";
 
-import { Editor, EditorRef } from "@tau/editor/src";
-import EditText, { EditTextHandle } from "@/components/EditText";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
+import { EditTextHandle } from "@/components/EditText";
+import EditText from "@/components/CollaborativeTitle";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
 import useTheme from "@/hooks/useTheme";
@@ -31,46 +33,37 @@ const editorContextValue = {
 
 const SingleDocumentItemEditor = () => {
   const { isDark } = useTheme();
-  const documentItemEventBus = useCreation(
-    () => defaultDocumentItemEventBus.createEditor(),
-    [],
-  );
+  const documentItemEventBus = useCreation(() => defaultDocumentItemEventBus.createEditor(), []);
   const [searchParams] = useSearchParams();
   const documentItemId = Number(searchParams.get("documentItemId"));
   const databaseName = searchParams.get("databaseName");
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
 
   const extensions = useCreation(() => {
-    return [
-      ...dynamicExtensions,
-      createDocumentCardListExtension(documentItemId),
-    ];
+    return [...dynamicExtensions, createDocumentCardListExtension(documentItemId)];
   }, [documentItemId, dynamicExtensions]);
 
   const titleRef = useRef<EditTextHandle>(null);
-  const [editingDocumentItem, setEditingDocumentItem] =
-    useState<IDocumentItem | null>(null);
+  const [editingDocumentItem, setEditingDocumentItem] = useState<IDocumentItem | null>(null);
 
   const editorRef = useRef<EditorRef>(null);
   const prevDocumentItemRef = useRef<IDocumentItem | null>(null);
 
   const { throttleHandleEditorContentChange } = useEditContent(
     editingDocumentItem?.contentId,
-    (data) => {
+    data => {
       editorRef.current?.setEditorValue(data);
-    },
+    }
   );
 
   useEffect(() => {
     const unsubscribe = documentItemEventBus.subscribeToDocumentItemWithId(
       "document-item:updated",
       documentItemId,
-      (data) => {
+      data => {
         setEditingDocumentItem(data.documentItem);
         titleRef.current?.setValue(data.documentItem.title);
-      },
+      }
     );
 
     return () => {
@@ -182,6 +175,12 @@ const SingleDocumentItemEditor = () => {
     >
       <div className={styles.title}>
         <EditText
+          contentId={editingDocumentItem.contentId}
+          source={{
+            sourceType: "document-item",
+            sourceId: editingDocumentItem.id,
+            sourceTitle: editingDocumentItem.title,
+          }}
           ref={titleRef}
           defaultValue={editingDocumentItem.title}
           onChange={onTitleChange}
@@ -194,6 +193,7 @@ const SingleDocumentItemEditor = () => {
           <EditCardContext.Provider value={editorContextValue}>
             <ErrorBoundary>
               <Editor
+                contentId={editingDocumentItem?.contentId}
                 className={styles.editor}
                 ref={editorRef}
                 initValue={editingDocumentItem.content}

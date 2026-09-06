@@ -39,6 +39,7 @@ __pycache__
 pnpm-lock.yaml
 package-lock.json
 *.min.js
+*.cjs
 
 # Rust 相关
 target

@@ -3,18 +3,14 @@ import { Popover } from "antd";
 import { RenderElementProps } from "slate-react";
 
 import type { ContentLinkElement } from "../../types";
-import { InlineChromiumBugfix } from "@tau/editor/src";
+import { InlineChromiumBugfix, useCollaboration } from "@tau/editor/src";
 import Content from "../Content";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 
 import styles from "./index.module.less";
 import { getEditorText } from "@/utils";
-import {
-  getContentById,
-  getProjectItemById,
-  getRootDocumentsByDocumentItemId,
-} from "@/commands";
+import { getContentById, getProjectItemById, getRootDocumentsByDocumentItemId } from "@/commands";
 import { IContent } from "@/types";
 
 interface IContentLinkProps {
@@ -29,11 +25,21 @@ const ContentLink = memo((props: IContentLinkProps) => {
 
   const [content, setContent] = useState<IContent | null>(null);
 
+  const collaboration = useCollaboration();
+  // 协作者本机没有被引用内容，查询本地库还可能命中同 ID 的无关内容，直接降级为提示。
+  const remoteView = Boolean(
+    collaboration && collaboration.mode !== "local" && collaboration.role !== "owner"
+  );
+
   useEffect(() => {
-    getContentById(contentId).then((content) => {
+    if (remoteView) {
+      setContent(null);
+      return;
+    }
+    getContentById(contentId).then(content => {
       setContent(content);
     });
-  }, [contentId]);
+  }, [contentId, remoteView]);
 
   const handleClick = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -47,7 +53,7 @@ const ContentLink = memo((props: IContentLinkProps) => {
 
       // 如果有多个 pane，尝试在另一个 pane 中打开
       if (panes.length > 1) {
-        const otherPane = panes.find((p) => p.id !== activePaneId);
+        const otherPane = panes.find(p => p.id !== activePaneId);
         targetPaneId = otherPane?.id;
       }
 
@@ -57,14 +63,14 @@ const ContentLink = memo((props: IContentLinkProps) => {
           TabType.CardDetail,
           { id: refId },
           targetPaneId,
-          contentTitle || getEditorText(content.content, 10),
+          contentTitle || getEditorText(content.content, 10)
         );
       } else if (contentType === "article") {
         openInNewTab(
           TabType.ArticleDetail,
           { id: refId },
           targetPaneId,
-          contentTitle || getEditorText(content.content, 10),
+          contentTitle || getEditorText(content.content, 10)
         );
       } else if (contentType === "project-item") {
         // 获取项目项所属的项目
@@ -79,7 +85,7 @@ const ContentLink = memo((props: IContentLinkProps) => {
                 itemId: refId,
               },
               targetPaneId,
-              contentTitle || getEditorText(content.content, 10),
+              contentTitle || getEditorText(content.content, 10)
             );
           } else {
             // 如果没有找到项目，回退到项目列表
@@ -102,7 +108,7 @@ const ContentLink = memo((props: IContentLinkProps) => {
                 itemId: refId,
               },
               targetPaneId,
-              contentTitle || getEditorText(content.content, 10),
+              contentTitle || getEditorText(content.content, 10)
             );
           } else {
             // 如果没有找到知识库，回退到知识库列表
@@ -119,7 +125,15 @@ const ContentLink = memo((props: IContentLinkProps) => {
   return (
     <Popover
       trigger={"hover"}
-      content={<Content content={content} />}
+      content={
+        remoteView ? (
+          <div className={styles.unsharedTip}>
+            {contentTitle ? `${contentTitle} · ` : ""}内容未共享，仅保存在创建者本机
+          </div>
+        ) : (
+          <Content content={content} />
+        )
+      }
       styles={{
         content: {
           padding: 0,
@@ -132,11 +146,7 @@ const ContentLink = memo((props: IContentLinkProps) => {
       placement={"bottom"}
       mouseEnterDelay={0.5}
     >
-      <span
-        onClick={handleClick}
-        className={styles.contentLinkContainer}
-        {...attributes}
-      >
+      <span onClick={handleClick} className={styles.contentLinkContainer} {...attributes}>
         <InlineChromiumBugfix />
         {children}
         <InlineChromiumBugfix />

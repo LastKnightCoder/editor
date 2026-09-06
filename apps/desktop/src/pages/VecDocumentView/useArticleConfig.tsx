@@ -1,17 +1,8 @@
-import { Editor } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import { formatDate, getEditorText, getMarkdown } from "@/utils";
 import { IArticle, IndexParams, SearchResult } from "@/types";
 import { useState, useEffect, useMemo } from "react";
-import {
-  Tag,
-  Button,
-  Popover,
-  Flex,
-  Typography,
-  TableProps,
-  TableColumnType,
-  App,
-} from "antd";
+import { Tag, Button, Popover, Flex, Typography, TableProps, TableColumnType, App } from "antd";
 import { Descendant } from "slate";
 import { useMemoizedFn, useLocalStorageState } from "ahooks";
 import { TableRowSelection } from "antd/es/table/interface";
@@ -30,7 +21,7 @@ const useArticleConfig = () => {
   const [articles, setArticles] = useState<IArticle[]>([]);
 
   useEffect(() => {
-    getAllArticles().then((articles) => {
+    getAllArticles().then(articles => {
       setArticles(articles);
     });
   }, []);
@@ -39,18 +30,15 @@ const useArticleConfig = () => {
 
   const [selectedRows, setSelectedRows] = useState<IArticle[]>([]);
   const [loadingIds, setLoadingIds] = useState<number[]>([]);
-  const [pageSize, setPageSize] = useLocalStorageState<number>(
-    "article-pagesize",
-    {
-      defaultValue: PAGE_SIZE,
-    },
-  );
+  const [pageSize, setPageSize] = useLocalStorageState<number>("article-pagesize", {
+    defaultValue: PAGE_SIZE,
+  });
   const onSelectChange = (_: React.Key[], newSelectedRows: IArticle[]) => {
     setSelectedRows(newSelectedRows);
   };
 
   const rowSelection: TableRowSelection<IArticle> = {
-    selectedRowKeys: selectedRows.map((row) => row.id),
+    selectedRowKeys: selectedRows.map(row => row.id),
     onChange: onSelectChange,
   };
 
@@ -61,10 +49,10 @@ const useArticleConfig = () => {
   const filteredArticles = useMemo(() => {
     const indexStatusFilterArray = filteredInfo.index_status || [];
 
-    const filteredArticles = articles.filter((article) => {
+    const filteredArticles = articles.filter(article => {
       // 查找索引状态
       const vecResult = vecResults.find(
-        (result) => result.id === article.id && result.type === "article",
+        result => result.id === article.id && result.type === "article"
       );
 
       let status;
@@ -78,8 +66,7 @@ const useArticleConfig = () => {
 
       // 索引状态过滤
       const isHitIndexStatus =
-        indexStatusFilterArray.length === 0 ||
-        indexStatusFilterArray.includes(status);
+        indexStatusFilterArray.length === 0 || indexStatusFilterArray.includes(status);
 
       return isHitIndexStatus;
     });
@@ -89,7 +76,7 @@ const useArticleConfig = () => {
 
   const slicedArticles = filteredArticles.slice(
     (current - 1) * (pageSize || PAGE_SIZE),
-    current * (pageSize || PAGE_SIZE),
+    current * (pageSize || PAGE_SIZE)
   );
 
   const initIndexResults = useMemoizedFn(async () => {
@@ -156,24 +143,89 @@ const useArticleConfig = () => {
     </Flex>
   );
 
-  const onCreateEmbedding = useMemoizedFn(
-    async (markdown: string, record: IArticle) => {
-      setLoadingIds((prev) => [...prev, record.id]);
-      const messageKey = `create-article-index-${record.id}`;
-      message.loading({ content: "正在创建索引...", key: messageKey });
+  const onCreateEmbedding = useMemoizedFn(async (markdown: string, record: IArticle) => {
+    setLoadingIds(prev => [...prev, record.id]);
+    const messageKey = `create-article-index-${record.id}`;
+    message.loading({ content: "正在创建索引...", key: messageKey });
 
-      try {
-        // 检查当前索引状态
-        const vecResult = vecResults.find(
-          (result) => result.id === record.id && result.type === "article",
-        );
+    try {
+      // 检查当前索引状态
+      const vecResult = vecResults.find(
+        result => result.id === record.id && result.type === "article"
+      );
 
-        // 如果已存在且是最新的索引，直接返回成功
-        if (vecResult && vecResult.updateTime >= record.update_time) {
-          message.success({ content: "索引已存在", key: messageKey });
+      // 如果已存在且是最新的索引，直接返回成功
+      if (vecResult && vecResult.updateTime >= record.update_time) {
+        message.success({ content: "索引已存在", key: messageKey });
+        return true;
+      }
+
+      const params: IndexParams = {
+        id: record.id,
+        content: markdown,
+        type: "article",
+        updateTime: record.update_time,
+        modelInfo,
+      };
+
+      const success = await indexContent(params);
+
+      if (success) {
+        try {
+          await initIndexResults();
+          message.success({ content: "索引创建成功", key: messageKey });
           return true;
+        } catch (error) {
+          console.error("初始化索引结果失败", error);
+          message.error({
+            content: "索引创建成功，但初始化索引结果失败",
+            key: messageKey,
+          });
+          return false;
         }
+      } else {
+        message.error({ content: "索引创建失败", key: messageKey });
+        return false;
+      }
+    } catch (error) {
+      console.error("创建索引失败:", error);
+      message.error({ content: "索引创建失败", key: messageKey });
+      return false;
+    } finally {
+      setLoadingIds(prev => prev.filter(id => id !== record.id));
+    }
+  });
 
+  const onRemoveEmbedding = useMemoizedFn(async (record: IArticle) => {
+    setLoadingIds(prev => [...prev, record.id]);
+    const messageKey = `remove-article-index-${record.id}`;
+    message.loading({ content: "正在删除索引...", key: messageKey });
+
+    try {
+      await removeIndex(record.id, "article");
+      await initIndexResults();
+      message.success({ content: "索引删除成功", key: messageKey });
+    } catch (error) {
+      console.error("删除索引失败:", error);
+      message.error({ content: "索引删除失败", key: messageKey });
+    } finally {
+      setLoadingIds(prev => prev.filter(id => id !== record.id));
+    }
+  });
+
+  const onUpdateEmbedding = useMemoizedFn(async (markdown: string, record: IArticle) => {
+    setLoadingIds(prev => [...prev, record.id]);
+    const messageKey = `update-index-${record.id}`;
+    message.loading({ content: "正在更新索引...", key: messageKey });
+
+    try {
+      // 检查当前索引状态
+      const vecResult = vecResults.find(
+        result => result.id === record.id && result.type === "article"
+      );
+
+      // 如果没有索引或索引需要更新
+      if (!vecResult || record.update_time > vecResult.updateTime) {
         const params: IndexParams = {
           id: record.id,
           content: markdown,
@@ -187,101 +239,32 @@ const useArticleConfig = () => {
         if (success) {
           try {
             await initIndexResults();
-            message.success({ content: "索引创建成功", key: messageKey });
+            message.success({ content: "索引更新成功", key: messageKey });
             return true;
           } catch (error) {
             console.error("初始化索引结果失败", error);
             message.error({
-              content: "索引创建成功，但初始化索引结果失败",
+              content: "索引更新成功，但初始化索引结果失败",
               key: messageKey,
             });
             return false;
           }
         } else {
-          message.error({ content: "索引创建失败", key: messageKey });
+          message.error({ content: "索引更新失败", key: messageKey });
           return false;
         }
-      } catch (error) {
-        console.error("创建索引失败:", error);
-        message.error({ content: "索引创建失败", key: messageKey });
-        return false;
-      } finally {
-        setLoadingIds((prev) => prev.filter((id) => id !== record.id));
+      } else {
+        message.success({ content: "索引已是最新", key: messageKey });
+        return true;
       }
-    },
-  );
-
-  const onRemoveEmbedding = useMemoizedFn(async (record: IArticle) => {
-    setLoadingIds((prev) => [...prev, record.id]);
-    const messageKey = `remove-article-index-${record.id}`;
-    message.loading({ content: "正在删除索引...", key: messageKey });
-
-    try {
-      await removeIndex(record.id, "article");
-      await initIndexResults();
-      message.success({ content: "索引删除成功", key: messageKey });
     } catch (error) {
-      console.error("删除索引失败:", error);
-      message.error({ content: "索引删除失败", key: messageKey });
+      console.error("更新索引失败:", error);
+      message.error({ content: "索引更新失败", key: messageKey });
+      return false;
     } finally {
-      setLoadingIds((prev) => prev.filter((id) => id !== record.id));
+      setLoadingIds(prev => prev.filter(id => id !== record.id));
     }
   });
-
-  const onUpdateEmbedding = useMemoizedFn(
-    async (markdown: string, record: IArticle) => {
-      setLoadingIds((prev) => [...prev, record.id]);
-      const messageKey = `update-index-${record.id}`;
-      message.loading({ content: "正在更新索引...", key: messageKey });
-
-      try {
-        // 检查当前索引状态
-        const vecResult = vecResults.find(
-          (result) => result.id === record.id && result.type === "article",
-        );
-
-        // 如果没有索引或索引需要更新
-        if (!vecResult || record.update_time > vecResult.updateTime) {
-          const params: IndexParams = {
-            id: record.id,
-            content: markdown,
-            type: "article",
-            updateTime: record.update_time,
-            modelInfo,
-          };
-
-          const success = await indexContent(params);
-
-          if (success) {
-            try {
-              await initIndexResults();
-              message.success({ content: "索引更新成功", key: messageKey });
-              return true;
-            } catch (error) {
-              console.error("初始化索引结果失败", error);
-              message.error({
-                content: "索引更新成功，但初始化索引结果失败",
-                key: messageKey,
-              });
-              return false;
-            }
-          } else {
-            message.error({ content: "索引更新失败", key: messageKey });
-            return false;
-          }
-        } else {
-          message.success({ content: "索引已是最新", key: messageKey });
-          return true;
-        }
-      } catch (error) {
-        console.error("更新索引失败:", error);
-        message.error({ content: "索引更新失败", key: messageKey });
-        return false;
-      } finally {
-        setLoadingIds((prev) => prev.filter((id) => id !== record.id));
-      }
-    },
-  );
 
   const columns: TableColumnType<IArticle>[] = [
     {
@@ -320,13 +303,10 @@ const useArticleConfig = () => {
       key: "content",
       dataIndex: "content",
       title: "文章内容",
-      render: (content: Descendant[]) => {
+      render: (content: Descendant[], record: { contentId?: number }) => {
         return (
           <Flex vertical gap={12} align={"flex-start"}>
-            <Typography.Paragraph
-              ellipsis={{ rows: 1 }}
-              style={{ maxWidth: 400 }}
-            >
+            <Typography.Paragraph ellipsis={{ rows: 1 }} style={{ maxWidth: 400 }}>
               {getEditorText(content, 20)}
             </Typography.Paragraph>
             <Popover
@@ -334,6 +314,7 @@ const useArticleConfig = () => {
               placement={"bottom"}
               content={
                 <Editor
+                  contentId={record.contentId}
                   style={{
                     width: 320,
                     height: 180,
@@ -375,17 +356,13 @@ const useArticleConfig = () => {
       render: (_, record) => {
         // 查找索引状态
         const vecResult = vecResults.find(
-          (result) => result.id === record.id && result.type === "article",
+          result => result.id === record.id && result.type === "article"
         );
 
         // 显示向量索引状态
         if (vecResult) {
           return (
-            <Tag
-              color={
-                record.update_time > vecResult.updateTime ? "orange" : "green"
-              }
-            >
+            <Tag color={record.update_time > vecResult.updateTime ? "orange" : "green"}>
               {record.update_time > vecResult.updateTime ? "待更新" : "已索引"}
             </Tag>
           );
@@ -403,7 +380,7 @@ const useArticleConfig = () => {
 
         // 查找索引状态
         const vecResult = vecResults.find(
-          (result) => result.id === record.id && result.type === "article",
+          result => result.id === record.id && result.type === "article"
         );
 
         if (!vecResult) {
@@ -464,18 +441,16 @@ const useArticleConfig = () => {
     showSizeChanger: true,
   };
 
-  const onChange: TableProps["onChange"] = useMemoizedFn(
-    (pagination, filteredInfo) => {
-      if (pagination.current !== current) {
-        setCurrent(pagination.current || 1);
-        setSelectedRows([]);
-      }
-      if (pagination.pageSize !== pageSize) {
-        setPageSize(pagination.pageSize || PAGE_SIZE);
-      }
-      setFilteredInfo(filteredInfo);
-    },
-  );
+  const onChange: TableProps["onChange"] = useMemoizedFn((pagination, filteredInfo) => {
+    if (pagination.current !== current) {
+      setCurrent(pagination.current || 1);
+      setSelectedRows([]);
+    }
+    if (pagination.pageSize !== pageSize) {
+      setPageSize(pagination.pageSize || PAGE_SIZE);
+    }
+    setFilteredInfo(filteredInfo);
+  });
 
   return {
     dataSource: slicedArticles,

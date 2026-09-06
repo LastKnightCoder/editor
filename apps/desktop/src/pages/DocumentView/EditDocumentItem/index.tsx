@@ -5,7 +5,9 @@ import { ReactEditor } from "slate-react";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 import classnames from "classnames";
 
-import { Editor, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
+import ContentCollaborationControl from "@/components/ContentCollaborationControl";
 import EditorSourceValue from "@/components/EditorSourceValue";
 import ImmersiveEditorMode, {
   type ImmersiveEditorExitPayload,
@@ -16,11 +18,7 @@ import useEditContent from "@/hooks/useEditContent";
 import useRegisterActiveEditingContext from "@/hooks/useRegisterActiveEditingContext";
 
 import { EditOutlined, ReadOutlined } from "@ant-design/icons";
-import {
-  MdFormatIndentIncrease,
-  MdFormatIndentDecrease,
-  MdOutlineCode,
-} from "react-icons/md";
+import { MdFormatIndentIncrease, MdFormatIndentDecrease, MdOutlineCode } from "react-icons/md";
 import { Maximize2 } from "lucide-react";
 
 import { formatDate, defaultDocumentItemEventBus } from "@/utils";
@@ -30,7 +28,8 @@ import { createDocumentCardListExtension } from "@/editor-extensions";
 import styles from "./index.module.less";
 import EditorOutline from "@/components/EditorOutline";
 import { EditCardContext } from "@/context.ts";
-import EditText, { EditTextHandle } from "@/components/EditText";
+import { EditTextHandle } from "@/components/EditText";
+import EditText from "@/components/CollaborativeTitle";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 const cloneRange = (selection: Range | null): Range | null => {
@@ -53,9 +52,7 @@ interface EditDocumentItemProps {
 
 const EditDocumentItem = memo((props: EditDocumentItemProps) => {
   const { documentItemId } = props;
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const titleRef = useRef<EditTextHandle>(null);
   const editorRef = useRef<EditorRef>(null);
   const immersiveEntrySelectionRef = useRef<Range | null>(null);
@@ -63,19 +60,13 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
   const [readonly, setReadonly] = useState(false);
   const [immersiveMode, setImmersiveMode] = useState(false);
   const [editorRemountKey, setEditorRemountKey] = useState(0);
-  const documentItemEventBus = useCreation(
-    () => defaultDocumentItemEventBus.createEditor(),
-    [],
-  );
+  const documentItemEventBus = useCreation(() => defaultDocumentItemEventBus.createEditor(), []);
 
   const outlineRef = useRef<HTMLDivElement>(null);
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
 
   const extensions = useCreation(() => {
-    return [
-      ...dynamicExtensions,
-      createDocumentCardListExtension(documentItemId),
-    ];
+    return [...dynamicExtensions, createDocumentCardListExtension(documentItemId)];
   }, [documentItemId, dynamicExtensions]);
 
   const {
@@ -87,13 +78,10 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     setDocumentItem,
   } = useEditDoc(documentItemId);
 
-  const { throttleHandleEditorContentChange } = useEditContent(
-    documentItem?.contentId,
-    (content) => {
-      editorRef.current?.setEditorValue(content);
-      onContentChangeFromEditDoc(content);
-    },
-  );
+  const { throttleHandleEditorContentChange } = useEditContent(documentItem?.contentId, content => {
+    editorRef.current?.setEditorValue(content);
+    onContentChangeFromEditDoc(content);
+  });
   const {
     handleSelectionChange: handleEditorSelectionChange,
     handleFocus: handleEditorFocus,
@@ -112,24 +100,19 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     const unsubscribe = documentItemEventBus.subscribeToDocumentItemWithId(
       "document-item:updated",
       documentItemId,
-      (data) => {
+      data => {
         if (!data.documentItem) return;
         if (data.documentItem.title !== documentItem?.title) {
           titleRef.current?.setValue(data.documentItem.title);
         }
         setDocumentItem(data.documentItem);
-      },
+      }
     );
 
     return () => {
       unsubscribe();
     };
-  }, [
-    documentItemId,
-    documentItemEventBus,
-    setDocumentItem,
-    documentItem?.title,
-  ]);
+  }, [documentItemId, documentItemEventBus, setDocumentItem, documentItem?.title]);
 
   const handleOnPressEnter = useMemoizedFn(async () => {
     if (!documentItem) return;
@@ -138,10 +121,7 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     // 保存文档
     const updatedDocumentItem = await saveDocument();
     if (updatedDocumentItem) {
-      documentItemEventBus.publishDocumentItemEvent(
-        "document-item:updated",
-        updatedDocumentItem,
-      );
+      documentItemEventBus.publishDocumentItemEvent("document-item:updated", updatedDocumentItem);
     }
   });
 
@@ -149,10 +129,7 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     if (readonly) return;
     const updatedDocumentItem = await saveDocument();
     if (updatedDocumentItem) {
-      documentItemEventBus.publishDocumentItemEvent(
-        "document-item:updated",
-        updatedDocumentItem,
-      );
+      documentItemEventBus.publishDocumentItemEvent("document-item:updated", updatedDocumentItem);
     }
   }, 1000);
 
@@ -161,10 +138,7 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     throttleHandleEditorContentChange.flush();
     const updatedDocumentItem = await saveDocument();
     if (updatedDocumentItem) {
-      documentItemEventBus.publishDocumentItemEvent(
-        "document-item:updated",
-        updatedDocumentItem,
-      );
+      documentItemEventBus.publishDocumentItemEvent("document-item:updated", updatedDocumentItem);
     }
   });
 
@@ -175,13 +149,11 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     onContentChangeFromEditDoc(content);
   });
 
-  const handleImmersiveExit = useMemoizedFn(
-    (payload?: ImmersiveEditorExitPayload) => {
-      pendingSelectionRef.current = payload?.selection ?? null;
-      setImmersiveMode(false);
-      setEditorRemountKey((current) => current + 1);
-    },
-  );
+  const handleImmersiveExit = useMemoizedFn((payload?: ImmersiveEditorExitPayload) => {
+    pendingSelectionRef.current = payload?.selection ?? null;
+    setImmersiveMode(false);
+    setEditorRemountKey(current => current + 1);
+  });
 
   useEffect(() => {
     if (immersiveMode || !pendingSelectionRef.current) return;
@@ -205,7 +177,7 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
 
   const handleEnterImmersiveMode = useMemoizedFn(() => {
     immersiveEntrySelectionRef.current = cloneRange(
-      editorRef.current?.getEditor().selection ?? null,
+      editorRef.current?.getEditor().selection ?? null
     );
     setImmersiveMode(true);
   });
@@ -215,18 +187,14 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     title: string;
   }> = useMemo(() => {
     if (!documentItem || !documentItem.content) return [];
-    const headerNodes = documentItem.content.filter(
-      (node) => node.type === "header",
-    );
-    return headerNodes.map((header) => {
+    const headerNodes = documentItem.content.filter(node => node.type === "header");
+    return headerNodes.map(header => {
       const headerEl = header as {
         level: number;
         children: Array<{ text?: string }>;
       };
       const title = headerEl.children
-        .map((node) =>
-          node && typeof node === "object" && "text" in node ? node.text : "",
-        )
+        .map(node => (node && typeof node === "object" && "text" in node ? node.text : ""))
         .join("");
       return {
         level: headerEl.level,
@@ -254,6 +222,12 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
       <div className={styles.editDoc}>
         <div className={styles.editorContainer}>
           <EditText
+            contentId={documentItem.contentId}
+            source={{
+              sourceType: "document-item",
+              sourceId: documentItem.id,
+              sourceTitle: documentItem.title,
+            }}
             className={styles.title}
             ref={titleRef}
             contentEditable={true}
@@ -272,6 +246,8 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
           >
             <ErrorBoundary>
               <Editor
+                contentId={documentItem?.contentId}
+                collaborationControl={false}
                 key={`${documentItem.id}-${editorRemountKey}`}
                 ref={editorRef}
                 initValue={documentItem.content}
@@ -296,6 +272,14 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
         />
       </div>
       <div className={styles.statusBar}>
+        <ContentCollaborationControl
+          contentId={documentItem.contentId}
+          source={{
+            sourceType: "document-item",
+            sourceId: documentItem.id,
+            sourceTitle: documentItem.title,
+          }}
+        />
         <div
           style={{
             lineHeight: "20px",
@@ -309,19 +293,13 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
           {readonly ? (
             <Tooltip title={"编辑"}>
               <span>
-                <EditOutlined
-                  className={styles.icon}
-                  onClick={() => setReadonly(false)}
-                />
+                <EditOutlined className={styles.icon} onClick={() => setReadonly(false)} />
               </span>
             </Tooltip>
           ) : (
             <Tooltip title={"预览"}>
               <span>
-                <ReadOutlined
-                  className={styles.icon}
-                  onClick={() => setReadonly(true)}
-                />
+                <ReadOutlined className={styles.icon} onClick={() => setReadonly(true)} />
               </span>
             </Tooltip>
           )}
@@ -376,11 +354,7 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
         <div className={styles.item}>
           <Tooltip title={"沉浸模式"}>
             <span>
-              <Maximize2
-                size={14}
-                className={styles.icon}
-                onClick={handleEnterImmersiveMode}
-              />
+              <Maximize2 size={14} className={styles.icon} onClick={handleEnterImmersiveMode} />
             </span>
           </Tooltip>
         </div>
@@ -394,6 +368,7 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
       />
       {immersiveMode && (
         <ImmersiveEditorMode
+          contentId={documentItem?.contentId}
           initValue={documentItem.content}
           initialSelection={immersiveEntrySelectionRef.current}
           onChange={onContentChange}

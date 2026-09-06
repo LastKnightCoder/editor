@@ -20,6 +20,7 @@ import { v4 as uuidv4 } from "uuid";
 import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
+import { canonicalContentTitle } from "../collaboration/content-sessions";
 import CardTable from "./card";
 import ArticleTable from "./article";
 import VideoNoteTable from "./video-note";
@@ -70,11 +71,9 @@ const getAdjustedInsertIndex = ({
   dragId: number;
   insertIndex: number;
 }) => {
-  const previousIndex = children.findIndex((id) => id === dragId);
+  const previousIndex = children.findIndex(id => id === dragId);
   const adjustedIndex =
-    previousIndex >= 0 && previousIndex < insertIndex
-      ? insertIndex - 1
-      : insertIndex;
+    previousIndex >= 0 && previousIndex < insertIndex ? insertIndex - 1 : insertIndex;
   return Math.max(0, Math.min(adjustedIndex, children.length));
 };
 
@@ -106,45 +105,29 @@ export default class ProjectTable {
     const tableInfo = db.prepare(`PRAGMA table_info(project)`).all() as Array<{
       name: string;
     }>;
-    const hasProjectType = tableInfo.some(
-      (column) => column.name === "project_type",
-    );
-    const hasDataTableId = tableInfo.some(
-      (column) => column.name === "data_table_id",
-    );
+    const hasProjectType = tableInfo.some(column => column.name === "project_type");
+    const hasDataTableId = tableInfo.some(column => column.name === "data_table_id");
 
     if (!hasProjectType) {
-      db.exec(
-        "ALTER TABLE project ADD COLUMN project_type TEXT DEFAULT 'document-tree'",
-      );
-      db.exec(
-        `UPDATE project SET project_type = 'document-tree' WHERE project_type IS NULL`,
-      );
+      db.exec("ALTER TABLE project ADD COLUMN project_type TEXT DEFAULT 'document-tree'");
+      db.exec(`UPDATE project SET project_type = 'document-tree' WHERE project_type IS NULL`);
     }
 
     if (!hasDataTableId) {
       db.exec("ALTER TABLE project ADD COLUMN data_table_id INTEGER DEFAULT 0");
-      db.exec(
-        `UPDATE project SET data_table_id = 0 WHERE data_table_id IS NULL`,
-      );
+      db.exec(`UPDATE project SET data_table_id = 0 WHERE data_table_id IS NULL`);
     }
 
     // 检查 project_item 表是否有 podcast_id 字段
-    const projectItemTableInfo = db
-      .prepare(`PRAGMA table_info(project_item)`)
-      .all() as Array<{
+    const projectItemTableInfo = db.prepare(`PRAGMA table_info(project_item)`).all() as Array<{
       name: string;
     }>;
-    const hasPodcastId = projectItemTableInfo.some(
-      (column) => column.name === "podcast_id",
-    );
+    const hasPodcastId = projectItemTableInfo.some(column => column.name === "podcast_id");
 
     if (!hasPodcastId) {
+      db.exec(`ALTER TABLE project_item ADD COLUMN podcast_id INTEGER DEFAULT NULL;`);
       db.exec(
-        `ALTER TABLE project_item ADD COLUMN podcast_id INTEGER DEFAULT NULL;`,
-      );
-      db.exec(
-        `CREATE INDEX IF NOT EXISTS idx_project_item_podcast_id ON project_item(podcast_id);`,
+        `CREATE INDEX IF NOT EXISTS idx_project_item_podcast_id ON project_item(podcast_id);`
       );
       log.info("已添加 podcast_id 字段到 project_item 表");
     }
@@ -180,9 +163,9 @@ export default class ProjectTable {
 
   private static isMigrationDone(db: Database.Database, key: string) {
     this.ensureMigrationMetaTable(db);
-    const row = db
-      .prepare(`SELECT value FROM migration_meta WHERE key = ?`)
-      .get(key) as { value: string } | undefined;
+    const row = db.prepare(`SELECT value FROM migration_meta WHERE key = ?`).get(key) as
+      | { value: string }
+      | undefined;
     return row?.value === "done";
   }
 
@@ -193,7 +176,7 @@ export default class ProjectTable {
         INSERT INTO migration_meta (key, value)
         VALUES (?, 'done')
         ON CONFLICT(key) DO UPDATE SET value = 'done'
-      `,
+      `
     ).run(key);
   }
 
@@ -204,12 +187,8 @@ export default class ProjectTable {
       .get(PROJECT_ID_SEQ_KEY) as { value: string } | undefined;
     const parsedSeq = Number.parseInt(seqRow?.value || "0", 10);
     const currentSeq = Number.isFinite(parsedSeq) ? parsedSeq : 0;
-    const maxIdRow = db.prepare(
-      `SELECT COALESCE(MAX(id), 0) as max_id FROM project`,
-    );
-    const maxProjectId = Number(
-      (maxIdRow.get() as { max_id: number } | undefined)?.max_id || 0,
-    );
+    const maxIdRow = db.prepare(`SELECT COALESCE(MAX(id), 0) as max_id FROM project`);
+    const maxProjectId = Number((maxIdRow.get() as { max_id: number } | undefined)?.max_id || 0);
     const nextProjectId = Math.max(currentSeq, maxProjectId) + 1;
 
     db.prepare(
@@ -217,7 +196,7 @@ export default class ProjectTable {
         INSERT INTO migration_meta (key, value)
         VALUES (?, ?)
         ON CONFLICT(key) DO UPDATE SET value = excluded.value
-      `,
+      `
     ).run(PROJECT_ID_SEQ_KEY, String(nextProjectId));
 
     return nextProjectId;
@@ -229,16 +208,12 @@ export default class ProjectTable {
     }
 
     const webviewItems = db
-      .prepare(
-        `SELECT id, title, ref_type, ref_id FROM project_item WHERE project_item_type = ?`,
-      )
+      .prepare(`SELECT id, title, ref_type, ref_id FROM project_item WHERE project_item_type = ?`)
       .all(EProjectItemType.WebView) as any[];
     const updateStmt = db.prepare(
-      `UPDATE project_item SET title = ?, ref_type = ?, ref_id = ? WHERE id = ?`,
+      `UPDATE project_item SET title = ?, ref_type = ?, ref_id = ? WHERE id = ?`
     );
-    const updateTitleStmt = db.prepare(
-      `UPDATE project_item SET title = ? WHERE id = ?`,
-    );
+    const updateTitleStmt = db.prepare(`UPDATE project_item SET title = ? WHERE id = ?`);
     for (const item of webviewItems) {
       if (item.ref_type === "web-link" && item.ref_id) continue;
       const parsed = this.extractLegacyWebLink(item.title || "");
@@ -248,9 +223,7 @@ export default class ProjectTable {
         }
         continue;
       }
-      const sourceType: WebLinkSourceType = parsed.url.startsWith("http")
-        ? "remote"
-        : "local";
+      const sourceType: WebLinkSourceType = parsed.url.startsWith("http") ? "remote" : "local";
       const webLink = WebLinkTable.create(db, {
         title: parsed.title || parsed.url,
         url: parsed.url,
@@ -274,19 +247,13 @@ export default class ProjectTable {
       "get-project-item": this.getProjectItem.bind(this),
       "get-project-items-by-ids": this.getProjectItemsByIds.bind(this),
       "get-project-item-by-ref": this.getProjectItemByRef.bind(this),
-      "get-project-item-count-in-project":
-        this.getProjectItemCountInProject.bind(this),
-      "get-all-project-items-not-in-project":
-        this.getAllProjectItemsNotInProject.bind(this),
-      "is-project-item-not-in-any-project":
-        this.isProjectItemNotInAnyProject.bind(this),
-      "get-project-items-not-in-any-project":
-        this.getProjectItemsNotInAnyProject.bind(this),
-      "delete-project-items-not-in-any-project":
-        this.deleteProjectItemsNotInAnyProject.bind(this),
+      "get-project-item-count-in-project": this.getProjectItemCountInProject.bind(this),
+      "get-all-project-items-not-in-project": this.getAllProjectItemsNotInProject.bind(this),
+      "is-project-item-not-in-any-project": this.isProjectItemNotInAnyProject.bind(this),
+      "get-project-items-not-in-any-project": this.getProjectItemsNotInAnyProject.bind(this),
+      "delete-project-items-not-in-any-project": this.deleteProjectItemsNotInAnyProject.bind(this),
       "get-all-project-items": this.getAllProjectItems.bind(this),
-      "get-project-items-by-content-id":
-        this.getProjectItemsByContentId.bind(this),
+      "get-project-items-by-content-id": this.getProjectItemsByContentId.bind(this),
       "add-root-project-item": this.addRootProjectItem.bind(this),
       "add-child-project-item": this.addChildProjectItem.bind(this),
       "add-ref-root-project-item": this.addRefRootProjectItem.bind(this),
@@ -295,10 +262,8 @@ export default class ProjectTable {
       "remove-child-project-item": this.removeChildProjectItem.bind(this),
       "move-project-tree-item": this.moveProjectTreeItem.bind(this),
       "get-project-items-by-dates": this.getProjectItemsByDates.bind(this),
-      "get-project-items-by-date-range":
-        this.getProjectItemsByDateRange.bind(this),
-      "get-project-items-content-by-ids":
-        this.getProjectItemsContentByIds.bind(this),
+      "get-project-items-by-date-range": this.getProjectItemsByDateRange.bind(this),
+      "get-project-items-content-by-ids": this.getProjectItemsContentByIds.bind(this),
       "attach-podcast-to-project-item": this.attachPodcast.bind(this),
       "detach-podcast-from-project-item": this.detachPodcast.bind(this),
     };
@@ -367,13 +332,9 @@ export default class ProjectTable {
         name: item.podcast_name || undefined,
         audioUrl: item.podcast_audio_url,
         script: item.podcast_script || "",
-        scriptLines: item.podcast_script_lines
-          ? JSON.parse(item.podcast_script_lines)
-          : [],
+        scriptLines: item.podcast_script_lines ? JSON.parse(item.podcast_script_lines) : [],
         duration: item.podcast_duration || 0,
-        speakers: item.podcast_speakers
-          ? JSON.parse(item.podcast_speakers)
-          : [],
+        speakers: item.podcast_speakers ? JSON.parse(item.podcast_speakers) : [],
       };
     }
 
@@ -389,8 +350,7 @@ export default class ProjectTable {
       refType: item.ref_type || "",
       refId: item.ref_id || 0,
       whiteBoardContentId: item.white_board_content_id || 0,
-      projectItemType: (item.project_item_type ||
-        "document") as EProjectItemType,
+      projectItemType: (item.project_item_type || "document") as EProjectItemType,
       count: count,
       contentId: contentId,
       podcast: podcast as ProjectItem["podcast"],
@@ -436,7 +396,7 @@ export default class ProjectTable {
         Number(createProjectPayload.archived || false),
         Number(createProjectPayload.pinned || false),
         createProjectPayload.projectType || EProjectType.DocumentTree,
-        dataTableId,
+        dataTableId
       );
 
       Operation.insertOperation(db, "project", "insert", projectId, now);
@@ -470,7 +430,7 @@ export default class ProjectTable {
       Number(project.pinned || false),
       project.projectType || EProjectType.DocumentTree,
       project.dataTableId || 0,
-      project.id,
+      project.id
     );
 
     Operation.insertOperation(db, "project", "update", project.id, now);
@@ -511,7 +471,7 @@ export default class ProjectTable {
         name: string;
         file: string;
       }>;
-      const mainDbFile = dbList.find((d) => d.name === "main")?.file;
+      const mainDbFile = dbList.find(d => d.name === "main")?.file;
       if (mainDbFile) {
         const mainDbName = basename(mainDbFile);
 
@@ -524,18 +484,14 @@ export default class ProjectTable {
           PathUtil.getAppDir(),
           "vibe-learning",
           dbNameWithoutExt,
-          String(id),
+          String(id)
         );
         if (existsSync(markdownDir)) {
           try {
             rmSync(markdownDir, { recursive: true, force: true });
-            log.info(
-              `[ProjectTable] Deleted VibeLearning markdown folder: ${markdownDir}`,
-            );
+            log.info(`[ProjectTable] Deleted VibeLearning markdown folder: ${markdownDir}`);
           } catch (error) {
-            log.error(
-              `[ProjectTable] Error deleting VibeLearning markdown folder: ${error}`,
-            );
+            log.error(`[ProjectTable] Error deleting VibeLearning markdown folder: ${error}`);
           }
         }
       }
@@ -555,13 +511,10 @@ export default class ProjectTable {
   static getAllProjects(db: Database.Database): Project[] {
     const stmt = db.prepare("SELECT * FROM project ORDER BY create_time DESC");
     const projects = stmt.all();
-    return projects.map((p) => this.parseProject(p));
+    return projects.map(p => this.parseProject(p));
   }
 
-  static getContentIdByProjectItem(
-    db: Database.Database,
-    item: CreateProjectItem,
-  ): number {
+  static getContentIdByProjectItem(db: Database.Database, item: CreateProjectItem): number {
     let contentId = 0;
     if (item.contentId) {
       contentId = item.contentId;
@@ -584,10 +537,7 @@ export default class ProjectTable {
         contentId = article.contentId;
         ContentTable.incrementRefCount(db, contentId);
       }
-    } else if (
-      item.projectItemType === EProjectItemType.Document &&
-      item.content
-    ) {
+    } else if (item.projectItemType === EProjectItemType.Document && item.content) {
       contentId = ContentTable.createContent(db, {
         content: item.content,
         count: item.count || getContentLength(item.content),
@@ -619,17 +569,17 @@ export default class ProjectTable {
     const now = Date.now();
     stmt.run(
       now,
-      item.title || item.title,
+      canonicalContentTitle(db, item.contentId) ?? item.title,
       JSON.stringify(item.children || item.children),
       JSON.stringify(item.parents || item.parents),
       JSON.stringify(item.projects || item.projects),
       item.refType ?? item.refType,
       item.refId ?? item.refId,
       item.projectItemType || item.projectItemType,
-      item.id,
+      item.id
     );
 
-    BrowserWindow.getAllWindows().forEach((window) => {
+    BrowserWindow.getAllWindows().forEach(window => {
       if (window !== win && !window.isDestroyed()) {
         window.webContents.send("project-item:updated", {
           databaseName: basename(db.name),
@@ -639,7 +589,7 @@ export default class ProjectTable {
     });
 
     if (item.refType === "card" && item.refId) {
-      BrowserWindow.getAllWindows().forEach((window) => {
+      BrowserWindow.getAllWindows().forEach(window => {
         if (window !== win && !window.isDestroyed()) {
           window.webContents.send("card:updated", {
             databaseName: basename(db.name),
@@ -650,7 +600,7 @@ export default class ProjectTable {
     }
 
     if (item.refType === "article" && item.refId) {
-      BrowserWindow.getAllWindows().forEach((window) => {
+      BrowserWindow.getAllWindows().forEach(window => {
         if (window !== win && !window.isDestroyed()) {
           window.webContents.send("article:updated", {
             databaseName: basename(db.name),
@@ -693,10 +643,7 @@ export default class ProjectTable {
         itemInfo.projectItemType === EProjectItemType.WhiteBoard &&
         itemInfo.whiteBoardContentId
       ) {
-        WhiteBoardContentTable.deleteWhiteboard(
-          db,
-          itemInfo.whiteBoardContentId,
-        );
+        WhiteBoardContentTable.deleteWhiteboard(db, itemInfo.whiteBoardContentId);
       }
 
       FTSTable.removeIndexByIdAndType(db, id, "project-item");
@@ -727,10 +674,7 @@ export default class ProjectTable {
     return this.parseProjectItem(item);
   }
 
-  static getProjectItemsByProjectId(
-    db: Database.Database,
-    projectId: number,
-  ): ProjectItem[] {
+  static getProjectItemsByProjectId(db: Database.Database, projectId: number): ProjectItem[] {
     const stmt = db.prepare(`
       SELECT pi.*, c.content, c.count, c.update_time as content_update_time,
         p.id as podcast_id, p.name as podcast_name, p.create_time as podcast_create_time,
@@ -747,13 +691,10 @@ export default class ProjectTable {
       )
     `);
     const items = stmt.all(projectId);
-    return items.map((item) => this.parseProjectItem(item));
+    return items.map(item => this.parseProjectItem(item));
   }
 
-  static getProjectItemsByIds(
-    db: Database.Database,
-    ids: number[],
-  ): ProjectItem[] {
+  static getProjectItemsByIds(db: Database.Database, ids: number[]): ProjectItem[] {
     const placeholders = ids.map(() => "?").join(",");
     const stmt = db.prepare(
       `SELECT pi.*, c.content, c.count, c.update_time as content_update_time,
@@ -765,17 +706,13 @@ export default class ProjectTable {
        FROM project_item pi
        LEFT JOIN contents c ON pi.content_id = c.id
        LEFT JOIN podcasts p ON pi.podcast_id = p.id
-       WHERE pi.id IN (${placeholders})`,
+       WHERE pi.id IN (${placeholders})`
     );
     const items = stmt.all(ids);
-    return items.map((item) => this.parseProjectItem(item));
+    return items.map(item => this.parseProjectItem(item));
   }
 
-  static getProjectItemByRef(
-    db: Database.Database,
-    refType: string,
-    refId: number,
-  ): ProjectItem[] {
+  static getProjectItemByRef(db: Database.Database, refType: string, refId: number): ProjectItem[] {
     const stmt = db.prepare(`
       SELECT pi.*, c.content, c.count, c.update_time as content_update_time,
         p.id as podcast_id, p.name as podcast_name, p.create_time as podcast_create_time,
@@ -789,13 +726,10 @@ export default class ProjectTable {
       WHERE pi.ref_type = ? AND pi.ref_id = ?
     `);
     const items = stmt.all(refType, refId);
-    return items.map((item) => this.parseProjectItem(item));
+    return items.map(item => this.parseProjectItem(item));
   }
 
-  static getProjectItemCountInProject(
-    db: Database.Database,
-    projectId: number,
-  ): number {
+  static getProjectItemCountInProject(db: Database.Database, projectId: number): number {
     const stmt = db.prepare(`
       SELECT COUNT(*) FROM project_item
       WHERE EXISTS (
@@ -807,10 +741,7 @@ export default class ProjectTable {
     return result["COUNT(*)"];
   }
 
-  static getAllProjectItemsNotInProject(
-    db: Database.Database,
-    projectId: number,
-  ): ProjectItem[] {
+  static getAllProjectItemsNotInProject(db: Database.Database, projectId: number): ProjectItem[] {
     const stmt = db.prepare(`
       SELECT pi.*, c.content, c.count, c.update_time as content_update_time,
         p.id as podcast_id, p.name as podcast_name, p.create_time as podcast_create_time,
@@ -828,7 +759,7 @@ export default class ProjectTable {
       )
     `);
     const items = stmt.all(projectId);
-    return items.map((item) => this.parseProjectItem(item));
+    return items.map(item => this.parseProjectItem(item));
   }
 
   static getProjectItemsNotInAnyProject(db: Database.Database): ProjectItem[] {
@@ -846,13 +777,10 @@ export default class ProjectTable {
     `);
     const items = stmt.all();
     log.info(`获取不在任何项目中的条目: ${JSON.stringify(items)}`);
-    return items.map((item) => this.parseProjectItem(item));
+    return items.map(item => this.parseProjectItem(item));
   }
 
-  static isProjectItemNotInAnyProject(
-    db: Database.Database,
-    id: number,
-  ): boolean {
+  static isProjectItemNotInAnyProject(db: Database.Database, id: number): boolean {
     const stmt = db.prepare("SELECT projects FROM project_item WHERE id = ?");
     const result = stmt.get(id) as { projects: string };
     return result.projects === "[]";
@@ -863,16 +791,14 @@ export default class ProjectTable {
     for (const deleteItem of toDeleteItems) {
       this.deleteProjectItem(db, deleteItem.id);
     }
-    log.info(
-      `删除不在任何项目中的条目: ${toDeleteItems.map((item) => item.id)}`,
-    );
+    log.info(`删除不在任何项目中的条目: ${toDeleteItems.map(item => item.id)}`);
     return toDeleteItems.length;
   }
 
   static async deleteProjectItemByRef(
     db: Database.Database,
     refType: string,
-    refId: number,
+    refId: number
   ): Promise<void> {
     // 获取refType为refType，refId为refId的project_item信息
     const itemInfo = this.getProjectItemByRef(db, refType, refId);
@@ -883,11 +809,7 @@ export default class ProjectTable {
     }
   }
 
-  static resetProjectItemRef(
-    db: Database.Database,
-    refType: string,
-    refId: number,
-  ) {
+  static resetProjectItemRef(db: Database.Database, refType: string, refId: number) {
     const stmt = db.prepare(`
       UPDATE project_item
       SET ref_type = '', ref_id = 0 
@@ -909,13 +831,10 @@ export default class ProjectTable {
       LEFT JOIN podcasts p ON pi.podcast_id = p.id
     `);
     const items = stmt.all();
-    return items.map((item) => this.parseProjectItem(item));
+    return items.map(item => this.parseProjectItem(item));
   }
 
-  static getProjectItemsByContentId(
-    db: Database.Database,
-    contentId: number,
-  ): ProjectItem[] {
+  static getProjectItemsByContentId(db: Database.Database, contentId: number): ProjectItem[] {
     const stmt = db.prepare(`
       SELECT pi.*, c.content, c.count, c.update_time as content_update_time,
         p.id as podcast_id, p.name as podcast_name, p.create_time as podcast_create_time,
@@ -930,13 +849,13 @@ export default class ProjectTable {
       ORDER BY pi.update_time DESC, pi.id DESC
     `);
     const items = stmt.all(contentId);
-    return items.map((item) => this.parseProjectItem(item));
+    return items.map(item => this.parseProjectItem(item));
   }
 
   static addRootProjectItem(
     db: Database.Database,
     projectId: number,
-    projectItem: CreateProjectItem,
+    projectItem: CreateProjectItem
   ): [Project, ProjectItem | null] {
     const contentId = this.getContentIdByProjectItem(db, projectItem);
 
@@ -945,10 +864,7 @@ export default class ProjectTable {
       projectItem.whiteBoardContentId &&
       projectItem.projectItemType === EProjectItemType.WhiteBoard
     ) {
-      WhiteBoardContentTable.incrementRefCount(
-        db,
-        projectItem.whiteBoardContentId,
-      );
+      WhiteBoardContentTable.incrementRefCount(db, projectItem.whiteBoardContentId);
     }
 
     const now = Date.now();
@@ -969,7 +885,7 @@ export default class ProjectTable {
       projectItem.refType,
       projectItem.refId || 0,
       projectItem.whiteBoardContentId || 0,
-      projectItem.projectItemType || EProjectItemType.Document,
+      projectItem.projectItemType || EProjectItemType.Document
     );
 
     const createdItemId = Number(res.lastInsertRowid);
@@ -985,7 +901,7 @@ export default class ProjectTable {
   static addChildProjectItem(
     db: Database.Database,
     parentProjectItemId: number,
-    projectItem: CreateProjectItem,
+    projectItem: CreateProjectItem
   ): [ProjectItem | null, ProjectItem | null] | null {
     const parentProjectItem = this.getProjectItem(db, parentProjectItemId);
     if (!parentProjectItem) {
@@ -998,10 +914,7 @@ export default class ProjectTable {
       projectItem.whiteBoardContentId &&
       projectItem.projectItemType === EProjectItemType.WhiteBoard
     ) {
-      WhiteBoardContentTable.incrementRefCount(
-        db,
-        projectItem.whiteBoardContentId,
-      );
+      WhiteBoardContentTable.incrementRefCount(db, projectItem.whiteBoardContentId);
     }
 
     const now = Date.now();
@@ -1022,7 +935,7 @@ export default class ProjectTable {
       projectItem.refType,
       projectItem.refId || 0,
       projectItem.whiteBoardContentId || 0,
-      projectItem.projectItemType || EProjectItemType.Document,
+      projectItem.projectItemType || EProjectItemType.Document
     );
 
     const createdItemId = Number(res.lastInsertRowid);
@@ -1031,10 +944,7 @@ export default class ProjectTable {
     const currentChildren = new Set(parentProjectItem.children);
     currentChildren.add(createdItemId);
     parentProjectItem.children = Array.from(currentChildren);
-    const updatedParentProjectItem = this.updateProjectItem(
-      db,
-      parentProjectItem,
-    );
+    const updatedParentProjectItem = this.updateProjectItem(db, parentProjectItem);
     if (!updatedParentProjectItem) {
       return null;
     }
@@ -1045,7 +955,7 @@ export default class ProjectTable {
   static addRefRootProjectItem(
     db: Database.Database,
     projectId: number,
-    projectItemId: number,
+    projectItemId: number
   ): [Project, ProjectItem | null] | null {
     const project = this.getProject(db, projectId);
     const projectItem = this.getProjectItem(db, projectItemId);
@@ -1065,13 +975,7 @@ export default class ProjectTable {
     this.updateProjectItem(db, projectItem);
     this.updateProjectSubtreeMembership(db, projectItemId, [], [projectId], []);
 
-    Operation.insertOperation(
-      db,
-      "project-item",
-      "insert",
-      projectItemId,
-      Date.now(),
-    );
+    Operation.insertOperation(db, "project-item", "insert", projectItemId, Date.now());
 
     return [project, projectItem];
   }
@@ -1079,7 +983,7 @@ export default class ProjectTable {
   static addRefChildProjectItem(
     db: Database.Database,
     parentProjectItemId: number,
-    projectItemId: number,
+    projectItemId: number
   ): [ProjectItem | null, ProjectItem | null] | null {
     const parentProjectItem = this.getProjectItem(db, parentProjectItemId);
     if (!parentProjectItem) {
@@ -1103,28 +1007,13 @@ export default class ProjectTable {
     projectItem.parents = Array.from(currentParents);
 
     // 确保继承父条目的所有项目关联
-    const currentProjects = new Set([
-      ...projectItem.projects,
-      ...parentProjectItem.projects,
-    ]);
+    const currentProjects = new Set([...projectItem.projects, ...parentProjectItem.projects]);
     projectItem.projects = Array.from(currentProjects);
 
     this.updateProjectItem(db, projectItem);
-    this.updateProjectSubtreeMembership(
-      db,
-      projectItemId,
-      [],
-      Array.from(currentProjects),
-      [],
-    );
+    this.updateProjectSubtreeMembership(db, projectItemId, [], Array.from(currentProjects), []);
 
-    Operation.insertOperation(
-      db,
-      "project-item",
-      "insert",
-      projectItemId,
-      Date.now(),
-    );
+    Operation.insertOperation(db, "project-item", "insert", projectItemId, Date.now());
 
     return [parentProjectItem, projectItem];
   }
@@ -1133,7 +1022,7 @@ export default class ProjectTable {
     db: Database.Database,
     projectId: number,
     projectItemId: number,
-    notDelete?: boolean,
+    notDelete?: boolean
   ): [Project, ProjectItem | null] | null {
     const project = this.getProject(db, projectId);
     const projectItem = this.getProjectItem(db, projectItemId);
@@ -1143,7 +1032,7 @@ export default class ProjectTable {
     }
 
     // 更新项目的子条目，移除该条目
-    project.children = project.children.filter((id) => id !== projectItemId);
+    project.children = project.children.filter(id => id !== projectItemId);
     this.updateProject(db, project);
 
     if (notDelete) {
@@ -1162,7 +1051,7 @@ export default class ProjectTable {
     projectId: number,
     parentProjectItemId: number,
     projectItemId: number,
-    notDelete?: boolean,
+    notDelete?: boolean
   ): [ProjectItem | null, ProjectItem | null] | null {
     const parentProjectItem = this.getProjectItem(db, parentProjectItemId);
     if (!parentProjectItem) {
@@ -1175,9 +1064,7 @@ export default class ProjectTable {
     }
 
     // 更新父条目的子条目列表，移除当前条目
-    parentProjectItem.children = parentProjectItem.children.filter(
-      (id) => id !== projectItemId,
-    );
+    parentProjectItem.children = parentProjectItem.children.filter(id => id !== projectItemId);
     this.updateProjectItem(db, parentProjectItem);
 
     if (notDelete) {
@@ -1185,9 +1072,7 @@ export default class ProjectTable {
     }
 
     // 从项目条目的父级列表和所属项目列表中移除相应的ID
-    projectItem.parents = projectItem.parents.filter(
-      (id) => id !== parentProjectItemId,
-    );
+    projectItem.parents = projectItem.parents.filter(id => id !== parentProjectItemId);
     this.updateProjectItem(db, projectItem);
 
     this.updateProjectSubtreeMembership(db, projectItemId, [projectId], [], []);
@@ -1200,7 +1085,7 @@ export default class ProjectTable {
   private static collectProjectItemSubtreeIds(
     db: Database.Database,
     projectItemId: number,
-    visited = new Set<number>(),
+    visited = new Set<number>()
   ): number[] {
     if (visited.has(projectItemId)) return [];
     visited.add(projectItemId);
@@ -1210,20 +1095,20 @@ export default class ProjectTable {
 
     return [
       projectItemId,
-      ...projectItem.children.flatMap((childId) =>
-        this.collectProjectItemSubtreeIds(db, childId, visited),
+      ...projectItem.children.flatMap(childId =>
+        this.collectProjectItemSubtreeIds(db, childId, visited)
       ),
     ];
   }
 
   private static deleteUnreferencedProjectSubtree(
     db: Database.Database,
-    rootProjectItemId: number,
+    rootProjectItemId: number
   ) {
     const subtreeIds = this.collectProjectItemSubtreeIds(db, rootProjectItemId);
     const deletedIds = new Set<number>();
 
-    [...subtreeIds].reverse().forEach((projectItemId) => {
+    [...subtreeIds].reverse().forEach(projectItemId => {
       const projectItem = this.getProjectItem(db, projectItemId);
       if (!projectItem || projectItem.projects.length > 0) return;
       deletedIds.add(projectItemId);
@@ -1232,16 +1117,12 @@ export default class ProjectTable {
 
     if (deletedIds.size === 0) return;
 
-    subtreeIds.forEach((projectItemId) => {
+    subtreeIds.forEach(projectItemId => {
       if (deletedIds.has(projectItemId)) return;
       const projectItem = this.getProjectItem(db, projectItemId);
       if (!projectItem) return;
-      const nextParents = projectItem.parents.filter(
-        (parentId) => !deletedIds.has(parentId),
-      );
-      const nextChildren = projectItem.children.filter(
-        (childId) => !deletedIds.has(childId),
-      );
+      const nextParents = projectItem.parents.filter(parentId => !deletedIds.has(parentId));
+      const nextChildren = projectItem.children.filter(childId => !deletedIds.has(childId));
       if (
         nextParents.length === projectItem.parents.length &&
         nextChildren.length === projectItem.children.length
@@ -1259,17 +1140,15 @@ export default class ProjectTable {
   private static isProjectItemDescendant(
     db: Database.Database,
     ancestorId: number,
-    maybeDescendantId: number,
+    maybeDescendantId: number
   ) {
-    return this.collectProjectItemSubtreeIds(db, ancestorId)
-      .slice(1)
-      .includes(maybeDescendantId);
+    return this.collectProjectItemSubtreeIds(db, ancestorId).slice(1).includes(maybeDescendantId);
   }
 
   private static getProjectMoveParentChildren(
     db: Database.Database,
     projectId: number,
-    parentId: number | null,
+    parentId: number | null
   ) {
     if (parentId === null) {
       return this.getProject(db, projectId).children;
@@ -1280,14 +1159,10 @@ export default class ProjectTable {
   private static canMoveProjectTreeItem(
     db: Database.Database,
     projectId: number,
-    params: MoveProjectTreeItemParams,
+    params: MoveProjectTreeItemParams
   ) {
     const { dragItem, dropTargetId, dragPosition } = params;
-    const {
-      itemId: dragId,
-      parentId: dragParentId,
-      isRoot: dragIsRoot,
-    } = dragItem;
+    const { itemId: dragId, parentId: dragParentId, isRoot: dragIsRoot } = dragItem;
 
     if (dragId === dropTargetId) return false;
 
@@ -1297,7 +1172,7 @@ export default class ProjectTable {
     const sourceChildren = this.getProjectMoveParentChildren(
       db,
       projectId,
-      dragIsRoot ? null : dragParentId,
+      dragIsRoot ? null : dragParentId
     );
     if (!sourceChildren?.includes(dragId)) return false;
 
@@ -1317,17 +1192,10 @@ export default class ProjectTable {
       return false;
     }
 
-    const targetChildren = this.getProjectMoveParentChildren(
-      db,
-      projectId,
-      targetParentId,
-    );
+    const targetChildren = this.getProjectMoveParentChildren(db, projectId, targetParentId);
     if (!targetChildren) return false;
 
-    if (
-      targetParentId !== (dragIsRoot ? null : dragParentId) &&
-      targetChildren.includes(dragId)
-    ) {
+    if (targetParentId !== (dragIsRoot ? null : dragParentId) && targetChildren.includes(dragId)) {
       return false;
     }
 
@@ -1355,10 +1223,10 @@ export default class ProjectTable {
   }) {
     const retainedSourceProjectSet = new Set(retainedSourceProjects);
     const removableSourceProjectSet = new Set(
-      sourceProjects.filter((id) => !retainedSourceProjectSet.has(id)),
+      sourceProjects.filter(id => !retainedSourceProjectSet.has(id))
     );
     return uniqueNumbers([
-      ...currentProjects.filter((id) => !removableSourceProjectSet.has(id)),
+      ...currentProjects.filter(id => !removableSourceProjectSet.has(id)),
       ...targetProjects,
     ]);
   }
@@ -1368,28 +1236,28 @@ export default class ProjectTable {
     rootProjectItemId: number,
     sourceProjects: number[],
     targetProjects: number[],
-    retainedSourceProjects: number[],
+    retainedSourceProjects: number[]
   ) {
     const subtreeIds = this.collectProjectItemSubtreeIds(db, rootProjectItemId);
     const subtreeIdSet = new Set(subtreeIds);
     const retainedSourceByItem = new Map<number, Set<number>>(
-      subtreeIds.map((id) => [id, new Set<number>()]),
+      subtreeIds.map(id => [id, new Set<number>()])
     );
-    retainedSourceProjects.forEach((projectId) => {
+    retainedSourceProjects.forEach(projectId => {
       retainedSourceByItem.get(rootProjectItemId)?.add(projectId);
     });
 
-    subtreeIds.forEach((projectItemId) => {
+    subtreeIds.forEach(projectItemId => {
       const projectItem = this.getProjectItem(db, projectItemId);
       if (!projectItem) return;
       projectItem.parents
-        .filter((parentId) => !subtreeIdSet.has(parentId))
-        .forEach((parentId) => {
-          this.getProjectItem(db, parentId)?.projects.forEach((projectId) => {
+        .filter(parentId => !subtreeIdSet.has(parentId))
+        .forEach(parentId => {
+          this.getProjectItem(db, parentId)?.projects.forEach(projectId => {
             retainedSourceByItem.get(projectItemId)?.add(projectId);
           });
         });
-      sourceProjects.forEach((sourceProjectId) => {
+      sourceProjects.forEach(sourceProjectId => {
         const sourceProject = this.getProject(db, sourceProjectId);
         if (sourceProject.children.includes(projectItemId)) {
           retainedSourceByItem.get(projectItemId)?.add(sourceProjectId);
@@ -1400,16 +1268,16 @@ export default class ProjectTable {
     let changed = true;
     while (changed) {
       changed = false;
-      subtreeIds.forEach((projectItemId) => {
+      subtreeIds.forEach(projectItemId => {
         const projectItem = this.getProjectItem(db, projectItemId);
         const parentRetainedProjects = retainedSourceByItem.get(projectItemId);
         if (!projectItem || !parentRetainedProjects) return;
         projectItem.children
-          .filter((childId) => subtreeIdSet.has(childId))
-          .forEach((childId) => {
+          .filter(childId => subtreeIdSet.has(childId))
+          .forEach(childId => {
             const childRetainedProjects = retainedSourceByItem.get(childId);
             if (!childRetainedProjects) return;
-            parentRetainedProjects.forEach((projectId) => {
+            parentRetainedProjects.forEach(projectId => {
               if (childRetainedProjects.has(projectId)) return;
               childRetainedProjects.add(projectId);
               changed = true;
@@ -1418,20 +1286,16 @@ export default class ProjectTable {
       });
     }
 
-    subtreeIds.forEach((projectItemId) => {
+    subtreeIds.forEach(projectItemId => {
       const projectItem = this.getProjectItem(db, projectItemId);
       if (!projectItem) return;
       const nextProjects = this.getMovedProjectMembership({
         currentProjects: projectItem.projects,
         sourceProjects,
         targetProjects,
-        retainedSourceProjects: Array.from(
-          retainedSourceByItem.get(projectItemId) || [],
-        ),
+        retainedSourceProjects: Array.from(retainedSourceByItem.get(projectItemId) || []),
       });
-      if (
-        JSON.stringify(nextProjects) === JSON.stringify(projectItem.projects)
-      ) {
+      if (JSON.stringify(nextProjects) === JSON.stringify(projectItem.projects)) {
         return;
       }
       this.updateProjectItem(db, {
@@ -1444,7 +1308,7 @@ export default class ProjectTable {
   static moveProjectTreeItem(
     db: Database.Database,
     projectId: number,
-    params: MoveProjectTreeItemParams,
+    params: MoveProjectTreeItemParams
   ) {
     const {
       dragItem,
@@ -1457,11 +1321,7 @@ export default class ProjectTable {
       insertParentIsRoot,
       insertIndex,
     } = params;
-    const {
-      itemId: dragId,
-      parentId: dragParentId,
-      isRoot: dragIsRoot,
-    } = dragItem;
+    const { itemId: dragId, parentId: dragParentId, isRoot: dragIsRoot } = dragItem;
     const dragProjectItem = this.getProjectItem(db, dragId);
     if (!dragProjectItem) return null;
     if (!this.canMoveProjectTreeItem(db, projectId, params)) return null;
@@ -1484,43 +1344,36 @@ export default class ProjectTable {
 
       const retainedSourceProjectIds = new Set<number>();
       dragProjectItem.parents
-        .filter((parentId) => parentId !== dragParentId)
-        .forEach((parentId) => {
-          this.getProjectItem(db, parentId)?.projects.forEach(
-            (parentProjectId) => retainedSourceProjectIds.add(parentProjectId),
+        .filter(parentId => parentId !== dragParentId)
+        .forEach(parentId => {
+          this.getProjectItem(db, parentId)?.projects.forEach(parentProjectId =>
+            retainedSourceProjectIds.add(parentProjectId)
           );
         });
 
       if (dragIsRoot) {
         const project = this.getProject(db, projectId);
         if (!project.children.includes(dragId)) return null;
-        project.children = project.children.filter((id) => id !== dragId);
+        project.children = project.children.filter(id => id !== dragId);
         this.updateProject(db, project);
       } else {
         const sourceParent = this.getProjectItem(db, dragParentId);
         if (!sourceParent?.children.includes(dragId)) return null;
-        sourceParent.children = sourceParent.children.filter(
-          (id) => id !== dragId,
-        );
+        sourceParent.children = sourceParent.children.filter(id => id !== dragId);
         this.updateProjectItem(db, sourceParent);
       }
 
       const nextDragProjectItem = this.getProjectItem(db, dragId);
       if (!nextDragProjectItem) return null;
       nextDragProjectItem.parents = nextDragProjectItem.parents.filter(
-        (parentId) => parentId !== dragParentId,
+        parentId => parentId !== dragParentId
       );
 
-      if (
-        typeof insertParentId === "number" &&
-        typeof insertIndex === "number"
-      ) {
+      if (typeof insertParentId === "number" && typeof insertIndex === "number") {
         if (insertParentIsRoot) {
           const project = this.getProject(db, projectId);
-          const sourceChildren = dragIsRoot
-            ? dragItem.parentChildren
-            : project.children;
-          project.children = project.children.filter((id) => id !== dragId);
+          const sourceChildren = dragIsRoot ? dragItem.parentChildren : project.children;
+          project.children = project.children.filter(id => id !== dragId);
           project.children.splice(
             getAdjustedInsertIndex({
               children: sourceChildren,
@@ -1528,7 +1381,7 @@ export default class ProjectTable {
               insertIndex,
             }),
             0,
-            dragId,
+            dragId
           );
           this.updateProject(db, project);
         } else {
@@ -1537,12 +1390,8 @@ export default class ProjectTable {
             throw new Error("Project tree move target parent no longer exists");
           }
           const sourceChildren =
-            dragParentId === insertParentId
-              ? dragItem.parentChildren
-              : targetParent.children;
-          targetParent.children = targetParent.children.filter(
-            (id) => id !== dragId,
-          );
+            dragParentId === insertParentId ? dragItem.parentChildren : targetParent.children;
+          targetParent.children = targetParent.children.filter(id => id !== dragId);
           targetParent.children.splice(
             getAdjustedInsertIndex({
               children: sourceChildren,
@@ -1550,7 +1399,7 @@ export default class ProjectTable {
               insertIndex,
             }),
             0,
-            dragId,
+            dragId
           );
           this.updateProjectItem(db, targetParent);
           if (!nextDragProjectItem.parents.includes(insertParentId)) {
@@ -1563,10 +1412,8 @@ export default class ProjectTable {
           throw new Error("Project tree move target no longer exists");
         }
         const sourceChildren =
-          dragParentId === dropTargetId
-            ? dragItem.parentChildren
-            : targetItem.children;
-        targetItem.children = targetItem.children.filter((id) => id !== dragId);
+          dragParentId === dropTargetId ? dragItem.parentChildren : targetItem.children;
+        targetItem.children = targetItem.children.filter(id => id !== dragId);
         if (typeof childInsertIndex === "number") {
           targetItem.children.splice(
             getAdjustedInsertIndex({
@@ -1575,7 +1422,7 @@ export default class ProjectTable {
               insertIndex: childInsertIndex,
             }),
             0,
-            dragId,
+            dragId
           );
         } else {
           targetItem.children.push(dragId);
@@ -1586,39 +1433,27 @@ export default class ProjectTable {
         }
       } else if (dropTargetIsRoot) {
         const project = this.getProject(db, projectId);
-        project.children = project.children.filter((id) => id !== dragId);
-        const targetIndex = project.children.findIndex(
-          (id) => id === dropTargetId,
-        );
+        project.children = project.children.filter(id => id !== dragId);
+        const targetIndex = project.children.findIndex(id => id === dropTargetId);
         if (targetIndex === -1) {
           throw new Error("Project tree move target no longer exists");
         }
-        project.children.splice(
-          dragPosition === "top" ? targetIndex : targetIndex + 1,
-          0,
-          dragId,
-        );
+        project.children.splice(dragPosition === "top" ? targetIndex : targetIndex + 1, 0, dragId);
         this.updateProject(db, project);
       } else {
         const targetParent = this.getProjectItem(db, dropTargetParentId);
         if (!targetParent?.children.includes(dropTargetId)) {
-          throw new Error(
-            "Project tree move target parent no longer contains target",
-          );
+          throw new Error("Project tree move target parent no longer contains target");
         }
-        targetParent.children = targetParent.children.filter(
-          (id) => id !== dragId,
-        );
-        const targetIndex = targetParent.children.findIndex(
-          (id) => id === dropTargetId,
-        );
+        targetParent.children = targetParent.children.filter(id => id !== dragId);
+        const targetIndex = targetParent.children.findIndex(id => id === dropTargetId);
         if (targetIndex === -1) {
           throw new Error("Project tree move target no longer exists");
         }
         targetParent.children.splice(
           dragPosition === "top" ? targetIndex : targetIndex + 1,
           0,
-          dragId,
+          dragId
         );
         this.updateProjectItem(db, targetParent);
         if (!nextDragProjectItem.parents.includes(dropTargetParentId)) {
@@ -1632,7 +1467,7 @@ export default class ProjectTable {
         dragId,
         sourceProjectIds,
         targetProjectIds,
-        Array.from(retainedSourceProjectIds),
+        Array.from(retainedSourceProjectIds)
       );
 
       return {
@@ -1643,7 +1478,7 @@ export default class ProjectTable {
           dropTargetId,
           dropTargetParentId,
           insertParentId ?? 0,
-        ]).filter((id) => id > 0),
+        ]).filter(id => id > 0),
       };
     });
 
@@ -1653,7 +1488,7 @@ export default class ProjectTable {
   // 批量日期查询项目条目
   static getProjectItemsByDates(
     db: Database.Database,
-    dates: string[],
+    dates: string[]
   ): Record<string, ProjectItem[]> {
     if (dates.length === 0) return {};
 
@@ -1672,10 +1507,10 @@ export default class ProjectTable {
       ORDER BY pi.update_time DESC
     `);
 
-    const items = stmt.all(...dates).map((item) => this.parseProjectItem(item));
+    const items = stmt.all(...dates).map(item => this.parseProjectItem(item));
     const result: Record<string, ProjectItem[]> = {};
 
-    items.forEach((item) => {
+    items.forEach(item => {
       const date = new Date(item.updateTime).toISOString().split("T")[0];
       if (!result[date]) {
         result[date] = [];
@@ -1690,7 +1525,7 @@ export default class ProjectTable {
   static getProjectItemsByDateRange(
     db: Database.Database,
     startDate: string,
-    endDate: string,
+    endDate: string
   ): Record<string, ProjectItem[]> {
     const startTimestamp = new Date(startDate).getTime();
     const endTimestamp = new Date(endDate + " 23:59:59").getTime();
@@ -1709,12 +1544,10 @@ export default class ProjectTable {
       ORDER BY pi.update_time DESC
     `);
 
-    const items = stmt
-      .all(startTimestamp, endTimestamp)
-      .map((item) => this.parseProjectItem(item));
+    const items = stmt.all(startTimestamp, endTimestamp).map(item => this.parseProjectItem(item));
     const result: Record<string, ProjectItem[]> = {};
 
-    items.forEach((item) => {
+    items.forEach(item => {
       const date = new Date(item.updateTime).toISOString().split("T")[0];
       if (!result[date]) {
         result[date] = [];
@@ -1729,7 +1562,7 @@ export default class ProjectTable {
   static getProjectItemsContentByIds(
     db: Database.Database,
     ids: number[],
-    maxLength?: number,
+    maxLength?: number
   ): Array<{
     id: number;
     markdown: string;
@@ -1741,7 +1574,7 @@ export default class ProjectTable {
 
     const items = this.getProjectItemsByIds(db, ids);
 
-    return items.map((item) => {
+    return items.map(item => {
       const markdown = item.content ? getMarkdown(item.content) : "";
       const originalLength = markdown.length;
 
@@ -1788,23 +1621,18 @@ export default class ProjectTable {
   static attachPodcast(
     db: Database.Database,
     projectItemId: number,
-    podcastId: number,
+    podcastId: number
   ): ProjectItem | null {
-    const stmt = db.prepare(
-      "UPDATE project_item SET podcast_id = ?, update_time = ? WHERE id = ?",
-    );
+    const stmt = db.prepare("UPDATE project_item SET podcast_id = ?, update_time = ? WHERE id = ?");
     const now = Date.now();
     stmt.run(podcastId, now, projectItemId);
     Operation.insertOperation(db, "project-item", "update", projectItemId, now);
     return this.getProjectItem(db, projectItemId);
   }
 
-  static detachPodcast(
-    db: Database.Database,
-    projectItemId: number,
-  ): ProjectItem | null {
+  static detachPodcast(db: Database.Database, projectItemId: number): ProjectItem | null {
     const stmt = db.prepare(
-      "UPDATE project_item SET podcast_id = NULL, update_time = ? WHERE id = ?",
+      "UPDATE project_item SET podcast_id = NULL, update_time = ? WHERE id = ?"
     );
     const now = Date.now();
     stmt.run(now, projectItemId);

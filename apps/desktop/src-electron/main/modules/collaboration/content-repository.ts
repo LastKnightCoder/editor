@@ -1,0 +1,151 @@
+import type Database from "better-sqlite3";
+import type { ContentNode, SourceBinding, SourceType } from "@tau/collaboration";
+import { PRIVATE_BLOCKS, SOURCE_TYPES } from "@tau/collaboration";
+import { findCollaborationBinding } from "../collaboration-guard";
+import ResourceTable from "../tables/resource";
+import log from "electron-log";
+
+const parseSourceType = (value: string | undefined | null): SourceType | undefined =>
+  SOURCE_TYPES.includes(value as SourceType) ? (value as SourceType) : undefined;
+
+export function migrateContentBindings(db: Database.Database) {
+  const columns = db.prepare("PRAGMA table_info(collaboration_bindings)").all() as {
+    name: string;
+  }[];
+  if (!columns.some(column => column.name === "article_id")) return;
+  db.transaction(() => {
+    db.exec(`
+      ALTER TABLE collaboration_bindings RENAME TO collaboration_bindings_legacy;
+      CREATE TABLE collaboration_bindings (
+        content_id INTEGER PRIMARY KEY, content_created_at INTEGER NOT NULL,
+        server_url TEXT NOT NULL, document_id TEXT NOT NULL,
+        source_type TEXT, source_id INTEGER, source_title TEXT,
+        FOREIGN KEY(content_id) REFERENCES contents(id)
+      );
+      INSERT INTO collaboration_bindings
+        SELECT b.content_id, c.create_time, b.server_url, b.document_id, 'article', b.article_id, a.title
+        FROM collaboration_bindings_legacy b JOIN contents c ON c.id=b.content_id
+        JOIN articles a ON a.id=b.article_id AND a.create_time=b.article_created_at AND a.content_id=c.id;
+      DROP TABLE collaboration_bindings_legacy;
+    `);
+  })();
+}
+
+export function restorePrivateNodes(
+  db: Database.Database,
+  source: SourceBinding,
+  privateNodes: Map<string, ContentNode>
+) {
+  const row = db
+    .prepare("SELECT content,create_time FROM contents WHERE id=?")
+    .get(source.contentId) as { content: string; create_time: number } | undefined;
+  if (!row || row.create_time !== source.contentCreatedAt)
+    throw new Error("原内容身份已变化，停止恢复本地组件");
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (!value || typeof value !== "object") return;
+    const node = value as ContentNode;
+    if (PRIVATE_BLOCKS.has(String(node.type))) {
+      // 本地 contents 是会话内存数据的投影，只补充缺失的条目，不用旧投影覆盖新数据。
+      if (typeof node.collabId === "string" && !privateNodes.has(node.collabId))
+        privateNodes.set(node.collabId, structuredClone(node));
+      else if (privateNodes.size === 0)
+        throw new Error("旧内容缺少本地组件关联标识，请重新发起共享");
+      return;
+    }
+    Object.values(node).forEach(visit);
+  };
+  visit(JSON.parse(row.content || "[]"));
+}
+
+export function restoreContentBinding(
+  db: Database.Database,
+  databaseName: string,
+  documentId: string,
+  serverUrl: string
+): SourceBinding | undefined {
+  const row = db
+    .prepare(
+      `SELECT b.* FROM collaboration_bindings b JOIN contents c
+    ON c.id=b.content_id AND c.create_time=b.content_created_at
+    WHERE b.document_id=? AND b.server_url=?`
+    )
+    .get(documentId, serverUrl) as
+    | {
+        content_id: number;
+        content_created_at: number;
+        source_type?: string;
+        source_id?: number;
+        source_title?: string;
+      }
+    | undefined;
+  return row
+    ? {
+        databaseName,
+        contentId: row.content_id,
+        contentCreatedAt: row.content_created_at,
+        sourceType: parseSourceType(row.source_type),
+        sourceId: row.source_id,
+        sourceTitle: row.source_title,
+      }
+    : undefined;
+}
+
+// 协作资源本地化落盘时登记进用户资源库，使其可被资源管理与引用扫描纳管，避免成为孤儿文件
+export function registerLocalizedResource(
+  db: Database.Database,
+  contentId: number,
+  file: { path: string; name: string }
+) {
+  try {
+    ResourceTable.createOrUpdateResource(db, {
+      name: file.name,
+      path: file.path,
+      type: ResourceTable.getResourceType(file.path),
+      source: { type: "content", id: contentId },
+    });
+  } catch (error) {
+    log.warn("登记协作本地化资源失败", file.path, error);
+  }
+}
+
+export function writeContentProjection(
+  db: Database.Database,
+  source: SourceBinding,
+  documentId: string,
+  serverUrl: string,
+  content: ContentNode[],
+  count: number
+) {
+  const original = db
+    .prepare("SELECT create_time,content FROM contents WHERE id=?")
+    .get(source.contentId) as { create_time: number; content: string } | undefined;
+  const binding = findCollaborationBinding(db, source.contentId);
+  if (
+    !original ||
+    original.create_time !== source.contentCreatedAt ||
+    !binding ||
+    binding.document_id !== documentId ||
+    binding.server_url !== serverUrl
+  ) {
+    throw new Error("原内容关联已变化，已暂停回写；请重新发起共享");
+  }
+  const json = JSON.stringify(content);
+  if (original.content === json) return false;
+  const now = Date.now();
+  db.transaction(() => {
+    db.prepare("UPDATE contents SET content=?,count=?,update_time=? WHERE id=?").run(
+      json,
+      count,
+      now,
+      source.contentId
+    );
+    db.prepare(
+      "INSERT INTO operation(operation_time,operation_id,operation_content_type,operation_action) VALUES (?,?,'content','update')"
+    ).run(now, source.contentId);
+  })();
+  return true;
+}

@@ -21,6 +21,14 @@ import {
   RenderChunkProps,
 } from "slate-react";
 import { withHistory } from "slate-history";
+import { YjsEditor } from "@slate-yjs/core";
+import { withCollaboration } from "./collaboration/withCollaboration";
+import { CollaborationContext } from "./collaboration/context";
+import type { EditorCollaborationBinding } from "./collaboration/types";
+import type { ContentNode } from "@tau/collaboration";
+import CollaborationCursors from "./collaboration/Cursors";
+import SharedTabs from "./collaboration/SharedTabs";
+import SafeCollaborationElement, { requiresSafeRendering } from "./collaboration/SafeElement";
 import { useCreation, useMemoizedFn } from "ahooks";
 
 import { DEFAULT_CARD_CONTENT } from "./constants";
@@ -84,6 +92,8 @@ import "./extensions/drop-common.less";
 import styles from "./index.module.less";
 
 interface IEditorProps {
+  previewBlocks?: number;
+  collaboration?: EditorCollaborationBinding;
   initValue?: Descendant[];
   onChange?: (value: Descendant[], editor: Editor) => void;
   onSelectionChange?: () => void;
@@ -136,18 +146,19 @@ const Index = memo(
       features,
       decorate,
       customRenderLeaf,
+      collaboration,
+      previewBlocks,
     } = props;
 
     const systemTheme = useSystemTheme();
     const services = useEditorServices();
     const currentValue = useRef<Descendant[]>(initValue);
     const pendingSetEditorValueJson = useRef<string | null>(null);
+    const collaborationContainerRef = useRef<HTMLDivElement>(null);
 
     const finalExtensions: IExtension[] = useMemo(() => {
       if (!extensions) return disableStartExtensions ? [] : startExtensions;
-      return disableStartExtensions
-        ? extensions
-        : [...startExtensions, ...extensions];
+      return disableStartExtensions ? extensions : [...startExtensions, ...extensions];
     }, [extensions, disableStartExtensions]);
 
     const optimizedExtensionData = useMemo(() => {
@@ -155,21 +166,31 @@ const Index = memo(
     }, [finalExtensions]);
 
     const editor = useCreation(() => {
-      const processedEditor = applyPlugin(createEditor(), defaultPlugins);
-
-      const finalEditor = applyPlugin(
-        processedEditor,
-        optimizedExtensionData.plugins,
+      const processedEditor = applyPlugin(
+        createEditor(),
+        collaboration ? defaultPlugins.filter(plugin => plugin !== withHistory) : defaultPlugins
       );
+
+      const finalEditor = applyPlugin(processedEditor, optimizedExtensionData.plugins);
       const enhancedEditor = withBlockNavigation(finalEditor);
 
       // 启用 Chunking 优化大文档性能
       // 将 editor 的子节点拆分为大小为 1000 的 chunks，减少 React 处理 JSX 变化的工作量
-      enhancedEditor.getChunkSize = (node) =>
-        Editor.isEditor(node) ? 1000 : null;
+      enhancedEditor.getChunkSize = node => (Editor.isEditor(node) ? 1000 : null);
 
-      return enhancedEditor;
-    }, [optimizedExtensionData.plugins]);
+      return collaboration ? withCollaboration(enhancedEditor, collaboration) : enhancedEditor;
+    }, [optimizedExtensionData.plugins, collaboration?.doc, collaboration?.root]);
+
+    useEffect(() => {
+      if (!YjsEditor.isYjsEditor(editor)) return;
+      YjsEditor.connect(editor);
+      if (collaboration) collaboration.flushLocal = () => YjsEditor.flushLocalChanges(editor);
+      return () => {
+        YjsEditor.flushLocalChanges(editor);
+        if (collaboration) collaboration.flushLocal = undefined;
+        YjsEditor.disconnect(editor);
+      };
+    }, [editor]);
 
     // Attach services to editor for non-React plugin code access
     useEffect(() => {
@@ -177,11 +198,7 @@ const Index = memo(
     }, [editor, services]);
 
     const finalHotKeyConfigs = useMemo(() => {
-      return [
-        ...optimizedExtensionData.hotkeyConfigs,
-        ...hotkeys,
-        ...(hotkeyConfigs || []),
-      ];
+      return [...optimizedExtensionData.hotkeyConfigs, ...hotkeys, ...(hotkeyConfigs || [])];
     }, [optimizedExtensionData.hotkeyConfigs, hotkeyConfigs]);
 
     const finalHoveringBarConfigs = useMemo(() => {
@@ -194,6 +211,51 @@ const Index = memo(
 
     const renderElement = useMemoizedFn((props: RenderElementProps) => {
       const { type } = props.element;
+      if (readonly && previewBlocks !== undefined) {
+        const path = ReactEditor.findPath(editor, props.element);
+        if (path.length === 1 && path[0] >= previewBlocks)
+          return (
+            <div {...props.attributes} style={{ display: "none" }}>
+              {props.children}
+            </div>
+          );
+      }
+      if (collaboration && collaboration.mode !== "local" && requiresSafeRendering(type)) {
+        const collabId = (props.element as ContentNode).collabId;
+        const privateNode =
+          typeof collabId === "string" ? collaboration.privateNodes.get(collabId) : undefined;
+        // 数据持有端（作者）复用原组件渲染真身，只读控制交给组件自身的 useReadOnly；
+        // 远端没有私有数据，仍显示占位说明。
+        const extension = privateNode?.type
+          ? pluginOptimizer.getExtension(privateNode.type)
+          : undefined;
+        if (privateNode && extension)
+          return extension.render({
+            ...props,
+            element: { ...privateNode, collabId } as typeof props.element,
+          });
+        return <SafeCollaborationElement {...props} />;
+      }
+      if (collaboration && type === "tabs")
+        return (
+          <SharedTabs
+            {...props}
+            renderEditor={(root, isReadonly) => (
+              <Index
+                collaboration={{ ...collaboration, root }}
+                extensions={extensions}
+                readonly={isReadonly}
+                hotkeyConfigs={hotkeyConfigs}
+                hoveringBarConfigs={hoveringBarConfigs}
+                placeHolder={placeHolder}
+                theme={theme}
+                features={features}
+                decorate={decorate}
+                customRenderLeaf={customRenderLeaf}
+              />
+            )}
+          />
+        );
       const extension = pluginOptimizer.getExtension(type);
       if (extension) {
         return extension.render(props);
@@ -230,10 +292,7 @@ const Index = memo(
         lastSelectionRef.current = null;
         return true;
       }
-      if (
-        lastSelectionRef.current &&
-        Range.equals(selection, lastSelectionRef.current)
-      ) {
+      if (lastSelectionRef.current && Range.equals(selection, lastSelectionRef.current)) {
         return false;
       }
       lastSelectionRef.current = selection;
@@ -241,24 +300,21 @@ const Index = memo(
     });
 
     // 渲染 chunk 容器，对最底层 chunk 应用 content-visibility: auto 优化 DOM 绘制
-    const renderChunk = useMemoizedFn(
-      ({ attributes, children, lowest }: RenderChunkProps) => {
-        const style: CSSProperties = {
-          contentVisibility: lowest ? "auto" : undefined,
-        };
-        return (
-          <div {...attributes} style={style}>
-            {children}
-          </div>
-        );
-      },
-    );
+    const renderChunk = useMemoizedFn(({ attributes, children, lowest }: RenderChunkProps) => {
+      const style: CSSProperties = {
+        contentVisibility: lowest ? "auto" : undefined,
+      };
+      return (
+        <div {...attributes} style={style}>
+          {children}
+        </div>
+      );
+    });
 
     // 在 Slate 同步 DOM selection 后，将选区滚入可视区域
     const scrollSelectionIntoView = useMemoizedFn(
       (slateEditor: ReactEditor, domRange: globalThis.Range) => {
-        const isBackward =
-          !!slateEditor.selection && Range.isBackward(slateEditor.selection);
+        const isBackward = !!slateEditor.selection && Range.isBackward(slateEditor.selection);
         const domFocusPoint = domRange.cloneRange();
         domFocusPoint.collapse(isBackward);
         const leafEl = domFocusPoint.commonAncestorContainer.parentElement;
@@ -275,7 +331,7 @@ const Index = memo(
             behavior: "smooth",
           });
         }
-      },
+      }
     );
 
     const [isNormalized, setIsNormalized] = useState(false);
@@ -299,6 +355,7 @@ const Index = memo(
           ReactEditor.deselect(editor);
         },
         setEditorValue: (nodes: Descendant[]) => {
+          if (YjsEditor.isYjsEditor(editor)) return;
           const normalizedNodes = normalizeEditorContent(nodes);
           const domSelection = window.getSelection();
           let shouldClearDomSelection = false;
@@ -306,10 +363,8 @@ const Index = memo(
             try {
               const editorElement = ReactEditor.toDOMNode(editor, editor);
               shouldClearDomSelection =
-                (!!domSelection.anchorNode &&
-                  editorElement.contains(domSelection.anchorNode)) ||
-                (!!domSelection.focusNode &&
-                  editorElement.contains(domSelection.focusNode));
+                (!!domSelection.anchorNode && editorElement.contains(domSelection.anchorNode)) ||
+                (!!domSelection.focusNode && editorElement.contains(domSelection.focusNode));
             } catch {
               shouldClearDomSelection = false;
             }
@@ -328,19 +383,17 @@ const Index = memo(
                 // @ts-ignore
                 children: normalizedNodes,
               },
-              [],
+              []
             );
           });
           pendingSetEditorValueJson.current = JSON.stringify(
-            normalizeEditorContent(editor.children),
+            normalizeEditorContent(editor.children)
           );
           editor.isResetValue = false;
         },
         getEditor: () => editor,
         scrollHeaderIntoView: (index: number) => {
-          const headers = editor.children.filter(
-            (node: any) => node.type === "header",
-          );
+          const headers = editor.children.filter((node: any) => node.type === "header");
           const header = headers[index];
           if (!header) return;
           const dom = ReactEditor.toDOMNode(editor, header);
@@ -352,7 +405,7 @@ const Index = memo(
           return ReactEditor.isFocused(editor);
         },
       }),
-      [editor],
+      [editor]
     );
 
     const handleOnChange = (value: Descendant[]) => {
@@ -361,16 +414,14 @@ const Index = memo(
       if (syncSelectionSnapshot()) {
         onSelectionChange?.();
       }
-      const valueChanged =
-        JSON.stringify(currentValue.current) !== nextValueJson;
+      const valueChanged = JSON.stringify(currentValue.current) !== nextValueJson;
       if (editor.isResetValue) {
         if (valueChanged) {
           currentValue.current = normalizedValue;
         }
         return;
       }
-      const isSetEditorValueChange =
-        pendingSetEditorValueJson.current === nextValueJson;
+      const isSetEditorValueChange = pendingSetEditorValueJson.current === nextValueJson;
       if (isSetEditorValueChange) {
         if (valueChanged) {
           currentValue.current = normalizedValue;
@@ -396,71 +447,82 @@ const Index = memo(
         theme: theme || systemTheme,
         features,
       }),
-      [theme, systemTheme, features],
+      [theme, systemTheme, features]
     );
 
     return (
-      <EditorContext.Provider value={editorContextValue}>
-        <Slate
-          editor={editor}
-          initialValue={initValue}
-          onChange={handleOnChange}
-          key={finalExtensions
-            .map((extension: IExtension) => extension.type)
-            .join("-")}
-        >
-          <Editable
-            className={classnames(
-              styles.editor,
-              { [styles.dark]: (theme || systemTheme) === "dark" },
-              props.className,
-            )}
-            style={props.style}
-            readOnly={readonly}
-            renderElement={renderElement}
-            renderLeaf={renderLeaf}
-            renderChunk={renderChunk}
-            placeholder={placeHolder}
-            decorate={decorate}
-            onKeyDown={(event) => {
-              registerHotKey(editor, event, finalHotKeyConfigs);
-            }}
-            onDrag={(e) => {
-              e.preventDefault();
-            }}
-            onDrop={async (e) => {
-              e.preventDefault();
+      <CollaborationContext.Provider value={collaboration}>
+        <EditorContext.Provider value={editorContextValue}>
+          <Slate
+            editor={editor}
+            initialValue={initValue}
+            onChange={handleOnChange}
+            key={finalExtensions.map((extension: IExtension) => extension.type).join("-")}
+          >
+            <div
+              ref={collaborationContainerRef}
+              style={collaboration ? { position: "relative" } : { display: "contents" }}
+            >
+              <Editable
+                className={classnames(
+                  styles.editor,
+                  { [styles.dark]: (theme || systemTheme) === "dark" },
+                  props.className
+                )}
+                style={props.style}
+                readOnly={readonly}
+                renderElement={renderElement}
+                renderLeaf={renderLeaf}
+                renderChunk={renderChunk}
+                placeholder={placeHolder}
+                decorate={decorate}
+                onKeyDown={event => {
+                  registerHotKey(editor, event, finalHotKeyConfigs);
+                }}
+                onDrag={e => {
+                  e.preventDefault();
+                }}
+                onDrop={async e => {
+                  e.preventDefault();
 
-              const files = e.dataTransfer?.files;
-              if (!files || files.length === 0 || readonly) return;
+                  const files = e.dataTransfer?.files;
+                  if (!files || files.length === 0 || readonly) return;
 
-              // 计算拖放位置
-              const range = ReactEditor.findEventRange(editor, e);
-              if (range && editor.handleDrop) {
-                await editor.handleDrop(files, range.anchor);
-              }
-            }}
-            onSelect={() => {
-              if (syncSelectionSnapshot()) {
-                onSelectionChange?.();
-              }
-            }}
-            scrollSelectionIntoView={scrollSelectionIntoView}
-            onFocus={onFocus}
-            onBlur={onBlur}
-          />
-          <ImagesOverview />
-          {!readonly && <HoveringToolbar configs={finalHoveringBarConfigs} />}
-          <BlockPanel extensions={finalExtensions} />
-        </Slate>
-      </EditorContext.Provider>
+                  // 计算拖放位置
+                  const range = ReactEditor.findEventRange(editor, e);
+                  if (range && editor.handleDrop) {
+                    await editor.handleDrop(files, range.anchor);
+                  }
+                }}
+                onSelect={() => {
+                  if (syncSelectionSnapshot()) {
+                    onSelectionChange?.();
+                  }
+                }}
+                scrollSelectionIntoView={scrollSelectionIntoView}
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+              {collaboration && (
+                <CollaborationCursors
+                  containerRef={collaborationContainerRef as React.RefObject<HTMLDivElement>}
+                />
+              )}
+            </div>
+            <ImagesOverview />
+            {!readonly && <HoveringToolbar configs={finalHoveringBarConfigs} />}
+            {!readonly && <BlockPanel extensions={finalExtensions} />}
+          </Slate>
+        </EditorContext.Provider>
+      </CollaborationContext.Provider>
     );
-  }),
+  })
 );
 
 export default Index;
 
 export type { IExtension };
+export type { EditorCollaborationBinding };
 
 // 重导出 CustomBlock 相关工具
 export {

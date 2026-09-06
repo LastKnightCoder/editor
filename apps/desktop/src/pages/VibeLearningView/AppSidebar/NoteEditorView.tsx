@@ -19,7 +19,8 @@ import InsertNoteToTreeModal from "./components/InsertNoteToTreeModal";
 import { SelectDropDown } from "@tau/shared";
 import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
 
-import { Editor, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import MindMapRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MindMapRenderer";
 import PodcastPlayer from "@/components/PodcastPlayer";
@@ -34,22 +35,11 @@ import {
 } from "@/commands/vibe-learning";
 import { createContent, getContentById } from "@/commands";
 import { buildCardFromContent, isContentIsCard } from "@/commands/card";
-import {
-  buildArticleFromContent,
-  isContentIsArticle,
-} from "@/commands/article";
-import {
-  getContentLength,
-  getEditorText,
-  importFromMarkdown,
-  getMarkdown,
-} from "@/utils";
+import { buildArticleFromContent, isContentIsArticle } from "@/commands/article";
+import { getContentLength, getEditorText, importFromMarkdown, getMarkdown } from "@/utils";
 import { cleanPPTHtmlContent } from "@/constants/prompts/ppt-generation";
 import { cleanReportHtmlContent } from "@/constants/prompts/report-generation";
-import {
-  buildDefaultEpubMetadata,
-  exportSlateToEpubWithDialog,
-} from "@/utils/epub-export";
+import { buildDefaultEpubMetadata, exportSlateToEpubWithDialog } from "@/utils/epub-export";
 import { exportSlateToPdfWithDialog } from "@/utils/pdf-export";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import useTabStore from "@/stores/useTabStore";
@@ -67,7 +57,7 @@ const DEFAULT_CONTENT: Descendant[] = [
 
 const removeControlChars = (input: string) =>
   Array.from(input)
-    .filter((ch) => {
+    .filter(ch => {
       const code = ch.charCodeAt(0);
       return !(code < 32 || code === 127);
     })
@@ -98,11 +88,8 @@ const downloadBlob = (blob: Blob, filename: string) => {
   URL.revokeObjectURL(url);
 };
 
-const downloadTextFile = (
-  content: string,
-  filename: string,
-  mimeType: string,
-) => downloadBlob(new Blob([content], { type: mimeType }), filename);
+const downloadTextFile = (content: string, filename: string, mimeType: string) =>
+  downloadBlob(new Blob([content], { type: mimeType }), filename);
 
 interface NoteEditorViewProps {
   projectId: number;
@@ -114,29 +101,20 @@ interface NoteEditorViewProps {
 }
 
 const NoteEditorView = memo((props: NoteEditorViewProps) => {
-  const {
-    projectId,
-    mainDbName,
-    note,
-    onBack,
-    onNoteSaved,
-    onResourcesChange,
-  } = props;
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const { projectId, mainDbName, note, onBack, onNoteSaved, onResourcesChange } = props;
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const { message, modal } = App.useApp();
-  const openInNewTab = useTabStore((state) => state.openInNewTab);
+  const openInNewTab = useTabStore(state => state.openInNewTab);
 
   // 大纲生成状态
-  const isGenerating = useOutlineGenerationStore((state) =>
-    note ? state.generatingNoteIds.has(note.id) : false,
+  const isGenerating = useOutlineGenerationStore(state =>
+    note ? state.generatingNoteIds.has(note.id) : false
   );
-  const streamingContent = useOutlineGenerationStore((state) =>
-    note ? state.generatingContent[note.id] : undefined,
+  const streamingContent = useOutlineGenerationStore(state =>
+    note ? state.generatingContent[note.id] : undefined
   );
-  const generationError = useOutlineGenerationStore((state) =>
-    note ? state.generationErrors[note.id] : undefined,
+  const generationError = useOutlineGenerationStore(state =>
+    note ? state.generationErrors[note.id] : undefined
   );
 
   const editorRef = useRef<EditorRef>(null);
@@ -146,16 +124,14 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   const [title, setTitle] = useState(note?.title || "");
   const [content, setContent] = useState<Descendant[]>(DEFAULT_CONTENT);
   const [currentNote, setCurrentNote] = useState<VLNote | null>(note);
-  const [contentId, setContentId] = useState<number | null>(
-    note?.contentId || null,
-  );
+  const [contentId, setContentId] = useState<number | null>(note?.contentId || null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [exportingMindMapImage, setExportingMindMapImage] = useState(false);
-  const [exportingDocumentFormat, setExportingDocumentFormat] = useState<
-    "pdf" | "epub" | null
-  >(null);
+  const [exportingDocumentFormat, setExportingDocumentFormat] = useState<"pdf" | "epub" | null>(
+    null
+  );
   const [isCard, setIsCard] = useState(false);
   const [isArticle, setIsArticle] = useState(false);
   const [insertProjectModalOpen, setInsertProjectModalOpen] = useState(false);
@@ -165,15 +141,13 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   const titleChangedRef = useRef(false);
 
   // useEditContent 管理内容保存和同步
-  const handleExternalContentChange = useMemoizedFn(
-    (newContent: Descendant[]) => {
-      setContent(newContent);
-      editorRef.current?.setEditorValue(newContent);
-    },
-  );
+  const handleExternalContentChange = useMemoizedFn((newContent: Descendant[]) => {
+    setContent(newContent);
+    editorRef.current?.setEditorValue(newContent);
+  });
   const { throttleHandleEditorContentChange } = useEditContent(
     contentId || undefined,
-    handleExternalContentChange,
+    handleExternalContentChange
   );
 
   // 是否是思维导图类型笔记
@@ -371,12 +345,10 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   });
 
   // 处理标题变化
-  const handleTitleChange = useMemoizedFn(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setTitle(e.target.value);
-      titleChangedRef.current = true;
-    },
-  );
+  const handleTitleChange = useMemoizedFn((e: React.ChangeEvent<HTMLInputElement>) => {
+    setTitle(e.target.value);
+    titleChangedRef.current = true;
+  });
 
   // 完成标题编辑
   const handleTitleBlur = useMemoizedFn(() => {
@@ -400,12 +372,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       setIsCard(true);
       message.success("已创建卡片");
       // 打开卡片详情
-      openInNewTab(
-        TabType.CardDetail,
-        { id: card.id },
-        undefined,
-        getEditorText(card.content, 10),
-      );
+      openInNewTab(TabType.CardDetail, { id: card.id }, undefined, getEditorText(card.content, 10));
     } catch (error) {
       console.error("Failed to create card:", error);
       message.error("创建卡片失败");
@@ -428,7 +395,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
         TabType.ArticleDetail,
         { id: article.id },
         undefined,
-        article.title || getEditorText(content, 10),
+        article.title || getEditorText(content, 10)
       );
     } catch (error) {
       console.error("Failed to create article:", error);
@@ -512,7 +479,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
   // 切换全屏显示
   const handleToggleFullscreen = useMemoizedFn(() => {
-    setIsFullscreen((prev) => !prev);
+    setIsFullscreen(prev => !prev);
   });
 
   // 下载 PPT 为 HTML
@@ -636,10 +603,9 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     // 优先导出「思维导图真实画布层」（包含 svg 连线 + 节点的那层）
     // 该层通常有显式 width/height（bounds），且 transform 仅用于 pan/zoom
     const mindMapSvg = exportElement.querySelector(
-      "svg.pointer-events-none",
+      "svg.pointer-events-none"
     ) as SVGSVGElement | null;
-    const canvasElement = (mindMapSvg?.parentElement ||
-      null) as HTMLElement | null;
+    const canvasElement = (mindMapSvg?.parentElement || null) as HTMLElement | null;
     const captureTarget = canvasElement || exportElement;
 
     const rect = captureTarget.getBoundingClientRect();
@@ -680,7 +646,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       }
 
       // 等待遮罩层/布局更新，避免截图内容不完整
-      await new Promise<void>((resolve) => {
+      await new Promise<void>(resolve => {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
       });
 
@@ -688,7 +654,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
         dpr: window.devicePixelRatio || 2,
         type: "png",
         quality: 0.95,
-        filter: (element) => {
+        filter: element => {
           const el = element as HTMLElement | null;
           return !el?.hasAttribute?.("data-export-mask");
         },
@@ -728,11 +694,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       ? [
           {
             key: "fullscreen",
-            icon: isFullscreen ? (
-              <FullscreenExitOutlined />
-            ) : (
-              <FullscreenOutlined />
-            ),
+            icon: isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />,
             label: isFullscreen ? "退出全屏" : "全屏显示",
             onClick: handleToggleFullscreen,
           },
@@ -785,19 +747,13 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                 {
                   key: "export-pdf",
                   icon: <FileTextOutlined />,
-                  label:
-                    exportingDocumentFormat === "pdf"
-                      ? "导出 PDF 中..."
-                      : "导出 PDF",
+                  label: exportingDocumentFormat === "pdf" ? "导出 PDF 中..." : "导出 PDF",
                   onClick: handleExportPdf,
                 },
                 {
                   key: "export-epub",
                   icon: <FileTextOutlined />,
-                  label:
-                    exportingDocumentFormat === "epub"
-                      ? "导出 EPUB 中..."
-                      : "导出 EPUB",
+                  label: exportingDocumentFormat === "epub" ? "导出 EPUB 中..." : "导出 EPUB",
                   onClick: handleExportEpub,
                 },
                 {
@@ -845,19 +801,13 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
             {
               key: "export-pdf",
               icon: <FileTextOutlined />,
-              label:
-                exportingDocumentFormat === "pdf"
-                  ? "导出 PDF 中..."
-                  : "导出 PDF",
+              label: exportingDocumentFormat === "pdf" ? "导出 PDF 中..." : "导出 PDF",
               onClick: handleExportPdf,
             },
             {
               key: "export-epub",
               icon: <FileTextOutlined />,
-              label:
-                exportingDocumentFormat === "epub"
-                  ? "导出 EPUB 中..."
-                  : "导出 EPUB",
+              label: exportingDocumentFormat === "epub" ? "导出 EPUB 中..." : "导出 EPUB",
               onClick: handleExportEpub,
             },
             {
@@ -916,19 +866,13 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
             {
               key: "export-pdf",
               icon: <FileTextOutlined />,
-              label:
-                exportingDocumentFormat === "pdf"
-                  ? "导出 PDF 中..."
-                  : "导出 PDF",
+              label: exportingDocumentFormat === "pdf" ? "导出 PDF 中..." : "导出 PDF",
               onClick: handleExportPdf,
             },
             {
               key: "export-epub",
               icon: <FileTextOutlined />,
-              label:
-                exportingDocumentFormat === "epub"
-                  ? "导出 EPUB 中..."
-                  : "导出 EPUB",
+              label: exportingDocumentFormat === "epub" ? "导出 EPUB 中..." : "导出 EPUB",
               onClick: handleExportEpub,
             },
             {
@@ -955,38 +899,38 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
   if (loading) {
     return (
-      <div className="w-full h-full flex items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center">
         <LoadingSpinner size="large" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       {/* 顶部栏 */}
-      <div className="px-4 py-3 border-b border-[#e8e8e8] dark:border-[#2a2a2a] shrink-0 flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3 border-b border-[#e8e8e8] px-4 py-3 dark:border-[#2a2a2a]">
         <button
-          className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a] transition-colors cursor-pointer border-none bg-transparent"
+          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a]"
           onClick={handleBack}
         >
           <ArrowLeftOutlined className="text-[#666] dark:text-[#999]" />
         </button>
 
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           {isEditingTitle && !isGenerating ? (
             <input
               type="text"
               value={title}
               onChange={handleTitleChange}
               onBlur={handleTitleBlur}
-              onKeyDown={(e) => e.key === "Enter" && handleTitleBlur()}
+              onKeyDown={e => e.key === "Enter" && handleTitleBlur()}
               placeholder="请输入标题"
               autoFocus
-              className="w-full border-none bg-transparent p-0 text-base font-medium text-[#333] dark:text-[#e0e0e0] outline-none placeholder:text-[#999]"
+              className="w-full border-none bg-transparent p-0 text-base font-medium text-[#333] outline-none placeholder:text-[#999] dark:text-[#e0e0e0]"
             />
           ) : (
             <h3
-              className="text-base font-medium text-[#333] dark:text-[#e0e0e0] m-0 cursor-pointer truncate"
+              className="m-0 cursor-pointer truncate text-base font-medium text-[#333] dark:text-[#e0e0e0]"
               onClick={() => !isGenerating && setIsEditingTitle(true)}
             >
               {title || "无标题笔记"}
@@ -996,13 +940,13 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
         <div className="flex items-center gap-2">
           {isGenerating && (
-            <span className="text-xs text-blue-500 flex items-center">
+            <span className="flex items-center text-xs text-blue-500">
               <LoadingSpinner size="small" className="mr-1" />
               生成中
             </span>
           )}
           {!isGenerating && saving && (
-            <span className="text-xs text-[#999] flex items-center">
+            <span className="flex items-center text-xs text-[#999]">
               <LoadingSpinner size="small" className="mr-1" />
               保存中
             </span>
@@ -1010,7 +954,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           {!isGenerating && (
             <button
               ref={moreButtonRef}
-              className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a] transition-colors cursor-pointer border-none bg-transparent"
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a]"
               onClick={() => setShowMoreMenu(!showMoreMenu)}
             >
               <MoreOutlined className="text-[#666] dark:text-[#999]" />
@@ -1023,12 +967,10 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
             onClose={() => setShowMoreMenu(false)}
             onSelect={handleMenuSelect}
             triggerElement={moreButtonRef.current}
-            getKey={(item) => item.key}
+            getKey={item => item.key}
             width={160}
-            renderItem={(item) => (
-              <div
-                className={`flex items-center gap-2 ${item.danger ? "text-red-500" : ""}`}
-              >
+            renderItem={item => (
+              <div className={`flex items-center gap-2 ${item.danger ? "text-red-500" : ""}`}>
                 {item.icon}
                 <span>{item.label}</span>
               </div>
@@ -1038,21 +980,17 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       </div>
 
       {/* 编辑器区域 */}
-      <div
-        className={`flex-1 overflow-auto ${isMindMap || isPPT ? "" : "p-4"}`}
-      >
+      <div className={`flex-1 overflow-auto ${isMindMap || isPPT ? "" : "p-4"}`}>
         {/* 生成错误提示 */}
         {generationError && (
-          <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20">
-            <p className="text-sm text-red-600 dark:text-red-400">
-              生成失败: {generationError}
-            </p>
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-500/20 dark:bg-red-500/10">
+            <p className="text-sm text-red-600 dark:text-red-400">生成失败: {generationError}</p>
           </div>
         )}
 
         <ErrorBoundary>
           {isMindMap ? (
-            <div ref={mindMapExportRef} className="h-full relative">
+            <div ref={mindMapExportRef} className="relative h-full">
               {exportingMindMapImage && !isFullscreen && (
                 <div
                   data-export-mask
@@ -1083,7 +1021,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
               ) : (
                 <iframe
                   src={pptPreviewUrl}
-                  className="w-full h-full border-0"
+                  className="h-full w-full border-0"
                   sandbox="allow-scripts allow-same-origin"
                   title="PPT Preview"
                 />
@@ -1106,7 +1044,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
               ) : (
                 <iframe
                   src={reportPreviewUrl}
-                  className="w-full h-full border-0"
+                  className="h-full w-full border-0"
                   sandbox="allow-scripts allow-same-origin"
                   title="Report Preview"
                 />
@@ -1125,7 +1063,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                 />
               )}
               {!podcast && currentNote?.podcastId && (
-                <div className="p-4 rounded-xl bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20">
+                <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-500/20 dark:bg-yellow-500/10">
                   <p className="text-sm text-yellow-600 dark:text-yellow-400">
                     播客数据加载失败，请刷新页面重试
                   </p>
@@ -1133,6 +1071,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
               )}
               {/* 脚本内容（只读） */}
               <Editor
+                contentId={contentId || undefined}
                 key={currentNote?.id || "new"}
                 ref={editorRef}
                 initValue={content}
@@ -1143,6 +1082,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
             </div>
           ) : (
             <Editor
+              contentId={contentId || undefined}
               key={currentNote?.id || "new"}
               ref={editorRef}
               initValue={content}
@@ -1156,24 +1096,21 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
       {/* 全屏显示思维导图 */}
       {isMindMap && isFullscreen && (
-        <div className="fixed top-12 left-0 right-0 bottom-0 z-50 bg-white dark:bg-[#1a1a1a] flex flex-col">
+        <div className="fixed bottom-0 left-0 right-0 top-12 z-50 flex flex-col bg-white dark:bg-[#1a1a1a]">
           {/* 全屏顶部栏 */}
-          <div className="px-4 py-3 border-b border-[#e8e8e8] dark:border-[#2a2a2a] shrink-0 flex items-center justify-between">
-            <h3 className="text-base font-medium text-[#333] dark:text-[#e0e0e0] m-0">
+          <div className="flex shrink-0 items-center justify-between border-b border-[#e8e8e8] px-4 py-3 dark:border-[#2a2a2a]">
+            <h3 className="m-0 text-base font-medium text-[#333] dark:text-[#e0e0e0]">
               {title || "无标题笔记"}
             </h3>
             <button
-              className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a] transition-colors cursor-pointer border-none bg-transparent"
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a]"
               onClick={handleToggleFullscreen}
             >
               <FullscreenExitOutlined className="text-[#666] dark:text-[#999]" />
             </button>
           </div>
           {/* 全屏思维导图区域 */}
-          <div
-            ref={mindMapFullscreenExportRef}
-            className="flex-1 overflow-hidden relative"
-          >
+          <div ref={mindMapFullscreenExportRef} className="relative flex-1 overflow-hidden">
             {exportingMindMapImage && (
               <div
                 data-export-mask
@@ -1192,14 +1129,12 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
       {/* 全屏显示 PPT */}
       {isPPT && isFullscreen && (
-        <div className="fixed top-12 left-0 right-0 bottom-0 z-50 bg-black flex flex-col">
+        <div className="fixed bottom-0 left-0 right-0 top-12 z-50 flex flex-col bg-black">
           {/* 全屏顶部栏 */}
-          <div className="px-4 py-3 border-b border-[#2a2a2a] shrink-0 flex items-center justify-between bg-[#1a1a1a]">
-            <h3 className="text-base font-medium text-[#e0e0e0] m-0">
-              {title || "无标题 PPT"}
-            </h3>
+          <div className="flex shrink-0 items-center justify-between border-b border-[#2a2a2a] bg-[#1a1a1a] px-4 py-3">
+            <h3 className="m-0 text-base font-medium text-[#e0e0e0]">{title || "无标题 PPT"}</h3>
             <button
-              className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-[#2a2a2a] text-[#e0e0e0] transition-colors cursor-pointer border-none bg-transparent"
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-[#e0e0e0] transition-colors hover:bg-[#2a2a2a]"
               onClick={handleToggleFullscreen}
             >
               <FullscreenExitOutlined />
@@ -1222,7 +1157,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
             ) : (
               <iframe
                 src={pptPreviewUrl}
-                className="w-full h-full border-0"
+                className="h-full w-full border-0"
                 sandbox="allow-scripts allow-same-origin"
                 title="PPT Fullscreen"
               />
@@ -1232,13 +1167,13 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       )}
 
       {isReport && isFullscreen && (
-        <div className="fixed top-12 left-0 right-0 bottom-0 z-50 bg-white dark:bg-zinc-900 flex flex-col">
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-[#2a2a2a] shrink-0 flex items-center justify-between bg-white dark:bg-[#1a1a1a]">
-            <h3 className="text-base font-medium text-gray-800 dark:text-[#e0e0e0] m-0">
+        <div className="fixed bottom-0 left-0 right-0 top-12 z-50 flex flex-col bg-white dark:bg-zinc-900">
+          <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 py-3 dark:border-[#2a2a2a] dark:bg-[#1a1a1a]">
+            <h3 className="m-0 text-base font-medium text-gray-800 dark:text-[#e0e0e0]">
               {title || "无标题报告"}
             </h3>
             <button
-              className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-gray-100 dark:hover:bg-[#2a2a2a] text-gray-600 dark:text-[#e0e0e0] transition-colors cursor-pointer border-none bg-transparent"
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-gray-600 transition-colors hover:bg-gray-100 dark:text-[#e0e0e0] dark:hover:bg-[#2a2a2a]"
               onClick={handleToggleFullscreen}
             >
               <FullscreenExitOutlined />
@@ -1260,7 +1195,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
             ) : (
               <iframe
                 src={reportPreviewUrl}
-                className="w-full h-full border-0"
+                className="h-full w-full border-0"
                 sandbox="allow-scripts allow-same-origin"
                 title="Report Fullscreen"
               />
