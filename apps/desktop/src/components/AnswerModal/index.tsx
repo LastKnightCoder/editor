@@ -2,7 +2,8 @@ import React, { useRef, useEffect, useState } from "react";
 import { App } from "antd";
 import { motion, AnimatePresence } from "motion/react";
 import { IAnswer } from "@/types";
-import { Editor, IExtension, EditorRef } from "@tau/editor/src";
+import { IExtension, EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import CustomModal from "@/components/CustomModal";
 import { Descendant } from "slate";
 import { useMemoizedFn, useUnmount } from "ahooks";
@@ -54,17 +55,12 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
 }) => {
   const { message } = App.useApp();
   const editorRef = useRef<EditorRef>(null);
-  const { throttleHandleEditorContentChange } = useEditContent(
-    selectedAnswer?.id,
-    (data) => {
-      editorRef.current?.setEditorValue(data);
-    },
-  );
+  const { throttleHandleEditorContentChange } = useEditContent(selectedAnswer?.id, data => {
+    editorRef.current?.setEditorValue(data);
+  });
 
   // 使用 state 保存当前内容以支持实时字数更新
-  const [currentContent, setCurrentContent] = useState<Descendant[]>(
-    selectedAnswer?.content || [],
-  );
+  const [currentContent, setCurrentContent] = useState<Descendant[]>(selectedAnswer?.content || []);
 
   // 当 selectedAnswer 变化时更新 currentContent
   useEffect(() => {
@@ -100,7 +96,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
 
   useEffect(() => {
     if (selectedAnswer?.id && visible) {
-      getAnswerContentStatus(selectedAnswer.id).then((status) => {
+      getAnswerContentStatus(selectedAnswer.id).then(status => {
         setIsCard(status.isCard);
         setIsArticle(status.isArticle);
       });
@@ -125,12 +121,10 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
     if (!selectedAnswer?.id) return;
     throttleHandleEditorContentChange.flush();
 
-    buildCardFromContent(selectedAnswer.id).then((card) => {
+    buildCardFromContent(selectedAnswer.id).then(card => {
       if (card) {
         setIsCard(true);
-        defaultCardEventBus
-          .createEditor()
-          .publishCardEvent("card:created", card);
+        defaultCardEventBus.createEditor().publishCardEvent("card:created", card);
         message.success("创建卡片成功");
         setDropdownOpen(false);
         void reloadContentStatus();
@@ -151,12 +145,10 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
     if (!selectedAnswer?.id) return;
     throttleHandleEditorContentChange.flush();
 
-    buildArticleFromContent(selectedAnswer.id, title).then((article) => {
+    buildArticleFromContent(selectedAnswer.id, title).then(article => {
       if (article) {
         setIsArticle(true);
-        defaultArticleEventBus
-          .createEditor()
-          .publishArticleEvent("article:created", article);
+        defaultArticleEventBus.createEditor().publishArticleEvent("article:created", article);
         message.success("创建文章成功");
         setDropdownOpen(false);
         void reloadContentStatus();
@@ -167,27 +159,25 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
     });
   });
 
-  const handleCreateTreeItem = useMemoizedFn(
-    (mode: "project" | "document", title: string) => {
-      if (!selectedAnswer?.id) return;
-      throttleHandleEditorContentChange.flush();
-      setDropdownOpen(false);
-      useExtNoteInsertStore.getState().openModal({
-        mode,
-        sourceContentId: selectedAnswer.id,
-        title,
-        insertMode: "shared-content",
-        onSuccess: () => {
-          void reloadContentStatus();
-          onAnswerChange?.(selectedAnswer);
-        },
-      });
-    },
-  );
+  const handleCreateTreeItem = useMemoizedFn((mode: "project" | "document", title: string) => {
+    if (!selectedAnswer?.id) return;
+    throttleHandleEditorContentChange.flush();
+    setDropdownOpen(false);
+    useExtNoteInsertStore.getState().openModal({
+      mode,
+      sourceContentId: selectedAnswer.id,
+      title,
+      insertMode: "shared-content",
+      onSuccess: () => {
+        void reloadContentStatus();
+        onAnswerChange?.(selectedAnswer);
+      },
+    });
+  });
 
   const icon = (
     <svg
-      className="w-5 h-5 text-blue-500"
+      className="h-5 w-5 text-blue-500"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -198,17 +188,12 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
   );
 
   const showNavigation =
-    typeof currentIndex === "number" &&
-    currentIndex >= 0 &&
-    typeof total === "number" &&
-    total > 1;
+    typeof currentIndex === "number" && currentIndex >= 0 && typeof total === "number" && total > 1;
 
-  const handleOpenTitleModal = useMemoizedFn(
-    (target: "article" | "project" | "document") => {
-      setDropdownOpen(false);
-      setTitleModalTarget(target);
-    },
-  );
+  const handleOpenTitleModal = useMemoizedFn((target: "article" | "project" | "document") => {
+    setDropdownOpen(false);
+    setTitleModalTarget(target);
+  });
 
   const handleConfirmTitle = useMemoizedFn(({ title }: { title: string }) => {
     const target = titleModalTarget;
@@ -255,35 +240,31 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
       bodyClassName="overflow-hidden"
       contentStyle={{ height: "80vh", maxHeight: "80vh" }}
     >
-      <div className="flex flex-col h-full">
+      <div className="flex h-full flex-col">
         {/* Metadata and actions */}
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200 dark:border-slate-800 shrink-0">
-          <div className="flex text-xs gap-2.5 text-gray-500 dark:text-gray-400">
+        <div className="mb-4 flex shrink-0 items-center justify-between border-b border-gray-200 pb-3 dark:border-slate-800">
+          <div className="flex gap-2.5 text-xs text-gray-500 dark:text-gray-400">
             {currentContent && (
               <>
                 <div>
-                  <span>
-                    创建于 {formatDate(selectedAnswer.createTime, true)}
-                  </span>
+                  <span>创建于 {formatDate(selectedAnswer.createTime, true)}</span>
                 </div>
                 <div>
-                  <span>
-                    最后修改于 {formatDate(selectedAnswer.updateTime, true)}
-                  </span>
+                  <span>最后修改于 {formatDate(selectedAnswer.updateTime, true)}</span>
                 </div>
                 <div>字数：{getContentLength(currentContent)}</div>
               </>
             )}
           </div>
 
-          <div className="flex items-center gap-2 ml-4">
+          <div className="ml-4 flex items-center gap-2">
             <div className="relative">
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-zinc-700 flex items-center gap-1.5"
+                className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-all hover:bg-gray-200 dark:border-slate-700 dark:bg-zinc-800 dark:text-slate-300 dark:hover:bg-zinc-700"
               >
                 <svg
-                  className="w-4 h-4"
+                  className="h-4 w-4"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -297,41 +278,38 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
               </button>
               {dropdownOpen && (
                 <>
-                  <div
-                    className="fixed inset-0 z-9998"
-                    onClick={() => setDropdownOpen(false)}
-                  />
-                  <div className="absolute right-0 mt-1 w-48 z-9999 rounded-xl shadow-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-slate-800 py-1">
+                  <div className="z-9998 fixed inset-0" onClick={() => setDropdownOpen(false)} />
+                  <div className="z-9999 absolute right-0 mt-1 w-48 rounded-xl border border-gray-200 bg-white py-1 shadow-lg dark:border-slate-800 dark:bg-zinc-900">
                     {!isCard && (
                       <button
                         onClick={handleBuildCard}
-                        className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                        className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-zinc-800"
                       >
-                        <BsCardText className="w-4 h-4" />
+                        <BsCardText className="h-4 w-4" />
                         创建卡片
                       </button>
                     )}
                     {!isArticle && (
                       <button
                         onClick={() => handleOpenTitleModal("article")}
-                        className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                        className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-zinc-800"
                       >
-                        <FileTextOutlined className="w-4 h-4" />
+                        <FileTextOutlined className="h-4 w-4" />
                         创建文章
                       </button>
                     )}
                     <button
                       onClick={() => handleOpenTitleModal("project")}
-                      className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-zinc-800"
                     >
-                      <FolderOpenOutlined className="w-4 h-4" />
+                      <FolderOpenOutlined className="h-4 w-4" />
                       创建项目文档
                     </button>
                     <button
                       onClick={() => handleOpenTitleModal("document")}
-                      className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 transition-colors text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-zinc-800"
                     >
-                      <BookOutlined className="w-4 h-4" />
+                      <BookOutlined className="h-4 w-4" />
                       创建知识库文档
                     </button>
                   </div>
@@ -340,11 +318,11 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
             </div>
           </div>
         </div>
-        <div className="flex-1 min-h-0 relative overflow-y-auto overflow-x-hidden">
+        <div className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
           {showNavigation && (
             <>
               <button
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 px-3 py-2 flex items-center justify-center text-2xl text-gray-400 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white transition-colors"
+                className="absolute left-0 top-1/2 z-10 flex -translate-y-1/2 items-center justify-center px-3 py-2 text-2xl text-gray-400 transition-colors hover:text-gray-700 dark:text-gray-300 dark:hover:text-white"
                 onClick={() => {
                   if (!onPrev) return;
                   setDirection(-1);
@@ -354,7 +332,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
                 <LeftOutlined />
               </button>
               <button
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 px-3 py-2 flex items-center justify-center text-2xl text-gray-400 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white transition-colors"
+                className="absolute right-0 top-1/2 z-10 flex -translate-y-1/2 items-center justify-center px-3 py-2 text-2xl text-gray-400 transition-colors hover:text-gray-700 dark:text-gray-300 dark:hover:text-white"
                 onClick={() => {
                   if (!onNext) return;
                   setDirection(1);
@@ -376,6 +354,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
                 transition={{ duration: 0.2 }}
               >
                 <Editor
+                  contentId={selectedAnswer?.id}
                   key={`answer-${selectedAnswer.id}`}
                   className="p-5"
                   ref={editorRef}

@@ -11,7 +11,7 @@ import {
 } from "@ant-design/icons";
 import { App, Tooltip, Dropdown } from "antd";
 import type { MenuProps } from "antd";
-import { useMemoizedFn, useThrottleFn } from "ahooks";
+import { useMemoizedFn } from "ahooks";
 import { Descendant, Path, Transforms } from "slate";
 import { Webview } from "@tau/shared";
 import type { WebviewRef } from "@tau/shared";
@@ -33,7 +33,8 @@ import {
   defaultProjectItemEventBus,
 } from "@/utils";
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
-import { Editor, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import EditorOutline from "@/components/EditorOutline";
 import EditorComment from "@/components/EditorComment";
 import EditTitleModal from "@/components/EditTitleModal";
@@ -61,10 +62,7 @@ import useThemeColors from "@/hooks/useThemeColors";
 import useEditContent from "@/hooks/useEditContent";
 import useWebClip from "@/hooks/useWebClip";
 import usePodcastAttachment from "@/hooks/usePodcastAttachment";
-import {
-  attachPodcastToProjectItem,
-  detachPodcastFromProjectItem,
-} from "@/commands/podcast";
+import { attachPodcastToProjectItem, detachPodcastFromProjectItem } from "@/commands/podcast";
 import PodcastGenerationModal from "@/components/PodcastGenerationModal";
 import useTabStore from "@/stores/useTabStore";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
@@ -76,13 +74,7 @@ import contextMenuStyles from "@/components/WhiteBoard/index.module.less";
 
 // Icons
 const ClipIcon = () => (
-  <svg
-    className="w-4 h-4"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
+  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
     <polyline points="14 2 14 8 20 8" />
     <line x1="16" y1="13" x2="8" y2="13" />
@@ -92,13 +84,7 @@ const ClipIcon = () => (
 );
 
 const SwitchViewIcon = () => (
-  <svg
-    className="w-4 h-4"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
+  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <polyline points="17 1 21 5 17 9" />
     <path d="M3 11V9a4 4 0 0 1 4-4h14" />
     <polyline points="7 23 3 19 7 15" />
@@ -107,26 +93,14 @@ const SwitchViewIcon = () => (
 );
 
 const SplitViewIcon = () => (
-  <svg
-    className="w-4 h-4"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
+  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
     <line x1="12" y1="3" x2="12" y2="21" />
   </svg>
 );
 
 const ExternalLinkIcon = () => (
-  <svg
-    className="w-4 h-4"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
+  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
     <polyline points="15 3 21 3 21 9" />
     <line x1="10" y1="14" x2="21" y2="3" />
@@ -134,26 +108,14 @@ const ExternalLinkIcon = () => (
 );
 
 const NewTabIcon = () => (
-  <svg
-    className="w-4 h-4"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
+  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
     <line x1="9" y1="3" x2="9" y2="21" />
   </svg>
 );
 
 const OutlineMenuIcon = () => (
-  <svg
-    className="w-4 h-4"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
+  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <circle cx="6" cy="6" r="1.5" />
     <circle cx="6" cy="12" r="1.5" />
     <circle cx="6" cy="18" r="1.5" />
@@ -164,13 +126,7 @@ const OutlineMenuIcon = () => (
 );
 
 const CommentSidebarIcon = () => (
-  <svg
-    className="w-4 h-4"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
+  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H12a8.5 8.5 0 0 1-8.5-8.5v-5A3.5 3.5 0 0 1 7 3h10a4 4 0 0 1 4 4z" />
     <path d="M8 11h8" />
     <path d="M8 7h8" />
@@ -196,9 +152,7 @@ const createEmptyEditorContent = (): Descendant[] =>
 
 const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const { projectItemId } = props;
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
   const webviewRef = useRef<WebviewRef>(null);
   const editorRef = useRef<EditorRef>(null);
@@ -208,15 +162,14 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const { message, modal } = App.useApp();
   const themeColors = useThemeColors();
   useProjectContext(); // Keep context active
-  const openInNewTab = useTabStore((state) => state.openInNewTab);
+  const openInNewTab = useTabStore(state => state.openInNewTab);
 
   // 视图模式
   const [viewMode, setViewMode] = useState<ViewMode>("webview");
 
   // 已保存的解析结果
   const [savedWebClip, setSavedWebClip] = useState<WebClip | null>(null);
-  const [parsedContent, setParsedContent] =
-    useState<Descendant[]>(DEFAULT_CONTENT);
+  const [parsedContent, setParsedContent] = useState<Descendant[]>(DEFAULT_CONTENT);
   const [isLocalClipping, setIsLocalClipping] = useState(false);
   const [localClipError, setLocalClipError] = useState<string | null>(null);
   const localClipAbortRef = useRef<AbortController | null>(null);
@@ -227,24 +180,16 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const [editTitleModalOpen, setEditTitleModalOpen] = useState(false);
   const [creatingDocument, setCreatingDocument] = useState(false);
   const [notes, setNotes] = useState<WebNote[]>([]);
-  const [noteContents, setNoteContents] = useState<
-    Record<number, Descendant[]>
-  >({});
-  const [activeDocumentSource, setActiveDocumentSource] = useState<
-    "parsed" | "note"
-  >("parsed");
+  const [noteContents, setNoteContents] = useState<Record<number, Descendant[]>>({});
+  const [activeDocumentSource, setActiveDocumentSource] = useState<"parsed" | "note">("parsed");
   const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
-  const [preferredNoteContentId, setPreferredNoteContentId] = useState<
-    number | null
-  >(null);
+  const [preferredNoteContentId, setPreferredNoteContentId] = useState<number | null>(null);
   const [renamingNote, setRenamingNote] = useState<WebNote | null>(null);
 
-  const [sidebarMode, setSidebarMode] = useState<"outline" | "comments" | null>(
-    "outline",
-  );
+  const [sidebarMode, setSidebarMode] = useState<"outline" | "comments" | null>("outline");
 
   useEffect(() => {
-    getProjectItemById(projectItemId).then((item) => {
+    getProjectItemById(projectItemId).then(item => {
       if (item) {
         setProjectItem(item);
       }
@@ -267,7 +212,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     try {
       const content = await getContentById(note.contentId);
       if (!content || !content.content) return;
-      setNoteContents((prev) => ({
+      setNoteContents(prev => ({
         ...prev,
         [note.contentId]: content.content,
       }));
@@ -318,25 +263,23 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       }
       return;
     }
-    const exists = notes.find((note) => note.id === activeNoteId);
+    const exists = notes.find(note => note.id === activeNoteId);
     if (!exists) {
       setActiveNoteId(notes[0].id);
     }
   }, [notes, activeNoteId]);
 
-  const persistPreferredNote = useMemoizedFn(
-    async (contentId: number | null) => {
-      try {
-        await setWebViewPreference({
-          projectItemId,
-          preferredContentId: contentId,
-        });
-        setPreferredNoteContentId(contentId);
-      } catch (error) {
-        console.error("Failed to save web view preference:", error);
-      }
-    },
-  );
+  const persistPreferredNote = useMemoizedFn(async (contentId: number | null) => {
+    try {
+      await setWebViewPreference({
+        projectItemId,
+        preferredContentId: contentId,
+      });
+      setPreferredNoteContentId(contentId);
+    } catch (error) {
+      console.error("Failed to save web view preference:", error);
+    }
+  });
 
   useEffect(() => {
     const note = notes[0] ?? null;
@@ -357,10 +300,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   // 查询已有的解析结果
   useEffect(() => {
     const loadExistingWebClip = async () => {
-      console.log(
-        "[WebClip] Loading existing web clip for projectItemId:",
-        projectItemId,
-      );
+      console.log("[WebClip] Loading existing web clip for projectItemId:", projectItemId);
       try {
         const links = await queryContentLinkBySource({
           sourceId: projectItemId,
@@ -378,10 +318,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             const content = await getContentById(webClip.contentId);
             console.log("[WebClip] Loaded content:", content);
             if (content && content.content) {
-              console.log(
-                "[WebClip] Setting parsed content, length:",
-                content.content.length,
-              );
+              console.log("[WebClip] Setting parsed content, length:", content.content.length);
               setParsedContent(content.content);
               // 如果当前是解析视图，需要更新 Editor（非受控组件）
               setTimeout(() => {
@@ -400,17 +337,11 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   }, [projectItemId]);
 
   // 使用 useEditContent hook 管理解析内容的编辑
-  const { throttleHandleEditorContentChange } = useEditContent(
-    savedWebClip?.contentId,
-    (content) => {
-      console.log(
-        "[WebClip] useEditContent callback, content length:",
-        content.length,
-      );
-      editorRef.current?.setEditorValue(content);
-      setParsedContent(content);
-    },
-  );
+  const { throttleHandleEditorContentChange } = useEditContent(savedWebClip?.contentId, content => {
+    console.log("[WebClip] useEditContent callback, content length:", content.length);
+    editorRef.current?.setEditorValue(content);
+    setParsedContent(content);
+  });
 
   // 使用 useWebClip hook 管理解析流程
   const {
@@ -433,7 +364,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         "contentId:",
         contentId,
         "content length:",
-        content.length,
+        content.length
       );
 
       // Electron 侧已经保存了数据，前端只需更新状态
@@ -450,12 +381,19 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
       message.success("网页解析完成");
     },
-    onError: (error) => {
+    onError: error => {
       message.error(`解析失败: ${error}`);
     },
   });
 
   const isAnyClipping = isClipping || isLocalClipping;
+  // 编辑器接入的 content：笔记视图用笔记的 contentId，网页剪辑在保存前没有 contentId。
+  const editorContentId =
+    activeDocumentSource === "note"
+      ? notes.find(note => note.id === activeNoteId)?.contentId
+      : isAnyClipping
+        ? undefined
+        : savedWebClip?.contentId;
   const currentClipError = localClipError || clipError;
 
   const cancelLocalClip = useMemoizedFn(() => {
@@ -507,38 +445,25 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   }, [clearClipMenuCloseTimer]);
 
   // 播客生成
-  const {
-    podcastModalOpen,
-    openPodcastModal,
-    closePodcastModal,
-    handlePodcastSuccess,
-  } = usePodcastAttachment({
-    hostId: projectItemId,
-    currentPodcast: projectItem?.podcast,
-    attachPodcast: attachPodcastToProjectItem,
-    detachPodcast: detachPodcastFromProjectItem,
-    reloadHost: getProjectItemById,
-    onHostReloaded: setProjectItem,
-    message,
-    messages: {
-      created: "播客已添加到文档",
-    },
-  });
-
-  const { run: throttleSaveNoteContent } = useThrottleFn(
-    async (contentId: number, content: Descendant[]) => {
-      await updateContent(contentId, content);
-    },
-    { wait: 1000 },
-  );
+  const { podcastModalOpen, openPodcastModal, closePodcastModal, handlePodcastSuccess } =
+    usePodcastAttachment({
+      hostId: projectItemId,
+      currentPodcast: projectItem?.podcast,
+      attachPodcast: attachPodcastToProjectItem,
+      detachPodcast: detachPodcastFromProjectItem,
+      reloadHost: getProjectItemById,
+      onHostReloaded: setProjectItem,
+      message,
+      messages: {
+        created: "播客已添加到文档",
+      },
+    });
 
   // 当视图模式变化时，如果是解析视图，确保 Editor 内容正确
   useEffect(() => {
     if (viewMode === "document" || viewMode === "split") {
       const activeNote =
-        activeDocumentSource === "note"
-          ? notes.find((note) => note.id === activeNoteId)
-          : null;
+        activeDocumentSource === "note" ? notes.find(note => note.id === activeNoteId) : null;
       const content =
         activeDocumentSource === "note" && activeNote
           ? (noteContents[activeNote.contentId] ?? createEmptyEditorContent())
@@ -575,7 +500,8 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     if (links.length > 0) {
       const existingWebClip = await getWebClipById(links[0].targetId);
       if (existingWebClip) {
-        await updateContent(existingWebClip.contentId, content);
+        const previous = await getContentById(existingWebClip.contentId);
+        await updateContent(existingWebClip.contentId, content, previous?.revision);
         const updatedWebClip = await updateWebClip({
           id: existingWebClip.id,
           url: currentUrl || existingWebClip.url,
@@ -635,10 +561,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         return;
       }
 
-      const provider =
-        mode === "smart"
-          ? createSmartExtractProvider()
-          : createFullPageProvider();
+      const provider = mode === "smart" ? createSmartExtractProvider() : createFullPageProvider();
 
       const markdown = await collectClipStream(
         provider.clip({
@@ -650,7 +573,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             debug: true,
           },
           signal: abortController.signal,
-        }),
+        })
       );
 
       const parsed = importFromMarkdown(markdown, ["yaml"]);
@@ -766,10 +689,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     const emptyContent = createEmptyEditorContent();
     setCreatingDocument(true);
     try {
-      const contentId = await createContent(
-        emptyContent,
-        getContentLength(emptyContent),
-      );
+      const contentId = await createContent(emptyContent, getContentLength(emptyContent));
       if (!contentId) {
         throw new Error("failed-to-create-content");
       }
@@ -780,7 +700,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         title: defaultTitle,
       });
       setNotes([note]);
-      setNoteContents((prev) => ({
+      setNoteContents(prev => ({
         ...prev,
         [note.contentId]: emptyContent,
       }));
@@ -859,13 +779,13 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   });
 
   const handleDeleteNote = useMemoizedFn(async (noteId: number) => {
-    const note = notes.find((item) => item.id === noteId);
+    const note = notes.find(item => item.id === noteId);
     if (!note) return;
     try {
       await deleteWebNote(noteId);
-      const remainingNotes = notes.filter((item) => item.id !== noteId);
+      const remainingNotes = notes.filter(item => item.id !== noteId);
       setNotes(remainingNotes);
-      setNoteContents((prev) => {
+      setNoteContents(prev => {
         const next = { ...prev };
         delete next[note.contentId];
         return next;
@@ -887,10 +807,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             if (hasClipResult) {
               setActiveDocumentSource("parsed");
             }
-          } else if (
-            viewMode === "document" &&
-            activeDocumentSource === "note"
-          ) {
+          } else if (viewMode === "document" && activeDocumentSource === "note") {
             if (hasClipResult) {
               setActiveDocumentSource("parsed");
             } else {
@@ -907,42 +824,37 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   });
 
   const handleOpenRenameNote = useMemoizedFn((targetNote?: WebNote) => {
-    const note =
-      targetNote ?? notes.find((item) => item.id === activeNoteId || 0);
+    const note = targetNote ?? notes.find(item => item.id === activeNoteId || 0);
     if (note) {
       setRenamingNote(note);
     }
   });
 
-  const handleConfirmRenameNote = useMemoizedFn(
-    async (result: { title: string }) => {
-      const note = renamingNote;
-      if (!note) {
-        setRenamingNote(null);
-        return;
-      }
-      const trimmed = result.title.trim();
-      if (!trimmed || trimmed === note.title) {
-        setRenamingNote(null);
-        return;
-      }
-      try {
-        const updated = await updateWebNote({
-          id: note.id,
-          title: trimmed,
-        });
-        setNotes((prev) =>
-          prev.map((item) => (item.id === updated.id ? updated : item)),
-        );
-        message.success("笔记标题已更新");
-      } catch (error) {
-        console.error("Failed to rename note:", error);
-        message.error("重命名笔记失败，请重试");
-      } finally {
-        setRenamingNote(null);
-      }
-    },
-  );
+  const handleConfirmRenameNote = useMemoizedFn(async (result: { title: string }) => {
+    const note = renamingNote;
+    if (!note) {
+      setRenamingNote(null);
+      return;
+    }
+    const trimmed = result.title.trim();
+    if (!trimmed || trimmed === note.title) {
+      setRenamingNote(null);
+      return;
+    }
+    try {
+      const updated = await updateWebNote({
+        id: note.id,
+        title: trimmed,
+      });
+      setNotes(prev => prev.map(item => (item.id === updated.id ? updated : item)));
+      message.success("笔记标题已更新");
+    } catch (error) {
+      console.error("Failed to rename note:", error);
+      message.error("重命名笔记失败，请重试");
+    } finally {
+      setRenamingNote(null);
+    }
+  });
 
   // legacy dropdown removed
 
@@ -1011,61 +923,53 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   });
 
   // 确认编辑标题
-  const handleConfirmEditTitle = useMemoizedFn(
-    async (result: { title: string }) => {
-      const trimmed = result.title.trim();
-      if (!trimmed || trimmed === title) {
-        setEditTitleModalOpen(false);
-        return;
-      }
-
-      const latestProjectItem = await getProjectItemById(projectItemId);
-      if (!latestProjectItem) {
-        setEditTitleModalOpen(false);
-        return;
-      }
-
-      const updatedProjectItem = await updateProjectItem({
-        ...latestProjectItem,
-        title: trimmed,
-      });
-      if (!updatedProjectItem) {
-        setEditTitleModalOpen(false);
-        return;
-      }
-
-      setProjectItem(updatedProjectItem);
-      setTitle(trimmed);
-
-      if (meta.linkId) {
-        updateWebLink({
-          id: meta.linkId,
-          title: trimmed,
-        }).catch((err) =>
-          console.error("Failed to update web link title:", err),
-        );
-      }
-
-      projectItemEventBus.publishProjectItemEvent(
-        "project-item:updated",
-        updatedProjectItem,
-      );
-
+  const handleConfirmEditTitle = useMemoizedFn(async (result: { title: string }) => {
+    const trimmed = result.title.trim();
+    if (!trimmed || trimmed === title) {
       setEditTitleModalOpen(false);
-      message.success("标题已更新");
-    },
-  );
+      return;
+    }
+
+    const latestProjectItem = await getProjectItemById(projectItemId);
+    if (!latestProjectItem) {
+      setEditTitleModalOpen(false);
+      return;
+    }
+
+    const updatedProjectItem = await updateProjectItem({
+      ...latestProjectItem,
+      title: trimmed,
+    });
+    if (!updatedProjectItem) {
+      setEditTitleModalOpen(false);
+      return;
+    }
+
+    setProjectItem(updatedProjectItem);
+    setTitle(trimmed);
+
+    if (meta.linkId) {
+      updateWebLink({
+        id: meta.linkId,
+        title: trimmed,
+      }).catch(err => console.error("Failed to update web link title:", err));
+    }
+
+    projectItemEventBus.publishProjectItemEvent("project-item:updated", updatedProjectItem);
+
+    setEditTitleModalOpen(false);
+    message.success("标题已更新");
+  });
 
   // 处理编辑器内容变化
   const handleEditorChange = useMemoizedFn((content: Descendant[]) => {
     if (activeDocumentSource === "note") {
-      const note = notes.find((n) => n.id === activeNoteId);
+      const note = notes.find(n => n.id === activeNoteId);
       if (!note) return;
-      setNoteContents((prev) => ({
+      setNoteContents(prev => ({
         ...prev,
         [note.contentId]: content,
       }));
-      throttleSaveNoteContent(note.contentId, content);
       return;
     }
     if (savedWebClip && !isAnyClipping) {
@@ -1079,18 +983,16 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     editorRef.current?.scrollHeaderIntoView(index);
   });
 
-  const handleSidebarCommentClick = useMemoizedFn(
-    (_element: CommentElement, path: Path) => {
-      const slateEditor = slateEditorRef.current;
-      if (!slateEditor) return;
-      try {
-        Transforms.setNodes(slateEditor, { openEdit: true }, { at: path });
-        ReactEditor.focus(slateEditor);
-      } catch (error) {
-        console.error("Failed to open comment popover:", error);
-      }
-    },
-  );
+  const handleSidebarCommentClick = useMemoizedFn((_element: CommentElement, path: Path) => {
+    const slateEditor = slateEditorRef.current;
+    if (!slateEditor) return;
+    try {
+      Transforms.setNodes(slateEditor, { openEdit: true }, { at: path });
+      ReactEditor.focus(slateEditor);
+    } catch (error) {
+      console.error("Failed to open comment popover:", error);
+    }
+  });
 
   // 处理播客生成
   const handleGeneratePodcast = useMemoizedFn(() => {
@@ -1153,7 +1055,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             <span>删除笔记</span>
           </div>
         ),
-      },
+      }
     );
   }
 
@@ -1168,33 +1070,31 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           <span>{projectItem?.podcast ? "编辑播客" : "生成播客"}</span>
         </div>
       ),
-    },
+    }
   );
 
-  const handleMoreMenuClick = useMemoizedFn<NonNullable<MenuProps["onClick"]>>(
-    ({ key }) => {
-      if (key === "refresh") {
-        handleRefresh();
-      } else if (key === "browser") {
-        handleOpenInBrowser();
-      } else if (key === "new-tab") {
-        handleOpenInNewTab();
-      } else if (key === "note-rename" && notes[0]) {
-        handleOpenRenameNote(notes[0]);
-      } else if (key === "note-delete" && notes[0]) {
-        modal.confirm({
-          title: "删除笔记",
-          content: "删除后无法恢复，确定删除这篇笔记吗？",
-          okText: "删除",
-          okButtonProps: { danger: true },
-          cancelText: "取消",
-          onOk: () => handleDeleteNote(notes[0].id),
-        });
-      } else if (key === "generate-podcast") {
-        handleGeneratePodcast();
-      }
-    },
-  );
+  const handleMoreMenuClick = useMemoizedFn<NonNullable<MenuProps["onClick"]>>(({ key }) => {
+    if (key === "refresh") {
+      handleRefresh();
+    } else if (key === "browser") {
+      handleOpenInBrowser();
+    } else if (key === "new-tab") {
+      handleOpenInNewTab();
+    } else if (key === "note-rename" && notes[0]) {
+      handleOpenRenameNote(notes[0]);
+    } else if (key === "note-delete" && notes[0]) {
+      modal.confirm({
+        title: "删除笔记",
+        content: "删除后无法恢复，确定删除这篇笔记吗？",
+        okText: "删除",
+        okButtonProps: { danger: true },
+        cancelText: "取消",
+        onOk: () => handleDeleteNote(notes[0].id),
+      });
+    } else if (key === "generate-podcast") {
+      handleGeneratePodcast();
+    }
+  });
 
   // 是否有解析结果
   const hasClipResult = savedWebClip !== null;
@@ -1202,7 +1102,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   // 当前显示的内容
   const activeNote =
     activeNoteId !== null
-      ? (notes.find((note) => note.id === activeNoteId) ?? notes[0] ?? null)
+      ? (notes.find(note => note.id === activeNoteId) ?? notes[0] ?? null)
       : (notes[0] ?? null);
   const currentContent =
     activeDocumentSource === "note" && activeNote
@@ -1217,10 +1117,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const showDocument = viewMode === "document" || viewMode === "split";
 
   // 获取主题色的 active 样式
-  const getActiveButtonClass = (
-    isActive: boolean,
-    color: "green" | "purple",
-  ) => {
+  const getActiveButtonClass = (isActive: boolean, color: "green" | "purple") => {
     if (!isActive) {
       return "bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800";
     }
@@ -1240,8 +1137,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     }`;
 
   const hasAnyDocument = hasClipResult || notes.length > 0;
-  const showDocumentSidebar =
-    hasAnyDocument && (viewMode === "document" || viewMode === "split");
+  const showDocumentSidebar = hasAnyDocument && (viewMode === "document" || viewMode === "split");
   const docButtonActive =
     (viewMode === "document" && activeDocumentSource === "parsed") ||
     (viewMode === "split" && activeDocumentSource === "parsed");
@@ -1249,11 +1145,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     (viewMode === "document" && activeDocumentSource === "note") ||
     (viewMode === "split" && activeDocumentSource === "note");
   const docTooltip =
-    viewMode === "split"
-      ? "在分屏中显示解析文档"
-      : docButtonActive
-        ? "查看网页"
-        : "查看解析文档";
+    viewMode === "split" ? "在分屏中显示解析文档" : docButtonActive ? "查看网页" : "查看解析文档";
   const noteTooltip =
     notes.length > 0
       ? viewMode === "split"
@@ -1277,8 +1169,8 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
   // 渲染文档编辑器区域
   const renderDocumentView = () => (
-    <div className="@container/web-clip-editor flex h-full w-full border-20 border-transparent box-border overflow-hidden">
-      <div className="flex-1 min-w-0 min-h-0">
+    <div className="@container/web-clip-editor border-20 box-border flex h-full w-full overflow-hidden border-transparent">
+      <div className="min-h-0 min-w-0 flex-1">
         <div
           ref={editorContainerRef}
           className="flex h-full w-full items-start justify-center overflow-y-auto pr-1"
@@ -1304,6 +1196,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
               </div>
             )}
             <Editor
+              contentId={editorContentId}
               className="mx-20"
               key={`${projectItemId}-${activeDocumentSource}-${activeNoteId ?? "parsed"}`}
               ref={editorRef}
@@ -1311,7 +1204,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
               onChange={handleEditorChange}
               readonly={activeDocumentSource === "parsed" && isAnyClipping}
               extensions={dynamicExtensions}
-              onInit={(editorInstance) => {
+              onInit={editorInstance => {
                 slateEditorRef.current = editorInstance as CustomEditor;
               }}
             />
@@ -1329,9 +1222,9 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           )}
           {showOutlineSidebar && (
             <div
-              className={`${outlineResponsiveClass} ml-6 w-[280px] flex-none self-start sticky top-4`}
+              className={`${outlineResponsiveClass} sticky top-4 ml-6 w-[280px] flex-none self-start`}
             >
-              <div className="max-h-[calc(100vh-220px)] min-h-0 overflow-y-auto pr-1 pb-4 scrollbar-hide">
+              <div className="scrollbar-hide max-h-[calc(100vh-220px)] min-h-0 overflow-y-auto pb-4 pr-1">
                 <EditorOutline
                   className="w-full"
                   content={currentContent}
@@ -1353,13 +1246,11 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         className={`flex items-center justify-between border-b ${themeColors.borderClass} px-4 py-2.5`}
       >
         {/* 标题区域 - 点击编辑 icon 弹窗编辑 */}
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <h1 className="m-0 text-lg font-semibold leading-snug truncate">
-            {title}
-          </h1>
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <h1 className="m-0 truncate text-lg font-semibold leading-snug">{title}</h1>
           <Tooltip title="编辑标题" mouseEnterDelay={0.5}>
             <button
-              className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-gray-600 dark:hover:text-gray-300 transition-all"
+              className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-zinc-800 dark:hover:text-gray-300"
               onClick={handleEditTitle}
             >
               <EditOutlined className="text-sm" />
@@ -1368,15 +1259,13 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         </div>
 
         {/* Right side icons */}
-        <div className="flex items-center gap-1 ml-2">
+        <div className="ml-2 flex items-center gap-1">
           {showDocumentSidebar && (
             <>
               <Tooltip title="显示/隐藏目录" mouseEnterDelay={0.5}>
                 <button
                   className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${getActiveButtonClass(sidebarMode === "outline", "green")}`}
-                  onClick={() =>
-                    setSidebarMode(sidebarMode === "outline" ? null : "outline")
-                  }
+                  onClick={() => setSidebarMode(sidebarMode === "outline" ? null : "outline")}
                 >
                   <OutlineMenuIcon />
                 </button>
@@ -1384,11 +1273,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
               <Tooltip title="显示/隐藏评论" mouseEnterDelay={0.5}>
                 <button
                   className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${getActiveButtonClass(sidebarMode === "comments", "purple")}`}
-                  onClick={() =>
-                    setSidebarMode(
-                      sidebarMode === "comments" ? null : "comments",
-                    )
-                  }
+                  onClick={() => setSidebarMode(sidebarMode === "comments" ? null : "comments")}
                 >
                   <CommentSidebarIcon />
                 </button>
@@ -1425,20 +1310,14 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             onMouseLeave={scheduleCloseClipMenu}
           >
             <Tooltip
-              title={
-                isAnyClipping
-                  ? "取消解析"
-                  : hasClipResult
-                    ? "重新解析"
-                    : "解析网页"
-              }
+              title={isAnyClipping ? "取消解析" : hasClipResult ? "重新解析" : "解析网页"}
               mouseEnterDelay={0.5}
             >
               <button
                 className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${
                   isAnyClipping
                     ? `${themeColors.activeClass}`
-                    : "bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                    : "bg-transparent text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
                 }`}
                 onClick={() => {
                   closeClipMenu();
@@ -1450,16 +1329,12 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             </Tooltip>
             <div
               className={`absolute right-0 top-full z-40 h-2 w-[240px] ${
-                clipMenuOpen
-                  ? "opacity-100 pointer-events-auto"
-                  : "opacity-0 pointer-events-none"
+                clipMenuOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
               }`}
             />
             <div
               className={`${contextMenuStyles.contextMenu} absolute right-0 top-full z-50 mt-2 ${
-                clipMenuOpen
-                  ? "opacity-100 pointer-events-auto"
-                  : "opacity-0 pointer-events-none"
+                clipMenuOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
               } transition-opacity`}
             >
               <div className={contextMenuStyles.contextMenuList}>
@@ -1472,9 +1347,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                   }}
                   disabled={isAnyClipping}
                 >
-                  <span className={contextMenuStyles.contextMenuItemLabel}>
-                    LLM 转录
-                  </span>
+                  <span className={contextMenuStyles.contextMenuItemLabel}>LLM 转录</span>
                 </button>
                 <button
                   type="button"
@@ -1485,9 +1358,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                   }}
                   disabled={isAnyClipping}
                 >
-                  <span className={contextMenuStyles.contextMenuItemLabel}>
-                    剪藏网页
-                  </span>
+                  <span className={contextMenuStyles.contextMenuItemLabel}>剪藏网页</span>
                 </button>
               </div>
             </div>
@@ -1495,10 +1366,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
           {/* 分屏视图 - 仅当有文档时显示 */}
           {hasAnyDocument && (
-            <Tooltip
-              title={viewMode === "split" ? "退出分屏" : "分屏视图"}
-              mouseEnterDelay={0.5}
-            >
+            <Tooltip title={viewMode === "split" ? "退出分屏" : "分屏视图"} mouseEnterDelay={0.5}>
               <button
                 className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${getActiveButtonClass(viewMode === "split", "purple")}`}
                 onClick={() => void handleToggleSplit()}
@@ -1516,8 +1384,8 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           >
             <Tooltip title="更多操作" mouseEnterDelay={0.5}>
               <button
-                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-all"
-                onClick={(e) => e.preventDefault()}
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 transition-all hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
+                onClick={e => e.preventDefault()}
               >
                 <MoreOutlined />
               </button>
@@ -1545,7 +1413,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                 sourceType={meta.sourceType}
                 className="h-full w-full"
                 allowPopups={false}
-                onError={(err) => console.error("加载失败:", err)}
+                onError={err => console.error("加载失败:", err)}
                 convertFileSrc={convertFileSrc}
                 getHomeDir={getHomeDir}
                 remoteResourceToLocal={remoteResourceToLocal}
@@ -1561,8 +1429,8 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             <div
               className={`absolute inset-0 transition-opacity duration-200 ${
                 showWebview && !showDocument
-                  ? "opacity-100 z-10"
-                  : "opacity-0 z-0 pointer-events-none"
+                  ? "z-10 opacity-100"
+                  : "pointer-events-none z-0 opacity-0"
               }`}
             >
               <Webview
@@ -1571,7 +1439,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                 sourceType={meta.sourceType}
                 className="h-full w-full"
                 allowPopups={false}
-                onError={(err) => console.error("加载失败:", err)}
+                onError={err => console.error("加载失败:", err)}
                 convertFileSrc={convertFileSrc}
                 getHomeDir={getHomeDir}
                 remoteResourceToLocal={remoteResourceToLocal}
@@ -1581,8 +1449,8 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             <div
               className={`absolute inset-0 transition-opacity duration-200 ${
                 showDocument && !showWebview
-                  ? "opacity-100 z-10"
-                  : "opacity-0 z-0 pointer-events-none"
+                  ? "z-10 opacity-100"
+                  : "pointer-events-none z-0 opacity-0"
               }`}
             >
               {renderDocumentView()}

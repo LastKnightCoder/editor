@@ -1,17 +1,8 @@
-import { Editor } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import { formatDate, getEditorText, getMarkdown } from "@/utils";
 import { DiaryEntry, IndexParams, SearchResult, IndexType } from "@/types";
 import { useState, useEffect, useMemo } from "react";
-import {
-  Tag,
-  Button,
-  Popover,
-  Flex,
-  Typography,
-  TableProps,
-  TableColumnType,
-  App,
-} from "antd";
+import { Tag, Button, Popover, Flex, Typography, TableProps, TableColumnType, App } from "antd";
 import { Descendant } from "slate";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { TableRowSelection } from "antd/es/table/interface";
@@ -43,13 +34,13 @@ const useDiaryConfig = () => {
     Promise.all([getAllDiaryEntries(), getAllDiaryTagSettings()])
       .then(([entries, settings]) => {
         setDiaryEntries(entries);
-        const tagSet = new Set(settings.map((setting) => setting.name));
-        entries.forEach((entry) => {
-          entry.tags.forEach((tag) => tagSet.add(tag));
+        const tagSet = new Set(settings.map(setting => setting.name));
+        entries.forEach(entry => {
+          entry.tags.forEach(tag => tagSet.add(tag));
         });
         setTagOptions(Array.from(tagSet));
       })
-      .catch((error) => {
+      .catch(error => {
         console.error("获取日记索引数据失败", error);
       });
   }, []);
@@ -58,17 +49,16 @@ const useDiaryConfig = () => {
   const [filteredInfo, setFilteredInfo] = useState<Filters>({});
   const [selectedRows, setSelectedRows] = useState<DiaryEntry[]>([]);
   const [loadingIds, setLoadingIds] = useState<number[]>([]);
-  const [pageSize, setPageSize] = useLocalStorageState<number>(
-    "diary-pagesize",
-    { defaultValue: PAGE_SIZE },
-  );
+  const [pageSize, setPageSize] = useLocalStorageState<number>("diary-pagesize", {
+    defaultValue: PAGE_SIZE,
+  });
 
   const onSelectChange = (_: React.Key[], newSelectedRows: DiaryEntry[]) => {
     setSelectedRows(newSelectedRows);
   };
 
   const rowSelection: TableRowSelection<DiaryEntry> = {
-    selectedRowKeys: selectedRows.map((row) => row.id),
+    selectedRowKeys: selectedRows.map(row => row.id),
     onChange: onSelectChange,
   };
 
@@ -81,14 +71,12 @@ const useDiaryConfig = () => {
     const tagFilterArray = filteredInfo.tags || [];
     const indexStatusFilterArray = filteredInfo.index_status || [];
 
-    return diaryEntries.filter((entry) => {
+    return diaryEntries.filter(entry => {
       const isHitTags =
         tagFilterArray.length === 0 ||
         tagFilterArray.includes(ALL_TAG_FILTER) ||
-        tagFilterArray.some((tag) =>
-          tag === EMPTY_TAG_FILTER
-            ? entry.tags.length === 0
-            : entry.tags.includes(String(tag)),
+        tagFilterArray.some(tag =>
+          tag === EMPTY_TAG_FILTER ? entry.tags.length === 0 : entry.tags.includes(String(tag))
         );
       if (!isHitTags) return false;
 
@@ -96,7 +84,7 @@ const useDiaryConfig = () => {
       const indexType = getIndexType(entry);
 
       const vecResult = vecResults.find(
-        (result) => result.id === entry.id && result.type === indexType,
+        result => result.id === entry.id && result.type === indexType
       );
 
       let status;
@@ -109,8 +97,7 @@ const useDiaryConfig = () => {
       }
 
       const isHitIndexStatus =
-        indexStatusFilterArray.length === 0 ||
-        indexStatusFilterArray.includes(status);
+        indexStatusFilterArray.length === 0 || indexStatusFilterArray.includes(status);
 
       return isHitIndexStatus;
     });
@@ -118,15 +105,13 @@ const useDiaryConfig = () => {
 
   const slicedEntries = filteredEntries.slice(
     (current - 1) * (pageSize || PAGE_SIZE),
-    current * (pageSize || PAGE_SIZE),
+    current * (pageSize || PAGE_SIZE)
   );
 
   const initIndexResults = useMemoizedFn(async () => {
     try {
       // 迁移后周记、月记都作为带标签的 diary-daily 索引。
-      const [dailyResults] = await Promise.all([
-        getAllIndexResults("diary-daily"),
-      ]);
+      const [dailyResults] = await Promise.all([getAllIndexResults("diary-daily")]);
       setVecResults([...dailyResults]);
     } catch (e) {
       console.error("初始化索引结果失败", e);
@@ -139,47 +124,42 @@ const useDiaryConfig = () => {
   }, [initIndexResults]);
 
   // 转换为 useBatchOperation 需要的格式
-  const selectedRowsForBatch: DiaryEntryForBatch[] = selectedRows.map(
-    (entry) => ({
-      id: entry.id,
-      content: entry.content,
-      update_time: entry.updateTime,
-    }),
-  );
+  const selectedRowsForBatch: DiaryEntryForBatch[] = selectedRows.map(entry => ({
+    id: entry.id,
+    content: entry.content,
+    update_time: entry.updateTime,
+  }));
 
   // 自定义批量操作，需要根据每个日记的类型确定索引类型
-  const [batchCreateOrUpdateLoading, setBatchCreateOrUpdateLoading] =
-    useState(false);
+  const [batchCreateOrUpdateLoading, setBatchCreateOrUpdateLoading] = useState(false);
   const [batchDeleteLoading, setBatchDeleteLoading] = useState(false);
   const [batchCreateOrUpdateTotal, setBatchCreateOrUpdateTotal] = useState(0);
-  const [batchCreateOrUpdateSuccess, setBatchCreateOrUpdateSuccess] =
-    useState(0);
+  const [batchCreateOrUpdateSuccess, setBatchCreateOrUpdateSuccess] = useState(0);
   const [batchCreateOrUpdateError, setBatchCreateOrUpdateError] = useState(0);
 
   // 计算需要创建、更新、删除的项目
-  const { createEmbeddings, updateEmbeddings, deleteEmbeddings } =
-    useMemo(() => {
-      const createEmbeddings: DiaryEntryForBatch[] = [];
-      const updateEmbeddings: DiaryEntryForBatch[] = [];
-      const deleteEmbeddings: DiaryEntryForBatch[] = [];
+  const { createEmbeddings, updateEmbeddings, deleteEmbeddings } = useMemo(() => {
+    const createEmbeddings: DiaryEntryForBatch[] = [];
+    const updateEmbeddings: DiaryEntryForBatch[] = [];
+    const deleteEmbeddings: DiaryEntryForBatch[] = [];
 
-      selectedRowsForBatch.forEach((entry) => {
-        const indexType = "diary-daily";
-        const vecResult = vecResults.find(
-          (result) => result.id === entry.id && result.type === indexType,
-        );
+    selectedRowsForBatch.forEach(entry => {
+      const indexType = "diary-daily";
+      const vecResult = vecResults.find(
+        result => result.id === entry.id && result.type === indexType
+      );
 
-        if (!vecResult) {
-          createEmbeddings.push(entry);
-        } else if (entry.update_time > vecResult.updateTime) {
-          updateEmbeddings.push(entry);
-        } else {
-          deleteEmbeddings.push(entry);
-        }
-      });
+      if (!vecResult) {
+        createEmbeddings.push(entry);
+      } else if (entry.update_time > vecResult.updateTime) {
+        updateEmbeddings.push(entry);
+      } else {
+        deleteEmbeddings.push(entry);
+      }
+    });
 
-      return { createEmbeddings, updateEmbeddings, deleteEmbeddings };
-    }, [selectedRowsForBatch, vecResults]);
+    return { createEmbeddings, updateEmbeddings, deleteEmbeddings };
+  }, [selectedRowsForBatch, vecResults]);
 
   const handleBatchEmbedding = useMemoizedFn(async () => {
     const toProcess = [...createEmbeddings, ...updateEmbeddings];
@@ -192,7 +172,7 @@ const useDiaryConfig = () => {
 
     for (const entry of toProcess) {
       try {
-        const diaryEntry = diaryEntries.find((d) => d.id === entry.id);
+        const diaryEntry = diaryEntries.find(d => d.id === entry.id);
         if (!diaryEntry) continue;
 
         const markdown = getMarkdown(diaryEntry.content);
@@ -208,13 +188,13 @@ const useDiaryConfig = () => {
 
         const success = await indexContent(params);
         if (success) {
-          setBatchCreateOrUpdateSuccess((prev) => prev + 1);
+          setBatchCreateOrUpdateSuccess(prev => prev + 1);
         } else {
-          setBatchCreateOrUpdateError((prev) => prev + 1);
+          setBatchCreateOrUpdateError(prev => prev + 1);
         }
       } catch (error) {
         console.error("批量索引失败:", error);
-        setBatchCreateOrUpdateError((prev) => prev + 1);
+        setBatchCreateOrUpdateError(prev => prev + 1);
       }
     }
 
@@ -270,53 +250,51 @@ const useDiaryConfig = () => {
     </Flex>
   );
 
-  const onCreateEmbedding = useMemoizedFn(
-    async (markdown: string, record: DiaryEntry) => {
-      setLoadingIds((prev) => [...prev, record.id]);
-      const messageKey = `create-diary-index-${record.id}`;
-      message.loading({ content: "正在创建索引...", key: messageKey });
+  const onCreateEmbedding = useMemoizedFn(async (markdown: string, record: DiaryEntry) => {
+    setLoadingIds(prev => [...prev, record.id]);
+    const messageKey = `create-diary-index-${record.id}`;
+    message.loading({ content: "正在创建索引...", key: messageKey });
 
-      try {
-        const indexType = getIndexType(record);
-        const vecResult = vecResults.find(
-          (result) => result.id === record.id && result.type === indexType,
-        );
+    try {
+      const indexType = getIndexType(record);
+      const vecResult = vecResults.find(
+        result => result.id === record.id && result.type === indexType
+      );
 
-        if (vecResult && vecResult.updateTime === record.updateTime) {
-          message.success({ content: "索引已存在", key: messageKey });
-          return true;
-        }
+      if (vecResult && vecResult.updateTime === record.updateTime) {
+        message.success({ content: "索引已存在", key: messageKey });
+        return true;
+      }
 
-        const params: IndexParams = {
-          id: record.id,
-          content: markdown,
-          type: indexType,
-          updateTime: record.updateTime,
-          modelInfo,
-        };
+      const params: IndexParams = {
+        id: record.id,
+        content: markdown,
+        type: indexType,
+        updateTime: record.updateTime,
+        modelInfo,
+      };
 
-        const success = await indexContent(params);
+      const success = await indexContent(params);
 
-        if (success) {
-          await initIndexResults();
-          message.success({ content: "索引创建成功", key: messageKey });
-          return true;
-        } else {
-          message.error({ content: "索引创建失败", key: messageKey });
-          return false;
-        }
-      } catch (error) {
-        console.error("创建索引失败:", error);
+      if (success) {
+        await initIndexResults();
+        message.success({ content: "索引创建成功", key: messageKey });
+        return true;
+      } else {
         message.error({ content: "索引创建失败", key: messageKey });
         return false;
-      } finally {
-        setLoadingIds((prev) => prev.filter((id) => id !== record.id));
       }
-    },
-  );
+    } catch (error) {
+      console.error("创建索引失败:", error);
+      message.error({ content: "索引创建失败", key: messageKey });
+      return false;
+    } finally {
+      setLoadingIds(prev => prev.filter(id => id !== record.id));
+    }
+  });
 
   const onRemoveEmbedding = useMemoizedFn(async (record: DiaryEntry) => {
-    setLoadingIds((prev) => [...prev, record.id]);
+    setLoadingIds(prev => [...prev, record.id]);
     const messageKey = `remove-diary-index-${record.id}`;
     message.loading({ content: "正在删除索引...", key: messageKey });
 
@@ -329,54 +307,52 @@ const useDiaryConfig = () => {
       console.error("删除索引失败:", error);
       message.error({ content: "索引删除失败", key: messageKey });
     } finally {
-      setLoadingIds((prev) => prev.filter((id) => id !== record.id));
+      setLoadingIds(prev => prev.filter(id => id !== record.id));
     }
   });
 
-  const onUpdateEmbedding = useMemoizedFn(
-    async (markdown: string, record: DiaryEntry) => {
-      setLoadingIds((prev) => [...prev, record.id]);
-      const messageKey = `update-diary-index-${record.id}`;
-      message.loading({ content: "正在更新索引...", key: messageKey });
+  const onUpdateEmbedding = useMemoizedFn(async (markdown: string, record: DiaryEntry) => {
+    setLoadingIds(prev => [...prev, record.id]);
+    const messageKey = `update-diary-index-${record.id}`;
+    message.loading({ content: "正在更新索引...", key: messageKey });
 
-      try {
-        const indexType = getIndexType(record);
-        const vecResult = vecResults.find(
-          (result) => result.id === record.id && result.type === indexType,
-        );
+    try {
+      const indexType = getIndexType(record);
+      const vecResult = vecResults.find(
+        result => result.id === record.id && result.type === indexType
+      );
 
-        if (!vecResult || record.updateTime > vecResult.updateTime) {
-          const params: IndexParams = {
-            id: record.id,
-            content: markdown,
-            type: indexType,
-            updateTime: record.updateTime,
-            modelInfo,
-          };
+      if (!vecResult || record.updateTime > vecResult.updateTime) {
+        const params: IndexParams = {
+          id: record.id,
+          content: markdown,
+          type: indexType,
+          updateTime: record.updateTime,
+          modelInfo,
+        };
 
-          const success = await indexContent(params);
+        const success = await indexContent(params);
 
-          if (success) {
-            await initIndexResults();
-            message.success({ content: "索引更新成功", key: messageKey });
-            return true;
-          } else {
-            message.error({ content: "索引更新失败", key: messageKey });
-            return false;
-          }
-        } else {
-          message.success({ content: "索引已是最新", key: messageKey });
+        if (success) {
+          await initIndexResults();
+          message.success({ content: "索引更新成功", key: messageKey });
           return true;
+        } else {
+          message.error({ content: "索引更新失败", key: messageKey });
+          return false;
         }
-      } catch (error) {
-        console.error("更新索引失败:", error);
-        message.error({ content: "索引更新失败", key: messageKey });
-        return false;
-      } finally {
-        setLoadingIds((prev) => prev.filter((id) => id !== record.id));
+      } else {
+        message.success({ content: "索引已是最新", key: messageKey });
+        return true;
       }
-    },
-  );
+    } catch (error) {
+      console.error("更新索引失败:", error);
+      message.error({ content: "索引更新失败", key: messageKey });
+      return false;
+    } finally {
+      setLoadingIds(prev => prev.filter(id => id !== record.id));
+    }
+  });
 
   const columns: TableColumnType<DiaryEntry>[] = [
     {
@@ -399,7 +375,7 @@ const useDiaryConfig = () => {
       filters: [
         { text: "全部", value: ALL_TAG_FILTER },
         { text: "无标签", value: EMPTY_TAG_FILTER },
-        ...tagOptions.map((tag) => ({ text: tag, value: tag })),
+        ...tagOptions.map(tag => ({ text: tag, value: tag })),
       ],
       filteredValue: filteredInfo.tags || null,
       render: (tags: string[]) => {
@@ -408,7 +384,7 @@ const useDiaryConfig = () => {
         }
         return (
           <Flex gap={4} wrap>
-            {tags.map((tag) => (
+            {tags.map(tag => (
               <Tag color="blue" key={tag}>
                 {tag}
               </Tag>
@@ -435,12 +411,9 @@ const useDiaryConfig = () => {
       key: "content",
       dataIndex: "content",
       title: "内容",
-      render: (content: Descendant[]) => (
+      render: (content: Descendant[], record: DiaryEntry) => (
         <Flex vertical gap={12} align="flex-start">
-          <Typography.Paragraph
-            ellipsis={{ rows: 2 }}
-            style={{ maxWidth: 400 }}
-          >
+          <Typography.Paragraph ellipsis={{ rows: 2 }} style={{ maxWidth: 400 }}>
             {getEditorText(content, 50)}
           </Typography.Paragraph>
           <Popover
@@ -448,6 +421,8 @@ const useDiaryConfig = () => {
             placement="bottom"
             content={
               <Editor
+                contentId={record.contentId ?? undefined}
+                previewBlocks={3}
                 style={{ maxWidth: 320, maxHeight: 180, overflow: "hidden" }}
                 readonly
                 initValue={content?.slice(0, 3) || []}
@@ -481,16 +456,12 @@ const useDiaryConfig = () => {
       render: (_, record) => {
         const indexType = getIndexType(record);
         const vecResult = vecResults.find(
-          (result) => result.id === record.id && result.type === indexType,
+          result => result.id === record.id && result.type === indexType
         );
 
         if (vecResult) {
           return (
-            <Tag
-              color={
-                record.updateTime > vecResult.updateTime ? "orange" : "green"
-              }
-            >
+            <Tag color={record.updateTime > vecResult.updateTime ? "orange" : "green"}>
               {record.updateTime > vecResult.updateTime ? "待更新" : "已索引"}
             </Tag>
           );
@@ -507,7 +478,7 @@ const useDiaryConfig = () => {
         const isLoading = loadingIds.includes(record.id);
         const indexType = getIndexType(record);
         const vecResult = vecResults.find(
-          (result) => result.id === record.id && result.type === indexType,
+          result => result.id === record.id && result.type === indexType
         );
 
         if (!vecResult) {
@@ -568,25 +539,23 @@ const useDiaryConfig = () => {
     showSizeChanger: true,
   };
 
-  const onChange: TableProps["onChange"] = useMemoizedFn(
-    (pagination, filteredInfo) => {
-      if (pagination.current !== current) {
-        setCurrent(pagination.current || 1);
-        setSelectedRows([]);
-      }
-      if (pagination.pageSize !== pageSize) {
-        setPageSize(pagination.pageSize || PAGE_SIZE);
-      }
-      setFilteredInfo((prevFilteredInfo) => {
-        return {
-          ...prevFilteredInfo,
-          ...filteredInfo,
-          tags: filteredInfo.tags,
-          index_status: filteredInfo.index_status,
-        };
-      });
-    },
-  );
+  const onChange: TableProps["onChange"] = useMemoizedFn((pagination, filteredInfo) => {
+    if (pagination.current !== current) {
+      setCurrent(pagination.current || 1);
+      setSelectedRows([]);
+    }
+    if (pagination.pageSize !== pageSize) {
+      setPageSize(pagination.pageSize || PAGE_SIZE);
+    }
+    setFilteredInfo(prevFilteredInfo => {
+      return {
+        ...prevFilteredInfo,
+        ...filteredInfo,
+        tags: filteredInfo.tags,
+        index_status: filteredInfo.index_status,
+      };
+    });
+  });
 
   return {
     dataSource: slicedEntries,

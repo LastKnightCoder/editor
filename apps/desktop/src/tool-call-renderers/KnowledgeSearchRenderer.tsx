@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Descendant } from "slate";
-import { Editor, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import type { ToolCallCustomRendererProps } from "./types";
 import {
   ToolBadge,
@@ -78,17 +79,15 @@ const ResultItemPreview = ({
   onClick: () => void;
 }) => {
   const editorRef = useRef<EditorRef>(null);
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const [initValue, setInitValue] = useState<Descendant[] | null>(null);
 
-  useEditContent(item.contentId, (content) => {
+  useEditContent(item.contentId, content => {
     editorRef.current?.setEditorValue(content.slice(0, PREVIEW_BLOCK_COUNT));
   });
 
   useEffect(() => {
-    getContentById(item.contentId).then((data) => {
+    getContentById(item.contentId).then(data => {
       if (data?.content) {
         setInitValue(data.content.slice(0, PREVIEW_BLOCK_COUNT));
       }
@@ -97,7 +96,7 @@ const ResultItemPreview = ({
 
   return (
     <div
-      className={`rounded-xl border p-3 cursor-pointer transition-colors ${
+      className={`cursor-pointer rounded-xl border p-3 transition-colors ${
         isDark
           ? "border-white/10 bg-zinc-950/40 hover:bg-zinc-950/60"
           : "border-slate-200 bg-slate-50/60 hover:bg-slate-100/80"
@@ -114,10 +113,12 @@ const ResultItemPreview = ({
         </div>
         <ToolBadge isDark={isDark}>{item.typeName}</ToolBadge>
       </div>
-      <div className="mt-1.5 pointer-events-none max-h-[120px] overflow-hidden">
+      <div className="pointer-events-none mt-1.5 max-h-[120px] overflow-hidden">
         {initValue ? (
           <ErrorBoundary>
             <Editor
+              previewBlocks={PREVIEW_BLOCK_COUNT}
+              contentId={item.contentId}
               key={item.contentId}
               ref={editorRef}
               initValue={initValue}
@@ -143,8 +144,7 @@ const KnowledgeSearchRenderer = ({
 }: ToolCallCustomRendererProps) => {
   const data = useMemo(() => parseOutput(execution.output), [execution.output]);
   const [expanded, setExpanded] = useState(false);
-  const [selectedItem, setSelectedItem] =
-    useState<KnowledgeSearchResultItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<KnowledgeSearchResultItem | null>(null);
 
   if (!data) {
     return <>{renderDefault()}</>;
@@ -181,7 +181,7 @@ const KnowledgeSearchRenderer = ({
             <ToolMutedText isDark={isDark}>未找到相关内容。</ToolMutedText>
           ) : (
             <div className="space-y-2">
-              {visibleItems.map((item) => (
+              {visibleItems.map(item => (
                 <ResultItemPreview
                   key={`${item.type}-${item.id}`}
                   item={item}
@@ -198,11 +198,9 @@ const KnowledgeSearchRenderer = ({
                         ? "border-sky-400/30 bg-sky-400/10 text-sky-200 hover:border-sky-300/50 hover:bg-sky-400/15 hover:text-sky-100"
                         : "border-sky-200 bg-sky-50 text-sky-700 hover:border-sky-300 hover:bg-sky-100 hover:text-sky-800"
                     }`}
-                    onClick={() => setExpanded((v) => !v)}
+                    onClick={() => setExpanded(v => !v)}
                   >
-                    {expanded
-                      ? "收起列表"
-                      : `展开剩余 ${items.length - 5} 条结果`}
+                    {expanded ? "收起列表" : `展开剩余 ${items.length - 5} 条结果`}
                   </button>
                 </div>
               )}

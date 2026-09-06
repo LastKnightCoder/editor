@@ -12,18 +12,10 @@ const mainSchemaPath = path.join(schemaDir, "main.sql");
 const indexSchemaPath = path.join(schemaDir, "index.sql");
 const vecTemplatePath = path.join(schemaDir, "index/20_vec_template.sql");
 
-const MAIN_TABLE_COUNT = 78;
+const MAIN_TABLE_COUNT = 79;
 const MAIN_INDEX_COUNT = 127;
 const INDEX_CORE_TABLES = ["content_fts", "vec_index_meta", "index_meta"];
-const REMOVED_TABLES = [
-  "goal",
-  "slide",
-  "time_records",
-  "shortcuts",
-  "history",
-  "skill",
-  "prompt",
-];
+const REMOVED_TABLES = ["goal", "slide", "time_records", "shortcuts", "history", "skill", "prompt"];
 
 function readText(filePath) {
   if (!fs.existsSync(filePath)) {
@@ -77,49 +69,43 @@ function main() {
 
   assert(
     mainTables.length === MAIN_TABLE_COUNT,
-    `[schema-parity] 主库表数量异常: expected=${MAIN_TABLE_COUNT}, actual=${mainTables.length}`,
+    `[schema-parity] 主库表数量异常: expected=${MAIN_TABLE_COUNT}, actual=${mainTables.length}`
   );
   assert(
     mainIndexes.length === MAIN_INDEX_COUNT,
-    `[schema-parity] 主库索引数量异常: expected=${MAIN_INDEX_COUNT}, actual=${mainIndexes.length}`,
+    `[schema-parity] 主库索引数量异常: expected=${MAIN_INDEX_COUNT}, actual=${mainIndexes.length}`
   );
 
-  const removedInMain = REMOVED_TABLES.filter((tableName) =>
-    mainTables.includes(tableName),
-  );
+  const removedInMain = REMOVED_TABLES.filter(tableName => mainTables.includes(tableName));
   assert(
     removedInMain.length === 0,
-    `[schema-parity] 主库仍包含已删除表: ${removedInMain.join(", ")}`,
+    `[schema-parity] 主库仍包含已删除表: ${removedInMain.join(", ")}`
   );
 
   const sortedIndexTables = asSorted(indexTables);
   const sortedExpectedIndexTables = asSorted(INDEX_CORE_TABLES);
   assert(
     JSON.stringify(sortedIndexTables) === JSON.stringify(sortedExpectedIndexTables),
-    `[schema-parity] 索引库核心表不匹配: expected=${sortedExpectedIndexTables.join(",")}, actual=${sortedIndexTables.join(",")}`,
+    `[schema-parity] 索引库核心表不匹配: expected=${sortedExpectedIndexTables.join(",")}, actual=${sortedIndexTables.join(",")}`
   );
 
   const normalizedIndexSql = indexSql.toLowerCase();
   assert(
-    !/create\s+virtual\s+table\s+(?:if\s+not\s+exists\s+)?vec_documents/i.test(
-      normalizedIndexSql,
-    ),
-    "[schema-parity] index.sql 不应包含 vec_documents（必须运行时动态创建）",
+    !/create\s+virtual\s+table\s+(?:if\s+not\s+exists\s+)?vec_documents/i.test(normalizedIndexSql),
+    "[schema-parity] index.sql 不应包含 vec_documents（必须运行时动态创建）"
   );
 
   assert(
-    /create\s+virtual\s+table\s+(?:if\s+not\s+exists\s+)?vec_documents/i.test(
-      vecTemplateSql,
-    ),
-    "[schema-parity] vec 模板缺少 vec_documents 建表语句",
+    /create\s+virtual\s+table\s+(?:if\s+not\s+exists\s+)?vec_documents/i.test(vecTemplateSql),
+    "[schema-parity] vec 模板缺少 vec_documents 建表语句"
   );
   assert(
     vecTemplateSql.includes("__VEC_DIMENSION__"),
-    "[schema-parity] vec 模板缺少 __VEC_DIMENSION__ 占位符",
+    "[schema-parity] vec 模板缺少 __VEC_DIMENSION__ 占位符"
   );
 
   console.log(
-    `[schema-parity] OK mainTables=${mainTables.length} mainIndexes=${mainIndexes.length} indexTables=${indexTables.length}`,
+    `[schema-parity] OK mainTables=${mainTables.length} mainIndexes=${mainIndexes.length} indexTables=${indexTables.length}`
   );
 }
 

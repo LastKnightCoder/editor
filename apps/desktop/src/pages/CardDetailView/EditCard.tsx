@@ -2,25 +2,22 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 import { Descendant, Range, Transforms } from "slate";
 import { ReactEditor } from "slate-react";
-import {
-  LinkOutlined,
-  ReadOutlined,
-  MoreOutlined,
-  EditOutlined,
-} from "@ant-design/icons";
+import { LinkOutlined, ReadOutlined, MoreOutlined, EditOutlined } from "@ant-design/icons";
 import { Drawer, Tooltip, Dropdown, MenuProps, App } from "antd";
 import SVG from "react-inlinesvg";
 import { MdOutlineCode } from "react-icons/md";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 
-import { Editor, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import AddTag from "@/components/AddTag";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorSourceValue from "@/components/EditorSourceValue";
 import LinkGraph from "@/components/LinkGraph";
 import PresentationMode from "@/components/PresentationMode";
 import StatusBar from "@/components/StatusBar";
+import ContentCollaborationControl from "@/components/ContentCollaborationControl";
 import ContentExportModal from "@/components/ContentExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
@@ -54,12 +51,7 @@ import {
 import { ICard, ECardCategory } from "@/types";
 import { cardCategoryName } from "@/constants/card";
 import { produce } from "immer";
-import {
-  deleteCard,
-  getAllCards,
-  openCardInNewWindow,
-  updateCard,
-} from "@/commands";
+import { deleteCard, getAllCards, openCardInNewWindow, updateCard } from "@/commands";
 import graphIcon from "@/assets/icons/graph.svg";
 
 import useEditCard from "./useEditCard";
@@ -67,11 +59,7 @@ import LinkList from "./LinkList";
 import { isValid } from "@/components/WhiteBoard/utils";
 import PodcastPlayer from "@/components/PodcastPlayer";
 import PodcastGenerationModal from "@/components/PodcastGenerationModal";
-import {
-  attachPodcastToCard,
-  detachPodcastFromCard,
-  getCardById,
-} from "@/commands";
+import { attachPodcastToCard, detachPodcastFromCard, getCardById } from "@/commands";
 import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 
 const minFitViewPadding = [120];
@@ -98,18 +86,14 @@ interface IEditCardProps {
 
 const EditCard = (props: IEditCardProps) => {
   const { cardId, defaultReadonly = false } = props;
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
-  const navigateTo = useTabStore((state) => state.navigateTo);
-  const openInNewTab = useTabStore((state) => state.openInNewTab);
-  const panes = useTabStore((state) => state.panes);
-  const activePaneId = useTabStore((state) => state.activePaneId);
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
+  const navigateTo = useTabStore(state => state.navigateTo);
+  const openInNewTab = useTabStore(state => state.openInNewTab);
+  const panes = useTabStore(state => state.panes);
+  const activePaneId = useTabStore(state => state.activePaneId);
   const { modal, message } = App.useApp();
-  const databaseName = useSettingStore(
-    (state) => state.setting.database.active,
-  );
-  const darkMode = useSettingStore((state) => state.setting.darkMode);
+  const databaseName = useSettingStore(state => state.setting.database.active);
+  const darkMode = useSettingStore(state => state.setting.darkMode);
   const {
     onInit,
     loading,
@@ -125,13 +109,10 @@ const EditCard = (props: IEditCardProps) => {
     prevCard,
   } = useEditCard(cardId);
 
-  const { throttleHandleEditorContentChange } = useEditContent(
-    editingCard?.contentId,
-    (content) => {
-      editorRef.current?.setEditorValue(content);
-      onContentChangeFromEditCard(content);
-    },
-  );
+  const { throttleHandleEditorContentChange } = useEditContent(editingCard?.contentId, content => {
+    editorRef.current?.setEditorValue(content);
+    onContentChangeFromEditCard(content);
+  });
 
   const editorRef = useRef<EditorRef>(null);
   const immersiveEntrySelectionRef = useRef<Range | null>(null);
@@ -147,10 +128,7 @@ const EditCard = (props: IEditCardProps) => {
     editorRef,
     content: editingCard?.content,
   });
-  const cardEventBus = useCreation(
-    () => defaultCardEventBus.createEditor(),
-    [],
-  );
+  const cardEventBus = useCreation(() => defaultCardEventBus.createEditor(), []);
   const [cards, setCards] = useState<ICard[]>([]);
   const [readonly, setReadonly] = useState(defaultReadonly);
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
@@ -188,13 +166,11 @@ const EditCard = (props: IEditCardProps) => {
     }
   }, [editingCard?.update_time]);
 
-  const handleImmersiveExit = useMemoizedFn(
-    (payload?: ImmersiveEditorExitPayload) => {
-      pendingSelectionRef.current = payload?.selection ?? null;
-      setImmersiveMode(false);
-      setEditorRemountKey((current) => current + 1);
-    },
-  );
+  const handleImmersiveExit = useMemoizedFn((payload?: ImmersiveEditorExitPayload) => {
+    pendingSelectionRef.current = payload?.selection ?? null;
+    setImmersiveMode(false);
+    setEditorRemountKey(current => current + 1);
+  });
 
   useEffect(() => {
     if (immersiveMode || !pendingSelectionRef.current) return;
@@ -218,7 +194,7 @@ const EditCard = (props: IEditCardProps) => {
 
   const handleEnterImmersiveMode = useMemoizedFn(() => {
     immersiveEntrySelectionRef.current = cloneRange(
-      editorRef.current?.getEditor().selection ?? null,
+      editorRef.current?.getEditor().selection ?? null
     );
     setImmersiveMode(true);
   });
@@ -263,7 +239,7 @@ const EditCard = (props: IEditCardProps) => {
   });
 
   useEffect(() => {
-    getAllCards().then((res) => {
+    getAllCards().then(res => {
       setCards(res);
     });
   }, []);
@@ -296,9 +272,7 @@ const EditCard = (props: IEditCardProps) => {
       return;
     }
     // 直接替换标签，保持顺序
-    const newTags = editingCard.tags.map((tag) =>
-      tag === oldTag ? newTag : tag,
-    );
+    const newTags = editingCard.tags.map(tag => (tag === oldTag ? newTag : tag));
     onTagChange(newTags);
   });
 
@@ -322,14 +296,10 @@ const EditCard = (props: IEditCardProps) => {
   });
 
   useEffect(() => {
-    const unsubscribe = cardEventBus.subscribeToCardWithId(
-      "card:updated",
-      cardId,
-      (data) => {
-        setEditingCard(data.card);
-        prevCard.current = data.card;
-      },
-    );
+    const unsubscribe = cardEventBus.subscribeToCardWithId("card:updated", cardId, data => {
+      setEditingCard(data.card);
+      prevCard.current = data.card;
+    });
 
     return () => {
       unsubscribe();
@@ -341,6 +311,15 @@ const EditCard = (props: IEditCardProps) => {
       {
         key: "words-count",
         children: <>字数：{editingCard?.count}</>,
+      },
+      {
+        key: "collaboration",
+        children: (
+          <ContentCollaborationControl
+            contentId={editingCard?.contentId}
+            source={{ sourceType: "card", sourceId: editingCard?.id }}
+          />
+        ),
       },
       {
         key: "readonly",
@@ -411,13 +390,13 @@ const EditCard = (props: IEditCardProps) => {
         },
       },
     ].filter(isValid);
-  }, [readonly, editingCard?.count]);
+  }, [readonly, editingCard?.count, editingCard?.contentId, editingCard?.id]);
 
   const handleClickLinkCard = useMemoizedFn((card: ICard) => {
     // 确定在哪个 pane 中打开 - 尝试在另一个 pane 中打开
     let targetPaneId: string | undefined;
     if (panes.length > 1) {
-      const otherPane = panes.find((p) => p.id !== activePaneId);
+      const otherPane = panes.find(p => p.id !== activePaneId);
       targetPaneId = otherPane?.id;
     }
 
@@ -425,68 +404,66 @@ const EditCard = (props: IEditCardProps) => {
       TabType.CardDetail,
       { id: card.id },
       targetPaneId,
-      getEditorText(card.content, 10),
+      getEditorText(card.content, 10)
     );
   });
 
-  const handleMoreMenuClick = useMemoizedFn(
-    async ({ key }: { key: string }) => {
-      if (!editingCard) return;
+  const handleMoreMenuClick = useMemoizedFn(async ({ key }: { key: string }) => {
+    if (!editingCard) return;
 
-      if (key === "presentation") {
-        setPresentationMode(true);
-      } else if (key === "immersive-mode") {
-        handleEnterImmersiveMode();
-      } else if (key === "generate-podcast") {
-        openPodcastModal();
-      } else if (key === "open-window") {
-        openCardInNewWindow(databaseName, editingCard.id);
-        navigateTo(TabType.CardList);
-      } else if (key === "open-sidebar") {
-        // 确定在哪个 pane 中打开 - 尝试在另一个 pane 中打开
-        let targetPaneId: string | undefined;
-        if (panes.length > 1) {
-          const otherPane = panes.find((p) => p.id !== activePaneId);
-          targetPaneId = otherPane?.id;
-        }
-
-        openInNewTab(
-          TabType.CardDetail,
-          { id: editingCard.id },
-          targetPaneId,
-          getEditorText(editingCard.content, 10),
-        );
-        navigateTo(TabType.CardList);
-      } else if (key === "copy-markdown") {
-        await copyMarkdownToClipboard(editingCard.content, message);
-      } else if (key === "copy-wechat") {
-        await copyWechatHtmlToClipboard(editingCard.content, message);
-      } else if (key === "export-markdown") {
-        const markdown = getMarkdown(editingCard.content);
-        downloadMarkdown(markdown, String(editingCard.id));
-      } else if (key === "export-image") {
-        setExportModalOpen(true);
-      } else if (key === "export-epub") {
-        setEpubExportModalOpen(true);
-      } else if (key === "export-pdf") {
-        setPdfExportModalOpen(true);
-      } else if (key === "delete-card") {
-        handleDeleteCard(editingCard.id);
-      } else if (key === "manual-flashcard") {
-        flashcard.openManualFlashcard();
-      } else if (key === "ai-flashcard") {
-        flashcard.openAiFlashcard();
-      } else if (Object.keys(cardCategoryName).includes(key)) {
-        const newCard = produce(editingCard, (draft) => {
-          draft!.category = key as ECardCategory;
-        });
-        const updatedCard = await updateCard(newCard!);
-        setEditingCard(updatedCard);
-        prevCard.current = updatedCard;
-        cardEventBus.publishCardEvent("card:updated", updatedCard);
+    if (key === "presentation") {
+      setPresentationMode(true);
+    } else if (key === "immersive-mode") {
+      handleEnterImmersiveMode();
+    } else if (key === "generate-podcast") {
+      openPodcastModal();
+    } else if (key === "open-window") {
+      openCardInNewWindow(databaseName, editingCard.id);
+      navigateTo(TabType.CardList);
+    } else if (key === "open-sidebar") {
+      // 确定在哪个 pane 中打开 - 尝试在另一个 pane 中打开
+      let targetPaneId: string | undefined;
+      if (panes.length > 1) {
+        const otherPane = panes.find(p => p.id !== activePaneId);
+        targetPaneId = otherPane?.id;
       }
-    },
-  );
+
+      openInNewTab(
+        TabType.CardDetail,
+        { id: editingCard.id },
+        targetPaneId,
+        getEditorText(editingCard.content, 10)
+      );
+      navigateTo(TabType.CardList);
+    } else if (key === "copy-markdown") {
+      await copyMarkdownToClipboard(editingCard.content, message);
+    } else if (key === "copy-wechat") {
+      await copyWechatHtmlToClipboard(editingCard.content, message);
+    } else if (key === "export-markdown") {
+      const markdown = getMarkdown(editingCard.content);
+      downloadMarkdown(markdown, String(editingCard.id));
+    } else if (key === "export-image") {
+      setExportModalOpen(true);
+    } else if (key === "export-epub") {
+      setEpubExportModalOpen(true);
+    } else if (key === "export-pdf") {
+      setPdfExportModalOpen(true);
+    } else if (key === "delete-card") {
+      handleDeleteCard(editingCard.id);
+    } else if (key === "manual-flashcard") {
+      flashcard.openManualFlashcard();
+    } else if (key === "ai-flashcard") {
+      flashcard.openAiFlashcard();
+    } else if (Object.keys(cardCategoryName).includes(key)) {
+      const newCard = produce(editingCard, draft => {
+        draft!.category = key as ECardCategory;
+      });
+      const updatedCard = await updateCard(newCard!);
+      setEditingCard(updatedCard);
+      prevCard.current = updatedCard;
+      cardEventBus.publishCardEvent("card:updated", updatedCard);
+    }
+  });
 
   const moreMenuItems: MenuProps["items"] = useMemo(() => {
     return [
@@ -563,7 +540,7 @@ const EditCard = (props: IEditCardProps) => {
       {
         key: "edit-category",
         label: "编辑分类",
-        children: Object.keys(cardCategoryName).map((key) => ({
+        children: Object.keys(cardCategoryName).map(key => ({
           label: cardCategoryName[key as ECardCategory],
           key: key,
           disabled: editingCard?.category === (key as ECardCategory),
@@ -577,11 +554,7 @@ const EditCard = (props: IEditCardProps) => {
   }, [editingCard?.category]);
 
   if (loading) {
-    return (
-      <div className="w-full h-full flex justify-center items-center">
-        Loading...
-      </div>
-    );
+    return <div className="flex h-full w-full items-center justify-center">Loading...</div>;
   }
 
   if (!editingCard) {
@@ -594,29 +567,24 @@ const EditCard = (props: IEditCardProps) => {
         cardId: editingCard.id,
       }}
     >
-      <div className="relative mx-auto w-full h-full flex flex-col">
-        <div className="mb-6 flex opacity-80 text-sm shrink-0 mx-auto w-full max-w-[min(100%,800px)] px-5 box-border justify-between">
-          <div className="flex-1 flex gap-2.5">
+      <div className="relative mx-auto flex h-full w-full flex-col">
+        <div className="mx-auto mb-6 box-border flex w-full max-w-[min(100%,800px)] shrink-0 justify-between px-5 text-sm opacity-80">
+          <div className="flex flex-1 gap-2.5">
             <div>
               <span>创建于 {formatDate(editingCard.create_time, true)}</span>
             </div>
             <div>
-              <span>
-                最后修改于{" "}
-                {formatDate(updateTime || editingCard.update_time, true)}
-              </span>
+              <span>最后修改于 {formatDate(updateTime || editingCard.update_time, true)}</span>
             </div>
           </div>
-          <div className="flex items-center cursor-pointer ml-auto hover:opacity-70">
-            <Dropdown
-              menu={{ items: moreMenuItems, onClick: handleMoreMenuClick }}
-            >
+          <div className="ml-auto flex cursor-pointer items-center hover:opacity-70">
+            <Dropdown menu={{ items: moreMenuItems, onClick: handleMoreMenuClick }}>
               <MoreOutlined />
             </Dropdown>
           </div>
         </div>
-        <div className="flex-1 min-h-0 w-full overflow-auto">
-          <div className="w-full px-5 box-border mx-auto max-w-[min(100%,800px)]">
+        <div className="min-h-0 w-full flex-1 overflow-auto">
+          <div className="mx-auto box-border w-full max-w-[min(100%,800px)] px-5">
             {editingCard.podcast && (
               <PodcastPlayer
                 defaultPodcast={editingCard.podcast}
@@ -626,6 +594,8 @@ const EditCard = (props: IEditCardProps) => {
             )}
             <ErrorBoundary>
               <Editor
+                contentId={editingCard?.contentId}
+                collaborationControl={false}
                 key={`normal-${editingCard.id}-${editorRemountKey}`}
                 ref={editorRef}
                 onInit={onInit}
@@ -640,7 +610,7 @@ const EditCard = (props: IEditCardProps) => {
             </ErrorBoundary>
           </div>
         </div>
-        <div className="mt-4 shrink-0 mx-auto w-full max-w-[min(100%,800px)] px-5 box-border">
+        <div className="mx-auto mt-4 box-border w-full max-w-[min(100%,800px)] shrink-0 px-5">
           <AddTag
             tags={editingCard.tags}
             addTag={handleAddTag}
@@ -652,7 +622,7 @@ const EditCard = (props: IEditCardProps) => {
         </div>
 
         <StatusBar
-          className="h-[30px] flex items-center justify-between absolute bottom-5 right-9"
+          className="absolute bottom-5 right-9 flex h-[30px] items-center justify-between"
           configs={statusBarConfigs}
         />
         <Drawer
@@ -682,9 +652,7 @@ const EditCard = (props: IEditCardProps) => {
             cardWidth={360}
             getCardLinks={getCardLinks}
             fitView={true}
-            fitViewPadding={
-              allLinkedCards.length > 20 ? maxFitViewPadding : minFitViewPadding
-            }
+            fitViewPadding={allLinkedCards.length > 20 ? maxFitViewPadding : minFitViewPadding}
             style={{
               height: "calc(100vh - 105px)",
             }}
@@ -706,6 +674,7 @@ const EditCard = (props: IEditCardProps) => {
         )}
         {immersiveMode && (
           <ImmersiveEditorMode
+            contentId={editingCard?.contentId}
             initValue={editingCard.content}
             initialSelection={immersiveEntrySelectionRef.current}
             onChange={onContentChange}
@@ -725,17 +694,13 @@ const EditCard = (props: IEditCardProps) => {
           open={epubExportModalOpen}
           onClose={() => setEpubExportModalOpen(false)}
           content={editingCard.content}
-          title={
-            getEditorText(editingCard.content, 20) || `卡片 #${editingCard.id}`
-          }
+          title={getEditorText(editingCard.content, 20) || `卡片 #${editingCard.id}`}
         />
         <PdfExportModal
           visible={pdfExportModalOpen}
           onClose={() => setPdfExportModalOpen(false)}
           content={editingCard.content}
-          title={
-            getEditorText(editingCard.content, 20) || `卡片 #${editingCard.id}`
-          }
+          title={getEditorText(editingCard.content, 20) || `卡片 #${editingCard.id}`}
         />
 
         <PodcastGenerationModal
@@ -753,9 +718,7 @@ const EditCard = (props: IEditCardProps) => {
           onCancel={flashcard.closeDeckSelector}
           onSelect={flashcard.handleDeckSelect}
           title={
-            flashcard.deckSelectorMode === "manual"
-              ? "选择卡组 - 手动制卡"
-              : "选择卡组 - AI 制卡"
+            flashcard.deckSelectorMode === "manual" ? "选择卡组 - 手动制卡" : "选择卡组 - AI 制卡"
           }
         />
 

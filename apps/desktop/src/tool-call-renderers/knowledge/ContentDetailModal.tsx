@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
-import { Editor, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import CustomModal from "@/components/CustomModal";
 import useEditContent from "@/hooks/useEditContent";
@@ -23,19 +24,14 @@ const ContentDetailModal = ({
   visible,
   onClose,
 }: ContentDetailModalProps) => {
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const editorRef = useRef<EditorRef>(null);
   const [loading, setLoading] = useState(true);
   const [initValue, setInitValue] = useState<Descendant[] | null>(null);
 
-  const { throttleHandleEditorContentChange } = useEditContent(
-    contentId,
-    (content) => {
-      editorRef.current?.setEditorValue(content);
-    },
-  );
+  const { throttleHandleEditorContentChange } = useEditContent(contentId, content => {
+    editorRef.current?.setEditorValue(content);
+  });
 
   useEffect(() => {
     if (!visible || !contentId) {
@@ -44,7 +40,7 @@ const ContentDetailModal = ({
       return;
     }
     setLoading(true);
-    getContentById(contentId).then((data) => {
+    getContentById(contentId).then(data => {
       setInitValue(data?.content ?? null);
       setLoading(false);
     });
@@ -55,9 +51,9 @@ const ContentDetailModal = ({
   });
 
   const headerTitle = (
-    <div className="flex items-center gap-2 min-w-0">
-      <span className="truncate font-bold text-base">{title}</span>
-      <span className="shrink-0 rounded-full border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+    <div className="flex min-w-0 items-center gap-2">
+      <span className="truncate text-base font-bold">{title}</span>
+      <span className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
         {typeName}
       </span>
     </div>
@@ -75,13 +71,14 @@ const ContentDetailModal = ({
       bodyClassName="max-h-[70vh] overflow-auto"
     >
       {loading || !initValue ? (
-        <div className="flex justify-center items-center h-48 text-sm text-slate-400">
+        <div className="flex h-48 items-center justify-center text-sm text-slate-400">
           加载中...
         </div>
       ) : (
-        <div className="min-h-[200px]">
+        <div className="min-h-50">
           <ErrorBoundary>
             <Editor
+              contentId={contentId}
               key={contentId}
               ref={editorRef}
               initValue={initValue}

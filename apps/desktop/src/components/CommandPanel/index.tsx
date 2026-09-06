@@ -1,9 +1,6 @@
 import { memo, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import CommandPalette, {
-  filterItems,
-  getItemIndex,
-} from "@tmikeladze/react-cmdk";
+import CommandPalette, { filterItems, getItemIndex } from "@tmikeladze/react-cmdk";
 import { useMemoizedFn } from "ahooks";
 
 import useTabStore from "@/stores/useTabStore";
@@ -26,6 +23,7 @@ const ALL_PAGES = [
   { type: TabType.PdfList, category: "内容", module: "pdf" },
   { type: TabType.DailyNote, category: "内容", module: "dailyNote" },
   { type: TabType.WeRead, category: "内容", module: "weread" },
+  { type: TabType.Collaboration, category: "工具", module: "collaboration" },
   { type: TabType.VecDocument, category: "工具", module: "vecDocuments" },
   { type: TabType.Calendar, category: "工具" },
   { type: TabType.ChatManagement, category: "工具" },
@@ -45,21 +43,17 @@ const CommandPanel = memo(() => {
   const [search, setSearch] = useState("");
   const { theme } = useTheme();
 
-  const navigateTo = useTabStore((state) => state.navigateTo);
-  const addToHistory = useNavigationHistoryStore((state) => state.addToHistory);
-  const getRecentItems = useNavigationHistoryStore(
-    (state) => state.getRecentItems,
-  );
-  const getFrequentItems = useNavigationHistoryStore(
-    (state) => state.getFrequentItems,
-  );
-  const moduleSetting = useSettingStore((state) => state.setting.module);
+  const navigateTo = useTabStore(state => state.navigateTo);
+  const addToHistory = useNavigationHistoryStore(state => state.addToHistory);
+  const getRecentItems = useNavigationHistoryStore(state => state.getRecentItems);
+  const getFrequentItems = useNavigationHistoryStore(state => state.getFrequentItems);
+  const moduleSetting = useSettingStore(state => state.setting.module);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "p" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
-        setOpen((prev) => !prev);
+        setOpen(prev => !prev);
       }
     };
 
@@ -78,7 +72,7 @@ const CommandPanel = memo(() => {
   });
 
   // 过滤启用的页面
-  const enabledPages = ALL_PAGES.filter((page) => {
+  const enabledPages = ALL_PAGES.filter(page => {
     if (!page.module) return true;
     const moduleKey = page.module as keyof typeof moduleSetting;
     return moduleSetting[moduleKey]?.enable !== false;
@@ -93,7 +87,7 @@ const CommandPanel = memo(() => {
       acc[page.category].push(page);
       return acc;
     },
-    {} as Record<string, typeof enabledPages>,
+    {} as Record<string, typeof enabledPages>
   );
 
   const recentItems = getRecentItems(5);
@@ -106,7 +100,7 @@ const CommandPanel = memo(() => {
             {
               heading: "最近访问",
               id: "recent",
-              items: recentItems.map((item) => ({
+              items: recentItems.map(item => ({
                 id: `recent-${item.type}`,
                 children: `🕐 ${item.title || TAB_TITLES[item.type]}`,
                 onClick: () => handleSelect(item.type),
@@ -119,7 +113,7 @@ const CommandPanel = memo(() => {
             {
               heading: "常用",
               id: "frequent",
-              items: frequentItems.map((item) => ({
+              items: frequentItems.map(item => ({
                 id: `frequent-${item.type}`,
                 children: `⭐ ${item.title || TAB_TITLES[item.type]} (${item.count})`,
                 onClick: () => handleSelect(item.type),
@@ -130,14 +124,14 @@ const CommandPanel = memo(() => {
       ...Object.entries(pagesByCategory).map(([category, pages]) => ({
         heading: category,
         id: category,
-        items: pages.map((page) => ({
+        items: pages.map(page => ({
           id: page.type,
           children: TAB_TITLES[page.type],
           onClick: () => handleSelect(page.type),
         })),
       })),
     ],
-    search,
+    search
   );
 
   return createPortal(
@@ -151,7 +145,7 @@ const CommandPanel = memo(() => {
     >
       <CommandPalette.Page id="root">
         {filteredItems.length > 0 ? (
-          filteredItems.map((list) => (
+          filteredItems.map(list => (
             <CommandPalette.List key={list.id} heading={list.heading}>
               {list.items.map(({ id, ...rest }) => (
                 <CommandPalette.ListItem
@@ -167,7 +161,7 @@ const CommandPanel = memo(() => {
         )}
       </CommandPalette.Page>
     </CommandPalette>,
-    document.body,
+    document.body
   );
 });
 

@@ -29,24 +29,20 @@ import type {
   VLResourceType,
   NoteSourceMeta,
 } from "@/types/vibe-learning";
-import {
-  useResourcesStatus,
-  statusConfig,
-} from "@/hooks/useVibeLearningStatus";
+import { useResourcesStatus, statusConfig } from "@/hooks/useVibeLearningStatus";
 import {
   updateVLResource,
   deleteVLResourceComplete,
   addVLIndexTask,
   reorderVLResources,
 } from "@/commands/vibe-learning";
-import EditTitleModal, {
-  type EditTitleResult,
-} from "@/components/EditTitleModal";
+import EditTitleModal, { type EditTitleResult } from "@/components/EditTitleModal";
 import LocalImage from "@/components/LocalImage";
 import { remoteResourceToLocal } from "@/utils";
 import { openFileWithDefaultApp } from "@/commands/file";
 import { getContentById } from "@/commands";
-import { Editor, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import useEditContent from "@/hooks/useEditContent";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
@@ -127,10 +123,10 @@ const moveResourceInOrder = (
   resources: VLResource[],
   dragId: number,
   hoverId: number,
-  place: ResourceDropPosition,
+  place: ResourceDropPosition
 ) => {
-  const fromIndex = resources.findIndex((resource) => resource.id === dragId);
-  const toIndex = resources.findIndex((resource) => resource.id === hoverId);
+  const fromIndex = resources.findIndex(resource => resource.id === dragId);
+  const toIndex = resources.findIndex(resource => resource.id === hoverId);
 
   if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) {
     return resources;
@@ -139,14 +135,10 @@ const moveResourceInOrder = (
   const nextResources = [...resources];
   const [movedResource] = nextResources.splice(fromIndex, 1);
   const insertIndex = place === "before" ? toIndex : toIndex + 1;
-  nextResources.splice(
-    insertIndex > fromIndex ? insertIndex - 1 : insertIndex,
-    0,
-    movedResource,
-  );
+  nextResources.splice(insertIndex > fromIndex ? insertIndex - 1 : insertIndex, 0, movedResource);
 
-  const nextIds = nextResources.map((resource) => resource.id);
-  const currentIds = resources.map((resource) => resource.id);
+  const nextIds = nextResources.map(resource => resource.id);
+  const currentIds = resources.map(resource => resource.id);
   return isSameResourceOrder(nextIds, currentIds) ? resources : nextResources;
 };
 
@@ -155,11 +147,7 @@ interface ResourceListItemProps {
   status: VLResourceStatus;
   tagText: string;
   dimmed: boolean;
-  onMove: (
-    dragId: number,
-    hoverId: number,
-    place: ResourceDropPosition,
-  ) => void;
+  onMove: (dragId: number, hoverId: number, place: ResourceDropPosition) => void;
   onCommitOrder: () => void;
   onCancelOrder: () => void;
   onClick: (resource: VLResource) => void;
@@ -197,11 +185,11 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
         }
         onCancelOrder();
       },
-      collect: (monitor) => ({
+      collect: monitor => ({
         isDragging: monitor.isDragging(),
       }),
     }),
-    [resource.id, onCancelOrder, onCommitOrder],
+    [resource.id, onCancelOrder, onCommitOrder]
   );
 
   const [, drop] = useDrop<DragVLResource, { dropped: true }, unknown>({
@@ -234,54 +222,50 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
     <div
       ref={rowRef}
       className={classNames(
-        "group flex items-start gap-3 py-3 border-b border-gray-100 dark:border-gray-800 last:border-b-0 transition-colors",
-        "hover:bg-gray-50/70 dark:hover:bg-zinc-900/40 cursor-pointer rounded-lg px-2",
+        "group flex items-start gap-3 border-b border-gray-100 py-3 transition-colors last:border-b-0 dark:border-gray-800",
+        "cursor-pointer rounded-lg px-2 hover:bg-gray-50/70 dark:hover:bg-zinc-900/40",
         {
           "opacity-70": dimmed,
           "opacity-40": isDragging,
-        },
+        }
       )}
       onClick={() => onClick(resource)}
     >
       <button
         ref={handleRef}
         type="button"
-        className="mt-1 shrink-0 w-6 h-6 flex items-center justify-center rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-zinc-800 cursor-grab active:cursor-grabbing"
-        onClick={(event) => event.stopPropagation()}
+        className="mt-1 flex h-6 w-6 shrink-0 cursor-grab items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 active:cursor-grabbing dark:hover:bg-zinc-800"
+        onClick={event => event.stopPropagation()}
         aria-label={`拖动排序 ${resource.name}`}
       >
         <MdDragIndicator size={16} />
       </button>
 
-      <span className="flex items-center justify-center w-8 h-8 text-base text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-zinc-800 rounded-md shrink-0">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-100 text-base text-gray-600 dark:bg-zinc-800 dark:text-gray-400">
         {getResourceIcon(resource.resourceType)}
       </span>
 
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
             {resource.name}
           </span>
         </div>
-        <div className="flex items-center mt-1">
-          <Tag
-            color={config.color}
-            icon={getStatusIcon(status)}
-            className="m-0! text-xs!"
-          >
+        <div className="mt-1 flex items-center">
+          <Tag color={config.color} icon={getStatusIcon(status)} className="m-0! text-xs!">
             {tagText}
           </Tag>
         </div>
       </div>
 
-      <div className="shrink-0 flex items-center gap-1 ml-2">
+      <div className="ml-2 flex shrink-0 items-center gap-1">
         {!config.spin && status !== "completed" && (
           <Tooltip title="重新处理" key="reprocess">
             <Button
               type="text"
               size="small"
               icon={<ReloadOutlined />}
-              onClick={(event) => {
+              onClick={event => {
                 event.stopPropagation();
                 onReprocess(resource);
               }}
@@ -294,7 +278,7 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
               type="text"
               size="small"
               icon={<ReloadOutlined />}
-              onClick={(event) => {
+              onClick={event => {
                 event.stopPropagation();
                 onReindex(resource);
               }}
@@ -306,7 +290,7 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
             type="text"
             size="small"
             icon={<EditOutlined />}
-            onClick={(event) => {
+            onClick={event => {
               event.stopPropagation();
               onStartEdit(resource);
             }}
@@ -316,7 +300,7 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
           key="delete"
           title="确定删除此资源？"
           onConfirm={() => onDelete(resource)}
-          onPopupClick={(event) => event.stopPropagation()}
+          onPopupClick={event => event.stopPropagation()}
           okText="删除"
           cancelText="取消"
         >
@@ -326,7 +310,7 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
               size="small"
               danger
               icon={<DeleteOutlined />}
-              onClick={(event) => event.stopPropagation()}
+              onClick={event => event.stopPropagation()}
             />
           </Tooltip>
         </Popconfirm>
@@ -341,40 +325,30 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
   resources,
   onResourcesChange,
 }) => {
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const [currentView, setCurrentView] = useState<PanelView>("resource-list");
-  const [previewingResource, setPreviewingResource] =
-    useState<VLResource | null>(null);
-  const [previewingNoteMeta, setPreviewingNoteMeta] =
-    useState<NoteSourceMeta | null>(null);
+  const [previewingResource, setPreviewingResource] = useState<VLResource | null>(null);
+  const [previewingNoteMeta, setPreviewingNoteMeta] = useState<NoteSourceMeta | null>(null);
   const [noteContent, setNoteContent] = useState<Descendant[] | null>(null);
   const [noteLoading, setNoteLoading] = useState(false);
-  const [imagePreviewResource, setImagePreviewResource] =
-    useState<VLResource | null>(null);
+  const [imagePreviewResource, setImagePreviewResource] = useState<VLResource | null>(null);
   const [addResourceModalOpen, setAddResourceModalOpen] = useState(false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
-  const [editingResource, setEditingResource] = useState<VLResource | null>(
-    null,
-  );
-  const [orderedResources, setOrderedResources] =
-    useState<VLResource[]>(resources);
+  const [editingResource, setEditingResource] = useState<VLResource | null>(null);
+  const [orderedResources, setOrderedResources] = useState<VLResource[]>(resources);
   const [savingOrder, setSavingOrder] = useState(false);
 
   const noteEditorRef = useRef<EditorRef>(null);
   const sourceResourcesRef = useRef(resources);
   const orderedResourcesRef = useRef(resources);
-  const lastPersistedOrderRef = useRef(
-    resources.map((resource) => resource.id),
-  );
+  const lastPersistedOrderRef = useRef(resources.map(resource => resource.id));
   const pendingOrderRef = useRef<number[] | null>(null);
   const isPersistingOrderRef = useRef(false);
 
   useEffect(() => {
     sourceResourcesRef.current = resources;
     orderedResourcesRef.current = resources;
-    lastPersistedOrderRef.current = resources.map((resource) => resource.id);
+    lastPersistedOrderRef.current = resources.map(resource => resource.id);
     setOrderedResources(resources);
   }, [resources]);
 
@@ -383,23 +357,22 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
     setNoteContent(newContent);
     noteEditorRef.current?.setEditorValue(newContent);
   });
-  const { throttleHandleEditorContentChange: throttleNoteContentChange } =
-    useEditContent(
-      previewingNoteMeta?.contentId || undefined,
-      handleNoteContentSync,
-    );
+  const { throttleHandleEditorContentChange: throttleNoteContentChange } = useEditContent(
+    previewingNoteMeta?.contentId || undefined,
+    handleNoteContentSync
+  );
 
   // 加载笔记内容
   useEffect(() => {
     if (!previewingNoteMeta?.contentId) return;
     setNoteLoading(true);
     getContentById(previewingNoteMeta.contentId)
-      .then((data) => {
+      .then(data => {
         if (data) {
           setNoteContent(data.content);
         }
       })
-      .catch((err) => {
+      .catch(err => {
         console.error("Failed to load note content:", err);
         message.error("加载笔记内容失败");
       })
@@ -629,7 +602,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         orderedResourcesRef.current,
         dragId,
         hoverId,
-        place,
+        place
       );
 
       if (nextResources === orderedResourcesRef.current) {
@@ -638,13 +611,11 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
 
       orderedResourcesRef.current = nextResources;
       setOrderedResources(nextResources);
-    },
+    }
   );
 
   const handleCommitResourceOrder = useMemoizedFn(() => {
-    const nextOrder = orderedResourcesRef.current.map(
-      (resource) => resource.id,
-    );
+    const nextOrder = orderedResourcesRef.current.map(resource => resource.id);
     if (isSameResourceOrder(nextOrder, lastPersistedOrderRef.current)) {
       return;
     }
@@ -661,23 +632,15 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
 
   // 预览视图
   if (currentView === "resource-preview" && previewingResource) {
-    return (
-      <ResourcePreviewPanel
-        resource={previewingResource}
-        onBack={handlePreviewBack}
-      />
-    );
+    return <ResourcePreviewPanel resource={previewingResource} onBack={handlePreviewBack} />;
   }
 
   // 笔记预览视图
   if (currentView === "note-preview" && previewingNoteMeta) {
     return (
-      <div className="flex flex-col h-full overflow-hidden">
+      <div className="flex h-full flex-col overflow-hidden">
         {/* 头部 */}
-        <div
-          className="flex items-center gap-2 px-4 py-3 shrink-0
-          border-b border-gray-100 dark:border-gray-800"
-        >
+        <div className="flex shrink-0 items-center gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
           <Tooltip title="返回">
             <Button
               type="text"
@@ -686,19 +649,20 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
               onClick={handleNotePreviewBack}
             />
           </Tooltip>
-          <span className="flex-1 text-sm font-medium overflow-hidden text-ellipsis whitespace-nowrap">
+          <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium">
             {previewingNoteMeta.title || "笔记"}
           </span>
         </div>
         {/* 笔记内容 */}
         <div className="flex-1 overflow-auto p-4">
           {noteLoading ? (
-            <div className="flex items-center justify-center h-full">
+            <div className="flex h-full items-center justify-center">
               <LoadingOutlined spin className="text-2xl text-gray-400" />
             </div>
           ) : noteContent ? (
             <ErrorBoundary>
               <Editor
+                contentId={previewingNoteMeta?.contentId || undefined}
                 key={previewingNoteMeta.contentId}
                 ref={noteEditorRef}
                 initValue={noteContent}
@@ -707,10 +671,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
               />
             </ErrorBoundary>
           ) : (
-            <div
-              className="flex items-center justify-center h-full
-              text-sm text-gray-400 dark:text-gray-500"
-            >
+            <div className="flex h-full items-center justify-center text-sm text-gray-400 dark:text-gray-500">
               无法加载笔记内容
             </div>
           )}
@@ -721,17 +682,15 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
 
   // 资源列表视图
   return (
-    <div className="flex flex-col h-full p-4 overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden p-4">
       {/* 头部 */}
-      <div className="flex items-center gap-2 mb-4">
+      <div className="mb-4 flex items-center gap-2">
         <h3 className="m-0 text-base font-semibold">资源</h3>
-        <span className="px-2 py-0.5 text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-zinc-800 rounded-full">
+        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-zinc-800 dark:text-gray-400">
           {orderedResources.length}
         </span>
         {savingOrder && (
-          <span className="text-xs text-blue-500 dark:text-blue-400">
-            保存顺序中...
-          </span>
+          <span className="text-xs text-blue-500 dark:text-blue-400">保存顺序中...</span>
         )}
       </div>
 
@@ -740,7 +699,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         <button
           type="button"
           onClick={handleOpenAddResourceModal}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all border-2 border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#1f1f1f] text-gray-600 dark:text-gray-400 hover:border-blue-500 hover:text-blue-500 dark:hover:border-blue-500 dark:hover:text-blue-400 cursor-pointer"
+          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-600 transition-all hover:border-blue-500 hover:text-blue-500 dark:border-gray-700 dark:bg-[#1f1f1f] dark:text-gray-400 dark:hover:border-blue-500 dark:hover:text-blue-400"
         >
           <PlusOutlined />
           <span>添加资料</span>
@@ -750,11 +709,11 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
       {/* 资源列表 */}
       <div className="flex-1 overflow-y-auto">
         {orderedResources.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-sm text-gray-400 dark:text-gray-500">
+          <div className="flex h-full items-center justify-center text-sm text-gray-400 dark:text-gray-500">
             暂无资源，请上传文件
           </div>
         ) : (
-          orderedResources.map((resource) => {
+          orderedResources.map(resource => {
             const status = getStatus(resource.id);
             const config = statusConfig[status];
             const progress = getProgress(resource.id);
@@ -764,12 +723,10 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
               const processed = progress.completed + progress.failed;
               const percent = Math.max(
                 0,
-                Math.min(100, Math.floor((processed / progress.total) * 100)),
+                Math.min(100, Math.floor((processed / progress.total) * 100))
               );
               const progressText =
-                progress.failed > 0
-                  ? `${percent}% · ${progress.failed}失败`
-                  : `${percent}%`;
+                progress.failed > 0 ? `${percent}% · ${progress.failed}失败` : `${percent}%`;
               tagText = `${config.text} (${progressText})`;
             }
 
@@ -797,13 +754,13 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
       {/* 图片全屏预览 */}
       {imagePreviewResource && (
         <div
-          className="fixed inset-0 z-1000 flex items-center justify-center bg-black/60 cursor-pointer"
+          className="z-1000 fixed inset-0 flex cursor-pointer items-center justify-center bg-black/60"
           onClick={() => setImagePreviewResource(null)}
         >
           <LocalImage
             url={imagePreviewResource.originalPath}
             alt={imagePreviewResource.name}
-            className="max-w-[90vw] max-h-[85vh] object-contain"
+            className="max-h-[85vh] max-w-[90vw] object-contain"
           />
         </div>
       )}
@@ -813,9 +770,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         open={renameModalOpen}
         onCancel={handleCancelEdit}
         onConfirm={handleConfirmRename}
-        initialTitle={
-          editingResource ? getNameParts(editingResource.name).baseName : ""
-        }
+        initialTitle={editingResource ? getNameParts(editingResource.name).baseName : ""}
         modalTitle="重命名资源"
         modalDescription={
           editingResource

@@ -1,13 +1,10 @@
 import { RenderElementProps } from "slate-react";
 import type { InlineImageElement } from "../../types";
-import {
-  createInlineElementPlugin,
-  createVoidElementPlugin,
-} from "../../utils";
+import { createInlineElementPlugin, createVoidElementPlugin } from "../../utils";
 import IExtension from "../types";
 import Base from "../base";
 import InlineImage from "./components/InlineImage";
-import { pasteInlineImagePlugin, overwrite } from "./plugins";
+import { pasteInlineImagePlugin } from "./plugins";
 import blockPanelItems from "./block-panel-items";
 
 class InlineImageExtension extends Base implements IExtension {
@@ -19,7 +16,6 @@ class InlineImageExtension extends Base implements IExtension {
 
   override getPlugins() {
     return [
-      overwrite,
       pasteInlineImagePlugin,
       createInlineElementPlugin(this.type),
       createVoidElementPlugin(this.type),
@@ -29,10 +25,7 @@ class InlineImageExtension extends Base implements IExtension {
   render(props: RenderElementProps) {
     const { element, attributes, children } = props;
     return (
-      <InlineImage
-        element={element as InlineImageElement}
-        attributes={attributes}
-      >
+      <InlineImage element={element as InlineImageElement} attributes={attributes}>
         {children}
       </InlineImage>
     );

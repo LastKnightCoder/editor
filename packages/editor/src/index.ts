@@ -1,4 +1,6 @@
 export { default as Editor } from "./index.tsx";
+export { useCollaboration, useCollaborationResource } from "./collaboration/context";
+export type { EditorCollaborationBinding } from "./collaboration/types";
 export {
   EditorContext,
   type EditorContextValue,
@@ -57,10 +59,7 @@ export { default as TemplatePreview } from "./extensions/custom-block/components
 
 export * from "./utils/element";
 
-export type {
-  default as IExtension,
-  IExtensionBaseProps,
-} from "./extensions/types";
+export type { default as IExtension, IExtensionBaseProps } from "./extensions/types";
 export { default as Base } from "./extensions/base";
 
 export {
@@ -88,7 +87,4 @@ export { useDragHandlerMenu } from "./hooks/useDragHandlerMenu";
 export * from "./constants";
 
 // Context Menu Types
-export type {
-  ContextMenuItem,
-  BuildMenuParams,
-} from "./components/EditorContextMenu/types";
+export type { ContextMenuItem, BuildMenuParams } from "./components/EditorContextMenu/types";

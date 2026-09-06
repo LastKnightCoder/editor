@@ -1,0 +1,12 @@
+node_modules
+.playwright-cli
+**/output
+**/dist
+**/dist-electron
+**/build
+**/release
+**/vendor
+**/data
+pnpm-lock.yaml
+package-lock.json
+packages/shared/src/components/TikZ/tikzjax.js

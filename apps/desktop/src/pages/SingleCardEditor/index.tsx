@@ -3,18 +3,14 @@ import { Descendant } from "slate";
 import { useSearchParams } from "react-router-dom";
 import classnames from "classnames";
 
-import { Editor, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import AddTag from "@/components/AddTag";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import useTheme from "@/hooks/useTheme";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
-import {
-  getCardById,
-  updateCard,
-  connectDatabaseByName,
-  closeDatabase,
-} from "@/commands";
+import { getCardById, updateCard, connectDatabaseByName, closeDatabase } from "@/commands";
 import { ICard } from "@/types";
 import { formatDate, defaultCardEventBus } from "@/utils";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
@@ -24,37 +20,25 @@ import useEditContent from "@/hooks/useEditContent";
 
 const SingleCardEditor = () => {
   const { isDark } = useTheme();
-  const cardEventBus = useCreation(
-    () => defaultCardEventBus.createEditor(),
-    [],
-  );
+  const cardEventBus = useCreation(() => defaultCardEventBus.createEditor(), []);
   const [searchParams] = useSearchParams();
   const cardId = Number(searchParams.get("cardId"));
   const databaseName = searchParams.get("databaseName");
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
 
   const [editingCard, setEditingCard] = useState<ICard | null>(null);
 
   const editorRef = useRef<EditorRef>(null);
   const prevCardRef = useRef<ICard | null>(null);
-  const { throttleHandleEditorContentChange } = useEditContent(
-    editingCard?.contentId,
-    (data) => {
-      editorRef.current?.setEditorValue(data);
-    },
-  );
+  const { throttleHandleEditorContentChange } = useEditContent(editingCard?.contentId, data => {
+    editorRef.current?.setEditorValue(data);
+  });
 
   useEffect(() => {
-    const unsubscribe = cardEventBus.subscribeToCardWithId(
-      "card:updated",
-      cardId,
-      (data) => {
-        setEditingCard(data.card);
-        prevCardRef.current = data.card;
-      },
-    );
+    const unsubscribe = cardEventBus.subscribeToCardWithId("card:updated", cardId, data => {
+      setEditingCard(data.card);
+      prevCardRef.current = data.card;
+    });
 
     return () => {
       unsubscribe();
@@ -113,7 +97,7 @@ const SingleCardEditor = () => {
 
   const onDeleteTag = useMemoizedFn((tag: string) => {
     if (!editingCard) return;
-    const newTags = editingCard.tags.filter((t) => t !== tag);
+    const newTags = editingCard.tags.filter(t => t !== tag);
     setEditingCard({
       ...editingCard,
       tags: newTags,
@@ -174,6 +158,7 @@ const SingleCardEditor = () => {
       <div className={styles.editorContainer}>
         <ErrorBoundary>
           <Editor
+            contentId={editingCard?.contentId}
             ref={editorRef}
             className={styles.editor}
             initValue={editingCard.content}

@@ -10,12 +10,9 @@ import {
 } from "react-icons/md";
 import { ColumnDef, RowData, CellValue } from "../../types";
 import { PluginManager } from "../../PluginManager";
-import {
-  getContentById,
-  createContent,
-  updateContent,
-} from "@/commands/content";
-import { Editor, EditorRef } from "@tau/editor/src";
+import { getContentById, createContent } from "@/commands/content";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
 import ColumnIcon from "@/components/Database/ColumnIcon";
@@ -61,8 +58,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
     allowDeleteColumn = true,
   }) => {
     const editorRef = useRef<EditorRef>(null);
-    const [description, setDescription] =
-      useState<Descendant[]>(DEFAULT_CONTENT);
+    const [description, setDescription] = useState<Descendant[]>(DEFAULT_CONTENT);
     const [rowData, setRowData] = useState<RowData>({ ...row });
     const [editingColumn, setEditingColumn] = useState<string | null>(null);
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
@@ -71,25 +67,18 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
     const { modal } = App.useApp();
     const themeColors = useThemeColors();
 
-    const {
-      columnOrder,
-      moveColumn,
-      editColumn,
-      deleteColumnWithCleanup,
-      columnWidths,
-    } = useDatabaseStore((state) => ({
-      columnOrder: state.viewConfig.columnOrder,
-      moveColumn: state.moveColumn,
-      editColumn: state.editColumn,
-      deleteColumnWithCleanup: state.deleteColumnWithCleanup,
-      columnWidths: state.columnWidths,
-    }));
+    const { columnOrder, moveColumn, editColumn, deleteColumnWithCleanup, columnWidths } =
+      useDatabaseStore(state => ({
+        columnOrder: state.viewConfig.columnOrder,
+        moveColumn: state.moveColumn,
+        editColumn: state.editColumn,
+        deleteColumnWithCleanup: state.deleteColumnWithCleanup,
+        columnWidths: state.columnWidths,
+      }));
 
     const orderedColumns = useMemo(() => {
-      const visibleColumns = columns.filter((col) => !col.hidden);
-      const orderIndexMap = new Map(
-        columnOrder.map((id, index) => [id, index]),
-      );
+      const visibleColumns = columns.filter(col => !col.hidden);
+      const orderIndexMap = new Map(columnOrder.map((id, index) => [id, index]));
       return [...visibleColumns].sort((a, b) => {
         const indexA = orderIndexMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
         const indexB = orderIndexMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
@@ -97,8 +86,8 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
       });
     }, [columns, columnOrder]);
 
-    const primaryColumn = orderedColumns.find((col) => col.isPrimary);
-    const otherColumns = orderedColumns.filter((col) => !col.isPrimary);
+    const primaryColumn = orderedColumns.find(col => col.isPrimary);
+    const otherColumns = orderedColumns.filter(col => !col.isPrimary);
 
     useEffect(() => {
       const loadDescription = async () => {
@@ -127,13 +116,11 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
     }, [row.detailContentId]);
 
     const handleClose = useMemoizedFn(async () => {
-      const hasContent =
-        JSON.stringify(description) !== JSON.stringify(DEFAULT_CONTENT);
+      const hasContent = JSON.stringify(description) !== JSON.stringify(DEFAULT_CONTENT);
       let detailContentId = row.detailContentId || 0;
 
       if (hasContent) {
         if (row.detailContentId && row.detailContentId > 0) {
-          await updateContent(row.detailContentId, description);
           detailContentId = row.detailContentId;
         } else {
           const contentId = await createContent(description, 0);
@@ -150,14 +137,12 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
       onClose();
     });
 
-    const handleColumnValueChange = useMemoizedFn(
-      (columnId: string, value: CellValue) => {
-        setRowData((prev: RowData) => ({
-          ...prev,
-          [columnId]: value,
-        }));
-      },
-    );
+    const handleColumnValueChange = useMemoizedFn((columnId: string, value: CellValue) => {
+      setRowData((prev: RowData) => ({
+        ...prev,
+        [columnId]: value,
+      }));
+    });
 
     const handleOpenColumnEditor = useMemoizedFn((columnId: string) => {
       if (readonly) return;
@@ -168,13 +153,11 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
       setEditingColumnId(null);
     });
 
-    const handleSaveColumnConfig = useMemoizedFn(
-      (columnData: Partial<ColumnDef>) => {
-        if (!editingColumnId) return;
-        editColumn(editingColumnId, columnData);
-        handleCloseColumnEditor();
-      },
-    );
+    const handleSaveColumnConfig = useMemoizedFn((columnData: Partial<ColumnDef>) => {
+      if (!editingColumnId) return;
+      editColumn(editingColumnId, columnData);
+      handleCloseColumnEditor();
+    });
 
     const handleDeleteColumn = useMemoizedFn((column: ColumnDef) => {
       if (readonly || column.isPrimary || !allowDeleteColumn) {
@@ -207,7 +190,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
 
     const editingColumnData = useMemo(() => {
       if (!editingColumnId) return null;
-      const found = columns.find((col) => col.id === editingColumnId);
+      const found = columns.find(col => col.id === editingColumnId);
       if (!found) return null;
       const width = columnWidths[editingColumnId] || found.width || 200;
       return { ...found, width } as ColumnDef;
@@ -241,80 +224,75 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
         centered={!isExpanded}
         overlayClassName={isExpanded ? "!items-start !px-0 !pt-0 !pb-0" : ""}
         overlayStyle={modalOverlayStyle}
-        contentClassName={classNames(
-          "p-0",
-          isExpanded && "!rounded-none !border-0 !shadow-none",
-        )}
+        contentClassName={classNames("p-0", isExpanded && "!rounded-none !border-0 !shadow-none")}
         bodyClassName="h-full overflow-hidden"
         contentStyle={modalContentStyle}
       >
         <div
           className={classNames(
             "flex h-full min-h-0 flex-col",
-            isExpanded ? "px-12 py-6" : "px-10 py-4",
+            isExpanded ? "px-12 py-6" : "px-10 py-4"
           )}
         >
           <div
             className={classNames(
-              "flex-1 min-h-0 overflow-y-auto pb-4",
-              isExpanded ? "pr-6" : "pr-4",
+              "min-h-0 flex-1 overflow-y-auto pb-4",
+              isExpanded ? "pr-6" : "pr-4"
             )}
           >
-            <div className="mb-5 flex items-start gap-4 shrink-0">
-              <div className="flex-1 min-w-0">
+            <div className="mb-5 flex shrink-0 items-start gap-4">
+              <div className="min-w-0 flex-1">
                 {primaryColumn && (
                   <input
                     type="text"
                     value={String(rowData[primaryColumn.id] || "")}
-                    onChange={(e) =>
-                      handleColumnValueChange(primaryColumn.id, e.target.value)
-                    }
+                    onChange={e => handleColumnValueChange(primaryColumn.id, e.target.value)}
                     disabled={readonly || primaryColumn.readonly}
                     className={classNames(
-                      "w-full border-0 px-0 bg-transparent focus:outline-none dark:text-gray-100 disabled:cursor-not-allowed disabled:opacity-60",
-                      isExpanded ? "py-1 text-[34px]" : "py-1 text-2xl",
+                      "w-full border-0 bg-transparent px-0 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:text-gray-100",
+                      isExpanded ? "py-1 text-[34px]" : "py-1 text-2xl"
                     )}
                     placeholder={`输入${primaryColumn.title}`}
                   />
                 )}
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex shrink-0 items-center gap-2">
                 <button
                   type="button"
                   className={classNames(
-                    "w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer",
+                    "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all",
                     themeColors.tagBgClass,
                     themeColors.textClass,
-                    themeColors.hoverClass,
+                    themeColors.hoverClass
                   )}
-                  onClick={() => setIsExpanded((prev) => !prev)}
+                  onClick={() => setIsExpanded(prev => !prev)}
                   title={isExpanded ? "退出展开" : "展开"}
                 >
                   {isExpanded ? (
-                    <MdFullscreenExit className="w-4 h-4" />
+                    <MdFullscreenExit className="h-4 w-4" />
                   ) : (
-                    <MdFullscreen className="w-4 h-4" />
+                    <MdFullscreen className="h-4 w-4" />
                   )}
                 </button>
                 <button
                   type="button"
                   className={classNames(
-                    "w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer",
+                    "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all",
                     themeColors.tagBgClass,
                     themeColors.textClass,
-                    themeColors.hoverClass,
+                    themeColors.hoverClass
                   )}
                   onClick={handleClose}
                   title="关闭"
                 >
-                  <MdClose className="w-4 h-4" />
+                  <MdClose className="h-4 w-4" />
                 </button>
               </div>
             </div>
             {otherColumns.length > 0 && (
               <div className="mb-5 shrink-0">
                 <div className="space-y-1">
-                  {otherColumns.map((column) => (
+                  {otherColumns.map(column => (
                     <ColumnPropertyRow
                       key={column.id}
                       column={column}
@@ -336,13 +314,13 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                 </div>
                 {!readonly && onAddColumn && (
                   <button
-                    onClick={(e) => {
+                    onClick={e => {
                       e.stopPropagation();
                       onAddColumn();
                     }}
-                    className="flex items-center gap-2 h-10 px-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700/50 rounded transition-colors cursor-pointer"
+                    className="flex h-10 cursor-pointer items-center gap-2 rounded px-2 text-sm text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-zinc-700/50 dark:hover:text-gray-200"
                   >
-                    <MdAdd className="w-[14px] h-[14px] mr-1.5" />
+                    <MdAdd className="mr-1.5 h-[14px] w-[14px]" />
                     <span>添加属性</span>
                   </button>
                 )}
@@ -351,6 +329,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
 
             <div>
               <Editor
+                contentId={row.detailContentId || undefined}
                 ref={editorRef}
                 initValue={DEFAULT_CONTENT}
                 onChange={setDescription}
@@ -374,7 +353,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
         </div>
       </CustomModal>
     );
-  },
+  }
 );
 
 RowDetailModal.displayName = "RowDetailModal";
@@ -437,7 +416,7 @@ const ColumnPropertyRow: React.FC<ColumnPropertyRowProps> = ({
         isDragging: monitor.isDragging(),
       }),
     }),
-    [column.id, orderIndex, readonly],
+    [column.id, orderIndex, readonly]
   );
 
   const [, drop] = useDrop(
@@ -454,7 +433,7 @@ const ColumnPropertyRow: React.FC<ColumnPropertyRowProps> = ({
         item.orderIndex = hoverIndex;
       },
     }),
-    [column.id, readonly, columnOrder, moveColumn],
+    [column.id, readonly, columnOrder, moveColumn]
   );
 
   drag(drop(ref));
@@ -493,9 +472,7 @@ const ColumnPropertyRow: React.FC<ColumnPropertyRowProps> = ({
           column={column}
           theme={theme}
           readonly={isColumnReadonly}
-          onCellValueChange={(value: CellValue) =>
-            onColumnValueChange(column.id, value)
-          }
+          onCellValueChange={(value: CellValue) => onColumnValueChange(column.id, value)}
         />
       );
     }
@@ -510,54 +487,48 @@ const ColumnPropertyRow: React.FC<ColumnPropertyRowProps> = ({
   return (
     <div
       ref={ref}
-      className={classNames(
-        "flex min-w-0 items-center gap-3 rounded px-2 py-1 transition-colors",
-        {
-          "hover:bg-gray-50 dark:hover:bg-zinc-700/50 cursor-pointer":
-            !readonly,
-          "opacity-50": isDragging,
-        },
-      )}
+      className={classNames("flex min-w-0 items-center gap-3 rounded px-2 py-1 transition-colors", {
+        "cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-700/50": !readonly,
+        "opacity-50": isDragging,
+      })}
       onClick={handleRowClick}
     >
       {!readonly && (
-        <span className="text-gray-400 dark:text-gray-500 cursor-grab">
+        <span className="cursor-grab text-gray-400 dark:text-gray-500">
           <MdDragIndicator />
         </span>
       )}
-      <div className="flex items-center gap-2 w-32 shrink-0">
+      <div className="flex w-32 shrink-0 items-center gap-2">
         <ColumnIcon type={column.type} pluginManager={pluginManager} />
-        <span className="text-sm text-gray-500 dark:text-gray-400">
-          {column.title}
-        </span>
+        <span className="text-sm text-gray-500 dark:text-gray-400">{column.title}</span>
       </div>
-      <div className="flex-1 min-w-0 min-h-[40px] flex items-center">
+      <div className="flex min-h-[40px] min-w-0 flex-1 items-center">
         <div className="w-full min-w-0">{valueRenderer()}</div>
       </div>
       {!readonly && (
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            onClick={(e) => {
+            onClick={e => {
               e.stopPropagation();
               onEditColumnConfig(column.id);
             }}
             title="编辑属性"
           >
-            <MdOutlineEdit className="w-4 h-4" />
+            <MdOutlineEdit className="h-4 w-4" />
           </button>
           {allowDeleteColumn && (
             <button
               type="button"
               className="text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
-              onClick={(e) => {
+              onClick={e => {
                 e.stopPropagation();
                 onDeleteColumn(column);
               }}
               title="删除属性"
             >
-              <MdDeleteOutline className="w-4 h-4" />
+              <MdDeleteOutline className="h-4 w-4" />
             </button>
           )}
         </div>

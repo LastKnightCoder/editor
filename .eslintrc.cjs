@@ -31,23 +31,36 @@ const whiteboardPluginIsolation = [
 module.exports = {
   env: { browser: true, es2022: true, node: true },
   extends: [
-    'eslint:recommended',
-    'plugin:@typescript-eslint/recommended',
-    'plugin:react-hooks/recommended',
-    'prettier',
-    'plugin:prettier/recommended',
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:react-hooks/recommended",
+    "prettier",
+    "plugin:prettier/recommended",
   ],
-  parser: '@typescript-eslint/parser',
-  parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
-  plugins: ['react-refresh', 'prettier'],
+  parser: "@typescript-eslint/parser",
+  parserOptions: { ecmaVersion: "latest", sourceType: "module" },
+  plugins: ["react-refresh", "prettier"],
   rules: {
-    'react-refresh/only-export-components': 'warn',
+    "react-refresh/only-export-components": "warn",
     "@typescript-eslint/ban-ts-comment": "off",
     "object-curly-spacing": ["warn", "always"],
-    "prettier/prettier": "warn",
+    "prettier/prettier": [
+      "warn",
+      {
+        semi: true,
+        singleQuote: false,
+        printWidth: 100,
+        tabWidth: 2,
+        trailingComma: "es5",
+        useTabs: false,
+        bracketSpacing: true,
+        arrowParens: "avoid",
+        endOfLine: "lf",
+      },
+    ],
     "no-useless-escape": "off",
     "no-constant-condition": "off",
-    "@typescript-eslint/no-empty-function": "warn"
+    "@typescript-eslint/no-empty-function": "warn",
   },
   overrides: [
     {
@@ -67,4 +80,4 @@ module.exports = {
       },
     },
   ],
-}
+};

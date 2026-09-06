@@ -1,0 +1,40 @@
+{
+  "name": "@tau/collaboration-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsup --config tsup.config.ts",
+    "start": "node dist/index.js",
+    "check": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts",
+    "admin": "tsx src/admin.ts",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write src package.json tsconfig.json tsup.config.ts vitest.config.ts"
+  },
+  "dependencies": {
+    "@tau/collaboration": "workspace:*",
+    "@fastify/multipart": "^9.0.3",
+    "@fastify/rate-limit": "^10.3.0",
+    "@fastify/websocket": "^11.2.0",
+    "@hocuspocus/server": "4.6.0",
+    "better-sqlite3": "13.0.3",
+    "fastify": "5.12.3",
+    "ws": "^8.18.3",
+    "yjs": "13.6.32",
+    "y-protocols": "1.0.7"
+  },
+  "devDependencies": {
+    "@slate-yjs/core": "1.0.2",
+    "slate": "0.123.0",
+    "@hocuspocus/provider": "4.6.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.0.0",
+    "@types/ws": "^8.18.1",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.0.4",
+    "vitest": "^3.2.4"
+  }
+}

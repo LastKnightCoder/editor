@@ -12,6 +12,13 @@ import WhiteBoardContentTable from "./white-board-content";
 import CardTable from "./card";
 import QuestionTable from "./question";
 import ResourceTable from "./resource";
+import { assertContentIsLocal } from "../collaboration-guard";
+import {
+  contentSession,
+  contentRevision,
+  replaceSessionContent,
+} from "../collaboration/content-sessions";
+import { readSharedContent, type ContentNode } from "@tau/collaboration";
 
 export default class ContentTable {
   static getListenEvents() {
@@ -31,21 +38,18 @@ export default class ContentTable {
       let hasWhiteboard = false;
       let hasCardLink = false;
       // 遍历卡片内容，如果内容中包含白板，则更新白板内容
-      const newContent = produce(content.content, (draft) => {
-        dfs(draft, (node) => {
+      const newContent = produce(content.content, draft => {
+        dfs(draft, node => {
           // @ts-ignore
           if (node.type === "whiteboard" && node.data) {
             hasWhiteboard = true;
             // @ts-ignore
             const whiteboardData = node.data;
-            const contentId = WhiteBoardContentTable.createWhiteboardContent(
-              db,
-              {
-                data: whiteboardData,
-                name: "白板",
-                imgUrl: "",
-              },
-            );
+            const contentId = WhiteBoardContentTable.createWhiteboardContent(db, {
+              data: whiteboardData,
+              name: "白板",
+              imgUrl: "",
+            });
 
             // @ts-ignore
             node.whiteBoardContentId = contentId;
@@ -79,9 +83,7 @@ export default class ContentTable {
       });
       if (hasWhiteboard || hasCardLink) {
         log.info(`Migrating data for content ${content.id}:`, newContent);
-        const updateContentStmt = db.prepare(
-          "UPDATE contents SET content = ? WHERE id = ?",
-        );
+        const updateContentStmt = db.prepare("UPDATE contents SET content = ? WHERE id = ?");
         updateContentStmt.run(JSON.stringify(newContent), content.id);
       }
     }
@@ -98,46 +100,43 @@ export default class ContentTable {
     };
   }
 
-  static getContentById(
-    db: Database.Database,
-    contentId: number | bigint,
-  ): IContent | null {
+  static getContentById(db: Database.Database, contentId: number | bigint): IContent | null {
     const stmt = db.prepare("SELECT * FROM contents WHERE id = ?");
     const content = stmt.get(contentId);
     if (!content) {
       return null;
     }
-    return this.parseContent(content);
+    const parsed = this.parseContent(content);
+    const session = contentSession(db, Number(contentId));
+    return session
+      ? {
+          ...parsed,
+          content: readSharedContent(session.doc, session.privateNodes).content as Descendant[],
+          revision: contentRevision(session),
+        }
+      : parsed;
   }
 
   static getAllContents(db: Database.Database): IContent[] {
     const stmt = db.prepare("SELECT * FROM contents ORDER BY create_time DESC");
     const contents = stmt.all();
-    return contents.map((content) => this.parseContent(content));
+    return contents.map(content => this.parseContent(content));
   }
 
-  static getContentByIds(
-    db: Database.Database,
-    contentIds: number[],
-  ): IContent[] {
+  static getContentByIds(db: Database.Database, contentIds: number[]): IContent[] {
     if (contentIds.length === 0) return [];
 
     const placeholders = contentIds.map(() => "?").join(",");
-    const stmt = db.prepare(
-      `SELECT * FROM contents WHERE id IN (${placeholders})`,
-    );
+    const stmt = db.prepare(`SELECT * FROM contents WHERE id IN (${placeholders})`);
     const contents = stmt.all(contentIds);
-    return contents.map((content) => this.parseContent(content));
+    return contents.map(content => this.parseContent(content));
   }
 
-  static createContent(
-    db: Database.Database,
-    contentData: Partial<ICreateContent>,
-  ): number {
+  static createContent(db: Database.Database, contentData: Partial<ICreateContent>): number {
     const { content, count } = contentData;
 
     const stmt = db.prepare(
-      "INSERT INTO contents (create_time, update_time, content, count, ref_count) VALUES (?, ?, ?, ?, ?)",
+      "INSERT INTO contents (create_time, update_time, content, count, ref_count) VALUES (?, ?, ?, ?, ?)"
     );
     const now = Date.now();
     const actualCount = count || (content ? getContentLength(content) : 0);
@@ -146,7 +145,7 @@ export default class ContentTable {
       now,
       JSON.stringify(content || []),
       actualCount,
-      1, // 初始引用计数为1
+      1 // 初始引用计数为1
     );
     const createdContentId = Number(res.lastInsertRowid);
     Operation.insertOperation(db, "content", "insert", createdContentId, now);
@@ -156,19 +155,25 @@ export default class ContentTable {
   static updateContent(
     db: Database.Database,
     contentId: number,
-    contentData: Partial<IUpdateContent> & { content: Descendant[] },
-    win: BrowserWindow,
+    contentData: Partial<IUpdateContent> & { content: Descendant[]; expectedRevision?: string },
+    win: BrowserWindow
   ): IContent | null {
     const { content, count } = contentData;
+    const session = contentSession(db, contentId);
+    if (session) {
+      replaceSessionContent(session, content as ContentNode[], contentData.expectedRevision);
+      return this.getContentById(db, contentId);
+    }
+    assertContentIsLocal(db, contentId);
 
     const stmt = db.prepare(
-      "UPDATE contents SET update_time = ?, content = ?, count = ? WHERE id = ?",
+      "UPDATE contents SET update_time = ?, content = ?, count = ? WHERE id = ?"
     );
     const now = Date.now();
     const actualCount = count || (content ? getContentLength(content) : 0);
     stmt.run(now, JSON.stringify(content || []), actualCount, contentId);
     Operation.insertOperation(db, "content", "update", contentId, now);
-    BrowserWindow.getAllWindows().forEach((window) => {
+    BrowserWindow.getAllWindows().forEach(window => {
       if (window !== win && !window.isDestroyed()) {
         window.webContents.send("content:updated", {
           databaseName: basename(db.name),
@@ -180,19 +185,14 @@ export default class ContentTable {
   }
 
   static deleteContent(db: Database.Database, contentId: number): number {
+    assertContentIsLocal(db, contentId);
     // 先减少引用计数
-    const decrementStmt = db.prepare(
-      "UPDATE contents SET ref_count = ref_count - 1 WHERE id = ?",
-    );
+    const decrementStmt = db.prepare("UPDATE contents SET ref_count = ref_count - 1 WHERE id = ?");
     decrementStmt.run(contentId);
 
     // 查询当前引用计数
-    const refCountStmt = db.prepare(
-      "SELECT ref_count FROM contents WHERE id = ?",
-    );
-    const result = refCountStmt.get(contentId) as
-      | { ref_count: number }
-      | undefined;
+    const refCountStmt = db.prepare("SELECT ref_count FROM contents WHERE id = ?");
+    const result = refCountStmt.get(contentId) as { ref_count: number } | undefined;
 
     // 如果引用计数为0，则删除
     if (result && result.ref_count <= 0) {
@@ -204,7 +204,7 @@ export default class ContentTable {
       const questionId: number[] = [];
 
       // 遍历内容，找到所有资源并减少引用计数
-      dfs(content?.content || [], (node) => {
+      dfs(content?.content || [], node => {
         if (node.type === "whiteboard" && node.whiteBoardContentId) {
           whiteBoardContentId.push(node.whiteBoardContentId);
         }
@@ -226,11 +226,7 @@ export default class ContentTable {
           ResourceTable.decrementRefCount(db, node.url);
         }
         // @ts-ignore
-        if (
-          node.type === "image-gallery" &&
-          node.images &&
-          Array.isArray(node.images)
-        ) {
+        if (node.type === "image-gallery" && node.images && Array.isArray(node.images)) {
           // @ts-ignore
           for (const image of node.images) {
             if (image.url) {
@@ -255,10 +251,10 @@ export default class ContentTable {
         }
       });
 
-      whiteBoardContentId.forEach((id) => {
+      whiteBoardContentId.forEach(id => {
         WhiteBoardContentTable.deleteWhiteboard(db, id);
       });
-      questionId.forEach((id) => {
+      questionId.forEach(id => {
         QuestionTable.deleteQuestion(db, id);
       });
 
@@ -269,29 +265,23 @@ export default class ContentTable {
   }
 
   static incrementRefCount(db: Database.Database, contentId: number): void {
-    const stmt = db.prepare(
-      "UPDATE contents SET ref_count = ref_count + 1 WHERE id = ?",
-    );
+    const stmt = db.prepare("UPDATE contents SET ref_count = ref_count + 1 WHERE id = ?");
     stmt.run(contentId);
   }
 
   static decrementRefCount(db: Database.Database, contentId: number): void {
     const stmt = db.prepare(
-      "UPDATE contents SET ref_count = ref_count - 1 WHERE id = ? AND ref_count > 0",
+      "UPDATE contents SET ref_count = ref_count - 1 WHERE id = ? AND ref_count > 0"
     );
     stmt.run(contentId);
   }
 
-  static searchContentByText(
-    db: Database.Database,
-    text: string,
-    limit = 100,
-  ): IContent[] {
+  static searchContentByText(db: Database.Database, text: string, limit = 100): IContent[] {
     const stmt = db.prepare(
-      `SELECT * FROM contents WHERE content LIKE ? ORDER BY update_time DESC LIMIT ?`,
+      `SELECT * FROM contents WHERE content LIKE ? ORDER BY update_time DESC LIMIT ?`
     );
     const contents = stmt.all(`%${text}%`, limit);
-    return contents.map((content) => this.parseContent(content));
+    return contents.map(content => this.parseContent(content));
   }
 
   static getTotalCount(db: Database.Database): number {
@@ -307,9 +297,7 @@ export default class ContentTable {
     const countStmt = db.prepare("SELECT COUNT(*) as count FROM contents");
     const totalCountResult = countStmt.get() as { count: number };
 
-    const charsStmt = db.prepare(
-      "SELECT SUM(count) as totalChars FROM contents",
-    );
+    const charsStmt = db.prepare("SELECT SUM(count) as totalChars FROM contents");
     const totalCharsResult = charsStmt.get() as { totalChars: number };
 
     return {

@@ -3,7 +3,8 @@ import { useMemoizedFn, useCreation, useRafInterval, useUnmount } from "ahooks";
 import { Button, Tooltip, App } from "antd";
 import { Descendant } from "slate";
 import { ExpandOutlined, CloseOutlined } from "@ant-design/icons";
-import { Editor, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import AddTag from "@/components/AddTag";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import useEditCard from "@/pages/CardDetailView/useEditCard";
@@ -23,16 +24,11 @@ interface CardPreviewProps {
 
 const CardPreview = (props: CardPreviewProps) => {
   const { cardId, visible, onClose, onGoToDetail } = props;
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
-  const navigateTo = useTabStore((state) => state.navigateTo);
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
+  const navigateTo = useTabStore(state => state.navigateTo);
   const editorRef = useRef<EditorRef>(null);
   const { message } = App.useApp();
-  const cardEventBus = useCreation(
-    () => defaultCardEventBus.createEditor(),
-    [],
-  );
+  const cardEventBus = useCreation(() => defaultCardEventBus.createEditor(), []);
   const {
     initValue,
     loading,
@@ -47,22 +43,19 @@ const CardPreview = (props: CardPreviewProps) => {
     onInit,
   } = useEditCard(cardId);
 
-  const { throttleHandleEditorContentChange } = useEditContent(
-    editingCard?.contentId,
-    (content) => {
-      editorRef.current?.setEditorValue(content);
-    },
-  );
+  const { throttleHandleEditorContentChange } = useEditContent(editingCard?.contentId, content => {
+    editorRef.current?.setEditorValue(content);
+  });
 
   useEffect(() => {
     if (visible && editingCard) {
       const unsubscribe = cardEventBus.subscribeToCardWithId(
         "card:updated",
         editingCard.id,
-        (data) => {
+        data => {
           setEditingCard(data.card);
           prevCard.current = data.card;
-        },
+        }
       );
       return () => {
         unsubscribe();
@@ -108,9 +101,7 @@ const CardPreview = (props: CardPreviewProps) => {
       return;
     }
     // 直接替换标签，保持顺序
-    const newTags = editingCard.tags.map((tag) =>
-      tag === oldTag ? newTag : tag,
-    );
+    const newTags = editingCard.tags.map(tag => (tag === oldTag ? newTag : tag));
     onTagChange(newTags);
   });
 
@@ -120,27 +111,21 @@ const CardPreview = (props: CardPreviewProps) => {
 
   const handleGoToDetail = useMemoizedFn(() => {
     if (editingCard) {
-      navigateTo(
-        TabType.CardDetail,
-        { id: editingCard.id },
-        `卡片详情 #${editingCard.id}`,
-      );
+      navigateTo(TabType.CardDetail, { id: editingCard.id }, `卡片详情 #${editingCard.id}`);
       onGoToDetail?.();
     }
   });
 
   const renderHeader = () => (
-    <div className="w-full flex justify-between items-center">
-      <div className="flex text-xs gap-2.5 text-gray-500">
+    <div className="flex w-full items-center justify-between">
+      <div className="flex gap-2.5 text-xs text-gray-500">
         {editingCard && (
           <>
             <div>
               <span>创建于 {formatDate(editingCard.create_time, true)}</span>
             </div>
             <div>
-              <span>
-                最后修改于 {formatDate(editingCard.update_time, true)}
-              </span>
+              <span>最后修改于 {formatDate(editingCard.update_time, true)}</span>
             </div>
             <div>字数：{editingCard.count}</div>
           </>
@@ -148,11 +133,7 @@ const CardPreview = (props: CardPreviewProps) => {
       </div>
       <div className="flex items-center gap-2">
         <Tooltip title="前往详情">
-          <Button
-            type="text"
-            icon={<ExpandOutlined />}
-            onClick={handleGoToDetail}
-          />
+          <Button type="text" icon={<ExpandOutlined />} onClick={handleGoToDetail} />
         </Tooltip>
         <Tooltip title="关闭">
           <Button type="text" icon={<CloseOutlined />} onClick={handleClose} />
@@ -174,7 +155,7 @@ const CardPreview = (props: CardPreviewProps) => {
       bodyClassName="px-6 pb-6 max-h-[70vh] overflow-auto"
     >
       {loading ? (
-        <div className="flex justify-center items-center h-75 text-(length:--font-size)">
+        <div className="h-75 text-(length:--font-size) flex items-center justify-center">
           加载中...
         </div>
       ) : (
@@ -183,6 +164,7 @@ const CardPreview = (props: CardPreviewProps) => {
             <div className="min-h-50 text-(length:--font-size)">
               <ErrorBoundary>
                 <Editor
+                  contentId={editingCard?.contentId}
                   key={editingCard.id}
                   ref={editorRef}
                   onInit={onInit}

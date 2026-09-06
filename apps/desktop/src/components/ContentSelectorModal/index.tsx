@@ -16,6 +16,7 @@ export interface ContentSelectorModalProps {
   excludeIds?: number[];
   excludeContentIds?: number[];
   title?: string;
+  subtitle?: React.ReactNode;
   initialContents?: SearchResult[];
 }
 
@@ -34,6 +35,7 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
   excludeIds = defaultExcudeIds,
   excludeContentIds = defaultExcludeContentIds,
   title = "选择内容",
+  subtitle,
   initialContents = defaultInitialContents,
 }) => {
   const [selectedItems, setSelectedItems] = useState<SearchResult[]>([]);
@@ -47,11 +49,9 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
     }
 
     // 多选模式
-    setSelectedItems((prev) => {
+    setSelectedItems(prev => {
       // 检查是否已选择
-      const existIndex = prev.findIndex(
-        (i) => i.id === item.id && i.type === item.type,
-      );
+      const existIndex = prev.findIndex(i => i.id === item.id && i.type === item.type);
 
       if (existIndex >= 0) {
         // 如果已选择，则移除该项
@@ -79,19 +79,17 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
   };
 
   const isItemSelected = (item: SearchResult): boolean => {
-    return selectedItems.some((i) => i.id === item.id && i.type === item.type);
+    return selectedItems.some(i => i.id === item.id && i.type === item.type);
   };
 
   // 判断项目是否被禁用
   const isItemDisabled = (item: SearchResult): boolean => {
-    return (
-      excludeIds.includes(item.id) || excludeContentIds.includes(item.contentId)
-    );
+    return excludeIds.includes(item.id) || excludeContentIds.includes(item.contentId);
   };
 
   const icon = (
     <svg
-      className="w-5 h-5 text-purple-500"
+      className="h-5 w-5 text-purple-500"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -106,14 +104,14 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
     <div className="flex justify-end gap-3">
       <button
         onClick={handleCancel}
-        className="px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-zinc-700"
+        className="cursor-pointer rounded-xl border border-gray-200 bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-700 transition-all hover:bg-gray-200 dark:border-slate-700 dark:bg-zinc-800 dark:text-slate-300 dark:hover:bg-zinc-700"
       >
         取消
       </button>
       <button
         onClick={handleConfirm}
         disabled={selectedItems.length === 0}
-        className="px-5 py-2.5 rounded-xl border-none text-sm font-semibold cursor-pointer transition-all bg-purple-500 text-white shadow-[0_4px_14px_rgba(168,85,247,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-purple-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700"
+        className="cursor-pointer rounded-xl border-none bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(168,85,247,0.35),0_1px_2px_rgba(0,0,0,0.05)] transition-all hover:-translate-y-px hover:bg-purple-600 active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700 dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
       >
         确定({selectedItems.length})
       </button>
@@ -128,6 +126,7 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
           onCancel={handleCancel}
           width={800}
           title={title}
+          subtitle={subtitle}
           icon={icon}
           iconBgColor="bg-purple-50 dark:bg-purple-500/20 border-purple-200 dark:border-purple-500/30"
           footer={footer}

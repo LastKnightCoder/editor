@@ -8,7 +8,8 @@ import star from "@/assets/article/star.svg";
 import { MdMoreVert } from "react-icons/md";
 
 import LocalImage from "@/components/LocalImage";
-import { Editor, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import Tags from "@/components/Tags";
 import If from "@/components/If";
 import ContentExportModal from "@/components/ContentExportModal";
@@ -22,21 +23,11 @@ import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 
 import { IArticle } from "@/types";
 
-import {
-  formatDate,
-  getEditorText,
-  getMarkdown,
-  downloadMarkdown,
-} from "@/utils";
+import { formatDate, getEditorText, getMarkdown, downloadMarkdown } from "@/utils";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 import styles from "./index.module.less";
-import {
-  getFileBaseName,
-  readBinaryFile,
-  selectFile,
-  openArticleInNewWindow,
-} from "@/commands";
+import { getFileBaseName, readBinaryFile, selectFile, openArticleInNewWindow } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore";
 import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
 import useEditContent from "@/hooks/useEditContent";
@@ -55,13 +46,7 @@ interface IArticleCardProps {
   deleteArticle?: (id: number) => Promise<void>;
 }
 
-const allThemes = [
-  styles.green,
-  styles.blue,
-  styles.red,
-  styles.yellow,
-  styles.purple,
-];
+const allThemes = [styles.green, styles.blue, styles.red, styles.yellow, styles.purple];
 
 const ArticleCard = (props: IArticleCardProps) => {
   const {
@@ -75,13 +60,10 @@ const ArticleCard = (props: IArticleCardProps) => {
     deleteArticle,
   } = props;
 
-  const articleEventBus = useCreation(
-    () => defaultArticleEventBus.createEditor(),
-    [],
-  );
+  const articleEventBus = useCreation(() => defaultArticleEventBus.createEditor(), []);
 
   const { isDark } = useTheme();
-  const navigateTo = useTabStore((state) => state.navigateTo);
+  const navigateTo = useTabStore(state => state.navigateTo);
   const [settingOpen, setSettingOpen] = useState(false);
   const [bannerUploading, setBannerUploading] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
@@ -98,7 +80,7 @@ const ArticleCard = (props: IArticleCardProps) => {
       title: article.title || `文章 #${article.id}`,
       previewText: getEditorText(article.content, 160),
     }),
-    [article.content, article.contentId, article.id, article.title],
+    [article.content, article.contentId, article.id, article.title]
   );
   const { drag, isDragging } = useChatContentDrag(chatReference);
 
@@ -109,18 +91,16 @@ const ArticleCard = (props: IArticleCardProps) => {
   });
 
   const { startPresentation } = useArticleManagementStore(
-    useShallow((state) => ({
+    useShallow(state => ({
       startPresentation: state.startArticlePresentation,
-    })),
+    }))
   );
 
-  useEditContent(article.contentId, (content) => {
+  useEditContent(article.contentId, content => {
     editorRef.current?.setEditorValue(content.slice(0, 1));
   });
 
-  const currentDatabaseName = useSettingStore(
-    useShallow((state) => state.setting.database.active),
-  );
+  const currentDatabaseName = useSettingStore(useShallow(state => state.setting.database.active));
 
   const handleUploadFileChange = useMemoizedFn(async () => {
     const filePath = await selectFile({
@@ -136,9 +116,7 @@ const ArticleCard = (props: IArticleCardProps) => {
       setBannerUploading(false);
       return;
     }
-    const fileData = (await readBinaryFile(
-      filePath[0],
-    )) as Uint8Array<ArrayBuffer>;
+    const fileData = (await readBinaryFile(filePath[0])) as Uint8Array<ArrayBuffer>;
     const file = new File([fileData], await getFileBaseName(filePath[0]));
     const url = await uploadResource(file);
     if (!url) {
@@ -177,7 +155,7 @@ const ArticleCard = (props: IArticleCardProps) => {
     navigateTo(
       TabType.ArticleDetail,
       { id: article.id },
-      `文章 - ${article.title || `#${article.id}`}`,
+      `文章 - ${article.title || `#${article.id}`}`
     );
   });
 
@@ -188,7 +166,7 @@ const ArticleCard = (props: IArticleCardProps) => {
 
   return (
     <div
-      ref={(node) => {
+      ref={node => {
         drag(node);
       }}
       className={classnames(styles.cardContainer, className, {
@@ -296,10 +274,7 @@ const ArticleCard = (props: IArticleCardProps) => {
                         key: "open-in-new-window",
                         label: "窗口打开",
                         onClick: () => {
-                          openArticleInNewWindow(
-                            currentDatabaseName,
-                            article.id,
-                          );
+                          openArticleInNewWindow(currentDatabaseName, article.id);
                         },
                       },
                     ],
@@ -310,28 +285,26 @@ const ArticleCard = (props: IArticleCardProps) => {
               </div>
             )}
             <div onClick={handleClickArticle}>
-              <Text
-                className={styles.title}
-                ellipsis={{ tooltip: article.title }}
-              >
+              <Text className={styles.title} ellipsis={{ tooltip: article.title }}>
                 {article.title}
               </Text>
             </div>
             <div className={styles.timeAndTags}>
               <div className={styles.time}>
                 <CalendarOutlined />
-                <span className={styles.date}>
-                  发表于：{formatDate(article.create_time, true)}
-                </span>
+                <span className={styles.date}>发表于：{formatDate(article.create_time, true)}</span>
               </div>
             </div>
             <div>
               <Tags tags={article.tags} showIcon />
             </div>
             <Editor
+              contentId={article.contentId}
               className={styles.editor}
               ref={editorRef}
               initValue={article.content.slice(0, 1)}
+              previewBlocks={1}
+              source={{ sourceType: "article", sourceId: article.id, sourceTitle: article.title }}
               readonly
             />
           </div>

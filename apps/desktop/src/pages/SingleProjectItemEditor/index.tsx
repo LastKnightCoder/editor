@@ -3,8 +3,10 @@ import { Descendant } from "slate";
 import { useSearchParams } from "react-router-dom";
 import classnames from "classnames";
 
-import { Editor, EditorRef } from "@tau/editor/src";
-import EditText, { EditTextHandle } from "@/components/EditText";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
+import { EditTextHandle } from "@/components/EditText";
+import EditText from "@/components/CollaborativeTitle";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
 import useTheme from "@/hooks/useTheme";
@@ -31,46 +33,37 @@ const editotContextValue = {
 
 const SingleProjectItemEditor = () => {
   const { isDark } = useTheme();
-  const projectItemEventBus = useCreation(
-    () => defaultProjectItemEventBus.createEditor(),
-    [],
-  );
+  const projectItemEventBus = useCreation(() => defaultProjectItemEventBus.createEditor(), []);
   const [searchParams] = useSearchParams();
   const projectItemId = Number(searchParams.get("projectItemId"));
   const databaseName = searchParams.get("databaseName");
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
 
   const extensions = useCreation(() => {
-    return [
-      ...dynamicExtensions,
-      createProjectCardListExtension(projectItemId),
-    ];
+    return [...dynamicExtensions, createProjectCardListExtension(projectItemId)];
   }, [projectItemId, dynamicExtensions]);
 
   const titleRef = useRef<EditTextHandle>(null);
-  const [editingProjectItem, setEditingProjectItem] =
-    useState<ProjectItem | null>(null);
+  const [editingProjectItem, setEditingProjectItem] = useState<ProjectItem | null>(null);
 
   const editorRef = useRef<EditorRef>(null);
   const prevProjectItemRef = useRef<ProjectItem | null>(null);
 
   const { throttleHandleEditorContentChange } = useEditContent(
     editingProjectItem?.contentId,
-    (data) => {
+    data => {
       editorRef.current?.setEditorValue(data);
-    },
+    }
   );
 
   useEffect(() => {
     const unsubscribe = projectItemEventBus.subscribeToProjectItemWithId(
       "project-item:updated",
       projectItemId,
-      (data) => {
+      data => {
         setEditingProjectItem(data.projectItem);
         titleRef.current?.setValue(data.projectItem.title);
-      },
+      }
     );
 
     return () => {
@@ -181,6 +174,12 @@ const SingleProjectItemEditor = () => {
     >
       <div className={styles.title}>
         <EditText
+          contentId={editingProjectItem.contentId}
+          source={{
+            sourceType: "project-item",
+            sourceId: editingProjectItem.id,
+            sourceTitle: editingProjectItem.title,
+          }}
           ref={titleRef}
           defaultValue={editingProjectItem.title}
           onChange={onTitleChange}
@@ -193,6 +192,7 @@ const SingleProjectItemEditor = () => {
           <EditCardContext.Provider value={editotContextValue}>
             <ErrorBoundary>
               <Editor
+                contentId={editingProjectItem?.contentId}
                 className={styles.editor}
                 ref={editorRef}
                 initValue={editingProjectItem.content}

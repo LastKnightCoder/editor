@@ -1,17 +1,8 @@
-import { Editor } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import { formatDate, getEditorText, getMarkdown } from "@/utils";
 import { ECardCategory, ICard, IndexParams, SearchResult } from "@/types";
 import { useState, useEffect, useMemo } from "react";
-import {
-  Tag,
-  Button,
-  Popover,
-  Flex,
-  Typography,
-  TableProps,
-  TableColumnType,
-  App,
-} from "antd";
+import { Tag, Button, Popover, Flex, Typography, TableProps, TableColumnType, App } from "antd";
 import { Descendant } from "slate";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { TableRowSelection } from "antd/es/table/interface";
@@ -27,13 +18,11 @@ type OnChange = NonNullable<TableProps<ICard>["onChange"]>;
 type Filters = Parameters<OnChange>[1];
 
 const useCardConfig = () => {
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const { message } = App.useApp();
   const [cards, setCards] = useState<ICard[]>([]);
   useEffect(() => {
-    getAllCards().then((cards) => {
+    getAllCards().then(cards => {
       setCards(cards);
     });
   }, []);
@@ -42,18 +31,15 @@ const useCardConfig = () => {
   const [filteredInfo, setFilteredInfo] = useState<Filters>({});
   const [selectedRows, setSelectedRows] = useState<ICard[]>([]);
   const [loadingIds, setLoadingIds] = useState<number[]>([]);
-  const [pageSize, setPageSize] = useLocalStorageState<number>(
-    "card-pagesize",
-    {
-      defaultValue: PAGE_SIZE,
-    },
-  );
+  const [pageSize, setPageSize] = useLocalStorageState<number>("card-pagesize", {
+    defaultValue: PAGE_SIZE,
+  });
   const onSelectChange = (_: React.Key[], newSelectedRows: ICard[]) => {
     setSelectedRows(newSelectedRows);
   };
 
   const rowSelection: TableRowSelection<ICard> = {
-    selectedRowKeys: selectedRows.map((row) => row.id),
+    selectedRowKeys: selectedRows.map(row => row.id),
     onChange: onSelectChange,
   };
 
@@ -64,17 +50,14 @@ const useCardConfig = () => {
     const categoryFilterArray = filteredInfo.category || [];
     const indexStatusFilterArray = filteredInfo.index_status || [];
 
-    const filteredCards = cards.filter((card) => {
+    const filteredCards = cards.filter(card => {
       // 分类过滤
       const isHitCategory =
-        categoryFilterArray.length === 0 ||
-        categoryFilterArray.includes(card.category);
+        categoryFilterArray.length === 0 || categoryFilterArray.includes(card.category);
       if (!isHitCategory) return false;
 
       // 查找索引状态
-      const vecResult = vecResults.find(
-        (result) => result.id === card.id && result.type === "card",
-      );
+      const vecResult = vecResults.find(result => result.id === card.id && result.type === "card");
 
       let status;
       if (!vecResult) {
@@ -87,8 +70,7 @@ const useCardConfig = () => {
 
       // 索引状态过滤
       const isHitIndexStatus =
-        indexStatusFilterArray.length === 0 ||
-        indexStatusFilterArray.includes(status);
+        indexStatusFilterArray.length === 0 || indexStatusFilterArray.includes(status);
 
       return isHitIndexStatus;
     });
@@ -98,7 +80,7 @@ const useCardConfig = () => {
 
   const slicedCards = filteredCards.slice(
     (current - 1) * (pageSize || PAGE_SIZE),
-    current * (pageSize || PAGE_SIZE),
+    current * (pageSize || PAGE_SIZE)
   );
 
   const initIndexResults = useMemoizedFn(async () => {
@@ -165,24 +147,89 @@ const useCardConfig = () => {
     </Flex>
   );
 
-  const onCreateEmbedding = useMemoizedFn(
-    async (markdown: string, record: ICard) => {
-      setLoadingIds((prev) => [...prev, record.id]);
-      const messageKey = `create-card-index-${record.id}`;
-      message.loading({ content: "正在创建索引...", key: messageKey });
+  const onCreateEmbedding = useMemoizedFn(async (markdown: string, record: ICard) => {
+    setLoadingIds(prev => [...prev, record.id]);
+    const messageKey = `create-card-index-${record.id}`;
+    message.loading({ content: "正在创建索引...", key: messageKey });
 
-      try {
-        // 检查当前索引状态
-        const vecResult = vecResults.find(
-          (result) => result.id === record.id && result.type === "card",
-        );
+    try {
+      // 检查当前索引状态
+      const vecResult = vecResults.find(
+        result => result.id === record.id && result.type === "card"
+      );
 
-        // 如果已存在且是最新的索引，直接返回成功
-        if (vecResult && vecResult.updateTime === record.update_time) {
-          message.success({ content: "索引已存在", key: messageKey });
+      // 如果已存在且是最新的索引，直接返回成功
+      if (vecResult && vecResult.updateTime === record.update_time) {
+        message.success({ content: "索引已存在", key: messageKey });
+        return true;
+      }
+
+      const params: IndexParams = {
+        id: record.id,
+        content: markdown,
+        type: "card",
+        updateTime: record.update_time,
+        modelInfo,
+      };
+
+      const success = await indexContent(params);
+
+      if (success) {
+        try {
+          await initIndexResults();
+          message.success({ content: "索引创建成功", key: messageKey });
           return true;
+        } catch (error) {
+          console.error("初始化索引结果失败", error);
+          message.error({
+            content: "索引创建成功，但初始化索引结果失败",
+            key: messageKey,
+          });
+          return false;
         }
+      } else {
+        message.error({ content: "索引创建失败", key: messageKey });
+        return false;
+      }
+    } catch (error) {
+      console.error("创建索引失败:", error);
+      message.error({ content: "索引创建失败", key: messageKey });
+      return false;
+    } finally {
+      setLoadingIds(prev => prev.filter(id => id !== record.id));
+    }
+  });
 
+  const onRemoveEmbedding = useMemoizedFn(async (record: ICard) => {
+    setLoadingIds(prev => [...prev, record.id]);
+    const messageKey = `remove-card-index-${record.id}`;
+    message.loading({ content: "正在删除索引...", key: messageKey });
+
+    try {
+      await removeIndex(record.id, "card");
+      await initIndexResults();
+      message.success({ content: "索引删除成功", key: messageKey });
+    } catch (error) {
+      console.error("删除索引失败:", error);
+      message.error({ content: "索引删除失败", key: messageKey });
+    } finally {
+      setLoadingIds(prev => prev.filter(id => id !== record.id));
+    }
+  });
+
+  const onUpdateEmbedding = useMemoizedFn(async (markdown: string, record: ICard) => {
+    setLoadingIds(prev => [...prev, record.id]);
+    const messageKey = `update-card-index-${record.id}`;
+    message.loading({ content: "正在更新索引...", key: messageKey });
+
+    try {
+      // 检查当前索引状态
+      const vecResult = vecResults.find(
+        result => result.id === record.id && result.type === "card"
+      );
+
+      // 如果没有索引或索引需要更新
+      if (!vecResult || record.update_time > vecResult.updateTime) {
         const params: IndexParams = {
           id: record.id,
           content: markdown,
@@ -196,101 +243,32 @@ const useCardConfig = () => {
         if (success) {
           try {
             await initIndexResults();
-            message.success({ content: "索引创建成功", key: messageKey });
+            message.success({ content: "索引更新成功", key: messageKey });
             return true;
           } catch (error) {
             console.error("初始化索引结果失败", error);
             message.error({
-              content: "索引创建成功，但初始化索引结果失败",
+              content: "索引更新成功，但初始化索引结果失败",
               key: messageKey,
             });
             return false;
           }
         } else {
-          message.error({ content: "索引创建失败", key: messageKey });
+          message.error({ content: "索引更新失败", key: messageKey });
           return false;
         }
-      } catch (error) {
-        console.error("创建索引失败:", error);
-        message.error({ content: "索引创建失败", key: messageKey });
-        return false;
-      } finally {
-        setLoadingIds((prev) => prev.filter((id) => id !== record.id));
+      } else {
+        message.success({ content: "索引已是最新", key: messageKey });
+        return true;
       }
-    },
-  );
-
-  const onRemoveEmbedding = useMemoizedFn(async (record: ICard) => {
-    setLoadingIds((prev) => [...prev, record.id]);
-    const messageKey = `remove-card-index-${record.id}`;
-    message.loading({ content: "正在删除索引...", key: messageKey });
-
-    try {
-      await removeIndex(record.id, "card");
-      await initIndexResults();
-      message.success({ content: "索引删除成功", key: messageKey });
     } catch (error) {
-      console.error("删除索引失败:", error);
-      message.error({ content: "索引删除失败", key: messageKey });
+      console.error("更新索引失败:", error);
+      message.error({ content: "索引更新失败", key: messageKey });
+      return false;
     } finally {
-      setLoadingIds((prev) => prev.filter((id) => id !== record.id));
+      setLoadingIds(prev => prev.filter(id => id !== record.id));
     }
   });
-
-  const onUpdateEmbedding = useMemoizedFn(
-    async (markdown: string, record: ICard) => {
-      setLoadingIds((prev) => [...prev, record.id]);
-      const messageKey = `update-card-index-${record.id}`;
-      message.loading({ content: "正在更新索引...", key: messageKey });
-
-      try {
-        // 检查当前索引状态
-        const vecResult = vecResults.find(
-          (result) => result.id === record.id && result.type === "card",
-        );
-
-        // 如果没有索引或索引需要更新
-        if (!vecResult || record.update_time > vecResult.updateTime) {
-          const params: IndexParams = {
-            id: record.id,
-            content: markdown,
-            type: "card",
-            updateTime: record.update_time,
-            modelInfo,
-          };
-
-          const success = await indexContent(params);
-
-          if (success) {
-            try {
-              await initIndexResults();
-              message.success({ content: "索引更新成功", key: messageKey });
-              return true;
-            } catch (error) {
-              console.error("初始化索引结果失败", error);
-              message.error({
-                content: "索引更新成功，但初始化索引结果失败",
-                key: messageKey,
-              });
-              return false;
-            }
-          } else {
-            message.error({ content: "索引更新失败", key: messageKey });
-            return false;
-          }
-        } else {
-          message.success({ content: "索引已是最新", key: messageKey });
-          return true;
-        }
-      } catch (error) {
-        console.error("更新索引失败:", error);
-        message.error({ content: "索引更新失败", key: messageKey });
-        return false;
-      } finally {
-        setLoadingIds((prev) => prev.filter((id) => id !== record.id));
-      }
-    },
-  );
 
   const columns: TableColumnType<ICard>[] = [
     {
@@ -321,24 +299,19 @@ const useCardConfig = () => {
       key: "content",
       dataIndex: "content",
       title: "卡片内容",
-      render: (content: Descendant[]) => {
+      render: (content: Descendant[], record: { contentId?: number }) => {
         return (
           <Flex vertical gap={12} align={"flex-start"}>
-            <Typography.Paragraph
-              ellipsis={{ rows: 2 }}
-              style={{ maxWidth: 400 }}
-            >
+            <Typography.Paragraph ellipsis={{ rows: 2 }} style={{ maxWidth: 400 }}>
               {getEditorText(content, 50)}
             </Typography.Paragraph>
             <Popover
               trigger={"hover"}
               placement={"bottom"}
               content={
-                <div
-                  className="overflow-y-auto"
-                  style={{ maxWidth: 320, maxHeight: 180 }}
-                >
+                <div className="overflow-y-auto" style={{ maxWidth: 320, maxHeight: 180 }}>
                   <Editor
+                    contentId={record.contentId}
                     extensions={dynamicExtensions}
                     readonly
                     initValue={content}
@@ -405,7 +378,7 @@ const useCardConfig = () => {
       render: (tags: string[]) => {
         return (
           <Flex gap={4} wrap>
-            {tags.map((tag) => (
+            {tags.map(tag => (
               <Tag color="blue" key={tag}>
                 {tag}
               </Tag>
@@ -437,17 +410,13 @@ const useCardConfig = () => {
       render: (_, record) => {
         // 查找索引状态
         const vecResult = vecResults.find(
-          (result) => result.id === record.id && result.type === "card",
+          result => result.id === record.id && result.type === "card"
         );
 
         // 显示向量索引状态
         if (vecResult) {
           return (
-            <Tag
-              color={
-                record.update_time > vecResult.updateTime ? "orange" : "green"
-              }
-            >
+            <Tag color={record.update_time > vecResult.updateTime ? "orange" : "green"}>
               {record.update_time > vecResult.updateTime ? "待更新" : "已索引"}
             </Tag>
           );
@@ -465,7 +434,7 @@ const useCardConfig = () => {
 
         // 查找索引状态
         const vecResult = vecResults.find(
-          (result) => result.id === record.id && result.type === "card",
+          result => result.id === record.id && result.type === "card"
         );
 
         if (!vecResult) {
@@ -526,26 +495,23 @@ const useCardConfig = () => {
     showSizeChanger: true,
   };
 
-  const onChange: TableProps["onChange"] = useMemoizedFn(
-    (pagination, filteredInfo) => {
-      if (pagination.current !== current) {
-        setCurrent(pagination.current || 1);
-        setSelectedRows([]);
-      }
-      if (pagination.pageSize !== pageSize) {
-        setPageSize(pagination.pageSize || PAGE_SIZE);
-      }
-      setFilteredInfo((prevFilteredInfo) => {
-        return {
-          ...prevFilteredInfo,
-          ...filteredInfo,
-          category: filteredInfo.category || prevFilteredInfo.category,
-          index_status:
-            filteredInfo.index_status || prevFilteredInfo.index_status,
-        };
-      });
-    },
-  );
+  const onChange: TableProps["onChange"] = useMemoizedFn((pagination, filteredInfo) => {
+    if (pagination.current !== current) {
+      setCurrent(pagination.current || 1);
+      setSelectedRows([]);
+    }
+    if (pagination.pageSize !== pageSize) {
+      setPageSize(pagination.pageSize || PAGE_SIZE);
+    }
+    setFilteredInfo(prevFilteredInfo => {
+      return {
+        ...prevFilteredInfo,
+        ...filteredInfo,
+        category: filteredInfo.category || prevFilteredInfo.category,
+        index_status: filteredInfo.index_status || prevFilteredInfo.index_status,
+      };
+    });
+  });
 
   return {
     dataSource: slicedCards,

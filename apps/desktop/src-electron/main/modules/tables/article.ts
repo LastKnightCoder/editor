@@ -1,4 +1,6 @@
 import Database from "better-sqlite3";
+import { assertContentIsLocal, findCollaborationBinding } from "../collaboration-guard";
+import { canonicalContentTitle } from "../collaboration/content-sessions";
 import { ICreateArticle, IUpdateArticle, IArticle } from "@/types";
 import Operation from "./operation";
 import { getMarkdown } from "@/utils/markdown.ts";
@@ -16,17 +18,11 @@ export default class ArticleTable {
     const tableInfo = db.prepare(`PRAGMA table_info(articles)`).all() as Array<{
       name: string;
     }>;
-    const hasPodcastId = tableInfo.some(
-      (column) => column.name === "podcast_id",
-    );
+    const hasPodcastId = tableInfo.some(column => column.name === "podcast_id");
 
     if (!hasPodcastId) {
-      db.exec(
-        `ALTER TABLE articles ADD COLUMN podcast_id INTEGER DEFAULT NULL;`,
-      );
-      db.exec(
-        `CREATE INDEX IF NOT EXISTS idx_articles_podcast_id ON articles(podcast_id);`,
-      );
+      db.exec(`ALTER TABLE articles ADD COLUMN podcast_id INTEGER DEFAULT NULL;`);
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_podcast_id ON articles(podcast_id);`);
       log.info("已添加 podcast_id 字段到 articles 表");
     }
   }
@@ -34,8 +30,7 @@ export default class ArticleTable {
   static getListenEvents() {
     return {
       "create-article": this.createArticle.bind(this),
-      "create-article-from-project-item":
-        this.createArticleFromProjectItem.bind(this),
+      "create-article-from-project-item": this.createArticleFromProjectItem.bind(this),
       "update-article": this.updateArticle.bind(this),
       "delete-article": this.deleteArticleById.bind(this),
       "get-all-articles": this.getAllArticles.bind(this),
@@ -44,8 +39,7 @@ export default class ArticleTable {
       "detach-podcast-from-article": this.detachPodcast.bind(this),
       "update-article-is-top": this.updateArticleIsTop.bind(this),
       "update-article-banner-bg": this.updateArticleBannerBg.bind(this),
-      "update-article-banner-position":
-        this.updateArticleBannerPosition.bind(this),
+      "update-article-banner-position": this.updateArticleBannerPosition.bind(this),
       "get-articles-by-dates": this.getArticlesByDates.bind(this),
       "get-articles-by-date-range": this.getArticlesByDateRange.bind(this),
       "get-articles-content-by-ids": this.getArticlesContentByIds.bind(this),
@@ -83,13 +77,9 @@ export default class ArticleTable {
           name: article.podcast_name || undefined,
           audioUrl: article.podcast_audio_url,
           script: article.podcast_script || "",
-          scriptLines: article.podcast_script_lines
-            ? JSON.parse(article.podcast_script_lines)
-            : [],
+          scriptLines: article.podcast_script_lines ? JSON.parse(article.podcast_script_lines) : [],
           duration: article.podcast_duration || 0,
-          speakers: article.podcast_speakers
-            ? JSON.parse(article.podcast_speakers)
-            : [],
+          speakers: article.podcast_speakers ? JSON.parse(article.podcast_speakers) : [],
         };
       } catch (error) {
         console.error("Error parsing podcast data:", error);
@@ -130,13 +120,10 @@ export default class ArticleTable {
       ORDER BY a.create_time DESC
     `);
     const articles = stmt.all();
-    return articles.map((article) => this.parseArticle(article));
+    return articles.map(article => this.parseArticle(article));
   }
 
-  static getArticleById(
-    db: Database.Database,
-    articleId: number | bigint,
-  ): IArticle {
+  static getArticleById(db: Database.Database, articleId: number | bigint): IArticle {
     const stmt = db.prepare(`
       SELECT a.id, a.create_time, a.update_time, a.tags, a.title, a.author, a.links,
              a.banner_bg, a.banner_position, a.is_top, a.is_delete, a.content_id, a.podcast_id,
@@ -151,10 +138,7 @@ export default class ArticleTable {
     return this.parseArticle(article);
   }
 
-  static getArticleByIds(
-    db: Database.Database,
-    articleIds: number[],
-  ): IArticle[] {
+  static getArticleByIds(db: Database.Database, articleIds: number[]): IArticle[] {
     if (articleIds.length === 0) return [];
 
     const placeholders = articleIds.map(() => "?").join(",");
@@ -169,50 +153,31 @@ export default class ArticleTable {
       WHERE a.id IN (${placeholders}) AND a.is_delete = 0
     `);
     const articles = stmt.all(articleIds);
-    return articles.map((article) => this.parseArticle(article));
+    return articles.map(article => this.parseArticle(article));
   }
 
   static attachPodcast(
     db: Database.Database,
     articleId: number,
-    podcastId: number,
+    podcastId: number
   ): IArticle | null {
-    const stmt = db.prepare(
-      "UPDATE articles SET podcast_id = ?, update_time = ? WHERE id = ?",
-    );
+    const stmt = db.prepare("UPDATE articles SET podcast_id = ?, update_time = ? WHERE id = ?");
     const now = Date.now();
     stmt.run(podcastId, now, articleId);
     Operation.insertOperation(db, "article", "update", articleId, now);
     return this.getArticleById(db, articleId);
   }
 
-  static detachPodcast(
-    db: Database.Database,
-    articleId: number,
-  ): IArticle | null {
-    const stmt = db.prepare(
-      "UPDATE articles SET podcast_id = NULL, update_time = ? WHERE id = ?",
-    );
+  static detachPodcast(db: Database.Database, articleId: number): IArticle | null {
+    const stmt = db.prepare("UPDATE articles SET podcast_id = NULL, update_time = ? WHERE id = ?");
     const now = Date.now();
     stmt.run(now, articleId);
     Operation.insertOperation(db, "article", "update", articleId, now);
     return this.getArticleById(db, articleId);
   }
 
-  static createArticle(
-    db: Database.Database,
-    article: ICreateArticle,
-  ): IArticle {
-    const {
-      tags,
-      title,
-      content,
-      bannerBg,
-      bannerPosition,
-      isDelete,
-      isTop,
-      count,
-    } = article;
+  static createArticle(db: Database.Database, article: ICreateArticle): IArticle {
+    const { tags, title, content, bannerBg, bannerPosition, isDelete, isTop, count } = article;
 
     // 如果没有提供contentId，则创建content记录
     const contentId = ContentTable.createContent(db, {
@@ -222,7 +187,7 @@ export default class ArticleTable {
 
     // 创建article记录
     const stmt = db.prepare(
-      "INSERT INTO articles (create_time, update_time, tags, title, content_id, banner_bg, banner_position, is_delete, is_top) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO articles (create_time, update_time, tags, title, content_id, banner_bg, banner_position, is_delete, is_top) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
     const now = Date.now();
     const res = stmt.run(
@@ -234,7 +199,7 @@ export default class ArticleTable {
       bannerBg,
       bannerPosition || "center",
       Number(isDelete),
-      Number(isTop),
+      Number(isTop)
     );
     const createdArticleId = res.lastInsertRowid;
 
@@ -245,7 +210,7 @@ export default class ArticleTable {
 
   static createArticleFromProjectItem(
     db: Database.Database,
-    projectItemId: number,
+    projectItemId: number
   ): IArticle | null {
     const projectItem = ProjectTable.getProjectItem(db, projectItemId);
     if (!projectItem) {
@@ -257,20 +222,10 @@ export default class ArticleTable {
     ContentTable.incrementRefCount(db, contentId);
 
     const stmt = db.prepare(
-      "INSERT INTO articles (create_time, update_time, tags, title, content_id, banner_bg, banner_position, is_delete, is_top) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO articles (create_time, update_time, tags, title, content_id, banner_bg, banner_position, is_delete, is_top) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
     const now = Date.now();
-    const res = stmt.run(
-      now,
-      now,
-      JSON.stringify([]),
-      title,
-      contentId,
-      "",
-      "center",
-      0,
-      0,
-    );
+    const res = stmt.run(now, now, JSON.stringify([]), title, contentId, "", "center", 0, 0);
     const createdArticleId = res.lastInsertRowid;
 
     Operation.insertOperation(db, "article", "insert", createdArticleId, now);
@@ -278,46 +233,37 @@ export default class ArticleTable {
     return this.getArticleById(db, createdArticleId);
   }
 
-  static updateArticle(
-    db: Database.Database,
-    article: IUpdateArticle,
-    ...res: any[]
-  ): IArticle {
-    const {
-      tags,
-      title,
-      id,
-      bannerBg,
-      bannerPosition,
-      isTop,
-      isDelete,
-      contentId,
-    } = article;
+  static updateArticle(db: Database.Database, article: IUpdateArticle, ...res: any[]): IArticle {
+    const { tags, title, id, bannerBg, bannerPosition, isTop, isDelete, contentId } = article;
     const win = res[res.length - 1];
     const now = Date.now();
 
     // 获取当前的article信息
     const currentArticle = this.getArticleById(db, id);
+    const collaborative = findCollaborationBinding(db, currentArticle.contentId);
+    if (collaborative && (isDelete || contentId !== currentArticle.contentId)) {
+      assertContentIsLocal(db, currentArticle.contentId);
+    }
 
     // 更新article记录
     const stmt = db.prepare(
-      "UPDATE articles SET update_time = ?, tags = ?, title = ?, content_id = ?, banner_bg = ?, banner_position = ?, is_top = ?, is_delete = ? WHERE id = ?",
+      "UPDATE articles SET update_time = ?, tags = ?, title = ?, content_id = ?, banner_bg = ?, banner_position = ?, is_top = ?, is_delete = ? WHERE id = ?"
     );
     stmt.run(
       now,
       JSON.stringify(tags || currentArticle.tags),
-      title || currentArticle.title,
+      canonicalContentTitle(db, currentArticle.contentId) ?? title ?? currentArticle.title,
       contentId,
       bannerBg || currentArticle.bannerBg,
       bannerPosition || currentArticle.bannerPosition,
       Number(isTop ?? currentArticle.isTop),
       Number(isDelete ?? currentArticle.isDelete),
-      id,
+      id
     );
 
     Operation.insertOperation(db, "article", "update", id, now);
 
-    BrowserWindow.getAllWindows().forEach((window) => {
+    BrowserWindow.getAllWindows().forEach(window => {
       if (window !== win && !window.isDestroyed()) {
         window.webContents.send("article:updated", {
           databaseName: basename(db.name),
@@ -332,6 +278,7 @@ export default class ArticleTable {
   static deleteArticleById(db: Database.Database, articleId: number): number {
     // 获取文章信息，以获取contentId
     const articleInfo = this.getArticleById(db, articleId);
+    if (articleInfo) assertContentIsLocal(db, articleInfo.contentId);
 
     const stmt = db.prepare("DELETE FROM articles WHERE id = ?");
     const result = stmt.run(articleId);
@@ -342,12 +289,12 @@ export default class ArticleTable {
       Operation.insertOperation(db, "article", "delete", articleId, Date.now());
 
       const documentItemStmt = db.prepare(
-        "UPDATE document_items SET is_article = 0 WHERE is_article = 1 AND article_id = ?",
+        "UPDATE document_items SET is_article = 0 WHERE is_article = 1 AND article_id = ?"
       );
       documentItemStmt.run(articleId);
 
       const projectItemStmt = db.prepare(
-        "UPDATE project_item SET ref_type = '' WHERE ref_type = 'article' AND ref_id = ?",
+        "UPDATE project_item SET ref_type = '' WHERE ref_type = 'article' AND ref_id = ?"
       );
       projectItemStmt.run(articleId);
 
@@ -370,7 +317,7 @@ export default class ArticleTable {
     const stmt = db.prepare("UPDATE articles SET is_top = ? WHERE id = ?");
     stmt.run(Number(isTop), id);
 
-    BrowserWindow.getAllWindows().forEach((window) => {
+    BrowserWindow.getAllWindows().forEach(window => {
       if (window !== win && !window.isDestroyed()) {
         window.webContents.send("article:updated", {
           databaseName: basename(db.name),
@@ -392,7 +339,7 @@ export default class ArticleTable {
     const stmt = db.prepare("UPDATE articles SET banner_bg = ? WHERE id = ?");
     stmt.run(bannerBg, id);
 
-    BrowserWindow.getAllWindows().forEach((window) => {
+    BrowserWindow.getAllWindows().forEach(window => {
       if (window !== win && !window.isDestroyed()) {
         window.webContents.send("article:updated", {
           databaseName: basename(db.name),
@@ -411,12 +358,10 @@ export default class ArticleTable {
     ...res: any[]
   ): IArticle {
     const win = res[res.length - 1];
-    const stmt = db.prepare(
-      "UPDATE articles SET banner_position = ? WHERE id = ?",
-    );
+    const stmt = db.prepare("UPDATE articles SET banner_position = ? WHERE id = ?");
     stmt.run(bannerPosition, id);
 
-    BrowserWindow.getAllWindows().forEach((window) => {
+    BrowserWindow.getAllWindows().forEach(window => {
       if (window !== win && !window.isDestroyed()) {
         window.webContents.send("article:updated", {
           databaseName: basename(db.name),
@@ -429,10 +374,7 @@ export default class ArticleTable {
   }
 
   // 批量日期查询
-  static getArticlesByDates(
-    db: Database.Database,
-    dates: string[],
-  ): Record<string, IArticle[]> {
+  static getArticlesByDates(db: Database.Database, dates: string[]): Record<string, IArticle[]> {
     if (dates.length === 0) return {};
 
     const placeholders = dates.map(() => "?").join(",");
@@ -449,12 +391,10 @@ export default class ArticleTable {
       ORDER BY a.update_time DESC
     `);
 
-    const articles = stmt
-      .all(...dates)
-      .map((article) => this.parseArticle(article));
+    const articles = stmt.all(...dates).map(article => this.parseArticle(article));
     const result: Record<string, IArticle[]> = {};
 
-    articles.forEach((article) => {
+    articles.forEach(article => {
       const date = new Date(article.update_time).toISOString().split("T")[0];
       if (!result[date]) {
         result[date] = [];
@@ -469,7 +409,7 @@ export default class ArticleTable {
   static getArticlesByDateRange(
     db: Database.Database,
     startDate: string,
-    endDate: string,
+    endDate: string
   ): Record<string, IArticle[]> {
     const startTimestamp = new Date(startDate).getTime();
     const endTimestamp = new Date(endDate + " 23:59:59").getTime();
@@ -489,10 +429,10 @@ export default class ArticleTable {
 
     const articles = stmt
       .all(startTimestamp, endTimestamp)
-      .map((article) => this.parseArticle(article));
+      .map(article => this.parseArticle(article));
     const result: Record<string, IArticle[]> = {};
 
-    articles.forEach((article) => {
+    articles.forEach(article => {
       const date = new Date(article.update_time).toISOString().split("T")[0];
       if (!result[date]) {
         result[date] = [];
@@ -507,7 +447,7 @@ export default class ArticleTable {
   static getArticlesContentByIds(
     db: Database.Database,
     ids: number[],
-    maxLength?: number,
+    maxLength?: number
   ): Array<{
     id: number;
     markdown: string;
@@ -519,7 +459,7 @@ export default class ArticleTable {
 
     const articles = this.getArticleByIds(db, ids);
 
-    return articles.map((article) => {
+    return articles.map(article => {
       const markdown = article.content ? getMarkdown(article.content) : "";
       const originalLength = markdown.length;
 
@@ -565,20 +505,13 @@ export default class ArticleTable {
   }
 
   static isContentIsArticle(db: Database.Database, contentId: number): boolean {
-    const stmt = db.prepare(
-      "SELECT id FROM articles WHERE content_id = ? AND is_delete = 0",
-    );
+    const stmt = db.prepare("SELECT id FROM articles WHERE content_id = ? AND is_delete = 0");
     const result = stmt.get(contentId);
     return !!result;
   }
 
-  static getArticleByContentId(
-    db: Database.Database,
-    contentId: number,
-  ): IArticle | null {
-    const stmt = db.prepare(
-      "SELECT id FROM articles WHERE content_id = ? AND is_delete = 0",
-    );
+  static getArticleByContentId(db: Database.Database, contentId: number): IArticle | null {
+    const stmt = db.prepare("SELECT id FROM articles WHERE content_id = ? AND is_delete = 0");
     const result = stmt.get(contentId) as { id: number } | undefined;
     if (!result) {
       return null;
@@ -586,14 +519,10 @@ export default class ArticleTable {
     return this.getArticleById(db, result.id);
   }
 
-  static buildArticleFromContent(
-    db: Database.Database,
-    contentId: number,
-    title = "",
-  ): IArticle {
+  static buildArticleFromContent(db: Database.Database, contentId: number, title = ""): IArticle {
     // 先检查是否已有文章
     const existingStmt = db.prepare(
-      "SELECT id FROM articles WHERE content_id = ? AND is_delete = 0",
+      "SELECT id FROM articles WHERE content_id = ? AND is_delete = 0"
     );
     const existing = existingStmt.get(contentId) as { id: number } | undefined;
     if (existing) {
@@ -603,20 +532,10 @@ export default class ArticleTable {
     // 创建新文章，复用已有 contentId
     ContentTable.incrementRefCount(db, contentId);
     const stmt = db.prepare(
-      "INSERT INTO articles (create_time, update_time, tags, title, content_id, banner_bg, banner_position, is_delete, is_top) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO articles (create_time, update_time, tags, title, content_id, banner_bg, banner_position, is_delete, is_top) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
     const now = Date.now();
-    const res = stmt.run(
-      now,
-      now,
-      JSON.stringify([]),
-      title,
-      contentId,
-      "",
-      "center",
-      0,
-      0,
-    );
+    const res = stmt.run(now, now, JSON.stringify([]), title, contentId, "", "center", 0, 0);
     const articleId = res.lastInsertRowid;
     Operation.insertOperation(db, "article", "insert", articleId, now);
     return this.getArticleById(db, articleId);

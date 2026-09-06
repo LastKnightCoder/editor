@@ -1,0 +1,386 @@
+import * as Y from "yjs";
+import diff from "fast-diff";
+import { slateNodesToInsertDelta, yTextToSlateElement } from "@slate-yjs/core";
+import type { Descendant } from "slate";
+import {
+  ASSET_PREFIX,
+  COLLABORATION_VERSION,
+  type ContentNode,
+  type SharedContent,
+} from "./protocol";
+
+export const SOURCE_FIELDS: Record<string, string[]> = {
+  "code-block": ["code"],
+  "inline-math": ["tex"],
+  "block-math": ["tex"],
+  mermaid: ["chart"],
+  plantuml: ["content"],
+  abc: ["content"],
+  graphviz: ["dot"],
+  "html-block": ["html"],
+  "html-inline": ["html"],
+  "custom-block": ["content"],
+  // tikz/typst 渲染组件读取 content，候选顺序保持一致，避免编辑写入 code 而预览读 content。
+  tikz: ["content", "code"],
+  typst: ["content", "code"],
+  "front-matter": ["content", "value"],
+};
+// content-link 的节点数据（链接文字与引用元信息）随文档共享，仅 hover 预览依赖本机数据；
+// 其余本地实体块整体剥离为占位符，原始数据保存在创建者设备。
+export const PRIVATE_BLOCKS = new Set([
+  "whiteboard",
+  "database",
+  "question",
+  "question-card",
+  "project-card-list",
+]);
+export const LOCAL_FIELDS = new Set(["activeKey", "isFold", "compiledFrom", "compiledAt", "svg"]);
+export const RESOURCE_FIELDS = new Set([
+  "url",
+  "src",
+  "filePath",
+  "poster",
+  "bannerBg",
+  "previewUrl",
+]);
+
+export const getBody = (doc: Y.Doc) => doc.get("content", Y.XmlText);
+export const getFields = (doc: Y.Doc) => doc.getMap<Y.Map<unknown>>("fields");
+export const emptyContent = (): ContentNode[] => [
+  { type: "paragraph", children: [{ type: "formatted", text: "" }] },
+];
+
+// 与键序无关的深比较：Y 类型的 toJSON 键序与对象字面量不同，不能用 JSON.stringify 直接对比。
+export function sharedValueEquals(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  const value = (input: unknown) => (input instanceof Y.AbstractType ? input.toJSON() : input);
+  const left = value(a);
+  const right = value(b);
+  if (Array.isArray(left) && Array.isArray(right))
+    return (
+      left.length === right.length &&
+      left.every((entry, index) => sharedValueEquals(entry, right[index]))
+    );
+  if (left && right && typeof left === "object" && typeof right === "object") {
+    const keys = Object.keys(left);
+    return (
+      keys.length === Object.keys(right).length &&
+      keys.every(
+        key =>
+          key in right &&
+          sharedValueEquals(
+            (left as Record<string, unknown>)[key],
+            (right as Record<string, unknown>)[key]
+          )
+      )
+    );
+  }
+  return false;
+}
+
+export function replaceText(text: Y.Text, value: string) {
+  let offset = 0;
+  for (const [operation, part] of diff(text.toString(), value)) {
+    if (operation === -1) text.delete(offset, part.length);
+    else if (operation === 1) {
+      text.insert(offset, part);
+      offset += part.length;
+    } else offset += part.length;
+  }
+}
+
+export function getBlockFields(doc: Y.Doc, id: string): Y.Map<unknown> {
+  const fields = getFields(doc);
+  let block = fields.get(id);
+  if (!block) {
+    block = new Y.Map();
+    fields.set(id, block);
+  }
+  return block;
+}
+
+export function getSourceText(doc: Y.Doc, id: string, field: string): Y.Text {
+  const block = getBlockFields(doc, id);
+  let text = block.get(field);
+  if (!(text instanceof Y.Text)) {
+    text = new Y.Text();
+    block.set(field, text);
+  }
+  return text as Y.Text;
+}
+
+export function setSharedValue(map: Y.Map<unknown>, key: string, value: unknown): void {
+  const previous = map.get(key);
+  if (typeof value === "string") {
+    const text = previous instanceof Y.Text ? previous : new Y.Text();
+    if (text !== previous) map.set(key, text);
+    replaceText(text, value);
+  } else if (Array.isArray(value)) {
+    const array = previous instanceof Y.Array ? previous : new Y.Array();
+    if (array !== previous) map.set(key, array);
+    const sharedLength = Math.min(array.length, value.length);
+    for (let index = 0; index < sharedLength; index++) {
+      const current = array.get(index);
+      if (
+        current instanceof Y.Map &&
+        value[index] &&
+        typeof value[index] === "object" &&
+        !Array.isArray(value[index])
+      ) {
+        updateSharedObject(current, value[index] as Record<string, unknown>);
+      } else if (!sharedValueEquals(current, value[index])) {
+        array.delete(index, 1);
+        array.insert(index, [toSharedValue(value[index])]);
+      }
+    }
+    if (array.length > value.length) array.delete(value.length, array.length - value.length);
+    if (value.length > sharedLength)
+      array.insert(sharedLength, value.slice(sharedLength).map(toSharedValue));
+  } else if (value && typeof value === "object") {
+    const object = previous instanceof Y.Map ? previous : new Y.Map();
+    if (object !== previous) map.set(key, object);
+    updateSharedObject(object, value as Record<string, unknown>);
+  } else if (previous !== value) map.set(key, value ?? null);
+}
+
+function toSharedValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    const array = new Y.Array();
+    array.insert(0, value.map(toSharedValue));
+    return array;
+  }
+  if (value && typeof value === "object") {
+    const map = new Y.Map();
+    for (const [key, entry] of Object.entries(value)) map.set(key, toSharedValue(entry));
+    return map;
+  }
+  return value;
+}
+
+function updateSharedObject(map: Y.Map<unknown>, value: Record<string, unknown>) {
+  for (const key of map.keys()) if (!(key in value)) map.delete(key);
+  for (const [key, entry] of Object.entries(value)) setSharedValue(map, key, entry);
+}
+
+export function sharedProperty(type: string, key: string) {
+  return (
+    SOURCE_FIELDS[type]?.includes(key) ||
+    (type === "chart" && ["data", "config"].includes(key)) ||
+    (type === "code-block" && key === "magicMove")
+  );
+}
+
+export function prepareNodes(
+  doc: Y.Doc,
+  nodes: ContentNode[],
+  privateNodes?: Map<string, ContentNode>,
+  newIds = false
+): ContentNode[] {
+  return nodes.map(input => {
+    if (typeof input.text === "string" && !input.children) return { ...input, type: "formatted" };
+    const id = !newIds && typeof input.collabId === "string" ? input.collabId : crypto.randomUUID();
+    const local = doc.getMap("meta").get("mode") === "local";
+    if (!local && PRIVATE_BLOCKS.has(input.type || "")) {
+      privateNodes?.set(id, structuredClone(input));
+      return {
+        type: "collaboration-placeholder",
+        collabId: id,
+        label: input.type,
+        children: [{ type: "formatted", text: "" }],
+      };
+    }
+    const node: ContentNode = { ...input, collabId: id };
+    for (const key of Object.keys(node)) {
+      if (LOCAL_FIELDS.has(key)) {
+        if (!local) delete node[key];
+      } else if (sharedProperty(node.type || "", key)) {
+        setSharedValue(getBlockFields(doc, id), key, node[key]);
+        delete node[key];
+      }
+    }
+    if (node.type === "tabs") {
+      const tabs = Array.isArray(input.tabsContent)
+        ? (input.tabsContent as {
+            key: string;
+            title: string;
+            content: ContentNode[];
+          }[])
+        : [];
+      const block = getBlockFields(doc, id);
+      const order = new Y.Array<string>();
+      const entries = new Y.Map<Y.Map<unknown>>();
+      block.set("tabOrder", order);
+      block.set("tabs", entries);
+      for (const tab of tabs) {
+        const key = newIds ? crypto.randomUUID() : tab.key;
+        const entry = new Y.Map<unknown>();
+        entries.set(key, entry);
+        setSharedValue(entry, "title", tab.title);
+        const root = new Y.XmlText();
+        entry.set("content", root);
+        const content = tab.key === input.activeKey ? input.children || tab.content : tab.content;
+        root.applyDelta(
+          slateNodesToInsertDelta(prepareNodes(doc, content, privateNodes, newIds) as Descendant[])
+        );
+        order.push([key]);
+      }
+      delete node.tabsContent;
+      node.children = [{ type: "formatted", text: "" }];
+    } else
+      node.children = prepareNodes(
+        doc,
+        input.children || [{ type: "formatted", text: "" }],
+        privateNodes,
+        newIds
+      );
+    return node;
+  });
+}
+
+const UNSAFE_KEYS = ["__proto__", "constructor", "prototype"];
+
+export function materializeNodes(
+  doc: Y.Doc,
+  nodes: ContentNode[],
+  privateNodes?: Map<string, ContentNode>
+): ContentNode[] {
+  return nodes.map(input => {
+    // Yjs 不保留空文本的属性，还原时必须恢复项目要求的文本类型。
+    if (typeof input.text === "string" && !input.children) return { ...input, type: "formatted" };
+    const id = typeof input.collabId === "string" ? input.collabId : "";
+    if (input.type === "collaboration-placeholder" && privateNodes?.has(id))
+      return { ...structuredClone(privateNodes.get(id)!), collabId: id };
+    const node = { ...input };
+    const block = getFields(doc).get(id);
+    if (block) {
+      for (const [key, value] of block) {
+        if (key !== "tabs" && key !== "tabOrder" && !UNSAFE_KEYS.includes(key))
+          node[key] = value instanceof Y.AbstractType ? value.toJSON() : value;
+      }
+      if (input.type === "tabs") {
+        const order = block.get("tabOrder") as Y.Array<string> | undefined;
+        const tabs = block.get("tabs") as Y.Map<Y.Map<unknown>> | undefined;
+        const entries = [...new Set(order?.toArray() || [])].flatMap(key => {
+          const tab = tabs?.get(key);
+          const root = tab?.get("content");
+          if (!(root instanceof Y.XmlText)) return [];
+          return [
+            {
+              key,
+              title: String(tab?.get("title") || ""),
+              content: materializeNodes(
+                doc,
+                yTextToSlateElement(root).children as ContentNode[],
+                privateNodes
+              ),
+            },
+          ];
+        });
+        node.tabsContent = entries;
+        node.activeKey = entries[0]?.key;
+        node.children = entries[0]?.content || emptyContent();
+      }
+    }
+    if (input.type !== "tabs" && input.children)
+      node.children = materializeNodes(doc, input.children, privateNodes);
+    return node;
+  });
+}
+
+export function createSharedDocument(
+  article: SharedContent,
+  privateNodes?: Map<string, ContentNode>,
+  mode: "local" | "shared" = "shared"
+): Y.Doc {
+  const doc = new Y.Doc();
+  doc.transact(() => {
+    doc.getMap("meta").set("version", COLLABORATION_VERSION);
+    doc.getMap("meta").set("mode", mode);
+    replaceText(doc.getText("title"), article.title);
+    doc.getMap("meta").set("bannerBg", article.bannerBg || "");
+    doc.getMap("meta").set("bannerPosition", article.bannerPosition || "center");
+    getBody(doc).applyDelta(
+      slateNodesToInsertDelta(
+        prepareNodes(
+          doc,
+          article.content.length ? article.content : emptyContent(),
+          privateNodes
+        ) as Descendant[]
+      )
+    );
+  });
+  return doc;
+}
+
+export function readSharedContent(
+  doc: Y.Doc,
+  privateNodes?: Map<string, ContentNode>
+): SharedContent {
+  return {
+    title: doc.getText("title").toString(),
+    bannerBg: String(doc.getMap("meta").get("bannerBg") || ""),
+    bannerPosition: String(doc.getMap("meta").get("bannerPosition") || "center"),
+    content: materializeNodes(
+      doc,
+      yTextToSlateElement(getBody(doc)).children as ContentNode[],
+      privateNodes
+    ),
+  };
+}
+
+const httpUrl = (value: string): boolean => {
+  try {
+    const url = new URL(value);
+    return (
+      (url.protocol === "https:" || url.protocol === "http:") && !url.username && !url.password
+    );
+  } catch {
+    return false;
+  }
+};
+
+export function isSafeResource(value: string, field = ""): boolean {
+  if (!value || value.startsWith(ASSET_PREFIX)) return true;
+  // bannerBg 可以是颜色或 CSS 渐变；带协议头的值（file:、https: 等）必须是 http(s)，
+  // 其余情况只校验其中 url(...) 引用的地址。
+  if (field === "bannerBg") {
+    if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return httpUrl(value);
+    const references = (value.match(/url\(\s*['"]?[^'")]+['"]?\s*\)/g) || []) as string[];
+    return references.every(reference =>
+      httpUrl(reference.replace(/url\(\s*['"]?/, "").replace(/['"]?\s*\)$/, ""))
+    );
+  }
+  return httpUrl(value);
+}
+
+export function validateDocument(doc: Y.Doc, maxBytes = 8 * 1024 * 1024) {
+  if (doc.getMap("meta").get("mode") === "local") throw new Error("本机会话不能直接上传");
+  if (doc.getMap("meta").get("version") !== COLLABORATION_VERSION)
+    throw new Error("协作文档版本不兼容，请升级 Tau");
+  if (Y.encodeStateAsUpdate(doc).byteLength > maxBytes) throw new Error("协作文档超过大小限制");
+  const article = readSharedContent(doc);
+  if (article.title.length > 500) throw new Error("共享名称过长");
+  let count = 0;
+  const visit = (value: unknown, depth: number, key = "") => {
+    if (depth > 64 || ++count > 150000) throw new Error("文档结构超过限制");
+    if (typeof value === "string") {
+      if (RESOURCE_FIELDS.has(key) && !isSafeResource(value, key))
+        throw new Error("共享内容不能包含本地路径或私有资源地址");
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(entry => visit(entry, depth + 1));
+      return;
+    }
+    if (value && typeof value === "object") {
+      const object = value as Record<string, unknown>;
+      if (PRIVATE_BLOCKS.has(String(object.type || ""))) throw new Error("不支持共享本地实体块");
+      for (const [name, entry] of Object.entries(object)) {
+        if (UNSAFE_KEYS.includes(name)) throw new Error("文档包含无效属性");
+        visit(entry, depth + 1, name);
+      }
+    }
+  };
+  visit(article, 0);
+  return article;
+}

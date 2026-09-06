@@ -65,6 +65,15 @@ CREATE TABLE IF NOT EXISTS documents (
             children TEXT,
             content TEXT,
             is_top INTEGER DEFAULT 0);
+CREATE TABLE IF NOT EXISTS collaboration_bindings (
+            content_id INTEGER PRIMARY KEY,
+            content_created_at INTEGER NOT NULL,
+            server_url TEXT NOT NULL,
+            document_id TEXT NOT NULL,
+            source_type TEXT,
+            source_id INTEGER,
+            source_title TEXT,
+            FOREIGN KEY(content_id) REFERENCES contents(id));
 CREATE TABLE IF NOT EXISTS document_items (
             id INTEGER PRIMARY KEY NOT NULL,
             create_time INTEGER NOT NULL,

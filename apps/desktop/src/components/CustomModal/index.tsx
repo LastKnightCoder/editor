@@ -18,7 +18,7 @@ const ANIMATION_DURATION = 200;
 export interface CustomModalProps {
   open: boolean;
   onCancel: () => void;
-  children: ReactNode;
+  children?: ReactNode;
   width?: number | string;
   className?: string;
   overlayClassName?: string;
@@ -89,7 +89,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
   const shouldRender = open || hasOpened;
   const computedCloseIcon = closeIcon ?? (
     <svg
-      className="w-[18px] h-[18px]"
+      className="h-[18px] w-[18px]"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -123,38 +123,35 @@ const CustomModal: React.FC<CustomModalProps> = ({
     "border bg-transparent",
     themeColors.borderClass,
     themeColors.hoverClass,
-    themeColors.textClass,
+    themeColors.textClass
   );
   const okButtonClass = classNames(
     baseButtonClass,
     "border-none shadow-sm",
     themeColors.buttonBg,
-    themeColors.buttonTextClass,
+    themeColors.buttonTextClass
   );
 
-  const stopKeyboardPropagation = useCallback(
-    (event: React.KeyboardEvent<HTMLElement>) => {
-      // 检查事件目标是否是可编辑元素
-      const target = event.target as HTMLElement;
-      const isEditable =
-        target.isContentEditable ||
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.closest("[contenteditable='true']") !== null ||
-        target.closest("[role='textbox']") !== null;
+  const stopKeyboardPropagation = useCallback((event: React.KeyboardEvent<HTMLElement>) => {
+    // 检查事件目标是否是可编辑元素
+    const target = event.target as HTMLElement;
+    const isEditable =
+      target.isContentEditable ||
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.closest("[contenteditable='true']") !== null ||
+      target.closest("[role='textbox']") !== null;
 
-      // 如果是可编辑元素，不阻止事件传播，让编辑器处理快捷键
-      if (isEditable) {
-        return;
-      }
+    // 如果是可编辑元素，不阻止事件传播，让编辑器处理快捷键
+    if (isEditable) {
+      return;
+    }
 
-      // 对于非可编辑元素，只允许 Enter 键传播
-      if (event.key !== "Enter") {
-        event.stopPropagation();
-      }
-    },
-    [],
-  );
+    // 对于非可编辑元素，只允许 Enter 键传播
+    if (event.key !== "Enter") {
+      event.stopPropagation();
+    }
+  }, []);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -162,7 +159,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
         onCancel();
       }
     },
-    [closeOnEscape, onCancel, open],
+    [closeOnEscape, onCancel, open]
   );
 
   useEffect(() => {
@@ -220,17 +217,13 @@ const CustomModal: React.FC<CustomModalProps> = ({
     }
   };
 
-  const handleCancelClick = (
-    event: React.MouseEvent<HTMLButtonElement, MouseEvent>,
-  ) => {
+  const handleCancelClick = (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
     cancelButtonProps?.onClick?.(event);
     if (event.defaultPrevented) return;
     onCancel();
   };
 
-  const handleOkClick = async (
-    event: React.MouseEvent<HTMLButtonElement, MouseEvent>,
-  ) => {
+  const handleOkClick = async (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
     okButtonProps?.onClick?.(event);
     if (event.defaultPrevented) return;
     await onOk?.();
@@ -243,10 +236,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
           <button
             type="button"
             {...cancelButtonProps}
-            className={classNames(
-              cancelButtonClass,
-              cancelButtonProps?.className,
-            )}
+            className={classNames(cancelButtonClass, cancelButtonProps?.className)}
             onClick={handleCancelClick}
           >
             {cancelText}
@@ -263,19 +253,13 @@ const CustomModal: React.FC<CustomModalProps> = ({
           >
             {confirmLoading && (
               <svg
-                className="w-4 h-4 animate-spin"
+                className="h-4 w-4 animate-spin"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
               >
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="9"
-                  stroke="currentColor"
-                  strokeOpacity="0.35"
-                />
+                <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.35" />
                 <path
                   d="M12 3a9 9 0 0 1 9 9"
                   stroke="currentColor"
@@ -306,9 +290,9 @@ const CustomModal: React.FC<CustomModalProps> = ({
       animate={{ opacity: open ? 1 : 0 }}
       transition={{ duration: 0.2 }}
       className={classNames(
-        "custom-modal-overlay fixed inset-0 z-100 flex justify-center bg-black/50 backdrop-blur-sm px-4",
+        "custom-modal-overlay z-100 fixed inset-0 flex justify-center bg-black/50 px-4 backdrop-blur-sm",
         centered ? "items-center" : "items-start pt-16",
-        overlayClassName,
+        overlayClassName
       )}
       style={{
         pointerEvents: open ? "auto" : "none",
@@ -317,6 +301,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
       onClick={handleOverlayClick}
       role="dialog"
       aria-modal="true"
+      aria-label={typeof title === "string" ? title : undefined}
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.98, y: 12 }}
@@ -328,50 +313,43 @@ const CustomModal: React.FC<CustomModalProps> = ({
         transition={{ duration: 0.2 }}
         className={classNames("custom-modal-container w-full", className)}
         style={widthStyle}
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
         data-whiteboard-stop-keyboard="true"
         onKeyDownCapture={stopKeyboardPropagation}
         onKeyUpCapture={stopKeyboardPropagation}
       >
         <div
           className={classNames(
-            "rounded-2xl p-6 shadow-2xl bg-white/95 dark:bg-zinc-900/95 border backdrop-blur flex flex-col max-h-[calc(100vh-200px)]",
+            "flex max-h-[calc(100vh-200px)] flex-col rounded-2xl border bg-white/95 p-6 shadow-2xl backdrop-blur dark:bg-zinc-900/95",
             themeColors.cardBorderClass,
-            contentClassName,
+            contentClassName
           )}
           style={contentStyle}
         >
           {(title || showCloseButton) && (
-            <div className="flex items-start mb-5 shrink-0">
+            <div className="mb-5 flex shrink-0 items-start">
               {title ? (
                 <>
                   <div
                     className={classNames(
                       "flex flex-1 gap-3",
-                      subtitle ? "items-start" : "items-center",
+                      subtitle ? "items-start" : "items-center"
                     )}
                   >
                     {icon && (
                       <div
                         className={classNames(
-                          "shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center border",
-                          iconBgColor,
+                          "flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border",
+                          iconBgColor
                         )}
                       >
                         {icon}
                       </div>
                     )}
-                    <div className="flex-1 min-w-0">
-                      <h2 className={classNames("text-base font-bold m-0")}>
-                        {title}
-                      </h2>
+                    <div className="min-w-0 flex-1">
+                      <h2 className={classNames("m-0 text-base font-bold")}>{title}</h2>
                       {subtitle && (
-                        <p
-                          className={classNames(
-                            "text-xs mt-0.5",
-                            themeColors.secondaryTextClass,
-                          )}
-                        >
+                        <p className={classNames("mt-0.5 text-xs", themeColors.secondaryTextClass)}>
                           {subtitle}
                         </p>
                       )}
@@ -381,12 +359,13 @@ const CustomModal: React.FC<CustomModalProps> = ({
                     <button
                       type="button"
                       className={classNames(
-                        "shrink-0 w-8 h-8 ml-3 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all",
+                        "ml-3 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none transition-all",
                         themeColors.tagBgClass,
                         themeColors.textClass,
                         themeColors.hoverClass,
-                        "hover:text-gray-700 dark:hover:text-gray-200",
+                        "hover:text-gray-700 dark:hover:text-gray-200"
                       )}
+                      aria-label="Close"
                       onClick={onCancel}
                     >
                       {computedCloseIcon}
@@ -399,12 +378,13 @@ const CustomModal: React.FC<CustomModalProps> = ({
                   <button
                     type="button"
                     className={classNames(
-                      "shrink-0 w-8 h-8 ml-auto rounded-lg border-none cursor-pointer flex items-center justify-center transition-all",
+                      "ml-auto flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none transition-all",
                       themeColors.tagBgClass,
                       themeColors.textClass,
                       themeColors.hoverClass,
-                      "hover:text-gray-700 dark:hover:text-gray-200",
+                      "hover:text-gray-700 dark:hover:text-gray-200"
                     )}
+                    aria-label="Close"
                     onClick={onCancel}
                   >
                     {computedCloseIcon}
@@ -414,20 +394,15 @@ const CustomModal: React.FC<CustomModalProps> = ({
             </div>
           )}
 
-          <div
-            className={classNames(
-              "custom-modal-body flex-1 min-h-0",
-              bodyClassName,
-            )}
-          >
+          <div className={classNames("custom-modal-body min-h-0 flex-1", bodyClassName)}>
             {children}
           </div>
 
           {footerNode && (
             <div
               className={classNames(
-                "custom-modal-footer mt-5 pt-4 shrink-0 border-t",
-                themeColors.borderClass,
+                "custom-modal-footer mt-5 shrink-0 border-t pt-4",
+                themeColors.borderClass
               )}
             >
               {footerNode}
@@ -436,7 +411,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
         </div>
       </motion.div>
     </motion.div>,
-    document.body,
+    document.body
   );
 };
 

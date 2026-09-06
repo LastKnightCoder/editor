@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Editor } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import { IContent } from "@/types";
 import styles from "./index.module.less";
 import { Empty } from "antd";
@@ -12,7 +12,7 @@ interface IContentProps {
 const Content = memo((props: IContentProps) => {
   const { content } = props;
 
-  const extensions = useDynamicExtensionsStore((state) => state.extensions);
+  const extensions = useDynamicExtensionsStore(state => state.extensions);
 
   if (!content) {
     return (
@@ -25,6 +25,7 @@ const Content = memo((props: IContentProps) => {
   return (
     <div className={styles.contentContentContainer}>
       <Editor
+        contentId={content.id}
         key={content.id}
         initValue={content.content}
         readonly

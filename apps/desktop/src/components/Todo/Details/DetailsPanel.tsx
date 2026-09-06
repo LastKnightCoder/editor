@@ -6,26 +6,20 @@ import dayjs from "dayjs";
 import classNames from "classnames";
 import { MdClose } from "react-icons/md";
 import EditText, { EditTextHandle } from "@/components/EditText";
-import { Editor, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import useEditContent from "@/hooks/useEditContent";
 import { createContent } from "@/commands";
 import { getContentLength } from "@/utils";
 import { useTodoStore } from "@/stores/useTodoStore";
-import {
-  TodoItemType,
-  TodoRecurrence,
-  TodoRecurrenceCompletion,
-} from "@/types";
+import { TodoItemType, TodoRecurrence, TodoRecurrenceCompletion } from "@/types";
 import {
   getRecurrenceByItemId,
   getRecurrenceCompletions,
   completeRecurrence,
   uncompleteRecurrence,
 } from "@/commands/todo";
-import {
-  isDateScheduledForRecurrence,
-  getStartOfDayTimestamp,
-} from "@/utils/recurrence";
+import { isDateScheduledForRecurrence, getStartOfDayTimestamp } from "@/utils/recurrence";
 import { emitTodoMutation, TODO_MUTATION_ACTIONS } from "@/mcp/todo/mutation";
 import DateTimePicker from "@/components/Todo/List/TaskDialog/components/DateTimePicker";
 import CustomSelect from "@/components/Todo/List/TaskDialog/components/CustomSelect";
@@ -69,25 +63,21 @@ const formatDateTime = (value?: number | null) =>
 
 const buildRecurrenceStats = (
   recurrence: TodoRecurrence,
-  completions: TodoRecurrenceCompletion[],
+  completions: TodoRecurrenceCompletion[]
 ): RecurrenceStats => {
   const completionMap = new Map<string, TodoRecurrenceCompletion>();
-  completions.forEach((c) => {
+  completions.forEach(c => {
     const key = dayjs(c.scheduledDate).format("YYYY-MM-DD");
     completionMap.set(key, c);
   });
 
   const start = dayjs(recurrence.startDate).startOf("day");
   const today = dayjs().startOf("day");
-  const rawEnd = recurrence.endDate
-    ? dayjs(recurrence.endDate).startOf("day")
-    : today;
+  const rawEnd = recurrence.endDate ? dayjs(recurrence.endDate).startOf("day") : today;
   const end = rawEnd.isAfter(today) ? today : rawEnd;
 
   const heatmapStartCandidate = end.subtract(180, "day");
-  const heatmapStart = start.isAfter(heatmapStartCandidate)
-    ? start
-    : heatmapStartCandidate;
+  const heatmapStart = start.isAfter(heatmapStartCandidate) ? start : heatmapStartCandidate;
 
   const maxOccurrences = recurrence.maxOccurrences ?? Number.MAX_SAFE_INTEGER;
 
@@ -139,18 +129,10 @@ const buildRecurrenceStats = (
   return stats;
 };
 
-const InfoItem = ({
-  label,
-  value,
-}: {
-  label: string;
-  value: React.ReactNode;
-}) => (
-  <div className="rounded-lg border border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-zinc-800/40 px-3 py-2">
+const InfoItem = ({ label, value }: { label: string; value: React.ReactNode }) => (
+  <div className="rounded-lg border border-gray-100 bg-gray-50/60 px-3 py-2 dark:border-slate-800 dark:bg-zinc-800/40">
     <div className="text-[11px] text-gray-500 dark:text-slate-400">{label}</div>
-    <div className="text-sm text-gray-900 dark:text-gray-50 mt-0.5 break-all">
-      {value}
-    </div>
+    <div className="mt-0.5 break-all text-sm text-gray-900 dark:text-gray-50">{value}</div>
   </div>
 );
 
@@ -165,17 +147,10 @@ const HeatmapGrid = ({
   const [clickingDate, setClickingDate] = useState<string | null>(null);
 
   if (!stats.heatmap.length) {
-    return (
-      <div className="text-xs text-gray-500 dark:text-slate-400">
-        暂无可展示的打卡记录
-      </div>
-    );
+    return <div className="text-xs text-gray-500 dark:text-slate-400">暂无可展示的打卡记录</div>;
   }
 
-  const handleCellClick = async (cell: {
-    date: string;
-    status: HeatmapStatus;
-  }) => {
+  const handleCellClick = async (cell: { date: string; status: HeatmapStatus }) => {
     // Don't allow clicking on future dates (upcoming)
     const cellDate = dayjs(cell.date);
     const today = dayjs().startOf("day");
@@ -195,8 +170,8 @@ const HeatmapGrid = ({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="grid grid-cols-14 gap-1">
-        {stats.heatmap.map((cell) => {
+      <div className="grid-cols-14 grid gap-1">
+        {stats.heatmap.map(cell => {
           const isClickable = !dayjs(cell.date).isAfter(dayjs().startOf("day"));
           const isClicking = clickingDate === cell.date;
 
@@ -209,9 +184,8 @@ const HeatmapGrid = ({
                 className={classNames(
                   "h-3 w-full rounded transition-all duration-200",
                   statusColorMap[cell.status],
-                  isClickable &&
-                    "cursor-pointer hover:opacity-80 hover:scale-110",
-                  isClicking && "opacity-50",
+                  isClickable && "cursor-pointer hover:scale-110 hover:opacity-80",
+                  isClicking && "opacity-50"
                 )}
                 onClick={() => isClickable && handleCellClick(cell)}
               />
@@ -225,7 +199,7 @@ const HeatmapGrid = ({
             <span
               className={classNames(
                 "inline-block h-3 w-3 rounded",
-                statusColorMap[status as HeatmapStatus],
+                statusColorMap[status as HeatmapStatus]
               )}
             />
             {label}
@@ -245,18 +219,14 @@ const ListRow = ({
   description?: string;
   children: React.ReactNode;
 }) => (
-  <div className="flex items-center justify-between gap-4 py-3 border-b last:border-b-0 border-gray-100 dark:border-slate-800">
-    <div className="flex-1 min-w-0">
-      <div className="text-sm font-medium text-gray-800 dark:text-gray-200">
-        {label}
-      </div>
+  <div className="flex items-center justify-between gap-4 border-b border-gray-100 py-3 last:border-b-0 dark:border-slate-800">
+    <div className="min-w-0 flex-1">
+      <div className="text-sm font-medium text-gray-800 dark:text-gray-200">{label}</div>
       {description && (
-        <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-          {description}
-        </div>
+        <div className="mt-0.5 text-xs text-gray-500 dark:text-slate-400">{description}</div>
       )}
     </div>
-    <div className="flex-none flex justify-end">{children}</div>
+    <div className="flex flex-none justify-end">{children}</div>
   </div>
 );
 
@@ -269,20 +239,14 @@ const SectionBlock = ({
   description?: string;
   children: React.ReactNode;
 }) => (
-  <div className="rounded-xl border border-gray-100 dark:border-slate-800 px-4 py-3 space-y-2">
+  <div className="space-y-2 rounded-xl border border-gray-100 px-4 py-3 dark:border-slate-800">
     <div className="flex flex-col gap-1">
-      <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-        {title}
-      </div>
+      <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</div>
       {description && (
-        <div className="text-xs text-gray-500 dark:text-slate-400">
-          {description}
-        </div>
+        <div className="text-xs text-gray-500 dark:text-slate-400">{description}</div>
       )}
     </div>
-    <div className="divide-y divide-gray-100 dark:divide-slate-800">
-      {children}
-    </div>
+    <div className="divide-y divide-gray-100 dark:divide-slate-800">{children}</div>
   </div>
 );
 
@@ -302,7 +266,7 @@ const DetailsPanel = () => {
 
   const itemsKey = useMemo(() => {
     if (!activeGroupId) return -1;
-    const systemGroup = systemGroups.find((g) => g.id === activeGroupId);
+    const systemGroup = systemGroups.find(g => g.id === activeGroupId);
     if (systemGroup?.systemType) {
       return `_system_${systemGroup.systemType}`;
     }
@@ -311,14 +275,12 @@ const DetailsPanel = () => {
 
   const current = useMemo(() => {
     const items = itemsByGroupId[itemsKey as any] || [];
-    return items.find((it) => it.id === activeTodoId);
+    return items.find(it => it.id === activeTodoId);
   }, [activeTodoId, itemsByGroupId, itemsKey]);
 
   const [title, setTitle] = useState(current?.title || "");
-  const [recurrenceStats, setRecurrenceStats] =
-    useState<RecurrenceStats | null>(null);
-  const [recurrenceConfig, setRecurrenceConfig] =
-    useState<TodoRecurrence | null>(null);
+  const [recurrenceStats, setRecurrenceStats] = useState<RecurrenceStats | null>(null);
+  const [recurrenceConfig, setRecurrenceConfig] = useState<TodoRecurrence | null>(null);
   const [recurrenceLoading, setRecurrenceLoading] = useState(false);
 
   const titleRef = useRef<EditTextHandle>(null);
@@ -326,9 +288,9 @@ const DetailsPanel = () => {
 
   const { throttleHandleEditorContentChange } = useEditContent(
     current?.descriptionContentId ?? undefined,
-    (content) => {
+    content => {
       descriptionEditorRef.current?.setEditorValue(content);
-    },
+    }
   );
 
   useEffect(() => {
@@ -351,8 +313,7 @@ const DetailsPanel = () => {
     const loadRecurrence = async () => {
       setRecurrenceLoading(true);
       try {
-        const recurrence =
-          current.recurrence || (await getRecurrenceByItemId(current.id));
+        const recurrence = current.recurrence || (await getRecurrenceByItemId(current.id));
         if (cancelled) return;
 
         setRecurrenceConfig(recurrence);
@@ -365,7 +326,7 @@ const DetailsPanel = () => {
         const completions = await getRecurrenceCompletions(
           recurrence.id,
           recurrence.startDate,
-          dayjs().endOf("day").valueOf(),
+          dayjs().endOf("day").valueOf()
         );
         if (cancelled) return;
         setRecurrenceStats(buildRecurrenceStats(recurrence, completions));
@@ -399,9 +360,7 @@ const DetailsPanel = () => {
 
     updateItemDescriptionContent(activeTodoId, current.groupId, content);
 
-    const isEmpty =
-      JSON.stringify(content) ===
-      JSON.stringify(createDefaultDescriptionContent());
+    const isEmpty = JSON.stringify(content) === JSON.stringify(createDefaultDescriptionContent());
 
     if (current.descriptionContentId) {
       if (!isEmpty) {
@@ -415,10 +374,7 @@ const DetailsPanel = () => {
     }
   };
 
-  const handleHeatmapCellClick = async (
-    date: string,
-    currentStatus: HeatmapStatus,
-  ) => {
+  const handleHeatmapCellClick = async (date: string, currentStatus: HeatmapStatus) => {
     if (!recurrenceConfig) return;
 
     const dateTimestamp = getStartOfDayTimestamp(dayjs(date));
@@ -469,18 +425,16 @@ const DetailsPanel = () => {
         const completions = await getRecurrenceCompletions(
           recurrenceConfig.id,
           recurrenceConfig.startDate,
-          dayjs().endOf("day").valueOf(),
+          dayjs().endOf("day").valueOf()
         );
         setRecurrenceStats(buildRecurrenceStats(recurrenceConfig, completions));
 
         // Also reload the items to update the main list
         const gid = activeGroupId;
         if (gid != null) {
-          const systemGroup = systemGroups.find((g) => g.id === gid);
+          const systemGroup = systemGroups.find(g => g.id === gid);
           if (systemGroup?.systemType) {
-            await useTodoStore
-              .getState()
-              .loadItemsByType(systemGroup.systemType);
+            await useTodoStore.getState().loadItemsByType(systemGroup.systemType);
           } else {
             await loadItems(gid);
           }
@@ -502,7 +456,7 @@ const DetailsPanel = () => {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.15 }}
-        className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        className="z-9999 fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm"
         onClick={() => setRightOpen(false)}
       >
         {/* Modal Container */}
@@ -511,16 +465,16 @@ const DetailsPanel = () => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: -10 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="w-full max-w-[900px] m-4 max-h-[90vh] flex flex-col"
-          onClick={(e) => e.stopPropagation()}
+          className="m-4 flex max-h-[90vh] w-full max-w-[900px] flex-col"
+          onClick={e => e.stopPropagation()}
         >
           {/* Modal Content */}
-          <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800 flex flex-col overflow-hidden">
+          <div className="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
             {/* Header */}
-            <div className="flex items-start gap-3 mb-5 shrink-0">
-              <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30 text-indigo-500">
+            <div className="mb-5 flex shrink-0 items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-indigo-200 bg-indigo-50 text-indigo-500 dark:border-indigo-500/30 dark:bg-indigo-500/20">
                 <svg
-                  className="w-5 h-5"
+                  className="h-5 w-5"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -529,25 +483,23 @@ const DetailsPanel = () => {
                   <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <div className="flex-1 min-w-0">
-                <h2 className="text-base font-bold m-0 text-gray-800 dark:text-white">
-                  任务详情
-                </h2>
-                <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
+              <div className="min-w-0 flex-1">
+                <h2 className="m-0 text-base font-bold text-gray-800 dark:text-white">任务详情</h2>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-500">
                   {current ? "编辑并查看任务数据" : "请选择一个任务"}
                 </p>
               </div>
               <button
                 onClick={() => setRightOpen(false)}
-                className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
+                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-gray-100 text-gray-500 transition-all hover:bg-gray-200 hover:text-gray-700 dark:bg-zinc-800 dark:text-slate-400 dark:hover:bg-zinc-700 dark:hover:text-slate-200"
               >
-                <MdClose className="w-5 h-5" />
+                <MdClose className="h-5 w-5" />
               </button>
             </div>
 
             {/* Scrollable Content */}
             <div
-              className="flex-1 overflow-y-auto pr-1 min-h-0"
+              className="min-h-0 flex-1 overflow-y-auto pr-1"
               style={{ maxHeight: "calc(90vh - 120px)" }}
             >
               {!current ? (
@@ -555,25 +507,20 @@ const DetailsPanel = () => {
               ) : (
                 <div className="flex flex-col gap-5">
                   <div className="flex flex-col gap-2">
-                    <div className="text-xs text-gray-500 dark:text-slate-400 opacity-70">
-                      标题
-                    </div>
+                    <div className="text-xs text-gray-500 opacity-70 dark:text-slate-400">标题</div>
                     <EditText
                       key={current.id}
                       ref={titleRef}
                       defaultValue={current.title}
-                      onChange={(value) => setTitle(value)}
+                      onChange={value => setTitle(value)}
                       onPressEnter={handleTitleChange}
                       contentEditable={true}
-                      className="flex-1 min-w-0 h-9 leading-9 rounded-md px-3 text-base font-semibold transition-colors text-gray-800 dark:text-white hover:bg-gray-50 dark:hover:bg-zinc-800"
+                      className="h-9 min-w-0 flex-1 rounded-md px-3 text-base font-semibold leading-9 text-gray-800 transition-colors hover:bg-gray-50 dark:text-white dark:hover:bg-zinc-800"
                     />
                   </div>
 
                   <SectionBlock title="基本信息" description="任务类型与元信息">
-                    <ListRow
-                      label="任务类型"
-                      description="切换任务的分类或模式"
-                    >
+                    <ListRow label="任务类型" description="切换任务的分类或模式">
                       <CustomSelect
                         label=""
                         value={current.type || "normal"}
@@ -591,33 +538,25 @@ const DetailsPanel = () => {
                         ]}
                       />
                     </ListRow>
-                    <ListRow
-                      label="创建时间"
-                      description="记录首次创建的时间点"
-                    >
+                    <ListRow label="创建时间" description="记录首次创建的时间点">
                       <span className="text-sm text-gray-800 dark:text-white">
                         {formatDateTime(current.createTime)}
                       </span>
                     </ListRow>
                     <ListRow label="完成时间" description="标记完成的时间点">
                       <span className="text-sm text-gray-800 dark:text-white">
-                        {current.completedAt
-                          ? formatDateTime(current.completedAt)
-                          : "尚未完成"}
+                        {current.completedAt ? formatDateTime(current.completedAt) : "尚未完成"}
                       </span>
                     </ListRow>
                   </SectionBlock>
 
                   {current.type === "deadline" && (
-                    <SectionBlock
-                      title="截止任务"
-                      description="设置任务的截止与提醒"
-                    >
+                    <SectionBlock title="截止任务" description="设置任务的截止与提醒">
                       <ListRow label="截止日期" description="选择截止时间">
                         <DateTimePicker
                           label=""
                           value={current.dueAt ? dayjs(current.dueAt) : null}
-                          onChange={(date) =>
+                          onChange={date =>
                             updateItem({
                               id: current.id,
                               dueAt: date ? date.valueOf() : null,
@@ -630,7 +569,7 @@ const DetailsPanel = () => {
                           <CustomSelect
                             label=""
                             value={current.remindBefore?.toString() || ""}
-                            onChange={(value) =>
+                            onChange={value =>
                               updateItem({
                                 id: current.id,
                                 remindBefore: value ? parseInt(value) : null,
@@ -675,17 +614,12 @@ const DetailsPanel = () => {
                   )}
 
                   {current.type === "planned" && (
-                    <SectionBlock
-                      title="计划任务"
-                      description="设置开始/结束与提醒"
-                    >
+                    <SectionBlock title="计划任务" description="设置开始/结束与提醒">
                       <ListRow label="开始时间" description="计划的起始时间">
                         <DateTimePicker
                           label=""
-                          value={
-                            current.startAt ? dayjs(current.startAt) : null
-                          }
-                          onChange={(date) =>
+                          value={current.startAt ? dayjs(current.startAt) : null}
+                          onChange={date =>
                             updateItem({
                               id: current.id,
                               startAt: date ? date.valueOf() : null,
@@ -697,7 +631,7 @@ const DetailsPanel = () => {
                         <DateTimePicker
                           label=""
                           value={current.dueAt ? dayjs(current.dueAt) : null}
-                          onChange={(date) =>
+                          onChange={date =>
                             updateItem({
                               id: current.id,
                               dueAt: date ? date.valueOf() : null,
@@ -710,7 +644,7 @@ const DetailsPanel = () => {
                           <CustomSelect
                             label=""
                             value={current.remindBefore?.toString() || ""}
-                            onChange={(value) =>
+                            onChange={value =>
                               updateItem({
                                 id: current.id,
                                 remindBefore: value ? parseInt(value) : null,
@@ -755,7 +689,7 @@ const DetailsPanel = () => {
                   )}
 
                   {current.type === "recurring" && (
-                    <div className="rounded-xl border border-gray-100 dark:border-slate-800 bg-gray-50/60 dark:bg-zinc-900/40 px-4 py-3 flex flex-col gap-3">
+                    <div className="flex flex-col gap-3 rounded-xl border border-gray-100 bg-gray-50/60 px-4 py-3 dark:border-slate-800 dark:bg-zinc-900/40">
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex flex-col">
                           <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -764,9 +698,7 @@ const DetailsPanel = () => {
                           {recurrenceConfig && (
                             <div className="text-[11px] text-gray-500 dark:text-slate-400">
                               起始：
-                              {dayjs(recurrenceConfig.startDate).format(
-                                "YYYY-MM-DD",
-                              )}
+                              {dayjs(recurrenceConfig.startDate).format("YYYY-MM-DD")}
                               {recurrenceConfig.endDate
                                 ? ` · 结束：${dayjs(recurrenceConfig.endDate).format("YYYY-MM-DD")}`
                                 : " · 持续进行中"}
@@ -794,10 +726,7 @@ const DetailsPanel = () => {
                               label="完成天数"
                               value={`${recurrenceStats.completedDays} 天`}
                             />
-                            <InfoItem
-                              label="缺卡天数"
-                              value={`${recurrenceStats.missedDays} 天`}
-                            />
+                            <InfoItem label="缺卡天数" value={`${recurrenceStats.missedDays} 天`} />
                           </div>
                           <HeatmapGrid
                             stats={recurrenceStats}
@@ -814,17 +743,13 @@ const DetailsPanel = () => {
                   )}
 
                   <div className="flex flex-col gap-2">
-                    <div className="text-xs text-gray-500 dark:text-slate-400">
-                      描述
-                    </div>
-                    <div className="rounded-md border px-3 py-2 min-h-[120px] border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600">
+                    <div className="text-xs text-gray-500 dark:text-slate-400">描述</div>
+                    <div className="min-h-[120px] rounded-md border border-gray-200 px-3 py-2 hover:border-gray-300 dark:border-slate-700 dark:hover:border-slate-600">
                       <Editor
+                        contentId={current?.descriptionContentId ?? undefined}
                         key={current.id}
                         ref={descriptionEditorRef}
-                        initValue={
-                          current.descriptionContent ||
-                          createDefaultDescriptionContent()
-                        }
+                        initValue={current.descriptionContent || createDefaultDescriptionContent()}
                         onChange={handleDescriptionChange}
                         readonly={false}
                         placeHolder="添加描述..."
@@ -839,7 +764,7 @@ const DetailsPanel = () => {
         </motion.div>
       </motion.div>
     </AnimatePresence>,
-    document.body,
+    document.body
   );
 };
 

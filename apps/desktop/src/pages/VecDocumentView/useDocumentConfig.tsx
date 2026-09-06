@@ -1,4 +1,4 @@
-import { Editor } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import { formatDate, getEditorText, getMarkdown } from "@/utils";
 import { getAllDocuments, getAllDocumentItems } from "@/commands";
 import { IDocument, IDocumentItem, IndexParams, SearchResult } from "@/types";
@@ -34,10 +34,7 @@ interface ExtendedDocumentItem extends Omit<IDocumentItem, "children"> {
 }
 
 // 递归获取所有子项的ID
-const getAllChildrenIds = (
-  item: ExtendedDocumentItem,
-  items: ExtendedDocumentItem[],
-): number[] => {
+const getAllChildrenIds = (item: ExtendedDocumentItem, items: ExtendedDocumentItem[]): number[] => {
   const result: number[] = [];
 
   if (item.children && item.children.length > 0) {
@@ -53,7 +50,7 @@ const getAllChildrenIds = (
 // 递归查找知识库项
 const findItemById = (
   id: number,
-  items: ExtendedDocumentItem[],
+  items: ExtendedDocumentItem[]
 ): ExtendedDocumentItem | undefined => {
   for (const item of items) {
     if (item.id === id) {
@@ -75,21 +72,16 @@ const useDocumentConfig = () => {
   const { message } = App.useApp();
   const [documents, setDocuments] = useState<IDocument[]>([]);
   const [documentItems, setDocumentItems] = useState<IDocumentItem[]>([]);
-  const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(
-    null,
-  );
+  const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
   const [vecResults, setVecResults] = useState<SearchResult[]>([]);
   const [filteredInfo, setFilteredInfo] = useState<Filters>({});
   const [selectedRows, setSelectedRows] = useState<ExtendedDocumentItem[]>([]);
   const [current, setCurrent] = useState(1);
   const [allTreeData, setAllTreeData] = useState<ExtendedDocumentItem[]>([]);
   const [loadingIds, setLoadingIds] = useState<number[]>([]);
-  const [pageSize, setPageSize] = useLocalStorageState<number>(
-    "document-pagesize",
-    {
-      defaultValue: PAGE_SIZE,
-    },
-  );
+  const [pageSize, setPageSize] = useLocalStorageState<number>("document-pagesize", {
+    defaultValue: PAGE_SIZE,
+  });
 
   const modelInfo = useEmbeddingConfig();
 
@@ -142,9 +134,7 @@ const useDocumentConfig = () => {
     if (!selectedDocumentId) return [];
 
     // 获取选中的知识库
-    const selectedDocument = documents.find(
-      (doc) => doc.id === selectedDocumentId,
-    );
+    const selectedDocument = documents.find(doc => doc.id === selectedDocumentId);
     if (!selectedDocument) return [];
 
     // 获取直接子文档项的ID
@@ -152,23 +142,21 @@ const useDocumentConfig = () => {
 
     // 构建ID到文档项的映射，方便快速查找
     const itemMap = new Map<number, IDocumentItem>();
-    documentItems.forEach((item) => {
+    documentItems.forEach(item => {
       itemMap.set(item.id, item);
     });
 
     // 递归构建树结构
     const buildTree = (itemIds: number[]): ExtendedDocumentItem[] => {
       return itemIds
-        .map((id) => itemMap.get(id))
+        .map(id => itemMap.get(id))
         .filter(Boolean)
-        .map((item) => {
+        .map(item => {
           if (!item) return null;
 
           // 递归构建子树
           const childrenItems =
-            item.children && item.children.length > 0
-              ? buildTree(item.children)
-              : undefined;
+            item.children && item.children.length > 0 ? buildTree(item.children) : undefined;
 
           const { children: _, ...rest } = item;
 
@@ -197,14 +185,11 @@ const useDocumentConfig = () => {
       filteredInfo.index_status.length > 0
     ) {
       // 递归过滤函数
-      const filterItems = (
-        items: ExtendedDocumentItem[],
-      ): ExtendedDocumentItem[] => {
-        return items.filter((item) => {
+      const filterItems = (items: ExtendedDocumentItem[]): ExtendedDocumentItem[] => {
+        return items.filter(item => {
           // 查找索引状态
           const vecResult = vecResults.find(
-            (result) =>
-              result.id === item.id && result.type === "document-item",
+            result => result.id === item.id && result.type === "document-item"
           );
 
           let status;
@@ -221,8 +206,7 @@ const useDocumentConfig = () => {
           // 如果有子项，递归过滤
           if (item.children && item.children.length > 0) {
             const filteredChildren = filterItems(item.children);
-            item.children =
-              filteredChildren.length > 0 ? filteredChildren : undefined;
+            item.children = filteredChildren.length > 0 ? filteredChildren : undefined;
           }
 
           // 如果当前项匹配或者有匹配的子项，则保留
@@ -244,7 +228,7 @@ const useDocumentConfig = () => {
   }, [filteredData, current, pageSize]);
 
   // 适配useBatchOperation所需的数据结构
-  const adaptedSelectedRows = selectedRows.map((item) => ({
+  const adaptedSelectedRows = selectedRows.map(item => ({
     id: item.id,
     content: item.content,
     update_time: item.updateTime,
@@ -267,11 +251,11 @@ const useDocumentConfig = () => {
     update_time: number;
   }>({
     selectedRows: adaptedSelectedRows,
-    setSelectedRows: (newRows) => {
+    setSelectedRows: newRows => {
       // 将适配后的数据转换回原始数据结构
       const originalRows = (Array.isArray(newRows) ? newRows : [])
-        .map((row) => {
-          const item = documentItems.find((item) => item.id === row.id);
+        .map(row => {
+          const item = documentItems.find(item => item.id === row.id);
           if (!item) return undefined;
 
           // 转换为ExtendedDocumentItem
@@ -289,18 +273,16 @@ const useDocumentConfig = () => {
 
   // 行选择配置
   const rowSelection: TableRowSelection<ExtendedDocumentItem> = {
-    selectedRowKeys: selectedRows.map((row) => row.id),
+    selectedRowKeys: selectedRows.map(row => row.id),
     onChange: (selectedRowKeys, newSelectedRows) => {
       // 找出新增的行
-      const oldSelectedKeys = selectedRows.map((row) => row.id);
+      const oldSelectedKeys = selectedRows.map(row => row.id);
       const newlySelectedKeys = selectedRowKeys.filter(
-        (key) => !oldSelectedKeys.includes(key as number),
+        key => !oldSelectedKeys.includes(key as number)
       );
 
       // 找出取消选择的行
-      const deselectedKeys = oldSelectedKeys.filter(
-        (key) => !selectedRowKeys.includes(key),
-      );
+      const deselectedKeys = oldSelectedKeys.filter(key => !selectedRowKeys.includes(key));
 
       // 处理新增选择的行，自动选中其所有子项
       const additionalRows: ExtendedDocumentItem[] = [];
@@ -329,9 +311,7 @@ const useDocumentConfig = () => {
           const childrenIds = getAllChildrenIds(item, allTreeData);
 
           // 从选择列表中移除所有子项
-          finalSelectedRows = finalSelectedRows.filter(
-            (row) => !childrenIds.includes(row.id),
-          );
+          finalSelectedRows = finalSelectedRows.filter(row => !childrenIds.includes(row.id));
         }
       }
 
@@ -342,15 +322,14 @@ const useDocumentConfig = () => {
   // 创建索引
   const onCreateEmbedding = useMemoizedFn(
     async (markdown: string, record: ExtendedDocumentItem) => {
-      setLoadingIds((prev) => [...prev, record.id]);
+      setLoadingIds(prev => [...prev, record.id]);
       const messageKey = `create-document-item-index-${record.id}`;
       message.loading({ content: "正在创建索引...", key: messageKey });
 
       try {
         // 检查当前索引状态
         const vecResult = vecResults.find(
-          (result) =>
-            result.id === record.id && result.type === "document-item",
+          result => result.id === record.id && result.type === "document-item"
         );
 
         // 如果已存在且是最新的索引，直接返回成功
@@ -391,23 +370,22 @@ const useDocumentConfig = () => {
         message.error({ content: "索引创建失败", key: messageKey });
         return false;
       } finally {
-        setLoadingIds((prev) => prev.filter((id) => id !== record.id));
+        setLoadingIds(prev => prev.filter(id => id !== record.id));
       }
-    },
+    }
   );
 
   // 更新索引
   const onUpdateEmbedding = useMemoizedFn(
     async (markdown: string, record: ExtendedDocumentItem) => {
-      setLoadingIds((prev) => [...prev, record.id]);
+      setLoadingIds(prev => [...prev, record.id]);
       const messageKey = `update-document-item-index-${record.id}`;
       message.loading({ content: "正在更新索引...", key: messageKey });
 
       try {
         // 检查当前索引状态
         const vecResult = vecResults.find(
-          (result) =>
-            result.id === record.id && result.type === "document-item",
+          result => result.id === record.id && result.type === "document-item"
         );
 
         // 如果没有索引或索引需要更新
@@ -448,32 +426,30 @@ const useDocumentConfig = () => {
         message.error({ content: "索引更新失败", key: messageKey });
         return false;
       } finally {
-        setLoadingIds((prev) => prev.filter((id) => id !== record.id));
+        setLoadingIds(prev => prev.filter(id => id !== record.id));
       }
-    },
+    }
   );
 
   // 删除索引
-  const onRemoveEmbedding = useMemoizedFn(
-    async (record: ExtendedDocumentItem) => {
-      setLoadingIds((prev) => [...prev, record.id]);
-      const messageKey = `remove-document-item-index-${record.id}`;
-      message.loading({ content: "正在删除索引...", key: messageKey });
+  const onRemoveEmbedding = useMemoizedFn(async (record: ExtendedDocumentItem) => {
+    setLoadingIds(prev => [...prev, record.id]);
+    const messageKey = `remove-document-item-index-${record.id}`;
+    message.loading({ content: "正在删除索引...", key: messageKey });
 
-      try {
-        await removeIndex(record.id, "document-item");
-        await initIndexResults();
-        message.success({ content: "索引删除成功", key: messageKey });
-        return true;
-      } catch (error) {
-        console.error("删除索引失败", error);
-        message.error({ content: "索引删除失败", key: messageKey });
-        return false;
-      } finally {
-        setLoadingIds((prev) => prev.filter((id) => id !== record.id));
-      }
-    },
-  );
+    try {
+      await removeIndex(record.id, "document-item");
+      await initIndexResults();
+      message.success({ content: "索引删除成功", key: messageKey });
+      return true;
+    } catch (error) {
+      console.error("删除索引失败", error);
+      message.error({ content: "索引删除失败", key: messageKey });
+      return false;
+    } finally {
+      setLoadingIds(prev => prev.filter(id => id !== record.id));
+    }
+  });
 
   // 表格列配置
   const columns: TableColumnType<ExtendedDocumentItem>[] = [
@@ -491,7 +467,7 @@ const useDocumentConfig = () => {
       title: "内容",
       dataIndex: "content",
       key: "content",
-      render: (content: Descendant[]) => {
+      render: (content: Descendant[], record: { contentId?: number }) => {
         // 添加空值检查
         if (!content || !Array.isArray(content)) return null;
 
@@ -499,15 +475,12 @@ const useDocumentConfig = () => {
           <Popover
             content={
               <div style={{ width: 400, maxHeight: 400, overflow: "auto" }}>
-                <Editor initValue={content || []} readonly={true} />
+                <Editor contentId={record.contentId} initValue={content || []} readonly={true} />
               </div>
             }
             trigger="click"
           >
-            <Typography.Text
-              ellipsis
-              style={{ maxWidth: 300, cursor: "pointer" }}
-            >
+            <Typography.Text ellipsis style={{ maxWidth: 300, cursor: "pointer" }}>
               {getEditorText(content || [])}
             </Typography.Text>
           </Popover>
@@ -539,18 +512,13 @@ const useDocumentConfig = () => {
       render: (_, record) => {
         // 查找索引状态
         const vecResult = vecResults.find(
-          (result) =>
-            result.id === record.id && result.type === "document-item",
+          result => result.id === record.id && result.type === "document-item"
         );
 
         // 显示向量索引状态
         if (vecResult) {
           return (
-            <Tag
-              color={
-                record.updateTime > vecResult.updateTime ? "orange" : "green"
-              }
-            >
+            <Tag color={record.updateTime > vecResult.updateTime ? "orange" : "green"}>
               {record.updateTime > vecResult.updateTime ? "待更新" : "已索引"}
             </Tag>
           );
@@ -568,8 +536,7 @@ const useDocumentConfig = () => {
 
         // 查找索引状态
         const vecResult = vecResults.find(
-          (result) =>
-            result.id === record.id && result.type === "document-item",
+          result => result.id === record.id && result.type === "document-item"
         );
 
         if (!vecResult) {
@@ -642,7 +609,7 @@ const useDocumentConfig = () => {
         setPageSize(pagination.pageSize || PAGE_SIZE);
       }
       setFilteredInfo(filteredInfo);
-    },
+    }
   );
 
   // 右侧额外节点
@@ -662,8 +629,7 @@ const useDocumentConfig = () => {
       <Button
         type="primary"
         disabled={
-          selectedRows.length === 0 ||
-          createEmbeddings.length + updateEmbeddings.length === 0
+          selectedRows.length === 0 || createEmbeddings.length + updateEmbeddings.length === 0
         }
         loading={batchCreateOrUpdateLoading}
         onClick={handleBatchEmbedding}
@@ -688,7 +654,7 @@ const useDocumentConfig = () => {
       placeholder="选择知识库"
       value={selectedDocumentId}
       onChange={setSelectedDocumentId}
-      options={documents.map((doc) => ({
+      options={documents.map(doc => ({
         label: doc.title,
         value: doc.id,
       }))}

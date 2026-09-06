@@ -83,17 +83,12 @@ import mainContentIndexDBManager, {
   IndexRebuildTarget,
 } from "./main-content-index-db";
 import MAIN_SCHEMA_SQL from "@tau/db-schema/schema/main.sql?raw";
+import { migrateContentBindings } from "./collaboration/content-repository";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 
 export type DatabaseConnectMode = "normal" | "maintenance";
-export type DatabaseReconnectSource =
-  | "sync_upload_reconnect"
-  | "sync_download_reconnect";
-export type DatabaseConnectReason =
-  | "connect"
-  | "switch"
-  | "reconnect"
-  | DatabaseReconnectSource;
+export type DatabaseReconnectSource = "sync_upload_reconnect" | "sync_download_reconnect";
+export type DatabaseConnectReason = "connect" | "switch" | "reconnect" | DatabaseReconnectSource;
 
 class DatabaseModule implements Module {
   name: string;
@@ -101,10 +96,7 @@ class DatabaseModule implements Module {
   databases: Map<string, Database.Database>;
   windowToDatabase: Map<number, string>;
   tables: Table[];
-  eventAndHandlers: Record<
-    string,
-    (db: Database.Database, ...args: any) => any
-  >;
+  eventAndHandlers: Record<string, (db: Database.Database, ...args: any) => any>;
   indexEventAndHandlers: Record<
     string,
     (mainDb: Database.Database, indexDb: Database.Database, ...args: any) => any
@@ -115,10 +107,7 @@ class DatabaseModule implements Module {
   private databaseConnectedCallbacks: Array<
     (dbName: string, reason: DatabaseConnectReason) => void
   > = [];
-  private indexEnsurePromises: Map<
-    string,
-    Promise<EnsureIndexReadyResult | null>
-  > = new Map();
+  private indexEnsurePromises: Map<string, Promise<EnsureIndexReadyResult | null>> = new Map();
 
   getDatabase(name: string): Database.Database | undefined {
     return this.databases.get(name);
@@ -145,17 +134,14 @@ class DatabaseModule implements Module {
     return this.getIndexDatabase(this.currentDatabaseName);
   }
 
-  getIndexRebuildState(
-    name: string,
-    target: IndexRebuildTarget = "aggregate",
-  ): IndexRebuildState {
+  getIndexRebuildState(name: string, target: IndexRebuildTarget = "aggregate"): IndexRebuildState {
     return mainContentIndexDBManager.getRebuildState(name, target);
   }
 
   setIndexRebuildState(
     name: string,
     state: IndexRebuildState,
-    target: IndexRebuildTarget = "aggregate",
+    target: IndexRebuildTarget = "aggregate"
   ) {
     mainContentIndexDBManager.setRebuildState(name, state, target);
   }
@@ -163,32 +149,27 @@ class DatabaseModule implements Module {
   onDatabaseChange(callback: (dbName: string) => void): () => void {
     this.databaseChangeCallbacks.push(callback);
     return () => {
-      this.databaseChangeCallbacks = this.databaseChangeCallbacks.filter(
-        (cb) => cb !== callback,
-      );
+      this.databaseChangeCallbacks = this.databaseChangeCallbacks.filter(cb => cb !== callback);
     };
   }
 
   onDatabaseConnected(
-    callback: (dbName: string, reason: DatabaseConnectReason) => void,
+    callback: (dbName: string, reason: DatabaseConnectReason) => void
   ): () => void {
     this.databaseConnectedCallbacks.push(callback);
     return () => {
       this.databaseConnectedCallbacks = this.databaseConnectedCallbacks.filter(
-        (cb) => cb !== callback,
+        cb => cb !== callback
       );
     };
   }
 
   private notifyDatabaseChange(dbName: string): void {
-    this.databaseChangeCallbacks.forEach((cb) => cb(dbName));
+    this.databaseChangeCallbacks.forEach(cb => cb(dbName));
   }
 
-  private notifyDatabaseConnected(
-    dbName: string,
-    reason: DatabaseConnectReason,
-  ): void {
-    this.databaseConnectedCallbacks.forEach((cb) => cb(dbName, reason));
+  private notifyDatabaseConnected(dbName: string, reason: DatabaseConnectReason): void {
+    this.databaseConnectedCallbacks.forEach(cb => cb(dbName, reason));
   }
 
   constructor() {
@@ -273,7 +254,7 @@ class DatabaseModule implements Module {
           ...events,
         };
       },
-      {} as Record<string, (args: any) => Promise<any>>,
+      {} as Record<string, (args: any) => Promise<any>>
     );
     Object.assign(this.eventAndHandlers, getXiaoyuzhouListenEvents());
     this.indexEventAndHandlers = {
@@ -304,42 +285,39 @@ class DatabaseModule implements Module {
     const startedAt = Date.now();
     const appDir = PathUtil.getAppDir();
     const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
-    log.info(
-      `[database] openDatabase start: db=${name}, mode=${mode}, dbPath=${dbPath}`,
-    );
+    log.info(`[database] openDatabase start: db=${name}, mode=${mode}, dbPath=${dbPath}`);
 
     const openStartAt = Date.now();
     const database = new Database(dbPath);
     if (!database) throw new Error("No database found");
     log.info(
-      `[database] openDatabase sqlite open done: db=${name}, elapsedMs=${Date.now() - openStartAt}`,
+      `[database] openDatabase sqlite open done: db=${name}, elapsedMs=${Date.now() - openStartAt}`
     );
 
     const extensionStartAt = Date.now();
     loadSqliteVecExtension(database);
     log.info(
-      `[database] openDatabase load sqlite-vec done: db=${name}, elapsedMs=${Date.now() - extensionStartAt}`,
+      `[database] openDatabase load sqlite-vec done: db=${name}, elapsedMs=${Date.now() - extensionStartAt}`
     );
 
     const vecVersionStartAt = Date.now();
-    const { vec_version } = database
-      .prepare("select vec_version() as vec_version;")
-      .get() as any;
+    const { vec_version } = database.prepare("select vec_version() as vec_version;").get() as any;
 
     log.info(
-      `[database] openDatabase vec_version read: db=${name}, vec_version=${vec_version}, elapsedMs=${Date.now() - vecVersionStartAt}`,
+      `[database] openDatabase vec_version read: db=${name}, vec_version=${vec_version}, elapsedMs=${Date.now() - vecVersionStartAt}`
     );
 
     const pragmaStartAt = Date.now();
     database.pragma("journal_mode = WAL");
     log.info(
-      `[database] openDatabase journal_mode done: db=${name}, elapsedMs=${Date.now() - pragmaStartAt}`,
+      `[database] openDatabase journal_mode done: db=${name}, elapsedMs=${Date.now() - pragmaStartAt}`
     );
 
     const schemaStartAt = Date.now();
     database.exec(MAIN_SCHEMA_SQL);
+    migrateContentBindings(database);
     log.info(
-      `[database] openDatabase main schema done: db=${name}, elapsedMs=${Date.now() - schemaStartAt}`,
+      `[database] openDatabase main schema done: db=${name}, elapsedMs=${Date.now() - schemaStartAt}`
     );
 
     if (mode === "maintenance") {
@@ -348,15 +326,13 @@ class DatabaseModule implements Module {
         table.upgradeTable(database);
       }
       log.info(
-        `[database] openDatabase maintenance upgrades done: db=${name}, tableCount=${this.tables.length}, elapsedMs=${Date.now() - upgradeStartAt}`,
+        `[database] openDatabase maintenance upgrades done: db=${name}, tableCount=${this.tables.length}, elapsedMs=${Date.now() - upgradeStartAt}`
       );
 
       database.exec("DROP TABLE IF EXISTS shortcuts");
 
       const pageCount = Number(database.pragma("page_count", { simple: true }));
-      const freelistCount = Number(
-        database.pragma("freelist_count", { simple: true }),
-      );
+      const freelistCount = Number(database.pragma("freelist_count", { simple: true }));
       const pageSize = Number(database.pragma("page_size", { simple: true }));
       if (shouldVacuumDatabase({ pageCount, freelistCount, pageSize })) {
         try {
@@ -364,7 +340,7 @@ class DatabaseModule implements Module {
           database.exec("VACUUM");
           database.pragma("wal_checkpoint(TRUNCATE)");
           log.info(
-            `[database] openDatabase vacuum done: db=${name}, reclaimedPages=${freelistCount}, elapsedMs=${Date.now() - vacuumStartAt}`,
+            `[database] openDatabase vacuum done: db=${name}, reclaimedPages=${freelistCount}, elapsedMs=${Date.now() - vacuumStartAt}`
           );
         } catch (e) {
           console.error(e);
@@ -373,7 +349,7 @@ class DatabaseModule implements Module {
     }
 
     log.info(
-      `[database] openDatabase done: db=${name}, mode=${mode}, totalElapsedMs=${Date.now() - startedAt}`,
+      `[database] openDatabase done: db=${name}, mode=${mode}, totalElapsedMs=${Date.now() - startedAt}`
     );
 
     return database;
@@ -385,15 +361,11 @@ class DatabaseModule implements Module {
     const indexDb = mainContentIndexDBManager.getExistingDatabase(name);
 
     try {
-      const { busy, log } = db
-        .prepare("PRAGMA wal_checkpoint(FULL)")
-        .get() as any;
+      const { busy, log } = db.prepare("PRAGMA wal_checkpoint(FULL)").get() as any;
       if (busy !== 0) throw new Error("存在未释放的数据库锁");
       if (log !== 0) throw new Error("WAL 文件未完全合并");
       if (indexDb) {
-        const indexCheckpoint = indexDb
-          .prepare("PRAGMA wal_checkpoint(FULL)")
-          .get() as any;
+        const indexCheckpoint = indexDb.prepare("PRAGMA wal_checkpoint(FULL)").get() as any;
         if (indexCheckpoint?.busy !== 0) {
           throw new Error("索引数据库存在未释放的数据库锁");
         }
@@ -411,57 +383,43 @@ class DatabaseModule implements Module {
 
   ensureIndexDatabaseReady(
     name: string,
-    reason = "unspecified",
+    reason = "unspecified"
   ): Promise<EnsureIndexReadyResult | null> {
     const existing = this.indexEnsurePromises.get(name);
     if (existing) {
-      log.info(
-        `[database] index ensureReady reuse in-flight task: db=${name}, reason=${reason}`,
-      );
+      log.info(`[database] index ensureReady reuse in-flight task: db=${name}, reason=${reason}`);
       return existing;
     }
 
-    log.info(
-      `[database] index ensureReady enqueue: db=${name}, reason=${reason}`,
-    );
+    log.info(`[database] index ensureReady enqueue: db=${name}, reason=${reason}`);
 
-    const task = new Promise<EnsureIndexReadyResult | null>(
-      (resolve, reject) => {
-        setImmediate(() => {
-          log.info(
-            `[database] index ensureReady task start: db=${name}, reason=${reason}`,
+    const task = new Promise<EnsureIndexReadyResult | null>((resolve, reject) => {
+      setImmediate(() => {
+        log.info(`[database] index ensureReady task start: db=${name}, reason=${reason}`);
+        const database = this.getDatabase(name);
+        if (!database) {
+          log.warn(
+            `[database] index ensure skipped: db=${name}, reason=${reason}, main database missing`
           );
-          const database = this.getDatabase(name);
-          if (!database) {
-            log.warn(
-              `[database] index ensure skipped: db=${name}, reason=${reason}, main database missing`,
-            );
-            resolve(null);
-            return;
-          }
+          resolve(null);
+          return;
+        }
 
-          const ensureStartAt = Date.now();
-          try {
-            const ensureResult = mainContentIndexDBManager.ensureReady(
-              name,
-              database,
-            );
-            log.info(
-              `[database] index ensureReady done: db=${name}, reason=${reason}, migrationState=${ensureResult.migrationState}, rebuildState=${ensureResult.rebuildState}, elapsedMs=${Date.now() - ensureStartAt}`,
-            );
-            resolve(ensureResult);
-          } catch (error) {
-            log.error(
-              `[database] index ensureReady failed: db=${name}, reason=${reason}`,
-              error,
-            );
-            reject(error);
-          } finally {
-            this.indexEnsurePromises.delete(name);
-          }
-        });
-      },
-    );
+        const ensureStartAt = Date.now();
+        try {
+          const ensureResult = mainContentIndexDBManager.ensureReady(name, database);
+          log.info(
+            `[database] index ensureReady done: db=${name}, reason=${reason}, migrationState=${ensureResult.migrationState}, rebuildState=${ensureResult.rebuildState}, elapsedMs=${Date.now() - ensureStartAt}`
+          );
+          resolve(ensureResult);
+        } catch (error) {
+          log.error(`[database] index ensureReady failed: db=${name}, reason=${reason}`, error);
+          reject(error);
+        } finally {
+          this.indexEnsurePromises.delete(name);
+        }
+      });
+    });
 
     this.indexEnsurePromises.set(name, task);
     return task;
@@ -493,10 +451,9 @@ class DatabaseModule implements Module {
       name: string,
       force?: boolean,
       mode?: DatabaseConnectMode,
-      source?: DatabaseReconnectSource,
+      source?: DatabaseReconnectSource
     ) => {
-      const connectMode: DatabaseConnectMode =
-        mode === "normal" ? "normal" : "maintenance";
+      const connectMode: DatabaseConnectMode = mode === "normal" ? "normal" : "maintenance";
       const appDir = PathUtil.getAppDir();
       const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
       const existedBeforeConnect = this.databases.has(name);
@@ -507,7 +464,7 @@ class DatabaseModule implements Module {
 
       if (!this.databases.has(name) || force) {
         log.info(
-          `[database] create-or-connect-database start: db=${name}, dbPath=${dbPath}, force=${Boolean(force)}, mode=${connectMode}`,
+          `[database] create-or-connect-database start: db=${name}, dbPath=${dbPath}, force=${Boolean(force)}, mode=${connectMode}`
         );
         if (this.databases.has(name)) {
           this.databases.get(name)!.close();
@@ -522,12 +479,9 @@ class DatabaseModule implements Module {
         throw new Error(`No database found after connect: ${name}`);
       }
 
-      const ensureMode =
-        existedBeforeConnect && !force
-          ? "warm_recheck"
-          : "connect_or_reconnect";
+      const ensureMode = existedBeforeConnect && !force ? "warm_recheck" : "connect_or_reconnect";
       log.info(
-        `[database] create-or-connect-database index ensureReady scheduled: db=${name}, mode=${ensureMode}`,
+        `[database] create-or-connect-database index ensureReady scheduled: db=${name}, mode=${ensureMode}`
       );
       this.warmIndexDatabaseInBackground(name, ensureMode);
 
@@ -535,7 +489,7 @@ class DatabaseModule implements Module {
         const checkpointStartAt = Date.now();
         const checkpointOk = this.forceCheckpoint(name);
         log.info(
-          `[database] create-or-connect-database checkpoint result: db=${name}, success=${checkpointOk}, elapsedMs=${Date.now() - checkpointStartAt}`,
+          `[database] create-or-connect-database checkpoint result: db=${name}, success=${checkpointOk}, elapsedMs=${Date.now() - checkpointStartAt}`
         );
       }
 
@@ -574,24 +528,24 @@ class DatabaseModule implements Module {
         name,
         force?: boolean,
         mode?: DatabaseConnectMode,
-        source?: DatabaseReconnectSource,
+        source?: DatabaseReconnectSource
       ) => {
         await connectDatabase(event, name, force, mode, source);
-      },
+      }
     );
 
     ipcMain.handle(
       "reconnect-database-fast",
       async (event, name, source?: DatabaseReconnectSource) => {
         await connectDatabase(event, name, true, "normal", source);
-      },
+      }
     );
 
     ipcMain.handle("force-checkpoint", async (_event, name) => {
       return this.forceCheckpoint(name);
     });
 
-    Object.keys(this.eventAndHandlers).forEach((eventName) => {
+    Object.keys(this.eventAndHandlers).forEach(eventName => {
       ipcMain.handle(eventName, async (event, ...args) => {
         const sender = event.sender;
         const win = BrowserWindow.fromWebContents(sender);
@@ -615,10 +569,7 @@ class DatabaseModule implements Module {
           }
           return res;
         } catch (e) {
-          log.error(
-            `[database] event failed: db=${dbName}, event=${eventName}`,
-            e,
-          );
+          log.error(`[database] event failed: db=${dbName}, event=${eventName}`, e);
           if (useTransaction) {
             db.exec("ROLLBACK");
           }
@@ -636,7 +587,7 @@ class DatabaseModule implements Module {
       "get-all-vec-document-results",
     ]);
 
-    Object.keys(this.indexEventAndHandlers).forEach((eventName) => {
+    Object.keys(this.indexEventAndHandlers).forEach(eventName => {
       ipcMain.handle(eventName, async (event, ...args) => {
         const sender = event.sender;
         const win = BrowserWindow.fromWebContents(sender);
@@ -656,31 +607,18 @@ class DatabaseModule implements Module {
         log.info(`database ${dbName} index event ${eventName}`);
 
         if (readOnlyIndexEvents.has(eventName)) {
-          return await this.indexEventAndHandlers[eventName](
-            mainDb,
-            indexDb,
-            ...args,
-            win,
-          );
+          return await this.indexEventAndHandlers[eventName](mainDb, indexDb, ...args, win);
         }
 
         try {
           mainDb.exec("BEGIN");
           indexDb.exec("BEGIN");
-          const res = await this.indexEventAndHandlers[eventName](
-            mainDb,
-            indexDb,
-            ...args,
-            win,
-          );
+          const res = await this.indexEventAndHandlers[eventName](mainDb, indexDb, ...args, win);
           indexDb.exec("COMMIT");
           mainDb.exec("COMMIT");
           return res;
         } catch (e) {
-          log.error(
-            `[database] index event failed: db=${dbName}, event=${eventName}`,
-            e,
-          );
+          log.error(`[database] index event failed: db=${dbName}, event=${eventName}`, e);
           try {
             indexDb.exec("ROLLBACK");
           } catch {

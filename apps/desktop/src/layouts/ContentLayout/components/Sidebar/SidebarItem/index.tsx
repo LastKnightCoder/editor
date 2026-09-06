@@ -9,7 +9,7 @@ interface SidebarItemProps {
   style?: React.CSSProperties;
   className?: string;
   label: string;
-  icon: string;
+  icon: React.ReactNode;
   active: boolean;
   isShortWidth?: boolean;
   showTooltip?: boolean;
@@ -39,9 +39,7 @@ const SidebarItem = memo((props: SidebarItemProps) => {
       style={style}
       onClick={onClick}
     >
-      <div className={styles.icon}>
-        <SVG src={icon} />
-      </div>
+      <div className={styles.icon}>{typeof icon === "string" ? <SVG src={icon} /> : icon}</div>
 
       <div className={styles.label}>{label}</div>
     </div>
@@ -52,11 +50,7 @@ const SidebarItem = memo((props: SidebarItemProps) => {
   }
 
   return (
-    <Tooltip
-      title={isShortWidth ? label : ""}
-      trigger={"hover"}
-      placement="right"
-    >
+    <Tooltip title={isShortWidth ? label : ""} trigger={"hover"} placement="right">
       {content}
     </Tooltip>
   );

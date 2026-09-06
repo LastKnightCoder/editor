@@ -1,4 +1,4 @@
-import { Editor } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import { formatDate, getEditorText, getMarkdown } from "@/utils";
 import { getProjectList, getAllProjectItems } from "@/commands";
 import { IndexParams, Project, ProjectItem, SearchResult } from "@/types";
@@ -34,10 +34,7 @@ interface ExtendedProjectItem extends Omit<ProjectItem, "children"> {
 }
 
 // 递归获取所有子项的ID
-const getAllChildrenIds = (
-  item: ExtendedProjectItem,
-  items: ExtendedProjectItem[],
-): number[] => {
+const getAllChildrenIds = (item: ExtendedProjectItem, items: ExtendedProjectItem[]): number[] => {
   const result: number[] = [];
 
   if (item.children && item.children.length > 0) {
@@ -53,7 +50,7 @@ const getAllChildrenIds = (
 // 递归查找项目项
 const findItemById = (
   id: number,
-  items: ExtendedProjectItem[],
+  items: ExtendedProjectItem[]
 ): ExtendedProjectItem | undefined => {
   for (const item of items) {
     if (item.id === id) {
@@ -75,21 +72,16 @@ const useProjectConfig = () => {
   const { message } = App.useApp();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectItems, setProjectItems] = useState<ProjectItem[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
-    null,
-  );
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [vecResults, setVecResults] = useState<SearchResult[]>([]);
   const [filteredInfo, setFilteredInfo] = useState<Filters>({});
   const [selectedRows, setSelectedRows] = useState<ExtendedProjectItem[]>([]);
   const [current, setCurrent] = useState(1);
   const [allTreeData, setAllTreeData] = useState<ExtendedProjectItem[]>([]);
   const [loadingIds, setLoadingIds] = useState<number[]>([]);
-  const [pageSize, setPageSize] = useLocalStorageState<number>(
-    "project-pagesize",
-    {
-      defaultValue: PAGE_SIZE,
-    },
-  );
+  const [pageSize, setPageSize] = useLocalStorageState<number>("project-pagesize", {
+    defaultValue: PAGE_SIZE,
+  });
   const modelInfo = useEmbeddingConfig();
 
   const fetchProjects = useMemoizedFn(async () => {
@@ -142,32 +134,27 @@ const useProjectConfig = () => {
     if (!selectedProjectId) return [];
 
     // 获取属于该项目的所有项目项
-    const projectRelatedItems = projectItems.filter((item) =>
-      item.projects.includes(selectedProjectId),
+    const projectRelatedItems = projectItems.filter(item =>
+      item.projects.includes(selectedProjectId)
     );
 
     // 获取根级项目项（没有父级或父级不在当前项目中的项目项）
-    const rootItems = projectRelatedItems.filter((item) => {
+    const rootItems = projectRelatedItems.filter(item => {
       if (!item.parents || item.parents.length === 0) return true;
 
       // 检查父级是否都不在当前项目中
-      return !item.parents.some((parentId) =>
-        projectRelatedItems.some((pi) => pi.id === parentId),
-      );
+      return !item.parents.some(parentId => projectRelatedItems.some(pi => pi.id === parentId));
     });
 
     // 构建树形结构
     const buildTree = (items: ProjectItem[]): ExtendedProjectItem[] => {
-      return items.map((item) => {
+      return items.map(item => {
         // 查找子项
         const childrenIds = item.children || [];
-        const childItems = projectRelatedItems.filter((child) =>
-          childrenIds.includes(child.id),
-        );
+        const childItems = projectRelatedItems.filter(child => childrenIds.includes(child.id));
 
         // 递归构建子树
-        const children =
-          childItems.length > 0 ? buildTree(childItems) : undefined;
+        const children = childItems.length > 0 ? buildTree(childItems) : undefined;
 
         // 创建扩展的项目项，排除原始的children属性
         const { children: _, ...rest } = item;
@@ -195,13 +182,11 @@ const useProjectConfig = () => {
       filteredInfo.index_status.length > 0
     ) {
       // 递归过滤函数
-      const filterItems = (
-        items: ExtendedProjectItem[],
-      ): ExtendedProjectItem[] => {
-        return items.filter((item) => {
+      const filterItems = (items: ExtendedProjectItem[]): ExtendedProjectItem[] => {
+        return items.filter(item => {
           // 查找索引状态
           const vecResult = vecResults.find(
-            (result) => result.id === item.id && result.type === "project-item",
+            result => result.id === item.id && result.type === "project-item"
           );
 
           let status;
@@ -218,8 +203,7 @@ const useProjectConfig = () => {
           // 如果有子项，递归过滤
           if (item.children && item.children.length > 0) {
             const filteredChildren = filterItems(item.children);
-            item.children =
-              filteredChildren.length > 0 ? filteredChildren : undefined;
+            item.children = filteredChildren.length > 0 ? filteredChildren : undefined;
           }
 
           // 如果当前项匹配或者有匹配的子项，则保留
@@ -241,7 +225,7 @@ const useProjectConfig = () => {
   }, [filteredData, current, pageSize]);
 
   // 适配useBatchOperation所需的数据结构
-  const adaptedSelectedRows = selectedRows.map((item) => ({
+  const adaptedSelectedRows = selectedRows.map(item => ({
     id: item.id,
     content: item.content,
     update_time: item.updateTime,
@@ -264,11 +248,11 @@ const useProjectConfig = () => {
     update_time: number;
   }>({
     selectedRows: adaptedSelectedRows,
-    setSelectedRows: (newRows) => {
+    setSelectedRows: newRows => {
       // 将适配后的数据转换回原始数据结构
       const originalRows = (Array.isArray(newRows) ? newRows : [])
-        .map((row) => {
-          const item = projectItems.find((item) => item.id === row.id);
+        .map(row => {
+          const item = projectItems.find(item => item.id === row.id);
           if (!item) return undefined;
 
           // 转换为ExtendedProjectItem
@@ -286,18 +270,16 @@ const useProjectConfig = () => {
 
   // 行选择配置
   const rowSelection: TableRowSelection<ExtendedProjectItem> = {
-    selectedRowKeys: selectedRows.map((row) => row.id),
+    selectedRowKeys: selectedRows.map(row => row.id),
     onChange: (selectedRowKeys, newSelectedRows) => {
       // 找出新增的行
-      const oldSelectedKeys = selectedRows.map((row) => row.id);
+      const oldSelectedKeys = selectedRows.map(row => row.id);
       const newlySelectedKeys = selectedRowKeys.filter(
-        (key) => !oldSelectedKeys.includes(key as number),
+        key => !oldSelectedKeys.includes(key as number)
       );
 
       // 找出取消选择的行
-      const deselectedKeys = oldSelectedKeys.filter(
-        (key) => !selectedRowKeys.includes(key),
-      );
+      const deselectedKeys = oldSelectedKeys.filter(key => !selectedRowKeys.includes(key));
 
       // 处理新增选择的行，自动选中其所有子项
       const additionalRows: ExtendedProjectItem[] = [];
@@ -326,9 +308,7 @@ const useProjectConfig = () => {
           const childrenIds = getAllChildrenIds(item, allTreeData);
 
           // 从选择列表中移除所有子项
-          finalSelectedRows = finalSelectedRows.filter(
-            (row) => !childrenIds.includes(row.id),
-          );
+          finalSelectedRows = finalSelectedRows.filter(row => !childrenIds.includes(row.id));
         }
       }
 
@@ -337,24 +317,73 @@ const useProjectConfig = () => {
   };
 
   // 创建索引
-  const onCreateEmbedding = useMemoizedFn(
-    async (markdown: string, record: ExtendedProjectItem) => {
-      setLoadingIds((prev) => [...prev, record.id]);
-      const messageKey = `create-project-item-index-${record.id}`;
-      message.loading({ content: "正在创建索引...", key: messageKey });
+  const onCreateEmbedding = useMemoizedFn(async (markdown: string, record: ExtendedProjectItem) => {
+    setLoadingIds(prev => [...prev, record.id]);
+    const messageKey = `create-project-item-index-${record.id}`;
+    message.loading({ content: "正在创建索引...", key: messageKey });
 
-      try {
-        // 检查当前索引状态
-        const vecResult = vecResults.find(
-          (result) => result.id === record.id && result.type === "project-item",
-        );
+    try {
+      // 检查当前索引状态
+      const vecResult = vecResults.find(
+        result => result.id === record.id && result.type === "project-item"
+      );
 
-        // 如果已存在且是最新的索引，直接返回成功
-        if (vecResult && vecResult.updateTime === record.updateTime) {
-          message.success({ content: "索引已存在", key: messageKey });
+      // 如果已存在且是最新的索引，直接返回成功
+      if (vecResult && vecResult.updateTime === record.updateTime) {
+        message.success({ content: "索引已存在", key: messageKey });
+        return true;
+      }
+
+      const params: IndexParams = {
+        id: record.id,
+        content: markdown,
+        type: "project-item",
+        updateTime: record.updateTime,
+        modelInfo,
+      };
+
+      const success = await indexContent(params);
+
+      if (success) {
+        try {
+          await initIndexResults();
+          message.success({ content: "索引创建成功", key: messageKey });
           return true;
+        } catch (error) {
+          console.error("初始化索引结果失败", error);
+          message.error({
+            content: "索引创建成功，但初始化索引结果失败",
+            key: messageKey,
+          });
+          return false;
         }
+      } else {
+        message.error({ content: "索引创建失败", key: messageKey });
+        return false;
+      }
+    } catch (error) {
+      console.error("创建索引失败", error);
+      message.error({ content: "索引创建失败", key: messageKey });
+      return false;
+    } finally {
+      setLoadingIds(prev => prev.filter(id => id !== record.id));
+    }
+  });
 
+  // 更新索引
+  const onUpdateEmbedding = useMemoizedFn(async (markdown: string, record: ExtendedProjectItem) => {
+    setLoadingIds(prev => [...prev, record.id]);
+    const messageKey = `update-project-item-index-${record.id}`;
+    message.loading({ content: "正在更新索引...", key: messageKey });
+
+    try {
+      // 检查当前索引状态
+      const vecResult = vecResults.find(
+        result => result.id === record.id && result.type === "project-item"
+      );
+
+      // 如果没有索引或索引需要更新
+      if (!vecResult || vecResult.updateTime < record.updateTime) {
         const params: IndexParams = {
           id: record.id,
           content: markdown,
@@ -368,107 +397,52 @@ const useProjectConfig = () => {
         if (success) {
           try {
             await initIndexResults();
-            message.success({ content: "索引创建成功", key: messageKey });
+            message.success({ content: "索引更新成功", key: messageKey });
             return true;
           } catch (error) {
             console.error("初始化索引结果失败", error);
             message.error({
-              content: "索引创建成功，但初始化索引结果失败",
+              content: "索引更新成功，但初始化索引结果失败",
               key: messageKey,
             });
             return false;
           }
         } else {
-          message.error({ content: "索引创建失败", key: messageKey });
+          message.error({ content: "索引更新失败", key: messageKey });
           return false;
         }
-      } catch (error) {
-        console.error("创建索引失败", error);
-        message.error({ content: "索引创建失败", key: messageKey });
-        return false;
-      } finally {
-        setLoadingIds((prev) => prev.filter((id) => id !== record.id));
+      } else {
+        message.success({ content: "索引已是最新", key: messageKey });
+        return true;
       }
-    },
-  );
-
-  // 更新索引
-  const onUpdateEmbedding = useMemoizedFn(
-    async (markdown: string, record: ExtendedProjectItem) => {
-      setLoadingIds((prev) => [...prev, record.id]);
-      const messageKey = `update-project-item-index-${record.id}`;
-      message.loading({ content: "正在更新索引...", key: messageKey });
-
-      try {
-        // 检查当前索引状态
-        const vecResult = vecResults.find(
-          (result) => result.id === record.id && result.type === "project-item",
-        );
-
-        // 如果没有索引或索引需要更新
-        if (!vecResult || vecResult.updateTime < record.updateTime) {
-          const params: IndexParams = {
-            id: record.id,
-            content: markdown,
-            type: "project-item",
-            updateTime: record.updateTime,
-            modelInfo,
-          };
-
-          const success = await indexContent(params);
-
-          if (success) {
-            try {
-              await initIndexResults();
-              message.success({ content: "索引更新成功", key: messageKey });
-              return true;
-            } catch (error) {
-              console.error("初始化索引结果失败", error);
-              message.error({
-                content: "索引更新成功，但初始化索引结果失败",
-                key: messageKey,
-              });
-              return false;
-            }
-          } else {
-            message.error({ content: "索引更新失败", key: messageKey });
-            return false;
-          }
-        } else {
-          message.success({ content: "索引已是最新", key: messageKey });
-          return true;
-        }
-      } catch (error) {
-        console.error("更新索引失败", error);
-        message.error({ content: "索引更新失败", key: messageKey });
-        return false;
-      } finally {
-        setLoadingIds((prev) => prev.filter((id) => id !== record.id));
-      }
-    },
-  );
+    } catch (error) {
+      console.error("更新索引失败", error);
+      message.error({ content: "索引更新失败", key: messageKey });
+      return false;
+    } finally {
+      setLoadingIds(prev => prev.filter(id => id !== record.id));
+    }
+  });
 
   // 删除索引
-  const onRemoveEmbedding = useMemoizedFn(
-    async (record: ExtendedProjectItem) => {
-      setLoadingIds((prev) => [...prev, record.id]);
-      const messageKey = `remove-project-item-index-${record.id}`;
-      message.loading({ content: "正在删除索引...", key: messageKey });
+  const onRemoveEmbedding = useMemoizedFn(async (record: ExtendedProjectItem) => {
+    setLoadingIds(prev => [...prev, record.id]);
+    const messageKey = `remove-project-item-index-${record.id}`;
+    message.loading({ content: "正在删除索引...", key: messageKey });
 
-      try {
-        await removeIndex(record.id, "project-item");
-        await initIndexResults();
-        message.success({ content: "索引删除成功", key: messageKey });
-        return true;
-      } catch (error) {
-        console.error("删除索引失败", error);
-        message.error({ content: "索引删除失败", key: messageKey });
-        return false;
-      } finally {
-        setLoadingIds((prev) => prev.filter((id) => id !== record.id));
-      }
-    },
-  );
+    try {
+      await removeIndex(record.id, "project-item");
+      await initIndexResults();
+      message.success({ content: "索引删除成功", key: messageKey });
+      return true;
+    } catch (error) {
+      console.error("删除索引失败", error);
+      message.error({ content: "索引删除失败", key: messageKey });
+      return false;
+    } finally {
+      setLoadingIds(prev => prev.filter(id => id !== record.id));
+    }
+  });
 
   // 表格列配置
   const columns: TableColumnType<ExtendedProjectItem>[] = [
@@ -486,7 +460,7 @@ const useProjectConfig = () => {
       title: "内容",
       dataIndex: "content",
       key: "content",
-      render: (content: Descendant[]) => {
+      render: (content: Descendant[], record: { contentId?: number }) => {
         // 添加空值检查
         if (!content || !Array.isArray(content)) return null;
 
@@ -494,15 +468,12 @@ const useProjectConfig = () => {
           <Popover
             content={
               <div style={{ width: 320, maxHeight: 180, overflow: "hidden" }}>
-                <Editor initValue={content || []} readonly={true} />
+                <Editor contentId={record.contentId} initValue={content || []} readonly={true} />
               </div>
             }
             trigger="click"
           >
-            <Typography.Text
-              ellipsis
-              style={{ maxWidth: 200, cursor: "pointer" }}
-            >
+            <Typography.Text ellipsis style={{ maxWidth: 200, cursor: "pointer" }}>
               {getEditorText(content || [])}
             </Typography.Text>
           </Popover>
@@ -534,17 +505,13 @@ const useProjectConfig = () => {
       render: (_, record) => {
         // 查找索引状态
         const vecResult = vecResults.find(
-          (result) => result.id === record.id && result.type === "project-item",
+          result => result.id === record.id && result.type === "project-item"
         );
 
         // 显示向量索引状态
         if (vecResult) {
           return (
-            <Tag
-              color={
-                record.updateTime > vecResult.updateTime ? "orange" : "green"
-              }
-            >
+            <Tag color={record.updateTime > vecResult.updateTime ? "orange" : "green"}>
               {record.updateTime > vecResult.updateTime ? "待更新" : "已索引"}
             </Tag>
           );
@@ -562,7 +529,7 @@ const useProjectConfig = () => {
 
         // 查找索引状态
         const vecResult = vecResults.find(
-          (result) => result.id === record.id && result.type === "project-item",
+          result => result.id === record.id && result.type === "project-item"
         );
 
         if (!vecResult) {
@@ -635,7 +602,7 @@ const useProjectConfig = () => {
         setPageSize(pagination.pageSize || PAGE_SIZE);
       }
       setFilteredInfo(filteredInfo);
-    },
+    }
   );
 
   // 右侧额外节点
@@ -655,8 +622,7 @@ const useProjectConfig = () => {
       <Button
         type="primary"
         disabled={
-          selectedRows.length === 0 ||
-          createEmbeddings.length + updateEmbeddings.length === 0
+          selectedRows.length === 0 || createEmbeddings.length + updateEmbeddings.length === 0
         }
         loading={batchCreateOrUpdateLoading}
         onClick={handleBatchEmbedding}
@@ -681,7 +647,7 @@ const useProjectConfig = () => {
       placeholder="选择项目"
       value={selectedProjectId}
       onChange={setSelectedProjectId}
-      options={projects.map((project) => ({
+      options={projects.map(project => ({
         label: project.title,
         value: project.id,
       }))}

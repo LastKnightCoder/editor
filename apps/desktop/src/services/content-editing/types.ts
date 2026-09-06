@@ -22,6 +22,7 @@ export interface SerializedSelection {
 }
 
 export interface ContentSnapshot {
+  revision?: string;
   id: string;
   createdAt: number;
   content: Descendant[];
@@ -76,10 +77,7 @@ export interface ReplaceOperation extends BaseEditOperation {
   expectedText?: string;
 }
 
-export type EditOperation =
-  | InsertOperation
-  | DeleteOperation
-  | ReplaceOperation;
+export type EditOperation = InsertOperation | DeleteOperation | ReplaceOperation;
 
 export interface ResolvedOffsetRange {
   start: number;
@@ -209,11 +207,7 @@ export interface ContentEditReviewDecision {
   submittedAt: number;
 }
 
-export type ContentEditReviewSessionStatus =
-  | "pending"
-  | "submitted"
-  | "completed"
-  | "cancelled";
+export type ContentEditReviewSessionStatus = "pending" | "submitted" | "completed" | "cancelled";
 
 export interface ContentEditReviewSessionRecord {
   sessionId: string;

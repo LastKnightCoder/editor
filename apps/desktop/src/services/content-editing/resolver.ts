@@ -37,18 +37,14 @@ export const resolveContentTarget = async (payload?: {
   }
 
   const state = useTabStore.getState();
-  const activePane = state.panes.find((pane) => pane.id === state.activePaneId);
-  const activeTab = activePane?.tabs.find(
-    (tab) => tab.id === activePane.activeTabId,
-  );
+  const activePane = state.panes.find(pane => pane.id === state.activePaneId);
+  const activeTab = activePane?.tabs.find(tab => tab.id === activePane.activeTabId);
   if (!activePane || !activeTab) {
     throw new Error("TARGET_NOT_FOUND: 当前没有激活的编辑目标");
   }
 
   if (activeTab.type === TabType.CardDetail) {
-    const cardId = Number(
-      (activeTab.params as { id?: number } | undefined)?.id,
-    );
+    const cardId = Number((activeTab.params as { id?: number } | undefined)?.id);
     if (!cardId) {
       throw new Error("TARGET_NOT_FOUND: CardDetail 缺少 card id");
     }
@@ -65,9 +61,7 @@ export const resolveContentTarget = async (payload?: {
   }
 
   if (activeTab.type === TabType.ArticleDetail) {
-    const articleId = Number(
-      (activeTab.params as { id?: number } | undefined)?.id,
-    );
+    const articleId = Number((activeTab.params as { id?: number } | undefined)?.id);
     if (!articleId) {
       throw new Error("TARGET_NOT_FOUND: ArticleDetail 缺少 article id");
     }
@@ -84,13 +78,9 @@ export const resolveContentTarget = async (payload?: {
   }
 
   if (activeTab.type === TabType.DocumentDetail) {
-    const itemId = Number(
-      (activeTab.params as { itemId?: number } | undefined)?.itemId,
-    );
+    const itemId = Number((activeTab.params as { itemId?: number } | undefined)?.itemId);
     if (!itemId) {
-      throw new Error(
-        "UNSUPPORTED_TAB: 文档总览没有可编辑 contentId，请进入具体文档项",
-      );
+      throw new Error("UNSUPPORTED_TAB: 文档总览没有可编辑 contentId，请进入具体文档项");
     }
     const item = await getDocumentItem(itemId);
     if (!item) {
@@ -108,13 +98,9 @@ export const resolveContentTarget = async (payload?: {
   }
 
   if (activeTab.type === TabType.ProjectDetail) {
-    const itemId = Number(
-      (activeTab.params as { itemId?: number } | undefined)?.itemId,
-    );
+    const itemId = Number((activeTab.params as { itemId?: number } | undefined)?.itemId);
     if (!itemId) {
-      throw new Error(
-        "UNSUPPORTED_TAB: 项目总览没有可编辑 contentId，请进入具体项目项",
-      );
+      throw new Error("UNSUPPORTED_TAB: 项目总览没有可编辑 contentId，请进入具体项目项");
     }
     const item = await getProjectItemById(itemId);
     if (!item) {
@@ -131,18 +117,23 @@ export const resolveContentTarget = async (payload?: {
     };
   }
 
-  throw new Error(
-    `UNSUPPORTED_TAB: 当前 tab 类型 ${activeTab.type} 暂不支持编辑`,
-  );
+  throw new Error(`UNSUPPORTED_TAB: 当前 tab 类型 ${activeTab.type} 暂不支持编辑`);
 };
 
 export const loadSnapshotForContent = async (
-  contentId: number,
+  contentId: number
 ): Promise<{
   snapshot: ContentSnapshot;
   source: "active-session" | "database";
 }> => {
   const activeSession = getActiveEditingSessionByContentId(contentId);
+  const content = await getContentById(contentId);
+  if (content?.revision) {
+    const snapshot = createContentSnapshot(content.content, "database");
+    snapshot.revision = content.revision;
+    putSnapshot(snapshot);
+    return { snapshot, source: "database" };
+  }
   if (activeSession) {
     putSnapshot(activeSession.snapshot);
     return {
@@ -151,7 +142,6 @@ export const loadSnapshotForContent = async (
     };
   }
 
-  const content = await getContentById(contentId);
   if (!content) {
     throw new Error(`TARGET_NOT_FOUND: 未找到 content ${contentId}`);
   }

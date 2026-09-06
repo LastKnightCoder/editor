@@ -1,6 +1,6 @@
 import { useRafInterval, useUnmount } from "ahooks";
 
-import { Editor } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 
 import useEditDailyNote from "@/hooks/useEditDailyNote";
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
@@ -9,10 +9,10 @@ import { useShallow } from "zustand/react/shallow";
 
 const DailyNoteContent = () => {
   const { activeDailyId, readonly } = useDailyNoteStore(
-    useShallow((state) => ({
+    useShallow(state => ({
       activeDailyId: state.activeDailyId,
       readonly: state.readonly,
-    })),
+    }))
   );
 
   const { editingDailyNote, onInit, onContentChange, saveDailyNote } =
@@ -34,6 +34,7 @@ const DailyNoteContent = () => {
       <div className={styles.content}>
         <div className={styles.editor}>
           <Editor
+            contentId={editingDailyNote.contentId}
             key={editingDailyNote.id}
             initValue={editingDailyNote.content}
             onInit={onInit}

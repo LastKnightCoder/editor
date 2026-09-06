@@ -1,13 +1,14 @@
 {
   "name": "desktop",
   "private": true,
-  "version": "0.51.0",
+  "version": "0.52.0",
   "author": {
     "name": "LastKnightCoder"
   },
   "description": "Tau",
   "main": "dist-electron/main/index.js",
   "scripts": {
+    "test:collaboration:e2e": "playwright test e2e/collaboration.spec.ts",
     "predev": "pnpm -w db:schema:prepare",
     "dev": "vite",
     "prebuild": "pnpm -w db:schema:prepare && pnpm --filter @tau/cli build",
@@ -23,6 +24,10 @@
     "bench:whiteboard-render-profile": "cross-env WHITEBOARD_RENDER_BENCH=1 vitest run src/components/WhiteBoard/utils/benchmarks/render-profile.benchmark.test.tsx --reporter=verbose"
   },
   "dependencies": {
+    "@tau/collaboration": "workspace:*",
+    "@hocuspocus/provider": "4.6.0",
+    "yjs": "13.6.32",
+    "y-protocols": "1.0.7",
     "7zip-min": "^2.1.0",
     "@myriaddreamin/typst-ts-node-compiler": "0.6.1-rc3",
     "@node-rs/jieba": "^2.0.1",
@@ -61,6 +66,8 @@
     "sqlite-vec-windows-x64": "0.1.7-alpha.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "esbuild": "^0.25.12",
     "@actions/github": "^6.0.0",
     "@ant-design/charts": "^2.0.3",
     "@ant-design/icons": "^6.0.6",

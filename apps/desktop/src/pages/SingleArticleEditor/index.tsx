@@ -3,20 +3,17 @@ import { Descendant } from "slate";
 import { useSearchParams } from "react-router-dom";
 import classnames from "classnames";
 
-import { Editor, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import AddTag from "@/components/AddTag";
-import EditText, { EditTextHandle } from "@/components/EditText";
+import { EditTextHandle } from "@/components/EditText";
+import EditText from "@/components/CollaborativeTitle";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
 import useTheme from "@/hooks/useTheme";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
-import {
-  findOneArticle,
-  updateArticle,
-  connectDatabaseByName,
-  closeDatabase,
-} from "@/commands";
+import { findOneArticle, updateArticle, connectDatabaseByName, closeDatabase } from "@/commands";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 
 import styles from "./index.module.less";
@@ -27,16 +24,11 @@ import useEditContent from "@/hooks/useEditContent";
 
 const SingleArticleEditor = () => {
   const { isDark } = useTheme();
-  const articleEventBus = useCreation(
-    () => defaultArticleEventBus.createEditor(),
-    [],
-  );
+  const articleEventBus = useCreation(() => defaultArticleEventBus.createEditor(), []);
   const [searchParams] = useSearchParams();
   const articleId = Number(searchParams.get("articleId"));
   const databaseName = searchParams.get("databaseName");
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
 
   const [editingArticle, setEditingArticle] = useState<IArticle | null>(null);
 
@@ -45,9 +37,9 @@ const SingleArticleEditor = () => {
   const prevArticleRef = useRef<IArticle | null>(null);
   const { throttleHandleEditorContentChange } = useEditContent(
     editingArticle?.contentId,
-    (content) => {
+    content => {
       editorRef.current?.setEditorValue(content);
-    },
+    }
   );
 
   const onClickHeader = useMemoizedFn((index: number) => {
@@ -83,10 +75,10 @@ const SingleArticleEditor = () => {
     const unsubscribe = articleEventBus.subscribeToArticleWithId(
       "article:updated",
       articleId,
-      (data) => {
+      data => {
         setEditingArticle(data.article);
         titleRef.current?.setValue(data.article.title);
-      },
+      }
     );
 
     return () => {
@@ -125,7 +117,7 @@ const SingleArticleEditor = () => {
     if (!editingArticle) return;
     setEditingArticle({
       ...editingArticle,
-      tags: editingArticle.tags.filter((t) => t !== tag),
+      tags: editingArticle.tags.filter(t => t !== tag),
     });
   };
 
@@ -179,6 +171,12 @@ const SingleArticleEditor = () => {
     >
       <div className={styles.title}>
         <EditText
+          contentId={editingArticle.contentId}
+          source={{
+            sourceType: "article",
+            sourceId: editingArticle.id,
+            sourceTitle: editingArticle.title,
+          }}
           ref={titleRef}
           defaultValue={editingArticle.title}
           onChange={onTitleChange}
@@ -197,6 +195,7 @@ const SingleArticleEditor = () => {
           >
             <ErrorBoundary>
               <Editor
+                contentId={editingArticle?.contentId}
                 className={styles.editor}
                 ref={editorRef}
                 initValue={editingArticle.content}

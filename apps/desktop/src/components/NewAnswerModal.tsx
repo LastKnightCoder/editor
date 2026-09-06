@@ -1,15 +1,13 @@
 import React, { useRef, useEffect, useState } from "react";
 import { Descendant } from "slate";
 import { useMemoizedFn, useUnmount } from "ahooks";
-import { Editor, IExtension, EditorRef } from "@tau/editor/src";
+import { IExtension, EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import CustomModal from "@/components/CustomModal";
 import useEditContent from "@/hooks/useEditContent";
 import { createAnswer, addAnswer, deleteAnswer } from "@/commands/question";
 import { getContentLength } from "@/utils";
-import {
-  getAnswerContentStatus,
-  hasAnyAnswerProjection,
-} from "@/utils/answer-content";
+import { getAnswerContentStatus, hasAnyAnswerProjection } from "@/utils/answer-content";
 
 const DEFAULT_CONTENT: Descendant[] = [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] },
@@ -35,22 +33,15 @@ const NewAnswerModal: React.FC<NewAnswerModalProps> = ({
   const contentRef = useRef<Descendant[]>(DEFAULT_CONTENT);
   const questionIdRef = useRef<number | null>(null);
 
-  const { throttleHandleEditorContentChange } = useEditContent(
-    answerId,
-    (data) => {
-      editorRef.current?.setEditorValue(data);
-    },
-  );
+  const { throttleHandleEditorContentChange } = useEditContent(answerId, data => {
+    editorRef.current?.setEditorValue(data);
+  });
 
   const createAndLinkAnswer = useMemoizedFn(async () => {
     if (!questionId) return;
     questionIdRef.current = questionId;
     const ans = await createAnswer(DEFAULT_CONTENT);
-    await addAnswer(
-      questionId,
-      { contentId: ans.id, content: ans.content },
-      false,
-    );
+    await addAnswer(questionId, { contentId: ans.id, content: ans.content }, false);
     setAnswerId(ans.id);
   });
 
@@ -86,7 +77,7 @@ const NewAnswerModal: React.FC<NewAnswerModalProps> = ({
 
   const icon = (
     <svg
-      className="w-5 h-5 text-emerald-500"
+      className="h-5 w-5 text-emerald-500"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -110,6 +101,7 @@ const NewAnswerModal: React.FC<NewAnswerModalProps> = ({
     >
       <div className="min-h-75 rounded-[6px]">
         <Editor
+          contentId={answerId}
           key={answerId}
           ref={editorRef}
           initValue={DEFAULT_CONTENT}

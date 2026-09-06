@@ -11,11 +11,12 @@ export const markdownToContent = (markdown: string): Descendant[] => {
 export const persistContentFromMarkdown = async (payload: {
   contentId: number;
   markdown: string;
+  expectedRevision?: string;
   sourceUuid?: string;
 }) => {
   const { contentId, markdown, sourceUuid = "content-edit-tools" } = payload;
   const content = markdownToContent(markdown);
-  const updated = await updateContent(contentId, content);
+  const updated = await updateContent(contentId, content, payload.expectedRevision);
 
   if (!updated) {
     throw new Error(`TARGET_NOT_FOUND: 未找到 content ${contentId}`);
@@ -35,10 +36,11 @@ export const persistContentFromMarkdown = async (payload: {
 export const persistContentValue = async (payload: {
   contentId: number;
   content: Descendant[];
+  expectedRevision?: string;
   sourceUuid?: string;
 }) => {
   const { contentId, content, sourceUuid = "content-edit-tools" } = payload;
-  const updated = await updateContent(contentId, content);
+  const updated = await updateContent(contentId, content, payload.expectedRevision);
 
   if (!updated) {
     throw new Error(`TARGET_NOT_FOUND: 未找到 content ${contentId}`);

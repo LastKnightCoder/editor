@@ -1,0 +1,51 @@
+import type Database from "better-sqlite3";
+import type { IpcMainInvokeEvent } from "electron";
+import type { HocuspocusProvider } from "@hocuspocus/provider";
+import type * as Y from "yjs";
+import type { Awareness } from "y-protocols/awareness";
+import type { ContentSessionTarget, ContentSessionSnapshot } from "@tau/collaboration";
+import type { CollaborationSession, CollaborationState, ContentNode } from "@tau/collaboration";
+import type { CollaborationClient } from "./client";
+import type { CollaborationAssetService } from "./asset-service";
+import type { CollaborationLocalStore } from "./local-store";
+
+export interface RuntimeSession {
+  info: CollaborationSession;
+  doc: Y.Doc;
+  awareness: Awareness;
+  privateNodes: Map<string, ContentNode>;
+  provider?: HocuspocusProvider;
+  dirty: boolean;
+  projectionDirty?: boolean;
+  drainingViews?: Set<string>;
+}
+
+export interface CollaborationIpcContext {
+  store: CollaborationLocalStore;
+  client: CollaborationClient;
+  assets: CollaborationAssetService;
+  serverUrl(): string;
+  sessions: Map<string, RuntimeSession>;
+  views: Map<string, { documentId: string; windowId: number; clientIds: number[] }>;
+  state(): CollaborationState;
+  changed(session?: RuntimeSession): void;
+  refresh(): Promise<void>;
+  databaseForEvent(event: IpcMainInvokeEvent): { db: Database.Database; name: string };
+  requireSession(id: string): RuntimeSession;
+  openContent(event: IpcMainInvokeEvent, target: ContentSessionTarget): ContentSessionSnapshot;
+  acknowledgeFreeze(viewId: string): void;
+  prepareLeave(session: RuntimeSession): Promise<void>;
+  createContent(
+    event: IpcMainInvokeEvent,
+    contentId: number,
+    sourceType?: string,
+    sourceId?: number,
+    sourceTitle?: string
+  ): Promise<{ documentId: string; code: string }>;
+  removeView(id: string): void;
+  clearBinding(session: RuntimeSession): Promise<void>;
+  discardLocal(session: RuntimeSession): Promise<void>;
+  removeSession(session: RuntimeSession): void;
+  finishLeave(session: RuntimeSession): Promise<void>;
+  flushResources(): Promise<void>;
+}

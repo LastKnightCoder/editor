@@ -1,24 +1,18 @@
 import { memo, useState, useRef, useEffect } from "react";
 import { Descendant } from "slate";
 import { App } from "antd";
-import {
-  ArrowLeftOutlined,
-  ReloadOutlined,
-  CopyOutlined,
-} from "@ant-design/icons";
+import { ArrowLeftOutlined, ReloadOutlined, CopyOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
 import { LoadingSpinner, EmptyState, SimpleButton } from "../components";
 
-import { Editor, EditorRef } from "@tau/editor/src";
+import { EditorRef } from "@tau/editor/src";
+import Editor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useVLTools from "@/hooks/useVLTools";
-import {
-  getVLResourcesByProjectId,
-  createVLNote,
-} from "@/commands/vibe-learning";
-import { createContent, updateContent } from "@/commands";
+import { getVLResourcesByProjectId, createVLNote } from "@/commands/vibe-learning";
+import { createContent, updateContent, getContentById } from "@/commands";
 import { VLNote, VLResource } from "@/types/vibe-learning";
 import { importFromMarkdown, getContentLength, getMarkdown } from "@/utils";
 import { runGenerationTask } from "@/services/generation-orchestrator";
@@ -46,9 +40,7 @@ interface OutlineAppProps {
 }
 
 const OutlineApp = memo((props: OutlineAppProps) => {
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const {
     projectId,
     mainDbName,
@@ -71,8 +63,7 @@ const OutlineApp = memo((props: OutlineAppProps) => {
 
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [slateContent, setSlateContent] =
-    useState<Descendant[]>(DEFAULT_CONTENT);
+  const [slateContent, setSlateContent] = useState<Descendant[]>(DEFAULT_CONTENT);
   const [markdownContent, setMarkdownContent] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [hasContent, setHasContent] = useState(false);
@@ -100,15 +91,13 @@ const OutlineApp = memo((props: OutlineAppProps) => {
       }
 
       // 过滤出已有 markdown 的资源（已完成转换的）
-      resourcesToUse = resources.filter((r) => r.markdownPath);
+      resourcesToUse = resources.filter(r => r.markdownPath);
       if (resourcesToUse.length === 0) {
         throw new Error("资料正在处理中，请稍后再试");
       }
     }
 
-    const resourceNames = resourcesToUse
-      .map((resource) => resource.name)
-      .filter(Boolean);
+    const resourceNames = resourcesToUse.map(resource => resource.name).filter(Boolean);
 
     if (resourceNames.length === 0) {
       throw new Error("无法读取资料内容，请检查资料是否已完成处理");
@@ -130,7 +119,14 @@ const OutlineApp = memo((props: OutlineAppProps) => {
 
       if (contentId && outlineNote) {
         // 更新现有内容
-        await updateContent(contentId, content);
+        const previous = await getContentById(contentId);
+        if (
+          previous?.revision &&
+          getMarkdown(previous.content) !==
+            getMarkdown(importFromMarkdown(lastSavedMarkdownRef.current))
+        )
+          throw new Error("大纲已被其他视图修改，请保留当前生成结果后重试");
+        await updateContent(contentId, content, previous?.revision);
         lastSavedMarkdownRef.current = markdown;
       } else {
         // 创建新内容和笔记
@@ -150,6 +146,7 @@ const OutlineApp = memo((props: OutlineAppProps) => {
       }
     } catch (e) {
       console.error("Failed to save outline as note:", e);
+      setError(e instanceof Error ? e.message : "保存大纲失败");
     }
   });
 
@@ -206,27 +203,27 @@ const OutlineApp = memo((props: OutlineAppProps) => {
           },
         },
         {
-          onUpdate: (responseText) => {
+          onUpdate: responseText => {
             // 实时更新编辑器内容
             updateEditorContent(responseText);
           },
-          onFinish: async (content) => {
+          onFinish: async content => {
             updateEditorContent(content);
             setGenerating(false);
             setLoading(false);
             // 最终保存
             await saveOutlineAsNote(content);
           },
-          onError: (e) => {
+          onError: e => {
             console.error("Generate outline error:", e);
             setError(e.message || "生成大纲失败");
             setGenerating(false);
             setLoading(false);
           },
-          onController: (controller) => {
+          onController: controller => {
             abortControllerRef.current = controller;
           },
-        },
+        }
       );
     } catch (e) {
       console.error("Generate outline error:", e);
@@ -299,24 +296,25 @@ const OutlineApp = memo((props: OutlineAppProps) => {
       // 同步更新 markdown 内容
       const markdown = getMarkdown(content);
       setMarkdownContent(markdown);
+      if (contentId) lastSavedMarkdownRef.current = markdown;
     }
   });
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       {/* 顶部栏 */}
-      <div className="px-4 py-3 border-b border-[#e8e8e8] dark:border-[#2a2a2a] shrink-0 flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3 border-b border-[#e8e8e8] px-4 py-3 dark:border-[#2a2a2a]">
         <button
-          className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a] transition-colors cursor-pointer border-none bg-transparent"
+          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a]"
           onClick={onBack}
         >
           <ArrowLeftOutlined className="text-[#666] dark:text-[#999]" />
         </button>
 
-        <h3 className="flex-1 text-base font-medium text-[#333] dark:text-[#e0e0e0] m-0">
+        <h3 className="m-0 flex-1 text-base font-medium text-[#333] dark:text-[#e0e0e0]">
           学习大纲
           {generating && (
-            <span className="ml-2 text-sm font-normal text-[#999] inline-flex items-center">
+            <span className="ml-2 inline-flex items-center text-sm font-normal text-[#999]">
               <LoadingSpinner size="small" className="mr-1" />
               生成中...
             </span>
@@ -325,7 +323,7 @@ const OutlineApp = memo((props: OutlineAppProps) => {
 
         {hasContent && !generating && (
           <button
-            className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a] transition-colors cursor-pointer border-none bg-transparent"
+            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a]"
             onClick={copyOutline}
             title="复制大纲"
           >
@@ -338,7 +336,7 @@ const OutlineApp = memo((props: OutlineAppProps) => {
       <div className="flex-1 overflow-auto">
         {/* 未开始生成 */}
         {!hasContent && !loading && !error && (
-          <div className="flex flex-col items-center justify-center h-full p-4">
+          <div className="flex h-full flex-col items-center justify-center p-4">
             <EmptyState description="点击下方按钮生成学习大纲">
               <SimpleButton
                 variant="primary"
@@ -354,17 +352,15 @@ const OutlineApp = memo((props: OutlineAppProps) => {
 
         {/* 加载中（获取资料阶段） */}
         {loading && !hasContent && (
-          <div className="flex flex-col items-center justify-center h-full p-4">
+          <div className="flex h-full flex-col items-center justify-center p-4">
             <LoadingSpinner size="large" />
-            <p className="text-sm text-[#999] mt-4">
-              正在探索资料并生成大纲...
-            </p>
+            <p className="mt-4 text-sm text-[#999]">正在探索资料并生成大纲...</p>
           </div>
         )}
 
         {/* 错误状态 */}
         {error && !generating && (
-          <div className="flex flex-col items-center justify-center h-full p-4">
+          <div className="flex h-full flex-col items-center justify-center p-4">
             <EmptyState description={error}>
               <SimpleButton
                 variant="primary"
@@ -383,6 +379,7 @@ const OutlineApp = memo((props: OutlineAppProps) => {
           <div className="p-4">
             <ErrorBoundary>
               <Editor
+                contentId={generating ? undefined : (contentId ?? undefined)}
                 key="outline-editor"
                 ref={editorRef}
                 initValue={slateContent}
@@ -397,12 +394,8 @@ const OutlineApp = memo((props: OutlineAppProps) => {
 
       {/* 底部操作栏 */}
       {hasContent && !generating && (
-        <div className="p-4 border-t border-[#e8e8e8] dark:border-[#2a2a2a] shrink-0">
-          <SimpleButton
-            block
-            icon={<ReloadOutlined />}
-            onClick={generateOutline}
-          >
+        <div className="shrink-0 border-t border-[#e8e8e8] p-4 dark:border-[#2a2a2a]">
+          <SimpleButton block icon={<ReloadOutlined />} onClick={generateOutline}>
             重新生成
           </SimpleButton>
         </div>
@@ -410,7 +403,7 @@ const OutlineApp = memo((props: OutlineAppProps) => {
 
       {/* 生成中的停止按钮 */}
       {generating && (
-        <div className="p-4 border-t border-[#e8e8e8] dark:border-[#2a2a2a] shrink-0">
+        <div className="shrink-0 border-t border-[#e8e8e8] p-4 dark:border-[#2a2a2a]">
           <SimpleButton block variant="danger" onClick={stopGeneration}>
             停止生成
           </SimpleButton>
