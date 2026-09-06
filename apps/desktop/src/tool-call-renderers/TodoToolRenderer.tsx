@@ -19,8 +19,7 @@ const SHADOW_CARD_DARK =
   "0 0 0 1px rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.2)";
 const SHADOW_DIVIDER_LIGHT = "inset 0 -1px 0 0 rgba(34,42,53,0.08)";
 const SHADOW_DIVIDER_DARK = "inset 0 -1px 0 0 rgba(255,255,255,0.06)";
-const SHADOW_BTN_LIGHT =
-  "0 0 0 1px rgba(34,42,53,0.08), 0 1px 2px rgba(34,42,53,0.04)";
+const SHADOW_BTN_LIGHT = "0 0 0 1px rgba(34,42,53,0.08), 0 1px 2px rgba(34,42,53,0.04)";
 const SHADOW_BTN_DARK = "0 0 0 1px rgba(255,255,255,0.06)";
 
 const TodoToolRenderer = ({
@@ -29,21 +28,13 @@ const TodoToolRenderer = ({
   parsedInput,
   renderDefault,
 }: ToolCallCustomRendererProps) => {
-  const initialData = useMemo(
-    () => parseTodoRendererOutput(execution.output),
-    [execution.output],
-  );
+  const initialData = useMemo(() => parseTodoRendererOutput(execution.output), [execution.output]);
   const [data, setData] = useState<TodoRendererData>(initialData);
   const [loading, setLoading] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
-    {},
-  );
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const querySpec = useMemo(
-    () =>
-      execution.toolName === "query_todos"
-        ? ((parsedInput ?? {}) as TodoQueryRequest)
-        : null,
-    [execution.toolName, parsedInput],
+    () => (execution.toolName === "query_todos" ? ((parsedInput ?? {}) as TodoQueryRequest) : null),
+    [execution.toolName, parsedInput]
   );
 
   const refresh = async () => {
@@ -66,14 +57,13 @@ const TodoToolRenderer = ({
   }, [initialData]);
 
   useEffect(() => {
-    return subscribeTodoMutationEvent((event) => {
+    return subscribeTodoMutationEvent(event => {
       if (data?.type === "todo-dashboard") {
         void refresh();
         return;
       }
 
-      const currentQueryResult =
-        data?.type === "todo-query-result" ? data : null;
+      const currentQueryResult = data?.type === "todo-query-result" ? data : null;
       if (
         shouldRefreshTodoQueryResult({
           event,
@@ -119,13 +109,9 @@ const TodoToolRenderer = ({
 
     return (
       <ToolDividerList isDark={isDark}>
-        {items.map((item) => (
+        {items.map(item => (
           <ToolDividerListItem key={item.id} isDark={isDark}>
-            <TodoRowCard
-              item={item}
-              isDark={isDark}
-              onToggleComplete={handleToggleComplete}
-            />
+            <TodoRowCard item={item} isDark={isDark} onToggleComplete={handleToggleComplete} />
           </ToolDividerListItem>
         ))}
       </ToolDividerList>
@@ -139,19 +125,19 @@ const TodoToolRenderer = ({
       label: string;
       itemIds: number[];
       totalCount: number;
-    }>,
+    }>
   ) => {
     if (items.length === 0) {
       return renderItems(items);
     }
 
-    const itemMap = new Map(items.map((item) => [item.id, item]));
+    const itemMap = new Map(items.map(item => [item.id, item]));
 
     return (
       <div className="space-y-4">
-        {groups.map((group) => {
+        {groups.map(group => {
           const groupItems = group.itemIds
-            .map((itemId) => itemMap.get(itemId))
+            .map(itemId => itemMap.get(itemId))
             .filter(Boolean) as TodoQueryItem[];
 
           if (groupItems.length === 0) {
@@ -159,9 +145,7 @@ const TodoToolRenderer = ({
           }
 
           const isExpanded = expandedGroups[group.key] ?? false;
-          const displayItems = isExpanded
-            ? groupItems
-            : groupItems.slice(0, 10);
+          const displayItems = isExpanded ? groupItems : groupItems.slice(0, 10);
           const hasMore = groupItems.length > 10;
 
           return (
@@ -174,17 +158,15 @@ const TodoToolRenderer = ({
               {renderItems(displayItems)}
               {hasMore && (
                 <button
-                  className="w-full py-2 text-center text-xs text-blue-500 hover:text-blue-600 transition-colors duration-150 cursor-pointer"
+                  className="w-full cursor-pointer py-2 text-center text-xs text-blue-500 transition-colors duration-150 hover:text-blue-600"
                   onClick={() =>
-                    setExpandedGroups((prev) => ({
+                    setExpandedGroups(prev => ({
                       ...prev,
                       [group.key]: !isExpanded,
                     }))
                   }
                 >
-                  {isExpanded
-                    ? "收起"
-                    : `展开全部（+${groupItems.length - 10}）`}
+                  {isExpanded ? "收起" : `展开全部（+${groupItems.length - 10}）`}
                 </button>
               )}
             </div>
@@ -197,7 +179,7 @@ const TodoToolRenderer = ({
   const summary = data.summary;
   return (
     <div
-      className={`my-3 overflow-hidden rounded-xl animate-fadeIn ${
+      className={`animate-fadeIn my-3 overflow-hidden rounded-xl ${
         isDark ? "bg-zinc-900/50" : "bg-white"
       }`}
       style={{
@@ -212,16 +194,10 @@ const TodoToolRenderer = ({
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div
-              className={`text-sm font-medium ${isDark ? "text-slate-100" : "text-slate-800"}`}
-            >
-              {data.type === "todo-dashboard"
-                ? "任务列表总览"
-                : "任务列表查询结果"}
+            <div className={`text-sm font-medium ${isDark ? "text-slate-100" : "text-slate-800"}`}>
+              {data.type === "todo-dashboard" ? "任务列表总览" : "任务列表查询结果"}
             </div>
-            <div
-              className={`mt-1 text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}
-            >
+            <div className={`mt-1 text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}>
               共 {summary.totalCount} 项，未完成 {summary.pendingCount}，已完成{" "}
               {summary.completedCount}，逾期 {summary.overdueCount}
             </div>
@@ -258,7 +234,7 @@ const TodoToolRenderer = ({
               <ToolProgressBar
                 isDark={isDark}
                 segments={[
-                  { value: summary.completedCount, color: "#10b981" },
+                  { value: summary.completedCount, color: "var(--th-success)" },
                   {
                     value: summary.pendingCount - summary.overdueCount,
                     color: isDark ? "#71717a" : "#cbd5e1",
@@ -266,12 +242,9 @@ const TodoToolRenderer = ({
                   { value: summary.overdueCount, color: "#f43f5e" },
                 ]}
               />
-              <div
-                className={`text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}
-              >
+              <div className={`text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}>
                 {summary.completedCount}/{summary.totalCount} 已完成
-                {summary.overdueCount > 0 &&
-                  ` · ${summary.overdueCount} 项逾期`}
+                {summary.overdueCount > 0 && ` · ${summary.overdueCount} 项逾期`}
               </div>
             </div>
 
@@ -279,11 +252,8 @@ const TodoToolRenderer = ({
           </div>
         ) : (
           <div className="space-y-4">
-            <div
-              className={`text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}
-            >
-              第 {data.page}/{data.totalPages} 页 · 当前展示 {data.items.length}{" "}
-              条
+            <div className={`text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+              第 {data.page}/{data.totalPages} 页 · 当前展示 {data.items.length} 条
             </div>
             {renderGroupedItems(data.items, data.groups)}
           </div>

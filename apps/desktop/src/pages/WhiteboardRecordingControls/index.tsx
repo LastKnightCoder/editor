@@ -6,16 +6,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import {
-  Camera,
-  Circle,
-  FolderOpen,
-  Mic,
-  Pause,
-  Play,
-  Square,
-  X,
-} from "lucide-react";
+import { Camera, Circle, FolderOpen, Mic, Pause, Play, Square, X } from "lucide-react";
 
 import { showInFolder } from "@/commands";
 import {
@@ -90,9 +81,8 @@ interface DragState {
 }
 
 const WhiteboardRecordingControls = () => {
-  const [state, setState] =
-    useState<WhiteboardRecordingControlState>(initialState);
-  const isDark = useSettingStore((store) => store.setting.darkMode);
+  const [state, setState] = useState<WhiteboardRecordingControlState>(initialState);
+  const isDark = useSettingStore(store => store.setting.darkMode);
   const measureRef = useRef<HTMLDivElement | null>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
   const lastSizeRef = useRef<{ width: number; height: number } | null>(null);
@@ -114,8 +104,7 @@ const WhiteboardRecordingControls = () => {
       return {
         label: "继续",
         icon: <Play size={16} />,
-        onClick: () =>
-          sendWhiteboardRecordingControlCommand({ type: "resume" }),
+        onClick: () => sendWhiteboardRecordingControlCommand({ type: "resume" }),
       };
     }
     return {
@@ -126,10 +115,7 @@ const WhiteboardRecordingControls = () => {
   }, [state.status]);
 
   useEffect(() => {
-    const listener = (
-      _event: unknown,
-      nextState: WhiteboardRecordingControlState,
-    ) => {
+    const listener = (_event: unknown, nextState: WhiteboardRecordingControlState) => {
       setState(nextState);
     };
     onWhiteboardRecordingControlState(listener);
@@ -217,14 +203,10 @@ const WhiteboardRecordingControls = () => {
       const shell = shellRef.current;
       const shellRect = shell?.getBoundingClientRect();
       const nextWidth = Math.ceil(
-        Math.max(measureRect.width, target.scrollWidth, shellRect?.width ?? 0),
+        Math.max(measureRect.width, target.scrollWidth, shellRect?.width ?? 0)
       );
       const nextHeight = Math.ceil(
-        Math.max(
-          measureRect.height,
-          target.scrollHeight,
-          shellRect?.height ?? 0,
-        ),
+        Math.max(measureRect.height, target.scrollHeight, shellRect?.height ?? 0)
       );
       if (!nextWidth || !nextHeight) {
         return;
@@ -257,11 +239,7 @@ const WhiteboardRecordingControls = () => {
       });
 
       const previousSize = lastSizeRef.current;
-      if (
-        previousSize &&
-        previousSize.width === nextWidth &&
-        previousSize.height === nextHeight
-      ) {
+      if (previousSize && previousSize.width === nextWidth && previousSize.height === nextHeight) {
         return;
       }
 
@@ -317,7 +295,7 @@ const WhiteboardRecordingControls = () => {
     const target = event.target as HTMLElement | null;
     if (
       target?.closest(
-        "button,a,input,textarea,select,[role='button'],[data-recording-controls-no-drag='true']",
+        "button,a,input,textarea,select,[role='button'],[data-recording-controls-no-drag='true']"
       )
     ) {
       return;
@@ -343,10 +321,8 @@ const WhiteboardRecordingControls = () => {
       return;
     }
 
-    dragState.nextX =
-      dragState.startWindowX + event.screenX - dragState.startPointerX;
-    dragState.nextY =
-      dragState.startWindowY + event.screenY - dragState.startPointerY;
+    dragState.nextX = dragState.startWindowX + event.screenX - dragState.startPointerX;
+    dragState.nextY = dragState.startWindowY + event.screenY - dragState.startPointerY;
 
     if (dragState.rafId !== null) {
       return;
@@ -393,15 +369,15 @@ const WhiteboardRecordingControls = () => {
   const statusToneClass = (() => {
     switch (state.status) {
       case "recording":
-        return "bg-emerald-500";
+        return "bg-status-success";
       case "paused":
-        return "bg-amber-400";
+        return "bg-status-warning";
       case "saving":
-        return "bg-sky-400";
+        return "bg-status-info";
       case "completed":
-        return "bg-emerald-500";
+        return "bg-status-success";
       case "error":
-        return "bg-rose-500";
+        return "bg-status-error";
       default:
         return "bg-zinc-400";
     }
@@ -411,7 +387,7 @@ const WhiteboardRecordingControls = () => {
     <div className={pageClass} data-theme={isDark ? "dark" : "light"}>
       <div
         ref={measureRef}
-        className="inline-block shrink-0 w-max max-w-none text-left"
+        className="inline-block w-max max-w-none shrink-0 text-left"
         data-testid="whiteboard-recording-controls-measure"
       >
         <div
@@ -437,9 +413,7 @@ const WhiteboardRecordingControls = () => {
             <div className={segmentBase} data-recording-controls-no-drag="true">
               <span
                 className={`${sourceHighlightBase} ${
-                  state.sourceType === "screen"
-                    ? "translate-x-[68px]"
-                    : "translate-x-0"
+                  state.sourceType === "screen" ? "translate-x-[68px]" : "translate-x-0"
                 }`}
               />
               <button
@@ -478,16 +452,11 @@ const WhiteboardRecordingControls = () => {
               </button>
             </div>
 
-            <div
-              className="flex items-center gap-1.5"
-              data-recording-controls-no-drag="true"
-            >
+            <div className="flex items-center gap-1.5" data-recording-controls-no-drag="true">
               <button
                 type="button"
                 title="录制麦克风"
-                className={`${iconButtonBase} ${
-                  state.microphoneEnabled ? iconButtonActive : ""
-                }`}
+                className={`${iconButtonBase} ${state.microphoneEnabled ? iconButtonActive : ""}`}
                 disabled={!canAdjustMedia}
                 onClick={() =>
                   sendWhiteboardRecordingControlCommand({
@@ -501,9 +470,7 @@ const WhiteboardRecordingControls = () => {
               <button
                 type="button"
                 title={state.cameraAvailable ? "摄像头画中画" : "摄像头不可用"}
-                className={`${iconButtonBase} ${
-                  state.cameraEnabled ? iconButtonActive : ""
-                }`}
+                className={`${iconButtonBase} ${state.cameraEnabled ? iconButtonActive : ""}`}
                 disabled={!canAdjustMedia || !state.cameraAvailable}
                 onClick={() =>
                   sendWhiteboardRecordingControlCommand({
@@ -532,9 +499,7 @@ const WhiteboardRecordingControls = () => {
                 type="button"
                 className={tertiaryButtonBase}
                 title="暂停录制"
-                onClick={() =>
-                  sendWhiteboardRecordingControlCommand({ type: "pause" })
-                }
+                onClick={() => sendWhiteboardRecordingControlCommand({ type: "pause" })}
               >
                 <Pause size={16} />
               </button>
@@ -556,9 +521,7 @@ const WhiteboardRecordingControls = () => {
                 className={stopButtonBase}
                 title="停止并保存"
                 disabled={isBusy}
-                onClick={() =>
-                  sendWhiteboardRecordingControlCommand({ type: "stop" })
-                }
+                onClick={() => sendWhiteboardRecordingControlCommand({ type: "stop" })}
               >
                 <Square size={15} fill="currentColor" />
               </button>

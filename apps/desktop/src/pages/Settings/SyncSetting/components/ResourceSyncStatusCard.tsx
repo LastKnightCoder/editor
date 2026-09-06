@@ -37,9 +37,7 @@ const ResourceSyncStatusCard = ({
   const themeColors = useThemeColors();
   const isSyncing = syncing;
   const percent =
-    progress.totalFiles > 0
-      ? Math.round((progress.processedFiles / progress.totalFiles) * 100)
-      : 0;
+    progress.totalFiles > 0 ? Math.round((progress.processedFiles / progress.totalFiles) * 100) : 0;
 
   const stats = [
     { label: "总数", value: progress.totalFiles },
@@ -56,39 +54,29 @@ const ResourceSyncStatusCard = ({
   return (
     <div
       className={classNames(
-        "p-6 bg-transparent border border-[#f0f0f0] dark:border-[#2a2a2a] rounded-2xl",
+        "rounded-2xl border border-[#f0f0f0] bg-transparent p-6 dark:border-[#2a2a2a]"
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div
-            className={classNames(
-              "text-sm font-medium flex items-center gap-2",
-            )}
-          >
+          <div className={classNames("flex items-center gap-2 text-sm font-medium")}>
             资源同步
             <span
               className={classNames(
-                "text-xs px-2 py-0.5 rounded-full border",
+                "rounded-full border px-2 py-0.5 text-xs",
                 progress.status === "completed"
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/50 dark:bg-emerald-900/30 dark:text-emerald-200"
+                  ? "border-[var(--th-success)]/30 bg-[var(--th-success)]/10 text-status-success"
                   : progress.status === "error"
-                    ? "border-red-200 bg-red-50 text-red-600 dark:border-red-900/50 dark:bg-red-900/30 dark:text-red-200"
-                    : progress.status === "syncing" ||
-                        progress.status === "scanning"
-                      ? "border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-900/50 dark:bg-blue-900/30 dark:text-blue-200"
-                      : themeColors.cardBorderClass,
+                    ? "border-[var(--th-danger)]/30 bg-[var(--th-danger)]/10 text-status-error"
+                    : progress.status === "syncing" || progress.status === "scanning"
+                      ? "border-[var(--th-info)]/30 bg-[var(--th-info)]/10 text-status-info"
+                      : themeColors.cardBorderClass
               )}
             >
               {statusTexts[progress.status]}
             </span>
           </div>
-          <div
-            className={classNames(
-              "text-xs mt-2",
-              themeColors.secondaryTextClass,
-            )}
-          >
+          <div className={classNames("mt-2 text-xs", themeColors.secondaryTextClass)}>
             最近同步：
             {statusFile?.lastSyncTime
               ? dayjs(statusFile.lastSyncTime).format("YYYY-MM-DD HH:mm")
@@ -96,18 +84,10 @@ const ResourceSyncStatusCard = ({
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <SettingButton
-            onClick={onSync}
-            disabled={!canSync || isSyncing}
-            loading={isSyncing}
-          >
+          <SettingButton onClick={onSync} disabled={!canSync || isSyncing} loading={isSyncing}>
             同步
           </SettingButton>
-          <SettingButton
-            variant="danger"
-            onClick={onCancel}
-            disabled={!isSyncing}
-          >
+          <SettingButton variant="danger" onClick={onCancel} disabled={!isSyncing}>
             停止
           </SettingButton>
           <SettingButton variant="secondary" onClick={onRefresh}>
@@ -119,8 +99,8 @@ const ResourceSyncStatusCard = ({
       <div className="mt-4">
         <div
           className={classNames(
-            "flex items-center justify-between text-xs mb-1",
-            themeColors.secondaryTextClass,
+            "mb-1 flex items-center justify-between text-xs",
+            themeColors.secondaryTextClass
           )}
         >
           <span>同步进度</span>
@@ -128,40 +108,28 @@ const ResourceSyncStatusCard = ({
             {percent}% ({progress.processedFiles}/{progress.totalFiles || 0})
           </span>
         </div>
-        <div className="h-2 mt-3 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden">
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-zinc-800">
           <div
-            className={classNames(
-              "h-full rounded-full",
-              themeColors.primaryButtonClass,
-            )}
+            className={classNames("h-full rounded-full", themeColors.primaryButtonClass)}
             style={{ width: `${percent}%` }}
           />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mt-4">
-        {stats.map((item) => (
-          <div key={item.label} className={classNames("p-3 bg-transparent")}>
-            <div
-              className={classNames(
-                "text-xs mb-1",
-                themeColors.secondaryTextClass,
-              )}
-            >
+      <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-6">
+        {stats.map(item => (
+          <div key={item.label} className={classNames("bg-transparent p-3")}>
+            <div className={classNames("mb-1 text-xs", themeColors.secondaryTextClass)}>
               {item.label}
             </div>
-            <div className={classNames("text-base font-semibold")}>
-              {item.value}
-            </div>
+            <div className={classNames("text-base font-semibold")}>{item.value}</div>
           </div>
         ))}
       </div>
 
       {progress.errorCount > 0 && (
         <div className="mt-3 flex items-center justify-between">
-          <div
-            className={classNames("text-xs", themeColors.secondaryTextClass)}
-          >
+          <div className={classNames("text-xs", themeColors.secondaryTextClass)}>
             检测到 {progress.errorCount} 个问题文件，请检查后重试
           </div>
           <SettingButton variant="secondary" onClick={onShowIssues}>

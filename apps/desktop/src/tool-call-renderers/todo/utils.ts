@@ -1,10 +1,5 @@
 import dayjs from "dayjs";
-import type {
-  TodoDashboardResponse,
-  TodoItem,
-  TodoQueryResponse,
-  TodoQueryItem,
-} from "@/types";
+import type { TodoDashboardResponse, TodoItem, TodoQueryResponse, TodoQueryItem } from "@/types";
 import { isTodoDashboardResponse, isTodoQueryResponse } from "@/mcp/todo/query";
 
 export type TodoRendererData = TodoQueryResponse | TodoDashboardResponse | null;
@@ -27,10 +22,10 @@ export const parseTodoRendererOutput = (output?: string): TodoRendererData => {
 
 export const statusColorClass = (item: TodoItem) => {
   if (item.isCompleted) {
-    return "text-emerald-500";
+    return "text-status-success";
   }
   if (item.dueAt && item.dueAt < Date.now()) {
-    return "text-rose-500";
+    return "text-status-error";
   }
   return "text-slate-500";
 };
@@ -38,11 +33,7 @@ export const statusColorClass = (item: TodoItem) => {
 export const formatTime = (value?: number | null) =>
   value ? dayjs(value).format("YYYY-MM-DD HH:mm") : "—";
 
-export const moveArrayItem = <T>(
-  items: T[],
-  fromIndex: number,
-  toIndex: number,
-) => {
+export const moveArrayItem = <T>(items: T[], fromIndex: number, toIndex: number) => {
   const next = [...items];
   const [removed] = next.splice(fromIndex, 1);
   next.splice(toIndex, 0, removed);

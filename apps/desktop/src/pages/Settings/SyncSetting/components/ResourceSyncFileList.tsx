@@ -2,11 +2,7 @@ import { useMemo, useState } from "react";
 import classNames from "classnames";
 import dayjs from "dayjs";
 import { Paperclip } from "lucide-react";
-import {
-  ISyncStatusFile,
-  ResourceSyncStatus,
-  IResourceSyncBlacklistItem,
-} from "@/types";
+import { ISyncStatusFile, ResourceSyncStatus, IResourceSyncBlacklistItem } from "@/types";
 import useThemeColors from "@/hooks/useThemeColors";
 import { SettingButton } from "../../components";
 import ResourceThumbnail, { ResourcePreviewItem } from "./ResourceThumbnail";
@@ -27,11 +23,11 @@ interface ResourceSyncFileListProps {
 const statusBadge = (status: ResourceSyncStatus) => {
   switch (status) {
     case ResourceSyncStatus.Syncing:
-      return "text-blue-600 bg-blue-50 border-blue-200 dark:text-blue-200 dark:bg-blue-900/30 dark:border-blue-900/50";
+      return "text-status-info bg-[var(--th-info)]/10 border-[var(--th-info)]/30";
     case ResourceSyncStatus.Synced:
-      return "text-emerald-600 bg-emerald-50 border-emerald-200 dark:text-emerald-200 dark:bg-emerald-900/30 dark:border-emerald-900/50";
+      return "text-status-success bg-[var(--th-success)]/10 border-[var(--th-success)]/30";
     case ResourceSyncStatus.Error:
-      return "text-red-600 bg-red-50 border-red-200 dark:text-red-200 dark:bg-red-900/30 dark:border-red-900/50";
+      return "text-status-error bg-[var(--th-danger)]/10 border-[var(--th-danger)]/30";
     default:
       return "text-gray-600 bg-gray-50 border-gray-200 dark:text-gray-200 dark:bg-zinc-900/40 dark:border-slate-800";
   }
@@ -70,25 +66,18 @@ const ResourceSyncFileList = ({
   const themeColors = useThemeColors();
   const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
 
-  const entries = Object.entries(statusFile?.files || {}).sort(
-    ([aKey, a], [bKey, b]) => {
-      const orderDiff = statusOrder[a.syncStatus] - statusOrder[b.syncStatus];
-      if (orderDiff !== 0) return orderDiff;
-      return aKey.localeCompare(bKey);
-    },
-  );
+  const entries = Object.entries(statusFile?.files || {}).sort(([aKey, a], [bKey, b]) => {
+    const orderDiff = statusOrder[a.syncStatus] - statusOrder[b.syncStatus];
+    if (orderDiff !== 0) return orderDiff;
+    return aKey.localeCompare(bKey);
+  });
 
-  const filterMap: Record<
-    FilterKey,
-    (entry: (typeof entries)[number]) => boolean
-  > = {
+  const filterMap: Record<FilterKey, (entry: (typeof entries)[number]) => boolean> = {
     all: () => true,
     upload: ([, status]) =>
-      status.syncDirection === "upload" &&
-      status.syncStatus !== ResourceSyncStatus.Synced,
+      status.syncDirection === "upload" && status.syncStatus !== ResourceSyncStatus.Synced,
     download: ([, status]) =>
-      status.syncDirection === "download" &&
-      status.syncStatus !== ResourceSyncStatus.Synced,
+      status.syncDirection === "download" && status.syncStatus !== ResourceSyncStatus.Synced,
     error: ([, status]) => status.syncStatus === ResourceSyncStatus.Error,
   };
 
@@ -106,7 +95,7 @@ const ResourceSyncFileList = ({
       download: 0,
       error: 0,
     };
-    entries.forEach((entry) => {
+    entries.forEach(entry => {
       if (filterMap.upload(entry)) counts.upload += 1;
       if (filterMap.download(entry)) counts.download += 1;
       if (filterMap.error(entry)) counts.error += 1;
@@ -118,12 +107,7 @@ const ResourceSyncFileList = ({
 
   if (!entries.length) {
     return (
-      <div
-        className={classNames(
-          "text-sm bg-transparent",
-          themeColors.secondaryTextClass,
-        )}
-      >
+      <div className={classNames("bg-transparent text-sm", themeColors.secondaryTextClass)}>
         暂无资源同步记录，点击上方「开始」即可同步 resources 文件夹。
       </div>
     );
@@ -132,33 +116,29 @@ const ResourceSyncFileList = ({
   return (
     <div
       className={classNames(
-        "p-6 bg-transparent rounded-2xl border border-[#f0f0f0] dark:border-[#2a2a2a]",
+        "rounded-2xl border border-[#f0f0f0] bg-transparent p-6 dark:border-[#2a2a2a]"
       )}
     >
-      <div className="flex flex-col gap-3 border-b border-slate-200/70 dark:border-slate-800/60 py-3">
+      <div className="flex flex-col gap-3 border-b border-slate-200/70 py-3 dark:border-slate-800/60">
         <div className="flex flex-wrap items-center gap-2">
-          {tabConfigs.map((tab) => (
+          {tabConfigs.map(tab => (
             <button
               key={tab.key}
               className={classNames(
-                "px-3 py-1 rounded-full text-xs font-medium border transition",
+                "rounded-full border px-3 py-1 text-xs font-medium transition",
                 activeFilter === tab.key
-                  ? "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-100"
-                  : themeColors.cardBorderClass,
+                  ? "border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-100"
+                  : themeColors.cardBorderClass
               )}
               onClick={() => setActiveFilter(tab.key)}
             >
               {tab.label}
-              <span className="ml-1 text-[11px]">
-                {tabCounts[tab.key] ?? 0}
-              </span>
+              <span className="ml-1 text-[11px]">{tabCounts[tab.key] ?? 0}</span>
             </button>
           ))}
         </div>
         <div className="flex items-center justify-between gap-3">
-          <div
-            className={classNames("text-xs", themeColors.secondaryTextClass)}
-          >
+          <div className={classNames("text-xs", themeColors.secondaryTextClass)}>
             {filteredEntries.length > 0
               ? `共 ${filteredEntries.length} 个文件`
               : "当前筛选没有匹配的文件"}
@@ -175,8 +155,8 @@ const ResourceSyncFileList = ({
       </div>
       <div
         className={classNames(
-          "grid grid-cols-[2fr_repeat(4,1fr)] py-3 mt-2 text-xs font-medium border-r-36 border-transparent",
-          themeColors.secondaryTextClass,
+          "border-r-36 mt-2 grid grid-cols-[2fr_repeat(4,1fr)] border-transparent py-3 text-xs font-medium",
+          themeColors.secondaryTextClass
         )}
       >
         <span>文件名</span>
@@ -185,7 +165,7 @@ const ResourceSyncFileList = ({
         <span>大小</span>
         <span className="text-right">更新时间</span>
       </div>
-      <div className="divide-y divide-slate-200 dark:divide-slate-800 max-h-96 overflow-auto">
+      <div className="max-h-96 divide-y divide-slate-200 overflow-auto dark:divide-slate-800">
         {filteredEntries.map(([name, status]) => {
           const previewResource = getPreviewResource?.(name) ?? null;
           const handlePreview = () => {
@@ -194,9 +174,9 @@ const ResourceSyncFileList = ({
           return (
             <div
               key={name}
-              className="grid grid-cols-[2fr_repeat(4,1fr)] py-3 items-center text-sm gap-3 border-r-20 border-transparent"
+              className="border-r-20 grid grid-cols-[2fr_repeat(4,1fr)] items-center gap-3 border-transparent py-3 text-sm"
             >
-              <div className="flex items-center gap-3 min-w-0">
+              <div className="flex min-w-0 items-center gap-3">
                 {previewResource ? (
                   <ResourceThumbnail
                     resource={previewResource}
@@ -205,16 +185,16 @@ const ResourceSyncFileList = ({
                     onAudioClick={handlePreview}
                   />
                 ) : (
-                  <div className="w-11 h-11 rounded-lg bg-gray-100 dark:bg-zinc-800 flex items-center justify-center shrink-0">
-                    <Paperclip className="w-5 h-5 text-gray-400" />
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-zinc-800">
+                    <Paperclip className="h-5 w-5 text-gray-400" />
                   </div>
                 )}
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className={classNames("truncate")} title={name}>
                     {name}
                   </div>
                   {onPreviewFile && previewResource && (
-                    <div className="text-[11px] text-gray-400 dark:text-slate-500 mt-0.5">
+                    <div className="mt-0.5 text-[11px] text-gray-400 dark:text-slate-500">
                       点击缩略图即可预览
                     </div>
                   )}
@@ -226,22 +206,21 @@ const ResourceSyncFileList = ({
               <div>
                 <span
                   className={classNames(
-                    "text-xs px-2 py-0.5 rounded-full border inline-flex items-center gap-1",
-                    statusBadge(status.syncStatus),
+                    "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs",
+                    statusBadge(status.syncStatus)
                   )}
                 >
-                  {status.syncStatus === ResourceSyncStatus.Syncing &&
-                    syncing && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-                    )}
+                  {status.syncStatus === ResourceSyncStatus.Syncing && syncing && (
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
+                  )}
                   {status.syncStatus === ResourceSyncStatus.Pending && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-current opacity-60" />
                   )}
                   {status.syncStatus === ResourceSyncStatus.Synced && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-current opacity-80" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
                   )}
                   {status.syncStatus === ResourceSyncStatus.Error && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-current" />
                   )}
                   {
                     {
@@ -255,8 +234,8 @@ const ResourceSyncFileList = ({
                 {status.errorMessage && (
                   <div
                     className={classNames(
-                      "text-xs mt-1 line-clamp-1",
-                      themeColors.secondaryTextClass,
+                      "mt-1 line-clamp-1 text-xs",
+                      themeColors.secondaryTextClass
                     )}
                     title={status.errorMessage}
                   >
@@ -267,46 +246,36 @@ const ResourceSyncFileList = ({
               <div className={classNames("text-xs", themeColors.textClass)}>
                 {formatSize(status.fileSize)}
               </div>
-              <div
-                className={classNames(
-                  "text-xs text-right",
-                  themeColors.secondaryTextClass,
-                )}
-              >
-                {status.lastSyncTime
-                  ? dayjs(status.lastSyncTime).format("MM-DD HH:mm")
-                  : "-"}
+              <div className={classNames("text-right text-xs", themeColors.secondaryTextClass)}>
+                {status.lastSyncTime ? dayjs(status.lastSyncTime).format("MM-DD HH:mm") : "-"}
               </div>
             </div>
           );
         })}
         {!filteredEntries.length && (
           <div
-            className={classNames(
-              "px-4 py-6 text-center text-xs",
-              themeColors.secondaryTextClass,
-            )}
+            className={classNames("px-4 py-6 text-center text-xs", themeColors.secondaryTextClass)}
           >
             当前筛选条件下没有待显示的文件
           </div>
         )}
       </div>
       {blacklist.length > 0 && (
-        <div className="px-4 py-3 border-t border-slate-200/70 dark:border-slate-800/60">
+        <div className="border-t border-slate-200/70 px-4 py-3 dark:border-slate-800/60">
           <div
             className={classNames(
-              "text-xs mb-2 flex items-center justify-between",
-              themeColors.secondaryTextClass,
+              "mb-2 flex items-center justify-between text-xs",
+              themeColors.secondaryTextClass
             )}
           >
             <span>已加入黑名单（不同步）</span>
             <span>{blacklist.length} 个</span>
           </div>
           <div className="flex flex-wrap gap-2">
-            {blacklist.map((item) => (
+            {blacklist.map(item => (
               <button
                 key={item.id}
-                className="text-xs px-2 py-1 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-zinc-900/20 hover:border-red-200 hover:text-red-500 transition"
+                className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs transition hover:border-red-200 hover:text-red-500 dark:border-slate-700 dark:bg-zinc-900/20"
                 onClick={() => onRemoveBlacklistItem(item.fileName)}
                 title="点击移出黑名单"
               >
