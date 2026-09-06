@@ -5,15 +5,11 @@ interface BilibiliVideoProgressProps {
   streamProgress: StreamProgress;
 }
 
-const BilibiliVideoProgress = ({
-  streamProgress,
-}: BilibiliVideoProgressProps) => {
+const BilibiliVideoProgress = ({ streamProgress }: BilibiliVideoProgressProps) => {
   return (
     <div style={{ width: "300px", textAlign: "center" }}>
       <div style={{ marginBottom: "12px" }}>
-        <div style={{ fontSize: "12px", marginBottom: "8px" }}>
-          {streamProgress.message}
-        </div>
+        <div style={{ fontSize: "12px", marginBottom: "8px" }}>{streamProgress.message}</div>
 
         {streamProgress.stage === "downloading" && (
           <div className="flex flex-col gap-2">
@@ -22,13 +18,12 @@ const BilibiliVideoProgress = ({
               <Progress
                 percent={Number(
                   (
-                    ((streamProgress.videoDownloaded || 0) /
-                      (streamProgress.videoTotal || 1)) *
+                    ((streamProgress.videoDownloaded || 0) / (streamProgress.videoTotal || 1)) *
                     100
-                  ).toFixed(2),
+                  ).toFixed(2)
                 )}
                 size="small"
-                strokeColor="#1890ff"
+                strokeColor="var(--th-accent)"
                 status="active"
               />
             </div>
@@ -37,13 +32,12 @@ const BilibiliVideoProgress = ({
               <Progress
                 percent={Number(
                   (
-                    ((streamProgress.audioDownloaded || 0) /
-                      (streamProgress.audioTotal || 1)) *
+                    ((streamProgress.audioDownloaded || 0) / (streamProgress.audioTotal || 1)) *
                     100
-                  ).toFixed(2),
+                  ).toFixed(2)
                 )}
                 size="small"
-                strokeColor="#1890ff"
+                strokeColor="var(--th-accent)"
                 status="active"
               />
             </div>
@@ -51,12 +45,7 @@ const BilibiliVideoProgress = ({
         )}
 
         {streamProgress.stage === "completed" && (
-          <Progress
-            percent={100}
-            size="small"
-            strokeColor="#52c41a"
-            status="success"
-          />
+          <Progress percent={100} size="small" strokeColor="var(--th-success)" status="success" />
         )}
       </div>
     </div>

@@ -18,11 +18,7 @@ import type { UploadProps } from "antd";
 
 import CustomModal from "@/components/CustomModal";
 import LocalImage from "@/components/LocalImage";
-import {
-  createVLResource,
-  addVLIndexTask,
-  ensureVLNoteResource,
-} from "@/commands/vibe-learning";
+import { createVLResource, addVLIndexTask, ensureVLNoteResource } from "@/commands/vibe-learning";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { nodeFetch } from "@/commands/extra";
 import { createSmartExtractProvider } from "@/utils/web-clipper/providers";
@@ -39,11 +35,7 @@ import { isYoutubeUrl } from "@/utils/youtube/parser";
 import { getYoutubeVideoInfo } from "@/commands/youtube-cache";
 import { getMarkdown } from "@/utils";
 import useSettingStore from "@/stores/useSettingStore";
-import type {
-  VLResourceType,
-  BilibiliSourceMeta,
-  YoutubeSourceMeta,
-} from "@/types/vibe-learning";
+import type { VLResourceType, BilibiliSourceMeta, YoutubeSourceMeta } from "@/types/vibe-learning";
 import type { StreamOption } from "@/types/youtube";
 import type { SearchResult } from "@/types/search";
 import NoteSelector from "./AppSidebar/components/NoteSelector";
@@ -97,8 +89,7 @@ const getYoutubeResolutionValue = (resolution?: string): number => {
 const sortYoutubeVideoStreams = (streams: StreamOption[]): StreamOption[] => {
   return [...streams].sort((a, b) => {
     const resolutionDiff =
-      getYoutubeResolutionValue(b.resolution) -
-      getYoutubeResolutionValue(a.resolution);
+      getYoutubeResolutionValue(b.resolution) - getYoutubeResolutionValue(a.resolution);
     if (resolutionDiff !== 0) return resolutionDiff;
     const fpsDiff = (b.fps || 0) - (a.fps || 0);
     if (fpsDiff !== 0) return fpsDiff;
@@ -278,41 +269,39 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
   }, [open, resetState]);
 
   // 使用 Webview 加载网页（用于 SPA 等动态渲染页面）
-  const loadWithWebview = useMemoizedFn(
-    (targetUrl: string): Promise<string> => {
-      return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          setWebviewUrl(null);
-          webviewLoadResolve.current = null;
-          webviewLoadReject.current = null;
-          reject(new Error("网页加载超时"));
-        }, 30000); // 30 秒超时
+  const loadWithWebview = useMemoizedFn((targetUrl: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        setWebviewUrl(null);
+        webviewLoadResolve.current = null;
+        webviewLoadReject.current = null;
+        reject(new Error("网页加载超时"));
+      }, 30000); // 30 秒超时
 
-        webviewLoadResolve.current = (html: string) => {
-          clearTimeout(timeout);
-          setWebviewUrl(null);
-          webviewLoadResolve.current = null;
-          webviewLoadReject.current = null;
-          resolve(html);
-        };
+      webviewLoadResolve.current = (html: string) => {
+        clearTimeout(timeout);
+        setWebviewUrl(null);
+        webviewLoadResolve.current = null;
+        webviewLoadReject.current = null;
+        resolve(html);
+      };
 
-        webviewLoadReject.current = (error: Error) => {
-          clearTimeout(timeout);
-          setWebviewUrl(null);
-          webviewLoadResolve.current = null;
-          webviewLoadReject.current = null;
-          reject(error);
-        };
+      webviewLoadReject.current = (error: Error) => {
+        clearTimeout(timeout);
+        setWebviewUrl(null);
+        webviewLoadResolve.current = null;
+        webviewLoadReject.current = null;
+        reject(error);
+      };
 
-        setWebviewUrl(targetUrl);
-      });
-    },
-  );
+      setWebviewUrl(targetUrl);
+    });
+  });
 
   // Webview 加载完成回调
   const handleWebviewLoad = useMemoizedFn(async () => {
     // 等待额外时间让动态内容（JavaScript）加载完成
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
     try {
       const html = await webviewRef.current?.getHTML();
@@ -323,9 +312,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       }
     } catch (err) {
       if (webviewLoadReject.current) {
-        webviewLoadReject.current(
-          err instanceof Error ? err : new Error("获取网页内容失败"),
-        );
+        webviewLoadReject.current(err instanceof Error ? err : new Error("获取网页内容失败"));
       }
     }
   });
@@ -367,7 +354,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
         type: "full",
       });
 
-      setUploadedFiles((prev) => [...prev, file.name]);
+      setUploadedFiles(prev => [...prev, file.name]);
       message.success(`上传成功: ${file.name}`);
       onSuccess();
     } catch (error) {
@@ -406,15 +393,13 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           headers: {
             "User-Agent":
               "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            Accept:
-              "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
             "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
           },
         });
 
         // nodeFetch 默认返回 res.data，对于 HTML 请求就是字符串
-        const fetchedHtml =
-          typeof response === "string" ? response : String(response);
+        const fetchedHtml = typeof response === "string" ? response : String(response);
         if (fetchedHtml && fetchedHtml.trim().length > 0) {
           html = fetchedHtml;
           pageTitle = extractTitleFromHtml(html);
@@ -447,10 +432,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       // 确定资源标题：优先使用用户输入，否则从网页提取，最后使用 URL
       let finalTitle = resourceTitle.trim();
       if (!finalTitle) {
-        finalTitle =
-          pageTitle ||
-          extractTitleFromHtml(html) ||
-          extractNameFromUrl(url.trim());
+        finalTitle = pageTitle || extractTitleFromHtml(html) || extractNameFromUrl(url.trim());
       }
 
       setProcessingStep("extracting");
@@ -465,7 +447,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           options: {
             smartExtractClean: true,
           },
-        }),
+        })
       );
 
       if (!markdown || markdown.trim().length === 0) {
@@ -517,20 +499,17 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       }, 1000);
     } catch (err) {
       console.error("Clip URL failed:", err);
-      const errorMessage =
-        err instanceof Error ? err.message : "剪藏失败，请稍后重试";
+      const errorMessage = err instanceof Error ? err.message : "剪藏失败，请稍后重试";
       setError(errorMessage);
       setProcessingStep("idle");
     }
   });
 
-  const detectVideoProvider = useMemoizedFn(
-    (url: string): VideoProvider | "unsupported" => {
-      if (isBilibiliUrl(url)) return "bilibili";
-      if (isYoutubeUrl(url)) return "youtube";
-      return "unsupported";
-    },
-  );
+  const detectVideoProvider = useMemoizedFn((url: string): VideoProvider | "unsupported" => {
+    if (isBilibiliUrl(url)) return "bilibili";
+    if (isYoutubeUrl(url)) return "youtube";
+    return "unsupported";
+  });
 
   const handleAnalyzeBilibili = useMemoizedFn(async (targetUrl: string) => {
     const credentials = setting.integration.bilibili.credentials;
@@ -550,20 +529,15 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     }
 
     const hasLogin = !!credentials.SESSDATA;
-    const hasVip =
-      !!setting.integration.bilibili.userInfo.vipStatus && hasLogin;
+    const hasVip = !!setting.integration.bilibili.userInfo.vipStatus && hasLogin;
     let defaultQuality: number;
     if (hasVip) {
       defaultQuality = options[0]?.value || 80;
     } else if (hasLogin) {
-      const maxQuality = Math.max(
-        ...options.filter((opt) => opt.value <= 80).map((opt) => opt.value),
-      );
+      const maxQuality = Math.max(...options.filter(opt => opt.value <= 80).map(opt => opt.value));
       defaultQuality = maxQuality || 64;
     } else {
-      const maxQuality = Math.max(
-        ...options.filter((opt) => opt.value <= 64).map((opt) => opt.value),
-      );
+      const maxQuality = Math.max(...options.filter(opt => opt.value <= 64).map(opt => opt.value));
       defaultQuality = maxQuality || 32;
     }
 
@@ -582,10 +556,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
   });
 
   const handleAnalyzeYoutube = useMemoizedFn(async (targetUrl: string) => {
-    const info = await getYoutubeVideoInfo(
-      targetUrl,
-      setting.integration.youtube.proxy,
-    );
+    const info = await getYoutubeVideoInfo(targetUrl, setting.integration.youtube.proxy);
     if (!info) {
       setVideoError("无法获取视频信息，请检查链接是否正确");
       return;
@@ -640,91 +611,85 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
         await handleAnalyzeYoutube(targetUrl);
       }
     } catch (err) {
-      setVideoError(
-        err instanceof Error ? err.message : "分析失败，请稍后重试",
-      );
+      setVideoError(err instanceof Error ? err.message : "分析失败，请稍后重试");
     } finally {
       setIsAnalyzing(false);
     }
   });
 
-  const handleAddBilibiliVideo = useMemoizedFn(
-    async (currentVideoInfo: BilibiliVideoInfo) => {
-      const selectedOption = currentVideoInfo.qualityOptions.find(
-        (opt) => opt.value === selectedQuality,
-      );
-      if (!selectedOption) {
-        throw new Error("请选择清晰度");
-      }
+  const handleAddBilibiliVideo = useMemoizedFn(async (currentVideoInfo: BilibiliVideoInfo) => {
+    const selectedOption = currentVideoInfo.qualityOptions.find(
+      opt => opt.value === selectedQuality
+    );
+    if (!selectedOption) {
+      throw new Error("请选择清晰度");
+    }
 
-      const targetUrl = videoUrl.trim();
-      const sourceMeta: BilibiliSourceMeta = {
-        bvid: currentVideoInfo.bvid,
-        cid: currentVideoInfo.cid,
-        quality: selectedQuality,
-        title: currentVideoInfo.title,
-        thumbnail: currentVideoInfo.cover,
-      };
+    const targetUrl = videoUrl.trim();
+    const sourceMeta: BilibiliSourceMeta = {
+      bvid: currentVideoInfo.bvid,
+      cid: currentVideoInfo.cid,
+      quality: selectedQuality,
+      title: currentVideoInfo.title,
+      thumbnail: currentVideoInfo.cover,
+    };
 
-      const resource = await createVLResource({
-        projectId,
-        name: `${currentVideoInfo.title}.mp4`,
-        originalPath: targetUrl,
-        resourceType: "video",
-        sourceType: "bilibili",
-        sourceMetaInfo: JSON.stringify(sourceMeta),
-      });
+    const resource = await createVLResource({
+      projectId,
+      name: `${currentVideoInfo.title}.mp4`,
+      originalPath: targetUrl,
+      resourceType: "video",
+      sourceType: "bilibili",
+      sourceMetaInfo: JSON.stringify(sourceMeta),
+    });
 
-      await addVLIndexTask({
-        resourceId: resource.id,
-        projectId,
-        mainDbName,
-        originalPath: targetUrl,
-        resourceName: `${currentVideoInfo.title}.mp4`,
-        type: "full",
-      });
-    },
-  );
+    await addVLIndexTask({
+      resourceId: resource.id,
+      projectId,
+      mainDbName,
+      originalPath: targetUrl,
+      resourceName: `${currentVideoInfo.title}.mp4`,
+      type: "full",
+    });
+  });
 
-  const handleAddYoutubeVideo = useMemoizedFn(
-    async (currentVideoInfo: YoutubeVideoInfoState) => {
-      const videoStream = currentVideoInfo.videoStreams.find(
-        (stream) => stream.id === selectedVideoStream,
-      );
-      const audioStream = currentVideoInfo.audioStreams.find(
-        (stream) => stream.id === selectedAudioStream,
-      );
-      if (!videoStream || !audioStream) {
-        throw new Error("请选择视频流和音频流");
-      }
+  const handleAddYoutubeVideo = useMemoizedFn(async (currentVideoInfo: YoutubeVideoInfoState) => {
+    const videoStream = currentVideoInfo.videoStreams.find(
+      stream => stream.id === selectedVideoStream
+    );
+    const audioStream = currentVideoInfo.audioStreams.find(
+      stream => stream.id === selectedAudioStream
+    );
+    if (!videoStream || !audioStream) {
+      throw new Error("请选择视频流和音频流");
+    }
 
-      const sourceUrl = currentVideoInfo.url || videoUrl.trim();
-      const sourceMeta: YoutubeSourceMeta = {
-        url: sourceUrl,
-        videoStream: videoStream.id,
-        audioStream: audioStream.id,
-        title: currentVideoInfo.title,
-      };
+    const sourceUrl = currentVideoInfo.url || videoUrl.trim();
+    const sourceMeta: YoutubeSourceMeta = {
+      url: sourceUrl,
+      videoStream: videoStream.id,
+      audioStream: audioStream.id,
+      title: currentVideoInfo.title,
+    };
 
-      const resource = await createVLResource({
-        projectId,
-        name: `${currentVideoInfo.title}.mp4`,
-        originalPath: sourceUrl,
-        resourceType: "video",
-        sourceType: "youtube",
-        sourceMetaInfo: JSON.stringify(sourceMeta),
-      });
+    const resource = await createVLResource({
+      projectId,
+      name: `${currentVideoInfo.title}.mp4`,
+      originalPath: sourceUrl,
+      resourceType: "video",
+      sourceType: "youtube",
+      sourceMetaInfo: JSON.stringify(sourceMeta),
+    });
 
-      await addVLIndexTask({
-        resourceId: resource.id,
-        projectId,
-        mainDbName,
-        originalPath: sourceUrl,
-        resourceName: `${currentVideoInfo.title}.mp4`,
-        type: "full",
-      });
-    },
-  );
+    await addVLIndexTask({
+      resourceId: resource.id,
+      projectId,
+      mainDbName,
+      originalPath: sourceUrl,
+      resourceName: `${currentVideoInfo.title}.mp4`,
+      type: "full",
+    });
+  });
 
   const handleAddVideo = useMemoizedFn(async () => {
     if (!videoInfo) return;
@@ -747,8 +712,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       }, 1000);
     } catch (err) {
       console.error("Add video failed:", err);
-      const errorMessage =
-        err instanceof Error ? err.message : "添加视频失败，请稍后重试";
+      const errorMessage = err instanceof Error ? err.message : "添加视频失败，请稍后重试";
       setVideoError(errorMessage);
       setVideoStep("config");
     }
@@ -804,8 +768,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       }, 1000);
     } catch (err) {
       console.error("Add note failed:", err);
-      const errorMessage =
-        err instanceof Error ? err.message : "添加笔记失败，请稍后重试";
+      const errorMessage = err instanceof Error ? err.message : "添加笔记失败，请稍后重试";
       setNoteError(errorMessage);
       setNoteStep("search");
     }
@@ -832,21 +795,19 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
         <div className="py-8">
           {uploading ? (
             <div className="flex flex-col items-center gap-3">
-              <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
-              <p className="text-sm text-gray-600 dark:text-gray-400 m-0">
-                上传中...
-              </p>
+              <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
+              <p className="m-0 text-sm text-gray-600 dark:text-gray-400">上传中...</p>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3">
-              <div className="w-14 h-14 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
-                <UploadIcon className="w-6 h-6 text-blue-500" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-500/10">
+                <UploadIcon className="h-6 w-6 text-blue-500" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-200 m-0">
+                <p className="m-0 text-sm font-medium text-gray-700 dark:text-gray-200">
                   点击或拖拽文件上传
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 m-0">
+                <p className="m-0 mt-1 text-xs text-gray-500 dark:text-gray-400">
                   支持 PDF、Word、音视频等格式
                 </p>
               </div>
@@ -858,19 +819,17 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       {/* 已上传文件列表 */}
       {uploadedFiles.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-            已上传
-          </p>
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">已上传</p>
           <div className="space-y-1.5">
             {uploadedFiles.map((fileName, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400"
+                className="flex items-center gap-2 rounded-lg bg-green-50 px-3 py-2 text-green-600 dark:bg-green-500/10 dark:text-green-400"
               >
-                <Check className="w-4 h-4" />
-                <span className="text-sm truncate">{fileName}</span>
+                <Check className="h-4 w-4" />
+                <span className="truncate text-sm">{fileName}</span>
               </motion.div>
             ))}
           </div>
@@ -883,46 +842,46 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
   const renderUrlTab = () => (
     <div className="space-y-4">
       <div>
-        <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 block mb-2">
+        <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
           网页地址
         </label>
         <input
           type="url"
           value={url}
-          onChange={(e) => setUrl(e.target.value)}
+          onChange={e => setUrl(e.target.value)}
           placeholder="https://example.com/article"
           disabled={processingStep !== "idle"}
           className={classNames(
-            "w-full px-4 py-3 rounded-xl text-sm outline-none transition-all",
-            "bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700",
-            "text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500",
+            "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all",
+            "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
+            "text-gray-800 placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500",
             "focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20",
-            "disabled:opacity-60 disabled:cursor-not-allowed",
+            "disabled:cursor-not-allowed disabled:opacity-60"
           )}
         />
       </div>
 
       <div>
-        <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 block mb-2">
+        <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
           资源标题
-          <span className="text-gray-400 dark:text-gray-500 font-normal normal-case ml-1">
+          <span className="ml-1 font-normal normal-case text-gray-400 dark:text-gray-500">
             （可选，留空则自动提取）
           </span>
         </label>
         <input
           type="text"
           value={resourceTitle}
-          onChange={(e) => setResourceTitle(e.target.value)}
+          onChange={e => setResourceTitle(e.target.value)}
           placeholder="留空将自动从网页标题提取"
           disabled={processingStep !== "idle"}
           className={classNames(
-            "w-full px-4 py-3 rounded-xl text-sm outline-none transition-all",
-            "bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700",
-            "text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500",
+            "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all",
+            "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
+            "text-gray-800 placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500",
             "focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20",
-            "disabled:opacity-60 disabled:cursor-not-allowed",
+            "disabled:cursor-not-allowed disabled:opacity-60"
           )}
-          onKeyDown={(e) => {
+          onKeyDown={e => {
             if (e.key === "Enter" && processingStep === "idle") {
               handleClipUrl();
             }
@@ -938,16 +897,16 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           className="flex flex-col items-center py-8"
         >
           <div className="relative">
-            <div className="w-16 h-16 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
-              <Globe className="w-7 h-7 text-blue-500" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-500/10">
+              <Globe className="h-7 w-7 text-blue-500" />
             </div>
             <motion.div
-              className="absolute inset-0 w-16 h-16 rounded-full border-2 border-blue-500 border-t-transparent"
+              className="absolute inset-0 h-16 w-16 rounded-full border-2 border-blue-500 border-t-transparent"
               animate={{ rotate: 360 }}
               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
             />
           </div>
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mt-4">
+          <p className="mt-4 text-sm font-medium text-gray-700 dark:text-gray-200">
             {processingStep === "fetching" && "正在获取网页内容..."}
             {processingStep === "extracting" && "正在提取文章内容..."}
             {processingStep === "saving" && "正在保存资源..."}
@@ -962,12 +921,10 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           animate={{ opacity: 1, scale: 1 }}
           className="flex flex-col items-center py-8"
         >
-          <div className="w-16 h-16 rounded-full bg-green-50 dark:bg-green-500/10 flex items-center justify-center">
-            <Check className="w-8 h-8 text-green-500" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50 dark:bg-green-500/10">
+            <Check className="h-8 w-8 text-green-500" />
           </div>
-          <p className="text-sm font-medium text-green-600 dark:text-green-400 mt-4">
-            剪藏成功
-          </p>
+          <p className="mt-4 text-sm font-medium text-green-600 dark:text-green-400">剪藏成功</p>
         </motion.div>
       )}
 
@@ -976,16 +933,12 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
         <motion.div
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20"
+          className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-500/20 dark:bg-red-500/10"
         >
-          <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
           <div>
-            <p className="text-sm font-medium text-red-600 dark:text-red-400 m-0">
-              剪藏失败
-            </p>
-            <p className="text-xs text-red-500 dark:text-red-400/80 mt-1 m-0">
-              {error}
-            </p>
+            <p className="m-0 text-sm font-medium text-red-600 dark:text-red-400">剪藏失败</p>
+            <p className="m-0 mt-1 text-xs text-red-500 dark:text-red-400/80">{error}</p>
           </div>
         </motion.div>
       )}
@@ -998,36 +951,36 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       {videoStep === "input" && (
         <>
           <div>
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 block mb-2">
+            <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
               Bilibili / YouTube 视频链接
             </label>
             <input
               ref={videoInputRef}
               type="url"
               value={videoUrl}
-              onChange={(e) => {
+              onChange={e => {
                 setVideoUrl(e.target.value);
                 setVideoError(null);
               }}
               placeholder="在此粘贴 Bilibili 或 YouTube 链接..."
               disabled={isAnalyzing}
-              onKeyDown={(e) => {
+              onKeyDown={e => {
                 if (e.key === "Enter" && !isAnalyzing) {
                   handleAnalyzeVideo();
                 }
               }}
               className={classNames(
-                "w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all",
-                "bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700",
-                "text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500",
+                "w-full rounded-xl px-4 py-3.5 text-sm outline-none transition-all",
+                "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
+                "text-gray-800 placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500",
                 "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20",
-                "disabled:opacity-60 disabled:cursor-not-allowed",
+                "disabled:cursor-not-allowed disabled:opacity-60"
               )}
             />
           </div>
 
           {videoError && (
-            <div className="px-3.5 py-2.5 rounded-lg text-[13px] bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400">
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[13px] text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
               {videoError}
             </div>
           )}
@@ -1037,22 +990,22 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       {videoStep === "config" && videoInfo && (
         <>
           {/* 视频预览 */}
-          <div className="flex items-center gap-3 pb-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
             {videoInfo.cover && (
               <LocalImage
                 url={videoInfo.cover}
                 alt={videoInfo.title}
-                className="w-24 h-[54px] object-cover rounded-lg shrink-0 border border-gray-200 dark:border-gray-700 shadow-sm"
+                className="h-[54px] w-24 shrink-0 rounded-lg border border-gray-200 object-cover shadow-sm dark:border-gray-700"
               />
             )}
-            <div className="flex-1 min-w-0">
+            <div className="min-w-0 flex-1">
               <h3
-                className="text-sm font-semibold m-0 overflow-hidden text-ellipsis whitespace-nowrap pr-2 text-gray-800 dark:text-white"
+                className="m-0 overflow-hidden text-ellipsis whitespace-nowrap pr-2 text-sm font-semibold text-gray-800 dark:text-white"
                 title={videoInfo.title}
               >
                 {videoInfo.title}
               </h3>
-              <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 {videoInfo.provider === "bilibili"
                   ? "请选择清晰度"
                   : "默认已选择最高可用流，可按需调整"}
@@ -1062,33 +1015,29 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
 
           {videoInfo.provider === "bilibili" ? (
             <div>
-              <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 block mb-2">
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
                 清晰度
               </label>
               <div className="relative">
                 <select
                   value={selectedQuality}
-                  onChange={(e) => setSelectedQuality(Number(e.target.value))}
+                  onChange={e => setSelectedQuality(Number(e.target.value))}
                   className={classNames(
-                    "w-full py-3 pl-4 pr-10 rounded-xl text-sm outline-none appearance-none cursor-pointer transition-all",
-                    "bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700",
+                    "w-full cursor-pointer appearance-none rounded-xl py-3 pl-4 pr-10 text-sm outline-none transition-all",
+                    "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
                     "text-gray-800 dark:text-white",
-                    "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20",
+                    "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20"
                   )}
                 >
-                  {videoInfo.qualityOptions.map((opt) => (
+                  {videoInfo.qualityOptions.map(opt => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
-                      {opt.needVip
-                        ? " · 大会员"
-                        : opt.needLogin
-                          ? " · 需登录"
-                          : ""}
+                      {opt.needVip ? " · 大会员" : opt.needLogin ? " · 需登录" : ""}
                     </option>
                   ))}
                 </select>
                 <svg
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400 dark:text-gray-500"
+                  className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -1101,21 +1050,21 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           ) : (
             <>
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 block mb-2">
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
                   视频流
                 </label>
                 <div className="relative">
                   <select
                     value={selectedVideoStream}
-                    onChange={(e) => setSelectedVideoStream(e.target.value)}
+                    onChange={e => setSelectedVideoStream(e.target.value)}
                     className={classNames(
-                      "w-full py-3 pl-4 pr-10 rounded-xl text-sm outline-none appearance-none cursor-pointer transition-all",
-                      "bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700",
+                      "w-full cursor-pointer appearance-none rounded-xl py-3 pl-4 pr-10 text-sm outline-none transition-all",
+                      "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
                       "text-gray-800 dark:text-white",
-                      "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20",
+                      "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20"
                     )}
                   >
-                    {videoInfo.videoStreams.map((stream) => (
+                    {videoInfo.videoStreams.map(stream => (
                       <option key={stream.id} value={stream.id}>
                         {stream.resolution} · {stream.format?.toUpperCase()} ·{" "}
                         {stream.codecs || "unknown"}
@@ -1124,7 +1073,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
                     ))}
                   </select>
                   <svg
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400 dark:text-gray-500"
+                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -1135,32 +1084,29 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
                 </div>
               </div>
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 block mb-2">
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
                   音频流
                 </label>
                 <div className="relative">
                   <select
                     value={selectedAudioStream}
-                    onChange={(e) => setSelectedAudioStream(e.target.value)}
+                    onChange={e => setSelectedAudioStream(e.target.value)}
                     className={classNames(
-                      "w-full py-3 pl-4 pr-10 rounded-xl text-sm outline-none appearance-none cursor-pointer transition-all",
-                      "bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700",
+                      "w-full cursor-pointer appearance-none rounded-xl py-3 pl-4 pr-10 text-sm outline-none transition-all",
+                      "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
                       "text-gray-800 dark:text-white",
-                      "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20",
+                      "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20"
                     )}
                   >
-                    {videoInfo.audioStreams.map((stream) => (
+                    {videoInfo.audioStreams.map(stream => (
                       <option key={stream.id} value={stream.id}>
-                        {stream.format?.toUpperCase()} ·{" "}
-                        {stream.codecs || "unknown"}
-                        {stream.bitrate
-                          ? ` · ${Math.round(stream.bitrate / 1024)}kbps`
-                          : ""}
+                        {stream.format?.toUpperCase()} · {stream.codecs || "unknown"}
+                        {stream.bitrate ? ` · ${Math.round(stream.bitrate / 1024)}kbps` : ""}
                       </option>
                     ))}
                   </select>
                   <svg
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400 dark:text-gray-500"
+                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -1174,7 +1120,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           )}
 
           {videoError && (
-            <div className="px-3.5 py-2.5 rounded-lg text-[13px] bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400">
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[13px] text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
               {videoError}
             </div>
           )}
@@ -1188,16 +1134,16 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           className="flex flex-col items-center py-8"
         >
           <div className="relative">
-            <div className="w-16 h-16 rounded-full bg-pink-50 dark:bg-pink-500/10 flex items-center justify-center">
-              <Video className="w-7 h-7 text-pink-500" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-pink-50 dark:bg-pink-500/10">
+              <Video className="h-7 w-7 text-pink-500" />
             </div>
             <motion.div
-              className="absolute inset-0 w-16 h-16 rounded-full border-2 border-pink-500 border-t-transparent"
+              className="absolute inset-0 h-16 w-16 rounded-full border-2 border-pink-500 border-t-transparent"
               animate={{ rotate: 360 }}
               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
             />
           </div>
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mt-4">
+          <p className="mt-4 text-sm font-medium text-gray-700 dark:text-gray-200">
             正在添加视频...
           </p>
         </motion.div>
@@ -1209,13 +1155,11 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           animate={{ opacity: 1, scale: 1 }}
           className="flex flex-col items-center py-8"
         >
-          <div className="w-16 h-16 rounded-full bg-green-50 dark:bg-green-500/10 flex items-center justify-center">
-            <Check className="w-8 h-8 text-green-500" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50 dark:bg-green-500/10">
+            <Check className="h-8 w-8 text-green-500" />
           </div>
-          <p className="text-sm font-medium text-green-600 dark:text-green-400 mt-4">
-            添加成功
-          </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <p className="mt-4 text-sm font-medium text-green-600 dark:text-green-400">添加成功</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             视频正在后台下载和处理中...
           </p>
         </motion.div>
@@ -1237,16 +1181,12 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
             <motion.div
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20"
+              className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-500/20 dark:bg-red-500/10"
             >
-              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
               <div>
-                <p className="text-sm font-medium text-red-600 dark:text-red-400 m-0">
-                  添加失败
-                </p>
-                <p className="text-xs text-red-500 dark:text-red-400/80 mt-1 m-0">
-                  {noteError}
-                </p>
+                <p className="m-0 text-sm font-medium text-red-600 dark:text-red-400">添加失败</p>
+                <p className="m-0 mt-1 text-xs text-red-500 dark:text-red-400/80">{noteError}</p>
               </div>
             </motion.div>
           )}
@@ -1260,16 +1200,16 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           className="flex flex-col items-center py-8"
         >
           <div className="relative">
-            <div className="w-16 h-16 rounded-full bg-purple-50 dark:bg-purple-500/10 flex items-center justify-center">
-              <StickyNote className="w-7 h-7 text-purple-500" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-50 dark:bg-purple-500/10">
+              <StickyNote className="h-7 w-7 text-purple-500" />
             </div>
             <motion.div
-              className="absolute inset-0 w-16 h-16 rounded-full border-2 border-purple-500 border-t-transparent"
+              className="absolute inset-0 h-16 w-16 rounded-full border-2 border-purple-500 border-t-transparent"
               animate={{ rotate: 360 }}
               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
             />
           </div>
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mt-4">
+          <p className="mt-4 text-sm font-medium text-gray-700 dark:text-gray-200">
             正在添加笔记...
           </p>
         </motion.div>
@@ -1281,12 +1221,10 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           animate={{ opacity: 1, scale: 1 }}
           className="flex flex-col items-center py-8"
         >
-          <div className="w-16 h-16 rounded-full bg-green-50 dark:bg-green-500/10 flex items-center justify-center">
-            <Check className="w-8 h-8 text-green-500" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50 dark:bg-green-500/10">
+            <Check className="h-8 w-8 text-green-500" />
           </div>
-          <p className="text-sm font-medium text-green-600 dark:text-green-400 mt-4">
-            添加成功
-          </p>
+          <p className="mt-4 text-sm font-medium text-green-600 dark:text-green-400">添加成功</p>
         </motion.div>
       )}
     </div>
@@ -1297,14 +1235,14 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
     "bg-blue-500 text-white",
     "hover:bg-blue-600",
-    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed",
+    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed"
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
     "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
     "hover:bg-gray-200 dark:hover:bg-zinc-700",
-    "border border-gray-200 dark:border-gray-700",
+    "border border-gray-200 dark:border-gray-700"
   );
 
   // 渲染底部按钮
@@ -1312,11 +1250,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     if (activeTab === "file") {
       return (
         <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className={secondaryButtonClass}
-          >
+          <button type="button" onClick={onClose} className={secondaryButtonClass}>
             {uploadedFiles.length > 0 ? "完成" : "取消"}
           </button>
         </div>
@@ -1339,12 +1273,9 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
               type="button"
               onClick={handleClipUrl}
               disabled={!url.trim()}
-              className={classNames(
-                primaryButtonClass,
-                "flex items-center gap-2",
-              )}
+              className={classNames(primaryButtonClass, "flex items-center gap-2")}
             >
-              <Globe className="w-4 h-4" />
+              <Globe className="h-4 w-4" />
               开始剪藏
             </button>
           )}
@@ -1357,11 +1288,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       if (videoStep === "input") {
         return (
           <div className="flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className={secondaryButtonClass}
-            >
+            <button type="button" onClick={onClose} className={secondaryButtonClass}>
               取消
             </button>
             <button
@@ -1369,21 +1296,21 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
               onClick={handleAnalyzeVideo}
               disabled={!videoUrl.trim() || isAnalyzing}
               className={classNames(
-                "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
+                "rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200",
                 "bg-pink-500 text-white",
                 "hover:bg-pink-600",
-                "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed",
-                "flex items-center gap-2",
+                "disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:bg-zinc-800",
+                "flex items-center gap-2"
               )}
             >
               {isAnalyzing ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   正在分析...
                 </>
               ) : (
                 <>
-                  <Video className="w-4 h-4" />
+                  <Video className="h-4 w-4" />
                   开始分析
                 </>
               )}
@@ -1395,24 +1322,20 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       if (videoStep === "config") {
         return (
           <div className="flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={handleVideoBack}
-              className={secondaryButtonClass}
-            >
+            <button type="button" onClick={handleVideoBack} className={secondaryButtonClass}>
               返回
             </button>
             <button
               type="button"
               onClick={handleAddVideo}
               className={classNames(
-                "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
-                "bg-emerald-500 text-white",
-                "hover:bg-emerald-600",
-                "flex items-center gap-2",
+                "rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200",
+                "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]",
+                "hover:bg-[var(--th-btn-hover)]",
+                "flex items-center gap-2"
               )}
             >
-              <Check className="w-4 h-4" />
+              <Check className="h-4 w-4" />
               确认添加
             </button>
           </div>
@@ -1468,14 +1391,14 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       destroyOnClose
       title="添加资料"
       subtitle="上传文件、剪藏网页或添加视频"
-      icon={<Plus className="w-5 h-5 text-blue-500" />}
+      icon={<Plus className="h-5 w-5 text-blue-500" />}
       iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
       footer={renderFooter()}
       showCloseButton={canClose}
     >
       {/* 隐藏的 Webview 用于加载动态网页 */}
       {webviewUrl && (
-        <div className="absolute -left-[9999px] w-px h-px overflow-hidden">
+        <div className="absolute -left-[9999px] h-px w-px overflow-hidden">
           <Webview
             ref={webviewRef}
             src={webviewUrl}
@@ -1486,7 +1409,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       )}
 
       {/* Tab 切换 */}
-      <div className="flex gap-1 p-1 mb-5 bg-gray-100 dark:bg-zinc-800 rounded-xl">
+      <div className="mb-5 flex gap-1 rounded-xl bg-gray-100 p-1 dark:bg-zinc-800">
         <button
           type="button"
           onClick={() => setActiveTab("file")}
@@ -1496,14 +1419,14 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
             (noteStep !== "search" && noteStep !== "done")
           }
           className={classNames(
-            "flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+            "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
             activeTab === "file"
-              ? "bg-white dark:bg-zinc-700 text-gray-900 dark:text-white shadow-sm"
-              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300",
-            "disabled:opacity-50 disabled:cursor-not-allowed",
+              ? "bg-white text-gray-900 shadow-sm dark:bg-zinc-700 dark:text-white"
+              : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300",
+            "disabled:cursor-not-allowed disabled:opacity-50"
           )}
         >
-          <FileText className="w-4 h-4" />
+          <FileText className="h-4 w-4" />
           文件
         </button>
         <button
@@ -1515,14 +1438,14 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
             (noteStep !== "search" && noteStep !== "done")
           }
           className={classNames(
-            "flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+            "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
             activeTab === "url"
-              ? "bg-white dark:bg-zinc-700 text-gray-900 dark:text-white shadow-sm"
-              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300",
-            "disabled:opacity-50 disabled:cursor-not-allowed",
+              ? "bg-white text-gray-900 shadow-sm dark:bg-zinc-700 dark:text-white"
+              : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300",
+            "disabled:cursor-not-allowed disabled:opacity-50"
           )}
         >
-          <Globe className="w-4 h-4" />
+          <Globe className="h-4 w-4" />
           网页
         </button>
         <button
@@ -1534,14 +1457,14 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
             (noteStep !== "search" && noteStep !== "done")
           }
           className={classNames(
-            "flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+            "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
             activeTab === "video"
-              ? "bg-white dark:bg-zinc-700 text-gray-900 dark:text-white shadow-sm"
-              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300",
-            "disabled:opacity-50 disabled:cursor-not-allowed",
+              ? "bg-white text-gray-900 shadow-sm dark:bg-zinc-700 dark:text-white"
+              : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300",
+            "disabled:cursor-not-allowed disabled:opacity-50"
           )}
         >
-          <Video className="w-4 h-4" />
+          <Video className="h-4 w-4" />
           视频
         </button>
         <button
@@ -1553,14 +1476,14 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
             (noteStep !== "search" && noteStep !== "done")
           }
           className={classNames(
-            "flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+            "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
             activeTab === "note"
-              ? "bg-white dark:bg-zinc-700 text-gray-900 dark:text-white shadow-sm"
-              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300",
-            "disabled:opacity-50 disabled:cursor-not-allowed",
+              ? "bg-white text-gray-900 shadow-sm dark:bg-zinc-700 dark:text-white"
+              : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300",
+            "disabled:cursor-not-allowed disabled:opacity-50"
           )}
         >
-          <StickyNote className="w-4 h-4" />
+          <StickyNote className="h-4 w-4" />
           笔记
         </button>
       </div>

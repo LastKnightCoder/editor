@@ -1,20 +1,12 @@
 import React, { useEffect, useMemo } from "react";
-import {
-  pausePomodoroSession,
-  resumePomodoroSession,
-  stopPomodoroSession,
-} from "@/commands";
+import { pausePomodoroSession, resumePomodoroSession, stopPomodoroSession } from "@/commands";
 import { hidePomodoroMiniWindow } from "@/commands/window";
 import { usePomodoroStore } from "@/stores/usePomodoroStore";
 import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 import useInitDatabase from "@/hooks/useInitDatabase";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import { fmt } from "./utils";
-import {
-  AiOutlinePauseCircle,
-  AiOutlinePlayCircle,
-  AiOutlineClose,
-} from "react-icons/ai";
+import { AiOutlinePauseCircle, AiOutlinePlayCircle, AiOutlineClose } from "react-icons/ai";
 import { IoStopCircleOutline } from "react-icons/io5";
 import useThemeColors from "@/hooks/useThemeColors";
 
@@ -38,7 +30,7 @@ const CircularProgress: React.FC<CircularProgressProps> = ({
   const offset = circumference - (progress / 100) * circumference;
 
   return (
-    <svg width={size} height={size} className="transform -rotate-90">
+    <svg width={size} height={size} className="-rotate-90 transform">
       <circle
         cx={size / 2}
         cy={size / 2}
@@ -59,8 +51,7 @@ const CircularProgress: React.FC<CircularProgressProps> = ({
         strokeDashoffset={offset}
         strokeLinecap="round"
         style={{
-          transition:
-            "stroke-dashoffset 1s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.5s ease",
+          transition: "stroke-dashoffset 1s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.5s ease",
         }}
       />
     </svg>
@@ -93,28 +84,21 @@ const Mini: React.FC = () => {
       return;
     }
 
-    syncActiveSession().catch((error) => {
+    syncActiveSession().catch(error => {
       console.error("Failed to sync pomodoro mini session:", error);
     });
-  }, [
-    initPomodoro,
-    inited,
-    isConnected,
-    isServerReady,
-    isSocketOpen,
-    syncActiveSession,
-  ]);
+  }, [initPomodoro, inited, isConnected, isServerReady, isSocketOpen, syncActiveSession]);
 
   useEffect(() => {
     if (document.visibilityState === "visible" && inited) {
-      syncActiveSession().catch((error) => {
+      syncActiveSession().catch(error => {
         console.error("Failed to resync mini session on visibility:", error);
       });
     }
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible" && inited) {
-        syncActiveSession().catch((error) => {
+        syncActiveSession().catch(error => {
           console.error("Failed to resync mini session on visibility:", error);
         });
       }
@@ -137,38 +121,25 @@ const Mini: React.FC = () => {
       }
     };
 
-    client.registerNotificationHandler(
-      "pomodoro:active-session-changed",
-      handler,
-    );
+    client.registerNotificationHandler("pomodoro:active-session-changed", handler);
 
     return () => {
-      client.unregisterNotificationHandler(
-        "pomodoro:active-session-changed",
-        handler,
-      );
+      client.unregisterNotificationHandler("pomodoro:active-session-changed", handler);
     };
   }, [client]);
 
   const presetName = useMemo(() => {
     if (!activeSession) return "";
-    const preset = presets.find((p) => p.id === activeSession.presetId);
+    const preset = presets.find(p => p.id === activeSession.presetId);
     return preset?.name || "未知预设";
   }, [activeSession, presets]);
 
   // 计算进度
   const progress = useMemo(() => {
     if (!activeSession) return 0;
-    if (
-      activeSession.expectedMs !== undefined &&
-      activeSession.expectedMs > 0
-    ) {
+    if (activeSession.expectedMs !== undefined && activeSession.expectedMs > 0) {
       // 倒计时模式：基于剩余时间
-      return (
-        ((activeSession.expectedMs - (remainMs ?? 0)) /
-          activeSession.expectedMs) *
-        100
-      );
+      return ((activeSession.expectedMs - (remainMs ?? 0)) / activeSession.expectedMs) * 100;
     }
     // 正计时模式：无进度显示
     return 0;
@@ -176,16 +147,16 @@ const Mini: React.FC = () => {
 
   // 颜色配置
   const progressColor = useMemo(() => {
-    if (!activeSession) return "#10b981";
-    return activeSession.status === "running" ? "#10b981" : "#fb923c";
+    if (!activeSession) return "var(--th-accent)";
+    return activeSession.status === "running" ? "var(--th-accent)" : "var(--th-warning)";
   }, [activeSession]);
 
   if (initStatus === "loading" || (isConnected && !inited)) {
     return (
       <div
         className={classNames(
-          "p-3 text-sm app-region-drag transition-colors",
-          themeColors.textClass,
+          "app-region-drag p-3 text-sm transition-colors",
+          themeColors.textClass
         )}
       >
         同步中...
@@ -197,8 +168,8 @@ const Mini: React.FC = () => {
     return (
       <div
         className={classNames(
-          "p-3 text-sm app-region-drag transition-colors",
-          themeColors.textClass,
+          "app-region-drag p-3 text-sm transition-colors",
+          themeColors.textClass
         )}
       >
         未在计时
@@ -206,22 +177,17 @@ const Mini: React.FC = () => {
     );
 
   return (
-    <div className="relative flex items-center gap-3 p-3 w-full h-full app-region-drag group">
+    <div className="app-region-drag group relative flex h-full w-full items-center gap-3 p-3">
       <div className="relative shrink-0">
-        <CircularProgress
-          progress={progress}
-          color={progressColor}
-          size={70}
-          strokeWidth={3}
-        />
-        <div className="absolute inset-0 flex items-center justify-center app-region-no-drag">
+        <CircularProgress progress={progress} color={progressColor} size={70} strokeWidth={3} />
+        <div className="app-region-no-drag absolute inset-0 flex items-center justify-center">
           {activeSession.status === "running" ? (
             // 专注态：只显示暂停按钮
             <button
               className={classNames(
                 "transition-colors",
                 themeColors.activeTextClass,
-                themeColors.hoverTextClass,
+                themeColors.hoverTextClass
               )}
               onClick={() => pausePomodoroSession()}
               title="暂停"
@@ -235,7 +201,7 @@ const Mini: React.FC = () => {
                 className={classNames(
                   "transition-colors",
                   themeColors.activeTextClass,
-                  themeColors.hoverTextClass,
+                  themeColors.hoverTextClass
                 )}
                 onClick={() => resumePomodoroSession()}
                 title="继续"
@@ -246,7 +212,7 @@ const Mini: React.FC = () => {
                 className={classNames(
                   "transition-colors",
                   themeColors.textClass,
-                  themeColors.hoverTextClass,
+                  themeColors.hoverTextClass
                 )}
                 onClick={() => {
                   stopPomodoroSession(true);
@@ -261,32 +227,30 @@ const Mini: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col justify-center min-w-0 w-fit app-region-no-drag">
+      <div className="app-region-no-drag flex w-fit min-w-0 flex-1 flex-col justify-center">
         <div
           className={classNames(
-            "text-sm truncate w-fit app-region-drag transition-colors",
-            themeColors.textClass,
+            "app-region-drag w-fit truncate text-sm transition-colors",
+            themeColors.textClass
           )}
         >
           {presetName}
         </div>
         <div
           className={classNames(
-            "text-2xl font-bold app-region-drag transition-colors",
-            themeColors.activeTextClass,
+            "app-region-drag text-2xl font-bold transition-colors",
+            themeColors.activeTextClass
           )}
         >
-          {activeSession.expectedMs !== undefined
-            ? fmt(remainMs ?? 0)
-            : fmt(elapsedMs)}
+          {activeSession.expectedMs !== undefined ? fmt(remainMs ?? 0) : fmt(elapsedMs)}
         </div>
       </div>
 
       <button
         className={classNames(
-          "absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 app-region-no-drag cursor-pointer",
+          "app-region-no-drag absolute right-2 top-2 cursor-pointer opacity-0 transition-all duration-200 group-hover:opacity-100",
           themeColors.textClass,
-          themeColors.hoverTextClass,
+          themeColors.hoverTextClass
         )}
         onClick={() => hidePomodoroMiniWindow()}
         title="关闭窗口"

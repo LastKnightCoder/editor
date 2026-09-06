@@ -116,7 +116,7 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
         handleSubmit();
       }
     },
-    [onCancel, activeTab, isUploading, handleSubmit],
+    [onCancel, activeTab, isUploading, handleSubmit]
   );
 
   if (!open) return null;
@@ -125,7 +125,7 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
     <AnimatePresence>
       {open && (
         <motion.div
-          className="webview-modal-overlay fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          className="webview-modal-overlay z-9999 fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm"
           onClick={onCancel}
           onKeyDown={handleKeyDown}
           initial={{ opacity: 0 }}
@@ -134,19 +134,19 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
           transition={{ duration: 0.2 }}
         >
           <motion.div
-            className="webview-modal-container w-full max-w-[460px] m-4"
-            onClick={(e) => e.stopPropagation()}
+            className="webview-modal-container m-4 w-full max-w-[460px]"
+            onClick={e => e.stopPropagation()}
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800">
+            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
               {/* Header */}
-              <div className="flex items-start gap-3 mb-5">
-                <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-emerald-50 dark:bg-emerald-500/20 border border-emerald-200 dark:border-emerald-500/30">
+              <div className="mb-5 flex items-start gap-3">
+                <div className="border-[var(--th-border-focus)]/30 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border bg-[var(--th-accent-soft)]">
                   <svg
-                    className="w-5 h-5 text-emerald-500"
+                    className="h-5 w-5 text-[var(--th-accent)]"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -157,20 +157,20 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
                     <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
                   </svg>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-base font-bold m-0 text-gray-800 dark:text-white">
+                <div className="min-w-0 flex-1">
+                  <h2 className="m-0 text-base font-bold text-gray-800 dark:text-white">
                     添加网页
                   </h2>
-                  <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
+                  <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-500">
                     选择远程网址或本地 HTML
                   </p>
                 </div>
                 <button
-                  className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
+                  className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-gray-100 text-gray-500 transition-all hover:bg-gray-200 hover:text-gray-700 dark:bg-zinc-800 dark:text-slate-400 dark:hover:bg-zinc-700 dark:hover:text-slate-200"
                   onClick={onCancel}
                 >
                   <svg
-                    className="w-[18px] h-[18px]"
+                    className="h-[18px] w-[18px]"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -182,18 +182,18 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
               </div>
 
               {/* Tabs */}
-              <div className="flex gap-2 mb-4 p-1 rounded-xl bg-gray-100 dark:bg-zinc-950">
+              <div className="mb-4 flex gap-2 rounded-xl bg-gray-100 p-1 dark:bg-zinc-950">
                 <button
-                  className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
                     activeTab === "url"
-                      ? "bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 shadow-sm"
-                      : "text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
+                      ? "bg-white text-[var(--th-active-text)] shadow-sm dark:bg-zinc-800"
+                      : "text-gray-600 hover:text-gray-800 dark:text-slate-400 dark:hover:text-slate-200"
                   }`}
                   onClick={() => setActiveTab("url")}
                 >
                   <div className="flex items-center justify-center gap-2">
                     <svg
-                      className="w-4 h-4"
+                      className="h-4 w-4"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -206,16 +206,16 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
                   </div>
                 </button>
                 <button
-                  className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
                     activeTab === "local"
-                      ? "bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 shadow-sm"
-                      : "text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
+                      ? "bg-white text-[var(--th-active-text)] shadow-sm dark:bg-zinc-800"
+                      : "text-gray-600 hover:text-gray-800 dark:text-slate-400 dark:hover:text-slate-200"
                   }`}
                   onClick={() => setActiveTab("local")}
                 >
                   <div className="flex items-center justify-center gap-2">
                     <svg
-                      className="w-4 h-4"
+                      className="h-4 w-4"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -244,24 +244,24 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
                       <input
                         type="text"
                         value={remoteTitle}
-                        onChange={(e) => setRemoteTitle(e.target.value)}
+                        onChange={e => setRemoteTitle(e.target.value)}
                         placeholder="请输入网页标题（可选）"
-                        className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-emerald-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(16,185,129,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(16,185,129,0.25)]"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                       />
                       <div className="relative">
                         <input
                           ref={inputRef}
                           type="text"
                           value={remoteUrl}
-                          onChange={(e) => {
+                          onChange={e => {
                             setRemoteUrl(e.target.value);
                             setError(null);
                           }}
                           placeholder="在此粘贴网址，例如：https://www.example.com"
-                          className="w-full px-4 py-3.5 pl-10 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-emerald-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(16,185,129,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(16,185,129,0.25)]"
+                          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 pl-10 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                         />
                         <svg
-                          className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none text-gray-400 dark:text-slate-500"
+                          className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 dark:text-slate-500"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -285,20 +285,20 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
                       <input
                         type="text"
                         value={localTitle}
-                        onChange={(e) => setLocalTitle(e.target.value)}
+                        onChange={e => setLocalTitle(e.target.value)}
                         placeholder="请输入网页标题（可选）"
-                        className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-emerald-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(16,185,129,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(16,185,129,0.25)]"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                       />
 
                       <button
-                        className="w-full px-4 py-3 rounded-xl border-2 border-dashed border-gray-300 dark:border-slate-700 text-sm font-medium cursor-pointer flex items-center justify-center gap-2 transition-all text-gray-600 dark:text-slate-400 hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 px-4 py-3 text-sm font-medium text-gray-600 transition-all hover:border-[var(--th-border-focus)] hover:bg-[var(--th-accent-soft)] hover:text-[var(--th-active-text)] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-400"
                         onClick={handleSelectLocalFile}
                         disabled={isUploading}
                       >
                         {isUploading ? (
                           <>
                             <svg
-                              className="webview-spin w-5 h-5"
+                              className="webview-spin h-5 w-5"
                               viewBox="0 0 24 24"
                               fill="none"
                               stroke="currentColor"
@@ -311,7 +311,7 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
                         ) : (
                           <>
                             <svg
-                              className="w-5 h-5"
+                              className="h-5 w-5"
                               viewBox="0 0 24 24"
                               fill="none"
                               stroke="currentColor"
@@ -330,11 +330,11 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
                         <motion.div
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: "auto" }}
-                          className="px-3.5 py-2.5 rounded-lg text-[13px] bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400"
+                          className="border-[var(--th-border-focus)]/30 rounded-lg border bg-[var(--th-accent-soft)] px-3.5 py-2.5 text-[13px] text-[var(--th-active-text)]"
                         >
                           <div className="flex items-center gap-2">
                             <svg
-                              className="w-4 h-4 shrink-0"
+                              className="h-4 w-4 shrink-0"
                               viewBox="0 0 24 24"
                               fill="none"
                               stroke="currentColor"
@@ -342,9 +342,7 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
                             >
                               <polyline points="20 6 9 17 4 12" />
                             </svg>
-                            <span className="truncate">
-                              已选择：{localFileName}
-                            </span>
+                            <span className="truncate">已选择：{localFileName}</span>
                           </div>
                         </motion.div>
                       )}
@@ -357,14 +355,14 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="px-3.5 py-2.5 rounded-lg text-[13px] bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400"
+                    className="bg-[var(--th-danger)]/10 border-[var(--th-danger)]/20 text-status-error rounded-lg border px-3.5 py-2.5 text-[13px]"
                   >
                     {error}
                   </motion.div>
                 )}
 
                 <button
-                  className="w-full px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-emerald-500 text-white shadow-[0_4px_14px_rgba(16,185,129,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-emerald-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700"
+                  className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-none bg-[var(--th-btn-bg)] px-5 py-3.5 text-sm font-semibold text-[var(--th-btn-text)] shadow-sm transition-all hover:-translate-y-px hover:bg-[var(--th-btn-hover)] active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700 dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
                   onClick={handleSubmit}
                   disabled={
                     isUploading ||
@@ -373,7 +371,7 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
                   }
                 >
                   <svg
-                    className="w-5 h-5"
+                    className="h-5 w-5"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -389,7 +387,7 @@ const WebViewSelectModal: React.FC<WebViewSelectModalProps> = ({
         </motion.div>
       )}
     </AnimatePresence>,
-    document.body,
+    document.body
   );
 };
 

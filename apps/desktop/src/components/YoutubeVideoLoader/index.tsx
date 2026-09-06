@@ -14,21 +14,17 @@ const formatBytes = (bytes?: number): string => {
   return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
 };
 
-const YoutubeVideoLoader = ({
-  loading,
-  error,
-  streamProgress,
-}: YoutubeVideoLoaderProps) => {
+const YoutubeVideoLoader = ({ loading, error, streamProgress }: YoutubeVideoLoaderProps) => {
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[280px] p-8">
+      <div className="flex min-h-[280px] items-center justify-center p-8">
         <div className="w-full max-w-md">
           {/* Header */}
-          <div className="flex items-center justify-center gap-3 mb-6">
+          <div className="mb-6 flex items-center justify-center gap-3">
             <div className="relative">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 dark:from-indigo-500/30 dark:to-purple-500/30 flex items-center justify-center border border-indigo-500/30 dark:border-indigo-400/40">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-indigo-500/30 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 dark:border-indigo-400/40 dark:from-indigo-500/30 dark:to-purple-500/30">
                 <svg
-                  className="w-6 h-6 text-indigo-600 dark:text-indigo-400 animate-pulse"
+                  className="h-6 w-6 animate-pulse text-indigo-600 dark:text-indigo-400"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -38,14 +34,14 @@ const YoutubeVideoLoader = ({
                   <path d="m9.75 15.02 5.75-3.27-5.75-3.27v6.54z" />
                 </svg>
               </div>
-              <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-indigo-500 rounded-full animate-ping" />
-              <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-indigo-500 rounded-full" />
+              <div className="absolute -right-0.5 -top-0.5 h-3 w-3 animate-ping rounded-full bg-indigo-500" />
+              <div className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-indigo-500" />
             </div>
             <div>
               <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
                 正在加载 YouTube 视频
               </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                 {streamProgress?.message || "正在准备下载..."}
               </p>
             </div>
@@ -55,95 +51,93 @@ const YoutubeVideoLoader = ({
           {streamProgress ? (
             <div className="space-y-4">
               {/* Video Progress */}
-              {streamProgress.stage === "downloading" &&
-                streamProgress.videoTotal && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                        <svg
-                          className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <rect x="2" y="2" width="20" height="20" rx="2.18" />
-                          <path d="m7 2 10 10-10 10" />
-                        </svg>
-                        视频流
-                      </span>
-                      <span className="text-gray-600 dark:text-gray-400 tabular-nums">
-                        {formatBytes(streamProgress.videoDownloaded)} /{" "}
-                        {formatBytes(streamProgress.videoTotal)}
-                      </span>
-                    </div>
-                    <div className="relative h-2 bg-gray-200 dark:bg-zinc-700 rounded-full overflow-hidden">
-                      <div
-                        className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-500 to-indigo-600 dark:from-indigo-400 dark:to-indigo-500 rounded-full transition-all duration-300 ease-out"
-                        style={{
-                          width: `${Math.min(
-                            ((streamProgress.videoDownloaded || 0) /
-                              (streamProgress.videoTotal || 1)) *
-                              100,
-                            100,
-                          )}%`,
-                        }}
+              {streamProgress.stage === "downloading" && streamProgress.videoTotal && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-300">
+                      <svg
+                        className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
                       >
-                        <div className="absolute inset-0 bg-white/30 animate-pulse" />
-                      </div>
+                        <rect x="2" y="2" width="20" height="20" rx="2.18" />
+                        <path d="m7 2 10 10-10 10" />
+                      </svg>
+                      视频流
+                    </span>
+                    <span className="tabular-nums text-gray-600 dark:text-gray-400">
+                      {formatBytes(streamProgress.videoDownloaded)} /{" "}
+                      {formatBytes(streamProgress.videoTotal)}
+                    </span>
+                  </div>
+                  <div className="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-zinc-700">
+                    <div
+                      className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-500 to-indigo-600 transition-all duration-300 ease-out dark:from-indigo-400 dark:to-indigo-500"
+                      style={{
+                        width: `${Math.min(
+                          ((streamProgress.videoDownloaded || 0) /
+                            (streamProgress.videoTotal || 1)) *
+                            100,
+                          100
+                        )}%`,
+                      }}
+                    >
+                      <div className="absolute inset-0 animate-pulse bg-white/30" />
                     </div>
                   </div>
-                )}
+                </div>
+              )}
 
               {/* Audio Progress */}
-              {streamProgress.stage === "downloading" &&
-                streamProgress.audioTotal && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                        <svg
-                          className="w-3.5 h-3.5 text-purple-500 dark:text-purple-400"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <path d="M9 18V5l12-2v13" />
-                          <circle cx="6" cy="18" r="3" />
-                          <circle cx="18" cy="16" r="3" />
-                        </svg>
-                        音频流
-                      </span>
-                      <span className="text-gray-600 dark:text-gray-400 tabular-nums">
-                        {formatBytes(streamProgress.audioDownloaded)} /{" "}
-                        {formatBytes(streamProgress.audioTotal)}
-                      </span>
-                    </div>
-                    <div className="relative h-2 bg-gray-200 dark:bg-zinc-700 rounded-full overflow-hidden">
-                      <div
-                        className="absolute inset-y-0 left-0 bg-gradient-to-r from-purple-500 to-purple-600 dark:from-purple-400 dark:to-purple-500 rounded-full transition-all duration-300 ease-out"
-                        style={{
-                          width: `${Math.min(
-                            ((streamProgress.audioDownloaded || 0) /
-                              (streamProgress.audioTotal || 1)) *
-                              100,
-                            100,
-                          )}%`,
-                        }}
+              {streamProgress.stage === "downloading" && streamProgress.audioTotal && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-300">
+                      <svg
+                        className="h-3.5 w-3.5 text-purple-500 dark:text-purple-400"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
                       >
-                        <div className="absolute inset-0 bg-white/30 animate-pulse" />
-                      </div>
+                        <path d="M9 18V5l12-2v13" />
+                        <circle cx="6" cy="18" r="3" />
+                        <circle cx="18" cy="16" r="3" />
+                      </svg>
+                      音频流
+                    </span>
+                    <span className="tabular-nums text-gray-600 dark:text-gray-400">
+                      {formatBytes(streamProgress.audioDownloaded)} /{" "}
+                      {formatBytes(streamProgress.audioTotal)}
+                    </span>
+                  </div>
+                  <div className="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-zinc-700">
+                    <div
+                      className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-purple-500 to-purple-600 transition-all duration-300 ease-out dark:from-purple-400 dark:to-purple-500"
+                      style={{
+                        width: `${Math.min(
+                          ((streamProgress.audioDownloaded || 0) /
+                            (streamProgress.audioTotal || 1)) *
+                            100,
+                          100
+                        )}%`,
+                      }}
+                    >
+                      <div className="absolute inset-0 animate-pulse bg-white/30" />
                     </div>
                   </div>
-                )}
+                </div>
+              )}
 
               {/* Merging Progress */}
               {streamProgress.stage === "merging" && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                    <span className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-300">
                       <svg
-                        className="w-3.5 h-3.5 text-green-500 dark:text-green-400 animate-spin"
+                        className="h-3.5 w-3.5 animate-spin text-green-500 dark:text-green-400"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -157,12 +151,12 @@ const YoutubeVideoLoader = ({
                       {streamProgress.processed}%
                     </span>
                   </div>
-                  <div className="relative h-2 bg-gray-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                  <div className="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-zinc-700">
                     <div
-                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-500 to-emerald-600 dark:from-green-400 dark:to-emerald-500 rounded-full transition-all duration-300"
+                      className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[var(--th-accent)] to-[var(--th-accent-hover)] transition-all duration-300"
                       style={{ width: `${streamProgress.processed}%` }}
                     >
-                      <div className="absolute inset-0 bg-white/30 animate-pulse" />
+                      <div className="absolute inset-0 animate-pulse bg-white/30" />
                     </div>
                   </div>
                 </div>
@@ -170,9 +164,9 @@ const YoutubeVideoLoader = ({
 
               {/* Completed */}
               {streamProgress.stage === "completed" && (
-                <div className="flex items-center justify-center gap-2 p-4 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-xl">
+                <div className="flex items-center justify-center gap-2 rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-500/20 dark:bg-green-500/10">
                   <svg
-                    className="w-5 h-5 text-green-600 dark:text-green-400"
+                    className="h-5 w-5 text-green-600 dark:text-green-400"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -187,10 +181,10 @@ const YoutubeVideoLoader = ({
               )}
             </div>
           ) : (
-            <div className="flex items-center justify-center p-6 bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700 rounded-xl">
+            <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-zinc-800/50">
               <div className="flex items-center gap-3">
                 <svg
-                  className="w-5 h-5 text-indigo-500 dark:text-indigo-400 animate-spin"
+                  className="h-5 w-5 animate-spin text-indigo-500 dark:text-indigo-400"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -211,14 +205,14 @@ const YoutubeVideoLoader = ({
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-[280px] p-8">
+      <div className="flex min-h-[280px] items-center justify-center p-8">
         <div className="w-full max-w-md">
-          <div className="bg-white dark:bg-zinc-800 border border-red-200 dark:border-red-900/50 rounded-2xl p-6 shadow-lg">
+          <div className="rounded-2xl border border-red-200 bg-white p-6 shadow-lg dark:border-red-900/50 dark:bg-zinc-800">
             {/* Error Icon */}
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 rounded-full bg-red-50 dark:bg-red-500/10 flex items-center justify-center border border-red-200 dark:border-red-500/20">
+            <div className="mb-4 flex justify-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full border border-red-200 bg-red-50 dark:border-red-500/20 dark:bg-red-500/10">
                 <svg
-                  className="w-8 h-8 text-red-600 dark:text-red-400"
+                  className="h-8 w-8 text-red-600 dark:text-red-400"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -231,26 +225,26 @@ const YoutubeVideoLoader = ({
             </div>
 
             {/* Error Title */}
-            <h3 className="text-center text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+            <h3 className="mb-2 text-center text-lg font-semibold text-gray-900 dark:text-gray-100">
               YouTube 视频加载失败
             </h3>
 
             {/* Error Message */}
-            <div className="bg-red-50 dark:bg-red-500/5 border border-red-100 dark:border-red-500/20 rounded-lg p-3 mb-4">
-              <p className="text-sm text-red-800 dark:text-red-300 text-center break-words">
+            <div className="mb-4 rounded-lg border border-red-100 bg-red-50 p-3 dark:border-red-500/20 dark:bg-red-500/5">
+              <p className="break-words text-center text-sm text-red-800 dark:text-red-300">
                 {error}
               </p>
             </div>
 
             {/* Suggestions */}
             <div className="space-y-2">
-              <p className="text-xs text-gray-600 dark:text-gray-400 text-center">
+              <p className="text-center text-xs text-gray-600 dark:text-gray-400">
                 请尝试以下解决方案：
               </p>
               <ul className="space-y-1.5 text-xs text-gray-600 dark:text-gray-400">
                 <li className="flex items-start gap-2">
                   <svg
-                    className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0"
+                    className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-gray-500"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -263,7 +257,7 @@ const YoutubeVideoLoader = ({
                 </li>
                 <li className="flex items-start gap-2">
                   <svg
-                    className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0"
+                    className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-gray-500"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -275,7 +269,7 @@ const YoutubeVideoLoader = ({
                 </li>
                 <li className="flex items-start gap-2">
                   <svg
-                    className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0"
+                    className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-gray-500"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
