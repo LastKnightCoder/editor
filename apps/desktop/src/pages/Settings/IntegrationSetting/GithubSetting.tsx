@@ -114,7 +114,7 @@ const GithubSetting: React.FC = () => {
               </svg>
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className={`truncate text-base font-semibold ${themeColors.activeTextClass}`}>
+              <h3 className={`truncate text-base font-semibold ${themeColors.textClass}`}>
                 Github
               </h3>
               <p className={`truncate text-xs ${themeColors.secondaryTextClass}`}>代码托管平台</p>
@@ -126,7 +126,7 @@ const GithubSetting: React.FC = () => {
         <div className="flex-1 overflow-hidden px-6 py-2">
           {github.enabled && github.user.name && (
             <div className="space-y-1">
-              <div className={`truncate text-sm font-medium ${themeColors.activeTextClass}`}>
+              <div className={`truncate text-sm font-medium ${themeColors.textClass}`}>
                 {github.user.name}
               </div>
               {github.user.email && (

@@ -15,20 +15,16 @@ const IntegrationSetting: React.FC = () => {
   return (
     <div className="h-full overflow-y-auto p-6">
       <div className="mb-6">
-        <h2
-          className={`text-2xl font-semibold mb-2 ${themeColors.activeTextClass}`}
-        >
-          应用集成
-        </h2>
+        <h2 className={`mb-2 text-2xl font-semibold ${themeColors.textClass}`}>应用集成</h2>
         <p className={`text-sm ${themeColors.secondaryTextClass}`}>
           管理与第三方应用的集成，配置凭证信息以获得更好的体验
         </p>
       </div>
 
-      <div className={`border-t mb-6 ${themeColors.borderClass}`} />
+      <div className={`mb-6 border-t ${themeColors.borderClass}`} />
 
       <div className="@container">
-        <div className="grid grid-cols-1 @md:grid-cols-2 @2xl:grid-cols-3 @5xl:grid-cols-4 gap-4">
+        <div className="@md:grid-cols-2 @2xl:grid-cols-3 @5xl:grid-cols-4 grid grid-cols-1 gap-4">
           <BilibiliSetting />
           <YouTubeSetting />
           <MinimaxSetting />

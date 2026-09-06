@@ -250,7 +250,7 @@ const BilibiliSetting: React.FC = () => {
               </svg>
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className={`truncate text-base font-semibold ${themeColors.activeTextClass}`}>
+              <h3 className={`truncate text-base font-semibold ${themeColors.textClass}`}>
                 Bilibili
               </h3>
               <p className={`truncate text-xs ${themeColors.secondaryTextClass}`}>哔哩哔哩</p>
@@ -266,7 +266,7 @@ const BilibiliSetting: React.FC = () => {
                 <img src={bilibili.userInfo.avatar} alt="avatar" className="h-8 w-8 rounded-full" />
               )}
               <div className="min-w-0 flex-1">
-                <div className={`truncate text-sm font-medium ${themeColors.activeTextClass}`}>
+                <div className={`truncate text-sm font-medium ${themeColors.textClass}`}>
                   {bilibili.userInfo.name}
                 </div>
                 <span

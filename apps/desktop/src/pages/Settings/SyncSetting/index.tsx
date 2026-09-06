@@ -62,28 +62,25 @@ const SyncSetting = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [remoteVersion, setRemoteVersion] = useState(0);
   const themeColors = useThemeColors();
-  const { activeKey, sync, activeDatabaseName, activeDatabases, integration } =
-    useSettingStore((state) => ({
+  const { activeKey, sync, activeDatabaseName, activeDatabases, integration } = useSettingStore(
+    state => ({
       sync: state.setting.sync,
       activeKey: state.setting.sync.active,
       activeDatabaseName: state.setting.database.active,
       activeDatabases: state.setting.database.databases,
       integration: state.setting.integration,
-    }));
-  const setAutoSyncEnabled = useSettingStore(
-    (state) => state.setAutoSyncEnabled,
+    })
   );
+  const setAutoSyncEnabled = useSettingStore(state => state.setAutoSyncEnabled);
   const isDevMode = process.env.NODE_ENV === "development";
 
-  const activeDatabase = activeDatabases.find(
-    (item) => item.name === activeDatabaseName,
-  );
+  const activeDatabase = activeDatabases.find(item => item.name === activeDatabaseName);
   const currentVersion = activeDatabase?.version || 0;
 
   const canAutoSync = sync.autoSyncEnabled && !isDevMode;
   const isConfigured = useMemo(
     () => isSyncConfigured(activeKey, sync, integration),
-    [activeKey, integration, sync],
+    [activeKey, integration, sync]
   );
 
   const {
@@ -157,35 +154,32 @@ const SyncSetting = () => {
     }
   });
 
-  const getPreviewResource = useMemoizedFn(
-    (fileName: string): ResourcePreviewItem | null => {
-      const matched = matchResourceByName(resources, fileName);
-      if (matched) {
-        return {
-          name: matched.name,
-          path: matched.path,
-          type: matched.type,
-        };
-      }
-      if (!resourceDirPath) return null;
-      const inferredType = inferResourceType(fileName);
-      if (!inferredType) return null;
-      const trimmed = normalizeResourceRelativePath(fileName);
+  const getPreviewResource = useMemoizedFn((fileName: string): ResourcePreviewItem | null => {
+    const matched = matchResourceByName(resources, fileName);
+    if (matched) {
       return {
-        name: fileName,
-        path: `${resourceDirPath}${trimmed}`,
-        type: inferredType,
+        name: matched.name,
+        path: matched.path,
+        type: matched.type,
       };
-    },
-  );
+    }
+    if (!resourceDirPath) return null;
+    const inferredType = inferResourceType(fileName);
+    if (!inferredType) return null;
+    const trimmed = normalizeResourceRelativePath(fileName);
+    return {
+      name: fileName,
+      path: `${resourceDirPath}${trimmed}`,
+      type: inferredType,
+    };
+  });
 
   const isResourceSyncing =
-    resourceProgress.status === "syncing" ||
-    resourceProgress.status === "scanning";
+    resourceProgress.status === "syncing" || resourceProgress.status === "scanning";
   const canResourceSync = isConfigured;
-  const resourceErrorFiles = Object.entries(
-    resourceStatusFile?.files || {},
-  ).filter(([, status]) => status.syncStatus === ResourceSyncStatus.Error);
+  const resourceErrorFiles = Object.entries(resourceStatusFile?.files || {}).filter(
+    ([, status]) => status.syncStatus === ResourceSyncStatus.Error
+  );
 
   const loadResources = useMemoizedFn(async (): Promise<IResource[]> => {
     setResourceLoading(true);
@@ -238,13 +232,9 @@ const SyncSetting = () => {
 
   const handleStartResourceSync = useMemoizedFn(async () => {
     const hasFailedFiles = resourceErrorFiles.length > 0;
-    const res = hasFailedFiles
-      ? await retryFailedResourceSync()
-      : await startResourceSync();
+    const res = hasFailedFiles ? await retryFailedResourceSync() : await startResourceSync();
     if (res?.ok) {
-      message.success(
-        hasFailedFiles ? "已重新同步失败的资源文件" : "资源同步已启动",
-      );
+      message.success(hasFailedFiles ? "已重新同步失败的资源文件" : "资源同步已启动");
     } else {
       message.error(res?.message || "资源同步启动失败");
     }
@@ -277,8 +267,8 @@ const SyncSetting = () => {
   });
 
   const handleAddBlacklistItems = useMemoizedFn(async (fileNames: string[]) => {
-    const existing = new Set(resourceBlacklist.map((item) => item.fileName));
-    const filtered = fileNames.filter((name) => !existing.has(name));
+    const existing = new Set(resourceBlacklist.map(item => item.fileName));
+    const filtered = fileNames.filter(name => !existing.has(name));
     if (!filtered.length) {
       message.info("所选文件已在黑名单中");
       return;
@@ -301,7 +291,7 @@ const SyncSetting = () => {
       if (type === "audio") {
         setAudioPreview({ open: true, src, title });
       }
-    },
+    }
   );
 
   const handlePreviewResource = useMemoizedFn(async (fileName: string) => {
@@ -348,15 +338,15 @@ const SyncSetting = () => {
   });
 
   const closeImagePreview = useMemoizedFn(() => {
-    setImagePreview((prev) => ({ ...prev, open: false }));
+    setImagePreview(prev => ({ ...prev, open: false }));
   });
 
   const closeVideoPreview = useMemoizedFn(() => {
-    setVideoPreview((prev) => ({ ...prev, open: false }));
+    setVideoPreview(prev => ({ ...prev, open: false }));
   });
 
   const closeAudioPreview = useMemoizedFn(() => {
-    setAudioPreview((prev) => ({ ...prev, open: false }));
+    setAudioPreview(prev => ({ ...prev, open: false }));
   });
 
   const checkDownload = useMemoizedFn(async () => {
@@ -379,9 +369,7 @@ const SyncSetting = () => {
           if (!isSuccess) {
             message.error("下载失败");
           } else {
-            message.success(
-              "下载成功，已为你刷新数据库，原文件已备份至 backup 文件夹！",
-            );
+            message.success("下载成功，已为你刷新数据库，原文件已备份至 backup 文件夹！");
           }
         },
       });
@@ -414,10 +402,7 @@ const SyncSetting = () => {
 
   return (
     <SettingContainer>
-      <SettingSection
-        title="数据检查"
-        description="查看本地和远程数据库版本，同步或检查数据状态"
-      >
+      <SettingSection title="数据检查" description="查看本地和远程数据库版本，同步或检查数据状态">
         <div className={classNames("mb-6 bg-transparent")}>
           <SettingSwitch
             checked={canAutoSync}
@@ -427,58 +412,37 @@ const SyncSetting = () => {
             description="开启后，关闭应用前会自动上传数据库，并在启动时主动检查远程更新并下载。仅在同步配置完整时生效。"
           />
           {isDevMode && (
-            <div className="text-xs mt-2 text-amber-500">
-              当前为开发模式，自动同步已禁用。
-            </div>
+            <div className="mt-2 text-xs text-amber-500">当前为开发模式，自动同步已禁用。</div>
           )}
           {!isConfigured && canAutoSync && (
-            <div className="text-xs mt-2">
-              请完善当前同步服务的配置，否则自动同步不会执行。
-            </div>
+            <div className="mt-2 text-xs">请完善当前同步服务的配置，否则自动同步不会执行。</div>
           )}
         </div>
 
         {/* 版本信息 */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="mb-6 grid grid-cols-2 gap-4">
           <div className={classNames("bg-transparent")}>
-            <div className={classNames("text-xs mb-1")}>本地版本</div>
-            <div className={classNames("text-2xl font-bold")}>
-              {currentVersion}
-            </div>
+            <div className={classNames("mb-1 text-xs")}>本地版本</div>
+            <div className={classNames("text-2xl font-bold")}>{currentVersion}</div>
           </div>
           <div className={classNames("bg-transparent")}>
-            <div className={classNames("text-xs mb-1")}>远程版本</div>
-            <div className={classNames("text-2xl font-bold")}>
-              {remoteVersion}
-            </div>
+            <div className={classNames("mb-1 text-xs")}>远程版本</div>
+            <div className={classNames("text-2xl font-bold")}>{remoteVersion}</div>
           </div>
         </div>
 
         <div className="space-y-6">
-          <div
-            className={classNames(
-              "flex items-center justify-between bg-transparent",
-            )}
-          >
+          <div className={classNames("flex items-center justify-between bg-transparent")}>
             <div>
-              <div className={classNames("text-sm font-medium")}>
-                同步数据至云端
-              </div>
-              <div className={classNames("text-xs")}>
-                将本地数据库上传到云存储
-              </div>
+              <div className={classNames("text-sm font-medium")}>同步数据至云端</div>
+              <div className={classNames("text-xs")}>将本地数据库上传到云存储</div>
             </div>
             <SettingButton
               variant="primary"
               loading={isSyncing}
               onClick={onSync}
               icon={
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -492,26 +456,12 @@ const SyncSetting = () => {
             </SettingButton>
           </div>
 
-          <div
-            className={classNames(
-              "flex items-center justify-between bg-transparent",
-            )}
-          >
+          <div className={classNames("flex items-center justify-between bg-transparent")}>
             <div>
-              <div
-                className={classNames(
-                  "text-sm font-medium",
-                  themeColors.activeTextClass,
-                )}
-              >
+              <div className={classNames("text-sm font-medium", themeColors.textClass)}>
                 检查数据同步状态
               </div>
-              <div
-                className={classNames(
-                  "text-xs",
-                  themeColors.secondaryTextClass,
-                )}
-              >
+              <div className={classNames("text-xs", themeColors.secondaryTextClass)}>
                 检查远程是否有新版本可下载
               </div>
             </div>
@@ -519,12 +469,7 @@ const SyncSetting = () => {
               variant="secondary"
               onClick={checkDownload}
               icon={
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -546,11 +491,11 @@ const SyncSetting = () => {
       >
         <SettingTabs
           activeKey={activeKey}
-          onChange={(key) => {
+          onChange={key => {
             useSettingStore.setState(
-              produce((draft) => {
+              produce(draft => {
                 draft.setting.sync.active = key as ESync;
-              }),
+              })
             );
           }}
           items={tabItems}
@@ -604,7 +549,7 @@ const SyncSetting = () => {
         open={blacklistModalOpen}
         onClose={() => setBlacklistModalOpen(false)}
         onConfirm={handleAddBlacklistItems}
-        blacklistNames={resourceBlacklist.map((item) => item.fileName)}
+        blacklistNames={resourceBlacklist.map(item => item.fileName)}
       />
       <CustomModal
         open={videoPreview.open}
@@ -633,45 +578,37 @@ const SyncSetting = () => {
         destroyOnClose
       >
         {audioPreview.src && (
-          <LocalAudio
-            src={audioPreview.src}
-            controls
-            autoPlay
-            className="w-full"
-          />
+          <LocalAudio src={audioPreview.src} controls autoPlay className="w-full" />
         )}
       </CustomModal>
       {imagePreview.open &&
         typeof document !== "undefined" &&
         createPortal(
           <div
-            className="fixed inset-0 z-11000 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+            className="z-11000 fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm"
             onClick={closeImagePreview}
           >
             <button
-              className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
-              onClick={(e) => {
+              className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
+              onClick={e => {
                 e.stopPropagation();
                 closeImagePreview();
               }}
             >
-              <X className="w-6 h-6" />
+              <X className="h-6 w-6" />
             </button>
-            <div
-              className="max-h-[90vh] max-w-[90vw] p-4"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="max-h-[90vh] max-w-[90vw] p-4" onClick={e => e.stopPropagation()}>
               <LocalImage
                 url={imagePreview.src}
                 alt={imagePreview.title}
                 className="max-h-[85vh] max-w-[85vw] rounded-lg object-contain shadow-2xl"
               />
             </div>
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-black/50 text-white text-sm max-w-[80vw] truncate">
+            <div className="absolute bottom-4 left-1/2 max-w-[80vw] -translate-x-1/2 truncate rounded-lg bg-black/50 px-4 py-2 text-sm text-white">
               {imagePreview.title}
             </div>
           </div>,
-          document.body,
+          document.body
         )}
     </SettingContainer>
   );
