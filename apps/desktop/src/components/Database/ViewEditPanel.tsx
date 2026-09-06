@@ -441,7 +441,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
                               type="checkbox"
                               checked={checked}
                               onChange={() => handleVisibleFieldToggle(field.id)}
-                              className="h-4 w-4 accent-indigo-500"
+                              className="h-4 w-4 accent-[var(--th-accent)]"
                             />
                             <span className="text-sm text-gray-700 dark:text-slate-200">
                               {field.title}
@@ -460,7 +460,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
                   type="checkbox"
                   checked={kanbanShowFieldLabels}
                   onChange={event => setKanbanShowFieldLabels(event.target.checked)}
-                  className="h-4 w-4 accent-indigo-500"
+                  className="h-4 w-4 accent-[var(--th-accent)]"
                 />
               </label>
             </>

@@ -21,8 +21,7 @@ const CustomRadio: React.FC<CustomRadioProps> = ({
   const themeColors = useThemeColors();
   const [isChecked, setIsChecked] = useState(checked);
   const [showRipple, setShowRipple] = useState(false);
-  const radioAccentColor =
-    themeColors.accentColor || themeColors.twoToneColor || "#6366f1";
+  const radioAccentColor = themeColors.accentColor || themeColors.twoToneColor || "#6366f1";
 
   useEffect(() => {
     setIsChecked(checked);
@@ -46,15 +45,15 @@ const CustomRadio: React.FC<CustomRadioProps> = ({
   return (
     <label
       className={classnames(
-        "flex items-center gap-2 cursor-pointer select-none transition-opacity",
+        "flex cursor-pointer select-none items-center gap-2 transition-opacity",
         { "cursor-not-allowed opacity-60": disabled },
-        className,
+        className
       )}
       onClick={handleClick}
     >
-      <div className="relative w-4 h-4 flex-shrink-0">
+      <div className="relative h-4 w-4 flex-shrink-0">
         <svg
-          className="w-full h-full"
+          className="h-full w-full"
           viewBox="0 0 24 24"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
@@ -66,9 +65,7 @@ const CustomRadio: React.FC<CustomRadioProps> = ({
             strokeWidth="2"
             className={classnames(
               "transition-all duration-300",
-              isChecked
-                ? "stroke-indigo-500"
-                : "stroke-gray-300 dark:stroke-slate-600",
+              isChecked ? "stroke-[var(--th-accent)]" : "stroke-gray-300 dark:stroke-slate-600"
             )}
             style={isChecked ? { stroke: radioAccentColor } : undefined}
           />
@@ -85,13 +82,13 @@ const CustomRadio: React.FC<CustomRadioProps> = ({
 
         {showRipple && (
           <div
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full rounded-full border-2 pointer-events-none animate-[ripple_0.4s_ease-out]"
+            className="pointer-events-none absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 animate-[ripple_0.4s_ease-out] rounded-full border-2"
             style={{ borderColor: radioAccentColor }}
           />
         )}
       </div>
       {label && (
-        <span className="text-sm text-gray-700 dark:text-gray-200 group-hover:text-gray-900 dark:group-hover:text-white">
+        <span className="text-sm text-gray-700 group-hover:text-gray-900 dark:text-gray-200 dark:group-hover:text-white">
           {label}
         </span>
       )}

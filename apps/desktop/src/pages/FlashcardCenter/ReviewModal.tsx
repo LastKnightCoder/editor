@@ -621,7 +621,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
               className={classNames(
                 "w-full rounded-xl py-3.5 text-lg font-bold shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0",
                 canSubmit
-                  ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] shadow-blue-500/20 hover:bg-[var(--th-btn-hover)]"
+                  ? "shadow-[var(--th-accent)]/20 bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-[var(--th-btn-hover)]"
                   : "cursor-not-allowed bg-gray-200 text-gray-400 shadow-none dark:bg-zinc-800"
               )}
             >
