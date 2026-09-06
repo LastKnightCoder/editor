@@ -59,7 +59,7 @@ const TemplateCard = memo((props: TemplateCardProps) => {
         "relative cursor-pointer overflow-hidden rounded-xl transition-all duration-200",
         "border-2",
         isSelected
-          ? "border-[var(--th-border-focus)] shadow-lg shadow-blue-500/20"
+          ? "shadow-[var(--th-accent)]/20 border-[var(--th-border-focus)] shadow-lg"
           : "border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600"
       )}
     >
