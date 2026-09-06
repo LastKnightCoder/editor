@@ -464,7 +464,7 @@ const QuestionWindowPage = () => {
           subtitle="输入问题内容和描述"
           icon={
             <svg
-              className="h-5 w-5 text-green-500"
+              className="h-5 w-5 text-[var(--th-accent)]"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -474,7 +474,7 @@ const QuestionWindowPage = () => {
               <path d="M9 12h6m-3-3v6" />
             </svg>
           }
-          iconBgColor="bg-green-50 dark:bg-green-500/20 border-green-200 dark:border-green-500/30"
+          iconBgColor="bg-[var(--th-accent-soft)] border-[var(--th-border-focus)]/30"
           closeOnEscape={false}
           footer={
             <div className="flex justify-end gap-3">
@@ -487,7 +487,7 @@ const QuestionWindowPage = () => {
               <button
                 onClick={onCreateQuestion}
                 disabled={!newQuestionValue.trim()}
-                className="cursor-pointer rounded-xl border-none bg-green-500 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(34,197,94,0.35),0_1px_2px_rgba(0,0,0,0.05)] transition-all hover:-translate-y-px hover:bg-green-600 active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700 dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
+                className="cursor-pointer rounded-xl border-none bg-[var(--th-btn-bg)] px-5 py-2.5 text-sm font-semibold text-[var(--th-btn-text)] shadow-sm transition-all hover:-translate-y-px hover:bg-[var(--th-btn-hover)] active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700 dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
               >
                 确定
               </button>
@@ -504,14 +504,14 @@ const QuestionWindowPage = () => {
                 placeholder="请输入问题内容"
                 value={newQuestionValue}
                 onChange={e => setNewQuestionValue(e.target.value)}
-                className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-green-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(34,197,94,0.15)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(34,197,94,0.25)]"
+                className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
               />
             </div>
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300">
                 问题描述（可选）
               </label>
-              <div className="rounded-xl border border-gray-200 bg-gray-50 shadow-inner transition-all focus-within:border-green-500 focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(34,197,94,0.15)] dark:border-slate-700 dark:bg-zinc-950 dark:focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(34,197,94,0.25)]">
+              <div className="rounded-xl border border-gray-200 bg-gray-50 shadow-inner transition-all focus-within:border-[var(--th-border-focus)] focus-within:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950">
                 <Editor
                   key={`new-question-${newQuestionEditorKey}`}
                   initValue={newQuestionDescription}

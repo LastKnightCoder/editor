@@ -137,7 +137,7 @@ const YoutubeVideoLoader = ({ loading, error, streamProgress }: YoutubeVideoLoad
                   <div className="flex items-center justify-between text-xs">
                     <span className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-300">
                       <svg
-                        className="h-3.5 w-3.5 animate-spin text-green-500 dark:text-green-400"
+                        className="h-3.5 w-3.5 animate-spin text-[var(--th-accent)]"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -164,9 +164,9 @@ const YoutubeVideoLoader = ({ loading, error, streamProgress }: YoutubeVideoLoad
 
               {/* Completed */}
               {streamProgress.stage === "completed" && (
-                <div className="flex items-center justify-center gap-2 rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-500/20 dark:bg-green-500/10">
+                <div className="border-[var(--th-success)]/30 bg-[var(--th-success)]/10 flex items-center justify-center gap-2 rounded-xl border p-4">
                   <svg
-                    className="h-5 w-5 text-green-600 dark:text-green-400"
+                    className="h-5 w-5 text-[var(--th-accent)]"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -174,9 +174,7 @@ const YoutubeVideoLoader = ({ loading, error, streamProgress }: YoutubeVideoLoad
                   >
                     <path d="M20 6 9 17l-5-5" />
                   </svg>
-                  <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                    视频加载完成
-                  </span>
+                  <span className="text-status-success text-sm font-medium">视频加载完成</span>
                 </div>
               )}
             </div>

@@ -16,38 +16,32 @@ const featureMap: Array<{
   {
     key: "online",
     label: "联网",
-    colorClass:
-      "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400",
+    colorClass: "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400",
   },
   {
     key: "thinking",
     label: "思考",
-    colorClass:
-      "bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400",
+    colorClass: "bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400",
   },
   {
     key: "image",
     label: "图片",
-    colorClass:
-      "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400",
+    colorClass: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400",
   },
   {
     key: "video",
     label: "视频",
-    colorClass:
-      "bg-pink-100 text-pink-700 dark:bg-pink-500/20 dark:text-pink-400",
+    colorClass: "bg-pink-100 text-pink-700 dark:bg-pink-500/20 dark:text-pink-400",
   },
   {
     key: "audio",
     label: "音频",
-    colorClass:
-      "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-400",
+    colorClass: "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-400",
   },
   {
     key: "file",
     label: "文件",
-    colorClass:
-      "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400",
+    colorClass: "bg-[var(--th-success)]/15 text-status-success",
   },
 ];
 
@@ -68,7 +62,7 @@ const ConfigList = ({
   onAddModel,
   onEditModel,
 }: ConfigListProps) => {
-  const { configs } = useSettingStore((state) => ({
+  const { configs } = useSettingStore(state => ({
     configs: state.setting.llmConfigs,
   }));
   const { modal, message } = App.useApp();
@@ -76,9 +70,7 @@ const ConfigList = ({
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
 
   const toggleExpand = (id: string) => {
-    setExpandedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
-    );
+    setExpandedIds(prev => (prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]));
     onSelectConfig(id);
   };
 
@@ -90,19 +82,17 @@ const ConfigList = ({
       cancelText: "取消",
       onOk: () => {
         useSettingStore.setState(
-          produce((draft) => {
-            const index = draft.setting.llmConfigs.findIndex(
-              (item: ConfigItem) => item.id === id,
-            );
+          produce(draft => {
+            const index = draft.setting.llmConfigs.findIndex((item: ConfigItem) => item.id === id);
             if (index !== -1) {
               draft.setting.llmConfigs.splice(index, 1);
             }
-          }),
+          })
         );
         if (id === selectedConfigId) {
           onSelectConfig("");
         }
-        setExpandedIds((prev) => prev.filter((i) => i !== id));
+        setExpandedIds(prev => prev.filter(i => i !== id));
       },
     });
   };
@@ -115,16 +105,14 @@ const ConfigList = ({
       okButtonProps: { danger: true },
       onOk: () => {
         useSettingStore.setState(
-          produce((draft) => {
+          produce(draft => {
             const config = draft.setting.llmConfigs.find(
-              (item: ConfigItem) => item.id === configId,
+              (item: ConfigItem) => item.id === configId
             );
             if (config && config.models) {
-              config.models = config.models.filter(
-                (item: ModelItem) => item.name !== modelName,
-              );
+              config.models = config.models.filter((item: ModelItem) => item.name !== modelName);
             }
-          }),
+          })
         );
       },
     });
@@ -146,11 +134,11 @@ const ConfigList = ({
     };
 
     const tags = featureMap
-      .filter((item) => normalizedFeatures[item.key])
-      .map((item) => (
+      .filter(item => normalizedFeatures[item.key])
+      .map(item => (
         <span
           key={item.key}
-          className={`px-2 py-0.5 text-xs font-medium rounded-full ${item.colorClass}`}
+          className={`rounded-full px-2 py-0.5 text-xs font-medium ${item.colorClass}`}
         >
           {item.label}
         </span>
@@ -161,18 +149,18 @@ const ConfigList = ({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 flex items-center justify-between">
         <SettingButton
           variant="secondary"
           onClick={onAddConfig}
-          icon={<Plus className="w-4 h-4" />}
+          icon={<Plus className="h-4 w-4" />}
         >
           添加配置
         </SettingButton>
       </div>
 
       <div className="space-y-1">
-        {configs.map((config) => {
+        {configs.map(config => {
           const isExpanded = expandedIds.includes(config.id);
           return (
             <div key={config.id}>
@@ -180,22 +168,22 @@ const ConfigList = ({
                 role="button"
                 tabIndex={0}
                 onClick={() => toggleExpand(config.id)}
-                onKeyDown={(e) => {
+                onKeyDown={e => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     toggleExpand(config.id);
                   }
                 }}
                 className={classNames(
-                  "w-full flex items-center justify-between px-3 py-3 rounded-lg text-left transition-colors",
-                  themeColors.hoverClass,
+                  "flex w-full items-center justify-between rounded-lg px-3 py-3 text-left transition-colors",
+                  themeColors.hoverClass
                 )}
               >
                 <div className="flex items-center gap-2">
                   <ChevronDown
                     className={classNames(
-                      "w-4 h-4 transition-transform",
-                      isExpanded && "rotate-180",
+                      "h-4 w-4 transition-transform",
+                      isExpanded && "rotate-180"
                     )}
                   />
                   <span className="font-medium">{config.name}</span>
@@ -205,66 +193,62 @@ const ConfigList = ({
                 </div>
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={(e) => {
+                    onClick={e => {
                       e.stopPropagation();
                       onEditConfig(config);
                     }}
                     className={classNames(
-                      "p-1.5 rounded-lg transition-colors",
+                      "rounded-lg p-1.5 transition-colors",
                       themeColors.secondaryTextClass,
                       themeColors.hoverClass,
-                      themeColors.hoverTextClass,
+                      themeColors.hoverTextClass
                     )}
                   >
-                    <Pencil className="w-4 h-4" />
+                    <Pencil className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={(e) => {
+                    onClick={e => {
                       e.stopPropagation();
                       onDeleteConfig(config.id);
                     }}
-                    className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                    className="rounded-lg p-1.5 text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               </div>
 
               {isExpanded && (
-                <div className="pl-6 pb-4 pt-2">
-                  <div className="grid grid-cols-[72px_1fr] gap-y-2 text-sm mb-2">
-                    <span className="text-gray-500 dark:text-gray-400 mb-1">
-                      Base URL
-                    </span>
+                <div className="pb-4 pl-6 pt-2">
+                  <div className="mb-2 grid grid-cols-[72px_1fr] gap-y-2 text-sm">
+                    <span className="mb-1 text-gray-500 dark:text-gray-400">Base URL</span>
                     <span className="font-mono text-xs text-gray-700 dark:text-gray-300">
                       {config.baseUrl}
                     </span>
-                    <span className="text-gray-500 dark:text-gray-400">
-                      API Key
-                    </span>
+                    <span className="text-gray-500 dark:text-gray-400">API Key</span>
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs text-gray-700 dark:text-gray-300">
                         ••••••••
                       </span>
                       <button
                         onClick={() => onCopyApiKey(config.apiKey)}
-                        className="p-1 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                        className="rounded-md p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-zinc-800 dark:hover:text-gray-200"
                         title="复制"
                       >
-                        <Copy className="w-3.5 h-3.5" />
+                        <Copy className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
 
-                  <div className="border-t border-[#eee] dark:border-[#333] pt-4">
-                    <div className="flex items-center justify-between mb-3">
+                  <div className="border-t border-[#eee] pt-4 dark:border-[#333]">
+                    <div className="mb-3 flex items-center justify-between">
                       <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
                         模型列表
                       </span>
                       <SettingButton
                         variant="secondary"
                         onClick={() => onAddModel(config.id)}
-                        icon={<Plus className="w-3.5 h-3.5" />}
+                        icon={<Plus className="h-3.5 w-3.5" />}
                       >
                         添加
                       </SettingButton>
@@ -272,68 +256,65 @@ const ConfigList = ({
 
                     {config.models && config.models.length > 0 ? (
                       <div className="space-y-1">
-                        {config.models.map((model) => (
+                        {config.models.map(model => (
                           <div
                             key={model.name}
-                            className="group flex items-start justify-between p-3 -mx-3 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                            className="group -mx-3 flex items-start justify-between rounded-lg p-3 transition-colors hover:bg-gray-50 dark:hover:bg-white/5"
                           >
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-sm text-gray-800 dark:text-gray-100">
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-medium text-gray-800 dark:text-gray-100">
                                 {model.name}
                               </div>
-                              <div className="text-xs mt-1 text-gray-500 dark:text-gray-400">
+                              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                 {model.description}
                               </div>
                               {renderFeatureTags(model.features) && (
-                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                <div className="mt-2 flex flex-wrap gap-1.5">
                                   {renderFeatureTags(model.features)}
                                   {model.messageFormat === "claude" && (
-                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">
+                                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">
                                       Claude 格式
                                     </span>
                                   )}
-                                  {typeof model.maxOutputTokens ===
-                                    "number" && (
-                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400">
+                                  {typeof model.maxOutputTokens === "number" && (
+                                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-500/20 dark:text-blue-400">
                                       输出 {model.maxOutputTokens} tokens
                                     </span>
                                   )}
                                   {typeof model.contextWindowK === "number" && (
-                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-400">
+                                    <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-500/20 dark:text-violet-400">
                                       上下文 {model.contextWindowK}k
                                     </span>
                                   )}
                                   {model.apiProtocol === "responses" && (
-                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
+                                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
                                       Responses API
                                     </span>
                                   )}
                                 </div>
                               )}
                             </div>
-                            <div className="flex items-center gap-0.5 ml-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="ml-3 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
                               <button
                                 onClick={() => onEditModel(config.id, model)}
-                                className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
+                                className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-zinc-700 dark:hover:text-gray-200"
                                 title="编辑"
                               >
-                                <Pencil className="w-4 h-4" />
+                                <Pencil className="h-4 w-4" />
                               </button>
                               <button
-                                onClick={() =>
-                                  onDeleteModel(config.id, model.name)
-                                }
-                                className="p-1.5 rounded-md text-gray-500 hover:text-red-500 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-500/10 transition-colors"
+                                onClick={() => onDeleteModel(config.id, model.name)}
+                                className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-500 dark:text-gray-400 dark:hover:bg-red-500/10 dark:hover:text-red-400"
                                 title="删除"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="h-4 w-4" />
                               </button>
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="text-sm py-6 text-center text-gray-400 dark:text-gray-500">
+                      <div className="py-6 text-center text-sm text-gray-400 dark:text-gray-500">
                         暂无模型，点击上方按钮添加
                       </div>
                     )}
@@ -345,12 +326,7 @@ const ConfigList = ({
         })}
 
         {configs.length === 0 && (
-          <div
-            className={classNames(
-              "py-8 text-center",
-              themeColors.secondaryTextClass,
-            )}
-          >
+          <div className={classNames("py-8 text-center", themeColors.secondaryTextClass)}>
             暂无配置，点击上方按钮添加
           </div>
         )}

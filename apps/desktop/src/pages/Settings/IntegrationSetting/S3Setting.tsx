@@ -15,7 +15,7 @@ interface S3CredentialsForm {
 
 const S3Setting: React.FC = () => {
   const themeColors = useThemeColors();
-  const setting = useSettingStore((state) => state.setting);
+  const setting = useSettingStore(state => state.setting);
   const { s3 } = setting.integration;
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -25,9 +25,7 @@ const S3Setting: React.FC = () => {
     endpoint: s3.endpoint || "",
     urlStyle: s3.urlStyle || "path",
   });
-  const [errors, setErrors] = useState<
-    Partial<Record<keyof S3CredentialsForm, string>>
-  >({});
+  const [errors, setErrors] = useState<Partial<Record<keyof S3CredentialsForm, string>>>({});
 
   const validateForm = useMemoizedFn(() => {
     const newErrors: Partial<Record<keyof S3CredentialsForm, string>> = {};
@@ -52,12 +50,12 @@ const S3Setting: React.FC = () => {
     }
 
     useSettingStore.setState(
-      produce((state) => {
+      produce(state => {
         state.setting.integration.s3 = {
           enabled: true,
           ...formData,
         };
-      }),
+      })
     );
     setModalOpen(false);
     setErrors({});
@@ -65,7 +63,7 @@ const S3Setting: React.FC = () => {
 
   const handleDisconnect = useCallback(() => {
     useSettingStore.setState(
-      produce((state) => {
+      produce(state => {
         state.setting.integration.s3 = {
           enabled: false,
           accessKeyId: "",
@@ -73,7 +71,7 @@ const S3Setting: React.FC = () => {
           endpoint: "",
           urlStyle: "path",
         };
-      }),
+      })
     );
   }, []);
 
@@ -94,7 +92,7 @@ const S3Setting: React.FC = () => {
         handleModalClose();
       }
     },
-    [handleModalClose],
+    [handleModalClose]
   );
 
   return (
@@ -103,17 +101,15 @@ const S3Setting: React.FC = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className={`relative group rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden h-[280px] flex flex-col ${themeColors.cardBgClass} ${themeColors.cardBorderClass} border`}
+        className={`group relative flex h-[280px] flex-col overflow-hidden rounded-xl shadow-sm transition-all duration-300 hover:shadow-md ${themeColors.cardBgClass} ${themeColors.cardBorderClass} border`}
       >
         {/* Status Badge */}
-        <div className="absolute top-4 right-4">
+        <div className="absolute right-4 top-4">
           <div
-            className={`flex items-center gap-2 px-3 py-1 rounded-full ${themeColors.inputBgClass}`}
+            className={`flex items-center gap-2 rounded-full px-3 py-1 ${themeColors.inputBgClass}`}
           >
             <div
-              className={`w-2 h-2 rounded-full ${
-                s3.enabled ? "bg-green-500" : "bg-gray-400"
-              }`}
+              className={`h-2 w-2 rounded-full ${s3.enabled ? "bg-status-success" : "bg-gray-400"}`}
             />
             <span className={`text-xs font-medium ${themeColors.textClass}`}>
               {s3.enabled ? "已配置" : "未配置"}
@@ -124,9 +120,9 @@ const S3Setting: React.FC = () => {
         {/* Header */}
         <div className="p-6 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-lg bg-linear-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white text-xl font-bold shadow-sm">
+            <div className="bg-linear-to-br flex h-12 w-12 items-center justify-center rounded-lg from-orange-500 to-amber-600 text-xl font-bold text-white shadow-sm">
               <svg
-                className="w-6 h-6"
+                className="h-6 w-6"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -139,15 +135,11 @@ const S3Setting: React.FC = () => {
                 />
               </svg>
             </div>
-            <div className="flex-1 min-w-0">
-              <h3
-                className={`text-base font-semibold truncate ${themeColors.activeTextClass}`}
-              >
+            <div className="min-w-0 flex-1">
+              <h3 className={`truncate text-base font-semibold ${themeColors.activeTextClass}`}>
                 S3 Compatible Storage
               </h3>
-              <p
-                className={`text-xs truncate ${themeColors.secondaryTextClass}`}
-              >
+              <p className={`truncate text-xs ${themeColors.secondaryTextClass}`}>
                 S3 兼容对象存储
               </p>
             </div>
@@ -155,15 +147,13 @@ const S3Setting: React.FC = () => {
         </div>
 
         {/* Info Section */}
-        <div className="px-6 py-2 flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden px-6 py-2">
           {s3.enabled && (
             <div className="space-y-1">
-              <div
-                className={`text-xs truncate ${themeColors.secondaryTextClass}`}
-              >
+              <div className={`truncate text-xs ${themeColors.secondaryTextClass}`}>
                 {s3.endpoint || "AWS S3 默认端点"}
               </div>
-              <span className="inline-block px-2 py-0.5 text-xs font-medium rounded bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300">
+              <span className="inline-block rounded bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900 dark:text-orange-300">
                 {s3.urlStyle === "path" ? "路径风格" : "虚拟托管风格"}
               </span>
             </div>
@@ -171,11 +161,11 @@ const S3Setting: React.FC = () => {
         </div>
 
         {/* Actions */}
-        <div className="p-6 pt-4 mt-auto space-y-2">
+        <div className="mt-auto space-y-2 p-6 pt-4">
           {!s3.enabled ? (
             <button
               onClick={() => setModalOpen(true)}
-              className="w-full px-4 py-2 text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors"
+              className="w-full rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-600"
             >
               配置 S3
             </button>
@@ -183,13 +173,13 @@ const S3Setting: React.FC = () => {
             <>
               <button
                 onClick={() => setModalOpen(true)}
-                className={`w-full px-4 py-2 text-sm font-medium rounded-lg transition-colors ${themeColors.inputBgClass} ${themeColors.textClass} ${themeColors.hoverClass}`}
+                className={`w-full rounded-lg px-4 py-2 text-sm font-medium transition-colors ${themeColors.inputBgClass} ${themeColors.textClass} ${themeColors.hoverClass}`}
               >
                 管理凭证
               </button>
               <button
                 onClick={handleDisconnect}
-                className="w-full px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                className="w-full rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
               >
                 断开连接
               </button>
@@ -207,7 +197,7 @@ const S3Setting: React.FC = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+              className="z-9999 fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm"
               onClick={handleModalClose}
               onKeyDown={handleKeyDown}
             >
@@ -216,14 +206,14 @@ const S3Setting: React.FC = () => {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 transition={{ type: "spring", duration: 0.3 }}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-[520px] m-4"
+                onClick={e => e.stopPropagation()}
+                className="m-4 w-full max-w-[520px]"
               >
-                <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800">
-                  <div className="flex items-start gap-3 mb-5">
-                    <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-orange-50 dark:bg-orange-500/20 border border-orange-200 dark:border-orange-500/30">
+                <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
+                  <div className="mb-5 flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-orange-200 bg-orange-50 dark:border-orange-500/30 dark:bg-orange-500/20">
                       <svg
-                        className="w-5 h-5 text-orange-500"
+                        className="h-5 w-5 text-orange-500"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -236,20 +226,20 @@ const S3Setting: React.FC = () => {
                         />
                       </svg>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h2 className="text-base font-bold m-0 text-gray-800 dark:text-white">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="m-0 text-base font-bold text-gray-800 dark:text-white">
                         S3 兼容存储配置
                       </h2>
-                      <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
+                      <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-500">
                         配置 S3 兼容的对象存储服务
                       </p>
                     </div>
                     <button
-                      className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
+                      className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-gray-100 text-gray-500 transition-all hover:bg-gray-200 hover:text-gray-700 dark:bg-zinc-800 dark:text-slate-400 dark:hover:bg-zinc-700 dark:hover:text-slate-200"
                       onClick={handleModalClose}
                     >
                       <svg
-                        className="w-[18px] h-[18px]"
+                        className="h-[18px] w-[18px]"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -267,43 +257,39 @@ const S3Setting: React.FC = () => {
                         请求风格
                       </label>
                       <div className="flex gap-3">
-                        <label className="flex items-center gap-2 cursor-pointer px-4 py-3 rounded-lg border transition-all bg-gray-50 dark:bg-zinc-950 border-gray-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-600 flex-1">
+                        <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 transition-all hover:border-orange-300 dark:border-slate-700 dark:bg-zinc-950 dark:hover:border-orange-600">
                           <input
                             type="radio"
                             name="urlStyle"
                             value="path"
                             checked={formData.urlStyle === "path"}
-                            onChange={(e) => {
+                            onChange={e => {
                               setFormData({
                                 ...formData,
-                                urlStyle: e.target.value as
-                                  | "path"
-                                  | "virtualHosted",
+                                urlStyle: e.target.value as "path" | "virtualHosted",
                               });
                               setErrors({ ...errors, urlStyle: undefined });
                             }}
-                            className="w-4 h-4 text-orange-600 focus:ring-orange-500"
+                            className="h-4 w-4 text-orange-600 focus:ring-orange-500"
                           />
                           <span className="text-sm text-gray-700 dark:text-gray-300">
                             Path Style
                           </span>
                         </label>
-                        <label className="flex items-center gap-2 cursor-pointer px-4 py-3 rounded-lg border transition-all bg-gray-50 dark:bg-zinc-950 border-gray-200 dark:border-slate-700 hover:border-orange-300 dark:hover:border-orange-600 flex-1">
+                        <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 transition-all hover:border-orange-300 dark:border-slate-700 dark:bg-zinc-950 dark:hover:border-orange-600">
                           <input
                             type="radio"
                             name="urlStyle"
                             value="virtualHosted"
                             checked={formData.urlStyle === "virtualHosted"}
-                            onChange={(e) => {
+                            onChange={e => {
                               setFormData({
                                 ...formData,
-                                urlStyle: e.target.value as
-                                  | "path"
-                                  | "virtualHosted",
+                                urlStyle: e.target.value as "path" | "virtualHosted",
                               });
                               setErrors({ ...errors, urlStyle: undefined });
                             }}
-                            className="w-4 h-4 text-orange-600 focus:ring-orange-500"
+                            className="h-4 w-4 text-orange-600 focus:ring-orange-500"
                           />
                           <span className="text-sm text-gray-700 dark:text-gray-300">
                             Virtual Hosted
@@ -325,7 +311,7 @@ const S3Setting: React.FC = () => {
                       <input
                         type="text"
                         value={formData.accessKeyId}
-                        onChange={(e) => {
+                        onChange={e => {
                           setFormData({
                             ...formData,
                             accessKeyId: e.target.value,
@@ -333,7 +319,7 @@ const S3Setting: React.FC = () => {
                           setErrors({ ...errors, accessKeyId: undefined });
                         }}
                         placeholder="请输入 Access Key ID..."
-                        className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-orange-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(249,115,22,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(249,115,22,0.25)]"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-orange-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(249,115,22,0.15)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(249,115,22,0.25)]"
                       />
                       {errors.accessKeyId && (
                         <span className="text-xs text-red-600 dark:text-red-400">
@@ -350,7 +336,7 @@ const S3Setting: React.FC = () => {
                       <input
                         type="password"
                         value={formData.secretAccessKey}
-                        onChange={(e) => {
+                        onChange={e => {
                           setFormData({
                             ...formData,
                             secretAccessKey: e.target.value,
@@ -361,7 +347,7 @@ const S3Setting: React.FC = () => {
                           });
                         }}
                         placeholder="请输入 Secret Access Key..."
-                        className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-orange-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(249,115,22,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(249,115,22,0.25)]"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-orange-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(249,115,22,0.15)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(249,115,22,0.25)]"
                       />
                       {errors.secretAccessKey && (
                         <span className="text-xs text-red-600 dark:text-red-400">
@@ -378,14 +364,14 @@ const S3Setting: React.FC = () => {
                       <input
                         type="text"
                         value={formData.endpoint}
-                        onChange={(e) => {
+                        onChange={e => {
                           setFormData({
                             ...formData,
                             endpoint: e.target.value,
                           });
                         }}
                         placeholder="https://s3.us-west-2.amazonaws.com"
-                        className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-orange-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(249,115,22,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(249,115,22,0.25)]"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-orange-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(249,115,22,0.15)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(249,115,22,0.25)]"
                       />
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         留空使用 AWS 默认端点
@@ -393,11 +379,11 @@ const S3Setting: React.FC = () => {
                     </div>
 
                     <button
-                      className="w-full px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-orange-500 text-white shadow-[0_4px_14px_rgba(249,115,22,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-orange-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none"
+                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-none bg-orange-500 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(249,115,22,0.35),0_1px_2px_rgba(0,0,0,0.05)] transition-all hover:-translate-y-px hover:bg-orange-600 active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
                       onClick={handleSave}
                     >
                       <svg
-                        className="w-5 h-5"
+                        className="h-5 w-5"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -412,7 +398,7 @@ const S3Setting: React.FC = () => {
               </motion.div>
             </motion.div>
           </AnimatePresence>,
-          document.body,
+          document.body
         )}
     </>
   );

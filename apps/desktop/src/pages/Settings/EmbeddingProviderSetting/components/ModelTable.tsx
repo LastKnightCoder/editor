@@ -367,7 +367,7 @@ const ModelTable = ({ providerType, onOpenConfig, onAddModel, onEditModel }: Mod
                   className={classNames(
                     "rounded-lg border p-4 transition-colors",
                     isActive
-                      ? "border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900/20"
+                      ? "border-[var(--th-success)]/40 bg-[var(--th-success)]/10"
                       : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50"
                   )}
                 >
@@ -381,7 +381,7 @@ const ModelTable = ({ providerType, onOpenConfig, onAddModel, onEditModel }: Mod
                           {model.downloaded ? "已下载" : "未下载"}
                         </span>
                         {isActive && (
-                          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-500/20 dark:text-green-400">
+                          <span className="bg-[var(--th-success)]/15 text-status-success rounded-full px-2 py-0.5 text-xs font-medium">
                             使用中
                           </span>
                         )}
@@ -417,7 +417,7 @@ const ModelTable = ({ providerType, onOpenConfig, onAddModel, onEditModel }: Mod
                           {!isActive && (
                             <button
                               onClick={() => onActivateModel(model.name, model.dimensions)}
-                              className="rounded-lg px-3 py-1.5 text-sm text-green-600 transition-colors hover:bg-green-50 hover:text-green-700 dark:text-green-400 dark:hover:bg-green-500/10"
+                              className="text-status-success hover:bg-[var(--th-success)]/10 hover:text-status-success rounded-lg px-3 py-1.5 text-sm transition-colors"
                             >
                               启用
                             </button>
@@ -506,7 +506,7 @@ const ModelTable = ({ providerType, onOpenConfig, onAddModel, onEditModel }: Mod
                       {!isActive && (
                         <button
                           onClick={() => onActivateModel(model.name, model.contextLength)}
-                          className="rounded-lg px-3 py-1.5 text-sm text-green-600 transition-colors hover:bg-green-50 hover:text-green-700 dark:text-green-400 dark:hover:bg-green-500/10"
+                          className="text-status-success hover:bg-[var(--th-success)]/10 hover:text-status-success rounded-lg px-3 py-1.5 text-sm transition-colors"
                         >
                           启用
                         </button>

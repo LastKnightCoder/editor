@@ -17,8 +17,7 @@ const fmt = (ms: number) => {
   const mm = Math.floor(m % 60);
   const hh = Math.floor(m / 60);
   return (
-    (hh > 0 ? `${hh}:` : "") +
-    `${mm.toString().padStart(2, "0")}:${ss.toString().padStart(2, "0")}`
+    (hh > 0 ? `${hh}:` : "") + `${mm.toString().padStart(2, "0")}:${ss.toString().padStart(2, "0")}`
   );
 };
 
@@ -34,9 +33,7 @@ const getPomodoroSessionTiming = (session: PomodoroSession, now: number) => {
 
   const elapsedMs = Math.max(0, now - session.startTime - pauseTotalMs);
   const remainMs =
-    session.expectedMs !== undefined
-      ? Math.max(0, session.expectedMs - elapsedMs)
-      : undefined;
+    session.expectedMs !== undefined ? Math.max(0, session.expectedMs - elapsedMs) : undefined;
 
   return { elapsedMs, remainMs };
 };
@@ -100,7 +97,7 @@ const PomodoroPanel: React.FC<PomodoroPanelProps> = ({
 }) => {
   const themeColors = useThemeColors();
   const now = usePomodoroPanelNow(activeSession);
-  const openInNewTab = useTabStore((state) => state.openInNewTab);
+  const openInNewTab = useTabStore(state => state.openInNewTab);
 
   const formatMs = (ms: number): string => {
     const totalMinutes = Math.round(ms / MINUTE_MS);
@@ -110,22 +107,17 @@ const PomodoroPanel: React.FC<PomodoroPanelProps> = ({
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
 
-  const activePresets = React.useMemo(
-    () => presets.filter((preset) => !preset.archived),
-    [presets],
-  );
+  const activePresets = React.useMemo(() => presets.filter(preset => !preset.archived), [presets]);
 
   const availablePresets = React.useMemo(() => {
-    const presetsById = new Map(
-      activePresets.map((preset) => [preset.id, preset]),
-    );
+    const presetsById = new Map(activePresets.map(preset => [preset.id, preset]));
     const recentPresetIds = new Set<number>();
     const recentPresets: PomodoroPreset[] = [];
 
     recentSessions
       .slice()
       .sort((a, b) => b.startTime - a.startTime)
-      .forEach((session) => {
+      .forEach(session => {
         if (recentPresetIds.has(session.presetId)) return;
         const preset = presetsById.get(session.presetId);
         if (!preset) return;
@@ -134,30 +126,25 @@ const PomodoroPanel: React.FC<PomodoroPanelProps> = ({
         recentPresets.push(preset);
       });
 
-    return (recentPresets.length > 0 ? recentPresets : activePresets).slice(
-      0,
-      3,
-    );
+    return (recentPresets.length > 0 ? recentPresets : activePresets).slice(0, 3);
   }, [activePresets, recentSessions]);
 
   const activePreset = React.useMemo(
-    () => presets.find((p) => p.id === activeSession?.presetId),
-    [presets, activeSession],
+    () => presets.find(p => p.id === activeSession?.presetId),
+    [presets, activeSession]
   );
   const presetsById = React.useMemo(
-    () => new Map(presets.map((preset) => [preset.id, preset])),
-    [presets],
+    () => new Map(presets.map(preset => [preset.id, preset])),
+    [presets]
   );
   const todaySessionPreview = React.useMemo(
     () =>
       todaySessions
-        .filter((session) => session.status === "completed")
+        .filter(session => session.status === "completed")
         .slice()
-        .sort(
-          (a, b) => (b.endTime ?? b.updateTime) - (a.endTime ?? a.updateTime),
-        )
+        .sort((a, b) => (b.endTime ?? b.updateTime) - (a.endTime ?? a.updateTime))
         .slice(0, TODAY_SESSION_PREVIEW_LIMIT),
-    [todaySessions],
+    [todaySessions]
   );
 
   const isRunning = activeSession?.status === "running";
@@ -172,10 +159,7 @@ const PomodoroPanel: React.FC<PomodoroPanelProps> = ({
     if (!activeSession || activeSession.expectedMs === undefined) return 0;
     if (activeSession.expectedMs <= 0) return 0;
     const elapsed = activeSession.expectedMs - Math.max(remainMs ?? 0, 0);
-    return Math.min(
-      Math.max((elapsed / activeSession.expectedMs) * 100, 0),
-      100,
-    );
+    return Math.min(Math.max((elapsed / activeSession.expectedMs) * 100, 0), 100);
   }, [activeSession, remainMs]);
 
   const handleViewAll = () => {
@@ -185,54 +169,40 @@ const PomodoroPanel: React.FC<PomodoroPanelProps> = ({
   return (
     <div
       className={classNames(
-        "rounded-xl border p-4 min-h-[200px] flex flex-col",
+        "flex min-h-[200px] flex-col rounded-xl border p-4",
         themeColors.cardBorderClass,
-        themeColors.cardBgClass,
+        themeColors.cardBgClass
       )}
     >
       {/* 标题行 */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div
             className={classNames(
-              "w-8 h-8 rounded-lg flex items-center justify-center",
-              themeColors.iconBgClass,
+              "flex h-8 w-8 items-center justify-center rounded-lg",
+              themeColors.iconBgClass
             )}
           >
-            <Timer
-              className={classNames("w-4 h-4", themeColors.iconTextClass)}
-            />
+            <Timer className={classNames("h-4 w-4", themeColors.iconTextClass)} />
           </div>
-          <h3
-            className={classNames(
-              "text-sm font-semibold",
-              themeColors.textClass,
-            )}
-          >
-            番茄钟
-          </h3>
+          <h3 className={classNames("text-sm font-semibold", themeColors.textClass)}>番茄钟</h3>
         </div>
         <button
           onClick={handleViewAll}
           className={classNames(
-            "text-xs flex items-center gap-1 transition-colors cursor-pointer",
+            "flex cursor-pointer items-center gap-1 text-xs transition-colors",
             themeColors.secondaryTextClass,
-            "hover:opacity-80",
+            "hover:opacity-80"
           )}
         >
           查看全部
-          <ArrowRight className="w-3 h-3" />
+          <ArrowRight className="h-3 w-3" />
         </button>
       </div>
 
       {/* 今日统计 */}
-      <div className="flex items-baseline gap-1.5 mb-3">
-        <span
-          className={classNames(
-            "text-2xl font-bold tabular-nums",
-            themeColors.textClass,
-          )}
-        >
+      <div className="mb-3 flex items-baseline gap-1.5">
+        <span className={classNames("text-2xl font-bold tabular-nums", themeColors.textClass)}>
           {formatMs(todayStats.focusMs)}
         </span>
         <span className={classNames("text-xs", themeColors.secondaryTextClass)}>
@@ -242,30 +212,19 @@ const PomodoroPanel: React.FC<PomodoroPanelProps> = ({
 
       <div className="mb-3 space-y-1.5">
         <div className="flex items-center justify-between gap-2">
-          <span
-            className={classNames(
-              "text-xs font-medium",
-              themeColors.secondaryTextClass,
-            )}
-          >
+          <span className={classNames("text-xs font-medium", themeColors.secondaryTextClass)}>
             今日记录
           </span>
           {todaySessions.length > todaySessionPreview.length && (
-            <span
-              className={classNames(
-                "text-[11px]",
-                themeColors.secondaryTextClass,
-              )}
-            >
+            <span className={classNames("text-[11px]", themeColors.secondaryTextClass)}>
               +{todaySessions.length - todaySessionPreview.length}
             </span>
           )}
         </div>
         {todaySessionPreview.length > 0 ? (
           <div className="space-y-1">
-            {todaySessionPreview.map((session) => {
-              const presetName =
-                presetsById.get(session.presetId)?.name ?? "未知番茄钟";
+            {todaySessionPreview.map(session => {
+              const presetName = presetsById.get(session.presetId)?.name ?? "未知番茄钟";
               const completedAt = session.endTime ?? session.updateTime;
 
               return (
@@ -273,28 +232,22 @@ const PomodoroPanel: React.FC<PomodoroPanelProps> = ({
                   key={session.id}
                   className={classNames(
                     "flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-xs",
-                    themeColors.hoverClass,
+                    themeColors.hoverClass
                   )}
                 >
                   <Clock3
-                    className={classNames(
-                      "h-3 w-3 flex-shrink-0",
-                      themeColors.secondaryTextClass,
-                    )}
+                    className={classNames("h-3 w-3 flex-shrink-0", themeColors.secondaryTextClass)}
                   />
                   <span
                     title={presetName}
-                    className={classNames(
-                      "min-w-0 flex-1 truncate",
-                      themeColors.textClass,
-                    )}
+                    className={classNames("min-w-0 flex-1 truncate", themeColors.textClass)}
                   >
                     {presetName}
                   </span>
                   <span
                     className={classNames(
                       "flex-shrink-0 tabular-nums",
-                      themeColors.secondaryTextClass,
+                      themeColors.secondaryTextClass
                     )}
                   >
                     {new Date(completedAt).toLocaleTimeString("zh-CN", {
@@ -305,7 +258,7 @@ const PomodoroPanel: React.FC<PomodoroPanelProps> = ({
                   <span
                     className={classNames(
                       "flex-shrink-0 font-medium tabular-nums",
-                      themeColors.activeTextClass,
+                      themeColors.activeTextClass
                     )}
                   >
                     {formatMs(session.focusMs)}
@@ -326,14 +279,12 @@ const PomodoroPanel: React.FC<PomodoroPanelProps> = ({
         {isActive ? (
           <div
             className={classNames(
-              "rounded-lg overflow-hidden relative border",
-              themeColors.cardBorderClass,
+              "relative overflow-hidden rounded-lg border",
+              themeColors.cardBorderClass
             )}
             style={{
               transition: "box-shadow 0.8s ease",
-              boxShadow: isRunning
-                ? `0 4px 16px -8px ${themeColors.accentSoftBg}`
-                : "none",
+              boxShadow: isRunning ? `0 4px 16px -8px ${themeColors.accentSoftBg}` : "none",
             }}
           >
             {/* 强调色背景层 */}
@@ -345,29 +296,28 @@ const PomodoroPanel: React.FC<PomodoroPanelProps> = ({
               }}
             />
             {/* 进度条（倒计时模式） */}
-            {activeSession?.expectedMs !== undefined &&
-              activeSession.expectedMs > 0 && (
-                <div
-                  className="absolute inset-y-0 left-0"
-                  style={{
-                    backgroundColor: themeColors.accentColor,
-                    opacity: 0.08,
-                    width: `${progress}%`,
-                    transition: "width 1s linear",
-                  }}
-                />
-              )}
+            {activeSession?.expectedMs !== undefined && activeSession.expectedMs > 0 && (
+              <div
+                className="absolute inset-y-0 left-0"
+                style={{
+                  backgroundColor: themeColors.accentColor,
+                  opacity: 0.08,
+                  width: `${progress}%`,
+                  transition: "width 1s linear",
+                }}
+              />
+            )}
             <div className="relative px-3 py-2.5">
               <div
                 className={classNames(
-                  "flex items-center gap-1.5 mb-1.5 text-xs",
-                  themeColors.secondaryTextClass,
+                  "mb-1.5 flex items-center gap-1.5 text-xs",
+                  themeColors.secondaryTextClass
                 )}
               >
                 {isRunning ? (
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--th-accent)]" />
                 ) : (
-                  <Pause className="w-3 h-3 text-yellow-500" />
+                  <Pause className="h-3 w-3 text-yellow-500" />
                 )}
                 <span>{isRunning ? "专注中" : "已暂停"}</span>
                 <span className="truncate">· {activePreset?.name}</span>
@@ -376,50 +326,48 @@ const PomodoroPanel: React.FC<PomodoroPanelProps> = ({
                 <span
                   className={classNames(
                     "font-semibold tabular-nums tracking-wider",
-                    themeColors.activeTextClass,
+                    themeColors.activeTextClass
                   )}
                   style={{ fontSize: 20, lineHeight: 1 }}
                 >
-                  {activeSession?.expectedMs !== undefined
-                    ? fmt(remainMs ?? 0)
-                    : fmt(elapsedMs)}
+                  {activeSession?.expectedMs !== undefined ? fmt(remainMs ?? 0) : fmt(elapsedMs)}
                 </span>
-                <div className="flex items-center gap-1 flex-none">
+                <div className="flex flex-none items-center gap-1">
                   {isRunning ? (
                     <button
                       onClick={onPauseSession}
                       title="暂停"
                       className={classNames(
-                        "w-6 h-6 rounded-full inline-flex items-center justify-center cursor-pointer transition-all",
+                        "inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full transition-all",
                         themeColors.hoverClass,
-                        themeColors.activeTextClass,
+                        themeColors.activeTextClass
                       )}
                     >
-                      <Pause className="w-3 h-3" />
+                      <Pause className="h-3 w-3" />
                     </button>
                   ) : (
                     <button
                       onClick={onResumeSession}
                       title="继续"
                       className={classNames(
-                        "w-6 h-6 rounded-full inline-flex items-center justify-center cursor-pointer transition-all",
+                        "inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full transition-all",
                         themeColors.hoverClass,
-                        themeColors.activeTextClass,
+                        themeColors.activeTextClass
                       )}
                     >
-                      <Play className="w-3 h-3" />
+                      <Play className="h-3 w-3" />
                     </button>
                   )}
                   <button
                     onClick={onStopSession}
                     title="停止"
                     className={classNames(
-                      "w-6 h-6 rounded-full inline-flex items-center justify-center cursor-pointer transition-all",
+                      "inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full transition-all",
                       themeColors.hoverClass,
-                      themeColors.textClass,
+                      themeColors.textClass
                     )}
                   >
-                    <Square className="w-3 h-3" />
+                    <Square className="h-3 w-3" />
                   </button>
                 </div>
               </div>
@@ -428,38 +376,29 @@ const PomodoroPanel: React.FC<PomodoroPanelProps> = ({
         ) : (
           availablePresets.length > 0 && (
             <div className="space-y-1.5 overflow-hidden">
-              <p
-                className={classNames(
-                  "text-xs mb-1.5",
-                  themeColors.secondaryTextClass,
-                )}
-              >
+              <p className={classNames("mb-1.5 text-xs", themeColors.secondaryTextClass)}>
                 快捷开始
               </p>
               <div className="flex flex-wrap gap-2">
-                {availablePresets.map((preset) => (
+                {availablePresets.map(preset => (
                   <button
                     key={preset.id}
                     onClick={() => {
                       const expectedMs =
-                        preset.mode === "countdown"
-                          ? preset.durationMin * 60000
-                          : undefined;
+                        preset.mode === "countdown" ? preset.durationMin * 60000 : undefined;
                       onStartSession?.(preset.id, expectedMs);
                     }}
                     className={classNames(
-                      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border cursor-pointer",
+                      "inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
                       themeColors.cardBorderClass,
                       themeColors.hoverClass,
-                      themeColors.textClass,
+                      themeColors.textClass
                     )}
                   >
-                    <Play className="w-3 h-3" />
+                    <Play className="h-3 w-3" />
                     {preset.name}
                     {preset.mode === "countdown" && (
-                      <span className={themeColors.secondaryTextClass}>
-                        {preset.durationMin}m
-                      </span>
+                      <span className={themeColors.secondaryTextClass}>{preset.durationMin}m</span>
                     )}
                   </button>
                 ))}
