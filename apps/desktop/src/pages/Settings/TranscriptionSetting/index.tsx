@@ -335,7 +335,7 @@ const TranscriptionSetting = () => {
                       <span
                         className={`rounded px-2 py-0.5 text-xs ${
                           program.type === "GPU"
-                            ? "bg-[var(--th-accent-soft)] text-[var(--th-active-text)]"
+                            ? "bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-gray-400"
                             : "bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-gray-400"
                         }`}
                       >
@@ -397,7 +397,7 @@ const TranscriptionSetting = () => {
             <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
               转录程序
             </div>
-            <div className="border-[var(--th-border-focus)]/30 rounded-lg border bg-[var(--th-accent-soft)] p-3 text-sm text-[var(--th-active-text)]">
+            <div className="rounded-lg border border-[var(--th-border)] bg-[var(--th-bg-hover)] p-3 text-sm text-[var(--th-text)]">
               ✓ macOS 使用内置 Python 脚本运行 faster-whisper，无需额外下载程序
             </div>
           </div>
@@ -477,7 +477,7 @@ const TranscriptionSetting = () => {
                 key={model.name}
                 className={`flex items-center justify-between rounded-lg border p-4 ${
                   isCurrentModel
-                    ? "border-[var(--th-border-focus)]/40 bg-[var(--th-accent-soft)]"
+                    ? "border-[var(--th-border-hover)] bg-[var(--th-bg-hover)]"
                     : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50"
                 }`}
               >
@@ -487,7 +487,7 @@ const TranscriptionSetting = () => {
                       {model.label}
                     </span>
                     {model.recommended && (
-                      <span className="bg-[var(--th-info)]/15 dark: rounded px-2 py-0.5 text-xs text-[var(--th-active-text)]">
+                      <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-zinc-700 dark:text-gray-400">
                         推荐
                       </span>
                     )}
@@ -552,9 +552,9 @@ const TranscriptionSetting = () => {
         </div>
 
         {/* 使用说明 */}
-        <div className="border-[var(--th-border-focus)]/30 mt-6 rounded-lg border bg-[var(--th-accent-soft)] p-4">
-          <div className="mb-2 text-sm font-medium text-[var(--th-active-text)]">使用说明</div>
-          <ul className="list-inside list-disc space-y-1 text-sm text-[var(--th-active-text)]">
+        <div className="mt-6 rounded-lg border border-[var(--th-border)] bg-[var(--th-bg-hover)] p-4">
+          <div className="mb-2 text-sm font-medium text-[var(--th-text)]">使用说明</div>
+          <ul className="list-inside list-disc space-y-1 text-sm text-[var(--th-text)]">
             <li>首次使用需要下载转录模型</li>
             <li>推荐使用 Base 模型，兼顾速度和准确度</li>
             <li>国内用户建议使用 ModelScope 下载源</li>

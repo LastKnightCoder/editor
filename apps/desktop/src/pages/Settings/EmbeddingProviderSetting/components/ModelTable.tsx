@@ -367,7 +367,7 @@ const ModelTable = ({ providerType, onOpenConfig, onAddModel, onEditModel }: Mod
                   className={classNames(
                     "rounded-lg border p-4 transition-colors",
                     isActive
-                      ? "border-[var(--th-success)]/40 bg-[var(--th-success)]/10"
+                      ? "border-[var(--th-border-hover)] bg-[var(--th-bg-hover)]"
                       : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50"
                   )}
                 >
