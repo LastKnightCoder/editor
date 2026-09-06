@@ -391,17 +391,6 @@ const TranscriptionSetting = () => {
             </div>
           </div>
         )}
-        {/* Mac 显示内置说明 */}
-        {isMac && (
-          <div className="mb-6">
-            <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-              转录程序
-            </div>
-            <div className="rounded-lg border border-[var(--th-border)] bg-[var(--th-bg-hover)] p-3 text-sm text-[var(--th-text)]">
-              ✓ macOS 使用内置 Python 脚本运行 faster-whisper，无需额外下载程序
-            </div>
-          </div>
-        )}
 
         {/* faster-whisper 模型 */}
         {/* 当前使用的模型 */}
@@ -549,19 +538,6 @@ const TranscriptionSetting = () => {
               </div>
             );
           })}
-        </div>
-
-        {/* 使用说明 */}
-        <div className="mt-6 rounded-lg border border-[var(--th-border)] bg-[var(--th-bg-hover)] p-4">
-          <div className="mb-2 text-sm font-medium text-[var(--th-text)]">使用说明</div>
-          <ul className="list-inside list-disc space-y-1 text-sm text-[var(--th-text)]">
-            <li>首次使用需要下载转录模型</li>
-            <li>推荐使用 Base 模型，兼顾速度和准确度</li>
-            <li>国内用户建议使用 ModelScope 下载源</li>
-            {!isMac && <li>有 NVIDIA 显卡时建议选择 GPU 版本程序，速度提升显著</li>}
-            <li>词级时间戳更精确，适合 LLM 优化断句</li>
-            <li>模型越大，准确度越高，但处理速度越慢</li>
-          </ul>
         </div>
       </SettingSection>
     </SettingContainer>

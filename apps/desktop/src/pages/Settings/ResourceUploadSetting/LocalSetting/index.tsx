@@ -3,7 +3,7 @@ import useThemeColors from "@/hooks/useThemeColors";
 import classNames from "classnames";
 
 const LocalSetting = () => {
-  const { local } = useSettingStore((state) => ({
+  const { local } = useSettingStore(state => ({
     local: state.setting.imageBed.local,
   }));
   const themeColors = useThemeColors();
@@ -14,20 +14,20 @@ const LocalSetting = () => {
     <div className="space-y-4">
       <div
         className={classNames(
-          "p-4 rounded-xl border",
+          "rounded-xl border p-4",
           themeColors.cardBgClass,
-          themeColors.cardBorderClass,
+          themeColors.cardBorderClass
         )}
       >
         <div className="flex items-center gap-3">
           <div
             className={classNames(
-              "w-10 h-10 rounded-lg flex items-center justify-center",
-              themeColors.iconBgClass,
+              "flex h-10 w-10 items-center justify-center rounded-lg",
+              themeColors.iconBgClass
             )}
           >
             <svg
-              className={classNames("w-5 h-5", themeColors.iconTextClass)}
+              className={classNames("h-5 w-5", themeColors.secondaryTextClass)}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -41,17 +41,8 @@ const LocalSetting = () => {
             </svg>
           </div>
           <div>
-            <div
-              className={classNames("text-sm", themeColors.secondaryTextClass)}
-            >
-              存储路径
-            </div>
-            <div
-              className={classNames(
-                "text-sm font-medium",
-                themeColors.activeTextClass,
-              )}
-            >
+            <div className={classNames("text-sm", themeColors.secondaryTextClass)}>存储路径</div>
+            <div className={classNames("text-sm font-medium", themeColors.secondaryTextClass)}>
               {path || "默认数据库目录"}
             </div>
           </div>

@@ -193,7 +193,7 @@ const SelectDatabase = () => {
                 <div className="flex shrink-0 items-center gap-1">
                   {isActive ? (
                     <div className="flex h-7 w-7 items-center justify-center rounded-lg transition-all">
-                      <IoCheckmarkCircleOutline className="text-base text-[var(--th-accent)]" />
+                      <IoCheckmarkCircleOutline className="text-base" />
                     </div>
                   ) : (
                     <button
