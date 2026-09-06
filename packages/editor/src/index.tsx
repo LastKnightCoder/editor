@@ -27,7 +27,6 @@ import { CollaborationContext } from "./collaboration/context";
 import type { EditorCollaborationBinding } from "./collaboration/types";
 import type { ContentNode } from "@tau/collaboration";
 import CollaborationCursors from "./collaboration/Cursors";
-import SharedTabs from "./collaboration/SharedTabs";
 import SafeCollaborationElement, { requiresSafeRendering } from "./collaboration/SafeElement";
 import { useCreation, useMemoizedFn } from "ahooks";
 
@@ -236,26 +235,6 @@ const Index = memo(
           });
         return <SafeCollaborationElement {...props} />;
       }
-      if (collaboration && type === "tabs")
-        return (
-          <SharedTabs
-            {...props}
-            renderEditor={(root, isReadonly) => (
-              <Index
-                collaboration={{ ...collaboration, root }}
-                extensions={extensions}
-                readonly={isReadonly}
-                hotkeyConfigs={hotkeyConfigs}
-                hoveringBarConfigs={hoveringBarConfigs}
-                placeHolder={placeHolder}
-                theme={theme}
-                features={features}
-                decorate={decorate}
-                customRenderLeaf={customRenderLeaf}
-              />
-            )}
-          />
-        );
       const extension = pluginOptimizer.getExtension(type);
       if (extension) {
         return extension.render(props);

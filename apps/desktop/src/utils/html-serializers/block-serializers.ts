@@ -96,7 +96,7 @@ export const blockSerializers: HtmlSerializer[] = [
   {
     type: "image",
     isBlock: true,
-    toHtml: (element) => {
+    toHtml: element => {
       const alt = element.alt || "";
       const url = element.url || "";
       const widthAttr = element.width ? ` width="${element.width}"` : "";
@@ -108,16 +108,14 @@ export const blockSerializers: HtmlSerializer[] = [
   {
     type: "image-gallery",
     isBlock: true,
-    toHtml: (element) => {
+    toHtml: element => {
       const images = element.images || [];
       const isSingle = images.length === 1;
-      const widthClass = isSingle
-        ? "gallery-image-single"
-        : "gallery-image-multiple";
+      const widthClass = isSingle ? "gallery-image-single" : "gallery-image-multiple";
       const imagesHtml = images
         .map(
           (img: { url: string; alt?: string }) =>
-            `<section class="imageflow-layer3"><img src="${img.url}" alt="${img.alt || ""}" class="gallery-image ${widthClass}" /></section>`,
+            `<section class="imageflow-layer3"><img src="${img.url}" alt="${img.alt || ""}" class="gallery-image ${widthClass}" /></section>`
         )
         .join("");
       const caption = isSingle
@@ -213,7 +211,7 @@ export const blockSerializers: HtmlSerializer[] = [
   {
     type: "block-math",
     isBlock: true,
-    toHtml: async (element) => {
+    toHtml: async element => {
       const tex = element.tex || "";
       const svgHtml = await renderBlockMath(tex);
       return `<div class="block-math">${svgHtml}</div>`;
@@ -226,10 +224,7 @@ export const blockSerializers: HtmlSerializer[] = [
     isBlock: true,
     toHtml: (element, childrenHtml) => {
       const type = (element.calloutType || "note") as CalloutType;
-      const title =
-        element.title ||
-        DEFAULT_CALLOUT_TITLE[type] ||
-        DEFAULT_CALLOUT_TITLE.note;
+      const title = element.title || DEFAULT_CALLOUT_TITLE[type] || DEFAULT_CALLOUT_TITLE.note;
       const iconUrl = CALLOUT_ICONS[type] || CALLOUT_ICONS.note;
       return `<div class="callout callout-${type}">
         <div class="callout-title"><img src="${iconUrl}" class="callout-icon" alt="" />${title}</div>
@@ -281,7 +276,7 @@ export const blockSerializers: HtmlSerializer[] = [
   {
     type: "mermaid",
     isBlock: true,
-    toHtml: (element) => {
+    toHtml: element => {
       const chart = element.chart || "";
       // Check if SVG is stored (future support)
       const svg = element.svg;
@@ -297,7 +292,7 @@ export const blockSerializers: HtmlSerializer[] = [
   {
     type: "video",
     isBlock: true,
-    toHtml: (element) => {
+    toHtml: element => {
       const src = element.src || "";
       const metaInfo = element.metaInfo;
       if (metaInfo?.title) {
@@ -311,7 +306,7 @@ export const blockSerializers: HtmlSerializer[] = [
   {
     type: "audio",
     isBlock: true,
-    toHtml: (element) => {
+    toHtml: element => {
       const src = element.src || "";
       return `<p class="audio-placeholder">[音频: <a href="${src}">${src}</a>]</p>`;
     },
@@ -344,7 +339,7 @@ export const blockSerializers: HtmlSerializer[] = [
   {
     type: "custom-block",
     isBlock: true,
-    toHtml: (element) => {
+    toHtml: element => {
       const content = element.content || "";
       return `<div class="custom-block"><pre><code>${escapeHtml(content)}</code></pre></div>`;
     },
@@ -354,7 +349,7 @@ export const blockSerializers: HtmlSerializer[] = [
   {
     type: "webview",
     isBlock: true,
-    toHtml: (element) => {
+    toHtml: element => {
       const url = element.url || "";
       const height = element.height || 400;
       return `<p class="webview-placeholder">[网页视图: <a href="${url}">${url}</a>] (高度: ${height}px)</p>`;
@@ -388,11 +383,20 @@ export const blockSerializers: HtmlSerializer[] = [
     },
   },
 
+  // Tab Pane
+  {
+    type: "tab-pane",
+    isBlock: true,
+    toHtml: (_element, childrenHtml) => {
+      return `<div class="tab-pane">${childrenHtml}</div>`;
+    },
+  },
+
   // ABC Music Notation (using abcjs dynamic rendering)
   {
     type: "abc",
     isBlock: true,
-    toHtml: (element) => {
+    toHtml: element => {
       const content = element.content || "";
       // Use abcjs to render the ABC notation
       const renderedHtml = renderAbc(content);
@@ -412,7 +416,7 @@ export const blockSerializers: HtmlSerializer[] = [
   {
     type: "plantuml",
     isBlock: true,
-    toHtml: (element) => {
+    toHtml: element => {
       const content = element.content || "";
       const svg = element.svg;
 
@@ -430,7 +434,7 @@ export const blockSerializers: HtmlSerializer[] = [
   {
     type: "tikz",
     isBlock: true,
-    toHtml: (element) => {
+    toHtml: element => {
       const content = element.content || "";
       return `<pre class="tikz-fallback"><code>${escapeHtml(content)}</code></pre>`;
     },
@@ -440,7 +444,7 @@ export const blockSerializers: HtmlSerializer[] = [
   {
     type: "typst",
     isBlock: true,
-    toHtml: (element) => {
+    toHtml: element => {
       const content = element.content || "";
       const html = element.html;
 
@@ -458,7 +462,7 @@ export const blockSerializers: HtmlSerializer[] = [
   {
     type: "chart",
     isBlock: true,
-    toHtml: (element) => {
+    toHtml: element => {
       const data = element.data || [];
       const config = element.config;
       const height = element.height || 400;

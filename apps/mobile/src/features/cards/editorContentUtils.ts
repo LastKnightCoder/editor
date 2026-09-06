@@ -1,5 +1,8 @@
 import type { Descendant } from "slate";
 import { wordsCount } from "words-count";
+// 仅引入纯函数子模块，避免把协作包入口的 yjs 拖进移动端产物
+import { migrateTabsToPanes } from "@tau/collaboration/src/tabs-normalize";
+import type { ContentNode } from "@tau/collaboration/src/protocol";
 
 export type EditorDocument = Descendant[];
 
@@ -14,7 +17,9 @@ export function normalizeEditorContent(content: unknown): EditorDocument {
   if (!Array.isArray(content) || content.length === 0) {
     return EMPTY_EDITOR_CONTENT;
   }
-  return content as Descendant[];
+  // 存量 tabs 旧形态（tabsContent）懒迁移为 tab-pane 子节点形态，幂等
+  const { content: migrated } = migrateTabsToPanes(content as ContentNode[]);
+  return migrated as EditorDocument;
 }
 
 export function dfs(nodes: Descendant[], visit: (node: Descendant) => void) {
@@ -42,7 +47,7 @@ export function getContentLength(value: Descendant[]): number {
       const tabs = node.tabsContent ?? [];
       const notCurrentTabs = tabs.filter(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (tab: any) => tab.key !== node.activeKey,
+        (tab: any) => tab.key !== node.activeKey
       );
       for (const tab of notCurrentTabs) {
         length += getContentLength(tab.content);
@@ -74,11 +79,7 @@ export function isEditorContentEmpty(content: unknown): boolean {
   let hasStructuredContent = false;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   dfs(normalized, (node: any) => {
-    if (
-      typeof node?.type === "string" &&
-      node.type !== "paragraph" &&
-      node.type !== "formatted"
-    ) {
+    if (typeof node?.type === "string" && node.type !== "paragraph" && node.type !== "formatted") {
       hasStructuredContent = true;
     }
   });

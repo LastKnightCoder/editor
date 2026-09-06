@@ -27,7 +27,7 @@ export const dfs = (editor: Descendant[], visit: (node: Descendant) => any) => {
 export const getContentLength = (value: Descendant[]) => {
   let length = 0;
 
-  dfs(value, (node) => {
+  dfs(value, node => {
     if (node.type === "formatted") {
       length += wordsCount((node as FormattedText).text);
     } else if (node.type === "code-block") {
@@ -35,12 +35,14 @@ export const getContentLength = (value: Descendant[]) => {
     } else if (node.type === "inline-math" || node.type === "block-math") {
       length += wordsCount((node as InlineMathElement | BlockMathElement).tex);
     } else if (node.type === "tabs") {
+      // 旧数据形态（tabsContent）非激活 Tab 的内容不在树内，需补算；
+      // 新形态（tab-pane）内容在 children 树内，dfs 已覆盖。
       const tabs = (node as TabsElement).tabsContent;
-      const notCurrentTabs = tabs.filter(
-        (tab) => tab.key !== (node as TabsElement).activeKey,
-      );
-      for (const tab of notCurrentTabs) {
-        length += getContentLength(tab.content);
+      if (Array.isArray(tabs)) {
+        const notCurrentTabs = tabs.filter(tab => tab.key !== (node as TabsElement).activeKey);
+        for (const tab of notCurrentTabs) {
+          length += getContentLength(tab.content as Descendant[]);
+        }
       }
     } else if (node.type === "mermaid") {
       length += wordsCount((node as MermaidElement).chart);
@@ -52,9 +54,7 @@ export const getContentLength = (value: Descendant[]) => {
       length += wordsCount((node as TikzElement).content);
     } else if (node.type === "list-item") {
       if ((node as ListItemElement).isFold) {
-        length += getContentLength(
-          (node as ListItemElement).allContent!.slice(1),
-        );
+        length += getContentLength((node as ListItemElement).allContent!.slice(1));
       }
     }
   });

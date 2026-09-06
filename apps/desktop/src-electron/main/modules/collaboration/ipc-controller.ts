@@ -40,6 +40,9 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
     replaceText(session.doc.getText("title"), title);
     context.changed(session);
   });
+  handle("set-tab-active", (_event, id: string, blockId: string, tabKey: string) => {
+    context.noteActiveTab(context.requireSession(id), blockId, tabKey);
+  });
   handle("configure", async (_event, options: { serverUrl: string; nickname: string }) => {
     const url = normalizeServerUrl(options.serverUrl);
     const developmentUrl = getDevelopmentServerUrl();

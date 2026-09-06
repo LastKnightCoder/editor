@@ -18,7 +18,9 @@ import {
   contentRevision,
   replaceSessionContent,
 } from "../collaboration/content-sessions";
-import { readSharedContent, type ContentNode } from "@tau/collaboration";
+import { readSharedContent, migrateTabsToPanes, type ContentNode } from "@tau/collaboration";
+
+const TABS_PANE_MIGRATION_KEY = "tabs-pane-v1";
 
 export default class ContentTable {
   static getListenEvents() {
@@ -33,6 +35,8 @@ export default class ContentTable {
   }
 
   static upgradeTable(db: Database.Database) {
+    this.migrateLegacyTabs(db);
+
     const contents = this.getAllContents(db);
     for (const content of contents) {
       let hasWhiteboard = false;
@@ -87,6 +91,64 @@ export default class ContentTable {
         updateContentStmt.run(JSON.stringify(newContent), content.id);
       }
     }
+  }
+
+  private static ensureMigrationMetaTable(db: Database.Database) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS migration_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    `);
+  }
+
+  private static isMigrationDone(db: Database.Database, key: string) {
+    this.ensureMigrationMetaTable(db);
+    const row = db.prepare(`SELECT value FROM migration_meta WHERE key = ?`).get(key) as
+      | { value: string }
+      | undefined;
+    return row?.value === "done";
+  }
+
+  private static markMigrationDone(db: Database.Database, key: string) {
+    this.ensureMigrationMetaTable(db);
+    db.prepare(
+      `
+        INSERT INTO migration_meta (key, value)
+        VALUES (?, 'done')
+        ON CONFLICT(key) DO UPDATE SET value = 'done'
+      `
+    ).run(key);
+  }
+
+  /**
+   * 存量 tabs 数据（tabsContent 形态）一次性迁移为 tab-pane 子节点形态，幂等。
+   * 有活跃协作会话的内容以 Yjs 投影为准，跳过等待会话写回。
+   */
+  static migrateLegacyTabs(db: Database.Database) {
+    if (this.isMigrationDone(db, TABS_PANE_MIGRATION_KEY)) {
+      return;
+    }
+    const contents = this.getAllContents(db);
+    const updateStmt = db.prepare("UPDATE contents SET content = ?, count = ? WHERE id = ?");
+    let migratedCount = 0;
+    for (const content of contents) {
+      if (contentSession(db, Number(content.id))) {
+        continue;
+      }
+      const { content: migrated, changed } = migrateTabsToPanes(content.content as ContentNode[]);
+      if (!changed) continue;
+      updateStmt.run(
+        JSON.stringify(migrated),
+        getContentLength(migrated as Descendant[]),
+        content.id
+      );
+      migratedCount++;
+    }
+    if (migratedCount > 0) {
+      log.info(`Migrated tabs to tab-pane for ${migratedCount} contents`);
+    }
+    this.markMigrationDone(db, TABS_PANE_MIGRATION_KEY);
   }
 
   static parseContent(content: any): IContent {
