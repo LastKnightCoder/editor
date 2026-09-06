@@ -359,7 +359,7 @@ const ExportImageModal = (props: ExportImageModalProps) => {
                   {/* Header */}
                   <div className="mb-5 flex items-start gap-3">
                     <div className="border-[var(--th-border-focus)]/30 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border bg-blue-50 dark:bg-blue-500/20">
-                      <Download className="h-5 w-5 text-blue-500" />
+                      <Download className="h-5 w-5 text-[var(--th-accent)]" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <h2 className="m-0 text-base font-bold text-gray-800 dark:text-white">

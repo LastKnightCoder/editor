@@ -22,11 +22,7 @@ import { BoardUtil, MindUtil, PathUtil } from "../../utils";
 import { getThemeById } from "../../constants/mind-themes";
 import useHandleResize from "./hooks/useHandleResize.ts";
 import { useMindNodeKeyboardNavigation } from "./hooks/useMindNodeKeyboardNavigation.ts";
-import {
-  ECreateBoardElementType,
-  EMarkerType,
-  MindNodeElement,
-} from "../../types";
+import { ECreateBoardElementType, EMarkerType, MindNodeElement } from "../../types";
 import { createContent, incrementContentRefCount } from "@/commands/content";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { SearchResult } from "@/types/search";
@@ -42,19 +38,13 @@ const MIND_NODE_MAX_WIDTH = 300;
 // 这里对“同一棵思维导图(root)”做去重后的延迟重排，避免每个节点各自触发一次全量 layout。
 const pendingRelayoutTimerByRootId = new Map<string, number>();
 
-const scheduleRelayoutMindRoot = (
-  board: ReturnType<typeof useBoard>,
-  rootId: string,
-) => {
+const scheduleRelayoutMindRoot = (board: ReturnType<typeof useBoard>, rootId: string) => {
   if (!rootId) return;
   if (pendingRelayoutTimerByRootId.has(rootId)) return;
 
   const timer = window.setTimeout(() => {
     pendingRelayoutTimerByRootId.delete(rootId);
-    const latestRoot = BoardUtil.getElementById(
-      board,
-      rootId,
-    ) as MindNodeElement | null;
+    const latestRoot = BoardUtil.getElementById(board, rootId) as MindNodeElement | null;
     if (!latestRoot) return;
     const laidOut = MindUtil.layout(latestRoot);
     const rootPath = PathUtil.getPathByElement(board, latestRoot);
@@ -79,31 +69,16 @@ const DEFAULT_CONTENT: Descendant[] = [
 
 const MindNode = (props: MindNodeProps) => {
   const { element } = props;
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
 
-  const {
-    id,
-    x,
-    y,
-    width,
-    height,
-    text,
-    defaultFocus,
-    isLeftFold,
-    isRightFold,
-    direction,
-  } = element;
+  const { id, x, y, width, height, text, defaultFocus, isLeftFold, isRightFold, direction } =
+    element;
 
   const board = useBoard();
   const isArrowMoving = useArrowMove();
   const createBoardElementType = useCreateElementType();
 
-  const root = useMemo(
-    () => MindUtil.getRoot(board, element),
-    [board, element, board.children],
-  );
+  const root = useMemo(() => MindUtil.getRoot(board, element), [board, element, board.children]);
   const themeId = root?.themeId || MindUtil.getDefaultThemeId();
   const mindTheme = useMemo(() => getThemeById(themeId), [themeId]);
 
@@ -162,10 +137,8 @@ const MindNode = (props: MindNodeProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { isSelected, isSelecting } = useSelectState(id);
-  const isCreatingElement =
-    createBoardElementType !== ECreateBoardElementType.None;
-  const shouldInert =
-    isArrowMoving || isMoving || isSelecting || isCreatingElement;
+  const isCreatingElement = createBoardElementType !== ECreateBoardElementType.None;
+  const shouldInert = isArrowMoving || isMoving || isSelecting || isCreatingElement;
 
   useInertControl(containerRef, shouldInert);
 
@@ -208,7 +181,7 @@ const MindNode = (props: MindNodeProps) => {
           height,
         },
       },
-      isEditing,
+      isEditing
     );
 
     // 非编辑状态下，尺寸变化需要补一次布局，避免折叠/展开 + undo/redo 后出现连接线/位置错乱
@@ -230,7 +203,7 @@ const MindNode = (props: MindNodeProps) => {
     if (defaultFocus) {
       setTimeout(() => {
         editorRef.current?.focus();
-        const newElement = produce(element, (draft) => {
+        const newElement = produce(element, draft => {
           draft.defaultFocus = false;
         });
         const path = PathUtil.getPathByElement(board, element);
@@ -242,7 +215,7 @@ const MindNode = (props: MindNodeProps) => {
             properties: { defaultFocus: element.defaultFocus },
             newProperties: { defaultFocus: newElement.defaultFocus },
           },
-          false,
+          false
         );
       }, 100);
     }
@@ -256,9 +229,7 @@ const MindNode = (props: MindNodeProps) => {
     handleResize.flush();
     setTimeout(() => {
       setIsEditing(false);
-      board.isEditingElements = board.isEditingElements.filter(
-        (eid) => eid !== id,
-      );
+      board.isEditingElements = board.isEditingElements.filter(eid => eid !== id);
     }, 100);
 
     // TODO 应该可以直接快速的知道 Root 是什么，不要每次都查
@@ -287,15 +258,10 @@ const MindNode = (props: MindNodeProps) => {
   });
 
   const handleDoubleClick = useMemoizedFn(
-    (
-      e: React.MouseEvent<HTMLDivElement, MouseEvent<HTMLDivElement, Event>>,
-    ) => {
+    (e: React.MouseEvent<HTMLDivElement, MouseEvent<HTMLDivElement, Event>>) => {
       e.stopPropagation();
       setIsEditing(true);
-      board.isEditingElements = [
-        ...board.isEditingElements.filter((eid) => eid !== id),
-        id,
-      ];
+      board.isEditingElements = [...board.isEditingElements.filter(eid => eid !== id), id];
       setTimeout(() => {
         editorRef.current?.focus();
       }, 100);
@@ -311,15 +277,15 @@ const MindNode = (props: MindNodeProps) => {
             },
           },
         ],
-        false,
+        false
       );
-    },
+    }
   );
 
   const onContentChange = useMemoizedFn((value: Descendant[]) => {
     if (!isEditing) return;
 
-    const newElement = produce(element, (draft) => {
+    const newElement = produce(element, draft => {
       draft.text = value;
     });
     const path = PathUtil.getPathByElement(board, element);
@@ -340,32 +306,30 @@ const MindNode = (props: MindNodeProps) => {
     }
   });
 
-  const handleToggleFold = useMemoizedFn(
-    (e: MouseEvent, direction: "left" | "right") => {
-      e.stopPropagation();
-      e.preventDefault();
+  const handleToggleFold = useMemoizedFn((e: MouseEvent, direction: "left" | "right") => {
+    e.stopPropagation();
+    e.preventDefault();
 
-      const root = MindUtil.getRoot(board, element);
-      if (!root) {
-        console.error("MindNode: Root is not found");
-        return;
-      }
+    const root = MindUtil.getRoot(board, element);
+    if (!root) {
+      console.error("MindNode: Root is not found");
+      return;
+    }
 
-      const newRoot = MindUtil.toggleFold(root, element, direction);
-      const rootPath = PathUtil.getPathByElement(board, root);
-      if (!rootPath) return;
+    const newRoot = MindUtil.toggleFold(root, element, direction);
+    const rootPath = PathUtil.getPathByElement(board, root);
+    if (!rootPath) return;
 
-      const ops = BoardUtil.diffNode(root, newRoot, rootPath);
-      BoardUtil.normalizeOperations(ops);
-      board.apply(ops);
-    },
-  );
+    const ops = BoardUtil.diffNode(root, newRoot, rootPath);
+    BoardUtil.normalizeOperations(ops);
+    board.apply(ops);
+  });
 
   const handleCreateNote = useMemoizedFn(async () => {
     const contentId = await createContent(DEFAULT_CONTENT, 0);
     if (!contentId) return;
 
-    const newElement = produce(element, (draft) => {
+    const newElement = produce(element, draft => {
       draft.contentId = contentId;
       draft.contentTitle = "";
     });
@@ -393,40 +357,38 @@ const MindNode = (props: MindNodeProps) => {
     setContentSelectorOpen(true);
   }) satisfies MenuProps["onClick"];
 
-  const onSelectContent = useMemoizedFn(
-    async (items: SearchResult | SearchResult[]) => {
-      const item = Array.isArray(items) ? items[0] : items;
-      if (!item) return;
-      if (item.contentId === element.contentId) {
-        setContentSelectorOpen(false);
-        return;
-      }
-
-      const path = PathUtil.getPathByElement(board, element);
-      if (!path) return;
-
-      await incrementContentRefCount(item.contentId);
-
-      const newElement = produce(element, (draft) => {
-        draft.contentId = item.contentId;
-        draft.contentTitle = item.title;
-      });
-
-      board.apply({
-        type: "set_node",
-        path,
-        properties: {
-          contentId: element.contentId,
-          contentTitle: element.contentTitle,
-        },
-        newProperties: {
-          contentId: newElement.contentId,
-          contentTitle: newElement.contentTitle,
-        },
-      });
+  const onSelectContent = useMemoizedFn(async (items: SearchResult | SearchResult[]) => {
+    const item = Array.isArray(items) ? items[0] : items;
+    if (!item) return;
+    if (item.contentId === element.contentId) {
       setContentSelectorOpen(false);
-    },
-  );
+      return;
+    }
+
+    const path = PathUtil.getPathByElement(board, element);
+    if (!path) return;
+
+    await incrementContentRefCount(item.contentId);
+
+    const newElement = produce(element, draft => {
+      draft.contentId = item.contentId;
+      draft.contentTitle = item.title;
+    });
+
+    board.apply({
+      type: "set_node",
+      path,
+      properties: {
+        contentId: element.contentId,
+        contentTitle: element.contentTitle,
+      },
+      newProperties: {
+        contentId: newElement.contentId,
+        contentTitle: newElement.contentTitle,
+      },
+    });
+    setContentSelectorOpen(false);
+  });
 
   const handleOpenNote = useMemoizedFn(() => {
     if (element.contentId) {
@@ -455,7 +417,7 @@ const MindNode = (props: MindNodeProps) => {
     isSelected,
     isEditing,
     setIsEditing,
-    editorRef.current,
+    editorRef.current
   );
 
   useEffect(() => {
@@ -480,9 +442,7 @@ const MindNode = (props: MindNodeProps) => {
   }, [board, element.id]);
 
   const leftChildPoints = useMemo(() => {
-    const leftChildren = element.children.filter(
-      (child) => child.direction === "left",
-    );
+    const leftChildren = element.children.filter(child => child.direction === "left");
     const visibleLeftChildren = isLeftFold ? [] : leftChildren;
 
     if (isLeftFold && leftChildren.length > 0) {
@@ -494,16 +454,14 @@ const MindNode = (props: MindNodeProps) => {
       ];
     }
 
-    return visibleLeftChildren.map((child) => ({
+    return visibleLeftChildren.map(child => ({
       x: child.x + child.width,
       y: child.y + child.height / 2,
     }));
   }, [element, isLeftFold]);
 
   const rightChildPoints = useMemo(() => {
-    const rightChildren = element.children.filter(
-      (child) => child.direction === "right",
-    );
+    const rightChildren = element.children.filter(child => child.direction === "right");
     const visibleRightChildren = isRightFold ? [] : rightChildren;
 
     if (isRightFold && rightChildren.length > 0) {
@@ -515,18 +473,14 @@ const MindNode = (props: MindNodeProps) => {
       ];
     }
 
-    return visibleRightChildren.map((child) => ({
+    return visibleRightChildren.map(child => ({
       x: child.x,
       y: child.y + child.height / 2,
     }));
   }, [element, isRightFold]);
 
-  const leftChildren = element.children.filter(
-    (child) => child.direction === "left",
-  );
-  const rightChildren = element.children.filter(
-    (child) => child.direction === "right",
-  );
+  const leftChildren = element.children.filter(child => child.direction === "left");
+  const rightChildren = element.children.filter(child => child.direction === "right");
 
   const hasLeftChildren = leftChildren.length > 0;
   const hasRightChildren = rightChildren.length > 0;
@@ -534,18 +488,16 @@ const MindNode = (props: MindNodeProps) => {
   const leftDescendants =
     leftChildren.length > 0
       ? leftChildren.reduce(
-          (total, child) =>
-            total + MindUtil.getChildrenByNode(child).length + 1,
-          0,
+          (total, child) => total + MindUtil.getChildrenByNode(child).length + 1,
+          0
         )
       : 0;
 
   const rightDescendants =
     rightChildren.length > 0
       ? rightChildren.reduce(
-          (total, child) =>
-            total + MindUtil.getChildrenByNode(child).length + 1,
-          0,
+          (total, child) => total + MindUtil.getChildrenByNode(child).length + 1,
+          0
         )
       : 0;
 
@@ -588,7 +540,7 @@ const MindNode = (props: MindNodeProps) => {
             onMouseLeave={() => setNodeHovered(false)}
           >
             <div
-              className="absolute left-0 top-0 box-border z-[-1]"
+              className="absolute left-0 top-0 z-[-1] box-border"
               style={{
                 background: background || "transparent",
                 border: `${nodeStyle.borderWidth}px solid ${nodeStyle.borderColor}`,
@@ -601,7 +553,7 @@ const MindNode = (props: MindNodeProps) => {
               ref={editorRef}
               initValue={text}
               readonly={!isEditing}
-              className="w-fit p-4 box-border rounded-[4px]"
+              className="box-border w-fit rounded-[4px] p-4"
               style={editorStyle}
               onChange={onContentChange}
               onBlur={handleBlur}
@@ -632,8 +584,7 @@ const MindNode = (props: MindNodeProps) => {
           height={24}
           className="overflow-visible border-none"
           style={{
-            pointerEvents:
-              isNodeHovered || isSelected || isNoteMenuOpen ? "auto" : "none",
+            pointerEvents: isNodeHovered || isSelected || isNoteMenuOpen ? "auto" : "none",
           }}
         >
           <AnimatePresence>
@@ -646,11 +597,11 @@ const MindNode = (props: MindNodeProps) => {
               >
                 {element.contentId ? (
                   <div
-                    className="w-6 h-6 bg-white rounded-full border border-gray-200 flex items-center justify-center cursor-pointer text-blue-500 hover:border-blue-400 transition-colors"
+                    className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-[var(--th-accent)] transition-colors hover:border-[var(--th-border-hover)]"
                     onClick={handleOpenNote}
-                    onDoubleClick={(e) => e.stopPropagation()}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onMouseDown={(e) => e.stopPropagation()}
+                    onDoubleClick={e => e.stopPropagation()}
+                    onPointerDown={e => e.stopPropagation()}
+                    onMouseDown={e => e.stopPropagation()}
                     onMouseEnter={() => setNodeHovered(true)}
                     onMouseLeave={() => setNodeHovered(false)}
                     title="打开笔记"
@@ -663,10 +614,10 @@ const MindNode = (props: MindNodeProps) => {
                     trigger={["click"]}
                     open={isNoteMenuOpen}
                     onOpenChange={setIsNoteMenuOpen}
-                    dropdownRender={(menu) => (
+                    dropdownRender={menu => (
                       <div
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onPointerDown={(e) => e.stopPropagation()}
+                        onMouseDown={e => e.stopPropagation()}
+                        onPointerDown={e => e.stopPropagation()}
                         onMouseEnter={() => setNodeHovered(true)}
                       >
                         {menu}
@@ -674,10 +625,10 @@ const MindNode = (props: MindNodeProps) => {
                     )}
                   >
                     <div
-                      className="w-6 h-6 bg-white rounded-full border border-gray-200 flex items-center justify-center cursor-pointer text-gray-400 hover:text-blue-500 hover:border-blue-400 transition-colors"
-                      onDoubleClick={(e) => e.stopPropagation()}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onMouseDown={(e) => e.stopPropagation()}
+                      className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 transition-colors hover:border-[var(--th-border-hover)] hover:text-[var(--th-accent)]"
+                      onDoubleClick={e => e.stopPropagation()}
+                      onPointerDown={e => e.stopPropagation()}
+                      onMouseDown={e => e.stopPropagation()}
                       onMouseEnter={() => setNodeHovered(true)}
                       onMouseLeave={() => setNodeHovered(false)}
                       title="关联笔记"
@@ -756,11 +707,11 @@ const MindNode = (props: MindNodeProps) => {
         {/* 左侧折叠指示器 */}
         <If condition={hasLeftChildren}>
           <g
-            onClick={(e) => handleToggleFold(e, "left")}
-            onDoubleClick={(e) => {
+            onClick={e => handleToggleFold(e, "left")}
+            onDoubleClick={e => {
               e.stopPropagation();
             }}
-            onPointerDown={(e) => {
+            onPointerDown={e => {
               e.stopPropagation();
             }}
             className="cursor-pointer"
@@ -789,11 +740,11 @@ const MindNode = (props: MindNodeProps) => {
         {/* 右侧折叠指示器 */}
         <If condition={hasRightChildren}>
           <g
-            onClick={(e) => handleToggleFold(e, "right")}
-            onDoubleClick={(e) => {
+            onClick={e => handleToggleFold(e, "right")}
+            onDoubleClick={e => {
               e.stopPropagation();
             }}
-            onPointerDown={(e) => {
+            onPointerDown={e => {
               e.stopPropagation();
             }}
             className="cursor-pointer"
@@ -824,13 +775,7 @@ const MindNode = (props: MindNodeProps) => {
         open={contentSelectorOpen}
         onCancel={() => setContentSelectorOpen(false)}
         onSelect={onSelectContent}
-        contentType={[
-          "article",
-          "card",
-          "document-item",
-          "project-item",
-          "diary-daily",
-        ]}
+        contentType={["article", "card", "document-item", "project-item", "diary-daily"]}
         extensions={dynamicExtensions}
         title="选择笔记"
       />

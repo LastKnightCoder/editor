@@ -168,7 +168,7 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
             <div className="mb-5 flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-indigo-200 bg-indigo-50 dark:border-indigo-500/30 dark:bg-indigo-500/20">
                 <svg
-                  className="h-5 w-5 text-indigo-500"
+                  className="h-5 w-5 text-[var(--th-accent)]"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"

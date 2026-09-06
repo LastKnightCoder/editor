@@ -687,7 +687,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                   {activeTab === "summary" &&
                     (audioNote?.summary || summaryContent || isSummarizing) && (
                       <button
-                        className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-blue-500 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-blue-900/20"
+                        className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[var(--th-accent)] hover:bg-[var(--th-accent-soft)] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-blue-900/20"
                         disabled={isSummarizing || isTranscribing || !transcriptSegments.length}
                         onClick={handleStartSummary}
                       >
@@ -753,7 +753,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                                 )}
                                 onClick={() => handleSeek(segment.start)}
                               >
-                                <span className="shrink-0 font-mono text-xs leading-5 text-blue-500 dark:text-blue-400">
+                                <span className="shrink-0 font-mono text-xs leading-5 text-[var(--th-accent)]">
                                   {formatTimeMs(segment.start)}
                                 </span>
                                 <span className="flex-1 text-sm leading-5 text-gray-700 dark:text-gray-300">
@@ -790,7 +790,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                                   handleSeek(segment.start);
                                 }}
                               >
-                                <span className="shrink-0 font-mono text-xs leading-5 text-blue-500 dark:text-blue-400">
+                                <span className="shrink-0 font-mono text-xs leading-5 text-[var(--th-accent)]">
                                   {formatTimeMs(segment.start)}
                                 </span>
                                 <span className="flex-1 text-sm leading-5 text-gray-700 dark:text-gray-300">
@@ -837,7 +837,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                         {highlights.map(h => (
                           <div
                             key={h.id}
-                            className="cursor-pointer rounded-xl border border-transparent bg-gray-50 px-3 py-2.5 transition-all hover:border-blue-300 hover:bg-blue-50/50 dark:bg-zinc-800/50 dark:hover:border-blue-600 dark:hover:bg-blue-900/10"
+                            className="hover:bg-[var(--th-accent-soft)]/50 cursor-pointer rounded-xl border border-transparent bg-gray-50 px-3 py-2.5 transition-all hover:border-blue-300 dark:bg-zinc-800/50 dark:hover:border-blue-600 dark:hover:bg-blue-900/10"
                             onClick={() => handleSeek(h.start)}
                           >
                             <div className="text-sm font-medium text-gray-800 dark:text-gray-200">

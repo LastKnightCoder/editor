@@ -158,7 +158,7 @@ const TodoToolRenderer = ({
               {renderItems(displayItems)}
               {hasMore && (
                 <button
-                  className="w-full cursor-pointer py-2 text-center text-xs text-blue-500 transition-colors duration-150 hover:text-blue-600"
+                  className="w-full cursor-pointer py-2 text-center text-xs text-[var(--th-accent)] transition-colors duration-150 hover:text-[var(--th-accent)]"
                   onClick={() =>
                     setExpandedGroups(prev => ({
                       ...prev,

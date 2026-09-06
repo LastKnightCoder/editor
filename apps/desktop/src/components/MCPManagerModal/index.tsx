@@ -423,7 +423,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
             <div className="mb-5 flex shrink-0 items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-indigo-200 bg-indigo-50 dark:border-indigo-500/30 dark:bg-indigo-500/20">
                 <svg
-                  className="h-5 w-5 text-indigo-500"
+                  className="h-5 w-5 text-[var(--th-accent)]"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -530,7 +530,7 @@ const MCPManagerModal: React.FC<MCPManagerModalProps> = ({ open, onClose }) => {
                   <div className="space-y-3 rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-slate-700/50 dark:bg-zinc-800/50">
                     <div className="mb-2 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <MdAdd className="h-4 w-4 text-indigo-500" />
+                        <MdAdd className="h-4 w-4 text-[var(--th-accent)]" />
                         <span className="text-sm font-medium text-gray-800 dark:text-white">
                           {editingServer ? "编辑服务" : "添加服务"}
                         </span>

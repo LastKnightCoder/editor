@@ -177,7 +177,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
 
   const icon = (
     <svg
-      className="h-5 w-5 text-blue-500"
+      className="h-5 w-5 text-[var(--th-accent)]"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

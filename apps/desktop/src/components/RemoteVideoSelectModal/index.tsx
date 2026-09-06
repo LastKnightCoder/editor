@@ -77,7 +77,7 @@ const RemoteVideoSelectModal: React.FC<RemoteVideoSelectModalProps> = ({
           <div className="mb-5 flex items-start gap-3">
             <div className="border-[var(--th-border-focus)]/30 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border bg-blue-50 dark:bg-blue-500/20">
               <svg
-                className="h-5 w-5 text-blue-500"
+                className="h-5 w-5 text-[var(--th-accent)]"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"

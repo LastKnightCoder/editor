@@ -194,7 +194,7 @@ const SkillDetailModal = memo(({ skill, open, onClose }: SkillDetailModalProps) 
           {file.isDirectory ? (
             <AiOutlineFolder className="text-amber-500" />
           ) : (
-            <AiOutlineFile className={file.isMarkdown ? "text-blue-500" : ""} />
+            <AiOutlineFile className={file.isMarkdown ? "text-[var(--th-accent)]" : ""} />
           )}
           <span className="truncate">{file.name}</span>
         </div>

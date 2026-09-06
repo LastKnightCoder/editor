@@ -79,7 +79,7 @@ const DeckSelectorModal = ({
           footer={null}
           title={title}
           subtitle={subtitle}
-          icon={<Layers className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />}
+          icon={<Layers className="h-5 w-5 text-[var(--th-active-text)]" />}
           iconBgColor="bg-[var(--th-accent-soft)] border-[var(--th-border-focus)]/30"
         >
           <div className="space-y-3">

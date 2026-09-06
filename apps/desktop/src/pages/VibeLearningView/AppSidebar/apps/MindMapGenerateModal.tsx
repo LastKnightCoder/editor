@@ -342,7 +342,7 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
             <Suspense
               fallback={
                 <div className="flex h-full items-center justify-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                  <Loader2 className="h-6 w-6 animate-spin text-[var(--th-accent)]" />
                   <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
                     加载思维导图组件...
                   </span>
@@ -488,7 +488,7 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
       destroyOnClose
       title={getModalTitle()}
       subtitle={getModalSubtitle()}
-      icon={<Network className="h-5 w-5 text-blue-500" />}
+      icon={<Network className="h-5 w-5 text-[var(--th-accent)]" />}
       iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-[var(--th-border-focus)]/30"
       footer={renderFooter()}
       showCloseButton={step !== "generating"}

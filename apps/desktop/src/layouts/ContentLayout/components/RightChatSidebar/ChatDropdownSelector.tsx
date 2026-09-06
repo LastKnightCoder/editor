@@ -65,7 +65,7 @@ const ChatDropdownSelector = memo(
     const [showDropdown, setShowDropdown] = useState(false);
     const triggerRef = useRef<HTMLDivElement>(null);
     const { modal, message } = App.useApp();
-    const chatRuns = useChatRunStore((state) => state.runs);
+    const chatRuns = useChatRunStore(state => state.runs);
 
     // 获取相关分支
     const siblingBranches = useMemo(() => {
@@ -75,7 +75,7 @@ const ChatDropdownSelector = memo(
 
       const findRoot = (chat: typeof currentChat): typeof currentChat => {
         if (!chat.parentChatId) return chat;
-        const parent = chats.find((c) => c.id === chat.parentChatId);
+        const parent = chats.find(c => c.id === chat.parentChatId);
         return parent ? findRoot(parent) : chat;
       };
 
@@ -87,7 +87,7 @@ const ChatDropdownSelector = memo(
 
       if (currentChat.parentChatId) {
         const siblings = chats
-          .filter((c) => c.parentChatId === currentChat.parentChatId)
+          .filter(c => c.parentChatId === currentChat.parentChatId)
           .sort((a, b) => (a.branchIndex ?? 0) - (b.branchIndex ?? 0));
         result.push(...siblings);
       } else {
@@ -95,7 +95,7 @@ const ChatDropdownSelector = memo(
       }
 
       const children = chats
-        .filter((c) => c.parentChatId === currentChat.id)
+        .filter(c => c.parentChatId === currentChat.id)
         .sort((a, b) => (a.branchIndex ?? 0) - (b.branchIndex ?? 0));
       result.push(...children);
 
@@ -108,7 +108,7 @@ const ChatDropdownSelector = memo(
 
     const currentBranchIndex = useMemo(() => {
       if (!currentChat || currentChat.id === 0) return 0;
-      return siblingBranches.findIndex((c) => c.id === currentChat.id);
+      return siblingBranches.findIndex(c => c.id === currentChat.id);
     }, [siblingBranches, currentChat]);
 
     // 构建菜单项
@@ -124,14 +124,14 @@ const ChatDropdownSelector = memo(
 
       // 按更新时间排序的对话列表
       const sortedChats = [...chats]
-        .filter((c) => !c.archived)
+        .filter(c => !c.archived)
         .sort((a, b) => b.updateTime - a.updateTime);
 
       // 只显示根对话（不显示分支，分支通过右侧切换器访问）
-      const rootChats = sortedChats.filter((c) => !c.parentChatId);
+      const rootChats = sortedChats.filter(c => !c.parentChatId);
 
-      rootChats.forEach((root) => {
-        const branches = sortedChats.filter((c) => c.parentChatId === root.id);
+      rootChats.forEach(root => {
+        const branches = sortedChats.filter(c => c.parentChatId === root.id);
         const isCurrentChat = currentChat.id === root.id;
 
         items.push({
@@ -142,7 +142,7 @@ const ChatDropdownSelector = memo(
           isCurrentChat,
           hasBranches: branches.length > 0,
           runStatus: Object.values(chatRuns)
-            .filter((run) => run.sessionKey === `${chatSource}:${root.id}`)
+            .filter(run => run.sessionKey === `${chatSource}:${root.id}`)
             .sort((a, b) => b.updatedAt - a.updatedAt)[0]?.status,
         });
       });
@@ -208,14 +208,12 @@ const ChatDropdownSelector = memo(
       ];
     }, [currentChat.id, onChatDelete]);
 
-    const handleHeaderMenuClick: MenuProps["onClick"] = useMemoizedFn(
-      ({ key, domEvent }) => {
-        domEvent.stopPropagation();
-        if (key === "delete" && currentChat.id !== 0) {
-          void handleDeleteClick(currentChat.id);
-        }
-      },
-    );
+    const handleHeaderMenuClick: MenuProps["onClick"] = useMemoizedFn(({ key, domEvent }) => {
+      domEvent.stopPropagation();
+      if (key === "delete" && currentChat.id !== 0) {
+        void handleDeleteClick(currentChat.id);
+      }
+    });
 
     const renderMenuItem = useMemoizedFn((item: MenuItem) => {
       if (item.type === "new") {
@@ -228,25 +226,18 @@ const ChatDropdownSelector = memo(
       }
 
       return (
-        <div className="flex items-center justify-between gap-2 group w-full">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            {item.hasBranches && (
-              <GitBranch size={14} className="opacity-60 shrink-0" />
-            )}
+        <div className="group flex w-full items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            {item.hasBranches && <GitBranch size={14} className="shrink-0 opacity-60" />}
             {item.runStatus &&
-              ["queued", "running", "retrying", "waiting_input"].includes(
-                item.runStatus,
-              ) && (
-                <LoaderCircle
-                  size={13}
-                  className="shrink-0 animate-spin text-blue-500"
-                />
+              ["queued", "running", "retrying", "waiting_input"].includes(item.runStatus) && (
+                <LoaderCircle size={13} className="shrink-0 animate-spin text-[var(--th-accent)]" />
               )}
             {item.runStatus === "failed" && (
               <AlertCircle size={13} className="shrink-0 text-red-500" />
             )}
             <span
-              className={`truncate ${item.isCurrentChat ? "font-medium text-blue-500" : ""}`}
+              className={`truncate ${item.isCurrentChat ? "font-medium text-[var(--th-accent)]" : ""}`}
             >
               {item.title}
             </span>
@@ -260,7 +251,7 @@ const ChatDropdownSelector = memo(
     const branchTriggerRef = useRef<HTMLDivElement>(null);
 
     const branchItems: BranchItem[] = useMemo(() => {
-      return siblingBranches.map((chat) => {
+      return siblingBranches.map(chat => {
         let prefix = "";
         if (!chat.parentChatId) {
           prefix = "主干: ";
@@ -284,11 +275,11 @@ const ChatDropdownSelector = memo(
     });
 
     return (
-      <div className="flex items-center justify-between gap-2 w-full">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
+      <div className="flex w-full items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <div
             ref={triggerRef}
-            className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700 px-2 py-1 rounded transition-colors"
+            className="flex cursor-pointer items-center gap-1 rounded px-2 py-1 transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700"
             onClick={() => setShowDropdown(!showDropdown)}
           >
             <ChevronDown size={16} className="shrink-0 opacity-60" />
@@ -308,7 +299,7 @@ const ChatDropdownSelector = memo(
             preferredPlacement="bottom"
           />
 
-          <div className="flex-1 min-w-0 font-bold">
+          <div className="min-w-0 flex-1 font-bold">
             {currentChat.id !== 0 ? (
               <EditText
                 key={currentChat.id}
@@ -333,9 +324,9 @@ const ChatDropdownSelector = memo(
               placement="bottomRight"
             >
               <button
-                className="shrink-0 rounded p-1 text-text-secondary transition-colors hover:bg-gray-100 hover:text-text-primary dark:hover:bg-zinc-700 dark:hover:text-white"
+                className="text-text-secondary hover:text-text-primary shrink-0 rounded p-1 transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700 dark:hover:text-white"
                 title="更多操作"
-                onClick={(e) => e.stopPropagation()}
+                onClick={e => e.stopPropagation()}
               >
                 <MoreHorizontal size={14} />
               </button>
@@ -348,7 +339,7 @@ const ChatDropdownSelector = memo(
           <>
             <div
               ref={branchTriggerRef}
-              className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer text-sm text-text-secondary transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700"
+              className="text-text-secondary flex shrink-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-sm transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700"
               onClick={() => setShowBranchDropdown(true)}
             >
               <GitBranch size={14} />
@@ -373,7 +364,7 @@ const ChatDropdownSelector = memo(
               getKey={(item: BranchItem) => item.key}
               renderItem={(item: BranchItem) => (
                 <span
-                  className={`truncate ${item.isCurrentChat ? "font-medium text-blue-500" : ""}`}
+                  className={`truncate ${item.isCurrentChat ? "font-medium text-[var(--th-accent)]" : ""}`}
                 >
                   {item.title}
                 </span>
@@ -385,7 +376,7 @@ const ChatDropdownSelector = memo(
         )}
       </div>
     );
-  },
+  }
 );
 
 export default ChatDropdownSelector;

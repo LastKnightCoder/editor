@@ -173,7 +173,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
       destroyOnClose
       title="编辑测验"
       subtitle="修改测验信息和题目内容"
-      icon={<Pencil className="h-5 w-5 text-blue-500" />}
+      icon={<Pencil className="h-5 w-5 text-[var(--th-accent)]" />}
       iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-[var(--th-border-focus)]/30"
       footer={null}
     >
@@ -231,7 +231,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
               className={classNames(
                 "flex cursor-pointer items-center justify-between rounded-xl px-4 py-2.5 transition-all",
                 "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
-                "hover:border-blue-400 dark:hover:border-blue-500"
+                "hover:border-[var(--th-border-hover)] dark:hover:border-blue-500"
               )}
             >
               <span className="text-sm text-gray-800 dark:text-white">
@@ -253,7 +253,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
 
           {loadingItems ? (
             <div className="flex flex-col items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+              <Loader2 className="h-8 w-8 animate-spin text-[var(--th-accent)]" />
               <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">加载题目中...</p>
             </div>
           ) : items.length === 0 ? (
@@ -378,7 +378,7 @@ const QuizItemCard = memo((props: QuizItemCardProps) => {
               e.stopPropagation();
               onStartEdit();
             }}
-            className="dark:hover:bg-[var(--th-btn-hover)]/10 rounded-lg p-1.5 text-gray-400 transition-all hover:bg-blue-50 hover:text-blue-500"
+            className="dark:hover:bg-[var(--th-btn-hover)]/10 rounded-lg p-1.5 text-gray-400 transition-all hover:bg-[var(--th-accent-soft)] hover:text-[var(--th-accent)]"
             title="编辑"
           >
             <Pencil className="h-4 w-4" />
@@ -679,7 +679,7 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
             <button
               type="button"
               onClick={addOption}
-              className="flex items-center gap-1.5 text-xs font-medium text-blue-500 hover:text-blue-600"
+              className="flex items-center gap-1.5 text-xs font-medium text-[var(--th-accent)] hover:text-[var(--th-accent)]"
             >
               <Plus className="h-3.5 w-3.5" />
               添加选项

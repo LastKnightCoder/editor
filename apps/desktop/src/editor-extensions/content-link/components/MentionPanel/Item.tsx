@@ -54,19 +54,19 @@ const Item = memo((props: IItemProps) => {
       onClick={onClick}
       ref={ref}
       className={classnames(
-        "min-h-[48px] flex items-center py-2.5 px-3 mx-1 mb-0.5 rounded-[14px] cursor-pointer relative transition-all duration-150",
+        "relative mx-1 mb-0.5 flex min-h-[48px] cursor-pointer items-center rounded-[14px] px-3 py-2.5 transition-all duration-150",
         "hover:bg-white/60 dark:hover:bg-slate-400/15",
         "active:scale-[0.98]",
         {
           "bg-indigo-500/10 dark:bg-indigo-400/15": active,
-        },
+        }
       )}
     >
-      <div className="absolute top-2.5 right-3 py-1 px-2.5 rounded-lg text-[11px] font-semibold uppercase tracking-wider bg-indigo-500/12 dark:bg-indigo-400/15 text-indigo-500 dark:text-indigo-400 backdrop-blur-sm border border-indigo-500/20 dark:border-indigo-400/25">
+      <div className="bg-indigo-500/12 absolute right-3 top-2.5 rounded-lg border border-indigo-500/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--th-accent)] backdrop-blur-sm dark:border-indigo-400/25 dark:bg-indigo-400/15 dark:text-indigo-400">
         {typeMap[item.type] || item.type}
       </div>
       <ErrorBoundary>
-        <div className="text-[13px] overflow-hidden text-ellipsis whitespace-nowrap pr-[100px] flex-1">
+        <div className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap pr-[100px] text-[13px]">
           <EditorServicesProvider services={services}>
             <Editor
               readonly={true}

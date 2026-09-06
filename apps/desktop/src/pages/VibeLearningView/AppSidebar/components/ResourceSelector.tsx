@@ -58,7 +58,7 @@ const ResourceSelector = memo((props: ResourceSelectorProps) => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--th-accent)]" />
         <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">加载资源中...</p>
       </div>
     );
@@ -84,7 +84,7 @@ const ResourceSelector = memo((props: ResourceSelectorProps) => {
           <button
             type="button"
             onClick={onToggleAll}
-            className="text-xs font-medium text-blue-500 transition-colors hover:text-[var(--th-active-text)] dark:hover:text-blue-300"
+            className="text-xs font-medium text-[var(--th-accent)] transition-colors hover:text-[var(--th-active-text)] dark:hover:text-blue-300"
           >
             {isAllSelected ? "取消全选" : "全选"}
           </button>

@@ -24,7 +24,7 @@ const YoutubeVideoLoader = ({ loading, error, streamProgress }: YoutubeVideoLoad
             <div className="relative">
               <div className="flex h-12 w-12 items-center justify-center rounded-full border border-indigo-500/30 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 dark:border-indigo-400/40 dark:from-indigo-500/30 dark:to-purple-500/30">
                 <svg
-                  className="h-6 w-6 animate-pulse text-indigo-600 dark:text-indigo-400"
+                  className="h-6 w-6 animate-pulse text-[var(--th-active-text)]"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -56,7 +56,7 @@ const YoutubeVideoLoader = ({ loading, error, streamProgress }: YoutubeVideoLoad
                   <div className="flex items-center justify-between text-xs">
                     <span className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-300">
                       <svg
-                        className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400"
+                        className="h-3.5 w-3.5 text-[var(--th-accent)] dark:text-indigo-400"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -182,7 +182,7 @@ const YoutubeVideoLoader = ({ loading, error, streamProgress }: YoutubeVideoLoad
             <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-zinc-800/50">
               <div className="flex items-center gap-3">
                 <svg
-                  className="h-5 w-5 animate-spin text-indigo-500 dark:text-indigo-400"
+                  className="h-5 w-5 animate-spin text-[var(--th-accent)] dark:text-indigo-400"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
