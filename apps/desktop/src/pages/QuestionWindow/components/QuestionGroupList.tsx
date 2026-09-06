@@ -128,7 +128,6 @@ const QuestionGroupList = memo(
           width={480}
           showCloseButton={false}
           icon={createIcon}
-          iconBgColor="bg-[var(--th-accent-soft)] border-[var(--th-border-focus)]/30"
           footer={null}
         >
           <GroupForm

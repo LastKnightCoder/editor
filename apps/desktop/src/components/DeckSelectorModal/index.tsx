@@ -80,7 +80,6 @@ const DeckSelectorModal = ({
           title={title}
           subtitle={subtitle}
           icon={<Layers className="h-5 w-5 text-[var(--th-active-text)]" />}
-          iconBgColor="bg-[var(--th-accent-soft)] border-[var(--th-border-focus)]/30"
         >
           <div className="space-y-3">
             <button

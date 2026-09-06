@@ -95,7 +95,6 @@ const NewAnswerModal: React.FC<NewAnswerModalProps> = ({
       title={customTitle}
       subtitle="创建新的答案内容"
       icon={icon}
-      iconBgColor="bg-[var(--th-accent-soft)] border-[var(--th-border-focus)]/30"
       footer={null}
       closeOnEscape={false}
     >

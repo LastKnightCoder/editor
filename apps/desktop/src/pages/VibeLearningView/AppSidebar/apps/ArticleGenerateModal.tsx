@@ -270,8 +270,7 @@ const ArticleGenerateModal = memo((props: ArticleGenerateModalProps) => {
       destroyOnClose
       title="生成学习文章"
       subtitle="选择资源和文章风格，AI 将生成一篇可直接阅读的长文章"
-      icon={<FileText className="h-5 w-5 text-[var(--th-accent)]" />}
-      iconBgColor="bg-[var(--th-accent-soft)] border-[var(--th-border-focus)]/30"
+      icon={<FileText className="h-5 w-5 text-[var(--th-text-secondary)]" />}
       footer={renderFooter()}
       showCloseButton={!isCreating}
     >

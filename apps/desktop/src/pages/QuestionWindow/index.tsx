@@ -474,7 +474,6 @@ const QuestionWindowPage = () => {
               <path d="M9 12h6m-3-3v6" />
             </svg>
           }
-          iconBgColor="bg-[var(--th-accent-soft)] border-[var(--th-border-focus)]/30"
           closeOnEscape={false}
           footer={
             <div className="flex justify-end gap-3">
@@ -553,7 +552,6 @@ const QuestionWindowPage = () => {
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
           }
-          iconBgColor="bg-[var(--th-accent-soft)] dark:bg-[var(--th-accent)]/20 border-[var(--th-border-focus)]/30"
           closeOnEscape={false}
           footer={
             <div className="flex justify-end gap-3">

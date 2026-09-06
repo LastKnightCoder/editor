@@ -188,7 +188,6 @@ const GeneratedFlashcardEditModal = ({
       title="编辑闪卡"
       subtitle="修改 AI 生成的闪卡内容"
       icon={<CreditCard className="h-5 w-5" />}
-      iconBgColor="bg-[var(--th-accent-soft)] border-[var(--th-border-focus)]/30"
       bodyClassName="flashcard-editor-scroll"
     >
       <>

@@ -128,7 +128,6 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
           title={title}
           subtitle={subtitle}
           icon={icon}
-          iconBgColor="bg-[var(--th-accent-soft)] border-[var(--th-border-focus)]/30"
           footer={footer}
           closeOnEscape={!multiple}
           contentClassName="h-[min(860px,calc(100vh-120px))]"
