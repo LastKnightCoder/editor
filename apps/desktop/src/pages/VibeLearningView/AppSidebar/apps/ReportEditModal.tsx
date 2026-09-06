@@ -346,7 +346,7 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
             "rounded-lg px-4 py-2 text-sm font-medium transition-all",
             "flex items-center gap-2",
             userPrompt.trim()
-              ? "bg-blue-600 text-white hover:bg-blue-700"
+              ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-blue-700"
               : "cursor-not-allowed bg-gray-300 text-gray-500 dark:bg-zinc-700 dark:text-gray-400"
           )}
         >
@@ -379,7 +379,7 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
             className={classNames(
               "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
               viewMode === "preview"
-                ? "bg-blue-600 text-white"
+                ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]"
                 : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
             )}
           >
@@ -391,7 +391,7 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
             className={classNames(
               "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
               viewMode === "source"
-                ? "bg-blue-600 text-white"
+                ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]"
                 : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
             )}
           >

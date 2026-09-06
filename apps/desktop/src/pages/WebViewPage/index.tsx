@@ -29,12 +29,12 @@ const WebViewPage = memo(() => {
   if (!url) {
     return (
       <>
-        <div className="w-full h-full flex items-center justify-center text-secondary">
+        <div className="text-secondary flex h-full w-full items-center justify-center">
           <div className="text-center">
-            <p className="text-lg mb-4">请输入网页地址</p>
+            <p className="mb-4 text-lg">请输入网页地址</p>
             <button
               onClick={() => setShowModal(true)}
-              className="px-6 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition-colors"
+              className="rounded-lg bg-blue-500 px-6 py-2 text-[var(--th-btn-text)] transition-colors hover:bg-[var(--th-btn-bg)]"
             >
               输入网址
             </button>
@@ -50,10 +50,10 @@ const WebViewPage = memo(() => {
   }
 
   return (
-    <div className="w-full h-full flex flex-col overflow-hidden">
+    <div className="flex h-full w-full flex-col overflow-hidden">
       <Webview
         src={url}
-        className="w-full h-full"
+        className="h-full w-full"
         convertFileSrc={convertFileSrc}
         getHomeDir={getHomeDir}
         remoteResourceToLocal={remoteResourceToLocal}

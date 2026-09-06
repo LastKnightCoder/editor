@@ -5,19 +5,12 @@ import { App } from "antd";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { CreateCalendarEvent, UpdateCalendarEvent } from "@/types";
 import { MdClose } from "react-icons/md";
-import {
-  getProjectColorValue,
-  PROJECT_COLORS,
-} from "@/constants/project-colors";
+import { getProjectColorValue, PROJECT_COLORS } from "@/constants/project-colors";
 import useSettingStore from "@/stores/useSettingStore";
 import dayjs from "dayjs";
 import { Descendant } from "slate";
 import { EditorRef } from "@tau/editor/src";
-import {
-  getContentById,
-  createContent,
-  updateContent,
-} from "@/commands/content";
+import { getContentById, createContent, updateContent } from "@/commands/content";
 import CalendarDropdown from "./components/CalendarDropdown";
 import DatePicker from "./components/DatePicker";
 import TimePicker from "./components/TimePicker";
@@ -33,16 +26,10 @@ const DEFAULT_CONTENT: Descendant[] = [
 ];
 
 const EventDialog = () => {
-  const {
-    editingEvent,
-    setEditingEvent,
-    calendars,
-    createEvent,
-    updateEvent,
-    deleteEvent,
-  } = useCalendarStore();
+  const { editingEvent, setEditingEvent, calendars, createEvent, updateEvent, deleteEvent } =
+    useCalendarStore();
   const { modal } = App.useApp();
-  const setting = useSettingStore((state) => state.setting);
+  const setting = useSettingStore(state => state.setting);
   const theme = setting.darkMode ? "dark" : "light";
 
   const [title, setTitle] = useState("");
@@ -59,8 +46,7 @@ const EventDialog = () => {
 
   // Check if current event belongs to system calendar
   const isSystemCalendarEvent = editingEvent
-    ? calendars.find((c) => c.id === editingEvent.calendarId)
-        ?.isInSystemGroup || false
+    ? calendars.find(c => c.id === editingEvent.calendarId)?.isInSystemGroup || false
     : false;
 
   useEffect(() => {
@@ -69,24 +55,20 @@ const EventDialog = () => {
         setTitle(editingEvent.title);
         setCalendarId(editingEvent.calendarId);
         setStartDate(dayjs(editingEvent.startDate).format("YYYY-MM-DD"));
-        setEndDate(
-          editingEvent.endDate
-            ? dayjs(editingEvent.endDate).format("YYYY-MM-DD")
-            : "",
-        );
+        setEndDate(editingEvent.endDate ? dayjs(editingEvent.endDate).format("YYYY-MM-DD") : "");
         setAllDay(editingEvent.allDay);
         setColor(editingEvent.color);
         setValue(
           editingEvent.value !== undefined && editingEvent.value !== null
             ? editingEvent.value.toString()
-            : "",
+            : ""
         );
 
         if (!editingEvent.allDay && editingEvent.startTime !== null) {
           const startHours = Math.floor(editingEvent.startTime / 60);
           const startMins = editingEvent.startTime % 60;
           setStartTime(
-            `${startHours.toString().padStart(2, "0")}:${startMins.toString().padStart(2, "0")}`,
+            `${startHours.toString().padStart(2, "0")}:${startMins.toString().padStart(2, "0")}`
           );
         }
 
@@ -94,7 +76,7 @@ const EventDialog = () => {
           const endHours = Math.floor(editingEvent.endTime / 60);
           const endMins = editingEvent.endTime % 60;
           setEndTime(
-            `${endHours.toString().padStart(2, "0")}:${endMins.toString().padStart(2, "0")}`,
+            `${endHours.toString().padStart(2, "0")}:${endMins.toString().padStart(2, "0")}`
           );
         }
 
@@ -103,10 +85,7 @@ const EventDialog = () => {
           // Use preloaded content first
           setDescription(editingEvent.detailContent);
           editorRef.current?.setEditorValue(editingEvent.detailContent);
-        } else if (
-          editingEvent.detailContentId &&
-          editingEvent.detailContentId !== 0
-        ) {
+        } else if (editingEvent.detailContentId && editingEvent.detailContentId !== 0) {
           // Fallback: fetch asynchronously if no preloaded content
           try {
             const content = await getContentById(editingEvent.detailContentId);
@@ -129,9 +108,7 @@ const EventDialog = () => {
       } else {
         // Reset form - select first non-system calendar
         setTitle("");
-        const firstNonSystemCalendar = calendars.find(
-          (c) => !c.isInSystemGroup,
-        );
+        const firstNonSystemCalendar = calendars.find(c => !c.isInSystemGroup);
         setCalendarId(firstNonSystemCalendar?.id || calendars[0]?.id || 0);
         const today = new Date().toISOString().split("T")[0];
         setStartDate(today);
@@ -169,8 +146,7 @@ const EventDialog = () => {
     }
 
     // Handle description content
-    const hasContent =
-      JSON.stringify(description) !== JSON.stringify(DEFAULT_CONTENT);
+    const hasContent = JSON.stringify(description) !== JSON.stringify(DEFAULT_CONTENT);
     let detailContentId = editingEvent?.detailContentId || 0;
 
     if (hasContent) {
@@ -259,7 +235,7 @@ const EventDialog = () => {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.15 }}
-        className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        className="z-9999 fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm"
         onClick={() => setEditingEvent(null)}
       >
         {/* Modal Container */}
@@ -268,16 +244,16 @@ const EventDialog = () => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: -10 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="w-full max-w-[720px] m-4 max-h-[90vh] flex flex-col"
-          onClick={(e) => e.stopPropagation()}
+          className="m-4 flex max-h-[90vh] w-full max-w-[720px] flex-col"
+          onClick={e => e.stopPropagation()}
         >
           {/* Modal Container */}
-          <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800 flex flex-col overflow-hidden">
+          <div className="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
             {/* Header */}
-            <div className="flex items-start gap-3 mb-5 shrink-0">
-              <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30">
+            <div className="mb-5 flex shrink-0 items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-indigo-200 bg-indigo-50 dark:border-indigo-500/30 dark:bg-indigo-500/20">
                 <svg
-                  className="w-5 h-5 text-indigo-500"
+                  className="h-5 w-5 text-indigo-500"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -289,24 +265,22 @@ const EventDialog = () => {
                   <line x1="3" y1="10" x2="21" y2="10" />
                 </svg>
               </div>
-              <div className="flex-1 min-w-0">
-                <h2 className="text-base font-bold m-0 text-gray-800 dark:text-white">
+              <div className="min-w-0 flex-1">
+                <h2 className="m-0 text-base font-bold text-gray-800 dark:text-white">
                   {editingEvent.id !== 0 ? "编辑事件" : "新建事件"}
                 </h2>
-                <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
-                  管理日历事件详情
-                </p>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-500">管理日历事件详情</p>
               </div>
               <button
                 onClick={() => setEditingEvent(null)}
-                className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
+                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-gray-100 text-gray-500 transition-all hover:bg-gray-200 hover:text-gray-700 dark:bg-zinc-800 dark:text-slate-400 dark:hover:bg-zinc-700 dark:hover:text-slate-200"
               >
-                <MdClose className="w-5 h-5" />
+                <MdClose className="h-5 w-5" />
               </button>
             </div>
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto event-modal-scroll pr-1 min-h-0">
+            <div className="event-modal-scroll min-h-0 flex-1 overflow-y-auto pr-1">
               {/* Form */}
               <div className="space-y-4">
                 {/* Title */}
@@ -317,8 +291,8 @@ const EventDialog = () => {
                   <input
                     type="text"
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)] disabled:opacity-60 disabled:cursor-not-allowed"
+                    onChange={e => setTitle(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                     placeholder="事件标题"
                   />
                 </div>
@@ -334,9 +308,8 @@ const EventDialog = () => {
                     onSelect={setCalendarId}
                     disabled={isSystemCalendarEvent}
                   />
-                  {calendars.find((c) => c.id === calendarId)
-                    ?.isInSystemGroup && (
-                    <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                  {calendars.find(c => c.id === calendarId)?.isInSystemGroup && (
+                    <p className="mt-1 text-xs text-yellow-600 dark:text-yellow-400">
                       注意：系统日历事件的时间和日历归属不可修改
                     </p>
                   )}
@@ -393,21 +366,19 @@ const EventDialog = () => {
                     颜色
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {PROJECT_COLORS.slice(0, 12).map((c) => {
+                    {PROJECT_COLORS.slice(0, 12).map(c => {
                       const colorValue = getProjectColorValue(c.name, theme);
                       return (
                         <button
                           key={c.name}
                           type="button"
-                          onClick={() =>
-                            !isSystemCalendarEvent && setColor(c.name)
-                          }
+                          onClick={() => !isSystemCalendarEvent && setColor(c.name)}
                           disabled={isSystemCalendarEvent}
                           className={`h-10 w-10 rounded-full transition-all ${
                             color === c.name
-                              ? "ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-900 scale-110"
+                              ? "scale-110 ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-900"
                               : "hover:scale-105"
-                          } disabled:opacity-60 disabled:cursor-not-allowed`}
+                          } disabled:cursor-not-allowed disabled:opacity-60`}
                           style={{ backgroundColor: colorValue }}
                           title={c.label}
                         />
@@ -425,14 +396,14 @@ const EventDialog = () => {
                     type="text"
                     inputMode="decimal"
                     value={value}
-                    onChange={(e) => {
+                    onChange={e => {
                       const val = e.target.value;
                       // 只允许数字、小数点和负号，且格式合法
                       if (val === "" || /^-?\d*\.?\d*$/.test(val)) {
                         setValue(val);
                       }
                     }}
-                    className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                     placeholder="如时间成本、金额等"
                   />
                 </div>
@@ -446,25 +417,23 @@ const EventDialog = () => {
                 />
               </div>
             </div>
-            <div className="flex justify-between items-center pt-4 mt-4 border-t border-white/20 dark:border-white/10 shrink-0">
+            <div className="mt-4 flex shrink-0 items-center justify-between border-t border-white/20 pt-4 dark:border-white/10">
               <div>
-                {editingEvent &&
-                  editingEvent.id !== 0 &&
-                  !isSystemCalendarEvent && (
-                    <button
-                      type="button"
-                      onClick={handleDelete}
-                      className="px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-red-500 text-white shadow-[0_4px_14px_rgba(239,68,68,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-red-600 hover:-translate-y-px active:translate-y-0"
-                    >
-                      删除
-                    </button>
-                  )}
+                {editingEvent && editingEvent.id !== 0 && !isSystemCalendarEvent && (
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-none bg-red-500 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(239,68,68,0.35),0_1px_2px_rgba(0,0,0,0.05)] transition-all hover:-translate-y-px hover:bg-red-600 active:translate-y-0"
+                  >
+                    删除
+                  </button>
+                )}
               </div>
-              <div className="flex gap-2 ml-auto">
+              <div className="ml-auto flex gap-2">
                 <button
                   type="button"
                   onClick={() => setEditingEvent(null)}
-                  className="px-5 py-3.5 rounded-xl text-sm font-semibold cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-zinc-700"
+                  className="cursor-pointer rounded-xl border border-gray-200 bg-gray-100 px-5 py-3.5 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-200 dark:border-slate-700 dark:bg-zinc-800 dark:text-slate-200 dark:hover:bg-zinc-700"
                 >
                   取消
                 </button>
@@ -472,7 +441,7 @@ const EventDialog = () => {
                   type="button"
                   onClick={handleSave}
                   disabled={!title || !calendarId}
-                  className="px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-indigo-500 text-white shadow-[0_4px_14px_rgba(99,102,241,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-indigo-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none"
+                  className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-none bg-[var(--th-btn-bg)] px-5 py-3.5 text-sm font-semibold text-[var(--th-btn-text)] shadow-[0_4px_14px_rgba(99,102,241,0.35),0_1px_2px_rgba(0,0,0,0.05)] transition-all hover:-translate-y-px hover:bg-[var(--th-btn-hover)] active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
                 >
                   保存
                 </button>
@@ -482,7 +451,7 @@ const EventDialog = () => {
         </motion.div>
       </motion.div>
     </AnimatePresence>,
-    document.body,
+    document.body
   );
 };
 

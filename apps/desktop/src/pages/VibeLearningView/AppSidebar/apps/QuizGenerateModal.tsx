@@ -1,12 +1,6 @@
 import { memo, useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import {
-  RefreshCw,
-  CheckCircle2,
-  Check,
-  Loader2,
-  Sparkles,
-} from "lucide-react";
+import { RefreshCw, CheckCircle2, Check, Loader2, Sparkles } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 import { App } from "antd";
@@ -17,11 +11,7 @@ import useLLMConfig from "@/hooks/useLLMConfig";
 import useVLQuizStore from "@/stores/useVLQuizStore";
 import useVLResourceSelection from "@/hooks/useVLResourceSelection";
 import useVLTools from "@/hooks/useVLTools";
-import type {
-  GeneratedQuizItem,
-  CreateVLQuizItemInput,
-  ToolCallExecutionState,
-} from "@/types";
+import type { GeneratedQuizItem, CreateVLQuizItemInput, ToolCallExecutionState } from "@/types";
 import { FLASHCARD_TYPE_META } from "@/utils/flashcard";
 import { GenerationConfigStep, GeneratingProgress } from "../components";
 
@@ -58,9 +48,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
   } = useVLResourceSelection(projectId);
 
   // 工具调用状态
-  const [localToolExecutions, setLocalToolExecutions] = useState<
-    ToolCallExecutionState[]
-  >([]);
+  const [localToolExecutions, setLocalToolExecutions] = useState<ToolCallExecutionState[]>([]);
 
   // Quiz generation hook（启用工具模式）
   const {
@@ -75,7 +63,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
     reset: resetGeneration,
   } = useQuizGeneration(providerConfig, modelConfig, {
     enableTools: true,
-    onToolCallsUpdate: (executions) => {
+    onToolCallsUpdate: executions => {
       setLocalToolExecutions(executions);
     },
   });
@@ -96,8 +84,8 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
 
   // 获取选中的测验题数量
   const selectedCount = useMemo(
-    () => generatedItems.filter((item) => item.selected).length,
-    [generatedItems],
+    () => generatedItems.filter(item => item.selected).length,
+    [generatedItems]
   );
 
   // 重置状态
@@ -140,9 +128,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
       setStep("preview");
       // 默认测验名称
       if (!quizName) {
-        const selectedResources = resources.filter((r) =>
-          selectedResourceIds.includes(r.id),
-        );
+        const selectedResources = resources.filter(r => selectedResourceIds.includes(r.id));
         if (selectedResources.length === 1) {
           setQuizName(`${selectedResources[0].name} 测验`);
         } else {
@@ -150,18 +136,11 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
         }
       }
     }
-  }, [
-    step,
-    isGenerating,
-    generatedItems,
-    quizName,
-    resources,
-    selectedResourceIds,
-  ]);
+  }, [step, isGenerating, generatedItems, quizName, resources, selectedResourceIds]);
 
   // 保存测验集
   const handleSave = useMemoizedFn(async () => {
-    const selectedItems = generatedItems.filter((item) => item.selected);
+    const selectedItems = generatedItems.filter(item => item.selected);
     if (selectedItems.length === 0) {
       message.error("请选择至少一道题目");
       return;
@@ -184,18 +163,16 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
       });
 
       // 批量创建测验题
-      const items: CreateVLQuizItemInput[] = selectedItems.map(
-        (item, index) => ({
-          quizSetId: quizSet.id,
-          type: item.type,
-          prompt: item.prompt,
-          detail: item.detail,
-          data: item.data,
-          tags: item.tags,
-          difficulty: item.difficulty,
-          sortOrder: index,
-        }),
-      );
+      const items: CreateVLQuizItemInput[] = selectedItems.map((item, index) => ({
+        quizSetId: quizSet.id,
+        type: item.type,
+        prompt: item.prompt,
+        detail: item.detail,
+        data: item.data,
+        tags: item.tags,
+        difficulty: item.difficulty,
+        sortOrder: index,
+      }));
 
       await createItemsBatch(items);
 
@@ -228,7 +205,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
   // 获取当前工具调用状态描述
   const getToolStatusText = useMemoizedFn(() => {
     const activeTools = localToolExecutions.filter(
-      (t) => t.status === "executing" || t.status === "pending",
+      t => t.status === "executing" || t.status === "pending"
     );
     if (activeTools.length === 0) {
       if (generatedItems.length > 0) {
@@ -237,7 +214,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
       return "正在分析资料...";
     }
 
-    const executingTool = activeTools.find((t) => t.status === "executing");
+    const executingTool = activeTools.find(t => t.status === "executing");
     if (executingTool) {
       const toolNameMap: Record<string, string> = {
         list_project_resources: "获取资源列表",
@@ -290,31 +267,31 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
     <div className="space-y-5">
       {/* 测验名称 */}
       <div>
-        <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 block mb-2">
+        <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
           测验名称
         </label>
         <input
           type="text"
           value={quizName}
-          onChange={(e) => setQuizName(e.target.value)}
+          onChange={e => setQuizName(e.target.value)}
           placeholder="输入测验名称"
           className={classNames(
-            "w-full px-4 py-3 rounded-xl text-sm outline-none transition-all",
-            "bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700",
-            "text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500",
-            "focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20",
+            "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all",
+            "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
+            "text-gray-800 placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500",
+            "focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-blue-500/20"
           )}
         />
       </div>
 
       {/* 题目列表 */}
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
               生成的题目
             </label>
-            <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400">
+            <span className="rounded-md bg-blue-100 px-2 py-0.5 text-xs font-bold text-[var(--th-active-text)] dark:bg-blue-500/20">
               {selectedCount}/{generatedItems.length}
             </span>
           </div>
@@ -322,21 +299,21 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
             <button
               type="button"
               onClick={selectAll}
-              className="text-xs font-medium text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+              className="text-xs font-medium text-blue-500 transition-colors hover:text-[var(--th-active-text)] dark:hover:text-blue-300"
             >
               全选
             </button>
             <button
               type="button"
               onClick={deselectAll}
-              className="text-xs font-medium text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
+              className="text-xs font-medium text-gray-500 transition-colors hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300"
             >
               取消
             </button>
           </div>
         </div>
 
-        <div className="max-h-80 overflow-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-zinc-800/50">
+        <div className="max-h-80 overflow-auto rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50">
           <AnimatePresence>
             {generatedItems.map((item, index) => (
               <QuizItemPreview
@@ -354,11 +331,9 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
         <motion.div
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
-          className="px-4 py-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20"
+          className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-500/20 dark:bg-red-500/10"
         >
-          <p className="text-sm text-red-600 dark:text-red-400">
-            {generationError.message}
-          </p>
+          <p className="text-sm text-red-600 dark:text-red-400">{generationError.message}</p>
         </motion.div>
       )}
     </div>
@@ -367,16 +342,16 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
   // 按钮样式
   const primaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
-    "bg-blue-500 text-white",
-    "hover:bg-blue-600",
-    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed",
+    "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]",
+    "hover:bg-[var(--th-btn-hover)]",
+    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed"
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
     "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
     "hover:bg-gray-200 dark:hover:bg-zinc-700",
-    "border border-gray-200 dark:border-gray-700",
+    "border border-gray-200 dark:border-gray-700"
   );
 
   // 渲染底部按钮
@@ -388,23 +363,16 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
     if (step === "select-resources") {
       return (
         <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className={secondaryButtonClass}
-          >
+          <button type="button" onClick={onClose} className={secondaryButtonClass}>
             取消
           </button>
           <button
             type="button"
             onClick={handleStartGenerate}
             disabled={selectedResourceIds.length === 0}
-            className={classNames(
-              primaryButtonClass,
-              "flex items-center gap-2",
-            )}
+            className={classNames(primaryButtonClass, "flex items-center gap-2")}
           >
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="h-4 w-4" />
             生成测验
           </button>
         </div>
@@ -416,35 +384,25 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
         <button
           type="button"
           onClick={handleRegenerate}
-          className={classNames(
-            secondaryButtonClass,
-            "flex items-center gap-2",
-          )}
+          className={classNames(secondaryButtonClass, "flex items-center gap-2")}
         >
-          <RefreshCw className="w-4 h-4" />
+          <RefreshCw className="h-4 w-4" />
           重新生成
         </button>
         <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className={secondaryButtonClass}
-          >
+          <button type="button" onClick={onClose} className={secondaryButtonClass}>
             取消
           </button>
           <button
             type="button"
             onClick={handleSave}
             disabled={selectedCount === 0 || saving}
-            className={classNames(
-              primaryButtonClass,
-              "flex items-center gap-2",
-            )}
+            className={classNames(primaryButtonClass, "flex items-center gap-2")}
           >
             {saving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <CheckCircle2 className="w-4 h-4" />
+              <CheckCircle2 className="h-4 w-4" />
             )}
             保存测验
           </button>
@@ -490,8 +448,8 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
       destroyOnClose
       title={getModalTitle()}
       subtitle={getModalSubtitle()}
-      icon={<Sparkles className="w-5 h-5 text-blue-500" />}
-      iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
+      icon={<Sparkles className="h-5 w-5 text-blue-500" />}
+      iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-[var(--th-border-focus)]/30"
       footer={renderFooter()}
       showCloseButton={step !== "generating"}
     >
@@ -529,7 +487,7 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const extractText = (nodes: any[]): string => {
       return nodes
-        .map((node) => {
+        .map(node => {
           if (node.text !== undefined) {
             return node.text;
           }
@@ -551,10 +509,8 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
   };
 
   const difficultyColors: Record<string, string> = {
-    foundation:
-      "bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400",
-    standard:
-      "bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400",
+    foundation: "bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400",
+    standard: "bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400",
     advanced: "bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400",
   };
 
@@ -565,43 +521,37 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
       exit={{ opacity: 0, y: -5 }}
       transition={{ delay: index * 0.02 }}
       className={classNames(
-        "flex items-start gap-3 px-4 py-3 cursor-pointer transition-all",
-        "border-b border-gray-100 dark:border-gray-700/50 last:border-b-0",
-        item.selected
-          ? "bg-blue-50 dark:bg-blue-500/10"
-          : "hover:bg-gray-100 dark:hover:bg-zinc-700/50",
+        "flex cursor-pointer items-start gap-3 px-4 py-3 transition-all",
+        "border-b border-gray-100 last:border-b-0 dark:border-gray-700/50",
+        item.selected ? "bg-[var(--th-accent-soft)]" : "hover:bg-gray-100 dark:hover:bg-zinc-700/50"
       )}
       onClick={onToggle}
     >
       <div
         className={classNames(
-          "shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all mt-0.5",
-          item.selected
-            ? "bg-blue-500 border-blue-500"
-            : "border-gray-300 dark:border-gray-600",
+          "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all",
+          item.selected ? "border-blue-500 bg-blue-500" : "border-gray-300 dark:border-gray-600"
         )}
       >
-        {item.selected && <Check className="w-3 h-3 text-white" />}
+        {item.selected && <Check className="h-3 w-3 text-white" />}
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-          <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
-            #{index + 1}
-          </span>
-          <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400">
+      <div className="min-w-0 flex-1">
+        <div className="mb-1.5 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-gray-400 dark:text-gray-500">#{index + 1}</span>
+          <span className="rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-[var(--th-active-text)] dark:bg-blue-500/20">
             {typeLabel}
           </span>
           <span
             className={classNames(
-              "px-2 py-0.5 rounded-md text-[10px] font-semibold",
+              "rounded-md px-2 py-0.5 text-[10px] font-semibold",
               difficultyColors[item.difficulty] ||
-                "bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-400",
+                "bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-gray-400"
             )}
           >
             {difficultyLabels[item.difficulty] || item.difficulty}
           </span>
         </div>
-        <p className="text-sm text-gray-700 dark:text-gray-200 m-0 line-clamp-2 leading-relaxed">
+        <p className="m-0 line-clamp-2 text-sm leading-relaxed text-gray-700 dark:text-gray-200">
           {getPromptText()}
         </p>
       </div>

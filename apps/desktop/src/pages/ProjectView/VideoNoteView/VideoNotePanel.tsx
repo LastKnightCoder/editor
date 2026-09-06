@@ -1672,7 +1672,7 @@ const VideoNotePanel = ({
         title="视频总结"
         subtitle={isSummarizing ? "正在生成..." : "查看和编辑总结内容"}
         icon={<FileText size={20} className="text-blue-500" />}
-        iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
+        iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-[var(--th-border-focus)]/30"
         footer={null}
         bodyClassName="px-5 pb-5 max-h-[70vh] overflow-auto"
       >

@@ -936,7 +936,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
           </span>
           <button
             type="button"
-            className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 transition-all hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-500/10"
+            className="dark:hover:bg-[var(--th-btn-hover)]/10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 transition-all hover:bg-blue-50 hover:text-blue-500"
             onClick={onAddToResources}
             title="添加到资源列表"
           >
@@ -1009,7 +1009,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
           {isPPT && onEditPPT && !isGenerating && (
             <button
               type="button"
-              className="flex h-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent px-2 text-xs font-medium text-gray-400 opacity-0 transition-all hover:bg-blue-50 hover:text-blue-500 group-hover:opacity-100 dark:hover:bg-blue-500/10"
+              className="dark:hover:bg-[var(--th-btn-hover)]/10 flex h-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent px-2 text-xs font-medium text-gray-400 opacity-0 transition-all hover:bg-blue-50 hover:text-blue-500 group-hover:opacity-100"
               onClick={e => {
                 e.stopPropagation();
                 onEditPPT(note);
@@ -1047,7 +1047,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
           {!isGenerating && (
             <button
               type="button"
-              className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 transition-all hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-500/10"
+              className="dark:hover:bg-[var(--th-btn-hover)]/10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 transition-all hover:bg-blue-50 hover:text-blue-500"
               onClick={onAddToResources}
               title="添加到资源列表"
             >

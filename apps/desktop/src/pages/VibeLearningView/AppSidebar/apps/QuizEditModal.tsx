@@ -121,7 +121,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
 
   // 展开/收起题目
   const handleToggleExpand = useMemoizedFn((itemId: number) => {
-    setExpandedItemId((prev) => (prev === itemId ? null : itemId));
+    setExpandedItemId(prev => (prev === itemId ? null : itemId));
     // 收起编辑状态
     if (expandedItemId === itemId) {
       setEditingItemId(null);
@@ -148,10 +148,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
 
   // 题型显示名称
   const getTypeLabel = (type: string) => {
-    return (
-      FLASHCARD_TYPE_META[type as keyof typeof FLASHCARD_TYPE_META]?.label ||
-      type
-    );
+    return FLASHCARD_TYPE_META[type as keyof typeof FLASHCARD_TYPE_META]?.label || type;
   };
 
   // 难度显示
@@ -162,10 +159,8 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
   };
 
   const difficultyColors: Record<string, string> = {
-    foundation:
-      "bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400",
-    standard:
-      "bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400",
+    foundation: "bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400",
+    standard: "bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400",
     advanced: "bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400",
   };
 
@@ -178,14 +173,14 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
       destroyOnClose
       title="编辑测验"
       subtitle="修改测验信息和题目内容"
-      icon={<Pencil className="w-5 h-5 text-blue-500" />}
-      iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
+      icon={<Pencil className="h-5 w-5 text-blue-500" />}
+      iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-[var(--th-border-focus)]/30"
       footer={null}
     >
       <div className="space-y-6">
         {/* 测验名称编辑 */}
         <div>
-          <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 block mb-2">
+          <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
             测验名称
           </label>
           {isEditingName ? (
@@ -193,15 +188,15 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
               <input
                 type="text"
                 value={quizName}
-                onChange={(e) => setQuizName(e.target.value)}
+                onChange={e => setQuizName(e.target.value)}
                 autoFocus
                 className={classNames(
-                  "flex-1 px-4 py-2.5 rounded-xl text-sm outline-none transition-all",
-                  "bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700",
+                  "flex-1 rounded-xl px-4 py-2.5 text-sm outline-none transition-all",
+                  "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
                   "text-gray-800 dark:text-white",
-                  "focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20",
+                  "focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-blue-500/20"
                 )}
-                onKeyDown={(e) => {
+                onKeyDown={e => {
                   if (e.key === "Enter") handleSaveName();
                   if (e.key === "Escape") handleCancelEditName();
                 }}
@@ -211,69 +206,63 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
                 onClick={handleSaveName}
                 disabled={savingName || !quizName.trim()}
                 className={classNames(
-                  "p-2.5 rounded-lg transition-all",
-                  "bg-blue-500 text-white hover:bg-blue-600",
-                  "disabled:opacity-50 disabled:cursor-not-allowed",
+                  "rounded-lg p-2.5 transition-all",
+                  "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-[var(--th-btn-hover)]",
+                  "disabled:cursor-not-allowed disabled:opacity-50"
                 )}
               >
                 {savingName ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <Check className="w-4 h-4" />
+                  <Check className="h-4 w-4" />
                 )}
               </button>
               <button
                 type="button"
                 onClick={handleCancelEditName}
-                className="p-2.5 rounded-lg bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-all"
+                className="rounded-lg bg-gray-100 p-2.5 text-gray-600 transition-all hover:bg-gray-200 dark:bg-zinc-800 dark:text-gray-400 dark:hover:bg-zinc-700"
               >
-                <X className="w-4 h-4" />
+                <X className="h-4 w-4" />
               </button>
             </div>
           ) : (
             <div
               onClick={() => setIsEditingName(true)}
               className={classNames(
-                "flex items-center justify-between px-4 py-2.5 rounded-xl cursor-pointer transition-all",
-                "bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-gray-700",
-                "hover:border-blue-400 dark:hover:border-blue-500",
+                "flex cursor-pointer items-center justify-between rounded-xl px-4 py-2.5 transition-all",
+                "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
+                "hover:border-blue-400 dark:hover:border-blue-500"
               )}
             >
               <span className="text-sm text-gray-800 dark:text-white">
                 {quizSet?.name || "未命名"}
               </span>
-              <Pencil className="w-4 h-4 text-gray-400" />
+              <Pencil className="h-4 w-4 text-gray-400" />
             </div>
           )}
         </div>
 
         {/* 题目列表 */}
         <div>
-          <div className="flex items-center justify-between mb-3">
+          <div className="mb-3 flex items-center justify-between">
             <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
               题目列表
             </label>
-            <span className="text-xs text-gray-400 dark:text-gray-500">
-              共 {items.length} 题
-            </span>
+            <span className="text-xs text-gray-400 dark:text-gray-500">共 {items.length} 题</span>
           </div>
 
           {loadingItems ? (
             <div className="flex flex-col items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-3">
-                加载题目中...
-              </p>
+              <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+              <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">加载题目中...</p>
             </div>
           ) : items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700">
-              <AlertCircle className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                暂无题目
-              </p>
+            <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 py-12 dark:border-gray-700">
+              <AlertCircle className="mb-3 h-12 w-12 text-gray-300 dark:text-gray-600" />
+              <p className="text-sm text-gray-500 dark:text-gray-400">暂无题目</p>
             </div>
           ) : (
-            <div className="max-h-[400px] overflow-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-zinc-800/50">
+            <div className="max-h-[400px] overflow-auto rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50">
               <AnimatePresence>
                 {items.map((item, index) => (
                   <QuizItemCard
@@ -347,68 +336,68 @@ const QuizItemCard = memo((props: QuizItemCardProps) => {
       exit={{ opacity: 0, y: -5 }}
       transition={{ delay: index * 0.02 }}
       className={classNames(
-        "border-b border-gray-100 dark:border-gray-700/50 last:border-b-0",
-        "transition-all",
+        "border-b border-gray-100 last:border-b-0 dark:border-gray-700/50",
+        "transition-all"
       )}
     >
       {/* 题目头部 */}
       <div
         className={classNames(
-          "flex items-start gap-3 px-4 py-3 cursor-pointer transition-all",
+          "flex cursor-pointer items-start gap-3 px-4 py-3 transition-all",
           "hover:bg-gray-100 dark:hover:bg-zinc-700/50",
-          isExpanded && "bg-gray-100 dark:bg-zinc-700/50",
+          isExpanded && "bg-gray-100 dark:bg-zinc-700/50"
         )}
         onClick={onToggleExpand}
       >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <div className="mb-1.5 flex flex-wrap items-center gap-2">
             <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
               #{index + 1}
             </span>
-            <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400">
+            <span className="rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-[var(--th-active-text)] dark:bg-blue-500/20">
               {getTypeLabel(item.type)}
             </span>
             <span
               className={classNames(
-                "px-2 py-0.5 rounded-md text-[10px] font-semibold",
+                "rounded-md px-2 py-0.5 text-[10px] font-semibold",
                 difficultyColors[item.difficulty] ||
-                  "bg-gray-100 dark:bg-zinc-700 text-gray-600 dark:text-gray-400",
+                  "bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-gray-400"
               )}
             >
               {difficultyLabels[item.difficulty] || item.difficulty}
             </span>
           </div>
-          <p className="text-sm text-gray-700 dark:text-gray-200 m-0 line-clamp-2 leading-relaxed">
+          <p className="m-0 line-clamp-2 text-sm leading-relaxed text-gray-700 dark:text-gray-200">
             {promptPreview}
           </p>
         </div>
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
-            onClick={(e) => {
+            onClick={e => {
               e.stopPropagation();
               onStartEdit();
             }}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-all"
+            className="dark:hover:bg-[var(--th-btn-hover)]/10 rounded-lg p-1.5 text-gray-400 transition-all hover:bg-blue-50 hover:text-blue-500"
             title="编辑"
           >
-            <Pencil className="w-4 h-4" />
+            <Pencil className="h-4 w-4" />
           </button>
           <button
             type="button"
-            onClick={(e) => {
+            onClick={e => {
               e.stopPropagation();
               onDelete();
             }}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
+            className="rounded-lg p-1.5 text-gray-400 transition-all hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
             title="删除"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="h-4 w-4" />
           </button>
           {isExpanded ? (
-            <ChevronUp className="w-4 h-4 text-gray-400" />
+            <ChevronUp className="h-4 w-4 text-gray-400" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-gray-400" />
+            <ChevronDown className="h-4 w-4 text-gray-400" />
           )}
         </div>
       </div>
@@ -424,11 +413,7 @@ const QuizItemCard = memo((props: QuizItemCardProps) => {
           >
             <div className="px-4 pb-4">
               {isEditing ? (
-                <QuizItemEditForm
-                  item={item}
-                  onSave={updateItem}
-                  onCancel={onCloseEdit}
-                />
+                <QuizItemEditForm item={item} onSave={updateItem} onCancel={onCloseEdit} />
               ) : (
                 <QuizItemPreview item={item} />
               )}
@@ -457,24 +442,20 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
         const options = item.data.options || [];
         return (
           <div className="space-y-2">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
-              选项：
-            </p>
+            <p className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">选项：</p>
             {options.map((opt, idx) => (
               <div
                 key={opt.id}
                 className={classNames(
-                  "flex items-center gap-2 px-3 py-2 rounded-lg text-sm",
+                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm",
                   opt.isCorrect
-                    ? "bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-500/30"
-                    : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400",
+                    ? "border border-green-200 bg-green-50 text-green-700 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-400"
+                    : "bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-gray-400"
                 )}
               >
-                <span className="font-medium">
-                  {String.fromCharCode(65 + idx)}.
-                </span>
+                <span className="font-medium">{String.fromCharCode(65 + idx)}.</span>
                 <span className="flex-1">{opt.label}</span>
-                {opt.isCorrect && <Check className="w-4 h-4 text-green-500" />}
+                {opt.isCorrect && <Check className="h-4 w-4 text-green-500" />}
               </div>
             ))}
           </div>
@@ -484,15 +465,13 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
         const answer = item.data.booleanAnswer;
         return (
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-              正确答案：
-            </span>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">正确答案：</span>
             <span
               className={classNames(
-                "px-3 py-1 rounded-lg text-sm font-medium",
+                "rounded-lg px-3 py-1 text-sm font-medium",
                 answer
-                  ? "bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400"
-                  : "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400",
+                  ? "bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-400"
+                  : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
               )}
             >
               {answer ? "正确" : "错误"}
@@ -503,10 +482,8 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
       case "qa": {
         return (
           <div>
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-              参考答案：
-            </p>
-            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap bg-gray-100 dark:bg-zinc-800 rounded-lg px-3 py-2">
+            <p className="mb-1 text-xs font-medium text-gray-500 dark:text-gray-400">参考答案：</p>
+            <p className="whitespace-pre-wrap rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-700 dark:bg-zinc-800 dark:text-gray-300">
               {item.data.answer || "暂无答案"}
             </p>
           </div>
@@ -527,16 +504,12 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
   };
 
   return (
-    <div className="pt-2 border-t border-gray-100 dark:border-gray-700/50">
+    <div className="border-t border-gray-100 pt-2 dark:border-gray-700/50">
       {renderContent()}
       {item.data.explanation && (
-        <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700/50">
-          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-            解析：
-          </p>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            {item.data.explanation}
-          </p>
+        <div className="mt-3 border-t border-gray-100 pt-3 dark:border-gray-700/50">
+          <p className="mb-1 text-xs font-medium text-gray-500 dark:text-gray-400">解析：</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">{item.data.explanation}</p>
         </div>
       )}
     </div>
@@ -558,9 +531,7 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
 
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState(() => ({
-    options: item.data.options
-      ? [...item.data.options.map((o) => ({ ...o }))]
-      : [],
+    options: item.data.options ? [...item.data.options.map(o => ({ ...o }))] : [],
     booleanAnswer: item.data.booleanAnswer ?? true,
     answer: item.data.answer ?? "",
     explanation: item.data.explanation ?? "",
@@ -574,12 +545,12 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
 
       if (item.type === "single-choice" || item.type === "multiple-choice") {
         // 验证选项
-        if (formData.options.some((opt) => !opt.label.trim())) {
+        if (formData.options.some(opt => !opt.label.trim())) {
           message.error("请填写所有选项内容");
           setSaving(false);
           return;
         }
-        if (!formData.options.some((opt) => opt.isCorrect)) {
+        if (!formData.options.some(opt => opt.isCorrect)) {
           message.error("请至少选择一个正确答案");
           setSaving(false);
           return;
@@ -604,23 +575,18 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
   }, [item, formData, onSave, onCancel, message]);
 
   // 更新选项
-  const updateOption = useCallback(
-    (index: number, updates: Partial<FlashcardOption>) => {
-      setFormData((prev) => ({
-        ...prev,
-        options: prev.options.map((opt, i) =>
-          i === index ? { ...opt, ...updates } : opt,
-        ),
-      }));
-    },
-    [],
-  );
+  const updateOption = useCallback((index: number, updates: Partial<FlashcardOption>) => {
+    setFormData(prev => ({
+      ...prev,
+      options: prev.options.map((opt, i) => (i === index ? { ...opt, ...updates } : opt)),
+    }));
+  }, []);
 
   // 设置正确答案（单选）
   const setCorrectOption = useCallback(
     (index: number) => {
       if (item.type === "single-choice") {
-        setFormData((prev) => ({
+        setFormData(prev => ({
           ...prev,
           options: prev.options.map((opt, i) => ({
             ...opt,
@@ -629,38 +595,35 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
         }));
       }
     },
-    [item.type],
+    [item.type]
   );
 
   // 切换正确答案（多选）
   const toggleCorrectOption = useCallback(
     (index: number) => {
       if (item.type === "multiple-choice") {
-        setFormData((prev) => ({
+        setFormData(prev => ({
           ...prev,
           options: prev.options.map((opt, i) =>
-            i === index ? { ...opt, isCorrect: !opt.isCorrect } : opt,
+            i === index ? { ...opt, isCorrect: !opt.isCorrect } : opt
           ),
         }));
       }
     },
-    [item.type],
+    [item.type]
   );
 
   // 添加选项
   const addOption = useCallback(() => {
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
-      options: [
-        ...prev.options,
-        { id: crypto.randomUUID(), label: "", isCorrect: false },
-      ],
+      options: [...prev.options, { id: crypto.randomUUID(), label: "", isCorrect: false }],
     }));
   }, []);
 
   // 删除选项
   const removeOption = useCallback((index: number) => {
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
       options: prev.options.filter((_, i) => i !== index),
     }));
@@ -680,39 +643,35 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
               <div key={opt.id} className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() =>
-                    isMultiple
-                      ? toggleCorrectOption(idx)
-                      : setCorrectOption(idx)
-                  }
+                  onClick={() => (isMultiple ? toggleCorrectOption(idx) : setCorrectOption(idx))}
                   className={classNames(
-                    "shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all",
+                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all",
                     opt.isCorrect
-                      ? "bg-green-500 border-green-500 text-white"
-                      : "border-gray-300 dark:border-gray-600 hover:border-green-400",
+                      ? "border-green-500 bg-green-500 text-white"
+                      : "border-gray-300 hover:border-green-400 dark:border-gray-600"
                   )}
                 >
-                  {opt.isCorrect && <Check className="w-3 h-3" />}
+                  {opt.isCorrect && <Check className="h-3 w-3" />}
                 </button>
                 <input
                   type="text"
                   value={opt.label}
-                  onChange={(e) => updateOption(idx, { label: e.target.value })}
+                  onChange={e => updateOption(idx, { label: e.target.value })}
                   placeholder={`选项 ${String.fromCharCode(65 + idx)}`}
                   className={classNames(
-                    "flex-1 px-3 py-2 rounded-lg text-sm outline-none transition-all",
-                    "bg-white dark:bg-zinc-800 border border-gray-200 dark:border-gray-700",
+                    "flex-1 rounded-lg px-3 py-2 text-sm outline-none transition-all",
+                    "border border-gray-200 bg-white dark:border-gray-700 dark:bg-zinc-800",
                     "text-gray-800 dark:text-white",
-                    "focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20",
+                    "focus:border-[var(--th-border-focus)] focus:ring-1 focus:ring-blue-500/20"
                   )}
                 />
                 {formData.options.length > 2 && (
                   <button
                     type="button"
                     onClick={() => removeOption(idx)}
-                    className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
+                    className="shrink-0 rounded-lg p-1.5 text-gray-400 transition-all hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="h-4 w-4" />
                   </button>
                 )}
               </div>
@@ -720,9 +679,9 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
             <button
               type="button"
               onClick={addOption}
-              className="flex items-center gap-1.5 text-xs text-blue-500 hover:text-blue-600 font-medium"
+              className="flex items-center gap-1.5 text-xs font-medium text-blue-500 hover:text-blue-600"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="h-3.5 w-3.5" />
               添加选项
             </button>
           </div>
@@ -731,30 +690,28 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
       case "boolean": {
         return (
           <div>
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
-              正确答案：
-            </p>
+            <p className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">正确答案：</p>
             <div className="flex gap-3">
               {[
                 { value: true, label: "正确" },
                 { value: false, label: "错误" },
-              ].map((opt) => (
+              ].map(opt => (
                 <button
                   key={String(opt.value)}
                   type="button"
                   onClick={() =>
-                    setFormData((prev) => ({
+                    setFormData(prev => ({
                       ...prev,
                       booleanAnswer: opt.value,
                     }))
                   }
                   className={classNames(
-                    "flex-1 py-3 rounded-lg font-medium transition-all border-2",
+                    "flex-1 rounded-lg border-2 py-3 font-medium transition-all",
                     formData.booleanAnswer === opt.value
                       ? opt.value
-                        ? "bg-green-50 dark:bg-green-500/10 border-green-500 text-green-600 dark:text-green-400"
-                        : "bg-red-50 dark:bg-red-500/10 border-red-500 text-red-600 dark:text-red-400"
-                      : "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300",
+                        ? "border-green-500 bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-400"
+                        : "border-red-500 bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
+                      : "border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-zinc-800 dark:text-gray-400"
                   )}
                 >
                   {opt.label}
@@ -767,21 +724,17 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
       case "qa": {
         return (
           <div>
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
-              参考答案：
-            </p>
+            <p className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">参考答案：</p>
             <textarea
               value={formData.answer}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, answer: e.target.value }))
-              }
+              onChange={e => setFormData(prev => ({ ...prev, answer: e.target.value }))}
               rows={4}
               placeholder="输入参考答案..."
               className={classNames(
-                "w-full px-3 py-2 rounded-lg text-sm outline-none transition-all resize-none",
-                "bg-white dark:bg-zinc-800 border border-gray-200 dark:border-gray-700",
-                "text-gray-800 dark:text-white placeholder:text-gray-400",
-                "focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20",
+                "w-full resize-none rounded-lg px-3 py-2 text-sm outline-none transition-all",
+                "border border-gray-200 bg-white dark:border-gray-700 dark:bg-zinc-800",
+                "text-gray-800 placeholder:text-gray-400 dark:text-white",
+                "focus:border-[var(--th-border-focus)] focus:ring-1 focus:ring-blue-500/20"
               )}
             />
           </div>
@@ -802,26 +755,22 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
   };
 
   return (
-    <div className="pt-3 border-t border-gray-100 dark:border-gray-700/50 space-y-4">
+    <div className="space-y-4 border-t border-gray-100 pt-3 dark:border-gray-700/50">
       {renderForm()}
 
       {/* 解析 */}
       <div>
-        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
-          解析（可选）：
-        </p>
+        <p className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">解析（可选）：</p>
         <textarea
           value={formData.explanation}
-          onChange={(e) =>
-            setFormData((prev) => ({ ...prev, explanation: e.target.value }))
-          }
+          onChange={e => setFormData(prev => ({ ...prev, explanation: e.target.value }))}
           rows={2}
           placeholder="输入题目解析..."
           className={classNames(
-            "w-full px-3 py-2 rounded-lg text-sm outline-none transition-all resize-none",
-            "bg-white dark:bg-zinc-800 border border-gray-200 dark:border-gray-700",
-            "text-gray-800 dark:text-white placeholder:text-gray-400",
-            "focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20",
+            "w-full resize-none rounded-lg px-3 py-2 text-sm outline-none transition-all",
+            "border border-gray-200 bg-white dark:border-gray-700 dark:bg-zinc-800",
+            "text-gray-800 placeholder:text-gray-400 dark:text-white",
+            "focus:border-[var(--th-border-focus)] focus:ring-1 focus:ring-blue-500/20"
           )}
         />
       </div>
@@ -832,9 +781,9 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
           type="button"
           onClick={onCancel}
           className={classNames(
-            "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-            "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400",
-            "hover:bg-gray-200 dark:hover:bg-zinc-700",
+            "rounded-lg px-4 py-2 text-sm font-medium transition-all",
+            "bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-gray-400",
+            "hover:bg-gray-200 dark:hover:bg-zinc-700"
           )}
         >
           取消
@@ -844,16 +793,12 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
           onClick={handleSave}
           disabled={saving}
           className={classNames(
-            "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-            "bg-blue-500 text-white hover:bg-blue-600",
-            "disabled:opacity-50 disabled:cursor-not-allowed",
+            "flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-all",
+            "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-[var(--th-btn-hover)]",
+            "disabled:cursor-not-allowed disabled:opacity-50"
           )}
         >
-          {saving ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Save className="w-4 h-4" />
-          )}
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           保存
         </button>
       </div>

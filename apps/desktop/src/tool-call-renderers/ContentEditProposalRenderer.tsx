@@ -561,8 +561,8 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
                   rows={4}
                   className={`min-h-28 w-full resize-y rounded-2xl border px-4 py-3 text-sm outline-none transition [field-sizing:content] ${
                     isDark
-                      ? "border-white/10 bg-zinc-950/70 text-slate-100 placeholder:text-slate-500 focus:border-sky-400/60"
-                      : "border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:border-sky-500"
+                      ? "focus:border-[var(--th-border-focus)]/60 border-white/10 bg-zinc-950/70 text-slate-100 placeholder:text-slate-500"
+                      : "border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:border-[var(--th-border-focus)]"
                   }`}
                 />
                 <div className="flex flex-wrap gap-2">

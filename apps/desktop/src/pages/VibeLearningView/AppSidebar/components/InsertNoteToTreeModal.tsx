@@ -83,21 +83,16 @@ const TreeNodeItem = memo<{
     <div>
       <div
         className={classNames(
-          "flex items-center gap-2 px-3 py-1.5 transition-colors cursor-pointer mx-1 rounded-md",
-          isSelected
-            ? "bg-blue-50 dark:bg-blue-500/10"
-            : "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
+          "mx-1 flex cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 transition-colors",
+          isSelected ? "bg-[var(--th-accent-soft)]" : "hover:bg-gray-50 dark:hover:bg-zinc-800/30"
         )}
         style={{ paddingLeft: depth * 12 + 12 }}
         onClick={() => onSelect(node.id)}
       >
         {hasChildren ? (
           <span
-            className={classNames(
-              "flex-shrink-0 text-xs",
-              themeColors.secondaryTextClass,
-            )}
-            onClick={(e) => {
+            className={classNames("flex-shrink-0 text-xs", themeColors.secondaryTextClass)}
+            onClick={e => {
               e.stopPropagation();
               setExpanded(!expanded);
             }}
@@ -108,33 +103,21 @@ const TreeNodeItem = memo<{
           <span className="w-3.5 flex-shrink-0" />
         )}
         {hasChildren ? (
-          <FolderOutlined
-            className={classNames(
-              "flex-shrink-0",
-              themeColors.secondaryTextClass,
-            )}
-          />
+          <FolderOutlined className={classNames("flex-shrink-0", themeColors.secondaryTextClass)} />
         ) : (
-          <FileOutlined
-            className={classNames(
-              "flex-shrink-0",
-              themeColors.secondaryTextClass,
-            )}
-          />
+          <FileOutlined className={classNames("flex-shrink-0", themeColors.secondaryTextClass)} />
         )}
         <span
           className={classNames(
-            "flex-1 text-sm truncate",
-            isSelected
-              ? "text-blue-600 dark:text-blue-400 font-medium"
-              : themeColors.textClass,
+            "flex-1 truncate text-sm",
+            isSelected ? "font-medium text-[var(--th-active-text)]" : themeColors.textClass
           )}
         >
           {node.title}
         </span>
       </div>
       {expanded &&
-        node.children.map((child) => (
+        node.children.map(child => (
           <TreeNodeItem
             key={child.id}
             node={child}
@@ -167,9 +150,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
 
     const [projects, setProjects] = useState<Project[]>([]);
     const [documents, setDocuments] = useState<IDocument[]>([]);
-    const [selectedEntityId, setSelectedEntityId] = useState<number | null>(
-      null,
-    );
+    const [selectedEntityId, setSelectedEntityId] = useState<number | null>(null);
     const [treeNodes, setTreeNodes] = useState<DocTreeNode[]>([]);
     const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
     const [loading, setLoading] = useState(false);
@@ -182,19 +163,16 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
       setLoading(true);
       if (mode === "project") {
         getProjectList()
-          .then((allProjects) => {
+          .then(allProjects => {
             setProjects(
-              allProjects.filter(
-                (p) =>
-                  p.projectType === EProjectType.DocumentTree && !p.archived,
-              ),
+              allProjects.filter(p => p.projectType === EProjectType.DocumentTree && !p.archived)
             );
           })
           .catch(() => message.error("加载列表失败"))
           .finally(() => setLoading(false));
       } else {
         getAllDocuments()
-          .then((allDocs) => {
+          .then(allDocs => {
             setDocuments(allDocs);
           })
           .catch(() => message.error("加载列表失败"))
@@ -214,7 +192,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
     // 当前 mode 对应的列表
     const entityList = useMemo(
       () => (mode === "project" ? projects : documents),
-      [mode, projects, documents],
+      [mode, projects, documents]
     );
 
     // 选择项目/知识库，加载文档树
@@ -235,7 +213,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
           setTreeLoading(false);
         }
       },
-      [mode],
+      [mode]
     );
 
     // 确认插入
@@ -268,15 +246,9 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
 
           let createdItem: ProjectItem | null = null;
           if (selectedNodeId) {
-            [, createdItem] = await addChildProjectItem(
-              selectedNodeId,
-              newItem,
-            );
+            [, createdItem] = await addChildProjectItem(selectedNodeId, newItem);
           } else {
-            [, createdItem] = await addRootProjectItem(
-              selectedEntityId,
-              newItem,
-            );
+            [, createdItem] = await addRootProjectItem(selectedEntityId, newItem);
           }
           message.success("网页已添加到项目");
           onSuccess(createdItem);
@@ -287,8 +259,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
           }
 
           const metaInfo =
-            videoNotePayload.metaInfo ||
-            (await videoNotePayload.resolveMetaInfo?.());
+            videoNotePayload.metaInfo || (await videoNotePayload.resolveMetaInfo?.());
           if (!metaInfo) {
             throw new Error("缺少视频信息");
           }
@@ -311,15 +282,9 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
 
           let createdItem: ProjectItem | null = null;
           if (selectedNodeId) {
-            [, createdItem] = await addChildProjectItem(
-              selectedNodeId,
-              newItem,
-            );
+            [, createdItem] = await addChildProjectItem(selectedNodeId, newItem);
           } else {
-            [, createdItem] = await addRootProjectItem(
-              selectedEntityId,
-              newItem,
-            );
+            [, createdItem] = await addRootProjectItem(selectedEntityId, newItem);
           }
           message.success("视频笔记已添加到项目");
           onSuccess(createdItem);
@@ -405,7 +370,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
               ? "添加视频笔记失败"
               : insertMode === "shared-content"
                 ? "挂载内容失败"
-                : "插入笔记失败",
+                : "插入笔记失败"
         );
       } finally {
         setInserting(false);
@@ -461,36 +426,36 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
           {/* 左侧：项目/知识库列表 */}
           <div
             className={classNames(
-              "w-56 flex-shrink-0 border-r overflow-y-auto",
-              themeColors.cardBorderClass,
+              "w-56 flex-shrink-0 overflow-y-auto border-r",
+              themeColors.cardBorderClass
             )}
           >
             {loading ? (
-              <div className="flex items-center justify-center h-full">
+              <div className="flex h-full items-center justify-center">
                 <LoadingSpinner size="small" />
               </div>
             ) : entityList.length === 0 ? (
               <div
                 className={classNames(
-                  "flex items-center justify-center h-full text-sm",
-                  themeColors.secondaryTextClass,
+                  "flex h-full items-center justify-center text-sm",
+                  themeColors.secondaryTextClass
                 )}
               >
                 {mode === "project" ? "暂无文档类型项目" : "暂无知识库"}
               </div>
             ) : (
               <div className="py-1">
-                {entityList.map((entity) => (
+                {entityList.map(entity => (
                   <div
                     key={entity.id}
                     className={classNames(
-                      "px-3 py-2 cursor-pointer text-sm truncate transition-colors",
+                      "cursor-pointer truncate px-3 py-2 text-sm transition-colors",
                       selectedEntityId === entity.id
-                        ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium"
+                        ? "bg-[var(--th-accent-soft)] font-medium text-[var(--th-active-text)]"
                         : classNames(
                             themeColors.textClass,
-                            "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
-                          ),
+                            "hover:bg-gray-50 dark:hover:bg-zinc-800/30"
+                          )
                     )}
                     onClick={() => handleSelectEntity(entity)}
                   >
@@ -506,19 +471,17 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
             {!selectedEntityId ? (
               <div
                 className={classNames(
-                  "flex flex-col items-center justify-center h-full gap-2",
-                  themeColors.secondaryTextClass,
+                  "flex h-full flex-col items-center justify-center gap-2",
+                  themeColors.secondaryTextClass
                 )}
               >
                 <InboxOutlined className="text-3xl opacity-30" />
                 <span className="text-sm">
-                  {mode === "project"
-                    ? "请先选择左侧的项目"
-                    : "请先选择左侧的知识库"}
+                  {mode === "project" ? "请先选择左侧的项目" : "请先选择左侧的知识库"}
                 </span>
               </div>
             ) : treeLoading ? (
-              <div className="flex items-center justify-center h-full">
+              <div className="flex h-full items-center justify-center">
                 <LoadingSpinner size="small" />
               </div>
             ) : (
@@ -526,10 +489,10 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
                 {/* 根目录选项 */}
                 <div
                   className={classNames(
-                    "flex items-center gap-2 px-3 py-1.5 cursor-pointer mx-1 rounded-md transition-colors",
+                    "mx-1 flex cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 transition-colors",
                     selectedNodeId === null
-                      ? "bg-blue-50 dark:bg-blue-500/10"
-                      : "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
+                      ? "bg-[var(--th-accent-soft)]"
+                      : "hover:bg-gray-50 dark:hover:bg-zinc-800/30"
                   )}
                   onClick={() => setSelectedNodeId(null)}
                 >
@@ -537,16 +500,16 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
                     className={classNames(
                       "flex-shrink-0",
                       selectedNodeId === null
-                        ? "text-blue-600 dark:text-blue-400"
-                        : themeColors.secondaryTextClass,
+                        ? "text-[var(--th-active-text)]"
+                        : themeColors.secondaryTextClass
                     )}
                   />
                   <span
                     className={classNames(
                       "text-sm",
                       selectedNodeId === null
-                        ? "text-blue-600 dark:text-blue-400 font-medium"
-                        : themeColors.textClass,
+                        ? "font-medium text-[var(--th-active-text)]"
+                        : themeColors.textClass
                     )}
                   >
                     {insertMode === "webview" || insertMode === "video-note"
@@ -555,7 +518,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
                   </span>
                 </div>
                 {/* 文档树节点 */}
-                {treeNodes.map((node) => (
+                {treeNodes.map(node => (
                   <TreeNodeItem
                     key={node.id}
                     node={node}
@@ -569,7 +532,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
         </div>
       </CustomModal>
     );
-  },
+  }
 );
 
 InsertNoteToTreeModal.displayName = "InsertNoteToTreeModal";

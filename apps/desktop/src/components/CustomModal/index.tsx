@@ -66,7 +66,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
   closeIcon,
   title,
   icon,
-  iconBgColor = "bg-indigo-50 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/30",
+  iconBgColor = "bg-[var(--th-accent-soft)] border-[var(--th-border-focus)]/30",
   subtitle,
   footer,
   footerAlign = "end",

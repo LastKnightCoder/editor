@@ -13,7 +13,7 @@ interface AliOSSCredentialsForm {
 
 const AliOSSSetting: React.FC = () => {
   const themeColors = useThemeColors();
-  const setting = useSettingStore((state) => state.setting);
+  const setting = useSettingStore(state => state.setting);
   const { aliOSS } = setting.integration;
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -21,9 +21,7 @@ const AliOSSSetting: React.FC = () => {
     accessKeyId: aliOSS.accessKeyId || "",
     accessKeySecret: aliOSS.accessKeySecret || "",
   });
-  const [errors, setErrors] = useState<
-    Partial<Record<keyof AliOSSCredentialsForm, string>>
-  >({});
+  const [errors, setErrors] = useState<Partial<Record<keyof AliOSSCredentialsForm, string>>>({});
 
   const validateForm = useMemoizedFn(() => {
     const newErrors: Partial<Record<keyof AliOSSCredentialsForm, string>> = {};
@@ -45,12 +43,12 @@ const AliOSSSetting: React.FC = () => {
     }
 
     useSettingStore.setState(
-      produce((state) => {
+      produce(state => {
         state.setting.integration.aliOSS = {
           enabled: true,
           ...formData,
         };
-      }),
+      })
     );
     setModalOpen(false);
     setErrors({});
@@ -58,13 +56,13 @@ const AliOSSSetting: React.FC = () => {
 
   const handleDisconnect = useCallback(() => {
     useSettingStore.setState(
-      produce((state) => {
+      produce(state => {
         state.setting.integration.aliOSS = {
           enabled: false,
           accessKeyId: "",
           accessKeySecret: "",
         };
-      }),
+      })
     );
   }, []);
 
@@ -83,7 +81,7 @@ const AliOSSSetting: React.FC = () => {
         handleModalClose();
       }
     },
-    [handleModalClose],
+    [handleModalClose]
   );
 
   return (
@@ -92,17 +90,15 @@ const AliOSSSetting: React.FC = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className={`relative group rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden h-[280px] flex flex-col ${themeColors.cardBgClass} ${themeColors.cardBorderClass} border`}
+        className={`group relative flex h-[280px] flex-col overflow-hidden rounded-xl shadow-sm transition-all duration-300 hover:shadow-md ${themeColors.cardBgClass} ${themeColors.cardBorderClass} border`}
       >
         {/* Status Badge */}
-        <div className="absolute top-4 right-4">
+        <div className="absolute right-4 top-4">
           <div
-            className={`flex items-center gap-2 px-3 py-1 rounded-full ${themeColors.inputBgClass}`}
+            className={`flex items-center gap-2 rounded-full px-3 py-1 ${themeColors.inputBgClass}`}
           >
             <div
-              className={`w-2 h-2 rounded-full ${
-                aliOSS.enabled ? "bg-green-500" : "bg-gray-400"
-              }`}
+              className={`h-2 w-2 rounded-full ${aliOSS.enabled ? "bg-green-500" : "bg-gray-400"}`}
             />
             <span className={`text-xs font-medium ${themeColors.textClass}`}>
               {aliOSS.enabled ? "已配置" : "未配置"}
@@ -113,9 +109,9 @@ const AliOSSSetting: React.FC = () => {
         {/* Header */}
         <div className="p-6 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-lg bg-linear-to-br from-blue-500 to-sky-600 flex items-center justify-center text-white text-xl font-bold shadow-sm">
+            <div className="bg-linear-to-br flex h-12 w-12 items-center justify-center rounded-lg from-blue-500 to-sky-600 text-xl font-bold text-white shadow-sm">
               <svg
-                className="w-6 h-6"
+                className="h-6 w-6"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -128,15 +124,11 @@ const AliOSSSetting: React.FC = () => {
                 />
               </svg>
             </div>
-            <div className="flex-1 min-w-0">
-              <h3
-                className={`text-base font-semibold truncate ${themeColors.activeTextClass}`}
-              >
+            <div className="min-w-0 flex-1">
+              <h3 className={`truncate text-base font-semibold ${themeColors.activeTextClass}`}>
                 阿里云 OSS
               </h3>
-              <p
-                className={`text-xs truncate ${themeColors.secondaryTextClass}`}
-              >
+              <p className={`truncate text-xs ${themeColors.secondaryTextClass}`}>
                 阿里云对象存储服务
               </p>
             </div>
@@ -144,10 +136,10 @@ const AliOSSSetting: React.FC = () => {
         </div>
 
         {/* Info Section */}
-        <div className="px-6 py-2 flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden px-6 py-2">
           {aliOSS.enabled && (
             <div className="space-y-1">
-              <span className="inline-block px-2 py-0.5 text-xs font-medium rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
+              <span className="inline-block rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
                 已配置
               </span>
             </div>
@@ -155,11 +147,11 @@ const AliOSSSetting: React.FC = () => {
         </div>
 
         {/* Actions */}
-        <div className="p-6 pt-4 mt-auto space-y-2">
+        <div className="mt-auto space-y-2 p-6 pt-4">
           {!aliOSS.enabled ? (
             <button
               onClick={() => setModalOpen(true)}
-              className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors"
+              className="w-full rounded-lg bg-[var(--th-btn-bg)] px-4 py-2 text-sm font-medium text-[var(--th-btn-text)] transition-colors hover:bg-[var(--th-btn-hover)]"
             >
               配置阿里云 OSS
             </button>
@@ -167,13 +159,13 @@ const AliOSSSetting: React.FC = () => {
             <>
               <button
                 onClick={() => setModalOpen(true)}
-                className={`w-full px-4 py-2 text-sm font-medium rounded-lg transition-colors ${themeColors.inputBgClass} ${themeColors.textClass} ${themeColors.hoverClass}`}
+                className={`w-full rounded-lg px-4 py-2 text-sm font-medium transition-colors ${themeColors.inputBgClass} ${themeColors.textClass} ${themeColors.hoverClass}`}
               >
                 管理凭证
               </button>
               <button
                 onClick={handleDisconnect}
-                className="w-full px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                className="w-full rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
               >
                 断开连接
               </button>
@@ -191,7 +183,7 @@ const AliOSSSetting: React.FC = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+              className="z-9999 fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm"
               onClick={handleModalClose}
               onKeyDown={handleKeyDown}
             >
@@ -200,14 +192,14 @@ const AliOSSSetting: React.FC = () => {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 transition={{ type: "spring", duration: 0.3 }}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-[460px] m-4"
+                onClick={e => e.stopPropagation()}
+                className="m-4 w-full max-w-[460px]"
               >
-                <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800">
-                  <div className="flex items-start gap-3 mb-5">
-                    <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-blue-50 dark:bg-blue-500/20 border border-blue-200 dark:border-blue-500/30">
+                <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
+                  <div className="mb-5 flex items-start gap-3">
+                    <div className="border-[var(--th-border-focus)]/30 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border bg-blue-50 dark:bg-blue-500/20">
                       <svg
-                        className="w-5 h-5 text-blue-500"
+                        className="h-5 w-5 text-blue-500"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -220,20 +212,20 @@ const AliOSSSetting: React.FC = () => {
                         />
                       </svg>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h2 className="text-base font-bold m-0 text-gray-800 dark:text-white">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="m-0 text-base font-bold text-gray-800 dark:text-white">
                         阿里云 OSS 配置
                       </h2>
-                      <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
+                      <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-500">
                         配置阿里云对象存储服务
                       </p>
                     </div>
                     <button
-                      className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
+                      className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-gray-100 text-gray-500 transition-all hover:bg-gray-200 hover:text-gray-700 dark:bg-zinc-800 dark:text-slate-400 dark:hover:bg-zinc-700 dark:hover:text-slate-200"
                       onClick={handleModalClose}
                     >
                       <svg
-                        className="w-[18px] h-[18px]"
+                        className="h-[18px] w-[18px]"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -249,7 +241,7 @@ const AliOSSSetting: React.FC = () => {
                     <div className="flex flex-col gap-1.5">
                       <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
                         <svg
-                          className="w-3.5 h-3.5"
+                          className="h-3.5 w-3.5"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -262,7 +254,7 @@ const AliOSSSetting: React.FC = () => {
                       <input
                         type="text"
                         value={formData.accessKeyId}
-                        onChange={(e) => {
+                        onChange={e => {
                           setFormData({
                             ...formData,
                             accessKeyId: e.target.value,
@@ -270,7 +262,7 @@ const AliOSSSetting: React.FC = () => {
                           setErrors({ ...errors, accessKeyId: undefined });
                         }}
                         placeholder="请输入 Access Key ID..."
-                        className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                       />
                       {errors.accessKeyId && (
                         <span className="text-xs text-red-600 dark:text-red-400">
@@ -283,7 +275,7 @@ const AliOSSSetting: React.FC = () => {
                     <div className="flex flex-col gap-1.5">
                       <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
                         <svg
-                          className="w-3.5 h-3.5"
+                          className="h-3.5 w-3.5"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -296,7 +288,7 @@ const AliOSSSetting: React.FC = () => {
                       <input
                         type="password"
                         value={formData.accessKeySecret}
-                        onChange={(e) => {
+                        onChange={e => {
                           setFormData({
                             ...formData,
                             accessKeySecret: e.target.value,
@@ -307,7 +299,7 @@ const AliOSSSetting: React.FC = () => {
                           });
                         }}
                         placeholder="请输入 Access Key Secret..."
-                        className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                       />
                       {errors.accessKeySecret && (
                         <span className="text-xs text-red-600 dark:text-red-400">
@@ -316,18 +308,18 @@ const AliOSSSetting: React.FC = () => {
                       )}
                     </div>
 
-                    <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1 px-3.5 py-2.5 rounded-lg bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700">
+                    <div className="space-y-1 rounded-lg border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-xs text-gray-600 dark:border-slate-700 dark:bg-zinc-950 dark:text-gray-400">
                       <div>1. 访问阿里云控制台</div>
                       <div>2. 进入 AccessKey 管理</div>
                       <div>3. 创建或查看 AccessKey</div>
                     </div>
 
                     <button
-                      className="w-full px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-blue-500 text-white shadow-[0_4px_14px_rgba(59,130,246,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-blue-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none"
+                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-none bg-[var(--th-btn-bg)] px-5 py-3.5 text-sm font-semibold text-[var(--th-btn-text)] shadow-sm transition-all hover:-translate-y-px hover:bg-[var(--th-btn-hover)] active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
                       onClick={handleSave}
                     >
                       <svg
-                        className="w-5 h-5"
+                        className="h-5 w-5"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -342,7 +334,7 @@ const AliOSSSetting: React.FC = () => {
               </motion.div>
             </motion.div>
           </AnimatePresence>,
-          document.body,
+          document.body
         )}
     </>
   );

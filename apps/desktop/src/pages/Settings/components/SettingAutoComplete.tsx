@@ -26,9 +26,7 @@ const SettingAutoComplete: React.FC<SettingAutoCompleteProps> = ({
 
   useEffect(() => {
     if (value) {
-      const filtered = options.filter((option) =>
-        option.toLowerCase().includes(value.toLowerCase()),
-      );
+      const filtered = options.filter(option => option.toLowerCase().includes(value.toLowerCase()));
       setFilteredOptions(filtered.slice(0, 50));
     } else {
       setFilteredOptions(options.slice(0, 50));
@@ -52,7 +50,7 @@ const SettingAutoComplete: React.FC<SettingAutoCompleteProps> = ({
   }, []);
 
   return (
-    <div className={`flex flex-col gap-1.5 relative ${className}`}>
+    <div className={`relative flex flex-col gap-1.5 ${className}`}>
       {label && (
         <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
           {label}
@@ -62,39 +60,22 @@ const SettingAutoComplete: React.FC<SettingAutoCompleteProps> = ({
         ref={inputRef}
         type="text"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={e => onChange(e.target.value)}
         onFocus={() => setIsOpen(true)}
         placeholder={placeholder}
         disabled={disabled}
-        className={`w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all
-          bg-gray-50 dark:bg-zinc-950
-          border border-gray-200 dark:border-slate-700
-          text-gray-800 dark:text-white
-          shadow-inner
-          placeholder:text-gray-400 dark:placeholder:text-slate-500
-          focus:border-blue-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)]
-          dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]
-          disabled:opacity-60 disabled:cursor-not-allowed`}
+        className={`w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]`}
       />
       {isOpen && filteredOptions.length > 0 && (
         <div
           ref={dropdownRef}
-          className="absolute top-full left-0 right-0 mt-1 z-50
-            max-h-60 overflow-y-auto
-            rounded-xl
-            bg-white dark:bg-zinc-900
-            border border-gray-200 dark:border-slate-700
-            shadow-lg"
+          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg dark:border-slate-700 dark:bg-zinc-900"
         >
           {filteredOptions.map((option, index) => (
             <button
               key={index}
               type="button"
-              className="w-full px-4 py-2.5 text-left text-sm
-                text-gray-800 dark:text-white
-                hover:bg-gray-100 dark:hover:bg-zinc-800
-                first:rounded-t-xl last:rounded-b-xl
-                transition-colors"
+              className="w-full px-4 py-2.5 text-left text-sm text-gray-800 transition-colors first:rounded-t-xl last:rounded-b-xl hover:bg-gray-100 dark:text-white dark:hover:bg-zinc-800"
               onClick={() => {
                 onChange(option);
                 setIsOpen(false);

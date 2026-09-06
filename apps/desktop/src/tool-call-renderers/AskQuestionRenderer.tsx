@@ -369,7 +369,7 @@ const AskQuestionRenderer = ({
                   placeholder="其他选项（可自定义输入）"
                   className={classNames(
                     "w-full rounded-xl border px-3 py-2 text-sm outline-none transition-all",
-                    "focus:border-sky-400 focus:ring-2 focus:ring-sky-300/30",
+                    "focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-sky-300/30",
                     isDark
                       ? "border-slate-700 bg-zinc-900 text-slate-100 placeholder:text-slate-500"
                       : "border-slate-200 bg-white text-slate-800 placeholder:text-slate-400",

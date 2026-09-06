@@ -58,10 +58,8 @@ const ResourceSelector = memo((props: ResourceSelectorProps) => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-3">
-          加载资源中...
-        </p>
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+        <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">加载资源中...</p>
       </div>
     );
   }
@@ -69,8 +67,8 @@ const ResourceSelector = memo((props: ResourceSelectorProps) => {
   // 空状态
   if (resources.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700">
-        <Inbox className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" />
+      <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 py-12 dark:border-gray-700">
+        <Inbox className="mb-3 h-12 w-12 text-gray-300 dark:text-gray-600" />
         <p className="text-sm text-gray-500 dark:text-gray-400">{emptyText}</p>
       </div>
     );
@@ -79,14 +77,14 @@ const ResourceSelector = memo((props: ResourceSelectorProps) => {
   return (
     <div>
       {showHeader && (
-        <div className="flex items-center justify-between mb-3">
+        <div className="mb-3 flex items-center justify-between">
           <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
             {title}
           </label>
           <button
             type="button"
             onClick={onToggleAll}
-            className="text-xs font-medium text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+            className="text-xs font-medium text-blue-500 transition-colors hover:text-[var(--th-active-text)] dark:hover:text-blue-300"
           >
             {isAllSelected ? "取消全选" : "全选"}
           </button>
@@ -94,7 +92,7 @@ const ResourceSelector = memo((props: ResourceSelectorProps) => {
       )}
 
       <div
-        className="overflow-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-zinc-800/50"
+        className="overflow-auto rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50"
         style={{ maxHeight }}
       >
         {resources.map((resource, index) => {
@@ -106,26 +104,26 @@ const ResourceSelector = memo((props: ResourceSelectorProps) => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.02 }}
               className={classNames(
-                "flex items-center gap-3 px-4 py-3 cursor-pointer transition-all",
-                "border-b border-gray-100 dark:border-gray-700/50 last:border-b-0",
+                "flex cursor-pointer items-center gap-3 px-4 py-3 transition-all",
+                "border-b border-gray-100 last:border-b-0 dark:border-gray-700/50",
                 isSelected
-                  ? "bg-blue-50 dark:bg-blue-500/10"
-                  : "hover:bg-gray-100 dark:hover:bg-zinc-700/50",
+                  ? "bg-[var(--th-accent-soft)]"
+                  : "hover:bg-gray-100 dark:hover:bg-zinc-700/50"
               )}
               onClick={() => onToggleResource(resource.id)}
             >
               <div
                 className={classNames(
-                  "shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all",
+                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all",
                   isSelected
-                    ? "bg-blue-500 border-blue-500"
-                    : "border-gray-300 dark:border-gray-600",
+                    ? "border-blue-500 bg-blue-500"
+                    : "border-gray-300 dark:border-gray-600"
                 )}
               >
-                {isSelected && <Check className="w-3 h-3 text-white" />}
+                {isSelected && <Check className="h-3 w-3 text-white" />}
               </div>
-              <FileText className="w-4 h-4 text-gray-400 dark:text-gray-500 shrink-0" />
-              <span className="flex-1 text-sm text-gray-700 dark:text-gray-200 truncate">
+              <FileText className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
+              <span className="flex-1 truncate text-sm text-gray-700 dark:text-gray-200">
                 {resource.name}
               </span>
             </motion.div>

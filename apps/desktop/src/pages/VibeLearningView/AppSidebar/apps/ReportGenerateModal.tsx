@@ -333,7 +333,7 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
             className={classNames(
               "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
               viewMode === "preview"
-                ? "bg-blue-500 text-white"
+                ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700"
             )}
           >
@@ -346,7 +346,7 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
             className={classNames(
               "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
               viewMode === "source"
-                ? "bg-blue-500 text-white"
+                ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700"
             )}
           >
@@ -404,8 +404,8 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
 
   const primaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
-    "bg-blue-500 text-white",
-    "hover:bg-blue-600",
+    "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]",
+    "hover:bg-[var(--th-btn-hover)]",
     "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed"
   );
 

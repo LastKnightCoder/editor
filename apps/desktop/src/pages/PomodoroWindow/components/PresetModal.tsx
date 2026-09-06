@@ -19,18 +19,12 @@ interface PresetModalProps {
 }
 
 const INPUT_CLASS =
-  "w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)] disabled:opacity-60 disabled:cursor-not-allowed";
+  "w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] disabled:opacity-60 disabled:cursor-not-allowed";
 
 const LABEL_CLASS =
   "text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400";
 
-const PresetModal: React.FC<PresetModalProps> = ({
-  open,
-  onClose,
-  onSubmit,
-  initial,
-  title,
-}) => {
+const PresetModal: React.FC<PresetModalProps> = ({ open, onClose, onSubmit, initial, title }) => {
   const [name, setName] = useState("");
   const [mode, setMode] = useState<PomodoroMode>("countdown");
   const [durationMin, setDurationMin] = useState<number | "">(25);
@@ -80,7 +74,7 @@ const PresetModal: React.FC<PresetModalProps> = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.15 }}
-        className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        className="z-9999 fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm"
         onClick={() => !submitting && onClose()}
       >
         <motion.div
@@ -88,20 +82,20 @@ const PresetModal: React.FC<PresetModalProps> = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: -10 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="w-full max-w-[480px] m-4 max-h-[90vh] flex flex-col"
-          onClick={(e) => e.stopPropagation()}
+          className="m-4 flex max-h-[90vh] w-full max-w-[480px] flex-col"
+          onClick={e => e.stopPropagation()}
         >
-          <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800 flex flex-col overflow-hidden">
+          <div className="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
             {/* Header */}
-            <div className="flex items-start gap-3 mb-5 shrink-0">
-              <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30">
-                <MdTimer className="w-5 h-5 text-indigo-500" />
+            <div className="mb-5 flex shrink-0 items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-indigo-200 bg-indigo-50 dark:border-indigo-500/30 dark:bg-indigo-500/20">
+                <MdTimer className="h-5 w-5 text-indigo-500" />
               </div>
-              <div className="flex-1 min-w-0">
-                <h2 className="text-base font-bold m-0 text-gray-800 dark:text-white">
+              <div className="min-w-0 flex-1">
+                <h2 className="m-0 text-base font-bold text-gray-800 dark:text-white">
                   {resolvedTitle}
                 </h2>
-                <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-500">
                   设置番茄钟名称与时长
                 </p>
               </div>
@@ -109,14 +103,14 @@ const PresetModal: React.FC<PresetModalProps> = ({
                 type="button"
                 onClick={onClose}
                 disabled={submitting}
-                className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-gray-100 text-gray-500 transition-all hover:bg-gray-200 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-800 dark:text-slate-400 dark:hover:bg-zinc-700 dark:hover:text-slate-200"
               >
-                <MdClose className="w-5 h-5" />
+                <MdClose className="h-5 w-5" />
               </button>
             </div>
 
             {/* Form */}
-            <div className="flex-1 overflow-y-auto event-modal-scroll pr-1 min-h-0">
+            <div className="event-modal-scroll min-h-0 flex-1 overflow-y-auto pr-1">
               <div className="space-y-4">
                 {/* 名称 */}
                 <div className="flex flex-col gap-1.5">
@@ -124,8 +118,8 @@ const PresetModal: React.FC<PresetModalProps> = ({
                   <input
                     type="text"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    onKeyDown={(e) => {
+                    onChange={e => setName(e.target.value)}
+                    onKeyDown={e => {
                       if (e.key === "Enter" && canSubmit) {
                         e.preventDefault();
                         handleSubmit();
@@ -146,17 +140,17 @@ const PresetModal: React.FC<PresetModalProps> = ({
                         { value: "countdown", label: "倒计时" },
                         { value: "countup", label: "正计时" },
                       ] as { value: PomodoroMode; label: string }[]
-                    ).map((opt) => {
+                    ).map(opt => {
                       const active = mode === opt.value;
                       return (
                         <button
                           key={opt.value}
                           type="button"
                           onClick={() => setMode(opt.value)}
-                          className={`px-4 py-3 rounded-xl text-sm font-medium transition-all border ${
+                          className={`rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
                             active
-                              ? "bg-indigo-500 text-white border-indigo-500 shadow-[0_4px_14px_rgba(99,102,241,0.35)]"
-                              : "bg-gray-50 dark:bg-zinc-950 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                              ? "border-indigo-500 bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] shadow-[0_4px_14px_rgba(99,102,241,0.35)]"
+                              : "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-slate-700 dark:bg-zinc-950 dark:text-slate-300 dark:hover:bg-zinc-800"
                           }`}
                         >
                           {opt.label}
@@ -176,7 +170,7 @@ const PresetModal: React.FC<PresetModalProps> = ({
                       max={600}
                       step={1}
                       value={durationMin}
-                      onChange={(e) => {
+                      onChange={e => {
                         const raw = e.target.value;
                         if (raw === "") {
                           setDurationMin("");
@@ -187,7 +181,7 @@ const PresetModal: React.FC<PresetModalProps> = ({
                           setDurationMin(v);
                         }
                       }}
-                      onKeyDown={(e) => {
+                      onKeyDown={e => {
                         if (e.key === "Enter" && canSubmit) {
                           e.preventDefault();
                           handleSubmit();
@@ -202,12 +196,12 @@ const PresetModal: React.FC<PresetModalProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="flex justify-end items-center gap-2 pt-4 mt-4 border-t border-white/20 dark:border-white/10 shrink-0">
+            <div className="mt-4 flex shrink-0 items-center justify-end gap-2 border-t border-white/20 pt-4 dark:border-white/10">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={submitting}
-                className="px-5 py-3.5 rounded-xl text-sm font-semibold cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-zinc-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="cursor-pointer rounded-xl border border-gray-200 bg-gray-100 px-5 py-3.5 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-zinc-800 dark:text-slate-200 dark:hover:bg-zinc-700"
               >
                 取消
               </button>
@@ -215,7 +209,7 @@ const PresetModal: React.FC<PresetModalProps> = ({
                 type="button"
                 onClick={handleSubmit}
                 disabled={!canSubmit}
-                className="px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-indigo-500 text-white shadow-[0_4px_14px_rgba(99,102,241,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-indigo-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:translate-y-0"
+                className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-none bg-[var(--th-btn-bg)] px-5 py-3.5 text-sm font-semibold text-[var(--th-btn-text)] shadow-[0_4px_14px_rgba(99,102,241,0.35),0_1px_2px_rgba(0,0,0,0.05)] transition-all hover:-translate-y-px hover:bg-[var(--th-btn-hover)] active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none disabled:hover:translate-y-0 dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
               >
                 {submitting ? "保存中..." : "保存"}
               </button>
@@ -224,7 +218,7 @@ const PresetModal: React.FC<PresetModalProps> = ({
         </motion.div>
       </motion.div>
     </AnimatePresence>,
-    document.body,
+    document.body
   );
 };
 

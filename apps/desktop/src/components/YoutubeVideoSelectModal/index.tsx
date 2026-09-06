@@ -213,7 +213,7 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
                     setError(null);
                   }}
                   placeholder="在此粘贴 YouTube 链接..."
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
                   disabled={isAnalyzing}
                 />
               </div>
@@ -225,7 +225,7 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
               )}
 
               <button
-                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-none bg-indigo-500 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(99,102,241,0.35),0_1px_2px_rgba(0,0,0,0.05)] transition-all hover:-translate-y-px hover:bg-indigo-600 active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700 dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
+                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-none bg-[var(--th-btn-bg)] px-5 py-3.5 text-sm font-semibold text-[var(--th-btn-text)] shadow-sm transition-all hover:-translate-y-px hover:bg-[var(--th-btn-hover)] active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700 dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
                 onClick={handleAnalyze}
                 disabled={!url.trim() || isAnalyzing}
               >
@@ -320,7 +320,7 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
                   <select
                     value={selectedVideo}
                     onChange={e => setSelectedVideo(e.target.value)}
-                    className="w-full cursor-pointer appearance-none rounded-[10px] border border-gray-200 bg-gray-50 py-2.5 pl-3.5 pr-9 text-[13px] text-gray-800 outline-none transition-all focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:focus:shadow-[0_0_0_3px_rgba(99,102,241,0.25)] [&_option]:dark:bg-zinc-900 [&_option]:dark:text-white"
+                    className="w-full cursor-pointer appearance-none rounded-[10px] border border-gray-200 bg-gray-50 py-2.5 pl-3.5 pr-9 text-[13px] text-gray-800 outline-none transition-all focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:focus:shadow-[0_0_0_3px_rgba(99,102,241,0.25)] [&_option]:dark:bg-zinc-900 [&_option]:dark:text-white"
                   >
                     {videoInfo?.videoStreams.map(stream => (
                       <option key={stream.id} value={stream.id}>
@@ -362,7 +362,7 @@ const YoutubeVideoSelectModal: React.FC<YoutubeVideoSelectModalProps> = ({
                   <select
                     value={selectedAudio}
                     onChange={e => setSelectedAudio(e.target.value)}
-                    className="w-full cursor-pointer appearance-none rounded-[10px] border border-gray-200 bg-gray-50 py-2.5 pl-3.5 pr-9 text-[13px] text-gray-800 outline-none transition-all focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:focus:shadow-[0_0_0_3px_rgba(99,102,241,0.25)] [&_option]:dark:bg-zinc-900 [&_option]:dark:text-white"
+                    className="w-full cursor-pointer appearance-none rounded-[10px] border border-gray-200 bg-gray-50 py-2.5 pl-3.5 pr-9 text-[13px] text-gray-800 outline-none transition-all focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:focus:shadow-[0_0_0_3px_rgba(99,102,241,0.25)] [&_option]:dark:bg-zinc-900 [&_option]:dark:text-white"
                   >
                     {videoInfo?.audioStreams.map(stream => (
                       <option key={stream.id} value={stream.id}>

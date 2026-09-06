@@ -35,13 +35,7 @@ export interface TaskCreationData {
   };
 }
 
-const TaskDialog = ({
-  visible,
-  taskType,
-  taskTitle,
-  onConfirm,
-  onCancel,
-}: TaskDialogProps) => {
+const TaskDialog = ({ visible, taskType, taskTitle, onConfirm, onCancel }: TaskDialogProps) => {
   // Deadline task state
   const [dueAt, setDueAt] = useState<dayjs.Dayjs | null>(null);
   const [remindBefore, setRemindBefore] = useState<number | null>(null);
@@ -100,8 +94,7 @@ const TaskDialog = ({
         type: recurrenceType,
         interval,
         weekdays: recurrenceType === "weekly" ? weekdays : undefined,
-        monthDay:
-          recurrenceType === "monthly" ? monthDay || undefined : undefined,
+        monthDay: recurrenceType === "monthly" ? monthDay || undefined : undefined,
         excludeHolidays,
         startDate: startDate.valueOf(),
         endDate: endMode === "date" && endDate ? endDate.valueOf() : null,
@@ -130,7 +123,7 @@ const TaskDialog = ({
       case "deadline":
         return (
           <svg
-            className="w-5 h-5"
+            className="h-5 w-5"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -143,7 +136,7 @@ const TaskDialog = ({
       case "planned":
         return (
           <svg
-            className="w-5 h-5"
+            className="h-5 w-5"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -158,7 +151,7 @@ const TaskDialog = ({
       case "recurring":
         return (
           <svg
-            className="w-5 h-5"
+            className="h-5 w-5"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -182,8 +175,7 @@ const TaskDialog = ({
       if (recurrenceType === "weekly" && weekdays.length === 0) return false;
       if (recurrenceType === "monthly" && !monthDay) return false;
       if (endMode === "date" && !endDate) return false;
-      if (endMode === "count" && (!maxOccurrences || maxOccurrences < 1))
-        return false;
+      if (endMode === "count" && (!maxOccurrences || maxOccurrences < 1)) return false;
       return true;
     }
     return false;
@@ -199,7 +191,7 @@ const TaskDialog = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.15 }}
-        className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        className="z-9999 fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm"
         onClick={onCancel}
       >
         {/* Modal Container */}
@@ -208,48 +200,38 @@ const TaskDialog = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: -10 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="w-full max-w-[560px] m-4 max-h-[90vh] flex flex-col"
-          onClick={(e) => e.stopPropagation()}
+          className="m-4 flex max-h-[90vh] w-full max-w-[560px] flex-col"
+          onClick={e => e.stopPropagation()}
         >
           {/* Modal Content */}
-          <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800 flex flex-col overflow-hidden">
+          <div className="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
             {/* Header */}
-            <div className="flex items-start gap-3 mb-5 shrink-0">
-              <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30 text-indigo-500">
+            <div className="mb-5 flex shrink-0 items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-indigo-200 bg-indigo-50 text-indigo-500 dark:border-indigo-500/30 dark:bg-indigo-500/20">
                 {getDialogIcon()}
               </div>
-              <div className="flex-1 min-w-0">
-                <h2 className="text-base font-bold m-0 text-gray-800 dark:text-white">
+              <div className="min-w-0 flex-1">
+                <h2 className="m-0 text-base font-bold text-gray-800 dark:text-white">
                   {getDialogTitle()}
                 </h2>
-                <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
-                  {taskTitle}
-                </p>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-500">{taskTitle}</p>
               </div>
               <button
                 onClick={onCancel}
-                className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
+                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-gray-100 text-gray-500 transition-all hover:bg-gray-200 hover:text-gray-700 dark:bg-zinc-800 dark:text-slate-400 dark:hover:bg-zinc-700 dark:hover:text-slate-200"
               >
-                <MdClose className="w-5 h-5" />
+                <MdClose className="h-5 w-5" />
               </button>
             </div>
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto task-dialog-scroll pr-1 min-h-0">
+            <div className="task-dialog-scroll min-h-0 flex-1 overflow-y-auto pr-1">
               <div className="space-y-4">
                 {/* Deadline Task Form */}
                 {taskType === "deadline" && (
                   <>
-                    <DateTimePicker
-                      label="截止时间"
-                      value={dueAt}
-                      onChange={setDueAt}
-                      required
-                    />
-                    <ReminderSelect
-                      value={remindBefore}
-                      onChange={setRemindBefore}
-                    />
+                    <DateTimePicker label="截止时间" value={dueAt} onChange={setDueAt} required />
+                    <ReminderSelect value={remindBefore} onChange={setRemindBefore} />
                   </>
                 )}
 
@@ -262,16 +244,8 @@ const TaskDialog = ({
                       onChange={setStartAt}
                       required
                     />
-                    <DateTimePicker
-                      label="结束时间"
-                      value={endAt}
-                      onChange={setEndAt}
-                      required
-                    />
-                    <ReminderSelect
-                      value={remindBefore}
-                      onChange={setRemindBefore}
-                    />
+                    <DateTimePicker label="结束时间" value={endAt} onChange={setEndAt} required />
+                    <ReminderSelect value={remindBefore} onChange={setRemindBefore} />
                   </>
                 )}
 
@@ -302,11 +276,11 @@ const TaskDialog = ({
             </div>
 
             {/* Footer */}
-            <div className="flex justify-end items-center pt-4 mt-4 border-t border-white/20 dark:border-white/10 shrink-0 gap-2">
+            <div className="mt-4 flex shrink-0 items-center justify-end gap-2 border-t border-white/20 pt-4 dark:border-white/10">
               <button
                 type="button"
                 onClick={onCancel}
-                className="px-5 py-3.5 rounded-xl text-sm font-semibold cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-zinc-700"
+                className="cursor-pointer rounded-xl border border-gray-200 bg-gray-100 px-5 py-3.5 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-200 dark:border-slate-700 dark:bg-zinc-800 dark:text-slate-200 dark:hover:bg-zinc-700"
               >
                 取消
               </button>
@@ -314,7 +288,7 @@ const TaskDialog = ({
                 type="button"
                 onClick={handleSave}
                 disabled={!canSave()}
-                className="px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-indigo-500 text-white shadow-[0_4px_14px_rgba(99,102,241,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-indigo-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none"
+                className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-none bg-[var(--th-btn-bg)] px-5 py-3.5 text-sm font-semibold text-[var(--th-btn-text)] shadow-[0_4px_14px_rgba(99,102,241,0.35),0_1px_2px_rgba(0,0,0,0.05)] transition-all hover:-translate-y-px hover:bg-[var(--th-btn-hover)] active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
               >
                 创建
               </button>
@@ -323,7 +297,7 @@ const TaskDialog = ({
         </motion.div>
       </motion.div>
     </AnimatePresence>,
-    document.body,
+    document.body
   );
 };
 

@@ -32,27 +32,18 @@ const SettingSelect: React.FC<SettingSelectProps> = ({
       <div className="relative">
         <select
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={e => onChange(e.target.value)}
           disabled={disabled}
-          className={`w-full py-2.5 pl-3.5 pr-9 rounded-xl text-sm outline-none
-            appearance-none cursor-pointer transition-all
-            bg-gray-50 dark:bg-zinc-950
-            border border-gray-200 dark:border-slate-700
-            text-gray-800 dark:text-white
-            focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.15)]
-            dark:focus:shadow-[0_0_0_3px_rgba(59,130,246,0.25)]
-            disabled:opacity-60 disabled:cursor-not-allowed
-            [&_option]:dark:bg-zinc-900 [&_option]:dark:text-white
-            ${className}`}
+          className={`w-full cursor-pointer appearance-none rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-3.5 pr-9 text-sm text-gray-800 outline-none transition-all focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:focus:shadow-[0_0_0_3px_rgba(59,130,246,0.25)] [&_option]:dark:bg-zinc-900 [&_option]:dark:text-white ${className}`}
         >
-          {options.map((option) => (
+          {options.map(option => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
         </select>
         <svg
-          className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400 dark:text-slate-500"
+          className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
