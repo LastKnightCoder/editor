@@ -169,7 +169,7 @@ const SearchModelSection = () => {
   };
 
   return (
-    <div className={classNames("rounded-xl border bg-transparent", themeColors.focusBorderClass)}>
+    <div className={classNames("rounded-xl border bg-transparent", themeColors.borderClass)}>
       <div className="flex items-center justify-between px-5 py-4">
         <div>
           <h3 className="text-base font-semibold">检索模型（扩展 / 重排）</h3>
