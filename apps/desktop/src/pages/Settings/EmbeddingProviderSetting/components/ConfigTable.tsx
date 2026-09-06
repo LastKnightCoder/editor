@@ -23,7 +23,7 @@ const ConfigTable = ({
   const themeColors = useThemeColors();
 
   return (
-    <div className={classNames("rounded-xl border bg-transparent", themeColors.focusBorderClass)}>
+    <div className={classNames("rounded-xl border bg-transparent", themeColors.borderClass)}>
       <div className={classNames("flex items-center justify-between px-5 py-4")}>
         <h3 className={classNames("text-base font-semibold")}>Provider 列表</h3>
         <SettingButton

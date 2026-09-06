@@ -5,7 +5,6 @@ import { getVersions } from "@/commands";
 import { invoke } from "@/electron";
 import SelectDatabase from "@/components/SelectDatabase";
 import { SettingButton, SettingContainer, SettingSection } from "../components";
-import useThemeColors from "@/hooks/useThemeColors";
 
 const AppAbout = memo(() => {
   const [loading, setLoading] = useState(false);
@@ -14,7 +13,6 @@ const AppAbout = memo(() => {
   const [cliInstalled, setCliInstalled] = useState(false);
   const [cliPath, setCliPath] = useState("");
   const [cliLoading, setCliLoading] = useState(false);
-  const themeColors = useThemeColors();
   const { message } = App.useApp();
 
   useAsyncEffect(async () => {
@@ -91,10 +89,10 @@ const AppAbout = memo(() => {
       <SettingSection title="软件信息" description="查看当前软件版本信息">
         <div className="inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-5 py-4 dark:border-slate-700 dark:bg-zinc-900/50">
           <div
-            className={`h-12 w-12 rounded-xl ${themeColors.gradientClass} flex items-center justify-center`}
+            className={`flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--th-bg-hover)]`}
           >
             <svg
-              className="h-6 w-6 text-white"
+              className="h-6 w-6 text-[var(--th-text-secondary)]"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -112,7 +110,7 @@ const AppAbout = memo(() => {
             {loading ? (
               <div className="flex items-center gap-2">
                 <svg
-                  className="h-4 w-4 animate-spin text-[var(--th-accent)]"
+                  className="h-4 w-4 animate-spin text-[var(--th-text-secondary)]"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
