@@ -265,7 +265,7 @@ const SearchModelSection = () => {
               className={classNames(
                 "rounded-lg border p-4 transition-colors",
                 isActive
-                  ? "border-[var(--th-success)]/40 bg-[var(--th-success)]/10"
+                  ? "border-[var(--th-border-hover)] bg-[var(--th-bg-hover)]"
                   : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50"
               )}
             >
@@ -292,7 +292,7 @@ const SearchModelSection = () => {
                       </span>
                     )}
                     {isRerankerActive && (
-                      <span className="bg-[var(--th-info)]/15 dark:bg-[var(--th-accent)]/20 rounded-full px-2 py-0.5 text-xs font-medium text-[var(--th-active-text)]">
+                      <span className="bg-[var(--th-success)]/15 text-status-success rounded-full px-2 py-0.5 text-xs font-medium">
                         当前重排模型
                       </span>
                     )}

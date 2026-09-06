@@ -283,7 +283,7 @@ const MODULE_CONFIG: Record<
 
 // 分类配置
 const CATEGORY_CONFIG = {
-  content: { name: "内容创作", color: "border-[var(--th-border-focus)]" },
+  content: { name: "内容创作", color: "border-blue-500" },
   knowledge: { name: "知识管理", color: "border-green-500" },
   personal: { name: "个人管理", color: "border-orange-500" },
   tools: { name: "工具与资源", color: "border-cyan-500" },
