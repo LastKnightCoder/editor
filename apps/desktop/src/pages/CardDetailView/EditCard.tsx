@@ -595,7 +595,6 @@ const EditCard = (props: IEditCardProps) => {
             <ErrorBoundary>
               <Editor
                 contentId={editingCard?.contentId}
-                collaborationControl={false}
                 key={`normal-${editingCard.id}-${editorRemountKey}`}
                 ref={editorRef}
                 onInit={onInit}

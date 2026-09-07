@@ -4,8 +4,19 @@ import { useMemoizedFn } from "ahooks";
 import { App as AntdApp } from "antd";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { EditorServicesProvider } from "@tau/editor/src";
+import { EditorProvider, createMarkdownPasteImportExtension } from "@tau/editor/src";
+import WebviewExtension from "@tau/editor-webview";
 import type { Descendant } from "slate";
+import {
+  createMobileEditorRegistry,
+  useMobileEditorConfig,
+  mobileImportFromMarkdown,
+} from "../services/editorRegistry";
+
+const mobileEditorExtensions = [
+  createMarkdownPasteImportExtension(mobileImportFromMarkdown),
+  new WebviewExtension(),
+];
 import {
   BilibiliVideoDepsProvider,
   YoutubeVideoDepsProvider,
@@ -19,13 +30,9 @@ import {
   type DataTableView,
 } from "@tau/shared";
 
-import { createMobileEditorServices } from "../services/editorServices";
 import { useBootstrap } from "../hooks/useBootstrap";
 import { useCardsQuery } from "../hooks/useCardsQuery";
-import {
-  emitDatabaseChange,
-  useDatabaseChangeEffect,
-} from "../hooks/useDatabaseChangeEffect";
+import { emitDatabaseChange, useDatabaseChangeEffect } from "../hooks/useDatabaseChangeEffect";
 import { useResourceSync } from "../hooks/useResourceSync";
 import { useSyncSettings } from "../hooks/useSyncSettings";
 import { mapErrorToMessage, parseInvokeError } from "../services/errors";
@@ -41,10 +48,7 @@ import {
   isEditorContentEmpty,
   normalizeEditorContent,
 } from "../features/cards/editorContentUtils";
-import {
-  clearQuickCaptureDraft,
-  hasQuickCaptureDraft,
-} from "../features/cards/quickCaptureDraft";
+import { clearQuickCaptureDraft, hasQuickCaptureDraft } from "../features/cards/quickCaptureDraft";
 import { subscribeContentUpdateAll } from "../features/cards/contentSyncBus";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import type { SettingModule } from "../features/settings/components/types";
@@ -76,10 +80,7 @@ import { getPageDefinition } from "../navigation/pageRegistry";
 import type { ScreenPageKey, StackEntry } from "../navigation/types";
 import { ScreenStackHost } from "../navigation/ScreenStackHost";
 import { useRootScrollLock } from "../navigation/useRootScrollLock";
-import {
-  extractPreviewOverlayUi,
-  type PreviewOverlayUi,
-} from "./previewOverlayUi";
+import { extractPreviewOverlayUi, type PreviewOverlayUi } from "./previewOverlayUi";
 import type { CardDetailResponse, CardsOverviewResponse } from "../types";
 
 const EMPTY_VIEW_CONFIG = {
@@ -105,7 +106,7 @@ const bilibiliDeps: UseBilibiliVideoDeps = {
     throw new Error(buildUnsupportedMessage("bilibili.cacheVideo"));
   },
   getCacheStatus: async () => false,
-  showError: (message) => {
+  showError: message => {
     console.warn("[mobile-bilibili]", message);
   },
 };
@@ -116,8 +117,8 @@ const youtubeDeps: UseYoutubeVideoDeps = {
   cacheVideo: async () => {
     throw new Error(buildUnsupportedMessage("youtube.cacheVideo"));
   },
-  convertFileSrc: (path) => path,
-  showError: (message) => {
+  convertFileSrc: path => path,
+  showError: message => {
     console.warn("[mobile-youtube]", message);
   },
 };
@@ -129,14 +130,14 @@ const remoteVideoDeps: UseRemoteVideoDeps = {
     cached: true,
   }),
   getCacheStatus: async () => null,
-  showError: (message) => {
+  showError: message => {
     console.warn("[mobile-remote-video]", message);
   },
   isRemoteUrl: () => false,
 };
 
 const editDatabaseDeps: UseEditDatabaseDeps = {
-  getDataTableDetail: async (tableId) => {
+  getDataTableDetail: async tableId => {
     const table: DataTable = {
       id: tableId,
       createTime: 0,
@@ -157,7 +158,7 @@ const editDatabaseDeps: UseEditDatabaseDeps = {
     };
     return { table, views: [view] };
   },
-  updateDataTable: async (data) => ({
+  updateDataTable: async data => ({
     id: data.id,
     createTime: 0,
     updateTime: Date.now(),
@@ -165,8 +166,8 @@ const editDatabaseDeps: UseEditDatabaseDeps = {
     rows: data.rows,
     activeViewId: data.activeViewId ?? null,
   }),
-  updateDataTableView: async (view) => view,
-  createDataTableView: async (view) => ({
+  updateDataTableView: async view => view,
+  createDataTableView: async view => ({
     id: Date.now(),
     tableId: view.tableId,
     name: view.name,
@@ -179,7 +180,7 @@ const editDatabaseDeps: UseEditDatabaseDeps = {
     createTime: Date.now(),
     updateTime: Date.now(),
   }),
-  deleteDataTableView: async (viewId) => viewId,
+  deleteDataTableView: async viewId => viewId,
   setActiveDataTableView: async () => true,
   reorderDataTableViews: async () => undefined,
 };
@@ -194,26 +195,21 @@ const EMPTY_CARDS: CardsOverviewResponse = {
   items: [],
 };
 
-const services = createMobileEditorServices();
+const editorRegistry = createMobileEditorRegistry();
 const SEARCH_SCREEN_TRANSITION = getPageDefinition("screen.search").transition;
-const SETTINGS_SCREEN_TRANSITION =
-  getPageDefinition("screen.settings").transition;
+const SETTINGS_SCREEN_TRANSITION = getPageDefinition("screen.settings").transition;
 const ABOUT_SCREEN_TRANSITION = getPageDefinition("screen.about").transition;
-const DIARY_HOME_SCREEN_TRANSITION =
-  getPageDefinition("screen.diaryHome").transition;
+const DIARY_HOME_SCREEN_TRANSITION = getPageDefinition("screen.diaryHome").transition;
 const TODO_SCREEN_TRANSITION = getPageDefinition("screen.todo").transition;
-const TODO_DETAIL_SCREEN_TRANSITION =
-  getPageDefinition("screen.todoDetail").transition;
-const CONTENT_DETAIL_SCREEN_TRANSITION = getPageDefinition(
-  "screen.contentDetail",
-).transition;
+const TODO_DETAIL_SCREEN_TRANSITION = getPageDefinition("screen.todoDetail").transition;
+const CONTENT_DETAIL_SCREEN_TRANSITION = getPageDefinition("screen.contentDetail").transition;
 const QUICK_CAPTURE_DEBOUNCE_MS = 600;
 
 async function withTimeout<T>(
   task: Promise<T>,
   timeoutMs: number,
   timeoutCode: string,
-  timeoutMessage: string,
+  timeoutMessage: string
 ): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | null = null;
   try {
@@ -264,8 +260,7 @@ function extractContentDetailParams(params: unknown): {
   const contentType = (params as { contentType?: unknown }).contentType;
   const refId = (params as { refId?: unknown }).refId;
   const fromDiary = (params as { fromDiary?: unknown }).fromDiary;
-  const fromPreviewOverlay = (params as { fromPreviewOverlay?: unknown })
-    .fromPreviewOverlay;
+  const fromPreviewOverlay = (params as { fromPreviewOverlay?: unknown }).fromPreviewOverlay;
   const previewCardId = (params as { previewCardId?: unknown }).previewCardId;
   const previewUiSnapshot = (
     params as {
@@ -275,9 +270,7 @@ function extractContentDetailParams(params: unknown): {
       };
     }
   ).previewUiSnapshot;
-  const normalizedPreviewUi:
-    | { scrollTop?: number; panelState?: "normal" | "full" }
-    | undefined =
+  const normalizedPreviewUi: { scrollTop?: number; panelState?: "normal" | "full" } | undefined =
     previewUiSnapshot && typeof previewUiSnapshot === "object"
       ? {
           scrollTop:
@@ -286,8 +279,7 @@ function extractContentDetailParams(params: unknown): {
               ? previewUiSnapshot.scrollTop
               : undefined,
           panelState:
-            previewUiSnapshot.panelState === "normal" ||
-            previewUiSnapshot.panelState === "full"
+            previewUiSnapshot.panelState === "normal" || previewUiSnapshot.panelState === "full"
               ? (previewUiSnapshot.panelState as "normal" | "full")
               : undefined,
         }
@@ -295,15 +287,9 @@ function extractContentDetailParams(params: unknown): {
   return {
     contentId,
     contentTitle:
-      typeof contentTitle === "string" && contentTitle.trim()
-        ? contentTitle
-        : undefined,
-    contentType:
-      typeof contentType === "string" && contentType.trim()
-        ? contentType
-        : undefined,
-    refId:
-      typeof refId === "number" && Number.isFinite(refId) ? refId : undefined,
+      typeof contentTitle === "string" && contentTitle.trim() ? contentTitle : undefined,
+    contentType: typeof contentType === "string" && contentType.trim() ? contentType : undefined,
+    refId: typeof refId === "number" && Number.isFinite(refId) ? refId : undefined,
     fromDiary: fromDiary === true,
     fromPreviewOverlay: fromPreviewOverlay === true,
     previewCardId:
@@ -335,24 +321,19 @@ function extractTodoDetailParams(params: unknown): {
   return {
     todoId,
     groupId:
-      typeof groupId === "number" && Number.isFinite(groupId) && groupId > 0
-        ? groupId
-        : undefined,
+      typeof groupId === "number" && Number.isFinite(groupId) && groupId > 0 ? groupId : undefined,
   };
 }
 
 export default function AppShell() {
-  const [previewPanelState, setPreviewPanelState] = useState<"normal" | "full">(
-    "normal",
-  );
+  const mobileEditorConfig = useMobileEditorConfig();
+  const [previewPanelState, setPreviewPanelState] = useState<"normal" | "full">("normal");
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewCardId, setPreviewCardId] = useState<number | null>(null);
-  const [previewCardDetail, setPreviewCardDetail] =
-    useState<CardDetailResponse | null>(null);
+  const [previewCardDetail, setPreviewCardDetail] = useState<CardDetailResponse | null>(null);
   const [previewScrollTop, setPreviewScrollTop] = useState(0);
   const [quickCaptureSaving, setQuickCaptureSaving] = useState(false);
-  const [quickCaptureCategory, setQuickCaptureCategory] =
-    useState<KnownCardCategory>("temporary");
+  const [quickCaptureCategory, setQuickCaptureCategory] = useState<KnownCardCategory>("temporary");
   const [isSearching, setIsSearching] = useState(false);
 
   const bootstrap = useBootstrap();
@@ -395,9 +376,7 @@ export default function AppShell() {
 
   const previewOpen = topOverlayKey === "overlay.cardPreview";
   const quickCaptureOpen = topOverlayKey === "overlay.quickCapture";
-  const previewCardIdFromNavigation = previewOpen
-    ? extractPreviewCardId(topOverlayParams)
-    : null;
+  const previewCardIdFromNavigation = previewOpen ? extractPreviewCardId(topOverlayParams) : null;
   const previewUiFromNavigation: PreviewOverlayUi = previewOpen
     ? extractPreviewOverlayUi(topOverlayParams)
     : { scrollTop: 0, panelState: "normal" };
@@ -405,15 +384,12 @@ export default function AppShell() {
     activeScreenKey === "screen.contentDetail"
       ? extractContentDetailParams(activeScreenParams)
       : null;
-  const diaryModuleEnabled =
-    syncSettings.safeSetting?.module?.dailyNote?.enable !== false;
-  const todoModuleEnabled =
-    syncSettings.safeSetting?.module?.todo?.enable !== false;
+  const diaryModuleEnabled = syncSettings.safeSetting?.module?.dailyNote?.enable !== false;
+  const todoModuleEnabled = syncSettings.safeSetting?.module?.todo?.enable !== false;
   const previousScreenKeyRef = useRef(activeScreenKey);
   const previousContentDetailParamsRef = useRef(contentDetailParams);
   const isContentDetailFromPreview =
-    activeScreenKey === "screen.contentDetail" &&
-    contentDetailParams?.fromPreviewOverlay === true;
+    activeScreenKey === "screen.contentDetail" && contentDetailParams?.fromPreviewOverlay === true;
   const shouldRenderPreviewSheet = previewOpen && !isContentDetailFromPreview;
   useRootScrollLock(activeScreenKey !== "main.home");
 
@@ -524,11 +500,7 @@ export default function AppShell() {
     if (!previewOpen) return;
     setPreviewPanelState(previewUiFromNavigation.panelState);
     setPreviewScrollTop(previewUiFromNavigation.scrollTop);
-  }, [
-    previewOpen,
-    previewUiFromNavigation.panelState,
-    previewUiFromNavigation.scrollTop,
-  ]);
+  }, [previewOpen, previewUiFromNavigation.panelState, previewUiFromNavigation.scrollTop]);
 
   useEffect(() => {
     if (!isContentDetailFromPreview) {
@@ -541,10 +513,7 @@ export default function AppShell() {
     if (snapshot.panelState === "normal" || snapshot.panelState === "full") {
       setPreviewPanelState(snapshot.panelState);
     }
-    if (
-      typeof snapshot.scrollTop === "number" &&
-      Number.isFinite(snapshot.scrollTop)
-    ) {
+    if (typeof snapshot.scrollTop === "number" && Number.isFinite(snapshot.scrollTop)) {
       setPreviewScrollTop(Math.max(0, snapshot.scrollTop));
     }
   }, [
@@ -554,7 +523,7 @@ export default function AppShell() {
   ]);
 
   useEffect(() => {
-    return subscribeContentUpdateAll((payload) => {
+    return subscribeContentUpdateAll(payload => {
       const normalizedContent = normalizeEditorContent(payload.content);
       const updateTime =
         typeof payload.updateTime === "number" &&
@@ -573,7 +542,7 @@ export default function AppShell() {
         updateTime,
       });
 
-      setPreviewCardDetail((prev) => {
+      setPreviewCardDetail(prev => {
         if (!prev || prev.contentId !== payload.contentId) {
           return prev;
         }
@@ -588,17 +557,13 @@ export default function AppShell() {
   }, [cards.patchCardsByContent]);
 
   const presentError = useMemoizedFn(
-    (
-      error: unknown,
-      fallback: string,
-      type: "error" | "info" | "success" = "error",
-    ) => {
+    (error: unknown, fallback: string, type: "error" | "info" | "success" = "error") => {
       const parsed = parseInvokeError(error);
       toast({
         type,
         text: mapErrorToMessage(parsed.code, parsed.message || fallback),
       });
-    },
+    }
   );
 
   const refreshVersionsSafe = useMemoizedFn(async () => {
@@ -610,60 +575,50 @@ export default function AppShell() {
   });
 
   const refreshCardsSafe = useMemoizedFn(
-    async (overrides?: {
-      page?: number;
-      pageSize?: number;
-      query?: string;
-      category?: string;
-    }) => {
+    async (overrides?: { page?: number; pageSize?: number; query?: string; category?: string }) => {
       try {
         return await cards.refreshCards(overrides);
       } catch (error) {
         presentError(error, "卡片读取失败");
         return cards.cards ?? EMPTY_CARDS;
       }
-    },
+    }
   );
 
-  const refreshAfterDatabaseChange = useMemoizedFn(
-    async (event: { databaseName: string }) => {
-      const targetDatabaseName =
-        event.databaseName ||
-        syncSettings.safeSetting?.database?.active ||
-        bootstrap.databases?.activeDatabase ||
-        null;
-      const taskResults = await Promise.allSettled([
-        syncSettings.loadSetting(),
-        bootstrap.refreshDatabases(),
-        refreshCardsSafe({ page: 1 }),
-        refreshVersionsSafe(),
-        useTodoStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
-        useDiaryStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
-      ]);
-      const fallbackMessages = [
-        "刷新设置快照失败",
-        "刷新数据库列表失败",
-        "刷新卡片列表失败",
-        "刷新同步状态失败",
-        "刷新任务数据失败",
-        "刷新日记数据失败",
-      ] as const;
-      taskResults.forEach((result, index) => {
-        if (result.status === "rejected") {
-          presentError(
-            result.reason,
-            fallbackMessages[index] ?? "数据库变更后刷新失败",
-          );
-        }
-      });
-    },
-  );
+  const refreshAfterDatabaseChange = useMemoizedFn(async (event: { databaseName: string }) => {
+    const targetDatabaseName =
+      event.databaseName ||
+      syncSettings.safeSetting?.database?.active ||
+      bootstrap.databases?.activeDatabase ||
+      null;
+    const taskResults = await Promise.allSettled([
+      syncSettings.loadSetting(),
+      bootstrap.refreshDatabases(),
+      refreshCardsSafe({ page: 1 }),
+      refreshVersionsSafe(),
+      useTodoStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
+      useDiaryStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
+    ]);
+    const fallbackMessages = [
+      "刷新设置快照失败",
+      "刷新数据库列表失败",
+      "刷新卡片列表失败",
+      "刷新同步状态失败",
+      "刷新任务数据失败",
+      "刷新日记数据失败",
+    ] as const;
+    taskResults.forEach((result, index) => {
+      if (result.status === "rejected") {
+        presentError(result.reason, fallbackMessages[index] ?? "数据库变更后刷新失败");
+      }
+    });
+  });
 
   useDatabaseChangeEffect(
-    async (event) => {
+    async event => {
       await refreshAfterDatabaseChange(event);
     },
-    [refreshAfterDatabaseChange],
+    [refreshAfterDatabaseChange]
   );
 
   // 初始化（仅执行一次）
@@ -712,39 +667,33 @@ export default function AppShell() {
     onBackButtonPress(() => {
       dispatchBack("android");
     })
-      .then((registered) => {
+      .then(registered => {
         if (!active) {
           void registered.unregister();
           return;
         }
         listener = registered;
       })
-      .catch((error) => {
-        console.error(
-          "[navigation] failed to register onBackButtonPress",
-          error,
-        );
+      .catch(error => {
+        console.error("[navigation] failed to register onBackButtonPress", error);
       });
 
     import("@tauri-apps/api/window")
       .then(({ getCurrentWindow }) =>
-        getCurrentWindow().onCloseRequested((event) => {
+        getCurrentWindow().onCloseRequested(event => {
           event.preventDefault();
           dispatchBack("android");
-        }),
+        })
       )
-      .then((unlisten) => {
+      .then(unlisten => {
         if (!active) {
           unlisten();
           return;
         }
         removeCloseRequested = unlisten;
       })
-      .catch((error) => {
-        console.error(
-          "[navigation] failed to register onCloseRequested",
-          error,
-        );
+      .catch(error => {
+        console.error("[navigation] failed to register onCloseRequested", error);
       });
 
     return () => {
@@ -794,7 +743,7 @@ export default function AppShell() {
       bootstrap.refreshVersions(),
       35000,
       "SYNC_CHECK_FAILED",
-      "同步状态刷新超时，请检查网络、Endpoint 或 URL 风格",
+      "同步状态刷新超时，请检查网络、Endpoint 或 URL 风格"
     );
   });
 
@@ -826,9 +775,7 @@ export default function AppShell() {
   const handleResourceSyncStart = useMemoizedFn(async () => {
     const result = await resourceSync.startResourceSync();
     if (!result.ok) {
-      throw new Error(
-        `${result.code ?? "RESOURCE_SYNC_FAILED"}:${result.message}`,
-      );
+      throw new Error(`${result.code ?? "RESOURCE_SYNC_FAILED"}:${result.message}`);
     }
     return result;
   });
@@ -836,9 +783,7 @@ export default function AppShell() {
   const handleResourceSyncRetryFailed = useMemoizedFn(async () => {
     const result = await resourceSync.retryFailedResourceSync();
     if (!result.ok) {
-      throw new Error(
-        `${result.code ?? "RESOURCE_SYNC_FAILED"}:${result.message}`,
-      );
+      throw new Error(`${result.code ?? "RESOURCE_SYNC_FAILED"}:${result.message}`);
     }
     return result;
   });
@@ -846,9 +791,7 @@ export default function AppShell() {
   const handleResourceSyncCancel = useMemoizedFn(async () => {
     const result = await resourceSync.cancelResourceSync();
     if (!result.ok) {
-      throw new Error(
-        `${result.code ?? "RESOURCE_SYNC_FAILED"}:${result.message}`,
-      );
+      throw new Error(`${result.code ?? "RESOURCE_SYNC_FAILED"}:${result.message}`);
     }
     return result;
   });
@@ -880,20 +823,18 @@ export default function AppShell() {
     }
   });
 
-  const handlePreviewPanelStateChange = useMemoizedFn(
-    (nextState: "normal" | "full") => {
-      setPreviewPanelState(nextState);
-      if (!previewOpen || previewCardIdFromNavigation === null) {
-        return;
-      }
-      replaceOverlayParams("overlay.cardPreview", {
-        ui: {
-          scrollTop: previewScrollTop,
-          panelState: nextState,
-        },
-      });
-    },
-  );
+  const handlePreviewPanelStateChange = useMemoizedFn((nextState: "normal" | "full") => {
+    setPreviewPanelState(nextState);
+    if (!previewOpen || previewCardIdFromNavigation === null) {
+      return;
+    }
+    replaceOverlayParams("overlay.cardPreview", {
+      ui: {
+        scrollTop: previewScrollTop,
+        panelState: nextState,
+      },
+    });
+  });
 
   const handlePreviewCard = useMemoizedFn(async (cardId: number) => {
     openOverlay("overlay.cardPreview", {
@@ -946,10 +887,7 @@ export default function AppShell() {
     async (cardId: number, category: KnownCardCategory) => {
       try {
         await tauri.updateCardCategory({ id: cardId, category });
-        if (
-          previewCardId === cardId ||
-          previewCardIdFromNavigation === cardId
-        ) {
+        if (previewCardId === cardId || previewCardIdFromNavigation === cardId) {
           void requestPreviewCardDetail(cardId);
         }
         await refreshCardsSafe({ page: 1 });
@@ -958,7 +896,7 @@ export default function AppShell() {
         presentError(error, "更新卡片类型失败");
         throw error;
       }
-    },
+    }
   );
 
   const handleDeleteCard = useMemoizedFn(async (cardId: number) => {
@@ -983,9 +921,7 @@ export default function AppShell() {
   });
 
   const persistQuickCapture = useMemoizedFn(async (): Promise<boolean> => {
-    const normalizedContent = normalizeEditorContent(
-      quickCaptureContentRef.current,
-    );
+    const normalizedContent = normalizeEditorContent(quickCaptureContentRef.current);
     quickCaptureContentRef.current = normalizedContent;
     if (isEditorContentEmpty(normalizedContent)) {
       return true;
@@ -1091,25 +1027,21 @@ export default function AppShell() {
     }, QUICK_CAPTURE_DEBOUNCE_MS);
   });
 
-  const handleQuickCaptureContentChange = useMemoizedFn(
-    (content: Descendant[]) => {
-      quickCaptureContentRef.current = normalizeEditorContent(content);
-      quickCaptureDirtyRef.current = true;
-      scheduleQuickCapturePersist();
-    },
-  );
+  const handleQuickCaptureContentChange = useMemoizedFn((content: Descendant[]) => {
+    quickCaptureContentRef.current = normalizeEditorContent(content);
+    quickCaptureDirtyRef.current = true;
+    scheduleQuickCapturePersist();
+  });
 
-  const handleQuickCaptureCategoryChange = useMemoizedFn(
-    (category: KnownCardCategory) => {
-      if (quickCaptureCategoryRef.current === category) {
-        return;
-      }
-      quickCaptureCategoryRef.current = category;
-      setQuickCaptureCategory(category);
-      quickCaptureDirtyRef.current = true;
-      scheduleQuickCapturePersist();
-    },
-  );
+  const handleQuickCaptureCategoryChange = useMemoizedFn((category: KnownCardCategory) => {
+    if (quickCaptureCategoryRef.current === category) {
+      return;
+    }
+    quickCaptureCategoryRef.current = category;
+    setQuickCaptureCategory(category);
+    quickCaptureDirtyRef.current = true;
+    scheduleQuickCapturePersist();
+  });
 
   const handleQuickCaptureClear = useMemoizedFn(() => {
     if (quickCaptureSaving) {
@@ -1144,68 +1076,60 @@ export default function AppShell() {
     })();
   });
 
-  const handleQuickCaptureClose = useMemoizedFn(
-    async (content?: Descendant[]) => {
-      if (quickCaptureSaving) {
+  const handleQuickCaptureClose = useMemoizedFn(async (content?: Descendant[]) => {
+    if (quickCaptureSaving) {
+      return;
+    }
+
+    clearQuickCaptureDebounceTimer();
+    const normalizedContent = normalizeEditorContent(content ?? quickCaptureContentRef.current);
+    quickCaptureContentRef.current = normalizedContent;
+
+    if (!isEditorContentEmpty(normalizedContent)) {
+      quickCaptureDirtyRef.current = true;
+      const persisted = await flushQuickCapturePersistQueue();
+      if (!persisted) {
         return;
       }
+    }
 
-      clearQuickCaptureDebounceTimer();
-      const normalizedContent = normalizeEditorContent(
-        content ?? quickCaptureContentRef.current,
-      );
-      quickCaptureContentRef.current = normalizedContent;
-
-      if (!isEditorContentEmpty(normalizedContent)) {
-        quickCaptureDirtyRef.current = true;
-        const persisted = await flushQuickCapturePersistQueue();
-        if (!persisted) {
-          return;
+    const finalContent = normalizeEditorContent(quickCaptureContentRef.current);
+    const currentCardId = quickCaptureCardIdRef.current;
+    if (isEditorContentEmpty(finalContent) && currentCardId !== null) {
+      setQuickCaptureSaving(true);
+      try {
+        const changed = await tauri.deleteCard(currentCardId);
+        if (changed <= 0) {
+          throw new Error("CARD_NOT_FOUND: card does not exist");
         }
+      } catch (error) {
+        presentError(error, "删除空白闪念卡片失败");
+        return;
+      } finally {
+        setQuickCaptureSaving(false);
       }
+    }
 
-      const finalContent = normalizeEditorContent(
-        quickCaptureContentRef.current,
-      );
-      const currentCardId = quickCaptureCardIdRef.current;
-      if (isEditorContentEmpty(finalContent) && currentCardId !== null) {
-        setQuickCaptureSaving(true);
-        try {
-          const changed = await tauri.deleteCard(currentCardId);
-          if (changed <= 0) {
-            throw new Error("CARD_NOT_FOUND: card does not exist");
-          }
-        } catch (error) {
-          presentError(error, "删除空白闪念卡片失败");
-          return;
-        } finally {
-          setQuickCaptureSaving(false);
-        }
-      }
-
-      clearQuickCaptureDraft();
-      resetQuickCaptureSession();
-      if (quickCaptureOpen) {
-        dispatchBack("ui");
-      }
-      await refreshCardsSafe({ page: 1 });
-    },
-  );
+    clearQuickCaptureDraft();
+    resetQuickCaptureSession();
+    if (quickCaptureOpen) {
+      dispatchBack("ui");
+    }
+    await refreshCardsSafe({ page: 1 });
+  });
 
   const handleAddCard = useMemoizedFn(() => {
     resetQuickCaptureSession();
     openOverlay("overlay.quickCapture", {});
   });
 
-  const handleSettingsModuleChange = useMemoizedFn(
-    (module: SettingModule | null) => {
-      if (module) {
-        pushSettingsModule(module);
-      } else {
-        popSettingsModule();
-      }
-    },
-  );
+  const handleSettingsModuleChange = useMemoizedFn((module: SettingModule | null) => {
+    if (module) {
+      pushSettingsModule(module);
+    } else {
+      popSettingsModule();
+    }
+  });
 
   useEffect(() => {
     const previousScreenKey = previousScreenKeyRef.current;
@@ -1216,8 +1140,7 @@ export default function AppShell() {
       activeScreenKey !== "screen.contentDetail";
 
     if (leftDetailFromPreview && previewOpen) {
-      const restoreCardId =
-        previousDetailParams?.previewCardId ?? previewCardIdFromNavigation;
+      const restoreCardId = previousDetailParams?.previewCardId ?? previewCardIdFromNavigation;
       if (
         typeof restoreCardId === "number" &&
         Number.isFinite(restoreCardId) &&
@@ -1254,173 +1177,159 @@ export default function AppShell() {
     requestPreviewCardDetail,
   ]);
 
-  const renderScreenEntry = useMemoizedFn(
-    (entry: StackEntry<ScreenPageKey>) => {
-      if (entry.key === "screen.search") {
-        return (
-          <SearchPage
-            transition={SEARCH_SCREEN_TRANSITION}
-            onClose={() => dispatchBack("ui")}
-            onSearch={handleSearch}
-            onPreviewCard={handlePreviewCard}
-            isSearching={isSearching}
-          />
-        );
-      }
+  const renderScreenEntry = useMemoizedFn((entry: StackEntry<ScreenPageKey>) => {
+    if (entry.key === "screen.search") {
+      return (
+        <SearchPage
+          transition={SEARCH_SCREEN_TRANSITION}
+          onClose={() => dispatchBack("ui")}
+          onSearch={handleSearch}
+          onPreviewCard={handlePreviewCard}
+          isSearching={isSearching}
+        />
+      );
+    }
 
-      if (entry.key === "screen.settings") {
-        return (
-          <SettingsPage
-            transition={SETTINGS_SCREEN_TRANSITION}
-            safeSetting={syncSettings.safeSetting}
-            databases={bootstrap.databases}
-            versions={bootstrap.versions}
-            isSavingSetting={syncSettings.isSavingSetting}
-            isSyncing={syncSettings.isSyncing}
-            onBack={() => dispatchBack("ui")}
-            activeModule={activeSettingsModule}
-            onActiveModuleChange={handleSettingsModuleChange}
-            onSwitchDatabase={handleSwitchDatabase}
-            onSaveSetting={handleSaveSetting}
-            onCheckVersions={handleCheckVersions}
-            onSyncUpload={handleSyncUpload}
-            onSyncDownload={handleSyncDownload}
-            resourceSyncProgress={resourceSync.progress}
-            resourceSyncStatusFile={resourceSync.statusFile}
-            isResourceSyncing={resourceSync.isResourceSyncing}
-            onResourceSyncRefresh={handleResourceSyncRefresh}
-            onResourceSyncStart={handleResourceSyncStart}
-            onResourceSyncRetryFailed={handleResourceSyncRetryFailed}
-            onResourceSyncCancel={handleResourceSyncCancel}
-            updateSetting={syncSettings.updateSetting}
-          />
-        );
-      }
+    if (entry.key === "screen.settings") {
+      return (
+        <SettingsPage
+          transition={SETTINGS_SCREEN_TRANSITION}
+          safeSetting={syncSettings.safeSetting}
+          databases={bootstrap.databases}
+          versions={bootstrap.versions}
+          isSavingSetting={syncSettings.isSavingSetting}
+          isSyncing={syncSettings.isSyncing}
+          onBack={() => dispatchBack("ui")}
+          activeModule={activeSettingsModule}
+          onActiveModuleChange={handleSettingsModuleChange}
+          onSwitchDatabase={handleSwitchDatabase}
+          onSaveSetting={handleSaveSetting}
+          onCheckVersions={handleCheckVersions}
+          onSyncUpload={handleSyncUpload}
+          onSyncDownload={handleSyncDownload}
+          resourceSyncProgress={resourceSync.progress}
+          resourceSyncStatusFile={resourceSync.statusFile}
+          isResourceSyncing={resourceSync.isResourceSyncing}
+          onResourceSyncRefresh={handleResourceSyncRefresh}
+          onResourceSyncStart={handleResourceSyncStart}
+          onResourceSyncRetryFailed={handleResourceSyncRetryFailed}
+          onResourceSyncCancel={handleResourceSyncCancel}
+          updateSetting={syncSettings.updateSetting}
+        />
+      );
+    }
 
-      if (entry.key === "screen.about") {
-        return (
-          <AboutPage
-            transition={ABOUT_SCREEN_TRANSITION}
-            onBack={() => dispatchBack("ui")}
-          />
-        );
-      }
+    if (entry.key === "screen.about") {
+      return <AboutPage transition={ABOUT_SCREEN_TRANSITION} onBack={() => dispatchBack("ui")} />;
+    }
 
-      if (entry.key === "screen.diaryHome") {
-        return (
-          <DiaryHomePage
-            transition={DIARY_HOME_SCREEN_TRANSITION}
-            onBack={() => dispatchBack("ui")}
-            onOpenEditor={(mode, baseDate) => {
-              void (async () => {
-                try {
-                  await useDiaryStore.getState().openAt(mode, baseDate);
-                  const currentEntry = useDiaryStore.getState().currentEntry;
-                  const contentId = currentEntry?.contentId ?? null;
-                  if (
-                    typeof contentId !== "number" ||
-                    !Number.isFinite(contentId) ||
-                    contentId <= 0
-                  ) {
-                    throw new Error("DIARY_CONTENT_NOT_FOUND");
-                  }
-                  const contentType =
-                    mode === "daily"
-                      ? "日记"
-                      : mode === "weekly"
-                        ? "周记"
-                        : "月记";
-                  navigate("screen.contentDetail", {
-                    contentId,
-                    contentTitle: formatDiaryPeriodLabel(mode, baseDate),
-                    contentType,
-                    fromDiary: true,
-                  });
-                } catch (error) {
-                  presentError(error, "打开日记失败");
+    if (entry.key === "screen.diaryHome") {
+      return (
+        <DiaryHomePage
+          transition={DIARY_HOME_SCREEN_TRANSITION}
+          onBack={() => dispatchBack("ui")}
+          onOpenEditor={(mode, baseDate) => {
+            void (async () => {
+              try {
+                await useDiaryStore.getState().openAt(mode, baseDate);
+                const currentEntry = useDiaryStore.getState().currentEntry;
+                const contentId = currentEntry?.contentId ?? null;
+                if (
+                  typeof contentId !== "number" ||
+                  !Number.isFinite(contentId) ||
+                  contentId <= 0
+                ) {
+                  throw new Error("DIARY_CONTENT_NOT_FOUND");
                 }
-              })();
-            }}
-            onError={(error, fallback) => {
-              presentError(error, fallback);
-            }}
-          />
-        );
-      }
-
-      if (entry.key === "screen.todo") {
-        return (
-          <TodoPage
-            transition={TODO_SCREEN_TRANSITION}
-            isVisible={entry.id === activeScreenId}
-            onBack={() => dispatchBack("ui")}
-            onOpenDetail={(todoId, groupId) =>
-              navigate("screen.todoDetail", { todoId, groupId })
-            }
-            onError={(error, fallback) => {
-              presentError(error, fallback);
-            }}
-            databaseName={
-              syncSettings.safeSetting?.database?.active ??
-              bootstrap.databases?.activeDatabase ??
-              null
-            }
-          />
-        );
-      }
-
-      if (entry.key === "screen.todoDetail") {
-        const params = extractTodoDetailParams(entry.params);
-        if (!params) {
-          return null;
-        }
-        return (
-          <TodoDetailPage
-            transition={TODO_DETAIL_SCREEN_TRANSITION}
-            todoId={params.todoId}
-            groupId={params.groupId}
-            onBack={() => dispatchBack("ui")}
-            onError={(error, fallback) => {
-              presentError(error, fallback);
-            }}
-          />
-        );
-      }
-
-      if (entry.key === "screen.contentDetail") {
-        const params = extractContentDetailParams(entry.params);
-        if (!params) {
-          return null;
-        }
-        return (
-          <ContentDetailPage
-            transition={CONTENT_DETAIL_SCREEN_TRANSITION}
-            contentId={params.contentId}
-            contentTitle={params.contentTitle}
-            contentType={params.contentType}
-            refId={params.refId}
-            onSaved={(saved) => {
-              if (!params.fromDiary) {
-                return;
+                const contentType = mode === "daily" ? "日记" : mode === "weekly" ? "周记" : "月记";
+                navigate("screen.contentDetail", {
+                  contentId,
+                  contentTitle: formatDiaryPeriodLabel(mode, baseDate),
+                  contentType,
+                  fromDiary: true,
+                });
+              } catch (error) {
+                presentError(error, "打开日记失败");
               }
-              useDiaryStore.getState().syncEntryContentByContentId({
-                contentId: params.contentId,
-                content: saved.content,
-                wordCount: saved.count,
-                updateTime: saved.updateTime,
-              });
-            }}
-            onBack={() => dispatchBack("ui")}
-            onError={(error, fallback) => {
-              presentError(error, fallback);
-            }}
-          />
-        );
-      }
+            })();
+          }}
+          onError={(error, fallback) => {
+            presentError(error, fallback);
+          }}
+        />
+      );
+    }
 
-      return null;
-    },
-  );
+    if (entry.key === "screen.todo") {
+      return (
+        <TodoPage
+          transition={TODO_SCREEN_TRANSITION}
+          isVisible={entry.id === activeScreenId}
+          onBack={() => dispatchBack("ui")}
+          onOpenDetail={(todoId, groupId) => navigate("screen.todoDetail", { todoId, groupId })}
+          onError={(error, fallback) => {
+            presentError(error, fallback);
+          }}
+          databaseName={
+            syncSettings.safeSetting?.database?.active ??
+            bootstrap.databases?.activeDatabase ??
+            null
+          }
+        />
+      );
+    }
+
+    if (entry.key === "screen.todoDetail") {
+      const params = extractTodoDetailParams(entry.params);
+      if (!params) {
+        return null;
+      }
+      return (
+        <TodoDetailPage
+          transition={TODO_DETAIL_SCREEN_TRANSITION}
+          todoId={params.todoId}
+          groupId={params.groupId}
+          onBack={() => dispatchBack("ui")}
+          onError={(error, fallback) => {
+            presentError(error, fallback);
+          }}
+        />
+      );
+    }
+
+    if (entry.key === "screen.contentDetail") {
+      const params = extractContentDetailParams(entry.params);
+      if (!params) {
+        return null;
+      }
+      return (
+        <ContentDetailPage
+          transition={CONTENT_DETAIL_SCREEN_TRANSITION}
+          contentId={params.contentId}
+          contentTitle={params.contentTitle}
+          contentType={params.contentType}
+          refId={params.refId}
+          onSaved={saved => {
+            if (!params.fromDiary) {
+              return;
+            }
+            useDiaryStore.getState().syncEntryContentByContentId({
+              contentId: params.contentId,
+              content: saved.content,
+              wordCount: saved.count,
+              updateTime: saved.updateTime,
+            });
+          }}
+          onBack={() => dispatchBack("ui")}
+          onError={(error, fallback) => {
+            presentError(error, fallback);
+          }}
+        />
+      );
+    }
+
+    return null;
+  });
 
   // 加载态 - 使用内联样式作为后备，确保即使 CSS 未加载也能显示
   if (bootstrap.isLoading) {
@@ -1448,9 +1357,7 @@ export default function AppShell() {
               animation: "spin 1s linear infinite",
             }}
           />
-          <p style={{ fontSize: 14, color: "var(--color-text-secondary)" }}>
-            正在初始化...
-          </p>
+          <p style={{ fontSize: 14, color: "var(--color-text-secondary)" }}>正在初始化...</p>
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </main>
@@ -1460,7 +1367,11 @@ export default function AppShell() {
   return (
     <AntdApp>
       <KeyboardViewportProvider>
-        <EditorServicesProvider services={services}>
+        <EditorProvider
+          registry={editorRegistry}
+          config={mobileEditorConfig}
+          extensions={mobileEditorExtensions}
+        >
           <BilibiliVideoDepsProvider deps={bilibiliDeps}>
             <YoutubeVideoDepsProvider deps={youtubeDeps}>
               <RemoteVideoDepsProvider deps={remoteVideoDeps}>
@@ -1501,9 +1412,7 @@ export default function AppShell() {
                               syncSettings.safeSetting?.database?.active ??
                               bootstrap.databases?.activeDatabase ??
                               null;
-                            void useTodoStore
-                              .getState()
-                              .initialize(todoDatabaseName);
+                            void useTodoStore.getState().initialize(todoDatabaseName);
                             navigate("screen.todo");
                           }}
                           showTodoEntry={todoModuleEnabled}
@@ -1538,7 +1447,7 @@ export default function AppShell() {
                         onContentChange={handleQuickCaptureContentChange}
                         onCategoryChange={handleQuickCaptureCategoryChange}
                         onClear={handleQuickCaptureClear}
-                        onRequestClose={(content) => {
+                        onRequestClose={content => {
                           void handleQuickCaptureClose(content);
                         }}
                       />
@@ -1549,7 +1458,7 @@ export default function AppShell() {
               </RemoteVideoDepsProvider>
             </YoutubeVideoDepsProvider>
           </BilibiliVideoDepsProvider>
-        </EditorServicesProvider>
+        </EditorProvider>
       </KeyboardViewportProvider>
     </AntdApp>
   );

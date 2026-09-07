@@ -2,16 +2,13 @@ import { Editor, Transforms, Path, Element as SlateElement } from "slate";
 import { v4 as uuidv4 } from "uuid";
 import { message } from "antd";
 import { isParagraphAndEmpty } from "./editor";
+import { IResourceService } from "../services";
 
 export async function handlePasteImage(
   editor: Editor,
   data: DataTransfer,
-  insertBlockImage: (
-    editor: Editor,
-    url: string,
-    uuid: string,
-  ) => Path | null | undefined,
-  insertInlineImage: (editor: Editor, url: string, uuid: string) => boolean,
+  insertBlockImage: (editor: Editor, url: string, uuid: string) => Path | null | undefined,
+  insertInlineImage: (editor: Editor, url: string, uuid: string) => boolean
 ): Promise<boolean> {
   const { files } = data;
   if (!files || files.length === 0) {
@@ -24,10 +21,7 @@ export async function handlePasteImage(
     return false;
   }
 
-  const uploadResource = editor.services?.resource.upload;
-  if (!uploadResource) {
-    return false;
-  }
+  const uploadResource = editor.getService(IResourceService).upload;
 
   const uuid = uuidv4();
   const isEmptyParagraph = isParagraphAndEmpty(editor);
@@ -39,22 +33,14 @@ export async function handlePasteImage(
         return false;
       }
 
-      const res = await uploadResource(file);
-      if (!res) {
+      const url = await uploadResource(file);
+      if (!url) {
         message.error("图片上传失败");
-        Transforms.setNodes(
-          editor,
-          { pasteUploading: false },
-          { at: insertPath },
-        );
+        Transforms.setNodes(editor, { pasteUploading: false }, { at: insertPath });
         return true;
       }
 
-      Transforms.setNodes(
-        editor,
-        { url: res.url, pasteUploading: false },
-        { at: insertPath },
-      );
+      Transforms.setNodes(editor, { url, pasteUploading: false }, { at: insertPath });
       return true;
     } else {
       const insertInlineImageResult = insertInlineImage(editor, "", uuid);
@@ -62,14 +48,14 @@ export async function handlePasteImage(
         return false;
       }
 
-      const res = await uploadResource(file);
-      if (!res) {
+      const url = await uploadResource(file);
+      if (!url) {
         message.error("图片上传失败");
         updateNodeByUuid(editor, uuid, "inline-image", { url: "" });
         return true;
       }
 
-      updateNodeByUuid(editor, uuid, "inline-image", { url: res.url });
+      updateNodeByUuid(editor, uuid, "inline-image", { url });
       return true;
     }
   } catch (error) {
@@ -86,16 +72,13 @@ export function updateNodeByUuid(
   editor: Editor,
   uuid: string,
   type: string,
-  properties: Record<string, any>,
+  properties: Record<string, any>
 ): boolean {
   const nodeEntries = Array.from(
     Editor.nodes(editor, {
       at: [],
-      match: (n: any) =>
-        SlateElement.isElement(n) &&
-        n.type === type &&
-        (n as any).uuid === uuid,
-    }),
+      match: (n: any) => SlateElement.isElement(n) && n.type === type && (n as any).uuid === uuid,
+    })
   );
 
   if (nodeEntries.length > 0) {

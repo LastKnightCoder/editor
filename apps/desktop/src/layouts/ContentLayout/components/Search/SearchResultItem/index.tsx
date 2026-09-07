@@ -28,7 +28,6 @@ const SearchResultItem = memo(
           </Tag>
         </div>
         <Editor
-          contentId={result.contentId}
           previewBlocks={3}
           style={{
             flex: 1,

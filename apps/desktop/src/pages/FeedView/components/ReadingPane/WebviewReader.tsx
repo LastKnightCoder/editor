@@ -58,15 +58,12 @@ export default function WebviewReader({
 }: WebviewReaderProps) {
   const { message } = App.useApp();
   const themeColors = useThemeColors();
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const webviewRef = useRef<WebviewRef>(null);
   const editorRef = useRef<EditorRef>(null);
 
   const [viewMode, setViewMode] = useState<ViewMode>("webview");
-  const [parsedContent, setParsedContent] =
-    useState<Descendant[]>(DEFAULT_CONTENT);
+  const [parsedContent, setParsedContent] = useState<Descendant[]>(DEFAULT_CONTENT);
   const [isLocalClipping, setIsLocalClipping] = useState(false);
   const localClipAbortRef = useRef<AbortController | null>(null);
 
@@ -87,7 +84,7 @@ export default function WebviewReader({
       setParsedContent(content);
       message.success("网页转录完成");
     },
-    onError: (error) => {
+    onError: error => {
       message.error(`转录失败: ${error}`);
     },
   });
@@ -159,7 +156,7 @@ export default function WebviewReader({
           title: article.title || "",
           options: { smartExtractClean: true, debug: false },
           signal: abortController.signal,
-        }),
+        })
       );
 
       const parsed = importFromMarkdown(markdown, ["yaml"]);
@@ -172,9 +169,7 @@ export default function WebviewReader({
       message.success("网页剪藏完成");
     } catch (error) {
       if (error instanceof Error && error.message === "aborted") return;
-      message.error(
-        `剪藏失败: ${error instanceof Error ? error.message : "未知错误"}`,
-      );
+      message.error(`剪藏失败: ${error instanceof Error ? error.message : "未知错误"}`);
     } finally {
       localClipAbortRef.current = null;
       setIsLocalClipping(false);
@@ -255,21 +250,17 @@ export default function WebviewReader({
       <div
         className={`flex items-center justify-between border-b ${themeColors.borderClass} px-4 py-2`}
       >
-        <h1 className="m-0 text-base font-semibold leading-snug truncate flex-1 min-w-0">
+        <h1 className="m-0 min-w-0 flex-1 truncate text-base font-semibold leading-snug">
           {article.title}
         </h1>
-        <div className="flex items-center gap-1 ml-2">
+        <div className="ml-2 flex items-center gap-1">
           {onToggleStar && (
             <Tooltip title={article.isStarred ? "取消收藏" : "收藏"}>
               <button
                 className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${getActiveButtonClass(article.isStarred)}`}
                 onClick={onToggleStar}
               >
-                {article.isStarred ? (
-                  <StarFilled className="text-amber-500" />
-                ) : (
-                  <StarOutlined />
-                )}
+                {article.isStarred ? <StarFilled className="text-amber-500" /> : <StarOutlined />}
               </button>
             </Tooltip>
           )}
@@ -288,7 +279,7 @@ export default function WebviewReader({
               {article.isArchived ? (
                 <Tooltip title="取消归档">
                   <button
-                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-all"
+                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 transition-all hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
                     onClick={onUnarchive}
                   >
                     <UndoOutlined className="text-sm" />
@@ -297,7 +288,7 @@ export default function WebviewReader({
               ) : (
                 <Tooltip title="归档">
                   <button
-                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-all"
+                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 transition-all hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
                     onClick={onArchive}
                   >
                     <InboxOutlined className="text-sm" />
@@ -306,7 +297,7 @@ export default function WebviewReader({
               )}
               <Tooltip title="从稍后读删除">
                 <button
-                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all"
+                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-red-500 transition-all hover:bg-red-50 dark:hover:bg-red-950/30"
                   onClick={onDelete}
                 >
                   <DeleteOutlined className="text-sm" />
@@ -321,7 +312,7 @@ export default function WebviewReader({
                 onClick={handleToggleView}
               >
                 <svg
-                  className="w-4 h-4"
+                  className="h-4 w-4"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -344,7 +335,7 @@ export default function WebviewReader({
                 <LoadingOutlined />
               ) : (
                 <svg
-                  className="w-4 h-4"
+                  className="h-4 w-4"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -367,7 +358,7 @@ export default function WebviewReader({
                 <LoadingOutlined />
               ) : (
                 <svg
-                  className="w-4 h-4"
+                  className="h-4 w-4"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -386,7 +377,7 @@ export default function WebviewReader({
                 onClick={handleToggleSplit}
               >
                 <svg
-                  className="w-4 h-4"
+                  className="h-4 w-4"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -400,7 +391,7 @@ export default function WebviewReader({
           )}
           <Tooltip title="刷新网页">
             <button
-              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-all"
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 transition-all hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
               onClick={handleRefresh}
             >
               <ReloadOutlined className="text-sm" />
@@ -408,11 +399,11 @@ export default function WebviewReader({
           </Tooltip>
           <Tooltip title="在浏览器中打开">
             <button
-              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-all"
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 transition-all hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
               onClick={handleOpenInBrowser}
             >
               <svg
-                className="w-4 h-4"
+                className="h-4 w-4"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -448,7 +439,7 @@ export default function WebviewReader({
                 convertFileSrc={convertFileSrc}
                 getHomeDir={getHomeDir}
                 remoteResourceToLocal={remoteResourceToLocal}
-                useGithubCdnUrl={useGithubCdnUrl}
+                cdnUrlResolver={useGithubCdnUrl}
               />
             }
             right={renderDocumentView()}
@@ -458,8 +449,8 @@ export default function WebviewReader({
             <div
               className={`absolute inset-0 transition-opacity duration-200 ${
                 showWebview && !showDocument
-                  ? "opacity-100 z-10"
-                  : "opacity-0 z-0 pointer-events-none"
+                  ? "z-10 opacity-100"
+                  : "pointer-events-none z-0 opacity-0"
               }`}
             >
               <Webview
@@ -471,14 +462,14 @@ export default function WebviewReader({
                 convertFileSrc={convertFileSrc}
                 getHomeDir={getHomeDir}
                 remoteResourceToLocal={remoteResourceToLocal}
-                useGithubCdnUrl={useGithubCdnUrl}
+                cdnUrlResolver={useGithubCdnUrl}
               />
             </div>
             <div
               className={`absolute inset-0 transition-opacity duration-200 ${
                 showDocument && !showWebview
-                  ? "opacity-100 z-10"
-                  : "opacity-0 z-0 pointer-events-none"
+                  ? "z-10 opacity-100"
+                  : "pointer-events-none z-0 opacity-0"
               }`}
             >
               {renderDocumentView()}

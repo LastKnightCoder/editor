@@ -1,175 +1,64 @@
-import { useEffect, useState } from "react";
 import plantumlEncoder from "plantuml-encoder";
-import { useCreation, useDebounceFn } from "ahooks";
-import { v4 as uuid } from "uuid";
 
+/**
+ * PlantUML 渲染（slidev 方案）：编码后直接经渲染服务器以 <img> 呈现，
+ * 不依赖任何宿主 fetch 能力。暗色沿用 PlantUML 官方主题机制——
+ * 在图源注入 !theme（默认 cyborg-outline：透明底、为暗色背景设计），
+ * 由服务器直接渲染暗色图，而非 CSS 反转。
+ * 渲染结果不写回文档，始终根据当前源码生成地址。
+ */
 interface IPlantUMLProps {
   isDark: boolean;
   content: string;
-  nodeFetch?: (url: string, options: RequestInit) => Promise<any>;
-  initialSvg?: string;
-  compiledFrom?: string;
-  onCompiled?: (svg: string, compiledFrom: string) => void;
+  /** 渲染服务器地址，默认 plantuml.com（可指向自建实例） */
+  server?: string;
+  /** 暗色主题名，暗色时注入 `!theme`；置空串可禁用。默认 cyborg-outline */
+  darkTheme?: string;
 }
+
+export const PLANTUML_DEFAULT_SERVER = "https://www.plantuml.com/plantuml";
+
+/** 生成 PlantUML 渲染服务器的 SVG 地址（导出 HTML 等静态场景复用） */
+export const buildPlantumlSvgUrl = (content: string, server: string = PLANTUML_DEFAULT_SERVER) => {
+  const trimmed = content.trim();
+  return trimmed ? `${server}/svg/${plantumlEncoder.encode(trimmed)}` : "";
+};
+
+const DEFAULT_DARK_THEME = "cyborg-outline";
+
+/** 暗色时在第一个 @startXXX 之后注入主题指令；图源已声明主题时尊重作者不覆盖 */
+export const applyDarkTheme = (content: string, theme: string): string => {
+  if (!theme || /^\s*!theme/m.test(content)) {
+    return content;
+  }
+  const directive = `!theme ${theme}`;
+  const startMatch = content.match(/@start\w+[^\n]*\n?/);
+  if (startMatch && startMatch.index !== undefined) {
+    const insertAt = startMatch.index + startMatch[0].length;
+    return `${content.slice(0, insertAt)}${directive}\n${content.slice(insertAt)}`;
+  }
+  return `${directive}\n${content}`;
+};
 
 const PlantUML = (props: IPlantUMLProps) => {
   const {
     content,
     isDark,
-    nodeFetch,
-    initialSvg = "",
-    compiledFrom,
-    onCompiled,
+    server = PLANTUML_DEFAULT_SERVER,
+    darkTheme = DEFAULT_DARK_THEME,
   } = props;
-  const hasLegacyCache = !compiledFrom && !!initialSvg;
-  const cacheMatches = compiledFrom === content && !!initialSvg;
-  const [svgContent, setSvgContent] = useState(
-    cacheMatches || hasLegacyCache ? initialSvg : "",
-  );
-  const [error, setError] = useState("");
 
-  const plantUMLId = useCreation(() => {
-    return `plantuml-${uuid()}`;
-  }, []);
-
-  const { run: render } = useDebounceFn(
-    async () => {
-      try {
-        if (!content.trim()) {
-          setSvgContent("");
-          setError("");
-          return;
-        }
-        if (!nodeFetch) {
-          throw new Error("当前环境不支持 PlantUML 渲染");
-        }
-        const encoded = plantumlEncoder.encode(content);
-        // 默认为 plantuml.com，后续可改为本地配置
-        const server = "https://www.plantuml.com/plantuml";
-        // const server = "http://localhost:8080/plantuml";
-        const url = `${server}/svg/${encoded}`;
-
-        // 使用 node-fetch 获取 SVG 内容
-        const svg = await nodeFetch(url, {
-          method: "GET",
-          headers: {
-            Accept: "image/svg+xml",
-          },
-        });
-        const svgString =
-          typeof svg === "string"
-            ? svg
-            : typeof (svg as any)?.text === "function"
-              ? await (svg as any).text()
-              : String(svg ?? "");
-        if (!svgString) {
-          throw new Error("未获取到 PlantUML SVG 内容");
-        }
-
-        // 解析 SVG 并移除背景色设置
-        const processedSvg = processSvg(svgString);
-        setSvgContent(processedSvg);
-        setError("");
-        onCompiled?.(processedSvg, content);
-      } catch (e: any) {
-        console.error(e);
-        setError(e.message || "渲染失败");
-      }
-    },
-    { wait: 500 },
-  );
-
-  // 处理 SVG：移除背景色设置和字体设置
-  const processSvg = (svgString: string): string => {
-    try {
-      // 使用 DOMParser 解析 SVG
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(svgString, "image/svg+xml");
-      const svgElement = doc.querySelector("svg");
-
-      if (!svgElement) {
-        return svgString;
-      }
-
-      // 移除 style 属性中的 background 设置
-      const styleAttr = svgElement.getAttribute("style");
-      if (styleAttr) {
-        // 解析 style 属性，移除 background 相关的样式
-        const styles = styleAttr
-          .split(";")
-          .map((s) => s.trim())
-          .filter((s) => s && !s.toLowerCase().startsWith("background"));
-
-        if (styles.length > 0) {
-          svgElement.setAttribute("style", styles.join(";"));
-        } else {
-          svgElement.removeAttribute("style");
-        }
-      }
-
-      // 移除单独的 background 属性（如果存在）
-      svgElement.removeAttribute("background");
-
-      // 移除所有 text 元素的 font-family 属性
-      const textElements = svgElement.querySelectorAll("text");
-      textElements.forEach((textElement) => {
-        textElement.removeAttribute("font-family");
-      });
-
-      // 序列化回字符串
-      const serializer = new XMLSerializer();
-      return serializer.serializeToString(svgElement);
-    } catch (e) {
-      console.error("处理 SVG 失败:", e);
-      return svgString;
-    }
-  };
-
-  useEffect(() => {
-    if (!content.trim()) {
-      setSvgContent("");
-      setError("");
-      return;
-    }
-
-    if (cacheMatches) {
-      setSvgContent(initialSvg || "");
-      setError("");
-      return;
-    }
-
-    if (hasLegacyCache && !nodeFetch) {
-      setSvgContent(initialSvg || "");
-      setError("");
-      return;
-    }
-
-    setSvgContent("");
-    setError("");
-    render();
-  }, [cacheMatches, content, hasLegacyCache, initialSvg, nodeFetch, render]);
+  const themedContent = isDark ? applyDarkTheme(content, darkTheme) : content;
+  const imgUrl = buildPlantumlSvgUrl(themedContent, server);
 
   return (
     <div
-      id={plantUMLId}
-      className="w-full flex items-center justify-center"
+      className="flex w-full items-center justify-center"
       style={{
         fontFamily: "var(--mono-font)",
       }}
     >
-      {error ? (
-        <div className="text-[#D32F2F] dark:text-[#EF4444]">{error}</div>
-      ) : svgContent ? (
-        <div
-          dangerouslySetInnerHTML={{ __html: svgContent }}
-          className="max-w-full"
-          style={{
-            filter: isDark ? "invert(1) hue-rotate(180deg)" : "none",
-          }}
-        />
-      ) : (
-        <div className="text-[#6B7280] dark:text-[#9CA3AF]">Loading...</div>
-      )}
+      {!content.trim() ? null : <img src={imgUrl} alt="PlantUML diagram" className="max-w-full" />}
     </div>
   );
 };

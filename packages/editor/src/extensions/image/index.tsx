@@ -4,6 +4,7 @@ import type { ImageElement } from "../../types";
 import Image from "./components/Image";
 import { pasteImage, dropImage } from "./plugins";
 import blockPanelItems from "./block-panel-items";
+import type { Editor } from "slate";
 import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 
 import IExtension from "../types";
@@ -15,7 +16,7 @@ export const imageActionsMap = new WeakMap<
     showOverview: () => void;
     deleteImage: () => void;
     startCrop: () => void;
-    startAIEdit: () => void;
+    runMediaAction: (actionId: string) => void;
     showDescEditor: () => void;
     getImageBlob: () => Promise<Blob | null>;
   }
@@ -24,8 +25,8 @@ export const imageActionsMap = new WeakMap<
 class ImageExtension extends Base implements IExtension {
   type = "image";
 
-  override getBlockPanelItems() {
-    return blockPanelItems;
+  override getBlockPanelItems(editor?: Editor) {
+    return blockPanelItems(editor);
   }
 
   override getPlugins() {

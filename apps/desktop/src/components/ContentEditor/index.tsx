@@ -6,18 +6,16 @@ import useCollaborationDocument from "@/hooks/useCollaborationDocument";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 import useContentSession from "@/hooks/useContentSession";
 import useCollaborationPresence from "@/hooks/useCollaborationPresence";
-import ContentCollaborationControl from "@/components/ContentCollaborationControl";
 import type { ContentSessionTarget } from "@tau/collaboration";
 import type { Descendant } from "slate";
 
 type ContentEditorProps = ComponentProps<typeof Editor> & {
   contentId?: number;
   source?: Omit<ContentSessionTarget, "contentId">;
-  collaborationControl?: boolean;
 };
 
 const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
-  ({ contentId, source, collaborationControl = true, ...props }, ref) => {
+  ({ contentId, source, ...props }, ref) => {
     const sessions = useCollaborationStore(state => state.sessions);
     const readonly = props.readonly ?? true;
     const { entry, error: sessionError } = useContentSession(contentId, source);
@@ -44,9 +42,6 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
           <div role="alert" style={{ color: "#dc2626", fontSize: 12 }}>
             {error}
           </div>
-        )}
-        {contentId && collaborationControl && (
-          <ContentCollaborationControl contentId={contentId} source={source} />
         )}
         <CollaborationServices binding={binding}>
           <Editor

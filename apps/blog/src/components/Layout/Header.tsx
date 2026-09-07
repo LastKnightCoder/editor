@@ -1,14 +1,8 @@
-import {
-  memo,
-  useState,
-  ReactNode,
-  useRef,
-  useLayoutEffect,
-  useEffect,
-} from "react";
+import { memo, useState, ReactNode, useRef, useLayoutEffect, useEffect } from "react";
 import classNames from "classnames";
 import { NavItem } from "@blog/types";
-import { toggleTheme, isDarkMode, joinPath } from "@blog/utils";
+import { toggleTheme, joinPath } from "@blog/utils";
+import useBlogTheme from "@blog/hooks/useBlogTheme";
 import { SearchButton, SearchDialog } from "@blog/components/Search";
 
 interface HeaderProps {
@@ -33,13 +27,7 @@ function resolveCopyHref(href: string): string {
   }
 }
 
-const ThemeSwitch = ({
-  checked,
-  onToggle,
-}: {
-  checked: boolean;
-  onToggle: () => void;
-}) => (
+const ThemeSwitch = ({ checked, onToggle }: { checked: boolean; onToggle: () => void }) => (
   <button
     type="button"
     onClick={onToggle}
@@ -53,7 +41,7 @@ const ThemeSwitch = ({
         "absolute h-[18px] w-[18px] transition-all duration-300",
         checked
           ? "rotate-90 scale-0 opacity-0"
-          : "rotate-0 scale-100 opacity-100 text-[var(--color-text-primary)]",
+          : "rotate-0 scale-100 text-[var(--color-text-primary)] opacity-100"
       )}
       fill="none"
       viewBox="0 0 24 24"
@@ -70,8 +58,8 @@ const ThemeSwitch = ({
       className={classNames(
         "absolute h-[18px] w-[18px] transition-all duration-300",
         checked
-          ? "rotate-0 scale-100 opacity-100 text-[var(--color-text-primary)]"
-          : "-rotate-90 scale-0 opacity-0",
+          ? "rotate-0 scale-100 text-[var(--color-text-primary)] opacity-100"
+          : "-rotate-90 scale-0 opacity-0"
       )}
       fill="none"
       viewBox="0 0 24 24"
@@ -94,45 +82,25 @@ const NavLink = ({ item, basePath }: { item: NavItem; basePath: string }) => (
       "relative px-3 py-2 text-sm transition-colors",
       item.active
         ? "font-semibold text-[var(--color-text-primary)]"
-        : "font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]",
+        : "font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
     )}
   >
     {item.label}
   </a>
 );
 
-const MenuButton = ({
-  isOpen,
-  onClick,
-}: {
-  isOpen: boolean;
-  onClick: () => void;
-}) => (
+const MenuButton = ({ isOpen, onClick }: { isOpen: boolean; onClick: () => void }) => (
   <button
     className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)] md:hidden"
     onClick={onClick}
     aria-label="菜单"
     aria-expanded={isOpen}
   >
-    <svg
-      className="h-5 w-5"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
+    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       {isOpen ? (
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M6 18L18 6M6 6l12 12"
-        />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
       ) : (
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M4 6h16M4 12h16M4 18h16"
-        />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
       )}
     </svg>
   </button>
@@ -193,14 +161,14 @@ const Header = memo(
     rssHref,
     searchHref,
   }: HeaderProps) => {
-    const [dark, setDark] = useState(() => isDarkMode());
+    const theme = useBlogTheme();
+    const dark = theme === "dark";
     const [menuOpen, setMenuOpen] = useState(false);
     const [rssCopied, setRssCopied] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
 
     const handleToggleTheme = () => {
       toggleTheme();
-      setDark((prev) => !prev);
     };
 
     const handleCopyRss = async () => {
@@ -223,7 +191,7 @@ const Header = memo(
         if (!headerRef.current) return;
         document.documentElement.style.setProperty(
           "--header-offset",
-          `${headerRef.current.offsetHeight}px`,
+          `${headerRef.current.offsetHeight}px`
         );
       };
       updateHeight();
@@ -245,10 +213,7 @@ const Header = memo(
           return;
         }
 
-        if (
-          (event.ctrlKey || event.metaKey) &&
-          event.key.toLowerCase() === "k"
-        ) {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
           event.preventDefault();
           setSearchOpen(true);
         }
@@ -261,7 +226,7 @@ const Header = memo(
     return (
       <header
         ref={headerRef}
-        className="sticky top-0 z-50 h-14 border-b border-[var(--color-border-ring)] bg-[var(--color-bg-page)]/95 backdrop-blur-sm"
+        className="bg-[var(--color-bg-page)]/95 sticky top-0 z-50 h-14 border-b border-[var(--color-border-ring)] backdrop-blur-sm"
       >
         <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           {/* Logo */}
@@ -275,7 +240,7 @@ const Header = memo(
           {/* 桌面端导航 */}
           <nav className="hidden items-center gap-1 md:flex">
             <div className="flex items-center">
-              {navigation.map((item) => (
+              {navigation.map(item => (
                 <NavLink key={item.href} item={item} basePath={basePath} />
               ))}
             </div>
@@ -286,33 +251,16 @@ const Header = memo(
             )}
             <div className="mx-2 h-5 w-px bg-[var(--color-border-ring)]" />
             {searchHref && <SearchButton onClick={() => setSearchOpen(true)} />}
-            {rssHref && (
-              <RssButton
-                href={rssHref}
-                copied={rssCopied}
-                onCopy={handleCopyRss}
-              />
-            )}
+            {rssHref && <RssButton href={rssHref} copied={rssCopied} onCopy={handleCopyRss} />}
             <ThemeSwitch checked={dark} onToggle={handleToggleTheme} />
           </nav>
 
           {/* 移动端操作 */}
           <div className="flex items-center gap-1 md:hidden">
-            {searchHref && (
-              <SearchButton compact onClick={() => setSearchOpen(true)} />
-            )}
-            {rssHref && (
-              <RssButton
-                href={rssHref}
-                copied={rssCopied}
-                onCopy={handleCopyRss}
-              />
-            )}
+            {searchHref && <SearchButton compact onClick={() => setSearchOpen(true)} />}
+            {rssHref && <RssButton href={rssHref} copied={rssCopied} onCopy={handleCopyRss} />}
             <ThemeSwitch checked={dark} onToggle={handleToggleTheme} />
-            <MenuButton
-              isOpen={menuOpen}
-              onClick={() => setMenuOpen(!menuOpen)}
-            />
+            <MenuButton isOpen={menuOpen} onClick={() => setMenuOpen(!menuOpen)} />
           </div>
         </div>
 
@@ -321,7 +269,7 @@ const Header = memo(
           <div className="absolute left-0 right-0 top-14 z-40 max-h-[calc(100dvh-3.5rem)] overflow-y-auto border-b border-[var(--color-border-ring)] bg-[var(--color-bg-page)] md:hidden">
             <nav className="px-4 py-3">
               <div className="flex flex-col gap-1">
-                {navigation.map((item) => (
+                {navigation.map(item => (
                   <a
                     key={item.href}
                     href={joinPath(basePath, item.href)}
@@ -329,16 +277,14 @@ const Header = memo(
                       "rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
                       item.active
                         ? "bg-[var(--color-primary-subtle)] text-[var(--color-text-primary)]"
-                        : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)]",
+                        : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)]"
                     )}
                   >
                     {item.label}
                   </a>
                 ))}
                 {(mobileCustomNav || customNav) && (
-                  <div className="mt-2 flex flex-col gap-2">
-                    {mobileCustomNav || customNav}
-                  </div>
+                  <div className="mt-2 flex flex-col gap-2">{mobileCustomNav || customNav}</div>
                 )}
                 {rssHref && (
                   <button
@@ -363,7 +309,7 @@ const Header = memo(
         )}
       </header>
     );
-  },
+  }
 );
 
 Header.displayName = "Header";

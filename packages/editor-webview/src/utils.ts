@@ -1,0 +1,22 @@
+import { Editor } from "slate";
+import { setOrInsertNode } from "@tau/editor";
+import type { BlockElement } from "@tau/editor";
+import type { WebviewElement } from "./types";
+import { WebLinkSourceType } from "./types";
+
+interface InsertWebviewPayload {
+  url: string;
+  sourceType?: WebLinkSourceType;
+}
+
+export const insertWebview = (editor: Editor, payload: InsertWebviewPayload) => {
+  const { url, sourceType = WebLinkSourceType.REMOTE } = payload;
+  const webview: WebviewElement = {
+    type: "webview",
+    url,
+    height: 400,
+    sourceType,
+    children: [{ type: "formatted", text: "" }],
+  };
+  setOrInsertNode(editor, webview as unknown as BlockElement);
+};

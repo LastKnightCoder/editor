@@ -18,7 +18,7 @@ export function getInitData() {
  */
 export function formatDate(
   timestamp: number,
-  format: "full" | "short" | "relative" = "short",
+  format: "full" | "short" | "relative" = "short"
 ): string {
   const date = new Date(timestamp);
 
@@ -95,47 +95,31 @@ function devTransformPath(path: string): string {
     const firstSegment = segments[0];
     if (firstSegment === "cards") {
       if (segments.length === 1) {
-        const listPath = search
-          ? `${DEV_TEMPLATE_PATHS.list}?${search}`
-          : DEV_TEMPLATE_PATHS.list;
+        const listPath = search ? `${DEV_TEMPLATE_PATHS.list}?${search}` : DEV_TEMPLATE_PATHS.list;
         return appendQueryParam(listPath, DEV_LIST_TYPE_PARAM, "card");
       }
-      return search
-        ? `${DEV_TEMPLATE_PATHS.card}?${search}`
-        : DEV_TEMPLATE_PATHS.card;
+      return search ? `${DEV_TEMPLATE_PATHS.card}?${search}` : DEV_TEMPLATE_PATHS.card;
     }
     if (firstSegment === "articles") {
       if (segments.length === 1) {
-        const listPath = search
-          ? `${DEV_TEMPLATE_PATHS.list}?${search}`
-          : DEV_TEMPLATE_PATHS.list;
+        const listPath = search ? `${DEV_TEMPLATE_PATHS.list}?${search}` : DEV_TEMPLATE_PATHS.list;
         return appendQueryParam(listPath, DEV_LIST_TYPE_PARAM, "article");
       }
-      return search
-        ? `${DEV_TEMPLATE_PATHS.article}?${search}`
-        : DEV_TEMPLATE_PATHS.article;
+      return search ? `${DEV_TEMPLATE_PATHS.article}?${search}` : DEV_TEMPLATE_PATHS.article;
     }
     if (firstSegment === "docs") {
       if (segments.length === 1) {
-        const listPath = search
-          ? `${DEV_TEMPLATE_PATHS.list}?${search}`
-          : DEV_TEMPLATE_PATHS.list;
+        const listPath = search ? `${DEV_TEMPLATE_PATHS.list}?${search}` : DEV_TEMPLATE_PATHS.list;
         return appendQueryParam(listPath, DEV_LIST_TYPE_PARAM, "doc");
       }
-      return search
-        ? `${DEV_TEMPLATE_PATHS.doc}?${search}`
-        : DEV_TEMPLATE_PATHS.doc;
+      return search ? `${DEV_TEMPLATE_PATHS.doc}?${search}` : DEV_TEMPLATE_PATHS.doc;
     }
     if (firstSegment === "quests") {
       if (segments.length === 1) {
-        const listPath = search
-          ? `${DEV_TEMPLATE_PATHS.list}?${search}`
-          : DEV_TEMPLATE_PATHS.list;
+        const listPath = search ? `${DEV_TEMPLATE_PATHS.list}?${search}` : DEV_TEMPLATE_PATHS.list;
         return appendQueryParam(listPath, DEV_LIST_TYPE_PARAM, "quest");
       }
-      return search
-        ? `${DEV_TEMPLATE_PATHS.quest}?${search}`
-        : DEV_TEMPLATE_PATHS.quest;
+      return search ? `${DEV_TEMPLATE_PATHS.quest}?${search}` : DEV_TEMPLATE_PATHS.quest;
     }
   }
 
@@ -146,11 +130,7 @@ function devTransformPath(path: string): string {
  * 拼接 basePath 和路径
  * 在开发环境下自动转换为模板页面路径
  */
-export function joinPath(
-  basePath: string,
-  path: string,
-  options?: { raw?: boolean },
-): string {
+export function joinPath(basePath: string, path: string, options?: { raw?: boolean }): string {
   const base = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
   const p = path.startsWith("/") ? path : `/${path}`;
   const fullPath = `${base}${p}`;
@@ -176,7 +156,7 @@ export function truncate(text: string, length: number): string {
  */
 export function getPlainText(nodes: unknown[]): string {
   return nodes
-    .map((node) => {
+    .map(node => {
       if (typeof node === "string") return node;
       if (node && typeof node === "object") {
         const n = node as Record<string, unknown>;
@@ -195,9 +175,7 @@ export function getPlainText(nodes: unknown[]): string {
  */
 export function getReadingTime(content: unknown[] | string): number {
   const text =
-    typeof content === "string"
-      ? content.replace(/<[^>]*>/g, "")
-      : getPlainText(content);
+    typeof content === "string" ? content.replace(/<[^>]*>/g, "") : getPlainText(content);
   // 中文字符按 300 字/分钟，英文按 200 词/分钟
   const chineseChars = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
   const englishWords = (text.match(/[a-zA-Z]+/g) || []).length;
@@ -218,13 +196,14 @@ export function generateAnchorId(text: string): string {
 /**
  * 获取当前主题
  */
+export const BLOG_THEME_CHANGE_EVENT = "tau-blog-theme-change";
+
 export function getTheme(): "light" | "dark" {
   if (typeof window === "undefined") return "light";
   const stored = localStorage.getItem("theme");
   if (stored === "dark" || stored === "light") return stored;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+  if (typeof window.matchMedia !== "function") return "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 /**
@@ -250,6 +229,7 @@ export function toggleTheme(): void {
   const next = current === "dark" ? "light" : "dark";
   applyThemeToDocument(next);
   localStorage.setItem("theme", next);
+  window.dispatchEvent(new Event(BLOG_THEME_CHANGE_EVENT));
 }
 
 /**

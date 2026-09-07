@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "antd";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { EditorServicesProvider } from "@tau/editor/src/contexts/EditorServicesContext";
-import { createEditorServices } from "../../src/services/editorServices";
+import { EditorProvider } from "@tau/editor/src";
+import { createEditorRegistry } from "../../src/services/editorRegistry";
+import { useDesktopEditorConfig } from "../../src/services/useDesktopEditorConfig";
+import { registerDesktopEditorExtensions } from "../../src/editor-extensions";
 import ContentEditor from "../../src/components/ContentEditor";
 import CollaborativeTitle from "../../src/components/CollaborativeTitle";
 import ContentCollaborationControl from "../../src/components/ContentCollaborationControl";
@@ -12,6 +14,8 @@ import CollaborationPanel from "../../src/components/CollaborationPanel";
 import JoinRequestNotifications from "../../src/components/JoinRequestNotifications";
 import useSettingStore from "../../src/stores/useSettingStore";
 import "../../src/tailwind.css";
+
+registerDesktopEditorExtensions();
 
 useSettingStore.setState(state => ({
   setting: {
@@ -25,10 +29,13 @@ useSettingStore.setState(state => ({
 const source = { sourceType: "article", sourceId: 1, sourceTitle: "协作测试标题" };
 function View() {
   const [second, setSecond] = useState(true);
+  // registry/config 引用稳定，避免重渲染时 Context value 失效
+  const registry = useMemo(() => createEditorRegistry(), []);
+  const editorConfig = useDesktopEditorConfig();
   return (
     <App>
       <DndProvider backend={HTML5Backend}>
-        <EditorServicesProvider services={createEditorServices()}>
+        <EditorProvider registry={registry} config={editorConfig}>
           <main style={{ padding: 24 }}>
             <CollaborativeTitle
               contentId={7}
@@ -70,7 +77,7 @@ function View() {
             </aside>
           </main>
           <JoinRequestNotifications />
-        </EditorServicesProvider>
+        </EditorProvider>
       </DndProvider>
     </App>
   );

@@ -93,7 +93,6 @@ const GalleryCard: React.FC<GalleryCardProps> = memo(
           {coverType === "detail" && detailContent && (
             <div className="h-full w-full overflow-hidden p-3">
               <Editor
-                contentId={row.detailContentId as number}
                 previewBlocks={2}
                 ref={editorRef}
                 readonly

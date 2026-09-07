@@ -1,6 +1,7 @@
 import { Editor, Transforms, Element as SlateElement, Path } from "slate";
 import { message } from "antd";
 import { insertAudio } from "../../../utils";
+import { IResourceService } from "../../../services";
 
 /**
  * 查找最近插入的上传中的音频节点
@@ -51,8 +52,7 @@ export const dropAudio = (editor: Editor) => {
     }
 
     try {
-      // 上传文件 (audio 使用 file.uploadFile 服务)
-      const src = await editor.services?.file.uploadFile(file);
+      const src = await editor.getService(IResourceService).upload(file);
 
       if (!src) {
         throw new Error("上传失败");

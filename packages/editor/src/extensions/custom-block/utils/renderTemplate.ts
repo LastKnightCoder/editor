@@ -3,6 +3,8 @@ import type { Root } from "react-dom/client";
 
 const CUSTOM_BLOCK_ROOT_KEY = "__customBlockRoot__";
 const CUSTOM_BLOCK_RUNTIME_KEY = "__customBlockRuntime__";
+// 编译未完成时暂存最新主题，由首次渲染消费
+const CUSTOM_BLOCK_PENDING_THEME_KEY = "__customBlockPendingTheme__";
 
 interface CustomBlockRuntime {
   root?: Root;
@@ -18,6 +20,7 @@ type CustomBlockHookMap = Record<string, unknown>;
 type CustomBlockRuntimeContainer = HTMLElement & {
   [CUSTOM_BLOCK_ROOT_KEY]?: CustomBlockRuntime["root"];
   [CUSTOM_BLOCK_RUNTIME_KEY]?: CustomBlockRuntime;
+  [CUSTOM_BLOCK_PENDING_THEME_KEY]?: boolean;
 };
 
 export const getCustomBlockRenderTemplate = () => {
@@ -44,7 +47,7 @@ const getRuntimeContainer = (targetElement: HTMLElement) =>
 
 const cleanupRuntime = (
   container: CustomBlockRuntimeContainer,
-  runtime: CustomBlockRuntime | undefined,
+  runtime: CustomBlockRuntime | undefined
 ) => {
   if (runtime) {
     runtime.themeRenderQueued = false;
@@ -57,12 +60,10 @@ const cleanupRuntime = (
   if (container[CUSTOM_BLOCK_RUNTIME_KEY] === runtime) {
     delete container[CUSTOM_BLOCK_RUNTIME_KEY];
   }
+  delete container[CUSTOM_BLOCK_PENDING_THEME_KEY];
 };
 
-const scheduleRuntimeThemeRender = (
-  runtime: CustomBlockRuntime | undefined,
-  isDark: boolean,
-) => {
+const scheduleRuntimeThemeRender = (runtime: CustomBlockRuntime | undefined, isDark: boolean) => {
   if (!runtime?.renderWithTheme) return;
 
   runtime.pendingTheme = isDark;
@@ -82,14 +83,13 @@ const scheduleRuntimeThemeRender = (
   Promise.resolve().then(flushThemeRender);
 };
 
-export const rerenderCustomBlockTheme = (
-  targetElement: HTMLElement,
-  isDark: boolean,
-) => {
+export const rerenderCustomBlockTheme = (targetElement: HTMLElement, isDark: boolean) => {
   const container = getRuntimeContainer(targetElement);
-  const runtime = container[CUSTOM_BLOCK_RUNTIME_KEY] as
-    | CustomBlockRuntime
-    | undefined;
+  const runtime = container[CUSTOM_BLOCK_RUNTIME_KEY] as CustomBlockRuntime | undefined;
+  if (!runtime?.renderWithTheme) {
+    container[CUSTOM_BLOCK_PENDING_THEME_KEY] = isDark;
+    return;
+  }
   scheduleRuntimeThemeRender(runtime, isDark);
 };
 
@@ -99,12 +99,10 @@ export const compileAndExecuteCustomBlock = async (
   targetElement: HTMLElement,
   hooks?: CustomBlockHookMap,
   compilerService?: { tailwindRuntime?: (html: string) => Promise<string> },
-  abortSignal?: AbortSignal,
+  abortSignal?: AbortSignal
 ): Promise<(() => void) | undefined> => {
   const container = getRuntimeContainer(targetElement);
-  const existingRuntime = container[CUSTOM_BLOCK_RUNTIME_KEY] as
-    | CustomBlockRuntime
-    | undefined;
+  const existingRuntime = container[CUSTOM_BLOCK_RUNTIME_KEY] as CustomBlockRuntime | undefined;
 
   if (
     existingRuntime?.content === content &&
@@ -131,9 +129,7 @@ export const compileAndExecuteCustomBlock = async (
   };
 
   try {
-    const runtimeCss = compilerService
-      ? await compilerService.tailwindRuntime?.(content)
-      : "";
+    const runtimeCss = compilerService ? await compilerService.tailwindRuntime?.(content) : "";
     if (runtimeCss && typeof document !== "undefined") {
       const styleElement = document.createElement("style");
       styleElement.dataset.customBlockTailwind = "runtime";
@@ -161,7 +157,11 @@ export const compileAndExecuteCustomBlock = async (
       return undefined;
     }
 
-    const ThemeContext = React.createContext(getRuntimeTheme(isDark));
+    // 编译期间主题可能已变化，优先消费等待生效的最新主题
+    const effectiveIsDark = container[CUSTOM_BLOCK_PENDING_THEME_KEY] ?? isDark;
+    delete container[CUSTOM_BLOCK_PENDING_THEME_KEY];
+
+    const ThemeContext = React.createContext(getRuntimeTheme(effectiveIsDark));
     const useRuntimeTheme = () => React.useContext(ThemeContext);
 
     const normalizedCode = generateExecutableCode(content);
@@ -186,7 +186,7 @@ export const compileAndExecuteCustomBlock = async (
 
     const AsyncFunction = Object.getPrototypeOf(
       // eslint-disable-next-line @typescript-eslint/no-empty-function
-      async function () {},
+      async function () {}
     ).constructor;
 
     const fn = new AsyncFunction(
@@ -194,8 +194,7 @@ export const compileAndExecuteCustomBlock = async (
       "components",
       "hooks",
       "extraInfo",
-      compiledCode +
-        "\nreturn typeof Component === 'function' ? Component : undefined;",
+      compiledCode + "\nreturn typeof Component === 'function' ? Component : undefined;"
     );
 
     if (shouldAbort()) {
@@ -210,7 +209,7 @@ export const compileAndExecuteCustomBlock = async (
         ...hooks,
         useTheme: useRuntimeTheme,
       },
-      getRuntimeTheme(isDark),
+      getRuntimeTheme(effectiveIsDark)
     );
 
     if (typeof Component !== "function") {
@@ -246,20 +245,18 @@ export const compileAndExecuteCustomBlock = async (
               ConfigProvider,
               {
                 theme: {
-                  algorithm: nextIsDark
-                    ? theme.darkAlgorithm
-                    : theme.defaultAlgorithm,
+                  algorithm: nextIsDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
                 },
               },
-              React.createElement(Component),
-            ),
-          ),
-        ),
+              React.createElement(Component)
+            )
+          )
+        )
       );
       return root;
     };
 
-    const root = renderWithTheme(isDark);
+    const root = renderWithTheme(effectiveIsDark);
 
     const runtime: CustomBlockRuntime = {
       root,

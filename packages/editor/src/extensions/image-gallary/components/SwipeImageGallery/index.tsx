@@ -9,7 +9,6 @@ import type {
   ObjectFitMode,
   ImageShadowPreset,
 } from "../../../../types";
-import { useSlateStatic } from "slate-react";
 import useTheme from "../../../../hooks/useTheme";
 import { getImageAppearanceStyle } from "../../../image/utils/appearance";
 
@@ -17,6 +16,7 @@ import "swiper/css";
 import "swiper/css/pagination";
 import "swiper/css/navigation";
 import "swiper/css/thumbs";
+import { useEditorSlots } from "../../../../services";
 
 interface ISwipeImageGalleryProps {
   items: ImageGalleryItem[];
@@ -26,25 +26,19 @@ interface ISwipeImageGalleryProps {
 }
 
 const SwipeImageGallery = (props: ISwipeImageGalleryProps) => {
-  const {
-    items,
-    objectFit = "contain",
-    borderRadius = "none",
-    shadow = false,
-  } = props;
-  const editor = useSlateStatic();
-  const Image = editor.services?.components?.Image;
+  const { items, objectFit = "contain", borderRadius = "none", shadow = false } = props;
+  const { Image } = useEditorSlots();
   const { theme } = useTheme();
   const swiperRef = useRef<SwiperType | null>(null);
   const [showGallery, setShowGallery] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const imageAppearanceStyle = useMemo(
     () => getImageAppearanceStyle({ borderRadius, shadow }),
-    [borderRadius, shadow],
+    [borderRadius, shadow]
   );
 
   // 全屏浏览用的图片列表
-  const galleryImages = useMemo(() => items.map((item) => item.url), [items]);
+  const galleryImages = useMemo(() => items.map(item => item.url), [items]);
 
   const handleImageClick = () => {
     // 获取当前 swiper 的真实索引
@@ -93,7 +87,7 @@ const SwipeImageGallery = (props: ISwipeImageGalleryProps) => {
           clickable: true,
         }}
         modules={[Pagination, Thumbs]}
-        onSwiper={(swiper) => {
+        onSwiper={swiper => {
           swiperRef.current = swiper;
         }}
         style={{
@@ -101,7 +95,7 @@ const SwipeImageGallery = (props: ISwipeImageGalleryProps) => {
           height: "100%",
         }}
       >
-        {items.map((item) => (
+        {items.map(item => (
           <SwiperSlide
             key={item.id}
             data-src={item.url}

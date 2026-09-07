@@ -411,7 +411,7 @@ const useDiaryConfig = () => {
       key: "content",
       dataIndex: "content",
       title: "内容",
-      render: (content: Descendant[], record: DiaryEntry) => (
+      render: (content: Descendant[]) => (
         <Flex vertical gap={12} align="flex-start">
           <Typography.Paragraph ellipsis={{ rows: 2 }} style={{ maxWidth: 400 }}>
             {getEditorText(content, 50)}
@@ -421,7 +421,6 @@ const useDiaryConfig = () => {
             placement="bottom"
             content={
               <Editor
-                contentId={record.contentId ?? undefined}
                 previewBlocks={3}
                 style={{ maxWidth: 320, maxHeight: 180, overflow: "hidden" }}
                 readonly

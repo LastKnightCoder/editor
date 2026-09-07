@@ -72,6 +72,12 @@ importers:
 
   apps/blog:
     dependencies:
+      '@tau/editor':
+        specifier: workspace:*
+        version: link:../../packages/editor
+      '@tau/editor-webview':
+        specifier: workspace:*
+        version: link:../../packages/editor-webview
       '@tau/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -232,6 +238,9 @@ importers:
       '@tau/editor':
         specifier: workspace:*
         version: link:../../packages/editor
+      '@tau/editor-webview':
+        specifier: workspace:*
+        version: link:../../packages/editor-webview
       '@tau/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -659,6 +668,9 @@ importers:
       '@tau/editor':
         specifier: workspace:*
         version: link:../../packages/editor
+      '@tau/editor-webview':
+        specifier: workspace:*
+        version: link:../../packages/editor-webview
       '@tau/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -1161,6 +1173,9 @@ importers:
       '@tau/editor':
         specifier: workspace:*
         version: link:../../packages/editor
+      '@tau/editor-webview':
+        specifier: workspace:*
+        version: link:../../packages/editor-webview
       '@tau/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -1488,6 +1503,55 @@ importers:
         specifier: ^4.3.8
         version: 4.5.7(@types/react@19.1.8)(immer@10.2.0)(react@19.1.0)
 
+  packages/editor-webview:
+    dependencies:
+      '@tau/editor':
+        specifier: workspace:*
+        version: link:../editor
+      '@tau/shared':
+        specifier: workspace:*
+        version: link:../shared
+      ahooks:
+        specifier: ^3.7.8
+        version: 3.9.6(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      antd:
+        specifier: ^6.0.0
+        version: 6.1.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      classnames:
+        specifier: ^2.3.2
+        version: 2.5.1
+      lucide-react:
+        specifier: ^0.468.0
+        version: 0.468.0(react@19.1.0)
+      react:
+        specifier: 19.1.0
+        version: 19.1.0
+      react-dnd:
+        specifier: ^16.0.1
+        version: 16.0.1(@types/node@24.12.4)(@types/react@19.1.8)(react@19.1.0)
+      react-icons:
+        specifier: ^4.11.0
+        version: 4.12.0(react@19.1.0)
+      slate:
+        specifier: 0.123.0
+        version: 0.123.0
+      slate-react:
+        specifier: 0.123.0
+        version: 0.123.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(slate-dom@0.123.0(slate@0.123.0))(slate@0.123.0)
+    devDependencies:
+      '@types/react':
+        specifier: 19.1.8
+        version: 19.1.8
+      '@types/react-dom':
+        specifier: 19.1.6
+        version: 19.1.6(@types/react@19.1.8)
+      typescript:
+        specifier: ^5.0.4
+        version: 5.8.3
+      vite:
+        specifier: ^5.0.0
+        version: 5.4.21(@types/node@24.12.4)(less@4.4.2)(lightningcss@1.30.2)(terser@5.48.0)
+
   packages/foliate-js:
     dependencies:
       construct-style-sheets-polyfill:
@@ -1621,6 +1685,9 @@ importers:
       react-dom:
         specifier: 19.1.0
         version: 19.1.0(react@19.1.0)
+      slate:
+        specifier: 0.123.0
+        version: 0.123.0
       typescript:
         specifier: ^5.0.4
         version: 5.8.3
@@ -5610,10 +5677,12 @@ packages:
   '@xmldom/xmldom@0.8.13':
     resolution: {integrity: sha512-KRYzxepc14G/CEpEGc3Yn+JKaAeT63smlDr+vjB8jRfgTBBI9wRj/nkQEO+ucV8p8I9bfKLWp37uHgFrbntPvw==}
     engines: {node: '>=10.0.0'}
+    deprecated: this version has critical issues, please update to the latest version
 
   '@xmldom/xmldom@0.9.10':
     resolution: {integrity: sha512-A9gOqLdi6cV4ibazAjcQufGj0B1y/vDqYrcuP6d/6x8P27gRS8643Dj9o1dEKtB6O7fwxb2FgBmJS2mX7gpvdw==}
     engines: {node: '>=14.6'}
+    deprecated: this version has critical issues, please update to the latest version
 
   '@xmldom/xmldom@0.9.8':
     resolution: {integrity: sha512-p96FSY54r+WJ50FIOsCOjyj/wavs8921hG5+kVMmZgKcvIKxMXHTrjNJvRgWa/zuX3B6t2lijLNFaOyuxUH+2A==}

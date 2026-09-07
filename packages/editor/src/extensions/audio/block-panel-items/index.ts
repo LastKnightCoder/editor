@@ -1,20 +1,21 @@
 import { AudioLines } from "lucide-react";
+import type { Editor } from "slate";
 import { IBlockPanelListItem } from "../../../types";
-import { insertAudio } from "../../../utils";
+import { getMediaInsertMenuItems } from "../../../utils/mediaInsert";
 
-const items: IBlockPanelListItem[] = [
-  {
-    icon: AudioLines,
-    title: "音频",
-    keywords: ["audio", "音频", "yinpin"],
-    description: "音频",
-    onClick: (editor) => {
-      insertAudio(editor, {
-        src: "",
-        uploading: false,
-      });
+const getItems = (editor?: Editor): IBlockPanelListItem[] => {
+  if (!editor) {
+    return [];
+  }
+  return [
+    {
+      icon: AudioLines,
+      title: "音频",
+      keywords: ["音频", "audio", "yinpin"],
+      description: "插入音频",
+      children: getMediaInsertMenuItems(editor, "audio"),
     },
-  },
-];
+  ];
+};
 
-export default items;
+export default getItems;

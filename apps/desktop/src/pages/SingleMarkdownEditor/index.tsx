@@ -8,20 +8,17 @@ import {
 } from "slate";
 import { ReactEditor } from "slate-react";
 import { useSearchParams } from "react-router-dom";
-import {
-  message,
-  Button,
-  Tooltip,
-  Modal,
-  Dropdown,
-  type MenuProps,
-} from "antd";
+import { message, Button, Tooltip, Modal, Dropdown, type MenuProps } from "antd";
 
 import {
   Editor,
   EditorRef,
-  EditorServicesProvider,
-  useEditorServices,
+  EditorProvider,
+  createChildRegistry,
+  useServiceRegistry,
+  useEditorConfig,
+  IResourceService,
+  type ServiceRegistry,
 } from "@tau/editor/src";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
@@ -92,23 +89,12 @@ import { scrollSourceCursorIntoView } from "./scrollSourceCursorIntoView";
 import styles from "./index.module.less";
 import classnames from "classnames";
 import If from "@/components/If";
-import {
-  copyWechatHtmlToClipboard,
-  downloadMarkdown,
-  getEditorText,
-} from "@/utils";
+import { copyWechatHtmlToClipboard, downloadMarkdown, getEditorText } from "@/utils";
 import { uploadResource as uploadResourceCommand } from "@/hooks/useUploadResource";
-import type { IResource } from "@tau/editor/src/types/services";
 
 const customExtensions = [fileAttachmentExtension];
 type EditorViewMode = "standard" | "wide";
-type ActiveFileType =
-  | "markdown"
-  | "code"
-  | "image"
-  | "video"
-  | "audio"
-  | "none";
+type ActiveFileType = "markdown" | "code" | "image" | "video" | "audio" | "none";
 
 const getFileTitleFromPath = (filePath: string) => {
   const normalizedPath = (filePath || "").replace(/\\/g, "/");
@@ -116,15 +102,11 @@ const getFileTitleFromPath = (filePath: string) => {
   return fileName.replace(/\.[^.]+$/, "").trim();
 };
 
-const normalizePathSeparators = (filePath: string) =>
-  (filePath || "").replace(/\\/g, "/");
+const normalizePathSeparators = (filePath: string) => (filePath || "").replace(/\\/g, "/");
 
 const isPathWithinDir = (filePath: string, dirPath: string) => {
   const normalizedFilePath = normalizePathSeparators(filePath);
-  const normalizedDirPath = normalizePathSeparators(dirPath).replace(
-    /\/+$/,
-    "",
-  );
+  const normalizedDirPath = normalizePathSeparators(dirPath).replace(/\/+$/, "");
 
   if (!normalizedDirPath) {
     return false;
@@ -141,13 +123,11 @@ const isMarkdownFilePath = (filePath: string) => {
   return normalizedPath.endsWith(".md") || normalizedPath.endsWith(".markdown");
 };
 
-const hasExplicitScheme = (value: string) =>
-  /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(value);
+const hasExplicitScheme = (value: string) => /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(value);
 
 const isWindowsAbsolutePath = (value: string) => /^[a-zA-Z]:[\\/]/.test(value);
 
-const stripLocalLinkSuffix = (value: string) =>
-  value.split("#")[0].split("?")[0];
+const stripLocalLinkSuffix = (value: string) => value.split("#")[0].split("?")[0];
 
 const splitFileName = (fileName: string) => {
   const extensionIndex = fileName.lastIndexOf(".");
@@ -178,14 +158,6 @@ const isCompressibleImage = (file: File) => {
   const supportedTypes = ["image/png", "image/jpeg", "image/jpg"];
   return supportedTypes.includes(file.type.toLowerCase());
 };
-
-const createUploadResult = (url: string, file?: File): IResource => ({
-  id: url,
-  url,
-  type: "image",
-  name: file?.name,
-  path: url,
-});
 
 const getAvailableFileName = async (dirPath: string, fileName: string) => {
   const sep = await getSep();
@@ -218,15 +190,13 @@ const fileUrlToPath = (value: string) => {
 };
 
 const SingleMarkdownEditor = () => {
-  const editorServices = useEditorServices();
+  const baseRegistry = useServiceRegistry();
   const [searchParams, setSearchParams] = useSearchParams();
   const encodedFilePath = searchParams.get("filePath") || "";
   const encodedRootPath = searchParams.get("rootPath") || "";
 
   // filePath 和 rootPath 互斥，filePath 优先
-  const initialFilePath = encodedFilePath
-    ? decodeURIComponent(encodedFilePath)
-    : "";
+  const initialFilePath = encodedFilePath ? decodeURIComponent(encodedFilePath) : "";
   const initialRootPath = initialFilePath
     ? "" // 如果有 filePath，rootPath 从 filePath 推导
     : encodedRootPath
@@ -244,7 +214,7 @@ const SingleMarkdownEditor = () => {
   const [wordCount, setWordCount] = useState(0);
   const [fileTreeOpen, setFileTreeOpen] = useState(true);
   const [activeFileType, setActiveFileType] = useState<ActiveFileType>(
-    initialFilePath ? "markdown" : "none",
+    initialFilePath ? "markdown" : "none"
   );
   const [focusRequestId, setFocusRequestId] = useState(0);
   const [epubExportModalOpen, setEpubExportModalOpen] = useState(false);
@@ -255,14 +225,16 @@ const SingleMarkdownEditor = () => {
     "markdown-editor-file-tree-width",
     {
       defaultValue: 240,
-    },
+    }
   );
-  const [editorViewMode, setEditorViewMode] =
-    useLocalStorageState<EditorViewMode>("single-markdown-editor-view-mode", {
+  const [editorViewMode, setEditorViewMode] = useLocalStorageState<EditorViewMode>(
+    "single-markdown-editor-view-mode",
+    {
       defaultValue: "standard",
-    });
+    }
+  );
   const { isDark } = useTheme();
-  const { onDarkModeChange } = useSettingStore((state) => ({
+  const { onDarkModeChange } = useSettingStore(state => ({
     onDarkModeChange: state.onDarkModeChange,
   }));
   const {
@@ -316,10 +288,7 @@ const SingleMarkdownEditor = () => {
   const resolvedEditorViewMode = editorViewMode || "standard";
   isSourceModeRef.current = isSourceMode;
 
-  const getNodeByPath = (
-    nodes: Descendant[],
-    path: number[],
-  ): Descendant | null => {
+  const getNodeByPath = (nodes: Descendant[], path: number[]): Descendant | null => {
     let current: any = { children: nodes };
     for (const index of path) {
       if (!Array.isArray(current?.children)) {
@@ -363,16 +332,12 @@ const SingleMarkdownEditor = () => {
       // 从源码模式切换到编辑模式
       try {
         const cursorPos = sourceEditorRef.current?.getCursor();
-        const { content, positionMap } = importFromMarkdownWithPositions(
-          currentSourceText.current,
-        );
+        const { content, positionMap } = importFromMarkdownWithPositions(currentSourceText.current);
         setContent(content);
         resetEditorValue(content);
         positionMapRef.current = positionMap;
 
-        const slatePos = cursorPos
-          ? positionMap.markdownToSlate(cursorPos)
-          : null;
+        const slatePos = cursorPos ? positionMap.markdownToSlate(cursorPos) : null;
 
         const codeBlockHint = cursorPos
           ? positionMap.getElementPropertyByMarkdown(cursorPos)
@@ -389,17 +354,13 @@ const SingleMarkdownEditor = () => {
           if (!codeCursor && cursorPos && codeRange) {
             const targetLine = Math.min(
               Math.max(cursorPos.line, codeRange.mdStartLine),
-              codeRange.mdEndLine,
+              codeRange.mdEndLine
             );
-            const lineBaseCh =
-              targetLine === codeRange.mdStartLine ? codeRange.mdStartCh : 0;
-            const lineEndCh =
-              targetLine === codeRange.mdEndLine
-                ? codeRange.mdEndCh
-                : cursorPos.ch;
+            const lineBaseCh = targetLine === codeRange.mdStartLine ? codeRange.mdStartCh : 0;
+            const lineEndCh = targetLine === codeRange.mdEndLine ? codeRange.mdEndCh : cursorPos.ch;
             const targetCh = Math.min(
               Math.max(cursorPos.ch, lineBaseCh),
-              Math.max(lineBaseCh, lineEndCh),
+              Math.max(lineBaseCh, lineEndCh)
             );
             codeCursor = {
               line: Math.max(0, targetLine - codeRange.mdStartLine),
@@ -410,10 +371,7 @@ const SingleMarkdownEditor = () => {
           pendingCodeBlockFocusRef.current = {
             path: codeBlockPath,
             cursor: codeCursor ?? { line: 0, ch: 0 },
-            uuid:
-              typeof codeBlockNode?.uuid === "string"
-                ? codeBlockNode.uuid
-                : undefined,
+            uuid: typeof codeBlockNode?.uuid === "string" ? codeBlockNode.uuid : undefined,
           };
           pendingSlateSelectionRef.current = {
             path: codeBlockPath,
@@ -421,8 +379,7 @@ const SingleMarkdownEditor = () => {
           };
         } else {
           pendingCodeBlockFocusRef.current = null;
-          pendingSlateSelectionRef.current =
-            slatePos ?? lastEditorFocusRef.current;
+          pendingSlateSelectionRef.current = slatePos ?? lastEditorFocusRef.current;
         }
 
         pendingSlateFocusRef.current = true;
@@ -462,15 +419,13 @@ const SingleMarkdownEditor = () => {
         let mdPos = null;
         const codeBlockEntry = SlateEditor.above(editor, {
           at: selection.focus,
-          match: (node) =>
-            SlateElement.isElement(node) && node.type === "code-block",
+          match: node => SlateElement.isElement(node) && node.type === "code-block",
         });
         if (codeBlockEntry) {
           const [codeBlockNode, codeBlockPath] = codeBlockEntry as any;
           const uuid = codeBlockNode?.uuid;
           const codeEditor = uuid ? codeBlockMap.get(uuid) : null;
-          const mapping =
-            positionMap.getElementMappingBySlatePath(codeBlockPath);
+          const mapping = positionMap.getElementMappingBySlatePath(codeBlockPath);
           const codeMapping = mapping?.propertyMappings?.code;
           if (codeEditor && codeMapping) {
             const cursor = codeEditor.getCursor();
@@ -501,7 +456,7 @@ const SingleMarkdownEditor = () => {
 
   const resolveSlatePoint = (
     editor: ReturnType<EditorRef["getEditor"]>,
-    point: { path: number[]; offset: number } | null,
+    point: { path: number[]; offset: number } | null
   ) => {
     if (!point) {
       return null;
@@ -540,13 +495,8 @@ const SingleMarkdownEditor = () => {
       const children = (node as any).children;
       if (Array.isArray(children) && children.length > 0) {
         const desiredIndex =
-          typeof point.path[i] === "number"
-            ? point.path[i]
-            : children.length - 1;
-        const clampedIndex = Math.min(
-          Math.max(desiredIndex, 0),
-          children.length - 1,
-        );
+          typeof point.path[i] === "number" ? point.path[i] : children.length - 1;
+        const clampedIndex = Math.min(Math.max(desiredIndex, 0), children.length - 1);
         const candidatePath = [...basePath, clampedIndex];
         if (SlateEditor.hasPath(editor, candidatePath)) {
           const [child] = SlateEditor.node(editor, candidatePath);
@@ -572,21 +522,16 @@ const SingleMarkdownEditor = () => {
     pendingSlateFocusRef.current = false;
   });
 
-  const applySlateFallbackFocus = useMemoizedFn(
-    (editor: ReturnType<EditorRef["getEditor"]>) => {
-      const target = resolveSlatePoint(
-        editor,
-        pendingSlateSelectionRef.current,
-      );
-      if (!target) {
-        clearPendingFocusState();
-        return;
-      }
-      Transforms.select(editor, { anchor: target, focus: target });
-      ReactEditor.focus(editor);
+  const applySlateFallbackFocus = useMemoizedFn((editor: ReturnType<EditorRef["getEditor"]>) => {
+    const target = resolveSlatePoint(editor, pendingSlateSelectionRef.current);
+    if (!target) {
       clearPendingFocusState();
-    },
-  );
+      return;
+    }
+    Transforms.select(editor, { anchor: target, focus: target });
+    ReactEditor.focus(editor);
+    clearPendingFocusState();
+  });
 
   useEffect(() => {
     if (!isSourceMode && pendingSlateFocusRef.current && focusRequestId > 0) {
@@ -650,17 +595,11 @@ const SingleMarkdownEditor = () => {
                 if (Date.now() - focusStartTime >= CODE_BLOCK_FOCUS_MAX_WAIT) {
                   applySlateFallbackFocus(editor);
                 } else {
-                  setTimeout(
-                    () => attemptFocus(count + 1),
-                    CODE_BLOCK_FOCUS_RETRY_INTERVAL,
-                  );
+                  setTimeout(() => attemptFocus(count + 1), CODE_BLOCK_FOCUS_RETRY_INTERVAL);
                 }
                 return;
               }
-              const line = Math.min(
-                currentFocus.cursor.line,
-                codeEditor.lastLine(),
-              );
+              const line = Math.min(currentFocus.cursor.line, codeEditor.lastLine());
               const lineText = codeEditor.getLine(line) || "";
               const ch = Math.min(currentFocus.cursor.ch, lineText.length);
               codeEditor.focus();
@@ -697,7 +636,7 @@ const SingleMarkdownEditor = () => {
         setWordCount(getContentLength(content));
       }
     },
-    { wait: 1000 },
+    { wait: 1000 }
   );
 
   useEffect(() => {
@@ -709,9 +648,7 @@ const SingleMarkdownEditor = () => {
   });
 
   const getCurrentSlateContent = useMemoizedFn(() => {
-    return isSourceMode
-      ? importFromMarkdown(currentSourceText.current)
-      : content;
+    return isSourceMode ? importFromMarkdown(currentSourceText.current) : content;
   });
 
   const getCurrentDocumentTitle = useMemoizedFn((nodes?: Descendant[]) => {
@@ -792,34 +729,26 @@ const SingleMarkdownEditor = () => {
     setEditorViewMode(resolvedEditorViewMode === "wide" ? "standard" : "wide");
   });
 
-  const handleCopyMenuClick: MenuProps["onClick"] = useMemoizedFn(
-    async ({ key }) => {
-      if (key === "copy-markdown") {
-        await handleCopyMarkdown();
-      } else if (key === "copy-wechat") {
-        await handleCopyWechat();
-      }
-    },
-  );
+  const handleCopyMenuClick: MenuProps["onClick"] = useMemoizedFn(async ({ key }) => {
+    if (key === "copy-markdown") {
+      await handleCopyMarkdown();
+    } else if (key === "copy-wechat") {
+      await handleCopyWechat();
+    }
+  });
 
-  const handleExportMenuClick: MenuProps["onClick"] = useMemoizedFn(
-    async ({ key }) => {
-      if (key === "export-markdown") {
-        handleDownloadCurrentMarkdown();
-      } else if (key === "export-pdf") {
-        handleOpenPdfExportModal();
-      } else if (key === "export-epub") {
-        handleOpenEpubExportModal();
-      }
-    },
-  );
+  const handleExportMenuClick: MenuProps["onClick"] = useMemoizedFn(async ({ key }) => {
+    if (key === "export-markdown") {
+      handleDownloadCurrentMarkdown();
+    } else if (key === "export-pdf") {
+      handleOpenPdfExportModal();
+    } else if (key === "export-epub") {
+      handleOpenEpubExportModal();
+    }
+  });
 
   const applyMarkdownText = useMemoizedFn(
-    (
-      filePathToApply: string,
-      markdownText: string,
-      options?: { notifyExternalSync?: boolean },
-    ) => {
+    (filePathToApply: string, markdownText: string, options?: { notifyExternalSync?: boolean }) => {
       if (!filePathToApply || filePathToApply !== currentFilePathRef.current) {
         return;
       }
@@ -848,7 +777,7 @@ const SingleMarkdownEditor = () => {
           duration: 1.5,
         });
       }
-    },
+    }
   );
 
   const promptExternalSyncConflict = useMemoizedFn(
@@ -877,11 +806,9 @@ const SingleMarkdownEditor = () => {
             return;
           }
 
-          applyMarkdownText(
-            pendingExternalSync.filePath,
-            pendingExternalSync.markdownText,
-            { notifyExternalSync: true },
-          );
+          applyMarkdownText(pendingExternalSync.filePath, pendingExternalSync.markdownText, {
+            notifyExternalSync: true,
+          });
         },
         onCancel: () => {
           pendingExternalSyncRef.current = null;
@@ -892,7 +819,7 @@ const SingleMarkdownEditor = () => {
       externalSyncModalDestroyRef.current = () => {
         modal.destroy();
       };
-    },
+    }
   );
 
   const stopWatchingFile = useMemoizedFn(async (filePathToStop?: string) => {
@@ -935,16 +862,9 @@ const SingleMarkdownEditor = () => {
   });
 
   const saveMarkdownFile = useMemoizedFn(
-    async (
-      filePathToSave?: string,
-      options?: { allowDuringFileOperation?: boolean },
-    ) => {
+    async (filePathToSave?: string, options?: { allowDuringFileOperation?: boolean }) => {
       const pathToSave = filePathToSave || currentFilePathRef.current;
-      if (
-        !pathToSave ||
-        (fileOperationInProgressRef.current &&
-          !options?.allowDuringFileOperation)
-      )
+      if (!pathToSave || (fileOperationInProgressRef.current && !options?.allowDuringFileOperation))
         return;
       if (isWritingLocalFileRef.current) {
         await pendingLocalWriteRef.current;
@@ -953,9 +873,7 @@ const SingleMarkdownEditor = () => {
 
       const writeOperation = (async () => {
         try {
-          const markdownText = isSourceMode
-            ? currentSourceText.current
-            : getMarkdown(content);
+          const markdownText = isSourceMode ? currentSourceText.current : getMarkdown(content);
           if (markdownText === beforeSaveSourceText.current) return;
 
           isWritingLocalFileRef.current = true;
@@ -983,7 +901,7 @@ const SingleMarkdownEditor = () => {
           pendingLocalWriteRef.current = null;
         }
       }
-    },
+    }
   );
 
   const onSourceEditorDidMount = useMemoizedFn((editor: CodeMirrorEditor) => {
@@ -1010,21 +928,19 @@ const SingleMarkdownEditor = () => {
     editor.on("change", scheduleCursorScroll);
   });
 
-  const onSourceEditorWillUnmount = useMemoizedFn(
-    (editor: CodeMirrorEditor) => {
-      const cursorActivity = sourceEditorCursorActivityRef.current;
-      if (cursorActivity) {
-        editor.off("cursorActivity", cursorActivity);
-        editor.off("change", cursorActivity);
-      }
-      sourceEditorCursorActivityRef.current = null;
-      if (sourceEditorScrollFrameRef.current !== null) {
-        cancelAnimationFrame(sourceEditorScrollFrameRef.current);
-        sourceEditorScrollFrameRef.current = null;
-      }
-      sourceEditorRef.current = null;
-    },
-  );
+  const onSourceEditorWillUnmount = useMemoizedFn((editor: CodeMirrorEditor) => {
+    const cursorActivity = sourceEditorCursorActivityRef.current;
+    if (cursorActivity) {
+      editor.off("cursorActivity", cursorActivity);
+      editor.off("change", cursorActivity);
+    }
+    sourceEditorCursorActivityRef.current = null;
+    if (sourceEditorScrollFrameRef.current !== null) {
+      cancelAnimationFrame(sourceEditorScrollFrameRef.current);
+      sourceEditorScrollFrameRef.current = null;
+    }
+    sourceEditorRef.current = null;
+  });
 
   const syncSearchParamsWithFilePath = useMemoizedFn((nextFilePath: string) => {
     const params = new URLSearchParams(searchParams);
@@ -1073,7 +989,7 @@ const SingleMarkdownEditor = () => {
       newFilePath: string,
       options?: {
         syncRootPath?: boolean;
-      },
+      }
     ) => {
       if (!newFilePath) {
         return false;
@@ -1087,8 +1003,7 @@ const SingleMarkdownEditor = () => {
         return true;
       }
 
-      const shouldUpdateRootPath =
-        !!options?.syncRootPath && shouldSyncRootPath(newFilePath);
+      const shouldUpdateRootPath = !!options?.syncRootPath && shouldSyncRootPath(newFilePath);
 
       await saveMarkdownFile(currentFilePathRef.current);
       await stopWatchingFile(currentFilePathRef.current);
@@ -1111,17 +1026,15 @@ const SingleMarkdownEditor = () => {
         setRootPath(dirPath);
       }
       return true;
-    },
+    }
   );
 
-  const openLocalPathWithDefaultApp = useMemoizedFn(
-    async (targetPath: string) => {
-      const openResult = await openFileWithDefaultApp(targetPath);
-      if (openResult) {
-        throw new Error(openResult);
-      }
-    },
-  );
+  const openLocalPathWithDefaultApp = useMemoizedFn(async (targetPath: string) => {
+    const openResult = await openFileWithDefaultApp(targetPath);
+    if (openResult) {
+      throw new Error(openResult);
+    }
+  });
 
   const resolveLocalLinkTarget = useMemoizedFn(async (rawUrl: string) => {
     const trimmedUrl = rawUrl.trim();
@@ -1195,9 +1108,7 @@ const SingleMarkdownEditor = () => {
       await openLocalPathWithDefaultApp(targetPath);
     } catch (error) {
       console.error("打开链接失败:", error);
-      message.error(
-        error instanceof Error ? error.message : "打开链接失败，请稍后重试",
-      );
+      message.error(error instanceof Error ? error.message : "打开链接失败，请稍后重试");
     }
   });
 
@@ -1210,11 +1121,7 @@ const SingleMarkdownEditor = () => {
     }
 
     if (category === "markdown") {
-      if (
-        newFilePath === currentFilePathRef.current &&
-        activeFileType === "markdown"
-      )
-        return;
+      if (newFilePath === currentFilePathRef.current && activeFileType === "markdown") return;
       setActiveFileType("markdown");
       await switchMarkdownFile(newFilePath);
       return;
@@ -1225,46 +1132,44 @@ const SingleMarkdownEditor = () => {
     currentFilePathRef.current = newFilePath;
   });
 
-  const handleFileRenamed = useMemoizedFn(
-    async (oldFilePath: string, newFilePath: string) => {
-      const isCurrentFile = oldFilePath === currentFilePathRef.current;
-      if (!isCurrentFile) {
-        await renameFileOrDirectory(oldFilePath, newFilePath);
-        return;
+  const handleFileRenamed = useMemoizedFn(async (oldFilePath: string, newFilePath: string) => {
+    const isCurrentFile = oldFilePath === currentFilePathRef.current;
+    if (!isCurrentFile) {
+      await renameFileOrDirectory(oldFilePath, newFilePath);
+      return;
+    }
+
+    fileOperationInProgressRef.current = true;
+    try {
+      await pendingLocalWriteRef.current;
+      if (activeFileType === "markdown") {
+        await saveMarkdownFile(oldFilePath, {
+          allowDuringFileOperation: true,
+        });
+        await stopWatchingFile(oldFilePath);
+      } else if (activeFileType === "code") {
+        await codeFileEditorRef.current?.save();
       }
 
-      fileOperationInProgressRef.current = true;
-      try {
-        await pendingLocalWriteRef.current;
-        if (activeFileType === "markdown") {
-          await saveMarkdownFile(oldFilePath, {
-            allowDuringFileOperation: true,
-          });
-          await stopWatchingFile(oldFilePath);
-        } else if (activeFileType === "code") {
-          await codeFileEditorRef.current?.save();
-        }
+      await renameFileOrDirectory(oldFilePath, newFilePath);
 
-        await renameFileOrDirectory(oldFilePath, newFilePath);
+      currentFilePathRef.current = newFilePath;
+      setCurrentFilePath(newFilePath);
+      syncSearchParamsWithFilePath(newFilePath);
+      lastWrittenFilePathRef.current = newFilePath;
 
-        currentFilePathRef.current = newFilePath;
-        setCurrentFilePath(newFilePath);
-        syncSearchParamsWithFilePath(newFilePath);
-        lastWrittenFilePathRef.current = newFilePath;
-
-        if (activeFileType === "markdown") {
-          await startWatchingFile(newFilePath);
-        }
-      } catch (error) {
-        if (activeFileType === "markdown" && currentFilePathRef.current) {
-          await startWatchingFile(currentFilePathRef.current);
-        }
-        throw error;
-      } finally {
-        fileOperationInProgressRef.current = false;
+      if (activeFileType === "markdown") {
+        await startWatchingFile(newFilePath);
       }
-    },
-  );
+    } catch (error) {
+      if (activeFileType === "markdown" && currentFilePathRef.current) {
+        await startWatchingFile(currentFilePathRef.current);
+      }
+      throw error;
+    } finally {
+      fileOperationInProgressRef.current = false;
+    }
+  });
 
   const handleFileDeleted = useMemoizedFn(async (deletedFilePath: string) => {
     const isCurrentFile = deletedFilePath === currentFilePathRef.current;
@@ -1302,7 +1207,7 @@ const SingleMarkdownEditor = () => {
   });
 
   const uploadLocalImageToCurrentDocumentDir = useMemoizedFn(
-    async (file: File): Promise<IResource> => {
+    async (file: File): Promise<string> => {
       const { imageBed } = useSettingStore.getState().setting;
       const currentMarkdownPath = currentFilePathRef.current;
 
@@ -1311,7 +1216,7 @@ const SingleMarkdownEditor = () => {
         if (!url) {
           throw new Error("图片上传失败");
         }
-        return createUploadResult(url, file);
+        return url;
       }
 
       try {
@@ -1321,7 +1226,7 @@ const SingleMarkdownEditor = () => {
         if (imageBed.enableCompression && isCompressibleImage(file)) {
           const compressedBuffer = await compressImage(
             new Uint8Array(await file.arrayBuffer()),
-            file.type,
+            file.type
           );
 
           fileName = withWebpExtension(file.name);
@@ -1333,36 +1238,36 @@ const SingleMarkdownEditor = () => {
         const documentDirPath = await getDirectoryName(currentMarkdownPath);
         const target = await getAvailableFileName(documentDirPath, fileName);
 
-        await writeBinaryFile(
-          target.filePath,
-          new Uint8Array(await processedFile.arrayBuffer()),
-        );
+        await writeBinaryFile(target.filePath, new Uint8Array(await processedFile.arrayBuffer()));
 
-        return createUploadResult(target.fileName, processedFile);
+        return target.fileName;
       } catch (error) {
         console.error("保存图片到当前文档目录失败，回退到默认上传逻辑:", error);
         const url = await uploadResourceCommand(file);
         if (!url) {
           throw new Error("图片上传失败");
         }
-        return createUploadResult(url, file);
+        return url;
       }
-    },
+    }
   );
 
-  const singleMarkdownEditorServices = useMemo(
-    () => ({
-      ...editorServices,
-      resource: {
-        ...editorServices.resource,
-        upload: uploadLocalImageToCurrentDocumentDir,
-      },
-      utility: {
-        ...editorServices.utility,
-        openUrl: handleEditorOpenUrl,
-      },
-    }),
-    [editorServices, handleEditorOpenUrl, uploadLocalImageToCurrentDocumentDir],
+  const singleMarkdownEditorRegistry = useMemo<ServiceRegistry>(
+    () =>
+      createChildRegistry(baseRegistry, register => {
+        register(IResourceService, {
+          ...baseRegistry.get(IResourceService),
+          upload: uploadLocalImageToCurrentDocumentDir,
+        });
+      }),
+    [baseRegistry, uploadLocalImageToCurrentDocumentDir]
+  );
+
+  // 本页面的链接打开行为：覆盖全局配置中的 openUrl
+  const baseEditorConfig = useEditorConfig();
+  const singleMarkdownEditorConfig = useMemo(
+    () => (baseEditorConfig ? { ...baseEditorConfig, openUrl: handleEditorOpenUrl } : null),
+    [baseEditorConfig, handleEditorOpenUrl]
   );
 
   useEffect(() => {
@@ -1417,10 +1322,7 @@ const SingleMarkdownEditor = () => {
   }, []);
 
   useEffect(() => {
-    const handleTextFileChanged = async (
-      _event: unknown,
-      payload: TextFileChangedPayload,
-    ) => {
+    const handleTextFileChanged = async (_event: unknown, payload: TextFileChangedPayload) => {
       const changedFilePath = payload?.filePath;
       if (!changedFilePath) {
         return;
@@ -1434,10 +1336,7 @@ const SingleMarkdownEditor = () => {
         return;
       }
 
-      if (
-        isWritingLocalFileRef.current &&
-        changedFilePath === writingFilePathRef.current
-      ) {
+      if (isWritingLocalFileRef.current && changedFilePath === writingFilePathRef.current) {
         return;
       }
 
@@ -1464,8 +1363,7 @@ const SingleMarkdownEditor = () => {
           return;
         }
 
-        const hasLocalUnsavedChanges =
-          currentMarkdownText !== beforeSaveSourceText.current;
+        const hasLocalUnsavedChanges = currentMarkdownText !== beforeSaveSourceText.current;
 
         if (hasLocalUnsavedChanges) {
           promptExternalSyncConflict(changedFilePath, markdownText);
@@ -1514,7 +1412,7 @@ const SingleMarkdownEditor = () => {
     (_editor: CodeMirrorEditor, _change: EditorChange, code: string) => {
       currentSourceText.current = code;
       calculateWordCount();
-    },
+    }
   );
 
   if (loading) {
@@ -1544,7 +1442,7 @@ const SingleMarkdownEditor = () => {
           <ResizableAndHideableSidebar
             width={fileTreeWidth ?? 240}
             open={fileTreeOpen}
-            onWidthChange={(width) => setFileTreeWidth(width)}
+            onWidthChange={width => setFileTreeWidth(width)}
             className={styles.fileTreeSidebar}
             minWidth={200}
             maxWidth={400}
@@ -1569,8 +1467,7 @@ const SingleMarkdownEditor = () => {
                 <div
                   className={classnames(styles.sourceEditor, {
                     [styles.hidden]: !isSourceMode,
-                    [styles.sourceEditorWide]:
-                      resolvedEditorViewMode === "wide",
+                    [styles.sourceEditorWide]: resolvedEditorViewMode === "wide",
                   })}
                 >
                   <MarkdownSourceEditor
@@ -1585,14 +1482,14 @@ const SingleMarkdownEditor = () => {
                 <If condition={!isSourceMode}>
                   <div className={styles.contentEditor}>
                     <ErrorBoundary>
-                      <EditorServicesProvider
-                        services={singleMarkdownEditorServices}
+                      <EditorProvider
+                        registry={singleMarkdownEditorRegistry}
+                        config={singleMarkdownEditorConfig}
                       >
                         <Editor
                           key={currentFilePath}
                           className={classnames(styles.editor, {
-                            [styles.editorWide]:
-                              resolvedEditorViewMode === "wide",
+                            [styles.editorWide]: resolvedEditorViewMode === "wide",
                           })}
                           ref={editorRef}
                           initValue={content}
@@ -1601,7 +1498,7 @@ const SingleMarkdownEditor = () => {
                           theme={isDark ? "dark" : "light"}
                           extensions={customExtensions}
                         />
-                      </EditorServicesProvider>
+                      </EditorProvider>
                     </ErrorBoundary>
                     <div className={styles.outlineContainer}>
                       <EditorOutline
@@ -1635,9 +1532,7 @@ const SingleMarkdownEditor = () => {
             ) : (
               <div className={styles.emptyEditor}>
                 <div className={styles.emptyContent}>
-                  <FileMarkdownOutlined
-                    style={{ fontSize: 64, color: "#999" }}
-                  />
+                  <FileMarkdownOutlined style={{ fontSize: 64, color: "#999" }} />
                   <p>请从左侧文件树选择一个文件</p>
                 </div>
               </div>
@@ -1668,9 +1563,7 @@ const SingleMarkdownEditor = () => {
                 />
               </Tooltip>
 
-              <Tooltip
-                title={isSourceMode ? "切换到编辑模式" : "切换到源码模式"}
-              >
+              <Tooltip title={isSourceMode ? "切换到编辑模式" : "切换到源码模式"}>
                 <Button
                   type="text"
                   icon={isSourceMode ? <FormOutlined /> : <CodeOutlined />}
@@ -1685,29 +1578,17 @@ const SingleMarkdownEditor = () => {
                     : "当前为标准视图，点击切换到宽屏视图"
                 }
               >
-                <Button
-                  type="text"
-                  icon={<ColumnWidthOutlined />}
-                  onClick={toggleEditorViewMode}
-                />
+                <Button type="text" icon={<ColumnWidthOutlined />} onClick={toggleEditorViewMode} />
               </Tooltip>
             </>
           )}
 
           <Tooltip title={isDark ? "切换到浅色模式" : "切换到深色模式"}>
-            <Button
-              type="text"
-              icon={<BgColorsOutlined />}
-              onClick={toggleTheme}
-            />
+            <Button type="text" icon={<BgColorsOutlined />} onClick={toggleTheme} />
           </Tooltip>
 
           <Tooltip title={terminalOpen ? "关闭终端" : "打开终端"}>
-            <Button
-              type="text"
-              icon={<TerminalSquare size={14} />}
-              onClick={toggleTerminal}
-            />
+            <Button type="text" icon={<TerminalSquare size={14} />} onClick={toggleTerminal} />
           </Tooltip>
         </div>
 
@@ -1727,11 +1608,7 @@ const SingleMarkdownEditor = () => {
                   }}
                 >
                   <Tooltip title="复制">
-                    <Button
-                      type="text"
-                      icon={<CopyOutlined />}
-                      disabled={!currentFilePath}
-                    />
+                    <Button type="text" icon={<CopyOutlined />} disabled={!currentFilePath} />
                   </Tooltip>
                 </Dropdown>
                 <Dropdown
@@ -1747,11 +1624,7 @@ const SingleMarkdownEditor = () => {
                   }}
                 >
                   <Tooltip title="导出">
-                    <Button
-                      type="text"
-                      icon={<ExportOutlined />}
-                      disabled={!currentFilePath}
-                    />
+                    <Button type="text" icon={<ExportOutlined />} disabled={!currentFilePath} />
                   </Tooltip>
                 </Dropdown>
               </div>

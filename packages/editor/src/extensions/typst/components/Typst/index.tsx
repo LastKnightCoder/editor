@@ -2,6 +2,7 @@ import React, { PropsWithChildren } from "react";
 import { Transforms } from "slate";
 import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 import { Typst as TypstRenderer } from "@tau/shared";
+import { ICompilerService } from "../../../../services";
 
 import type { TypstElement } from "../../../types";
 import PreviewWithEditor from "../../../../components/PreviewWithEditor";
@@ -11,18 +12,18 @@ interface TypstProps {
   element: TypstElement;
 }
 
-const Typst: React.FC<PropsWithChildren<TypstProps>> = (props) => {
+const Typst: React.FC<PropsWithChildren<TypstProps>> = props => {
   const { attributes, element, children } = props;
   const { content, html, compiledFrom } = element;
 
   const editor = useSlateStatic();
-  const compileTypst = editor.services?.compiler?.typst;
+  const compileTypst = editor.tryGetService(ICompilerService)?.typst;
 
   const renderEmpty = () => {
     return (
       <div
         contentEditable={false}
-        className="text-gray-400 dark:text-gray-500 py-3"
+        className="py-3 text-gray-400 dark:text-gray-500"
         style={{ userSelect: "none" }}
       >
         点击编辑 Typst
@@ -39,7 +40,7 @@ const Typst: React.FC<PropsWithChildren<TypstProps>> = (props) => {
         compiledFrom: undefined,
         compiledAt: undefined,
       },
-      { at: ReactEditor.findPath(editor, element) },
+      { at: ReactEditor.findPath(editor, element) }
     );
   };
 
@@ -51,7 +52,7 @@ const Typst: React.FC<PropsWithChildren<TypstProps>> = (props) => {
         compiledFrom: compiledCode,
         compiledAt: Date.now(),
       },
-      { at: ReactEditor.findPath(editor, element) },
+      { at: ReactEditor.findPath(editor, element) }
     );
   };
 

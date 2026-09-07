@@ -460,7 +460,7 @@ const useProjectConfig = () => {
       title: "内容",
       dataIndex: "content",
       key: "content",
-      render: (content: Descendant[], record: { contentId?: number }) => {
+      render: (content: Descendant[]) => {
         // 添加空值检查
         if (!content || !Array.isArray(content)) return null;
 
@@ -468,7 +468,7 @@ const useProjectConfig = () => {
           <Popover
             content={
               <div style={{ width: 320, maxHeight: 180, overflow: "hidden" }}>
-                <Editor contentId={record.contentId} initValue={content || []} readonly={true} />
+                <Editor initValue={content || []} readonly={true} />
               </div>
             }
             trigger="click"

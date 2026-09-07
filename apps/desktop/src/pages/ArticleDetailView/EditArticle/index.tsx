@@ -642,7 +642,6 @@ const EditArticle = memo((props: IEditArticleProps) => {
               <ErrorBoundary>
                 <Editor
                   contentId={editingArticle?.contentId}
-                  collaborationControl={false}
                   key={`${editingArticle.id}-${editorRemountKey}`}
                   ref={editorRef}
                   initValue={editingArticle.content}

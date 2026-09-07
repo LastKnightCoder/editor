@@ -1,23 +1,9 @@
 import { useSlateStatic } from "slate-react";
-import type { IResource } from "../types";
+import { IResourceService } from "../services";
 
 export const useUploadResource = () => {
   const editor = useSlateStatic();
-  const serviceUpload = editor.services?.resource.upload;
-
-  const normalizeResult = (result: string | IResource | undefined) => {
-    if (!result) return undefined;
-    return typeof result === "string" ? result : result.url ?? undefined;
-  };
-
-  if (serviceUpload) {
-    return async (file: File): Promise<string | undefined> => {
-      const result = await serviceUpload(file);
-      return normalizeResult(result);
-    };
-  }
-
-  return undefined;
+  return editor.getService(IResourceService).upload;
 };
 
 export default useUploadResource;

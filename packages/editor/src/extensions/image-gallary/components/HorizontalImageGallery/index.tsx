@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ImageGallery } from "@tau/shared";
-import { useSlateStatic } from "slate-react";
 import useTheme from "../../../../hooks/useTheme";
 import type {
   ImageBorderRadiusPreset,
@@ -15,6 +14,7 @@ import {
   type ImageDimension,
 } from "./layoutCalculator";
 import { getImageAppearanceStyle } from "../../../image/utils/appearance";
+import { useEditorSlots } from "../../../../services";
 
 interface IHorizontalImageGalleryProps {
   items: ImageGalleryItem[];
@@ -41,19 +41,16 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
   const [containerWidth, setContainerWidth] = useState(0);
   const [showGallery, setShowGallery] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
-  const [dimensions, setDimensions] = useState<Map<string, ImageDimension>>(
-    new Map(),
-  );
+  const [dimensions, setDimensions] = useState<Map<string, ImageDimension>>(new Map());
 
   const { theme } = useTheme();
-  const editor = useSlateStatic();
-  const CustomImage = editor.services?.components?.Image;
+  const { Image: CustomImage } = useEditorSlots();
 
   // 监听容器宽度变化
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const observer = new ResizeObserver((entries) => {
+    const observer = new ResizeObserver(entries => {
       for (const entry of entries) {
         setContainerWidth(entry.contentRect.width);
       }
@@ -70,7 +67,7 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
     const newDimensions = new Map<string, ImageDimension>();
     const needsUpdate: ImageGalleryItem[] = [];
 
-    items.forEach((item) => {
+    items.forEach(item => {
       // 优先使用已存储的尺寸
       if (item.width && item.height) {
         newDimensions.set(item.id, toImageDimension(item, true));
@@ -89,7 +86,7 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
 
       const img = new Image();
       img.onload = () => {
-        setDimensions((prev) => {
+        setDimensions(prev => {
           const next = new Map(prev);
           const dimension: ImageDimension = {
             id: item.id,
@@ -114,8 +111,8 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
         // 延迟调用回调，避免频繁更新
         if (onUpdateDimensions && needsUpdate.length > 0) {
           requestAnimationFrame(() => {
-            const updatedItems = items.map((i) => {
-              const updated = needsUpdate.find((u) => u.id === i.id);
+            const updatedItems = items.map(i => {
+              const updated = needsUpdate.find(u => u.id === i.id);
               return updated || i;
             });
             onUpdateDimensions(updatedItems);
@@ -124,7 +121,7 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
       };
 
       img.onerror = () => {
-        setDimensions((prev) => {
+        setDimensions(prev => {
           const next = new Map(prev);
           next.set(item.id, {
             ...toImageDimension(item, false),
@@ -142,7 +139,7 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
 
   // 获取尺寸数组
   const dimensionsArray = useMemo(() => {
-    return items.map((item) => {
+    return items.map(item => {
       const dim = dimensions.get(item.id);
       if (dim) return dim;
       return toImageDimension(item, false);
@@ -163,7 +160,7 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
   }, [dimensionsArray, containerWidth, height, margins, lastRow]);
 
   // 全屏浏览的图片列表
-  const galleryImages = useMemo(() => items.map((item) => item.url), [items]);
+  const galleryImages = useMemo(() => items.map(item => item.url), [items]);
 
   // 点击图片处理
   const handleImageClick = useCallback((index: number) => {
@@ -172,10 +169,10 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
   }, []);
 
   // 检查是否所有图片都已加载
-  const allLoaded = dimensionsArray.every((d) => d.loaded);
+  const allLoaded = dimensionsArray.every(d => d.loaded);
   const itemAppearanceStyle = useMemo(
     () => getImageAppearanceStyle({ borderRadius, shadow }),
-    [borderRadius, shadow],
+    [borderRadius, shadow]
   );
 
   return (
@@ -212,7 +209,7 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
             <img
               src={item.url}
               alt={item.desc || ""}
-              className="w-full h-full object-cover object-center"
+              className="h-full w-full object-cover object-center"
               loading="lazy"
             />
           )}
@@ -221,9 +218,7 @@ const HorizontalImageGallery = (props: IHorizontalImageGalleryProps) => {
 
       {/* 加载占位符 */}
       {!allLoaded && layout.items.length === 0 && (
-        <div className="flex items-center justify-center h-48 text-gray-400">
-          Loading images...
-        </div>
+        <div className="flex h-48 items-center justify-center text-gray-400">Loading images...</div>
       )}
 
       {/* 全屏浏览 */}

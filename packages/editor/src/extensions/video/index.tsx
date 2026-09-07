@@ -6,6 +6,7 @@ import type { VideoElement } from "../../types";
 import VideoComponent from "./components/VideoComponent";
 import { pasteVideo, dropVideo } from "./plugins";
 import blockPanelItems from "./block-panel-items";
+import type { Editor } from "slate";
 import { createVoidElementPlugin, createBlockElementPlugin } from "../../utils";
 class VideoExtension extends Base implements IExtension {
   type = "video";
@@ -19,8 +20,8 @@ class VideoExtension extends Base implements IExtension {
     ];
   }
 
-  override getBlockPanelItems() {
-    return blockPanelItems;
+  override getBlockPanelItems(editor?: Editor) {
+    return blockPanelItems(editor);
   }
 
   render(props: RenderElementProps) {

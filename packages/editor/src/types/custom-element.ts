@@ -28,7 +28,6 @@ import { AudioElement } from "./element/audio";
 import { VideoElement } from "./element/video";
 import { CommentElement } from "./element/comment";
 import { FrontMatterElement } from "./element/front-matter";
-import { WebviewElement } from "./element/webview";
 import { InlineImageElement } from "./element/inline-image";
 import { KbdElement } from "./element/kbd";
 import { EmojiElement } from "./element/emoji";
@@ -80,7 +79,6 @@ export interface BuiltinElementMap {
   video: VideoElement;
   comment: CommentElement;
   "front-matter": FrontMatterElement;
-  webview: WebviewElement;
   "html-inline": HTMLInlineElement;
   "inline-image": InlineImageElement;
   kbd: KbdElement;

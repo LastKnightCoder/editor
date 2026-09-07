@@ -2,23 +2,18 @@ import { Editor, Transforms, Element as SlateElement } from "slate";
 import { v4 as uuidv4 } from "uuid";
 import { message } from "antd";
 import { insertImage } from "../../../utils";
+import { IResourceService } from "../../../services";
 
 /**
  * 通过uuid查找并更新图片节点
  */
-function updateImageByUuid(
-  editor: Editor,
-  uuid: string,
-  properties: Record<string, any>,
-): boolean {
+function updateImageByUuid(editor: Editor, uuid: string, properties: Record<string, any>): boolean {
   const nodeEntries = Array.from(
     Editor.nodes(editor, {
       at: [],
       match: (n: any) =>
-        SlateElement.isElement(n) &&
-        n.type === "image" &&
-        (n as any).uuid === uuid,
-    }),
+        SlateElement.isElement(n) && n.type === "image" && (n as any).uuid === uuid,
+    })
   );
 
   if (nodeEntries.length > 0) {
@@ -58,15 +53,15 @@ export const dropImage = (editor: Editor) => {
 
     try {
       // 上传文件
-      const res = await editor.services?.resource.upload(file);
+      const url = await editor.getService(IResourceService).upload(file);
 
-      if (!res) {
+      if (!url) {
         throw new Error("上传失败");
       }
 
       // 使用 UUID 查找并更新节点（避免并行上传时路径失效）
       const updated = updateImageByUuid(editor, uuid, {
-        url: res.url,
+        url,
         pasteUploading: false,
       });
 

@@ -24,13 +24,7 @@ const Content = memo((props: IContentProps) => {
 
   return (
     <div className={styles.contentContentContainer}>
-      <Editor
-        contentId={content.id}
-        key={content.id}
-        initValue={content.content}
-        readonly
-        extensions={extensions}
-      />
+      <Editor key={content.id} initValue={content.content} readonly extensions={extensions} />
     </div>
   );
 });

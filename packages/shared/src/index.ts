@@ -31,7 +31,11 @@ export {
   type WebviewUrlSourceType,
 } from "./components/WebviewUrlInputForm";
 export { default as Katex } from "./components/Katex";
-export { default as PlantUML } from "./components/PlantUML";
+export {
+  default as PlantUML,
+  buildPlantumlSvgUrl,
+  PLANTUML_DEFAULT_SERVER,
+} from "./components/PlantUML";
 export { default as TikZ } from "./components/TikZ";
 export { default as Typst } from "./components/Typst";
 export { default as ImageCropper } from "./components/ImageCropper";
@@ -75,6 +79,8 @@ export {
   type MermaidDiagramType,
   type MermaidRenderResult,
 } from "./utils/mermaid-render-core";
+export { markdownCustomDirectives } from "./utils/markdown-custom-directives";
+export { applyDarkTheme } from "./components/PlantUML";
 
 // ChatInputArea 组件
 export {
@@ -177,6 +183,7 @@ export {
   type UseBilibiliVideoDeps,
   type UseBilibiliVideoResult,
   type BiliBiliVideoMetaInfo,
+  type StreamProgress,
   type StreamProgress as BilibiliStreamProgress,
   type BilibiliCacheProgress,
 } from "./hooks/useBilibiliVideo";

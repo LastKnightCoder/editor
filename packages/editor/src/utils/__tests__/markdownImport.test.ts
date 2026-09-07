@@ -25,9 +25,7 @@ describe("markdownImport", () => {
   it("应保留链接等行内结构", () => {
     const content = importFromMarkdown("[OpenAI](https://openai.com)");
     const paragraph = content[0] as { children?: unknown[] };
-    const firstChild = paragraph.children?.[0] as
-      | { type?: string; url?: string }
-      | undefined;
+    const firstChild = paragraph.children?.[0] as { type?: string; url?: string } | undefined;
 
     expect(content[0]).toMatchObject({ type: "paragraph" });
     expect(firstChild).toMatchObject({
@@ -42,10 +40,8 @@ describe("markdownImport", () => {
       children?: Array<{ text?: string; bold?: boolean }>;
     };
 
-    expect(paragraph.children?.find((leaf) => leaf.bold)?.text).toBe("加粗。");
-    expect(
-      paragraph.children?.find((leaf) => leaf.text === "后续文本")?.bold,
-    ).toBeFalsy();
+    expect(paragraph.children?.find(leaf => leaf.bold)?.text).toBe("加粗。");
+    expect(paragraph.children?.find(leaf => leaf.text === "后续文本")?.bold).toBeFalsy();
   });
 
   it("中文标点相邻删除线应解析出删除线", () => {
@@ -54,9 +50,7 @@ describe("markdownImport", () => {
       children?: Array<{ text?: string; strikethrough?: boolean }>;
     };
 
-    expect(paragraph.children?.find((leaf) => leaf.strikethrough)?.text).toBe(
-      "删除线。",
-    );
+    expect(paragraph.children?.find(leaf => leaf.strikethrough)?.text).toBe("删除线。");
   });
 
   it("导入时应剥离历史驻留的零宽空格", () => {
@@ -65,9 +59,40 @@ describe("markdownImport", () => {
       children?: Array<{ text?: string; bold?: boolean }>;
     };
 
-    expect(
-      paragraph.children?.every((leaf) => !leaf.text?.includes("\u200B")),
-    ).toBe(true);
-    expect(paragraph.children?.find((leaf) => leaf.bold)?.text).toBe("加粗");
+    expect(paragraph.children?.every(leaf => !leaf.text?.includes("\u200B"))).toBe(true);
+    expect(paragraph.children?.find(leaf => leaf.bold)?.text).toBe("加粗");
+  });
+
+  it("customDirectives 应支持 container、leaf 与 text 三种 directive", () => {
+    const handler = (attributes: Record<string, string | undefined>) =>
+      ({
+        type: "custom-directive",
+        id: attributes.id || "",
+        children: [{ type: "formatted", text: "" }],
+      }) as never;
+    const content = importFromMarkdown(
+      [
+        ":::custom-directive{id=container}",
+        "内容",
+        ":::",
+        "",
+        "::custom-directive{id=leaf}",
+        "",
+        ":custom-directive[文本]{id=text}",
+      ].join("\n"),
+      [],
+      { customDirectives: { "custom-directive": handler } }
+    );
+
+    // container/leaf 为块级顶层节点；text 为行内节点，嵌在 paragraph 内
+    const collectIds = (nodes: unknown[]): string[] =>
+      nodes.flatMap(node => {
+        const typed = node as { type?: string; id?: string; children?: unknown[] };
+        return [
+          ...(typed.type === "custom-directive" && typed.id ? [typed.id] : []),
+          ...(typed.children ? collectIds(typed.children) : []),
+        ];
+      });
+    expect(collectIds(content)).toEqual(["container", "leaf", "text"]);
   });
 });

@@ -7,37 +7,19 @@ import { ReactEditor } from "slate-react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
-import { Editor, type EditorRef } from "../index";
-import { EditorServicesProvider } from "../contexts/EditorServicesContext";
-import type { EditorServices } from "../types/services";
+import { Editor, EditorProvider, type EditorRef } from "../index";
+import { createServiceRegistry, createDefaultEditorSlots, IEditorSlots } from "../services";
 
-(
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const createParagraph = (text: string): Descendant => ({
   type: "paragraph",
   children: [{ type: "formatted", text }],
 });
 
-const services = {
-  theme: {
-    current: () => "light",
-    colors: () => ({
-      hoverClass: "",
-      activeClass: "",
-      hoverTextClass: "",
-      borderClass: "",
-      hoverBorderClass: "",
-      focusBorderClass: "",
-      textClass: "",
-      secondaryTextClass: "",
-      activeTextClass: "",
-      cardBorderClass: "",
-      cardBgClass: "",
-    }),
-  },
-} as unknown as EditorServices;
+const registry = createServiceRegistry(register => {
+  register(IEditorSlots, createDefaultEditorSlots());
+});
 
 describe("Editor.setEditorValue", () => {
   let root: Root | null = null;
@@ -65,15 +47,15 @@ describe("Editor.setEditorValue", () => {
     await act(async () => {
       root?.render(
         <DndProvider backend={HTML5Backend}>
-          <EditorServicesProvider services={services}>
+          <EditorProvider registry={registry}>
             <Editor
               ref={ref}
               initValue={[createParagraph("旧内容")]}
               readonly={false}
               onChange={onChange}
             />
-          </EditorServicesProvider>
-        </DndProvider>,
+          </EditorProvider>
+        </DndProvider>
       );
     });
 

@@ -1,15 +1,11 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { Transforms } from "slate";
-import {
-  ReactEditor,
-  RenderElementProps,
-  useReadOnly,
-  useSlateStatic,
-} from "slate-react";
+import { ReactEditor, RenderElementProps, useReadOnly, useSlateStatic } from "slate-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";
 import { Copy, Edit2, Link2Off, ExternalLink } from "lucide-react";
+import { useEditorConfig } from "../../../contexts/EditorConfig";
 import classNames from "classnames";
 import { App } from "antd";
 
@@ -40,15 +36,15 @@ const IconButton = ({
     onClick={onClick}
     title={tooltip}
     className={classNames(
-      "flex items-center justify-center w-7 h-7 rounded-md transition-all duration-200",
+      "flex h-7 w-7 items-center justify-center rounded-md transition-all duration-200",
       "text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-200",
       "hover:bg-black/5 dark:hover:bg-white/10",
       {
-        "text-blue-500 hover:text-blue-600 bg-blue-50 dark:bg-blue-500/20 dark:text-blue-400":
+        "bg-blue-50 text-blue-500 hover:text-blue-600 dark:bg-blue-500/20 dark:text-blue-400":
           active && !danger,
-        "text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/20 dark:text-red-400":
+        "text-red-500 hover:bg-red-50 hover:text-red-600 dark:text-red-400 dark:hover:bg-red-500/20":
           danger,
-      },
+      }
     )}
   >
     <Icon size={15} strokeWidth={1.5} />
@@ -138,7 +134,7 @@ const LinkPopover = ({
       {visible && (
         <motion.div
           ref={popoverRef}
-          className="fixed z-9999 flex flex-col"
+          className="z-9999 fixed flex flex-col"
           style={{ left: position.x, top: position.y }}
           initial={{ opacity: 0, y: 2 }}
           animate={{ opacity: 1, y: 0 }}
@@ -149,26 +145,26 @@ const LinkPopover = ({
             damping: 30,
             duration: 0.1,
           }}
-          onClick={(e) => e.stopPropagation()}
+          onClick={e => e.stopPropagation()}
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}
         >
           <div
             className={classNames(
-              "flex items-center p-1.5 gap-2 max-w-[320px]",
-              "bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl saturate-150",
+              "flex max-w-[320px] items-center gap-2 p-1.5",
+              "bg-white/80 saturate-150 backdrop-blur-xl dark:bg-zinc-900/80",
               "border border-black/5 dark:border-white/10",
               "shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)]",
-              "rounded-lg",
+              "rounded-lg"
             )}
           >
             <a
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center w-7 h-7 rounded-md text-slate-500 hover:text-blue-500 hover:bg-blue-50 dark:text-slate-400 dark:hover:text-blue-400 dark:hover:bg-blue-500/20 transition-colors"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-blue-50 hover:text-blue-500 dark:text-slate-400 dark:hover:bg-blue-500/20 dark:hover:text-blue-400"
               title="打开链接"
-              onClick={(e) => {
+              onClick={e => {
                 e.preventDefault();
                 if (url) onOpenUrl(url);
               }}
@@ -176,47 +172,43 @@ const LinkPopover = ({
               <ExternalLink size={15} strokeWidth={1.5} />
             </a>
 
-            <div className="w-px h-3 bg-black/10 dark:bg-white/10" />
+            <div className="h-3 w-px bg-black/10 dark:bg-white/10" />
 
             <div
-              className="flex-1 text-[13px] text-slate-600 dark:text-slate-300 truncate font-medium cursor-text select-text"
+              className="flex-1 cursor-text select-text truncate text-[13px] font-medium text-slate-600 dark:text-slate-300"
               title={url}
             >
               {url}
             </div>
 
-            <div className="flex items-center gap-1 pl-1 border-l border-black/5 dark:border-white/5 ml-1">
+            <div className="ml-1 flex items-center gap-1 border-l border-black/5 pl-1 dark:border-white/5">
               <IconButton icon={Copy} onClick={onCopy} tooltip="复制链接" />
               <IconButton icon={Edit2} onClick={onEdit} tooltip="编辑" />
-              <IconButton
-                icon={Link2Off}
-                onClick={onUnlink}
-                danger
-                tooltip="取消链接"
-              />
+              <IconButton icon={Link2Off} onClick={onUnlink} danger tooltip="取消链接" />
             </div>
           </div>
         </motion.div>
       )}
     </AnimatePresence>,
-    document.body,
+    document.body
   );
 };
 
-const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
+const Link: React.FC<React.PropsWithChildren<LinkProps>> = props => {
   const { attributes, children, element } = props;
   const { url, openEdit = false } = element;
   const readOnly = useReadOnly();
   const editor = useSlateStatic();
   const { message } = App.useApp();
   const { accentColor } = useThemeColors();
+  const config = useEditorConfig();
 
   const openUrl = async (url: string) => {
-    if (editor.services?.utility?.openUrl) {
-      await editor.services.utility.openUrl(url);
-    } else {
-      window.open(url, "_blank");
+    if (config?.openUrl) {
+      await config.openUrl(url);
+      return;
     }
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
@@ -252,21 +244,15 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
     }
   });
 
-  const handleModalConfirm = useMemoizedFn(
-    ({ url: newUrl }: { url: string }) => {
-      if (!newUrl) {
-        unwrapLink();
-      } else {
-        const path = ReactEditor.findPath(editor, element);
-        Transforms.setNodes(
-          editor,
-          { openEdit: false, url: newUrl },
-          { at: path },
-        );
-      }
-      setIsModalOpen(false);
-    },
-  );
+  const handleModalConfirm = useMemoizedFn(({ url: newUrl }: { url: string }) => {
+    if (!newUrl) {
+      unwrapLink();
+    } else {
+      const path = ReactEditor.findPath(editor, element);
+      Transforms.setNodes(editor, { openEdit: false, url: newUrl }, { at: path });
+    }
+    setIsModalOpen(false);
+  });
 
   const handleModalCancel = useMemoizedFn(() => {
     if (openEdit && !url) {
@@ -310,12 +296,12 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
         {...attributes}
         ref={linkRef}
         href={url}
-        className="transition-colors cursor-pointer px-0.5 font-medium rounded-[2px] border-b border-dashed hover:border-solid"
+        className="cursor-pointer rounded-[2px] border-b border-dashed px-0.5 font-medium transition-colors hover:border-solid"
         style={{
           color: accentColor,
           borderColor: accentColor ? `${accentColor}66` : undefined,
         }}
-        onClick={(e) => {
+        onClick={e => {
           e.preventDefault();
           handleLinkClick(e);
         }}
@@ -327,8 +313,8 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
         <ExternalLink
           size={14}
           strokeWidth={1.5}
-          className="inline-block ml-0.5 align-baseline cursor-pointer opacity-60 hover:opacity-100"
-          onClick={(e) => {
+          className="ml-0.5 inline-block cursor-pointer align-baseline opacity-60 hover:opacity-100"
+          onClick={e => {
             e.preventDefault();
             e.stopPropagation();
             openUrl(url);

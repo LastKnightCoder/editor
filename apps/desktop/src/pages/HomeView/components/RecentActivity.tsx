@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import classNames from "classnames";
 import useThemeColors from "@/hooks/useThemeColors";
 import useTabStore from "@/stores/useTabStore";
@@ -20,16 +20,10 @@ function extractPlainText(nodes: Descendant[], maxLen = 40): string {
   const walk = (node: unknown) => {
     if (text.length >= maxLen) return;
     if (typeof node === "object" && node !== null) {
-      if (
-        "text" in node &&
-        typeof (node as { text: string }).text === "string"
-      ) {
+      if ("text" in node && typeof (node as { text: string }).text === "string") {
         text += (node as { text: string }).text;
       }
-      if (
-        "children" in node &&
-        Array.isArray((node as { children: unknown[] }).children)
-      ) {
+      if ("children" in node && Array.isArray((node as { children: unknown[] }).children)) {
         for (const child of (node as { children: unknown[] }).children) {
           walk(child);
           if (text.length >= maxLen) break;
@@ -92,11 +86,11 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ recentActivity }) => {
   const themeColors = useThemeColors();
   const { createTab } = useTabStore();
 
-  const allItems: ActivityItem[] = React.useMemo(() => {
+  const allItems: ActivityItem[] = useMemo(() => {
     const items: ActivityItem[] = [];
     const oneMonthAgo = dayjs().subtract(1, "month").valueOf();
 
-    recentActivity.cards.forEach((card) => {
+    recentActivity.cards.forEach(card => {
       items.push({
         id: `card-${card.id}`,
         title: extractPlainText(card.content) || "无标题卡片",
@@ -106,7 +100,7 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ recentActivity }) => {
       });
     });
 
-    recentActivity.articles.forEach((article) => {
+    recentActivity.articles.forEach(article => {
       items.push({
         id: `article-${article.id}`,
         title: article.title || "无标题文章",
@@ -116,7 +110,7 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ recentActivity }) => {
       });
     });
 
-    recentActivity.projectItems.forEach((project) => {
+    recentActivity.projectItems.forEach(project => {
       const projectId = project.projects[0];
       items.push({
         id: `project-${project.id}`,
@@ -133,7 +127,7 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ recentActivity }) => {
       });
     });
 
-    recentActivity.documentItems.forEach((doc) => {
+    recentActivity.documentItems.forEach(doc => {
       items.push({
         id: `doc-${doc.id}`,
         title: doc.title || "无标题文档",
@@ -152,7 +146,7 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ recentActivity }) => {
     });
 
     return items
-      .filter((item) => item.updateTime >= oneMonthAgo)
+      .filter(item => item.updateTime >= oneMonthAgo)
       .sort((a, b) => b.updateTime - a.updateTime)
       .slice(0, 10);
   }, [recentActivity, createTab]);
@@ -160,28 +154,19 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ recentActivity }) => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3
-          className={classNames("text-sm font-semibold", themeColors.textClass)}
-        >
-          最近动态
-        </h3>
+        <h3 className={classNames("text-sm font-semibold", themeColors.textClass)}>最近动态</h3>
         <span className={classNames("text-xs", themeColors.secondaryTextClass)}>
           {allItems.length}
         </span>
       </div>
 
       {allItems.length === 0 ? (
-        <div
-          className={classNames(
-            "text-sm py-6 text-center",
-            themeColors.secondaryTextClass,
-          )}
-        >
+        <div className={classNames("py-6 text-center text-sm", themeColors.secondaryTextClass)}>
           暂无最近动态
         </div>
       ) : (
         <div className="grid gap-1.5">
-          {allItems.map((item) => {
+          {allItems.map(item => {
             const config = TYPE_CONFIG[item.type];
             const Icon = config.icon;
 
@@ -191,38 +176,33 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ recentActivity }) => {
                 type="button"
                 className={classNames(
                   "grid grid-cols-[108px_minmax(0,1fr)_86px] items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors",
-                  themeColors.hoverClass,
+                  themeColors.hoverClass
                 )}
                 onClick={item.onClick}
               >
                 <span
                   className={classNames(
                     "inline-flex items-center gap-1.5 whitespace-nowrap text-xs",
-                    themeColors.secondaryTextClass,
+                    themeColors.secondaryTextClass
                   )}
                 >
                   <span
                     className={classNames(
                       "flex h-6 w-6 items-center justify-center rounded-md",
-                      config.bg,
+                      config.bg
                     )}
                   >
                     <Icon className={classNames("h-3.5 w-3.5", config.color)} />
                   </span>
                   {config.label}
                 </span>
-                <span
-                  className={classNames(
-                    "truncate text-sm",
-                    themeColors.textClass,
-                  )}
-                >
+                <span className={classNames("truncate text-sm", themeColors.textClass)}>
                   {item.title}
                 </span>
                 <span
                   className={classNames(
                     "text-right text-xs tabular-nums",
-                    themeColors.secondaryTextClass,
+                    themeColors.secondaryTextClass
                   )}
                 >
                   {dayjs(item.updateTime).fromNow()}

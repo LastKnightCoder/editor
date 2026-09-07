@@ -36,4 +36,3 @@ export type { TikzElement } from "./tikz";
 export type { TypstElement } from "./typst";
 export type { UnderlineElement } from "./underline";
 export type { VideoElement } from "./video";
-export type { WebviewElement } from "./webview";

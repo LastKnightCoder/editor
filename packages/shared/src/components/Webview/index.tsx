@@ -36,7 +36,7 @@ export interface WebviewProps {
   convertFileSrc?: (path: string) => Promise<string>;
   getHomeDir?: () => Promise<string>;
   remoteResourceToLocal?: (url: string) => Promise<string>;
-  useGithubCdnUrl?: (url?: string) => string | null | undefined;
+  cdnUrlResolver?: (url?: string) => string | null | undefined;
 }
 
 const isElectron = typeof window !== "undefined" && !!(window as any).electron;
@@ -57,10 +57,10 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
     convertFileSrc,
     getHomeDir,
     remoteResourceToLocal,
-    useGithubCdnUrl = () => null,
+    cdnUrlResolver = () => null,
   } = props;
 
-  const cdnSrc = useGithubCdnUrl(src);
+  const cdnSrc = cdnUrlResolver(src);
   const sourceToResolve = cdnSrc ?? src;
 
   const webviewRef = useRef<any>(null);
@@ -77,9 +77,7 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
       }
 
       const homeDir = await getHomeDir();
-      const absolutePath = path.startsWith("~")
-        ? `${homeDir}${path.slice(1)}`
-        : path;
+      const absolutePath = path.startsWith("~") ? `${homeDir}${path.slice(1)}` : path;
       const fileSrc = await convertFileSrc(absolutePath);
       if (!cancelled) {
         setResolvedSrc(fileSrc);
@@ -136,13 +134,7 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
     return () => {
       cancelled = true;
     };
-  }, [
-    sourceToResolve,
-    sourceType,
-    convertFileSrc,
-    getHomeDir,
-    remoteResourceToLocal,
-  ]);
+  }, [sourceToResolve, sourceType, convertFileSrc, getHomeDir, remoteResourceToLocal]);
 
   useImperativeHandle(ref, () => ({
     getTitle: () => {
@@ -170,16 +162,12 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
     getHTML: async () => {
       if (isElectron && webviewRef.current) {
         return (
-          (await webviewRef.current.executeJavaScript?.(
-            "document.documentElement.outerHTML",
-          )) || ""
+          (await webviewRef.current.executeJavaScript?.("document.documentElement.outerHTML")) || ""
         );
       }
       if (iframeRef.current) {
         try {
-          return (
-            iframeRef.current.contentDocument?.documentElement.outerHTML || ""
-          );
+          return iframeRef.current.contentDocument?.documentElement.outerHTML || "";
         } catch {
           return "";
         }
@@ -242,11 +230,7 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
       webview.addEventListener?.("dom-ready", handleWebviewReady);
 
       webview.addEventListener?.("did-fail-load", (event: any) => {
-        onError?.(
-          new Error(
-            `Failed to load: ${event.errorDescription ?? "unknown error"}`,
-          ),
-        );
+        onError?.(new Error(`Failed to load: ${event.errorDescription ?? "unknown error"}`));
       });
 
       webview.addEventListener?.("page-title-updated", (event: any) => {

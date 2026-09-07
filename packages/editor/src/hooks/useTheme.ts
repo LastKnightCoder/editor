@@ -1,12 +1,16 @@
 import { useContext, useMemo } from "react";
 import { EditorContext } from "../contexts/EditorContext";
+import { useEditorConfig } from "../contexts/EditorConfig";
+import useSystemTheme from "./useSystemTheme";
 
 const useTheme = () => {
-  const { theme } = useContext(EditorContext);
+  // 优先级：<Editor theme> prop > EditorProvider config > 系统主题
+  const { theme: contextTheme } = useContext(EditorContext);
+  const config = useEditorConfig();
+  const systemTheme = useSystemTheme();
 
-  const isDark = useMemo(() => {
-    return theme === "dark";
-  }, [theme]);
+  const theme = contextTheme ?? config?.theme.mode ?? systemTheme;
+  const isDark = useMemo(() => theme === "dark", [theme]);
 
   return {
     theme,

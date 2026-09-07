@@ -1,19 +1,12 @@
 import { createRoot } from "react-dom/client";
-import { Editor, EditorServicesProvider } from "@tau/editor";
+import { Editor, EditorProvider } from "@tau/editor";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Descendant } from "slate";
-import { createEditorServices } from "@/services/editorServices";
+import { createEditorRegistry } from "@/services/editorRegistry";
 
-// 缓存 EditorServices 实例，避免重复创建
-let cachedEditorServices: ReturnType<typeof createEditorServices> | null = null;
-
-const getEditorServices = () => {
-  if (!cachedEditorServices) {
-    cachedEditorServices = createEditorServices();
-  }
-  return cachedEditorServices;
-};
+// 服务注册表内的服务实现均为惰性单例，无需额外缓存
+const getEditorRegistry = () => createEditorRegistry();
 
 /**
  * DOM 尺寸测量服务
@@ -55,26 +48,21 @@ export class DOMSizeMeasurer {
     content: Descendant[],
     targetWidth: number,
     paddingWidth = 16,
-    paddingHeight = 16,
+    paddingHeight = 16
   ): Promise<number> {
     // 策略1：尝试克隆已存在的 DOM 元素
     // 修复：使用正确的 ID 格式 rich-text-container-${elementId}
     const existingHeight = await this.measureByCloning(
       `rich-text-container-${elementId}`,
       targetWidth,
-      paddingWidth,
+      paddingWidth
     );
     if (existingHeight !== null) {
       return existingHeight;
     }
 
     // 策略2：使用 Editor 渲染测量
-    return this.measureByRendering(
-      content,
-      targetWidth,
-      paddingWidth,
-      paddingHeight,
-    );
+    return this.measureByRendering(content, targetWidth, paddingWidth, paddingHeight);
   }
 
   /**
@@ -92,12 +80,12 @@ export class DOMSizeMeasurer {
     elementId: string,
     content: Descendant[],
     paddingWidth = 16,
-    paddingHeight = 16,
+    paddingHeight = 16
   ): Promise<number> {
     // 策略1：尝试克隆已存在的 DOM 元素
     const existingWidth = await this.measureWidthByCloning(
       `rich-text-container-${elementId}`,
-      paddingWidth,
+      paddingWidth
     );
     if (existingWidth !== null) {
       return existingWidth;
@@ -113,7 +101,7 @@ export class DOMSizeMeasurer {
   private static async measureByCloning(
     containerId: string,
     targetWidth: number,
-    paddingWidth: number,
+    paddingWidth: number
   ): Promise<number | null> {
     // 查找已渲染的元素
     const existingElement = document.getElementById(containerId);
@@ -146,7 +134,7 @@ export class DOMSizeMeasurer {
     container.appendChild(wrapper);
 
     // 等待布局
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           const height = wrapper.scrollHeight;
@@ -170,7 +158,7 @@ export class DOMSizeMeasurer {
    */
   private static async measureWidthByCloning(
     containerId: string,
-    paddingWidth: number,
+    paddingWidth: number
   ): Promise<number | null> {
     // 查找已渲染的元素
     const existingElement = document.getElementById(containerId);
@@ -205,7 +193,7 @@ export class DOMSizeMeasurer {
     container.appendChild(wrapper);
 
     // 等待布局
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           // getBoundingClientRect().width 浮点精度，含 padding，ceil 避免亚像素换行
@@ -226,7 +214,7 @@ export class DOMSizeMeasurer {
     content: Descendant[],
     targetWidth: number,
     paddingWidth: number,
-    paddingHeight: number,
+    paddingHeight: number
   ): Promise<number> {
     const container = this.getContainer();
     const measureId = `measure-${++this.measurementId}`;
@@ -241,7 +229,7 @@ export class DOMSizeMeasurer {
 
     container.appendChild(wrapper);
 
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       // 创建 React root
       const root = createRoot(wrapper);
 
@@ -262,13 +250,13 @@ export class DOMSizeMeasurer {
       // 创建内部容器用于 ResizeObserver
       const innerContainerId = `${measureId}-inner`;
 
-      // 获取缓存的 EditorServices
-      const services = getEditorServices();
+      // 创建独立的服务注册表
+      const registry = getEditorRegistry();
 
       // 渲染 Editor，使用必要的 Provider 包装
       root.render(
         <DndProvider backend={HTML5Backend}>
-          <EditorServicesProvider services={services}>
+          <EditorProvider registry={registry}>
             <div
               id={innerContainerId}
               style={{
@@ -279,8 +267,8 @@ export class DOMSizeMeasurer {
             >
               <Editor initValue={content} readonly={true} />
             </div>
-          </EditorServicesProvider>
-        </DndProvider>,
+          </EditorProvider>
+        </DndProvider>
       );
 
       // 使用 ResizeObserver 监听尺寸变化
@@ -314,7 +302,7 @@ export class DOMSizeMeasurer {
         let lastHeight = initialHeight;
         let hasReceivedValidHeight = false;
 
-        resizeObserver = new ResizeObserver((entries) => {
+        resizeObserver = new ResizeObserver(entries => {
           const entry = entries[0];
           if (!entry) return;
 
@@ -368,7 +356,7 @@ export class DOMSizeMeasurer {
   private static async measureWidthByRendering(
     content: Descendant[],
     paddingWidth: number,
-    paddingHeight: number,
+    paddingHeight: number
   ): Promise<number> {
     const container = this.getContainer();
     const measureId = `measure-width-${++this.measurementId}`;
@@ -382,7 +370,7 @@ export class DOMSizeMeasurer {
 
     container.appendChild(wrapper);
 
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const root = createRoot(wrapper);
       let resizeObserver: ResizeObserver | null = null;
       let resolved = false;
@@ -398,12 +386,12 @@ export class DOMSizeMeasurer {
       };
 
       const innerContainerId = `${measureId}-inner`;
-      const services = getEditorServices();
+      const registry = getEditorRegistry();
 
       // innerContainer：fit-content shrink-to-fit 到文字自然宽度
       root.render(
         <DndProvider backend={HTML5Backend}>
-          <EditorServicesProvider services={services}>
+          <EditorProvider registry={registry}>
             <div
               id={innerContainerId}
               style={{
@@ -415,8 +403,8 @@ export class DOMSizeMeasurer {
             >
               <Editor initValue={content} readonly={true} />
             </div>
-          </EditorServicesProvider>
-        </DndProvider>,
+          </EditorProvider>
+        </DndProvider>
       );
 
       // 使用 ResizeObserver 监听 innerContainer 尺寸稳定
@@ -479,7 +467,7 @@ export class DOMSizeMeasurer {
   static measureMediaHeight(
     originalWidth: number,
     originalHeight: number,
-    targetWidth: number,
+    targetWidth: number
   ): number {
     if (originalWidth <= 0 || originalHeight <= 0) {
       return targetWidth * 0.75; // 默认 4:3 比例

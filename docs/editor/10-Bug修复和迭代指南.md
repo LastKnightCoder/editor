@@ -21,10 +21,7 @@
 
 ```typescript
 // packages/editor/src/types/custom-element.ts
-export type CustomElement =
-  | ParagraphElement
-  | CodeBlockElement
-  | YourNewElement; // ← 是否添加？
+export type CustomElement = ParagraphElement | CodeBlockElement | YourNewElement; // ← 是否添加？
 ```
 
 2. 检查扩展是否注册
@@ -112,7 +109,7 @@ override getPlugins() {
 export const myPlugin = (editor: Editor) => {
   const { insertText } = editor;
 
-  editor.insertText = (text) => {
+  editor.insertText = text => {
     // 自定义逻辑
     if (text === "/") {
       // ...
@@ -245,7 +242,7 @@ console.log("Current node:", node);
 export const debugPlugin = (editor: Editor) => {
   const { apply } = editor;
 
-  editor.apply = (op) => {
+  editor.apply = op => {
     console.log("Operation:", op);
     apply(op);
   };
@@ -287,9 +284,7 @@ import { createEditor } from "slate";
 describe("insertHeader", () => {
   it("should insert header at empty paragraph", () => {
     const editor = createEditor();
-    editor.children = [
-      { type: "paragraph", children: [{ type: "formatted", text: "" }] },
-    ];
+    editor.children = [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }];
 
     insertHeader(editor, 1);
 
@@ -402,12 +397,12 @@ const Component = (props) => {
 
 ```typescript
 // 组件使用 PascalCase
-const CodeBlock = (props) => {
+const CodeBlock = props => {
   /* ... */
 };
 
 // 函数使用 camelCase
-const insertCodeBlock = (editor) => {
+const insertCodeBlock = editor => {
   /* ... */
 };
 
@@ -443,9 +438,11 @@ extensions/my-extension/
 ### 错误处理
 
 ```typescript
+import { IResourceService } from "@tau/editor/src";
+
 // ✅ 正确：捕获错误并处理
 try {
-  const resource = await editor.services?.file.uploadFile(file);
+  const resource = await editor.getService(IResourceService).upload(file);
   if (resource) {
     // 更新节点
   }
@@ -456,7 +453,7 @@ try {
 }
 
 // ❌ 错误：不处理错误
-const resource = await editor.services?.file.uploadFile(file);
+const resource = await editor.getService(IResourceService).upload(file);
 // 如果失败会导致未处理的 Promise 拒绝
 ```
 
@@ -502,7 +499,7 @@ Transforms.setNodes(editor, { text: "new text" }, { at: [0] });
 ```typescript
 // ❌ 错误：没有返回 editor
 export const myPlugin = (editor: Editor) => {
-  editor.insertText = (text) => {
+  editor.insertText = text => {
     // 自定义逻辑
   };
   // 缺少 return editor;
@@ -510,7 +507,7 @@ export const myPlugin = (editor: Editor) => {
 
 // ✅ 正确：返回 editor
 export const myPlugin = (editor: Editor) => {
-  editor.insertText = (text) => {
+  editor.insertText = text => {
     // 自定义逻辑
   };
   return editor;

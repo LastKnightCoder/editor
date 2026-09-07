@@ -201,7 +201,6 @@ const EditProjectItem = (props: { projectItemId: number }) => {
             <ErrorBoundary>
               <Editor
                 contentId={projectItem?.contentId}
-                collaborationControl={false}
                 key={`${projectItem.id}-${editorRemountKey}`}
                 ref={editorRef}
                 initValue={projectItem.content}

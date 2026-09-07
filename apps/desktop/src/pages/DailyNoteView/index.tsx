@@ -87,7 +87,6 @@ const DailyNoteView = () => {
               }}
             >
               <Editor
-                contentId={dailyNote.contentId}
                 previewBlocks={1}
                 initValue={dailyNote.content.slice(0, 1)}
                 extensions={extensions}

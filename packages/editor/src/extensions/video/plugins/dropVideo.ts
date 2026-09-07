@@ -1,24 +1,19 @@
 import { Editor, Transforms, Element as SlateElement, Path } from "slate";
 import { message } from "antd";
 import { insertVideo } from "../../../utils";
+import { IResourceService } from "../../../services";
 
 /**
  * 查找最近插入的上传中的视频节点
  * （通过 src 为空且 uploading 为 true 来识别）
  */
-function findUploadingVideoNode(
-  editor: Editor,
-  startPath: Path,
-): [any, Path] | null {
+function findUploadingVideoNode(editor: Editor, startPath: Path): [any, Path] | null {
   const nodeEntries = Array.from(
     Editor.nodes(editor, {
       at: [],
       match: (n: any) =>
-        SlateElement.isElement(n) &&
-        n.type === "video" &&
-        n.src === "" &&
-        n.uploading === true,
-    }),
+        SlateElement.isElement(n) && n.type === "video" && n.src === "" && n.uploading === true,
+    })
   );
 
   // 查找与 startPath 匹配的节点
@@ -56,10 +51,10 @@ export const dropVideo = (editor: Editor) => {
     }
 
     try {
-      // 上传文件 (video 使用 resource.upload 服务)
-      const res = await editor.services?.resource.upload(file);
+      // 上传文件
+      const url = await editor.getService(IResourceService).upload(file);
 
-      if (!res) {
+      if (!url) {
         throw new Error("上传失败");
       }
 
@@ -69,12 +64,12 @@ export const dropVideo = (editor: Editor) => {
         Transforms.setNodes(
           editor,
           {
-            src: res.url,
+            src: url,
             uploading: false,
           },
           {
             at: nodeEntry[1],
-          },
+          }
         );
       } else {
         console.error("无法找到上传中的视频节点");
@@ -94,7 +89,7 @@ export const dropVideo = (editor: Editor) => {
           },
           {
             at: nodeEntry[1],
-          },
+          }
         );
       }
     }

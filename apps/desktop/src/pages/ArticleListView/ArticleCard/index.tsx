@@ -299,7 +299,6 @@ const ArticleCard = (props: IArticleCardProps) => {
               <Tags tags={article.tags} showIcon />
             </div>
             <Editor
-              contentId={article.contentId}
               className={styles.editor}
               ref={editorRef}
               initValue={article.content.slice(0, 1)}

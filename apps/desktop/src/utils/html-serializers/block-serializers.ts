@@ -4,6 +4,7 @@ import { renderAbc } from "./abc-renderer";
 import { renderChartToSvg } from "./chart-renderer";
 import { compileTailwindForHtml } from "./tailwind-compiler";
 import { renderCodeWithShiki } from "./shiki-renderer";
+import { buildPlantumlSvgUrl } from "@tau/shared";
 import { CALLOUT_ICONS } from "../wechat";
 
 const DEFAULT_CALLOUT_TITLE: Record<string, string> = {
@@ -412,20 +413,17 @@ export const blockSerializers: HtmlSerializer[] = [
     },
   },
 
-  // PlantUML (use compiled SVG if available)
+  // PlantUML：导出时直接使用渲染服务器地址
   {
     type: "plantuml",
     isBlock: true,
     toHtml: element => {
       const content = element.content || "";
-      const svg = element.svg;
-
-      // If SVG is available, use it directly
-      if (svg) {
-        return `<div class="diagram-svg plantuml-svg">${svg}</div>`;
+      const imgUrl = buildPlantumlSvgUrl(content);
+      if (imgUrl) {
+        return `<div class="diagram-svg plantuml-svg"><img src="${imgUrl}" alt="PlantUML diagram" style="max-width:100%" /></div>`;
       }
 
-      // Fallback to code block
       return `<pre class="plantuml-fallback"><code>${escapeHtml(content)}</code></pre>`;
     },
   },
