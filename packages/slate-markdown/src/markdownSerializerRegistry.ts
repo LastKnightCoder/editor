@@ -69,13 +69,6 @@ const createMagicMoveMeta = (magicMove: any): string => {
   return `${MAGIC_MOVE_META_PREFIX}${encodeBase64Url(JSON.stringify(payload))}`;
 };
 
-const normalizeMermaidRenderStyle = (renderStyle: unknown): "svg" | "ascii-unicode" | undefined => {
-  if (renderStyle === "svg" || renderStyle === "ascii-unicode") {
-    return renderStyle;
-  }
-  return undefined;
-};
-
 function trim(value: string): boolean {
   return value.trim().length > 0;
 }
@@ -534,9 +527,7 @@ export class MarkdownSerializerRegistry {
         type: "mermaid",
         isBlock: true,
         toMarkdown: element => {
-          const renderStyle = normalizeMermaidRenderStyle(element.renderStyle);
-          const fenceInfo = renderStyle ? `mermaid style=${renderStyle}` : "mermaid";
-          return `\`\`\`${fenceInfo}\n${element.chart || ""}\n\`\`\``;
+          return `\`\`\`mermaid\n${element.chart || ""}\n\`\`\``;
         },
       },
       {

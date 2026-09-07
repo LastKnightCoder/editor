@@ -67,18 +67,7 @@ export {
   normalizeCodeBlockLanguageDisplayName,
   type CodeBlockLanguageOption,
 } from "./utils/code-block-language";
-export {
-  MERMAID_THEME_NAMES,
-  detectMermaidDiagramType,
-  renderMermaidWithFallback,
-  type MermaidThemeName,
-  type MermaidRenderStyle,
-  type MermaidRenderPreference,
-  type MermaidDisplayMode,
-  type MermaidRenderEngine,
-  type MermaidDiagramType,
-  type MermaidRenderResult,
-} from "./utils/mermaid-render-core";
+export { renderMermaidSvg } from "./utils/mermaid-render-core";
 export { markdownCustomDirectives } from "./utils/markdown-custom-directives";
 export { applyDarkTheme } from "./components/PlantUML";
 

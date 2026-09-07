@@ -4,15 +4,7 @@
  * 复用 ChatSidebar 的 ChatContainer 和 ChatDropdownSelector 组件
  */
 
-import {
-  useState,
-  useMemo,
-  memo,
-  lazy,
-  Suspense,
-  useRef,
-  useEffect,
-} from "react";
+import { useState, useMemo, memo, lazy, Suspense, useRef, useEffect } from "react";
 import { App } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
@@ -25,7 +17,6 @@ import ChatDropdownSelector from "@/layouts/ContentLayout/components/RightChatSi
 
 import useTheme from "@/hooks/useTheme";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import useMermaidRenderPreference from "@/hooks/useMermaidRenderPreference";
 import useSettingStore from "@/stores/useSettingStore";
 
 import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
@@ -46,13 +37,10 @@ import type { VLResource } from "@/types/vibe-learning";
 
 import useVLChatStore, { EVLChatStatus } from "@/stores/useVLChatStore";
 import { useVibeLearningChat } from "./useVibeLearningChat";
-import {
-  CHAT_AGENT_TYPE_STORAGE_KEY,
-  normalizeChatAgentType,
-} from "@/constants/chatAgent";
+import { CHAT_AGENT_TYPE_STORAGE_KEY, normalizeChatAgentType } from "@/constants/chatAgent";
 
 const ChatContainer = lazy(
-  () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer"),
+  () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer")
 );
 
 /**
@@ -138,7 +126,7 @@ const buildVLSystemPrompt = (resources: VLResource[]): string => {
     return basePrompt;
   }
 
-  const resourceLines = resources.map((r) => {
+  const resourceLines = resources.map(r => {
     const typeLabel = r.resourceType;
     return `- "${r.name}" (${typeLabel}, resourceId: ${r.id})`;
   });
@@ -169,10 +157,7 @@ const createDefaultChat = (systemPrompt: string): ChatMessage => ({
 });
 
 // 检查代码块是否已经完成生成
-const isCodeBlockCompleted = (
-  codeContent: string,
-  fullTextContent?: string,
-): boolean => {
+const isCodeBlockCompleted = (codeContent: string, fullTextContent?: string): boolean => {
   if (!fullTextContent) return true;
   const codeIndex = fullTextContent.indexOf(codeContent);
   if (codeIndex === -1) return true;
@@ -186,33 +171,23 @@ interface ChatPanelProps {
   resources: VLResource[];
 }
 
-const ChatPanel: React.FC<ChatPanelProps> = ({
-  projectId,
-  mainDbName,
-  resources,
-}) => {
+const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources }) => {
   const { isDark } = useTheme();
   const { message } = App.useApp();
   const editTitleRef = useRef<EditTextHandle>(null);
   const chatContainerRef = useRef<ChatContainerHandle>(null);
-  const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(
-    CHAT_AGENT_TYPE_STORAGE_KEY,
-    {
-      defaultValue: "local",
-    },
-  );
+  const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(CHAT_AGENT_TYPE_STORAGE_KEY, {
+    defaultValue: "local",
+  });
 
-  const database = useSettingStore((state) => state.setting.database.active);
+  const database = useSettingStore(state => state.setting.database.active);
   const isConnected = useDatabaseConnected();
 
   // 注册项目专属搜索工具
   useVibeLearningChat(projectId, mainDbName);
 
   // 根据资源列表动态构建系统提示词
-  const systemPrompt = useMemo(
-    () => buildVLSystemPrompt(resources),
-    [resources],
-  );
+  const systemPrompt = useMemo(() => buildVLSystemPrompt(resources), [resources]);
 
   // VL 对话状态管理
   const {
@@ -227,7 +202,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     deleteChat,
     getChildBranchesCount,
   } = useVLChatStore(
-    useShallow((state) => ({
+    useShallow(state => ({
       initChats: state.initChats,
       chats: state.chats,
       currentChatId: state.currentChatId,
@@ -238,7 +213,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       createChatBranch: state.createChatBranch,
       deleteChat: state.deleteChat,
       getChildBranchesCount: state.getChildBranchesCount,
-    })),
+    }))
   );
 
   // 初始化对话数据
@@ -250,7 +225,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
   // 当前对话
   const currentChat = useMemo(() => {
-    return chats.find((chat) => chat.id === currentChatId);
+    return chats.find(chat => chat.id === currentChatId);
   }, [chats, currentChatId]);
 
   // 转换为 ChatMessage 类型（兼容 ChatContainer）
@@ -275,7 +250,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
   // 转换 chats 为 ChatMessage[] 类型（用于 ChatDropdownSelector）
   const chatsAsMessages = useMemo((): ChatMessage[] => {
-    return chats.map((chat) => ({
+    return chats.map(chat => ({
       id: chat.id,
       createTime: chat.createTime,
       updateTime: chat.updateTime,
@@ -304,11 +279,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     setCreateMessageLoading(true);
 
     try {
-      await createChat(
-        messages,
-        undefined,
-        normalizeChatAgentType(rememberedAgentType),
-      );
+      await createChat(messages, undefined, normalizeChatAgentType(rememberedAgentType));
     } catch (error) {
       message.error("创建对话失败");
       console.error(error);
@@ -353,14 +324,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       messages: ChatMessage["messages"],
       title?: string,
       agentType?: ChatAgentType,
-      agentSessionId?: string | null,
+      agentSessionId?: string | null
     ): Promise<ChatMessage> => {
-      const created = await createChat(
-        messages,
-        title,
-        agentType,
-        agentSessionId,
-      );
+      const created = await createChat(messages, title, agentType, agentSessionId);
       return {
         id: created.id,
         createTime: created.createTime,
@@ -374,15 +340,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         agentType: created.agentType,
         agentSessionId: created.agentSessionId,
       };
-    },
+    }
   );
 
   // 外部创建分支回调（用于 ChatContainer）
   const handleExternalCreateBranch = useMemoizedFn(
-    async (
-      parentChatId: number,
-      messages: ChatMessage["messages"],
-    ): Promise<ChatMessage> => {
+    async (parentChatId: number, messages: ChatMessage["messages"]): Promise<ChatMessage> => {
       const created = await createChatBranch(parentChatId, messages);
       return {
         id: created.id,
@@ -397,39 +360,37 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         agentType: created.agentType,
         agentSessionId: created.agentSessionId,
       };
-    },
+    }
   );
 
   // 更新对话消息（用于 ChatContainer）
-  const handleUpdateChatMessage = useMemoizedFn(
-    async (chat: ChatMessage): Promise<ChatMessage> => {
-      const vlChat = chats.find((c) => c.id === chat.id);
-      if (!vlChat) {
-        throw new Error("Chat not found");
-      }
-      const updated = await updateChat({
-        ...vlChat,
-        messages: chat.messages,
-        title: chat.title,
-        archived: chat.archived,
-        agentType: chat.agentType,
-        agentSessionId: chat.agentSessionId,
-      });
-      return {
-        id: updated.id,
-        createTime: updated.createTime,
-        updateTime: updated.updateTime,
-        messages: updated.messages,
-        title: updated.title,
-        groupId: null,
-        archived: updated.archived,
-        parentChatId: updated.parentChatId,
-        branchIndex: updated.branchIndex,
-        agentType: updated.agentType,
-        agentSessionId: updated.agentSessionId,
-      };
-    },
-  );
+  const handleUpdateChatMessage = useMemoizedFn(async (chat: ChatMessage): Promise<ChatMessage> => {
+    const vlChat = chats.find(c => c.id === chat.id);
+    if (!vlChat) {
+      throw new Error("Chat not found");
+    }
+    const updated = await updateChat({
+      ...vlChat,
+      messages: chat.messages,
+      title: chat.title,
+      archived: chat.archived,
+      agentType: chat.agentType,
+      agentSessionId: chat.agentSessionId,
+    });
+    return {
+      id: updated.id,
+      createTime: updated.createTime,
+      updateTime: updated.updateTime,
+      messages: updated.messages,
+      title: updated.title,
+      groupId: null,
+      archived: updated.archived,
+      parentChatId: updated.parentChatId,
+      branchIndex: updated.branchIndex,
+      agentType: updated.agentType,
+      agentSessionId: updated.agentSessionId,
+    };
+  });
 
   // 更新当前对话（本地状态）
   const handleUpdateCurrentChat = useMemoizedFn((chat: ChatMessage) => {
@@ -453,11 +414,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     (event: React.MouseEvent<HTMLAnchorElement>, href?: string) => {
       if (href) {
         event.preventDefault();
-        openExternal(href).catch((err) => {
+        openExternal(href).catch(err => {
           console.error("打开链接失败:", err);
         });
       }
-    },
+    }
   );
 
   // 代码块渲染组件
@@ -465,13 +426,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     children?: React.ReactNode;
     className?: string;
     "data-markdown-block-code"?: string;
-  }> = ({
-    children,
-    className,
-    "data-markdown-block-code": markdownBlockCode,
-    ...rest
-  }) => {
-    const mermaidRenderPreference = useMermaidRenderPreference();
+  }> = ({ children, className, "data-markdown-block-code": markdownBlockCode, ...rest }) => {
     const { messageMeta } = useMarkdownContext();
     const match = /language-([\w-]+)/.exec(className || "");
     const language = match ? match[1] : undefined;
@@ -484,14 +439,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       .replace(/\r?\n$/, "");
 
     if (language === "mermaid") {
-      return (
-        <MermaidRenderer
-          code={code}
-          isDark={isDark}
-          messageApi={message}
-          renderPreference={mermaidRenderPreference}
-        />
-      );
+      return <MermaidRenderer code={code} isDark={isDark} messageApi={message} />;
     }
 
     if (language === "html") {
@@ -585,9 +533,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           <a
             {...props}
             href={href}
-            onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
-              handleLinkClick(e, href)
-            }
+            onClick={(e: React.MouseEvent<HTMLAnchorElement>) => handleLinkClick(e, href)}
           >
             {children}
           </a>
@@ -600,7 +546,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   // 加载中状态
   if (status === EVLChatStatus.LOADING) {
     return (
-      <div className="h-full flex items-center justify-center">
+      <div className="flex h-full items-center justify-center">
         <LoadingOutlined />
       </div>
     );
@@ -608,9 +554,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
   return (
     <MarkdownProvider isDark={isDark} isVisible={true}>
-      <div className="h-full box-border">
-        <div className="box-border p-4 h-full flex flex-col">
-          <div className="flex justify-between items-center mb-2">
+      <div className="box-border h-full">
+        <div className="box-border flex h-full flex-col p-4">
+          <div className="mb-2 flex items-center justify-between">
             <ChatDropdownSelector
               chatSource="vibe-learning-chat"
               chats={chatsAsMessages}
@@ -627,7 +573,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           {(currentChat || (!currentChat && !createMessageLoading)) && (
             <Suspense
               fallback={
-                <div className="flex items-center justify-center h-full">
+                <div className="flex h-full items-center justify-center">
                   <LoadingOutlined />
                 </div>
               }
@@ -646,7 +592,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 titleRef={editTitleRef}
                 onCreateNewMessage={onCreateNewMessage}
                 createMessageLoading={createMessageLoading}
-                onChatCreated={(chatId) => {
+                onChatCreated={chatId => {
                   useVLChatStore.setState({ currentChatId: chatId });
                 }}
                 customSystemPrompt={systemPrompt}

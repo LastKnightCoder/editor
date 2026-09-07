@@ -11,11 +11,8 @@ const DEFAULT_TITLE = {
 
 const MAGIC_MOVE_META_PREFIX = "smm=";
 
-const normalizeHighlightLines = (
-  highlightLines: unknown,
-): string | undefined => {
-  if (typeof highlightLines !== "string" || !highlightLines.trim())
-    return undefined;
+const normalizeHighlightLines = (highlightLines: unknown): string | undefined => {
+  if (typeof highlightLines !== "string" || !highlightLines.trim()) return undefined;
   const normalized = highlightLines
     .trim()
     .replace(/\s*,\s*/g, ",")
@@ -27,13 +24,10 @@ const normalizeHighlightLines = (
 const encodeBase64Url = (value: string): string => {
   const bytes = new TextEncoder().encode(value);
   let binary = "";
-  bytes.forEach((byte) => {
+  bytes.forEach(byte => {
     binary += String.fromCharCode(byte);
   });
-  return btoa(binary)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 };
 
 const createHighlightMeta = (highlightLines: string | undefined): string => {
@@ -54,10 +48,7 @@ const createMagicMoveMeta = (magicMove: any): string => {
 
   const steps = magicMove.steps
     .map((step: any, index: number) => ({
-      id:
-        typeof step?.id === "string" && step.id.trim()
-          ? step.id.trim()
-          : `step-${index + 1}`,
+      id: typeof step?.id === "string" && step.id.trim() ? step.id.trim() : `step-${index + 1}`,
       title: typeof step?.title === "string" ? step.title : undefined,
       code: typeof step?.code === "string" ? step.code : "",
       highlightLines: normalizeHighlightLines(step?.highlightLines),
@@ -68,10 +59,7 @@ const createMagicMoveMeta = (magicMove: any): string => {
     return "";
   }
 
-  const activeStep = Math.min(
-    Math.max(Number(magicMove.activeStep) || 0, 0),
-    steps.length - 1,
-  );
+  const activeStep = Math.min(Math.max(Number(magicMove.activeStep) || 0, 0), steps.length - 1);
 
   const payload = {
     v: 1 as const,
@@ -80,15 +68,6 @@ const createMagicMoveMeta = (magicMove: any): string => {
   };
 
   return `${MAGIC_MOVE_META_PREFIX}${encodeBase64Url(JSON.stringify(payload))}`;
-};
-
-const normalizeMermaidRenderStyle = (
-  renderStyle: unknown,
-): "svg" | "ascii-unicode" | undefined => {
-  if (renderStyle === "svg" || renderStyle === "ascii-unicode") {
-    return renderStyle;
-  }
-  return undefined;
 };
 
 export interface SerializerOutput {
@@ -118,17 +97,13 @@ export interface SerializerOutput {
 export interface MarkdownSerializer {
   type: string;
   isBlock?: boolean;
-  toMarkdown: (
-    element: any,
-    childrenStr: string,
-    parentElement?: any,
-  ) => string;
+  toMarkdown: (element: any, childrenStr: string, parentElement?: any) => string;
 
   // 新增：带位置信息的序列化（可选）
   toMarkdownStructured?: (
     element: any,
     childrenStr: string,
-    parentElement?: any,
+    parentElement?: any
   ) => SerializerOutput;
 }
 
@@ -176,9 +151,7 @@ export class MarkdownSerializerRegistry {
   }
 
   register(serializer: MarkdownSerializer): void {
-    const existingIndex = this.serializers.findIndex(
-      (s) => s.type === serializer.type,
-    );
+    const existingIndex = this.serializers.findIndex(s => s.type === serializer.type);
     if (existingIndex >= 0) {
       this.serializers[existingIndex] = serializer;
     } else {
@@ -191,11 +164,11 @@ export class MarkdownSerializerRegistry {
   }
 
   registerMany(serializers: MarkdownSerializer[]): void {
-    serializers.forEach((serializer) => this.register(serializer));
+    serializers.forEach(serializer => this.register(serializer));
   }
 
   getSerializer(type: string): MarkdownSerializer | undefined {
-    return this.serializers.find((s) => s.type === type);
+    return this.serializers.find(s => s.type === type);
   }
 
   isBlock(element: CustomElement): boolean {
@@ -261,8 +234,7 @@ export class MarkdownSerializerRegistry {
             const escapedTitle = String(title).replace(/"/g, "&quot;");
             attributes.push(`title="${escapedTitle}"`);
           }
-          const attributeStr =
-            attributes.length > 0 ? `{${attributes.join(" ")}}` : "";
+          const attributeStr = attributes.length > 0 ? `{${attributes.join(" ")}}` : "";
           return `:content-link[${childrenStr}]${attributeStr}`;
         },
         toMarkdownStructured: (element, childrenStr) => {
@@ -281,8 +253,7 @@ export class MarkdownSerializerRegistry {
             const escapedTitle = String(title).replace(/"/g, "&quot;");
             attributes.push(`title="${escapedTitle}"`);
           }
-          const attributeStr =
-            attributes.length > 0 ? `{${attributes.join(" ")}}` : "";
+          const attributeStr = attributes.length > 0 ? `{${attributes.join(" ")}}` : "";
           return {
             output: `:content-link[${childrenStr}]${attributeStr}`,
             childrenStart: { line: 0, ch: ":content-link[".length },
@@ -292,7 +263,7 @@ export class MarkdownSerializerRegistry {
       {
         type: "code-block",
         isBlock: true,
-        toMarkdown: (element) => {
+        toMarkdown: element => {
           const language = element.language || "";
           const magicMove = element.magicMove;
           const hasMagicMove =
@@ -302,23 +273,18 @@ export class MarkdownSerializerRegistry {
             magicMove.steps.length > 0;
           const activeStep = hasMagicMove
             ? magicMove.steps[
-                Math.min(
-                  Math.max(Number(magicMove.activeStep) || 0, 0),
-                  magicMove.steps.length - 1,
-                )
+                Math.min(Math.max(Number(magicMove.activeStep) || 0, 0), magicMove.steps.length - 1)
               ]
             : undefined;
           const code = activeStep?.code ?? element.code ?? "";
           const magicMoveMeta = createMagicMoveMeta(magicMove);
           const highlightMeta = createHighlightMeta(
-            activeStep?.highlightLines ?? element.highlightLines,
+            activeStep?.highlightLines ?? element.highlightLines
           );
-          const fenceInfo = [language, highlightMeta, magicMoveMeta]
-            .filter(Boolean)
-            .join(" ");
+          const fenceInfo = [language, highlightMeta, magicMoveMeta].filter(Boolean).join(" ");
           return `\`\`\`${fenceInfo}\n${code}\n\`\`\``;
         },
-        toMarkdownStructured: (element) => {
+        toMarkdownStructured: element => {
           const language = element.language || "";
           const magicMove = element.magicMove;
           const hasMagicMove =
@@ -328,20 +294,15 @@ export class MarkdownSerializerRegistry {
             magicMove.steps.length > 0;
           const activeStep = hasMagicMove
             ? magicMove.steps[
-                Math.min(
-                  Math.max(Number(magicMove.activeStep) || 0, 0),
-                  magicMove.steps.length - 1,
-                )
+                Math.min(Math.max(Number(magicMove.activeStep) || 0, 0), magicMove.steps.length - 1)
               ]
             : undefined;
           const code = activeStep?.code ?? element.code ?? "";
           const magicMoveMeta = createMagicMoveMeta(magicMove);
           const highlightMeta = createHighlightMeta(
-            activeStep?.highlightLines ?? element.highlightLines,
+            activeStep?.highlightLines ?? element.highlightLines
           );
-          const fenceInfo = [language, highlightMeta, magicMoveMeta]
-            .filter(Boolean)
-            .join(" ");
+          const fenceInfo = [language, highlightMeta, magicMoveMeta].filter(Boolean).join(" ");
           return {
             output: `\`\`\`${fenceInfo}\n${code}\n\`\`\``,
             skipChildren: true,
@@ -360,13 +321,13 @@ export class MarkdownSerializerRegistry {
         toMarkdown: (_element, childrenStr) => {
           return childrenStr
             .split("\n")
-            .map((line) => `> ${line}`)
+            .map(line => `> ${line}`)
             .join("\n");
         },
         toMarkdownStructured: (_element, childrenStr) => {
           const output = childrenStr
             .split("\n")
-            .map((line) => `> ${line}`)
+            .map(line => `> ${line}`)
             .join("\n");
           return {
             output,
@@ -378,7 +339,7 @@ export class MarkdownSerializerRegistry {
       {
         type: "image",
         isBlock: true,
-        toMarkdown: (element) => {
+        toMarkdown: element => {
           const alt = element.alt || "";
           return `![${alt}](${element.url})`;
         },
@@ -386,7 +347,7 @@ export class MarkdownSerializerRegistry {
       {
         type: "inline-image",
         isBlock: false,
-        toMarkdown: (element) => {
+        toMarkdown: element => {
           const alt = element.alt || "";
           return `![${alt}](${element.url})`;
         },
@@ -394,35 +355,33 @@ export class MarkdownSerializerRegistry {
       {
         type: "image-gallery",
         isBlock: true,
-        toMarkdown: (element) => {
-          return element.images
-            .map((image: any) => `![](${image.url})`)
-            .join("\n");
+        toMarkdown: element => {
+          return element.images.map((image: any) => `![](${image.url})`).join("\n");
         },
       },
       {
         type: "block-math",
         isBlock: true,
-        toMarkdown: (element) => {
+        toMarkdown: element => {
           return `$$\n${element.tex || ""}\n$$`;
         },
       },
       {
         type: "inline-math",
-        toMarkdown: (element) => {
+        toMarkdown: element => {
           return `$${element.tex || ""}$`;
         },
       },
       {
         type: "html-block",
         isBlock: true,
-        toMarkdown: (element) => {
+        toMarkdown: element => {
           return element.html || "";
         },
       },
       {
         type: "html-inline",
-        toMarkdown: (element) => {
+        toMarkdown: element => {
           return element.html || "";
         },
       },
@@ -467,9 +426,7 @@ export class MarkdownSerializerRegistry {
               .join("\n");
           } else if (parentElement.type === "numbered-list") {
             // 找到当前元素在父元素中的索引，第一行加上 1，然后加上 . 和一个空格，其它行加上两个空格
-            const index = parentElement.children.findIndex(
-              (child: any) => child === element,
-            );
+            const index = parentElement.children.findIndex((child: any) => child === element);
             return children
               .trim()
               .split("\n")
@@ -510,9 +467,7 @@ export class MarkdownSerializerRegistry {
               })
               .join("\n");
           } else if (parentElement.type === "numbered-list") {
-            const index = parentElement.children.findIndex(
-              (child: any) => child === element,
-            );
+            const index = parentElement.children.findIndex((child: any) => child === element);
             firstLinePrefix = `${index + 1}. `;
             output = children
               .trim()
@@ -551,8 +506,7 @@ export class MarkdownSerializerRegistry {
           }
           return {
             output: this.buildSimpleTable(rows),
-            childLineShifts:
-              rows.length > 1 ? [{ startIndex: 1, lineDelta: 1 }] : [],
+            childLineShifts: rows.length > 1 ? [{ startIndex: 1, lineDelta: 1 }] : [],
           };
         },
       },
@@ -584,39 +538,35 @@ export class MarkdownSerializerRegistry {
       {
         type: "mermaid",
         isBlock: true,
-        toMarkdown: (element) => {
-          const renderStyle = normalizeMermaidRenderStyle(element.renderStyle);
-          const fenceInfo = renderStyle
-            ? `mermaid style=${renderStyle}`
-            : "mermaid";
-          return `\`\`\`${fenceInfo}\n${element.chart || ""}\n\`\`\``;
+        toMarkdown: element => {
+          return `\`\`\`mermaid\n${element.chart || ""}\n\`\`\``;
         },
       },
       {
         type: "abc",
         isBlock: true,
-        toMarkdown: (element) => {
+        toMarkdown: element => {
           return `\`\`\`abc\n${element.content || ""}\n\`\`\``;
         },
       },
       {
         type: "plantuml",
         isBlock: true,
-        toMarkdown: (element) => {
+        toMarkdown: element => {
           return `\`\`\`plantuml\n${element.content || ""}\n\`\`\``;
         },
       },
       {
         type: "tikz",
         isBlock: true,
-        toMarkdown: (element) => {
+        toMarkdown: element => {
           return `\`\`\`tikz\n${element.content || ""}\n\`\`\``;
         },
       },
       {
         type: "typst",
         isBlock: true,
-        toMarkdown: (element) => {
+        toMarkdown: element => {
           return `\`\`\`typst\n${element.content || ""}\n\`\`\``;
         },
       },
@@ -652,8 +602,7 @@ export class MarkdownSerializerRegistry {
           if (element.open) {
             attributes.push(`open=true`);
           }
-          const attributeStr =
-            attributes.length > 0 ? attributes.join(" ") : "";
+          const attributeStr = attributes.length > 0 ? attributes.join(" ") : "";
           return `:::detail{${attributeStr}}\n${childrenStr}\n:::`;
         },
         toMarkdownStructured: (element, childrenStr) => {
@@ -664,8 +613,7 @@ export class MarkdownSerializerRegistry {
           if (element.open) {
             attributes.push(`open=true`);
           }
-          const attributeStr =
-            attributes.length > 0 ? attributes.join(" ") : "";
+          const attributeStr = attributes.length > 0 ? attributes.join(" ") : "";
           return {
             output: `:::detail{${attributeStr}}\n${childrenStr}\n:::`,
             childrenStart: { line: 1, ch: 0 },
@@ -680,48 +628,42 @@ export class MarkdownSerializerRegistry {
       {
         type: "video",
         isBlock: true,
-        toMarkdown: (element) => {
+        toMarkdown: element => {
           const attributes = [];
           attributes.push(`src="${element.src}"`);
-          if (element.playbackRate)
-            attributes.push(`playbackRate="${element.playbackRate}"`);
+          if (element.playbackRate) attributes.push(`playbackRate="${element.playbackRate}"`);
           if (element.metaInfo) {
             const metaInfoStr = btoa(
-              unescape(encodeURIComponent(JSON.stringify(element.metaInfo))),
+              unescape(encodeURIComponent(JSON.stringify(element.metaInfo)))
             );
             attributes.push(`metaInfo="${metaInfoStr}"`);
           }
           if (element.width) attributes.push(`width="${element.width}"`);
           if (element.align) attributes.push(`align="${element.align}"`);
-          const attributeStr =
-            attributes.length > 0 ? attributes.join(" ") : "";
+          const attributeStr = attributes.length > 0 ? attributes.join(" ") : "";
           return `:::video{${attributeStr}}\n:::`;
         },
       },
       {
         type: "audio",
         isBlock: true,
-        toMarkdown: (element) => {
+        toMarkdown: element => {
           const attributes = [];
           attributes.push(`src="${element.src}"`);
-          if (element.isFromGenerate)
-            attributes.push(`isFromGenerate="${element.isFromGenerate}"`);
-          if (element.audioText)
-            attributes.push(`audioText="${element.audioText}"`);
-          const attributeStr =
-            attributes.length > 0 ? attributes.join(" ") : "";
+          if (element.isFromGenerate) attributes.push(`isFromGenerate="${element.isFromGenerate}"`);
+          if (element.audioText) attributes.push(`audioText="${element.audioText}"`);
+          const attributeStr = attributes.length > 0 ? attributes.join(" ") : "";
           return `:::audio{${attributeStr}}\n:::`;
         },
       },
       {
         type: "file-attachment",
         isBlock: true,
-        toMarkdown: (element) => {
+        toMarkdown: element => {
           const attributes = [];
           attributes.push(`fileName="${element.fileName}"`);
           attributes.push(`filePath="${element.filePath}"`);
-          if (element.localFilePath)
-            attributes.push(`localFilePath="${element.localFilePath}"`);
+          if (element.localFilePath) attributes.push(`localFilePath="${element.localFilePath}"`);
           attributes.push(`isLocal=${element.isLocal}`);
           attributes.push(`uuid="${element.uuid}"`);
           const attributeStr = attributes.join(" ");
@@ -749,7 +691,7 @@ export class MarkdownSerializerRegistry {
               lines
                 .slice(1)
                 .filter(Boolean)
-                .map((line) => `  ${line}`)
+                .map(line => `  ${line}`)
                 .join("\n")
             );
           }
@@ -768,7 +710,7 @@ export class MarkdownSerializerRegistry {
               lines
                 .slice(1)
                 .filter(Boolean)
-                .map((line) => `  ${line}`)
+                .map(line => `  ${line}`)
                 .join("\n");
           } else {
             output = prefix + lines[0];
@@ -799,33 +741,33 @@ export class MarkdownSerializerRegistry {
       {
         type: "custom-block",
         isBlock: true,
-        toMarkdown: (element) => {
+        toMarkdown: element => {
           return `\`\`\`custom-block\n${element.content}\n\`\`\``;
         },
       },
       {
         type: "webview",
         isBlock: true,
-        toMarkdown: (element) => {
+        toMarkdown: element => {
           return `<iframe src="${element.url}" width="100%" height="${element.height}" frameborder="0"></iframe>`;
         },
       },
       {
         type: "front-matter",
         isBlock: true,
-        toMarkdown: (node) => {
+        toMarkdown: node => {
           return `---\n${node.value}\n---`;
         },
       },
       {
         type: "emoji",
-        toMarkdown: (element) => {
+        toMarkdown: element => {
           return `${element.nativeEmoji || element.emoji}`;
         },
       },
       {
         type: "annotation",
-        toMarkdown: (element) => {
+        toMarkdown: element => {
           const footnoteId = this.addFootnote(element.content || "");
           return `[^${footnoteId}]`;
         },
@@ -860,16 +802,14 @@ export class MarkdownSerializerRegistry {
           const attributes = [];
           if (element.color) attributes.push(`color=${element.color}`);
           if (element.lineType) attributes.push(`lineType=${element.lineType}`);
-          const attributeStr =
-            attributes.length > 0 ? `{${attributes.join(" ")}}` : "";
+          const attributeStr = attributes.length > 0 ? `{${attributes.join(" ")}}` : "";
           return `:underline[${childrenStr}]${attributeStr}`;
         },
         toMarkdownStructured: (element, childrenStr) => {
           const attributes = [];
           if (element.color) attributes.push(`color=${element.color}`);
           if (element.lineType) attributes.push(`lineType=${element.lineType}`);
-          const attributeStr =
-            attributes.length > 0 ? `{${attributes.join(" ")}}` : "";
+          const attributeStr = attributes.length > 0 ? `{${attributes.join(" ")}}` : "";
           return {
             output: `:underline[${childrenStr}]${attributeStr}`,
             childrenStart: { line: 0, ch: ":underline[".length },
@@ -879,7 +819,7 @@ export class MarkdownSerializerRegistry {
       {
         type: "chat-reference",
         isBlock: true,
-        toMarkdown: (element) => {
+        toMarkdown: element => {
           const attributes = [];
           attributes.push(`chatId=${element.chatId}`);
           if (element.title) attributes.push(`title="${element.title}"`);
@@ -891,20 +831,16 @@ export class MarkdownSerializerRegistry {
       {
         type: "summary-timestamp",
         isBlock: false,
-        toMarkdown: (element) => {
+        toMarkdown: element => {
           return `:time{start=${element.start} end=${element.end}}`;
         },
       },
       {
         type: "chart",
         isBlock: true,
-        toMarkdown: (element) => {
-          const dataStr = btoa(
-            unescape(encodeURIComponent(JSON.stringify(element.data))),
-          );
-          const configStr = btoa(
-            unescape(encodeURIComponent(JSON.stringify(element.config))),
-          );
+        toMarkdown: element => {
+          const dataStr = btoa(unescape(encodeURIComponent(JSON.stringify(element.data))));
+          const configStr = btoa(unescape(encodeURIComponent(JSON.stringify(element.config))));
           return `:::chart{data="${dataStr}" config="${configStr}"}\n:::`;
         },
       },

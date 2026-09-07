@@ -13,17 +13,11 @@ import {
 } from "@/constants/accent";
 import { getAllFonts } from "@/commands";
 import {
-  MERMAID_THEME_NAMES,
-  type MermaidRenderStyle,
-  type MermaidThemeName,
-} from "@tau/shared";
-import {
   SettingContainer,
   SettingSection,
   SettingInput,
   SettingDropdown,
   SettingFontPicker,
-  SettingSwitch,
 } from "../components";
 
 const imageBorderRadiusOptions: Array<{
@@ -47,20 +41,9 @@ const imageShadowOptions: Array<{
 ];
 
 const AppearanceSetting = () => {
-  const {
-    setting,
-    onFontSettingChange,
-    setMermaidStyle,
-    setMermaidLightTheme,
-    setMermaidDarkTheme,
-    setUseBeautifulMermaid,
-  } = useSettingStore((state) => ({
+  const { setting, onFontSettingChange } = useSettingStore(state => ({
     setting: state.setting,
     onFontSettingChange: state.onFontSettingChange,
-    setMermaidStyle: state.setMermaidStyle,
-    setMermaidLightTheme: state.setMermaidLightTheme,
-    setMermaidDarkTheme: state.setMermaidDarkTheme,
-    setUseBeautifulMermaid: state.setUseBeautifulMermaid,
   }));
 
   const [fonts, setFonts] = useState<string[]>([]);
@@ -75,46 +58,25 @@ const AppearanceSetting = () => {
   const normalizedImageShadow =
     imageAppearanceSetting.shadow === true
       ? "md"
-      : imageAppearanceSetting.shadow === false ||
-          !imageAppearanceSetting.shadow
+      : imageAppearanceSetting.shadow === false || !imageAppearanceSetting.shadow
         ? "none"
         : imageAppearanceSetting.shadow;
   const fontSetting = setting.fontSetting;
-  const mermaidSetting = setting.misc.mermaid || {
-    style: "svg",
-    lightTheme: "github-light",
-    darkTheme: "github-dark",
-    useBeautifulMermaid: true,
-  };
-
-  const mermaidStyleOptions: Array<{
-    label: string;
-    value: MermaidRenderStyle;
-  }> = [
-    { label: "SVG（图形渲染）", value: "svg" },
-    { label: "ASCII（Unicode 字符）", value: "ascii-unicode" },
-  ];
-
-  const mermaidThemeOptions: Array<{ label: string; value: MermaidThemeName }> =
-    MERMAID_THEME_NAMES.map((themeName) => ({
-      label: themeName,
-      value: themeName,
-    }));
 
   useAsyncEffect(async () => {
     const fonts = await getAllFonts();
     const filterFonts = fonts
       .filter(
-        (font) =>
+        font =>
           !(
             font.toLowerCase().includes("light") ||
             font.toLowerCase().includes("bold") ||
             font.toLowerCase().includes("semi")
           ) ||
           font.toLowerCase().includes("thin") ||
-          font.toLowerCase().includes("medium"),
+          font.toLowerCase().includes("medium")
       )
-      .map((font) => font.replace(/[R|r]egular/g, "").trim())
+      .map(font => font.replace(/[R|r]egular/g, "").trim())
       .filter(Boolean);
     const dedupedFonts = Array.from(new Set(filterFonts));
     setFonts(dedupedFonts);
@@ -122,31 +84,31 @@ const AppearanceSetting = () => {
 
   const updateAppearance = useMemoizedFn(
     (updater: (appearance: NonNullable<typeof setting.appearance>) => void) => {
-      const newSetting = produce(setting, (draft) => {
+      const newSetting = produce(setting, draft => {
         if (!draft.appearance) {
           draft.appearance = { accent: DEFAULT_ACCENT };
         }
         updater(draft.appearance);
       });
       useSettingStore.setState({ setting: newSetting });
-    },
+    }
   );
 
   const handleAccentSelect = useMemoizedFn((accent: AccentPreset) => {
-    updateAppearance((appearance) => {
+    updateAppearance(appearance => {
       appearance.accent = accent;
     });
   });
 
   const handleThemeModeChange = useMemoizedFn((isDark: boolean) => {
-    const newSetting = produce(setting, (draft) => {
+    const newSetting = produce(setting, draft => {
       draft.darkMode = isDark;
     });
     useSettingStore.setState({ setting: newSetting });
   });
 
   const handleImageBorderRadiusChange = useMemoizedFn((value: string) => {
-    updateAppearance((appearance) => {
+    updateAppearance(appearance => {
       if (!appearance.image) {
         appearance.image = { borderRadius: "none", shadow: false };
       }
@@ -155,7 +117,7 @@ const AppearanceSetting = () => {
   });
 
   const handleImageShadowChange = useMemoizedFn((value: string) => {
-    updateAppearance((appearance) => {
+    updateAppearance(appearance => {
       if (!appearance.image) {
         appearance.image = { borderRadius: "none", shadow: "none" };
       }
@@ -165,47 +127,35 @@ const AppearanceSetting = () => {
 
   const onChineseFontChange = (font: string) => {
     onFontSettingChange(
-      produce(fontSetting, (draft) => {
+      produce(fontSetting, draft => {
         draft.chineseFont = font;
-      }),
+      })
     );
   };
 
   const onEnglishFontChange = (font: string) => {
     onFontSettingChange(
-      produce(fontSetting, (draft) => {
+      produce(fontSetting, draft => {
         draft.englishFont = font;
-      }),
+      })
     );
   };
 
   const onFontSizeChange = (size: number) => {
     onFontSettingChange(
-      produce(fontSetting, (draft) => {
+      produce(fontSetting, draft => {
         draft.fontSize = size;
-      }),
+      })
     );
   };
 
   const onCodeFontChange = (font: string) => {
     onFontSettingChange(
-      produce(fontSetting, (draft) => {
+      produce(fontSetting, draft => {
         draft.codeFont = font;
-      }),
+      })
     );
   };
-
-  const handleMermaidStyleChange = useMemoizedFn((style: string) => {
-    setMermaidStyle(style as MermaidRenderStyle);
-  });
-
-  const handleMermaidLightThemeChange = useMemoizedFn((theme: string) => {
-    setMermaidLightTheme(theme as MermaidThemeName);
-  });
-
-  const handleMermaidDarkThemeChange = useMemoizedFn((theme: string) => {
-    setMermaidDarkTheme(theme as MermaidThemeName);
-  });
 
   const accentSwatch = (isDark: boolean) => (accent: AccentPreset) =>
     isDark ? ACCENT_COLORS[accent][1] : ACCENT_COLORS[accent][0];
@@ -214,31 +164,26 @@ const AppearanceSetting = () => {
     <SettingContainer>
       {/* 主题模式设置 */}
       <SettingSection title="主题模式" description="选择应用的亮色或暗色主题">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-2xl">
-          {[false, true].map((isDark) => {
+        <div className="grid max-w-2xl grid-cols-1 gap-5 md:grid-cols-2">
+          {[false, true].map(isDark => {
             const isActive = isDarkMode === isDark;
             return (
               <div
                 key={String(isDark)}
                 onClick={() => handleThemeModeChange(isDark)}
-                className={`
-                  relative overflow-hidden rounded-xl cursor-pointer
-                  transition-all duration-300 ease-in-out
-                  shadow-sm border-2
-                  ${
-                    isActive
-                      ? `${themeColors.cardBorderClass}`
-                      : "border-gray-200 dark:border-gray-700"
-                  }
-                `}
+                className={`relative cursor-pointer overflow-hidden rounded-xl border-2 shadow-sm transition-all duration-300 ease-in-out ${
+                  isActive
+                    ? `${themeColors.cardBorderClass}`
+                    : "border-gray-200 dark:border-gray-700"
+                } `}
               >
                 {isActive && (
                   <div
-                    className={`absolute top-0 left-0 right-0 h-1 ${themeColors.gradientClass}`}
+                    className={`absolute left-0 right-0 top-0 h-1 ${themeColors.gradientClass}`}
                   />
                 )}
                 <div
-                  className={`h-32 relative overflow-hidden ${
+                  className={`relative h-32 overflow-hidden ${
                     isDark
                       ? "bg-linear-to-br from-gray-900 via-gray-800 to-gray-900"
                       : "bg-linear-to-br from-gray-50 via-white to-gray-100"
@@ -248,19 +193,19 @@ const AppearanceSetting = () => {
                     <div
                       className={`h-3 w-3/4 rounded ${isDark ? "bg-gray-100" : "bg-zinc-800"}`}
                     />
-                    <div className="h-2 w-1/2 bg-gray-400 rounded" />
+                    <div className="h-2 w-1/2 rounded bg-gray-400" />
                     <div
                       className={`mt-auto h-8 rounded-lg shadow-sm ${
                         isDark
-                          ? "bg-zinc-800 border border-gray-700"
-                          : "bg-white border border-gray-200"
+                          ? "border border-gray-700 bg-zinc-800"
+                          : "border border-gray-200 bg-white"
                       }`}
                     />
                   </div>
                 </div>
 
-                <div className="p-4 bg-gray-50 dark:bg-zinc-800/50">
-                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                <div className="bg-gray-50 p-4 dark:bg-zinc-800/50">
+                  <h3 className="mb-1 text-base font-semibold text-gray-900 dark:text-gray-100">
                     {isDark ? "深色主题" : "浅色主题"}
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -270,10 +215,10 @@ const AppearanceSetting = () => {
 
                 {isActive && (
                   <div
-                    className={`absolute top-3 right-3 w-6 h-6 rounded-full ${themeColors.badgeBgClass} flex items-center justify-center`}
+                    className={`absolute right-3 top-3 h-6 w-6 rounded-full ${themeColors.badgeBgClass} flex items-center justify-center`}
                   >
                     <svg
-                      className={`w-4 h-4 ${themeColors.badgeTextClass}`}
+                      className={`h-4 w-4 ${themeColors.badgeTextClass}`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -298,30 +243,26 @@ const AppearanceSetting = () => {
         title="主题色"
         description="界面选中态、主按钮与焦点环使用的强调色,背景保持中性"
       >
-        <div className="flex flex-wrap gap-4 max-w-2xl">
-          {ACCENT_PRESETS.map((accent) => {
+        <div className="flex max-w-2xl flex-wrap gap-4">
+          {ACCENT_PRESETS.map(accent => {
             const isActive = currentAccent === accent;
             const color = accentSwatch(isDarkMode)(accent);
             return (
               <button
                 key={accent}
                 onClick={() => handleAccentSelect(accent)}
-                className="group flex flex-col items-center gap-2 cursor-pointer"
+                className="group flex cursor-pointer flex-col items-center gap-2"
                 title={ACCENT_LABELS[accent]}
               >
                 <span
-                  className={`
-                    w-10 h-10 rounded-full transition-all duration-200
-                    ${isActive ? "ring-2 ring-offset-2" : "group-hover:scale-110"}
-                  `}
+                  className={`h-10 w-10 rounded-full transition-all duration-200 ${isActive ? "ring-2 ring-offset-2" : "group-hover:scale-110"} `}
                   style={
                     {
                       backgroundColor: color,
                       ...(isActive
                         ? {
                             "--tw-ring-color": color,
-                            "--tw-ring-offset-color":
-                              "var(--th-bg-elevated, #fff)",
+                            "--tw-ring-offset-color": "var(--th-bg-elevated, #fff)",
                           }
                         : {}),
                     } as React.CSSProperties
@@ -338,49 +279,8 @@ const AppearanceSetting = () => {
         </div>
       </SettingSection>
 
-      <SettingSection
-        title="Mermaid 渲染"
-        description="默认使用 beautiful-mermaid 提供 SVG 与 ASCII（Unicode）渲染。关闭后，所有 Mermaid 图表统一回退为 Mermaid 原生 SVG 渲染。"
-      >
-        <SettingSwitch
-          checked={mermaidSetting.useBeautifulMermaid ?? true}
-          onChange={setUseBeautifulMermaid}
-          label="启用 beautiful-mermaid"
-          description="关闭后不再使用 beautiful-mermaid，ASCII 渲染和自定义 Mermaid 主题也会一并停用。"
-        />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <SettingDropdown
-            label="渲染风格"
-            value={mermaidSetting.style}
-            onChange={handleMermaidStyleChange}
-            options={mermaidStyleOptions}
-            placeholder="选择 Mermaid 渲染风格"
-            disabled={!mermaidSetting.useBeautifulMermaid}
-          />
-          <SettingDropdown
-            label="浅色主题"
-            value={mermaidSetting.lightTheme}
-            onChange={handleMermaidLightThemeChange}
-            options={mermaidThemeOptions}
-            placeholder="选择浅色主题"
-            disabled={!mermaidSetting.useBeautifulMermaid}
-          />
-          <SettingDropdown
-            label="深色主题"
-            value={mermaidSetting.darkTheme}
-            onChange={handleMermaidDarkThemeChange}
-            options={mermaidThemeOptions}
-            placeholder="选择深色主题"
-            disabled={!mermaidSetting.useBeautifulMermaid}
-          />
-        </div>
-      </SettingSection>
-
-      <SettingSection
-        title="图片外观"
-        description="设置单图与图库在未单独指定时使用的默认外观"
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <SettingSection title="图片外观" description="设置单图与图库在未单独指定时使用的默认外观">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <SettingDropdown
             label="默认圆角"
             value={imageAppearanceSetting.borderRadius || "none"}
@@ -404,7 +304,7 @@ const AppearanceSetting = () => {
 
       {/* 字体设置 */}
       <SettingSection title="正文字体" description="设置编辑器中正文的字体样式">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           <SettingFontPicker
             label="中文字体"
             value={fontSetting.chineseFont}
@@ -426,7 +326,7 @@ const AppearanceSetting = () => {
             type="number"
             min={12}
             value={fontSetting.fontSize}
-            onChange={(e) => onFontSizeChange(Number(e.target.value))}
+            onChange={e => onFontSizeChange(Number(e.target.value))}
             placeholder="字体大小"
           />
         </div>

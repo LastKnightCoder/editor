@@ -139,12 +139,9 @@ export const mobileImportFromMarkdown = (
     },
   });
 
-/** Mobile 编辑器全局配置：主题取文档当前状态，mermaid/图片外观读设置桥快照 */
+/** Mobile 编辑器全局配置：主题取文档当前状态，图片外观读设置桥快照 */
 export function createMobileEditorConfig(): EditorConfig {
   const theme = readMobileTheme();
-  const mermaid = getMobileSettingByPath<{
-    style?: EditorConfig["mermaid"];
-  }>("misc.mermaid") as EditorConfig["mermaid"] | undefined;
   const image =
     getMobileSettingByPath<NonNullable<NonNullable<EditorConfig["appearance"]>["image"]>>(
       "appearance.image"
@@ -155,7 +152,6 @@ export function createMobileEditorConfig(): EditorConfig {
       colors: createThemeColors(theme),
     },
     appearance: image ? { image } : undefined,
-    mermaid,
     openUrl: url => {
       void tauriOpenUrl(url);
     },

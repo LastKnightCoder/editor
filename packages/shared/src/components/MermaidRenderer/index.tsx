@@ -7,8 +7,7 @@ import styles from "./index.module.less";
 import { useDebounce, useCreation } from "ahooks";
 import LazySyntaxHighlighter from "../LazySyntaxHighlighter";
 import FullscreenPortal from "../FullscreenPortal";
-import type { MermaidRenderPreference } from "../../utils/mermaid-render-core";
-import { renderMermaidWithFallback } from "../../utils/mermaid-render-core";
+import { renderMermaidSvg } from "../../utils/mermaid-render-core";
 
 export interface MermaidRendererProps {
   code: string;
@@ -18,8 +17,6 @@ export interface MermaidRendererProps {
   messageApi?: MessageInstance;
   /** 可选的 key 用于刷新 */
   refreshKey?: number;
-  /** Mermaid 渲染偏好设置 */
-  renderPreference?: MermaidRenderPreference;
 }
 
 const MermaidRenderer: React.FC<MermaidRendererProps> = ({
@@ -27,14 +24,9 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
   isDark = false,
   messageApi,
   refreshKey,
-  renderPreference,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [svgContent, setSvgContent] = useState<string>("");
-  const [asciiContent, setAsciiContent] = useState<string>("");
-  const [displayMode, setDisplayMode] = useState<"svg" | "ascii">("svg");
-  const [isFallback, setIsFallback] = useState(false);
-  const [fallbackReason, setFallbackReason] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [viewMode, setViewMode] = useState<"preview" | "source">("preview");
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -59,25 +51,17 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
         setIsLoading(true);
         setError("");
 
-        const result = await renderMermaidWithFallback({
+        const svg = await renderMermaidSvg({
           code: debouncedCode,
           mermaidId,
           isDark,
-          preference: renderPreference,
         });
 
         if (isMounted) {
           setError("");
-          setDisplayMode(result.displayMode);
-          setIsFallback(result.isFallback);
-          setFallbackReason(result.fallbackReason || "");
-          setAsciiContent(
-            result.displayMode === "ascii" ? result.displayContent : "",
-          );
-          setSvgContent(result.cachedSvg);
+          setSvgContent(svg);
           if (containerRef.current) {
-            containerRef.current.innerHTML =
-              result.displayMode === "svg" ? result.displayContent : "";
+            containerRef.current.innerHTML = svg;
           }
         }
       } catch (err: any) {
@@ -99,19 +83,10 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [
-    debouncedCode,
-    isDark,
-    mermaidId,
-    refreshKey,
-    internalRefreshKey,
-    renderPreference?.style,
-    renderPreference?.lightTheme,
-    renderPreference?.darkTheme,
-  ]);
+  }, [debouncedCode, isDark, mermaidId, refreshKey, internalRefreshKey]);
 
   const handleRefresh = () => {
-    setInternalRefreshKey((prev) => prev + 1);
+    setInternalRefreshKey(prev => prev + 1);
   };
 
   const handleCopySource = () => {
@@ -121,18 +96,13 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
       },
       () => {
         messageApi?.error("复制失败");
-      },
+      }
     );
   };
 
   const handleDownload = async () => {
     if (!containerRef.current) {
       messageApi?.error("图表未渲染");
-      return;
-    }
-
-    if (displayMode !== "svg") {
-      messageApi?.warning("ASCII 模式下不支持图片下载");
       return;
     }
 
@@ -154,10 +124,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
       // 设置明确的尺寸属性
       clonedSvg.setAttribute("width", String(width));
       clonedSvg.setAttribute("height", String(height));
-      clonedSvg.setAttribute(
-        "viewBox",
-        `${bbox.x || 0} ${bbox.y || 0} ${width} ${height}`,
-      );
+      clonedSvg.setAttribute("viewBox", `${bbox.x || 0} ${bbox.y || 0} ${width} ${height}`);
 
       const canvas = document.createElement("canvas");
       const scale = 2; // 提高分辨率
@@ -186,7 +153,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
         ctx.drawImage(img, 0, 0, width, height);
         URL.revokeObjectURL(url);
 
-        canvas.toBlob((blob) => {
+        canvas.toBlob(blob => {
           if (blob) {
             const downloadUrl = URL.createObjectURL(blob);
             const a = document.createElement("a");
@@ -222,46 +189,11 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
       }
 
       if (error) {
-        return (
-          <Alert
-            type="error"
-            message="Diagram render error"
-            description={error}
-            showIcon
-          />
-        );
-      }
-
-      if (displayMode === "ascii") {
-        return (
-          <div className="flex-1 overflow-auto bg-white dark:bg-black p-4">
-            {isFallback && fallbackReason ? (
-              <Alert
-                className="mb-3"
-                type="warning"
-                message="已自动回退渲染引擎"
-                description={fallbackReason}
-                showIcon
-              />
-            ) : null}
-            <div className={styles.asciiWrapper}>
-              <pre className={styles.asciiContainer}>{asciiContent}</pre>
-            </div>
-          </div>
-        );
+        return <Alert type="error" message="Diagram render error" description={error} showIcon />;
       }
 
       return (
         <div className="flex-1 overflow-auto bg-white dark:bg-black">
-          {isFallback && fallbackReason ? (
-            <Alert
-              className="m-3"
-              type="warning"
-              message="已自动回退渲染引擎"
-              description={fallbackReason}
-              showIcon
-            />
-          ) : null}
           <div
             ref={containerRef}
             dangerouslySetInnerHTML={{ __html: svgContent }}
@@ -273,7 +205,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
       );
     } else {
       return (
-        <div className="flex-1 overflow-auto bg-gray-50 dark:bg-neutral-900 p-3">
+        <div className="flex-1 overflow-auto bg-gray-50 p-3 dark:bg-neutral-900">
           <LazySyntaxHighlighter language="mermaid" isDark={isDark}>
             {code}
           </LazySyntaxHighlighter>
@@ -305,15 +237,9 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
             <Tooltip title={viewMode === "preview" ? "查看源码" : "查看预览"}>
               <button
                 className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
-                onClick={() =>
-                  setViewMode(viewMode === "preview" ? "source" : "preview")
-                }
+                onClick={() => setViewMode(viewMode === "preview" ? "source" : "preview")}
               >
-                {viewMode === "preview" ? (
-                  <Code size={16} />
-                ) : (
-                  <Eye size={16} />
-                )}
+                {viewMode === "preview" ? <Code size={16} /> : <Eye size={16} />}
               </button>
             </Tooltip>
             {viewMode === "source" && (
@@ -326,7 +252,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
                 </button>
               </Tooltip>
             )}
-            {viewMode === "preview" && displayMode === "svg" && svgContent && (
+            {viewMode === "preview" && svgContent && (
               <Tooltip title="下载为图片">
                 <button
                   className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
@@ -353,10 +279,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
 
       {/* 全屏模式 */}
       {isFullscreen && (
-        <FullscreenPortal
-          title="Mermaid Diagram"
-          onClose={() => setIsFullscreen(false)}
-        >
+        <FullscreenPortal title="Mermaid Diagram" onClose={() => setIsFullscreen(false)}>
           {renderContent()}
         </FullscreenPortal>
       )}

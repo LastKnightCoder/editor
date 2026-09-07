@@ -148,7 +148,6 @@ const TEXT_GRADIENT_PRESET_SET = new Set<TextGradientPresetId>(
 const STYLED_TEXT_COLOR_SET = new Set<StyledTextColorLiteral>(STYLED_TEXT_COLOR_VALUES);
 const MAGIC_MOVE_META_PREFIX = "smm=";
 const HIGHLIGHT_META_REGEX = /\{([\d,\-\s]+)\}/;
-const MERMAID_RENDER_STYLE_META_PREFIX = "style=";
 
 interface MarkdownMagicMoveStep {
   id: string;
@@ -208,17 +207,6 @@ const parseHighlightMeta = (meta: unknown): string | undefined => {
   const match = meta.match(HIGHLIGHT_META_REGEX);
   if (!match) return undefined;
   return normalizeHighlightLines(match[1]);
-};
-
-const parseMermaidRenderStyleMeta = (meta: unknown): "svg" | "ascii-unicode" | undefined => {
-  if (typeof meta !== "string" || !meta.trim()) return undefined;
-  const token = meta.split(/\s+/).find(item => item.startsWith(MERMAID_RENDER_STYLE_META_PREFIX));
-  if (!token) return undefined;
-  const value = token.slice(MERMAID_RENDER_STYLE_META_PREFIX.length).trim();
-  if (value === "svg" || value === "ascii-unicode") {
-    return value;
-  }
-  return undefined;
 };
 
 const parseMagicMoveMeta = (
@@ -447,11 +435,9 @@ const markdownToDescendant = (
       } as Descendant;
     }
     if (normalizedLang === "mermaid") {
-      const renderStyle = parseMermaidRenderStyleMeta(node.meta);
       return {
         type: "mermaid",
         chart: node.value,
-        ...(renderStyle ? { renderStyle } : {}),
         children: [{ type: "formatted", text: "" }],
       } as Descendant;
     }

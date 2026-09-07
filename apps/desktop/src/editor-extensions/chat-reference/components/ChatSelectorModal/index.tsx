@@ -16,7 +16,6 @@ import useChatMessageStore from "@/stores/useChatMessageStore";
 import { ChatMessage, ChatGroup } from "@/types";
 import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import useTheme from "@/hooks/useTheme";
-import useMermaidRenderPreference from "@/hooks/useMermaidRenderPreference";
 import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
 import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
 import { openExternal } from "@/commands";
@@ -48,7 +47,6 @@ const DEFAULT_CHAT = {
 
 const ChatSelectorModal = memo(({ open, onCancel, onSelect }: IChatSelectorModalProps) => {
   const { isDark } = useTheme();
-  const mermaidRenderPreference = useMermaidRenderPreference();
   const [searchText, setSearchText] = useState("");
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
   const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
@@ -130,13 +128,7 @@ const ChatSelectorModal = memo(({ open, onCancel, onSelect }: IChatSelectorModal
         const mermaidMatch = match && match[1] === "mermaid";
 
         if (mermaidMatch) {
-          return (
-            <MermaidRenderer
-              code={String(children).replace(/\n$/, "")}
-              isDark={isDark}
-              renderPreference={mermaidRenderPreference}
-            />
-          );
+          return <MermaidRenderer code={String(children).replace(/\n$/, "")} isDark={isDark} />;
         }
 
         if (match) {
@@ -165,7 +157,7 @@ const ChatSelectorModal = memo(({ open, onCancel, onSelect }: IChatSelectorModal
         );
       },
     };
-  }, [handleLinkClick, isDark, mermaidRenderPreference]);
+  }, [handleLinkClick, isDark]);
 
   const renderChatItem = (chat: ChatMessage) => {
     const isSelected = selectedChatId === chat.id;

@@ -27,7 +27,6 @@ import {
 import { shouldRenderAsBlockCode } from "@/layouts/ContentLayout/components/ChatSidebar/codeBlockUtils";
 import useTheme from "@/hooks/useTheme";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import useMermaidRenderPreference from "@/hooks/useMermaidRenderPreference";
 import useSettingStore from "@/stores/useSettingStore";
 import usePdfChatStore, { EPdfChatStatus } from "@/stores/usePdfChatStore";
 import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
@@ -142,7 +141,6 @@ const CodeRenderer: React.FC<{
   "data-markdown-block-code"?: string;
 }> = ({ children, className, "data-markdown-block-code": markdownBlockCode, ...rest }) => {
   const { message } = App.useApp();
-  const mermaidRenderPreference = useMermaidRenderPreference();
   const { isDark } = useTheme();
   const { messageMeta } = useMarkdownContext();
   const match = /language-([\w-]+)/.exec(className || "");
@@ -154,14 +152,7 @@ const CodeRenderer: React.FC<{
   const code = String(children).replace(/\n$/, "");
 
   if (language === "mermaid") {
-    return (
-      <MermaidRenderer
-        code={code}
-        isDark={isDark}
-        messageApi={message}
-        renderPreference={mermaidRenderPreference}
-      />
-    );
+    return <MermaidRenderer code={code} isDark={isDark} messageApi={message} />;
   }
 
   if (language) {

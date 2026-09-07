@@ -1,20 +1,8 @@
 import { App } from "antd";
 import classnames from "classnames";
 import { useShallow } from "zustand/react/shallow";
-import {
-  useState,
-  useMemo,
-  memo,
-  lazy,
-  Suspense,
-  useRef,
-  useEffect,
-} from "react";
-import {
-  LoadingOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-} from "@ant-design/icons";
+import { useState, useMemo, memo, lazy, Suspense, useRef, useEffect } from "react";
+import { LoadingOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
 import { GitBranch, ChevronDown } from "lucide-react";
 import { Dropdown } from "antd";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
@@ -28,7 +16,6 @@ import { openExternal } from "@/commands";
 
 import useChatMessageStore from "@/stores/useChatMessageStore";
 import useTheme from "@/hooks/useTheme";
-import useMermaidRenderPreference from "@/hooks/useMermaidRenderPreference";
 import { measurePerformance } from "./hooks/usePerformanceMonitor";
 
 import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
@@ -45,10 +32,7 @@ import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
 import type { ChatContainerHandle } from "./ChatContainer";
-import {
-  CHAT_AGENT_TYPE_STORAGE_KEY,
-  normalizeChatAgentType,
-} from "@/constants/chatAgent";
+import { CHAT_AGENT_TYPE_STORAGE_KEY, normalizeChatAgentType } from "@/constants/chatAgent";
 
 const ChatContainer = lazy(() => import("./ChatContainer"));
 
@@ -73,10 +57,7 @@ const DEFAULT_CHAT: ChatMessage = {
 };
 
 // 检查代码块是否已经完成生成
-const isCodeBlockCompleted = (
-  codeContent: string,
-  fullTextContent?: string,
-): boolean => {
+const isCodeBlockCompleted = (codeContent: string, fullTextContent?: string): boolean => {
   if (!fullTextContent) return true;
 
   // 查找代码块在完整文本中的位置
@@ -94,7 +75,7 @@ const ChatSidebar = memo(() => {
   const editTitleRef = useRef<EditTextHandle>(null);
   const chatContainerRef = useRef<ChatContainerHandle>(null);
 
-  const database = useSettingStore((state) => state.setting.database.active);
+  const database = useSettingStore(state => state.setting.database.active);
   const isConnected = useDatabaseConnected();
 
   const {
@@ -109,7 +90,7 @@ const ChatSidebar = memo(() => {
     updateCurrentChat,
     createChatBranch,
   } = useChatMessageStore(
-    useShallow((state) => ({
+    useShallow(state => ({
       initChatMessage: state.initChatMessage,
       initChatGroups: state.initChatGroups,
       open: state.open,
@@ -120,16 +101,13 @@ const ChatSidebar = memo(() => {
       updateChatMessage: state.updateChatMessage,
       updateCurrentChat: state.updateCurrentChat,
       createChatBranch: state.createChatBranch,
-    })),
+    }))
   );
   // 添加 ModelSidebar 可见性状态
   const [modelSidebarVisible, setModelSidebarVisible] = useState(false);
-  const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(
-    CHAT_AGENT_TYPE_STORAGE_KEY,
-    {
-      defaultValue: "local",
-    },
-  );
+  const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(CHAT_AGENT_TYPE_STORAGE_KEY, {
+    defaultValue: "local",
+  });
 
   useEffect(() => {
     if (isConnected) {
@@ -139,7 +117,7 @@ const ChatSidebar = memo(() => {
   }, [initChatMessage, initChatGroups, isConnected, database]);
 
   const currentChat = useMemo(() => {
-    return chats.find((chat) => chat.id === currentChatId);
+    return chats.find(chat => chat.id === currentChatId);
   }, [chats, currentChatId]);
 
   // 获取相关分支（主干 + 兄弟分支 + 子分支）
@@ -151,7 +129,7 @@ const ChatSidebar = memo(() => {
     // 找到根对话（主干）
     const findRoot = (chat: typeof currentChat): typeof currentChat => {
       if (!chat.parentChatId) return chat;
-      const parent = chats.find((c) => c.id === chat.parentChatId);
+      const parent = chats.find(c => c.id === chat.parentChatId);
       return parent ? findRoot(parent) : chat;
     };
 
@@ -165,7 +143,7 @@ const ChatSidebar = memo(() => {
     // 获取兄弟分支（同一父级下的所有分支，包括自己）
     if (currentChat.parentChatId) {
       const siblings = chats
-        .filter((c) => c.parentChatId === currentChat.parentChatId)
+        .filter(c => c.parentChatId === currentChat.parentChatId)
         .sort((a, b) => (a.branchIndex ?? 0) - (b.branchIndex ?? 0));
       result.push(...siblings);
     } else {
@@ -175,7 +153,7 @@ const ChatSidebar = memo(() => {
 
     // 获取自己的子分支
     const children = chats
-      .filter((c) => c.parentChatId === currentChat.id)
+      .filter(c => c.parentChatId === currentChat.id)
       .sort((a, b) => (a.branchIndex ?? 0) - (b.branchIndex ?? 0));
     result.push(...children);
 
@@ -190,14 +168,14 @@ const ChatSidebar = memo(() => {
   // 当前分支在同级分支中的索引
   const currentBranchIndex = useMemo(() => {
     if (!currentChat) return 0;
-    return siblingBranches.findIndex((c) => c.id === currentChat.id);
+    return siblingBranches.findIndex(c => c.id === currentChat.id);
   }, [siblingBranches, currentChat]);
 
   // 分支切换菜单
   const branchMenuItems = useMemo(() => {
     if (!currentChat) return [];
 
-    return siblingBranches.map((chat) => {
+    return siblingBranches.map(chat => {
       let prefix = "";
       if (!chat.parentChatId) {
         prefix = "主干: ";
@@ -235,7 +213,7 @@ const ChatSidebar = memo(() => {
         undefined,
         undefined,
         false,
-        normalizeChatAgentType(rememberedAgentType),
+        normalizeChatAgentType(rememberedAgentType)
       );
     } catch (error) {
       message.error("Failed to create new chat");
@@ -282,7 +260,7 @@ const ChatSidebar = memo(() => {
       messages: ChatMessage["messages"],
       title?: string,
       agentType?: ChatAgentType,
-      agentSessionId?: string | null,
+      agentSessionId?: string | null
     ) => {
       const currentChatData = currentChat;
       return await createChatMessage(
@@ -291,16 +269,16 @@ const ChatSidebar = memo(() => {
         currentChatData?.groupId ?? null,
         false,
         agentType,
-        agentSessionId,
+        agentSessionId
       );
-    },
+    }
   );
 
   // ChatContainer 需要的创建分支回调
   const handleCreateBranch = useMemoizedFn(
     async (parentChatId: number, messages: ChatMessage["messages"]) => {
       return await createChatBranch(parentChatId, messages);
-    },
+    }
   );
 
   // 处理链接点击
@@ -308,11 +286,11 @@ const ChatSidebar = memo(() => {
     (event: React.MouseEvent<HTMLAnchorElement>, href?: string) => {
       if (href) {
         event.preventDefault();
-        openExternal(href).catch((err) => {
+        openExternal(href).catch(err => {
           console.error("打开链接失败:", err);
         });
       }
-    },
+    }
   );
 
   // 在新标签页中打开预览
@@ -322,7 +300,7 @@ const ChatSidebar = memo(() => {
       TabType.BlockPreview,
       { block },
       undefined,
-      block.metadata.title || `${block.type} 预览`,
+      block.metadata.title || `${block.type} 预览`
     );
   });
 
@@ -331,13 +309,7 @@ const ChatSidebar = memo(() => {
     children?: React.ReactNode;
     className?: string;
     "data-markdown-block-code"?: string;
-  }> = ({
-    children,
-    className,
-    "data-markdown-block-code": markdownBlockCode,
-    ...rest
-  }) => {
-    const mermaidRenderPreference = useMermaidRenderPreference();
+  }> = ({ children, className, "data-markdown-block-code": markdownBlockCode, ...rest }) => {
     const { messageMeta } = useMarkdownContext();
     const match = /language-([\w-]+)/.exec(className || "");
     const language = match ? match[1] : undefined;
@@ -351,14 +323,7 @@ const ChatSidebar = memo(() => {
 
     // 特殊渲染器优先处理
     if (language === "mermaid") {
-      return (
-        <MermaidRenderer
-          code={code}
-          isDark={isDark}
-          messageApi={message}
-          renderPreference={mermaidRenderPreference}
-        />
-      );
+      return <MermaidRenderer code={code} isDark={isDark} messageApi={message} />;
     }
 
     // HTML 特殊处理：只有完整的 HTML 才使用 BlockCard
@@ -461,9 +426,7 @@ const ChatSidebar = memo(() => {
           <a
             {...props}
             href={href}
-            onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
-              handleLinkClick(e, href)
-            }
+            onClick={(e: React.MouseEvent<HTMLAnchorElement>) => handleLinkClick(e, href)}
           >
             {children}
           </a>
@@ -475,10 +438,10 @@ const ChatSidebar = memo(() => {
 
   return (
     <ResizableAndHideableSidebar
-      className="relative box-border flex-none h-full"
+      className="relative box-border h-full flex-none"
       width={width}
       open={open}
-      onWidthChange={(width) => {
+      onWidthChange={width => {
         useChatMessageStore.setState({ width });
       }}
       side={"left"}
@@ -487,23 +450,19 @@ const ChatSidebar = memo(() => {
       disableResize={!open}
     >
       <MarkdownProvider isDark={isDark} isVisible={open}>
-        <div className="h-full bg-(--th-bg-page) box-border">
+        <div className="bg-(--th-bg-page) box-border h-full">
           <div
-            className={classnames("box-border p-4 h-full flex flex-col", {
+            className={classnames("box-border flex h-full flex-col p-4", {
               "bg-[#29292f]": isDark,
             })}
           >
-            <div className="flex justify-between items-center">
-              <div className="font-bold flex-1 flex items-center gap-2 min-w-0">
+            <div className="flex items-center justify-between">
+              <div className="flex min-w-0 flex-1 items-center gap-2 font-bold">
                 <button
-                  className="px-3 py-2 rounded-md cursor-pointer text-base transition-all duration-200 ease-in-out flex items-center justify-center hover:text-black dark:hover:text-white shrink-0"
+                  className="flex shrink-0 cursor-pointer items-center justify-center rounded-md px-3 py-2 text-base transition-all duration-200 ease-in-out hover:text-black dark:hover:text-white"
                   onClick={toggleModelSidebar}
                 >
-                  {modelSidebarVisible ? (
-                    <MenuFoldOutlined />
-                  ) : (
-                    <MenuUnfoldOutlined />
-                  )}
+                  {modelSidebarVisible ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
                 </button>
                 {currentChat && (
                   <EditText
@@ -518,11 +477,8 @@ const ChatSidebar = memo(() => {
               </div>
               {/* 分支切换器 */}
               {siblingBranches.length > 1 && (
-                <Dropdown
-                  menu={{ items: branchMenuItems }}
-                  placement="bottomRight"
-                >
-                  <div className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer text-sm text-text-secondary transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700">
+                <Dropdown menu={{ items: branchMenuItems }} placement="bottomRight">
+                  <div className="text-text-secondary flex shrink-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-sm transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700">
                     <GitBranch size={14} />
                     <span>
                       {currentBranchIndex === 0 && !currentChat?.parentChatId
@@ -538,35 +494,34 @@ const ChatSidebar = memo(() => {
               )}
             </div>
 
-            {(currentChat || (!currentChat && !createMessageLoading)) &&
-              open && (
-                <Suspense
-                  fallback={
-                    <div className="flex items-center justify-center h-full">
-                      <LoadingOutlined />
-                    </div>
-                  }
-                >
-                  <ChatContainer
-                    ref={chatContainerRef}
-                    currentChat={currentChat || DEFAULT_CHAT}
-                    isDark={isDark}
-                    markdownComponents={markdownComponents}
-                    isVisible={open}
-                    updateChatMessage={updateChatMessage}
-                    updateCurrentChat={updateCurrentChat}
-                    sendLoading={sendLoading}
-                    setSendLoading={setSendLoading}
-                    titleRef={editTitleRef}
-                    onCreateNewMessage={onCreateNewMessage}
-                    createMessageLoading={createMessageLoading}
-                    preserveScrollPosition
-                    scrollPositionScope="left-chat-sidebar"
-                    onCreateChat={handleCreateChat}
-                    onCreateBranch={handleCreateBranch}
-                  />
-                </Suspense>
-              )}
+            {(currentChat || (!currentChat && !createMessageLoading)) && open && (
+              <Suspense
+                fallback={
+                  <div className="flex h-full items-center justify-center">
+                    <LoadingOutlined />
+                  </div>
+                }
+              >
+                <ChatContainer
+                  ref={chatContainerRef}
+                  currentChat={currentChat || DEFAULT_CHAT}
+                  isDark={isDark}
+                  markdownComponents={markdownComponents}
+                  isVisible={open}
+                  updateChatMessage={updateChatMessage}
+                  updateCurrentChat={updateCurrentChat}
+                  sendLoading={sendLoading}
+                  setSendLoading={setSendLoading}
+                  titleRef={editTitleRef}
+                  onCreateNewMessage={onCreateNewMessage}
+                  createMessageLoading={createMessageLoading}
+                  preserveScrollPosition
+                  scrollPositionScope="left-chat-sidebar"
+                  onCreateChat={handleCreateChat}
+                  onCreateBranch={handleCreateBranch}
+                />
+              </Suspense>
+            )}
           </div>
         </div>
 
