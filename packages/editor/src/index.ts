@@ -13,7 +13,6 @@ export {
   type EditorConfig,
   type EditorThemeConfig,
   type EditorAppearanceConfig,
-  type EditorMermaidConfig,
 } from "./contexts/EditorConfig";
 export {
   EditorProvider,

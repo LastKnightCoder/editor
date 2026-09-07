@@ -18,29 +18,17 @@ import useTabStore from "@/stores/useTabStore";
 import useChatMessageStore from "@/stores/useChatMessageStore";
 import useRightChatSidebarStore from "@/stores/useRightChatSidebarStore";
 import useTheme from "@/hooks/useTheme";
-import useMermaidRenderPreference from "@/hooks/useMermaidRenderPreference";
 import { measurePerformance } from "../ChatSidebar/hooks/usePerformanceMonitor";
 
 import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
-import {
-  MarkdownProvider,
-  useMarkdownContext,
-} from "../ChatSidebar/MarkdownContext";
+import { MarkdownProvider, useMarkdownContext } from "../ChatSidebar/MarkdownContext";
 import { shouldRenderAsBlockCode } from "../ChatSidebar/codeBlockUtils";
 
-import {
-  ResponseMessage,
-  ChatMessage,
-  ChatSessionMessage,
-  ChatAgentType,
-} from "@/types";
+import { ResponseMessage, ChatMessage, ChatSessionMessage, ChatAgentType } from "@/types";
 import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import type { ChatContainerHandle } from "../ChatSidebar/ChatContainer";
 import ChatDropdownSelector from "./ChatDropdownSelector";
-import {
-  CHAT_AGENT_TYPE_STORAGE_KEY,
-  normalizeChatAgentType,
-} from "@/constants/chatAgent";
+import { CHAT_AGENT_TYPE_STORAGE_KEY, normalizeChatAgentType } from "@/constants/chatAgent";
 
 const ChatContainer = lazy(() => import("../ChatSidebar/ChatContainer"));
 
@@ -80,22 +68,19 @@ const RightChatSidebar = memo(() => {
   const { message } = App.useApp();
   const editTitleRef = useRef<EditTextHandle>(null);
   const chatContainerRef = useRef<ChatContainerHandle>(null);
-  const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(
-    CHAT_AGENT_TYPE_STORAGE_KEY,
-    {
-      defaultValue: "local",
-    },
-  );
+  const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(CHAT_AGENT_TYPE_STORAGE_KEY, {
+    defaultValue: "local",
+  });
 
   const { activePanel, width, currentChatId, setWidth, setCurrentChatId } =
     useRightChatSidebarStore(
-      useShallow((state) => ({
+      useShallow(state => ({
         activePanel: state.activePanel,
         width: state.width,
         currentChatId: state.currentChatId,
         setWidth: state.setWidth,
         setCurrentChatId: state.setCurrentChatId,
-      })),
+      }))
     );
   const open = activePanel === "chat";
 
@@ -107,19 +92,19 @@ const RightChatSidebar = memo(() => {
     deleteChatMessage,
     getChildBranchesCount,
   } = useChatMessageStore(
-    useShallow((state) => ({
+    useShallow(state => ({
       chats: state.chats,
       updateChatMessage: state.updateChatMessage,
       updateCurrentChat: state.updateCurrentChat,
       createChatBranch: state.createChatBranch,
       deleteChatMessage: state.deleteChatMessage,
       getChildBranchesCount: state.getChildBranchesCount,
-    })),
+    }))
   );
 
   const currentChat = useMemo(() => {
     if (!currentChatId) return null;
-    return chats.find((chat) => chat.id === currentChatId);
+    return chats.find(chat => chat.id === currentChatId);
   }, [chats, currentChatId]);
 
   const [createMessageLoading, setCreateMessageLoading] = useState(false);
@@ -142,7 +127,7 @@ const RightChatSidebar = memo(() => {
         undefined,
         undefined,
         false,
-        normalizeChatAgentType(rememberedAgentType),
+        normalizeChatAgentType(rememberedAgentType)
       );
       setCurrentChatId(newChat.id);
     } catch (error) {
@@ -177,7 +162,7 @@ const RightChatSidebar = memo(() => {
       await deleteChatMessage(chatId);
       // 如果删除的是当前对话，需要切换到其他对话或清空
       if (currentChatId === chatId) {
-        const remainingChats = chats.filter((c) => c.id !== chatId);
+        const remainingChats = chats.filter(c => c.id !== chatId);
         if (remainingChats.length > 0) {
           setCurrentChatId(remainingChats[0].id);
         } else {
@@ -201,7 +186,7 @@ const RightChatSidebar = memo(() => {
       messages: ChatSessionMessage[],
       title?: string,
       agentType?: ChatAgentType,
-      agentSessionId?: string | null,
+      agentSessionId?: string | null
     ) => {
       const { createChatMessage } = useChatMessageStore.getState();
       return await createChatMessage(
@@ -210,27 +195,27 @@ const RightChatSidebar = memo(() => {
         currentChat?.groupId ?? null,
         false,
         agentType,
-        agentSessionId,
+        agentSessionId
       );
-    },
+    }
   );
 
   // ChatContainer 需要的创建分支回调
   const handleCreateBranch = useMemoizedFn(
     async (parentChatId: number, messages: ChatSessionMessage[]) => {
       return await createChatBranch(parentChatId, messages);
-    },
+    }
   );
 
   const handleLinkClick = useMemoizedFn(
     (event: React.MouseEvent<HTMLAnchorElement>, href?: string) => {
       if (href) {
         event.preventDefault();
-        openExternal(href).catch((err) => {
+        openExternal(href).catch(err => {
           console.error("打开链接失败:", err);
         });
       }
-    },
+    }
   );
 
   // 在主内容区新标签页打开预览
@@ -241,16 +226,13 @@ const RightChatSidebar = memo(() => {
       TabType.BlockPreview,
       { block },
       undefined,
-      block.metadata.title || `${block.type} 预览`,
+      block.metadata.title || `${block.type} 预览`
     );
   });
 
   const markdownComponents = useMemo(() => {
     // 检查代码块是否已完成生成（后面还有内容）
-    const isCodeBlockCompleted = (
-      code: string,
-      textContent: string | undefined,
-    ): boolean => {
+    const isCodeBlockCompleted = (code: string, textContent: string | undefined): boolean => {
       if (!textContent) return true;
       // 在 textContent 中找到代码块的位置
       const codeIndex = textContent.indexOf(code);
@@ -266,13 +248,7 @@ const RightChatSidebar = memo(() => {
       children?: React.ReactNode;
       className?: string;
       "data-markdown-block-code"?: string;
-    }> = ({
-      children,
-      className,
-      "data-markdown-block-code": markdownBlockCode,
-      ...rest
-    }) => {
-      const mermaidRenderPreference = useMermaidRenderPreference();
+    }> = ({ children, className, "data-markdown-block-code": markdownBlockCode, ...rest }) => {
       const { messageMeta } = useMarkdownContext();
       const sourceChatId = messageMeta?.chatId ?? 0;
       const sourceMessageIndex = messageMeta?.messageIndex ?? 0;
@@ -300,14 +276,7 @@ const RightChatSidebar = memo(() => {
 
       // 内联渲染的特殊类型
       if (language === "mermaid") {
-        return (
-          <MermaidRenderer
-            code={code}
-            isDark={isDark}
-            messageApi={message}
-            renderPreference={mermaidRenderPreference}
-          />
-        );
+        return <MermaidRenderer code={code} isDark={isDark} messageApi={message} />;
       }
 
       // HTML 特殊处理：只有完整的 HTML 才使用 BlockCard
@@ -331,9 +300,7 @@ const RightChatSidebar = memo(() => {
         // 使用内容hash生成稳定的block ID
         const stableContent = code.slice(0, 200);
         const idSuffix =
-          blockIndex != null
-            ? `idx-${blockIndex}`
-            : `hash-${simpleHash(stableContent)}`;
+          blockIndex != null ? `idx-${blockIndex}` : `hash-${simpleHash(stableContent)}`;
         const blockData: BlockData = {
           id: `sidebar-block-${language}-${messageKey}-${idSuffix}`,
           type: language,
@@ -395,21 +362,12 @@ const RightChatSidebar = memo(() => {
 
     return {
       code: CodeBlockRenderer,
-      a: ({
-        children,
-        href,
-        ...props
-      }: {
-        children?: React.ReactNode;
-        href?: string;
-      }) => {
+      a: ({ children, href, ...props }: { children?: React.ReactNode; href?: string }) => {
         return (
           <a
             {...props}
             href={href}
-            onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
-              handleLinkClick(e, href)
-            }
+            onClick={(e: React.MouseEvent<HTMLAnchorElement>) => handleLinkClick(e, href)}
           >
             {children}
           </a>
@@ -422,13 +380,13 @@ const RightChatSidebar = memo(() => {
   return (
     <ResizableAndHideableSidebar
       className={classnames(
-        "relative box-border flex-none h-full",
-        open && "ml-3 rounded-2xl shadow-lg border",
-        open && "bg-[var(--th-card-bg)] border-[var(--th-border)]",
+        "relative box-border h-full flex-none",
+        open && "ml-3 rounded-2xl border shadow-lg",
+        open && "border-[var(--th-border)] bg-[var(--th-card-bg)]"
       )}
       width={width}
       open={open}
-      onWidthChange={(newWidth) => {
+      onWidthChange={newWidth => {
         setWidth(newWidth);
       }}
       resizeHandleSide="left"
@@ -438,9 +396,9 @@ const RightChatSidebar = memo(() => {
       handleOffset={9}
     >
       <MarkdownProvider isDark={isDark} isVisible={open}>
-        <div className="h-full box-border overflow-hidden rounded-2xl">
-          <div className={classnames("box-border p-4 h-full flex flex-col")}>
-            <div className="flex justify-between items-center mb-2">
+        <div className="box-border h-full overflow-hidden rounded-2xl">
+          <div className={classnames("box-border flex h-full flex-col p-4")}>
+            <div className="mb-2 flex items-center justify-between">
               <ChatDropdownSelector
                 chats={chats}
                 currentChat={currentChat || DEFAULT_CHAT}
@@ -453,10 +411,10 @@ const RightChatSidebar = memo(() => {
               />
             </div>
 
-            <div className={open ? "flex-1 min-h-0" : "hidden"}>
+            <div className={open ? "min-h-0 flex-1" : "hidden"}>
               <Suspense
                 fallback={
-                  <div className="flex items-center justify-center h-full">
+                  <div className="flex h-full items-center justify-center">
                     <LoadingOutlined />
                   </div>
                 }

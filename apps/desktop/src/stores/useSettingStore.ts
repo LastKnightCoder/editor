@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { produce } from "immer";
 import { merge } from "lodash";
-import type { MermaidRenderStyle, MermaidThemeName } from "@tau/shared";
 import type { ImageBorderRadiusPreset, ImageShadowPreset } from "@tau/editor";
 
 import { EGithubCDN } from "@/constants/github";
@@ -203,6 +202,8 @@ export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting):
   sanitizeDeprecatedLLMUsageSettings(mergedSetting);
   migrateImageGenerationConfig(mergedSetting);
   normalizeTransientSettingState(mergedSetting);
+  // mermaid 渲染已改为原生 mermaid，移除旧缓存中的 beautiful-mermaid 配置
+  delete (mergedSetting.misc as Record<string, unknown>).mermaid;
   return mergedSetting;
 };
 
@@ -505,12 +506,6 @@ export interface ISetting {
     audio: {
       autoCacheRemote: boolean;
     };
-    mermaid: {
-      style: MermaidRenderStyle;
-      lightTheme: MermaidThemeName;
-      darkTheme: MermaidThemeName;
-      useBeautifulMermaid: boolean;
-    };
     transcription: {
       segmentationLevel: "word" | "sentence";
       useLLMOptimization: boolean;
@@ -589,10 +584,6 @@ interface IActions {
   setAutoCacheRemoteVideo: (enabled: boolean) => void;
   setAutoCacheRemoteImage: (enabled: boolean) => void;
   setAutoCacheRemoteAudio: (enabled: boolean) => void;
-  setMermaidStyle: (style: MermaidRenderStyle) => void;
-  setMermaidLightTheme: (theme: MermaidThemeName) => void;
-  setMermaidDarkTheme: (theme: MermaidThemeName) => void;
-  setUseBeautifulMermaid: (enabled: boolean) => void;
   setAutoSyncEnabled: (enabled: boolean) => void;
   setTranscriptionUseLLMOptimization: (enabled: boolean) => void;
   setTranscriptionSegmentationLevel: (level: "word" | "sentence") => void;
@@ -1006,12 +997,6 @@ const initialState: IState = {
       audio: {
         autoCacheRemote: true,
       },
-      mermaid: {
-        style: "svg",
-        lightTheme: "github-light",
-        darkTheme: "github-dark",
-        useBeautifulMermaid: true,
-      },
       transcription: {
         segmentationLevel: "sentence",
         useLLMOptimization: false,
@@ -1305,70 +1290,6 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, draft => {
         draft.misc.audio.autoCacheRemote = enabled;
-      }),
-    });
-  },
-  setMermaidStyle: style => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        if (!draft.misc.mermaid) {
-          draft.misc.mermaid = {
-            style: "svg",
-            lightTheme: "github-light",
-            darkTheme: "github-dark",
-            useBeautifulMermaid: true,
-          };
-        }
-        draft.misc.mermaid.style = style;
-      }),
-    });
-  },
-  setMermaidLightTheme: theme => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        if (!draft.misc.mermaid) {
-          draft.misc.mermaid = {
-            style: "svg",
-            lightTheme: "github-light",
-            darkTheme: "github-dark",
-            useBeautifulMermaid: true,
-          };
-        }
-        draft.misc.mermaid.lightTheme = theme;
-      }),
-    });
-  },
-  setMermaidDarkTheme: theme => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        if (!draft.misc.mermaid) {
-          draft.misc.mermaid = {
-            style: "svg",
-            lightTheme: "github-light",
-            darkTheme: "github-dark",
-            useBeautifulMermaid: true,
-          };
-        }
-        draft.misc.mermaid.darkTheme = theme;
-      }),
-    });
-  },
-  setUseBeautifulMermaid: enabled => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        if (!draft.misc.mermaid) {
-          draft.misc.mermaid = {
-            style: "svg",
-            lightTheme: "github-light",
-            darkTheme: "github-dark",
-            useBeautifulMermaid: true,
-          };
-        }
-        draft.misc.mermaid.useBeautifulMermaid = enabled;
       }),
     });
   },

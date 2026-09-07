@@ -54,14 +54,6 @@ export const useDesktopEditorConfig = (): EditorConfig => {
           shadow: setting.appearance?.image?.shadow,
         },
       },
-      mermaid: setting.misc?.mermaid
-        ? {
-            style: setting.misc.mermaid.style,
-            lightTheme: setting.misc.mermaid.lightTheme,
-            darkTheme: setting.misc.mermaid.darkTheme,
-            useBeautifulMermaid: setting.misc.mermaid.useBeautifulMermaid,
-          }
-        : undefined,
       openUrl: url => {
         void openExternal(url);
       },

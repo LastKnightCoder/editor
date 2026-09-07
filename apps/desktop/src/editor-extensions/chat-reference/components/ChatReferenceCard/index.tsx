@@ -13,7 +13,6 @@ import { useDragAndDrop } from "@tau/editor/src";
 import type { ChatReferenceElement } from "../../types";
 import ResizeHandle from "@/components/ResizeHandle";
 import useTheme from "@/hooks/useTheme";
-import useMermaidRenderPreference from "@/hooks/useMermaidRenderPreference";
 import { getChatMessageById } from "@/commands/chat-message";
 import { ChatMessage } from "@/types";
 import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
@@ -36,7 +35,6 @@ const ChatReferenceCard = memo((props: IExtensionBaseProps<ChatReferenceElement>
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
   const { isDark } = useTheme();
-  const mermaidRenderPreference = useMermaidRenderPreference();
   const [isResizing, setIsResizing] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [chatData, setChatData] = useState<ChatMessage | null>(null);
@@ -131,13 +129,7 @@ const ChatReferenceCard = memo((props: IExtensionBaseProps<ChatReferenceElement>
         const plantumlMatch = match && match[1] === "plantuml";
 
         if (mermaidMatch) {
-          return (
-            <MermaidRenderer
-              code={String(children).replace(/\n$/, "")}
-              isDark={isDark}
-              renderPreference={mermaidRenderPreference}
-            />
-          );
+          return <MermaidRenderer code={String(children).replace(/\n$/, "")} isDark={isDark} />;
         }
 
         if (plantumlMatch) {
@@ -170,7 +162,7 @@ const ChatReferenceCard = memo((props: IExtensionBaseProps<ChatReferenceElement>
         );
       },
     };
-  }, [handleLinkClick, isDark, mermaidRenderPreference]);
+  }, [handleLinkClick, isDark]);
 
   return (
     <div

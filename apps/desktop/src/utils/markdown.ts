@@ -19,28 +19,13 @@ import type {
   StyledTextElement,
   VideoElement,
 } from "@tau/editor/src";
-import {
-  TEXT_GRADIENT_PRESETS,
-  type TextGradientPresetId,
-} from "@tau/editor/src/constants";
-import {
-  ElementMapping,
-  MarkdownPosition,
-  PositionMapper,
-  TextMapping,
-} from "./positionMapper";
+import { TEXT_GRADIENT_PRESETS, type TextGradientPresetId } from "@tau/editor/src/constants";
+import { ElementMapping, MarkdownPosition, PositionMapper, TextMapping } from "./positionMapper";
 import type { FileAttachmentElement } from "../editor-extensions/file-attachment/types";
 
-export {
-  markdownSerializerRegistry,
-  type MarkdownSerializer,
-} from "./markdownSerializerRegistry";
+export { markdownSerializerRegistry, type MarkdownSerializer } from "./markdownSerializerRegistry";
 
-export {
-  getMarkdown,
-  elementToMarkdown,
-  leafToMarkdown,
-} from "./markdown-helper";
+export { getMarkdown, elementToMarkdown, leafToMarkdown } from "./markdown-helper";
 
 export interface SlateWithPositions {
   content: Descendant[];
@@ -81,9 +66,7 @@ interface MarkdownAstNodeWithChildren extends MarkdownAstNode {
   children: MarkdownAstNode[];
 }
 
-const isMarkdownAstNode = (
-  value: unknown,
-): value is Partial<MarkdownAstNode> => {
+const isMarkdownAstNode = (value: unknown): value is Partial<MarkdownAstNode> => {
   return typeof value === "object" && value !== null;
 };
 
@@ -130,7 +113,7 @@ const remarkHtmlProcessor = () => (tree: unknown) => {
   }
 
   // 第二次遍历：判断 HTML 类型并调整结构
-  visit(visitTree, (node) => {
+  visit(visitTree, node => {
     if (!isMarkdownAstNode(node) || node.type !== "html") return;
     if (typeof node.value !== "string") return;
 
@@ -143,9 +126,7 @@ const remarkHtmlProcessor = () => (tree: unknown) => {
     // 处理块级 HTML 的段落包裹问题
     if (node.htmlType === "block" && parentIsParagraph && node.parent) {
       const parentNode = node.parent as MarkdownAstNodeWithChildren;
-      const paragraphIndex = parentNode.children.indexOf(
-        node as MarkdownAstNode,
-      );
+      const paragraphIndex = parentNode.children.indexOf(node as MarkdownAstNode);
       parentNode.children.splice(paragraphIndex, 1);
       const rootIndex = root.children.indexOf(parentNode);
       root.children.splice(rootIndex + 1, 0, node as MarkdownAstNode);
@@ -153,17 +134,15 @@ const remarkHtmlProcessor = () => (tree: unknown) => {
   });
 };
 
-function processBuffer(
-  buffer: { node: MarkdownAstNode; parent: MarkdownAstNodeWithChildren }[],
-) {
+function processBuffer(buffer: { node: MarkdownAstNode; parent: MarkdownAstNodeWithChildren }[]) {
   if (buffer.length < 2) return;
 
-  const nodes = buffer.map((b) => b.node);
+  const nodes = buffer.map(b => b.node);
   const parent = buffer[0].parent;
   const startIndex = parent.children.indexOf(nodes[0]);
 
   // 合并 HTML 内容
-  const mergedValue = nodes.map((n) => n.value).join("\n");
+  const mergedValue = nodes.map(n => n.value).join("\n");
 
   // 创建新节点
   const mergedNode: MarkdownAstNode = {
@@ -191,22 +170,13 @@ function processBuffer(
 
 const KBD_OPEN_TAG_REGEX = /^<kbd(?:\s+[^>]*)?>$/i;
 const KBD_CLOSE_TAG_REGEX = /^<\/kbd>$/i;
-const STYLED_TEXT_COLOR_VALUES = [
-  "red",
-  "green",
-  "yellow",
-  "blue",
-  "purple",
-  "gray",
-] as const;
+const STYLED_TEXT_COLOR_VALUES = ["red", "green", "yellow", "blue", "purple", "gray"] as const;
 type StyledTextColorLiteral = (typeof STYLED_TEXT_COLOR_VALUES)[number];
 type StyledTextColor = StyledTextElement["color"];
 const TEXT_GRADIENT_PRESET_SET = new Set<TextGradientPresetId>(
-  Object.keys(TEXT_GRADIENT_PRESETS) as TextGradientPresetId[],
+  Object.keys(TEXT_GRADIENT_PRESETS) as TextGradientPresetId[]
 );
-const STYLED_TEXT_COLOR_SET = new Set<StyledTextColorLiteral>(
-  STYLED_TEXT_COLOR_VALUES,
-);
+const STYLED_TEXT_COLOR_SET = new Set<StyledTextColorLiteral>(STYLED_TEXT_COLOR_VALUES);
 const MAGIC_MOVE_META_PREFIX = "smm=";
 
 interface MarkdownMagicMoveStep {
@@ -229,9 +199,7 @@ const resolveStyledTextColor = (color: unknown): StyledTextColor => {
     : ("red" as StyledTextColor);
 };
 
-const resolveTextGradientPreset = (
-  preset: unknown,
-): TextGradientPresetId | undefined => {
+const resolveTextGradientPreset = (preset: unknown): TextGradientPresetId | undefined => {
   if (typeof preset !== "string") return undefined;
   return TEXT_GRADIENT_PRESET_SET.has(preset as TextGradientPresetId)
     ? (preset as TextGradientPresetId)
@@ -241,21 +209,16 @@ const resolveTextGradientPreset = (
 const decodeBase64Url = (value: string): string => {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
   const padding = normalized.length % 4;
-  const withPadding =
-    padding === 0 ? normalized : `${normalized}${"=".repeat(4 - padding)}`;
+  const withPadding = padding === 0 ? normalized : `${normalized}${"=".repeat(4 - padding)}`;
   const binary = atob(withPadding);
-  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
   return new TextDecoder().decode(bytes);
 };
 
 const HIGHLIGHT_META_REGEX = /\{([\d,\-\s]+)\}/;
-const MERMAID_RENDER_STYLE_META_PREFIX = "style=";
 
-const normalizeHighlightLines = (
-  highlightLines: unknown,
-): string | undefined => {
-  if (typeof highlightLines !== "string" || !highlightLines.trim())
-    return undefined;
+const normalizeHighlightLines = (highlightLines: unknown): string | undefined => {
+  if (typeof highlightLines !== "string" || !highlightLines.trim()) return undefined;
   const normalized = highlightLines
     .trim()
     .replace(/\s*,\s*/g, ",")
@@ -271,32 +234,15 @@ const parseHighlightMeta = (meta: unknown): string | undefined => {
   return normalizeHighlightLines(match[1]);
 };
 
-const parseMermaidRenderStyleMeta = (
-  meta: unknown,
-): "svg" | "ascii-unicode" | undefined => {
-  if (typeof meta !== "string" || !meta.trim()) return undefined;
-  const token = meta
-    .split(/\s+/)
-    .find((item) => item.startsWith(MERMAID_RENDER_STYLE_META_PREFIX));
-  if (!token) return undefined;
-  const value = token.slice(MERMAID_RENDER_STYLE_META_PREFIX.length).trim();
-  if (value === "svg" || value === "ascii-unicode") {
-    return value;
-  }
-  return undefined;
-};
-
 const parseMagicMoveMeta = (
   meta: unknown,
-  fallbackCode: string,
+  fallbackCode: string
 ): MarkdownMagicMovePayload | undefined => {
   if (typeof meta !== "string" || !meta.trim()) {
     return undefined;
   }
 
-  const token = meta
-    .split(/\s+/)
-    .find((item) => item.startsWith(MAGIC_MOVE_META_PREFIX));
+  const token = meta.split(/\s+/).find(item => item.startsWith(MAGIC_MOVE_META_PREFIX));
   if (!token) {
     return undefined;
   }
@@ -305,9 +251,7 @@ const parseMagicMoveMeta = (
     const encoded = token.slice(MAGIC_MOVE_META_PREFIX.length);
     const parsed: unknown = JSON.parse(decodeBase64Url(encoded));
     const parsedRecord =
-      typeof parsed === "object" && parsed !== null
-        ? (parsed as Record<string, unknown>)
-        : null;
+      typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : null;
     const parsedSteps = parsedRecord?.steps;
     if (
       !parsedRecord ||
@@ -320,19 +264,14 @@ const parseMagicMoveMeta = (
 
     const steps = parsedSteps.map((step: unknown, index: number) => {
       const stepRecord =
-        typeof step === "object" && step !== null
-          ? (step as Record<string, unknown>)
-          : {};
+        typeof step === "object" && step !== null ? (step as Record<string, unknown>) : {};
       const stepId = stepRecord.id;
       const stepTitle = stepRecord.title;
       const stepCode = stepRecord.code;
       const stepHighlightLines = stepRecord.highlightLines;
 
       return {
-        id:
-          typeof stepId === "string" && stepId.trim()
-            ? stepId.trim()
-            : `step-${index + 1}`,
+        id: typeof stepId === "string" && stepId.trim() ? stepId.trim() : `step-${index + 1}`,
         title: typeof stepTitle === "string" ? stepTitle : undefined,
         code: typeof stepCode === "string" ? stepCode : "",
         highlightLines: normalizeHighlightLines(stepHighlightLines),
@@ -345,7 +284,7 @@ const parseMagicMoveMeta = (
 
     const activeStep = Math.min(
       Math.max(Number(parsedRecord.activeStep) || 0, 0),
-      steps.length - 1,
+      steps.length - 1
     );
     steps[activeStep].code = fallbackCode;
 
@@ -375,10 +314,7 @@ const isKbdCloseTagNode = (node: unknown): boolean => {
   return KBD_CLOSE_TAG_REGEX.test(node.value.trim());
 };
 
-const findMatchingKbdCloseIndex = (
-  astNodes: MarkdownAstNode[],
-  startIndex: number,
-) => {
+const findMatchingKbdCloseIndex = (astNodes: MarkdownAstNode[], startIndex: number) => {
   let depth = 0;
   for (let i = startIndex; i < astNodes.length; i++) {
     const node = astNodes[i];
@@ -399,11 +335,9 @@ const findMatchingKbdCloseIndex = (
 const markdownToDescendant = (
   node: MarkdownAstNode,
   parentAstNode: unknown = null,
-  astChildrenOfParent: unknown[] = [],
+  astChildrenOfParent: unknown[] = []
 ): Descendant | Descendant[] | null => {
-  const parentNode = isMarkdownAstNode(parentAstNode)
-    ? (parentAstNode as MarkdownAstNode)
-    : null;
+  const parentNode = isMarkdownAstNode(parentAstNode) ? (parentAstNode as MarkdownAstNode) : null;
   const siblingNodes = astChildrenOfParent as MarkdownAstNode[];
 
   if (node.type === "heading") {
@@ -477,10 +411,7 @@ const markdownToDescendant = (
             listItemElement.iconType = "emoji";
 
             firstChild.children.shift();
-          } else if (
-            url.startsWith("list-icon:") ||
-            url.startsWith("list-icon://")
-          ) {
+          } else if (url.startsWith("list-icon:") || url.startsWith("list-icon://")) {
             const imageUrl = url.replace(/^list-icon:\/?\/?/, "");
             listItemElement.iconUrl = imageUrl;
             listItemElement.iconType = "image";
@@ -505,11 +436,9 @@ const markdownToDescendant = (
         ],
       };
     } else if (node.lang?.trim?.()?.toLowerCase?.() === "mermaid") {
-      const renderStyle = parseMermaidRenderStyleMeta(node.meta);
       return {
         type: "mermaid",
         chart: node.value,
-        ...(renderStyle ? { renderStyle } : {}),
         children: [
           {
             type: "formatted",
@@ -567,7 +496,7 @@ const markdownToDescendant = (
     if (magicMove) {
       const safeStep = Math.min(
         Math.max(Number(magicMove.activeStep) || 0, 0),
-        magicMove.steps.length - 1,
+        magicMove.steps.length - 1
       );
       const activeStep = magicMove.steps[safeStep];
       if (activeStep) {
@@ -627,23 +556,13 @@ const markdownToDescendant = (
       return {
         type: "callout",
         title: node.attributes.title || "",
-        calloutType: node.name as
-          | "note"
-          | "tip"
-          | "warning"
-          | "info"
-          | "danger",
+        calloutType: node.name as "note" | "tip" | "warning" | "info" | "danger",
         children: [],
       };
     } else if (node.name === "highlight-block") {
       return {
         type: node.name,
-        color: (node.attributes.color || "red") as
-          | "red"
-          | "green"
-          | "yellow"
-          | "blue"
-          | "purple",
+        color: (node.attributes.color || "red") as "red" | "green" | "yellow" | "blue" | "purple",
         children: [],
       };
     } else if (node.name === "detail") {
@@ -677,8 +596,7 @@ const markdownToDescendant = (
           // ignore invalid metaInfo
         }
       }
-      if (node.attributes.width)
-        element.width = parseInt(node.attributes.width);
+      if (node.attributes.width) element.width = parseInt(node.attributes.width);
       if (node.attributes.align)
         element.align = node.attributes.align as "left" | "center" | "right";
       return element;
@@ -692,8 +610,7 @@ const markdownToDescendant = (
       if (node.attributes.isFromGenerate) {
         element.isFromGenerate = node.attributes.isFromGenerate === "true";
       }
-      if (node.attributes.audioText)
-        element.audioText = node.attributes.audioText;
+      if (node.attributes.audioText) element.audioText = node.attributes.audioText;
       return element;
     } else if (node.name === "file-attachment") {
       const element: FileAttachmentElement = {
@@ -812,7 +729,7 @@ const markdownToDescendant = (
           if (!item) return undefined;
           if (Array.isArray(item)) {
             return item
-              .map((i) => {
+              .map(i => {
                 if (i.type !== "formatted") return undefined;
                 return { ...i, ...colorAttributes };
               })
@@ -832,7 +749,7 @@ const markdownToDescendant = (
           if (!item) return undefined;
           if (Array.isArray(item)) {
             return item
-              .map((i) => {
+              .map(i => {
                 if (i.type !== "formatted") return undefined;
                 return { ...i, ...gradientAttributes };
               })
@@ -852,7 +769,7 @@ const markdownToDescendant = (
           if (!item) return undefined;
           if (Array.isArray(item)) {
             return item
-              .map((i) => {
+              .map(i => {
                 if (i.type !== "formatted") return undefined;
                 return { ...i, highlight: highlightColor };
               })
@@ -884,8 +801,7 @@ const markdownToDescendant = (
       };
     } else if (node.name === "content-link") {
       const rawTitle = attributes.title || attributes.contentTitle || "";
-      const contentTitle =
-        typeof rawTitle === "string" ? rawTitle.replace(/&quot;/g, '"') : "";
+      const contentTitle = typeof rawTitle === "string" ? rawTitle.replace(/&quot;/g, '"') : "";
       return {
         type: "content-link",
         refId: parseInt(attributes.refId || "0", 10),
@@ -937,7 +853,7 @@ const markdownToDescendant = (
         if (!item) return undefined;
         if (Array.isArray(item)) {
           return item
-            .map((i) => {
+            .map(i => {
               if (i.type !== "formatted") return;
               return {
                 ...i,
@@ -1050,10 +966,7 @@ const applyMarks = (node: Descendant, marks: MarkContext): Descendant => {
   };
 };
 
-const toMarkdownPosition = (point?: {
-  line?: number;
-  column?: number;
-}): MarkdownPosition => {
+const toMarkdownPosition = (point?: { line?: number; column?: number }): MarkdownPosition => {
   return {
     line: Math.max(0, (point?.line ?? 1) - 1),
     ch: Math.max(0, (point?.column ?? 1) - 1),
@@ -1067,7 +980,7 @@ const getOffset = (point?: { offset?: number }): number | null => {
 const getRangeLength = (
   start?: { line?: number; column?: number; offset?: number },
   end?: { line?: number; column?: number; offset?: number },
-  fallback = 0,
+  fallback = 0
 ): number => {
   const startOffset = getOffset(start);
   const endOffset = getOffset(end);
@@ -1124,10 +1037,7 @@ const buildTextMapping = (params: {
   } else if (textStartOffset !== null && wrapperStartOffset !== null) {
     prefixLength = Math.max(0, textStartOffset - wrapperStartOffset);
   } else if (wrapper.start.line === textPosition.start.line) {
-    prefixLength = Math.max(
-      0,
-      (textPosition.start.column ?? 1) - (wrapper.start.column ?? 1),
-    );
+    prefixLength = Math.max(0, (textPosition.start.column ?? 1) - (wrapper.start.column ?? 1));
   }
 
   if (typeof params.suffixLengthOverride === "number") {
@@ -1135,16 +1045,13 @@ const buildTextMapping = (params: {
   } else if (textEndOffset !== null && wrapperEndOffset !== null) {
     suffixLength = Math.max(0, wrapperEndOffset - textEndOffset);
   } else if (wrapper.end.line === textPosition.end.line) {
-    suffixLength = Math.max(
-      0,
-      (wrapper.end.column ?? 1) - (textPosition.end.column ?? 1),
-    );
+    suffixLength = Math.max(0, (wrapper.end.column ?? 1) - (textPosition.end.column ?? 1));
   }
 
   const mdLength = getRangeLength(
     wrapper.start,
     wrapper.end,
-    prefixLength + text.length + suffixLength,
+    prefixLength + text.length + suffixLength
   );
 
   return {
@@ -1189,7 +1096,7 @@ const isVoidSlateElementType = (type: string): boolean => {
  */
 export const importFromMarkdownWithPositions = (
   markdown: string,
-  ignoreTypes: string[] = [],
+  ignoreTypes: string[] = []
 ): SlateWithPositions => {
   // 重置脚注定义映射
   footnoteDefinitionsMap.clear();
@@ -1232,7 +1139,7 @@ export const importFromMarkdownWithPositions = (
     wrapperPosition?: {
       start?: { line?: number; column?: number; offset?: number };
       end?: { line?: number; column?: number; offset?: number };
-    },
+    }
   ) => {
     let astNodeIndex = 0;
     let skipUntilIndex = -1;
@@ -1249,7 +1156,7 @@ export const importFromMarkdownWithPositions = (
         astChildNode.children.some((c: MarkdownAstNode) => c.type === "html")
       ) {
         const index = astChildNode.children.findIndex(
-          (child: MarkdownAstNode) => child.type === "html",
+          (child: MarkdownAstNode) => child.type === "html"
         );
         const paragraph = astChildNode.children[index];
         paragraph.type = "text";
@@ -1284,7 +1191,7 @@ export const importFromMarkdownWithPositions = (
             {
               start: astChildNode.position?.start,
               end: closeNode?.position?.end || astChildNode.position?.end,
-            },
+            }
           );
 
           skipUntilIndex = closeIndex;
@@ -1301,7 +1208,7 @@ export const importFromMarkdownWithPositions = (
           astChildNode,
           parentPath,
           { ...markContext, bold: true },
-          astChildNode.position,
+          astChildNode.position
         );
         astNodeIndex += 1;
         continue;
@@ -1315,7 +1222,7 @@ export const importFromMarkdownWithPositions = (
           astChildNode,
           parentPath,
           { ...markContext, italic: true },
-          astChildNode.position,
+          astChildNode.position
         );
         astNodeIndex += 1;
         continue;
@@ -1329,7 +1236,7 @@ export const importFromMarkdownWithPositions = (
           astChildNode,
           parentPath,
           { ...markContext, strikethrough: true },
-          astChildNode.position,
+          astChildNode.position
         );
         astNodeIndex += 1;
         continue;
@@ -1349,7 +1256,7 @@ export const importFromMarkdownWithPositions = (
               color: attributes.color || "",
               darkColor: attributes.darkColor || "",
             },
-            wrapperPosition,
+            wrapperPosition
           );
           astNodeIndex += 1;
           continue;
@@ -1364,10 +1271,8 @@ export const importFromMarkdownWithPositions = (
             ignoreTypes,
             astChildNode,
             parentPath,
-            textGradient
-              ? { ...markContext, textGradient }
-              : { ...markContext },
-            wrapperPosition,
+            textGradient ? { ...markContext, textGradient } : { ...markContext },
+            wrapperPosition
           );
           astNodeIndex += 1;
           continue;
@@ -1385,7 +1290,7 @@ export const importFromMarkdownWithPositions = (
               ...markContext,
               highlight: (attributes.color || "yellow") as HighlightColor,
             },
-            wrapperPosition,
+            wrapperPosition
           );
           astNodeIndex += 1;
           continue;
@@ -1431,12 +1336,9 @@ export const importFromMarkdownWithPositions = (
         const totalLength = getRangeLength(
           astChildNode.position?.start,
           astChildNode.position?.end,
-          astChildNode.value?.length ?? 0,
+          astChildNode.value?.length ?? 0
         );
-        const extra = Math.max(
-          0,
-          totalLength - (astChildNode.value?.length ?? 0),
-        );
+        const extra = Math.max(0, totalLength - (astChildNode.value?.length ?? 0));
         const prefixLength = Math.floor(extra / 2);
         const suffixLength = extra - prefixLength;
 
@@ -1455,11 +1357,7 @@ export const importFromMarkdownWithPositions = (
         continue;
       }
 
-      const slateNode = markdownToDescendant(
-        astChildNode,
-        parentAstNodeForChildren,
-        astNodes,
-      );
+      const slateNode = markdownToDescendant(astChildNode, parentAstNodeForChildren, astNodes);
 
       if (!slateNode) {
         astNodeIndex += 1;
@@ -1467,7 +1365,7 @@ export const importFromMarkdownWithPositions = (
       }
 
       const nodesToInsert = Array.isArray(slateNode)
-        ? slateNode.map((node) => applyMarks(node, markContext))
+        ? slateNode.map(node => applyMarks(node, markContext))
         : [applyMarks(slateNode, markContext)];
 
       for (const node of nodesToInsert) {
@@ -1506,9 +1404,7 @@ export const importFromMarkdownWithPositions = (
             const codeEndLine = codeStartLine + Math.max(0, lines.length - 1);
             const codeStartCh = mdStart.ch;
             const codeEndCh =
-              lines.length > 0
-                ? codeStartCh + lines[lines.length - 1].length
-                : codeStartCh;
+              lines.length > 0 ? codeStartCh + lines[lines.length - 1].length : codeStartCh;
             elementMapping.propertyMappings = {
               code: {
                 mdStartLine: codeStartLine,
@@ -1540,7 +1436,7 @@ export const importFromMarkdownWithPositions = (
             astChildNode,
             slatePath,
             markContext,
-            nextWrapper,
+            nextWrapper
           );
         }
       }
@@ -1555,16 +1451,13 @@ export const importFromMarkdownWithPositions = (
     editor,
     extendedIgnoreTypes,
     parseResult as unknown as MarkdownAstNode,
-    [],
+    []
   );
 
   let beforeNormalize = editor;
   let afterNormalize = normalizeEditorContent(editor);
   let count = 10;
-  while (
-    JSON.stringify(beforeNormalize) !== JSON.stringify(afterNormalize) &&
-    count > 0
-  ) {
+  while (JSON.stringify(beforeNormalize) !== JSON.stringify(afterNormalize) && count > 0) {
     beforeNormalize = afterNormalize;
     afterNormalize = normalizeEditorContent(afterNormalize);
     count -= 1;
@@ -1585,7 +1478,7 @@ export const importFromMarkdownWithPositions = (
           },
         ];
 
-  positionMap.pruneInvalidPaths((path) => isPathInNodes(content, path));
+  positionMap.pruneInvalidPaths(path => isPathInNodes(content, path));
 
   return {
     content,
@@ -1593,10 +1486,7 @@ export const importFromMarkdownWithPositions = (
   };
 };
 
-export const importFromMarkdown = (
-  markdown: string,
-  ignoreTypes: string[] = [],
-): Descendant[] => {
+export const importFromMarkdown = (markdown: string, ignoreTypes: string[] = []): Descendant[] => {
   // 重置脚注定义映射
   footnoteDefinitionsMap.clear();
   // 历史版本曾为绕过 CJK 加粗解析问题在 markdown 中驻留零宽空格，导入时剥离净化；
@@ -1633,7 +1523,7 @@ export const importFromMarkdown = (
     astNodes: MarkdownAstNode[],
     slateResultArray: Descendant[],
     ignoreTypes: string[] = [],
-    parentAstNodeForChildren: MarkdownAstNode | null = null,
+    parentAstNodeForChildren: MarkdownAstNode | null = null
   ) => {
     let astNodeIndex = 0;
     let skipUntilIndex = -1;
@@ -1650,7 +1540,7 @@ export const importFromMarkdown = (
         astChildNode.children.some((c: MarkdownAstNode) => c.type === "html")
       ) {
         const index = astChildNode.children.findIndex(
-          (child: MarkdownAstNode) => child.type === "html",
+          (child: MarkdownAstNode) => child.type === "html"
         );
         const paragraph = astChildNode.children[index];
         paragraph.type = "text";
@@ -1669,23 +1559,14 @@ export const importFromMarkdown = (
             children: [],
           } as Descendant;
           slateResultArray.push(kbdNode);
-          dfs(
-            innerAstNodes,
-            getDescendantChildren(kbdNode),
-            ignoreTypes,
-            astChildNode,
-          );
+          dfs(innerAstNodes, getDescendantChildren(kbdNode), ignoreTypes, astChildNode);
           skipUntilIndex = closeIndex;
           astNodeIndex += 1;
           continue;
         }
       }
 
-      const slateNode = markdownToDescendant(
-        astChildNode,
-        parentAstNodeForChildren,
-        astNodes,
-      );
+      const slateNode = markdownToDescendant(astChildNode, parentAstNodeForChildren, astNodes);
       if (!slateNode) {
         astNodeIndex += 1;
         continue;
@@ -1693,12 +1574,7 @@ export const importFromMarkdown = (
       if (!Array.isArray(slateNode)) {
         slateResultArray.push(slateNode);
         if (astChildNode.children && slateNode.type !== "formatted") {
-          dfs(
-            astChildNode.children,
-            slateNode.children,
-            ignoreTypes,
-            astChildNode,
-          );
+          dfs(astChildNode.children, slateNode.children, ignoreTypes, astChildNode);
         }
       } else {
         slateResultArray.push(...slateNode);
@@ -1714,16 +1590,13 @@ export const importFromMarkdown = (
     parseResult.children as unknown as MarkdownAstNode[],
     editor,
     extendedIgnoreTypes,
-    parseResult as unknown as MarkdownAstNode,
+    parseResult as unknown as MarkdownAstNode
   );
 
   let beforeNormalize = editor;
   let afterNormalize = normalizeEditorContent(editor);
   let count = 10;
-  while (
-    JSON.stringify(beforeNormalize) !== JSON.stringify(afterNormalize) &&
-    count > 0
-  ) {
+  while (JSON.stringify(beforeNormalize) !== JSON.stringify(afterNormalize) && count > 0) {
     beforeNormalize = afterNormalize;
     afterNormalize = normalizeEditorContent(afterNormalize);
     count -= 1;
@@ -1747,7 +1620,7 @@ export const importFromMarkdown = (
 const normalizeEditorContent = (
   editor: Descendant[],
   result: Descendant[] = [],
-  parent: Descendant | null = null,
+  parent: Descendant | null = null
 ): Descendant[] => {
   for (let i = 0; i < editor.length; i++) {
     const element = editor[i];
@@ -1755,12 +1628,12 @@ const normalizeEditorContent = (
       continue;
     } else if (
       element.type === "link" &&
-      element.children.some((child) => child.type !== "formatted")
+      element.children.some(child => child.type !== "formatted")
     ) {
-      while (element.children.some((child) => child.type !== "formatted")) {
+      while (element.children.some(child => child.type !== "formatted")) {
         element.children.splice(
-          element.children.findIndex((child) => child.type !== "formatted"),
-          1,
+          element.children.findIndex(child => child.type !== "formatted"),
+          1
         );
       }
     } else if (element.type === "paragraph") {
@@ -1785,7 +1658,7 @@ const normalizeEditorContent = (
       }
       // 把 image 都变为 inline-image
       // 把 html-block 变为 html-inline
-      element.children = element.children.map((child) => {
+      element.children = element.children.map(child => {
         // @ts-ignore
         if (child.type === "image") {
           return {

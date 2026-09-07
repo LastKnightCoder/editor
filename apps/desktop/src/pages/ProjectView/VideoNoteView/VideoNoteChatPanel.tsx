@@ -1,12 +1,4 @@
-import {
-  useState,
-  useMemo,
-  memo,
-  lazy,
-  Suspense,
-  useRef,
-  useEffect,
-} from "react";
+import { useState, useMemo, memo, lazy, Suspense, useRef, useEffect } from "react";
 import { App } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
@@ -16,7 +8,6 @@ import type { EditTextHandle } from "@/components/EditText";
 import ChatDropdownSelector from "@/layouts/ContentLayout/components/RightChatSidebar/ChatDropdownSelector";
 import useTheme from "@/hooks/useTheme";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import useMermaidRenderPreference from "@/hooks/useMermaidRenderPreference";
 import useSettingStore from "@/stores/useSettingStore";
 import { openExternal } from "@/commands";
 import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
@@ -28,32 +19,21 @@ import { shouldRenderAsBlockCode } from "@/layouts/ContentLayout/components/Chat
 import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
 import { ResponseMessage, ChatAgentType, ChatMessage } from "@/types";
 import { Role, buildSessionAwareSystemPrompt } from "@/constants";
-import useVideoNoteChatStore, {
-  EVideoNoteChatStatus,
-} from "@/stores/useVideoNoteChatStore";
+import useVideoNoteChatStore, { EVideoNoteChatStatus } from "@/stores/useVideoNoteChatStore";
 import { buildVideoNoteSystemPrompt } from "@/tools/videoNoteSearchTool";
 import { useVideoNoteChat } from "./useVideoNoteChat";
-import {
-  CHAT_AGENT_TYPE_STORAGE_KEY,
-  normalizeChatAgentType,
-} from "@/constants/chatAgent";
+import { CHAT_AGENT_TYPE_STORAGE_KEY, normalizeChatAgentType } from "@/constants/chatAgent";
 
 const ChatContainer = lazy(
-  () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer"),
+  () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer")
 );
 
 const CodeRenderer: React.FC<{
   children?: React.ReactNode;
   className?: string;
   "data-markdown-block-code"?: string;
-}> = ({
-  children,
-  className,
-  "data-markdown-block-code": markdownBlockCode,
-  ...rest
-}) => {
+}> = ({ children, className, "data-markdown-block-code": markdownBlockCode, ...rest }) => {
   const { message } = App.useApp();
-  const mermaidRenderPreference = useMermaidRenderPreference();
   const { isDark, messageMeta } = useMarkdownContext();
   const match = /language-([\w-]+)/.exec(className || "");
   const language = match ? match[1] : undefined;
@@ -63,14 +43,7 @@ const CodeRenderer: React.FC<{
   });
   const code = String(children).replace(/\n$/, "");
   if (language === "mermaid") {
-    return (
-      <MermaidRenderer
-        code={code}
-        isDark={isDark}
-        messageApi={message}
-        renderPreference={mermaidRenderPreference}
-      />
-    );
+    return <MermaidRenderer code={code} isDark={isDark} messageApi={message} />;
   }
   if (language) {
     return (
@@ -126,22 +99,16 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
   const { message } = App.useApp();
   const editTitleRef = useRef<EditTextHandle>(null);
   const chatContainerRef = useRef<ChatContainerHandle>(null);
-  const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(
-    CHAT_AGENT_TYPE_STORAGE_KEY,
-    {
-      defaultValue: "local",
-    },
-  );
+  const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(CHAT_AGENT_TYPE_STORAGE_KEY, {
+    defaultValue: "local",
+  });
 
-  const database = useSettingStore((state) => state.setting.database.active);
+  const database = useSettingStore(state => state.setting.database.active);
   const isConnected = useDatabaseConnected();
 
   useVideoNoteChat(videoNoteId, mainDbName);
 
-  const systemPrompt = useMemo(
-    () => buildVideoNoteSystemPrompt({ transcript }),
-    [transcript],
-  );
+  const systemPrompt = useMemo(() => buildVideoNoteSystemPrompt({ transcript }), [transcript]);
 
   const {
     initChats,
@@ -155,7 +122,7 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
     deleteChat,
     getChildBranchesCount,
   } = useVideoNoteChatStore(
-    useShallow((state) => ({
+    useShallow(state => ({
       initChats: state.initChats,
       chats: state.chats,
       currentChatId: state.currentChatId,
@@ -166,7 +133,7 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
       createChatBranch: state.createChatBranch,
       deleteChat: state.deleteChat,
       getChildBranchesCount: state.getChildBranchesCount,
-    })),
+    }))
   );
 
   useEffect(() => {
@@ -176,8 +143,8 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
   }, [initChats, isConnected, database, videoNoteId]);
 
   const currentChat = useMemo(
-    () => chats.find((chat) => chat.id === currentChatId),
-    [chats, currentChatId],
+    () => chats.find(chat => chat.id === currentChatId),
+    [chats, currentChatId]
   );
 
   const currentChatAsMessage = useMemo((): ChatMessage => {
@@ -201,7 +168,7 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
 
   const chatsAsMessages = useMemo(
     (): ChatMessage[] =>
-      chats.map((chat) => ({
+      chats.map(chat => ({
         id: chat.id,
         createTime: chat.createTime,
         updateTime: chat.updateTime,
@@ -214,7 +181,7 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
         agentType: chat.agentType,
         agentSessionId: chat.agentSessionId,
       })),
-    [chats],
+    [chats]
   );
 
   const [createMessageLoading, setCreateMessageLoading] = useState(false);
@@ -229,11 +196,7 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
     ];
     setCreateMessageLoading(true);
     try {
-      await createChat(
-        messages,
-        undefined,
-        normalizeChatAgentType(rememberedAgentType),
-      );
+      await createChat(messages, undefined, normalizeChatAgentType(rememberedAgentType));
     } catch (error) {
       message.error("创建对话失败");
       console.error(error);
@@ -262,21 +225,16 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
       messages: ChatMessage["messages"],
       title?: string,
       agentType?: ChatAgentType,
-      agentSessionId?: string | null,
+      agentSessionId?: string | null
     ) => {
-      const created = await createChat(
-        messages,
-        title,
-        agentType,
-        agentSessionId,
-      );
+      const created = await createChat(messages, title, agentType, agentSessionId);
       return {
         ...currentChatAsMessage,
         ...created,
         agentType: created.agentType,
         agentSessionId: created.agentSessionId,
       } as ChatMessage;
-    },
+    }
   );
 
   const handleExternalCreateBranch = useMemoizedFn(
@@ -288,11 +246,11 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
         agentType: created.agentType,
         agentSessionId: created.agentSessionId,
       } as ChatMessage;
-    },
+    }
   );
 
   const handleUpdateChatMessage = useMemoizedFn(async (chat: ChatMessage) => {
-    const localChat = chats.find((item) => item.id === chat.id);
+    const localChat = chats.find(item => item.id === chat.id);
     if (!localChat) {
       throw new Error("Chat not found");
     }
@@ -334,10 +292,10 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
     (event: React.MouseEvent<HTMLAnchorElement>, href?: string) => {
       if (!href) return;
       event.preventDefault();
-      openExternal(href).catch((err) => {
+      openExternal(href).catch(err => {
         console.error("打开链接失败:", err);
       });
-    },
+    }
   );
 
   const markdownComponents = useMemo(
@@ -348,20 +306,18 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
         <a
           {...props}
           href={href}
-          onClick={(event: React.MouseEvent<HTMLAnchorElement>) =>
-            handleLinkClick(event, href)
-          }
+          onClick={(event: React.MouseEvent<HTMLAnchorElement>) => handleLinkClick(event, href)}
         >
           {children}
         </a>
       ),
     }),
-    [handleLinkClick],
+    [handleLinkClick]
   );
 
   if (status === EVideoNoteChatStatus.LOADING) {
     return (
-      <div className="h-full flex items-center justify-center">
+      <div className="flex h-full items-center justify-center">
         <LoadingOutlined />
       </div>
     );
@@ -369,8 +325,8 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
 
   return (
     <MarkdownProvider isDark={isDark} isVisible={true}>
-      <div className="h-full box-border p-4 flex flex-col">
-        <div className="flex justify-between items-center mb-2">
+      <div className="box-border flex h-full flex-col p-4">
+        <div className="mb-2 flex items-center justify-between">
           <ChatDropdownSelector
             chatSource="video-note-chat"
             chats={chatsAsMessages}
@@ -387,7 +343,7 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
         {(currentChat || (!currentChat && !createMessageLoading)) && (
           <Suspense
             fallback={
-              <div className="flex items-center justify-center h-full">
+              <div className="flex h-full items-center justify-center">
                 <LoadingOutlined />
               </div>
             }
@@ -406,7 +362,7 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
               titleRef={editTitleRef}
               onCreateNewMessage={onCreateNewMessage}
               createMessageLoading={createMessageLoading}
-              onChatCreated={(chatId) => {
+              onChatCreated={chatId => {
                 useVideoNoteChatStore.setState({ currentChatId: chatId });
               }}
               customSystemPrompt={systemPrompt}

@@ -105,12 +105,11 @@ function SettingsContent(
     setActiveModule: (module: SettingModule) => void;
     isDark: boolean;
     setIsDark: (dark: boolean) => void;
-  },
+  }
 ) {
   const activeSync = props.safeSetting?.sync.active ?? "aliOSS";
   const activeResource = props.safeSetting?.imageBed.active ?? "github";
-  const compressionEnabled =
-    props.safeSetting?.imageBed.enableCompression ?? false;
+  const compressionEnabled = props.safeSetting?.imageBed.enableCompression ?? false;
 
   if (!props.activeModule) {
     return (
@@ -120,53 +119,35 @@ function SettingsContent(
         activeResource={activeResource}
         versions={props.versions}
         activeDatabase={props.databases?.activeDatabase}
-        onOpenModule={(module) => props.setActiveModule(module)}
+        onOpenModule={module => props.setActiveModule(module)}
         resourceSyncProgress={props.resourceSyncProgress}
       />
     );
   }
 
   if (props.activeModule === "theme") {
-    return (
-      <ThemeSection
-        isDark={props.isDark}
-        setIsDark={props.setIsDark}
-        safeSetting={props.safeSetting}
-        updateSetting={props.updateSetting}
-      />
-    );
+    return <ThemeSection isDark={props.isDark} setIsDark={props.setIsDark} />;
   }
 
   if (props.activeModule === "ai") {
-    return (
-      <AIHomeSection onOpenModule={(module) => props.setActiveModule(module)} />
-    );
+    return <AIHomeSection onOpenModule={module => props.setActiveModule(module)} />;
   }
 
   if (props.activeModule === "ai-llm-configs") {
     return (
-      <AILlmConfigsSection
-        safeSetting={props.safeSetting}
-        updateSetting={props.updateSetting}
-      />
+      <AILlmConfigsSection safeSetting={props.safeSetting} updateSetting={props.updateSetting} />
     );
   }
 
   if (props.activeModule === "ai-llm-usage") {
     return (
-      <AILlmUsageSection
-        safeSetting={props.safeSetting}
-        updateSetting={props.updateSetting}
-      />
+      <AILlmUsageSection safeSetting={props.safeSetting} updateSetting={props.updateSetting} />
     );
   }
 
   if (props.activeModule === "ai-embedding-api") {
     return (
-      <AIEmbeddingApiSection
-        safeSetting={props.safeSetting}
-        updateSetting={props.updateSetting}
-      />
+      <AIEmbeddingApiSection safeSetting={props.safeSetting} updateSetting={props.updateSetting} />
     );
   }
 
@@ -176,10 +157,7 @@ function SettingsContent(
 
   if (props.activeModule === "database") {
     return (
-      <DatabaseSection
-        databases={props.databases}
-        onSwitchDatabase={props.onSwitchDatabase}
-      />
+      <DatabaseSection databases={props.databases} onSwitchDatabase={props.onSwitchDatabase} />
     );
   }
 
@@ -210,11 +188,7 @@ function SettingsContent(
   }
 
   if (props.activeModule === "integration") {
-    return (
-      <IntegrationHomeSection
-        onOpenModule={(module) => props.setActiveModule(module)}
-      />
-    );
+    return <IntegrationHomeSection onOpenModule={module => props.setActiveModule(module)} />;
   }
 
   if (props.activeModule === "integration-github") {
@@ -269,7 +243,7 @@ function SettingsContent(
         compressionEnabled={compressionEnabled}
         isSavingSetting={props.isSavingSetting}
         onSaveSetting={props.onSaveSetting}
-        onOpenModule={(module) => props.setActiveModule(module)}
+        onOpenModule={module => props.setActiveModule(module)}
         updateSetting={props.updateSetting}
       />
     );

@@ -1,7 +1,6 @@
 import type { ThemeColors } from "../types/services";
 import { useEditorEnvironment } from "./EditorProvider";
 import type { ImageBorderRadiusPreset, ImageShadowPreset } from "../types/element/image-appearance";
-import type { MermaidRenderStyle, MermaidThemeName } from "@tau/shared";
 
 /**
  * 编辑器全局配置：内核规定规范（本文件中的类型），宿主在外层通过
@@ -26,19 +25,10 @@ export interface EditorAppearanceConfig {
   };
 }
 
-export interface EditorMermaidConfig {
-  style?: MermaidRenderStyle;
-  lightTheme?: MermaidThemeName;
-  darkTheme?: MermaidThemeName;
-  useBeautifulMermaid?: boolean;
-}
-
 export interface EditorConfig {
   theme: EditorThemeConfig;
   /** 元素外观默认值（未配置时使用内核默认） */
   appearance?: EditorAppearanceConfig;
-  /** Mermaid 渲染设置 */
-  mermaid?: EditorMermaidConfig;
   /** 打开外部链接（Electron shell / window.open 等） */
   openUrl?: (url: string) => void | Promise<void>;
   /** PlantUML 渲染服务器地址，默认 https://www.plantuml.com/plantuml */

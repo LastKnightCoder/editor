@@ -1,13 +1,10 @@
 import { useRef, useEffect, useState } from "react";
 import { useCreation, useMemoizedFn } from "ahooks";
-import { renderMermaidWithFallback, type MermaidRenderStyle } from "@tau/shared";
+import { renderMermaidSvg } from "@tau/shared";
 import useTheme from "../../../hooks/useTheme";
-import { useEditorConfig } from "../../../contexts/EditorConfig";
 
 interface IMermaidProps {
   chart: string;
-  /** Optional per-block render style. Undefined means following global setting */
-  renderStyleOverride?: MermaidRenderStyle;
   /** Cached SVG from previous render */
   initialSvg?: string;
   /** The chart code that was used to generate the cached SVG */
@@ -17,14 +14,11 @@ interface IMermaidProps {
 }
 
 const Mermaid = (props: IMermaidProps) => {
-  const { chart, renderStyleOverride, initialSvg, compiledFrom, onCompiled } = props;
+  const { chart, initialSvg, compiledFrom, onCompiled } = props;
   const { isDark } = useTheme();
-  const config = useEditorConfig();
   const ref = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string>("");
-  const [displayMode, setDisplayMode] = useState<"svg" | "ascii">("svg");
   const [svgContent, setSvgContent] = useState<string>("");
-  const [asciiContent, setAsciiContent] = useState<string>("");
 
   const stableOnCompiled = useMemoizedFn(onCompiled ?? (() => {}));
 
@@ -32,11 +26,6 @@ const Mermaid = (props: IMermaidProps) => {
   const compiledFromRef = useRef(compiledFrom);
   initialSvgRef.current = initialSvg;
   compiledFromRef.current = compiledFrom;
-
-  const renderStyle = renderStyleOverride ?? config?.mermaid?.style ?? "svg";
-  const lightTheme = config?.mermaid?.lightTheme || "github-light";
-  const darkTheme = config?.mermaid?.darkTheme || "github-dark";
-  const useBeautifulMermaid = config?.mermaid?.useBeautifulMermaid ?? true;
 
   const mermaidId = useCreation(() => {
     return `mermaid-${Math.random().toString(36).slice(2)}`;
@@ -49,10 +38,8 @@ const Mermaid = (props: IMermaidProps) => {
     const hasCachedSvg = cachedFrom === chart && !!cachedSvg;
 
     // 先展示缓存 SVG，再继续后台渲染，确保主题切换时可实时刷新
-    if (renderStyle === "svg" && hasCachedSvg && cachedSvg) {
-      setDisplayMode("svg");
+    if (hasCachedSvg && cachedSvg) {
       setSvgContent(cachedSvg);
-      setAsciiContent("");
       setError("");
     }
 
@@ -60,28 +47,19 @@ const Mermaid = (props: IMermaidProps) => {
 
     const renderMermaid = async () => {
       try {
-        const result = await renderMermaidWithFallback({
+        const svg = await renderMermaidSvg({
           code: chart,
           mermaidId,
           isDark,
-          preference: {
-            style: renderStyle,
-            lightTheme,
-            darkTheme,
-            useBeautifulMermaid,
-          },
         });
 
         if (!isMounted) return;
 
-        setDisplayMode(result.displayMode);
-        setAsciiContent(result.displayMode === "ascii" ? result.displayContent : "");
-        setSvgContent(result.cachedSvg || "");
-
+        setSvgContent(svg);
         setError("");
 
-        if (result.cachedSvg && (cachedFrom !== chart || cachedSvg !== result.cachedSvg)) {
-          stableOnCompiled(result.cachedSvg, chart);
+        if (cachedFrom !== chart || cachedSvg !== svg) {
+          stableOnCompiled(svg, chart);
         }
       } catch (e: unknown) {
         if (!isMounted) return;
@@ -96,16 +74,7 @@ const Mermaid = (props: IMermaidProps) => {
     return () => {
       isMounted = false;
     };
-  }, [
-    chart,
-    mermaidId,
-    isDark,
-    renderStyle,
-    lightTheme,
-    darkTheme,
-    useBeautifulMermaid,
-    stableOnCompiled,
-  ]);
+  }, [chart, mermaidId, isDark, stableOnCompiled]);
 
   return (
     <>
@@ -120,38 +89,6 @@ const Mermaid = (props: IMermaidProps) => {
           }}
         >
           {error}
-        </div>
-      ) : displayMode === "ascii" ? (
-        <div
-          style={{
-            width: "100%",
-            overflowX: "auto",
-            padding: 20,
-          }}
-        >
-          <div
-            style={{
-              width: "fit-content",
-              minWidth: "100%",
-              margin: "0 auto",
-            }}
-          >
-            <pre
-              style={{
-                display: "block",
-                width: "max-content",
-                margin: "0 auto",
-                fontFamily:
-                  "'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-                fontSize: "13px",
-                lineHeight: 1.4,
-                textAlign: "left",
-                color: isDark ? "#e5e7eb" : "#111827",
-              }}
-            >
-              {asciiContent}
-            </pre>
-          </div>
         </div>
       ) : (
         <div
