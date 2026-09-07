@@ -17,7 +17,7 @@ interface IFormattedTextProps {
   children: React.ReactNode;
 }
 
-const FormattedText: React.FC<IFormattedTextProps> = memo((props) => {
+const FormattedText: React.FC<IFormattedTextProps> = memo(props => {
   const { attributes, leaf, children } = props;
   const {
     bold,
@@ -56,7 +56,7 @@ const FormattedText: React.FC<IFormattedTextProps> = memo((props) => {
 
     // 按顺序应用样式包装
     if (code) {
-      content = <CodeText isDark={isDark}>{content}</CodeText>;
+      content = <CodeText>{content}</CodeText>;
     }
 
     if (highlight) {

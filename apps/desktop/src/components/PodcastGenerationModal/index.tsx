@@ -1,19 +1,9 @@
 import { useState, useEffect, useCallback, memo, useRef } from "react";
 import classNames from "classnames";
 import CustomModal from "@/components/CustomModal";
-import {
-  Button,
-  SectionTitle,
-  TextInput,
-  TextStrong,
-  TextSecondary,
-} from "./ui";
+import { Button, SectionTitle, TextInput, TextStrong, TextSecondary } from "./ui";
 import { usePodcastGeneration } from "@/hooks/usePodcastGeneration";
-import type {
-  PodcastSpeaker,
-  IPodcast,
-  PodcastScriptLine,
-} from "@/types/podcast";
+import type { PodcastSpeaker, IPodcast, PodcastScriptLine } from "@/types/podcast";
 import { SpeakerRole } from "@/types/podcast";
 import type { Descendant } from "slate";
 import { getMarkdown } from "@/utils/markdown";
@@ -35,7 +25,7 @@ interface PodcastGenerationModalProps {
     scriptLines: PodcastScriptLine[],
     duration: number,
     speakers: PodcastSpeaker[],
-    name?: string,
+    name?: string
   ) => void;
   onCancel: () => void;
   initialPodcast?: IPodcast;
@@ -50,9 +40,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
       { name: "Speaker2", voiceId: "", voiceName: "", role: SpeakerRole.Guest },
     ]);
     const [generateMusic, setGenerateMusic] = useState(false);
-    const [durationRange, setDurationRange] = useState<[number, number]>([
-      3, 5,
-    ]);
+    const [durationRange, setDurationRange] = useState<[number, number]>([3, 5]);
 
     // 音色克隆相关状态
     const [showCloneForm, setShowCloneForm] = useState(false);
@@ -69,9 +57,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
     // 音频播放状态（用于关闭时清理）
     const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
-    const minimaxApiKey = useSettingStore(
-      (state) => state.setting.integration.minimax.apiKey,
-    );
+    const minimaxApiKey = useSettingStore(state => state.setting.integration.minimax.apiKey);
 
     const {
       status,
@@ -123,20 +109,20 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
     }, [open, initialPodcast, setInitialState]);
 
     // 通知系统
-    const [notices, setNotices] = useState<
-      Array<{ id: number; type: NoticeType; text: string }>
-    >([]);
+    const [notices, setNotices] = useState<Array<{ id: number; type: NoticeType; text: string }>>(
+      []
+    );
     const notify = useCallback((type: NoticeType, text: string) => {
       const id = Date.now() + Math.floor(Math.random() * 1000);
-      setNotices((prev) => [...prev, { id, type, text }]);
+      setNotices(prev => [...prev, { id, type, text }]);
       const timeout = type === "error" ? 4000 : 2500;
       window.setTimeout(() => {
-        setNotices((prev) => prev.filter((n) => n.id !== id));
+        setNotices(prev => prev.filter(n => n.id !== id));
       }, timeout);
     }, []);
 
     const handleGenerate = useCallback(async () => {
-      if (speakers.some((s) => !s.voiceId)) {
+      if (speakers.some(s => !s.voiceId)) {
         notify("error", "请为所有说话人选择音色");
         return;
       }
@@ -162,15 +148,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
       if (error) {
         notify("error", error);
       }
-    }, [
-      speakers,
-      notify,
-      generateMusic,
-      durationRange,
-      cardContent,
-      generatePodcast,
-      podcastName,
-    ]);
+    }, [speakers, notify, generateMusic, durationRange, cardContent, generatePodcast, podcastName]);
 
     const handleClose = useCallback(() => {
       if (currentAudioRef.current) {
@@ -216,33 +194,22 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
           scriptLines,
           duration,
           speakers,
-          podcastName.trim() || undefined,
+          podcastName.trim() || undefined
         );
         handleClose();
       }
-    }, [
-      audioUrl,
-      script,
-      scriptLines,
-      duration,
-      speakers,
-      onSuccess,
-      podcastName,
-      handleClose,
-    ]);
+    }, [audioUrl, script, scriptLines, duration, speakers, onSuccess, podcastName, handleClose]);
 
     const footerNode =
       status === "complete" ? (
-        <div className="flex gap-3 justify-end">
+        <div className="flex justify-end gap-3">
           <Button onClick={handleClose}>关闭</Button>
           <Button variant="primary" onClick={handleSuccess}>
             {saveText ?? "保存到卡片"}
           </Button>
         </div>
-      ) : status === "loading" &&
-        stage === "script" &&
-        scriptLines.length > 0 ? (
-        <div className="flex gap-3 justify-end">
+      ) : status === "loading" && stage === "script" && scriptLines.length > 0 ? (
+        <div className="flex justify-end gap-3">
           <Button onClick={() => reset()}>取消</Button>
           <Button
             variant="primary"
@@ -257,12 +224,12 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
           </Button>
         </div>
       ) : status === "loading" ? null : (
-        <div className="flex gap-3 justify-end">
+        <div className="flex justify-end gap-3">
           <Button onClick={handleClose}>取消</Button>
           <Button
             variant="primary"
             onClick={handleGenerate}
-            disabled={speakers.some((s) => !s.voiceId) || !podcastName.trim()}
+            disabled={speakers.some(s => !s.voiceId) || !podcastName.trim()}
           >
             开始生成
           </Button>
@@ -284,19 +251,16 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
           {/* 通知显示 */}
           {notices.length > 0 && (
             <div className="space-y-2">
-              {notices.map((notice) => (
+              {notices.map(notice => (
                 <div
                   key={notice.id}
                   className={classNames(
-                    "px-3 py-2 rounded-lg text-sm whitespace-pre-wrap",
-                    notice.type === "success" &&
-                      "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400",
-                    notice.type === "error" &&
-                      "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400",
-                    notice.type === "warning" &&
-                      "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
+                    "whitespace-pre-wrap rounded-lg px-3 py-2 text-sm",
+                    notice.type === "success" && "bg-[var(--th-success)]/10 text-status-success",
+                    notice.type === "error" && "bg-[var(--th-danger)]/10 text-status-error",
+                    notice.type === "warning" && "bg-[var(--th-warning)]/10 text-status-warning",
                     notice.type === "info" &&
-                      "bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-zinc-300",
+                      "bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-zinc-300"
                   )}
                 >
                   {notice.text}
@@ -310,7 +274,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
             <div className="space-y-4">
               <SectionTitle>基础信息</SectionTitle>
               <div>
-                <TextStrong className="block mb-2">播客名称</TextStrong>
+                <TextStrong className="mb-2 block">播客名称</TextStrong>
                 <TextInput
                   placeholder="请输入播客名称"
                   value={podcastName}
@@ -352,18 +316,14 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
               <SectionTitle>其他选项</SectionTitle>
 
               <div className="flex items-center gap-3">
-                <TextSecondary className="whitespace-nowrap text-sm">
-                  播客时长
-                </TextSecondary>
+                <TextSecondary className="whitespace-nowrap text-sm">播客时长</TextSecondary>
                 <div className="flex items-center gap-2">
                   <TextInput
                     type="number"
                     value={String(durationRange[0])}
-                    onChange={(value) => {
+                    onChange={value => {
                       const nextMin = Number(value);
-                      setDurationRange((prev) =>
-                        normalizeDurationRange(nextMin, prev[1]),
-                      );
+                      setDurationRange(prev => normalizeDurationRange(nextMin, prev[1]));
                     }}
                     className="w-16"
                   />
@@ -371,11 +331,9 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                   <TextInput
                     type="number"
                     value={String(durationRange[1])}
-                    onChange={(value) => {
+                    onChange={value => {
                       const nextMax = Number(value);
-                      setDurationRange((prev) =>
-                        normalizeDurationRange(prev[0], nextMax),
-                      );
+                      setDurationRange(prev => normalizeDurationRange(prev[0], nextMax));
                     }}
                     className="w-16"
                   />
@@ -386,33 +344,30 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
           )}
 
           {/* 脚本编辑阶段 */}
-          {status === "loading" &&
-            stage === "script" &&
-            scriptLines.length > 0 && (
-              <ScriptEditor
-                scriptLines={scriptLines}
-                speakers={speakers}
-                updateScriptLines={updateScriptLines}
-              />
-            )}
+          {status === "loading" && stage === "script" && scriptLines.length > 0 && (
+            <ScriptEditor
+              scriptLines={scriptLines}
+              speakers={speakers}
+              updateScriptLines={updateScriptLines}
+            />
+          )}
 
           {/* 进度显示 (非脚本编辑阶段) */}
-          {status === "loading" &&
-            (stage !== "script" || scriptLines.length === 0) && (
-              <ProgressView
-                stage={stage}
-                stageProgress={stageProgress}
-                ttsCompleted={ttsCompleted}
-                ttsTotal={ttsTotal}
-                logs={logs}
-              />
-            )}
+          {status === "loading" && (stage !== "script" || scriptLines.length === 0) && (
+            <ProgressView
+              stage={stage}
+              stageProgress={stageProgress}
+              ttsCompleted={ttsCompleted}
+              ttsTotal={ttsTotal}
+              logs={logs}
+            />
+          )}
 
           {/* 结果预览 */}
           {status === "complete" && audioUrl && (
             <div className="space-y-4">
               <div>
-                <TextStrong className="block mb-2">播客名称</TextStrong>
+                <TextStrong className="mb-2 block">播客名称</TextStrong>
                 <TextInput
                   placeholder="请输入播客名称"
                   value={podcastName}
@@ -450,19 +405,19 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
             <div className="space-y-4">
               <SectionTitle>生成失败</SectionTitle>
               {error && (
-                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-500/10 text-sm text-red-700 dark:text-red-400 whitespace-pre-wrap">
+                <div className="whitespace-pre-wrap rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">
                   {error}
                 </div>
               )}
               <details open className="mt-4">
-                <summary className="cursor-pointer text-xs font-medium text-gray-500 dark:text-zinc-400 select-none">
+                <summary className="cursor-pointer select-none text-xs font-medium text-gray-500 dark:text-zinc-400">
                   详细日志
                 </summary>
-                <div className="mt-2 max-h-64 overflow-y-auto space-y-0.5 p-3 rounded-lg bg-gray-50 dark:bg-zinc-800/60 border border-gray-100 dark:border-zinc-700/50">
+                <div className="mt-2 max-h-64 space-y-0.5 overflow-y-auto rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-zinc-700/50 dark:bg-zinc-800/60">
                   {logs.map((log, index) => (
                     <div
                       key={index}
-                      className="text-xs font-mono text-gray-600 dark:text-zinc-300 leading-relaxed"
+                      className="font-mono text-xs leading-relaxed text-gray-600 dark:text-zinc-300"
                     >
                       {log}
                     </div>
@@ -474,7 +429,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
         </div>
       </CustomModal>
     );
-  },
+  }
 );
 
 export default PodcastGenerationModal;

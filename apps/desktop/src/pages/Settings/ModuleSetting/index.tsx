@@ -349,13 +349,13 @@ const ModuleSetting = () => {
                     onClick={() => onModuleChange(module.key)}
                     className={`relative cursor-pointer overflow-hidden rounded-xl border-2 p-5 shadow-sm transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl ${
                       module.enable
-                        ? `${themeColors.cardBorderClass} ${themeColors.activeBgClass}`
+                        ? `${themeColors.cardBorderClass} ${themeColors.cardBgClass}`
                         : "border-gray-200 bg-gray-50 opacity-75 hover:bg-gray-100 hover:opacity-85 dark:border-gray-700 dark:bg-zinc-800/50 dark:hover:bg-zinc-800/70"
                     } `}
                   >
                     {module.enable && (
                       <div
-                        className={`absolute left-0 right-0 top-0 h-1 ${themeColors.gradientClass} animate-shimmer bg-size-[200%_100%]`}
+                        className={`animate-shimmer bg-size-[200%_100%] absolute left-0 right-0 top-0 h-1 bg-[var(--th-border-hover)]`}
                       />
                     )}
 
@@ -363,7 +363,7 @@ const ModuleSetting = () => {
                       <div
                         className={`flex h-12 w-12 items-center justify-center rounded-xl transition-all duration-300 ${
                           module.enable
-                            ? `${themeColors.iconBgClass} ${themeColors.activeTextClass}`
+                            ? `${themeColors.iconBgClass} ${themeColors.textClass}`
                             : "bg-gray-200 text-gray-500 dark:bg-zinc-700 dark:text-gray-400"
                         } `}
                       >
@@ -373,7 +373,7 @@ const ModuleSetting = () => {
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-medium transition-all duration-300 ${
                           module.enable
-                            ? `${themeColors.activeBgClass} ${themeColors.activeTextClass}`
+                            ? `${themeColors.tagBgClass} ${themeColors.tagTextClass}`
                             : "bg-gray-200 text-gray-500 dark:bg-zinc-700 dark:text-gray-400"
                         } `}
                       >

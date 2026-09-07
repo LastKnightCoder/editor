@@ -116,7 +116,7 @@ const ColumnDropdown: FC<ColumnDropdownProps> = ({
     onSelect("");
   });
 
-  const selectedColumn = columns.find((c) => c.id === selectedId);
+  const selectedColumn = columns.find(c => c.id === selectedId);
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -131,18 +131,16 @@ const ColumnDropdown: FC<ColumnDropdownProps> = ({
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className="w-full px-4 py-3.5 rounded-xl text-sm text-left flex items-center justify-between outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)] disabled:opacity-60 disabled:cursor-not-allowed"
+        className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-left text-sm text-gray-800 shadow-inner outline-none transition-all focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-zinc-950 dark:text-white"
       >
-        <span
-          className={`truncate ${!selectedColumn ? "text-gray-400 dark:text-slate-500" : ""}`}
-        >
+        <span className={`truncate ${!selectedColumn ? "text-gray-400 dark:text-slate-500" : ""}`}>
           {selectedColumn?.title || placeholder}
         </span>
-        <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+        <div className="ml-2 flex flex-shrink-0 items-center gap-1">
           {allowClear && selectedId && !disabled && (
             <svg
               onClick={handleClear}
-              className="w-4 h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              className="h-4 w-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -153,7 +151,7 @@ const ColumnDropdown: FC<ColumnDropdownProps> = ({
             </svg>
           )}
           <svg
-            className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+            className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -171,7 +169,7 @@ const ColumnDropdown: FC<ColumnDropdownProps> = ({
             <motion.div
               ref={dropdownRef}
               data-column-dropdown="true"
-              className="fixed rounded-2xl bg-white/60 dark:bg-[rgba(30,30,30,0.6)] backdrop-blur-md backdrop-saturate-150 border border-white/30 dark:border-white/20 shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]"
+              className="fixed rounded-2xl border border-white/30 bg-white/60 shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] backdrop-blur-md backdrop-saturate-150 dark:border-white/20 dark:bg-[rgba(30,30,30,0.6)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]"
               style={{
                 top: `${position.top}px`,
                 left: `${position.left}px`,
@@ -183,27 +181,24 @@ const ColumnDropdown: FC<ColumnDropdownProps> = ({
               exit={{ opacity: 0, scale: 0.95, y: -10 }}
               transition={{ duration: 0.15, ease: "easeOut" }}
             >
-              <div className="py-2 max-h-[300px] overflow-y-auto">
+              <div className="max-h-[300px] overflow-y-auto py-2">
                 {columns.length === 0 ? (
-                  <div className="px-3 mx-2 py-2 text-sm text-gray-400 dark:text-slate-500">
+                  <div className="mx-2 px-3 py-2 text-sm text-gray-400 dark:text-slate-500">
                     暂无可选列
                   </div>
                 ) : (
-                  columns.map((col) => {
+                  columns.map(col => {
                     const isSelected = col.id === selectedId;
 
                     return (
                       <div
                         key={col.id}
                         onClick={() => handleSelect(col.id)}
-                        className={`
-                          px-3 mx-2 mb-1 last:mb-0 py-2 rounded-lg text-sm transition-all duration-150 cursor-pointer
-                          ${
-                            isSelected
-                              ? "bg-white/40 dark:bg-white/10 text-blue-600 dark:text-blue-400 border border-white/40 dark:border-white/20"
-                              : "text-gray-700 dark:text-gray-200 hover:bg-white/20 dark:hover:bg-white/8"
-                          }
-                        `}
+                        className={`mx-2 mb-1 cursor-pointer rounded-lg px-3 py-2 text-sm transition-all duration-150 last:mb-0 ${
+                          isSelected
+                            ? "border border-white/40 bg-white/40 text-[var(--th-active-text)] dark:border-white/20 dark:bg-white/10"
+                            : "dark:hover:bg-white/8 text-gray-700 hover:bg-white/20 dark:text-gray-200"
+                        } `}
                       >
                         <div className="truncate">{col.title}</div>
                       </div>
@@ -214,7 +209,7 @@ const ColumnDropdown: FC<ColumnDropdownProps> = ({
             </motion.div>
           )}
         </AnimatePresence>,
-        document.body,
+        document.body
       )}
     </div>
   );

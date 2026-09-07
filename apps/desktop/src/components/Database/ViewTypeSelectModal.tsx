@@ -1,12 +1,7 @@
 import React, { memo, useState } from "react";
 import { Input, Form, Select } from "antd";
 import classNames from "classnames";
-import {
-  MdTableChart,
-  MdViewModule,
-  MdCalendarToday,
-  MdViewKanban,
-} from "react-icons/md";
+import { MdTableChart, MdViewModule, MdCalendarToday, MdViewKanban } from "react-icons/md";
 import { DataTableViewType } from "@/types";
 import CustomModal from "@/components/CustomModal";
 
@@ -25,7 +20,7 @@ interface ViewTypeSelectModalProps {
     type: DataTableViewType,
     name: string,
     dateColumnId?: string,
-    groupColumnId?: string,
+    groupColumnId?: string
   ) => void;
   columns: Array<{ id: string; title: string; type: string }>;
   theme: "light" | "dark";
@@ -33,9 +28,7 @@ interface ViewTypeSelectModalProps {
 
 const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
   ({ open, onCancel, onConfirm, columns, theme }) => {
-    const [selectedType, setSelectedType] = useState<DataTableViewType | null>(
-      null,
-    );
+    const [selectedType, setSelectedType] = useState<DataTableViewType | null>(null);
     const [userModifiedName, setUserModifiedName] = useState(false);
     const [form] = Form.useForm<{
       name: string;
@@ -44,11 +37,11 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
     }>();
 
     // 检查是否有日期列
-    const dateColumns = columns.filter((col) => col.type === "date");
+    const dateColumns = columns.filter(col => col.type === "date");
     const hasDateColumn = dateColumns.length > 0;
 
     // 检查是否有单选列
-    const selectColumns = columns.filter((col) => col.type === "select");
+    const selectColumns = columns.filter(col => col.type === "select");
     const hasSelectColumn = selectColumns.length > 0;
 
     // 动态生成视图类型列表
@@ -84,7 +77,7 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
 
       // 如果用户没有手动修改过名称，则自动更新为新的视图类型名称
       if (!userModifiedName) {
-        const defaultName = viewTypes.find((v) => v.type === type)?.name || "";
+        const defaultName = viewTypes.find(v => v.type === type)?.name || "";
         form.setFieldsValue({ name: defaultName });
       }
     };
@@ -93,12 +86,7 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
       if (!selectedType) return;
       try {
         const values = await form.validateFields();
-        onConfirm(
-          selectedType,
-          values.name,
-          values.dateColumnId,
-          values.groupColumnId,
-        );
+        onConfirm(selectedType, values.name, values.dateColumnId, values.groupColumnId);
         form.resetFields();
         setSelectedType(null);
         setUserModifiedName(false);
@@ -126,30 +114,26 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
         okButtonProps={{ disabled: !selectedType }}
       >
         <div className="py-4">
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            {viewTypes.map((viewType) => (
+          <div className="mb-6 grid grid-cols-2 gap-4">
+            {viewTypes.map(viewType => (
               <div
                 key={viewType.type}
                 className={classNames(
-                  "flex flex-col items-center justify-center p-6 border-2 rounded-lg transition-all relative",
+                  "relative flex flex-col items-center justify-center rounded-lg border-2 p-6 transition-all",
                   {
-                    "bg-white border-gray-300 hover:border-blue-400 hover:bg-blue-50/50 cursor-pointer":
-                      theme === "light" &&
-                      !viewType.disabled &&
-                      selectedType !== viewType.type,
-                    "bg-white border-blue-500 bg-blue-100/50 cursor-pointer":
+                    "hover:bg-[var(--th-accent-soft)]/50 cursor-pointer border-gray-300 bg-white hover:border-[var(--th-border-hover)]":
+                      theme === "light" && !viewType.disabled && selectedType !== viewType.type,
+                    "cursor-pointer border-[var(--th-border-focus)] bg-white":
                       theme === "light" && selectedType === viewType.type,
-                    "bg-gray-100 border-gray-300 cursor-not-allowed opacity-50":
+                    "cursor-not-allowed border-gray-300 bg-gray-100 opacity-50":
                       theme === "light" && viewType.disabled,
-                    "bg-[#1f1f1f] border-[#434343] hover:border-[#177ddc] hover:bg-[#177ddc]/10 cursor-pointer":
-                      theme === "dark" &&
-                      !viewType.disabled &&
-                      selectedType !== viewType.type,
-                    "bg-[#1f1f1f] border-[#177ddc] bg-[#177ddc]/20 cursor-pointer":
+                    "cursor-pointer border-[#434343] bg-[#1f1f1f] hover:border-[#177ddc] hover:bg-[#177ddc]/10":
+                      theme === "dark" && !viewType.disabled && selectedType !== viewType.type,
+                    "cursor-pointer border-[#177ddc] bg-[#177ddc]/20 bg-[#1f1f1f]":
                       theme === "dark" && selectedType === viewType.type,
-                    "bg-[#2a2a2a] border-[#434343] cursor-not-allowed opacity-50":
+                    "cursor-not-allowed border-[#434343] bg-[#2a2a2a] opacity-50":
                       theme === "dark" && viewType.disabled,
-                  },
+                  }
                 )}
                 onClick={() => {
                   if (!viewType.disabled) {
@@ -159,13 +143,11 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
                 title={viewType.disabled ? viewType.disabledReason : undefined}
               >
                 <div
-                  className={classNames("text-5xl mb-2", {
+                  className={classNames("mb-2 text-5xl", {
                     "text-gray-600": theme === "light" && !viewType.disabled,
-                    "text-blue-500":
-                      theme === "light" && selectedType === viewType.type,
+                    "text-[var(--th-accent)]": theme === "light" && selectedType === viewType.type,
                     "text-gray-500": theme === "dark" && !viewType.disabled,
-                    "text-[#177ddc]":
-                      theme === "dark" && selectedType === viewType.type,
+                    "text-[#177ddc]": theme === "dark" && selectedType === viewType.type,
                   })}
                 >
                   {viewType.icon}
@@ -179,7 +161,7 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
                   {viewType.name}
                 </div>
                 {viewType.disabled && viewType.disabledReason && (
-                  <div className="text-xs text-gray-500 mt-1 text-center">
+                  <div className="mt-1 text-center text-xs text-gray-500">
                     {viewType.disabledReason}
                   </div>
                 )}
@@ -192,9 +174,7 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
                 label="视图名称"
                 name="name"
                 rules={[{ required: true, message: "请输入视图名称" }]}
-                initialValue={
-                  viewTypes.find((v) => v.type === selectedType)?.name || ""
-                }
+                initialValue={viewTypes.find(v => v.type === selectedType)?.name || ""}
               >
                 <Input
                   placeholder="请输入视图名称"
@@ -211,7 +191,7 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
                 >
                   <Select
                     placeholder="选择用于日历的日期列"
-                    options={dateColumns.map((col) => ({
+                    options={dateColumns.map(col => ({
                       label: col.title,
                       value: col.id,
                     }))}
@@ -223,13 +203,11 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
                 <Form.Item
                   label="分组列"
                   name="groupColumnId"
-                  rules={[
-                    { required: true, message: "请选择单选列作为分组依据" },
-                  ]}
+                  rules={[{ required: true, message: "请选择单选列作为分组依据" }]}
                 >
                   <Select
                     placeholder="选择用于看板分组的单选列"
-                    options={selectColumns.map((col) => ({
+                    options={selectColumns.map(col => ({
                       label: col.title,
                       value: col.id,
                     }))}
@@ -241,7 +219,7 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
         </div>
       </CustomModal>
     );
-  },
+  }
 );
 
 ViewTypeSelectModal.displayName = "ViewTypeSelectModal";

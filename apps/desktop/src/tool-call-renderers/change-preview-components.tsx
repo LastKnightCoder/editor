@@ -36,8 +36,8 @@ export const CompactSummary = ({
       已修改 {patchCount} 处
     </span>
     <span className={isDark ? "text-slate-600" : "text-slate-400"}>·</span>
-    <span className="font-medium text-emerald-600">+{insertedChars}</span>
-    <span className="font-medium text-rose-600">-{deletedChars}</span>
+    <span className="text-status-success font-medium">+{insertedChars}</span>
+    <span className="text-status-error font-medium">-{deletedChars}</span>
     <div className="ml-auto flex items-center gap-1">
       {canUndo ? (
         <button
@@ -62,9 +62,7 @@ export const CompactSummary = ({
           isDark ? "hover:bg-white/5" : "hover:bg-slate-100"
         }`}
       >
-        <ChevronDown
-          className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`}
-        />
+        <ChevronDown className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
       </button>
     </div>
   </div>
@@ -75,10 +73,7 @@ interface ChangePreviewCardProps {
   isDark: boolean;
 }
 
-export const ChangePreviewCard = ({
-  preview,
-  isDark,
-}: ChangePreviewCardProps) => {
+export const ChangePreviewCard = ({ preview, isDark }: ChangePreviewCardProps) => {
   const opLabelMap = {
     insert: { label: "新增", emoji: "➕", color: "blue" },
     delete: { label: "删除", emoji: "➖", color: "red" },
@@ -98,8 +93,8 @@ export const ChangePreviewCard = ({
           className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs ${
             opInfo.color === "blue"
               ? isDark
-                ? "bg-blue-900/30 text-blue-300"
-                : "bg-blue-50 text-blue-700"
+                ? " "
+                : "bg-[var(--th-info)]/10 text-status-info"
               : opInfo.color === "red"
                 ? isDark
                   ? "bg-red-900/30 text-red-300"
@@ -111,17 +106,13 @@ export const ChangePreviewCard = ({
         >
           {opInfo.emoji} {opInfo.label}
         </span>
-        <span
-          className={`text-xs ${isDark ? "text-slate-500" : "text-slate-400"}`}
-        >
+        <span className={`text-xs ${isDark ? "text-slate-500" : "text-slate-400"}`}>
           {preview.location}
         </span>
       </div>
       <div className="space-y-1 text-sm">
         {preview.beforeTextPreview && (
-          <div
-            className={`line-through ${isDark ? "text-slate-500" : "text-slate-500"}`}
-          >
+          <div className={`line-through ${isDark ? "text-slate-500" : "text-slate-500"}`}>
             {preview.beforeTextPreview}
           </div>
         )}
@@ -153,20 +144,12 @@ interface FeedbackTemplatesProps {
   isDark: boolean;
 }
 
-export const FeedbackTemplates = ({
-  onSelect,
-  isDark,
-}: FeedbackTemplatesProps) => {
-  const templates = [
-    "语气更自然",
-    "保持原意但更精炼",
-    "不要改标题",
-    "第一段需要调整",
-  ];
+export const FeedbackTemplates = ({ onSelect, isDark }: FeedbackTemplatesProps) => {
+  const templates = ["语气更自然", "保持原意但更精炼", "不要改标题", "第一段需要调整"];
 
   return (
     <div className="flex flex-wrap gap-2">
-      {templates.map((template) => (
+      {templates.map(template => (
         <button
           key={template}
           onClick={() => onSelect(template)}

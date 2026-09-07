@@ -36,18 +36,15 @@ interface EventSpan {
 }
 
 const MonthView = () => {
-  const { currentDate, calendars, setEditingEvent, editingEvent } =
-    useCalendarStore();
+  const { currentDate, calendars, setEditingEvent, editingEvent } = useCalendarStore();
   const { events } = useCalendarEvents();
-  const setting = useSettingStore((state) => state.setting);
+  const setting = useSettingStore(state => state.setting);
   const themeColors = useThemeColors();
   const theme = setting.darkMode ? "dark" : "light";
 
   const [moreEventsDay, setMoreEventsDay] = useState<number | null>(null);
   const [moreEventsList, setMoreEventsList] = useState<CalendarEvent[]>([]);
-  const [pendingEvent, setPendingEvent] = useState<PendingDateEvent | null>(
-    null,
-  );
+  const [pendingEvent, setPendingEvent] = useState<PendingDateEvent | null>(null);
 
   // 容器引用和尺寸监听
   const containerRef = useRef<HTMLDivElement>(null);
@@ -79,11 +76,9 @@ const MonthView = () => {
     });
 
     // 优先选择第一个非系统日历
-    const nonSystemCalendars = calendars.filter((c) => !c.isInSystemGroup);
+    const nonSystemCalendars = calendars.filter(c => !c.isInSystemGroup);
     const defaultCalendarId =
-      nonSystemCalendars.length > 0
-        ? nonSystemCalendars[0].id
-        : calendars[0].id;
+      nonSystemCalendars.length > 0 ? nonSystemCalendars[0].id : calendars[0].id;
 
     // 同时打开编辑对话框
     const newEvent: any = {
@@ -111,7 +106,7 @@ const MonthView = () => {
     }
 
     // 从 dateGrid 中获取对应的日期
-    const validDays = dateGrid.filter((d) => d !== null) as number[];
+    const validDays = dateGrid.filter(d => d !== null) as number[];
     if (startIndex >= validDays.length || endIndex >= validDays.length) return;
 
     const startDay = validDays[startIndex];
@@ -134,13 +129,8 @@ const MonthView = () => {
     handleCreateEvent(startDate, endDate);
   };
 
-  const {
-    isDragging,
-    selectedRange,
-    handleMouseDown,
-    handleMouseEnter,
-    handleMouseUp,
-  } = useDateRangeDrag({ onSelect: handleDateRangeSelect });
+  const { isDragging, selectedRange, handleMouseDown, handleMouseEnter, handleMouseUp } =
+    useDateRangeDrag({ onSelect: handleDateRangeSelect });
 
   // 监听全局 mouseup 事件
   useEffect(() => {
@@ -156,7 +146,7 @@ const MonthView = () => {
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const resizeObserver = new ResizeObserver((entries) => {
+    const resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
         setContainerHeight(entry.contentRect.height);
       }
@@ -201,7 +191,7 @@ const MonthView = () => {
       .date(day)
       .startOf("day")
       .valueOf();
-    return events.filter((event) => {
+    return events.filter(event => {
       const eventStart = getDateStart(event.startDate);
       const eventEnd = event.endDate ? getDateStart(event.endDate) : eventStart;
       return dayDate >= eventStart && dayDate <= eventEnd;
@@ -227,17 +217,12 @@ const MonthView = () => {
       .endOf("month");
 
     // 检查事件是否在当月范围内（事件结束日期在月初之前，或事件开始日期在月末之后）
-    if (
-      eventEnd.isBefore(monthStart, "day") ||
-      eventStart.isAfter(monthEnd, "day")
-    ) {
+    if (eventEnd.isBefore(monthStart, "day") || eventStart.isAfter(monthEnd, "day")) {
       return { spans: [] };
     }
 
     // 将事件时间限制在当月范围内
-    const displayStart = eventStart.isBefore(monthStart)
-      ? monthStart
-      : eventStart;
+    const displayStart = eventStart.isBefore(monthStart) ? monthStart : eventStart;
     const displayEnd = eventEnd.isAfter(monthEnd) ? monthEnd : eventEnd;
 
     // 获取显示范围内的日期数字
@@ -319,7 +304,7 @@ const MonthView = () => {
     if (!events || events.length === 0) return [];
 
     const result = events
-      .map((event) => {
+      .map(event => {
         const renderInfo = getEventRenderInfo(event);
         return {
           event,
@@ -344,10 +329,7 @@ const MonthView = () => {
 
     // 可用于事件的高度（预留 "+N 更多" 按钮的空间）
     const availableHeight = rowHeight - dateAreaHeight - moreButtonHeight;
-    const maxEventLevels = Math.max(
-      1,
-      Math.floor(availableHeight / eventHeight),
-    );
+    const maxEventLevels = Math.max(1, Math.floor(availableHeight / eventHeight));
 
     // 转换为算法需要的格式
     const eventsForAlgorithm = topLayoutEvents.map(({ event, renderInfo }) => ({
@@ -356,11 +338,7 @@ const MonthView = () => {
     }));
 
     // 使用新算法分配层级（传入策略参数）
-    const layoutResult = assignMonthViewLevels(
-      eventsForAlgorithm,
-      maxEventLevels,
-      "durationFirst",
-    );
+    const layoutResult = assignMonthViewLevels(eventsForAlgorithm, maxEventLevels, "durationFirst");
 
     // 转换为需要的格式
     const layout: Map<
@@ -380,11 +358,9 @@ const MonthView = () => {
         layout.set(row, []);
       }
       const rowLayout = layout.get(row)!;
-      rowItems.forEach((item) => {
+      rowItems.forEach(item => {
         // 找到对应的事件
-        const eventInfo = topLayoutEvents.find(
-          (e) => e.event.id === item.eventId,
-        );
+        const eventInfo = topLayoutEvents.find(e => e.event.id === item.eventId);
         if (eventInfo) {
           rowLayout.push({
             event: eventInfo.event,
@@ -405,16 +381,16 @@ const MonthView = () => {
       <div
         className={classNames(
           "grid grid-cols-7 border-b transition-colors",
-          themeColors.borderClass,
+          themeColors.borderClass
         )}
       >
-        {weekDays.map((day) => (
+        {weekDays.map(day => (
           <div
             key={day}
             className={classNames(
-              "border-r py-3 text-center text-sm font-medium last:border-r-0 transition-colors",
+              "border-r py-3 text-center text-sm font-medium transition-colors last:border-r-0",
               themeColors.borderClass,
-              themeColors.textClass,
+              themeColors.textClass
             )}
           >
             {day}
@@ -435,8 +411,8 @@ const MonthView = () => {
               <div
                 key={`empty-${index}`}
                 className={classNames(
-                  "border-b border-r last:border-r-0 transition-colors",
-                  themeColors.borderClass,
+                  "border-b border-r transition-colors last:border-r-0",
+                  themeColors.borderClass
                 )}
               />
             );
@@ -455,10 +431,7 @@ const MonthView = () => {
           const currentRow = Math.floor(index / 7);
           const rowSpans = rowEventLayout.get(currentRow) || [];
           // 计算该行的最大层级（同一层级的事件并排显示，不占用额外高度）
-          const maxLevel =
-            rowSpans.length > 0
-              ? Math.max(...rowSpans.map((item) => item.level))
-              : -1;
+          const maxLevel = rowSpans.length > 0 ? Math.max(...rowSpans.map(item => item.level)) : -1;
           const numLevels = maxLevel + 1;
           // 每层 24px（18px 高度 + 6px 间距）
           const topEventsHeight = numLevels * 24;
@@ -467,21 +440,19 @@ const MonthView = () => {
           const dayCol = index % 7; // 当前日期在网格中的列位置
           const renderedTopEventIds = new Set(
             rowSpans
-              .filter((item) => {
+              .filter(item => {
                 const span = item.span;
                 // 检查这个 span 是否包含当前列
                 const spanStart = span.startCol;
                 const spanEnd = span.endCol;
                 return dayCol >= spanStart && dayCol <= spanEnd;
               })
-              .map((item) => item.event.id),
+              .map(item => item.event.id)
           );
           const displayedTopCount = renderedTopEventIds.size;
 
           // 计算实际的日期索引（排除空白格）
-          const validDayIndex = dateGrid
-            .slice(0, index)
-            .filter((d) => d !== null).length;
+          const validDayIndex = dateGrid.slice(0, index).filter(d => d !== null).length;
 
           return (
             <div
@@ -494,9 +465,9 @@ const MonthView = () => {
               onMouseDown={handleMouseDown(validDayIndex)}
               onMouseEnter={() => handleMouseEnter(validDayIndex)}
               className={classNames(
-                "group relative flex flex-col border-b border-r p-2 last:border-r-0 cursor-pointer select-none transition-colors",
+                "group relative flex cursor-pointer select-none flex-col border-b border-r p-2 transition-colors last:border-r-0",
                 themeColors.borderClass,
-                themeColors.hoverClass,
+                themeColors.hoverClass
               )}
             >
               <div className="mb-1 flex justify-end">
@@ -504,24 +475,17 @@ const MonthView = () => {
                   className={classNames(
                     "flex h-7 w-7 items-center justify-center rounded-full text-sm transition-colors",
                     isTodayDate
-                      ? [
-                          "font-bold",
-                          themeColors.activeClass,
-                          themeColors.activeTextClass,
-                        ]
-                      : themeColors.textClass,
+                      ? ["font-bold", themeColors.activeClass, themeColors.activeTextClass]
+                      : themeColors.textClass
                   )}
                 >
                   {day}
                 </span>
               </div>
 
-              <div className="flex flex-col flex-1">
+              <div className="flex flex-1 flex-col">
                 {/* 在月视图中，所有事件都在顶部统一布局，单元格内部不再单独显示事件 */}
-                <div
-                  className="flex-1"
-                  style={{ marginTop: `${topEventsHeight}px` }}
-                ></div>
+                <div className="flex-1" style={{ marginTop: `${topEventsHeight}px` }}></div>
                 {(() => {
                   // 计算实际显示的事件数量
                   // 月视图中所有事件都在顶部统一显示
@@ -537,12 +501,12 @@ const MonthView = () => {
                     return (
                       <div
                         className={classNames(
-                          "cursor-pointer text-xs px-1 shrink-0 transition-colors",
+                          "shrink-0 cursor-pointer px-1 text-xs transition-colors",
                           themeColors.textClass,
-                          themeColors.hoverTextClass,
+                          themeColors.hoverTextClass
                         )}
                         style={{ paddingBottom: "2px", lineHeight: "16px" }}
-                        onClick={(e) => {
+                        onClick={e => {
                           e.stopPropagation();
                           setMoreEventsDay(day);
                           // 排序：全日事件在前，然后是非全日事件按 startTime 排序
@@ -550,17 +514,15 @@ const MonthView = () => {
                             if (a.allDay && !b.allDay) return -1;
                             if (!a.allDay && b.allDay) return 1;
                             if (!a.allDay && !b.allDay) {
-                              const aTime =
-                                a.startTime ?? Number.MAX_SAFE_INTEGER;
-                              const bTime =
-                                b.startTime ?? Number.MAX_SAFE_INTEGER;
+                              const aTime = a.startTime ?? Number.MAX_SAFE_INTEGER;
+                              const bTime = b.startTime ?? Number.MAX_SAFE_INTEGER;
                               return aTime - bTime;
                             }
                             return 0;
                           });
                           setMoreEventsList(sortedEvents);
                         }}
-                        onMouseDown={(e) => {
+                        onMouseDown={e => {
                           e.stopPropagation();
                         }}
                       >
@@ -576,16 +538,13 @@ const MonthView = () => {
         })}
 
         {/* 事件渲染层（所有事件统一在顶部布局） */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
           {/* 渲染实际事件 */}
           {Array.from(rowEventLayout.entries()).map(([_row, rowEvents]) => {
             return rowEvents.map(({ event, span, level }) => {
-              const calendar = calendars.find((c) => c.id === event.calendarId);
+              const calendar = calendars.find(c => c.id === event.calendarId);
               const color = event.color || calendar?.color || "blue";
-              const colorValue = getProjectColorValue(
-                color,
-                theme === "dark" ? "dark" : "light",
-              );
+              const colorValue = getProjectColorValue(color, theme === "dark" ? "dark" : "light");
 
               // 计算位置 - 基于网格系统
               const cellWidth = 100 / 7;
@@ -608,14 +567,14 @@ const MonthView = () => {
               return (
                 <div
                   key={`${event.id}-${span.row}-${span.spanType}`}
-                  onClick={(e) => {
+                  onClick={e => {
                     e.stopPropagation();
                     setEditingEvent(event);
                   }}
-                  onMouseDown={(e) => {
+                  onMouseDown={e => {
                     e.stopPropagation();
                   }}
-                  className="absolute cursor-pointer text-xs text-white shadow-sm pointer-events-auto flex items-center hover:opacity-90 transition-opacity"
+                  className="pointer-events-auto absolute flex cursor-pointer items-center text-xs text-white shadow-sm transition-opacity hover:opacity-90"
                   style={{
                     backgroundColor: colorValue,
                     left: `calc(${left}% + 4px)`,
@@ -641,15 +600,11 @@ const MonthView = () => {
             selectedRange &&
             (() => {
               // 计算拖拽范围的 spans
-              const validDays = dateGrid.filter((d) => d !== null) as number[];
+              const validDays = dateGrid.filter(d => d !== null) as number[];
               const startIndex = selectedRange.start;
               const endIndex = selectedRange.end;
 
-              if (
-                startIndex >= validDays.length ||
-                endIndex >= validDays.length
-              )
-                return null;
+              if (startIndex >= validDays.length || endIndex >= validDays.length) return null;
 
               // 找到开始和结束日期在网格中的实际索引
               let realStartIndex = -1;
@@ -734,7 +689,7 @@ const MonthView = () => {
                 return (
                   <div
                     key={`drag-preview-${idx}`}
-                    className="absolute pointer-events-none flex items-center"
+                    className="pointer-events-none absolute flex items-center"
                     style={{
                       backgroundColor: "rgba(59, 130, 246, 0.5)", // 蓝色半透明
                       left: `calc(${left}% + 4px)`,
@@ -755,14 +710,8 @@ const MonthView = () => {
           {/* 渲染待创建事件预览条（弹窗打开时） */}
           {pendingEvent &&
             (() => {
-              const startDate = Math.min(
-                pendingEvent.startDate,
-                pendingEvent.endDate,
-              );
-              const endDate = Math.max(
-                pendingEvent.startDate,
-                pendingEvent.endDate,
-              );
+              const startDate = Math.min(pendingEvent.startDate, pendingEvent.endDate);
+              const endDate = Math.max(pendingEvent.startDate, pendingEvent.endDate);
 
               // 找到开始和结束日期在网格中的索引
               let realStartIndex = -1;
@@ -848,7 +797,7 @@ const MonthView = () => {
                 return (
                   <div
                     key={`pending-preview-${idx}`}
-                    className="absolute pointer-events-none flex items-center bg-blue-500/80"
+                    className="bg-[var(--th-accent)]/80 pointer-events-none absolute flex items-center"
                     style={{
                       left: `calc(${left}% + 4px)`,
                       width: `calc(${width}% - 8px)`,
@@ -877,23 +826,23 @@ const MonthView = () => {
         >
           <div
             className={classNames(
-              "w-full max-w-3xl rounded-lg shadow-xl flex flex-col transition-colors",
-              themeColors.modalPanelBg,
+              "flex w-full max-w-3xl flex-col rounded-lg shadow-xl transition-colors",
+              themeColors.modalPanelBg
             )}
             style={{ height: "800px", maxHeight: "calc(100vh - 200px)" }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
           >
             {/* 头部 */}
             <div
               className={classNames(
-                "flex items-center justify-between border-b px-6 py-4 shrink-0 transition-colors",
-                themeColors.borderClass,
+                "flex shrink-0 items-center justify-between border-b px-6 py-4 transition-colors",
+                themeColors.borderClass
               )}
             >
               <h3
                 className={classNames(
                   "text-lg font-semibold transition-colors",
-                  themeColors.activeTextClass,
+                  themeColors.activeTextClass
                 )}
               >
                 {year}年{month}月{moreEventsDay}日的事件
@@ -903,28 +852,18 @@ const MonthView = () => {
                   setMoreEventsDay(null);
                   setMoreEventsList([]);
                 }}
-                className={classNames(
-                  "rounded-lg p-1 transition-colors",
-                  themeColors.hoverClass,
-                )}
+                className={classNames("rounded-lg p-1 transition-colors", themeColors.hoverClass)}
               >
-                <MdClose
-                  className={classNames("h-5 w-5", themeColors.textClass)}
-                />
+                <MdClose className={classNames("h-5 w-5", themeColors.textClass)} />
               </button>
             </div>
 
             {/* 事件列表 - 使用 AgendaView 样式 */}
             <div className="flex-1 overflow-y-auto">
               {moreEventsList.map((event, index) => {
-                const calendar = calendars.find(
-                  (c) => c.id === event.calendarId,
-                );
+                const calendar = calendars.find(c => c.id === event.calendarId);
                 const color = event.color || calendar?.color || "blue";
-                const colorValue = getProjectColorValue(
-                  color,
-                  theme === "dark" ? "dark" : "light",
-                );
+                const colorValue = getProjectColorValue(color, theme === "dark" ? "dark" : "light");
 
                 // 判断是否有描述内容
                 const hasDescription =
@@ -949,7 +888,7 @@ const MonthView = () => {
                     className={classNames(
                       "group flex cursor-pointer gap-4 border-b px-6 py-4 transition-colors last:border-b-0",
                       themeColors.borderClass,
-                      themeColors.hoverClass,
+                      themeColors.hoverClass
                     )}
                   >
                     {/* 左侧：日期显示（仅第一个事件） */}
@@ -958,7 +897,7 @@ const MonthView = () => {
                         <div
                           className={classNames(
                             "text-4xl font-light transition-colors",
-                            themeColors.activeTextClass,
+                            themeColors.activeTextClass
                           )}
                         >
                           {moreEventsDay}
@@ -966,19 +905,11 @@ const MonthView = () => {
                         <div
                           className={classNames(
                             "mt-1 text-xs transition-colors",
-                            themeColors.textClass,
+                            themeColors.textClass
                           )}
                         >
                           {
-                            [
-                              "周日",
-                              "周一",
-                              "周二",
-                              "周三",
-                              "周四",
-                              "周五",
-                              "周六",
-                            ][
+                            ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][
                               dayjs()
                                 .year(year)
                                 .month(month - 1)
@@ -989,8 +920,8 @@ const MonthView = () => {
                         </div>
                         <div
                           className={classNames(
-                            "mt-1 text-xs transition-colors opacity-80",
-                            themeColors.textClass,
+                            "mt-1 text-xs opacity-80 transition-colors",
+                            themeColors.textClass
                           )}
                         >
                           {month}月
@@ -1000,56 +931,49 @@ const MonthView = () => {
                     {index > 0 && <div className="w-16 shrink-0"></div>}
 
                     {/* 中间：时间轴 */}
-                    <div className="flex flex-col items-center shrink-0 pt-2">
+                    <div className="flex shrink-0 flex-col items-center pt-2">
                       {/* 圆圈 */}
                       <div
                         className={classNames(
-                          "w-3 h-3 rounded-full border-2 transition-colors",
-                          themeColors.cardBgClass,
+                          "h-3 w-3 rounded-full border-2 transition-colors",
+                          themeColors.cardBgClass
                         )}
                         style={{ borderColor: colorValue }}
                       ></div>
                       {/* 时间标签 */}
                       <div
                         className={classNames(
-                          "mt-1 text-xs whitespace-nowrap transition-colors",
-                          themeColors.textClass,
+                          "mt-1 whitespace-nowrap text-xs transition-colors",
+                          themeColors.textClass
                         )}
                       >
                         {event.allDay
                           ? "全天"
-                          : event.startTime !== null &&
-                            formatTime(event.startTime)}
+                          : event.startTime !== null && formatTime(event.startTime)}
                       </div>
                     </div>
 
                     {/* 右侧：事件卡片 */}
-                    <div className="flex-1 min-w-0 relative ml-4">
+                    <div className="relative ml-4 min-w-0 flex-1">
                       <div
-                        className="border-l-4 px-4 py-3 rounded"
+                        className="rounded border-l-4 px-4 py-3"
                         style={{
                           borderLeftColor: colorValue,
                           backgroundColor: hexToRgba(colorValue, 0.1),
                         }}
                       >
                         {/* 时间范围 */}
-                        {!event.allDay &&
-                          event.startTime !== null &&
-                          event.endTime !== null && (
-                            <div
-                              className="text-sm font-medium mb-1"
-                              style={{ color: colorValue }}
-                            >
-                              {formatTime(event.startTime)} -{" "}
-                              {formatTime(event.endTime)}
-                            </div>
-                          )}
+                        {!event.allDay && event.startTime !== null && event.endTime !== null && (
+                          <div className="mb-1 text-sm font-medium" style={{ color: colorValue }}>
+                            {formatTime(event.startTime)} - {formatTime(event.endTime)}
+                          </div>
+                        )}
 
                         {/* 标题 */}
                         <div
                           className={classNames(
-                            "text-base font-medium mb-1 transition-colors",
-                            themeColors.activeTextClass,
+                            "mb-1 text-base font-medium transition-colors",
+                            themeColors.activeTextClass
                           )}
                         >
                           {event.title}
@@ -1059,17 +983,14 @@ const MonthView = () => {
                         {hasDescription && (
                           <div
                             className={classNames(
-                              "text-xs mt-2 transition-colors",
-                              themeColors.textClass,
+                              "mt-2 text-xs transition-colors",
+                              themeColors.textClass
                             )}
                           >
                             <Editor
-                              ref={(ref) => {
+                              ref={ref => {
                                 if (ref) {
-                                  editorRefsMap.current.set(
-                                    String(event.id),
-                                    ref,
-                                  );
+                                  editorRefsMap.current.set(String(event.id), ref);
                                 }
                               }}
                               initValue={event.detailContent}

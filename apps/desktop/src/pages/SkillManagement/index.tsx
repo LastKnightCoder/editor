@@ -97,14 +97,11 @@ const FileTreeNode = memo(
 
     return (
       <div>
-        <Dropdown
-          menu={{ items: getContextMenu(file) }}
-          trigger={["contextMenu"]}
-        >
+        <Dropdown menu={{ items: getContextMenu(file) }} trigger={["contextMenu"]}>
           <div
             className={classNames(
-              "flex items-center px-3 py-2 mx-2 my-0.5 rounded-md cursor-pointer transition-colors duration-200",
-              isSelected ? themeColors.activeClass : themeColors.hoverClass,
+              "mx-2 my-0.5 flex cursor-pointer items-center rounded-md px-3 py-2 transition-colors duration-200",
+              isSelected ? themeColors.activeClass : themeColors.hoverClass
             )}
             style={{ paddingLeft: `${level * 16 + 12}px` }}
             onClick={() => {
@@ -116,11 +113,8 @@ const FileTreeNode = memo(
             }}
           >
             <div
-              className={classNames(
-                "shrink-0 mr-2 text-base",
-                themeColors.secondaryTextClass,
-              )}
-              onClick={(event) => {
+              className={classNames("mr-2 shrink-0 text-base", themeColors.secondaryTextClass)}
+              onClick={event => {
                 if (!file.isDirectory) return;
                 event.stopPropagation();
                 void onToggle(file.path);
@@ -147,14 +141,14 @@ const FileTreeNode = memo(
         </Dropdown>
         {file.isDirectory && isExpanded && (
           <div>
-            {children.map((childProps) => (
+            {children.map(childProps => (
               <FileTreeNode key={childProps.file.path} {...childProps} />
             ))}
             {isLoading && children.length === 0 && (
               <div
                 className={classNames(
-                  "px-3 py-2 mx-2 my-0.5 text-sm",
-                  themeColors.secondaryTextClass,
+                  "mx-2 my-0.5 px-3 py-2 text-sm",
+                  themeColors.secondaryTextClass
                 )}
                 style={{ paddingLeft: `${(level + 1) * 16 + 12}px` }}
               >
@@ -165,7 +159,7 @@ const FileTreeNode = memo(
         )}
       </div>
     );
-  },
+  }
 );
 
 FileTreeNode.displayName = "FileTreeNode";
@@ -228,7 +222,7 @@ const SkillManagement = memo(() => {
   const { message, modal } = App.useApp();
   const themeColors = useThemeColors();
   const { isDark } = useTheme();
-  const loadSkills = useSkillStore((state) => state.loadSkills);
+  const loadSkills = useSkillStore(state => state.loadSkills);
 
   const [fileMap, setFileMap] = useState<Map<string, SkillFile[]>>(new Map());
   const [skillsDir, setSkillsDir] = useState("");
@@ -238,7 +232,7 @@ const SkillManagement = memo(() => {
     "skill-management-expanded-paths",
     {
       defaultValue: [],
-    },
+    }
   );
   const expanded = new Set(expandedPaths || []);
   const loadingPathSet = new Set(loadingPaths);
@@ -267,10 +261,7 @@ const SkillManagement = memo(() => {
   const loadFiles = useMemoizedFn(async () => {
     setLoading(true);
     try {
-      const [fileTree, dir] = await Promise.all([
-        getFileTree(),
-        getSkillsDir(),
-      ]);
+      const [fileTree, dir] = await Promise.all([getFileTree(), getSkillsDir()]);
       setSkillsDir(dir);
 
       // 构建文件映射（父路径 -> 子文件列表）
@@ -294,20 +285,18 @@ const SkillManagement = memo(() => {
     }
 
     loadingPathsRef.current.add(dirPath);
-    setLoadingPaths((prev) =>
-      prev.includes(dirPath) ? prev : [...prev, dirPath],
-    );
+    setLoadingPaths(prev => (prev.includes(dirPath) ? prev : [...prev, dirPath]));
 
     try {
       const childrenFiles = await getFileTree(dirPath);
-      setFileMap((prev) => new Map(prev).set(dirPath, childrenFiles));
+      setFileMap(prev => new Map(prev).set(dirPath, childrenFiles));
       return childrenFiles;
     } catch (error) {
       message.error(`加载子文件失败: ${(error as Error).message}`);
       return [];
     } finally {
       loadingPathsRef.current.delete(dirPath);
-      setLoadingPaths((prev) => prev.filter((path) => path !== dirPath));
+      setLoadingPaths(prev => prev.filter(path => path !== dirPath));
     }
   });
 
@@ -320,7 +309,7 @@ const SkillManagement = memo(() => {
       return;
     }
 
-    expanded.forEach((path) => {
+    expanded.forEach(path => {
       void loadChildren(path);
     });
   }, [expandedPaths, loadChildren, skillsDir]);
@@ -426,122 +415,120 @@ description: ""
         console.error("自动保存失败:", error);
       }
     },
-    { wait: 500 },
+    { wait: 500 }
   );
 
   const handleCodeChange = useMemoizedFn(
     (_editor: CodeMirrorEditorType, _change: EditorChange, code: string) => {
       currentCodeText.current = code;
       saveCodeFile();
-    },
+    }
   );
 
   const onCodeEditorDidMount = useMemoizedFn((editor: CodeMirrorEditorType) => {
     codeEditorRef.current = editor;
   });
 
-  const getContextMenu = useMemoizedFn(
-    (file: SkillFile): MenuProps["items"] => {
-      const items: MenuProps["items"] = [];
+  const getContextMenu = useMemoizedFn((file: SkillFile): MenuProps["items"] => {
+    const items: MenuProps["items"] = [];
 
-      if (file.isDirectory) {
-        items.push({
-          key: "create-file",
-          label: "新建文件",
-          icon: <AiOutlinePlus />,
-          onClick: () => {
-            setCreateType("file");
-            setCreateParentPath(file.path);
-            setCreateName("");
-            setCreateModalVisible(true);
-          },
-        });
-        items.push({
-          key: "create-folder",
-          label: "新建文件夹",
-          icon: <AiOutlinePlus />,
-          onClick: () => {
-            setCreateType("folder");
-            setCreateParentPath(file.path);
-            setCreateName("");
-            setCreateModalVisible(true);
-          },
-        });
-      }
-
+    if (file.isDirectory) {
       items.push({
-        key: "show-in-folder",
-        label: "在文件系统中显示",
-        icon: <AiOutlineFolderView />,
-        onClick: async () => {
-          try {
-            await showInFolder(file.path);
-          } catch (error) {
-            message.error(`打开失败: ${(error as Error).message}`);
-          }
+        key: "create-file",
+        label: "新建文件",
+        icon: <AiOutlinePlus />,
+        onClick: () => {
+          setCreateType("file");
+          setCreateParentPath(file.path);
+          setCreateName("");
+          setCreateModalVisible(true);
         },
       });
-
       items.push({
-        key: "rename",
-        label: "重命名",
-        icon: <AiOutlineEdit />,
-        disabled: file.name === "SKILL.md",
+        key: "create-folder",
+        label: "新建文件夹",
+        icon: <AiOutlinePlus />,
         onClick: () => {
-          // SKILL.md 不允许重命名
-          if (file.name === "SKILL.md") {
-            message.warning("SKILL.md 是必需文件，不允许重命名");
-            return;
-          }
-
-          setRenamingFile(file);
-          setNewName(file.name);
-          setRenameModalVisible(true);
+          setCreateType("folder");
+          setCreateParentPath(file.path);
+          setCreateName("");
+          setCreateModalVisible(true);
         },
       });
+    }
 
-      items.push({
-        key: "delete",
-        label: "删除",
-        icon: <AiOutlineDelete />,
-        danger: true,
-        disabled: file.name === "SKILL.md",
-        onClick: () => {
-          // SKILL.md 不允许删除
-          if (file.name === "SKILL.md") {
-            message.warning("SKILL.md 是必需文件，不允许删除");
-            return;
-          }
+    items.push({
+      key: "show-in-folder",
+      label: "在文件系统中显示",
+      icon: <AiOutlineFolderView />,
+      onClick: async () => {
+        try {
+          await showInFolder(file.path);
+        } catch (error) {
+          message.error(`打开失败: ${(error as Error).message}`);
+        }
+      },
+    });
 
-          modal.confirm({
-            title: "确认删除",
-            content: `确定要删除 "${file.name}" 吗？${file.isDirectory ? "这将删除文件夹及其所有内容。" : ""}`,
-            okButtonProps: { danger: true },
-            okText: "删除",
-            cancelText: "取消",
-            onOk: async () => {
-              try {
-                await deleteFileOrFolder(file.path);
-                message.success("删除成功");
-                if (selectedFile?.path === file.path) {
-                  setSelectedFile(null);
-                  setFileContent([]);
-                  setCodeContent("");
-                  currentMarkdownText.current = "";
-                  currentCodeText.current = "";
-                }
-                await loadFiles();
-              } catch (error) {
-                message.error(`删除失败: ${(error as Error).message}`);
+    items.push({
+      key: "rename",
+      label: "重命名",
+      icon: <AiOutlineEdit />,
+      disabled: file.name === "SKILL.md",
+      onClick: () => {
+        // SKILL.md 不允许重命名
+        if (file.name === "SKILL.md") {
+          message.warning("SKILL.md 是必需文件，不允许重命名");
+          return;
+        }
+
+        setRenamingFile(file);
+        setNewName(file.name);
+        setRenameModalVisible(true);
+      },
+    });
+
+    items.push({
+      key: "delete",
+      label: "删除",
+      icon: <AiOutlineDelete />,
+      danger: true,
+      disabled: file.name === "SKILL.md",
+      onClick: () => {
+        // SKILL.md 不允许删除
+        if (file.name === "SKILL.md") {
+          message.warning("SKILL.md 是必需文件，不允许删除");
+          return;
+        }
+
+        modal.confirm({
+          title: "确认删除",
+          content: `确定要删除 "${file.name}" 吗？${file.isDirectory ? "这将删除文件夹及其所有内容。" : ""}`,
+          okButtonProps: { danger: true },
+          okText: "删除",
+          cancelText: "取消",
+          onOk: async () => {
+            try {
+              await deleteFileOrFolder(file.path);
+              message.success("删除成功");
+              if (selectedFile?.path === file.path) {
+                setSelectedFile(null);
+                setFileContent([]);
+                setCodeContent("");
+                currentMarkdownText.current = "";
+                currentCodeText.current = "";
               }
-            },
-          });
-        },
-      });
+              await loadFiles();
+            } catch (error) {
+              message.error(`删除失败: ${(error as Error).message}`);
+            }
+          },
+        });
+      },
+    });
 
-      return items;
-    },
-  );
+    return items;
+  });
 
   // 键盘快捷键
   useEffect(() => {
@@ -635,12 +622,9 @@ description: ""
     }
   });
 
-  const buildFileTree = (
-    parentPath: string,
-    level = 0,
-  ): FileTreeNodeProps[] => {
+  const buildFileTree = (parentPath: string, level = 0): FileTreeNodeProps[] => {
     const children = fileMap.get(parentPath) || [];
-    return children.map((file) => ({
+    return children.map(file => ({
       file,
       level,
       expanded,
@@ -655,7 +639,7 @@ description: ""
   };
 
   return (
-    <div className="flex w-full h-full overflow-hidden">
+    <div className="flex h-full w-full overflow-hidden">
       {/* 左侧文件树 */}
       <ResizeableAndHideableSidebar
         width={sidebarWidth}
@@ -664,34 +648,21 @@ description: ""
         disableResize={false}
         className="h-full overflow-hidden"
       >
-        <div
-          className={classNames(
-            "h-full flex flex-col border-r",
-            themeColors.borderClass,
-          )}
-        >
+        <div className={classNames("flex h-full flex-col border-r", themeColors.borderClass)}>
           {/* 标题栏 */}
           <div
             className={classNames(
-              "px-4 py-3 flex justify-between items-center border-b",
-              themeColors.borderClass,
+              "flex items-center justify-between border-b px-4 py-3",
+              themeColors.borderClass
             )}
           >
-            <h3
-              className={classNames(
-                "m-0 text-base font-semibold",
-                themeColors.activeTextClass,
-              )}
-            >
+            <h3 className={classNames("m-0 text-base font-semibold", themeColors.activeTextClass)}>
               Skills
             </h3>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCreateSkillModalVisible(true)}
-                className={classNames(
-                  "p-1.5 rounded-md transition-colors",
-                  themeColors.hoverClass,
-                )}
+                className={classNames("rounded-md p-1.5 transition-colors", themeColors.hoverClass)}
                 title="新建 Skill"
               >
                 <AiOutlinePlus />
@@ -700,9 +671,9 @@ description: ""
                 onClick={loadFiles}
                 disabled={loading}
                 className={classNames(
-                  "p-1.5 rounded-md transition-colors",
+                  "rounded-md p-1.5 transition-colors",
                   themeColors.hoverClass,
-                  loading && "opacity-50 cursor-not-allowed",
+                  loading && "cursor-not-allowed opacity-50"
                 )}
                 title="刷新"
               >
@@ -714,7 +685,7 @@ description: ""
           {/* 文件树 */}
           <div className="flex-1 overflow-y-auto py-2">
             {skillsDir &&
-              buildFileTree(skillsDir).map((props) => (
+              buildFileTree(skillsDir).map(props => (
                 <FileTreeNode key={props.file.path} {...props} />
               ))}
           </div>
@@ -722,32 +693,19 @@ description: ""
       </ResizeableAndHideableSidebar>
 
       {/* 右侧编辑器 */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {selectedFile ? (
           <>
             {/* 编辑器顶部栏 - 显示文件名 */}
-            <div
-              className={classNames(
-                "px-6 py-3 border-b",
-                themeColors.borderClass,
-              )}
-            >
+            <div className={classNames("border-b px-6 py-3", themeColors.borderClass)}>
               <div className="flex items-center justify-between">
                 <div>
                   <div
-                    className={classNames(
-                      "text-base font-semibold",
-                      themeColors.activeTextClass,
-                    )}
+                    className={classNames("text-base font-semibold", themeColors.activeTextClass)}
                   >
                     {selectedFile.name}
                   </div>
-                  <div
-                    className={classNames(
-                      "text-xs mt-0.5",
-                      themeColors.secondaryTextClass,
-                    )}
-                  >
+                  <div className={classNames("mt-0.5 text-xs", themeColors.secondaryTextClass)}>
                     {selectedFile.path}
                   </div>
                 </div>
@@ -755,10 +713,10 @@ description: ""
             </div>
 
             {/* 编辑器 */}
-            <div className="flex-1 border-20 border-transparent overflow-auto">
+            <div className="border-20 flex-1 overflow-auto border-transparent">
               <ErrorBoundary>
                 {selectedFile.isMarkdown ? (
-                  <div className="p-5 h-full">
+                  <div className="h-full p-5">
                     <Editor
                       key={selectedFile.path}
                       ref={editorRef}
@@ -766,12 +724,12 @@ description: ""
                       onChange={handleContentChange}
                       readonly={false}
                       theme={isDark ? "dark" : "light"}
-                      className="h-full max-w-[720px] mx-auto"
+                      className="mx-auto h-full max-w-[720px]"
                     />
                   </div>
                 ) : (
                   <div className="h-full p-6">
-                    <div className="h-full max-w-[720px] mx-auto">
+                    <div className="mx-auto h-full max-w-[720px]">
                       <style>{`
                         .skill-code-editor .CodeMirror {
                           box-shadow: var(--code-block-shadow);
@@ -830,13 +788,10 @@ description: ""
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-1 items-center justify-center">
             <div className="text-center">
               <MdOutlineDescription
-                className={classNames(
-                  "text-6xl mx-auto mb-4",
-                  themeColors.secondaryTextClass,
-                )}
+                className={classNames("mx-auto mb-4 text-6xl", themeColors.secondaryTextClass)}
               />
               <p className={classNames("text-sm", themeColors.textClass)}>
                 选择一个 Markdown 文件进行编辑
@@ -850,7 +805,7 @@ description: ""
       <AnimatePresence>
         {hideSidebar && (
           <motion.div
-            className="absolute top-5 left-5 z-10"
+            className="absolute left-5 top-5 z-10"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -875,24 +830,22 @@ description: ""
         cancelText="取消"
       >
         <div className="py-4">
-          <div className={classNames("text-sm mb-2", themeColors.textClass)}>
-            {createType === "file"
-              ? "文件名（需要包含后缀，如 .md）"
-              : "文件夹名"}
+          <div className={classNames("mb-2 text-sm", themeColors.textClass)}>
+            {createType === "file" ? "文件名（需要包含后缀，如 .md）" : "文件夹名"}
           </div>
           <input
             value={createName}
-            onChange={(e) => setCreateName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleCreateConfirm()}
+            onChange={e => setCreateName(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleCreateConfirm()}
             placeholder={createType === "file" ? "example.md" : "新文件夹"}
             autoFocus
             className={classNames(
-              "w-full px-4 py-3 rounded-xl text-sm outline-none transition-all",
-              "bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700",
-              "text-gray-800 dark:text-white shadow-inner",
+              "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all",
+              "border border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-zinc-950",
+              "text-gray-800 shadow-inner dark:text-white",
               "placeholder:text-gray-400 dark:placeholder:text-slate-500",
-              "focus:border-blue-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)]",
-              "dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]",
+              "focus:border-[var(--th-border-focus)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)]",
+              "dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]"
             )}
           />
         </div>
@@ -908,22 +861,20 @@ description: ""
         cancelText="取消"
       >
         <div className="py-4">
-          <div className={classNames("text-sm mb-2", themeColors.textClass)}>
-            新名称
-          </div>
+          <div className={classNames("mb-2 text-sm", themeColors.textClass)}>新名称</div>
           <input
             value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleRenameConfirm()}
+            onChange={e => setNewName(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleRenameConfirm()}
             placeholder="请输入新名称"
             autoFocus
             className={classNames(
-              "w-full px-4 py-3 rounded-xl text-sm outline-none transition-all",
-              "bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700",
-              "text-gray-800 dark:text-white shadow-inner",
+              "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all",
+              "border border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-zinc-950",
+              "text-gray-800 shadow-inner dark:text-white",
               "placeholder:text-gray-400 dark:placeholder:text-slate-500",
-              "focus:border-blue-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)]",
-              "dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]",
+              "focus:border-[var(--th-border-focus)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)]",
+              "dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]"
             )}
           />
         </div>

@@ -23,26 +23,14 @@ const ConfigTable = ({
   const themeColors = useThemeColors();
 
   return (
-    <div
-      className={classNames(
-        "rounded-xl bg-transparent border",
-        themeColors.focusBorderClass,
-      )}
-    >
-      <div
-        className={classNames("flex items-center justify-between px-5 py-4")}
-      >
+    <div className={classNames("rounded-xl border bg-transparent", themeColors.borderClass)}>
+      <div className={classNames("flex items-center justify-between px-5 py-4")}>
         <h3 className={classNames("text-base font-semibold")}>Provider 列表</h3>
         <SettingButton
           variant="primary"
           onClick={onAddConfig}
           icon={
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -59,43 +47,35 @@ const ConfigTable = ({
       <div className="p-4">
         {configs.length > 0 ? (
           <div className="space-y-3">
-            {configs.map((config) => {
+            {configs.map(config => {
               const isActive = config.id === currentConfigId;
               return (
                 <div
                   key={config.id}
                   className={classNames(
-                    "p-4 rounded-lg transition-colors",
+                    "rounded-lg p-4 transition-colors",
                     isActive
                       ? classNames(themeColors.activeBgClass)
-                      : classNames("bg-transparent", themeColors.hoverClass),
+                      : classNames("bg-transparent", themeColors.hoverClass)
                   )}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span
                           className={classNames(
                             "font-medium",
-                            isActive
-                              ? themeColors.activeTextClass
-                              : themeColors.secondaryTextClass,
+                            isActive ? themeColors.activeTextClass : themeColors.secondaryTextClass
                           )}
                         >
                           {config.name}
                         </span>
                         <span
                           className={classNames(
-                            "px-2 py-0.5 text-xs font-medium rounded-full",
+                            "rounded-full px-2 py-0.5 text-xs font-medium",
                             isActive
-                              ? classNames(
-                                  themeColors.activeBgClass,
-                                  themeColors.activeTextClass,
-                                )
-                              : classNames(
-                                  themeColors.secondaryTextClass,
-                                  themeColors.tagBgClass,
-                                ),
+                              ? classNames(themeColors.activeBgClass, themeColors.activeTextClass)
+                              : classNames(themeColors.secondaryTextClass, themeColors.tagBgClass)
                           )}
                         >
                           {isActive ? "使用中" : "未使用"}
@@ -104,28 +84,23 @@ const ConfigTable = ({
 
                       <div
                         className={classNames(
-                          "text-sm mt-1 truncate",
-                          themeColors.secondaryTextClass,
+                          "mt-1 truncate text-sm",
+                          themeColors.secondaryTextClass
                         )}
                       >
                         {config.baseUrl || "未设置 Base URL"}
                       </div>
 
-                      <div
-                        className={classNames(
-                          "text-xs mt-1",
-                          themeColors.secondaryTextClass,
-                        )}
-                      >
+                      <div className={classNames("mt-1 text-xs", themeColors.secondaryTextClass)}>
                         {config.models?.length || 0} 个模型
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 ml-4">
+                    <div className="ml-4 flex items-center gap-2">
                       {!isActive && (
                         <button
                           onClick={() => onActivateConfig(config.id)}
-                          className="px-3 py-1.5 text-sm text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-500/10 rounded-lg transition-colors"
+                          className="text-status-success hover:text-status-success hover:bg-[var(--th-success)]/10 rounded-lg px-3 py-1.5 text-sm transition-colors"
                         >
                           启用
                         </button>
@@ -133,17 +108,17 @@ const ConfigTable = ({
                       <button
                         onClick={() => onEditConfig(config)}
                         className={classNames(
-                          "px-3 py-1.5 text-sm rounded-lg transition-colors",
+                          "rounded-lg px-3 py-1.5 text-sm transition-colors",
                           themeColors.secondaryTextClass,
                           themeColors.hoverClass,
-                          themeColors.hoverTextClass,
+                          themeColors.hoverTextClass
                         )}
                       >
                         编辑
                       </button>
                       <button
                         onClick={() => onDeleteConfig(config.id)}
-                        className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                        className="rounded-lg px-3 py-1.5 text-sm text-red-600 transition-colors hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-500/10"
                       >
                         删除
                       </button>
@@ -154,12 +129,7 @@ const ConfigTable = ({
             })}
           </div>
         ) : (
-          <div
-            className={classNames(
-              "py-12 text-center",
-              themeColors.secondaryTextClass,
-            )}
-          >
+          <div className={classNames("py-12 text-center", themeColors.secondaryTextClass)}>
             暂无 Provider 配置，点击上方按钮添加
           </div>
         )}

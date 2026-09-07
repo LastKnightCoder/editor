@@ -1,9 +1,6 @@
 import { useCallback, useState, useEffect } from "react";
 import classNames from "classnames";
-import {
-  StickyNote as StickyNoteIcon,
-  Trash2 as TrashIcon,
-} from "lucide-react";
+import { StickyNote as StickyNoteIcon, Trash2 as TrashIcon } from "lucide-react";
 import type { PdfAnnotation, EHighlightColor } from "@/types";
 import useThemeColors from "@/hooks/useThemeColors";
 import { HIGHLIGHT_COLORS } from "../constants";
@@ -55,9 +52,7 @@ const AreaAnnotationLayer = ({
   onAddNote,
   onDelete,
 }: AreaAnnotationLayerProps) => {
-  const [menuAnnotation, setMenuAnnotation] = useState<PdfAnnotation | null>(
-    null,
-  );
+  const [menuAnnotation, setMenuAnnotation] = useState<PdfAnnotation | null>(null);
 
   // 当 selectedAnnotationId 变为 null 时，同步关闭菜单
   useEffect(() => {
@@ -68,7 +63,7 @@ const AreaAnnotationLayer = ({
 
   // 过滤当前页面的区域标注
   const pageAnnotations = annotations.filter(
-    (anno) => anno.type === "area" && anno.areaData?.pageIndex === pageIndex,
+    anno => anno.type === "area" && anno.areaData?.pageIndex === pageIndex
   );
 
   const handleClick = useCallback(
@@ -77,7 +72,7 @@ const AreaAnnotationLayer = ({
       onSelect(annotation);
       setMenuAnnotation(annotation);
     },
-    [onSelect],
+    [onSelect]
   );
 
   const handleCloseMenu = useCallback(() => {
@@ -88,22 +83,20 @@ const AreaAnnotationLayer = ({
     (annotation: PdfAnnotation, color: EHighlightColor) => {
       onColorChange(annotation, color);
     },
-    [onColorChange],
+    [onColorChange]
   );
 
   if (pageAnnotations.length === 0) return null;
 
   return (
-    <div className="absolute inset-0 pointer-events-none z-1">
-      {pageAnnotations.map((annotation) => {
+    <div className="z-1 pointer-events-none absolute inset-0">
+      {pageAnnotations.map(annotation => {
         const { areaData, color } = annotation;
         if (!areaData) return null;
 
         const { rect } = areaData;
         const isSelected = selectedAnnotationId === annotation.id;
-        const borderColor = color
-          ? HIGHLIGHT_COLORS[color]
-          : "var(--pdf-accent)";
+        const borderColor = color ? HIGHLIGHT_COLORS[color] : "var(--pdf-accent)";
         // 背景色：有颜色时使用对应颜色的浅色透明版本，否则使用默认强调色
         const bgAlpha = isSelected ? 0.25 : 0.12;
         const backgroundColor = color
@@ -114,7 +107,7 @@ const AreaAnnotationLayer = ({
           <div
             key={annotation.id}
             className={classNames(
-              "absolute pointer-events-auto border-2 rounded cursor-pointer transition-all",
+              "pointer-events-auto absolute cursor-pointer rounded border-2 transition-all"
             )}
             style={{
               left: rect.x * scale,
@@ -124,7 +117,7 @@ const AreaAnnotationLayer = ({
               borderColor,
               backgroundColor,
             }}
-            onClick={(e) => handleClick(e, annotation)}
+            onClick={e => handleClick(e, annotation)}
           />
         );
       })}
@@ -172,15 +165,13 @@ const AreaAnnotationMenu = ({
   const menuLeft = rect.x * scale + (rect.width * scale) / 2;
   const menuTop = rect.y * scale;
 
-  const currentColor = color
-    ? HIGHLIGHT_COLORS[color]
-    : HIGHLIGHT_COLORS.yellow;
+  const currentColor = color ? HIGHLIGHT_COLORS[color] : HIGHLIGHT_COLORS.yellow;
 
   // 菜单背景样式
   const menuBg = classNames(
     themeColors.glassPanelBg,
     "backdrop-blur-xl backdrop-saturate-150",
-    themeColors.borderClass,
+    themeColors.borderClass
   );
 
   // 按钮样式
@@ -188,33 +179,33 @@ const AreaAnnotationMenu = ({
 
   return (
     <div
-      className="absolute pointer-events-none z-10 pdf-area-annotation-menu"
+      className="pdf-area-annotation-menu pointer-events-none absolute z-10"
       style={{
         left: menuLeft,
         top: menuTop,
       }}
-      onPointerDown={(e) => e.stopPropagation()}
+      onPointerDown={e => e.stopPropagation()}
     >
-      <div className="absolute -translate-x-1/2 -translate-y-full mb-2 pointer-events-auto">
+      <div className="pointer-events-auto absolute mb-2 -translate-x-1/2 -translate-y-full">
         {/* 颜色选择弹出层 */}
         {showColorPicker && (
           <div
             className={classNames(
-              "absolute -translate-x-1/2 left-1/2 bottom-full mb-1.5 flex items-center gap-1.5 px-2 py-1.5 border rounded-lg shadow-lg",
-              menuBg,
+              "absolute bottom-full left-1/2 mb-1.5 flex -translate-x-1/2 items-center gap-1.5 rounded-lg border px-2 py-1.5 shadow-lg",
+              menuBg
             )}
           >
-            {(Object.keys(HIGHLIGHT_COLORS) as EHighlightColor[]).map((key) => (
+            {(Object.keys(HIGHLIGHT_COLORS) as EHighlightColor[]).map(key => (
               <button
                 key={key}
                 type="button"
                 className={classNames(
-                  "w-5 h-5 rounded-full border-2 transition-all hover:scale-110",
+                  "h-5 w-5 rounded-full border-2 transition-all hover:scale-110",
                   {
-                    "border-blue-500 dark:border-blue-400 ring-2 ring-blue-500/30":
+                    "ring-[var(--th-accent)]/30 border-[var(--th-border-focus)] ring-2 dark:border-[var(--th-border-focus)]":
                       color === key,
                     "border-transparent": color !== key,
-                  },
+                  }
                 )}
                 style={{ background: HIGHLIGHT_COLORS[key] }}
                 onClick={() => {
@@ -229,38 +220,33 @@ const AreaAnnotationMenu = ({
         {/* 工具栏 */}
         <div
           className={classNames(
-            "flex items-center gap-0 px-1 py-1 border rounded-lg shadow-lg",
-            menuBg,
+            "flex items-center gap-0 rounded-lg border px-1 py-1 shadow-lg",
+            menuBg
           )}
         >
           {/* 颜色选择按钮 */}
           <button
             type="button"
             className={classNames(
-              "inline-flex items-center justify-center gap-1 h-7 px-2 bg-transparent rounded transition-colors",
-              buttonClass,
+              "inline-flex h-7 items-center justify-center gap-1 rounded bg-transparent px-2 transition-colors",
+              buttonClass
             )}
             onClick={() => setShowColorPicker(!showColorPicker)}
           >
             <span
-              className={classNames(
-                "w-3.5 h-3.5 rounded-full border",
-                themeColors.borderClass,
-              )}
+              className={classNames("h-3.5 w-3.5 rounded-full border", themeColors.borderClass)}
               style={{ background: currentColor }}
             />
           </button>
 
-          <div
-            className={classNames("w-px h-4 mx-0.5", themeColors.divideClass)}
-          />
+          <div className={classNames("mx-0.5 h-4 w-px", themeColors.divideClass)} />
 
           {/* 添加笔记按钮 */}
           <button
             type="button"
             className={classNames(
-              "inline-flex items-center justify-center w-7 h-7 bg-transparent rounded transition-colors",
-              buttonClass,
+              "inline-flex h-7 w-7 items-center justify-center rounded bg-transparent transition-colors",
+              buttonClass
             )}
             title="添加笔记"
             onClick={() => {
@@ -271,14 +257,12 @@ const AreaAnnotationMenu = ({
             <StickyNoteIcon size={16} />
           </button>
 
-          <div
-            className={classNames("w-px h-4 mx-0.5", themeColors.divideClass)}
-          />
+          <div className={classNames("mx-0.5 h-4 w-px", themeColors.divideClass)} />
 
           {/* 删除按钮 */}
           <button
             type="button"
-            className="inline-flex items-center justify-center w-7 h-7 bg-transparent text-red-600 dark:text-red-500 rounded transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
+            className="inline-flex h-7 w-7 items-center justify-center rounded bg-transparent text-red-600 transition-colors hover:bg-red-50 dark:text-red-500 dark:hover:bg-red-900/20"
             title="删除"
             onClick={() => {
               onDelete(annotation);

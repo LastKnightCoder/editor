@@ -45,61 +45,48 @@ const CalendarSidebar = memo(() => {
     toggleMergeMode,
     toggleCalendarForMerge,
   } = useCalendarStore();
-  const setting = useSettingStore((state) => state.setting);
+  const setting = useSettingStore(state => state.setting);
   const themeColors = useThemeColors();
   const { modal } = App.useApp();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingCalendar, setEditingCalendar] = useState<Calendar | null>(null);
   const [showCreateGroupDialog, setShowCreateGroupDialog] = useState(false);
-  const [selectedGroupForCreate, setSelectedGroupForCreate] = useState<
-    number | null
-  >(null);
+  const [selectedGroupForCreate, setSelectedGroupForCreate] = useState<number | null>(null);
   const [showMergeDialog, setShowMergeDialog] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(() => {
-    return new Set(calendarGroups.map((g) => g.id));
+    return new Set(calendarGroups.map(g => g.id));
   });
   const theme = setting.darkMode ? "dark" : "light";
 
   // 当分组列表变化时，确保新分组也被展开
   useEffect(() => {
-    setExpandedGroups((prev) => {
+    setExpandedGroups(prev => {
       const newSet = new Set(prev);
-      calendarGroups.forEach((g) => newSet.add(g.id));
+      calendarGroups.forEach(g => newSet.add(g.id));
       return newSet;
     });
   }, [calendarGroups]);
 
   // 系统分组（获取顶层系统分组，parent_group_id 为 null）
-  const systemGroup = calendarGroups.find(
-    (g) => g.isSystem && !g.parentGroupId,
-  );
+  const systemGroup = calendarGroups.find(g => g.isSystem && !g.parentGroupId);
 
   // 获取系统分组的子分组
-  const systemSubGroups = calendarGroups.filter(
-    (g) => g.parentGroupId === systemGroup?.id,
-  );
+  const systemSubGroups = calendarGroups.filter(g => g.parentGroupId === systemGroup?.id);
 
   // 用户分组（非系统分组且没有parent）
-  const userGroups = calendarGroups.filter(
-    (g) => !g.isSystem && !g.parentGroupId,
-  );
+  const userGroups = calendarGroups.filter(g => !g.isSystem && !g.parentGroupId);
 
   // 获取分组下的日历
   const getCalendarsInGroup = (groupId: number, archived: boolean) =>
-    calendars.filter(
-      (cal) => cal.groupId === groupId && cal.archived === archived,
-    );
+    calendars.filter(cal => cal.groupId === groupId && cal.archived === archived);
 
   // 获取没有分组的用户日历（排除系统日历）
   const getCalendarsWithoutGroup = (archived: boolean) =>
-    calendars.filter(
-      (cal) =>
-        !cal.groupId && !cal.isInSystemGroup && cal.archived === archived,
-    );
+    calendars.filter(cal => !cal.groupId && !cal.isInSystemGroup && cal.archived === archived);
 
   // 切换分组展开状态
   const toggleGroup = (groupId: number) => {
-    setExpandedGroups((prev) => {
+    setExpandedGroups(prev => {
       const newSet = new Set(prev);
       if (newSet.has(groupId)) {
         newSet.delete(groupId);
@@ -224,10 +211,7 @@ const CalendarSidebar = memo(() => {
   const renderCalendarItem = (calendar: Calendar, indent = false) => {
     const isSelected = selectedCalendarIds.includes(calendar.id);
     const isSelectedForMerge = selectedCalendarsForMerge.includes(calendar.id);
-    const color = getProjectColorValue(
-      calendar.color,
-      theme === "dark" ? "dark" : "light",
-    );
+    const color = getProjectColorValue(calendar.color, theme === "dark" ? "dark" : "light");
 
     // 是否可以合并（非系统日历且未归档）
     const canMerge = !calendar.isInSystemGroup && !calendar.archived;
@@ -238,22 +222,17 @@ const CalendarSidebar = memo(() => {
         className={classNames(
           "group relative flex items-center justify-between rounded-lg py-2 transition-colors",
           themeColors.hoverClass,
-          indent ? "pl-4 pr-3" : "px-3",
+          indent ? "pl-4 pr-3" : "px-3"
         )}
       >
         <div className="flex flex-1 items-center gap-2 overflow-hidden">
           {/* 合并模式下显示复选框，否则显示可见性按钮 */}
           {mergeModeEnabled && canMerge ? (
-            <button
-              onClick={() => toggleCalendarForMerge(calendar.id)}
-              className="shrink-0"
-            >
+            <button onClick={() => toggleCalendarForMerge(calendar.id)} className="shrink-0">
               {isSelectedForMerge ? (
                 <MdCheckBox className="h-4 w-4" style={{ color }} />
               ) : (
-                <MdCheckBoxOutlineBlank
-                  className={classNames("h-4 w-4", themeColors.textClass)}
-                />
+                <MdCheckBoxOutlineBlank className={classNames("h-4 w-4", themeColors.textClass)} />
               )}
             </button>
           ) : (
@@ -266,10 +245,7 @@ const CalendarSidebar = memo(() => {
                 <MdVisibility className="h-[14px] w-[14px]" style={{ color }} />
               ) : (
                 <MdVisibilityOff
-                  className={classNames(
-                    "h-[14px] w-[14px]",
-                    themeColors.textClass,
-                  )}
+                  className={classNames("h-[14px] w-[14px]", themeColors.textClass)}
                 />
               )}
             </button>
@@ -294,11 +270,9 @@ const CalendarSidebar = memo(() => {
           >
             <button
               className="shrink-0 opacity-0 group-hover:opacity-100"
-              onClick={(e) => e.stopPropagation()}
+              onClick={e => e.stopPropagation()}
             >
-              <MdMoreVert
-                className={classNames("h-5 w-5", themeColors.textClass)}
-              />
+              <MdMoreVert className={classNames("h-5 w-5", themeColors.textClass)} />
             </button>
           </Dropdown>
         )}
@@ -337,20 +311,18 @@ const CalendarSidebar = memo(() => {
               trigger={["click"]}
               placement="bottomRight"
             >
-              <button onClick={(e) => e.stopPropagation()}>
+              <button onClick={e => e.stopPropagation()}>
                 <MdMoreVert className="h-4 w-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
               </button>
             </Dropdown>
           )}
         </div>
         {isExpanded && (
-          <div className="space-y-1 mt-2 ml-2">
+          <div className="ml-2 mt-2 space-y-1">
             {groupCalendars.length > 0 ? (
-              groupCalendars.map((cal) => renderCalendarItem(cal, true))
+              groupCalendars.map(cal => renderCalendarItem(cal, true))
             ) : (
-              <div className="pl-6 py-2 text-xs text-gray-400 dark:text-gray-500">
-                暂无日历
-              </div>
+              <div className="py-2 pl-6 text-xs text-gray-400 dark:text-gray-500">暂无日历</div>
             )}
           </div>
         )}
@@ -383,17 +355,17 @@ const CalendarSidebar = memo(() => {
                 <div className="ml-2">
                   {/* 系统分组直接的日历（如番茄钟）*/}
                   <div className="space-y-1">
-                    {getCalendarsInGroup(systemGroup.id, false).map((cal) =>
-                      renderCalendarItem(cal, false),
+                    {getCalendarsInGroup(systemGroup.id, false).map(cal =>
+                      renderCalendarItem(cal, false)
                     )}
                   </div>
 
                   {/* 子分组（如待办清单）*/}
-                  {systemSubGroups.map((subGroup) => (
+                  {systemSubGroups.map(subGroup => (
                     <div key={subGroup.id} className="mt-2">
                       <button
                         onClick={() => toggleGroup(subGroup.id)}
-                        className="flex w-full items-center gap-1 py-1 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                        className="flex w-full items-center gap-1 py-1 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
                       >
                         {expandedGroups.has(subGroup.id) ? (
                           <MdKeyboardArrowDown className="h-4 w-4" />
@@ -404,8 +376,8 @@ const CalendarSidebar = memo(() => {
                       </button>
                       {expandedGroups.has(subGroup.id) && (
                         <div className="ml-5 space-y-1">
-                          {getCalendarsInGroup(subGroup.id, false).map((cal) =>
-                            renderCalendarItem(cal, false),
+                          {getCalendarsInGroup(subGroup.id, false).map(cal =>
+                            renderCalendarItem(cal, false)
                           )}
                         </div>
                       )}
@@ -433,11 +405,7 @@ const CalendarSidebar = memo(() => {
               <div className="flex gap-1">
                 {!mergeModeEnabled ? (
                   <>
-                    <Tooltip
-                      title="批量合并"
-                      trigger="hover"
-                      mouseEnterDelay={0.5}
-                    >
+                    <Tooltip title="批量合并" trigger="hover" mouseEnterDelay={0.5}>
                       <button
                         onClick={toggleMergeMode}
                         className="ml-2 rounded p-1 hover:bg-gray-100 dark:hover:bg-zinc-700"
@@ -475,14 +443,14 @@ const CalendarSidebar = memo(() => {
               <div className="ml-2">
                 {/* 合并模式提示 */}
                 {mergeModeEnabled && (
-                  <div className="mb-3 rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
-                    <p className="text-xs text-blue-800 dark:text-blue-200">
+                  <div className="dark: mb-3 rounded-lg bg-[var(--th-accent-soft)] p-3">
+                    <p className="text-xs text-[var(--th-active-text)]">
                       选择至少 2 个日历进行合并
                     </p>
                     {selectedCalendarsForMerge.length >= 2 && (
                       <button
                         onClick={() => setShowMergeDialog(true)}
-                        className="mt-2 w-full rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                        className="mt-2 w-full rounded-lg bg-[var(--th-btn-bg)] px-3 py-1.5 text-sm font-medium text-white hover:bg-[var(--th-btn-hover)] dark:bg-[var(--th-accent)] dark:hover:bg-[var(--th-btn-hover)]"
                       >
                         合并选中的 {selectedCalendarsForMerge.length} 个日历
                       </button>
@@ -490,13 +458,11 @@ const CalendarSidebar = memo(() => {
                   </div>
                 )}
                 {/* 用户分组 */}
-                {userGroups.map((group) => renderGroup(group, false))}
+                {userGroups.map(group => renderGroup(group, false))}
                 {/* 无分组的日历 */}
                 {getCalendarsWithoutGroup(false).length > 0 && (
                   <div className="space-y-1">
-                    {getCalendarsWithoutGroup(false).map((cal) =>
-                      renderCalendarItem(cal, false),
-                    )}
+                    {getCalendarsWithoutGroup(false).map(cal => renderCalendarItem(cal, false))}
                   </div>
                 )}
               </div>
@@ -504,7 +470,7 @@ const CalendarSidebar = memo(() => {
           </div>
 
           {/* 归档日历 */}
-          {calendars.some((c) => c.archived) && (
+          {calendars.some(c => c.archived) && (
             <div className="mb-4">
               <button
                 onClick={() => setShowArchivedSection(!showArchivedSection)}
@@ -518,19 +484,17 @@ const CalendarSidebar = memo(() => {
                 <span>归档日历</span>
               </button>
               {showArchivedSection && (
-                <div className="space-y-2 ml-2">
+                <div className="ml-2 space-y-2">
                   {/* 系统分组的归档日历 */}
                   {systemGroup && renderGroup(systemGroup, true)}
 
                   {/* 用户分组的归档日历 */}
-                  {userGroups.map((group) => renderGroup(group, true))}
+                  {userGroups.map(group => renderGroup(group, true))}
 
                   {/* 无分组的归档日历 */}
                   {getCalendarsWithoutGroup(true).length > 0 && (
                     <div className="space-y-1">
-                      {getCalendarsWithoutGroup(true).map((cal) =>
-                        renderCalendarItem(cal, false),
-                      )}
+                      {getCalendarsWithoutGroup(true).map(cal => renderCalendarItem(cal, false))}
                     </div>
                   )}
                 </div>
@@ -551,10 +515,7 @@ const CalendarSidebar = memo(() => {
       />
 
       {/* 编辑日历对话框 */}
-      <EditCalendarDialog
-        calendar={editingCalendar}
-        onClose={() => setEditingCalendar(null)}
-      />
+      <EditCalendarDialog calendar={editingCalendar} onClose={() => setEditingCalendar(null)} />
 
       {/* 创建分组对话框 */}
       <CreateGroupDialog

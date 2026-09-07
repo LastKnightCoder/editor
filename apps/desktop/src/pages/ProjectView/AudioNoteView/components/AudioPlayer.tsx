@@ -1,12 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Pause, Play, RotateCcw, RotateCw, ChevronDown } from "lucide-react";
 import classNames from "classnames";
-import {
-  AudioMetaInfo,
-  AudioChapter,
-  BilibiliAudioMetaInfo,
-  YouTubeAudioMetaInfo,
-} from "@/types";
+import { AudioMetaInfo, AudioChapter, BilibiliAudioMetaInfo, YouTubeAudioMetaInfo } from "@/types";
 import useLocalPath from "@/hooks/useLocalPath";
 import { useBilibiliAudio } from "@/hooks/useBilibiliAudio";
 import { useYoutubeAudio } from "@/hooks/useYoutubeAudio";
@@ -65,14 +60,10 @@ const AudioPlayer = (props: AudioPlayerProps) => {
   });
 
   const bilibiliResult = useBilibiliAudio(
-    metaInfo.type === "bilibili"
-      ? (metaInfo as BilibiliAudioMetaInfo)
-      : undefined,
+    metaInfo.type === "bilibili" ? (metaInfo as BilibiliAudioMetaInfo) : undefined
   );
   const youtubeResult = useYoutubeAudio(
-    metaInfo.type === "youtube"
-      ? (metaInfo as YouTubeAudioMetaInfo)
-      : undefined,
+    metaInfo.type === "youtube" ? (metaInfo as YouTubeAudioMetaInfo) : undefined
   );
 
   const [playing, setPlaying] = useState(false);
@@ -154,10 +145,7 @@ const AudioPlayer = (props: AudioPlayerProps) => {
   useEffect(() => {
     if (!showSpeedMenu) return;
     const handleClick = (e: MouseEvent) => {
-      if (
-        speedMenuRef.current &&
-        !speedMenuRef.current.contains(e.target as Node)
-      ) {
+      if (speedMenuRef.current && !speedMenuRef.current.contains(e.target as Node)) {
         setShowSpeedMenu(false);
       }
     };
@@ -195,13 +183,10 @@ const AudioPlayer = (props: AudioPlayerProps) => {
       const bar = progressRef.current;
       if (!audio || !bar || !duration) return;
       const rect = bar.getBoundingClientRect();
-      const ratio = Math.max(
-        0,
-        Math.min(1, (e.clientX - rect.left) / rect.width),
-      );
+      const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       audio.currentTime = ratio * duration;
     },
-    [audioRef, duration],
+    [audioRef, duration]
   );
 
   const selectSpeed = useCallback((speed: number) => {
@@ -224,8 +209,7 @@ const AudioPlayer = (props: AudioPlayerProps) => {
 
   const title = titleProp || fallbackTitle;
 
-  const subtitle =
-    metaInfo.type === "xiaoyuzhou" ? metaInfo.podcastName : undefined;
+  const subtitle = metaInfo.type === "xiaoyuzhou" ? metaInfo.podcastName : undefined;
 
   const coverUrl =
     metaInfo.type === "xiaoyuzhou"
@@ -269,27 +253,23 @@ const AudioPlayer = (props: AudioPlayerProps) => {
       </div>
 
       {/* Progress bar */}
-      <div
-        className="group cursor-pointer"
-        ref={progressRef}
-        onClick={handleProgressClick}
-      >
+      <div className="group cursor-pointer" ref={progressRef} onClick={handleProgressClick}>
         <div className="relative flex h-3 items-center">
           <div className="absolute inset-x-0 h-1 rounded-full bg-gray-200 transition-[height] group-hover:h-1.5 dark:bg-zinc-600">
             <div
-              className="absolute left-0 top-0 h-full rounded-full bg-blue-500 transition-[width] duration-100 dark:bg-blue-400"
+              className="absolute left-0 top-0 h-full rounded-full bg-[var(--th-accent)] transition-[width] duration-100 dark:bg-[var(--th-accent)]"
               style={{ width: `${progress}%` }}
             />
           </div>
           {/* Playback indicator dot */}
           <div
-            className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 dark:bg-blue-400"
+            className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--th-accent)] opacity-0 shadow-sm transition-opacity group-hover:opacity-100 dark:bg-[var(--th-accent)]"
             style={{ left: `${progress}%` }}
           />
           {/* Chapter markers */}
           {chapters && chapters.length > 0 && duration > 0 && (
             <>
-              {chapters.map((ch) => {
+              {chapters.map(ch => {
                 const pos = (ch.startTime / 1000 / duration) * 100;
                 return (
                   <div
@@ -322,15 +302,11 @@ const AudioPlayer = (props: AudioPlayerProps) => {
         <button
           className={classNames(
             "flex items-center justify-center rounded-full transition-colors",
-            "h-11 w-11 bg-blue-500 text-white shadow-md hover:bg-blue-600 dark:bg-blue-500 dark:hover:bg-blue-400",
+            "h-11 w-11 bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] shadow-md hover:bg-[var(--th-btn-hover)] dark:bg-[var(--th-accent)] dark:hover:bg-[var(--th-accent)]"
           )}
           onClick={togglePlay}
         >
-          {playing ? (
-            <Pause size={22} />
-          ) : (
-            <Play size={22} className="ml-0.5" />
-          )}
+          {playing ? <Pause size={22} /> : <Play size={22} className="ml-0.5" />}
         </button>
         <button
           className="relative flex h-9 w-9 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-zinc-700"
@@ -352,14 +328,14 @@ const AudioPlayer = (props: AudioPlayerProps) => {
           </button>
           {showSpeedMenu && (
             <div className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-zinc-600 dark:bg-zinc-800">
-              {playbackSpeeds.map((speed) => (
+              {playbackSpeeds.map(speed => (
                 <button
                   key={speed}
                   className={classNames(
                     "block w-full whitespace-nowrap px-4 py-1.5 text-left text-xs transition-colors",
                     speed === playbackRate
-                      ? "bg-blue-50 font-semibold text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
-                      : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-zinc-700",
+                      ? "dark: bg-[var(--th-accent-soft)] font-semibold text-[var(--th-active-text)]"
+                      : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-zinc-700"
                   )}
                   onClick={() => selectSpeed(speed)}
                 >

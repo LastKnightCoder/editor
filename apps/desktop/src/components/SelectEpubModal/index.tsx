@@ -19,17 +19,13 @@ interface SelectEpubModalProps {
   excludeEpubIds?: number[];
 }
 
-const filterEpubs = (
-  epubs: Epub[],
-  keyword: string,
-  excludeEpubIds: number[],
-) => {
+const filterEpubs = (epubs: Epub[], keyword: string, excludeEpubIds: number[]) => {
   const normalized = keyword.trim().toLowerCase();
   const excludeSet = new Set(excludeEpubIds);
 
   return epubs
-    .filter((epub) => !excludeSet.has(epub.id))
-    .filter((epub) => {
+    .filter(epub => !excludeSet.has(epub.id))
+    .filter(epub => {
       if (!normalized) return true;
       const target =
         `${epub.title || ""} ${epub.author || ""} ${epub.fileName} ${epub.tags.join(" ")}`.toLowerCase();
@@ -82,7 +78,7 @@ const SelectEpubModal = (props: SelectEpubModalProps) => {
       bodyClassName="flex-1 min-h-0 box-border px-6 py-4"
     >
       <div
-        className="flex flex-col gap-4 h-full"
+        className="flex h-full flex-col gap-4"
         style={{
           borderLeft: "20px solid transparent",
           borderRight: "20px solid transparent",
@@ -92,18 +88,18 @@ const SelectEpubModal = (props: SelectEpubModalProps) => {
           allowClear
           value={searchValue}
           placeholder="通过名称、作者或标签筛选 EPUB"
-          onChange={(e) => setSearchValue(e.target.value)}
+          onChange={e => setSearchValue(e.target.value)}
         />
 
         <If condition={filteredEpubs.length === 0}>
-          <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-1 items-center justify-center">
             <Empty description="暂无可用的 EPUB" />
           </div>
         </If>
 
         <If condition={filteredEpubs.length > 0}>
           <div
-            className="flex-1 min-h-0 overflow-y-auto"
+            className="min-h-0 flex-1 overflow-y-auto"
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
@@ -111,7 +107,7 @@ const SelectEpubModal = (props: SelectEpubModalProps) => {
               alignContent: "flex-start",
             }}
           >
-            {filteredEpubs.map((epub) => (
+            {filteredEpubs.map(epub => (
               <div key={epub.id} className="h-full">
                 <EpubCard
                   epub={epub}
@@ -121,11 +117,11 @@ const SelectEpubModal = (props: SelectEpubModalProps) => {
                   className={classnames(
                     "h-full",
                     epub.id === selectedEpubId
-                      ? "ring-2 ring-purple-500"
-                      : "hover:ring-2 hover:ring-purple-200",
+                      ? "ring-2 ring-[var(--th-accent)]"
+                      : "hover:ring-[var(--th-accent)]/30 hover:ring-2"
                   )}
                 />
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-right">
+                <div className="mt-2 text-right text-xs text-gray-500 dark:text-gray-400">
                   更新于 {formatDate(epub.updateTime, true)}
                 </div>
               </div>

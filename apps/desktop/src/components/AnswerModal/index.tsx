@@ -177,7 +177,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
 
   const icon = (
     <svg
-      className="h-5 w-5 text-blue-500"
+      className="h-5 w-5 text-[var(--th-accent)]"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -217,7 +217,6 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
         width={800}
         title={customTitle}
         icon={icon}
-        iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
         closeOnEscape={false}
         className="answer-modal"
         footer={null}
@@ -234,7 +233,6 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
       width={800}
       title={customTitle}
       icon={icon}
-      iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
       closeOnEscape={false}
       footer={null}
       bodyClassName="overflow-hidden"

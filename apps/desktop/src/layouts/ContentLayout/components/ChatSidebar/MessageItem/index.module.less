@@ -258,7 +258,11 @@
   }
 
   code:not([data-markdown-block-code="true"]):not(pre code) {
-    color: var(--th-active-text);
+    color: var(--th-text);
+    background-color: var(--th-tag-bg);
+    border: 1px solid var(--th-border);
+    border-radius: 4px;
+    padding: 0.1em 0.35em;
   }
 
   p:not(:first-child):not(:last-child) {

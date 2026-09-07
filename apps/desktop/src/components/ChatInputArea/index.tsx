@@ -1,11 +1,4 @@
-import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Button, Dropdown, Tooltip, Upload, message } from "antd";
 import type { MenuProps } from "antd";
@@ -173,9 +166,7 @@ const createEmptyEditorContent = (): Descendant[] => [
   } as Descendant,
 ];
 
-const extractMentionRefsFromEditorContent = (
-  content: Descendant[],
-): MentionRef[] => {
+const extractMentionRefsFromEditorContent = (content: Descendant[]): MentionRef[] => {
   const mentions: MentionRef[] = [];
 
   const visit = (node: any) => {
@@ -196,8 +187,7 @@ const extractMentionRefsFromEditorContent = (
           entityId: Number(node.refId) || 0,
           contentId: Number(node.contentId) || 0,
           title: String(node.contentTitle || ""),
-          previewText:
-            typeof node.previewText === "string" ? node.previewText : "",
+          previewText: typeof node.previewText === "string" ? node.previewText : "",
         });
       }
       return;
@@ -245,12 +235,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       onSelectCodexWorkingDirectory,
       onClearCodexWorkingDirectory,
     },
-    ref,
+    ref
   ) => {
     const uploadResourceFn = useUploadResource();
-    const openMcpManagerModal = useMCPManagerModalStore(
-      (state) => state.openModal,
-    );
+    const openMcpManagerModal = useMCPManagerModalStore(state => state.openModal);
     const { theme } = useTheme();
 
     const services: ChatInputAreaServices = useMemo(
@@ -258,36 +246,27 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         uploadFile: uploadResourceFn,
         convertFileSrc,
         getHomeDir,
-        createOrUpdateResource: async (params) => {
+        createOrUpdateResource: async params => {
           const result = await createOrUpdateResource({
             name: params.name,
             path: params.path,
-            type: params.type as
-              | "image"
-              | "video"
-              | "audio"
-              | "pdf"
-              | "epub"
-              | "attachment",
+            type: params.type as "image" | "video" | "audio" | "pdf" | "epub" | "attachment",
             source: params.source as IResourceSource | undefined,
           });
           return result;
         },
         incrementResourceRef: async (path, source) => {
-          await incrementResourceRefCount(
-            path,
-            source as IResourceSource | undefined,
-          );
+          await incrementResourceRefCount(path, source as IResourceSource | undefined);
         },
-        decrementResourceRef: async (path) => {
+        decrementResourceRef: async path => {
           await decrementResourceRefCount(path);
         },
       }),
-      [uploadResourceFn],
+      [uploadResourceFn]
     );
     const resolvedPlaceholder = useMemo(
       () => resolveChatInputPlaceholder(placeholder),
-      [placeholder],
+      [placeholder]
     );
 
     const {
@@ -302,17 +281,14 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     const imagesRef = useRef<ChatImageItem[]>([]);
     const filesRef = useRef<ChatFileItem[]>([]);
 
-    const [editorContent, setEditorContent] = useState<Descendant[]>(
-      createEmptyEditorContent,
-    );
+    const [editorContent, setEditorContent] = useState<Descendant[]>(createEmptyEditorContent);
     const [images, setImages] = useState<ChatImageItem[]>([]);
     const [files, setFiles] = useState<ChatFileItem[]>([]);
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [uploadingPdf, setUploadingPdf] = useState(false);
     const [isNewChatTooltipOpen, setIsNewChatTooltipOpen] = useState(false);
-    const [isNewChatTooltipReopenLocked, setIsNewChatTooltipReopenLocked] =
-      useState(false);
+    const [isNewChatTooltipReopenLocked, setIsNewChatTooltipReopenLocked] = useState(false);
 
     useEffect(() => {
       imagesRef.current = images;
@@ -324,8 +300,8 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
 
     const releaseResources = useMemoizedFn((items: Array<{ path: string }>) => {
       if (!decrementResourceRef) return;
-      items.forEach((item) => {
-        decrementResourceRef(item.path).catch((error) => {
+      items.forEach(item => {
+        decrementResourceRef(item.path).catch(error => {
           console.error("减少资源引用失败:", error);
         });
       });
@@ -392,7 +368,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         resourceId: resource.id,
         path: resource.path,
       };
-      setImages((prev) => [...prev, imageItem]);
+      setImages(prev => [...prev, imageItem]);
       void trackResourceUsage(resource);
     });
 
@@ -403,7 +379,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         path: resource.path,
         resourceId: resource.id,
       };
-      setFiles((prev) => [...prev, fileItem]);
+      setFiles(prev => [...prev, fileItem]);
       void trackResourceUsage(resource);
     });
 
@@ -466,65 +442,61 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       return false;
     };
 
-    const handlePasteCapture = useMemoizedFn(
-      (event: React.ClipboardEvent<HTMLDivElement>) => {
-        if (sendLoading) return;
-        const clipboardData = event.clipboardData;
-        if (!clipboardData) return;
+    const handlePasteCapture = useMemoizedFn((event: React.ClipboardEvent<HTMLDivElement>) => {
+      if (sendLoading) return;
+      const clipboardData = event.clipboardData;
+      if (!clipboardData) return;
 
-        const imageItems = isSupportImage
-          ? Array.from(clipboardData.items).filter(
-              (item) => item.kind === "file" && item.type.startsWith("image/"),
-            )
-          : [];
-        const pdfItems = isSupportFile
-          ? Array.from(clipboardData.items).filter(
-              (item) =>
-                item.kind === "file" &&
-                item.type.toLowerCase() === "application/pdf",
-            )
-          : [];
+      const imageItems = isSupportImage
+        ? Array.from(clipboardData.items).filter(
+            item => item.kind === "file" && item.type.startsWith("image/")
+          )
+        : [];
+      const pdfItems = isSupportFile
+        ? Array.from(clipboardData.items).filter(
+            item => item.kind === "file" && item.type.toLowerCase() === "application/pdf"
+          )
+        : [];
 
-        if (imageItems.length === 0 && pdfItems.length === 0) return;
+      if (imageItems.length === 0 && pdfItems.length === 0) return;
 
-        event.preventDefault();
-        void (async () => {
-          if (isSupportImage) {
-            for (const item of imageItems) {
-              const file = item.getAsFile();
-              if (!file) continue;
-              await handleImageUpload(file);
-            }
+      event.preventDefault();
+      void (async () => {
+        if (isSupportImage) {
+          for (const item of imageItems) {
+            const file = item.getAsFile();
+            if (!file) continue;
+            await handleImageUpload(file);
           }
+        }
 
-          if (isSupportFile) {
-            for (const item of pdfItems) {
-              const file = item.getAsFile();
-              if (!file) continue;
-              await handlePdfUpload(file);
-            }
+        if (isSupportFile) {
+          for (const item of pdfItems) {
+            const file = item.getAsFile();
+            if (!file) continue;
+            await handlePdfUpload(file);
           }
-        })();
-      },
-    );
+        }
+      })();
+    });
 
     const removeImage = useMemoizedFn((imageId: string) => {
-      setImages((prev) => {
-        const target = prev.find((image) => image.id === imageId);
+      setImages(prev => {
+        const target = prev.find(image => image.id === imageId);
         if (target) {
           releaseResources([target]);
         }
-        return prev.filter((image) => image.id !== imageId);
+        return prev.filter(image => image.id !== imageId);
       });
     });
 
     const removeFile = useMemoizedFn((fileId: string) => {
-      setFiles((prev) => {
-        const target = prev.find((file) => file.id === fileId);
+      setFiles(prev => {
+        const target = prev.find(file => file.id === fileId);
         if (target) {
           releaseResources([target]);
         }
-        return prev.filter((file) => file.id !== fileId);
+        return prev.filter(file => file.id !== fileId);
       });
     });
 
@@ -543,14 +515,14 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           },
         },
       ],
-      [onPressEnter],
+      [onPressEnter]
     );
 
     useImperativeHandle(ref, () => ({
       getValue: (): MessageContentItem[] => {
         const content: MessageContentItem[] = [];
 
-        images.forEach((image) => {
+        images.forEach(image => {
           content.push({
             type: "image",
             image: image.previewUrl,
@@ -559,7 +531,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           });
         });
 
-        files.forEach((file) => {
+        files.forEach(file => {
           content.push({
             type: "file",
             file: file.path,
@@ -579,7 +551,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
 
         return content;
       },
-      clear: (options) => {
+      clear: options => {
         if (options?.releaseResources) {
           if (images.length > 0) {
             releaseResources(images);
@@ -598,7 +570,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           : createEmptyEditorContent();
         applyEditorContent(nextContent);
       },
-      appendMention: (mention) => {
+      appendMention: mention => {
         const editorHandle = editorRef.current;
         if (!editorHandle) return;
 
@@ -610,7 +582,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           mention.entityType,
           mention.title,
           mention.entityId,
-          mention.title,
+          mention.title
         );
         editor.insertText(" ");
       },
@@ -620,46 +592,36 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     }));
 
     const showReasoningEffortControl =
-      typeof reasoningEffort !== "undefined" &&
-      typeof onReasoningEffortChange === "function";
-    const availableReasoningEffortOptions = REASONING_EFFORT_OPTIONS.filter(
-      (option) =>
-        (reasoningEffortOptions ?? DEFAULT_REASONING_EFFORT_OPTIONS).includes(
-          option.value,
-        ),
+      typeof reasoningEffort !== "undefined" && typeof onReasoningEffortChange === "function";
+    const availableReasoningEffortOptions = REASONING_EFFORT_OPTIONS.filter(option =>
+      (reasoningEffortOptions ?? DEFAULT_REASONING_EFFORT_OPTIONS).includes(option.value)
     );
     const currentReasoningOption = availableReasoningEffortOptions.find(
-      (option) => option.value === reasoningEffort,
+      option => option.value === reasoningEffort
     );
     const reasoningEffortMenuItems = useMemo(
       () =>
-        availableReasoningEffortOptions.map((option) => ({
+        availableReasoningEffortOptions.map(option => ({
           key: option.value,
           label: (
             <div
-              className={classnames(
-                "flex items-center justify-between gap-3 min-w-[180px]",
-                {
-                  "text-blue-600": option.value === reasoningEffort,
-                },
-              )}
+              className={classnames("flex min-w-[180px] items-center justify-between gap-3", {
+                "text-[var(--th-active-text)]": option.value === reasoningEffort,
+              })}
             >
               <div className="flex flex-col">
                 <span className="text-sm font-medium">{option.label}</span>
-                <span className="text-xs text-gray-500">
-                  {option.description}
-                </span>
+                <span className="text-xs text-gray-500">{option.description}</span>
               </div>
               {option.value === reasoningEffort && (
-                <CheckOutlined className="text-blue-500" />
+                <CheckOutlined className="text-[var(--th-accent)]" />
               )}
             </div>
           ),
         })),
-      [availableReasoningEffortOptions, reasoningEffort],
+      [availableReasoningEffortOptions, reasoningEffort]
     );
-    const reasoningControlDisabled =
-      reasoningEffortDisabled || sendLoading || !contentEditable;
+    const reasoningControlDisabled = reasoningEffortDisabled || sendLoading || !contentEditable;
     const agentTypeMenuItems = useMemo(
       () => [
         {
@@ -681,10 +643,9 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           ),
         },
       ],
-      [agentType],
+      [agentType]
     );
-    const agentTypeControlDisabled =
-      agentTypeDisabled || sendLoading || !contentEditable;
+    const agentTypeControlDisabled = agentTypeDisabled || sendLoading || !contentEditable;
     const codexWorkspaceControlDisabled = sendLoading || !contentEditable;
     const codexWorkspaceLabel = useMemo(() => {
       if (!codexWorkingDirectory) {
@@ -709,7 +670,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           disabled: !codexWorkingDirectory,
         },
       ],
-      [codexWorkingDirectory],
+      [codexWorkingDirectory]
     );
 
     const handleCreateNewMessageClick = useMemoizedFn(() => {
@@ -726,17 +687,17 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     return (
       <div className={classnames("flex flex-col p-2", className)}>
         {images.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-2">
+          <div className="mb-2 flex flex-wrap gap-2">
             {images.map((image, index) => (
-              <div key={image.id} className="relative w-12 h-12 group/image">
+              <div key={image.id} className="group/image relative h-12 w-12">
                 <img
                   src={image.previewUrl}
                   alt={`预览 ${index + 1}`}
-                  className="w-12 h-12 object-cover rounded-lg border border-gray-200 cursor-zoom-in"
+                  className="h-12 w-12 cursor-zoom-in rounded-lg border border-gray-200 object-cover"
                   onClick={() => setPreviewImage(image.previewUrl)}
                 />
                 <CloseOutlined
-                  className="w-4 h-4 absolute top-1 right-1 opacity-0 group-hover/image:opacity-100 transition-opacity duration-200 rounded-full p-1 text-white! hover:bg-gray-500! cursor-pointer"
+                  className="text-white! hover:bg-gray-500! absolute right-1 top-1 h-4 w-4 cursor-pointer rounded-full p-1 opacity-0 transition-opacity duration-200 group-hover/image:opacity-100"
                   onClick={() => removeImage(image.id)}
                 />
               </div>
@@ -745,20 +706,20 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         )}
 
         {files.length > 0 && (
-          <div className="flex flex-col gap-2 mb-2">
-            {files.map((file) => (
+          <div className="mb-2 flex flex-col gap-2">
+            {files.map(file => (
               <div
                 key={file.id}
-                className="flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-zinc-800"
+                className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-zinc-800"
               >
                 <div className="flex items-center gap-2 overflow-hidden">
-                  <FilePdfOutlined className="text-red-500 shrink-0" />
-                  <span className="text-sm text-gray-800 dark:text-gray-100 truncate">
+                  <FilePdfOutlined className="shrink-0 text-red-500" />
+                  <span className="truncate text-sm text-gray-800 dark:text-gray-100">
                     {file.name}
                   </span>
                 </div>
                 <CloseOutlined
-                  className="w-4 h-4 text-gray-400 hover:text-gray-700 cursor-pointer"
+                  className="h-4 w-4 cursor-pointer text-gray-400 hover:text-gray-700"
                   onClick={() => removeFile(file.id)}
                 />
               </div>
@@ -776,7 +737,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             <Editor
               ref={editorRef}
               initValue={editorContent}
-              onChange={(value) => {
+              onChange={value => {
                 setEditorContent(value);
               }}
               readonly={!contentEditable}
@@ -789,7 +750,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           </div>
         </div>
 
-        <div className="flex items-center justify-between mt-1">
+        <div className="mt-1 flex items-center justify-between">
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             {onCreateNewMessage && (
               <Tooltip
@@ -797,7 +758,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 trigger={["hover"]}
                 open={isNewChatTooltipOpen}
                 destroyOnHidden
-                onOpenChange={(open) => {
+                onOpenChange={open => {
                   setIsNewChatTooltipOpen(
                     resolveNewChatTooltipOpen({
                       requestedOpen: open,
@@ -805,7 +766,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                       sendLoading,
                       contentEditable,
                       reopenLocked: isNewChatTooltipReopenLocked,
-                    }),
+                    })
                   );
                 }}
               >
@@ -838,18 +799,12 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 <span
                   style={{
                     display: "inline-block",
-                    cursor: agentTypeControlDisabled
-                      ? "not-allowed"
-                      : "pointer",
+                    cursor: agentTypeControlDisabled ? "not-allowed" : "pointer",
                   }}
                 >
                   <Tooltip
                     placement="left"
-                    title={
-                      agentTypeControlDisabled
-                        ? "本次会话已锁定代理"
-                        : "选择代理"
-                    }
+                    title={agentTypeControlDisabled ? "本次会话已锁定代理" : "选择代理"}
                   >
                     <Button
                       type="text"
@@ -857,9 +812,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                       disabled={agentTypeControlDisabled}
                       className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400! flex items-center gap-1.5"
                       style={{
-                        pointerEvents: agentTypeControlDisabled
-                          ? "none"
-                          : "auto",
+                        pointerEvents: agentTypeControlDisabled ? "none" : "auto",
                       }}
                     >
                       <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
@@ -890,17 +843,12 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 <span
                   style={{
                     display: "inline-block",
-                    cursor: codexWorkspaceControlDisabled
-                      ? "not-allowed"
-                      : "pointer",
+                    cursor: codexWorkspaceControlDisabled ? "not-allowed" : "pointer",
                   }}
                 >
                   <Tooltip
                     placement="right"
-                    title={
-                      codexWorkingDirectory ||
-                      "未选择工作区，每次请求使用临时目录"
-                    }
+                    title={codexWorkingDirectory || "未选择工作区，每次请求使用临时目录"}
                   >
                     <Button
                       type="text"
@@ -909,9 +857,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                       icon={<FolderOpenOutlined />}
                       className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400! flex max-w-[220px] items-center gap-1.5"
                       style={{
-                        pointerEvents: codexWorkspaceControlDisabled
-                          ? "none"
-                          : "auto",
+                        pointerEvents: codexWorkspaceControlDisabled ? "none" : "auto",
                       }}
                     >
                       <span className="min-w-0 truncate text-xs font-medium text-gray-600 dark:text-gray-400">
@@ -949,8 +895,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
               <Dropdown
                 menu={{
                   items: reasoningEffortMenuItems,
-                  onClick: ({ key }) =>
-                    onReasoningEffortChange?.(key as ReasoningEffort),
+                  onClick: ({ key }) => onReasoningEffortChange?.(key as ReasoningEffort),
                 }}
                 trigger={["click"]}
                 disabled={reasoningControlDisabled}
@@ -958,9 +903,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 <span
                   style={{
                     display: "inline-block",
-                    cursor: reasoningControlDisabled
-                      ? "not-allowed"
-                      : "pointer",
+                    cursor: reasoningControlDisabled ? "not-allowed" : "pointer",
                   }}
                 >
                   <Button
@@ -994,10 +937,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
               </Tooltip>
             )}
 
-            <ContextUsageIndicator
-              contextWindowK={contextWindowK}
-              usage={contextUsage}
-            />
+            <ContextUsageIndicator contextWindowK={contextWindowK} usage={contextUsage} />
 
             {isSupportImage && (
               <Tooltip title="上传图片">
@@ -1047,7 +987,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 size="small"
                 onClick={onStop}
                 icon={<StopOutlined />}
-                className="p-1 rounded border-none! bg-none! text-gray-600! dark:text-gray-400! hover:text-red-500! hover:bg-red-50! dark:hover:bg-red-900/20! shadow-none!"
+                className="border-none! bg-none! text-gray-600! dark:text-gray-400! hover:text-red-500! hover:bg-red-50! dark:hover:bg-red-900/20! shadow-none! rounded p-1"
                 title="停止生成"
               />
             )}
@@ -1058,11 +998,11 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                   size="small"
                   onClick={onPressEnter}
                   icon={<SendOutlined />}
-                  className="p-1 rounded border-none! bg-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400! shadow-none!"
+                  className="border-none! bg-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400! shadow-none! rounded p-1"
                   title={sendLoading ? "加入发送队列" : "发送"}
                 />
                 {queuedMessageCount > 0 && (
-                  <span className="absolute -right-1.5 -top-1.5 min-w-4 rounded-full bg-blue-500 px-1 text-center text-[10px] leading-4 text-white">
+                  <span className="absolute -right-1.5 -top-1.5 min-w-4 rounded-full bg-[var(--th-accent)] px-1 text-center text-[10px] leading-4 text-white">
                     {queuedMessageCount}
                   </span>
                 )}
@@ -1073,24 +1013,20 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
 
         {previewImage && (
           <div
-            className="fixed inset-0 bg-black/60 flex items-center justify-center cursor-zoom-out"
+            className="fixed inset-0 flex cursor-zoom-out items-center justify-center bg-black/60"
             style={{ zIndex: 9999 }}
             onClick={() => setPreviewImage(null)}
           >
-            <img
-              src={previewImage}
-              alt="预览"
-              className="max-w-full max-h-full"
-            />
+            <img src={previewImage} alt="预览" className="max-h-full max-w-full" />
             <CloseOutlined
-              className="w-5 h-5 absolute top-4 right-4 duration-200 rounded-full p-1 cursor-pointer text-white! hover:bg-gray-500!"
+              className="text-white! hover:bg-gray-500! absolute right-4 top-4 h-5 w-5 cursor-pointer rounded-full p-1 duration-200"
               onClick={() => setPreviewImage(null)}
             />
           </div>
         )}
       </div>
     );
-  },
+  }
 );
 
 ChatInputArea.displayName = "ChatInputArea";

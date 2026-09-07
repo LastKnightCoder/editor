@@ -1185,7 +1185,7 @@ const VideoNotePanel = ({
           {activeTab === "summary" && (videoNote?.summary || summaryContent || isSummarizing) && (
             <Tooltip title={isSummarizing ? "正在生成总结..." : "重新生成视频总结"}>
               <button
-                className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-blue-500 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-blue-900/20"
+                className="dark:hover: flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[var(--th-accent)] hover:bg-[var(--th-accent-soft)] disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={isSummarizing || isTranscribing || !videoNote?.transcriptSegments?.length}
                 onClick={handleSummarize}
               >
@@ -1244,7 +1244,7 @@ const VideoNotePanel = ({
                           })
                         }
                       >
-                        <span className="shrink-0 font-mono text-xs leading-5 text-blue-500 dark:text-blue-400">
+                        <span className="shrink-0 font-mono text-xs leading-5 text-[var(--th-accent)]">
                           {formatTime(segment.start)}
                         </span>
                         <span className="text-sm text-gray-700 dark:text-gray-300">
@@ -1286,12 +1286,12 @@ const VideoNotePanel = ({
                     className={classNames(
                       "group flex items-start gap-3 rounded-md p-2 transition-colors",
                       currentSegmentIndex === index
-                        ? "bg-blue-100 dark:bg-blue-900/30"
+                        ? "bg-[var(--th-info)]/15 dark:"
                         : "hover:bg-gray-100 dark:hover:bg-zinc-800"
                     )}
                   >
                     <span
-                      className="shrink-0 cursor-pointer font-mono text-xs leading-5 text-blue-500 dark:text-blue-400"
+                      className="shrink-0 cursor-pointer font-mono text-xs leading-5 text-[var(--th-accent)]"
                       onClick={() => handleSegmentClick(segment)}
                     >
                       {formatTime(segment.start)}
@@ -1367,7 +1367,7 @@ const VideoNotePanel = ({
                   <span className="text-sm">生成当前视频的结构化摘要与重点结论</span>
                   <Tooltip title={isSummarizing ? "正在生成总结..." : "生成视频总结"}>
                     <button
-                      className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-blue-500 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-blue-900/20"
+                      className="dark:hover: flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-[var(--th-accent)] hover:bg-[var(--th-accent-soft)] disabled:cursor-not-allowed disabled:opacity-50"
                       disabled={
                         isSummarizing || isTranscribing || !videoNote?.transcriptSegments?.length
                       }
@@ -1671,8 +1671,7 @@ const VideoNotePanel = ({
         width={900}
         title="视频总结"
         subtitle={isSummarizing ? "正在生成..." : "查看和编辑总结内容"}
-        icon={<FileText size={20} className="text-blue-500" />}
-        iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
+        icon={<FileText size={20} className="text-[var(--th-accent)]" />}
         footer={null}
         bodyClassName="px-5 pb-5 max-h-[70vh] overflow-auto"
       >

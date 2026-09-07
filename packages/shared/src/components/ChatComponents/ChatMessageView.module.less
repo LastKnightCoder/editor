@@ -18,7 +18,6 @@
   box-sizing: border-box;
   overflow: visible;
   position: relative;
-  background: var(--th-card-bg);
 
   .messageContent {
     width: 100%;
@@ -27,11 +26,14 @@
 
   &.assistantMessage {
     width: 85%;
+    background: var(--th-tag-bg, rgba(127, 127, 127, 0.06));
+    border: 1px solid var(--th-border, rgba(127, 127, 127, 0.2));
   }
 
   &.userMessage {
     width: fit-content;
     max-width: 85%;
+    background: var(--th-bg-hover, rgba(127, 127, 127, 0.16));
   }
 
   .toolCallsContainer {

@@ -94,7 +94,7 @@ const TypeSelect: FC<TypeSelectProps> = ({ value, onChange, options }) => {
     setIsOpen(false);
   });
 
-  const selectedOption = options.find((opt) => opt.value === value);
+  const selectedOption = options.find(opt => opt.value === value);
 
   return (
     <>
@@ -103,11 +103,11 @@ const TypeSelect: FC<TypeSelectProps> = ({ value, onChange, options }) => {
         ref={triggerRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-[160px] px-4 py-3 rounded-xl text-sm text-left flex items-center justify-between outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
+        className="flex w-[160px] items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-left text-sm text-gray-800 shadow-inner outline-none transition-all focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white"
       >
         <span className="truncate">{selectedOption?.label || "选择类型"}</span>
         <svg
-          className={`w-4 h-4 ml-2 transition-transform flex-shrink-0 ${isOpen ? "rotate-180" : ""}`}
+          className={`ml-2 h-4 w-4 flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -123,7 +123,7 @@ const TypeSelect: FC<TypeSelectProps> = ({ value, onChange, options }) => {
           {isOpen && (
             <motion.div
               ref={dropdownRef}
-              className="fixed rounded-2xl bg-white/60 dark:bg-[rgba(30,30,30,0.6)] backdrop-blur-md backdrop-saturate-150 border border-white/30 dark:border-white/20 shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]"
+              className="fixed rounded-2xl border border-white/30 bg-white/60 shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] backdrop-blur-md backdrop-saturate-150 dark:border-white/20 dark:bg-[rgba(30,30,30,0.6)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]"
               style={{
                 top: `${position.top}px`,
                 left: `${position.left}px`,
@@ -135,22 +135,19 @@ const TypeSelect: FC<TypeSelectProps> = ({ value, onChange, options }) => {
               exit={{ opacity: 0, scale: 0.95, y: -10 }}
               transition={{ duration: 0.15, ease: "easeOut" }}
             >
-              <div className="py-2 max-h-[300px] overflow-y-auto">
-                {options.map((opt) => {
+              <div className="max-h-[300px] overflow-y-auto py-2">
+                {options.map(opt => {
                   const isSelected = opt.value === value;
 
                   return (
                     <div
                       key={opt.value}
                       onClick={() => handleSelect(opt.value)}
-                      className={`
-                        px-3 mx-2 mb-1 last:mb-0 py-2 rounded-lg text-sm transition-all duration-150 cursor-pointer
-                        ${
-                          isSelected
-                            ? "bg-white/40 dark:bg-white/10 text-indigo-600 dark:text-indigo-400 border border-white/40 dark:border-white/20 font-medium"
-                            : "text-gray-700 dark:text-gray-200 hover:bg-white/20 dark:hover:bg-white/10"
-                        }
-                      `}
+                      className={`mx-2 mb-1 cursor-pointer rounded-lg px-3 py-2 text-sm transition-all duration-150 last:mb-0 ${
+                        isSelected
+                          ? "border border-white/40 bg-white/40 font-medium text-[var(--th-active-text)] dark:border-white/20 dark:bg-white/10"
+                          : "text-gray-700 hover:bg-white/20 dark:text-gray-200 dark:hover:bg-white/10"
+                      } `}
                     >
                       <div className="truncate">{opt.label}</div>
                     </div>
@@ -160,7 +157,7 @@ const TypeSelect: FC<TypeSelectProps> = ({ value, onChange, options }) => {
             </motion.div>
           )}
         </AnimatePresence>,
-        document.body,
+        document.body
       )}
     </>
   );

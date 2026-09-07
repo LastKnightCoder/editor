@@ -3,12 +3,7 @@ import useCalendarStore from "@/stores/useCalendarStore";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { useTimeSlotDrag } from "@/hooks/useTimeSlotDrag";
 import { useEventOverlap } from "@/hooks/useEventOverlap";
-import {
-  getWeekStart,
-  formatTime,
-  isToday,
-  getDateStart,
-} from "@/utils/calendar";
+import { getWeekStart, formatTime, isToday, getDateStart } from "@/utils/calendar";
 import { getProjectColorValue } from "@/constants/project-colors";
 import useSettingStore from "@/stores/useSettingStore";
 import dayjs from "dayjs";
@@ -28,17 +23,14 @@ interface PendingWeekEvent {
 }
 
 const WeekView = () => {
-  const { currentDate, calendars, setEditingEvent, editingEvent } =
-    useCalendarStore();
+  const { currentDate, calendars, setEditingEvent, editingEvent } = useCalendarStore();
   const { events } = useCalendarEvents();
-  const setting = useSettingStore((state) => state.setting);
+  const setting = useSettingStore(state => state.setting);
   const themeColors = useThemeColors();
   const theme = setting.darkMode ? "dark" : "light";
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [pendingEvent, setPendingEvent] = useState<PendingWeekEvent | null>(
-    null,
-  );
+  const [pendingEvent, setPendingEvent] = useState<PendingWeekEvent | null>(null);
   const [currentTimeMinutes, setCurrentTimeMinutes] = useState(() => {
     const now = new Date();
     return now.getHours() * 60 + now.getMinutes();
@@ -70,10 +62,7 @@ const WeekView = () => {
       const scrollPosition = (currentTimeMinutes / 15) * CELL_HEIGHT;
       // 减去一些偏移量，让当前时间显示在视口中间靠上的位置
       const offset = scrollContainerRef.current.clientHeight / 3;
-      scrollContainerRef.current.scrollTop = Math.max(
-        0,
-        scrollPosition - offset,
-      );
+      scrollContainerRef.current.scrollTop = Math.max(0, scrollPosition - offset);
     }
   }, [currentDate]); // 当日期变化时触发滚动
 
@@ -107,11 +96,9 @@ const WeekView = () => {
       });
 
       // 优先选择第一个非系统日历
-      const nonSystemCalendars = calendars.filter((c) => !c.isInSystemGroup);
+      const nonSystemCalendars = calendars.filter(c => !c.isInSystemGroup);
       const defaultCalendarId =
-        nonSystemCalendars.length > 0
-          ? nonSystemCalendars[0].id
-          : calendars[0].id;
+        nonSystemCalendars.length > 0 ? nonSystemCalendars[0].id : calendars[0].id;
 
       // 同时打开编辑对话框
       const dayStart = getDateStart(dayDate.getTime());
@@ -140,15 +127,15 @@ const WeekView = () => {
       onSelect: createDayDragHandler(day, index),
       cellHeight: CELL_HEIGHT,
       gridStartTime: GRID_START_TIME,
-    }),
+    })
   );
 
   // 为每一天的有时间事件计算重叠位置
   const dayTimedEventsLists = useMemo(() => {
     if (!events) return weekDays.map(() => []);
-    return weekDays.map((day) => {
+    return weekDays.map(day => {
       const dayDate = getDateStart(day.getTime());
-      return events.filter((event) => {
+      return events.filter(event => {
         if (event.allDay) return false;
         const eventDate = getDateStart(event.startDate);
         return eventDate === dayDate;
@@ -188,12 +175,7 @@ const WeekView = () => {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div
-        className={classNames(
-          "flex border-b transition-colors",
-          themeColors.borderClass,
-        )}
-      >
+      <div className={classNames("flex border-b transition-colors", themeColors.borderClass)}>
         <div className="w-16 shrink-0" />
         {weekDays.map((day, index) => {
           const isTodayDate = isToday(day.getTime());
@@ -202,27 +184,18 @@ const WeekView = () => {
               key={index}
               className={classNames(
                 "flex flex-1 flex-col items-center border-l py-3 transition-colors",
-                themeColors.borderClass,
+                themeColors.borderClass
               )}
             >
-              <div
-                className={classNames(
-                  "text-xs transition-colors",
-                  themeColors.textClass,
-                )}
-              >
+              <div className={classNames("text-xs transition-colors", themeColors.textClass)}>
                 周{weekDayNames[index]}
               </div>
               <div
                 className={classNames(
                   "mt-1 flex h-8 w-8 items-center justify-center rounded-full text-sm transition-colors",
                   isTodayDate
-                    ? [
-                        "font-bold",
-                        themeColors.activeClass,
-                        themeColors.activeTextClass,
-                      ]
-                    : themeColors.activeTextClass,
+                    ? ["font-bold", themeColors.activeClass, themeColors.activeTextClass]
+                    : themeColors.activeTextClass
                 )}
               >
                 {day.getDate()}
@@ -232,40 +205,22 @@ const WeekView = () => {
         })}
       </div>
 
-      <div
-        className={classNames(
-          "border-b transition-colors",
-          themeColors.borderClass,
-        )}
-      >
+      <div className={classNames("border-b transition-colors", themeColors.borderClass)}>
         <div className="flex">
           <div className="w-16 shrink-0 p-2">
-            <div
-              className={classNames(
-                "text-xs transition-colors",
-                themeColors.textClass,
-              )}
-            >
+            <div className={classNames("text-xs transition-colors", themeColors.textClass)}>
               全天
             </div>
           </div>
           <div
-            className="flex-1 relative p-2"
+            className="relative flex-1 p-2"
             style={{
               minHeight: (() => {
                 // 统一收集所有全天事件
-                const allDayEvents = events
-                  ? events.filter((event) => event.allDay)
-                  : [];
+                const allDayEvents = events ? events.filter(event => event.allDay) : [];
                 // 使用算法分配层级
-                const eventLevels = assignWeekViewLevels(
-                  allDayEvents,
-                  weekDays[0],
-                );
-                const maxLevel = Math.max(
-                  0,
-                  ...Array.from(eventLevels.values()),
-                );
+                const eventLevels = assignWeekViewLevels(allDayEvents, weekDays[0]);
+                const maxLevel = Math.max(0, ...Array.from(eventLevels.values()));
 
                 return `${Math.max(40, 8 + (maxLevel + 1) * 20)}px`;
               })(),
@@ -273,67 +228,46 @@ const WeekView = () => {
           >
             {(() => {
               // 统一处理所有全天事件的 level 分配
-              const allDayEvents = events
-                ? events.filter((event) => event.allDay)
-                : [];
+              const allDayEvents = events ? events.filter(event => event.allDay) : [];
 
               // 使用新算法分配层级
-              const eventLevels = assignWeekViewLevels(
-                allDayEvents,
-                weekDays[0],
-              );
+              const eventLevels = assignWeekViewLevels(allDayEvents, weekDays[0]);
 
               return (
                 <>
                   {/* 渲染跨天全天事件 */}
                   {allDayEvents
                     .filter(
-                      (event) =>
-                        event.endDate &&
-                        !dayjs(event.startDate).isSame(
-                          dayjs(event.endDate),
-                          "day",
-                        ),
+                      event =>
+                        event.endDate && !dayjs(event.startDate).isSame(dayjs(event.endDate), "day")
                     )
-                    .map((event) => {
+                    .map(event => {
                       const eventLevel = eventLevels.get(event.id) || 0;
                       const startDate = dayjs(event.startDate);
                       const endDate = dayjs(event.endDate);
                       const weekStart = dayjs(weekDays[0]);
 
                       // 计算事件在周视图中的位置
-                      const startDayIndex = Math.max(
-                        0,
-                        startDate.diff(weekStart, "day"),
-                      );
-                      const endDayIndex = Math.min(
-                        6,
-                        endDate.diff(weekStart, "day"),
-                      );
+                      const startDayIndex = Math.max(0, startDate.diff(weekStart, "day"));
+                      const endDayIndex = Math.min(6, endDate.diff(weekStart, "day"));
 
                       if (startDayIndex > 6 || endDayIndex < 0) return null;
 
-                      const width =
-                        ((endDayIndex - startDayIndex + 1) / 7) * 100;
+                      const width = ((endDayIndex - startDayIndex + 1) / 7) * 100;
                       const left = (startDayIndex / 7) * 100;
 
-                      const calendar = calendars.find(
-                        (c) => c.id === event.calendarId,
-                      );
+                      const calendar = calendars.find(c => c.id === event.calendarId);
                       const color = event.color || calendar?.color || "blue";
                       const colorValue = hexToRgba(
-                        getProjectColorValue(
-                          color,
-                          theme === "dark" ? "dark" : "light",
-                        ),
-                        0.9,
+                        getProjectColorValue(color, theme === "dark" ? "dark" : "light"),
+                        0.9
                       );
 
                       return (
                         <div
                           key={event.id}
                           onClick={() => setEditingEvent(event)}
-                          className="absolute cursor-pointer rounded p-2 h-4 flex items-center text-xs text-white shadow-sm"
+                          className="absolute flex h-4 cursor-pointer items-center rounded p-2 text-xs text-white shadow-sm"
                           style={{
                             backgroundColor: colorValue,
                             left: `${left}%`,
@@ -342,9 +276,7 @@ const WeekView = () => {
                           }}
                           title={event.title}
                         >
-                          <div className="truncate font-medium">
-                            {event.title}
-                          </div>
+                          <div className="truncate font-medium">{event.title}</div>
                         </div>
                       );
                     })}
@@ -353,30 +285,24 @@ const WeekView = () => {
                   {weekDays.map((day, dayIndex) => {
                     const dayStart = getDateStart(day.getTime());
                     const dayEvents = allDayEvents.filter(
-                      (event) =>
+                      event =>
                         (!event.endDate ||
                           dayjs(event.startDate).isSame(
                             dayjs(event.endDate || event.startDate),
-                            "day",
+                            "day"
                           )) &&
-                        getDateStart(event.startDate) === dayStart,
+                        getDateStart(event.startDate) === dayStart
                     );
 
                     return (
                       <div key={dayIndex}>
-                        {dayEvents.map((event) => {
+                        {dayEvents.map(event => {
                           const eventLevel = eventLevels.get(event.id) || 0;
-                          const calendar = calendars.find(
-                            (c) => c.id === event.calendarId,
-                          );
-                          const color =
-                            event.color || calendar?.color || "blue";
+                          const calendar = calendars.find(c => c.id === event.calendarId);
+                          const color = event.color || calendar?.color || "blue";
                           const colorValue = hexToRgba(
-                            getProjectColorValue(
-                              color,
-                              theme === "dark" ? "dark" : "light",
-                            ),
-                            0.9,
+                            getProjectColorValue(color, theme === "dark" ? "dark" : "light"),
+                            0.9
                           );
 
                           return (
@@ -412,33 +338,29 @@ const WeekView = () => {
         <div className="relative flex min-h-full pt-3">
           {/* 时间标签 */}
           <div className="sticky left-0 z-10 w-16 shrink-0">
-            {timeSlots.map((minutes) => (
+            {timeSlots.map(minutes => (
               <div
                 key={minutes}
                 className={classNames(
                   "border-b text-right text-xs transition-colors",
                   themeColors.borderClass,
-                  themeColors.textClass,
+                  themeColors.textClass
                 )}
                 style={{ height: `${CELL_HEIGHT * 4}px` }}
               >
-                <span className="relative -top-2 pr-2">
-                  {formatTime(minutes)}
-                </span>
+                <span className="relative -top-2 pr-2">{formatTime(minutes)}</span>
               </div>
             ))}
           </div>
 
           {/* 当前时间红线 - 横跨整周，红点在今天位置 */}
           {(() => {
-            const todayIndex = weekDays.findIndex((day) =>
-              isToday(day.getTime()),
-            );
+            const todayIndex = weekDays.findIndex(day => isToday(day.getTime()));
             if (todayIndex === -1) return null;
 
             return (
               <div
-                className="absolute pointer-events-none z-30"
+                className="pointer-events-none absolute z-30"
                 style={{
                   top: `${12 + (currentTimeMinutes / 15) * CELL_HEIGHT}px`,
                   left: "64px", // w-16 = 64px
@@ -468,18 +390,15 @@ const WeekView = () => {
                 key={dayIndex}
                 className={classNames(
                   "relative flex-1 border-l transition-colors",
-                  themeColors.borderClass,
+                  themeColors.borderClass
                 )}
                 {...handlers}
               >
                 {/* 网格线 */}
-                {timeSlots.map((minutes) => (
+                {timeSlots.map(minutes => (
                   <div
                     key={minutes}
-                    className={classNames(
-                      "border-b transition-colors",
-                      themeColors.borderClass,
-                    )}
+                    className={classNames("border-b transition-colors", themeColors.borderClass)}
                     style={{ height: `${CELL_HEIGHT * 4}px` }}
                   />
                 ))}
@@ -487,7 +406,7 @@ const WeekView = () => {
                 {/* 拖拽选中的时间范围 */}
                 {isDragging && selectedRange && (
                   <div
-                    className="absolute left-0 right-0 bg-blue-500/30 pointer-events-none"
+                    className="bg-[var(--th-accent)]/30 pointer-events-none absolute left-0 right-0"
                     style={{
                       top: `${(selectedRange.start / 15) * CELL_HEIGHT}px`,
                       height: `${((selectedRange.end - selectedRange.start) / 15) * CELL_HEIGHT}px`,
@@ -496,31 +415,24 @@ const WeekView = () => {
                 )}
 
                 {/* 待创建事件区域 - 仅高亮显示 */}
-                {pendingEvent &&
-                  pendingEvent.dayIndex === dayIndex &&
-                  !isDragging && (
-                    <div
-                      className="absolute left-0 right-0 pointer-events-none rounded-lg border-2 border-blue-500 bg-blue-100/50 dark:bg-blue-900/30"
-                      style={{
-                        top: `${(pendingEvent.startMinutes / 15) * CELL_HEIGHT}px`,
-                        height: `${((pendingEvent.endMinutes - pendingEvent.startMinutes) / 15) * CELL_HEIGHT - 4}px`,
-                      }}
-                    />
-                  )}
+                {pendingEvent && pendingEvent.dayIndex === dayIndex && !isDragging && (
+                  <div
+                    className="dark: pointer-events-none absolute left-0 right-0 rounded-lg border-2 border-[var(--th-border-focus)]"
+                    style={{
+                      top: `${(pendingEvent.startMinutes / 15) * CELL_HEIGHT}px`,
+                      height: `${((pendingEvent.endMinutes - pendingEvent.startMinutes) / 15) * CELL_HEIGHT - 4}px`,
+                    }}
+                  />
+                )}
 
                 {/* 渲染当天有时间的事件 */}
-                {dayTimedEventsLists[dayIndex].map((event) => {
+                {dayTimedEventsLists[dayIndex].map(event => {
                   const position = dayEventPositions[dayIndex].get(event.id);
-                  const calendar = calendars.find(
-                    (c) => c.id === event.calendarId,
-                  );
+                  const calendar = calendars.find(c => c.id === event.calendarId);
                   const color = event.color || calendar?.color || "blue";
                   const colorValue = hexToRgba(
-                    getProjectColorValue(
-                      color,
-                      theme === "dark" ? "dark" : "light",
-                    ),
-                    0.9,
+                    getProjectColorValue(color, theme === "dark" ? "dark" : "light"),
+                    0.9
                   );
 
                   const startMinutes = event.startTime || 0;

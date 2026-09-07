@@ -124,20 +124,16 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
   ]);
   const [cloneLoading, setCloneLoading] = useState(false);
 
-  const minimaxApiKey = useSettingStore(
-    (state) => state.setting.integration.minimax.apiKey,
-  );
+  const minimaxApiKey = useSettingStore(state => state.setting.integration.minimax.apiKey);
 
   // 通知系统
-  const [notices, setNotices] = useState<
-    Array<{ id: number; type: NoticeType; text: string }>
-  >([]);
+  const [notices, setNotices] = useState<Array<{ id: number; type: NoticeType; text: string }>>([]);
   const notify = useCallback((type: NoticeType, text: string) => {
     const id = Date.now() + Math.floor(Math.random() * 1000);
-    setNotices((prev) => [...prev, { id, type, text }]);
+    setNotices(prev => [...prev, { id, type, text }]);
     const timeout = type === "error" ? 4000 : 2500;
     window.setTimeout(() => {
-      setNotices((prev) => prev.filter((n) => n.id !== id));
+      setNotices(prev => prev.filter(n => n.id !== id));
     }, timeout);
   }, []);
 
@@ -220,7 +216,7 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
       return;
     }
 
-    if (speakers.some((s) => !s.voiceId)) {
+    if (speakers.some(s => !s.voiceId)) {
       message.error("请为所有说话人选择音色");
       return;
     }
@@ -283,9 +279,7 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
       });
 
       // 2. 创建笔记内容（保存脚本作为文本内容）
-      const scriptText = scriptLines
-        .map((line) => `**${line.speaker}**: ${line.text}`)
-        .join("\n\n");
+      const scriptText = scriptLines.map(line => `**${line.speaker}**: ${line.text}`).join("\n\n");
       const markdownContent = `# ${podcastName.trim() || "播客"}\n\n${scriptText}`;
       const noteContent = importFromMarkdown(markdownContent);
       const count = getContentLength(noteContent);
@@ -339,19 +333,19 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
       {/* 通知显示 */}
       {notices.length > 0 && (
         <div className="space-y-2">
-          {notices.map((notice) => (
+          {notices.map(notice => (
             <div
               key={notice.id}
               className={classNames(
-                "px-3 py-2 rounded-lg text-sm border whitespace-pre-wrap",
+                "whitespace-pre-wrap rounded-lg border px-3 py-2 text-sm",
                 notice.type === "success" &&
-                  "bg-green-50 border-green-200 text-green-700 dark:bg-green-500/10 dark:border-green-500/30 dark:text-green-400",
+                  "border-[var(--th-success)]/30 bg-[var(--th-success)]/10 text-status-success",
                 notice.type === "error" &&
-                  "bg-red-50 border-red-200 text-red-700 dark:bg-red-500/10 dark:border-red-500/30 dark:text-red-400",
+                  "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400",
                 notice.type === "warning" &&
-                  "bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-500/10 dark:border-yellow-500/30 dark:text-yellow-400",
+                  "border-yellow-200 bg-yellow-50 text-yellow-700 dark:border-yellow-500/30 dark:bg-yellow-500/10 dark:text-yellow-400",
                 notice.type === "info" &&
-                  "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400",
+                  "border-[var(--th-border-focus)]/30 bg-[var(--th-info)]/10 text-status-info dark:border-[var(--th-border-focus)]/30 dark:bg-[var(--th-accent)]/10"
               )}
             >
               {notice.text}
@@ -422,11 +416,9 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
           <TextInput
             type="number"
             value={String(durationRange[0])}
-            onChange={(value) => {
+            onChange={value => {
               const nextMin = Number(value);
-              setDurationRange((prev) =>
-                normalizeDurationRange(nextMin, prev[1]),
-              );
+              setDurationRange(prev => normalizeDurationRange(nextMin, prev[1]));
             }}
             className="w-20"
           />
@@ -434,16 +426,14 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
           <TextInput
             type="number"
             value={String(durationRange[1])}
-            onChange={(value) => {
+            onChange={value => {
               const nextMax = Number(value);
-              setDurationRange((prev) =>
-                normalizeDurationRange(prev[0], nextMax),
-              );
+              setDurationRange(prev => normalizeDurationRange(prev[0], nextMax));
             }}
             className="w-20"
           />
         </div>
-        <TextSecondary className="text-xs mt-1 block">
+        <TextSecondary className="mt-1 block text-xs">
           当前: {durationRange[0]} - {durationRange[1]} 分钟
         </TextSecondary>
       </div>
@@ -460,9 +450,7 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
         ttsTotal={ttsTotal}
         logs={logs}
       />
-      <TextSecondary className="text-sm text-center block">
-        {getProgressText()}
-      </TextSecondary>
+      <TextSecondary className="block text-center text-sm">{getProgressText()}</TextSecondary>
     </div>
   );
 
@@ -471,7 +459,7 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
     <div className="space-y-4">
       {/* 播客名称编辑 */}
       <div>
-        <TextStrong className="block mb-2">播客名称</TextStrong>
+        <TextStrong className="mb-2 block">播客名称</TextStrong>
         <TextInput
           placeholder="请输入播客名称"
           value={podcastName}
@@ -494,7 +482,7 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
 
       {/* 错误显示 */}
       {error && (
-        <div className="p-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-sm text-red-700 dark:text-red-400 whitespace-pre-wrap">
+        <div className="whitespace-pre-wrap rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400">
           {error}
         </div>
       )}
@@ -504,16 +492,16 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
   // 按钮样式
   const primaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
-    "bg-blue-500 text-white",
-    "hover:bg-blue-600",
-    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed",
+    "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]",
+    "hover:bg-[var(--th-btn-hover)]",
+    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed"
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
     "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
     "hover:bg-gray-200 dark:hover:bg-zinc-700",
-    "border border-gray-200 dark:border-gray-700",
+    "border border-gray-200 dark:border-gray-700"
   );
 
   // 渲染底部按钮
@@ -525,11 +513,7 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
     if (step === "select-resources") {
       return (
         <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={handleClose}
-            className={secondaryButtonClass}
-          >
+          <button type="button" onClick={handleClose} className={secondaryButtonClass}>
             取消
           </button>
           <button
@@ -538,14 +522,11 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
             disabled={
               selectedResourceIds.length === 0 ||
               !podcastName.trim() ||
-              speakers.some((s) => !s.voiceId)
+              speakers.some(s => !s.voiceId)
             }
-            className={classNames(
-              primaryButtonClass,
-              "flex items-center gap-2",
-            )}
+            className={classNames(primaryButtonClass, "flex items-center gap-2")}
           >
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="h-4 w-4" />
             生成播客
           </button>
         </div>
@@ -558,35 +539,25 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
         <button
           type="button"
           onClick={handleRegenerate}
-          className={classNames(
-            secondaryButtonClass,
-            "flex items-center gap-2",
-          )}
+          className={classNames(secondaryButtonClass, "flex items-center gap-2")}
         >
-          <RefreshCw className="w-4 h-4" />
+          <RefreshCw className="h-4 w-4" />
           重新生成
         </button>
         <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={handleClose}
-            className={secondaryButtonClass}
-          >
+          <button type="button" onClick={handleClose} className={secondaryButtonClass}>
             取消
           </button>
           <button
             type="button"
             onClick={handleSave}
             disabled={!audioUrl || saving}
-            className={classNames(
-              primaryButtonClass,
-              "flex items-center gap-2",
-            )}
+            className={classNames(primaryButtonClass, "flex items-center gap-2")}
           >
             {saving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <CheckCircle2 className="w-4 h-4" />
+              <CheckCircle2 className="h-4 w-4" />
             )}
             保存为笔记
           </button>
@@ -632,8 +603,7 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
       destroyOnClose
       title={getModalTitle()}
       subtitle={getModalSubtitle()}
-      icon={<Mic className="w-5 h-5 text-purple-500" />}
-      iconBgColor="bg-purple-50 dark:bg-purple-500/20 border-purple-200 dark:border-purple-500/30"
+      icon={<Mic className="h-5 w-5 text-[var(--th-text-secondary)]" />}
       footer={renderFooter()}
       showCloseButton={step !== "generating"}
       bodyClassName="overflow-y-auto pt-3"

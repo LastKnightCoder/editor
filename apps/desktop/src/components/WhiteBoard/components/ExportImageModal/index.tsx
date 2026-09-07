@@ -9,9 +9,7 @@ import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
 import Board from "../../Board";
 import BoardContent from "../BoardContent";
 import type { BoardElement, ViewPort } from "../../types";
-import SegmentedControl, {
-  SegmentedOption,
-} from "./components/SegmentedControl";
+import SegmentedControl, { SegmentedOption } from "./components/SegmentedControl";
 import NumberStepper from "./components/NumberStepper";
 import {
   ExportImageAction,
@@ -59,10 +57,7 @@ const BACKGROUND_OPTIONS: SegmentedOption<ExportImageBackgroundMode>[] = [
 
 const isCenterConnectArrow = isInteriorConnectElement;
 
-const splitElementsForRender = (
-  elements: BoardElement[],
-  selectedIds: Set<string>,
-) => {
+const splitElementsForRender = (elements: BoardElement[], selectedIds: Set<string>) => {
   const centerConnectArrows: BoardElement[] = [];
   const noneCenterConnectArrows: BoardElement[] = [];
   const centerConnectAndSelectedArrows: BoardElement[] = [];
@@ -88,7 +83,7 @@ const splitElementsForRender = (
 };
 
 const waitDoubleRaf = () =>
-  new Promise<void>((resolve) => {
+  new Promise<void>(resolve => {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => resolve());
     });
@@ -108,21 +103,17 @@ const markNodeIgnored = (element: Element) => {
  * - img 标签不存在 → 无法等待图片数据加载完成
  * - video / audio 标签不存在 → 无法标记为 exportIgnore，可能意外出现在导出图中
  */
-const waitForMediaRender = async (
-  captureTarget: Element,
-  maxWaitMs = 15000,
-): Promise<void> => {
+const waitForMediaRender = async (captureTarget: Element, maxWaitMs = 15000): Promise<void> => {
   const POLL_INTERVAL = 200;
   const STABLE_THRESHOLD = 3;
   const startTime = Date.now();
   let previousCount = -1;
   let stableChecks = 0;
 
-  const countMediaElements = () =>
-    captureTarget.querySelectorAll("img, video, audio").length;
+  const countMediaElements = () => captureTarget.querySelectorAll("img, video, audio").length;
 
   while (Date.now() - startTime < maxWaitMs) {
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
+    await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
 
     const currentCount = countMediaElements();
 
@@ -170,40 +161,31 @@ const waitImageReady = async (image: HTMLImageElement): Promise<void> => {
 
 const prepareCaptureNode = async (captureTarget: Element) => {
   // 导出时移除 RichText 容器的 box-shadow，避免阴影影响导出效果
-  captureTarget
-    .querySelectorAll<HTMLElement>("[id^='rich-text-container-']")
-    .forEach((element) => {
-      element.style.boxShadow = "none";
-    });
+  captureTarget.querySelectorAll<HTMLElement>("[id^='rich-text-container-']").forEach(element => {
+    element.style.boxShadow = "none";
+  });
 
   // 将 contenteditable 元素设为不可编辑，避免导出时出现光标和编辑态样式
   captureTarget
     .querySelectorAll<HTMLElement>(
-      "[contenteditable='true'], [contenteditable='plaintext-only'], [data-slate-editor], [data-slate-editor='true']",
+      "[contenteditable='true'], [contenteditable='plaintext-only'], [data-slate-editor], [data-slate-editor='true']"
     )
-    .forEach((element) => {
+    .forEach(element => {
       element.blur?.();
       element.setAttribute("contenteditable", "false");
       element.style.caretColor = "transparent";
     });
 
-  const unstableTags = [
-    "video",
-    "audio",
-    "iframe",
-    "webview",
-    "object",
-    "embed",
-  ];
-  unstableTags.forEach((tagName) => {
-    captureTarget.querySelectorAll(tagName).forEach((element) => {
+  const unstableTags = ["video", "audio", "iframe", "webview", "object", "embed"];
+  unstableTags.forEach(tagName => {
+    captureTarget.querySelectorAll(tagName).forEach(element => {
       markNodeIgnored(element);
     });
   });
 
   const images = Array.from(captureTarget.querySelectorAll("img"));
   await Promise.all(
-    images.map(async (image) => {
+    images.map(async image => {
       image.setAttribute("loading", "eager");
       image.setAttribute("decoding", "sync");
       try {
@@ -211,7 +193,7 @@ const prepareCaptureNode = async (captureTarget: Element) => {
       } catch (_error) {
         markNodeIgnored(image);
       }
-    }),
+    })
   );
 };
 
@@ -222,17 +204,14 @@ const ExportImageModal = (props: ExportImageModalProps) => {
   const captureContainerRef = useRef<HTMLDivElement>(null);
 
   const [background, setBackground] = useState<ExportImageBackgroundMode>(
-    isDark ? "dark" : "light",
+    isDark ? "dark" : "light"
   );
   const [scale, setScale] = useState<number>(window.devicePixelRatio || 1);
   const [padding, setPadding] = useState<number>(30);
   const [exporting, setExporting] = useState(false);
-  const [captureState, setCaptureState] = useState<CaptureRenderState | null>(
-    null,
-  );
+  const [captureState, setCaptureState] = useState<CaptureRenderState | null>(null);
 
-  const exportAction: ExportImageAction =
-    action === "selection" ? "selection" : "board";
+  const exportAction: ExportImageAction = action === "selection" ? "selection" : "board";
 
   useEffect(() => {
     if (!open) {
@@ -260,11 +239,7 @@ const ExportImageModal = (props: ExportImageModalProps) => {
     const elements = sourceElements;
 
     if (elements.length === 0) {
-      message.warning(
-        exportAction === "selection"
-          ? "没有可导出的元素"
-          : "白板中没有可导出的元素",
-      );
+      message.warning(exportAction === "selection" ? "没有可导出的元素" : "白板中没有可导出的元素");
       return;
     }
 
@@ -276,7 +251,7 @@ const ExportImageModal = (props: ExportImageModalProps) => {
 
     const exportViewPort = createExportViewPort(bounds, padding);
     const selectedIds = new Set(
-      (board.selection.selectedElements || []).map((element) => element.id),
+      (board.selection.selectedElements || []).map(element => element.id)
     );
     const groups = splitElementsForRender(elements, selectedIds);
     const backgroundColor = resolveExportBackgroundColor(background);
@@ -293,7 +268,7 @@ const ExportImageModal = (props: ExportImageModalProps) => {
             selectArea: null,
           },
         },
-        false,
+        false
       );
 
       setCaptureState({
@@ -316,11 +291,8 @@ const ExportImageModal = (props: ExportImageModalProps) => {
       // 如果存在使用异步媒体组件的元素，等待它们完成 URL 解析并渲染到 DOM
       // LocalImage / LocalVideo / LocalAudio 在解析期间返回 null，需要轮询等待
       const hasAsyncMedia = elements.some(
-        (el) =>
-          el.type === "image" ||
-          el.type === "card" ||
-          el.type === "video" ||
-          el.type === "audio",
+        el =>
+          el.type === "image" || el.type === "card" || el.type === "video" || el.type === "audio"
       );
       if (hasAsyncMedia) {
         await waitForMediaRender(captureTarget);
@@ -334,7 +306,7 @@ const ExportImageModal = (props: ExportImageModalProps) => {
         dpr: exportDpr,
         type: "png",
         quality: 0.95,
-        filter: (element) => {
+        filter: element => {
           return !(element as HTMLElement)?.dataset?.exportIgnore;
         },
         filterMode: "hide",
@@ -355,7 +327,7 @@ const ExportImageModal = (props: ExportImageModalProps) => {
           properties: board.selection,
           newProperties: previousSelection,
         },
-        false,
+        false
       );
 
       setExporting(false);
@@ -372,7 +344,7 @@ const ExportImageModal = (props: ExportImageModalProps) => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+              className="z-9999 fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm"
               onClick={onClose}
             >
               <motion.div
@@ -380,29 +352,29 @@ const ExportImageModal = (props: ExportImageModalProps) => {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: -10 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
-                className="w-full max-w-[460px] m-4"
-                onClick={(e) => e.stopPropagation()}
+                className="m-4 w-full max-w-[460px]"
+                onClick={e => e.stopPropagation()}
               >
-                <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800">
+                <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
                   {/* Header */}
-                  <div className="flex items-start gap-3 mb-5">
-                    <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-blue-50 dark:bg-blue-500/20 border border-blue-200 dark:border-blue-500/30">
-                      <Download className="w-5 h-5 text-blue-500" />
+                  <div className="mb-5 flex items-start gap-3">
+                    <div className="border-[var(--th-border-focus)]/30 dark:bg-[var(--th-accent)]/20 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border bg-[var(--th-accent-soft)]">
+                      <Download className="h-5 w-5 text-[var(--th-accent)]" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h2 className="text-base font-bold m-0 text-gray-800 dark:text-white">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="m-0 text-base font-bold text-gray-800 dark:text-white">
                         {modalTitle}
                       </h2>
-                      <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
+                      <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-500">
                         调整导出参数后点击导出
                       </p>
                     </div>
                     <button
                       onClick={onClose}
-                      className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
+                      className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-gray-100 text-gray-500 transition-all hover:bg-gray-200 hover:text-gray-700 dark:bg-zinc-800 dark:text-slate-400 dark:hover:bg-zinc-700 dark:hover:text-slate-200"
                     >
                       <svg
-                        className="w-[18px] h-[18px]"
+                        className="h-[18px] w-[18px]"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -416,22 +388,18 @@ const ExportImageModal = (props: ExportImageModalProps) => {
                   {/* Form */}
                   <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between gap-4">
-                      <span className="text-sm text-gray-700 dark:text-slate-300">
-                        背景
-                      </span>
+                      <span className="text-sm text-gray-700 dark:text-slate-300">背景</span>
                       <SegmentedControl
                         options={BACKGROUND_OPTIONS}
                         value={background}
-                        onChange={(value) => setBackground(value)}
+                        onChange={value => setBackground(value)}
                       />
                     </div>
                     <div className="flex items-center justify-between gap-4">
-                      <span className="text-sm text-gray-700 dark:text-slate-300">
-                        放大倍数
-                      </span>
+                      <span className="text-sm text-gray-700 dark:text-slate-300">放大倍数</span>
                       <NumberStepper
                         value={scale}
-                        onChange={(value) => setScale(Number(value) || 1)}
+                        onChange={value => setScale(Number(value) || 1)}
                         min={0.5}
                         max={4}
                         step={0.25}
@@ -439,14 +407,10 @@ const ExportImageModal = (props: ExportImageModalProps) => {
                       />
                     </div>
                     <div className="flex items-center justify-between gap-4">
-                      <span className="text-sm text-gray-700 dark:text-slate-300">
-                        边距
-                      </span>
+                      <span className="text-sm text-gray-700 dark:text-slate-300">边距</span>
                       <NumberStepper
                         value={padding}
-                        onChange={(value) =>
-                          setPadding(Math.max(0, Number(value) || 0))
-                        }
+                        onChange={value => setPadding(Math.max(0, Number(value) || 0))}
                         min={0}
                         max={500}
                         step={1}
@@ -456,22 +420,22 @@ const ExportImageModal = (props: ExportImageModalProps) => {
                   </div>
 
                   {/* Footer */}
-                  <div className="flex gap-3 mt-5 pt-4 border-t border-gray-200 dark:border-slate-700">
+                  <div className="mt-5 flex gap-3 border-t border-gray-200 pt-4 dark:border-slate-700">
                     <button
-                      className="flex-1 px-5 py-3 rounded-xl border border-gray-200 dark:border-slate-700 text-sm font-medium cursor-pointer flex items-center justify-center gap-2 transition-all bg-white dark:bg-zinc-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-zinc-700"
+                      className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 dark:border-slate-700 dark:bg-zinc-800 dark:text-slate-300 dark:hover:bg-zinc-700"
                       onClick={onClose}
                       disabled={exporting}
                     >
                       取消
                     </button>
                     <button
-                      className="flex-1 px-5 py-3 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-blue-500 text-white shadow-[0_4px_14px_rgba(59,130,246,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-blue-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0"
+                      className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-none bg-[var(--th-btn-bg)] px-5 py-3 text-sm font-semibold text-[var(--th-btn-text)] shadow-sm transition-all hover:-translate-y-px hover:bg-[var(--th-btn-hover)] active:translate-y-0 disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
                       onClick={handleExport}
                       disabled={exporting}
                     >
                       {exporting && (
                         <svg
-                          className="w-4 h-4 animate-spin"
+                          className="h-4 w-4 animate-spin"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -500,7 +464,7 @@ const ExportImageModal = (props: ExportImageModalProps) => {
             </motion.div>
           )}
         </AnimatePresence>,
-        document.body,
+        document.body
       )}
 
       {captureState && (
@@ -524,9 +488,7 @@ const ExportImageModal = (props: ExportImageModalProps) => {
             viewPort={captureState.viewPort}
             centerConnectArrows={captureState.centerConnectArrows}
             noneCenterConnectArrows={captureState.noneCenterConnectArrows}
-            centerConnectAndSelectedArrows={
-              captureState.centerConnectAndSelectedArrows
-            }
+            centerConnectAndSelectedArrows={captureState.centerConnectAndSelectedArrows}
             gridVisible={false}
             refLines={EMPTY_REF_LINES}
             disableViewportFilter={true}

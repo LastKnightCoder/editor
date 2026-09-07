@@ -11,10 +11,10 @@
     margin: 0;
   }
 
-  --th-tag-bg: hsl(168, 10%, 45%);
+  --list-bullet-color: var(--th-accent, hsl(168, 10%, 45%));
 
   &.dark {
-    --th-tag-bg: hsl(168, 10%, 95%);
+    --list-bullet-color: var(--th-accent, hsl(168, 10%, 95%));
   }
 
   & > li {
@@ -27,7 +27,7 @@
       width: 0.35em;
       height: 0.35em;
       border-radius: 50%;
-      background: var(--th-tag-bg);
+      background: var(--list-bullet-color);
       left: -1em;
       top: 0.7em;
       transition: transform 0.3s ease-in-out;

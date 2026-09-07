@@ -8,11 +8,7 @@ import "./index.css";
 interface WhiteBoardModalProps {
   open: boolean;
   onCancel: () => void;
-  onOk: (
-    title: string,
-    description: string,
-    snapshot?: string,
-  ) => Promise<void>;
+  onOk: (title: string, description: string, snapshot?: string) => Promise<void>;
   initialData?: {
     title: string;
     description: string;
@@ -56,38 +52,36 @@ const WhiteBoardModal: React.FC<WhiteBoardModalProps> = ({
     }
   }, [open, initialData]);
 
-  const handleImageUpload = useMemoizedFn(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = e.target.files;
-      if (!files || files.length === 0) return;
+  const handleImageUpload = useMemoizedFn(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-      const file = files[0];
-      if (!file.type.startsWith("image/")) {
-        setError("请选择图片文件");
-        return;
-      }
+    const file = files[0];
+    if (!file.type.startsWith("image/")) {
+      setError("请选择图片文件");
+      return;
+    }
 
-      setIsUploading(true);
-      setError(null);
+    setIsUploading(true);
+    setError(null);
 
-      try {
-        const url = await uploadResource(file);
-        if (url) {
-          setSnapshot(url);
-        } else {
-          setError("图片上传失败");
-        }
-      } catch (error) {
-        console.error("上传失败:", error);
+    try {
+      const url = await uploadResource(file);
+      if (url) {
+        setSnapshot(url);
+      } else {
         setError("图片上传失败");
-      } finally {
-        setIsUploading(false);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
       }
-    },
-  );
+    } catch (error) {
+      console.error("上传失败:", error);
+      setError("图片上传失败");
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  });
 
   const handleRemoveImage = useMemoizedFn(() => {
     setSnapshot("");
@@ -122,19 +116,19 @@ const WhiteBoardModal: React.FC<WhiteBoardModalProps> = ({
 
   return createPortal(
     <div
-      className="wb-modal-overlay fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      className="wb-modal-overlay z-9999 fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={onCancel}
       onKeyDown={handleKeyDown}
     >
       <div
-        className="wb-modal-container w-full max-w-[520px] m-4"
-        onClick={(e) => e.stopPropagation()}
+        className="wb-modal-container m-4 w-full max-w-[520px]"
+        onClick={e => e.stopPropagation()}
       >
-        <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-purple-50 dark:bg-purple-500/20 border border-purple-200 dark:border-purple-500/30">
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
+          <div className="mb-5 flex items-center gap-3">
+            <div className="border-[var(--th-border-focus)]/30 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border bg-[var(--th-accent-soft)]">
               <svg
-                className="w-5 h-5 text-purple-500"
+                className="h-5 w-5 text-[var(--th-accent)]"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -144,20 +138,18 @@ const WhiteBoardModal: React.FC<WhiteBoardModalProps> = ({
                 <path d="M3 9h18M9 21V9" />
               </svg>
             </div>
-            <div className="flex-1 min-w-0">
-              <h2 className="text-base font-bold m-0 text-gray-800 dark:text-white">
+            <div className="min-w-0 flex-1">
+              <h2 className="m-0 text-base font-bold text-gray-800 dark:text-white">
                 {modalTitle}
               </h2>
-              <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
-                创建新的白板空间
-              </p>
+              <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-500">创建新的白板空间</p>
             </div>
             <button
-              className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
+              className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-gray-100 text-gray-500 transition-all hover:bg-gray-200 hover:text-gray-700 dark:bg-zinc-800 dark:text-slate-400 dark:hover:bg-zinc-700 dark:hover:text-slate-200"
               onClick={onCancel}
             >
               <svg
-                className="w-[18px] h-[18px]"
+                className="h-[18px] w-[18px]"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -173,7 +165,7 @@ const WhiteBoardModal: React.FC<WhiteBoardModalProps> = ({
             <div className="flex flex-col gap-1.5">
               <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
                 <svg
-                  className="w-3.5 h-3.5"
+                  className="h-3.5 w-3.5"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -187,17 +179,14 @@ const WhiteBoardModal: React.FC<WhiteBoardModalProps> = ({
               </label>
               <div className="relative">
                 {snapshot ? (
-                  <div className="relative group">
-                    <div className="w-full h-40 rounded-xl overflow-hidden border border-gray-200 dark:border-slate-700">
-                      <LocalImage
-                        url={snapshot}
-                        className="w-full h-full object-cover"
-                      />
+                  <div className="group relative">
+                    <div className="h-40 w-full overflow-hidden rounded-xl border border-gray-200 dark:border-slate-700">
+                      <LocalImage url={snapshot} className="h-full w-full object-cover" />
                     </div>
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center gap-3">
+                    <div className="absolute inset-0 flex items-center justify-center gap-3 rounded-xl bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
                       <button
                         type="button"
-                        className="px-4 py-2 rounded-lg bg-white dark:bg-zinc-800 text-gray-700 dark:text-slate-300 text-sm font-medium hover:bg-gray-100 dark:hover:bg-zinc-700 transition-all"
+                        className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-100 dark:bg-zinc-800 dark:text-slate-300 dark:hover:bg-zinc-700"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isUploading}
                       >
@@ -205,7 +194,7 @@ const WhiteBoardModal: React.FC<WhiteBoardModalProps> = ({
                       </button>
                       <button
                         type="button"
-                        className="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-all"
+                        className="rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-red-600"
                         onClick={handleRemoveImage}
                         disabled={isUploading}
                       >
@@ -216,14 +205,14 @@ const WhiteBoardModal: React.FC<WhiteBoardModalProps> = ({
                 ) : (
                   <button
                     type="button"
-                    className="w-full h-40 rounded-xl border-2 border-dashed border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-zinc-950 hover:border-purple-400 dark:hover:border-purple-500 hover:bg-purple-50/50 dark:hover:bg-purple-500/5 transition-all flex flex-col items-center justify-center gap-2 text-gray-500 dark:text-slate-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="hover:border-[var(--th-border-focus)]/40 hover:bg-[var(--th-accent)]/10 flex h-40 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 text-gray-500 transition-all disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-zinc-950 dark:text-slate-400"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploading}
                   >
                     {isUploading ? (
                       <>
                         <svg
-                          className="wb-spin w-8 h-8 text-purple-500"
+                          className="wb-spin h-8 w-8 text-[var(--th-accent)]"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -236,7 +225,7 @@ const WhiteBoardModal: React.FC<WhiteBoardModalProps> = ({
                     ) : (
                       <>
                         <svg
-                          className="w-8 h-8"
+                          className="h-8 w-8"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -246,9 +235,7 @@ const WhiteBoardModal: React.FC<WhiteBoardModalProps> = ({
                           <polyline points="17 8 12 3 7 8" />
                           <line x1="12" y1="3" x2="12" y2="15" />
                         </svg>
-                        <span className="text-sm font-medium">
-                          点击上传封面图片
-                        </span>
+                        <span className="text-sm font-medium">点击上传封面图片</span>
                         <span className="text-xs text-gray-400 dark:text-slate-500">
                           支持 JPG、PNG、GIF、WebP
                         </span>
@@ -271,7 +258,7 @@ const WhiteBoardModal: React.FC<WhiteBoardModalProps> = ({
             <div className="flex flex-col gap-1.5">
               <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
                 <svg
-                  className="w-3.5 h-3.5"
+                  className="h-3.5 w-3.5"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -285,12 +272,12 @@ const WhiteBoardModal: React.FC<WhiteBoardModalProps> = ({
                 ref={titleInputRef}
                 type="text"
                 value={title}
-                onChange={(e) => {
+                onChange={e => {
                   setTitle(e.target.value);
                   setError(null);
                 }}
                 placeholder="请输入标题"
-                className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-purple-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(168,85,247,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(168,85,247,0.25)]"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                 disabled={isSubmitting}
               />
             </div>
@@ -299,7 +286,7 @@ const WhiteBoardModal: React.FC<WhiteBoardModalProps> = ({
             <div className="flex flex-col gap-1.5">
               <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
                 <svg
-                  className="w-3.5 h-3.5"
+                  className="h-3.5 w-3.5"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -315,40 +302,40 @@ const WhiteBoardModal: React.FC<WhiteBoardModalProps> = ({
               </label>
               <textarea
                 value={description}
-                onChange={(e) => {
+                onChange={e => {
                   setDescription(e.target.value);
                   setError(null);
                 }}
                 placeholder="请输入描述"
                 rows={4}
-                className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-purple-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(168,85,247,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(168,85,247,0.25)] resize-y"
+                className="w-full resize-y rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                 disabled={isSubmitting}
               />
             </div>
 
             {error && (
-              <div className="px-3.5 py-2.5 rounded-lg text-[13px] bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400">
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[13px] text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
                 {error}
               </div>
             )}
 
             <div className="flex gap-3">
               <button
-                className="flex-1 px-5 py-3 rounded-xl border border-gray-200 dark:border-slate-700 text-sm font-medium cursor-pointer flex items-center justify-center gap-2 transition-all bg-white dark:bg-zinc-800 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-zinc-800 dark:text-slate-300 dark:hover:bg-zinc-700"
                 onClick={onCancel}
                 disabled={isSubmitting}
               >
                 取消
               </button>
               <button
-                className="flex-1 px-5 py-3 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-purple-500 text-white shadow-[0_4px_14px_rgba(168,85,247,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-purple-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none"
+                className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-none bg-[var(--th-btn-bg)] px-5 py-3 text-sm font-semibold text-[var(--th-btn-text)] shadow-sm transition-all hover:-translate-y-px hover:bg-[var(--th-btn-hover)] active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
                 onClick={handleSubmit}
                 disabled={!title.trim() || isSubmitting}
               >
                 {isSubmitting ? (
                   <>
                     <svg
-                      className="wb-spin w-5 h-5"
+                      className="wb-spin h-5 w-5"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -361,7 +348,7 @@ const WhiteBoardModal: React.FC<WhiteBoardModalProps> = ({
                 ) : (
                   <>
                     <svg
-                      className="w-5 h-5"
+                      className="h-5 w-5"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -378,7 +365,7 @@ const WhiteBoardModal: React.FC<WhiteBoardModalProps> = ({
         </div>
       </div>
     </div>,
-    document.body,
+    document.body
   );
 };
 

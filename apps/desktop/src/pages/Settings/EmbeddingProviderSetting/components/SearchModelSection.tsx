@@ -13,19 +13,12 @@ import {
   type SearchModelInfo,
   type EmbeddingDownloadSource,
 } from "@/commands";
-import {
-  SettingButton,
-  SettingDropdown,
-  SettingInput,
-  SettingSwitch,
-} from "../../components";
+import { SettingButton, SettingDropdown, SettingInput, SettingSwitch } from "../../components";
 
 const SearchModelSection = () => {
   const { modal, message } = App.useApp();
   const themeColors = useThemeColors();
-  const searchConfig = useSettingStore(
-    (state) => state.setting.searchModelProvider,
-  );
+  const searchConfig = useSettingStore(state => state.setting.searchModelProvider);
   const enableExpander = searchConfig.enableExpander !== false;
   const enableReranker = searchConfig.enableReranker !== false;
 
@@ -38,9 +31,9 @@ const SearchModelSection = () => {
 
   const persistConfig = (updater: (draft: any) => void) => {
     useSettingStore.setState(
-      produce((draft) => {
+      produce(draft => {
         updater(draft.setting.searchModelProvider);
-      }),
+      })
     );
   };
 
@@ -66,7 +59,7 @@ const SearchModelSection = () => {
   }, [loadModels]);
 
   useEffect(() => {
-    const unsubscribe = onSearchDownloadProgress((progress) => {
+    const unsubscribe = onSearchDownloadProgress(progress => {
       if (progress.modelName === downloadingModelRef.current) {
         setDownloadProgress(progress.percentage);
         setDownloadMessage(progress.message || "");
@@ -130,10 +123,7 @@ const SearchModelSection = () => {
     setDownloadMessage("准备下载...");
 
     try {
-      const result = await downloadSearchModel(
-        modelName,
-        searchConfig.source || "modelscope",
-      );
+      const result = await downloadSearchModel(modelName, searchConfig.source || "modelscope");
       if (result.success) {
         message.success(`模型 ${modelName} 下载成功`);
         await loadModels();
@@ -179,16 +169,11 @@ const SearchModelSection = () => {
   };
 
   return (
-    <div
-      className={classNames(
-        "rounded-xl bg-transparent border",
-        themeColors.focusBorderClass,
-      )}
-    >
+    <div className={classNames("rounded-xl border bg-transparent", themeColors.borderClass)}>
       <div className="flex items-center justify-between px-5 py-4">
         <div>
           <h3 className="text-base font-semibold">检索模型（扩展 / 重排）</h3>
-          <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+          <div className="mt-1 text-xs text-gray-500 dark:text-slate-400">
             本地优先：模型缺失会自动降级，不中断搜索流程
           </div>
         </div>
@@ -206,11 +191,9 @@ const SearchModelSection = () => {
         </div>
       </div>
 
-      <div className="px-5 pb-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 px-5 pb-4 md:grid-cols-2">
         <div>
-          <div className="text-xs text-gray-500 dark:text-slate-400 mb-1">
-            运行设备
-          </div>
+          <div className="mb-1 text-xs text-gray-500 dark:text-slate-400">运行设备</div>
           <SettingDropdown
             value={searchConfig.devicePolicy || "auto"}
             onChange={handleDevicePolicyChange}
@@ -222,19 +205,17 @@ const SearchModelSection = () => {
           />
         </div>
         <div>
-          <div className="text-xs text-gray-500 dark:text-slate-400 mb-1">
-            批处理大小（rerank）
-          </div>
+          <div className="mb-1 text-xs text-gray-500 dark:text-slate-400">批处理大小（rerank）</div>
           <SettingInput
             value={String(searchConfig.batchSize || 8)}
-            onChange={(event) => handleBatchSizeChange(event.target.value)}
+            onChange={event => handleBatchSizeChange(event.target.value)}
             placeholder="8"
           />
         </div>
       </div>
 
-      <div className="px-5 pb-2 grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="rounded-lg border border-gray-200 dark:border-gray-700 px-3">
+      <div className="grid grid-cols-1 gap-3 px-5 pb-2 md:grid-cols-2">
+        <div className="rounded-lg border border-gray-200 px-3 dark:border-gray-700">
           <SettingSwitch
             checked={enableExpander}
             onChange={handleEnableExpanderChange}
@@ -242,7 +223,7 @@ const SearchModelSection = () => {
             description="关闭后跳过查询扩展，仅使用原始 query"
           />
         </div>
-        <div className="rounded-lg border border-gray-200 dark:border-gray-700 px-3">
+        <div className="rounded-lg border border-gray-200 px-3 dark:border-gray-700">
           <SettingSwitch
             checked={enableReranker}
             onChange={handleEnableRerankerChange}
@@ -252,9 +233,9 @@ const SearchModelSection = () => {
         </div>
       </div>
 
-      <div className="p-4 space-y-3">
+      <div className="space-y-3 p-4">
         {loadError && (
-          <div className="p-4 rounded-lg border border-amber-300 bg-amber-50/80 dark:bg-amber-900/20 dark:border-amber-700">
+          <div className="rounded-lg border border-amber-300 bg-amber-50/80 p-4 dark:border-amber-700 dark:bg-amber-900/20">
             <div className="text-sm text-amber-700 dark:text-amber-300">
               检索模型列表加载失败：{loadError}
             </div>
@@ -266,79 +247,77 @@ const SearchModelSection = () => {
           </div>
         )}
         {!loadError && models.length === 0 && (
-          <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400">
+          <div className="rounded-lg border border-gray-200 p-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
             暂未获取到检索模型列表。可点击“重试加载”或重启应用后再试。
           </div>
         )}
-        {models.map((model) => {
+        {models.map(model => {
           const isDownloading = downloadingModel === model.name;
           const isExpanderActive =
-            model.kind === "query_expander" &&
-            searchConfig.queryExpanderModel === model.name;
+            model.kind === "query_expander" && searchConfig.queryExpanderModel === model.name;
           const isRerankerActive =
-            model.kind === "reranker" &&
-            searchConfig.rerankerModel === model.name;
+            model.kind === "reranker" && searchConfig.rerankerModel === model.name;
           const isActive = isExpanderActive || isRerankerActive;
 
           return (
             <div
               key={model.name}
               className={classNames(
-                "p-4 rounded-lg border transition-colors",
+                "rounded-lg border p-4 transition-colors",
                 isActive
-                  ? "border-green-300 bg-green-50 dark:bg-green-900/20 dark:border-green-700"
-                  : "border-gray-200 bg-gray-50 dark:bg-zinc-800/50 dark:border-gray-700",
+                  ? "border-[var(--th-border-hover)] bg-[var(--th-bg-hover)]"
+                  : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50"
               )}
             >
               <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium text-gray-800 dark:text-gray-200">
                       {model.label}
                     </span>
-                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-gray-300">
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-zinc-700 dark:text-gray-300">
                       {model.kind === "query_expander" ? "扩展" : "重排"}
                     </span>
-                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-gray-300">
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-zinc-700 dark:text-gray-300">
                       {model.downloaded ? "已下载" : "未下载"}
                     </span>
                     {isExpanderActive && (
-                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400">
+                      <span className="bg-[var(--th-success)]/15 text-status-success rounded-full px-2 py-0.5 text-xs font-medium">
                         当前扩展模型
                       </span>
                     )}
                     {model.kind === "query_expander" && !enableExpander && (
-                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-gray-300">
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-zinc-700 dark:text-gray-300">
                         已关闭
                       </span>
                     )}
                     {isRerankerActive && (
-                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400">
+                      <span className="bg-[var(--th-success)]/15 text-status-success rounded-full px-2 py-0.5 text-xs font-medium">
                         当前重排模型
                       </span>
                     )}
                     {model.kind === "reranker" && !enableReranker && (
-                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-gray-300">
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-zinc-700 dark:text-gray-300">
                         已关闭
                       </span>
                     )}
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                     {model.description}
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 flex gap-4">
+                  <div className="mt-2 flex gap-4 text-xs text-gray-500 dark:text-gray-400">
                     <span>大小: {model.size}</span>
                     <span>目录名: {model.name}</span>
                   </div>
                   {isDownloading && (
                     <div className="mt-3">
-                      <div className="h-1.5 bg-gray-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                      <div className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-zinc-700">
                         <div
-                          className="h-full bg-blue-500 transition-all"
+                          className="h-full bg-[var(--th-accent)] transition-all"
                           style={{ width: `${downloadProgress}%` }}
                         />
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                         {downloadMessage || `下载中... ${downloadProgress}%`}
                       </div>
                     </div>
@@ -350,14 +329,14 @@ const SearchModelSection = () => {
                       {!isActive && (
                         <button
                           onClick={() => handleActivateModel(model)}
-                          className="px-3 py-1.5 text-sm text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-500/10 rounded-lg transition-colors"
+                          className="text-status-success hover:bg-[var(--th-success)]/10 hover:text-status-success rounded-lg px-3 py-1.5 text-sm transition-colors"
                         >
                           启用
                         </button>
                       )}
                       <button
                         onClick={() => handleDeleteModel(model.name)}
-                        className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                        className="rounded-lg px-3 py-1.5 text-sm text-red-600 transition-colors hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-500/10"
                       >
                         删除
                       </button>
@@ -365,14 +344,14 @@ const SearchModelSection = () => {
                   ) : isDownloading ? (
                     <button
                       onClick={() => handleCancelDownload(model.name)}
-                      className="px-3 py-1.5 text-sm text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-500/10 rounded-lg transition-colors"
+                      className="rounded-lg px-3 py-1.5 text-sm text-orange-600 transition-colors hover:bg-orange-50 hover:text-orange-700 dark:text-orange-400 dark:hover:bg-orange-500/10"
                     >
                       取消
                     </button>
                   ) : (
                     <button
                       onClick={() => handleDownloadModel(model.name)}
-                      className="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-500/10 rounded-lg transition-colors"
+                      className="dark:hover:bg-[var(--th-btn-hover)]/10 rounded-lg px-3 py-1.5 text-sm text-[var(--th-active-text)] transition-colors hover:bg-[var(--th-accent-soft)] hover:text-[var(--th-active-text)]"
                     >
                       下载
                     </button>

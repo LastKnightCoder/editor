@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react";
 import classNames from "classnames";
 import { ModelFormData, ModelItem } from "../types";
-import {
-  SettingInput,
-  SettingButton,
-  SettingModalShell,
-} from "../../components";
+import { SettingInput, SettingButton, SettingModalShell } from "../../components";
 import useThemeColors from "@/hooks/useThemeColors";
 
 interface ModelModalProps {
@@ -35,12 +31,10 @@ const ModelModal = ({
   const [modelName, setModelName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
-  const [messageFormat, setMessageFormat] = useState<"openai" | "claude">(
-    "openai",
+  const [messageFormat, setMessageFormat] = useState<"openai" | "claude">("openai");
+  const [apiProtocol, setApiProtocol] = useState<"chat-completions" | "responses">(
+    "chat-completions"
   );
-  const [apiProtocol, setApiProtocol] = useState<
-    "chat-completions" | "responses"
-  >("chat-completions");
   const [maxOutputTokens, setMaxOutputTokens] = useState("");
   const [contextWindowK, setContextWindowK] = useState("");
   const [userAgent, setUserAgent] = useState("");
@@ -55,31 +49,20 @@ const ModelModal = ({
       setMessageFormat(initialData.messageFormat ?? "openai");
       setApiProtocol(initialData.apiProtocol ?? "chat-completions");
       setMaxOutputTokens(
-        typeof initialData.maxOutputTokens === "number"
-          ? String(initialData.maxOutputTokens)
-          : "",
+        typeof initialData.maxOutputTokens === "number" ? String(initialData.maxOutputTokens) : ""
       );
       setContextWindowK(
-        typeof initialData.contextWindowK === "number"
-          ? String(initialData.contextWindowK)
-          : "",
+        typeof initialData.contextWindowK === "number" ? String(initialData.contextWindowK) : ""
       );
       setUserAgent(initialData.userAgent ?? "");
       setTemperature(
-        typeof initialData.temperature === "number"
-          ? String(initialData.temperature)
-          : "",
+        typeof initialData.temperature === "number" ? String(initialData.temperature) : ""
       );
-      setIsAdvancedOpen(
-        Boolean(initialData.userAgent || initialData.temperature !== undefined),
-      );
+      setIsAdvancedOpen(Boolean(initialData.userAgent || initialData.temperature !== undefined));
       const normalizedFeatures = {
         online: initialData.features?.online ?? false,
         thinking: initialData.features?.thinking ?? false,
-        image:
-          initialData.features?.image ??
-          initialData.features?.multimodal ??
-          false,
+        image: initialData.features?.image ?? initialData.features?.multimodal ?? false,
         video: initialData.features?.video ?? false,
         audio: initialData.features?.audio ?? false,
         file: initialData.features?.file ?? false,
@@ -117,8 +100,7 @@ const ModelModal = ({
       description,
       features,
       messageFormat,
-      apiProtocol:
-        messageFormat === "openai" ? apiProtocol : "chat-completions",
+      apiProtocol: messageFormat === "openai" ? apiProtocol : "chat-completions",
       maxOutputTokens:
         messageFormat === "claude" &&
         Number.isFinite(parsedMaxOutputTokens) &&
@@ -162,8 +144,8 @@ const ModelModal = ({
   };
 
   const toggleFeature = (value: string) => {
-    setSelectedFeatures((prev) =>
-      prev.includes(value) ? prev.filter((f) => f !== value) : [...prev, value],
+    setSelectedFeatures(prev =>
+      prev.includes(value) ? prev.filter(f => f !== value) : [...prev, value]
     );
   };
 
@@ -191,39 +173,33 @@ const ModelModal = ({
       <SettingInput
         label="模型名称"
         value={modelName}
-        onChange={(e) => setModelName(e.target.value)}
+        onChange={e => setModelName(e.target.value)}
         placeholder="请输入模型名称"
       />
       <SettingInput
         label="模型描述"
         value={description}
-        onChange={(e) => setDescription(e.target.value)}
+        onChange={e => setDescription(e.target.value)}
         placeholder="请输入模型描述"
       />
       <div>
-        <label
-          className={classNames(
-            "block text-sm font-medium mb-2",
-            themeColors.textClass,
-          )}
-        >
+        <label className={classNames("mb-2 block text-sm font-medium", themeColors.textClass)}>
           支持的特性
         </label>
         <div className="flex flex-wrap gap-2">
-          {featureOptions.map((option) => (
+          {featureOptions.map(option => (
             <button
               key={option.value}
               type="button"
               onClick={() => toggleFeature(option.value)}
               className={classNames(
-                "px-3 py-1.5 text-sm rounded-lg transition-colors",
+                "rounded-lg px-3 py-1.5 text-sm transition-colors",
                 selectedFeatures.includes(option.value)
-                  ? [themeColors.activeBgClass, themeColors.activeTextClass]
-                  : [
-                      themeColors.cardBgClass,
+                  ? [
+                      "border border-[var(--th-border-hover)] bg-[var(--th-bg-hover)]",
                       themeColors.textClass,
-                      themeColors.hoverClass,
-                    ],
+                    ]
+                  : [themeColors.cardBgClass, themeColors.textClass, themeColors.hoverClass]
               )}
             >
               {option.label}
@@ -232,12 +208,7 @@ const ModelModal = ({
         </div>
       </div>
       <div>
-        <label
-          className={classNames(
-            "block text-sm font-medium mb-2",
-            themeColors.textClass,
-          )}
-        >
+        <label className={classNames("mb-2 block text-sm font-medium", themeColors.textClass)}>
           消息格式
         </label>
         <div className="flex flex-wrap gap-2">
@@ -246,7 +217,7 @@ const ModelModal = ({
               { label: "OpenAI", value: "openai" },
               { label: "Claude", value: "claude" },
             ] as const
-          ).map((option) => (
+          ).map(option => (
             <button
               key={option.value}
               type="button"
@@ -257,14 +228,13 @@ const ModelModal = ({
                 }
               }}
               className={classNames(
-                "px-3 py-1.5 text-sm rounded-lg transition-colors",
+                "rounded-lg px-3 py-1.5 text-sm transition-colors",
                 messageFormat === option.value
-                  ? [themeColors.activeBgClass, themeColors.activeTextClass]
-                  : [
-                      themeColors.cardBgClass,
+                  ? [
+                      "border border-[var(--th-border-hover)] bg-[var(--th-bg-hover)]",
                       themeColors.textClass,
-                      themeColors.hoverClass,
-                    ],
+                    ]
+                  : [themeColors.cardBgClass, themeColors.textClass, themeColors.hoverClass]
               )}
             >
               {option.label}
@@ -274,12 +244,7 @@ const ModelModal = ({
       </div>
       {messageFormat === "openai" && (
         <div>
-          <label
-            className={classNames(
-              "block text-sm font-medium mb-2",
-              themeColors.textClass,
-            )}
-          >
+          <label className={classNames("mb-2 block text-sm font-medium", themeColors.textClass)}>
             API 类型
           </label>
           <div className="flex flex-wrap gap-2">
@@ -288,20 +253,19 @@ const ModelModal = ({
                 { label: "Chat Completions", value: "chat-completions" },
                 { label: "Responses", value: "responses" },
               ] as const
-            ).map((option) => (
+            ).map(option => (
               <button
                 key={option.value}
                 type="button"
                 onClick={() => setApiProtocol(option.value)}
                 className={classNames(
-                  "px-3 py-1.5 text-sm rounded-lg transition-colors",
+                  "rounded-lg px-3 py-1.5 text-sm transition-colors",
                   apiProtocol === option.value
-                    ? [themeColors.activeBgClass, themeColors.activeTextClass]
-                    : [
-                        themeColors.cardBgClass,
+                    ? [
+                        "border border-[var(--th-border-hover)] bg-[var(--th-bg-hover)]",
                         themeColors.textClass,
-                        themeColors.hoverClass,
-                      ],
+                      ]
+                    : [themeColors.cardBgClass, themeColors.textClass, themeColors.hoverClass]
                 )}
               >
                 {option.label}
@@ -317,7 +281,7 @@ const ModelModal = ({
           min={1}
           step={1}
           value={maxOutputTokens}
-          onChange={(e) => setMaxOutputTokens(e.target.value)}
+          onChange={e => setMaxOutputTokens(e.target.value)}
           placeholder="默认 8192，例如 16000 或 32000"
           description="用于 Claude Messages API 的 max_tokens。不同 Claude 模型和中转渠道允许的最大值不同，超出后服务端会拒绝请求。"
         />
@@ -328,24 +292,21 @@ const ModelModal = ({
         min={1}
         step={1}
         value={contextWindowK}
-        onChange={(e) => setContextWindowK(e.target.value)}
+        onChange={e => setContextWindowK(e.target.value)}
         placeholder="例如 128，表示 128k tokens"
         description="用于聊天输入框显示上下文用量；不同模型请分别填写。"
       />
       <details
         open={isAdvancedOpen}
-        onToggle={(event) => setIsAdvancedOpen(event.currentTarget.open)}
+        onToggle={event => setIsAdvancedOpen(event.currentTarget.open)}
         className={classNames(
           "rounded-xl border px-4 py-3",
           themeColors.borderClass,
-          themeColors.cardBgClass,
+          themeColors.cardBgClass
         )}
       >
         <summary
-          className={classNames(
-            "cursor-pointer text-sm font-medium",
-            themeColors.textClass,
-          )}
+          className={classNames("cursor-pointer text-sm font-medium", themeColors.textClass)}
         >
           高级设置
         </summary>
@@ -353,7 +314,7 @@ const ModelModal = ({
           <SettingInput
             label="User Agent"
             value={userAgent}
-            onChange={(e) => setUserAgent(e.target.value)}
+            onChange={e => setUserAgent(e.target.value)}
             placeholder="请输入模型服务要求的 User Agent（可选）"
             description="设置后会作为该模型请求的 User-Agent 请求头发送；留空则使用默认请求头。"
           />
@@ -364,7 +325,7 @@ const ModelModal = ({
             max={2}
             step={0.1}
             value={temperature}
-            onChange={(e) => setTemperature(e.target.value)}
+            onChange={e => setTemperature(e.target.value)}
             placeholder="可选，例如 1"
             description="覆盖模型默认的采样温度。部分模型（如 Kimi K3）只接受固定值，请按服务商要求填写。"
           />

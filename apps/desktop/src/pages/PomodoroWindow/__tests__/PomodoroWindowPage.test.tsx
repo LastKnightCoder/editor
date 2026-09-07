@@ -7,9 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PomodoroWindowPage from "../index";
 import type { PomodoroPreset } from "@/types";
 
-(
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const { pomodoroStoreState } = vi.hoisted(() => ({
   pomodoroStoreState: {
@@ -65,16 +63,15 @@ vi.mock("@/hooks/useThemeColors", () => ({
     hoverClass: "hover:bg-gray-100",
     buttonBg: "bg-blue-500",
     buttonTextClass: "text-white",
-    activeTextClass: "text-blue-500",
+    activeTextClass: "text-[var(--th-accent)]",
     accentSoftBg: "rgba(59, 130, 246, 0.2)",
     accentColor: "rgb(59, 130, 246)",
   }),
 }));
 
 vi.mock("@/stores/useSettingStore", () => ({
-  default: (
-    selector?: (state: { setting: { darkMode: boolean } }) => unknown,
-  ) => (selector ? selector({ setting: { darkMode: false } }) : undefined),
+  default: (selector?: (state: { setting: { darkMode: boolean } }) => unknown) =>
+    selector ? selector({ setting: { darkMode: false } }) : undefined,
 }));
 
 vi.mock("@/components/DndProvider", () => ({
@@ -120,7 +117,7 @@ const mount = async () => {
     root.render(
       <App>
         <PomodoroWindowPage />
-      </App>,
+      </App>
     );
   });
   return { root, container };

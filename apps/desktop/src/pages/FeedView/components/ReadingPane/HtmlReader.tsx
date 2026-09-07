@@ -30,34 +30,20 @@ export default function HtmlReader({
   onDelete,
 }: HtmlReaderProps) {
   const themeColors = useThemeColors();
-  const rawHtml =
-    article.readabilityContent || article.content || "<p>暂无内容</p>";
+  const rawHtml = article.readabilityContent || article.content || "<p>暂无内容</p>";
   const html = DOMPurify.sanitize(rawHtml, {
     FORBID_TAGS: ["script", "style", "iframe", "object", "embed", "form"],
-    FORBID_ATTR: [
-      "onerror",
-      "onload",
-      "onclick",
-      "onmouseover",
-      "onfocus",
-      "onblur",
-    ],
+    FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "onfocus", "onblur"],
   });
 
   return (
     <div className="h-full overflow-y-auto">
       <article className="mx-auto w-full max-w-[720px] px-8 py-8">
-        <header className={`mb-6 pb-4 border-b ${themeColors.borderClass}`}>
-          <h1 className="m-0 text-xl font-bold leading-snug">
-            {article.title}
-          </h1>
-          <div
-            className={`mt-2 flex items-center gap-3 text-xs ${themeColors.secondaryTextClass}`}
-          >
+        <header className={`mb-6 border-b pb-4 ${themeColors.borderClass}`}>
+          <h1 className="m-0 text-xl font-bold leading-snug">{article.title}</h1>
+          <div className={`mt-2 flex items-center gap-3 text-xs ${themeColors.secondaryTextClass}`}>
             {article.author && <span>{article.author}</span>}
-            {article.publishedAt && (
-              <span>{new Date(article.publishedAt).toLocaleString()}</span>
-            )}
+            {article.publishedAt && <span>{new Date(article.publishedAt).toLocaleString()}</span>}
             {article.url && (
               <a
                 href={article.url}
@@ -70,24 +56,15 @@ export default function HtmlReader({
             )}
           </div>
           <div className="mt-3 flex items-center gap-1">
-            <IconBtn
-              onClick={onToggleStar}
-              title={article.isStarred ? "取消收藏" : "收藏"}
-            >
-              {article.isStarred ? (
-                <StarFilled className="text-amber-500" />
-              ) : (
-                <StarOutlined />
-              )}
+            <IconBtn onClick={onToggleStar} title={article.isStarred ? "取消收藏" : "收藏"}>
+              {article.isStarred ? <StarFilled className="text-amber-500" /> : <StarOutlined />}
             </IconBtn>
             {onToggleReadLater && (
               <IconBtn
                 onClick={onToggleReadLater}
                 title={isInReadLater ? "从稍后读移除" : "稍后读"}
               >
-                <BookOutlined
-                  className={isInReadLater ? "text-blue-500" : ""}
-                />
+                <BookOutlined className={isInReadLater ? "text-[var(--th-accent)]" : ""} />
               </IconBtn>
             )}
             {article.source === "readlater" && (
@@ -109,7 +86,7 @@ export default function HtmlReader({
           </div>
         </header>
         <div
-          className="prose-reader text-[15px] leading-[1.8] break-words"
+          className="prose-reader break-words text-[15px] leading-[1.8]"
           dangerouslySetInnerHTML={{ __html: html }}
         />
       </article>
@@ -133,7 +110,7 @@ function IconBtn({
     <button
       onClick={onClick}
       title={title}
-      className={`flex h-7 w-7 items-center justify-center rounded-md border-none cursor-pointer bg-transparent transition-colors duration-150 ${
+      className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors duration-150 ${
         danger
           ? "text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
           : `${themeColors.secondaryTextClass} ${themeColors.hoverClass}`

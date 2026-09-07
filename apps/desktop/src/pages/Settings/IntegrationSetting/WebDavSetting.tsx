@@ -14,7 +14,7 @@ interface WebDavCredentialsForm {
 
 const WebDavSetting: React.FC = () => {
   const themeColors = useThemeColors();
-  const setting = useSettingStore((state) => state.setting);
+  const setting = useSettingStore(state => state.setting);
   const { webdav } = setting.integration;
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -23,9 +23,7 @@ const WebDavSetting: React.FC = () => {
     username: webdav.username || "",
     password: webdav.password || "",
   });
-  const [errors, setErrors] = useState<
-    Partial<Record<keyof WebDavCredentialsForm, string>>
-  >({});
+  const [errors, setErrors] = useState<Partial<Record<keyof WebDavCredentialsForm, string>>>({});
 
   const validateForm = useMemoizedFn(() => {
     const newErrors: Partial<Record<keyof WebDavCredentialsForm, string>> = {};
@@ -52,12 +50,12 @@ const WebDavSetting: React.FC = () => {
     }
 
     useSettingStore.setState(
-      produce((state) => {
+      produce(state => {
         state.setting.integration.webdav = {
           enabled: true,
           ...formData,
         };
-      }),
+      })
     );
     setModalOpen(false);
     setErrors({});
@@ -65,14 +63,14 @@ const WebDavSetting: React.FC = () => {
 
   const handleDisconnect = useCallback(() => {
     useSettingStore.setState(
-      produce((state) => {
+      produce(state => {
         state.setting.integration.webdav = {
           enabled: false,
           url: "",
           username: "",
           password: "",
         };
-      }),
+      })
     );
   }, []);
 
@@ -92,7 +90,7 @@ const WebDavSetting: React.FC = () => {
         handleModalClose();
       }
     },
-    [handleModalClose],
+    [handleModalClose]
   );
 
   return (
@@ -101,17 +99,15 @@ const WebDavSetting: React.FC = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className={`relative group rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden h-[280px] flex flex-col ${themeColors.cardBgClass} ${themeColors.cardBorderClass} border`}
+        className={`group relative flex h-[280px] flex-col overflow-hidden rounded-xl shadow-sm transition-all duration-300 hover:shadow-md ${themeColors.cardBgClass} ${themeColors.cardBorderClass} border`}
       >
         {/* Status Badge */}
-        <div className="absolute top-4 right-4">
+        <div className="absolute right-4 top-4">
           <div
-            className={`flex items-center gap-2 px-3 py-1 rounded-full ${themeColors.inputBgClass}`}
+            className={`flex items-center gap-2 rounded-full px-3 py-1 ${themeColors.inputBgClass}`}
           >
             <div
-              className={`w-2 h-2 rounded-full ${
-                webdav.enabled ? "bg-green-500" : "bg-gray-400"
-              }`}
+              className={`h-2 w-2 rounded-full ${webdav.enabled ? "bg-status-success" : "bg-gray-400"}`}
             />
             <span className={`text-xs font-medium ${themeColors.textClass}`}>
               {webdav.enabled ? "已配置" : "未配置"}
@@ -122,9 +118,9 @@ const WebDavSetting: React.FC = () => {
         {/* Header */}
         <div className="p-6 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-lg bg-linear-to-br from-teal-500 to-cyan-600 flex items-center justify-center text-white text-xl font-bold shadow-sm">
+            <div className="bg-linear-to-br flex h-12 w-12 items-center justify-center rounded-lg from-[var(--th-accent)] to-[var(--th-accent-hover)] text-xl font-bold text-white shadow-sm">
               <svg
-                className="w-6 h-6"
+                className="h-6 w-6"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -137,31 +133,23 @@ const WebDavSetting: React.FC = () => {
                 />
               </svg>
             </div>
-            <div className="flex-1 min-w-0">
-              <h3
-                className={`text-base font-semibold truncate ${themeColors.activeTextClass}`}
-              >
+            <div className="min-w-0 flex-1">
+              <h3 className={`truncate text-base font-semibold ${themeColors.textClass}`}>
                 WebDAV
               </h3>
-              <p
-                className={`text-xs truncate ${themeColors.secondaryTextClass}`}
-              >
-                WebDAV 服务器
-              </p>
+              <p className={`truncate text-xs ${themeColors.secondaryTextClass}`}>WebDAV 服务器</p>
             </div>
           </div>
         </div>
 
         {/* Info Section */}
-        <div className="px-6 py-2 flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden px-6 py-2">
           {webdav.enabled && (
             <div className="space-y-1">
-              <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+              <div className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
                 {webdav.username}
               </div>
-              <div
-                className={`text-xs truncate ${themeColors.secondaryTextClass}`}
-              >
+              <div className={`truncate text-xs ${themeColors.secondaryTextClass}`}>
                 {webdav.url}
               </div>
             </div>
@@ -169,11 +157,11 @@ const WebDavSetting: React.FC = () => {
         </div>
 
         {/* Actions */}
-        <div className="p-6 pt-4 mt-auto space-y-2">
+        <div className="mt-auto space-y-2 p-6 pt-4">
           {!webdav.enabled ? (
             <button
               onClick={() => setModalOpen(true)}
-              className="w-full px-4 py-2 text-sm font-medium text-white bg-teal-500 hover:bg-teal-600 rounded-lg transition-colors"
+              className="w-full rounded-lg bg-[var(--th-btn-bg)] px-4 py-2 text-sm font-medium text-[var(--th-btn-text)] transition-colors hover:bg-[var(--th-btn-hover)]"
             >
               配置 WebDAV
             </button>
@@ -181,13 +169,13 @@ const WebDavSetting: React.FC = () => {
             <>
               <button
                 onClick={() => setModalOpen(true)}
-                className={`w-full px-4 py-2 text-sm font-medium rounded-lg transition-colors ${themeColors.inputBgClass} ${themeColors.textClass} ${themeColors.hoverClass}`}
+                className={`w-full rounded-lg px-4 py-2 text-sm font-medium transition-colors ${themeColors.inputBgClass} ${themeColors.textClass} ${themeColors.hoverClass}`}
               >
                 管理凭证
               </button>
               <button
                 onClick={handleDisconnect}
-                className="w-full px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                className="w-full rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
               >
                 断开连接
               </button>
@@ -205,7 +193,7 @@ const WebDavSetting: React.FC = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+              className="z-9999 fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm"
               onClick={handleModalClose}
               onKeyDown={handleKeyDown}
             >
@@ -214,14 +202,14 @@ const WebDavSetting: React.FC = () => {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 transition={{ type: "spring", duration: 0.3 }}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-[460px] m-4"
+                onClick={e => e.stopPropagation()}
+                className="m-4 w-full max-w-[460px]"
               >
-                <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800">
-                  <div className="flex items-start gap-3 mb-5">
-                    <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-teal-50 dark:bg-teal-500/20 border border-teal-200 dark:border-teal-500/30">
+                <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
+                  <div className="mb-5 flex items-start gap-3">
+                    <div className="border-[var(--th-border-focus)]/30 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border bg-[var(--th-accent-soft)]">
                       <svg
-                        className="w-5 h-5 text-teal-500"
+                        className="h-5 w-5 text-[var(--th-accent)]"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -234,20 +222,20 @@ const WebDavSetting: React.FC = () => {
                         />
                       </svg>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h2 className="text-base font-bold m-0 text-gray-800 dark:text-white">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="m-0 text-base font-bold text-gray-800 dark:text-white">
                         WebDAV 配置
                       </h2>
-                      <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
+                      <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-500">
                         配置 WebDAV 服务器连接
                       </p>
                     </div>
                     <button
-                      className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
+                      className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-gray-100 text-gray-500 transition-all hover:bg-gray-200 hover:text-gray-700 dark:bg-zinc-800 dark:text-slate-400 dark:hover:bg-zinc-700 dark:hover:text-slate-200"
                       onClick={handleModalClose}
                     >
                       <svg
-                        className="w-[18px] h-[18px]"
+                        className="h-[18px] w-[18px]"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -263,7 +251,7 @@ const WebDavSetting: React.FC = () => {
                     <div className="flex flex-col gap-1.5">
                       <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
                         <svg
-                          className="w-3.5 h-3.5"
+                          className="h-3.5 w-3.5"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -276,17 +264,15 @@ const WebDavSetting: React.FC = () => {
                       <input
                         type="text"
                         value={formData.url}
-                        onChange={(e) => {
+                        onChange={e => {
                           setFormData({ ...formData, url: e.target.value });
                           setErrors({ ...errors, url: undefined });
                         }}
                         placeholder="https://dav.jianguoyun.com/dav/"
-                        className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-teal-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(20,184,166,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(20,184,166,0.25)]"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                       />
                       {errors.url && (
-                        <span className="text-xs text-red-600 dark:text-red-400">
-                          {errors.url}
-                        </span>
+                        <span className="text-xs text-red-600 dark:text-red-400">{errors.url}</span>
                       )}
                     </div>
 
@@ -294,7 +280,7 @@ const WebDavSetting: React.FC = () => {
                     <div className="flex flex-col gap-1.5">
                       <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
                         <svg
-                          className="w-3.5 h-3.5"
+                          className="h-3.5 w-3.5"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -307,7 +293,7 @@ const WebDavSetting: React.FC = () => {
                       <input
                         type="text"
                         value={formData.username}
-                        onChange={(e) => {
+                        onChange={e => {
                           setFormData({
                             ...formData,
                             username: e.target.value,
@@ -315,7 +301,7 @@ const WebDavSetting: React.FC = () => {
                           setErrors({ ...errors, username: undefined });
                         }}
                         placeholder="请输入用户名..."
-                        className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-teal-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(20,184,166,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(20,184,166,0.25)]"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                       />
                       {errors.username && (
                         <span className="text-xs text-red-600 dark:text-red-400">
@@ -328,7 +314,7 @@ const WebDavSetting: React.FC = () => {
                     <div className="flex flex-col gap-1.5">
                       <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
                         <svg
-                          className="w-3.5 h-3.5"
+                          className="h-3.5 w-3.5"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -341,7 +327,7 @@ const WebDavSetting: React.FC = () => {
                       <input
                         type="password"
                         value={formData.password}
-                        onChange={(e) => {
+                        onChange={e => {
                           setFormData({
                             ...formData,
                             password: e.target.value,
@@ -349,7 +335,7 @@ const WebDavSetting: React.FC = () => {
                           setErrors({ ...errors, password: undefined });
                         }}
                         placeholder="请输入密码..."
-                        className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-teal-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(20,184,166,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(20,184,166,0.25)]"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
                       />
                       {errors.password && (
                         <span className="text-xs text-red-600 dark:text-red-400">
@@ -359,11 +345,11 @@ const WebDavSetting: React.FC = () => {
                     </div>
 
                     <button
-                      className="w-full px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-teal-500 text-white shadow-[0_4px_14px_rgba(20,184,166,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-teal-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none"
+                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-none bg-[var(--th-btn-bg)] px-5 py-3.5 text-sm font-semibold text-[var(--th-btn-text)] shadow-sm transition-all hover:-translate-y-px hover:bg-[var(--th-btn-hover)] active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
                       onClick={handleSave}
                     >
                       <svg
-                        className="w-5 h-5"
+                        className="h-5 w-5"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -378,7 +364,7 @@ const WebDavSetting: React.FC = () => {
               </motion.div>
             </motion.div>
           </AnimatePresence>,
-          document.body,
+          document.body
         )}
     </>
   );

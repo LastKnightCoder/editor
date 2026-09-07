@@ -422,6 +422,8 @@ const Application = () => {
           },
           Input: {
             activeShadow: "none",
+            activeBorderColor: "var(--th-border-focus)",
+            hoverBorderColor: "var(--th-border-hover)",
             activeBg: isSolid
               ? isDark
                 ? "#1f1f1f"

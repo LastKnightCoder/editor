@@ -3,11 +3,7 @@ import { AutoComplete } from "antd";
 import { MdClose } from "react-icons/md";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { Calendar } from "@/types";
-import {
-  PROJECT_COLORS,
-  getProjectColorValue,
-  ProjectColorName,
-} from "@/constants/project-colors";
+import { PROJECT_COLORS, getProjectColorValue, ProjectColorName } from "@/constants/project-colors";
 import useSettingStore from "@/stores/useSettingStore";
 
 interface EditCalendarDialogProps {
@@ -16,9 +12,8 @@ interface EditCalendarDialogProps {
 }
 
 const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
-  const { updateCalendar, createCalendarGroup, calendarGroups } =
-    useCalendarStore();
-  const setting = useSettingStore((state) => state.setting);
+  const { updateCalendar, createCalendarGroup, calendarGroups } = useCalendarStore();
+  const setting = useSettingStore(state => state.setting);
   const theme = setting.darkMode ? "dark" : "light";
 
   const [title, setTitle] = useState("");
@@ -26,7 +21,7 @@ const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
   const [groupInput, setGroupInput] = useState("");
 
   // 获取用户分组（非系统分组）
-  const userGroups = calendarGroups.filter((g) => !g.isSystem);
+  const userGroups = calendarGroups.filter(g => !g.isSystem);
 
   useEffect(() => {
     if (calendar) {
@@ -34,7 +29,7 @@ const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
       setColor(calendar.color);
       // 设置分组输入框的初始值
       if (calendar.groupId) {
-        const group = calendarGroups.find((g) => g.id === calendar.groupId);
+        const group = calendarGroups.find(g => g.id === calendar.groupId);
         if (group) {
           setGroupInput(group.name);
         }
@@ -59,9 +54,7 @@ const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
     // 如果输入了分组名称
     if (groupInput.trim()) {
       // 检查分组是否已存在
-      const existingGroup = userGroups.find(
-        (g) => g.name === groupInput.trim(),
-      );
+      const existingGroup = userGroups.find(g => g.name === groupInput.trim());
       if (existingGroup) {
         groupId = existingGroup.id;
       } else {
@@ -93,9 +86,7 @@ const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
       <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-zinc-800">
         {/* 头部 */}
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            编辑日历
-          </h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">编辑日历</h3>
           <button
             onClick={onClose}
             className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-zinc-700 dark:hover:text-gray-300"
@@ -114,16 +105,14 @@ const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
             <input
               type="text"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={e => setTitle(e.target.value)}
               placeholder="输入日历名称"
               disabled={calendar?.isInSystemGroup}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-zinc-700 dark:text-gray-100 dark:focus:border-blue-400"
+              className="focus:ring-[var(--th-accent)]/20 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-[var(--th-border-focus)] focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-zinc-700 dark:text-gray-100 dark:focus:border-[var(--th-border-focus)]"
               autoFocus={!calendar?.isInSystemGroup}
             />
             {calendar?.isInSystemGroup && (
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                系统日历名称不可修改
-              </p>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">系统日历名称不可修改</p>
             )}
           </div>
 
@@ -136,7 +125,7 @@ const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
               <AutoComplete
                 value={groupInput}
                 onChange={setGroupInput}
-                options={userGroups.map((group) => ({
+                options={userGroups.map(group => ({
                   value: group.name,
                   label: group.name,
                 }))}
@@ -144,9 +133,7 @@ const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
                 size="large"
                 className="w-full"
                 filterOption={(inputValue, option) =>
-                  option!.value
-                    .toUpperCase()
-                    .indexOf(inputValue.toUpperCase()) !== -1
+                  option!.value.toUpperCase().indexOf(inputValue.toUpperCase()) !== -1
                 }
               />
             </div>
@@ -158,10 +145,10 @@ const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
               颜色
             </label>
             <div className="grid grid-cols-5 gap-2">
-              {PROJECT_COLORS.map((colorItem) => {
+              {PROJECT_COLORS.map(colorItem => {
                 const colorValue = getProjectColorValue(
                   colorItem.name as ProjectColorName,
-                  theme === "dark" ? "dark" : "light",
+                  theme === "dark" ? "dark" : "light"
                 );
                 const isSelected = color === colorItem.name;
 
@@ -172,15 +159,12 @@ const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
                     onClick={() => setColor(colorItem.name as ProjectColorName)}
                     className={`flex h-10 w-10 items-center justify-center rounded-lg border-2 transition-all ${
                       isSelected
-                        ? "border-gray-900 dark:border-gray-100 scale-110"
+                        ? "scale-110 border-gray-900 dark:border-gray-100"
                         : "border-transparent hover:scale-105"
                     }`}
                     title={colorItem.label}
                   >
-                    <div
-                      className="h-6 w-6 rounded-full"
-                      style={{ backgroundColor: colorValue }}
-                    />
+                    <div className="h-6 w-6 rounded-full" style={{ backgroundColor: colorValue }} />
                   </button>
                 );
               })}
@@ -198,7 +182,7 @@ const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
             </button>
             <button
               type="submit"
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+              className="rounded-lg bg-[var(--th-btn-bg)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--th-btn-hover)] dark:bg-[var(--th-accent)] dark:hover:bg-[var(--th-btn-hover)]"
             >
               保存
             </button>

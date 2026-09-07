@@ -37,12 +37,12 @@ const SettingDropdown: React.FC<SettingDropdownProps> = ({
   const themeColors = useThemeColors();
 
   // 将选项统一转换为对象格式
-  const normalizedOptions: SettingDropdownOption[] = options.map((opt) =>
-    typeof opt === "string" ? { label: opt, value: opt } : opt,
+  const normalizedOptions: SettingDropdownOption[] = options.map(opt =>
+    typeof opt === "string" ? { label: opt, value: opt } : opt
   );
 
   // 获取当前选中项的显示文本
-  const selectedOption = normalizedOptions.find((opt) => opt.value === value);
+  const selectedOption = normalizedOptions.find(opt => opt.value === value);
   const displayValue = selectedOption?.label || value || placeholder;
 
   const handleSelect = (option: SettingDropdownOption) => {
@@ -52,34 +52,21 @@ const SettingDropdown: React.FC<SettingDropdownProps> = ({
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
       {label && (
-        <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
-          {label}
-        </label>
+        <label className="text-sm font-medium text-gray-800 dark:text-gray-200">{label}</label>
       )}
       {description && (
-        <div className="text-xs text-gray-500 dark:text-gray-400 -mt-1 mb-1">
-          {description}
-        </div>
+        <div className="-mt-1 mb-1 text-xs text-gray-500 dark:text-gray-400">{description}</div>
       )}
       <button
         ref={triggerRef}
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className={`w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all
-          ${themeColors.inputBgClass}
-          border border-gray-200 dark:border-slate-700
-          text-gray-800 dark:text-white
-          shadow-inner
-          ${themeColors.focusBorderClass} ${themeColors.focusRingClass}
-          disabled:opacity-60 disabled:cursor-not-allowed
-          text-left flex items-center justify-between`}
+        className={`w-full rounded-xl px-4 py-3.5 text-sm outline-none transition-all ${themeColors.inputBgClass} flex items-center justify-between border border-gray-200 text-left text-gray-800 shadow-inner focus:border-gray-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-white dark:focus:border-slate-500`}
       >
-        <span className={!value ? "text-gray-400 dark:text-slate-500" : ""}>
-          {displayValue}
-        </span>
+        <span className={!value ? "text-gray-400 dark:text-slate-500" : ""}>{displayValue}</span>
         <svg
-          className={`w-4 h-4 transition-transform text-gray-400 dark:text-slate-500 ${
+          className={`h-4 w-4 text-gray-400 transition-transform dark:text-slate-500 ${
             isOpen ? "rotate-180" : ""
           }`}
           viewBox="0 0 24 24"
@@ -98,8 +85,8 @@ const SettingDropdown: React.FC<SettingDropdownProps> = ({
         onClose={() => setIsOpen(false)}
         onSelect={handleSelect}
         triggerElement={triggerRef.current}
-        getKey={(item) => item.value}
-        renderItem={(item) => item.label}
+        getKey={item => item.value}
+        renderItem={item => item.label}
         width={triggerRef.current?.offsetWidth || width}
         maxHeight={maxHeight}
       />

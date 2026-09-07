@@ -14,11 +14,7 @@ interface QuestionGroupListProps {
   activeGroupId: number | null;
   onSetActive: (groupId: number) => void;
   onCreateGroup: (title: string, color?: string) => Promise<void>;
-  onUpdateGroup: (payload: {
-    id: number;
-    title?: string;
-    color?: string;
-  }) => Promise<void>;
+  onUpdateGroup: (payload: { id: number; title?: string; color?: string }) => Promise<void>;
   onDeleteGroup: (groupId: number) => Promise<void>;
   onReorderGroups: (orderedIds: number[]) => Promise<void> | void;
 }
@@ -36,30 +32,24 @@ const QuestionGroupList = memo(
   }: QuestionGroupListProps) => {
     const [createModalOpen, setCreateModalOpen] = useState(false);
     const [editModalOpen, setEditModalOpen] = useState(false);
-    const [editingGroup, setEditingGroup] = useState<QuestionGroup | null>(
-      null,
-    );
+    const [editingGroup, setEditingGroup] = useState<QuestionGroup | null>(null);
     const themeColors = useThemeColors();
 
-    const handleCreateSubmit = useMemoizedFn(
-      async (title: string, color: ProjectColorName) => {
-        await onCreateGroup(title, color);
-        setCreateModalOpen(false);
-      },
-    );
+    const handleCreateSubmit = useMemoizedFn(async (title: string, color: ProjectColorName) => {
+      await onCreateGroup(title, color);
+      setCreateModalOpen(false);
+    });
 
-    const handleEditSubmit = useMemoizedFn(
-      async (title: string, color: ProjectColorName) => {
-        if (!editingGroup) return;
-        await onUpdateGroup({
-          id: editingGroup.id,
-          title: editingGroup.isDefault ? undefined : title,
-          color,
-        });
-        setEditModalOpen(false);
-        setEditingGroup(null);
-      },
-    );
+    const handleEditSubmit = useMemoizedFn(async (title: string, color: ProjectColorName) => {
+      if (!editingGroup) return;
+      await onUpdateGroup({
+        id: editingGroup.id,
+        title: editingGroup.isDefault ? undefined : title,
+        color,
+      });
+      setEditModalOpen(false);
+      setEditingGroup(null);
+    });
 
     const handleEditClick = useMemoizedFn((group: QuestionGroup) => {
       setEditingGroup(group);
@@ -71,22 +61,20 @@ const QuestionGroupList = memo(
       setEditingGroup(null);
     });
 
-    const onMove = useMemoizedFn(
-      (dragId: number, hoverId: number, place: "before" | "after") => {
-        const arr = [...groups];
-        const from = arr.findIndex((x) => x.id === dragId);
-        const to = arr.findIndex((x) => x.id === hoverId);
-        if (from < 0 || to < 0 || from === to) return;
-        const [moved] = arr.splice(from, 1);
-        const insertAt = place === "before" ? to : to + 1;
-        arr.splice(insertAt > from ? insertAt - 1 : insertAt, 0, moved);
-        onReorderGroups(arr.map((x) => x.id));
-      },
-    );
+    const onMove = useMemoizedFn((dragId: number, hoverId: number, place: "before" | "after") => {
+      const arr = [...groups];
+      const from = arr.findIndex(x => x.id === dragId);
+      const to = arr.findIndex(x => x.id === hoverId);
+      if (from < 0 || to < 0 || from === to) return;
+      const [moved] = arr.splice(from, 1);
+      const insertAt = place === "before" ? to : to + 1;
+      arr.splice(insertAt > from ? insertAt - 1 : insertAt, 0, moved);
+      onReorderGroups(arr.map(x => x.id));
+    });
 
     const createIcon = (
       <svg
-        className="w-5 h-5 text-indigo-500"
+        className="h-5 w-5 text-[var(--th-accent)]"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -99,7 +87,7 @@ const QuestionGroupList = memo(
 
     const editIcon = (
       <svg
-        className="w-5 h-5 text-amber-500"
+        className="h-5 w-5 text-amber-500"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -113,14 +101,11 @@ const QuestionGroupList = memo(
     return (
       <>
         <div
-          className={classNames(
-            "w-full h-full flex flex-col border-r",
-            themeColors.borderClass,
-          )}
+          className={classNames("flex h-full w-full flex-col border-r", themeColors.borderClass)}
         >
           <SidebarHeader onCreate={() => setCreateModalOpen(true)} />
           <div className="flex-1 overflow-auto">
-            {groups.map((g) => (
+            {groups.map(g => (
               <GroupItem
                 key={g.id}
                 id={g.id}
@@ -143,7 +128,6 @@ const QuestionGroupList = memo(
           width={480}
           showCloseButton={false}
           icon={createIcon}
-          iconBgColor="bg-indigo-50 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/30"
           footer={null}
         >
           <GroupForm
@@ -180,7 +164,7 @@ const QuestionGroupList = memo(
         </CustomModal>
       </>
     );
-  },
+  }
 );
 
 QuestionGroupList.displayName = "QuestionGroupList";

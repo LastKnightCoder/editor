@@ -19,7 +19,7 @@ interface ColumnEditModalProps {
 }
 
 const inputClass =
-  "w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]";
+  "w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)]";
 
 const labelClass =
   "text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400";
@@ -53,7 +53,7 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
   const [titleError, setTitleError] = useState("");
 
   const plugins = pluginManager.getAllPlugins();
-  const pluginOptions = plugins.map((plugin) => ({
+  const pluginOptions = plugins.map(plugin => ({
     label: plugin.name,
     value: plugin.type,
   }));
@@ -114,13 +114,9 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
     }
 
     const rawWidth = typeof width === "number" ? width : Number(width);
-    const normalizedWidth = Math.max(
-      50,
-      Math.min(500, Number.isFinite(rawWidth) ? rawWidth : 200),
-    );
+    const normalizedWidth = Math.max(50, Math.min(500, Number.isFinite(rawWidth) ? rawWidth : 200));
 
-    const includeConfig =
-      type === "select" || type === "multiSelect" || type === "date";
+    const includeConfig = type === "select" || type === "multiSelect" || type === "date";
 
     let config: Record<string, unknown> | undefined;
     if (type === "select" || type === "multiSelect") {
@@ -142,7 +138,7 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
   const addOption = (name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    if (options.some((o) => o.name === trimmed)) return;
+    if (options.some(o => o.name === trimmed)) return;
     const newOption: SelectOption = {
       id: uuid(),
       name: trimmed,
@@ -152,7 +148,7 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
   };
 
   const removeOption = (id: string) => {
-    setOptions(options.filter((op) => op.id !== id));
+    setOptions(options.filter(op => op.id !== id));
   };
 
   return (
@@ -175,18 +171,14 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
           <input
             type="text"
             value={title}
-            onChange={(e) => {
+            onChange={e => {
               setTitle(e.target.value);
               if (e.target.value.trim()) setTitleError("");
             }}
             className={inputClass}
             placeholder="请输入列标题"
           />
-          {titleError && (
-            <p className="text-xs text-red-500 dark:text-red-400">
-              {titleError}
-            </p>
-          )}
+          {titleError && <p className="text-xs text-red-500 dark:text-red-400">{titleError}</p>}
         </div>
 
         {/* 列类型 */}
@@ -195,14 +187,12 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
           <button
             ref={typeButtonRef}
             type="button"
-            onClick={() => setShowTypeDropdown((v) => !v)}
-            className={`${inputClass} flex items-center justify-between cursor-pointer`}
+            onClick={() => setShowTypeDropdown(v => !v)}
+            className={`${inputClass} flex cursor-pointer items-center justify-between`}
           >
-            <span>
-              {pluginOptions.find((p) => p.value === type)?.label ?? type}
-            </span>
+            <span>{pluginOptions.find(p => p.value === type)?.label ?? type}</span>
             <svg
-              className={`w-4 h-4 shrink-0 ml-2 text-gray-400 dark:text-slate-500 transition-transform ${showTypeDropdown ? "rotate-180" : ""}`}
+              className={`ml-2 h-4 w-4 shrink-0 text-gray-400 transition-transform dark:text-slate-500 ${showTypeDropdown ? "rotate-180" : ""}`}
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -216,10 +206,10 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
             selectedKey={type}
             show={showTypeDropdown}
             onClose={() => setShowTypeDropdown(false)}
-            onSelect={(item) => setType(item.value)}
+            onSelect={item => setType(item.value)}
             triggerElement={typeButtonRef.current}
-            getKey={(item) => item.value}
-            renderItem={(item) => item.label}
+            getKey={item => item.value}
+            renderItem={item => item.label}
           />
         </div>
 
@@ -231,7 +221,7 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
             min={50}
             max={500}
             value={width}
-            onChange={(e) => setWidth(Number(e.target.value))}
+            onChange={e => setWidth(Number(e.target.value))}
             className={`${inputClass} [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
             placeholder="200"
           />
@@ -244,8 +234,8 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
             <input
               type="text"
               value={optionInput}
-              onChange={(e) => setOptionInput(e.target.value)}
-              onKeyDown={(e) => {
+              onChange={e => setOptionInput(e.target.value)}
+              onKeyDown={e => {
                 if (e.key === "Enter") {
                   e.preventDefault();
                   addOption(optionInput);
@@ -272,23 +262,13 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
         {type === "date" && (
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <CustomCheckbox
-                checked={showTime}
-                onChange={() => setShowTime(!showTime)}
-              />
-              <span className="text-sm text-gray-700 dark:text-gray-200">
-                包含时间
-              </span>
+              <CustomCheckbox checked={showTime} onChange={() => setShowTime(!showTime)} />
+              <span className="text-sm text-gray-700 dark:text-gray-200">包含时间</span>
             </div>
 
             <div className="flex items-center gap-3">
-              <CustomCheckbox
-                checked={isRange}
-                onChange={() => setIsRange(!isRange)}
-              />
-              <span className="text-sm text-gray-700 dark:text-gray-200">
-                结束日期
-              </span>
+              <CustomCheckbox checked={isRange} onChange={() => setIsRange(!isRange)} />
+              <span className="text-sm text-gray-700 dark:text-gray-200">结束日期</span>
             </div>
 
             {isRange && (
@@ -298,15 +278,14 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
                   <button
                     ref={sortButtonRef}
                     type="button"
-                    onClick={() => setShowSortDropdown((v) => !v)}
-                    className={`${inputClass} flex items-center justify-between cursor-pointer`}
+                    onClick={() => setShowSortDropdown(v => !v)}
+                    className={`${inputClass} flex cursor-pointer items-center justify-between`}
                   >
                     <span>
-                      {dateFieldOptions.find((o) => o.value === sortField)
-                        ?.label ?? sortField}
+                      {dateFieldOptions.find(o => o.value === sortField)?.label ?? sortField}
                     </span>
                     <svg
-                      className={`w-4 h-4 shrink-0 ml-2 text-gray-400 dark:text-slate-500 transition-transform ${showSortDropdown ? "rotate-180" : ""}`}
+                      className={`ml-2 h-4 w-4 shrink-0 text-gray-400 transition-transform dark:text-slate-500 ${showSortDropdown ? "rotate-180" : ""}`}
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -320,12 +299,10 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
                     selectedKey={sortField}
                     show={showSortDropdown}
                     onClose={() => setShowSortDropdown(false)}
-                    onSelect={(item) =>
-                      setSortField(item.value as "start" | "end")
-                    }
+                    onSelect={item => setSortField(item.value as "start" | "end")}
                     triggerElement={sortButtonRef.current}
-                    getKey={(item) => item.value}
-                    renderItem={(item) => item.label}
+                    getKey={item => item.value}
+                    renderItem={item => item.label}
                   />
                 </div>
 
@@ -334,15 +311,14 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
                   <button
                     ref={groupButtonRef}
                     type="button"
-                    onClick={() => setShowGroupDropdown((v) => !v)}
-                    className={`${inputClass} flex items-center justify-between cursor-pointer`}
+                    onClick={() => setShowGroupDropdown(v => !v)}
+                    className={`${inputClass} flex cursor-pointer items-center justify-between`}
                   >
                     <span>
-                      {dateFieldOptions.find((o) => o.value === groupField)
-                        ?.label ?? groupField}
+                      {dateFieldOptions.find(o => o.value === groupField)?.label ?? groupField}
                     </span>
                     <svg
-                      className={`w-4 h-4 shrink-0 ml-2 text-gray-400 dark:text-slate-500 transition-transform ${showGroupDropdown ? "rotate-180" : ""}`}
+                      className={`ml-2 h-4 w-4 shrink-0 text-gray-400 transition-transform dark:text-slate-500 ${showGroupDropdown ? "rotate-180" : ""}`}
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -356,12 +332,10 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
                     selectedKey={groupField}
                     show={showGroupDropdown}
                     onClose={() => setShowGroupDropdown(false)}
-                    onSelect={(item) =>
-                      setGroupField(item.value as "start" | "end")
-                    }
+                    onSelect={item => setGroupField(item.value as "start" | "end")}
                     triggerElement={groupButtonRef.current}
-                    getKey={(item) => item.value}
-                    renderItem={(item) => item.label}
+                    getKey={item => item.value}
+                    renderItem={item => item.label}
                   />
                 </div>
               </>

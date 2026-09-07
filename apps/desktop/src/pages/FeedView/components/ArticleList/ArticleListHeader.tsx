@@ -24,14 +24,14 @@ export default function ArticleListHeader({
 }: ArticleListHeaderProps) {
   const [inputValue, setInputValue] = useState(search);
   const themeColors = useThemeColors();
-  const feeds = useRssStore((s) => s.feeds);
-  const subscriptions = useRssStore((s) => s.subscriptions);
-  const isRefreshing = useRssStore((s) => s.isRefreshing);
+  const feeds = useRssStore(s => s.feeds);
+  const subscriptions = useRssStore(s => s.subscriptions);
+  const isRefreshing = useRssStore(s => s.isRefreshing);
   const bilibiliFollowingsFeed = feeds.find(
-    (feed) => feed.url === BILIBILI_FOLLOWINGS_DYNAMIC_FEED_URL,
+    feed => feed.url === BILIBILI_FOLLOWINGS_DYNAMIC_FEED_URL
   );
   const hasBilibiliFollowingsSubscription = bilibiliFollowingsFeed
-    ? subscriptions.some((sub) => sub.feedId === bilibiliFollowingsFeed.id)
+    ? subscriptions.some(sub => sub.feedId === bilibiliFollowingsFeed.id)
     : false;
 
   const getTitle = () => {
@@ -48,8 +48,8 @@ export default function ArticleListHeader({
       }
     }
     if (selection.kind === "subscription") {
-      const sub = subscriptions.find((s) => s.id === selection.subscriptionId);
-      const feed = sub ? feeds.find((f) => f.id === sub.feedId) : null;
+      const sub = subscriptions.find(s => s.id === selection.subscriptionId);
+      const feed = sub ? feeds.find(f => f.id === sub.feedId) : null;
       return getDisplayName(sub?.title ?? null, feed?.title, feed?.url);
     }
     if (selection.kind === "category") {
@@ -63,8 +63,7 @@ export default function ArticleListHeader({
 
   const showRssActions =
     (selection.kind !== "smart" || selection.group !== "readlater") &&
-    (selection.kind !== "bilibili-followings" ||
-      hasBilibiliFollowingsSubscription);
+    (selection.kind !== "bilibili-followings" || hasBilibiliFollowingsSubscription);
 
   useEffect(() => {
     setInputValue(search);
@@ -81,28 +80,25 @@ export default function ArticleListHeader({
 
   return (
     <div
-      className={`flex flex-col gap-2 px-4 py-3 border-b ${themeColors.borderClass} ${themeColors.glassPanelBg} backdrop-blur-sm`}
+      className={`flex flex-col gap-2 border-b px-4 py-3 ${themeColors.borderClass} ${themeColors.glassPanelBg} backdrop-blur-sm`}
     >
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-baseline gap-2 min-w-0">
+        <div className="flex min-w-0 items-baseline gap-2">
           <span
-            className={`text-[15px] font-bold tracking-tight truncate ${themeColors.textClass}`}
+            className={`truncate text-[15px] font-bold tracking-tight ${themeColors.textClass}`}
           >
             {getTitle()}
           </span>
-          <span
-            className={`text-[11px] shrink-0 ${themeColors.secondaryTextClass}`}
-          >
+          <span className={`shrink-0 text-[11px] ${themeColors.secondaryTextClass}`}>
             {articleCount ?? 0} 篇
           </span>
         </div>
         {showRssActions && (
           <div className="flex items-center gap-1">
             {(selection.kind === "subscription" ||
-              (selection.kind === "bilibili-followings" &&
-                hasBilibiliFollowingsSubscription)) && (
+              (selection.kind === "bilibili-followings" && hasBilibiliFollowingsSubscription)) && (
               <button
-                className={`flex h-8 w-8 items-center justify-center rounded-lg border-none cursor-pointer bg-transparent text-xs transition-all duration-200 hover:scale-105 active:scale-95 ${themeColors.secondaryTextClass} ${themeColors.hoverClass}`}
+                className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-xs transition-all duration-200 hover:scale-105 active:scale-95 ${themeColors.secondaryTextClass} ${themeColors.hoverClass}`}
                 title="全部已读"
                 onClick={onMarkAllRead}
               >
@@ -110,7 +106,7 @@ export default function ArticleListHeader({
               </button>
             )}
             <button
-              className={`flex h-8 w-8 items-center justify-center rounded-lg border-none cursor-pointer bg-transparent text-xs transition-all duration-200 hover:scale-105 active:scale-95 ${themeColors.secondaryTextClass} ${themeColors.hoverClass}`}
+              className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-xs transition-all duration-200 hover:scale-105 active:scale-95 ${themeColors.secondaryTextClass} ${themeColors.hoverClass}`}
               title="刷新"
               onClick={onRefresh}
             >
@@ -137,13 +133,13 @@ export default function ArticleListHeader({
           <input
             value={inputValue}
             placeholder="搜索标题、正文或作者"
-            className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50 px-9 text-[13px] outline-none transition-all text-gray-800 shadow-inner placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.04),0_0_0_3px_rgba(59,130,246,0.15)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-zinc-950 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]"
-            onChange={(event) => setInputValue(event.target.value)}
+            className="h-9 w-full rounded-xl border border-gray-200 bg-gray-50 px-9 text-[13px] text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:bg-white focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.04),0_0_0_3px_rgba(59,130,246,0.15)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[var(--th-border-focus)] dark:focus:bg-zinc-950 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]"
+            onChange={event => setInputValue(event.target.value)}
           />
           {inputValue && (
             <button
               type="button"
-              className={`absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-md border-none bg-transparent cursor-pointer transition-all ${themeColors.secondaryTextClass} ${themeColors.hoverClass}`}
+              className={`absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-all ${themeColors.secondaryTextClass} ${themeColors.hoverClass}`}
               title="清空搜索"
               onClick={() => {
                 setInputValue("");
@@ -173,7 +169,7 @@ export default function ArticleListHeader({
 function getDisplayName(
   subTitle: string | null,
   feedTitle: string | undefined,
-  feedUrl: string | undefined,
+  feedUrl: string | undefined
 ): string {
   if (subTitle && !/^https?:\/\//i.test(subTitle)) return subTitle;
   if (feedTitle && !/^https?:\/\//i.test(feedTitle)) return feedTitle;

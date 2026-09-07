@@ -8,29 +8,24 @@ interface CheckboxProps {
 
 const Checkbox: FC<CheckboxProps> = ({ checked, onChange, label }) => {
   return (
-    <label className="flex items-center gap-3 cursor-pointer group">
+    <label className="group flex cursor-pointer items-center gap-3">
       <div className="relative">
         <input
           type="checkbox"
           checked={checked}
-          onChange={(e) => onChange(e.target.checked)}
-          className="sr-only peer"
+          onChange={e => onChange(e.target.checked)}
+          className="peer sr-only"
         />
         <div
-          className={`
-            w-5 h-5 rounded border-2 transition-all duration-200
-            ${
-              checked
-                ? "bg-indigo-500 border-indigo-500"
-                : "bg-gray-50 dark:bg-zinc-950 border-gray-300 dark:border-slate-700"
-            }
-            peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500 peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-slate-900
-            group-hover:border-indigo-400
-          `}
+          className={`h-5 w-5 rounded border-2 transition-all duration-200 ${
+            checked
+              ? "border-[var(--th-accent)] bg-[var(--th-accent)]"
+              : "border-gray-300 bg-gray-50 dark:border-slate-700 dark:bg-zinc-950"
+          } group-hover:border-[var(--th-accent)] peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--th-accent)] peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-slate-900`}
         >
           {checked && (
             <svg
-              className="w-full h-full text-white p-0.5"
+              className="h-full w-full p-0.5 text-white"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -41,9 +36,7 @@ const Checkbox: FC<CheckboxProps> = ({ checked, onChange, label }) => {
           )}
         </div>
       </div>
-      <span className="text-sm select-none text-gray-700 dark:text-slate-300">
-        {label}
-      </span>
+      <span className="select-none text-sm text-gray-700 dark:text-slate-300">{label}</span>
     </label>
   );
 };

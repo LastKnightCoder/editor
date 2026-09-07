@@ -312,7 +312,7 @@ const PomodoroPanel: React.FC<PomodoroPanelProps> = ({
                 )}
               >
                 {isRunning ? (
-                  <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
+                  <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--th-accent)]" />
                 ) : (
                   <Pause className="h-3 w-3 text-yellow-500" />
                 )}

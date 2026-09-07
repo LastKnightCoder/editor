@@ -34,7 +34,7 @@ export const RESOURCE_TYPE_CONFIGS: ResourceTypeConfig[] = [
     type: "image",
     label: "图片",
     icon: FileImage,
-    tileClass: "from-sky-500 to-blue-600",
+    tileClass: "from-[var(--th-info)] to-[var(--th-accent-hover)]",
   },
   {
     type: "video",
@@ -69,8 +69,7 @@ export const RESOURCE_TYPE_CONFIGS: ResourceTypeConfig[] = [
 ];
 
 export const getResourceTypeConfig = (type: ResourceType) =>
-  RESOURCE_TYPE_CONFIGS.find((c) => c.type === type) ??
-  RESOURCE_TYPE_CONFIGS[0];
+  RESOURCE_TYPE_CONFIGS.find(c => c.type === type) ?? RESOURCE_TYPE_CONFIGS[0];
 
 export const SOURCE_TYPE_MAP: Record<
   IResourceSource["type"],

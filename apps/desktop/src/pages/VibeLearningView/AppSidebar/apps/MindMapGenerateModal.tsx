@@ -1,21 +1,7 @@
-import {
-  memo,
-  useState,
-  useRef,
-  useEffect,
-  lazy,
-  Suspense,
-  useMemo,
-} from "react";
+import { memo, useState, useRef, useEffect, lazy, Suspense, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { App } from "antd";
-import {
-  Network,
-  Sparkles,
-  RefreshCw,
-  Loader2,
-  CheckCircle2,
-} from "lucide-react";
+import { Network, Sparkles, RefreshCw, Loader2, CheckCircle2 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 import useTheme from "@/hooks/useTheme";
@@ -86,9 +72,7 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
   const [generatedMarkdown, setGeneratedMarkdown] = useState("");
   const [mindMapData, setMindMapData] = useState<MindMapNodeData | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
-  const [toolExecutions, setToolExecutions] = useState<
-    ToolCallExecutionState[]
-  >([]);
+  const [toolExecutions, setToolExecutions] = useState<ToolCallExecutionState[]>([]);
   const [saving, setSaving] = useState(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -168,16 +152,16 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
         },
       },
       {
-        onUpdate: (responseText) => {
+        onUpdate: responseText => {
           setGeneratedMarkdown(responseText);
         },
-        onFinish: (content) => {
+        onFinish: content => {
           setIsGenerating(false);
           setGeneratedMarkdown(content);
           parseMarkdownToMindMap(content);
           setStep("preview");
         },
-        onError: (e) => {
+        onError: e => {
           setIsGenerating(false);
           console.error("Generate mindmap error:", e);
           message.error(e.message || "生成思维导图失败");
@@ -188,13 +172,13 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
             setStep("preview");
           }
         },
-        onController: (controller) => {
+        onController: controller => {
           abortControllerRef.current = controller;
         },
-        onToolCallsUpdate: (executions) => {
+        onToolCallsUpdate: executions => {
           setToolExecutions(executions);
         },
-      },
+      }
     );
   });
 
@@ -272,7 +256,7 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
   // 获取当前工具调用状态描述
   const getToolStatusText = useMemoizedFn(() => {
     const activeTools = toolExecutions.filter(
-      (t) => t.status === "executing" || t.status === "pending",
+      t => t.status === "executing" || t.status === "pending"
     );
     if (activeTools.length === 0) {
       if (generatedMarkdown) {
@@ -281,7 +265,7 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
       return "正在分析资料...";
     }
 
-    const executingTool = activeTools.find((t) => t.status === "executing");
+    const executingTool = activeTools.find(t => t.status === "executing");
     if (executingTool) {
       const toolNameMap: Record<string, string> = {
         list_project_resources: "获取资源列表",
@@ -332,26 +316,24 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
     <div className="space-y-4">
       {/* 思维导图预览 */}
       <div>
-        <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 block mb-2">
+        <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
           思维导图预览
         </label>
         <div
           className={classNames(
-            "rounded-xl border overflow-hidden",
-            "bg-gray-50 dark:bg-zinc-800/50 border-gray-200 dark:border-gray-700",
+            "overflow-hidden rounded-xl border",
+            "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50"
           )}
           style={{ height: 400 }}
         >
           {parseError ? (
-            <div className="flex flex-col items-center justify-center h-full p-6">
-              <div className="text-red-500 dark:text-red-400 text-sm mb-2">
-                解析错误
-              </div>
-              <div className="text-gray-500 dark:text-gray-400 text-xs text-center">
+            <div className="flex h-full flex-col items-center justify-center p-6">
+              <div className="mb-2 text-sm text-red-500 dark:text-red-400">解析错误</div>
+              <div className="text-center text-xs text-gray-500 dark:text-gray-400">
                 {parseError}
               </div>
-              <div className="mt-4 p-3 rounded-lg bg-gray-100 dark:bg-zinc-700/50 max-h-40 overflow-auto w-full">
-                <pre className="text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+              <div className="mt-4 max-h-40 w-full overflow-auto rounded-lg bg-gray-100 p-3 dark:bg-zinc-700/50">
+                <pre className="whitespace-pre-wrap text-xs text-gray-600 dark:text-gray-300">
                   {generatedMarkdown}
                 </pre>
               </div>
@@ -359,22 +341,18 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
           ) : mindMapData ? (
             <Suspense
               fallback={
-                <div className="flex items-center justify-center h-full">
-                  <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                <div className="flex h-full items-center justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-[var(--th-accent)]" />
                   <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
                     加载思维导图组件...
                   </span>
                 </div>
               }
             >
-              <MindMap
-                themeId={themeId}
-                data={mindMapData}
-                className="w-full h-full"
-              />
+              <MindMap themeId={themeId} data={mindMapData} className="h-full w-full" />
             </Suspense>
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-500 text-sm">
+            <div className="flex h-full items-center justify-center text-sm text-gray-400 dark:text-gray-500">
               暂无数据
             </div>
           )}
@@ -383,16 +361,16 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
 
       {/* 原始 Markdown 预览（可折叠） */}
       <details className="group">
-        <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-2 select-none">
+        <summary className="mb-2 cursor-pointer select-none text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
           查看原始内容
         </summary>
         <div
           className={classNames(
-            "p-3 rounded-xl border max-h-40 overflow-auto",
-            "bg-gray-50 dark:bg-zinc-800/50 border-gray-200 dark:border-gray-700",
+            "max-h-40 overflow-auto rounded-xl border p-3",
+            "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50"
           )}
         >
-          <pre className="text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap font-mono">
+          <pre className="whitespace-pre-wrap font-mono text-xs text-gray-600 dark:text-gray-300">
             {generatedMarkdown}
           </pre>
         </div>
@@ -403,16 +381,16 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
   // 按钮样式
   const primaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
-    "bg-blue-500 text-white",
-    "hover:bg-blue-600",
-    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed",
+    "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]",
+    "hover:bg-[var(--th-btn-hover)]",
+    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed"
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
     "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
     "hover:bg-gray-200 dark:hover:bg-zinc-700",
-    "border border-gray-200 dark:border-gray-700",
+    "border border-gray-200 dark:border-gray-700"
   );
 
   // 渲染底部按钮
@@ -424,23 +402,16 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
     if (step === "select-resources") {
       return (
         <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={handleClose}
-            className={secondaryButtonClass}
-          >
+          <button type="button" onClick={handleClose} className={secondaryButtonClass}>
             取消
           </button>
           <button
             type="button"
             onClick={handleStartGenerate}
             disabled={selectedResourceIds.length === 0}
-            className={classNames(
-              primaryButtonClass,
-              "flex items-center gap-2",
-            )}
+            className={classNames(primaryButtonClass, "flex items-center gap-2")}
           >
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="h-4 w-4" />
             生成思维导图
           </button>
         </div>
@@ -453,35 +424,25 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
         <button
           type="button"
           onClick={handleRegenerate}
-          className={classNames(
-            secondaryButtonClass,
-            "flex items-center gap-2",
-          )}
+          className={classNames(secondaryButtonClass, "flex items-center gap-2")}
         >
-          <RefreshCw className="w-4 h-4" />
+          <RefreshCw className="h-4 w-4" />
           重新生成
         </button>
         <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={handleClose}
-            className={secondaryButtonClass}
-          >
+          <button type="button" onClick={handleClose} className={secondaryButtonClass}>
             取消
           </button>
           <button
             type="button"
             onClick={handleSave}
             disabled={!generatedMarkdown.trim() || saving}
-            className={classNames(
-              primaryButtonClass,
-              "flex items-center gap-2",
-            )}
+            className={classNames(primaryButtonClass, "flex items-center gap-2")}
           >
             {saving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <CheckCircle2 className="w-4 h-4" />
+              <CheckCircle2 className="h-4 w-4" />
             )}
             保存为笔记
           </button>
@@ -527,8 +488,7 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
       destroyOnClose
       title={getModalTitle()}
       subtitle={getModalSubtitle()}
-      icon={<Network className="w-5 h-5 text-blue-500" />}
-      iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
+      icon={<Network className="h-5 w-5 text-[var(--th-text-secondary)]" />}
       footer={renderFooter()}
       showCloseButton={step !== "generating"}
     >

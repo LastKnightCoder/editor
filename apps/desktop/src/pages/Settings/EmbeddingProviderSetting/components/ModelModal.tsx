@@ -2,11 +2,7 @@ import { useEffect, useState } from "react";
 import classNames from "classnames";
 import { App } from "antd";
 import { ModelFormData, ModelItem } from "../types";
-import {
-  SettingInput,
-  SettingButton,
-  SettingModalShell,
-} from "../../components";
+import { SettingInput, SettingButton, SettingModalShell } from "../../components";
 import useThemeColors from "@/hooks/useThemeColors";
 
 interface ModelModalProps {
@@ -41,7 +37,7 @@ const ModelModal = ({
       const initialFeatures = Object.entries(
         initialData.features || {
           multimodal: false,
-        },
+        }
       )
         .filter(([, value]) => value)
         .map(([key]) => key);
@@ -85,8 +81,8 @@ const ModelModal = ({
   };
 
   const toggleFeature = (value: string) => {
-    setSelectedFeatures((prev) =>
-      prev.includes(value) ? prev.filter((f) => f !== value) : [...prev, value],
+    setSelectedFeatures(prev =>
+      prev.includes(value) ? prev.filter(f => f !== value) : [...prev, value]
     );
   };
 
@@ -113,47 +109,37 @@ const ModelModal = ({
       <SettingInput
         label="模型名称"
         value={modelName}
-        onChange={(e) => setModelName(e.target.value)}
+        onChange={e => setModelName(e.target.value)}
         placeholder="请输入模型名称"
       />
       <SettingInput
         label="模型描述"
         value={description}
-        onChange={(e) => setDescription(e.target.value)}
+        onChange={e => setDescription(e.target.value)}
         placeholder="请输入模型描述"
       />
       <div>
-        <label
-          className={classNames(
-            "block text-sm font-medium mb-2",
-            themeColors.textClass,
-          )}
-        >
+        <label className={classNames("mb-2 block text-sm font-medium", themeColors.textClass)}>
           向量长度
         </label>
         <input
           type="number"
           min={1}
           value={contextLength}
-          onChange={(e) => setContextLength(Number(e.target.value) || 0)}
+          onChange={e => setContextLength(Number(e.target.value) || 0)}
           placeholder="请输入向量长度"
           className={classNames(
-            "w-full px-3 py-2 text-sm border rounded-lg transition-colors focus:outline-none",
+            "w-full rounded-lg border px-3 py-2 text-sm transition-colors focus:outline-none",
             themeColors.inputBgClass,
             themeColors.borderClass,
             themeColors.focusBorderClass,
             themeColors.focusRingClass,
-            themeColors.textClass,
+            themeColors.textClass
           )}
         />
       </div>
       <div>
-        <label
-          className={classNames(
-            "block text-sm font-medium mb-2",
-            themeColors.textClass,
-          )}
-        >
+        <label className={classNames("mb-2 block text-sm font-medium", themeColors.textClass)}>
           距离阈值
         </label>
         <input
@@ -161,25 +147,20 @@ const ModelModal = ({
           min={0}
           step={0.1}
           value={distance}
-          onChange={(e) => setDistance(Number(e.target.value) || 0)}
+          onChange={e => setDistance(Number(e.target.value) || 0)}
           placeholder="请输入距离阈值"
           className={classNames(
-            "w-full px-3 py-2 text-sm border rounded-lg transition-colors focus:outline-none",
+            "w-full rounded-lg border px-3 py-2 text-sm transition-colors focus:outline-none",
             themeColors.inputBgClass,
             themeColors.borderClass,
             themeColors.focusBorderClass,
             themeColors.focusRingClass,
-            themeColors.textClass,
+            themeColors.textClass
           )}
         />
       </div>
       <div>
-        <label
-          className={classNames(
-            "block text-sm font-medium mb-2",
-            themeColors.textClass,
-          )}
-        >
+        <label className={classNames("mb-2 block text-sm font-medium", themeColors.textClass)}>
           支持的特性
         </label>
         <div className="flex flex-wrap gap-2">
@@ -187,19 +168,19 @@ const ModelModal = ({
             type="button"
             onClick={() => toggleFeature("multimodal")}
             className={classNames(
-              "px-3 py-1.5 text-sm rounded-lg border transition-colors",
+              "rounded-lg border px-3 py-1.5 text-sm transition-colors",
               selectedFeatures.includes("multimodal")
                 ? [
-                    themeColors.activeBgClass,
-                    themeColors.activeTextClass,
-                    themeColors.focusBorderClass,
+                    "bg-[var(--th-bg-hover)]",
+                    themeColors.textClass,
+                    "border-[var(--th-border-hover)]",
                   ]
                 : [
                     themeColors.cardBgClass,
                     themeColors.borderClass,
                     themeColors.textClass,
                     themeColors.hoverClass,
-                  ],
+                  ]
             )}
           >
             多模态

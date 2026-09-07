@@ -85,19 +85,12 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
 
   // 在后台执行流式生成（使用工具模式，AI 自主获取资料）
   const runBackgroundGeneration = useMemoizedFn(
-    async (
-      noteId: number,
-      contentId: number,
-      resourceNames: string[],
-      extraPrompt: string,
-    ) => {
+    async (noteId: number, contentId: number, resourceNames: string[], extraPrompt: string) => {
       let lastSavedContent = "";
 
       // 定期保存的定时器
       const saveInterval = setInterval(async () => {
-        const currentContent = useOutlineGenerationStore
-          .getState()
-          .getContent(noteId);
+        const currentContent = useOutlineGenerationStore.getState().getContent(noteId);
         if (currentContent && currentContent !== lastSavedContent) {
           try {
             const slateContent = importFromMarkdown(currentContent);
@@ -129,10 +122,10 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
           },
         },
         {
-          onUpdate: (responseText) => {
+          onUpdate: responseText => {
             updateGeneratingContent(noteId, responseText);
           },
-          onFinish: async (content) => {
+          onFinish: async content => {
             clearInterval(saveInterval);
             // 最终保存
             try {
@@ -143,17 +136,17 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
             }
             finishGeneration(noteId);
           },
-          onError: (e) => {
+          onError: e => {
             clearInterval(saveInterval);
             console.error("Generate outline error:", e);
             setError(noteId, e.message || "生成大纲失败");
           },
-          onController: (controller) => {
+          onController: controller => {
             abortControllerRef.current = controller;
           },
-        },
+        }
       );
-    },
+    }
   );
 
   // 开始生成大纲
@@ -222,16 +215,16 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
   // 按钮样式
   const primaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
-    "bg-blue-500 text-white",
-    "hover:bg-blue-600",
-    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed",
+    "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]",
+    "hover:bg-[var(--th-btn-hover)]",
+    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed"
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
     "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
     "hover:bg-gray-200 dark:hover:bg-zinc-700",
-    "border border-gray-200 dark:border-gray-700",
+    "border border-gray-200 dark:border-gray-700"
   );
 
   // 渲染底部按钮
@@ -251,7 +244,7 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
         disabled={selectedResourceIds.length === 0 || isCreating}
         className={classNames(primaryButtonClass, "flex items-center gap-2")}
       >
-        <Sparkles className="w-4 h-4" />
+        <Sparkles className="h-4 w-4" />
         {isCreating ? "创建中..." : "生成大纲"}
       </button>
     </div>
@@ -266,8 +259,7 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
       destroyOnClose
       title="生成学习大纲"
       subtitle="选择资源，AI 将自动分析并生成结构化学习大纲"
-      icon={<ListOrdered className="w-5 h-5 text-blue-500" />}
-      iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
+      icon={<ListOrdered className="h-5 w-5 text-[var(--th-text-secondary)]" />}
       footer={renderFooter()}
       showCloseButton={!isCreating}
     >
