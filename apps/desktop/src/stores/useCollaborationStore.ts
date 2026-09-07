@@ -4,6 +4,8 @@ import { DEFAULT_COLLABORATION_URL, type CollaborationState } from "@tau/collabo
 
 interface State extends CollaborationState {
   selectedId?: string;
+  /** 是否已收到主进程的真实状态（初始值为渲染进程占位数据） */
+  synced: boolean;
   select: (id?: string) => void;
 }
 const useCollaborationStore = create<State>(set => ({
@@ -11,6 +13,7 @@ const useCollaborationStore = create<State>(set => ({
   nickname: "Tau 用户",
   sessions: [],
   requests: [],
+  synced: false,
   select: selectedId => set({ selectedId }),
 }));
 
@@ -19,7 +22,7 @@ export function initializeCollaborationStore() {
   if (initialized) return;
   initialized = true;
   on("collaboration:state", (_event, state: CollaborationState) =>
-    useCollaborationStore.setState(state)
+    useCollaborationStore.setState({ ...state, synced: true })
   );
   on("collaboration:removed", (_event, { documentId }: { documentId: string }) => {
     useCollaborationStore.setState(state => ({
@@ -29,7 +32,7 @@ export function initializeCollaborationStore() {
   });
   const load = (remaining: number) => {
     void invoke<CollaborationState>("collaboration:state")
-      .then(state => useCollaborationStore.setState(state))
+      .then(state => useCollaborationStore.setState({ ...state, synced: true }))
       .catch(() => {
         if (remaining > 0) setTimeout(() => load(remaining - 1), 1000);
       });
