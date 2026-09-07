@@ -1,28 +1,15 @@
-import React, {
-  memo,
-  useState,
-  useRef,
-  useEffect,
-  forwardRef,
-} from "react";
-import {
-  RenderElementProps,
-  useSlateStatic,
-  useReadOnly,
-  ReactEditor,
-} from "slate-react";
+import React, { memo, useState, useRef, useEffect, forwardRef } from "react";
+import { RenderElementProps, useSlateStatic, useReadOnly, ReactEditor } from "slate-react";
 import InlineChromiumBugfix from "../../../../components/InlineChromiumBugFix";
 import type { InlineImageElement } from "../../../types";
 import ImageUploader from "../../../../components/ImageUploader";
 import { Transforms, Editor, Element as SlateElement, NodeEntry } from "slate";
 import { useUploadResource } from "../../../../hooks/useUploadResource";
-import {
-  useImageResize,
-  ResizeDirection,
-} from "../../../../hooks/useImageResize";
+import { useImageResize, ResizeDirection } from "../../../../hooks/useImageResize";
 import styles from "./index.module.less";
 import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
+import { useEditorSlots } from "../../../../services";
 interface InlineImageProps extends RenderElementProps {
   element: InlineImageElement;
 }
@@ -46,21 +33,18 @@ type InlineLocalImageProps = {
   onLoad?: () => void;
 };
 
-const DefaultInlineInlineImage = forwardRef<
-  HTMLImageElement,
-  InlineLocalImageProps
->(({ url, alt, ...rest }, ref) => (
-  <img ref={ref} src={url} alt={alt} {...rest} />
-));
+const DefaultInlineInlineImage = forwardRef<HTMLImageElement, InlineLocalImageProps>(
+  ({ url, alt, ...rest }, ref) => <img ref={ref} src={url} alt={alt} {...rest} />
+);
 DefaultInlineInlineImage.displayName = "DefaultInlineImage";
 
-const InlineImageComponent: React.FC<InlineImageProps> = memo((props) => {
+const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
   const { attributes, children, element } = props;
   const { url, alt, uuid, width, height } = element;
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
   const uploadResource = useUploadResource();
-  const Image = editor.services?.components?.Image;
+  const { Image } = useEditorSlots();
   const imageRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLSpanElement>(null);
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
@@ -75,20 +59,13 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo((props) => {
   }, []);
 
   // 更新元素的尺寸属性
-  const updateElementSize = useMemoizedFn(
-    (widthValue?: number, heightValue?: number) => {
-      if (typeof widthValue !== "number" || typeof heightValue !== "number")
-        return;
+  const updateElementSize = useMemoizedFn((widthValue?: number, heightValue?: number) => {
+    if (typeof widthValue !== "number" || typeof heightValue !== "number") return;
 
-      const path = ReactEditor.findPath(editor, element);
+    const path = ReactEditor.findPath(editor, element);
 
-      Transforms.setNodes(
-        editor,
-        { width: widthValue, height: heightValue },
-        { at: path },
-      );
-    },
-  );
+    Transforms.setNodes(editor, { width: widthValue, height: heightValue }, { at: path });
+  });
 
   // 图片加载完成后获取原始尺寸
   const handleImageLoad = useMemoizedFn(() => {
@@ -105,8 +82,7 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo((props) => {
       // 如果没有指定尺寸，使用原始尺寸
       if (!width && !height) {
         const editorWidth =
-          containerRef.current?.closest('[data-slate-editor="true"]')
-            ?.clientWidth || 0;
+          containerRef.current?.closest('[data-slate-editor="true"]')?.clientWidth || 0;
         // 处理 DPR 缩放
         const dpr = window.devicePixelRatio || 1;
         const imgWidth = Math.min(imgNaturalWidth / dpr, editorWidth || 800);
@@ -127,7 +103,7 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo((props) => {
     maxWidth,
     minHeight: 10,
     aspectRatio: naturalSize.width / naturalSize.height || 16 / 9,
-    onResizeEnd: (newSize) => {
+    onResizeEnd: newSize => {
       if (newSize.width && newSize.height) {
         updateElementSize(newSize.width, newSize.height);
       }
@@ -143,10 +119,8 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo((props) => {
       Editor.nodes(editor, {
         at: [],
         match: (n: any) =>
-          SlateElement.isElement(n) &&
-          n.type === "inline-image" &&
-          n.uuid === uuid,
-      }),
+          SlateElement.isElement(n) && n.type === "inline-image" && n.uuid === uuid,
+      })
     );
 
     if (nodeEntries.length > 0) {
@@ -170,9 +144,7 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo((props) => {
           })}
           style={{
             width: resize.size.width ? `${resize.size.width / 16}em` : "auto",
-            height: resize.size.height
-              ? `${resize.size.height / 16}em`
-              : "auto",
+            height: resize.size.height ? `${resize.size.height / 16}em` : "auto",
           }}
         >
           {Image ? (
@@ -196,18 +168,14 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo((props) => {
             RESIZE_HANDLES.map(({ direction, cursor }) => (
               <div
                 key={direction}
-                className={classnames(
-                  styles.resizeHandle,
-                  styles[`resize-${direction}`],
-                )}
+                className={classnames(styles.resizeHandle, styles[`resize-${direction}`])}
                 style={{ cursor }}
-                onPointerDown={(e) => resize.handleResizeStart(e, direction)}
+                onPointerDown={e => resize.handleResizeStart(e, direction)}
               />
             ))}
           {resize.isResizing && (
             <div className={styles.imageInfo}>
-              {Math.round(resize.size.width || 0)} ×{" "}
-              {Math.round(resize.size.height || 0)}
+              {Math.round(resize.size.width || 0)} × {Math.round(resize.size.height || 0)}
             </div>
           )}
         </span>

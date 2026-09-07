@@ -1,51 +1,47 @@
 import IExtension from "../extensions/types";
 import { Plugin } from "./plugin";
-import {
-  IBlockPanelListItem,
-  IConfigItem,
-  IHotKeyConfig,
-} from "../types";
+import type { IConfigItem, IHotKeyConfig } from "../types";
 
-class PluginOptimizer {
-  private static instance: PluginOptimizer;
+export class PluginOptimizer {
   private extensionCache = new Map<
     string,
     {
       plugins: Plugin[];
       hotkeyConfigs: IHotKeyConfig[];
-      blockPanelItems: IBlockPanelListItem[];
       hoveringBarElements: IConfigItem[];
     }
   >();
   private extensionMap = new Map<string, IExtension>();
+  // 扩展实例的稳定标识：缓存 key 以实例为单位，避免宿主传入同 type
+  // 不同配置的扩展（如自定义 importFromMarkdown 的 markdown-paste-import）
+  // 被首个实例的缓存污染
+  private extensionInstanceIds = new WeakMap<IExtension, string>();
+  private instanceIdCounter = 0;
   private pluginCache = new Map<string, Plugin[]>();
   private hotkeyCache = new Map<string, IHotKeyConfig[]>();
-  private blockPanelCache = new Map<string, IBlockPanelListItem[]>();
   private hoveringBarCache = new Map<string, IConfigItem[]>();
   private renderCache = new Map<string, any>();
   private markdownCache = new Map<string, string>();
 
-  private constructor() {
-    console.log("PluginOptimizer constructor");
-  }
-
-  static getInstance(): PluginOptimizer {
-    if (!PluginOptimizer.instance) {
-      PluginOptimizer.instance = new PluginOptimizer();
+  private getInstanceId(extension: IExtension): string {
+    let id = this.extensionInstanceIds.get(extension);
+    if (!id) {
+      id = `${extension.type}#${++this.instanceIdCounter}`;
+      this.extensionInstanceIds.set(extension, id);
     }
-    return PluginOptimizer.instance;
+    return id;
   }
 
   private generateCacheKey(extensions: IExtension[]): string {
-    const types = extensions
-      .map((e) => e.type)
+    const ids = extensions
+      .map(e => this.getInstanceId(e))
       .sort()
       .join(",");
-    const hash = this.simpleHash(types);
+    const hash = this.simpleHash(ids);
     return `ext_${hash}`;
   }
 
-  private simpleHash(str: string): string {
+  private simpleHash(str: string): number | string {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
@@ -58,10 +54,9 @@ class PluginOptimizer {
   optimizeExtensions(extensions: IExtension[]): {
     plugins: Plugin[];
     hotkeyConfigs: IHotKeyConfig[];
-    blockPanelItems: IBlockPanelListItem[];
     hoveringBarElements: IConfigItem[];
   } {
-    extensions.forEach((ext) => this.extensionMap.set(ext.type, ext));
+    this.extensionMap = new Map(extensions.map(extension => [extension.type, extension]));
 
     const cacheKey = this.generateCacheKey(extensions);
 
@@ -82,20 +77,16 @@ class PluginOptimizer {
   private buildExtensionData(extensions: IExtension[]): {
     plugins: Plugin[];
     hotkeyConfigs: IHotKeyConfig[];
-    blockPanelItems: IBlockPanelListItem[];
     hoveringBarElements: IConfigItem[];
   } {
     const plugins: Plugin[] = [];
     const hotkeyConfigs: IHotKeyConfig[] = [];
-    const blockPanelItems: IBlockPanelListItem[] = [];
     const hoveringBarElements: IConfigItem[] = [];
-
-    const extensionMap = new Map<string, IExtension>();
-    extensions.forEach((ext) => extensionMap.set(ext.type, ext));
 
     for (const extension of extensions) {
       try {
-        const pluginsKey = `${extension.type}_plugins`;
+        const instanceId = this.getInstanceId(extension);
+        const pluginsKey = `${instanceId}_plugins`;
         if (!this.pluginCache.has(pluginsKey)) {
           const extPlugins = extension.getPlugins();
           this.pluginCache.set(pluginsKey, extPlugins);
@@ -103,7 +94,7 @@ class PluginOptimizer {
         const pluginsList = this.pluginCache.get(pluginsKey) || [];
         plugins.push(...pluginsList);
 
-        const hotkeysKey = `${extension.type}_hotkeys`;
+        const hotkeysKey = `${instanceId}_hotkeys`;
         if (!this.hotkeyCache.has(hotkeysKey)) {
           const extHotkeys = extension.getHotkeyConfigs();
           this.hotkeyCache.set(hotkeysKey, extHotkeys);
@@ -111,15 +102,7 @@ class PluginOptimizer {
         const hotkeysList = this.hotkeyCache.get(hotkeysKey) || [];
         hotkeyConfigs.push(...hotkeysList);
 
-        const blockPanelKey = `${extension.type}_blockpanel`;
-        if (!this.blockPanelCache.has(blockPanelKey)) {
-          const extBlockPanel = extension.getBlockPanelItems();
-          this.blockPanelCache.set(blockPanelKey, extBlockPanel);
-        }
-        const blockPanelList = this.blockPanelCache.get(blockPanelKey) || [];
-        blockPanelItems.push(...blockPanelList);
-
-        const hoveringBarKey = `${extension.type}_hoveringbar`;
+        const hoveringBarKey = `${instanceId}_hoveringbar`;
         if (!this.hoveringBarCache.has(hoveringBarKey)) {
           const extHoveringBar = extension.getHoveringBarElements();
           this.hoveringBarCache.set(hoveringBarKey, extHoveringBar);
@@ -134,7 +117,6 @@ class PluginOptimizer {
     return {
       plugins,
       hotkeyConfigs,
-      blockPanelItems,
       hoveringBarElements,
     };
   }
@@ -146,14 +128,14 @@ class PluginOptimizer {
   private cleanupCache<K, V>(cache: Map<K, V>, maxSize = 50) {
     const keys = Array.from(cache.keys());
     const toRemove = keys.slice(0, keys.length - maxSize);
-    toRemove.forEach((key) => cache.delete(key));
+    toRemove.forEach(key => cache.delete(key));
   }
 
   clearCache() {
+    this.extensionMap.clear();
     this.extensionCache.clear();
     this.pluginCache.clear();
     this.hotkeyCache.clear();
-    this.blockPanelCache.clear();
     this.hoveringBarCache.clear();
     this.renderCache.clear();
     this.markdownCache.clear();
@@ -164,16 +146,12 @@ class PluginOptimizer {
       extensionCache: this.extensionCache.size,
       pluginCache: this.pluginCache.size,
       hotkeyCache: this.hotkeyCache.size,
-      blockPanelCache: this.blockPanelCache.size,
       hoveringBarCache: this.hoveringBarCache.size,
       totalMemory:
         this.extensionCache.size +
         this.pluginCache.size +
         this.hotkeyCache.size +
-        this.blockPanelCache.size +
         this.hoveringBarCache.size,
     };
   }
 }
-
-export const pluginOptimizer = PluginOptimizer.getInstance();

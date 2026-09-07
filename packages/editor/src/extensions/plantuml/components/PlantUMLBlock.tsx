@@ -3,6 +3,7 @@ import { Transforms } from "slate";
 import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 import { PlantUML } from "@tau/shared";
 import useTheme from "../../../hooks/useTheme";
+import { useEditorConfig } from "../../../contexts/EditorConfig";
 
 import type { PlantUMLElement } from "../../../types";
 import PreviewWithEditor from "../../../components/PreviewWithEditor";
@@ -12,26 +13,18 @@ interface PlantUMLBlockProps {
   element: PlantUMLElement;
 }
 
-const PlantUMLBlock: React.FC<PropsWithChildren<PlantUMLBlockProps>> = (
-  props,
-) => {
+const PlantUMLBlock: React.FC<PropsWithChildren<PlantUMLBlockProps>> = props => {
   const { attributes, element, children } = props;
-  const { content, svg, compiledFrom } = element;
+  const { content } = element;
   const editor = useSlateStatic();
   const { isDark } = useTheme();
-  const nodeFetch = async (url: string, options: RequestInit) => {
-    if (editor.services?.utility?.nodeFetch) {
-      return await editor.services.utility.nodeFetch(url, options);
-    }
-    const res = await fetch(url, options);
-    return await res.text();
-  };
+  const { plantumlServer: server, plantumlDarkTheme: darkTheme } = useEditorConfig() ?? {};
 
   const renderEmpty = () => {
     return (
       <div
         contentEditable={false}
-        className="flex items-center justify-center h-14 text-[#99A1AF] cursor-pointer select-none"
+        className="flex h-14 cursor-pointer select-none items-center justify-center text-[#99A1AF]"
       >
         点击编辑 PlantUML
       </div>
@@ -43,23 +36,8 @@ const PlantUMLBlock: React.FC<PropsWithChildren<PlantUMLBlockProps>> = (
       editor,
       {
         content: value,
-        svg: "",
-        compiledFrom: undefined,
-        compiledAt: undefined,
       },
-      { at: ReactEditor.findPath(editor, element) },
-    );
-  };
-
-  const handleCompiled = (nextSvg: string, compiledCode: string) => {
-    Transforms.setNodes(
-      editor,
-      {
-        svg: nextSvg,
-        compiledFrom: compiledCode,
-        compiledAt: Date.now(),
-      },
-      { at: ReactEditor.findPath(editor, element) },
+      { at: ReactEditor.findPath(editor, element) }
     );
   };
 
@@ -74,14 +52,7 @@ const PlantUMLBlock: React.FC<PropsWithChildren<PlantUMLBlockProps>> = (
           center
         >
           {content ? (
-            <PlantUML
-              content={content}
-              isDark={isDark}
-              nodeFetch={nodeFetch}
-              initialSvg={svg}
-              compiledFrom={compiledFrom}
-              onCompiled={handleCompiled}
-            />
+            <PlantUML content={content} isDark={isDark} server={server} darkTheme={darkTheme} />
           ) : (
             renderEmpty()
           )}

@@ -1417,7 +1417,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                 convertFileSrc={convertFileSrc}
                 getHomeDir={getHomeDir}
                 remoteResourceToLocal={remoteResourceToLocal}
-                useGithubCdnUrl={useGithubCdnUrl}
+                cdnUrlResolver={useGithubCdnUrl}
               />
             }
             right={<div className="h-full w-full">{renderDocumentView()}</div>}
@@ -1443,7 +1443,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                 convertFileSrc={convertFileSrc}
                 getHomeDir={getHomeDir}
                 remoteResourceToLocal={remoteResourceToLocal}
-                useGithubCdnUrl={useGithubCdnUrl}
+                cdnUrlResolver={useGithubCdnUrl}
               />
             </div>
             <div

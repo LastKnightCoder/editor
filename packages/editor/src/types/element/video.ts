@@ -1,67 +1,22 @@
 import { Descendant } from "slate";
 
-export interface BiliBiliVideoMetaInfo {
-  type: "bilibili";
-  bvid: string;
-  cid: string;
-  cover?: string;
-  title?: string;
-  duration?: number;
-  author?: string;
-}
-
-export interface YouTubeVideoMetaInfo {
-  type: "youtube";
-  url: string;
-  videoStream?: string;
-  audioStream?: string;
-  title?: string;
-  thumbnail?: string;
-}
-
-export interface LocalVideoMetaInfo {
-  type: "local";
-  path: string;
-  name?: string;
-}
-
-export interface RemoteVideoMetaInfo {
-  type: "remote";
-  url: string;
-  contentType?: string;
-}
-
-export interface OtherVideoMetaInfo {
-  type: "other";
-  [key: string]: unknown;
-}
-
-export type VideoMetaInfo =
-  | BiliBiliVideoMetaInfo
-  | YouTubeVideoMetaInfo
-  | LocalVideoMetaInfo
-  | RemoteVideoMetaInfo
-  | OtherVideoMetaInfo;
+/**
+ * 视频元素的业务元数据：编辑器不理解其内部结构，仅透传保存。
+ * `type` 字段作为内容源判别标识，
+ * 由宿主注册的 VideoContentProvider 依据它匹配渲染。
+ */
+export type VideoElementMeta = { type?: string } & Record<string, unknown>;
 
 export interface VideoElement {
   type: "video";
   src: string;
   playbackRate?: number;
   uploading?: boolean;
+  /** 上传占位期间用于跨编辑定位的稳定标识 */
+  uuid?: string;
   width?: number;
   // 对齐方式：控制视频位置（默认 center）
   align?: "left" | "center" | "right";
-  metaInfo?: VideoMetaInfo;
+  metaInfo?: VideoElementMeta;
   children: Descendant[];
-}
-
-export interface BilibiliVideoSelectResult {
-  url: string;
-  metaInfo: BiliBiliVideoMetaInfo;
-}
-
-export interface YoutubeVideoSelectResult {
-  url: string;
-  videoStream?: string;
-  audioStream?: string;
 }

@@ -247,7 +247,6 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
             <ErrorBoundary>
               <Editor
                 contentId={documentItem?.contentId}
-                collaborationControl={false}
                 key={`${documentItem.id}-${editorRemountKey}`}
                 ref={editorRef}
                 initValue={documentItem.content}

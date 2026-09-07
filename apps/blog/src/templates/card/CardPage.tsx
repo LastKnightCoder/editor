@@ -3,12 +3,13 @@ import { motion } from "motion/react";
 import { Header } from "@blog/components/Layout";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
 import { Tag, ScrollToTop } from "@blog/components/Common";
-import { Editor, EditorServicesProvider } from "@tau/editor";
+import { Editor, EditorProvider } from "@tau/editor";
 import { getInitData, formatDate, getReadingTime, joinPath } from "@blog/utils";
 import { CardData, LinkedCardInfo } from "@blog/types";
 import DndProvider from "@blog/components/DndProvider";
-import { createBlogEditorServices } from "@blog/services/editorServices";
+import { createBlogEditorRegistry, createBlogEditorConfig } from "@blog/services/editorRegistry";
 import { blogEditorExtensions } from "@blog/editorExtensions";
+import useBlogTheme from "@blog/hooks/useBlogTheme";
 import { fadeUp, defaultTransition } from "@blog/utils/motion";
 import "@tau/themes/light.less";
 import "@tau/themes/dark.less";
@@ -23,21 +24,19 @@ function buildCardListTagHref(basePath: string, tag: string): string {
   return `${pathname}${query ? `?${query}` : ""}`;
 }
 
-const LinkedCardItem = memo(
-  ({ card, basePath }: { card: LinkedCardInfo; basePath: string }) => (
-    <a
-      href={joinPath(basePath, card.href)}
-      className="group flex items-start gap-3 rounded-lg py-3 transition-colors hover:bg-[var(--color-bg-canvas)] px-3 -mx-3"
-    >
-      <span className="shrink-0 text-sm leading-relaxed text-[var(--color-text-quaternary)] transition-colors group-hover:text-[var(--color-accent)]">
-        &rarr;
-      </span>
-      <p className="line-clamp-2 text-sm leading-relaxed text-[var(--color-text-secondary)] transition-colors group-hover:text-[var(--color-text-primary)]">
-        {card.summary}
-      </p>
-    </a>
-  ),
-);
+const LinkedCardItem = memo(({ card, basePath }: { card: LinkedCardInfo; basePath: string }) => (
+  <a
+    href={joinPath(basePath, card.href)}
+    className="group -mx-3 flex items-start gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-[var(--color-bg-canvas)]"
+  >
+    <span className="shrink-0 text-sm leading-relaxed text-[var(--color-text-quaternary)] transition-colors group-hover:text-[var(--color-accent)]">
+      &rarr;
+    </span>
+    <p className="line-clamp-2 text-sm leading-relaxed text-[var(--color-text-secondary)] transition-colors group-hover:text-[var(--color-text-primary)]">
+      {card.summary}
+    </p>
+  </a>
+));
 
 LinkedCardItem.displayName = "LinkedCardItem";
 
@@ -47,32 +46,24 @@ const CardPage = memo(() => {
   const card = initData.content as CardData;
   const docCollections = initData.docCollections || [];
   const blogSettings = initData.settings;
-
-  const readingTime = useMemo(
-    () => getReadingTime(card.content),
-    [card.content],
+  const blogTheme = useBlogTheme();
+  const blogEditorRegistry = useMemo(() => createBlogEditorRegistry(), []);
+  const blogEditorConfig = useMemo(
+    () => createBlogEditorConfig(blogSettings, blogTheme),
+    [blogSettings, blogTheme]
   );
 
-  const relatedCards = useMemo<LinkedCardInfo[]>(
-    () => card.linkedCards || [],
-    [card.linkedCards],
-  );
+  const readingTime = useMemo(() => getReadingTime(card.content), [card.content]);
+
+  const relatedCards = useMemo<LinkedCardInfo[]>(() => card.linkedCards || [], [card.linkedCards]);
 
   const desktopDocNav =
     docCollections.length > 0 ? (
-      <DocCollectionsMenu
-        collections={docCollections}
-        basePath={site.basePath}
-        variant="desktop"
-      />
+      <DocCollectionsMenu collections={docCollections} basePath={site.basePath} variant="desktop" />
     ) : undefined;
   const mobileDocNav =
     docCollections.length > 0 ? (
-      <DocCollectionsMenu
-        collections={docCollections}
-        basePath={site.basePath}
-        variant="mobile"
-      />
+      <DocCollectionsMenu collections={docCollections} basePath={site.basePath} variant="mobile" />
     ) : undefined;
 
   return (
@@ -103,12 +94,8 @@ const CardPage = memo(() => {
                 </p>
                 {card.tags && card.tags.length > 0 && (
                   <div className="mt-4 flex flex-wrap gap-2">
-                    {card.tags.map((tag) => (
-                      <Tag
-                        key={tag}
-                        name={tag}
-                        href={buildCardListTagHref(site.basePath, tag)}
-                      />
+                    {card.tags.map(tag => (
+                      <Tag key={tag} name={tag} href={buildCardListTagHref(site.basePath, tag)} />
                     ))}
                   </div>
                 )}
@@ -120,15 +107,13 @@ const CardPage = memo(() => {
 
               {/* 正文 */}
               <DndProvider>
-                <EditorServicesProvider
-                  services={createBlogEditorServices(blogSettings)}
+                <EditorProvider
+                  registry={blogEditorRegistry}
+                  config={blogEditorConfig}
+                  extensions={blogEditorExtensions}
                 >
-                  <Editor
-                    initValue={card.content}
-                    readonly
-                    extensions={blogEditorExtensions}
-                  />
-                </EditorServicesProvider>
+                  <Editor initValue={card.content} readonly />
+                </EditorProvider>
               </DndProvider>
 
               {/* 更新时间 */}
@@ -144,16 +129,12 @@ const CardPage = memo(() => {
                   <div className="flex">
                     <div className="h-px w-16 bg-[var(--color-border-ring-heavy)]" />
                   </div>
-                  <h4 className="mt-6 mb-4 text-xs font-medium uppercase tracking-[0.15em] text-[var(--color-text-tertiary)]">
+                  <h4 className="mb-4 mt-6 text-xs font-medium uppercase tracking-[0.15em] text-[var(--color-text-tertiary)]">
                     相关卡片
                   </h4>
                   <div className="space-y-0">
-                    {relatedCards.slice(0, 6).map((c) => (
-                      <LinkedCardItem
-                        key={c.id}
-                        card={c}
-                        basePath={site.basePath}
-                      />
+                    {relatedCards.slice(0, 6).map(c => (
+                      <LinkedCardItem key={c.id} card={c} basePath={site.basePath} />
                     ))}
                   </div>
                 </div>

@@ -2,12 +2,15 @@ import { BaseEditor, Descendant, Editor as SlateEditor, Point } from "slate";
 import { ReactEditor } from "slate-react";
 import { HistoryEditor } from "slate-history";
 import { CustomElement, CustomText } from "./custom-element";
-import type { EditorServices } from "./services";
+import type { ServiceIdentifier } from "../services/tokens";
 
 export type CustomField = {
   type: string;
   isResetValue: boolean;
-  services?: EditorServices;
+  /** 非React插件代码获取必选服务，未注册时抛错 */
+  getService: <T>(id: ServiceIdentifier<T>) => T;
+  /** 非React插件代码获取可选服务，未注册时返回 undefined */
+  tryGetService: <T>(id: ServiceIdentifier<T>) => T | undefined;
   handleDrop?: (files: FileList, point: Point) => Promise<void>;
   dropHandlers?: {
     image?: (file: File) => Promise<void>;
@@ -16,10 +19,7 @@ export type CustomField = {
   };
 };
 
-export type CustomEditor = BaseEditor &
-  ReactEditor &
-  HistoryEditor &
-  CustomField;
+export type CustomEditor = BaseEditor & ReactEditor & HistoryEditor & CustomField;
 
 /**
  * Editor component ref interface exposed via forwardRef

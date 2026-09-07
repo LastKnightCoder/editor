@@ -1,13 +1,12 @@
 ﻿import React, { forwardRef, useState } from "react";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
-import { useContext } from "react";
 import { remoteResourceToLocal } from "@/utils";
 import { getHomeDir } from "@/commands";
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 import useSettingStore from "@/stores/useSettingStore";
 import { addRemoteImageCacheEntry } from "@/commands/remote-image-cache";
 import { ASSET_PREFIX } from "@tau/collaboration";
-import { EditorServicesContext } from "@tau/editor/src/contexts/EditorServicesContext";
+import { IResourceService, useService } from "@tau/editor/src";
 import {
   resolveLocalMediaPath,
   isDirectMediaUrl,
@@ -29,7 +28,7 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>((props, ref) =
 
   const [previewUrl, setPreviewUrl] = useState<string>();
   const [isConverting, setIsConverting] = useState(true);
-  const editorServices = useContext(EditorServicesContext);
+  const remoteResourceToLocalService = useService(IResourceService).remoteResourceToLocal;
   const autoCacheRemoteImage = useSettingStore(state => state.setting.misc.image.autoCacheRemote);
 
   useAsyncEffect(async () => {
@@ -40,8 +39,8 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>((props, ref) =
         return;
       }
 
-      if (cdnUrl.startsWith(ASSET_PREFIX) && editorServices?.resource.remoteResourceToLocal) {
-        const localPath = await editorServices.resource.remoteResourceToLocal(cdnUrl);
+      if (cdnUrl.startsWith(ASSET_PREFIX) && remoteResourceToLocalService) {
+        const localPath = await remoteResourceToLocalService(cdnUrl);
         const localPreview = await toLocalMediaPreviewUrl(localPath);
         setPreviewUrl(localPreview.url);
         return;
@@ -87,7 +86,7 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>((props, ref) =
     } finally {
       setIsConverting(false);
     }
-  }, [cdnUrl, autoCacheRemoteImage, alt, editorServices]);
+  }, [cdnUrl, autoCacheRemoteImage, alt, remoteResourceToLocalService]);
 
   const onError = useMemoizedFn(() => {
     console.log("onError", cdnUrl);

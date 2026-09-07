@@ -47,16 +47,6 @@ interface MarkdownAstNodeWithChildren extends MarkdownAstNode {
   children: MarkdownAstNode[];
 }
 
-interface FileAttachmentElement {
-  type: "file-attachment";
-  fileName: string;
-  filePath: string;
-  localFilePath?: string;
-  isLocal: boolean;
-  uuid: string;
-  children: Descendant[];
-}
-
 const isMarkdownAstNode = (value: unknown): value is Partial<MarkdownAstNode> => {
   return typeof value === "object" && value !== null;
 };
@@ -328,7 +318,28 @@ const findMatchingKbdCloseIndex = (astNodes: MarkdownAstNode[], startIndex: numb
   return -1;
 };
 
-const footnoteDefinitionsMap: Map<string, string> = new Map();
+/** 单次导入的解析上下文：随 importFromMarkdown 调用入栈/出栈，
+ * 嵌套导入（directive handler 内再次调用）互不干扰 */
+interface MarkdownParseContext {
+  footnoteDefinitions: Map<string, string>;
+  /** 宿主注册的业务 directive 解析器（按 directive 名匹配） */
+  customDirectiveHandlers: Map<
+    string,
+    (attributes: Record<string, string | undefined>) => Descendant | null
+  >;
+}
+
+const parseContextStack: MarkdownParseContext[] = [];
+
+const getCurrentParseContext = (): MarkdownParseContext => {
+  const context = parseContextStack[parseContextStack.length - 1];
+  if (!context) {
+    throw new Error(
+      "[editor] markdown 解析上下文缺失：解析逻辑必须在 importFromMarkdown 调用内执行"
+    );
+  }
+  return context;
+};
 
 const extractTextFromNode = (node: unknown): string => {
   const currentNode = node as Partial<MarkdownAstNode>;
@@ -537,6 +548,10 @@ const markdownToDescendant = (
   }
 
   if (node.type === "containerDirective") {
+    const customContainerHandler = getCurrentParseContext().customDirectiveHandlers.get(node.name);
+    if (customContainerHandler) {
+      return customContainerHandler(node.attributes || {});
+    }
     if (["note", "tip", "warning", "info", "danger"].includes(node.name)) {
       return {
         type: "callout",
@@ -616,18 +631,6 @@ const markdownToDescendant = (
       }
       return element as Descendant;
     }
-    if (node.name === "file-attachment") {
-      const element: FileAttachmentElement = {
-        type: "file-attachment",
-        fileName: node.attributes.fileName || "",
-        filePath: node.attributes.filePath || "",
-        localFilePath: node.attributes.localFilePath,
-        isLocal: node.attributes.isLocal === "true",
-        uuid: node.attributes.uuid || uuid(),
-        children: [{ type: "formatted", text: "" }],
-      };
-      return element as unknown as Descendant;
-    }
     if (node.name === "chart") {
       try {
         const data = JSON.parse(
@@ -703,14 +706,9 @@ const markdownToDescendant = (
 
   if (node.type === "leafDirective") {
     const attributes = node.attributes || {};
-    if (node.name === "chat-reference") {
-      return {
-        type: "chat-reference",
-        chatId: parseInt(attributes.chatId || "0", 10) || 0,
-        title: attributes.title || "未命名对话",
-        height: attributes.height ? parseInt(attributes.height, 10) : 400,
-        children: [{ type: "formatted", text: "" }],
-      } as unknown as Descendant;
+    const customLeafHandler = getCurrentParseContext().customDirectiveHandlers.get(node.name);
+    if (customLeafHandler) {
+      return customLeafHandler(attributes);
     }
     return {
       type: "formatted",
@@ -720,6 +718,10 @@ const markdownToDescendant = (
 
   if (node.type === "textDirective") {
     const attributes = node.attributes || {};
+    const customTextHandler = getCurrentParseContext().customDirectiveHandlers.get(node.name);
+    if (customTextHandler) {
+      return customTextHandler(attributes);
+    }
     const color = attributes.color || "";
     const darkColor = attributes.darkColor || "";
     const textGradient = resolveTextGradientPreset(attributes.preset);
@@ -815,28 +817,6 @@ const markdownToDescendant = (
       } as Descendant;
     }
 
-    if (node.name === "content-link") {
-      const rawTitle = attributes.title || attributes.contentTitle || "";
-      const contentTitle = typeof rawTitle === "string" ? rawTitle.replace(/&quot;/g, '"') : "";
-      return {
-        type: "content-link",
-        refId: parseInt(attributes.refId || "0", 10),
-        contentId: parseInt(attributes.contentId || "0", 10),
-        contentType: attributes.contentType || "",
-        contentTitle,
-        children: [{ type: "formatted", text: "" }],
-      } as unknown as Descendant;
-    }
-
-    if (node.name === "time") {
-      return {
-        type: "summary-timestamp",
-        start: parseInt(attributes.start || "0", 10),
-        end: parseInt(attributes.end || "0", 10),
-        children: [{ type: "formatted", text: "" }],
-      } as unknown as Descendant;
-    }
-
     return {
       type: "formatted",
       text: `:${node.name}`,
@@ -907,7 +887,7 @@ const markdownToDescendant = (
   }
 
   if (node.type === "footnoteReference") {
-    const content = footnoteDefinitionsMap.get(node.identifier) || "";
+    const content = getCurrentParseContext().footnoteDefinitions.get(node.identifier) || "";
     return {
       type: "annotation",
       content,
@@ -1018,8 +998,19 @@ const normalizeEditorContent = (
   return result;
 };
 
-export const importFromMarkdown = (markdown: string, ignoreTypes: string[] = []): Descendant[] => {
-  footnoteDefinitionsMap.clear();
+export interface ImportFromMarkdownOptions {
+  /** 业务 directive 解析器（键为 directive 名），返回 null 视为不处理 */
+  customDirectives?: Record<
+    string,
+    (attributes: Record<string, string | undefined>) => Descendant | null
+  >;
+}
+
+const importFromMarkdownWithCurrentContext = (
+  markdown: string,
+  ignoreTypes: string[] = []
+): Descendant[] => {
+  const parseContext = getCurrentParseContext();
 
   // 历史版本曾为绕过 CJK 加粗解析问题在 markdown 中驻留零宽空格，导入时剥离净化
   const sanitized = markdown.replace(/\u200B/g, "");
@@ -1040,7 +1031,7 @@ export const importFromMarkdown = (markdown: string, ignoreTypes: string[] = [])
     for (const node of nodes) {
       if (node.type === "footnoteDefinition") {
         const content = extractTextFromNode(node);
-        footnoteDefinitionsMap.set(node.identifier, content);
+        parseContext.footnoteDefinitions.set(node.identifier, content);
       }
     }
   };
@@ -1172,4 +1163,20 @@ export const isMarkdownLikeText = (text: string): boolean => {
   const hasTableDivider = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/m.test(text);
 
   return hasTableRow && hasTableDivider;
+};
+
+export const importFromMarkdown = (
+  markdown: string,
+  ignoreTypes: string[] = [],
+  options?: ImportFromMarkdownOptions
+): Descendant[] => {
+  parseContextStack.push({
+    footnoteDefinitions: new Map(),
+    customDirectiveHandlers: new Map(Object.entries(options?.customDirectives ?? {})),
+  });
+  try {
+    return importFromMarkdownWithCurrentContext(markdown, ignoreTypes);
+  } finally {
+    parseContextStack.pop();
+  }
 };

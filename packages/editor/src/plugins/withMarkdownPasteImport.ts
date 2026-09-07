@@ -1,5 +1,7 @@
 import { Descendant, Editor } from "slate";
 import { isMarkdownLikeText as defaultIsMarkdownLikeText } from "../utils/markdownImport";
+import type { Plugin } from "../utils/plugin";
+import type { ImportFromMarkdownOptions } from "../utils/markdownImport";
 
 const SLATE_FRAGMENT_MIME = "application/x-slate-fragment";
 const MARKDOWN_MIME = "text/markdown";
@@ -12,7 +14,7 @@ const hasSlateFragmentHtml = (html: string): boolean => {
 
 const hasMediaClipboardItems = (data: DataTransfer): boolean => {
   if (data.files?.length) {
-    return Array.from(data.files).some((file) => {
+    return Array.from(data.files).some(file => {
       const [mime] = file.type.split("/");
       return mime === "image" || mime === "video" || mime === "audio";
     });
@@ -20,7 +22,7 @@ const hasMediaClipboardItems = (data: DataTransfer): boolean => {
 
   if (!data.items) return false;
 
-  return Array.from(data.items).some((item) => {
+  return Array.from(data.items).some(item => {
     return (
       item.type.startsWith("image/") ||
       item.type.startsWith("video/") ||
@@ -36,7 +38,7 @@ const isPlainFormattedLeaf = (node: unknown): boolean => {
   return (
     candidate.type === "formatted" &&
     typeof candidate.text === "string" &&
-    keys.every((key) => key === "type" || key === "text")
+    keys.every(key => key === "type" || key === "text")
   );
 };
 
@@ -54,63 +56,73 @@ const isPlainParagraphContent = (nodes: Descendant[]): boolean => {
   return nodes.length > 0 && nodes.every(isPlainParagraphNode);
 };
 
-export const withMarkdownPasteImport = (editor: Editor) => {
-  const { insertData } = editor;
+/**
+ * markdown 粘贴导入插件（宿主 opt-in）：
+ * 经 createMarkdownPasteImportExtension 注入宿主的 importFromMarkdown
+ * （可携带业务 customDirectives），内核默认不启用。
+ */
+export const createMarkdownPasteImportPlugin =
+  (
+    importFromMarkdown: (
+      markdown: string,
+      ignoreTypes?: string[],
+      options?: ImportFromMarkdownOptions
+    ) => Descendant[]
+  ): Plugin =>
+  (editor: Editor) => {
+    const { insertData } = editor;
 
-  editor.insertData = async (data: DataTransfer) => {
-    if (data.getData(SLATE_FRAGMENT_MIME)) {
-      insertData(data);
-      return;
-    }
-
-    const html = data.getData(HTML_MIME);
-    if (html && hasSlateFragmentHtml(html)) {
-      insertData(data);
-      return;
-    }
-
-    if (hasMediaClipboardItems(data)) {
-      insertData(data);
-      return;
-    }
-
-    const markdownText = data.getData(MARKDOWN_MIME);
-    const plainText = data.getData(PLAIN_TEXT_MIME);
-    const sourceText = markdownText || plainText;
-
-    if (!sourceText?.trim()) {
-      insertData(data);
-      return;
-    }
-
-    const utility = editor.services?.utility;
-    const detectMarkdown =
-      utility?.isMarkdownLikeText ?? defaultIsMarkdownLikeText;
-    const shouldTreatAsMarkdown =
-      Boolean(markdownText?.trim()) || detectMarkdown(sourceText);
-
-    if (!shouldTreatAsMarkdown || !utility?.importFromMarkdown) {
-      insertData(data);
-      return;
-    }
-
-    try {
-      const imported = utility.importFromMarkdown(sourceText);
-      if (!imported.length) {
+    editor.insertData = async (data: DataTransfer) => {
+      if (data.getData(SLATE_FRAGMENT_MIME)) {
         insertData(data);
         return;
       }
 
-      if (!markdownText && isPlainParagraphContent(imported)) {
+      const html = data.getData(HTML_MIME);
+      if (html && hasSlateFragmentHtml(html)) {
         insertData(data);
         return;
       }
 
-      editor.insertFragment(imported);
-    } catch {
-      insertData(data);
-    }
+      if (hasMediaClipboardItems(data)) {
+        insertData(data);
+        return;
+      }
+
+      const markdownText = data.getData(MARKDOWN_MIME);
+      const plainText = data.getData(PLAIN_TEXT_MIME);
+      const sourceText = markdownText || plainText;
+
+      if (!sourceText?.trim()) {
+        insertData(data);
+        return;
+      }
+
+      const shouldTreatAsMarkdown =
+        Boolean(markdownText?.trim()) || defaultIsMarkdownLikeText(sourceText);
+
+      if (!shouldTreatAsMarkdown) {
+        insertData(data);
+        return;
+      }
+
+      try {
+        const imported = importFromMarkdown(sourceText);
+        if (!imported.length) {
+          insertData(data);
+          return;
+        }
+
+        if (!markdownText && isPlainParagraphContent(imported)) {
+          insertData(data);
+          return;
+        }
+
+        editor.insertFragment(imported);
+      } catch {
+        insertData(data);
+      }
+    };
+
+    return editor;
   };
-
-  return editor;
-};

@@ -5,6 +5,7 @@ import { RenderElementProps } from "slate-react";
 import Audio from "./components/Audio";
 import { pasteAudio, dropAudio } from "./plugins";
 import blockPanelItems from "./block-panel-items";
+import type { Editor } from "slate";
 import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 
 class AudioExtension extends Base implements IExtension {
@@ -19,8 +20,8 @@ class AudioExtension extends Base implements IExtension {
     ];
   }
 
-  override getBlockPanelItems() {
-    return blockPanelItems;
+  override getBlockPanelItems(editor?: Editor) {
+    return blockPanelItems(editor);
   }
 
   render(props: RenderElementProps) {

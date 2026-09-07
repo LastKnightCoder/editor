@@ -3,15 +3,16 @@ import { motion } from "motion/react";
 import { Header } from "@blog/components/Layout";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
 import { Tag, ScrollToTop } from "@blog/components/Common";
-import { Editor, EditorServicesProvider } from "@tau/editor";
+import { Editor, EditorProvider } from "@tau/editor";
 import Outline from "@blog/components/Outline";
 import { getInitData, formatDate, getReadingTime, joinPath } from "@blog/utils";
 import { ArticleData } from "@blog/types";
 import { HeaderElement } from "@tau/editor";
 import { getInlineElementText } from "@blog/utils/editor";
 import DndProvider from "@blog/components/DndProvider";
-import { createBlogEditorServices } from "@blog/services/editorServices";
+import { createBlogEditorRegistry, createBlogEditorConfig } from "@blog/services/editorRegistry";
 import { blogEditorExtensions } from "@blog/editorExtensions";
+import useBlogTheme from "@blog/hooks/useBlogTheme";
 import { fadeUp, defaultTransition } from "@blog/utils/motion";
 import "@tau/themes/light.less";
 import "@tau/themes/dark.less";
@@ -39,16 +40,16 @@ const ArticlePage = memo(() => {
   const article = initData.content as ArticleData;
   const docCollections = initData.docCollections || [];
   const blogSettings = initData.settings;
-
-  const readingTime = useMemo(
-    () => getReadingTime(article.content),
-    [article.content],
+  const blogTheme = useBlogTheme();
+  const blogEditorRegistry = useMemo(() => createBlogEditorRegistry(), []);
+  const blogEditorConfig = useMemo(
+    () => createBlogEditorConfig(blogSettings, blogTheme),
+    [blogSettings, blogTheme]
   );
 
-  const headers = useMemo(
-    () => extractHeaders(article.content),
-    [article.content],
-  );
+  const readingTime = useMemo(() => getReadingTime(article.content), [article.content]);
+
+  const headers = useMemo(() => extractHeaders(article.content), [article.content]);
 
   const handleHeaderClick = (index: number) => {
     const editor = document.querySelector('[data-slate-editor="true"]');
@@ -62,19 +63,11 @@ const ArticlePage = memo(() => {
 
   const desktopDocNav =
     docCollections.length > 0 ? (
-      <DocCollectionsMenu
-        collections={docCollections}
-        basePath={site.basePath}
-        variant="desktop"
-      />
+      <DocCollectionsMenu collections={docCollections} basePath={site.basePath} variant="desktop" />
     ) : undefined;
   const mobileDocNav =
     docCollections.length > 0 ? (
-      <DocCollectionsMenu
-        collections={docCollections}
-        basePath={site.basePath}
-        variant="mobile"
-      />
+      <DocCollectionsMenu collections={docCollections} basePath={site.basePath} variant="mobile" />
     ) : undefined;
 
   const metaParts = [
@@ -104,16 +97,10 @@ const ArticlePage = memo(() => {
                 data-has-outline={headers.length > 0}
                 data-prose-width="prose"
               >
-                <div
-                  className="mx-auto min-w-0 w-full"
-                  style={{ maxWidth: "720px" }}
-                >
+                <div className="mx-auto w-full min-w-0" style={{ maxWidth: "720px" }}>
                   {/* Banner */}
                   {article.bannerBg && (
-                    <div
-                      className="pb-10 -mx-4 sm:mx-0"
-                      style={{ maxWidth: "960px" }}
-                    >
+                    <div className="-mx-4 pb-10 sm:mx-0" style={{ maxWidth: "960px" }}>
                       <img
                         src={article.bannerBg}
                         alt={article.title}
@@ -145,28 +132,23 @@ const ArticlePage = memo(() => {
 
                   {/* 正文内容 */}
                   <DndProvider>
-                    <EditorServicesProvider
-                      services={createBlogEditorServices(blogSettings)}
+                    <EditorProvider
+                      registry={blogEditorRegistry}
+                      config={blogEditorConfig}
+                      extensions={blogEditorExtensions}
                     >
-                      <Editor
-                        initValue={article.content}
-                        readonly
-                        extensions={blogEditorExtensions}
-                      />
-                    </EditorServicesProvider>
+                      <Editor initValue={article.content} readonly />
+                    </EditorProvider>
                   </DndProvider>
 
                   {/* 标签区域（文章底部） */}
                   {article.tags && article.tags.length > 0 && (
                     <div className="mt-12 flex flex-wrap gap-2">
-                      {article.tags.map((tag) => (
+                      {article.tags.map(tag => (
                         <Tag
                           key={tag}
                           name={tag}
-                          href={joinPath(
-                            site.basePath,
-                            `/articles?tag=${encodeURIComponent(tag)}`,
-                          )}
+                          href={joinPath(site.basePath, `/articles?tag=${encodeURIComponent(tag)}`)}
                         />
                       ))}
                     </div>

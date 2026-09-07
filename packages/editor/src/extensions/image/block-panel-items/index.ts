@@ -1,19 +1,21 @@
 import { Image } from "lucide-react";
+import type { Editor } from "slate";
 import { IBlockPanelListItem } from "../../../types";
-import { insertImage } from "../../../utils";
+import { getMediaInsertMenuItems } from "../../../utils/mediaInsert";
 
-const items: IBlockPanelListItem[] = [
-  {
-    icon: Image,
-    title: "块级图片",
-    keywords: ["image", "图片", "块级图片", "tupian"],
-    description: "插入一个独立图片块",
-    onClick: (editor) => {
-      insertImage(editor, {
-        url: "",
-      });
+const getItems = (editor?: Editor): IBlockPanelListItem[] => {
+  if (!editor) {
+    return [];
+  }
+  return [
+    {
+      icon: Image,
+      title: "图片",
+      keywords: ["图片", "image", "tupian"],
+      description: "插入图片",
+      children: getMediaInsertMenuItems(editor, "image"),
     },
-  },
-];
+  ];
+};
 
-export default items;
+export default getItems;

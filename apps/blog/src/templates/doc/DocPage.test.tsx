@@ -8,9 +8,7 @@ import { mockDocPageSidebarDemoData } from "@blog/mock/data";
 
 vi.mock("@tau/editor", () => ({
   Editor: () => <div data-slate-editor="true" />,
-  EditorServicesProvider: ({ children }: { children: ReactNode }) => (
-    <>{children}</>
-  ),
+  EditorProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
 vi.mock("@blog/components/Outline", () => ({
@@ -19,7 +17,7 @@ vi.mock("@blog/components/Outline", () => ({
 
 vi.mock("@blog/components/Common", () => ({
   Breadcrumb: ({ items }: { items: { label: string }[] }) => (
-    <nav>{items.map((item) => item.label).join(" / ")}</nav>
+    <nav>{items.map(item => item.label).join(" / ")}</nav>
   ),
   ScrollToTop: () => null,
 }));
@@ -32,15 +30,17 @@ vi.mock("@blog/editorExtensions", () => ({
   blogEditorExtensions: [],
 }));
 
-vi.mock("@blog/services/editorServices", () => ({
-  createBlogEditorServices: () => ({}),
+vi.mock("@blog/services/editorRegistry", () => ({
+  createBlogEditorRegistry: () => ({}),
+  createBlogEditorConfig: () => ({
+    theme: { mode: "light", colors: {} as never },
+  }),
 }));
 
 describe("DocPage", () => {
   let container: HTMLDivElement;
   let root: Root;
-  const originalActEnvironment = (globalThis as Record<string, unknown>)
-    .IS_REACT_ACT_ENVIRONMENT;
+  const originalActEnvironment = (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT;
 
   beforeEach(() => {
     (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
@@ -63,8 +63,7 @@ describe("DocPage", () => {
     });
     container.remove();
     document.body.innerHTML = "";
-    (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT =
-      originalActEnvironment;
+    (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = originalActEnvironment;
     vi.restoreAllMocks();
   });
 
@@ -74,7 +73,7 @@ describe("DocPage", () => {
     });
 
     const menuButton = container.querySelector(
-      'button[aria-label="菜单"]',
+      'button[aria-label="菜单"]'
     ) as HTMLButtonElement | null;
     expect(menuButton).not.toBeNull();
 
@@ -86,8 +85,6 @@ describe("DocPage", () => {
     expect(container.textContent).toContain("知识库");
     expect(container.textContent).toContain("0.4");
     expect(container.textContent).toContain("0.4.4");
-    expect(container.querySelectorAll("aside").length).toBeGreaterThanOrEqual(
-      2,
-    );
+    expect(container.querySelectorAll("aside").length).toBeGreaterThanOrEqual(2);
   });
 });

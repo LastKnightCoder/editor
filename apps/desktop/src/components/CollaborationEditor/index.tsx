@@ -1,11 +1,14 @@
 import { useMemo } from "react";
 import { Editor } from "@tau/editor/src";
 import {
-  EditorServicesProvider,
-  useEditorServices,
-} from "@tau/editor/src/contexts/EditorServicesContext";
+  EditorProvider,
+  createChildRegistry,
+  useServiceRegistry,
+  IEditorSlots,
+  IResourceService,
+  type ServiceRegistry,
+} from "@tau/editor/src";
 import type { EditorCollaborationBinding } from "@tau/editor/src/collaboration/types";
-import type { EditorServices } from "@tau/editor/src/types/services";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { createAssetMedia } from "./AssetMedia";
 import useCollaborationPresence from "@/hooks/useCollaborationPresence";
@@ -17,42 +20,29 @@ export function CollaborationServices({
   binding?: EditorCollaborationBinding;
   children: React.ReactNode;
 }) {
-  const base = useEditorServices();
-  const services = useMemo<EditorServices>(
+  const baseRegistry = useServiceRegistry();
+  const registry = useMemo<ServiceRegistry>(
     () =>
       binding && binding.mode !== "local"
-        ? {
-            ...base,
-            resource: {
-              ...base.resource,
+        ? createChildRegistry(baseRegistry, register => {
+            register(IResourceService, {
+              ...baseRegistry.get(IResourceService),
               remoteResourceToLocal: async url => binding.resolveResource(url),
-              upload: async file => {
-                const url = await binding.uploadResource(file);
-                return {
-                  id: url,
-                  url,
-                  path: url,
-                  type: file.type,
-                  name: file.name,
-                };
-              },
-              create: async () => {},
-              decrementRef: async () => {},
-            },
-            file: { ...base.file, uploadFile: binding.uploadResource },
-            customBlock: undefined,
-            components: base.components
-              ? {
-                  ...base.components,
-                  Video: createAssetMedia(base.components.Video, binding),
-                  Audio: createAssetMedia(base.components.Audio, binding),
-                }
-              : undefined,
-          }
-        : base,
-    [base, binding]
+              upload: file => binding.uploadResource(file),
+            });
+            register(IEditorSlots, () => {
+              const slots = baseRegistry.get(IEditorSlots);
+              return {
+                ...slots,
+                Video: createAssetMedia(slots.Video, binding),
+                Audio: createAssetMedia(slots.Audio, binding),
+              };
+            });
+          })
+        : baseRegistry,
+    [baseRegistry, binding]
   );
-  return <EditorServicesProvider services={services}>{children}</EditorServicesProvider>;
+  return <EditorProvider registry={registry}>{children}</EditorProvider>;
 }
 
 export default function CollaborationEditor({

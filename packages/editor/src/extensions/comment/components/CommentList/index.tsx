@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from "react";
+import dayjs from "dayjs";
 import type { Comment as CommentType } from "../../../types";
 import CommentInput from "../CommentInput";
 import useThemeColors from "../../../../hooks/useThemeColors";
-import { useSlateStatic } from "slate-react";
+import { useEditorConfig } from "../../../../contexts/EditorConfig";
 
 interface CommentListProps {
   comments: CommentType[];
@@ -23,14 +24,10 @@ const CommentList: React.FC<CommentListProps> = ({
   const [replyingId, setReplyingId] = useState<string | null>(null);
   const themeColors = useThemeColors();
   const accentColor = themeColors.accentColor || "rgb(239, 68, 68)";
-  const editor = useSlateStatic();
-  const formatDate = (value: number | string, format?: string) => {
-    if (editor.services?.utility?.formatDate) {
-      return editor.services.utility.formatDate(value, format);
-    }
-
-    return new Date(value).toLocaleString();
-  };
+  const config = useEditorConfig();
+  const defaultFormatDate = (value: number | string, format = "YYYY-MM-DD HH:mm:ss") =>
+    dayjs(value).format(format);
+  const formatDate = config?.formatDate ?? defaultFormatDate;
 
   const normalizedComments = useMemo(() => comments ?? [], [comments]);
 
@@ -42,12 +39,12 @@ const CommentList: React.FC<CommentListProps> = ({
     return (
       <div
         key={comment.id}
-        className="rounded-xl border border-gray-100 dark:border-slate-800/70 bg-white/80 dark:bg-zinc-900/40 p-3"
+        className="rounded-xl border border-gray-100 bg-white/80 p-3 dark:border-slate-800/70 dark:bg-zinc-900/40"
       >
         {isEditing ? (
           <CommentInput
             initialValue={comment.content}
-            onSubmit={(content) => {
+            onSubmit={content => {
               onEdit(comment.id, content);
               setEditingId(null);
             }}
@@ -94,7 +91,7 @@ const CommentList: React.FC<CommentListProps> = ({
           <div className="mt-3">
             <CommentInput
               placeholder="回复..."
-              onSubmit={(content) => {
+              onSubmit={content => {
                 onReply(comment.id, content);
                 setReplyingId(null);
               }}
@@ -106,10 +103,10 @@ const CommentList: React.FC<CommentListProps> = ({
 
         {replies.length > 0 && (
           <div
-            className="mt-4 space-y-3 border-l-2 border-gray-100 dark:border-slate-800/80 pl-4"
+            className="mt-4 space-y-3 border-l-2 border-gray-100 pl-4 dark:border-slate-800/80"
             style={{ borderLeftColor: accentColor }}
           >
-            {replies.map((reply) => renderComment(reply, _level + 1))}
+            {replies.map(reply => renderComment(reply, _level + 1))}
           </div>
         )}
       </div>
@@ -118,16 +115,12 @@ const CommentList: React.FC<CommentListProps> = ({
 
   if (!normalizedComments.length) {
     return (
-      <div className="py-6 text-center text-sm text-gray-400 dark:text-slate-500">
-        暂无批注
-      </div>
+      <div className="py-6 text-center text-sm text-gray-400 dark:text-slate-500">暂无批注</div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {normalizedComments.map((comment) => renderComment(comment))}
-    </div>
+    <div className="space-y-3">{normalizedComments.map(comment => renderComment(comment))}</div>
   );
 };
 

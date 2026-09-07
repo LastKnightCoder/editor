@@ -13,11 +13,9 @@ import {
 import { Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import { App } from "antd";
-
-import {
-  ContextMenuItem,
-  BuildMenuParams,
-} from "../../../components/EditorContextMenu/types";
+import { IFileService, IMediaActions } from "../../../services";
+import type { EditorAppearanceConfig } from "../../../contexts/EditorConfig";
+import { ContextMenuItem, BuildMenuParams } from "../../../components/EditorContextMenu/types";
 import type {
   FileService,
   ImageBorderRadiusPreset,
@@ -31,18 +29,18 @@ import {
   normalizeImageShadowPreset,
 } from "./appearance";
 
-const resolveLocalPath = (url: string, fileService?: FileService) => {
+const resolveLocalPath = async (url: string, fileService?: FileService) => {
   if (!url.startsWith("~") || !fileService?.getHomeDir) {
     return null;
   }
-  const homeDir = fileService.getHomeDir();
+  const homeDir = await fileService.getHomeDir();
   return `${homeDir}${url.slice(1)}`;
 };
 
 async function copyImageToClipboard(
   element: ImageElement,
   message: ReturnType<typeof App.useApp>["message"],
-  fileService?: FileService,
+  fileService?: FileService
 ) {
   try {
     const actions = imageActionsMap.get(element);
@@ -64,7 +62,7 @@ async function copyImageToClipboard(
     }
 
     const url = element.url;
-    const localPath = resolveLocalPath(url, fileService);
+    const localPath = await resolveLocalPath(url, fileService);
 
     if (localPath) {
       await navigator.clipboard.writeText(localPath);
@@ -90,10 +88,10 @@ async function copyImageToClipboard(
 async function copyImageLink(
   url: string,
   message: ReturnType<typeof App.useApp>["message"],
-  fileService?: FileService,
+  fileService?: FileService
 ) {
   try {
-    const localPath = resolveLocalPath(url, fileService);
+    const localPath = await resolveLocalPath(url, fileService);
     if (localPath) {
       await navigator.clipboard.writeText(localPath);
       message.success("链接复制成功");
@@ -118,20 +116,14 @@ async function copyImageLink(
 export function buildImageMenuItems(
   params: BuildMenuParams<ImageElement>,
   message?: ReturnType<typeof App.useApp>["message"],
+  appearance?: EditorAppearanceConfig["image"]
 ): ContextMenuItem[] {
   const { element, editor } = params;
-  const fileService = editor.services?.file;
-  const settings = editor.services?.settings;
+  const fileService = editor.getService(IFileService);
 
   const menuItems: ContextMenuItem[] = [];
-  const currentBorderRadius =
-    element.borderRadius ??
-    settings?.get<ImageBorderRadiusPreset>("appearance.image.borderRadius") ??
-    "none";
-  const currentShadow = normalizeImageShadowPreset(
-    element.shadow ??
-      settings?.get<ImageShadowPreset | boolean>("appearance.image.shadow"),
-  );
+  const currentBorderRadius = element.borderRadius ?? appearance?.borderRadius ?? "none";
+  const currentShadow = normalizeImageShadowPreset(element.shadow ?? appearance?.shadow);
   const setAppearance = (value: {
     borderRadius?: ImageBorderRadiusPreset;
     shadow?: ImageShadowPreset;
@@ -160,17 +152,19 @@ export function buildImageMenuItems(
     },
   });
 
-  if (editor.services?.imageGeneration?.isAvailable?.()) {
-    menuItems.push({
-      key: "ai-edit",
-      label: "AI 编辑图片",
-      icon: <Sparkles size={16} />,
-      onSelect: () => {
-        const actions = imageActionsMap.get(element);
-        actions?.startAIEdit();
-      },
+  editor
+    .tryGetService(IMediaActions)
+    ?.filter(action => action.mediaTypes.includes("image") && (action.isAvailable?.() ?? true))
+    .forEach(action => {
+      menuItems.push({
+        key: `media-action-${action.id}`,
+        label: action.label,
+        icon: action.icon,
+        onSelect: () => {
+          imageActionsMap.get(element)?.runMediaAction(action.id);
+        },
+      });
     });
-  }
 
   const currentAlign = element.align || "center";
   menuItems.push({
@@ -202,11 +196,7 @@ export function buildImageMenuItems(
         disabled: currentAlign === "center",
         onSelect: () => {
           const path = ReactEditor.findPath(editor, element);
-          Transforms.setNodes(
-            editor,
-            { align: "center" as const },
-            { at: path },
-          );
+          Transforms.setNodes(editor, { align: "center" as const }, { at: path });
         },
       },
       {
@@ -216,11 +206,7 @@ export function buildImageMenuItems(
         disabled: currentAlign === "right",
         onSelect: () => {
           const path = ReactEditor.findPath(editor, element);
-          Transforms.setNodes(
-            editor,
-            { align: "right" as const },
-            { at: path },
-          );
+          Transforms.setNodes(editor, { align: "right" as const }, { at: path });
         },
       },
     ],
@@ -244,7 +230,7 @@ export function buildImageMenuItems(
       {
         key: "appearance-radius",
         label: "圆角",
-        children: IMAGE_BORDER_RADIUS_OPTIONS.map((option) => ({
+        children: IMAGE_BORDER_RADIUS_OPTIONS.map(option => ({
           key: `appearance-radius-${option.value}`,
           label: option.label,
           disabled: currentBorderRadius === option.value,
@@ -256,7 +242,7 @@ export function buildImageMenuItems(
       {
         key: "appearance-shadow",
         label: "阴影",
-        children: IMAGE_SHADOW_OPTIONS.map((option) => ({
+        children: IMAGE_SHADOW_OPTIONS.map(option => ({
           key: `appearance-shadow-${option.value}`,
           label: option.label,
           disabled: currentShadow === option.value,

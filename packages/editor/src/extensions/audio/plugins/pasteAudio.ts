@@ -1,5 +1,6 @@
 import { Editor, Transforms } from "slate";
 import { insertAudio } from "../../../utils";
+import { IResourceService } from "../../../services";
 import { message } from "antd";
 
 export const pasteAudio = (editor: Editor) => {
@@ -22,7 +23,7 @@ export const pasteAudio = (editor: Editor) => {
       if (!insertPath) {
         return;
       }
-      const src = await editor.services?.file.uploadFile(file);
+      const src = await editor.getService(IResourceService).upload(file);
       if (!src) {
         message.error("上传失败");
         Editor.withoutNormalizing(editor, () => {

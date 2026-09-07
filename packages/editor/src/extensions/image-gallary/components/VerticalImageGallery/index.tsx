@@ -1,12 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ImageGallery } from "@tau/shared";
 import useTheme from "../../../../hooks/useTheme";
-import {
-  ImageBorderRadiusPreset,
-  ImageGalleryItem,
-  ImageShadowPreset,
-} from "../../../../types";
-import { useSlateStatic } from "slate-react";
+import { ImageBorderRadiusPreset, ImageGalleryItem, ImageShadowPreset } from "../../../../types";
 import {
   calculateMasonryLayout,
   toImageDimension,
@@ -14,6 +9,7 @@ import {
   DEFAULT_MASONRY_CONFIG,
 } from "./masonryCalculator";
 import { getImageAppearanceStyle } from "../../../image/utils/appearance";
+import { useEditorSlots } from "../../../../services";
 
 interface IVerticalImageGalleryProps {
   items: ImageGalleryItem[];
@@ -36,21 +32,18 @@ const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
-  const [imageDimensions, setImageDimensions] = useState<
-    Map<string, ImageDimension>
-  >(new Map());
+  const [imageDimensions, setImageDimensions] = useState<Map<string, ImageDimension>>(new Map());
   const [showGallery, setShowGallery] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const { theme } = useTheme();
-  const editor = useSlateStatic();
-  const Image = editor.services?.components?.Image;
+  const { Image } = useEditorSlots();
 
   // 监听容器宽度
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const observer = new ResizeObserver((entries) => {
+    const observer = new ResizeObserver(entries => {
       const entry = entries[0];
       if (entry) {
         setContainerWidth(entry.contentRect.width);
@@ -120,7 +113,7 @@ const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
 
         // 回调通知父组件保存尺寸
         if (onUpdateDimensions) {
-          const updatedItems = items.map((item) => {
+          const updatedItems = items.map(item => {
             const dim = newDimensions.get(item.id);
             if (dim && !item.width && !item.height) {
               return { ...item, width: dim.width, height: dim.height };
@@ -138,7 +131,7 @@ const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
   // 计算布局
   const layout = useMemo(() => {
     const dimensions = items
-      .map((item) => imageDimensions.get(item.id))
+      .map(item => imageDimensions.get(item.id))
       .filter((d): d is ImageDimension => d !== undefined && d.loaded);
 
     return calculateMasonryLayout(dimensions, containerWidth, {
@@ -148,7 +141,7 @@ const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
   }, [items, imageDimensions, containerWidth, columnCount, gap]);
 
   // 全屏浏览用的图片列表
-  const galleryImages = useMemo(() => items.map((item) => item.url), [items]);
+  const galleryImages = useMemo(() => items.map(item => item.url), [items]);
 
   const handleImageClick = (index: number) => {
     setGalleryIndex(index);
@@ -156,7 +149,7 @@ const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
   };
   const itemAppearanceStyle = useMemo(
     () => getImageAppearanceStyle({ borderRadius, shadow }),
-    [borderRadius, shadow],
+    [borderRadius, shadow]
   );
 
   return (
@@ -168,7 +161,7 @@ const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
       {layout.items.map((item, index) => (
         <div
           key={item.id}
-          className="absolute overflow-hidden cursor-pointer"
+          className="absolute cursor-pointer overflow-hidden"
           style={{
             left: item.left,
             top: item.top,
@@ -179,17 +172,9 @@ const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
           onClick={() => handleImageClick(index)}
         >
           {Image ? (
-            <Image
-              url={item.url}
-              alt={item.desc || ""}
-              className="w-full h-full object-cover"
-            />
+            <Image url={item.url} alt={item.desc || ""} className="h-full w-full object-cover" />
           ) : (
-            <img
-              src={item.url}
-              alt={item.desc || ""}
-              className="w-full h-full object-cover"
-            />
+            <img src={item.url} alt={item.desc || ""} className="h-full w-full object-cover" />
           )}
         </div>
       ))}

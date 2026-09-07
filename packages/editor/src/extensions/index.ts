@@ -28,7 +28,6 @@ import StyledTextExtension from "./styled-text";
 import AudioExtension from "./audio";
 import VideoExtension from "./video";
 import FrontMatterExtension from "./front-matter";
-import WebviewExtension from "./webview";
 import InlineHtmlExtension from "./html-inline";
 import InlineImageExtension from "./inline-image";
 import KbdExtension from "./kbd";
@@ -65,7 +64,6 @@ export const tableCell = new TableCellExtension();
 export const tikz = new TikzExtension();
 export const typst = new TypstExtension();
 export const frontMatter = new FrontMatterExtension();
-export const webview = new WebviewExtension();
 
 export const customBlock = new CustomBlockExtension();
 
@@ -127,7 +125,6 @@ export const startExtensions = [
   audio,
   video,
   frontMatter,
-  webview,
   emoji,
   annotation,
   abc,

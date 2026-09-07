@@ -1,29 +1,21 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { produce } from "immer";
-import {
-  MdAdd,
-  MdLink,
-  MdUploadFile,
-  MdImage,
-  MdClose,
-  MdPhotoLibrary,
-} from "react-icons/md";
+import { MdAdd, MdLink, MdUploadFile, MdImage, MdClose, MdPhotoLibrary } from "react-icons/md";
 import { v4 as getUuid } from "uuid";
-import { useSlateStatic } from "slate-react";
 import { SelectDropDown } from "@tau/shared";
 
 import {
   ImageGalleryItem,
   LastRowMode,
   ObjectFitMode,
-  IResource,
   ImageBorderRadiusPreset,
   ImageShadowPreset,
 } from "../../../../types";
 import { EGalleryMode } from "../../../../constants";
 import ImageItem from "./ImageItem";
 import useUploadResource from "../../../../hooks/useUploadResource";
+import { useOptionalService, IMediaSelectors } from "../../../../services";
 import {
   IMAGE_BORDER_RADIUS_OPTIONS,
   IMAGE_SHADOW_OPTIONS,
@@ -58,33 +50,23 @@ const ToggleSwitch = ({
   onChange: (checked: boolean) => void;
   label: string;
 }) => (
-  <label className="flex items-center gap-3 cursor-pointer group">
+  <label className="group flex cursor-pointer items-center gap-3">
     <div className="relative">
       <input
         type="checkbox"
         checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="sr-only peer"
+        onChange={e => onChange(e.target.checked)}
+        className="peer sr-only"
       />
       <div
-        className={`
-          w-11 h-6 rounded-full transition-all duration-200 ease-in-out
-          ${checked ? "bg-indigo-500" : "bg-gray-200 dark:bg-zinc-700"}
-          group-hover:shadow-md
-        `}
+        className={`h-6 w-11 rounded-full transition-all duration-200 ease-in-out ${checked ? "bg-indigo-500" : "bg-gray-200 dark:bg-zinc-700"} group-hover:shadow-md`}
       >
         <div
-          className={`
-            absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-md
-            transition-transform duration-200 ease-in-out
-            ${checked ? "translate-x-5" : "translate-x-0"}
-          `}
+          className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out ${checked ? "translate-x-5" : "translate-x-0"} `}
         />
       </div>
     </div>
-    <span className="text-sm text-gray-700 dark:text-slate-300 select-none">
-      {label}
-    </span>
+    <span className="select-none text-sm text-gray-700 dark:text-slate-300">{label}</span>
   </label>
 );
 
@@ -102,7 +84,7 @@ const CustomSelect = <T extends string | number>({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const selectedOption = options.find((o) => o.value === value);
+  const selectedOption = options.find(o => o.value === value);
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -114,30 +96,16 @@ const CustomSelect = <T extends string | number>({
           ref={triggerRef}
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="
-            w-full px-4 py-3 rounded-xl text-sm text-left
-            bg-gray-50 dark:bg-zinc-950
-            border border-gray-200 dark:border-slate-700
-            text-gray-800 dark:text-white
-            hover:border-gray-300 dark:hover:border-slate-600
-            focus:border-indigo-500 focus:outline-none
-            transition-colors
-            flex items-center justify-between
-          "
+          className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-left text-sm text-gray-800 transition-colors hover:border-gray-300 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:hover:border-slate-600"
         >
           <span>{selectedOption?.label || "请选择"}</span>
           <svg
-            className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+            className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
         <SelectDropDown
@@ -145,10 +113,10 @@ const CustomSelect = <T extends string | number>({
           selectedKey={value}
           show={isOpen}
           onClose={() => setIsOpen(false)}
-          onSelect={(item) => onChange(item.value)}
+          onSelect={item => onChange(item.value)}
           triggerElement={triggerRef.current}
-          getKey={(item) => item.value}
-          renderItem={(item) => item.label}
+          getKey={item => item.value}
+          renderItem={item => item.label}
           width={triggerRef.current?.offsetWidth}
         />
       </div>
@@ -186,75 +154,28 @@ const NumberInput = ({
           type="button"
           onClick={() => handleChange(value - 1)}
           disabled={min !== undefined && value <= min}
-          className="
-            w-10 h-10 rounded-l-xl
-            bg-gray-100 dark:bg-zinc-800
-            border border-r-0 border-gray-200 dark:border-slate-700
-            text-gray-600 dark:text-slate-400
-            hover:bg-gray-200 dark:hover:bg-zinc-700
-            disabled:opacity-50 disabled:cursor-not-allowed
-            transition-colors
-            flex items-center justify-center
-          "
+          className="flex h-10 w-10 items-center justify-center rounded-l-xl border border-r-0 border-gray-200 bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-zinc-800 dark:text-slate-400 dark:hover:bg-zinc-700"
         >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M20 12H4"
-            />
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
           </svg>
         </button>
         <input
           type="number"
           value={value}
-          onChange={(e) => handleChange(Number(e.target.value))}
+          onChange={e => handleChange(Number(e.target.value))}
           min={min}
           max={max}
-          className="
-            w-16 h-10 text-center text-sm
-            bg-gray-50 dark:bg-zinc-950
-            border-y border-gray-200 dark:border-slate-700
-            text-gray-800 dark:text-white
-            focus:outline-none
-            [appearance:textfield]
-            [&::-webkit-outer-spin-button]:appearance-none
-            [&::-webkit-inner-spin-button]:appearance-none
-          "
+          className="h-10 w-16 border-y border-gray-200 bg-gray-50 text-center text-sm text-gray-800 [appearance:textfield] focus:outline-none dark:border-slate-700 dark:bg-zinc-950 dark:text-white [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
         <button
           type="button"
           onClick={() => handleChange(value + 1)}
           disabled={max !== undefined && value >= max}
-          className="
-            w-10 h-10 rounded-r-xl
-            bg-gray-100 dark:bg-zinc-800
-            border border-l-0 border-gray-200 dark:border-slate-700
-            text-gray-600 dark:text-slate-400
-            hover:bg-gray-200 dark:hover:bg-zinc-700
-            disabled:opacity-50 disabled:cursor-not-allowed
-            transition-colors
-            flex items-center justify-center
-          "
+          className="flex h-10 w-10 items-center justify-center rounded-r-xl border border-l-0 border-gray-200 bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-zinc-800 dark:text-slate-400 dark:hover:bg-zinc-700"
         >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
         </button>
       </div>
@@ -275,113 +196,107 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
   const [totalCount, setTotalCount] = useState(0);
   const [successCount, setSuccessCount] = useState(0);
   const [errorCount, setErrorCount] = useState(0);
-  const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
 
-  const editor = useSlateStatic();
-  const ResourcePickerModal = editor.services?.components?.ResourcePickerModal;
+  // 宿主注册的图片选择入口（如资源库）；未注册则不显示对应按钮
+  const imageSelectors = (useOptionalService(IMediaSelectors) ?? []).filter(
+    selector => selector.mediaTypes.includes("image") && (selector.isAvailable?.() ?? true)
+  );
   const uploadResource = useUploadResource();
 
   const onHeightChange = (value: number) => {
     onSettingChange(
-      produce(setting, (draft) => {
+      produce(setting, draft => {
         draft.height = value;
-      }),
+      })
     );
   };
 
   const onModeChange = (value: EGalleryMode) => {
     onSettingChange(
-      produce(setting, (draft) => {
+      produce(setting, draft => {
         draft.mode = value;
-      }),
+      })
     );
   };
 
   const onWiderChange = (value: boolean) => {
     onSettingChange(
-      produce(setting, (draft) => {
+      produce(setting, draft => {
         draft.wider = value;
-      }),
+      })
     );
   };
 
   const onColumnCountChange = (value: number) => {
     onSettingChange(
-      produce(setting, (draft) => {
+      produce(setting, draft => {
         draft.columnCount = value;
-      }),
+      })
     );
   };
 
   const onMarginsChange = (value: number) => {
     onSettingChange(
-      produce(setting, (draft) => {
+      produce(setting, draft => {
         draft.margins = value;
-      }),
+      })
     );
   };
 
   const onLastRowChange = (value: LastRowMode) => {
     onSettingChange(
-      produce(setting, (draft) => {
+      produce(setting, draft => {
         draft.lastRow = value;
-      }),
+      })
     );
   };
 
   const onObjectFitChange = (value: ObjectFitMode) => {
     onSettingChange(
-      produce(setting, (draft) => {
+      produce(setting, draft => {
         draft.objectFit = value;
-      }),
+      })
     );
   };
 
   const onBorderRadiusChange = (value: ImageBorderRadiusPreset) => {
     onSettingChange(
-      produce(setting, (draft) => {
+      produce(setting, draft => {
         draft.borderRadius = value;
-      }),
+      })
     );
   };
 
   const onShadowChange = (value: ImageShadowPreset) => {
     onSettingChange(
-      produce(setting, (draft) => {
+      produce(setting, draft => {
         draft.shadow = value;
-      }),
+      })
     );
   };
 
   const onAddImage = useCallback(
     (values: ImageGalleryItem[]) => {
       onSettingChange(
-        produce(setting, (draft) => {
+        produce(setting, draft => {
           draft.images = draft.images.concat(values);
-        }),
+        })
       );
     },
-    [setting, onSettingChange],
+    [setting, onSettingChange]
   );
 
-  const onDropImage = (
-    dragImageItem: ImageGalleryItem,
-    dropImageItem: ImageGalleryItem,
-  ) => {
+  const onDropImage = (dragImageItem: ImageGalleryItem, dropImageItem: ImageGalleryItem) => {
     onSettingChange(
-      produce(setting, (draft) => {
-        const dragIndex = draft.images.findIndex(
-          (item) => item.id === dragImageItem.id,
-        );
-        const dropIndex = draft.images.findIndex(
-          (item) => item.id === dropImageItem.id,
-        );
+      produce(setting, draft => {
+        const dragIndex = draft.images.findIndex(item => item.id === dragImageItem.id);
+        const dropIndex = draft.images.findIndex(item => item.id === dropImageItem.id);
         if (dragIndex === -1 || dropIndex === -1) {
           return;
         }
         draft.images.splice(dragIndex, 1);
         draft.images.splice(dropIndex, 0, dragImageItem);
-      }),
+      })
     );
   };
 
@@ -391,19 +306,14 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
         return null;
       }
       try {
-        const result = await Promise.race([
-          uploadResource(file),
-          timeoutPromise(10000),
-        ]);
+        const result = await Promise.race([uploadResource(file), timeoutPromise(10000)]);
         if (!result) return null;
-        return typeof result === "string"
-          ? result
-          : ((result as { url?: string }).url ?? null);
+        return typeof result === "string" ? result : ((result as { url?: string }).url ?? null);
       } catch (e) {
         return null;
       }
     },
-    [uploadResource],
+    [uploadResource]
   );
 
   const handleUploadFiles = useCallback(
@@ -423,37 +333,35 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
       let doneCount = 0;
       for (const promise of promises) {
         promise
-          .then((url) => {
+          .then(url => {
             if (url) {
               successUrls.push(url);
-              setSuccessCount((c) => c + 1);
+              setSuccessCount(c => c + 1);
             } else {
-              setErrorCount((c) => c + 1);
+              setErrorCount(c => c + 1);
             }
           })
           .catch(() => {
-            setErrorCount((c) => c + 1);
+            setErrorCount(c => c + 1);
           })
           .finally(() => {
             doneCount++;
             if (doneCount === files.length) {
               onAddImage(
-                successUrls.map((url) => ({
+                successUrls.map(url => ({
                   id: getUuid(),
                   url,
-                })),
+                }))
               );
               setUploading(false);
             }
           });
       }
     },
-    [uploadFile, onAddImage],
+    [uploadFile, onAddImage]
   );
 
-  const handleUploadFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
+  const handleUploadFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) return;
     await handleUploadFiles(files);
@@ -488,30 +396,28 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
     }
   };
 
-  const handleInsertFromResource = (selected: IResource[]) => {
-    if (!selected.length) {
-      setResourcePickerOpen(false);
-      return;
-    }
-    const newImages: ImageGalleryItem[] = selected
-      .map((resource) => {
-        const resourceUrl = resource.path || resource.url;
-        if (!resourceUrl) return null;
-        return { id: getUuid(), url: resourceUrl };
-      })
-      .filter((item): item is ImageGalleryItem => item !== null);
-
-    if (newImages.length > 0) {
-      onAddImage(newImages);
-    }
-    setResourcePickerOpen(false);
+  const handleSelectFromSource = (selectorId: string) => {
+    const selector = imageSelectors.find(s => s.id === selectorId);
+    if (!selector) return;
+    selector.select({
+      mediaType: "image",
+      multiple: true,
+      onSelected: items => {
+        const newImages = items
+          .filter(item => item.url)
+          .map(item => ({ id: getUuid(), url: item.url }));
+        if (newImages.length > 0) {
+          onAddImage(newImages);
+        }
+      },
+    });
   };
 
   const onDeleteImage = (item: ImageGalleryItem) => {
     onSettingChange(
-      produce(setting, (draft) => {
-        draft.images = draft.images.filter((i) => i.id !== item.id);
-      }),
+      produce(setting, draft => {
+        draft.images = draft.images.filter(i => i.id !== item.id);
+      })
     );
   };
 
@@ -548,10 +454,10 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
 
       {/* Section: Basic Settings */}
       <div className="space-y-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500 flex items-center gap-2">
-          <span className="w-4 h-px bg-gray-200 dark:bg-zinc-700" />
+        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+          <span className="h-px w-4 bg-gray-200 dark:bg-zinc-700" />
           基础设置
-          <span className="flex-1 h-px bg-gray-200 dark:bg-zinc-700" />
+          <span className="h-px flex-1 bg-gray-200 dark:bg-zinc-700" />
         </h3>
 
         <div className="grid grid-cols-2 gap-4">
@@ -607,18 +513,14 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
           )}
         </div>
 
-        <ToggleSwitch
-          checked={setting.wider || false}
-          onChange={onWiderChange}
-          label="更宽显示"
-        />
+        <ToggleSwitch checked={setting.wider || false} onChange={onWiderChange} label="更宽显示" />
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500 flex items-center gap-2">
-          <span className="w-4 h-px bg-gray-200 dark:bg-zinc-700" />
+        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+          <span className="h-px w-4 bg-gray-200 dark:bg-zinc-700" />
           外观设置
-          <span className="flex-1 h-px bg-gray-200 dark:bg-zinc-700" />
+          <span className="h-px flex-1 bg-gray-200 dark:bg-zinc-700" />
         </h3>
 
         <CustomSelect
@@ -639,10 +541,10 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
       {/* Section: Images */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500 flex items-center gap-2">
-            <span className="w-4 h-px bg-gray-200 dark:bg-zinc-700" />
+          <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+            <span className="h-px w-4 bg-gray-200 dark:bg-zinc-700" />
             图片管理
-            <span className="flex-1 h-px bg-gray-200 dark:bg-zinc-700" />
+            <span className="h-px flex-1 bg-gray-200 dark:bg-zinc-700" />
           </h3>
           <span className="text-xs text-gray-400 dark:text-slate-500">
             {setting.images.length} 张图片
@@ -654,9 +556,9 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20"
+            className="flex items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 dark:border-indigo-500/20 dark:bg-indigo-500/10"
           >
-            <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
             <div className="flex-1">
               <div className="text-sm font-medium text-indigo-600 dark:text-indigo-400">
                 上传中...
@@ -684,22 +586,12 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
               type="button"
               onClick={() => setShowUploadOptions(!showUploadOptions)}
               disabled={uploading}
-              className="
-                w-full aspect-square rounded-xl
-                border-2 border-dashed border-gray-300 dark:border-slate-600
-                bg-gray-50 dark:bg-zinc-900
-                hover:border-indigo-400 dark:hover:border-indigo-500
-                hover:bg-indigo-50 dark:hover:bg-indigo-500/10
-                disabled:opacity-50 disabled:cursor-not-allowed
-                transition-all duration-200
-                flex flex-col items-center justify-center gap-2
-                group
-              "
+              className="group flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 transition-all duration-200 hover:border-indigo-400 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-zinc-900 dark:hover:border-indigo-500 dark:hover:bg-indigo-500/10"
             >
-              <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-zinc-700 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-500/20 flex items-center justify-center transition-colors">
-                <MdAdd className="w-6 h-6 text-gray-400 dark:text-slate-500 group-hover:text-indigo-500" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 transition-colors group-hover:bg-indigo-100 dark:bg-zinc-700 dark:group-hover:bg-indigo-500/20">
+                <MdAdd className="h-6 w-6 text-gray-400 group-hover:text-indigo-500 dark:text-slate-500" />
               </div>
-              <span className="text-xs text-gray-400 dark:text-slate-500 group-hover:text-indigo-500">
+              <span className="text-xs text-gray-400 group-hover:text-indigo-500 dark:text-slate-500">
                 添加图片
               </span>
             </button>
@@ -708,21 +600,13 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
             <AnimatePresence>
               {showUploadOptions && (
                 <>
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setShowUploadOptions(false)}
-                  />
+                  <div className="fixed inset-0 z-10" onClick={() => setShowUploadOptions(false)} />
                   <motion.div
                     initial={{ opacity: 0, y: -8, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -8, scale: 0.95 }}
                     transition={{ duration: 0.15 }}
-                    className="
-                      absolute z-20 left-0 right-0 mt-2
-                      bg-white dark:bg-zinc-900
-                      border border-gray-200 dark:border-slate-700
-                      rounded-xl shadow-xl overflow-hidden
-                    "
+                    className="absolute left-0 right-0 z-20 mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-slate-700 dark:bg-zinc-900"
                   >
                     <button
                       type="button"
@@ -730,15 +614,9 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
                         uploadRef.current?.click();
                         setShowUploadOptions(false);
                       }}
-                      className="
-                        w-full px-4 py-3 text-left text-sm
-                        text-gray-700 dark:text-slate-300
-                        hover:bg-gray-50 dark:hover:bg-zinc-800
-                        flex items-center gap-3
-                        transition-colors
-                      "
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-zinc-800"
                     >
-                      <MdUploadFile className="w-5 h-5 text-gray-400" />
+                      <MdUploadFile className="h-5 w-5 text-gray-400" />
                       <span>上传图片</span>
                     </button>
                     <button
@@ -747,36 +625,25 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
                         setShowLinkInput(true);
                         setShowUploadOptions(false);
                       }}
-                      className="
-                        w-full px-4 py-3 text-left text-sm
-                        text-gray-700 dark:text-slate-300
-                        hover:bg-gray-50 dark:hover:bg-zinc-800
-                        flex items-center gap-3
-                        transition-colors
-                      "
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-zinc-800"
                     >
-                      <MdLink className="w-5 h-5 text-gray-400" />
+                      <MdLink className="h-5 w-5 text-gray-400" />
                       <span>输入链接</span>
                     </button>
-                    {ResourcePickerModal && (
+                    {imageSelectors.map(selector => (
                       <button
                         type="button"
+                        key={selector.id}
                         onClick={() => {
-                          setResourcePickerOpen(true);
+                          handleSelectFromSource(selector.id);
                           setShowUploadOptions(false);
                         }}
-                        className="
-                          w-full px-4 py-3 text-left text-sm
-                          text-gray-700 dark:text-slate-300
-                          hover:bg-gray-50 dark:hover:bg-zinc-800
-                          flex items-center gap-3
-                          transition-colors
-                        "
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-zinc-800"
                       >
-                        <MdPhotoLibrary className="w-5 h-5 text-gray-400" />
-                        <span>从资源库选择</span>
+                        <MdPhotoLibrary className="h-5 w-5 text-gray-400" />
+                        <span>{selector.label}</span>
                       </button>
-                    )}
+                    ))}
                   </motion.div>
                 </>
               )}
@@ -798,15 +665,11 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
         {/* Empty State */}
         {setting.images.length === 0 && !uploading && (
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center mb-4">
-              <MdImage className="w-8 h-8 text-gray-300 dark:text-slate-600" />
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-zinc-800">
+              <MdImage className="h-8 w-8 text-gray-300 dark:text-slate-600" />
             </div>
-            <p className="text-sm text-gray-400 dark:text-slate-500">
-              还没有添加图片
-            </p>
-            <p className="text-xs text-gray-300 dark:text-slate-600 mt-1">
-              点击上方按钮添加图片
-            </p>
+            <p className="text-sm text-gray-400 dark:text-slate-500">还没有添加图片</p>
+            <p className="mt-1 text-xs text-gray-300 dark:text-slate-600">点击上方按钮添加图片</p>
           </div>
         )}
       </div>
@@ -825,46 +688,38 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
               initial={{ opacity: 0, scale: 0.95, y: -10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -10 }}
-              className="bg-white dark:bg-zinc-900 rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl border border-gray-200 dark:border-slate-800"
-              onClick={(e) => e.stopPropagation()}
+              className="mx-4 w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900"
+              onClick={e => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-base font-semibold text-gray-800 dark:text-white">
                   添加图片链接
                 </h3>
                 <button
                   onClick={() => setShowLinkInput(false)}
-                  className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 flex items-center justify-center transition-colors"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 transition-colors hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700"
                 >
-                  <MdClose className="w-5 h-5 text-gray-500" />
+                  <MdClose className="h-5 w-5 text-gray-500" />
                 </button>
               </div>
               <input
                 type="url"
                 value={linkUrl}
-                onChange={(e) => setLinkUrl(e.target.value)}
+                onChange={e => setLinkUrl(e.target.value)}
                 placeholder="输入图片 URL"
                 autoFocus
-                className="
-                  w-full px-4 py-3.5 rounded-xl text-sm
-                  bg-gray-50 dark:bg-zinc-950
-                  border border-gray-200 dark:border-slate-700
-                  text-gray-800 dark:text-white
-                  placeholder:text-gray-400 dark:placeholder:text-slate-500
-                  focus:border-indigo-500 focus:outline-none
-                  transition-colors
-                "
-                onKeyDown={(e) => {
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 transition-colors placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
+                onKeyDown={e => {
                   if (e.key === "Enter") {
                     handleAddLink();
                   }
                 }}
               />
-              <div className="flex justify-end gap-2 mt-4">
+              <div className="mt-4 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowLinkInput(false)}
-                  className="px-4 py-2.5 rounded-xl text-sm font-medium bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
+                  className="rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-zinc-800 dark:text-slate-300 dark:hover:bg-zinc-700"
                 >
                   取消
                 </button>
@@ -872,7 +727,7 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
                   type="button"
                   onClick={handleAddLink}
                   disabled={!linkUrl.trim()}
-                  className="px-4 py-2.5 rounded-xl text-sm font-medium bg-indigo-500 text-white hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   添加
                 </button>
@@ -881,18 +736,6 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Resource Picker Modal */}
-      {ResourcePickerModal && (
-        <ResourcePickerModal
-          open={resourcePickerOpen}
-          onCancel={() => setResourcePickerOpen(false)}
-          allowedTypes={["image"]}
-          multiple
-          title="选择图片"
-          onConfirm={handleInsertFromResource}
-        />
-      )}
     </div>
   );
 };

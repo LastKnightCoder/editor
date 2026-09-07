@@ -2,15 +2,13 @@ import React, { PropsWithChildren, useEffect, useRef } from "react";
 import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 import { Transforms } from "slate";
 import useTheme from "../../../../hooks/useTheme";
+import { ICompilerService } from "../../../../services";
 
 import styles from "./index.module.less";
 
 import { type CustomBlockElement } from "../../../types";
 import PreviewWithEditor from "../../../../components/PreviewWithEditor";
-import {
-  compileAndExecuteCustomBlock,
-  rerenderCustomBlockTheme,
-} from "../../utils/renderTemplate";
+import { compileAndExecuteCustomBlock, rerenderCustomBlockTheme } from "../../utils/renderTemplate";
 
 interface CustomBlockProps {
   attributes: RenderElementProps["attributes"];
@@ -22,6 +20,7 @@ const CustomBlock = (props: { content: string }) => {
   const { isDark } = useTheme();
   const { content } = props;
   const editor = useSlateStatic();
+  const compilerService = editor.tryGetService(ICompilerService);
   const latestThemeRef = useRef(isDark);
   latestThemeRef.current = isDark;
 
@@ -39,10 +38,10 @@ const CustomBlock = (props: { content: string }) => {
       {
         useTheme,
       },
-      editor.services?.compiler,
-      abortController.signal,
+      compilerService,
+      abortController.signal
     )
-      .then((cleanupFn) => {
+      .then(cleanupFn => {
         if (!cleanupFn) return;
         if (disposed) {
           cleanupFn();
@@ -50,7 +49,7 @@ const CustomBlock = (props: { content: string }) => {
         }
         cleanup = cleanupFn;
       })
-      .catch((err) => {
+      .catch(err => {
         console.error("Custom block render error", err);
       });
 
@@ -60,7 +59,7 @@ const CustomBlock = (props: { content: string }) => {
       cleanup?.();
       cleanup = undefined;
     };
-  }, [content, editor.services?.compiler]);
+  }, [content, compilerService]);
 
   useEffect(() => {
     if (!ref.current) return;
@@ -70,29 +69,18 @@ const CustomBlock = (props: { content: string }) => {
   return <div ref={ref}></div>;
 };
 
-const CustomBlockElement: React.FC<PropsWithChildren<CustomBlockProps>> = (
-  props,
-) => {
+const CustomBlockElement: React.FC<PropsWithChildren<CustomBlockProps>> = props => {
   const { attributes, children, element } = props;
   const { content } = element;
 
   const editor = useSlateStatic();
   const handleChange = (content: string) => {
-    Transforms.setNodes(
-      editor,
-      { content },
-      { at: ReactEditor.findPath(editor, element) },
-    );
+    Transforms.setNodes(editor, { content }, { at: ReactEditor.findPath(editor, element) });
   };
 
   return (
     <div className={styles.container} {...attributes}>
-      <PreviewWithEditor
-        mode={"jsx"}
-        initValue={content}
-        element={element}
-        onChange={handleChange}
-      >
+      <PreviewWithEditor mode={"jsx"} initValue={content} element={element} onChange={handleChange}>
         {content ? (
           <CustomBlock content={content} />
         ) : (

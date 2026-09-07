@@ -4,10 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import QuestPage from "./QuestPage";
-import {
-  mockQuestMultiAnswerPageData,
-  mockQuestPageData,
-} from "@blog/mock/data";
+import { mockQuestMultiAnswerPageData, mockQuestPageData } from "@blog/mock/data";
 
 vi.mock("@blog/components/Layout", () => ({
   Header: ({ title }: { title: string }) => <header>{title}</header>,
@@ -30,9 +27,7 @@ vi.mock("@tau/editor", () => ({
         .replace(/\\u003e/g, ">")}
     </div>
   ),
-  EditorServicesProvider: ({ children }: { children: ReactNode }) => (
-    <>{children}</>
-  ),
+  EditorProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
 vi.mock("@blog/components/DndProvider", () => ({
@@ -43,15 +38,17 @@ vi.mock("@blog/editorExtensions", () => ({
   blogEditorExtensions: [],
 }));
 
-vi.mock("@blog/services/editorServices", () => ({
-  createBlogEditorServices: () => ({}),
+vi.mock("@blog/services/editorRegistry", () => ({
+  createBlogEditorRegistry: () => ({}),
+  createBlogEditorConfig: () => ({
+    theme: { mode: "light", colors: {} as never },
+  }),
 }));
 
 describe("QuestPage", () => {
   let container: HTMLDivElement;
   let root: Root;
-  const originalActEnvironment = (globalThis as Record<string, unknown>)
-    .IS_REACT_ACT_ENVIRONMENT;
+  const originalActEnvironment = (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT;
 
   beforeEach(() => {
     (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
@@ -67,8 +64,7 @@ describe("QuestPage", () => {
     });
     container.remove();
     document.body.innerHTML = "";
-    (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT =
-      originalActEnvironment;
+    (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = originalActEnvironment;
     vi.restoreAllMocks();
   });
 
@@ -77,15 +73,11 @@ describe("QuestPage", () => {
       root.render(<QuestPage />);
     });
 
-    expect(container.textContent).toContain(
-      "React 列表重渲染时，为什么输入框会失焦？",
-    );
+    expect(container.textContent).toContain("React 列表重渲染时，为什么输入框会失焦？");
     expect(container.textContent).toContain("已解决");
     expect(container.querySelector('[data-answer-index="01"]')).toBeNull();
     expect(container.textContent).toContain("问");
-    expect(
-      container.querySelector('[data-testid="quest-description"]'),
-    ).not.toBeNull();
+    expect(container.querySelector('[data-testid="quest-description"]')).not.toBeNull();
     expect(container.textContent).toContain("每输入一个字符，输入框都会失焦");
     expect(container.textContent).toContain("解");
     expect(container.textContent).not.toContain("解 · 其一");
@@ -128,12 +120,8 @@ describe("QuestPage", () => {
       root.render(<QuestPage />);
     });
 
-    expect(
-      container.querySelector('[data-testid="quest-description"]'),
-    ).toBeNull();
-    expect(container.textContent).not.toContain(
-      "每输入一个字符，输入框都会失焦",
-    );
+    expect(container.querySelector('[data-testid="quest-description"]')).toBeNull();
+    expect(container.textContent).not.toContain("每输入一个字符，输入框都会失焦");
   });
 
   it("应通过已发布来源页面复用答案正文", async () => {
@@ -176,9 +164,9 @@ describe("QuestPage", () => {
       vi.fn().mockResolvedValue({
         text: () =>
           Promise.resolve(
-            `<script>window._INIT_DATA_ = ${JSON.stringify(remoteInitData)};</script>`,
+            `<script>window._INIT_DATA_ = ${JSON.stringify(remoteInitData)};</script>`
           ),
-      }),
+      })
     );
 
     await act(async () => {

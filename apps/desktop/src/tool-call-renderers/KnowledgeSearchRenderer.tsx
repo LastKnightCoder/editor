@@ -118,7 +118,6 @@ const ResultItemPreview = ({
           <ErrorBoundary>
             <Editor
               previewBlocks={PREVIEW_BLOCK_COUNT}
-              contentId={item.contentId}
               key={item.contentId}
               ref={editorRef}
               initValue={initValue}

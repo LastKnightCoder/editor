@@ -1,12 +1,8 @@
 import { useRef, useEffect, useState } from "react";
 import { useCreation, useMemoizedFn } from "ahooks";
-import {
-  renderMermaidWithFallback,
-  type MermaidRenderStyle,
-  type MermaidThemeName,
-} from "@tau/shared";
+import { renderMermaidWithFallback, type MermaidRenderStyle } from "@tau/shared";
 import useTheme from "../../../hooks/useTheme";
-import useSettings from "../../../hooks/useSettings";
+import { useEditorConfig } from "../../../contexts/EditorConfig";
 
 interface IMermaidProps {
   chart: string;
@@ -21,16 +17,14 @@ interface IMermaidProps {
 }
 
 const Mermaid = (props: IMermaidProps) => {
-  const { chart, renderStyleOverride, initialSvg, compiledFrom, onCompiled } =
-    props;
+  const { chart, renderStyleOverride, initialSvg, compiledFrom, onCompiled } = props;
   const { isDark } = useTheme();
-  const settings = useSettings();
+  const config = useEditorConfig();
   const ref = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string>("");
   const [displayMode, setDisplayMode] = useState<"svg" | "ascii">("svg");
   const [svgContent, setSvgContent] = useState<string>("");
   const [asciiContent, setAsciiContent] = useState<string>("");
-  const [, setSettingVersion] = useState(0);
 
   const stableOnCompiled = useMemoizedFn(onCompiled ?? (() => {}));
 
@@ -39,26 +33,10 @@ const Mermaid = (props: IMermaidProps) => {
   initialSvgRef.current = initialSvg;
   compiledFromRef.current = compiledFrom;
 
-  useEffect(() => {
-    if (!settings.subscribe) {
-      return;
-    }
-
-    return settings.subscribe(() => {
-      setSettingVersion((prev) => prev + 1);
-    });
-  }, [settings]);
-
-  const renderStyle =
-    renderStyleOverride ??
-    settings.get<MermaidRenderStyle>("misc.mermaid.style") ??
-    "svg";
-  const lightTheme =
-    settings.get<MermaidThemeName>("misc.mermaid.lightTheme") || "github-light";
-  const darkTheme =
-    settings.get<MermaidThemeName>("misc.mermaid.darkTheme") || "github-dark";
-  const useBeautifulMermaid =
-    settings.get<boolean>("misc.mermaid.useBeautifulMermaid") ?? true;
+  const renderStyle = renderStyleOverride ?? config?.mermaid?.style ?? "svg";
+  const lightTheme = config?.mermaid?.lightTheme || "github-light";
+  const darkTheme = config?.mermaid?.darkTheme || "github-dark";
+  const useBeautifulMermaid = config?.mermaid?.useBeautifulMermaid ?? true;
 
   const mermaidId = useCreation(() => {
     return `mermaid-${Math.random().toString(36).slice(2)}`;
@@ -97,27 +75,17 @@ const Mermaid = (props: IMermaidProps) => {
         if (!isMounted) return;
 
         setDisplayMode(result.displayMode);
-        setAsciiContent(
-          result.displayMode === "ascii" ? result.displayContent : "",
-        );
+        setAsciiContent(result.displayMode === "ascii" ? result.displayContent : "");
         setSvgContent(result.cachedSvg || "");
 
         setError("");
 
-        if (
-          result.cachedSvg &&
-          (cachedFrom !== chart || cachedSvg !== result.cachedSvg)
-        ) {
+        if (result.cachedSvg && (cachedFrom !== chart || cachedSvg !== result.cachedSvg)) {
           stableOnCompiled(result.cachedSvg, chart);
         }
       } catch (e: unknown) {
         if (!isMounted) return;
-        const errorMsg =
-          typeof e === "string"
-            ? e
-            : e instanceof Error
-              ? e.message
-              : "渲染失败";
+        const errorMsg = typeof e === "string" ? e : e instanceof Error ? e.message : "渲染失败";
         setError(errorMsg);
         setSvgContent("");
       }

@@ -1,15 +1,10 @@
-import React, {
-  PropsWithChildren,
-  useState,
-  useEffect,
-  useRef,
-  useMemo,
-} from "react";
+import React, { PropsWithChildren, useState, useEffect, useRef, useMemo } from "react";
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useSlateStatic } from "slate-react";
 import { Popover, Input, type InputRef } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { useTailwindRuntimeCss } from "../../../../hooks/useTailwindRuntimeCss";
+import { ICompilerService } from "../../../../services";
 
 import type { HTMLInlineElement } from "../../../types";
 import InlineChromiumBugfix from "../../../../components/InlineChromiumBugFix";
@@ -21,7 +16,7 @@ interface InlineHtmlProps {
   element: HTMLInlineElement;
 }
 
-const InlineHtml: React.FC<PropsWithChildren<InlineHtmlProps>> = (props) => {
+const InlineHtml: React.FC<PropsWithChildren<InlineHtmlProps>> = props => {
   const { attributes, element, children } = props;
   const { html, openEdit = false } = element;
   const editor = useSlateStatic();
@@ -29,11 +24,9 @@ const InlineHtml: React.FC<PropsWithChildren<InlineHtmlProps>> = (props) => {
   const [popoverOpen, setPopoverOpen] = useState(openEdit);
   const inputRef = useRef<InputRef>(null);
   const previewHtml = popoverOpen ? inputValue : html;
-  const tailwindCss = useTailwindRuntimeCss(html, "html", editor.services?.compiler);
+  const tailwindCss = useTailwindRuntimeCss(html, "html", editor.tryGetService(ICompilerService));
 
-  const getElementPath = useMemoizedFn(() =>
-    ReactEditor.findPath(editor, element),
-  );
+  const getElementPath = useMemoizedFn(() => ReactEditor.findPath(editor, element));
 
   useEffect(() => {
     setPopoverOpen(openEdit);
@@ -59,17 +52,12 @@ const InlineHtml: React.FC<PropsWithChildren<InlineHtmlProps>> = (props) => {
     if (!path) return;
 
     const currentHtml = element.html || "";
-    const needsUpdate =
-      currentVal.trim() !== currentHtml.trim() || element.openEdit;
+    const needsUpdate = currentVal.trim() !== currentHtml.trim() || element.openEdit;
 
     if (!currentVal.trim()) {
       Transforms.removeNodes(editor, { at: path });
     } else if (needsUpdate) {
-      Transforms.setNodes(
-        editor,
-        { html: currentVal, openEdit: false },
-        { at: path },
-      );
+      Transforms.setNodes(editor, { html: currentVal, openEdit: false }, { at: path });
     } else if (element.openEdit) {
       Transforms.setNodes(editor, { openEdit: false }, { at: path });
     }
@@ -114,15 +102,9 @@ const InlineHtml: React.FC<PropsWithChildren<InlineHtmlProps>> = (props) => {
   }, [previewHtml, popoverOpen, styles.placeholder, styles.htmlPreviewContent]);
 
   return (
-    <span
-      {...attributes}
-      className={styles.inlineHtml}
-      data-element-type="inline-html"
-    >
+    <span {...attributes} className={styles.inlineHtml} data-element-type="inline-html">
       <InlineChromiumBugfix />
-      {tailwindCss ? (
-        <style dangerouslySetInnerHTML={{ __html: tailwindCss }} />
-      ) : null}
+      {tailwindCss ? <style dangerouslySetInnerHTML={{ __html: tailwindCss }} /> : null}
       <Popover
         trigger={"click"}
         open={popoverOpen}

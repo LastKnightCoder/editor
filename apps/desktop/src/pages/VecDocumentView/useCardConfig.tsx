@@ -299,7 +299,7 @@ const useCardConfig = () => {
       key: "content",
       dataIndex: "content",
       title: "卡片内容",
-      render: (content: Descendant[], record: { contentId?: number }) => {
+      render: (content: Descendant[]) => {
         return (
           <Flex vertical gap={12} align={"flex-start"}>
             <Typography.Paragraph ellipsis={{ rows: 2 }} style={{ maxWidth: 400 }}>
@@ -310,12 +310,7 @@ const useCardConfig = () => {
               placement={"bottom"}
               content={
                 <div className="overflow-y-auto" style={{ maxWidth: 320, maxHeight: 180 }}>
-                  <Editor
-                    contentId={record.contentId}
-                    extensions={dynamicExtensions}
-                    readonly
-                    initValue={content}
-                  />
+                  <Editor extensions={dynamicExtensions} readonly initValue={content} />
                 </div>
               }
             >

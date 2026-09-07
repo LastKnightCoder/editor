@@ -30,9 +30,11 @@ import CollaborationCursors from "./collaboration/Cursors";
 import SafeCollaborationElement, { requiresSafeRendering } from "./collaboration/SafeElement";
 import { useCreation, useMemoizedFn } from "ahooks";
 
-import { DEFAULT_CARD_CONTENT } from "./constants";
+import { useEditorConfig } from "./contexts/EditorConfig";
 import useSystemTheme from "./hooks/useSystemTheme";
-import { useEditorServices } from "./contexts/EditorServicesContext";
+import { useEditorExtensions } from "./contexts/EditorProvider";
+import { useServiceRegistry } from "./services/hooks";
+import type { ServiceIdentifier } from "./services/tokens";
 import {
   EditorContext,
   type EditorContextValue,
@@ -51,17 +53,17 @@ import {
   withNormalize,
   withBlockNavigation,
   withFileDrop,
-  withMarkdownPasteImport,
   withNormalizedCopy,
 } from "./plugins";
 import IExtension from "./extensions/types";
-import { pluginOptimizer } from "./utils/PluginOptimizer";
+import { PluginOptimizer } from "./utils/PluginOptimizer";
 import type { EditorRef } from "./types/editor";
 
 import hotkeys from "./hotkeys";
 import ImagesOverview from "./components/ImagesOverview";
 import HoveringToolbar from "./components/HoveringToolbar";
 import BlockPanel from "./components/BlockPanel";
+import MediaUrlInputModal from "./components/MediaUrlInputModal";
 import FormattedText from "./components/FormattedText";
 import { startExtensions } from "./extensions";
 import { IConfigItem, IHotKeyConfig } from "./types";
@@ -122,14 +124,23 @@ const defaultPlugins: Plugin[] = [
   withNormalize,
   withFileDrop,
   withNormalizedCopy,
-  withMarkdownPasteImport,
   withSlashCommands,
 ];
+
+const EMPTY_EDITOR_CONTENT: Descendant[] = [
+  { type: "paragraph", children: [{ type: "formatted", text: "" }] },
+];
+
+const mergeExtensions = (...groups: IExtension[][]): IExtension[] => {
+  const byType = new Map<string, IExtension>();
+  groups.flat().forEach(extension => byType.set(extension.type, extension));
+  return Array.from(byType.values());
+};
 
 const Index = memo(
   forwardRef<EditorRef, IEditorProps>((props, ref) => {
     const {
-      initValue = DEFAULT_CARD_CONTENT,
+      initValue = EMPTY_EDITOR_CONTENT,
       onChange,
       onSelectionChange,
       readonly = true,
@@ -150,19 +161,27 @@ const Index = memo(
     } = props;
 
     const systemTheme = useSystemTheme();
-    const services = useEditorServices();
+    const editorConfig = useEditorConfig();
+    const hostExtensions = useEditorExtensions();
+    const pluginOptimizer = useCreation(() => new PluginOptimizer(), []);
+    const registry = useServiceRegistry();
+    const registryRef = useRef(registry);
+    registryRef.current = registry;
     const currentValue = useRef<Descendant[]>(initValue);
     const pendingSetEditorValueJson = useRef<string | null>(null);
     const collaborationContainerRef = useRef<HTMLDivElement>(null);
 
     const finalExtensions: IExtension[] = useMemo(() => {
-      if (!extensions) return disableStartExtensions ? [] : startExtensions;
-      return disableStartExtensions ? extensions : [...startExtensions, ...extensions];
-    }, [extensions, disableStartExtensions]);
+      // disableStartExtensions 表示"裸编辑器"（如发布预览），不注入宿主扩展
+      if (disableStartExtensions) {
+        return mergeExtensions(extensions ? [...extensions] : []);
+      }
+      return mergeExtensions(startExtensions, hostExtensions, extensions ?? []);
+    }, [extensions, disableStartExtensions, hostExtensions]);
 
     const optimizedExtensionData = useMemo(() => {
       return pluginOptimizer.optimizeExtensions(finalExtensions);
-    }, [finalExtensions]);
+    }, [finalExtensions, pluginOptimizer]);
 
     const editor = useCreation(() => {
       const processedEditor = applyPlugin(
@@ -177,7 +196,15 @@ const Index = memo(
       // 将 editor 的子节点拆分为大小为 1000 的 chunks，减少 React 处理 JSX 变化的工作量
       enhancedEditor.getChunkSize = node => (Editor.isEditor(node) ? 1000 : null);
 
-      return collaboration ? withCollaboration(enhancedEditor, collaboration) : enhancedEditor;
+      // 服务方法必须在创建时挂载：render 阶段的组件（如 ListItem）会调用 editor.getService，
+      // 若延迟到 useEffect 挂载，首次渲染时方法尚不存在
+      const slateEditor = collaboration
+        ? withCollaboration(enhancedEditor, collaboration)
+        : enhancedEditor;
+      slateEditor.getService = <T,>(id: ServiceIdentifier<T>): T => registryRef.current.get(id);
+      slateEditor.tryGetService = <T,>(id: ServiceIdentifier<T>): T | undefined =>
+        registryRef.current.tryGet(id);
+      return slateEditor;
     }, [optimizedExtensionData.plugins, collaboration?.doc, collaboration?.root]);
 
     useEffect(() => {
@@ -190,11 +217,6 @@ const Index = memo(
         YjsEditor.disconnect(editor);
       };
     }, [editor]);
-
-    // Attach services to editor for non-React plugin code access
-    useEffect(() => {
-      editor.services = services;
-    }, [editor, services]);
 
     const finalHotKeyConfigs = useMemo(() => {
       return [...optimizedExtensionData.hotkeyConfigs, ...hotkeys, ...(hotkeyConfigs || [])];
@@ -421,12 +443,14 @@ const Index = memo(
     }, [editor, initValue, isInit, onInit]);
 
     // 使用 useMemo 稳定化 context value，避免不必要的重渲染
+    // theme 携带原始 prop（可空）：useTheme 据此区分"显式 prop"与
+    // "回落宿主配置"，系统主题仅在样式层兜底
     const editorContextValue = useMemo<EditorContextValue>(
       () => ({
-        theme: theme || systemTheme,
+        theme,
         features,
       }),
-      [theme, systemTheme, features]
+      [theme, features]
     );
 
     return (
@@ -445,7 +469,7 @@ const Index = memo(
               <Editable
                 className={classnames(
                   styles.editor,
-                  { [styles.dark]: (theme || systemTheme) === "dark" },
+                  { [styles.dark]: (theme ?? editorConfig?.theme.mode ?? systemTheme) === "dark" },
                   props.className
                 )}
                 style={props.style}
@@ -489,6 +513,7 @@ const Index = memo(
               )}
             </div>
             <ImagesOverview />
+            {!readonly && <MediaUrlInputModal />}
             {!readonly && <HoveringToolbar configs={finalHoveringBarConfigs} />}
             {!readonly && <BlockPanel extensions={finalExtensions} />}
           </Slate>

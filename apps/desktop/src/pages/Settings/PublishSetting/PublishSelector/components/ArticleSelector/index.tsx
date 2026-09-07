@@ -1,4 +1,4 @@
-import React, { memo, useState, useMemo, useCallback } from "react";
+import { memo, useState, useMemo, useCallback, useRef } from "react";
 import classNames from "classnames";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import useThemeColors from "@/hooks/useThemeColors";
@@ -30,23 +30,21 @@ interface ArticleSelectorProps {
 export const ArticleSelector = memo<ArticleSelectorProps>(
   ({ articles, isItemSelected, onToggleArticle, onBatchToggle }) => {
     const themeColors = useThemeColors();
-    const [previewArticle, setPreviewArticle] =
-      useState<ArticleListItem | null>(null);
+    const [previewArticle, setPreviewArticle] = useState<ArticleListItem | null>(null);
     const [onlySelected, setOnlySelected] = useState(false);
 
     // 转换文章为列表项
     const articleItems = useMemo<ArticleListItem[]>(
       () =>
-        articles.map((article) => ({
+        articles.map(article => ({
           id: article.id,
           title: article.title || `文章 #${article.id}`,
-          description:
-            buildPlainText(article.content).slice(0, 180) || "暂无内容",
+          description: buildPlainText(article.content).slice(0, 180) || "暂无内容",
           updateTime: article.update_time,
           createTime: article.create_time,
           raw: article,
         })),
-      [articles],
+      [articles]
     );
 
     // 搜索过滤
@@ -59,7 +57,7 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
     const displayArticles = useMemo(() => {
       let items = filteredItems;
       if (onlySelected) {
-        items = items.filter((item) => isItemSelected("article", item.id));
+        items = items.filter(item => isItemSelected("article", item.id));
       }
       return items;
     }, [filteredItems, onlySelected, isItemSelected]);
@@ -68,13 +66,13 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
     const allSelected = useMemo(() => {
       return (
         displayArticles.length > 0 &&
-        displayArticles.every((item) => isItemSelected("article", item.id))
+        displayArticles.every(item => isItemSelected("article", item.id))
       );
     }, [displayArticles, isItemSelected]);
 
     // 全选/取消全选
     const handleSelectAll = useCallback(() => {
-      const ids = displayArticles.map((item) => item.id);
+      const ids = displayArticles.map(item => item.id);
       onBatchToggle(ids, !allSelected);
     }, [displayArticles, allSelected, onBatchToggle]);
 
@@ -87,12 +85,12 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
       <>
         <div
           className={classNames(
-            "flex flex-col border rounded-xl overflow-hidden",
-            themeColors.cardBorderClass,
+            "flex flex-col overflow-hidden rounded-xl border",
+            themeColors.cardBorderClass
           )}
           style={{ height: 520, maxHeight: 520 }}
         >
-          <div className="px-3 py-2 flex-shrink-0">
+          <div className="flex-shrink-0 px-3 py-2">
             <SearchToolbar
               query={query}
               onQueryChange={setQuery}
@@ -107,16 +105,10 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
             />
           </div>
 
-          <div className="flex-1 overflow-hidden min-h-0">
+          <div className="min-h-0 flex-1 overflow-hidden">
             {displayArticles.length === 0 ? (
               <EmptyPlaceholder
-                text={
-                  onlySelected
-                    ? "暂无已选文章"
-                    : query
-                      ? "无匹配结果"
-                      : "暂无文章"
-                }
+                text={onlySelected ? "暂无已选文章" : query ? "无匹配结果" : "暂无文章"}
               />
             ) : (
               <ArticleList
@@ -144,7 +136,7 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
             }}
             icon={
               <svg
-                className="w-5 h-5 text-zinc-500"
+                className="h-5 w-5 text-zinc-500"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -158,7 +150,7 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
         )}
       </>
     );
-  },
+  }
 );
 
 ArticleSelector.displayName = "ArticleSelector";
@@ -171,7 +163,7 @@ const ArticleList = memo<{
   onPreview: (article: ArticleListItem) => void;
 }>(({ articles, isItemSelected, onToggleArticle, onPreview }) => {
   const themeColors = useThemeColors();
-  const parentRef = React.useRef<HTMLDivElement>(null);
+  const parentRef = useRef<HTMLDivElement>(null);
 
   const virtualizer = useVirtualizer({
     count: articles.length,
@@ -189,7 +181,7 @@ const ArticleList = memo<{
           position: "relative",
         }}
       >
-        {virtualizer.getVirtualItems().map((virtualItem) => {
+        {virtualizer.getVirtualItems().map(virtualItem => {
           const article = articles[virtualItem.index];
           const selected = isItemSelected("article", article.id);
 
@@ -211,7 +203,7 @@ const ArticleList = memo<{
                   "flex min-h-[76px] items-start gap-3 rounded-lg px-4 py-3.5 transition-colors",
                   selected
                     ? "bg-zinc-200/60 dark:bg-zinc-700/50"
-                    : "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
+                    : "hover:bg-gray-50 dark:hover:bg-zinc-800/30"
                 )}
               >
                 <SelectionCheckbox
@@ -219,24 +211,21 @@ const ArticleList = memo<{
                   onChange={() => onToggleArticle(article.id)}
                   size="sm"
                 />
-                <div
-                  className="flex-1 min-w-0 cursor-pointer"
-                  onClick={() => onPreview(article)}
-                >
+                <div className="min-w-0 flex-1 cursor-pointer" onClick={() => onPreview(article)}>
                   <div
                     className={classNames(
-                      "text-sm truncate",
+                      "truncate text-sm",
                       selected
                         ? "font-medium text-zinc-950 dark:text-zinc-50"
-                        : themeColors.textClass,
+                        : themeColors.textClass
                     )}
                   >
                     {article.title}
                   </div>
                   <div
                     className={classNames(
-                      "text-xs mt-1 line-clamp-2",
-                      themeColors.secondaryTextClass,
+                      "mt-1 line-clamp-2 text-xs",
+                      themeColors.secondaryTextClass
                     )}
                   >
                     {article.description}
@@ -245,18 +234,13 @@ const ArticleList = memo<{
                 <button
                   onClick={() => onPreview(article)}
                   className={classNames(
-                    "flex-shrink-0 p-1.5 rounded-lg transition-colors",
+                    "flex-shrink-0 rounded-lg p-1.5 transition-colors",
                     "hover:bg-gray-200 dark:hover:bg-zinc-700",
-                    themeColors.secondaryTextClass,
+                    themeColors.secondaryTextClass
                   )}
                   title="预览"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"

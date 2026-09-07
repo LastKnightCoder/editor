@@ -6,49 +6,64 @@ export {
   type EditorContextValue,
   type EditorFeatures,
 } from "./contexts/EditorContext";
-
-export type {
-  EditorServices,
-  ResourceService,
-  FileService,
-  MediaService,
-  SettingsService,
-  ThemeService,
-  AIService,
-  ImageGenerationResult,
-  ImageGenerationService,
-  CompilerService,
-  UtilityService,
-  MediaInfo,
-  ThemeColors,
-  IResource,
-  WebLinkSourceType,
-} from "./types/services";
-
 export {
-  EditorServicesContext,
-  EditorServicesProvider,
-  useEditorServices,
-} from "./contexts/EditorServicesContext";
+  useEditorConfig,
+  createFallbackThemeColors,
+  DEFAULT_IMAGE_APPEARANCE,
+  type EditorConfig,
+  type EditorThemeConfig,
+  type EditorAppearanceConfig,
+  type EditorMermaidConfig,
+} from "./contexts/EditorConfig";
+export {
+  EditorProvider,
+  useEditorExtensions,
+  type EditorProviderProps,
+} from "./contexts/EditorProvider";
 
+export type { ResourceService, FileService, CompilerService, ThemeColors } from "./types/services";
+
+// Service Registry DI
+export {
+  createServiceId,
+  IResourceService,
+  IFileService,
+  ICompilerService,
+  ICustomBlockService,
+  IMediaInsertSources,
+  IVideoContentProviders,
+  IMediaActions,
+  IMediaSelectors,
+  IEditorSlots,
+} from "./services/tokens";
 export type {
-  DataTable,
-  DataTableView,
-  CreateDataTableView,
-  UpdateDataTableView,
-  DatabaseData,
-  TableViewConfig as DataTableViewConfig,
-  DatabaseHookResult,
-  ColumnDef as DataTableColumn,
-  RowData as DataTableRow,
-} from "@tau/shared";
+  MediaType,
+  MediaInsertPayload,
+  MediaInsertSource,
+  VideoContentProvider,
+  MediaAction,
+  MediaSelector,
+  SelectedMedia,
+} from "./services/mediaProviders";
+export type { ServiceIdentifier } from "./services/tokens";
+export { createServiceRegistry, createChildRegistry } from "./services/registry";
+export type { ServiceRegistry, ServiceRegister, ServiceRegistration } from "./services/registry";
+export {
+  useServiceRegistry,
+  useService,
+  useOptionalService,
+  useEditorSlots,
+} from "./services/hooks";
+export type { EditorSlots, ImageSlotProps, VideoSlotProps, AudioSlotProps } from "./services/slots";
 
 export { default as useTheme } from "./hooks/useTheme";
 export { default as useThemeColors } from "./hooks/useThemeColors";
-export { default as useSettings } from "./hooks/useSettings";
 export { default as useDragAndDrop } from "./hooks/useDragAndDrop";
+export { default as useIsLastElement } from "./hooks/useIsLastElement";
+export { default as useUploadResource } from "./hooks/useUploadResource";
+export { createMarkdownPasteImportExtension } from "./extensions/markdown-paste-import";
+export type { MarkdownImportFn } from "./extensions/markdown-paste-import";
 export { default as useEditorFeatures } from "./hooks/useEditorFeatures";
-export { useImageGeneration } from "./hooks/useImageGeneration";
 
 export {
   generateExecutableCode,

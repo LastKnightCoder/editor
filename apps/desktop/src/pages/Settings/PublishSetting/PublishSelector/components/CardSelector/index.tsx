@@ -1,4 +1,4 @@
-import React, { memo, useState, useMemo, useCallback, useEffect } from "react";
+import { memo, useState, useMemo, useCallback, useEffect, useRef } from "react";
 import classNames from "classnames";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import useThemeColors from "@/hooks/useThemeColors";
@@ -44,7 +44,7 @@ export const CardSelector = memo<CardSelectorProps>(
       if (!activeNode) return [];
       const cards = collectCardsFromTagNode(activeNode);
       const uniqueCards = new Map<number, CardListItem>();
-      cards.forEach((card) => {
+      cards.forEach(card => {
         uniqueCards.set(card.id, card);
       });
       return Array.from(uniqueCards.values());
@@ -60,17 +60,14 @@ export const CardSelector = memo<CardSelectorProps>(
     const displayCards = useMemo(() => {
       let cards = filteredItems;
       if (onlySelected) {
-        cards = cards.filter((card) => isItemSelected("card", card.id));
+        cards = cards.filter(card => isItemSelected("card", card.id));
       }
       return cards;
     }, [filteredItems, onlySelected, isItemSelected]);
 
     // 检查是否全选
     const allSelected = useMemo(() => {
-      return (
-        displayCards.length > 0 &&
-        displayCards.every((card) => isItemSelected("card", card.id))
-      );
+      return displayCards.length > 0 && displayCards.every(card => isItemSelected("card", card.id));
     }, [displayCards, isItemSelected]);
 
     // 全选/取消全选
@@ -88,38 +85,35 @@ export const CardSelector = memo<CardSelectorProps>(
       <>
         <div
           className={classNames(
-            "flex border rounded-xl overflow-hidden max-h-[520px]",
-            themeColors.cardBorderClass,
+            "flex max-h-[520px] overflow-hidden rounded-xl border",
+            themeColors.cardBorderClass
           )}
         >
           {/* 左侧：标签树（窄） */}
           <div
             className={classNames(
-              "w-56 flex-shrink-0 border-r flex flex-col",
-              themeColors.cardBorderClass,
+              "flex w-56 flex-shrink-0 flex-col border-r",
+              themeColors.cardBorderClass
             )}
           >
             <div
               className={classNames(
-                "px-4 py-3 border-b text-sm font-medium flex-shrink-0 flex items-center justify-between",
+                "flex flex-shrink-0 items-center justify-between border-b px-4 py-3 text-sm font-medium",
                 themeColors.cardBorderClass,
-                themeColors.textClass,
+                themeColors.textClass
               )}
             >
               <span>标签树</span>
             </div>
-            <div className="flex-1 overflow-y-auto py-2 min-h-0">
+            <div className="min-h-0 flex-1 overflow-y-auto py-2">
               {tree.length === 0 ? (
                 <div
-                  className={classNames(
-                    "p-4 text-center text-sm",
-                    themeColors.secondaryTextClass,
-                  )}
+                  className={classNames("p-4 text-center text-sm", themeColors.secondaryTextClass)}
                 >
                   暂无标签
                 </div>
               ) : (
-                tree.map((node) => (
+                tree.map(node => (
                   <TagTreeNode
                     key={node.id}
                     node={node}
@@ -133,8 +127,8 @@ export const CardSelector = memo<CardSelectorProps>(
           </div>
 
           {/* 右侧：卡片列表（宽） */}
-          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-            <div className="px-3 py-2 flex-shrink-0">
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+            <div className="flex-shrink-0 px-3 py-2">
               <SearchToolbar
                 query={query}
                 onQueryChange={setQuery}
@@ -149,16 +143,10 @@ export const CardSelector = memo<CardSelectorProps>(
               />
             </div>
 
-            <div className="flex-1 overflow-hidden min-h-0">
+            <div className="min-h-0 flex-1 overflow-hidden">
               {displayCards.length === 0 ? (
                 <EmptyPlaceholder
-                  text={
-                    onlySelected
-                      ? "暂无已选卡片"
-                      : query
-                        ? "无匹配结果"
-                        : "此标签下暂无卡片"
-                  }
+                  text={onlySelected ? "暂无已选卡片" : query ? "无匹配结果" : "此标签下暂无卡片"}
                 />
               ) : (
                 <CardList
@@ -188,7 +176,7 @@ export const CardSelector = memo<CardSelectorProps>(
             }}
             icon={
               <svg
-                className="w-5 h-5 text-amber-500"
+                className="h-5 w-5 text-amber-500"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -202,7 +190,7 @@ export const CardSelector = memo<CardSelectorProps>(
         )}
       </>
     );
-  },
+  }
 );
 
 CardSelector.displayName = "CardSelector";
@@ -220,8 +208,8 @@ const TagTreeNode = memo<{
 
   const cards = useMemo(() => collectCardsFromTagNode(node), [node]);
   const selectedCount = useMemo(
-    () => cards.filter((card) => isItemSelected("card", card.id)).length,
-    [cards, isItemSelected],
+    () => cards.filter(card => isItemSelected("card", card.id)).length,
+    [cards, isItemSelected]
   );
 
   return (
@@ -229,13 +217,10 @@ const TagTreeNode = memo<{
       <button
         onClick={() => onSelect(node.id)}
         className={classNames(
-          "w-full text-left px-3 py-1.5 text-sm transition-colors flex items-center gap-2 mx-1 rounded-md",
+          "mx-1 flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm transition-colors",
           isActive
-            ? "bg-zinc-200/70 text-zinc-950 font-medium dark:bg-zinc-700/60 dark:text-zinc-50"
-            : [
-                "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
-                themeColors.textClass,
-              ],
+            ? "bg-zinc-200/70 font-medium text-zinc-950 dark:bg-zinc-700/60 dark:text-zinc-50"
+            : ["hover:bg-gray-50 dark:hover:bg-zinc-800/30", themeColors.textClass]
         )}
         style={{ paddingLeft: depth * 12 + 12, width: "calc(100% - 8px)" }}
       >
@@ -246,14 +231,12 @@ const TagTreeNode = memo<{
           </span>
         )}
         {selectedCount === 0 && (
-          <span
-            className={classNames("text-xs", themeColors.secondaryTextClass)}
-          >
+          <span className={classNames("text-xs", themeColors.secondaryTextClass)}>
             {node.count}
           </span>
         )}
       </button>
-      {node.children.map((child) => (
+      {node.children.map(child => (
         <TagTreeNode
           key={child.id}
           node={child}
@@ -278,7 +261,7 @@ const CardList = memo<{
   onPreview: (card: CardListItem) => void;
 }>(({ activeTagId, cards, isItemSelected, onToggleCard, onPreview }) => {
   const themeColors = useThemeColors();
-  const parentRef = React.useRef<HTMLDivElement>(null);
+  const parentRef = useRef<HTMLDivElement>(null);
 
   const virtualizer = useVirtualizer({
     count: cards.length,
@@ -301,7 +284,7 @@ const CardList = memo<{
           position: "relative",
         }}
       >
-        {virtualizer.getVirtualItems().map((virtualItem) => {
+        {virtualizer.getVirtualItems().map(virtualItem => {
           const card = cards[virtualItem.index];
           const selected = isItemSelected("card", card.id);
 
@@ -323,7 +306,7 @@ const CardList = memo<{
                   "flex min-h-[56px] items-center gap-3 rounded-lg px-4 py-3 transition-colors",
                   selected
                     ? "bg-zinc-200/60 dark:bg-zinc-700/50"
-                    : "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
+                    : "hover:bg-gray-50 dark:hover:bg-zinc-800/30"
                 )}
               >
                 <SelectionCheckbox
@@ -331,24 +314,21 @@ const CardList = memo<{
                   onChange={() => onToggleCard(card.id)}
                   size="sm"
                 />
-                <div
-                  className="flex-1 min-w-0 cursor-pointer"
-                  onClick={() => onPreview(card)}
-                >
+                <div className="min-w-0 flex-1 cursor-pointer" onClick={() => onPreview(card)}>
                   <div
                     className={classNames(
-                      "text-sm truncate",
+                      "truncate text-sm",
                       selected
                         ? "font-medium text-zinc-950 dark:text-zinc-50"
-                        : themeColors.textClass,
+                        : themeColors.textClass
                     )}
                   >
                     {card.title}
                   </div>
                   <div
                     className={classNames(
-                      "text-xs mt-0.5 truncate",
-                      themeColors.secondaryTextClass,
+                      "mt-0.5 truncate text-xs",
+                      themeColors.secondaryTextClass
                     )}
                   >
                     {card.summary}
@@ -357,18 +337,13 @@ const CardList = memo<{
                 <button
                   onClick={() => onPreview(card)}
                   className={classNames(
-                    "flex-shrink-0 p-1.5 rounded-lg transition-colors",
+                    "flex-shrink-0 rounded-lg p-1.5 transition-colors",
                     "hover:bg-gray-200 dark:hover:bg-zinc-700",
-                    themeColors.secondaryTextClass,
+                    themeColors.secondaryTextClass
                   )}
                   title="预览"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"

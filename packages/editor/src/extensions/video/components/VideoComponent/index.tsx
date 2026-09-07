@@ -1,8 +1,8 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
-import { Transforms, Path } from "slate";
-import { Spin, App } from "antd";
+import { Transforms } from "slate";
+import { Spin } from "antd";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
 
@@ -11,109 +11,34 @@ import type { VideoElement } from "../../../../types";
 import AddParagraph from "../../../../components/AddParagraph";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
 import useDragAndDrop from "../../../../hooks/useDragAndDrop";
-import useUploadResource from "../../../../hooks/useUploadResource";
 import { useImageResize, ResizeDirection } from "../../../../hooks/useImageResize";
 import { useDragHandlerMenu } from "../../../../hooks/useDragHandlerMenu";
 import useIsLastElement from "../../../../hooks/useIsLastElement";
-import { BilibiliVideoSelectResult, YoutubeVideoSelectResult } from "../../../../types";
 
-import {
-  If,
-  ModernTabs,
-  VideoPlayer,
-  useBilibiliVideoWithContext,
-  useYoutubeVideoWithContext,
-  useRemoteVideoWithContext,
-} from "@tau/shared";
-
-import type {
-  IResource,
-  VideoMetaInfo,
-  BiliBiliVideoMetaInfo,
-  YouTubeVideoMetaInfo,
-} from "../../../types";
+import { If, VideoPlayer } from "@tau/shared";
 
 import styles from "./index.module.less";
-import useTheme from "../../../../hooks/useTheme";
-import { LinkOutlined, FolderOpenOutlined } from "@ant-design/icons";
 import { buildVideoMenuItems } from "../../utils/menuItems";
-
-function isBiliMetaInfo(m?: VideoMetaInfo): m is BiliBiliVideoMetaInfo {
-  return !!m && (m as BiliBiliVideoMetaInfo).type === "bilibili";
-}
-
-function isYoutubeMetaInfo(m?: VideoMetaInfo): m is YouTubeVideoMetaInfo {
-  return !!m && (m as YouTubeVideoMetaInfo).type === "youtube";
-}
+import { IVideoContentProviders, useEditorSlots, useOptionalService } from "../../../../services";
+import { openLocalMediaPicker } from "../../../../utils/mediaInsert";
 
 const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const { element, children, attributes } = props;
   const readOnly = useReadOnly();
   const isLast = useIsLastElement(element);
   const editor = useSlateStatic();
-  const { message } = App.useApp();
-  const uploadRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [networkUrl, setNetworkUrl] = useState("");
-  const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
   const [maxWidth, setMaxWidth] = useState<number>(Infinity);
   const [isSelected, setIsSelected] = useState(false);
-  const Video = editor.services?.components?.Video;
+  const { Video } = useEditorSlots();
+  const videoProviders = useOptionalService(IVideoContentProviders) ?? [];
 
-  // Modal 状态
-  const [biliModalOpen, setBiliModalOpen] = useState(false);
-  const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
-  const { isDark } = useTheme();
-
-  const ResourcePickerModal = editor.services?.components?.ResourcePickerModal;
-  const BilibiliVideoLoader = editor.services?.components?.BilibiliVideoLoader;
-  const YoutubeVideoLoader = editor.services?.components?.YoutubeVideoLoader;
-  const BilibiliVideoSelectModal = editor.services?.components?.BilibiliVideoSelectModal;
-  const YoutubeVideoSelectModal = editor.services?.components?.YoutubeVideoSelectModal;
-  const RemoteVideoLoader = editor.services?.components?.RemoteVideoLoader;
-
-  const isBilibiliUrl = (url: string) => editor.services?.media.isBilibiliUrl(url) ?? false;
-  const isYoutubeUrl = (url: string) => editor.services?.media.isYoutubeUrl(url) ?? false;
-  const shouldUseLocalVideoCache = (src: string) =>
-    editor.services?.media.shouldUseLocalCache(src) ?? true;
-
-  const isBilibili = useMemo(() => isBiliMetaInfo(element.metaInfo), [element.metaInfo]);
-  const isYoutube = useMemo(() => isYoutubeMetaInfo(element.metaInfo), [element.metaInfo]);
-  const biliMeta = isBiliMetaInfo(element.metaInfo) ? element.metaInfo : null;
-  const ytMeta = isYoutubeMetaInfo(element.metaInfo) ? element.metaInfo : undefined;
-
-  const {
-    videoUrl: bilibiliVideoUrl,
-    loading: bilibiliLoading,
-    error: bilibiliError,
-    streamProgress: bilibiliProgress,
-  } = useBilibiliVideoWithContext(biliMeta || undefined);
-
-  const {
-    videoUrl: youtubeVideoUrl,
-    loading: youtubeLoading,
-    error: youtubeError,
-    streamProgress: youtubeProgress,
-  } = useYoutubeVideoWithContext(ytMeta);
-
-  // Get src from element for use in isRegularRemoteVideo check
-  const elementSrc = element.src;
-
-  // Check if this is a regular remote video (not Bilibili/YouTube)
-  const isRegularRemoteVideo = useMemo(() => {
-    if (!elementSrc) return false;
-    if (isBilibili || isYoutube) return false;
-    return elementSrc.startsWith("http://") || elementSrc.startsWith("https://");
-  }, [elementSrc, isBilibili, isYoutube]);
-
-  const {
-    videoUrl: remoteVideoUrl,
-    loading: remoteVideoLoading,
-    error: remoteVideoError,
-    streamProgress: remoteVideoProgress,
-  } = useRemoteVideoWithContext(isRegularRemoteVideo ? elementSrc : undefined);
+  const matchedProvider = useMemo(
+    () => videoProviders.find(provider => provider.match(element)),
+    [videoProviders, element]
+  );
 
   const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
     element,
@@ -122,168 +47,6 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     element,
     editor,
     buildMenuItems: params => buildVideoMenuItems(params),
-  });
-
-  const uploadFile = useUploadResource();
-  const setUploading = useMemoizedFn(uploading => {
-    const path = ReactEditor.findPath(editor, element);
-    Transforms.setNodes(
-      editor,
-      {
-        uploading,
-      },
-      {
-        at: path,
-      }
-    );
-  });
-
-  const handleOnNetworkUrlInputFinish = useMemoizedFn(() => {
-    const trimmed = networkUrl.trim();
-    if (!trimmed) {
-      message.warning("请输入视频地址");
-      return;
-    }
-
-    if ((isBilibiliUrl(trimmed) || isYoutubeUrl(trimmed)) && !element.metaInfo) {
-      message.error("缺少 metaInfo，请通过对应入口创建该平台视频");
-      return;
-    }
-
-    const path = ReactEditor.findPath(editor, element);
-    Transforms.setNodes(
-      editor,
-      {
-        src: trimmed,
-        metaInfo: undefined,
-      },
-      {
-        at: path,
-      }
-    );
-    setNetworkUrl("");
-  });
-  const handleUploadFileChange = useMemoizedFn(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) {
-      message.warning("请选择文件");
-      e.target.value = "";
-      return;
-    }
-    setUploading(true);
-    if (!uploadFile) {
-      message.warning("尚未配置任何资源上传设置，无法上传资源");
-      return null;
-    }
-    const path = ReactEditor.findPath(editor, element);
-    const uploadRes = await uploadFile(file);
-    if (!uploadRes) {
-      setUploading(false);
-      e.target.value = "";
-      return;
-    }
-    Transforms.setNodes(
-      editor,
-      {
-        src: uploadRes,
-      },
-      {
-        at: path,
-      }
-    );
-    setUploading(false);
-    e.target.value = "";
-  });
-
-  const handleInsertFromResource = useMemoizedFn(async (selected: IResource[]) => {
-    if (!selected.length) {
-      setResourcePickerOpen(false);
-      return;
-    }
-    const [first, ...rest] = selected;
-    const firstSrc = first.path ?? first.url;
-    const path = ReactEditor.findPath(editor, element);
-    Transforms.setNodes(
-      editor,
-      {
-        src: firstSrc,
-        uploading: false,
-        metaInfo: undefined,
-      },
-      { at: path }
-    );
-
-    let referencePath = path;
-    rest.forEach(resource => {
-      const resourceSrc = resource.path ?? resource.url;
-      if (!resourceSrc) {
-        return;
-      }
-      referencePath = Path.next(referencePath);
-      Transforms.insertNodes(
-        editor,
-        {
-          type: "video",
-          src: resourceSrc,
-          children: [
-            {
-              type: "formatted",
-              text: "",
-            },
-          ],
-        },
-        { at: referencePath }
-      );
-    });
-
-    setResourcePickerOpen(false);
-  });
-
-  // 处理 Bilibili 视频确认
-  const handleBilibiliConfirm = useMemoizedFn(async (result: BilibiliVideoSelectResult) => {
-    try {
-      const path = ReactEditor.findPath(editor, element);
-      Transforms.setNodes(
-        editor,
-        {
-          src: result.url,
-          metaInfo: result.metaInfo,
-        },
-        { at: path }
-      );
-
-      setBiliModalOpen(false);
-    } catch (error) {
-      console.error("添加 Bilibili 视频失败:", error);
-      message.error("添加 Bilibili 视频失败");
-    }
-  });
-
-  // 解析并写入YouTube metaInfo
-  const handleYoutubeConfirm = useMemoizedFn(async (result: YoutubeVideoSelectResult) => {
-    try {
-      const meta: YouTubeVideoMetaInfo = {
-        type: "youtube",
-        url: result.url,
-        videoStream: result.videoStream,
-        audioStream: result.audioStream,
-      };
-
-      const path = ReactEditor.findPath(editor, element);
-      Transforms.setNodes(
-        editor,
-        {
-          src: result.url,
-          metaInfo: meta,
-        },
-        { at: path }
-      );
-
-      setYoutubeModalOpen(false);
-    } catch (error) {
-      console.error("添加 YouTube 视频失败:", error);
-      message.error("添加 YouTube 视频失败");
-    }
   });
 
   const { src, uploading, playbackRate = 1, width, align = "center" } = element;
@@ -369,10 +132,8 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     { direction: "sw", cursor: "nesw-resize" },
   ];
 
-  // 包裹视频的容器，添加调整大小功能
-  const renderVideoContainer = (videoUrl: string, useLocalVideo = true) => {
-    const shouldUseLocalVideo = useLocalVideo;
-
+  // 包裹视频的容器，添加调整大小功能；也是业务内容源解析出地址后的通用播放入口
+  const renderPlayback = (videoUrl: string, useLocalVideo = true) => {
     return (
       <div
         ref={containerRef}
@@ -388,7 +149,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
           maxWidth: "100%",
         }}
       >
-        {shouldUseLocalVideo && Video ? (
+        {useLocalVideo ? (
           <Video
             ref={videoRef}
             className={styles.video}
@@ -432,132 +193,26 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     );
   };
 
+  // 遗留空视频元素的最小占位（正常流程经 slash 菜单直接创建已填充的元素）
   const renderEmpty = () => {
     if (readOnly) return null;
     return (
-      <div className="rounded-[0.75em] border border-gray-200 bg-white p-[1.25em] dark:border-zinc-700 dark:bg-zinc-900">
-        <ModernTabs
-          variant="flat"
-          isDark={isDark}
-          items={[
-            {
-              key: "local",
-              label: "本地上传",
-              children: (
-                <div className="flex flex-col gap-[1em]">
-                  <p className="m-0 text-[0.8125em] text-gray-500 dark:text-zinc-400">
-                    支持 MP4、WebM、MOV 等格式，单个文件建议不超过 200 MB。
-                  </p>
-                  <div className="flex justify-start">
-                    <button
-                      type="button"
-                      className="flex cursor-pointer items-center gap-[0.5em] rounded-[0.75em] border-none bg-[var(--th-btn-bg)] px-[1.25em] py-[0.625em] text-[0.875em] font-semibold text-[var(--th-btn-text)] transition-all hover:bg-[var(--th-btn-hover)]"
-                      onClick={() => uploadRef.current?.click()}
-                    >
-                      <FolderOpenOutlined />
-                      选择文件
-                    </button>
-                  </div>
-                </div>
-              ),
-            },
-            {
-              key: "library",
-              label: "资源库",
-              children: (
-                <div className="flex flex-col gap-[1em]">
-                  <p className="m-0 text-[0.8125em] text-gray-500 dark:text-zinc-400">
-                    引用资源库中已上传的视频，可多选插入到文稿。
-                  </p>
-                  <div className="flex justify-start">
-                    <button
-                      type="button"
-                      className="cursor-pointer rounded-[0.75em] border border-gray-200 bg-gray-100 px-[1.25em] py-[0.625em] text-[0.875em] font-semibold text-gray-700 transition-all hover:bg-gray-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
-                      onClick={() => setResourcePickerOpen(true)}
-                    >
-                      打开资源库
-                    </button>
-                  </div>
-                </div>
-              ),
-            },
-            {
-              key: "url",
-              label: "网络地址",
-              children: (
-                <div className="flex flex-col gap-[1em]">
-                  <p className="m-0 text-[0.8125em] text-gray-500 dark:text-zinc-400">
-                    支持直接嵌入公网直链视频，建议使用 MP4 或流媒体链接。
-                  </p>
-                  <div className="flex flex-wrap items-center gap-[0.75em]">
-                    <div className="relative flex-1">
-                      <span className="pointer-events-none absolute left-[0.75em] top-1/2 -translate-y-1/2 text-gray-400 dark:text-zinc-500">
-                        <LinkOutlined />
-                      </span>
-                      <input
-                        type="text"
-                        className="w-full rounded-[0.75em] border border-gray-200 bg-gray-50 px-[1em] py-[0.875em] pl-[2.25em] text-[0.875em] text-gray-800 shadow-inner outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_var(--th-border-focus)/20] dark:border-zinc-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_var(--th-border-focus)/25]"
-                        placeholder="https://example.com/video.mp4"
-                        value={networkUrl}
-                        onChange={e => setNetworkUrl(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === "Enter") handleOnNetworkUrlInputFinish();
-                        }}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      className="cursor-pointer rounded-[0.75em] border-none bg-[var(--th-btn-bg)] px-[1.25em] py-[0.75em] text-[0.875em] font-semibold text-[var(--th-btn-text)] transition-all duration-200 hover:bg-[var(--th-btn-hover)]"
-                      onClick={handleOnNetworkUrlInputFinish}
-                    >
-                      插入
-                    </button>
-                  </div>
-                </div>
-              ),
-            },
-            {
-              key: "bilibili",
-              label: "Bilibili",
-              children: (
-                <div className="flex flex-col gap-[1em]">
-                  <p className="m-0 text-[0.8125em] text-gray-500 dark:text-zinc-400">
-                    从 Bilibili 解析视频并选择清晰度
-                  </p>
-                  <div className="flex justify-start">
-                    <button
-                      type="button"
-                      className="cursor-pointer rounded-[0.75em] border-none bg-[var(--th-btn-bg)] px-[1.25em] py-[0.625em] text-[0.875em] font-semibold text-[var(--th-btn-text)] transition-all hover:bg-[var(--th-btn-hover)]"
-                      onClick={() => setBiliModalOpen(true)}
-                    >
-                      打开 Bilibili 视频选择器
-                    </button>
-                  </div>
-                </div>
-              ),
-            },
-            {
-              key: "youtube",
-              label: "YouTube",
-              children: (
-                <div className="flex flex-col gap-[1em]">
-                  <p className="m-0 text-[0.8125em] text-gray-500 dark:text-zinc-400">
-                    从 YouTube 解析视频并选择清晰度
-                  </p>
-                  <div className="flex justify-start">
-                    <button
-                      type="button"
-                      className="cursor-pointer rounded-[0.75em] border-none bg-[var(--th-btn-bg)] px-[1.25em] py-[0.625em] text-[0.875em] font-semibold text-[var(--th-btn-text)] transition-all hover:bg-[var(--th-btn-hover)]"
-                      onClick={() => setYoutubeModalOpen(true)}
-                    >
-                      打开 YouTube 视频选择器
-                    </button>
-                  </div>
-                </div>
-              ),
-            },
-          ]}
-        />
+      <div className="flex items-center justify-center gap-[0.5em] rounded-[0.75em] border border-dashed border-gray-300 p-[1.5em] text-[0.875em] text-gray-500 dark:border-zinc-700 dark:text-zinc-400">
+        {uploading ? (
+          <span>视频上传中...</span>
+        ) : (
+          <>
+            <span>空视频，</span>
+            <button
+              type="button"
+              className="cursor-pointer border-none bg-transparent p-0 font-semibold text-[var(--th-btn-text)] underline-offset-2 hover:underline"
+              onClick={() => openLocalMediaPicker(editor, "video", element)}
+            >
+              选择文件
+            </button>
+            <span>上传</span>
+          </>
+        )}
       </div>
     );
   };
@@ -579,60 +234,15 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
         <Spin spinning={uploading}>
           <If condition={!src}>{renderEmpty()}</If>
           <If condition={!!src}>
-            <If condition={isBilibili}>
-              {biliMeta && BilibiliVideoLoader ? (
-                <>
-                  <BilibiliVideoLoader
-                    loading={bilibiliLoading}
-                    error={bilibiliError}
-                    streamProgress={bilibiliProgress}
-                  />
-                  <If condition={!!bilibiliVideoUrl && !bilibiliLoading && !bilibiliError}>
-                    {renderVideoContainer(bilibiliVideoUrl as string)}
-                  </If>
-                </>
-              ) : (
-                <div style={{ color: "#ff4d4f", padding: 8 }}>
-                  缺少 Bilibili metaInfo，请通过添加视频入口创建
-                </div>
-              )}
-            </If>
-
-            <If condition={isYoutube}>
-              {ytMeta && YoutubeVideoLoader ? (
-                <>
-                  <YoutubeVideoLoader
-                    loading={youtubeLoading}
-                    error={youtubeError}
-                    streamProgress={youtubeProgress}
-                  />
-                  <If condition={!!youtubeVideoUrl && !youtubeLoading && !youtubeError}>
-                    {renderVideoContainer(youtubeVideoUrl as string)}
-                  </If>
-                </>
-              ) : (
-                <div style={{ color: "#ff4d4f", padding: 8 }}>
-                  缺少 YouTube metaInfo，请通过添加视频入口创建
-                </div>
-              )}
-            </If>
-
-            <If condition={!isBilibili && !isYoutube}>
-              {isRegularRemoteVideo && RemoteVideoLoader ? (
-                <>
-                  <RemoteVideoLoader
-                    loading={remoteVideoLoading}
-                    error={remoteVideoError}
-                    streamProgress={remoteVideoProgress}
-                  />
-                  <If condition={!!remoteVideoUrl && !remoteVideoLoading && !remoteVideoError}>
-                    {renderVideoContainer(remoteVideoUrl as string, false)}
-                  </If>
-                </>
-              ) : (
-                renderVideoContainer(src, shouldUseLocalVideoCache(src))
-              )}
-            </If>
+            {matchedProvider ? (
+              <matchedProvider.Content
+                element={element}
+                readOnly={readOnly}
+                renderPlayback={renderPlayback}
+              />
+            ) : (
+              renderPlayback(src)
+            )}
           </If>
         </Spin>
         {children}
@@ -649,44 +259,8 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
           <MdDragIndicator className={styles.icon} />
         </div>
         <EditorContextMenu {...menuProps} readonly={readOnly} />
-        <input
-          ref={uploadRef}
-          type={"file"}
-          accept={"video/*"}
-          hidden
-          onChange={handleUploadFileChange}
-        />
         {!(readOnly && isLast) && <AddParagraph element={element} />}
       </div>
-      {ResourcePickerModal && (
-        <ResourcePickerModal
-          open={resourcePickerOpen}
-          onCancel={() => setResourcePickerOpen(false)}
-          allowedTypes={["video"]}
-          multiple
-          title="选择视频"
-          onConfirm={handleInsertFromResource}
-        />
-      )}
-
-      {/* Bilibili 视频选择弹窗 */}
-      {BilibiliVideoSelectModal && (
-        <BilibiliVideoSelectModal
-          open={biliModalOpen}
-          onCancel={() => setBiliModalOpen(false)}
-          onConfirm={handleBilibiliConfirm}
-        />
-      )}
-
-      {/* YouTube 视频选择弹窗 */}
-
-      {YoutubeVideoSelectModal && (
-        <YoutubeVideoSelectModal
-          open={youtubeModalOpen}
-          onCancel={() => setYoutubeModalOpen(false)}
-          onConfirm={handleYoutubeConfirm}
-        />
-      )}
     </div>
   );
 };

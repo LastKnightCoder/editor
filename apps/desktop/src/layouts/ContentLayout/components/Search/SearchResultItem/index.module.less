@@ -9,6 +9,8 @@
   transition: background-color 0.2s;
   display: flex;
   flex-direction: column;
+  /* 虚拟列表按固定高度定位，内容超出时裁剪，避免溢出覆盖相邻结果项 */
+  overflow: hidden;
 
   &:hover {
     background-color: var(--th-bg-hover);

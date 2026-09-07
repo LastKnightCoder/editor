@@ -1,11 +1,4 @@
-import {
-  Descendant,
-  Editor,
-  Element as SlateElement,
-  NodeEntry,
-  Point,
-  Range,
-} from "slate";
+import { Descendant, Editor, Element as SlateElement, NodeEntry, Point, Range } from "slate";
 
 const FULL_SELECTION_ONLY_TYPES = new Set(["table-cell"]);
 
@@ -39,7 +32,7 @@ const FULL_SELECTION_PRESERVE_TYPES = new Set([
 ]);
 
 const isManagedElement = (
-  node: Descendant,
+  node: Descendant
 ): node is SlateElement & { type: string; children: Descendant[] } => {
   return SlateElement.isElement(node) && MANAGED_TYPES.has(String(node.type));
 };
@@ -47,21 +40,18 @@ const isManagedElement = (
 const isFullyCovered = (
   editor: Editor,
   selection: NonNullable<Editor["selection"]>,
-  path: number[],
+  path: number[]
 ): boolean => {
   const [selectionStart, selectionEnd] = Range.edges(selection);
   const [nodeStart, nodeEnd] = Range.edges(Editor.range(editor, path));
-  return (
-    Point.compare(selectionStart, nodeStart) <= 0 &&
-    Point.compare(selectionEnd, nodeEnd) >= 0
-  );
+  return Point.compare(selectionStart, nodeStart) <= 0 && Point.compare(selectionEnd, nodeEnd) >= 0;
 };
 
 const getIntersectingChildEntries = (
   editor: Editor,
   selection: NonNullable<Editor["selection"]>,
   path: number[],
-  node: SlateElement & { children: Descendant[] },
+  node: SlateElement & { children: Descendant[] }
 ): Array<NodeEntry<Descendant>> => {
   return node.children.flatMap((child, index) => {
     const childPath = [...path, index];
@@ -89,14 +79,9 @@ const normalizeManagedNode = (
   selection: NonNullable<Editor["selection"]>,
   originalNode: SlateElement & { type: string; children: Descendant[] },
   fragmentNode: SlateElement & { type: string; children: Descendant[] },
-  path: number[],
+  path: number[]
 ): Descendant[] => {
-  const intersectingChildren = getIntersectingChildEntries(
-    editor,
-    selection,
-    path,
-    originalNode,
-  );
+  const intersectingChildren = getIntersectingChildEntries(editor, selection, path, originalNode);
 
   const normalizedChildren =
     intersectingChildren.length === fragmentNode.children.length
@@ -107,20 +92,11 @@ const normalizeManagedNode = (
           }
 
           const [originalChild, childPath] = originalChildEntry;
-          if (
-            !isManagedElement(originalChild) ||
-            originalChild.type !== child.type
-          ) {
+          if (!isManagedElement(originalChild) || originalChild.type !== child.type) {
             return [child];
           }
 
-          return normalizeManagedNode(
-            editor,
-            selection,
-            originalChild,
-            child,
-            childPath,
-          );
+          return normalizeManagedNode(editor, selection, originalChild, child, childPath);
         })
       : fragmentNode.children;
 
@@ -128,7 +104,7 @@ const normalizeManagedNode = (
     const shouldKeepListItem =
       isFullyCovered(editor, selection, path) &&
       (hasAncestorOfType(editor, path, "list-item") ||
-        normalizedChildren.some((child) => {
+        normalizedChildren.some(child => {
           return SlateElement.isElement(child) && child.type !== "paragraph";
         }));
 
@@ -172,7 +148,7 @@ const normalizeManagedNode = (
   const expectedChildType = PARTIAL_STRUCTURE_TYPES[fragmentNode.type];
   const canKeepPartialStructure =
     normalizedChildren.length > 0 &&
-    normalizedChildren.every((child) => {
+    normalizedChildren.every(child => {
       return SlateElement.isElement(child) && child.type === expectedChildType;
     });
 
@@ -191,7 +167,7 @@ const normalizeManagedNode = (
 export const normalizeCopiedFragment = (
   editor: Editor,
   fragment: Descendant[],
-  selection = editor.selection,
+  selection = editor.selection
 ): Descendant[] => {
   if (!selection || Range.isCollapsed(selection) || fragment.length === 0) {
     return fragment;
@@ -200,10 +176,9 @@ export const normalizeCopiedFragment = (
   const highestSelectedBlocks = Array.from(
     Editor.nodes(editor, {
       at: selection,
-      match: (node) =>
-        SlateElement.isElement(node) && Editor.isBlock(editor, node),
+      match: node => SlateElement.isElement(node) && Editor.isBlock(editor, node),
       mode: "highest",
-    }),
+    })
   ) as Array<NodeEntry<SlateElement>>;
 
   if (highestSelectedBlocks.length !== fragment.length) {
@@ -221,33 +196,12 @@ export const normalizeCopiedFragment = (
     }
 
     const [originalNode, path] = originalEntry;
-    if (
-      !isManagedElement(originalNode) ||
-      originalNode.type !== fragmentNode.type
-    ) {
+    if (!isManagedElement(originalNode) || originalNode.type !== fragmentNode.type) {
       return [fragmentNode];
     }
 
-    return normalizeManagedNode(
-      editor,
-      selection,
-      originalNode,
-      fragmentNode,
-      path,
-    );
+    return normalizeManagedNode(editor, selection, originalNode, fragmentNode, path);
   });
-
-  const shouldDebug =
-    typeof globalThis !== "undefined" &&
-    Boolean((globalThis as any).__TAU_EDITOR_DEBUG_CLIPBOARD__);
-
-  if (shouldDebug) {
-    console.info("[editor.copy.normalize]", {
-      selection,
-      fragment,
-      normalized,
-    });
-  }
 
   return normalized;
 };

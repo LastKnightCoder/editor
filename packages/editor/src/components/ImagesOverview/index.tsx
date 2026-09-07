@@ -2,16 +2,14 @@ import { useMemoizedFn } from "ahooks";
 import { PortalToBody } from "@tau/shared";
 import classnames from "classnames";
 import { CloseOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
-import { useSlateStatic } from "slate-react";
 import { useEffect } from "react";
 
 import { useImagesOverviewStore } from "../../stores";
+import { useEditorSlots } from "../../services";
 
 import styles from "./index.module.less";
 
 const ImagesOverview = () => {
-  const editor = useSlateStatic();
-
   const {
     isShowImagesOverview,
     imageElements,
@@ -20,7 +18,7 @@ const ImagesOverview = () => {
     currentImageIndex,
     switchImage,
     closeImagesOverview,
-  } = useImagesOverviewStore((state) => ({
+  } = useImagesOverviewStore(state => ({
     isShowImagesOverview: state.isShowImagesOverview,
     imageElements: state.imageElements,
     hasNextImage: state.hasNextImage,
@@ -30,7 +28,7 @@ const ImagesOverview = () => {
     closeImagesOverview: state.closeImagesOverview,
   }));
 
-  const Image = editor.services?.components?.Image;
+  const { Image } = useEditorSlots();
 
   // 监听 ESC 键退出预览
   useEffect(() => {

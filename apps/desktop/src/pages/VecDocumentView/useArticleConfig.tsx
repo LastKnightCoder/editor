@@ -303,7 +303,7 @@ const useArticleConfig = () => {
       key: "content",
       dataIndex: "content",
       title: "文章内容",
-      render: (content: Descendant[], record: { contentId?: number }) => {
+      render: (content: Descendant[]) => {
         return (
           <Flex vertical gap={12} align={"flex-start"}>
             <Typography.Paragraph ellipsis={{ rows: 1 }} style={{ maxWidth: 400 }}>
@@ -314,7 +314,6 @@ const useArticleConfig = () => {
               placement={"bottom"}
               content={
                 <Editor
-                  contentId={record.contentId}
                   style={{
                     width: 320,
                     height: 180,

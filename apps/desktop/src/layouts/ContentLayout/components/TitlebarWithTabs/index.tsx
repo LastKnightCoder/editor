@@ -1,4 +1,4 @@
-import React, { memo, useState, useCallback, useMemo } from "react";
+import React, { memo, useState, useCallback, useMemo, useRef } from "react";
 import { Dropdown, Input } from "antd";
 import type { MenuProps } from "antd";
 import { useMemoizedFn } from "ahooks";
@@ -118,7 +118,7 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
     onDragEndGroup,
   } = props;
 
-  const ref = React.useRef<HTMLDivElement | null>(null);
+  const ref = useRef<HTMLDivElement | null>(null);
 
   const [{ handlerId }, drop] = useDrop<
     TabGroupHeaderDropItem,

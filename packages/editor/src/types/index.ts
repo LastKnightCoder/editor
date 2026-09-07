@@ -45,17 +45,7 @@ export type { ITabsContent, TabsElement, TabPaneElement, ITabItem } from "./elem
 export type { TikzElement } from "./element/tikz";
 export type { TypstElement } from "./element/typst";
 export type { UnderlineElement } from "./element/underline";
-export type {
-  VideoElement,
-  VideoMetaInfo,
-  BiliBiliVideoMetaInfo,
-  YouTubeVideoMetaInfo,
-  LocalVideoMetaInfo,
-  RemoteVideoMetaInfo,
-  BilibiliVideoSelectResult,
-  YoutubeVideoSelectResult,
-} from "./element/video";
-export type { WebviewElement } from "./element/webview";
+export type { VideoElement, VideoElementMeta } from "./element/video";
 
 // Text types
 export type { FormattedText, HighlightColor } from "./text";

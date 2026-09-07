@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Header, DocSidebar } from "@blog/components/Layout";
 import { Breadcrumb, ScrollToTop } from "@blog/components/Common";
-import { Editor, EditorServicesProvider } from "@tau/editor";
+import { Editor, EditorProvider } from "@tau/editor";
 import Outline from "@blog/components/Outline";
 import { getInitData, formatDate, joinPath } from "@blog/utils";
 import { DocData } from "@blog/types";
@@ -9,8 +9,9 @@ import { HeaderElement } from "@tau/editor";
 import { getInlineElementText } from "@blog/utils/editor";
 import DndProvider from "@blog/components/DndProvider";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
-import { createBlogEditorServices } from "@blog/services/editorServices";
+import { createBlogEditorRegistry, createBlogEditorConfig } from "@blog/services/editorRegistry";
 import { blogEditorExtensions } from "@blog/editorExtensions";
+import useBlogTheme from "@blog/hooks/useBlogTheme";
 import "@tau/themes/light.less";
 import "@tau/themes/dark.less";
 
@@ -40,13 +41,19 @@ const DocPage = memo(() => {
   const doc = initData.content as DocData;
   const docCollections = initData.docCollections || [];
   const blogSettings = initData.settings;
+  const blogTheme = useBlogTheme();
+  const blogEditorRegistry = useMemo(() => createBlogEditorRegistry(), []);
+  const blogEditorConfig = useMemo(
+    () => createBlogEditorConfig(blogSettings, blogTheme),
+    [blogSettings, blogTheme]
+  );
   const sidebarScrollRef = useRef<HTMLDivElement | null>(null);
   const [activeHeaderIndex, setActiveHeaderIndex] = useState(0);
 
   const headers = useMemo(() => extractHeaders(doc.content), [doc.content]);
   const activeCollectionTitle = useMemo(() => {
     for (const collection of docCollections) {
-      const activeItem = collection.items.find((item) => item.active);
+      const activeItem = collection.items.find(item => item.active);
       if (activeItem) {
         return activeItem.title;
       }
@@ -89,21 +96,15 @@ const DocPage = memo(() => {
 
   const desktopDocNav =
     docCollections.length > 0 ? (
-      <DocCollectionsMenu
-        collections={docCollections}
-        basePath={site.basePath}
-        variant="desktop"
-      />
+      <DocCollectionsMenu collections={docCollections} basePath={site.basePath} variant="desktop" />
     ) : undefined;
   const sidebarScrollStorageKey = useMemo(
-    () =>
-      `${DOC_SIDEBAR_SCROLL_STORAGE_KEY}:${site.basePath}:${sidebarData.title}`,
-    [sidebarData.title, site.basePath],
+    () => `${DOC_SIDEBAR_SCROLL_STORAGE_KEY}:${site.basePath}:${sidebarData.title}`,
+    [sidebarData.title, site.basePath]
   );
   const sidebarCollapseStorageKey = useMemo(
-    () =>
-      `${DOC_SIDEBAR_COLLAPSE_STORAGE_KEY}:${site.basePath}:${sidebarData.title}`,
-    [sidebarData.title, site.basePath],
+    () => `${DOC_SIDEBAR_COLLAPSE_STORAGE_KEY}:${site.basePath}:${sidebarData.title}`,
+    [sidebarData.title, site.basePath]
   );
   const mobileDocNav =
     docCollections.length > 0 || sidebarData.items.length > 0 ? (
@@ -148,18 +149,13 @@ const DocPage = memo(() => {
         return;
       }
 
-      const activeItem = container.querySelector<HTMLElement>(
-        "[data-doc-sidebar-active='true']",
-      );
+      const activeItem = container.querySelector<HTMLElement>("[data-doc-sidebar-active='true']");
       activeItem?.scrollIntoView({ block: "nearest" });
     };
 
     const frameId = window.requestAnimationFrame(restoreScrollPosition);
     const handleScroll = () => {
-      window.localStorage.setItem(
-        sidebarScrollStorageKey,
-        String(container.scrollTop),
-      );
+      window.localStorage.setItem(sidebarScrollStorageKey, String(container.scrollTop));
     };
 
     container.addEventListener("scroll", handleScroll, { passive: true });
@@ -171,16 +167,14 @@ const DocPage = memo(() => {
   }, [doc.currentPath, sidebarData.items.length, sidebarScrollStorageKey]);
 
   useEffect(() => {
-    const scrollContainer = document.querySelector<HTMLElement>(
-      "[data-primary-scroll-container]",
-    );
+    const scrollContainer = document.querySelector<HTMLElement>("[data-primary-scroll-container]");
     const editor = document.querySelector('[data-slate-editor="true"]');
     if (!scrollContainer || !editor) {
       return;
     }
 
     const headerElements = Array.from(
-      editor.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6"),
+      editor.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6")
     );
     if (headerElements.length === 0) {
       return;
@@ -200,9 +194,7 @@ const DocPage = memo(() => {
         break;
       }
 
-      setActiveHeaderIndex((current) =>
-        current === nextActiveIndex ? current : nextActiveIndex,
-      );
+      setActiveHeaderIndex(current => (current === nextActiveIndex ? current : nextActiveIndex));
     };
 
     updateActiveHeader();
@@ -277,15 +269,13 @@ const DocPage = memo(() => {
 
                   {/* 正文 */}
                   <DndProvider>
-                    <EditorServicesProvider
-                      services={createBlogEditorServices(blogSettings)}
+                    <EditorProvider
+                      registry={blogEditorRegistry}
+                      config={blogEditorConfig}
+                      extensions={blogEditorExtensions}
                     >
-                      <Editor
-                        initValue={doc.content}
-                        readonly
-                        extensions={blogEditorExtensions}
-                      />
-                    </EditorServicesProvider>
+                      <Editor initValue={doc.content} readonly />
+                    </EditorProvider>
                   </DndProvider>
 
                   {/* 上下篇导航：简洁文本链接 */}

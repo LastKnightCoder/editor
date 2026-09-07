@@ -3,18 +3,13 @@ import { motion } from "motion/react";
 import { Header } from "@blog/components/Layout";
 import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
 import { Tag, ScrollToTop } from "@blog/components/Common";
-import { Editor, EditorServicesProvider } from "@tau/editor";
-import {
-  getInitData,
-  formatDate,
-  getReadingTime,
-  getPlainText,
-  joinPath,
-} from "@blog/utils";
+import { Editor, EditorProvider } from "@tau/editor";
+import { getInitData, formatDate, getReadingTime, getPlainText, joinPath } from "@blog/utils";
 import { QuestAnswerData, QuestData } from "@blog/types";
 import DndProvider from "@blog/components/DndProvider";
-import { createBlogEditorServices } from "@blog/services/editorServices";
+import { createBlogEditorRegistry, createBlogEditorConfig } from "@blog/services/editorRegistry";
 import { blogEditorExtensions } from "@blog/editorExtensions";
+import useBlogTheme from "@blog/hooks/useBlogTheme";
 import { fadeUp, defaultTransition } from "@blog/utils/motion";
 import "@tau/themes/light.less";
 import "@tau/themes/dark.less";
@@ -25,8 +20,7 @@ const statusLabels: Record<QuestData["status"], string> = {
   resolved: "已解决",
 };
 
-const serifLabelClass =
-  "font-['Songti_SC','STSong','Noto_Serif_SC','Source_Han_Serif_SC',serif]";
+const serifLabelClass = "font-['Songti_SC','STSong','Noto_Serif_SC','Source_Han_Serif_SC',serif]";
 
 type LoadedAnswerContent = {
   loading: boolean;
@@ -95,6 +89,7 @@ const AnswerContent = memo(
     basePath: string;
     settings: ReturnType<typeof getInitData>["settings"];
   }) => {
+    const blogTheme = useBlogTheme();
     const sourceHref = answer.source?.href
       ? joinPath(basePath, answer.source.href, { raw: true })
       : "";
@@ -112,8 +107,8 @@ const AnswerContent = memo(
       let cancelled = false;
       setRemote({ loading: true, content: undefined, error: false });
       fetch(sourceHref)
-        .then((response) => response.text())
-        .then((html) => {
+        .then(response => response.text())
+        .then(html => {
           if (cancelled) return;
           const content = readRemoteContent(extractInitData(html));
           setRemote({
@@ -132,48 +127,45 @@ const AnswerContent = memo(
       };
     }, [answer.content, sourceHref]);
 
+    // hooks 必须先于下方条件早退调用，避免远端答案加载完成后 hooks 数量变化
+    const editorRegistry = useMemo(() => createBlogEditorRegistry(), []);
+    const editorConfig = useMemo(
+      () => createBlogEditorConfig(settings, blogTheme),
+      [settings, blogTheme]
+    );
+
     if (remote.loading) {
-      return (
-        <p className="text-sm text-[var(--color-text-tertiary)]">
-          正在取回答案...
-        </p>
-      );
+      return <p className="text-sm text-[var(--color-text-tertiary)]">正在取回答案...</p>;
     }
 
     if (remote.error || !remote.content || remote.content.length === 0) {
-      return (
-        <p className="text-sm text-[var(--color-text-tertiary)]">
-          暂无可展示内容
-        </p>
-      );
+      return <p className="text-sm text-[var(--color-text-tertiary)]">暂无可展示内容</p>;
     }
 
     return (
       <DndProvider>
-        <EditorServicesProvider services={createBlogEditorServices(settings)}>
-          <Editor
-            initValue={remote.content}
-            readonly
-            extensions={blogEditorExtensions}
-          />
-        </EditorServicesProvider>
+        <EditorProvider
+          registry={editorRegistry}
+          config={editorConfig}
+          extensions={blogEditorExtensions}
+        >
+          <Editor initValue={remote.content} readonly />
+        </EditorProvider>
       </DndProvider>
     );
-  },
+  }
 );
 
 AnswerContent.displayName = "AnswerContent";
 
-const SectionKicker = memo(
-  ({ label, className = "" }: { label: string; className?: string }) => (
-    <div
-      className={`${serifLabelClass} ${className} mb-5 inline-flex items-center gap-3 text-lg font-semibold text-[var(--color-text-primary)]`}
-    >
-      <span>{label}</span>
-      <span className="h-px w-10 bg-[var(--color-border-ring-heavy)]" />
-    </div>
-  ),
-);
+const SectionKicker = memo(({ label, className = "" }: { label: string; className?: string }) => (
+  <div
+    className={`${serifLabelClass} ${className} mb-5 inline-flex items-center gap-3 text-lg font-semibold text-[var(--color-text-primary)]`}
+  >
+    <span>{label}</span>
+    <span className="h-px w-10 bg-[var(--color-border-ring-heavy)]" />
+  </div>
+));
 
 SectionKicker.displayName = "SectionKicker";
 
@@ -209,9 +201,7 @@ const AnswerHeader = memo(
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
           <div
             className={`${serifLabelClass} text-xl font-semibold text-[var(--color-text-primary)]`}
-            data-answer-index={
-              showIndex ? String(index + 1).padStart(2, "0") : undefined
-            }
+            data-answer-index={showIndex ? String(index + 1).padStart(2, "0") : undefined}
           >
             {answerLabel}
           </div>
@@ -231,7 +221,7 @@ const AnswerHeader = memo(
         </div>
       </div>
     );
-  },
+  }
 );
 
 AnswerHeader.displayName = "AnswerHeader";
@@ -242,32 +232,26 @@ const QuestPage = memo(() => {
   const quest = initData.content as QuestData;
   const docCollections = initData.docCollections || [];
   const blogSettings = initData.settings;
-  const hasDescription = Boolean(
-    quest.description && getPlainText(quest.description).trim(),
+  const blogTheme = useBlogTheme();
+  const blogEditorRegistry = useMemo(() => createBlogEditorRegistry(), []);
+  const blogEditorConfig = useMemo(
+    () => createBlogEditorConfig(blogSettings, blogTheme),
+    [blogSettings, blogTheme]
   );
+  const hasDescription = Boolean(quest.description && getPlainText(quest.description).trim());
 
   const readingTime = useMemo(() => {
-    const answerContent = quest.answers.flatMap(
-      (answer) => answer.content || [],
-    );
+    const answerContent = quest.answers.flatMap(answer => answer.content || []);
     return getReadingTime([...(quest.description || []), ...answerContent]);
   }, [quest.answers, quest.description]);
 
   const desktopDocNav =
     docCollections.length > 0 ? (
-      <DocCollectionsMenu
-        collections={docCollections}
-        basePath={site.basePath}
-        variant="desktop"
-      />
+      <DocCollectionsMenu collections={docCollections} basePath={site.basePath} variant="desktop" />
     ) : undefined;
   const mobileDocNav =
     docCollections.length > 0 ? (
-      <DocCollectionsMenu
-        collections={docCollections}
-        basePath={site.basePath}
-        variant="mobile"
-      />
+      <DocCollectionsMenu collections={docCollections} basePath={site.basePath} variant="mobile" />
     ) : undefined;
 
   return (
@@ -309,16 +293,17 @@ const QuestPage = memo(() => {
                     data-testid="quest-description"
                   >
                     <DndProvider>
-                      <EditorServicesProvider
-                        services={createBlogEditorServices(blogSettings)}
+                      <EditorProvider
+                        registry={blogEditorRegistry}
+                        config={blogEditorConfig}
+                        extensions={blogEditorExtensions}
                       >
                         <Editor
                           initValue={quest.description}
                           readonly
-                          extensions={blogEditorExtensions}
                           className="text-[var(--color-text-tertiary)]"
                         />
-                      </EditorServicesProvider>
+                      </EditorProvider>
                     </DndProvider>
                   </div>
                 )}

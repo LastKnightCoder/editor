@@ -4,7 +4,10 @@ import zhCN from "antd/locale/zh_CN";
 import { RouterProvider } from "react-router-dom";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { EditorServicesProvider } from "@tau/editor/src";
+import { EditorProvider } from "@tau/editor/src";
+import { createEditorRegistry } from "@/services/editorRegistry";
+import { useDesktopEditorConfig } from "@/services/useDesktopEditorConfig";
+import { createDesktopEditorExtensions } from "@/editor-extensions";
 import {
   BilibiliVideoDepsProvider,
   YoutubeVideoDepsProvider,
@@ -28,21 +31,18 @@ import { useInitChatData } from "@/hooks/useInitChatData";
 import { WindowFocusContext } from "@/hooks/useWindowFocus";
 import useAntdThemeToken from "@/hooks/useAntdThemeToken";
 import AutoSyncManager from "@/components/AutoSyncManager";
+import { MediaModalHost } from "@/editor-providers/mediaModalHost";
 import ConversationFlashcardModal from "@/components/ConversationFlashcardModal";
 import ExtNoteInsertModal from "@/components/ExtNoteInsertModal";
 import MCPManagerModal from "@/components/MCPManagerModal";
 import GlobalFindBar from "@/components/GlobalFindBar";
 import JoinRequestNotifications from "@/components/JoinRequestNotifications";
-import { createEditorServices } from "@/services/editorServices";
 import useSettingStore from "@/stores/useSettingStore";
 import useMCPManagerModalStore from "@/stores/useMCPManagerModalStore";
 
 import { on, off } from "@/electron";
 import { getPlayUrl, checkStreamAvailability } from "@/utils/bilibili";
-import {
-  bilibiliVideoToLocal,
-  isBilibiliVideoCached,
-} from "@/utils/bilibili-cache";
+import { bilibiliVideoToLocal, isBilibiliVideoCached } from "@/utils/bilibili-cache";
 import {
   cacheYoutubeVideo,
   getYoutubeCacheStatus,
@@ -78,12 +78,12 @@ const Application = () => {
   useWeReadSessionBootstrap();
 
   const [isFocused, setIsFocused] = useState(true);
-  const isMcpManagerOpen = useMCPManagerModalStore((state) => state.isOpen);
-  const closeMcpManagerModal = useMCPManagerModalStore(
-    (state) => state.closeModal,
-  );
+  const isMcpManagerOpen = useMCPManagerModalStore(state => state.isOpen);
+  const closeMcpManagerModal = useMCPManagerModalStore(state => state.closeModal);
 
-  const editorServices = useMemo(() => createEditorServices(), []);
+  const editorRegistry = useMemo(() => createEditorRegistry(), []);
+  const editorExtensions = useMemo(() => createDesktopEditorExtensions(), []);
+  const editorConfig = useDesktopEditorConfig();
 
   const bilibiliDeps: UseBilibiliVideoDeps = useMemo(
     () => ({
@@ -94,17 +94,16 @@ const Application = () => {
           enabled: setting.integration.bilibili.enabled,
         };
       },
-      getPlayUrl: (cid, bvid, quality, creds) =>
-        getPlayUrl(cid, bvid, quality, creds),
-      checkStreamAvailability: async (urls) => {
+      getPlayUrl: (cid, bvid, quality, creds) => getPlayUrl(cid, bvid, quality, creds),
+      checkStreamAvailability: async urls => {
         const playUrl = { video: urls.video, audio: urls.audio, quality: 0 };
         return await checkStreamAvailability(playUrl);
       },
       cacheVideo: bilibiliVideoToLocal,
       getCacheStatus: isBilibiliVideoCached,
-      showError: (msg) => antdMessage.error(msg),
+      showError: msg => antdMessage.error(msg),
     }),
-    [],
+    []
   );
 
   const youtubeDeps: UseYoutubeVideoDeps = useMemo(
@@ -116,7 +115,7 @@ const Application = () => {
           enabled: setting.integration.youtube.enabled,
         };
       },
-      getCacheStatus: async (url) => {
+      getCacheStatus: async url => {
         const status = await getYoutubeCacheStatus(url);
         if (!status) return null;
         return {
@@ -127,9 +126,9 @@ const Application = () => {
       },
       cacheVideo: cacheYoutubeVideo,
       convertFileSrc,
-      showError: (msg) => antdMessage.error(msg),
+      showError: msg => antdMessage.error(msg),
     }),
-    [],
+    []
   );
 
   const editDatabaseDeps: UseEditDatabaseDeps = useMemo(
@@ -139,16 +138,13 @@ const Application = () => {
       updateDataTableView,
       createDataTableView,
       deleteDataTableView,
-      setActiveDataTableView: async (
-        tableId: number,
-        viewId: number | null,
-      ) => {
+      setActiveDataTableView: async (tableId: number, viewId: number | null) => {
         const result = await setActiveDataTableView(tableId, viewId);
         return result !== null;
       },
       reorderDataTableViews,
     }),
-    [],
+    []
   );
 
   const remoteVideoDeps: UseRemoteVideoDeps = useMemo(
@@ -157,7 +153,7 @@ const Application = () => {
         const result = await downloadRemoteVideoWithProgress(
           { url: options.url, fileName: options.fileName },
           onProgress
-            ? (progress) => {
+            ? progress => {
                 onProgress({
                   progress: progress.progress,
                   stage: progress.stage,
@@ -166,7 +162,7 @@ const Application = () => {
                   total: progress.total,
                 });
               }
-            : undefined,
+            : undefined
         );
         const localUrl = await convertFileSrc(result.localPath);
         return {
@@ -175,7 +171,7 @@ const Application = () => {
           cached: result.cached,
         };
       },
-      getCacheStatus: async (url) => {
+      getCacheStatus: async url => {
         const status = await getRemoteVideoCacheStatus(url);
         if (!status) return null;
         return {
@@ -184,11 +180,10 @@ const Application = () => {
           fileSize: status.fileSize,
         };
       },
-      showError: (msg) => antdMessage.error(msg),
-      isRemoteUrl: (url) =>
-        url.startsWith("http://") || url.startsWith("https://"),
+      showError: msg => antdMessage.error(msg),
+      isRemoteUrl: url => url.startsWith("http://") || url.startsWith("https://"),
     }),
-    [],
+    []
   );
 
   useEffect(() => {
@@ -209,11 +204,7 @@ const Application = () => {
   }, []);
 
   useEffect(() => {
-    const handleVideoNoteDeleted = ({
-      videoNoteId,
-    }: {
-      videoNoteId?: number;
-    }) => {
+    const handleVideoNoteDeleted = ({ videoNoteId }: { videoNoteId?: number }) => {
       if (!videoNoteId) {
         return;
       }
@@ -231,7 +222,7 @@ const Application = () => {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = onPythonRuntimeProgress((progress) => {
+    const unsubscribe = onPythonRuntimeProgress(progress => {
       if (progress.trigger !== "foreground") {
         return;
       }
@@ -240,8 +231,7 @@ const Application = () => {
         antdMessage.open({
           key: "python-runtime-progress",
           type: "loading",
-          content:
-            progress.message || `正在准备 Python 服务... ${progress.progress}%`,
+          content: progress.message || `正在准备 Python 服务... ${progress.progress}%`,
           duration: 0,
         });
         return;
@@ -458,50 +448,26 @@ const Application = () => {
             headerBg: "transparent",
           },
           Dropdown: {
-            colorBgElevated: isDark
-              ? "rgba(24, 24, 27, 0.92)"
-              : "rgba(248, 250, 255, 0.92)",
-            colorBorder: isDark
-              ? "rgba(255, 255, 255, 0.10)"
-              : "rgba(255, 255, 255, 0.45)",
-            colorSplit: isDark
-              ? "rgba(255, 255, 255, 0.10)"
-              : "rgba(255, 255, 255, 0.45)",
-            colorText: isDark
-              ? "rgba(244, 244, 245, 0.95)"
-              : "rgba(15, 23, 42, 0.95)",
-            colorTextDescription: isDark
-              ? "rgba(161, 161, 170, 0.7)"
-              : "rgba(100, 116, 139, 0.7)",
+            colorBgElevated: isDark ? "rgba(24, 24, 27, 0.92)" : "rgba(248, 250, 255, 0.92)",
+            colorBorder: isDark ? "rgba(255, 255, 255, 0.10)" : "rgba(255, 255, 255, 0.45)",
+            colorSplit: isDark ? "rgba(255, 255, 255, 0.10)" : "rgba(255, 255, 255, 0.45)",
+            colorText: isDark ? "rgba(244, 244, 245, 0.95)" : "rgba(15, 23, 42, 0.95)",
+            colorTextDescription: isDark ? "rgba(161, 161, 170, 0.7)" : "rgba(100, 116, 139, 0.7)",
             boxShadowSecondary: isDark
               ? "0 22px 60px rgba(0, 0, 0, 0.65)"
               : "0 18px 45px rgba(15, 23, 42, 0.25)",
-            controlItemBgHover: isDark
-              ? "rgba(255, 255, 255, 0.08)"
-              : "rgba(255, 255, 255, 0.6)",
-            controlItemBgActive: isDark
-              ? "rgba(255, 255, 255, 0.12)"
-              : "rgba(255, 255, 255, 0.6)",
+            controlItemBgHover: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(255, 255, 255, 0.6)",
+            controlItemBgActive: isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(255, 255, 255, 0.6)",
             controlItemBgActiveHover: isDark
               ? "rgba(255, 255, 255, 0.12)"
               : "rgba(255, 255, 255, 0.6)",
           },
           Popover: {
-            colorBgElevated: isDark
-              ? "rgba(24, 24, 27, 0.92)"
-              : "rgba(248, 250, 255, 0.92)",
-            colorText: isDark
-              ? "rgba(244, 244, 245, 0.95)"
-              : "rgba(15, 23, 42, 0.95)",
-            colorTextDescription: isDark
-              ? "rgba(161, 161, 170, 0.7)"
-              : "rgba(100, 116, 139, 0.7)",
-            colorTextHeading: isDark
-              ? "rgba(244, 244, 245, 0.95)"
-              : "rgba(15, 23, 42, 0.95)",
-            colorSplit: isDark
-              ? "rgba(255, 255, 255, 0.10)"
-              : "rgba(255, 255, 255, 0.45)",
+            colorBgElevated: isDark ? "rgba(24, 24, 27, 0.92)" : "rgba(248, 250, 255, 0.92)",
+            colorText: isDark ? "rgba(244, 244, 245, 0.95)" : "rgba(15, 23, 42, 0.95)",
+            colorTextDescription: isDark ? "rgba(161, 161, 170, 0.7)" : "rgba(100, 116, 139, 0.7)",
+            colorTextHeading: isDark ? "rgba(244, 244, 245, 0.95)" : "rgba(15, 23, 42, 0.95)",
+            colorSplit: isDark ? "rgba(255, 255, 255, 0.10)" : "rgba(255, 255, 255, 0.45)",
             boxShadowSecondary: isDark
               ? "0 22px 60px rgba(0, 0, 0, 0.65)"
               : "0 18px 45px rgba(15, 23, 42, 0.25)",
@@ -519,7 +485,11 @@ const Application = () => {
           <YoutubeVideoDepsProvider deps={youtubeDeps}>
             <RemoteVideoDepsProvider deps={remoteVideoDeps}>
               <EditDatabaseDepsProvider deps={editDatabaseDeps}>
-                <EditorServicesProvider services={editorServices}>
+                <EditorProvider
+                  registry={editorRegistry}
+                  config={editorConfig}
+                  extensions={editorExtensions}
+                >
                   <App
                     style={{
                       height: "100%",
@@ -528,19 +498,17 @@ const Application = () => {
                     }}
                   >
                     <AutoSyncManager />
+                    <MediaModalHost />
                     <ConversationFlashcardModal />
                     <ExtNoteInsertModal />
-                    <MCPManagerModal
-                      open={isMcpManagerOpen}
-                      onClose={closeMcpManagerModal}
-                    />
+                    <MCPManagerModal open={isMcpManagerOpen} onClose={closeMcpManagerModal} />
                     <DndProvider backend={HTML5Backend}>
                       <GlobalFindBar />
                       <JoinRequestNotifications />
                       <RouterProvider router={router} />
                     </DndProvider>
                   </App>
-                </EditorServicesProvider>
+                </EditorProvider>
               </EditDatabaseDepsProvider>
             </RemoteVideoDepsProvider>
           </YoutubeVideoDepsProvider>

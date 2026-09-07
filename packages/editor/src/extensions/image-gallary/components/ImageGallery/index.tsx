@@ -18,7 +18,7 @@ import useIsLastElement from "../../../../hooks/useIsLastElement";
 import EditorContextMenu from "../../../../components/EditorContextMenu";
 import type { ImageGalleryElement } from "../../../../types";
 import { EGalleryMode } from "../../../../constants";
-import useSettings from "../../../../hooks/useSettings";
+import { useEditorConfig } from "../../../../contexts/EditorConfig";
 import { buildImageGalleryMenuItems, imageGalleryActionsMap } from "../../utils/menuItems";
 
 import styles from "./index.module.less";
@@ -64,21 +64,9 @@ const ImageGallery = (props: IImageGalleryProps) => {
 
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
-  const settingsService = useSettings();
-  const [, setSettingVersion] = useState(0);
-  const effectiveBorderRadius =
-    borderRadius ?? settingsService.get("appearance.image.borderRadius") ?? "none";
-  const effectiveShadow = shadow ?? settingsService.get("appearance.image.shadow") ?? "none";
-
-  useEffect(() => {
-    if (!settingsService.subscribe) {
-      return;
-    }
-
-    return settingsService.subscribe(() => {
-      setSettingVersion(prev => prev + 1);
-    });
-  }, [settingsService]);
+  const config = useEditorConfig();
+  const effectiveBorderRadius = borderRadius ?? config?.appearance?.image?.borderRadius ?? "none";
+  const effectiveShadow = shadow ?? config?.appearance?.image?.shadow ?? "none";
 
   // 拖拽菜单
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
@@ -99,7 +87,7 @@ const ImageGallery = (props: IImageGalleryProps) => {
 
   // Get theme colors for the modal's confirm button
   const themeColors = useMemo<CustomModalThemeColors>(() => {
-    const editorThemeColors = editor.services?.theme?.colors?.();
+    const editorThemeColors = config?.theme.colors;
     if (editorThemeColors) {
       return {
         borderClass: editorThemeColors.borderClass,
@@ -118,7 +106,7 @@ const ImageGallery = (props: IImageGalleryProps) => {
       buttonBg: "bg-indigo-500 hover:bg-indigo-600",
       buttonTextClass: "text-white",
     };
-  }, [editor.services?.theme]);
+  }, [config]);
 
   const onCancel = () => {
     setSetting({

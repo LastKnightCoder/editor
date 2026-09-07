@@ -1,12 +1,7 @@
 import { memo, useMemo, useState, useEffect, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Dropdown, App } from "antd";
-import {
-  MoreOutlined,
-  EditOutlined,
-  SyncOutlined,
-  UploadOutlined,
-} from "@ant-design/icons";
+import { MoreOutlined, EditOutlined, SyncOutlined, UploadOutlined } from "@ant-design/icons";
 import If from "@/components/If";
 import ResizeCircle from "../ResizeCircle";
 import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
@@ -19,13 +14,7 @@ import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 
 import { Board, EHandlerPosition, Point, WebviewElement } from "../../types";
 import { PointUtil } from "../../utils";
-import {
-  useBoard,
-  useSelectState,
-  useDropArrow,
-  useSelection,
-  useBoardState,
-} from "../../hooks";
+import { useBoard, useSelectState, useDropArrow, useSelection, useBoardState } from "../../hooks";
 import {
   SELECT_RECT_STROKE,
   SELECT_RECT_STROKE_WIDTH,
@@ -49,14 +38,14 @@ interface WebviewElementProps {
     startPoint: Point,
     endPoint: Point,
     isPreserveRatio?: boolean,
-    isAdsorb?: boolean,
+    isAdsorb?: boolean
   ) => void;
   onResizeEnd?: (
     board: Board,
     element: WebviewElement,
     position: EHandlerPosition,
     startPoint: Point,
-    endPoint: Point,
+    endPoint: Point
   ) => void;
 }
 
@@ -81,12 +70,8 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
   const selection = useSelection();
   const isSelecting = Boolean(selection && selection.selectArea);
 
-  const {
-    isMoveArrowClosing,
-    activeConnectId,
-    arrowConnectPoints,
-    arrowConnectExtendPoints,
-  } = useDropArrow(element);
+  const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } =
+    useDropArrow(element);
 
   const [resizePoints] = useMemo(() => {
     const resizePoints = PointUtil.getResizePointFromRect({
@@ -110,32 +95,22 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
       startPoint: Point,
       endPoint: Point,
       isPreserveRatio?: boolean,
-      isAdsorb?: boolean,
+      isAdsorb?: boolean
     ) => {
-      onResize(
-        board,
-        element,
-        position,
-        startPoint,
-        endPoint,
-        isPreserveRatio,
-        isAdsorb,
-      );
-    },
+      onResize(board, element, position, startPoint, endPoint, isPreserveRatio, isAdsorb);
+    }
   );
 
   const handleOnResizeEnd = useMemoizedFn(
     (position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
       setIsResizing(false);
       onResizeEnd?.(board, element, position, startPoint, endPoint);
-    },
+    }
   );
 
-  const handleUrlChange = useMemoizedFn(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setTempUrl(e.target.value);
-    },
-  );
+  const handleUrlChange = useMemoizedFn((e: React.ChangeEvent<HTMLInputElement>) => {
+    setTempUrl(e.target.value);
+  });
 
   const handleUrlBlur = useMemoizedFn(() => {
     setIsEditingUrl(false);
@@ -158,7 +133,7 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
         setTempUrl(url);
         return;
       }
-      const path = board.children.findIndex((item) => item.id === id);
+      const path = board.children.findIndex(item => item.id === id);
       if (path !== -1) {
         board.apply({
           type: "set_node",
@@ -199,7 +174,7 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
         message.error("上传 HTML 文件失败");
         return;
       }
-      const path = board.children.findIndex((item) => item.id === id);
+      const path = board.children.findIndex(item => item.id === id);
       if (path !== -1) {
         board.apply({
           type: "set_node",
@@ -261,15 +236,12 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
             style={{
               width: "100%",
               height: "100%",
-              pointerEvents:
-                isMoving || isSelecting || isResizing || isSelected
-                  ? "none"
-                  : "auto",
+              pointerEvents: isMoving || isSelecting || isResizing || isSelected ? "none" : "auto",
             }}
             convertFileSrc={convertFileSrc}
             getHomeDir={getHomeDir}
             remoteResourceToLocal={remoteResourceToLocal}
-            useGithubCdnUrl={useGithubCdnUrl}
+            cdnUrlResolver={useGithubCdnUrl}
           />
         </div>
 
@@ -368,7 +340,7 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
         disabled={isMoveArrowClosing}
       />
       <If condition={isMoveArrowClosing}>
-        {arrowConnectPoints.map((point) => (
+        {arrowConnectPoints.map(point => (
           <ArrowDropConnectPoint
             key={point.connectId}
             cx={point.point.x}

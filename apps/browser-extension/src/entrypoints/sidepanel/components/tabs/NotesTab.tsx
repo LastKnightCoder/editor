@@ -14,14 +14,20 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { App } from "antd";
-import { Editor, EditorServicesProvider } from "@tau/editor/src";
+import { Editor, EditorProvider, createMarkdownPasteImportExtension } from "@tau/editor/src";
+import WebviewExtension from "@tau/editor-webview";
 import { SelectDropDown, EditText } from "@tau/shared";
 import type { EditTextHandle } from "@tau/shared";
 import type { Descendant } from "slate";
 import type WebSocketClient from "../../../../utils/WebSocketClient";
 import type { ResolvedTheme } from "../../../../utils/types";
 import type { PendingNoteSelection } from "../MainLayout";
-import { createExtensionEditorServices } from "../../../../services/editorServices";
+import {
+  createExtensionEditorRegistry,
+  createExtensionEditorConfig,
+  extensionImportFromMarkdown,
+} from "../../../../services/editorRegistry";
+
 import { useAiServerWebSocket } from "../../../../hooks/useAiServerWebSocket";
 import { useNotes } from "../../../../hooks/useNotes";
 import { resolveRemoteSyncRequirement } from "./sharedContentSync";
@@ -75,12 +81,7 @@ interface SyncHintState {
   spinning?: boolean;
 }
 
-export default function NotesTab({
-  wsClient,
-  resolvedTheme,
-  url,
-  pendingNoteRef,
-}: NotesTabProps) {
+export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef }: NotesTabProps) {
   // 连接 aiServer，用于 settings/content/card/article 等 RPC 调用
   const { client: aiWsClient, status: aiWsStatus } = useAiServerWebSocket();
   const { message: antdMessage, modal } = App.useApp();
@@ -132,29 +133,33 @@ export default function NotesTab({
     ) {
       const pending = pendingNoteRef.current;
       pendingNoteRef.current = null;
-      const noteExists = notes.some((n) => n.id === pending.noteId);
+      const noteExists = notes.some(n => n.id === pending.noteId);
       if (noteExists && pending.noteId !== activeNoteId) {
         selectNote(pending.noteId);
       }
     }
   }, [isLoading, url, notes, activeNoteId, selectNote, pendingNoteRef]);
 
-  const editorServices = useMemo(
+  const editorRegistry = useMemo(
     () =>
-      createExtensionEditorServices({
+      createExtensionEditorRegistry({
         wsClient,
-        resolvedTheme,
       }),
-    [wsClient, resolvedTheme],
+    [wsClient]
+  );
+  const editorConfig = useMemo(() => createExtensionEditorConfig(resolvedTheme), [resolvedTheme]);
+  const editorExtensions = useMemo(
+    () => [createMarkdownPasteImportExtension(extensionImportFromMarkdown), new WebviewExtension()],
+    []
   );
 
   const activeNote = useMemo(
-    () => notes.find((note) => note.id === activeNoteId),
-    [notes, activeNoteId],
+    () => notes.find(note => note.id === activeNoteId),
+    [notes, activeNoteId]
   );
   const activeNoteContentIdMapKey = useMemo(
     () => JSON.stringify(activeNote?.contentIdMap ?? {}),
-    [activeNote?.contentIdMap],
+    [activeNote?.contentIdMap]
   );
   const editorKey = `${activeNoteId ?? "empty"}-${editorSyncVersion}`;
 
@@ -166,11 +171,7 @@ export default function NotesTab({
   });
 
   const showSyncHint = useMemoizedFn(
-    (
-      text: string,
-      tone: SyncHintTone,
-      options?: { spinning?: boolean; durationMs?: number },
-    ) => {
+    (text: string, tone: SyncHintTone, options?: { spinning?: boolean; durationMs?: number }) => {
       clearSyncHintTimer();
       setSyncHint({
         text,
@@ -180,11 +181,11 @@ export default function NotesTab({
       const durationMs = options?.durationMs ?? 2600;
       if (durationMs > 0) {
         syncHintTimerRef.current = setTimeout(() => {
-          setSyncHint((current) => (current?.text === text ? null : current));
+          setSyncHint(current => (current?.text === text ? null : current));
           syncHintTimerRef.current = null;
         }, durationMs);
       }
-    },
+    }
   );
 
   useEffect(() => {
@@ -196,17 +197,16 @@ export default function NotesTab({
     () => () => {
       clearSyncHintTimer();
     },
-    [clearSyncHintTimer],
+    [clearSyncHintTimer]
   );
 
   // 获取当前数据库名（打开 More 菜单时刷新）
   const fetchCurrentDbName = useMemoizedFn(async () => {
     if (!aiWsClient) return null;
     try {
-      const result = (await aiWsClient.sendRequest(
-        "settings.getCurrentDatabase",
-        {},
-      )) as { dbName: string };
+      const result = (await aiWsClient.sendRequest("settings.getCurrentDatabase", {})) as {
+        dbName: string;
+      };
       return result.dbName;
     } catch (error) {
       console.error("获取当前数据库失败:", error);
@@ -214,15 +214,13 @@ export default function NotesTab({
     }
   });
 
-  const updateRemoteContentSubscription = useMemoizedFn(
-    async (contentIds: number[]) => {
-      if (!aiWsClient?.isConnected) return;
-      await aiWsClient.sendRequest("content.subscription.set", {
-        subscriberId: contentSubscriberIdRef.current,
-        contentIds,
-      });
-    },
-  );
+  const updateRemoteContentSubscription = useMemoizedFn(async (contentIds: number[]) => {
+    if (!aiWsClient?.isConnected) return;
+    await aiWsClient.sendRequest("content.subscription.set", {
+      subscriberId: contentSubscriberIdRef.current,
+      contentIds,
+    });
+  });
 
   const fetchSharedContent = useMemoizedFn(
     async (contentId: number): Promise<SharedContentRecord | null> => {
@@ -233,12 +231,12 @@ export default function NotesTab({
         content: SharedContentRecord | null;
       };
       return result.content;
-    },
+    }
   );
 
   const confirmSyncFromApp = useMemoizedFn(
     (content: string): Promise<boolean> =>
-      new Promise((resolve) => {
+      new Promise(resolve => {
         modal.confirm({
           title: "同步应用中的最新内容",
           content,
@@ -247,23 +245,19 @@ export default function NotesTab({
           onOk: () => resolve(true),
           onCancel: () => resolve(false),
         });
-      }),
+      })
   );
 
   const applyRemoteContentToNote = useMemoizedFn(
-    async (payload: {
-      dbName: string;
-      contentId: number;
-      remote: SharedContentRecord;
-    }) => {
+    async (payload: { dbName: string; contentId: number; remote: SharedContentRecord }) => {
       await replaceActiveNoteContent(payload.remote.content, {
         dbName: payload.dbName,
         contentId: payload.contentId,
         syncedContentUpdateTime: payload.remote.updateTime,
         contentUpdatedAt: payload.remote.updateTime,
       });
-      setEditorSyncVersion((version) => version + 1);
-    },
+      setEditorSyncVersion(version => version + 1);
+    }
   );
 
   /**
@@ -275,8 +269,7 @@ export default function NotesTab({
       if (!aiWsClient || !activeNoteId || !content) return null;
 
       const existingId = getContentId(dbName);
-      const localContentUpdatedAt =
-        activeNote?.contentUpdatedAt ?? activeNote?.updatedAt ?? 0;
+      const localContentUpdatedAt = activeNote?.contentUpdatedAt ?? activeNote?.updatedAt ?? 0;
       const lastSyncedContentUpdateTime = getSyncedContentUpdateTime(dbName);
 
       try {
@@ -286,8 +279,7 @@ export default function NotesTab({
             throw new Error("共享内容不存在，可能已被删除");
           }
 
-          const contentMatchesRemote =
-            JSON.stringify(content) === JSON.stringify(remote.content);
+          const contentMatchesRemote = JSON.stringify(content) === JSON.stringify(remote.content);
           if (contentMatchesRemote) {
             await replaceActiveNoteContent(content, {
               dbName,
@@ -316,7 +308,7 @@ export default function NotesTab({
 
           if (syncRequirement === "confirm-sync") {
             const confirmed = await confirmSyncFromApp(
-              "应用中的共享内容已经更新。继续会覆盖应用里的卡片/文章内容，建议先同步回来。",
+              "应用中的共享内容已经更新。继续会覆盖应用里的卡片/文章内容，建议先同步回来。"
             );
             if (!confirmed) {
               throw new Error("SYNC_CANCELLED");
@@ -369,7 +361,7 @@ export default function NotesTab({
         console.error("确保 contentId 失败:", error);
         throw error;
       }
-    },
+    }
   );
 
   const syncContentFromApp = useMemoizedFn(async (): Promise<boolean> => {
@@ -390,8 +382,7 @@ export default function NotesTab({
       throw new Error("共享内容不存在，可能已被删除");
     }
 
-    const contentMatchesRemote =
-      JSON.stringify(content) === JSON.stringify(remote.content);
+    const contentMatchesRemote = JSON.stringify(content) === JSON.stringify(remote.content);
     const lastSyncedContentUpdateTime = getSyncedContentUpdateTime(dbName);
     const localHasPendingEdits =
       !contentMatchesRemote &&
@@ -400,7 +391,7 @@ export default function NotesTab({
 
     if (localHasPendingEdits) {
       const confirmed = await confirmSyncFromApp(
-        "当前插件笔记也有未同步修改。同步后会用应用中的内容覆盖当前笔记。",
+        "当前插件笔记也有未同步修改。同步后会用应用中的内容覆盖当前笔记。"
       );
       if (!confirmed) {
         throw new Error("SYNC_CANCELLED");
@@ -436,13 +427,9 @@ export default function NotesTab({
       const remote = await fetchSharedContent(payload.contentId);
       if (!remote) return;
 
-      const contentMatchesRemote =
-        JSON.stringify(content) === JSON.stringify(remote.content);
-      const lastSyncedContentUpdateTime = getSyncedContentUpdateTime(
-        target.dbName,
-      );
-      const localContentUpdatedAt =
-        activeNote?.contentUpdatedAt ?? activeNote?.updatedAt ?? 0;
+      const contentMatchesRemote = JSON.stringify(content) === JSON.stringify(remote.content);
+      const lastSyncedContentUpdateTime = getSyncedContentUpdateTime(target.dbName);
+      const localContentUpdatedAt = activeNote?.contentUpdatedAt ?? activeNote?.updatedAt ?? 0;
 
       if (contentMatchesRemote) {
         await replaceActiveNoteContent(content, {
@@ -481,7 +468,7 @@ export default function NotesTab({
         durationMs: 5000,
       });
       const confirmed = await confirmSyncFromApp(
-        "应用中的共享内容刚刚更新。当前笔记也有未同步修改，是否用应用中的最新内容覆盖本地笔记？",
+        "应用中的共享内容刚刚更新。当前笔记也有未同步修改，是否用应用中的最新内容覆盖本地笔记？"
       );
       if (!confirmed) {
         showSyncHint("已保留本地修改", "warning");
@@ -499,7 +486,7 @@ export default function NotesTab({
       });
       showSyncHint("已同步应用中的最新内容", "success");
       antdMessage.info("已同步应用中的最新内容");
-    },
+    }
   );
 
   useEffect(() => {
@@ -534,7 +521,7 @@ export default function NotesTab({
       cancelled = true;
       currentSyncTargetRef.current = { dbName: null, contentId: null };
       if (aiWsClient?.isConnected) {
-        void updateRemoteContentSubscription([]).catch((error) => {
+        void updateRemoteContentSubscription([]).catch(error => {
           console.error("清理远端内容订阅失败:", error);
         });
       }
@@ -569,16 +556,10 @@ export default function NotesTab({
       })();
     };
 
-    aiWsClient.registerNotificationHandler(
-      "content.remoteUpdated",
-      handleNotification,
-    );
+    aiWsClient.registerNotificationHandler("content.remoteUpdated", handleNotification);
 
     return () => {
-      aiWsClient.unregisterNotificationHandler(
-        "content.remoteUpdated",
-        handleNotification,
-      );
+      aiWsClient.unregisterNotificationHandler("content.remoteUpdated", handleNotification);
     };
   }, [aiWsClient, handleRemoteContentUpdated]);
 
@@ -599,9 +580,7 @@ export default function NotesTab({
         contentId: ensured.contentId,
       });
       antdMessage.success(
-        ensured.mode === "synced-from-app"
-          ? "已同步应用内容并刷新卡片"
-          : "卡片创建成功",
+        ensured.mode === "synced-from-app" ? "已同步应用内容并刷新卡片" : "卡片创建成功"
       );
     } catch (error) {
       if ((error as Error)?.message === "SYNC_CANCELLED") return;
@@ -630,9 +609,7 @@ export default function NotesTab({
         title: activeNote?.title || "",
       });
       antdMessage.success(
-        ensured.mode === "synced-from-app"
-          ? "已同步应用内容并刷新文章"
-          : "文章创建成功",
+        ensured.mode === "synced-from-app" ? "已同步应用内容并刷新文章" : "文章创建成功"
       );
     } catch (error) {
       if ((error as Error)?.message === "SYNC_CANCELLED") return;
@@ -708,9 +685,7 @@ export default function NotesTab({
       const ensured = await ensureContentId(dbName);
       if (!ensured?.contentId) throw new Error("内容更新失败");
       antdMessage.success(
-        ensured.mode === "synced-from-app"
-          ? "已从应用同步最新内容"
-          : "内容更新成功",
+        ensured.mode === "synced-from-app" ? "已从应用同步最新内容" : "内容更新成功"
       );
     } catch (error) {
       if ((error as Error)?.message === "SYNC_CANCELLED") return;
@@ -732,13 +707,8 @@ export default function NotesTab({
         durationMs: 0,
       });
       const changed = await syncContentFromApp();
-      showSyncHint(
-        changed ? "已从应用同步最新内容" : "已与应用保持同步",
-        "success",
-      );
-      antdMessage.success(
-        changed ? "已从应用同步最新内容" : "已与应用内容保持同步",
-      );
+      showSyncHint(changed ? "已从应用同步最新内容" : "已与应用保持同步", "success");
+      antdMessage.success(changed ? "已从应用同步最新内容" : "已与应用内容保持同步");
     } catch (error) {
       if ((error as Error)?.message === "SYNC_CANCELLED") {
         showSyncHint("已保留本地修改", "warning");
@@ -790,7 +760,7 @@ export default function NotesTab({
               icon: <CreditCard size={14} />,
               label: "创建卡片",
               onClick: handleBuildCard,
-            },
+            }
       );
       // 文章项：已关联显示"更新内容"，未关联显示"创建文章"
       items.push(
@@ -806,7 +776,7 @@ export default function NotesTab({
               icon: <FileText size={14} />,
               label: "创建文章",
               onClick: handleBuildArticle,
-            },
+            }
       );
     }
 
@@ -823,7 +793,7 @@ export default function NotesTab({
         icon: <BookOpen size={14} />,
         label: "插入到知识库",
         onClick: handleInsertToDocument,
-      },
+      }
     );
 
     return items;
@@ -869,7 +839,7 @@ export default function NotesTab({
         setHasSharedContent(false);
       }
     }
-    setShowMoreMenu((prev) => !prev);
+    setShowMoreMenu(prev => !prev);
   });
 
   // 构建笔记选择器下拉菜单项
@@ -886,7 +856,7 @@ export default function NotesTab({
     // 笔记列表（按更新时间倒序）
     const sortedNotes = [...notes].sort((a, b) => b.updatedAt - a.updatedAt);
 
-    sortedNotes.forEach((note) => {
+    sortedNotes.forEach(note => {
       items.push({
         key: `note-${note.id}`,
         type: "note",
@@ -908,20 +878,18 @@ export default function NotesTab({
     setShowDropdown(false);
   });
 
-  const handleDeleteClick = useMemoizedFn(
-    (e: React.MouseEvent, noteId: string) => {
-      e.stopPropagation();
+  const handleDeleteClick = useMemoizedFn((e: React.MouseEvent, noteId: string) => {
+    e.stopPropagation();
 
-      modal.confirm({
-        title: "删除笔记",
-        content: "确定删除这个笔记吗？",
-        okText: "删除",
-        cancelText: "取消",
-        okButtonProps: { danger: true },
-        onOk: () => deleteNote(noteId),
-      });
-    },
-  );
+    modal.confirm({
+      title: "删除笔记",
+      content: "确定删除这个笔记吗？",
+      okText: "删除",
+      cancelText: "取消",
+      okButtonProps: { danger: true },
+      onOk: () => deleteNote(noteId),
+    });
+  });
 
   const renderMenuItem = useMemoizedFn((item: NoteMenuItem) => {
     if (item.type === "new") {
@@ -942,7 +910,7 @@ export default function NotesTab({
         </span>
         {item.noteId && (
           <button
-            onClick={(e) => handleDeleteClick(e, item.noteId!)}
+            onClick={e => handleDeleteClick(e, item.noteId!)}
             className="shrink-0 rounded p-1 text-red-500 opacity-0 transition-opacity hover:bg-red-50 group-hover:opacity-100 dark:text-red-400 dark:hover:bg-red-900/20"
             title="删除笔记"
           >
@@ -979,9 +947,7 @@ export default function NotesTab({
   if (!url) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-        <p className="text-center text-sm text-gray-400 dark:text-[#484f58]">
-          等待页面加载...
-        </p>
+        <p className="text-center text-sm text-gray-400 dark:text-[#484f58]">等待页面加载...</p>
       </div>
     );
   }
@@ -989,9 +955,7 @@ export default function NotesTab({
   if (isLoading) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-        <p className="text-center text-sm text-gray-400 dark:text-[#484f58]">
-          加载中...
-        </p>
+        <p className="text-center text-sm text-gray-400 dark:text-[#484f58]">加载中...</p>
       </div>
     );
   }
@@ -1000,10 +964,7 @@ export default function NotesTab({
   if (notes.length === 0 || !activeNote || !content) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-        <StickyNote
-          size={48}
-          className="mb-4 text-gray-300 dark:text-[#484f58]"
-        />
+        <StickyNote size={48} className="mb-4 text-gray-300 dark:text-[#484f58]" />
         <p className="mb-6 text-center text-sm text-gray-400 dark:text-[#484f58]">
           还没有笔记，开始记录吧
         </p>
@@ -1059,9 +1020,7 @@ export default function NotesTab({
             <span
               className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] ${syncHintClassName}`}
             >
-              {syncHint.spinning ? (
-                <RefreshCw className="h-3 w-3 animate-spin" />
-              ) : null}
+              {syncHint.spinning ? <RefreshCw className="h-3 w-3 animate-spin" /> : null}
               <span>{syncHint.text}</span>
             </span>
           ) : null}
@@ -1069,7 +1028,7 @@ export default function NotesTab({
           {/* More 按钮 */}
           <button
             ref={moreButtonRef}
-            className="flex shrink-0 cursor-pointer items-center justify-center rounded p-1 transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700 border-none bg-transparent"
+            className="flex shrink-0 cursor-pointer items-center justify-center rounded border-none bg-transparent p-1 transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700"
             onClick={handleToggleMoreMenu}
             disabled={actionLoading}
           >
@@ -1096,7 +1055,11 @@ export default function NotesTab({
 
       {/* 编辑器区域 */}
       <div className="tau-scrollbar flex-1 overflow-y-auto">
-        <EditorServicesProvider services={editorServices}>
+        <EditorProvider
+          registry={editorRegistry}
+          config={editorConfig}
+          extensions={editorExtensions}
+        >
           <Editor
             key={editorKey}
             initValue={content}
@@ -1110,7 +1073,7 @@ export default function NotesTab({
               fontSize: "16px",
             }}
           />
-        </EditorServicesProvider>
+        </EditorProvider>
       </div>
     </div>
   );

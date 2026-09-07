@@ -1,10 +1,8 @@
 import { useRef, useEffect } from "react";
 import useTheme from "../../../../hooks/useTheme";
-import {
-  compileAndExecuteCustomBlock,
-  rerenderCustomBlockTheme,
-} from "../../utils/renderTemplate";
+import { compileAndExecuteCustomBlock, rerenderCustomBlockTheme } from "../../utils/renderTemplate";
 import { useSlateStatic } from "slate-react";
+import { ICompilerService } from "../../../../services";
 
 interface TemplatePreviewProps {
   content: string;
@@ -14,7 +12,7 @@ const TemplatePreview = ({ content }: TemplatePreviewProps) => {
   const ref = useRef<HTMLDivElement>(null);
   const { isDark } = useTheme();
   const editor = useSlateStatic();
-  const compilerService = editor.services?.compiler;
+  const compilerService = editor.tryGetService(ICompilerService);
   const latestThemeRef = useRef(isDark);
   latestThemeRef.current = isDark;
   useEffect(() => {
@@ -32,9 +30,9 @@ const TemplatePreview = ({ content }: TemplatePreviewProps) => {
       {
         tailwindRuntime: compilerService?.tailwindRuntime,
       },
-      abortController.signal,
+      abortController.signal
     )
-      .then((cleanupFn) => {
+      .then(cleanupFn => {
         if (!cleanupFn) return;
         if (disposed) {
           cleanupFn();
@@ -42,7 +40,7 @@ const TemplatePreview = ({ content }: TemplatePreviewProps) => {
         }
         cleanup = cleanupFn;
       })
-      .catch((error) => {
+      .catch(error => {
         console.error("Template preview error:", error);
         if (ref.current) {
           ref.current.innerHTML = `<div class="flex items-center justify-center h-full text-xs text-gray-400 p-2">预览加载失败</div>`;
@@ -65,7 +63,7 @@ const TemplatePreview = ({ content }: TemplatePreviewProps) => {
   return (
     <div
       ref={ref}
-      className="w-full h-full p-2 overflow-hidden"
+      className="h-full w-full overflow-hidden p-2"
       style={{
         transform: "scale(0.8)",
         transformOrigin: "top left",

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, PropsWithChildren } from "react";
+import React, { useCallback, useEffect, useRef, useState, PropsWithChildren } from "react";
 import classnames from "classnames";
 
 import styles from "./index.module.less";
@@ -23,9 +23,7 @@ interface IWidthResizableProps {
   handleOffset?: number; // 拖拽条偏移量（像素），正值向外偏移
 }
 
-const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (
-  props,
-) => {
+const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = props => {
   const {
     defaultWidth,
     minWidth,
@@ -37,10 +35,9 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (
     disableResize = false,
     handleOffset = 0,
   } = props;
-  const containerRef = React.useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const themeColors = useThemeColors();
-  const handleHighlightColor =
-    themeColors.accentSoftBg || "rgba(170, 198, 255, 0.4)";
+  const handleHighlightColor = themeColors.accentSoftBg || "rgba(170, 198, 255, 0.4)";
 
   const [width, setWidth] = useState<number>(() => {
     if (minWidth && defaultWidth < minWidth) return minWidth;
@@ -48,13 +45,10 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (
     return defaultWidth;
   });
   const [isResizing, setIsResizing] = useState<boolean>(false);
-  const [showHandleHighlight, setShowHandleHighlight] =
-    useState<boolean>(false);
-  const hoverTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
+  const [showHandleHighlight, setShowHandleHighlight] = useState<boolean>(false);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const resetHoverState = React.useCallback(() => {
+  const resetHoverState = useCallback(() => {
     if (hoverTimerRef.current) {
       window.clearTimeout(hoverTimerRef.current);
       hoverTimerRef.current = null;
@@ -96,7 +90,7 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (
         if (onResize) onResize(newWidth);
       }
     },
-    { wait: 10 },
+    { wait: 10 }
   );
 
   const handleMouseUp = () => {
@@ -159,22 +153,16 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (
           className={classnames(styles.resizeBar, {
             [styles.left]: side === "left",
           })}
-          style={
-            handleOffset
-              ? { [side === "left" ? "left" : "right"]: -handleOffset }
-              : undefined
-          }
+          style={handleOffset ? { [side === "left" ? "left" : "right"]: -handleOffset } : undefined}
         >
           <div
             className={classnames(
               "pointer-events-none h-full w-[4px] rounded-sm transition-colors duration-300 ease-in-out",
-              side === "left" ? "mr-auto ml-0" : "ml-auto mr-0",
+              side === "left" ? "ml-0 mr-auto" : "ml-auto mr-0"
             )}
             style={{
               backgroundColor:
-                showHandleHighlight || isResizing
-                  ? handleHighlightColor
-                  : "transparent",
+                showHandleHighlight || isResizing ? handleHighlightColor : "transparent",
             }}
           />
         </div>

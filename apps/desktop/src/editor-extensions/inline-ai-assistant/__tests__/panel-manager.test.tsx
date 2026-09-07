@@ -8,38 +8,28 @@ import {
   toggleInlineAIComposer,
 } from "../panel-manager";
 
-(
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-vi.mock("@/services/editorServices", () => ({
-  createEditorServices: vi.fn(() => ({
-    theme: {
-      getCurrentTheme: () => "light",
-      subscribe: () => () => undefined,
-    },
-    settings: {
-      get: () => ({}),
-      subscribe: () => () => undefined,
-    },
-  })),
-}));
+vi.mock("@/services/editorRegistry", async () => {
+  const { createServiceRegistry } = await import("@tau/editor/src");
+
+  return {
+    createEditorRegistry: vi.fn(() => createServiceRegistry(() => {})),
+  };
+});
 
 vi.mock("../components/InlineAIComposerPanel", async () => {
   const { App } = await import("antd");
   const { useDragDropManager } = await import("react-dnd");
-  const { useEditorServices } =
-    await import("@tau/editor/src/contexts/EditorServicesContext");
+  const { useServiceRegistry } = await import("@tau/editor/src");
 
   const MockInlineAIComposerPanel = () => {
-    const services = useEditorServices();
+    const registry = useServiceRegistry();
     const app = App.useApp();
     const dragDropManager = useDragDropManager();
     return (
       <div data-testid="inline-ai-composer-panel">
-        {services && app?.message && dragDropManager
-          ? "Ask AI 输入框"
-          : "缺少服务"}
+        {registry && app?.message && dragDropManager ? "Ask AI 输入框" : "缺少服务"}
       </div>
     );
   };
@@ -57,7 +47,7 @@ describe("inline-ai-assistant/panel-manager", () => {
     document.getElementById("inline-ai-composer-root")?.remove();
   });
 
-  it("openInlineAIComposer 应为独立 root 面板补齐 EditorServicesProvider", async () => {
+  it("openInlineAIComposer 应为独立 root 面板补齐 EditorProvider", async () => {
     await act(async () => {
       openInlineAIComposer({} as never, "hovering");
     });

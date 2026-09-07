@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import classNames from "classnames";
 import dayjs from "dayjs";
 import { App as AntApp } from "antd";
@@ -43,9 +43,9 @@ const HomePage: React.FC = () => {
   const { modal } = AntApp.useApp();
   const { tab: homeTab, paneId: homePaneId } = useTabContext();
   const isActiveTab = useTabStore(
-    (s) => s.panes.find((p) => p.id === homePaneId)?.activeTabId === homeTab.id,
+    s => s.panes.find(p => p.id === homePaneId)?.activeTabId === homeTab.id
   );
-  const isFirstActivation = React.useRef(true);
+  const isFirstActivation = useRef(true);
   const {
     data,
     refresh,
@@ -102,7 +102,7 @@ const HomePage: React.FC = () => {
   };
 
   // 切回首页 Tab 时刷新 RSS 未读列表，反映在 Feed Tab 中标记的已读状态
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isActiveTab) return;
     if (isFirstActivation.current) {
       isFirstActivation.current = false;
@@ -112,16 +112,13 @@ const HomePage: React.FC = () => {
   }, [isActiveTab, refreshRss]);
 
   return (
-    <div className="w-full h-full overflow-auto">
-      <div className="min-h-full max-w-[1200px] mx-auto px-8 py-10">
+    <div className="h-full w-full overflow-auto">
+      <div className="mx-auto min-h-full max-w-[1200px] px-8 py-10">
         {/* Loading State */}
         {data.loading && (
           <div className="flex min-h-[calc(100vh-80px)] items-center justify-center">
             <Loader2
-              className={classNames(
-                "w-8 h-8 animate-spin",
-                themeColors.secondaryTextClass,
-              )}
+              className={classNames("h-8 w-8 animate-spin", themeColors.secondaryTextClass)}
             />
           </div>
         )}
@@ -134,9 +131,7 @@ const HomePage: React.FC = () => {
               className="px-1"
               data={data.activityHeatmap}
               year={dayjs().format("YYYY")}
-              renderTooltip={(date, value) =>
-                `${date}: ${value?.count ?? 0} 次操作`
-              }
+              renderTooltip={(date, value) => `${date}: ${value?.count ?? 0} 次操作`}
             />
 
             {/* 左右分栏：主栏（动态流）+ 侧栏（工作台） */}
@@ -166,10 +161,7 @@ const HomePage: React.FC = () => {
 
               {/* 侧栏：操作型工作台（常驻堆叠，窄屏降级为 2 列网格） */}
               <aside className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:flex lg:flex-col">
-                <QuestionPanel
-                  items={data.questionItems}
-                  groups={data.questionGroups}
-                />
+                <QuestionPanel items={data.questionItems} groups={data.questionGroups} />
                 <RssPanel
                   items={data.rssItems}
                   feeds={data.rssFeeds}
