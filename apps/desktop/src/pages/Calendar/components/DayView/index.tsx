@@ -1,17 +1,9 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import useCalendarStore from "@/stores/useCalendarStore";
-import {
-  useCalendarEvents,
-  useAllDayEvents,
-  useTimedEvents,
-} from "@/hooks/useCalendarEvents";
+import { useCalendarEvents, useAllDayEvents, useTimedEvents } from "@/hooks/useCalendarEvents";
 import { useEventOverlap } from "@/hooks/useEventOverlap";
 import { useTimeSlotDrag } from "@/hooks/useTimeSlotDrag";
-import {
-  formatTime,
-  getEventGridPosition,
-  getDateStart,
-} from "@/utils/calendar";
+import { formatTime, getEventGridPosition, getDateStart } from "@/utils/calendar";
 import { getProjectColorValue } from "@/constants/project-colors";
 import useSettingStore from "@/stores/useSettingStore";
 import { CalendarEvent } from "@/types";
@@ -29,17 +21,14 @@ interface PendingTimeEvent {
 }
 
 const DayView = () => {
-  const { currentDate, calendars, setEditingEvent, editingEvent } =
-    useCalendarStore();
+  const { currentDate, calendars, setEditingEvent, editingEvent } = useCalendarStore();
   const { events } = useCalendarEvents();
-  const setting = useSettingStore((state) => state.setting);
+  const setting = useSettingStore(state => state.setting);
   const themeColors = useThemeColors();
   const theme = setting.darkMode ? "dark" : "light";
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [pendingEvent, setPendingEvent] = useState<PendingTimeEvent | null>(
-    null,
-  );
+  const [pendingEvent, setPendingEvent] = useState<PendingTimeEvent | null>(null);
   const [currentTimeMinutes, setCurrentTimeMinutes] = useState(() => {
     const now = new Date();
     return now.getHours() * 60 + now.getMinutes();
@@ -71,10 +60,7 @@ const DayView = () => {
       const scrollPosition = (currentTimeMinutes / 15) * CELL_HEIGHT;
       // 减去一些偏移量，让当前时间显示在视口中间靠上的位置
       const offset = scrollContainerRef.current.clientHeight / 3;
-      scrollContainerRef.current.scrollTop = Math.max(
-        0,
-        scrollPosition - offset,
-      );
+      scrollContainerRef.current.scrollTop = Math.max(0, scrollPosition - offset);
     }
   }, [currentDate]); // 当日期变化时触发滚动
 
@@ -82,7 +68,7 @@ const DayView = () => {
   const dayStart = getDateStart(currentDate);
   const dayEvents = useMemo(() => {
     if (!events) return [];
-    return events.filter((event) => {
+    return events.filter(event => {
       const eventStart = getDateStart(event.startDate);
       const eventEnd = event.endDate ? getDateStart(event.endDate) : eventStart;
       return dayStart >= eventStart && dayStart <= eventEnd;
@@ -104,11 +90,9 @@ const DayView = () => {
     setPendingEvent({ startMinutes, endMinutes });
 
     // 优先选择第一个非系统日历
-    const nonSystemCalendars = calendars.filter((c) => !c.isInSystemGroup);
+    const nonSystemCalendars = calendars.filter(c => !c.isInSystemGroup);
     const defaultCalendarId =
-      nonSystemCalendars.length > 0
-        ? nonSystemCalendars[0].id
-        : calendars[0].id;
+      nonSystemCalendars.length > 0 ? nonSystemCalendars[0].id : calendars[0].id;
 
     // 同时打开编辑对话框
     const newEvent: CalendarEvent = {
@@ -150,34 +134,28 @@ const DayView = () => {
           className={classNames(
             "border-b p-2 transition-colors",
             themeColors.borderClass,
-            themeColors.cardBgClass,
+            themeColors.cardBgClass
           )}
         >
           <div
-            className={classNames(
-              "text-xs font-medium transition-colors",
-              themeColors.textClass,
-            )}
+            className={classNames("text-xs font-medium transition-colors", themeColors.textClass)}
           >
             全天
           </div>
           <div className="mt-1 space-y-1">
-            {allDayEvents.map((event) => {
-              const calendar = calendars.find((c) => c.id === event.calendarId);
+            {allDayEvents.map(event => {
+              const calendar = calendars.find(c => c.id === event.calendarId);
               const color = event.color || calendar?.color || "blue";
               const colorValue = hexToRgba(
-                getProjectColorValue(
-                  color,
-                  theme === "dark" ? "dark" : "light",
-                ),
-                0.9,
+                getProjectColorValue(color, theme === "dark" ? "dark" : "light"),
+                0.9
               );
 
               return (
                 <div
                   key={event.id}
                   onClick={() => setEditingEvent(event)}
-                  className="cursor-pointer rounded px-2 h-4 flex items-center text-xs text-white"
+                  className="flex h-4 cursor-pointer items-center rounded px-2 text-xs text-white"
                   style={{ backgroundColor: colorValue }}
                 >
                   {event.title}
@@ -194,38 +172,33 @@ const DayView = () => {
           <div className="h-3" />
 
           <div className="sticky left-0 top-0 z-10 w-16">
-            {timeSlots.map((minutes) => (
+            {timeSlots.map(minutes => (
               <div
                 key={minutes}
                 className={classNames(
                   "border-b text-right text-xs transition-colors",
                   themeColors.borderClass,
-                  themeColors.textClass,
+                  themeColors.textClass
                 )}
                 style={{ height: `${CELL_HEIGHT * 4}px` }}
               >
-                <span className="relative -top-2 pr-2">
-                  {formatTime(minutes)}
-                </span>
+                <span className="relative -top-2 pr-2">{formatTime(minutes)}</span>
               </div>
             ))}
           </div>
 
           {/* 时间网格线 */}
           <div className="absolute left-16 right-0 top-3" {...handlers}>
-            {timeSlots.map((minutes) => (
+            {timeSlots.map(minutes => (
               <div
                 key={minutes}
-                className={classNames(
-                  "border-b transition-colors",
-                  themeColors.borderClass,
-                )}
+                className={classNames("border-b transition-colors", themeColors.borderClass)}
                 style={{ height: `${CELL_HEIGHT * 4}px` }}
               />
             ))}
             {isDragging && selectedRange && (
               <div
-                className="absolute left-0 right-0 bg-blue-200 opacity-30 dark:bg-blue-600"
+                className="absolute left-0 right-0 bg-[var(--th-accent)] opacity-30"
                 style={{
                   top: `${(selectedRange.start / 15) * CELL_HEIGHT}px`,
                   height: `${((selectedRange.end - selectedRange.start) / 15) * CELL_HEIGHT}px`,
@@ -234,7 +207,7 @@ const DayView = () => {
             )}
             {pendingEvent && !isDragging && (
               <div
-                className="absolute left-0 right-0 pointer-events-none rounded-lg border-2 border-blue-500 bg-blue-100/50 dark:bg-blue-900/30"
+                className="dark: pointer-events-none absolute left-0 right-0 rounded-lg border-2 border-[var(--th-border-focus)]"
                 style={{
                   top: `${(pendingEvent.startMinutes / 15) * CELL_HEIGHT}px`,
                   height: `${((pendingEvent.endMinutes - pendingEvent.startMinutes) / 15) * CELL_HEIGHT - 4}px`,
@@ -244,7 +217,7 @@ const DayView = () => {
 
             {/* 当前时间红线 */}
             <div
-              className="absolute left-0 right-0 pointer-events-none z-30"
+              className="pointer-events-none absolute left-0 right-0 z-30"
               style={{
                 top: `${(currentTimeMinutes / 15) * CELL_HEIGHT}px`,
               }}
@@ -256,27 +229,22 @@ const DayView = () => {
             </div>
 
             {/* 事件 */}
-            <div className="absolute inset-0 pointer-events-none">
+            <div className="pointer-events-none absolute inset-0">
               <div className="pointer-events-auto">
-                {timedEvents.map((event) => {
+                {timedEvents.map(event => {
                   const position = eventPositions.get(event.id);
                   const gridPosition = getEventGridPosition(
                     event,
                     GRID_START_TIME,
                     GRID_END_TIME,
-                    CELL_HEIGHT,
+                    CELL_HEIGHT
                   );
 
-                  const calendar = calendars.find(
-                    (c) => c.id === event.calendarId,
-                  );
+                  const calendar = calendars.find(c => c.id === event.calendarId);
                   const color = event.color || calendar?.color || "blue";
                   const colorValue = hexToRgba(
-                    getProjectColorValue(
-                      color,
-                      theme === "dark" ? "dark" : "light",
-                    ),
-                    0.9,
+                    getProjectColorValue(color, theme === "dark" ? "dark" : "light"),
+                    0.9
                   );
 
                   return (
@@ -296,8 +264,7 @@ const DayView = () => {
                       <div className="font-medium">{event.title}</div>
                       {event.startTime !== null && event.endTime !== null && (
                         <div className="text-xs opacity-90">
-                          {formatTime(event.startTime)} -{" "}
-                          {formatTime(event.endTime)}
+                          {formatTime(event.startTime)} - {formatTime(event.endTime)}
                         </div>
                       )}
                     </div>

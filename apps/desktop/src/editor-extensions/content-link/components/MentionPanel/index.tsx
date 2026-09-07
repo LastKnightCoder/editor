@@ -31,7 +31,7 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
     setSearchResults,
     setLoading,
     reset,
-  } = useMentionPanelStore((state) => ({
+  } = useMentionPanelStore(state => ({
     mentionPanelVisible: state.mentionPanelVisible,
     position: state.position,
     inputValue: state.inputValue,
@@ -47,10 +47,7 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
     if (!mentionPanelVisible) return;
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        panelRef.current &&
-        !panelRef.current.contains(event.target as Node)
-      ) {
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
         reset();
         // 卸载面板
         setTimeout(() => {
@@ -84,7 +81,7 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
         setLoading(false);
       }
     },
-    { wait: 300 },
+    { wait: 300 }
   );
 
   // 当输入值变化时触发搜索
@@ -95,10 +92,10 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
       // 只有 @ 时，显示所有最近的文档
       setLoading(true);
       getAllIndexResults()
-        .then((results) => {
+        .then(results => {
           setSearchResults(results.slice(0, 10));
         })
-        .catch((error) => {
+        .catch(error => {
           console.error("获取所有文档失败:", error);
           setSearchResults([]);
         })
@@ -110,13 +107,7 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
       const query = inputValue.slice(1); // 移除 @
       debouncedSearch(query);
     }
-  }, [
-    inputValue,
-    mentionPanelVisible,
-    debouncedSearch,
-    setSearchResults,
-    setLoading,
-  ]);
+  }, [inputValue, mentionPanelVisible, debouncedSearch, setSearchResults, setLoading]);
 
   // 动态计算弹窗位置（参考 BlockPanel 的实现）
   useLayoutEffect(() => {
@@ -150,10 +141,7 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
     }
 
     // 确保不超出屏幕边界
-    finalLeft = Math.max(
-      gap,
-      Math.min(finalLeft, pageWidth - panelRect.width - gap),
-    );
+    finalLeft = Math.max(gap, Math.min(finalLeft, pageWidth - panelRect.width - gap));
     finalTop = Math.max(gap, finalTop);
 
     setPanelPosition({ left: finalLeft, top: finalTop });
@@ -164,29 +152,29 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
   return createPortal(
     <div
       ref={panelRef}
-      className="fixed min-w-[180px] w-[360px] max-w-[90vw] max-h-[400px] flex flex-col m-0 p-2 rounded-[18px] bg-[rgba(248,250,255,0.92)] dark:bg-[rgba(10,15,28,0.85)] backdrop-blur-[18px] saturate-[180%] border border-white/45 dark:border-white/12 shadow-[0_18px_45px_rgba(15,23,42,0.25)] dark:shadow-[0_22px_60px_rgba(2,6,23,0.7)] text-[rgba(15,23,42,0.95)] dark:text-[rgba(241,245,249,0.95)] z-[9999] animate-fadeIn"
+      className="dark:border-white/12 animate-fadeIn fixed z-[9999] m-0 flex max-h-[400px] w-[360px] min-w-[180px] max-w-[90vw] flex-col rounded-[18px] border border-white/45 bg-[rgba(248,250,255,0.92)] p-2 text-[rgba(15,23,42,0.95)] shadow-[0_18px_45px_rgba(15,23,42,0.25)] saturate-[180%] backdrop-blur-[18px] dark:bg-[rgba(10,15,28,0.85)] dark:text-[rgba(241,245,249,0.95)] dark:shadow-[0_22px_60px_rgba(2,6,23,0.7)]"
       style={{
         left: panelPosition.left,
         top: panelPosition.top,
       }}
     >
       {loading && (
-        <div className="flex flex-col justify-center items-center gap-3 py-10 px-5 text-indigo-500/80 dark:text-indigo-400/80">
-          <Loader2 className="w-8 h-8 animate-spin" />
+        <div className="text-[var(--th-accent)]/80 py-10/80 flex flex-col items-center justify-center gap-3 px-5">
+          <Loader2 className="h-8 w-8 animate-spin" />
           <span className="text-[13px] font-medium text-slate-800/70 dark:text-slate-300/70">
             正在搜索...
           </span>
         </div>
       )}
       {!loading && searchResults.length === 0 && (
-        <div className="flex flex-col justify-center items-center gap-3 py-10 px-5 text-center text-slate-800/45 dark:text-slate-300/60">
-          <Search className="w-12 h-12 opacity-50 stroke-[1.5]" />
+        <div className="flex flex-col items-center justify-center gap-3 px-5 py-10 text-center text-slate-800/45 dark:text-slate-300/60">
+          <Search className="h-12 w-12 stroke-[1.5] opacity-50" />
           <div className="text-[13px] font-medium">没有找到相关内容</div>
         </div>
       )}
       {!loading && searchResults.length > 0 && <List extensions={extensions} />}
     </div>,
-    document.body,
+    document.body
   );
 });
 

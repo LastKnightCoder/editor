@@ -55,18 +55,18 @@ const AnnotationSelectionMenu = ({
   }
 
   const selectedColor = normalizeColor(
-    "color" in annotationObject ? annotationObject.color : undefined,
+    "color" in annotationObject ? annotationObject.color : undefined
   );
 
   const currentColorOption = ANNOTATION_COLOR_OPTIONS.find(
-    (opt) => opt.value.toLowerCase() === selectedColor,
+    opt => opt.value.toLowerCase() === selectedColor
   );
 
   // 菜单背景样式
   const menuBg = classNames(
     themeColors.glassPanelBg,
     "backdrop-blur-xl backdrop-saturate-150",
-    themeColors.borderClass,
+    themeColors.borderClass
   );
 
   // 按钮样式
@@ -96,12 +96,12 @@ const AnnotationSelectionMenu = ({
 
   return (
     <div
-      className="absolute pointer-events-none z-10"
+      className="pointer-events-none absolute z-10"
       style={menuWrapperProps.style}
       ref={menuWrapperProps.ref}
     >
       <div
-        className="absolute -translate-x-1/2 -translate-y-full mb-2 pointer-events-auto"
+        className="pointer-events-auto absolute mb-2 -translate-x-1/2 -translate-y-full"
         style={{
           left: rect.size.width / 2,
         }}
@@ -110,26 +110,25 @@ const AnnotationSelectionMenu = ({
         {showColorPicker && (
           <div
             className={classNames(
-              "absolute -translate-x-1/2 left-1/2 bottom-full mb-1.5 flex items-center gap-1.5 px-2 py-1.5 border rounded-lg shadow-lg",
-              menuBg,
+              "absolute bottom-full left-1/2 mb-1.5 flex -translate-x-1/2 items-center gap-1.5 rounded-lg border px-2 py-1.5 shadow-lg",
+              menuBg
             )}
-            onPointerDown={(e) => e.stopPropagation()}
+            onPointerDown={e => e.stopPropagation()}
           >
-            {ANNOTATION_COLOR_OPTIONS.map((option) => (
+            {ANNOTATION_COLOR_OPTIONS.map(option => (
               <button
                 key={option.id}
                 type="button"
                 className={classNames(
-                  "w-5 h-5 rounded-full border-2 transition-all hover:scale-110",
+                  "h-5 w-5 rounded-full border-2 transition-all hover:scale-110",
                   {
-                    "border-blue-500 dark:border-blue-400 ring-2 ring-blue-500/30":
+                    "ring-[var(--th-accent)]/30 border-[var(--th-border-focus)] ring-2 dark:border-[var(--th-border-focus)]":
                       selectedColor === option.value.toLowerCase(),
-                    "border-transparent":
-                      selectedColor !== option.value.toLowerCase(),
-                  },
+                    "border-transparent": selectedColor !== option.value.toLowerCase(),
+                  }
                 )}
                 style={{ backgroundColor: option.value }}
-                onClick={(e) => handleColorClick(option.value, e)}
+                onClick={e => handleColorClick(option.value, e)}
                 title={option.label}
               />
             ))}
@@ -139,26 +138,23 @@ const AnnotationSelectionMenu = ({
         {/* 主工具栏 - 单行横向排列 */}
         <div
           className={classNames(
-            "flex items-center gap-0 px-1 py-1 border rounded-lg shadow-lg",
-            menuBg,
+            "flex items-center gap-0 rounded-lg border px-1 py-1 shadow-lg",
+            menuBg
           )}
         >
           {/* 颜色选择按钮 */}
           <button
             type="button"
             className={classNames(
-              "inline-flex items-center justify-center gap-1 h-7 px-2 bg-transparent rounded transition-colors",
-              buttonClass,
+              "inline-flex h-7 items-center justify-center gap-1 rounded bg-transparent px-2 transition-colors",
+              buttonClass
             )}
-            onPointerDown={(e) => e.stopPropagation()}
+            onPointerDown={e => e.stopPropagation()}
             onClick={toggleColorPicker}
             title="选择颜色"
           >
             <span
-              className={classNames(
-                "w-3.5 h-3.5 rounded-full border",
-                themeColors.borderClass,
-              )}
+              className={classNames("h-3.5 w-3.5 rounded-full border", themeColors.borderClass)}
               style={{
                 backgroundColor: currentColorOption?.value || "#fde58b",
               }}
@@ -166,41 +162,36 @@ const AnnotationSelectionMenu = ({
             <LuChevronDown size={10} />
           </button>
 
-          <div
-            className={classNames("w-px h-4 mx-0.5", themeColors.divideClass)}
-          />
+          <div className={classNames("mx-0.5 h-4 w-px", themeColors.divideClass)} />
 
           {/* 样式按钮组 */}
-          {ANNOTATION_STYLE_OPTIONS.map((option) => (
+          {ANNOTATION_STYLE_OPTIONS.map(option => (
             <button
               key={option.value}
               type="button"
               className={classNames(
-                "inline-flex items-center justify-center w-7 h-7 bg-transparent rounded transition-colors",
+                "inline-flex h-7 w-7 items-center justify-center rounded bg-transparent transition-colors",
                 buttonClass,
-                annotationObject.type === option.value &&
-                  themeColors.activeClass,
+                annotationObject.type === option.value && themeColors.activeClass
               )}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => handleStyleClick(option.value, e)}
+              onPointerDown={e => e.stopPropagation()}
+              onClick={e => handleStyleClick(option.value, e)}
               title={option.label}
             >
               {option.icon}
             </button>
           ))}
 
-          <div
-            className={classNames("w-px h-4 mx-0.5", themeColors.divideClass)}
-          />
+          <div className={classNames("mx-0.5 h-4 w-px", themeColors.divideClass)} />
 
           {/* 添加笔记按钮 */}
           <button
             type="button"
             className={classNames(
-              "inline-flex items-center justify-center w-7 h-7 bg-transparent rounded transition-colors",
-              buttonClass,
+              "inline-flex h-7 w-7 items-center justify-center rounded bg-transparent transition-colors",
+              buttonClass
             )}
-            onPointerDown={(e) => e.stopPropagation()}
+            onPointerDown={e => e.stopPropagation()}
             onClick={handleNoteClick}
             title="添加笔记"
           >
@@ -210,17 +201,12 @@ const AnnotationSelectionMenu = ({
           {/* 删除按钮 */}
           {onDelete && (
             <>
-              <div
-                className={classNames(
-                  "w-px h-4 mx-0.5",
-                  themeColors.divideClass,
-                )}
-              />
+              <div className={classNames("mx-0.5 h-4 w-px", themeColors.divideClass)} />
               <button
                 type="button"
-                className="inline-flex items-center justify-center w-7 h-7 bg-transparent text-red-600 dark:text-red-500 rounded transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
+                className="inline-flex h-7 w-7 items-center justify-center rounded bg-transparent text-red-600 transition-colors hover:bg-red-50 dark:text-red-500 dark:hover:bg-red-900/20"
+                onPointerDown={e => e.stopPropagation()}
+                onClick={e => {
                   e.stopPropagation();
                   modal.confirm({
                     title: "确认删除",

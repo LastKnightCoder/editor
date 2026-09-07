@@ -1,8 +1,4 @@
-import {
-  FlashcardType,
-  FlashcardData,
-  FlashcardReviewRating,
-} from "@/types";
+import { FlashcardType, FlashcardData, FlashcardReviewRating } from "@/types";
 import type { Descendant } from "slate";
 
 const genId = () => {
@@ -12,10 +8,7 @@ const genId = () => {
   return Math.random().toString(36).slice(2, 10);
 };
 
-export const FLASHCARD_TYPE_META: Record<
-  FlashcardType,
-  { label: string; description: string }
-> = {
+export const FLASHCARD_TYPE_META: Record<FlashcardType, { label: string; description: string }> = {
   "single-choice": {
     label: "单选题",
     description: "设置一个正确答案，其余为干扰项",
@@ -51,37 +44,37 @@ export const REVIEW_RATINGS: Array<{
     value: "easy",
     label: "轻松",
     description: "记忆牢固，下次间隔更久",
-    bgColor: "bg-emerald-100 dark:bg-emerald-500/15",
-    textColor: "text-emerald-700 dark:text-emerald-400",
-    hoverBgColor: "hover:bg-emerald-200 dark:hover:bg-emerald-500/25",
-    borderColor: "border-emerald-300 dark:border-emerald-500/40",
+    bgColor: "bg-[var(--th-success)]/15",
+    textColor: "text-status-success",
+    hoverBgColor: "hover:bg-[var(--th-success)]/25",
+    borderColor: "border-[var(--th-success)]/40",
   },
   {
     value: "normal",
     label: "一般",
     description: "基本掌握，保持当前节奏",
-    bgColor: "bg-sky-100 dark:bg-sky-500/15",
-    textColor: "text-sky-700 dark:text-sky-400",
-    hoverBgColor: "hover:bg-sky-200 dark:hover:bg-sky-500/25",
-    borderColor: "border-sky-300 dark:border-sky-500/40",
+    bgColor: "bg-[var(--th-info)]/15",
+    textColor: "text-status-info",
+    hoverBgColor: "hover:bg-[var(--th-info)]/25",
+    borderColor: "border-[var(--th-info)]/40",
   },
   {
     value: "struggle",
     label: "较难",
     description: "略显吃力，稍微缩短间隔",
-    bgColor: "bg-amber-100 dark:bg-amber-500/15",
-    textColor: "text-amber-700 dark:text-amber-400",
-    hoverBgColor: "hover:bg-amber-200 dark:hover:bg-amber-500/25",
-    borderColor: "border-amber-300 dark:border-amber-500/40",
+    bgColor: "bg-[var(--th-warning)]/15",
+    textColor: "text-status-warning",
+    hoverBgColor: "hover:bg-[var(--th-warning)]/25",
+    borderColor: "border-[var(--th-warning)]/40",
   },
   {
     value: "hard",
     label: "困难",
     description: "几乎遗忘，需尽快复习",
-    bgColor: "bg-rose-100 dark:bg-rose-500/15",
-    textColor: "text-rose-700 dark:text-rose-400",
-    hoverBgColor: "hover:bg-rose-200 dark:hover:bg-rose-500/25",
-    borderColor: "border-rose-300 dark:border-rose-500/40",
+    bgColor: "bg-[var(--th-danger)]/15",
+    textColor: "text-status-error",
+    hoverBgColor: "hover:bg-[var(--th-danger)]/25",
+    borderColor: "border-[var(--th-danger)]/40",
   },
 ];
 
@@ -98,22 +91,9 @@ export const flashcardDeckColors = [
   "#ef4444",
 ];
 
-export const flashcardDeckEmojis = [
-  "🧠",
-  "📚",
-  "⚡",
-  "🎯",
-  "🧩",
-  "🔬",
-  "🌟",
-  "🚀",
-  "💡",
-  "📝",
-];
+export const flashcardDeckEmojis = ["🧠", "📚", "⚡", "🎯", "🧩", "🔬", "🌟", "🚀", "💡", "📝"];
 
-export const createEmptyFlashcardData = (
-  type: FlashcardType,
-): FlashcardData => {
+export const createEmptyFlashcardData = (type: FlashcardType): FlashcardData => {
   switch (type) {
     case "single-choice":
       return {
@@ -177,9 +157,7 @@ export const textToDescendants = (text: string): Descendant[] => {
   if (!text || text.trim() === "") {
     return [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }];
   }
-  return [
-    { type: "paragraph", children: [{ type: "formatted", text }] },
-  ] as Descendant[];
+  return [{ type: "paragraph", children: [{ type: "formatted", text }] }] as Descendant[];
 };
 
 /**
@@ -203,7 +181,7 @@ export const parseTextWithBlanks = (text: string): Descendant[] => {
   const lines = text.split("\n");
   const paragraphs: Descendant[] = [];
 
-  lines.forEach((line) => {
+  lines.forEach(line => {
     const children: any[] = [];
     let lastIndex = 0;
     const lineBlankPattern = /\{\{blank:([^}]+)\}\}/g;

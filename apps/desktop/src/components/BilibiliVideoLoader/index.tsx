@@ -22,7 +22,7 @@ const BilibiliVideoLoader = ({ loading, error, streamProgress }: BilibiliVideoLo
           {/* Header */}
           <div className="mb-6 flex items-center justify-center gap-3">
             <div className="relative">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-pink-500/30 bg-gradient-to-br from-pink-500/20 to-blue-500/20 dark:border-pink-400/40 dark:from-pink-500/30 dark:to-blue-500/30">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-pink-500/30 bg-[var(--th-accent-soft)]">
                 <svg
                   className="h-7 w-7 animate-pulse text-pink-600 dark:text-pink-400"
                   viewBox="0 0 24 24"
@@ -93,7 +93,7 @@ const BilibiliVideoLoader = ({ loading, error, streamProgress }: BilibiliVideoLo
                   <div className="flex items-center justify-between text-xs">
                     <span className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-300">
                       <svg
-                        className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400"
+                        className="h-3.5 w-3.5 text-[var(--th-accent)]"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -112,7 +112,7 @@ const BilibiliVideoLoader = ({ loading, error, streamProgress }: BilibiliVideoLo
                   </div>
                   <div className="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-zinc-700">
                     <div
-                      className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300 ease-out dark:from-blue-400 dark:to-blue-500"
+                      className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[var(--th-accent)] to-[var(--th-accent-hover)] transition-all duration-300 ease-out"
                       style={{
                         width: `${Math.min(
                           ((streamProgress.audioDownloaded || 0) /
@@ -130,9 +130,9 @@ const BilibiliVideoLoader = ({ loading, error, streamProgress }: BilibiliVideoLo
 
               {/* Completed */}
               {streamProgress.stage === "completed" && (
-                <div className="flex items-center justify-center gap-2 rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-500/20 dark:bg-green-500/10">
+                <div className="bg-[var(--th-success)]/10 border-[var(--th-success)]/30 flex items-center justify-center gap-2 rounded-xl border p-4">
                   <svg
-                    className="h-5 w-5 text-green-600 dark:text-green-400"
+                    className="text-status-success h-5 w-5"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -140,9 +140,7 @@ const BilibiliVideoLoader = ({ loading, error, streamProgress }: BilibiliVideoLo
                   >
                     <path d="M20 6 9 17l-5-5" />
                   </svg>
-                  <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                    视频加载完成
-                  </span>
+                  <span className="text-status-success text-sm font-medium">视频加载完成</span>
                 </div>
               )}
             </div>

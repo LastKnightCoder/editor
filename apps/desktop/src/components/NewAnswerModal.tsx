@@ -77,7 +77,7 @@ const NewAnswerModal: React.FC<NewAnswerModalProps> = ({
 
   const icon = (
     <svg
-      className="h-5 w-5 text-emerald-500"
+      className="h-5 w-5 text-[var(--th-accent)]"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -95,7 +95,6 @@ const NewAnswerModal: React.FC<NewAnswerModalProps> = ({
       title={customTitle}
       subtitle="创建新的答案内容"
       icon={icon}
-      iconBgColor="bg-emerald-50 dark:bg-emerald-500/20 border-emerald-200 dark:border-emerald-500/30"
       footer={null}
       closeOnEscape={false}
     >

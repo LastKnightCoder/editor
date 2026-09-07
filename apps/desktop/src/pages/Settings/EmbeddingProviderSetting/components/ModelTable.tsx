@@ -26,17 +26,12 @@ interface ModelTableProps {
   onEditModel: (model: ModelItem) => void;
 }
 
-const ModelTable = ({
-  providerType,
-  onOpenConfig,
-  onAddModel,
-  onEditModel,
-}: ModelTableProps) => {
-  const { currentConfig } = useSettingStore((state) => {
+const ModelTable = ({ providerType, onOpenConfig, onAddModel, onEditModel }: ModelTableProps) => {
+  const { currentConfig } = useSettingStore(state => {
     const settings = state.setting.embeddingProvider;
     const { configs, currentConfigId } = settings;
     return {
-      currentConfig: configs.find((item) => item.id === currentConfigId),
+      currentConfig: configs.find(item => item.id === currentConfigId),
     };
   });
 
@@ -49,18 +44,14 @@ const ModelTable = ({
   const [downloadingModel, setDownloadingModel] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const [downloadMessage, setDownloadMessage] = useState<string>("");
-  const [downloadSource, setDownloadSource] =
-    useState<EmbeddingDownloadSource>("modelscope");
+  const [downloadSource, setDownloadSource] = useState<EmbeddingDownloadSource>("modelscope");
   const downloadingModelRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isLocalMode || !currentConfig?.source) {
       return;
     }
-    if (
-      currentConfig.source === "modelscope" ||
-      currentConfig.source === "huggingface"
-    ) {
+    if (currentConfig.source === "modelscope" || currentConfig.source === "huggingface") {
       setDownloadSource(currentConfig.source);
     }
   }, [isLocalMode, currentConfig?.source]);
@@ -70,15 +61,15 @@ const ModelTable = ({
       return;
     }
     useSettingStore.setState(
-      produce((draft) => {
+      produce(draft => {
         const config = draft.setting.embeddingProvider.configs.find(
-          (item: ConfigItem) => item.id === currentConfig?.id,
+          (item: ConfigItem) => item.id === currentConfig?.id
         );
         if (!config) {
           return;
         }
         config.source = source;
-      }),
+      })
     );
   };
 
@@ -107,25 +98,21 @@ const ModelTable = ({
       onOk: async () => {
         try {
           useSettingStore.setState(
-            produce((draft) => {
+            produce(draft => {
               const index = draft.setting.embeddingProvider.configs.findIndex(
-                (item: ConfigItem) => item.id === currentConfig?.id,
+                (item: ConfigItem) => item.id === currentConfig?.id
               );
               if (index === -1) {
                 return;
               }
 
               const config = draft.setting.embeddingProvider.configs[index];
-              const exists = config.models.find(
-                (item: ModelItem) => item.name === name,
-              );
+              const exists = config.models.find((item: ModelItem) => item.name === name);
 
               if (!exists) {
                 config.models.push({
                   name,
-                  description: isLocalMode
-                    ? "本地离线 embedding 模型"
-                    : "嵌入模型",
+                  description: isLocalMode ? "本地离线 embedding 模型" : "嵌入模型",
                   contextLength,
                   distance: isLocalMode ? DEFAULT_LOCAL_EMBEDDING_DISTANCE : 0,
                   features: {
@@ -135,20 +122,17 @@ const ModelTable = ({
               }
 
               config.currentModel = name;
-            }),
+            })
           );
 
           if (isLocalMode) {
             try {
               const health = await embeddingModelHealth(
                 name,
-                currentConfig?.devicePolicy || "auto",
+                currentConfig?.devicePolicy || "auto"
               );
               if (!health.success) {
-                console.warn(
-                  "[Embedding] 模型预热失败:",
-                  health.error || "unknown",
-                );
+                console.warn("[Embedding] 模型预热失败:", health.error || "unknown");
               }
             } catch (error) {
               console.warn("[Embedding] 模型预热异常:", error);
@@ -174,23 +158,20 @@ const ModelTable = ({
       },
       onOk: () => {
         useSettingStore.setState(
-          produce((draft) => {
+          produce(draft => {
             const config = draft.setting.embeddingProvider.configs.find(
-              (item: ConfigItem) =>
-                item.id === draft.setting.embeddingProvider.currentConfigId,
+              (item: ConfigItem) => item.id === draft.setting.embeddingProvider.currentConfigId
             );
             if (!config) {
               return;
             }
 
-            config.models = config.models.filter(
-              (item: ModelItem) => item.name !== name,
-            );
+            config.models = config.models.filter((item: ModelItem) => item.name !== name);
 
             if (config.currentModel === name) {
               config.currentModel = config.models[0]?.name || "";
             }
-          }),
+          })
         );
       },
     });
@@ -223,7 +204,7 @@ const ModelTable = ({
   }, [loadLocalModels]);
 
   useEffect(() => {
-    const unsubscribe = onEmbeddingDownloadProgress((progress) => {
+    const unsubscribe = onEmbeddingDownloadProgress(progress => {
       if (progress.modelName === downloadingModelRef.current) {
         setDownloadProgress(progress.percentage);
         setDownloadMessage(progress.message || "");
@@ -293,7 +274,7 @@ const ModelTable = ({
     try {
       const result = await embeddingModelHealth(
         currentConfig.currentModel,
-        currentConfig.devicePolicy || "auto",
+        currentConfig.devicePolicy || "auto"
       );
 
       if (!result.success || !result.health) {
@@ -319,20 +300,13 @@ const ModelTable = ({
   };
 
   return (
-    <div
-      className={classNames(
-        "rounded-xl bg-transparent border",
-        themeColors.focusBorderClass,
-      )}
-    >
-      <div
-        className={classNames("flex items-center justify-between px-5 py-4")}
-      >
+    <div className={classNames("rounded-xl border bg-transparent", themeColors.borderClass)}>
+      <div className={classNames("flex items-center justify-between px-5 py-4")}>
         <h3 className={classNames("text-base font-semibold")}>模型列表</h3>
 
         {isLocalMode ? (
           <div className="flex items-center gap-3">
-            <span className="text-xs font-medium text-gray-500 dark:text-slate-400 whitespace-nowrap">
+            <span className="whitespace-nowrap text-xs font-medium text-gray-500 dark:text-slate-400">
               下载来源
             </span>
             <div className="w-40">
@@ -367,7 +341,7 @@ const ModelTable = ({
         {isLocalMode ? (
           <div className="space-y-3">
             {localLoadError && (
-              <div className="p-4 rounded-lg border border-amber-300 bg-amber-50/80 dark:bg-amber-900/20 dark:border-amber-700">
+              <div className="rounded-lg border border-amber-300 bg-amber-50/80 p-4 dark:border-amber-700 dark:bg-amber-900/20">
                 <div className="text-sm text-amber-700 dark:text-amber-300">
                   本地模型列表加载失败：{localLoadError}
                 </div>
@@ -379,11 +353,11 @@ const ModelTable = ({
               </div>
             )}
             {!localLoadError && localModels.length === 0 && (
-              <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400">
+              <div className="rounded-lg border border-gray-200 p-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
                 暂未获取到本地模型列表。可点击“重试加载”或重启应用后再试。
               </div>
             )}
-            {localModels.map((model) => {
+            {localModels.map(model => {
               const isDownloading = downloadingModel === model.name;
               const isActive = currentConfig?.currentModel === model.name;
 
@@ -391,48 +365,47 @@ const ModelTable = ({
                 <div
                   key={model.name}
                   className={classNames(
-                    "p-4 rounded-lg border transition-colors",
+                    "rounded-lg border p-4 transition-colors",
                     isActive
-                      ? "border-green-300 bg-green-50 dark:bg-green-900/20 dark:border-green-700"
-                      : "border-gray-200 bg-gray-50 dark:bg-zinc-800/50 dark:border-gray-700",
+                      ? "border-[var(--th-border-hover)] bg-[var(--th-bg-hover)]"
+                      : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50"
                   )}
                 >
                   <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium text-gray-800 dark:text-gray-200">
                           {model.label}
                         </span>
-                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-gray-300">
+                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-zinc-700 dark:text-gray-300">
                           {model.downloaded ? "已下载" : "未下载"}
                         </span>
                         {isActive && (
-                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400">
+                          <span className="bg-[var(--th-success)]/15 text-status-success rounded-full px-2 py-0.5 text-xs font-medium">
                             使用中
                           </span>
                         )}
                       </div>
 
-                      <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                         {model.description}
                       </div>
 
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 flex gap-4">
+                      <div className="mt-2 flex gap-4 text-xs text-gray-500 dark:text-gray-400">
                         <span>大小: {model.size}</span>
                         <span>向量维度: {model.dimensions}</span>
                       </div>
 
                       {isDownloading && (
                         <div className="mt-3">
-                          <div className="h-1.5 bg-gray-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                          <div className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-zinc-700">
                             <div
-                              className="h-full bg-blue-500 transition-all"
+                              className="h-full bg-[var(--th-accent)] transition-all"
                               style={{ width: `${downloadProgress}%` }}
                             />
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            {downloadMessage ||
-                              `下载中... ${downloadProgress}%`}
+                          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            {downloadMessage || `下载中... ${downloadProgress}%`}
                           </div>
                         </div>
                       )}
@@ -443,17 +416,15 @@ const ModelTable = ({
                         <>
                           {!isActive && (
                             <button
-                              onClick={() =>
-                                onActivateModel(model.name, model.dimensions)
-                              }
-                              className="px-3 py-1.5 text-sm text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-500/10 rounded-lg transition-colors"
+                              onClick={() => onActivateModel(model.name, model.dimensions)}
+                              className="text-status-success hover:bg-[var(--th-success)]/10 hover:text-status-success rounded-lg px-3 py-1.5 text-sm transition-colors"
                             >
                               启用
                             </button>
                           )}
                           <button
                             onClick={() => handleDeleteLocalModel(model.name)}
-                            className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                            className="rounded-lg px-3 py-1.5 text-sm text-red-600 transition-colors hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-500/10"
                           >
                             删除
                           </button>
@@ -461,14 +432,14 @@ const ModelTable = ({
                       ) : isDownloading ? (
                         <button
                           onClick={() => handleCancelDownload(model.name)}
-                          className="px-3 py-1.5 text-sm text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-500/10 rounded-lg transition-colors"
+                          className="rounded-lg px-3 py-1.5 text-sm text-orange-600 transition-colors hover:bg-orange-50 hover:text-orange-700 dark:text-orange-400 dark:hover:bg-orange-500/10"
                         >
                           取消
                         </button>
                       ) : (
                         <button
                           onClick={() => handleDownloadLocalModel(model.name)}
-                          className="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-500/10 rounded-lg transition-colors"
+                          className="dark:hover:bg-[var(--th-btn-hover)]/10 rounded-lg px-3 py-1.5 text-sm text-[var(--th-active-text)] transition-colors hover:bg-[var(--th-accent-soft)] hover:text-[var(--th-active-text)]"
                         >
                           下载
                         </button>
@@ -481,65 +452,49 @@ const ModelTable = ({
           </div>
         ) : currentConfig?.models && currentConfig.models.length > 0 ? (
           <div className="space-y-3">
-            {currentConfig.models.map((model) => {
+            {currentConfig.models.map(model => {
               const isActive = model.name === currentConfig.currentModel;
               return (
                 <div
                   key={model.name}
                   className={classNames(
-                    "p-4 rounded-lg transition-colors",
+                    "rounded-lg p-4 transition-colors",
                     isActive
                       ? classNames(themeColors.activeBgClass)
-                      : classNames(
-                          "bg-transparent",
-                          "hover:bg-gray-50 dark:hover:bg-zinc-800/30",
-                        ),
+                      : classNames("bg-transparent", "hover:bg-gray-50 dark:hover:bg-zinc-800/30")
                   )}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span
                           className={classNames(
                             "font-medium",
-                            isActive
-                              ? themeColors.activeTextClass
-                              : themeColors.secondaryTextClass,
+                            isActive ? themeColors.activeTextClass : themeColors.secondaryTextClass
                           )}
                         >
                           {model.name}
                         </span>
                         <span
                           className={classNames(
-                            "px-2 py-0.5 text-xs font-medium rounded-full",
+                            "rounded-full px-2 py-0.5 text-xs font-medium",
                             isActive
-                              ? classNames(
-                                  themeColors.activeBgClass,
-                                  themeColors.activeTextClass,
-                                )
-                              : classNames(
-                                  themeColors.tagBgClass,
-                                  themeColors.tagTextClass,
-                                ),
+                              ? classNames(themeColors.activeBgClass, themeColors.activeTextClass)
+                              : classNames(themeColors.tagBgClass, themeColors.tagTextClass)
                           )}
                         >
                           {isActive ? "使用中" : "未使用"}
                         </span>
                       </div>
 
-                      <div
-                        className={classNames(
-                          "text-sm mt-1",
-                          themeColors.secondaryTextClass,
-                        )}
-                      >
+                      <div className={classNames("mt-1 text-sm", themeColors.secondaryTextClass)}>
                         {model.description}
                       </div>
 
                       <div
                         className={classNames(
-                          "flex gap-4 mt-2 text-xs",
-                          themeColors.secondaryTextClass,
+                          "mt-2 flex gap-4 text-xs",
+                          themeColors.secondaryTextClass
                         )}
                       >
                         <span>向量长度: {model.contextLength}</span>
@@ -547,13 +502,11 @@ const ModelTable = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 ml-4">
+                    <div className="ml-4 flex items-center gap-2">
                       {!isActive && (
                         <button
-                          onClick={() =>
-                            onActivateModel(model.name, model.contextLength)
-                          }
-                          className="px-3 py-1.5 text-sm text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-500/10 rounded-lg transition-colors"
+                          onClick={() => onActivateModel(model.name, model.contextLength)}
+                          className="text-status-success hover:bg-[var(--th-success)]/10 hover:text-status-success rounded-lg px-3 py-1.5 text-sm transition-colors"
                         >
                           启用
                         </button>
@@ -561,17 +514,17 @@ const ModelTable = ({
                       <button
                         onClick={() => onEditModel(model)}
                         className={classNames(
-                          "px-3 py-1.5 text-sm rounded-lg transition-colors",
+                          "rounded-lg px-3 py-1.5 text-sm transition-colors",
                           themeColors.secondaryTextClass,
                           themeColors.hoverClass,
-                          themeColors.hoverTextClass,
+                          themeColors.hoverTextClass
                         )}
                       >
                         编辑
                       </button>
                       <button
                         onClick={() => onDeleteApiModel(model.name)}
-                        className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                        className="rounded-lg px-3 py-1.5 text-sm text-red-600 transition-colors hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-500/10"
                       >
                         删除
                       </button>
@@ -582,12 +535,7 @@ const ModelTable = ({
             })}
           </div>
         ) : (
-          <div
-            className={classNames(
-              "py-12 text-center",
-              themeColors.secondaryTextClass,
-            )}
-          >
+          <div className={classNames("py-12 text-center", themeColors.secondaryTextClass)}>
             暂无模型
           </div>
         )}

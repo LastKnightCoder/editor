@@ -24,7 +24,7 @@ interface ViewEditPanelProps {
     type: DataTableViewType,
     galleryConfig?: GalleryViewConfig,
     calendarConfig?: CalendarViewConfig,
-    kanbanConfig?: KanbanViewConfig,
+    kanbanConfig?: KanbanViewConfig
   ) => void;
   onClose: () => void;
 }
@@ -37,38 +37,32 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
     const [coverImageColumnId, setCoverImageColumnId] = useState<string>("");
     const [dateColumnId, setDateColumnId] = useState<string>("");
     const [groupColumnId, setGroupColumnId] = useState<string>("");
-    const [kanbanTemplate, setKanbanTemplate] =
-      useState<KanbanCardTemplate>("task");
+    const [kanbanTemplate, setKanbanTemplate] = useState<KanbanCardTemplate>("task");
     const [kanbanDoneColumnId, setKanbanDoneColumnId] = useState<string>("");
-    const [kanbanVisibleFieldIds, setKanbanVisibleFieldIds] = useState<
-      string[]
-    >([]);
+    const [kanbanVisibleFieldIds, setKanbanVisibleFieldIds] = useState<string[]>([]);
     const [kanbanShowFieldLabels, setKanbanShowFieldLabels] = useState(false);
 
     const orderedColumns = useMemo(() => {
       if (!view) return columns;
-      const columnMap = new Map(columns.map((column) => [column.id, column]));
+      const columnMap = new Map(columns.map(column => [column.id, column]));
       const ordered: ColumnDef[] = [];
       const usedIds = new Set<string>();
 
-      view.config.columnOrder.forEach((columnId) => {
+      view.config.columnOrder.forEach(columnId => {
         const found = columnMap.get(columnId);
         if (!found || usedIds.has(found.id)) return;
         ordered.push(found);
         usedIds.add(found.id);
       });
 
-      columns.forEach((column) => {
+      columns.forEach(column => {
         if (usedIds.has(column.id)) return;
         ordered.push(column);
       });
 
       return ordered;
     }, [columns, view]);
-    const primaryColumnId = useMemo(
-      () => columns.find((column) => column.isPrimary)?.id,
-      [columns],
-    );
+    const primaryColumnId = useMemo(() => columns.find(column => column.isPrimary)?.id, [columns]);
 
     useEffect(() => {
       if (view) {
@@ -146,25 +140,16 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
             }
           : undefined;
 
-      onConfirm(
-        view.id,
-        name.trim(),
-        viewType,
-        galleryConfig,
-        calendarConfig,
-        kanbanConfig,
-      );
+      onConfirm(view.id, name.trim(), viewType, galleryConfig, calendarConfig, kanbanConfig);
       onClose();
     });
 
-    const imageColumns = orderedColumns.filter((col) => col.type === "image");
-    const dateColumns = orderedColumns.filter((col) => col.type === "date");
-    const selectColumns = orderedColumns.filter((col) => col.type === "select");
-    const checkboxColumns = orderedColumns.filter(
-      (col) => col.type === "checkbox" && !col.hidden,
-    );
+    const imageColumns = orderedColumns.filter(col => col.type === "image");
+    const dateColumns = orderedColumns.filter(col => col.type === "date");
+    const selectColumns = orderedColumns.filter(col => col.type === "select");
+    const checkboxColumns = orderedColumns.filter(col => col.type === "checkbox" && !col.hidden);
     const effectiveViewConfig = view?.config ?? {
-      columnOrder: orderedColumns.map((column) => column.id),
+      columnOrder: orderedColumns.map(column => column.id),
     };
 
     const kanbanDisplay = resolveKanbanCardDisplay({
@@ -185,45 +170,41 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
       groupColumnId: groupColumnId || undefined,
     });
 
-    const handleTemplateChange = useMemoizedFn(
-      (template: KanbanCardTemplate) => {
-        setKanbanTemplate(template);
-        const preset = getTemplateDefaultCardDisplay({
-          template,
-          columns,
-          viewConfig: effectiveViewConfig,
-          groupColumnId: groupColumnId || undefined,
-          primaryColumnId,
-          doneColumnId: kanbanDoneColumnId || undefined,
-        });
-        setKanbanVisibleFieldIds(preset.visibleFieldIds);
-      },
-    );
+    const handleTemplateChange = useMemoizedFn((template: KanbanCardTemplate) => {
+      setKanbanTemplate(template);
+      const preset = getTemplateDefaultCardDisplay({
+        template,
+        columns,
+        viewConfig: effectiveViewConfig,
+        groupColumnId: groupColumnId || undefined,
+        primaryColumnId,
+        doneColumnId: kanbanDoneColumnId || undefined,
+      });
+      setKanbanVisibleFieldIds(preset.visibleFieldIds);
+    });
 
-    const handleGroupColumnChange = useMemoizedFn(
-      (nextGroupColumnId: string) => {
-        setGroupColumnId(nextGroupColumnId);
-        const resolved = resolveKanbanCardDisplay({
-          columns,
-          viewConfig: effectiveViewConfig,
-          kanbanConfig: nextGroupColumnId
-            ? {
-                groupColumnId: nextGroupColumnId,
-                cardDisplay: {
-                  template: kanbanTemplate,
-                  doneColumnId: kanbanDoneColumnId || undefined,
-                  visibleFieldIds: kanbanVisibleFieldIds,
-                  showFieldLabels: kanbanShowFieldLabels,
-                },
-              }
-            : undefined,
-          primaryColumnId,
-          groupColumnId: nextGroupColumnId || undefined,
-        });
-        setKanbanDoneColumnId(resolved.doneColumnId || "");
-        setKanbanVisibleFieldIds(resolved.visibleFieldIds);
-      },
-    );
+    const handleGroupColumnChange = useMemoizedFn((nextGroupColumnId: string) => {
+      setGroupColumnId(nextGroupColumnId);
+      const resolved = resolveKanbanCardDisplay({
+        columns,
+        viewConfig: effectiveViewConfig,
+        kanbanConfig: nextGroupColumnId
+          ? {
+              groupColumnId: nextGroupColumnId,
+              cardDisplay: {
+                template: kanbanTemplate,
+                doneColumnId: kanbanDoneColumnId || undefined,
+                visibleFieldIds: kanbanVisibleFieldIds,
+                showFieldLabels: kanbanShowFieldLabels,
+              },
+            }
+          : undefined,
+        primaryColumnId,
+        groupColumnId: nextGroupColumnId || undefined,
+      });
+      setKanbanDoneColumnId(resolved.doneColumnId || "");
+      setKanbanVisibleFieldIds(resolved.visibleFieldIds);
+    });
 
     const handleDoneColumnChange = useMemoizedFn((nextDoneColumnId: string) => {
       setKanbanDoneColumnId(nextDoneColumnId);
@@ -249,7 +230,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
 
     const handleVisibleFieldToggle = useMemoizedFn((fieldId: string) => {
       const candidateOrder = new Map(
-        kanbanDisplay.candidateFields.map((field, index) => [field.id, index]),
+        kanbanDisplay.candidateFields.map((field, index) => [field.id, index])
       );
       const currentIds = new Set(kanbanVisibleFieldIds);
       if (currentIds.has(fieldId)) {
@@ -260,7 +241,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
       const nextVisibleFieldIds = Array.from(currentIds).sort(
         (idA, idB) =>
           (candidateOrder.get(idA) ?? Number.MAX_SAFE_INTEGER) -
-          (candidateOrder.get(idB) ?? Number.MAX_SAFE_INTEGER),
+          (candidateOrder.get(idB) ?? Number.MAX_SAFE_INTEGER)
       );
       setKanbanVisibleFieldIds(nextVisibleFieldIds);
     });
@@ -278,7 +259,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
         }}
         className="flex flex-col overflow-hidden"
       >
-        <div className="space-y-4 overflow-y-auto min-h-0 pr-1">
+        <div className="min-h-0 space-y-4 overflow-y-auto pr-1">
           {/* Title */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
@@ -287,8 +268,8 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
             <input
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
+              onChange={e => setName(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
               placeholder="请输入视图名称"
               maxLength={50}
             />
@@ -305,13 +286,11 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
                 { value: "gallery", label: "画廊" },
                 { value: "calendar", label: "日历" },
                 { value: "kanban", label: "看板" },
-              ].map((option) => (
+              ].map(option => (
                 <CustomRadio
                   key={option.value}
                   checked={viewType === option.value}
-                  onChange={() =>
-                    setViewType(option.value as DataTableViewType)
-                  }
+                  onChange={() => setViewType(option.value as DataTableViewType)}
                   label={option.label}
                   className="text-sm"
                 />
@@ -336,9 +315,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
                   <CustomRadio
                     checked={coverType === "image"}
                     onChange={() => setCoverType("image")}
-                    label={
-                      imageColumns.length === 0 ? "图片 （无图片列）" : "图片"
-                    }
+                    label={imageColumns.length === 0 ? "图片 （无图片列）" : "图片"}
                     disabled={imageColumns.length === 0}
                     className="text-sm"
                   />
@@ -365,16 +342,14 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
                 selectedId={dateColumnId}
                 onSelect={setDateColumnId}
                 placeholder={
-                  dateColumns.length === 0
-                    ? "无日期列"
-                    : "选择日期列（默认使用第一个日期列）"
+                  dateColumns.length === 0 ? "无日期列" : "选择日期列（默认使用第一个日期列）"
                 }
                 disabled={dateColumns.length === 0}
                 allowClear
                 label="日期列"
               />
               {dateColumns.length === 0 && (
-                <div className="text-sm text-gray-500 dark:text-slate-400 -mt-2">
+                <div className="-mt-2 text-sm text-gray-500 dark:text-slate-400">
                   请先添加一个日期类型的列
                 </div>
               )}
@@ -393,14 +368,12 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
                     { value: "compact", label: "简洁（仅标题）" },
                     { value: "task", label: "任务（标题 + 完成 + 2属性）" },
                     { value: "detail", label: "详情（标题 + 完成 + 4属性）" },
-                  ].map((templateOption) => (
+                  ].map(templateOption => (
                     <CustomRadio
                       key={templateOption.value}
                       checked={kanbanTemplate === templateOption.value}
                       onChange={() =>
-                        handleTemplateChange(
-                          templateOption.value as KanbanCardTemplate,
-                        )
+                        handleTemplateChange(templateOption.value as KanbanCardTemplate)
                       }
                       label={templateOption.label}
                       className="text-sm"
@@ -413,16 +386,12 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
                 columns={selectColumns}
                 selectedId={groupColumnId}
                 onSelect={handleGroupColumnChange}
-                placeholder={
-                  selectColumns.length === 0
-                    ? "无单选列"
-                    : "选择用于看板分组的单选列"
-                }
+                placeholder={selectColumns.length === 0 ? "无单选列" : "选择用于看板分组的单选列"}
                 disabled={selectColumns.length === 0}
                 label="分组列"
               />
               {selectColumns.length === 0 && (
-                <div className="text-sm text-gray-500 dark:text-slate-400 -mt-2">
+                <div className="-mt-2 text-sm text-gray-500 dark:text-slate-400">
                   请先添加一个单选类型的列
                 </div>
               )}
@@ -441,7 +410,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
                 label="完成状态列"
               />
               {checkboxColumns.length === 0 && (
-                <div className="text-sm text-gray-500 dark:text-slate-400 -mt-2">
+                <div className="-mt-2 text-sm text-gray-500 dark:text-slate-400">
                   当前没有复选框列，卡片将不显示完成状态
                 </div>
               )}
@@ -451,32 +420,28 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
                   卡片属性字段
                 </label>
                 {kanbanTemplate === "compact" ? (
-                  <div className="px-3 py-2 rounded-lg text-sm bg-gray-50 dark:bg-zinc-900 text-gray-500 dark:text-slate-400 border border-gray-200 dark:border-slate-700">
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500 dark:border-slate-700 dark:bg-zinc-900 dark:text-slate-400">
                     简洁模板不展示属性字段
                   </div>
                 ) : (
-                  <div className="max-h-44 overflow-y-auto rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-zinc-950 p-2 space-y-2">
+                  <div className="max-h-44 space-y-2 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 p-2 dark:border-slate-700 dark:bg-zinc-950">
                     {kanbanDisplay.candidateFields.length === 0 ? (
                       <div className="px-2 py-1 text-sm text-gray-500 dark:text-slate-400">
                         暂无可显示字段
                       </div>
                     ) : (
-                      kanbanDisplay.candidateFields.map((field) => {
-                        const checked = kanbanVisibleFieldIds.includes(
-                          field.id,
-                        );
+                      kanbanDisplay.candidateFields.map(field => {
+                        const checked = kanbanVisibleFieldIds.includes(field.id);
                         return (
                           <label
                             key={field.id}
-                            className="flex items-center gap-2 px-2 py-1 rounded-md cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800"
+                            className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-gray-100 dark:hover:bg-zinc-800"
                           >
                             <input
                               type="checkbox"
                               checked={checked}
-                              onChange={() =>
-                                handleVisibleFieldToggle(field.id)
-                              }
-                              className="w-4 h-4 accent-indigo-500"
+                              onChange={() => handleVisibleFieldToggle(field.id)}
+                              className="h-4 w-4 accent-[var(--th-accent)]"
                             />
                             <span className="text-sm text-gray-700 dark:text-slate-200">
                               {field.title}
@@ -489,17 +454,13 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
                 )}
               </div>
 
-              <label className="flex items-center justify-between px-3 py-2 rounded-xl bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 cursor-pointer">
-                <span className="text-sm text-gray-700 dark:text-slate-200">
-                  显示字段标签
-                </span>
+              <label className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-slate-700 dark:bg-zinc-950">
+                <span className="text-sm text-gray-700 dark:text-slate-200">显示字段标签</span>
                 <input
                   type="checkbox"
                   checked={kanbanShowFieldLabels}
-                  onChange={(event) =>
-                    setKanbanShowFieldLabels(event.target.checked)
-                  }
-                  className="w-4 h-4 accent-indigo-500"
+                  onChange={event => setKanbanShowFieldLabels(event.target.checked)}
+                  className="h-4 w-4 accent-[var(--th-accent)]"
                 />
               </label>
             </>
@@ -507,11 +468,11 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
         </div>
 
         {/* Footer */}
-        <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-slate-700 shrink-0">
+        <div className="mt-4 flex shrink-0 gap-2 border-t border-gray-200 pt-4 dark:border-slate-700">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-zinc-700"
+            className="flex-1 cursor-pointer rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-200 dark:border-slate-700 dark:bg-zinc-800 dark:text-slate-200 dark:hover:bg-zinc-700"
           >
             取消
           </button>
@@ -519,14 +480,14 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
             type="button"
             onClick={handleOk}
             disabled={!canSave}
-            className="flex-1 px-4 py-3 rounded-xl border-none text-sm font-semibold cursor-pointer transition-all bg-indigo-500 text-white shadow-[0_4px_14px_rgba(99,102,241,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-indigo-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none"
+            className="flex-1 cursor-pointer rounded-xl border-none bg-[var(--th-btn-bg)] px-4 py-3 text-sm font-semibold text-[var(--th-btn-text)] shadow-[0_4px_14px_rgba(99,102,241,0.35),0_1px_2px_rgba(0,0,0,0.05)] transition-all hover:-translate-y-px hover:bg-[var(--th-btn-hover)] active:translate-y-0 disabled:transform-none disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
           >
             保存
           </button>
         </div>
       </div>
     );
-  },
+  }
 );
 
 ViewEditPanel.displayName = "ViewEditPanel";

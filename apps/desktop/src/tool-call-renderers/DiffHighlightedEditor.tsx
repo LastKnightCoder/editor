@@ -15,12 +15,7 @@ interface DiffHighlightedEditorProps {
 }
 
 const sanitizeLeaf = (leaf: ReviewLeaf): FormattedTextType => {
-  const {
-    diffType: _diffType,
-    diffId: _diffId,
-    reviewSynthetic: _reviewSynthetic,
-    ...rest
-  } = leaf;
+  const { diffType: _diffType, diffId: _diffId, reviewSynthetic: _reviewSynthetic, ...rest } = leaf;
   return rest;
 };
 
@@ -37,29 +32,21 @@ export const DiffHighlightedEditor = ({
       let highlightClass = "";
       let syntheticClass = "";
       if (diffLeaf.diffType === "insert") {
-        highlightClass = isDark
-          ? "bg-green-900/30 text-green-200 border-b-2 border-green-500/50"
-          : "bg-green-50 text-green-900 border-b-2 border-green-300";
+        highlightClass =
+          "bg-[var(--th-success)]/15 text-status-success border-b-2 border-[var(--th-success)]/50";
       } else if (diffLeaf.diffType === "replace") {
-        highlightClass = isDark
-          ? "bg-yellow-900/30 text-yellow-200 border-b-2 border-yellow-500/50"
-          : "bg-yellow-50 text-yellow-900 border-b-2 border-yellow-300";
+        highlightClass =
+          "bg-[var(--th-warning)]/15 text-status-warning border-b-2 border-[var(--th-warning)]/50";
       } else if (diffLeaf.diffType === "delete") {
-        highlightClass = isDark
-          ? "bg-red-900/25 text-red-200 line-through rounded-sm"
-          : "bg-red-50 text-red-700 line-through rounded-sm";
+        highlightClass = "bg-[var(--th-danger)]/15 text-status-error line-through rounded-sm";
       }
 
       if (diffLeaf.reviewSyntheticKind === "collapsed") {
-        syntheticClass = isDark
-          ? "italic text-slate-500"
-          : "italic text-slate-400";
+        syntheticClass = isDark ? "italic text-slate-500" : "italic text-slate-400";
       } else if (diffLeaf.reviewSyntheticKind === "meta") {
-        syntheticClass = isDark ? "italic text-sky-300" : "italic text-sky-700";
+        syntheticClass = "italic text-status-info";
       } else if (diffLeaf.reviewSyntheticKind === "code") {
-        syntheticClass = isDark
-          ? "font-mono whitespace-pre-wrap"
-          : "font-mono whitespace-pre-wrap";
+        syntheticClass = isDark ? "font-mono whitespace-pre-wrap" : "font-mono whitespace-pre-wrap";
       }
 
       return (
@@ -77,7 +64,7 @@ export const DiffHighlightedEditor = ({
         </span>
       );
     },
-    [isDark],
+    [isDark]
   );
 
   return (

@@ -59,8 +59,8 @@ const TYPE_CONFIG = {
   card: {
     icon: FileText,
     label: "卡片",
-    color: "text-blue-500",
-    bg: "bg-blue-500/10",
+    color: "text-[var(--th-accent)]",
+    bg: "bg-[var(--th-accent)]/10",
   },
   article: {
     icon: BookOpen,
@@ -77,7 +77,7 @@ const TYPE_CONFIG = {
   document: {
     icon: File,
     label: "知识库文档",
-    color: "text-purple-500",
+    color: "text-[var(--th-accent)]",
     bg: "bg-purple-500/10",
   },
 };

@@ -940,7 +940,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
         <div className="flex items-center gap-2">
           {isGenerating && (
-            <span className="flex items-center text-xs text-blue-500">
+            <span className="flex items-center text-xs text-[var(--th-accent)]">
               <LoadingSpinner size="small" className="mr-1" />
               生成中
             </span>

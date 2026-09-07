@@ -1,13 +1,5 @@
 import classNames from "classnames";
-import {
-  Image,
-  Video,
-  Music,
-  FileText,
-  BookOpen,
-  Paperclip,
-  Play,
-} from "lucide-react";
+import { Image, Video, Music, FileText, BookOpen, Paperclip, Play } from "lucide-react";
 
 import LocalImage from "@/components/LocalImage";
 import { ResourceType } from "@/types";
@@ -49,7 +41,7 @@ const iconColors: Record<ResourceType, string> = {
   video: "",
   audio: "",
   pdf: "bg-gradient-to-br from-red-100 to-red-200 dark:from-red-900/40 dark:to-red-800/40 text-red-500 dark:text-red-400",
-  epub: "bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/40 dark:to-blue-800/40 text-blue-500 dark:text-blue-400",
+  epub: "bg-[var(--th-accent-soft)] text-[var(--th-accent)]",
   attachment:
     "bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800/60 dark:to-gray-700/60 text-gray-500 dark:text-gray-400",
 };
@@ -69,7 +61,7 @@ const ResourceThumbnail = ({
     return (
       <div
         className={classNames(baseClass, "cursor-pointer", className)}
-        onClick={(e) => {
+        onClick={e => {
           e.stopPropagation();
           onImageClick?.();
         }}
@@ -77,10 +69,10 @@ const ResourceThumbnail = ({
         <LocalImage
           url={resource.path}
           alt={resource.name}
-          className="w-full h-full object-cover"
+          className="h-full w-full object-cover"
         />
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <Image className="w-4 h-4 text-white" />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+          <Image className="h-4 w-4 text-white" />
         </div>
       </div>
     );
@@ -90,19 +82,15 @@ const ResourceThumbnail = ({
   if (resource.type === "video") {
     return (
       <div
-        className={classNames(
-          baseClass,
-          "cursor-pointer bg-linear-to-br from-violet-100 to-violet-200 dark:from-violet-900/40 dark:to-violet-800/40",
-          className,
-        )}
-        onClick={(e) => {
+        className={classNames(baseClass, "cursor-pointer bg-[var(--th-accent-soft)]", className)}
+        onClick={e => {
           e.stopPropagation();
           onVideoClick?.();
         }}
       >
-        <Video className="w-5 h-5 text-violet-500 dark:text-violet-400" />
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <Play className="w-4 h-4 text-white" fill="white" />
+        <Video className="h-5 w-5 text-[var(--th-accent)]" />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+          <Play className="h-4 w-4 text-white" fill="white" />
         </div>
       </div>
     );
@@ -112,28 +100,22 @@ const ResourceThumbnail = ({
   if (resource.type === "audio") {
     return (
       <div
-        className={classNames(
-          baseClass,
-          "cursor-pointer bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/40 dark:to-emerald-800/40",
-          className,
-        )}
-        onClick={(e) => {
+        className={classNames(baseClass, "cursor-pointer bg-[var(--th-accent-soft)]", className)}
+        onClick={e => {
           e.stopPropagation();
           onAudioClick?.();
         }}
       >
-        <Music className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <Play className="w-4 h-4 text-white" fill="white" />
+        <Music className="h-5 w-5 text-[var(--th-accent)]" />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+          <Play className="h-4 w-4 text-white" fill="white" />
         </div>
       </div>
     );
   }
 
   return (
-    <div
-      className={classNames(baseClass, iconColors[resource.type], className)}
-    >
+    <div className={classNames(baseClass, iconColors[resource.type], className)}>
       {getResourceIcon(resource.type)}
     </div>
   );

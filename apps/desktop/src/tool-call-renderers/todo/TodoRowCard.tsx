@@ -12,17 +12,15 @@ const TodoRowCard = ({ item, isDark, onToggleComplete }: TodoRowCardProps) => {
       <button
         className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full transition-all duration-200 ${
           item.isCompleted
-            ? "bg-emerald-500 text-white"
-            : isDark
-              ? "border border-slate-600 hover:border-emerald-400"
-              : "border border-slate-300 hover:border-emerald-500"
+            ? "bg-status-success text-white"
+            : "border border-slate-300 hover:border-[var(--th-success)] dark:border-slate-600"
         }`}
         onClick={() => void onToggleComplete(item)}
         aria-label={item.isCompleted ? "标记为未完成" : "标记为已完成"}
       >
         {item.isCompleted && (
           <svg
-            className="h-3 w-3 animate-fadeIn"
+            className="animate-fadeIn h-3 w-3"
             viewBox="0 0 12 12"
             fill="none"
             stroke="currentColor"
@@ -51,17 +49,15 @@ const TodoRowCard = ({ item, isDark, onToggleComplete }: TodoRowCardProps) => {
                   ? "bg-purple-500/20 text-purple-300"
                   : "bg-purple-100 text-purple-700"
                 : isDark
-                  ? "bg-blue-500/20 text-blue-300"
-                  : "bg-blue-100 text-blue-700"
+                  ? "bg-[var(--th-accent)]/20"
+                  : "bg-[var(--th-info)]/15 text-status-info"
             }`}
           >
             {typeLabelMap[item.type]}
           </div>
           {secondaryInfoItems.map((info, index) => (
             <Tooltip key={index} content={info.tooltip} isDark={isDark}>
-              <span
-                className={`text-xs ${isDark ? "text-slate-400" : "text-slate-600"}`}
-              >
+              <span className={`text-xs ${isDark ? "text-slate-400" : "text-slate-600"}`}>
                 {info.icon} {info.text}
               </span>
             </Tooltip>
@@ -74,9 +70,7 @@ const TodoRowCard = ({ item, isDark, onToggleComplete }: TodoRowCardProps) => {
           </div>
         )}
 
-        <div
-          className={`mt-1 text-xs opacity-60 ${isDark ? "text-slate-400" : "text-slate-600"}`}
-        >
+        <div className={`mt-1 text-xs opacity-60 ${isDark ? "text-slate-400" : "text-slate-600"}`}>
           {[
             item.group?.title ?? item.groupId,
             item.dueAt ? formatTime(item.dueAt) : null,

@@ -5,7 +5,6 @@ import { getVersions } from "@/commands";
 import { invoke } from "@/electron";
 import SelectDatabase from "@/components/SelectDatabase";
 import { SettingButton, SettingContainer, SettingSection } from "../components";
-import useThemeColors from "@/hooks/useThemeColors";
 
 const AppAbout = memo(() => {
   const [loading, setLoading] = useState(false);
@@ -14,7 +13,6 @@ const AppAbout = memo(() => {
   const [cliInstalled, setCliInstalled] = useState(false);
   const [cliPath, setCliPath] = useState("");
   const [cliLoading, setCliLoading] = useState(false);
-  const themeColors = useThemeColors();
   const { message } = App.useApp();
 
   useAsyncEffect(async () => {
@@ -29,9 +27,7 @@ const AppAbout = memo(() => {
     }
 
     try {
-      const status = await invoke<{ installed: boolean; path: string }>(
-        "cli:get-status",
-      );
+      const status = await invoke<{ installed: boolean; path: string }>("cli:get-status");
       setCliInstalled(status.installed);
       setCliPath(status.path);
     } catch {
@@ -41,9 +37,7 @@ const AppAbout = memo(() => {
 
   const refreshCliStatus = async () => {
     try {
-      const status = await invoke<{ installed: boolean; path: string }>(
-        "cli:get-status",
-      );
+      const status = await invoke<{ installed: boolean; path: string }>("cli:get-status");
       setCliInstalled(status.installed);
       setCliPath(status.path);
     } catch {
@@ -54,16 +48,14 @@ const AppAbout = memo(() => {
   const handleInstallCli = async () => {
     setCliLoading(true);
     try {
-      const result = await invoke<{ success: boolean; error?: string }>(
-        "cli:install",
-      );
+      const result = await invoke<{ success: boolean; error?: string }>("cli:install");
       if (result.success) {
         await refreshCliStatus();
         const isWindows = navigator.userAgent.includes("Windows");
         message.success(
           isWindows
             ? "命令行工具安装成功，请打开新的终端窗口使用 tau 命令"
-            : "命令行工具安装成功，可以在终端使用 tau 命令",
+            : "命令行工具安装成功，可以在终端使用 tau 命令"
         );
       } else {
         message.error(`安装失败: ${result.error}`);
@@ -78,9 +70,7 @@ const AppAbout = memo(() => {
   const handleUninstallCli = async () => {
     setCliLoading(true);
     try {
-      const result = await invoke<{ success: boolean; error?: string }>(
-        "cli:uninstall",
-      );
+      const result = await invoke<{ success: boolean; error?: string }>("cli:uninstall");
       if (result.success) {
         await refreshCliStatus();
         message.success("命令行工具已卸载");
@@ -97,12 +87,12 @@ const AppAbout = memo(() => {
   return (
     <SettingContainer>
       <SettingSection title="软件信息" description="查看当前软件版本信息">
-        <div className="inline-flex items-center gap-3 px-5 py-4 rounded-xl bg-gray-50 dark:bg-zinc-900/50 border border-gray-200 dark:border-slate-700">
+        <div className="inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-5 py-4 dark:border-slate-700 dark:bg-zinc-900/50">
           <div
-            className={`w-12 h-12 rounded-xl ${themeColors.gradientClass} flex items-center justify-center`}
+            className={`flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--th-bg-hover)]`}
           >
             <svg
-              className="w-6 h-6 text-white"
+              className="h-6 w-6 text-[var(--th-text-secondary)]"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -116,13 +106,11 @@ const AppAbout = memo(() => {
             </svg>
           </div>
           <div>
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              当前版本
-            </div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">当前版本</div>
             {loading ? (
               <div className="flex items-center gap-2">
                 <svg
-                  className="animate-spin w-4 h-4 text-blue-500"
+                  className="h-4 w-4 animate-spin text-[var(--th-text-secondary)]"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -154,23 +142,19 @@ const AppAbout = memo(() => {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <div
-              className={`w-2 h-2 rounded-full ${cliInstalled ? "bg-green-500" : "bg-gray-400"}`}
+              className={`h-2 w-2 rounded-full ${cliInstalled ? "bg-status-success" : "bg-gray-400"}`}
             />
             <span className="text-sm text-gray-600 dark:text-gray-400">
               {cliInstalled ? "已安装" : "未安装"}
             </span>
             {cliInstalled && cliPath && (
-              <code className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400">
+              <code className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-zinc-800 dark:text-gray-400">
                 {cliPath}
               </code>
             )}
           </div>
           {cliInstalled ? (
-            <SettingButton
-              variant="danger"
-              loading={cliLoading}
-              onClick={handleUninstallCli}
-            >
+            <SettingButton variant="danger" loading={cliLoading} onClick={handleUninstallCli}>
               卸载命令行工具
             </SettingButton>
           ) : (
@@ -179,12 +163,7 @@ const AppAbout = memo(() => {
               loading={cliLoading}
               onClick={handleInstallCli}
               icon={
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"

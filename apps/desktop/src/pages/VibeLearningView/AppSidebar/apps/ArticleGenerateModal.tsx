@@ -110,14 +110,12 @@ const ArticleGenerateModal = memo((props: ArticleGenerateModalProps) => {
       contentId: number,
       resourceNames: string[],
       extraPrompt: string,
-      articleStyle: VideoEbookRewriteStyle,
+      articleStyle: VideoEbookRewriteStyle
     ) => {
       let lastSavedContent = "";
 
       const saveInterval = setInterval(async () => {
-        const currentContent = useOutlineGenerationStore
-          .getState()
-          .getContent(noteId);
+        const currentContent = useOutlineGenerationStore.getState().getContent(noteId);
         if (currentContent && currentContent !== lastSavedContent) {
           try {
             const slateContent = importFromMarkdown(currentContent);
@@ -149,10 +147,10 @@ const ArticleGenerateModal = memo((props: ArticleGenerateModalProps) => {
           },
         },
         {
-          onUpdate: (responseText) => {
+          onUpdate: responseText => {
             updateGeneratingContent(noteId, responseText);
           },
-          onFinish: async (content) => {
+          onFinish: async content => {
             clearInterval(saveInterval);
             try {
               const slateContent = importFromMarkdown(content);
@@ -162,17 +160,17 @@ const ArticleGenerateModal = memo((props: ArticleGenerateModalProps) => {
             }
             finishGeneration(noteId);
           },
-          onError: (e) => {
+          onError: e => {
             clearInterval(saveInterval);
             console.error("Generate article error:", e);
             setError(noteId, e.message || "生成文章失败");
           },
-          onController: (controller) => {
+          onController: controller => {
             abortControllerRef.current = controller;
           },
-        },
+        }
       );
-    },
+    }
   );
 
   const handleStartGenerate = useMemoizedFn(async () => {
@@ -215,13 +213,7 @@ const ArticleGenerateModal = memo((props: ArticleGenerateModalProps) => {
       onNoteCreated?.(note);
       onClose();
 
-      runBackgroundGeneration(
-        note.id,
-        newContentId,
-        resourceNames,
-        userPrompt,
-        style,
-      );
+      runBackgroundGeneration(note.id, newContentId, resourceNames, userPrompt, style);
     } catch (e) {
       console.error("Failed to start article generation:", e);
       message.error((e as Error).message || "生成失败");
@@ -235,16 +227,16 @@ const ArticleGenerateModal = memo((props: ArticleGenerateModalProps) => {
 
   const primaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
-    "bg-emerald-500 text-white",
-    "hover:bg-emerald-600",
-    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed",
+    "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]",
+    "hover:bg-[var(--th-btn-hover)]",
+    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed"
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
     "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
     "hover:bg-gray-200 dark:hover:bg-zinc-700",
-    "border border-gray-200 dark:border-gray-700",
+    "border border-gray-200 dark:border-gray-700"
   );
 
   const renderFooter = () => (
@@ -263,7 +255,7 @@ const ArticleGenerateModal = memo((props: ArticleGenerateModalProps) => {
         disabled={selectedResourceIds.length === 0 || isCreating}
         className={classNames(primaryButtonClass, "flex items-center gap-2")}
       >
-        <Sparkles className="w-4 h-4" />
+        <Sparkles className="h-4 w-4" />
         {isCreating ? "创建中..." : "生成文章"}
       </button>
     </div>
@@ -278,8 +270,7 @@ const ArticleGenerateModal = memo((props: ArticleGenerateModalProps) => {
       destroyOnClose
       title="生成学习文章"
       subtitle="选择资源和文章风格，AI 将生成一篇可直接阅读的长文章"
-      icon={<FileText className="w-5 h-5 text-emerald-500" />}
-      iconBgColor="bg-emerald-50 dark:bg-emerald-500/20 border-emerald-200 dark:border-emerald-500/30"
+      icon={<FileText className="h-5 w-5 text-[var(--th-text-secondary)]" />}
       footer={renderFooter()}
       showCloseButton={!isCreating}
     >
@@ -308,11 +299,11 @@ const ArticleGenerateModal = memo((props: ArticleGenerateModalProps) => {
           />
 
           <div>
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 block mb-2">
+            <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
               文章风格
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {STYLE_OPTIONS.map((option) => {
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {STYLE_OPTIONS.map(option => {
                 const selected = option.value === style;
                 return (
                   <button
@@ -320,16 +311,16 @@ const ArticleGenerateModal = memo((props: ArticleGenerateModalProps) => {
                     type="button"
                     onClick={() => setStyle(option.value)}
                     className={classNames(
-                      "text-left rounded-xl border px-4 py-3 transition-all",
+                      "rounded-xl border px-4 py-3 text-left transition-all",
                       selected
-                        ? "border-emerald-500 bg-emerald-50/80 dark:bg-emerald-500/10 dark:border-emerald-500"
-                        : "border-gray-200 bg-white hover:border-emerald-300 dark:bg-zinc-900/60 dark:border-gray-700 dark:hover:border-emerald-700",
+                        ? "border-[var(--th-border-focus)] bg-[var(--th-accent-soft)]"
+                        : "border-gray-200 bg-white hover:border-[var(--th-border-hover)] dark:border-gray-700 dark:bg-zinc-900/60"
                     )}
                   >
                     <div className="text-sm font-semibold text-gray-800 dark:text-white">
                       {option.label}
                     </div>
-                    <div className="text-xs mt-1 text-gray-500 dark:text-slate-400 leading-5">
+                    <div className="mt-1 text-xs leading-5 text-gray-500 dark:text-slate-400">
                       {option.description}
                     </div>
                   </button>

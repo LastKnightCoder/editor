@@ -17,13 +17,13 @@ const getTypeIcon = (type: TodoNoteLink["type"]) => {
   const iconProps = "w-4 h-4";
   switch (type) {
     case "card":
-      return <MdNote className={`${iconProps} text-blue-500`} />;
+      return <MdNote className={`${iconProps} text-[var(--th-accent)]`} />;
     case "article":
-      return <MdArticle className={`${iconProps} text-green-500`} />;
+      return <MdArticle className={`${iconProps} text-status-success`} />;
     case "project-item":
       return <MdFolder className={`${iconProps} text-orange-500`} />;
     case "document-item":
-      return <MdDescription className={`${iconProps} text-purple-500`} />;
+      return <MdDescription className={`${iconProps} text-[var(--th-accent)]`} />;
     case "custom":
     default:
       return <MdDescription className={`${iconProps} text-gray-500`} />;
@@ -48,11 +48,7 @@ const NoteCard = memo(
     const { isDark } = useTheme();
     const [hoveredItemId, setHoveredItemId] = useState<number | null>(null);
 
-    const [{ handlerId }, drop] = useDrop<
-      DragNoteItem,
-      void,
-      { handlerId: any }
-    >({
+    const [{ handlerId }, drop] = useDrop<DragNoteItem, void, { handlerId: any }>({
       accept: "note",
       collect(monitor) {
         return {
@@ -66,8 +62,7 @@ const NoteCard = memo(
         if (dragIndex === hoverIndex || !ref.current) return;
 
         const hoverBoundingRect = ref.current.getBoundingClientRect();
-        const hoverMiddleX =
-          (hoverBoundingRect.right - hoverBoundingRect.left) / 2;
+        const hoverMiddleX = (hoverBoundingRect.right - hoverBoundingRect.left) / 2;
         const clientOffset = monitor.getClientOffset();
         if (!clientOffset) return;
         const hoverClientX = clientOffset.x - hoverBoundingRect.left;
@@ -83,7 +78,7 @@ const NoteCard = memo(
     const [{ isDragging }, drag] = useDrag({
       type: "note",
       item: () => ({ id: note.id, index, type: "note" }),
-      collect: (monitor) => ({ isDragging: monitor.isDragging() }),
+      collect: monitor => ({ isDragging: monitor.isDragging() }),
     });
 
     const opacity = isDragging ? 0.4 : 1;
@@ -95,26 +90,23 @@ const NoteCard = memo(
         ref={ref}
         style={{ opacity }}
         data-handler-id={handlerId}
-        className="relative group rounded text-xs cursor-move"
+        className="group relative cursor-move rounded text-xs"
         onClick={onEdit}
         onMouseEnter={() => setHoveredItemId(note.id)}
         onMouseLeave={() => setHoveredItemId(null)}
       >
         <motion.div
           className={classNames(
-            "relative group overflow-visible cursor-pointer flex-none flex items-center gap-2 px-2 py-1 rounded border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all min-w-0",
+            "group relative flex min-w-0 flex-none cursor-pointer items-center gap-2 overflow-visible rounded border border-gray-200 px-2 py-1 transition-all hover:border-[var(--th-border-hover)] hover:bg-[var(--th-accent-soft)]",
             {
-              "border-gray-700 bg-zinc-800 hover:border-gray-600 hover:bg-zinc-700":
-                isDark,
-            },
+              "border-gray-700 bg-zinc-800 hover:border-gray-600 hover:bg-zinc-700": isDark,
+            }
           )}
           onClick={onEdit}
         >
-          <div className="flex items-center flex-none">
-            {getTypeIcon(note.type)}
-          </div>
+          <div className="flex flex-none items-center">{getTypeIcon(note.type)}</div>
 
-          <span className="text-[12px] truncate max-w-24" title={note.title}>
+          <span className="max-w-24 truncate text-[12px]" title={note.title}>
             {note.title}
           </span>
 
@@ -127,24 +119,24 @@ const NoteCard = memo(
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 className={classNames(
-                  "absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center cursor-pointer shadow-lg z-10",
+                  "absolute -right-1 -top-1 z-10 flex h-3 w-3 cursor-pointer items-center justify-center rounded-full bg-red-500 shadow-lg",
                   {
                     "bg-red-700": isDark,
-                  },
+                  }
                 )}
-                onClick={(e) => {
+                onClick={e => {
                   e.stopPropagation();
                   onDelete();
                 }}
               >
-                <MdClose className="w-2 h-2 text-white" />
+                <MdClose className="h-2 w-2 text-white" />
               </motion.div>
             )}
           </AnimatePresence>
         </motion.div>
       </div>
     );
-  },
+  }
 );
 
 export default NoteCard;

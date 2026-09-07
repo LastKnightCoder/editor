@@ -143,7 +143,7 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
     const audio = audioRef.current;
     if (!audio) return;
     if (audio.paused) {
-      audio.play().catch((err) => {
+      audio.play().catch(err => {
         console.warn("[PodcastPlayer] 播放失败", err);
       });
     } else {
@@ -176,7 +176,7 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
       <div
         className={`w-full ${compact ? "py-2" : "my-2"} mx-auto flex items-center justify-center`}
       >
-        <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+        <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
       </div>
     );
   }
@@ -204,16 +204,12 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
         />
         <button
           onClick={togglePlay}
-          className="flex items-center justify-center rounded-full cursor-pointer shrink-0"
+          className="flex shrink-0 cursor-pointer items-center justify-center rounded-full"
           style={{ color: isDark ? "#6666ff" : "#3311db" }}
         >
-          {playing ? (
-            <PauseCircle className="h-6 w-6" />
-          ) : (
-            <PlayCircle className="h-6 w-6" />
-          )}
+          {playing ? <PauseCircle className="h-6 w-6" /> : <PlayCircle className="h-6 w-6" />}
         </button>
-        <span className="text-xs text-gray-500 dark:text-gray-400 w-8 text-right shrink-0">
+        <span className="w-8 shrink-0 text-right text-xs text-gray-500 dark:text-gray-400">
           {formatTime(currentTime)}
         </span>
         <input
@@ -232,9 +228,9 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
               isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"
             } 100%)`,
           }}
-          className="flex-1 cursor-pointer h-1 rounded-full appearance-none transition-all hover:h-1.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-indigo-500 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-2.5 [&::-moz-range-thumb]:h-2.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-indigo-500 [&::-moz-range-thumb]:border-0"
+          className="h-1 flex-1 cursor-pointer appearance-none rounded-full transition-all hover:h-1.5 [&::-moz-range-thumb]:h-2.5 [&::-moz-range-thumb]:w-2.5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:border-[var(--th-accent)] [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-md [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-[var(--th-accent)] [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md"
         />
-        <span className="text-xs text-gray-500 dark:text-gray-400 w-8 shrink-0">
+        <span className="w-8 shrink-0 text-xs text-gray-500 dark:text-gray-400">
           {formatTime(duration)}
         </span>
       </div>
@@ -242,7 +238,7 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
   }
 
   return (
-    <div className="flex flex-col gap-2 border border-[#f0f0f0] dark:border-[#202020] rounded-md p-5 mb-8 relative">
+    <div className="relative mb-8 flex flex-col gap-2 rounded-md border border-[#f0f0f0] p-5 dark:border-[#202020]">
       <audio
         ref={audioRef}
         src={localPath}
@@ -260,61 +256,55 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
           console.warn("[PodcastPlayer] 音频加载失败", localPath);
         }}
       />
-      <div className="flex justify-between items-center px-4">
-        <div className="flex items-center gap-4 flex-1 min-w-0">
+      <div className="flex items-center justify-between px-4">
+        <div className="flex min-w-0 flex-1 items-center gap-4">
           <button
             onClick={togglePlay}
-            className={`flex items-center justify-center rounded-full cursor-pointer`}
+            className={`flex cursor-pointer items-center justify-center rounded-full`}
             style={{ color: isDark ? "#6666ff" : "#3311db" }}
           >
-            {playing ? (
-              <PauseCircle className="h-7 w-7 " />
-            ) : (
-              <PlayCircle className="h-7 w-7 " />
-            )}
+            {playing ? <PauseCircle className="h-7 w-7" /> : <PlayCircle className="h-7 w-7" />}
           </button>
-          <div className="flex flex-col gap-2 flex-1 min-w-0">
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
             <div className="flex items-center gap-2">
-              <div className="text-base font-medium">
-                {podcast.name || "未命名播客"}
-              </div>
+              <div className="text-base font-medium">{podcast.name || "未命名播客"}</div>
             </div>
             <div className="text-sm text-gray-500 dark:text-gray-400">
-              {podcast.speakers.map((speaker) => speaker.name).join(", ")}
+              {podcast.speakers.map(speaker => speaker.name).join(", ")}
             </div>
           </div>
         </div>
         <div ref={menuContainerRef} className="relative">
           <button
             type="button"
-            className="w-8 h-8 rounded-md flex items-center justify-center transition-colors bg-transparent hover:bg-gray-100 dark:hover:bg-zinc-800"
-            onClick={() => setMenuOpen((v) => !v)}
+            className="flex h-8 w-8 items-center justify-center rounded-md bg-transparent transition-colors hover:bg-gray-100 dark:hover:bg-zinc-800"
+            onClick={() => setMenuOpen(v => !v)}
             aria-label="更多"
           >
-            <MoreHorizontal className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+            <MoreHorizontal className="h-4 w-4 text-gray-600 dark:text-gray-300" />
           </button>
           {menuOpen && (
-            <div className="absolute right-0 top-9 z-20 w-56 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-zinc-900 shadow-lg p-1.5 transition-all">
+            <div className="absolute right-0 top-9 z-20 w-56 rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg transition-all dark:border-gray-700 dark:bg-zinc-900">
               <button
                 type="button"
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-zinc-800"
                 onClick={() => {
                   setMenuOpen(false);
                   onEdit?.();
                 }}
               >
-                <Pencil className="w-4 h-4" />
+                <Pencil className="h-4 w-4" />
                 <span>编辑播客</span>
               </button>
               <button
                 type="button"
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-zinc-800"
                 onClick={() => {
                   setMenuOpen(false);
                   setScriptDetailOpen(true);
                 }}
               >
-                <ScrollText className="w-4 h-4" />
+                <ScrollText className="h-4 w-4" />
                 <span>脚本详情</span>
               </button>
 
@@ -322,29 +312,29 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
 
               <button
                 type="button"
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
-                onClick={() => setSpeedMenuOpen((v) => !v)}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-zinc-800"
+                onClick={() => setSpeedMenuOpen(v => !v)}
               >
-                <Zap className="w-4 h-4" />
+                <Zap className="h-4 w-4" />
                 <span className="flex-1 text-left">播放速度</span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">
                   {playbackRate.toFixed(2)}x
                 </span>
                 <ChevronRight
-                  className={`w-4 h-4 transition-transform ${speedMenuOpen ? "rotate-90" : ""}`}
+                  className={`h-4 w-4 transition-transform ${speedMenuOpen ? "rotate-90" : ""}`}
                 />
               </button>
 
               {speedMenuOpen && (
-                <div className="px-2 py-2 grid grid-cols-4 gap-1.5 bg-gray-50 dark:bg-zinc-800/50 rounded-lg mx-2 mb-1.5">
-                  {playbackSpeeds.map((speed) => (
+                <div className="mx-2 mb-1.5 grid grid-cols-4 gap-1.5 rounded-lg bg-gray-50 px-2 py-2 dark:bg-zinc-800/50">
+                  {playbackSpeeds.map(speed => (
                     <button
                       key={speed}
                       type="button"
-                      className={`px-2 py-1.5 rounded-md text-xs font-medium transition-all ${
+                      className={`rounded-md px-2 py-1.5 text-xs font-medium transition-all ${
                         speed === playbackRate
-                          ? "bg-indigo-600 text-white shadow-sm scale-105"
-                          : "bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:scale-105"
+                          ? "scale-105 bg-[var(--th-btn-bg)] text-white shadow-sm"
+                          : "bg-white text-gray-700 hover:scale-105 hover:bg-gray-100 dark:bg-zinc-900 dark:text-gray-300 dark:hover:bg-zinc-700"
                       }`}
                       onClick={() => {
                         setPlaybackRate(speed);
@@ -360,34 +350,34 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
 
               <button
                 type="button"
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-zinc-800"
                 onClick={() => {
                   setMenuOpen(false);
-                  downloadAudio().catch((err) => {
+                  downloadAudio().catch(err => {
                     console.warn("[PodcastPlayer] 下载失败", err);
                   });
                 }}
               >
-                <Download className="w-4 h-4" />
+                <Download className="h-4 w-4" />
                 <span>下载音频</span>
               </button>
               <button
                 type="button"
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
                 onClick={() => {
                   setMenuOpen(false);
                   setDeleteConfirmOpen(true);
                 }}
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="h-4 w-4" />
                 <span>删除播客</span>
               </button>
             </div>
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2 px-4 mb-4">
-        <span className="text-xs text-gray-500 dark:text-gray-400 w-10 text-right shrink-0">
+      <div className="mb-4 flex items-center gap-2 px-4">
+        <span className="w-10 shrink-0 text-right text-xs text-gray-500 dark:text-gray-400">
           {formatTime(currentTime)}
         </span>
         <input
@@ -406,15 +396,15 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
               isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"
             } 100%)`,
           }}
-          className="flex-1 cursor-pointer h-1.5 rounded-full appearance-none transition-all hover:h-2 focus:h-2 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:transition-all hover:[&::-webkit-slider-thumb]:w-4 hover:[&::-webkit-slider-thumb]:h-4 hover:[&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border-2 dark:[&::-webkit-slider-thumb]:border-indigo-500 [&::-webkit-slider-thumb]:border-indigo-600 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:transition-all hover:[&::-moz-range-thumb]:w-4 hover:[&::-moz-range-thumb]:h-4 hover:[&::-moz-range-thumb]:shadow-lg [&::-moz-range-thumb]:border-2 dark:[&::-moz-range-thumb]:border-indigo-500 [&::-moz-range-thumb]:border-indigo-600 [&::-moz-range-thumb]:border-0"
+          className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full transition-all hover:h-2 focus:h-2 [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[var(--th-accent)] [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:transition-all hover:[&::-moz-range-thumb]:h-4 hover:[&::-moz-range-thumb]:w-4 hover:[&::-moz-range-thumb]:shadow-lg dark:[&::-moz-range-thumb]:border-[var(--th-accent)] [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[var(--th-accent)] [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:transition-all hover:[&::-webkit-slider-thumb]:h-4 hover:[&::-webkit-slider-thumb]:w-4 hover:[&::-webkit-slider-thumb]:shadow-lg dark:[&::-webkit-slider-thumb]:border-[var(--th-accent)]"
         />
-        <span className="text-xs text-gray-500 dark:text-gray-400 w-10 shrink-0">
+        <span className="w-10 shrink-0 text-xs text-gray-500 dark:text-gray-400">
           {formatTime(duration)}
         </span>
         <div
           style={{ color: isDark ? "#6666ff" : "#3311db" }}
-          className="shrink-0 ml-2 cursor-pointer transition-all hover:scale-110 active:scale-95"
-          onClick={() => setMuted((v) => !v)}
+          className="ml-2 shrink-0 cursor-pointer transition-all hover:scale-110 active:scale-95"
+          onClick={() => setMuted(v => !v)}
         >
           {muted || volume === 0 ? (
             <VolumeX className="h-5 w-5" />
@@ -438,7 +428,7 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
               isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"
             } 100%)`,
           }}
-          className="w-16 cursor-pointer shrink-0 h-1.5 rounded-full appearance-none transition-all hover:h-2 focus:h-2 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:transition-all hover:[&::-webkit-slider-thumb]:w-4 hover:[&::-webkit-slider-thumb]:h-4 hover:[&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:border-2 dark:[&::-webkit-slider-thumb]:border-indigo-500 [&::-webkit-slider-thumb]:border-indigo-600 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:transition-all hover:[&::-moz-range-thumb]:w-4 hover:[&::-moz-range-thumb]:h-4 hover:[&::-moz-range-thumb]:shadow-lg [&::-moz-range-thumb]:border-2 dark:[&::-moz-range-thumb]:border-indigo-500 [&::-moz-range-thumb]:border-indigo-600 [&::-moz-range-thumb]:border-0"
+          className="h-1.5 w-16 shrink-0 cursor-pointer appearance-none rounded-full transition-all hover:h-2 focus:h-2 [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[var(--th-accent)] [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:transition-all hover:[&::-moz-range-thumb]:h-4 hover:[&::-moz-range-thumb]:w-4 hover:[&::-moz-range-thumb]:shadow-lg dark:[&::-moz-range-thumb]:border-[var(--th-accent)] [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[var(--th-accent)] [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:transition-all hover:[&::-webkit-slider-thumb]:h-4 hover:[&::-webkit-slider-thumb]:w-4 hover:[&::-webkit-slider-thumb]:shadow-lg dark:[&::-webkit-slider-thumb]:border-[var(--th-accent)]"
         />
       </div>
       <CustomModal
@@ -456,29 +446,21 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
             overflow: "hidden",
           }}
         >
-          <div className="overflow-y-auto flex flex-col gap-3 p-4 rounded whitespace-pre-wrap max-h-full">
+          <div className="flex max-h-full flex-col gap-3 overflow-y-auto whitespace-pre-wrap rounded p-4">
             {podcast.scriptLines && podcast.scriptLines.length > 0 ? (
               <div className="flex flex-col gap-4">
-                {podcast.scriptLines.map(
-                  (line: PodcastScriptLine, index: number) => (
-                    <div key={index} className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-gray-600">
-                          {line.speaker}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {formatTime(line.startTime)}
-                        </span>
-                      </div>
-                      <div className="text-gray-800">{line.text}</div>
+                {podcast.scriptLines.map((line: PodcastScriptLine, index: number) => (
+                  <div key={index} className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-gray-600">{line.speaker}</span>
+                      <span className="text-xs text-gray-400">{formatTime(line.startTime)}</span>
                     </div>
-                  ),
-                )}
+                    <div className="text-gray-800">{line.text}</div>
+                  </div>
+                ))}
               </div>
             ) : (
-              podcast.script
-                .split("\n")
-                .map((line, index) => <div key={index}>{line}</div>)
+              podcast.script.split("\n").map((line, index) => <div key={index}>{line}</div>)
             )}
           </div>
         </div>

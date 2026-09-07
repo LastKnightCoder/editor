@@ -10,11 +10,7 @@ interface ImageUrlModalProps {
   onConfirm: (url: string) => Promise<void> | void;
 }
 
-const ImageUrlModal: React.FC<ImageUrlModalProps> = ({
-  open,
-  onCancel,
-  onConfirm,
-}) => {
+const ImageUrlModal: React.FC<ImageUrlModalProps> = ({ open, onCancel, onConfirm }) => {
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -57,17 +53,14 @@ const ImageUrlModal: React.FC<ImageUrlModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      className="z-9999 fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={onCancel}
       onKeyDown={handleKeyDown}
     >
-      <div
-        className="m-4 w-full max-w-[460px]"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="m-4 w-full max-w-[460px]" onClick={e => e.stopPropagation()}>
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
           <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-blue-200 bg-blue-50 text-blue-500 dark:border-blue-500/30 dark:bg-blue-500/20">
+            <div className="border-[var(--th-border-focus)]/30 dark:border-[var(--th-border-focus)]/30 dark:bg-[var(--th-accent)]/20 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border bg-[var(--th-accent-soft)] text-[var(--th-accent)]">
               <Link size={20} />
             </div>
             <div className="min-w-0 flex-1">
@@ -91,12 +84,12 @@ const ImageUrlModal: React.FC<ImageUrlModalProps> = ({
             <input
               ref={inputRef}
               value={url}
-              onChange={(e) => {
+              onChange={e => {
                 setUrl(e.target.value);
                 setError(null);
               }}
               placeholder="https://example.com/image.png"
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-blue-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]"
             />
 
             {error && (
@@ -114,7 +107,7 @@ const ImageUrlModal: React.FC<ImageUrlModalProps> = ({
                 取消
               </button>
               <button
-                className="flex flex-1 cursor-pointer items-center justify-center rounded-xl border-none bg-blue-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(59,130,246,0.35),0_1px_2px_rgba(0,0,0,0.05)] transition-all hover:-translate-y-px hover:bg-blue-600 active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
+                className="flex flex-1 cursor-pointer items-center justify-center rounded-xl border-none bg-[var(--th-btn-bg)] px-5 py-3 text-sm font-semibold text-[var(--th-btn-text)] shadow-sm transition-all hover:-translate-y-px hover:bg-[var(--th-btn-hover)] active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
                 onClick={handleSubmit}
                 disabled={!url.trim() || submitting}
                 type="button"
@@ -126,7 +119,7 @@ const ImageUrlModal: React.FC<ImageUrlModalProps> = ({
         </div>
       </div>
     </div>,
-    document.body,
+    document.body
   );
 };
 

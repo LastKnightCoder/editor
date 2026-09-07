@@ -689,9 +689,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-zinc-800 dark:text-gray-400">
           {orderedResources.length}
         </span>
-        {savingOrder && (
-          <span className="text-xs text-blue-500 dark:text-blue-400">保存顺序中...</span>
-        )}
+        {savingOrder && <span className="text-xs text-[var(--th-accent)]">保存顺序中...</span>}
       </div>
 
       {/* 添加资料按钮 */}
@@ -699,7 +697,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         <button
           type="button"
           onClick={handleOpenAddResourceModal}
-          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-600 transition-all hover:border-blue-500 hover:text-blue-500 dark:border-gray-700 dark:bg-[#1f1f1f] dark:text-gray-400 dark:hover:border-blue-500 dark:hover:text-blue-400"
+          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-600 transition-all hover:border-[var(--th-border-focus)] hover:text-[var(--th-accent)] dark:border-gray-700 dark:bg-[#1f1f1f] dark:text-gray-400 dark:hover:border-[var(--th-border-focus)] dark:hover:text-[var(--th-accent)]"
         >
           <PlusOutlined />
           <span>添加资料</span>

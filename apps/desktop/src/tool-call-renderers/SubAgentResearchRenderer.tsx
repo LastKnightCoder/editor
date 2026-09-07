@@ -23,9 +23,7 @@ import {
   ToolValuePill,
 } from "./ui";
 
-const getPayload = (
-  metadata?: Record<string, unknown>,
-): SubAgentResearchPayload | null => {
+const getPayload = (metadata?: Record<string, unknown>): SubAgentResearchPayload | null => {
   const render =
     metadata?.render && typeof metadata.render === "object"
       ? (metadata.render as Record<string, unknown>)
@@ -52,18 +50,15 @@ const statusLabel: Record<string, string> = {
   cancelled: "已取消",
 };
 
-const getSessionId = (payload: SubAgentResearchPayload | null) =>
-  payload?.sessionId || "";
+const getSessionId = (payload: SubAgentResearchPayload | null) => payload?.sessionId || "";
 
 const useLivePayload = (payload: SubAgentResearchPayload | null) => {
   const sessionId = getSessionId(payload);
   const livePayload = useSyncExternalStore(
-    (listener) =>
-      sessionId
-        ? subAgentResearchStore.subscribe(sessionId, listener)
-        : () => undefined,
+    listener =>
+      sessionId ? subAgentResearchStore.subscribe(sessionId, listener) : () => undefined,
     () => (sessionId ? subAgentResearchStore.getSession(sessionId) : undefined),
-    () => undefined,
+    () => undefined
   );
   return livePayload || payload;
 };
@@ -85,13 +80,9 @@ const getTaskDuration = (task: SubAgentTaskView, now: number) => {
   return undefined;
 };
 
-const StatusBadge = ({
-  status,
-  isDark,
-}: {
-  status: string;
-  isDark: boolean;
-}) => <ToolBadge isDark={isDark}>{statusLabel[status] || status}</ToolBadge>;
+const StatusBadge = ({ status, isDark }: { status: string; isDark: boolean }) => (
+  <ToolBadge isDark={isDark}>{statusLabel[status] || status}</ToolBadge>
+);
 
 const ToolExecutionList = ({
   executions,
@@ -108,7 +99,7 @@ const ToolExecutionList = ({
 
   return (
     <div className="space-y-2">
-      {executions.map((execution) => (
+      {executions.map(execution => (
         <ToolCallDisplay
           key={execution.toolCallId}
           execution={execution}
@@ -139,7 +130,7 @@ const TaskTabs = ({
       isDark ? "bg-zinc-950/70" : "bg-slate-100"
     }`}
   >
-    {tasks.map((task) => {
+    {tasks.map(task => {
       const active = task.id === activeTaskId;
       return (
         <button
@@ -161,12 +152,12 @@ const TaskTabs = ({
           <span
             className={`h-2 w-2 shrink-0 rounded-full ${
               task.status === "success"
-                ? "bg-emerald-500"
+                ? "bg-status-success"
                 : task.status === "failed"
-                  ? "bg-red-500"
+                  ? "bg-status-error"
                   : task.status === "cancelled"
                     ? "bg-gray-400"
-                    : "bg-sky-500"
+                    : "bg-status-info"
             }`}
           />
           <span className="truncate">{task.title}</span>
@@ -191,9 +182,7 @@ const TaskOutputBlocks = ({
   const textContent = task.answer || task.progressText || "";
   const duration = getTaskDuration(task, now);
   const hasOutput =
-    reasoning.trim().length > 0 ||
-    textContent.trim().length > 0 ||
-    task.toolExecutions.length > 0;
+    reasoning.trim().length > 0 || textContent.trim().length > 0 || task.toolExecutions.length > 0;
 
   return (
     <div
@@ -226,9 +215,7 @@ const TaskOutputBlocks = ({
       </div>
 
       {task.error ? (
-        <div className="rounded bg-red-500/10 p-3 text-sm text-red-500">
-          {task.error}
-        </div>
+        <div className="rounded bg-red-500/10 p-3 text-sm text-red-500">{task.error}</div>
       ) : null}
 
       {hasOutput ? (
@@ -270,16 +257,13 @@ const SubAgentResearchRenderer = ({
   rendererContext,
   renderDefault,
 }: ToolCallCustomRendererProps) => {
-  const initialPayload = useMemo(
-    () => getPayload(execution.metadata),
-    [execution.metadata],
-  );
+  const initialPayload = useMemo(() => getPayload(execution.metadata), [execution.metadata]);
   const payload = useLivePayload(initialPayload);
   const [detailOpen, setDetailOpen] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState("");
   const [now, setNow] = useState(Date.now());
   const tasks = payload?.tasks || [];
-  const activeTask = tasks.find((task) => task.id === activeTaskId) || tasks[0];
+  const activeTask = tasks.find(task => task.id === activeTaskId) || tasks[0];
   const markdownComponents = rendererContext?.markdownComponents || {};
 
   useEffect(() => {
@@ -288,13 +272,13 @@ const SubAgentResearchRenderer = ({
       return;
     }
 
-    if (activeTaskId && !tasks.some((task) => task.id === activeTaskId)) {
+    if (activeTaskId && !tasks.some(task => task.id === activeTaskId)) {
       setActiveTaskId(tasks[0]?.id || "");
     }
   }, [activeTaskId, tasks]);
 
   useEffect(() => {
-    if (!tasks.some((task) => task.status === "running")) {
+    if (!tasks.some(task => task.status === "running")) {
       return;
     }
     const intervalId = window.setInterval(() => {
@@ -307,18 +291,10 @@ const SubAgentResearchRenderer = ({
     return <>{renderDefault()}</>;
   }
 
-  const successCount = payload.tasks.filter(
-    (task) => task.status === "success",
-  ).length;
-  const failedCount = payload.tasks.filter(
-    (task) => task.status === "failed",
-  ).length;
-  const cancelledCount = payload.tasks.filter(
-    (task) => task.status === "cancelled",
-  ).length;
-  const runningCount = payload.tasks.filter(
-    (task) => task.status === "running",
-  ).length;
+  const successCount = payload.tasks.filter(task => task.status === "success").length;
+  const failedCount = payload.tasks.filter(task => task.status === "failed").length;
+  const cancelledCount = payload.tasks.filter(task => task.status === "cancelled").length;
+  const runningCount = payload.tasks.filter(task => task.status === "running").length;
 
   return (
     <>
@@ -338,18 +314,14 @@ const SubAgentResearchRenderer = ({
           <div className="flex flex-wrap gap-2">
             <ToolValuePill isDark={isDark}>完成：{successCount}</ToolValuePill>
             <ToolValuePill isDark={isDark}>失败：{failedCount}</ToolValuePill>
-            <ToolValuePill isDark={isDark}>
-              取消：{cancelledCount}
-            </ToolValuePill>
+            <ToolValuePill isDark={isDark}>取消：{cancelledCount}</ToolValuePill>
           </div>
           <div className="space-y-2">
-            {payload.tasks.map((task) => (
+            {payload.tasks.map(task => (
               <div
                 key={task.id}
                 className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 ${
-                  isDark
-                    ? "border-white/10 bg-zinc-950/40"
-                    : "border-slate-200 bg-slate-50"
+                  isDark ? "border-white/10 bg-zinc-950/40" : "border-slate-200 bg-slate-50"
                 }`}
               >
                 <div
@@ -359,9 +331,7 @@ const SubAgentResearchRenderer = ({
                 >
                   {task.title}
                 </div>
-                <ToolBadge isDark={isDark}>
-                  {formatDuration(getTaskDuration(task, now))}
-                </ToolBadge>
+                <ToolBadge isDark={isDark}>{formatDuration(getTaskDuration(task, now))}</ToolBadge>
                 <StatusBadge status={task.status} isDark={isDark} />
               </div>
             ))}
@@ -370,8 +340,8 @@ const SubAgentResearchRenderer = ({
             type="button"
             className={`inline-flex rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${
               isDark
-                ? "border-sky-400/30 bg-sky-400/10 text-sky-200 hover:bg-sky-400/15"
-                : "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100"
+                ? "border-[var(--th-info)]/40 bg-[var(--th-info)]/10 hover:bg-[var(--th-info)]/15"
+                : "border-[var(--th-info)]/30 bg-[var(--th-info)]/10 text-status-info hover:bg-[var(--th-info)]/15"
             }`}
             onClick={() => setDetailOpen(true)}
           >
@@ -397,10 +367,7 @@ const SubAgentResearchRenderer = ({
               isDark={isDark}
             />
 
-            <div
-              data-testid="subagent-scroll-body"
-              className="min-h-0 flex-1 overflow-auto pr-1"
-            >
+            <div data-testid="subagent-scroll-body" className="min-h-0 flex-1 overflow-auto pr-1">
               {activeTask ? (
                 <TaskOutputBlocks
                   task={activeTask}
@@ -409,9 +376,7 @@ const SubAgentResearchRenderer = ({
                   now={now}
                 />
               ) : (
-                <ToolMutedText isDark={isDark}>
-                  暂无 SubAgent 任务。
-                </ToolMutedText>
+                <ToolMutedText isDark={isDark}>暂无 SubAgent 任务。</ToolMutedText>
               )}
             </div>
           </div>

@@ -33,27 +33,27 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   return (
     <div
       ref={containerRef as React.RefObject<HTMLDivElement | null>}
-      className="flex-1 overflow-y-auto space-y-1 p-2"
+      className="flex-1 space-y-1 overflow-y-auto p-2"
     >
       {segments.map((segment, index) => (
         <div
           key={index}
-          ref={(el) => {
+          ref={el => {
             if (el) segmentRefsMap.current.set(index, el);
             else segmentRefsMap.current.delete(index);
           }}
           className={classNames(
-            "flex flex-col gap-0.5 rounded-md p-2 cursor-pointer transition-colors",
+            "flex cursor-pointer flex-col gap-0.5 rounded-md p-2 transition-colors",
             currentSegmentIndex === index
-              ? "bg-blue-100 dark:bg-blue-900/30"
-              : "hover:bg-gray-100 dark:hover:bg-zinc-800",
+              ? "bg-[var(--th-info)]/15 dark:"
+              : "hover:bg-gray-100 dark:hover:bg-zinc-800"
           )}
           onClick={() => onSegmentClick(segment)}
         >
-          <span className="shrink-0 font-mono text-xs text-blue-500 dark:text-blue-400">
+          <span className="shrink-0 font-mono text-xs text-[var(--th-accent)]">
             {formatTime(segment.start)}
           </span>
-          <span className="text-sm text-gray-700 dark:text-gray-300 break-words">
+          <span className="break-words text-sm text-gray-700 dark:text-gray-300">
             {segment.text}
           </span>
         </div>

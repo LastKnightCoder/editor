@@ -19,19 +19,14 @@ import type { IAnswer } from "@/types/question";
 import useThemeColors from "@/hooks/useThemeColors";
 import classNames from "classnames";
 import { subscribeQuestionMutationEvent } from "@/mcp/question/events";
-import {
-  getAnswerContentStatus,
-  type AnswerContentStatus,
-} from "@/utils/answer-content";
+import { getAnswerContentStatus, type AnswerContentStatus } from "@/utils/answer-content";
 
 const DEFAULT_CONTENT: Descendant[] = [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] },
 ];
 
 const QuestionWindowPage = () => {
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const { message, modal } = App.useApp();
   const themeColors = useThemeColors();
 
@@ -63,38 +58,30 @@ const QuestionWindowPage = () => {
     useState<Descendant[]>(DEFAULT_CONTENT);
   const [newQuestionEditorKey, setNewQuestionEditorKey] = useState(0);
   const [editQuestionVisible, setEditQuestionVisible] = useState(false);
-  const [editingQuestionId, setEditingQuestionId] = useState<number | null>(
-    null,
-  );
+  const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null);
   const [editQuestionValue, setEditQuestionValue] = useState("");
   const [editQuestionDescription, setEditQuestionDescription] =
     useState<Descendant[]>(DEFAULT_CONTENT);
   const [newAnswerVisible, setNewAnswerVisible] = useState(false);
   const [contentSelectorVisible, setContentSelectorVisible] = useState(false);
-  const [selectedQuestionId, setSelectedQuestionId] = useState<number | null>(
-    null,
-  );
+  const [selectedQuestionId, setSelectedQuestionId] = useState<number | null>(null);
   const [answerPreviewVisible, setAnswerPreviewVisible] = useState(false);
   const [selectedAnswerId, setSelectedAnswerId] = useState<number | null>(null);
-  const [selectedQuestionAnswers, setSelectedQuestionAnswers] = useState<
-    IAnswer[]
-  >([]);
+  const [selectedQuestionAnswers, setSelectedQuestionAnswers] = useState<IAnswer[]>([]);
   const [answerTitles, setAnswerTitles] = useState<Record<number, string>>({});
-  const [answerStatuses, setAnswerStatuses] = useState<
-    Record<number, AnswerContentStatus>
-  >({});
+  const [answerStatuses, setAnswerStatuses] = useState<Record<number, AnswerContentStatus>>({});
 
   const resetNewQuestionDraft = useMemoizedFn(() => {
     setNewQuestionVisible(false);
     setNewQuestionValue("");
     setNewQuestionDescription(DEFAULT_CONTENT);
-    setNewQuestionEditorKey((current) => current + 1);
+    setNewQuestionEditorKey(current => current + 1);
   });
 
   const openNewQuestionModal = useMemoizedFn(() => {
     setNewQuestionValue("");
     setNewQuestionDescription(DEFAULT_CONTENT);
-    setNewQuestionEditorKey((current) => current + 1);
+    setNewQuestionEditorKey(current => current + 1);
     setNewQuestionVisible(true);
   });
 
@@ -113,27 +100,26 @@ const QuestionWindowPage = () => {
     const refreshSelectedAnswers = async (questionId: number) => {
       const answers = await getQuestionAnswers(questionId);
       setSelectedQuestionAnswers(answers);
-      setSelectedAnswerId((prev) => {
+      setSelectedAnswerId(prev => {
         if (answers.length === 0) {
           setAnswerPreviewVisible(false);
           return null;
         }
-        if (prev && answers.some((answer) => answer.id === prev)) {
+        if (prev && answers.some(answer => answer.id === prev)) {
           return prev;
         }
         return answers[0]?.id ?? null;
       });
     };
 
-    return subscribeQuestionMutationEvent((event) => {
+    return subscribeQuestionMutationEvent(event => {
       if (event.source !== "question-mcp") {
         return;
       }
 
       if (
         selectedQuestionId != null &&
-        (event.questionId === selectedQuestionId ||
-          event.entityId === selectedQuestionId)
+        (event.questionId === selectedQuestionId || event.entityId === selectedQuestionId)
       ) {
         void refreshSelectedAnswers(selectedQuestionId);
       }
@@ -144,7 +130,7 @@ const QuestionWindowPage = () => {
     async (ids: number[]) => {
       await useQuestionStore.getState().reorderQuestions(ids);
     },
-    { wait: 300 },
+    { wait: 300 }
   );
 
   const displayItems = useMemo(() => {
@@ -155,9 +141,7 @@ const QuestionWindowPage = () => {
     // 搜索筛选
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      return items.filter((q) =>
-        q.questionContent.toLowerCase().includes(query),
-      );
+      return items.filter(q => q.questionContent.toLowerCase().includes(query));
     }
 
     return items;
@@ -167,15 +151,15 @@ const QuestionWindowPage = () => {
   useEffect(() => {
     const loadAnswerMetadata = async () => {
       const allAnswerIds = new Set<number>();
-      displayItems.forEach((q) => {
-        q.answers.forEach((aid) => allAnswerIds.add(aid));
+      displayItems.forEach(q => {
+        q.answers.forEach(aid => allAnswerIds.add(aid));
       });
 
       const titles: Record<number, string> = {};
       const statuses: Record<number, AnswerContentStatus> = {};
 
       await Promise.all(
-        Array.from(allAnswerIds).map(async (contentId) => {
+        Array.from(allAnswerIds).map(async contentId => {
           try {
             const status = await getAnswerContentStatus(contentId);
             titles[contentId] = `答案 #${contentId}`;
@@ -191,7 +175,7 @@ const QuestionWindowPage = () => {
               documentMountCount: 0,
             };
           }
-        }),
+        })
       );
 
       setAnswerTitles(titles);
@@ -238,7 +222,7 @@ const QuestionWindowPage = () => {
   };
 
   const handleViewDetails = (id: number) => {
-    const question = displayItems.find((q) => q.id === id);
+    const question = displayItems.find(q => q.id === id);
     if (!question) return;
     setEditingQuestionId(id);
     setEditQuestionValue(question.questionContent);
@@ -299,13 +283,10 @@ const QuestionWindowPage = () => {
     setContentSelectorVisible(true);
   };
 
-  const onSelectExistingAnswer = async (
-    item: { contentId: number } | { contentId: number }[],
-  ) => {
+  const onSelectExistingAnswer = async (item: { contentId: number } | { contentId: number }[]) => {
     if (!selectedQuestionId) return;
     if (Array.isArray(item)) {
-      for (const it of item)
-        await addAnswerSelect(selectedQuestionId, it.contentId);
+      for (const it of item) await addAnswerSelect(selectedQuestionId, it.contentId);
     } else {
       await addAnswerSelect(selectedQuestionId, item.contentId);
     }
@@ -314,28 +295,24 @@ const QuestionWindowPage = () => {
 
   const selectedAnswer = useMemo(() => {
     if (!selectedAnswerId) return null;
-    return (
-      selectedQuestionAnswers.find((a) => a.id === selectedAnswerId) || null
-    );
+    return selectedQuestionAnswers.find(a => a.id === selectedAnswerId) || null;
   }, [selectedAnswerId, selectedQuestionAnswers]);
 
   const currentAnswerIndex = useMemo(() => {
     if (!selectedAnswerId) return -1;
-    return selectedQuestionAnswers.findIndex((a) => a.id === selectedAnswerId);
+    return selectedQuestionAnswers.findIndex(a => a.id === selectedAnswerId);
   }, [selectedAnswerId, selectedQuestionAnswers]);
 
-  const handleCreateGroup = useMemoizedFn(
-    async (title: string, color?: string) => {
-      await createGroup({ title, color });
-      await loadGroupStats();
-    },
-  );
+  const handleCreateGroup = useMemoizedFn(async (title: string, color?: string) => {
+    await createGroup({ title, color });
+    await loadGroupStats();
+  });
 
   const handleUpdateGroup = useMemoizedFn(
     async (payload: { id: number; title?: string; color?: string }) => {
       await updateGroup(payload);
       await loadGroupStats();
-    },
+    }
   );
 
   const handleDeleteGroup = useMemoizedFn(async (groupId: number) => {
@@ -360,20 +337,20 @@ const QuestionWindowPage = () => {
   });
 
   const activeGroup = useMemo(
-    () => groups.find((g) => g.id === activeGroupId),
-    [groups, activeGroupId],
+    () => groups.find(g => g.id === activeGroupId),
+    [groups, activeGroupId]
   );
 
   const totalCount = useMemo(
     () => (activeGroupId != null ? (groupStats[activeGroupId]?.total ?? 0) : 0),
-    [activeGroupId, groupStats],
+    [activeGroupId, groupStats]
   );
 
   const handleOpenAnswer = async (questionId: number, answerId: number) => {
     setSelectedQuestionId(questionId);
     const answers = await getQuestionAnswers(questionId);
     setSelectedQuestionAnswers(answers);
-    const found = answers.find((a) => a.id === answerId);
+    const found = answers.find(a => a.id === answerId);
     setSelectedAnswerId(found?.id || answers[0]?.id || null);
     setAnswerPreviewVisible(true);
   };
@@ -395,33 +372,28 @@ const QuestionWindowPage = () => {
 
   const handleUpdateStatus = async (
     id: number,
-    status: "not_started" | "in_progress" | "resolved",
+    status: "not_started" | "in_progress" | "resolved"
   ) => {
     await useQuestionStore.getState().updateQuestionStatus(id, status);
   };
 
   const handlePrevAnswer = () => {
     if (!selectedQuestionAnswers.length) return;
-    setSelectedAnswerId((prev) => {
+    setSelectedAnswerId(prev => {
       if (!prev) return selectedQuestionAnswers[0]?.id ?? null;
-      const currentIndex = selectedQuestionAnswers.findIndex(
-        (a) => a.id === prev,
-      );
+      const currentIndex = selectedQuestionAnswers.findIndex(a => a.id === prev);
       if (currentIndex === -1) return selectedQuestionAnswers[0]?.id ?? null;
       const nextIndex =
-        (currentIndex - 1 + selectedQuestionAnswers.length) %
-        selectedQuestionAnswers.length;
+        (currentIndex - 1 + selectedQuestionAnswers.length) % selectedQuestionAnswers.length;
       return selectedQuestionAnswers[nextIndex].id;
     });
   };
 
   const handleNextAnswer = () => {
     if (!selectedQuestionAnswers.length) return;
-    setSelectedAnswerId((prev) => {
+    setSelectedAnswerId(prev => {
       if (!prev) return selectedQuestionAnswers[0]?.id ?? null;
-      const currentIndex = selectedQuestionAnswers.findIndex(
-        (a) => a.id === prev,
-      );
+      const currentIndex = selectedQuestionAnswers.findIndex(a => a.id === prev);
       if (currentIndex === -1) return selectedQuestionAnswers[0]?.id ?? null;
       const nextIndex = (currentIndex + 1) % selectedQuestionAnswers.length;
       return selectedQuestionAnswers[nextIndex].id;
@@ -430,14 +402,14 @@ const QuestionWindowPage = () => {
 
   return (
     <DndProvider>
-      <div className="flex w-full h-full overflow-hidden">
+      <div className="flex h-full w-full overflow-hidden">
         <QuestionSidebar
           onCreateGroup={handleCreateGroup}
           onUpdateGroup={handleUpdateGroup}
           onDeleteGroup={handleDeleteGroup}
         />
 
-        <div className="flex flex-col flex-1 h-full min-w-0">
+        <div className="flex h-full min-w-0 flex-1 flex-col">
           {activeGroupId != null && activeGroup ? (
             <>
               <Toolbar
@@ -453,15 +425,13 @@ const QuestionWindowPage = () => {
                 onCreateQuestion={openNewQuestionModal}
               />
 
-              <div className="flex-1 min-h-0 overflow-auto">
+              <div className="min-h-0 flex-1 overflow-auto">
                 <QuestionList
                   questions={displayItems}
                   groups={groups}
                   answerTitles={answerTitles}
                   answerStatuses={answerStatuses}
-                  onUpdateTitle={(id, title) =>
-                    updateQuestion({ id, questionContent: title })
-                  }
+                  onUpdateTitle={(id, title) => updateQuestion({ id, questionContent: title })}
                   onOpenNewAnswer={openNewAnswer}
                   onOpenSelectAnswer={openSelectAnswer}
                   onMoveToGroup={moveToGroup}
@@ -477,8 +447,8 @@ const QuestionWindowPage = () => {
           ) : (
             <div
               className={classNames(
-                "flex items-center justify-center h-full transition-colors",
-                themeColors.textClass,
+                "flex h-full items-center justify-center transition-colors",
+                themeColors.textClass
               )}
             >
               请选择一个分类
@@ -494,7 +464,7 @@ const QuestionWindowPage = () => {
           subtitle="输入问题内容和描述"
           icon={
             <svg
-              className="w-5 h-5 text-green-500"
+              className="h-5 w-5 text-[var(--th-accent)]"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -504,20 +474,19 @@ const QuestionWindowPage = () => {
               <path d="M9 12h6m-3-3v6" />
             </svg>
           }
-          iconBgColor="bg-green-50 dark:bg-green-500/20 border-green-200 dark:border-green-500/30"
           closeOnEscape={false}
           footer={
             <div className="flex justify-end gap-3">
               <button
                 onClick={resetNewQuestionDraft}
-                className="px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-zinc-700"
+                className="cursor-pointer rounded-xl border border-gray-200 bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-700 transition-all hover:bg-gray-200 dark:border-slate-700 dark:bg-zinc-800 dark:text-slate-300 dark:hover:bg-zinc-700"
               >
                 取消
               </button>
               <button
                 onClick={onCreateQuestion}
                 disabled={!newQuestionValue.trim()}
-                className="px-5 py-2.5 rounded-xl border-none text-sm font-semibold cursor-pointer transition-all bg-green-500 text-white shadow-[0_4px_14px_rgba(34,197,94,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-green-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700"
+                className="cursor-pointer rounded-xl border-none bg-[var(--th-btn-bg)] px-5 py-2.5 text-sm font-semibold text-[var(--th-btn-text)] shadow-sm transition-all hover:-translate-y-px hover:bg-[var(--th-btn-hover)] active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700 dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
               >
                 确定
               </button>
@@ -526,26 +495,26 @@ const QuestionWindowPage = () => {
         >
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-slate-300">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300">
                 问题标题 <span className="text-red-500">*</span>
               </label>
               <textarea
                 rows={3}
                 placeholder="请输入问题内容"
                 value={newQuestionValue}
-                onChange={(e) => setNewQuestionValue(e.target.value)}
-                className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all resize-none bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-green-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(34,197,94,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(34,197,94,0.25)]"
+                onChange={e => setNewQuestionValue(e.target.value)}
+                className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-slate-300">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300">
                 问题描述（可选）
               </label>
-              <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-zinc-950 shadow-inner transition-all focus-within:border-green-500 focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(34,197,94,0.15)] dark:focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(34,197,94,0.25)]">
+              <div className="rounded-xl border border-gray-200 bg-gray-50 shadow-inner transition-all focus-within:border-[var(--th-border-focus)] focus-within:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950">
                 <Editor
                   key={`new-question-${newQuestionEditorKey}`}
                   initValue={newQuestionDescription}
-                  onChange={(value) => setNewQuestionDescription(value)}
+                  onChange={value => setNewQuestionDescription(value)}
                   readonly={false}
                   extensions={dynamicExtensions}
                   style={{
@@ -573,7 +542,7 @@ const QuestionWindowPage = () => {
           subtitle="修改问题内容和描述"
           icon={
             <svg
-              className="w-5 h-5 text-blue-500"
+              className="h-5 w-5 text-[var(--th-accent)]"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -583,7 +552,6 @@ const QuestionWindowPage = () => {
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
           }
-          iconBgColor="bg-blue-50 dark:bg-blue-500/20 border-blue-200 dark:border-blue-500/30"
           closeOnEscape={false}
           footer={
             <div className="flex justify-end gap-3">
@@ -594,14 +562,14 @@ const QuestionWindowPage = () => {
                   setEditQuestionValue("");
                   setEditQuestionDescription(DEFAULT_CONTENT);
                 }}
-                className="px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-zinc-700"
+                className="cursor-pointer rounded-xl border border-gray-200 bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-700 transition-all hover:bg-gray-200 dark:border-slate-700 dark:bg-zinc-800 dark:text-slate-300 dark:hover:bg-zinc-700"
               >
                 取消
               </button>
               <button
                 onClick={onUpdateQuestionDetails}
                 disabled={!editQuestionValue.trim()}
-                className="px-5 py-2.5 rounded-xl border-none text-sm font-semibold cursor-pointer transition-all bg-blue-500 text-white shadow-[0_4px_14px_rgba(59,130,246,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-blue-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700"
+                className="cursor-pointer rounded-xl border-none bg-[var(--th-btn-bg)] px-5 py-2.5 text-sm font-semibold text-[var(--th-btn-text)] shadow-sm transition-all hover:-translate-y-px hover:bg-[var(--th-btn-hover)] active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700 dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
               >
                 保存
               </button>
@@ -610,26 +578,26 @@ const QuestionWindowPage = () => {
         >
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-slate-300">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300">
                 问题标题 <span className="text-red-500">*</span>
               </label>
               <textarea
                 rows={3}
                 placeholder="请输入问题内容"
                 value={editQuestionValue}
-                onChange={(e) => setEditQuestionValue(e.target.value)}
-                className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all resize-none bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]"
+                onChange={e => setEditQuestionValue(e.target.value)}
+                className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-slate-300">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-300">
                 问题描述（可选）
               </label>
-              <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-zinc-950 shadow-inner transition-all focus-within:border-blue-500 focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] dark:focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]">
+              <div className="rounded-xl border border-gray-200 bg-gray-50 shadow-inner transition-all focus-within:border-[var(--th-border-focus)] focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] dark:border-slate-700 dark:bg-zinc-950 dark:focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]">
                 <Editor
                   key={`edit-question-${editingQuestionId}`}
                   initValue={editQuestionDescription}
-                  onChange={(value) => setEditQuestionDescription(value)}
+                  onChange={value => setEditQuestionDescription(value)}
                   readonly={false}
                   extensions={dynamicExtensions}
                   style={{
@@ -659,13 +627,7 @@ const QuestionWindowPage = () => {
           open={contentSelectorVisible}
           onCancel={() => setContentSelectorVisible(false)}
           onSelect={onSelectExistingAnswer}
-          contentType={[
-            "card",
-            "article",
-            "project-item",
-            "document-item",
-            "diary-daily",
-          ]}
+          contentType={["card", "article", "project-item", "document-item", "diary-daily"]}
           extensions={dynamicExtensions}
         />
         <AnswerModal

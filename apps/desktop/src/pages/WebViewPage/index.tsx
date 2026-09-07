@@ -34,7 +34,7 @@ const WebViewPage = memo(() => {
             <p className="mb-4 text-lg">请输入网页地址</p>
             <button
               onClick={() => setShowModal(true)}
-              className="rounded-lg bg-blue-500 px-6 py-2 text-white transition-colors hover:bg-blue-600"
+              className="rounded-lg bg-[var(--th-accent)] px-6 py-2 text-[var(--th-btn-text)] transition-colors hover:bg-[var(--th-btn-bg)]"
             >
               输入网址
             </button>

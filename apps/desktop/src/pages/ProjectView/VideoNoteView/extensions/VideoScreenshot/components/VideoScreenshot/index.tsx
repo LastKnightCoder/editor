@@ -1,10 +1,5 @@
 import React, { PropsWithChildren } from "react";
-import {
-  ReactEditor,
-  RenderElementProps,
-  useSlateStatic,
-  useReadOnly,
-} from "slate-react";
+import { ReactEditor, RenderElementProps, useSlateStatic, useReadOnly } from "slate-react";
 import classnames from "classnames";
 import { DeleteOutlined } from "@ant-design/icons";
 import LocalImage from "@/components/LocalImage";
@@ -17,13 +12,7 @@ import {
   EditorContextMenu,
 } from "@tau/editor/src";
 import { MdDragIndicator } from "react-icons/md";
-import {
-  Editor,
-  Element,
-  Path,
-  Transforms,
-  type Path as SlatePath,
-} from "slate";
+import { Editor, Element, Path, Transforms, type Path as SlatePath } from "slate";
 import EditText from "@/components/EditText";
 
 interface VideoScreenshotProps {
@@ -44,10 +33,9 @@ const VideoScreenshot: React.FC<PropsWithChildren<VideoScreenshotProps>> = ({
 
   const { url, time, caption } = element;
 
-  const { drag, drop, isDragging, canDrag, canDrop, isOverCurrent } =
-    useDragAndDrop({
-      element: element as unknown as Element,
-    });
+  const { drag, drop, isDragging, canDrag, canDrop, isOverCurrent } = useDragAndDrop({
+    element: element as unknown as Element,
+  });
 
   // Menu for drag handler
   const { menuProps, dragHandlerProps } = useDragHandlerMenu({
@@ -87,7 +75,7 @@ const VideoScreenshot: React.FC<PropsWithChildren<VideoScreenshotProps>> = ({
 
   return (
     <div
-      ref={(node) => {
+      ref={node => {
         drop(node);
       }}
       className="group/screenshot relative"
@@ -96,30 +84,23 @@ const VideoScreenshot: React.FC<PropsWithChildren<VideoScreenshotProps>> = ({
         {...attributes}
         className={classnames("relative my-2", {
           "opacity-50": isDragging,
-          "ring-2 ring-blue-400": isOverCurrent && canDrop,
+          "ring-2 ring-[var(--th-accent)]": isOverCurrent && canDrop,
         })}
       >
         <div
           contentEditable={false}
           className={classnames(
             "overflow-hidden rounded-lg",
-            isDark ? "bg-zinc-800" : "bg-gray-100",
+            isDark ? "bg-zinc-800" : "bg-gray-100"
           )}
         >
-          <LocalImage
-            url={url}
-            className="w-full cursor-pointer"
-            onClick={() => onSeek(time)}
-          />
+          <LocalImage url={url} className="w-full cursor-pointer" onClick={() => onSeek(time)} />
           <div data-slate-editor className="px-3 py-2">
             <EditText
               defaultValue={caption}
               onChange={handleCaptionChange}
               contentEditable={true}
-              className={classnames(
-                "w-full text-sm",
-                isDark ? "text-gray-300" : "text-gray-600",
-              )}
+              className={classnames("w-full text-sm", isDark ? "text-gray-300" : "text-gray-600")}
               onPressEnter={focusNextElement}
             />
           </div>
@@ -130,13 +111,13 @@ const VideoScreenshot: React.FC<PropsWithChildren<VideoScreenshotProps>> = ({
       {/* Drag handler - same style as Paragraph */}
       <div
         contentEditable={false}
-        ref={(node) => {
+        ref={node => {
           drag(node);
         }}
         onClick={dragHandlerProps.onClick}
         className={classnames(
           "absolute top-0 cursor-pointer opacity-0 transition-opacity group-hover/screenshot:opacity-100",
-          canDrag && "opacity-100",
+          canDrag && "opacity-100"
         )}
         style={{
           left: "-1.25em",

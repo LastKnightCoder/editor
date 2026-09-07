@@ -32,7 +32,7 @@ const formatDate = (timestamp: number) => {
 
 const groupByDate = (sessions: PomodoroSession[]) => {
   const map = new Map<string, PomodoroSession[]>();
-  sessions.forEach((s) => {
+  sessions.forEach(s => {
     const d = new Date(s.startTime);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const arr = map.get(key) || [];
@@ -50,9 +50,9 @@ const BatchManageModal: React.FC<BatchManageModalProps> = memo(
     const groups = useMemo(() => groupByDate(sessions), [sessions]);
 
     const handleToggle = (sessionId: number) => {
-      setSelectedIds((prev) => {
+      setSelectedIds(prev => {
         if (prev.includes(sessionId)) {
-          return prev.filter((id) => id !== sessionId);
+          return prev.filter(id => id !== sessionId);
         } else {
           return [...prev, sessionId];
         }
@@ -63,7 +63,7 @@ const BatchManageModal: React.FC<BatchManageModalProps> = memo(
       if (selectedIds.length === sessions.length) {
         setSelectedIds([]);
       } else {
-        setSelectedIds(sessions.map((s) => s.id));
+        setSelectedIds(sessions.map(s => s.id));
       }
     };
 
@@ -109,7 +109,7 @@ const BatchManageModal: React.FC<BatchManageModalProps> = memo(
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          className="z-9999 fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm"
           onClick={handleCancel}
         >
           <motion.div
@@ -117,51 +117,47 @@ const BatchManageModal: React.FC<BatchManageModalProps> = memo(
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -10 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="w-full max-w-[640px] m-4 max-h-[90vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
+            className="m-4 flex max-h-[90vh] w-full max-w-[640px] flex-col"
+            onClick={e => e.stopPropagation()}
           >
-            <div className="rounded-2xl p-6 shadow-2xl bg-white dark:bg-zinc-900/95 border border-gray-200 dark:border-slate-800 flex flex-col overflow-hidden">
+            <div className="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
               {/* Header */}
-              <div className="flex items-start gap-3 mb-5 shrink-0">
-                <div className="shrink-0 w-10 h-10 rounded-[10px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30">
-                  <MdPlaylistAddCheck className="w-5 h-5 text-indigo-500" />
+              <div className="mb-5 flex shrink-0 items-start gap-3">
+                <div className="border-[var(--th-border-focus)]/30 dark:border-[var(--th-border-focus)]/30 dark:bg-[var(--th-accent)]/20 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border bg-[var(--th-accent-soft)]">
+                  <MdPlaylistAddCheck className="h-5 w-5 text-[var(--th-accent)]" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-base font-bold m-0 text-gray-800 dark:text-white">
+                <div className="min-w-0 flex-1">
+                  <h2 className="m-0 text-base font-bold text-gray-800 dark:text-white">
                     批量管理专注记录
                   </h2>
-                  <p className="text-xs mt-0.5 text-gray-500 dark:text-slate-500">
+                  <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-500">
                     选择需要删除的番茄钟记录
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={handleCancel}
-                  className="shrink-0 w-8 h-8 rounded-lg border-none cursor-pointer flex items-center justify-center transition-all bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-slate-200"
+                  className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-gray-100 text-gray-500 transition-all hover:bg-gray-200 hover:text-gray-700 dark:bg-zinc-800 dark:text-slate-400 dark:hover:bg-zinc-700 dark:hover:text-slate-200"
                 >
-                  <MdClose className="w-5 h-5" />
+                  <MdClose className="h-5 w-5" />
                 </button>
               </div>
 
               {/* 全选 */}
-              <div className="mb-4 pb-3 border-b border-gray-200 dark:border-slate-700 flex items-center gap-2 shrink-0">
+              <div className="mb-4 flex shrink-0 items-center gap-2 border-b border-gray-200 pb-3 dark:border-slate-700">
                 <CustomCheckbox
-                  checked={
-                    selectedIds.length === sessions.length &&
-                    sessions.length > 0
-                  }
+                  checked={selectedIds.length === sessions.length && sessions.length > 0}
                   onChange={handleToggleAll}
                 />
                 <span className="text-sm text-gray-700 dark:text-slate-300">
-                  全选（当前已加载 {sessions.length} 条
-                  {hasMoreSessions ? "，可继续加载更多" : ""}）
+                  全选（当前已加载 {sessions.length} 条{hasMoreSessions ? "，可继续加载更多" : ""}）
                 </span>
               </div>
 
               {/* 列表 */}
-              <div className="flex-1 overflow-y-auto event-modal-scroll pr-1 min-h-0 max-h-[60vh]">
+              <div className="event-modal-scroll max-h-[60vh] min-h-0 flex-1 overflow-y-auto pr-1">
                 {groups.length === 0 ? (
-                  <div className="text-sm text-gray-500 dark:text-slate-400 text-center py-12">
+                  <div className="py-12 text-center text-sm text-gray-500 dark:text-slate-400">
                     暂无记录
                   </div>
                 ) : (
@@ -172,58 +168,53 @@ const BatchManageModal: React.FC<BatchManageModalProps> = memo(
 
                       return (
                         <div key={dateKey}>
-                          <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-3">
+                          <div className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
                             {displayDate}
                           </div>
                           <div className="space-y-2">
-                            {list.map((session) => {
-                              const startTime = new Date(
-                                session.startTime,
-                              ).toLocaleTimeString("zh-CN", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              });
-                              const endTime = session.endTime
-                                ? new Date(session.endTime).toLocaleTimeString(
-                                    "zh-CN",
-                                    {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    },
-                                  )
-                                : null;
-                              const presetName =
-                                presets.get(session.presetId) || "未知预设";
-                              const focusMinutes = Math.round(
-                                (session.focusMs || 0) / 60000,
+                            {list.map(session => {
+                              const startTime = new Date(session.startTime).toLocaleTimeString(
+                                "zh-CN",
+                                {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }
                               );
+                              const endTime = session.endTime
+                                ? new Date(session.endTime).toLocaleTimeString("zh-CN", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })
+                                : null;
+                              const presetName = presets.get(session.presetId) || "未知预设";
+                              const focusMinutes = Math.round((session.focusMs || 0) / 60000);
                               const selected = selectedIds.includes(session.id);
 
                               return (
                                 <div
                                   key={session.id}
-                                  className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
+                                  className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-all ${
                                     selected
-                                      ? "bg-indigo-50 dark:bg-indigo-500/10 border-indigo-300 dark:border-indigo-500/40"
-                                      : "bg-gray-50 dark:bg-zinc-950 border-gray-200 dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                                      ? "border-[var(--th-border-focus)]/40 bg-[var(--th-accent-soft)]"
+                                      : "border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-slate-700 dark:bg-zinc-950 dark:hover:bg-zinc-800"
                                   }`}
                                   onClick={() => handleToggle(session.id)}
                                 >
-                                  <div onClick={(e) => e.stopPropagation()}>
+                                  <div onClick={e => e.stopPropagation()}>
                                     <CustomCheckbox
                                       checked={selected}
                                       onChange={() => handleToggle(session.id)}
                                     />
                                   </div>
-                                  <div className="flex-1 min-w-0">
+                                  <div className="min-w-0 flex-1">
                                     <div className="text-xs text-gray-500 dark:text-slate-400">
                                       {startTime} - {endTime || "进行中"}
                                     </div>
-                                    <div className="text-sm mt-0.5 text-gray-800 dark:text-slate-200 truncate">
+                                    <div className="mt-0.5 truncate text-sm text-gray-800 dark:text-slate-200">
                                       {presetName}
                                     </div>
                                   </div>
-                                  <div className="text-sm font-medium text-gray-600 dark:text-slate-300 shrink-0">
+                                  <div className="shrink-0 text-sm font-medium text-gray-600 dark:text-slate-300">
                                     {focusMinutes}m
                                   </div>
                                 </div>
@@ -238,7 +229,7 @@ const BatchManageModal: React.FC<BatchManageModalProps> = memo(
               </div>
 
               {/* Footer */}
-              <div className="flex justify-between items-center pt-4 mt-4 border-t border-white/20 dark:border-white/10 shrink-0">
+              <div className="mt-4 flex shrink-0 items-center justify-between border-t border-white/20 pt-4 dark:border-white/10">
                 <div className="text-sm text-gray-500 dark:text-slate-400">
                   已选择 {selectedIds.length} 条记录
                 </div>
@@ -246,7 +237,7 @@ const BatchManageModal: React.FC<BatchManageModalProps> = memo(
                   <button
                     type="button"
                     onClick={handleCancel}
-                    className="px-5 py-3.5 rounded-xl text-sm font-semibold cursor-pointer transition-all bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-zinc-700"
+                    className="cursor-pointer rounded-xl border border-gray-200 bg-gray-100 px-5 py-3.5 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-200 dark:border-slate-700 dark:bg-zinc-800 dark:text-slate-200 dark:hover:bg-zinc-700"
                   >
                     取消
                   </button>
@@ -254,7 +245,7 @@ const BatchManageModal: React.FC<BatchManageModalProps> = memo(
                     type="button"
                     onClick={handleDelete}
                     disabled={selectedIds.length === 0}
-                    className="px-5 py-3.5 rounded-xl border-none text-sm font-semibold cursor-pointer flex items-center justify-center gap-2 transition-all bg-red-500 text-white shadow-[0_4px_14px_rgba(239,68,68,0.35),0_1px_2px_rgba(0,0,0,0.05)] hover:bg-red-600 hover:-translate-y-px active:translate-y-0 disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:translate-y-0"
+                    className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-none bg-red-500 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(239,68,68,0.35),0_1px_2px_rgba(0,0,0,0.05)] transition-all hover:-translate-y-px hover:bg-red-600 active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none disabled:hover:translate-y-0 dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
                   >
                     删除选中
                   </button>
@@ -264,9 +255,9 @@ const BatchManageModal: React.FC<BatchManageModalProps> = memo(
           </motion.div>
         </motion.div>
       </AnimatePresence>,
-      document.body,
+      document.body
     );
-  },
+  }
 );
 
 BatchManageModal.displayName = "BatchManageModal";

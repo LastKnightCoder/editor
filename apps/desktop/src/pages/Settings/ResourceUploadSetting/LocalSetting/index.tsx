@@ -27,7 +27,7 @@ const LocalSetting = () => {
             )}
           >
             <svg
-              className={classNames("h-5 w-5", themeColors.iconTextClass)}
+              className={classNames("h-5 w-5", themeColors.secondaryTextClass)}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -42,7 +42,7 @@ const LocalSetting = () => {
           </div>
           <div>
             <div className={classNames("text-sm", themeColors.secondaryTextClass)}>存储路径</div>
-            <div className={classNames("text-sm font-medium", themeColors.activeTextClass)}>
+            <div className={classNames("text-sm font-medium", themeColors.secondaryTextClass)}>
               {path || "默认数据库目录"}
             </div>
           </div>

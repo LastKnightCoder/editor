@@ -92,7 +92,7 @@ const TodoRow = ({
             updateTime: 0,
           }
         : null,
-    [id, type, recurrence, activeGroupId, title, isCompleted],
+    [id, type, recurrence, activeGroupId, title, isCompleted]
   );
 
   const recurringStatus = useRecurringTaskStatus(todoItemForHook);
@@ -154,11 +154,9 @@ const TodoRow = ({
         // Reload the items to reflect the change
         const gid = activeGroupId;
         if (gid != null) {
-          const systemGroup = systemGroups.find((g) => g.id === gid);
+          const systemGroup = systemGroups.find(g => g.id === gid);
           if (systemGroup?.systemType) {
-            await useTodoStore
-              .getState()
-              .loadItemsByType(systemGroup.systemType);
+            await useTodoStore.getState().loadItemsByType(systemGroup.systemType);
           } else {
             await loadItems(gid);
           }
@@ -236,14 +234,9 @@ const TodoRow = ({
   const getTypeIcon = () => {
     switch (type) {
       case "deadline":
-        return (
-          <MdFlag
-            size={12}
-            className={isOverdue ? "text-red-500" : "text-orange-500"}
-          />
-        );
+        return <MdFlag size={12} className={isOverdue ? "text-red-500" : "text-orange-500"} />;
       case "planned":
-        return <MdSchedule size={12} className="text-blue-500" />;
+        return <MdSchedule size={12} className="text-[var(--th-accent)]" />;
       case "recurring":
         return <MdLoop size={12} className="text-green-500" />;
       default:
@@ -256,7 +249,7 @@ const TodoRow = ({
       key: "view-detail",
       label: "查看详情",
       icon: <MdInfo />,
-      onClick: (e) => {
+      onClick: e => {
         e.domEvent.stopPropagation();
         setActiveTodo(id);
         setRightOpen(true);
@@ -266,7 +259,7 @@ const TodoRow = ({
       key: "edit",
       label: "编辑",
       icon: <MdEdit />,
-      onClick: (e) => {
+      onClick: e => {
         e.domEvent.stopPropagation();
         onStartEdit();
       },
@@ -278,7 +271,7 @@ const TodoRow = ({
       key: "add-subtask",
       label: "添加子任务",
       icon: <MdAdd />,
-      onClick: (e) => {
+      onClick: e => {
         e.domEvent.stopPropagation();
         handleAddSubTask();
       },
@@ -287,7 +280,7 @@ const TodoRow = ({
       key: "add-above",
       label: "在上面添加任务",
       icon: <MdKeyboardArrowUp />,
-      onClick: (e) => {
+      onClick: e => {
         e.domEvent.stopPropagation();
         handleAddTaskAbove();
       },
@@ -296,7 +289,7 @@ const TodoRow = ({
       key: "add-below",
       label: "在下面添加任务",
       icon: <MdKeyboardArrowDown />,
-      onClick: (e) => {
+      onClick: e => {
         e.domEvent.stopPropagation();
         handleAddTaskBelow();
       },
@@ -309,14 +302,14 @@ const TodoRow = ({
       label: "移动至",
       icon: <MdDriveFileMove />,
       children: groups
-        .filter((group) => !group.isSystem && group.id !== activeGroupId)
-        .map((group) => ({
+        .filter(group => !group.isSystem && group.id !== activeGroupId)
+        .map(group => ({
           key: `move-to-${group.id}`,
           label: (
             <div className="flex items-center gap-2">
               {group.color && (
                 <div
-                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  className="h-2 w-2 flex-shrink-0 rounded-full"
                   style={{ backgroundColor: group.color }}
                 />
               )}
@@ -336,7 +329,7 @@ const TodoRow = ({
       key: "delete",
       label: "删除任务",
       icon: <MdDelete />,
-      onClick: (e) => {
+      onClick: e => {
         e.domEvent.stopPropagation();
         handleDeleteTask();
       },
@@ -348,28 +341,28 @@ const TodoRow = ({
     <Dropdown menu={{ items: menuItems }} trigger={["contextMenu"]}>
       <div
         className={classnames(
-          "transition-all duration-200 px-3 py-1 rounded-lg",
-          selected ? themeColors.activeClass : themeColors.hoverClass,
+          "rounded-lg px-3 py-1 transition-all duration-200",
+          selected ? themeColors.activeClass : themeColors.hoverClass
         )}
         style={{
           marginLeft: depth * 12,
         }}
         onDoubleClick={onStartEdit}
-        onContextMenu={(e) => {
+        onContextMenu={e => {
           e.stopPropagation();
           setActiveTodo(id);
         }}
       >
-        <div className="flex gap-2 w-full">
-          <div className="h-7 flex items-center flex-none">
+        <div className="flex w-full gap-2">
+          <div className="flex h-7 flex-none items-center">
             <CustomCheckbox
               checked={effectiveChecked}
               onChange={confirmToggle}
-              className="mt-0 mb-[2px]"
+              className="mb-[2px] mt-0"
             />
           </div>
 
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               {getTypeIcon()}
               <EditText
@@ -378,9 +371,9 @@ const TodoRow = ({
                 contentEditable={isEditing}
                 defaultFocus={isEditing}
                 className={classnames(
-                  "flex-1 min-w-0 truncate flex items-center h-7 rounded text-[14px] transition-colors",
+                  "flex h-7 min-w-0 flex-1 items-center truncate rounded text-[14px] transition-colors",
                   effectiveChecked ? "line-through opacity-60" : undefined,
-                  themeColors.textClass,
+                  themeColors.textClass
                 )}
                 onChange={handleTitleChange}
                 onBlur={onFinishEdit}
@@ -388,39 +381,23 @@ const TodoRow = ({
               />
             </div>
             {(dueAt || startAt) && (
-              <div className="text-[10px] flex items-center gap-1">
+              <div className="flex items-center gap-1 text-[10px]">
                 {type === "planned" && startAt && (
-                  <span
-                    className={classnames(
-                      "transition-colors",
-                      themeColors.textClass,
-                    )}
-                  >
+                  <span className={classnames("transition-colors", themeColors.textClass)}>
                     {dayjs(startAt).format("MM-DD HH:mm")}
                   </span>
                 )}
                 {type === "planned" && startAt && dueAt && (
-                  <span
-                    className={classnames(
-                      "transition-colors",
-                      themeColors.textClass,
-                    )}
-                  >
-                    ~
-                  </span>
+                  <span className={classnames("transition-colors", themeColors.textClass)}>~</span>
                 )}
                 {dueAt && (
                   <span
                     className={classnames(
                       "text-[10px] transition-colors",
-                      isOverdue
-                        ? "text-red-500 font-semibold"
-                        : themeColors.textClass,
+                      isOverdue ? "font-semibold text-red-500" : themeColors.textClass
                     )}
                   >
-                    {dayjs(dueAt).format(
-                      type === "planned" ? "MM-DD HH:mm" : "YYYY-MM-DD",
-                    )}
+                    {dayjs(dueAt).format(type === "planned" ? "MM-DD HH:mm" : "YYYY-MM-DD")}
                   </span>
                 )}
               </div>

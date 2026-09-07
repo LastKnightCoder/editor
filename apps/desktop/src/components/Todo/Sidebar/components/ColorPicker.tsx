@@ -19,33 +19,33 @@ const ColorPicker = memo(({ value, onChange, theme }: ColorPickerProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
 
-  const selectedColor = PROJECT_COLORS.find((c) => c.name === value);
+  const selectedColor = PROJECT_COLORS.find(c => c.name === value);
 
   return (
     <div className="relative">
       <div
         ref={triggerRef}
         className={classNames(
-          "w-full h-10 border rounded-lg cursor-pointer flex items-center px-3 transition-all duration-200 bg-white dark:bg-zinc-700",
+          "flex h-10 w-full cursor-pointer items-center rounded-lg border bg-white px-3 transition-all duration-200 dark:bg-zinc-700",
           isOpen
-            ? "border-blue-500 ring-1 ring-blue-200 dark:ring-blue-800/50 shadow-sm"
-            : "border-gray-200 dark:border-gray-600 hover:border-blue-400",
+            ? "ring-[var(--th-accent)]/30 border-[var(--th-border-focus)] shadow-sm ring-1"
+            : "border-gray-200 hover:border-[var(--th-border-hover)] dark:border-gray-600"
         )}
         onClick={() => setIsOpen(!isOpen)}
       >
         <div
-          className="w-4 h-4 rounded-full mr-2 ring-1 ring-gray-200 dark:ring-gray-500"
+          className="mr-2 h-4 w-4 rounded-full ring-1 ring-gray-200 dark:ring-gray-500"
           style={{
             backgroundColor: getProjectColorValue(value, theme),
           }}
         />
-        <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">
+        <span className="flex-1 text-sm text-gray-700 dark:text-gray-300">
           {selectedColor?.label}
         </span>
         <MdAdd
           className={classNames(
-            "transform transition-transform duration-200 text-gray-400 dark:text-gray-500 text-xs",
-            isOpen ? "rotate-45 text-blue-500 dark:text-blue-400" : "rotate-45",
+            "transform text-xs text-gray-400 transition-transform duration-200 dark:text-gray-500",
+            isOpen ? "rotate-45 text-[var(--th-accent)]" : "rotate-45"
           )}
         />
       </div>
@@ -57,12 +57,12 @@ const ColorPicker = memo(({ value, onChange, theme }: ColorPickerProps) => {
         onClose={() => setIsOpen(false)}
         onSelect={(color: ProjectColor) => onChange(color.name)}
         triggerElement={triggerRef.current}
-        getKey={(color) => color.name}
-        renderItem={(color) => (
-          <div className="flex items-center justify-between w-full">
+        getKey={color => color.name}
+        renderItem={color => (
+          <div className="flex w-full items-center justify-between">
             <div className="flex items-center">
               <div
-                className="w-4 h-4 rounded-full mr-3 ring-1 ring-gray-200 dark:ring-gray-500 shadow-sm"
+                className="mr-3 h-4 w-4 rounded-full shadow-sm ring-1 ring-gray-200 dark:ring-gray-500"
                 style={{
                   backgroundColor: getProjectColorValue(color.name, theme),
                 }}
@@ -70,9 +70,7 @@ const ColorPicker = memo(({ value, onChange, theme }: ColorPickerProps) => {
               <span className="text-sm">{color.label}</span>
             </div>
             {value === color.name && (
-              <span className="text-blue-500 dark:text-blue-400 text-sm font-medium">
-                ✓
-              </span>
+              <span className="text-sm font-medium text-[var(--th-accent)]">✓</span>
             )}
           </div>
         )}

@@ -45,7 +45,7 @@ interface RecurrenceStats {
 }
 
 const statusColorMap: Record<HeatmapStatus, string> = {
-  completed: "bg-emerald-500",
+  completed: "bg-status-success",
   missed: "bg-rose-400",
   skipped: "bg-amber-400",
   upcoming: "bg-slate-300 dark:bg-zinc-700",
@@ -472,7 +472,7 @@ const DetailsPanel = () => {
           <div className="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
             {/* Header */}
             <div className="mb-5 flex shrink-0 items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-indigo-200 bg-indigo-50 text-indigo-500 dark:border-indigo-500/30 dark:bg-indigo-500/20">
+              <div className="border-[var(--th-border-focus)]/30 dark:border-[var(--th-border-focus)]/30 dark:bg-[var(--th-accent)]/20 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border bg-[var(--th-accent-soft)] text-[var(--th-accent)]">
                 <svg
                   className="h-5 w-5"
                   viewBox="0 0 24 24"

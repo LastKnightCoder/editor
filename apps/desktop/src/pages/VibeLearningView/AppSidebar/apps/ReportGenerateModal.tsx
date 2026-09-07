@@ -1,15 +1,7 @@
 import { memo, useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { App, Spin } from "antd";
-import {
-  FileBarChart,
-  Sparkles,
-  RefreshCw,
-  Loader2,
-  CheckCircle2,
-  Code,
-  Eye,
-} from "lucide-react";
+import { FileBarChart, Sparkles, RefreshCw, Loader2, CheckCircle2, Code, Eye } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 
@@ -68,22 +60,18 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
   });
 
   const [step, setStep] = useState<Step>("select-resources");
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(
-    DEFAULT_REPORT_TEMPLATE_ID,
-  );
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(DEFAULT_REPORT_TEMPLATE_ID);
   const [userPrompt, setUserPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedHtml, setGeneratedHtml] = useState("");
   const [cleanedHtml, setCleanedHtml] = useState("");
-  const [toolExecutions, setToolExecutions] = useState<
-    ToolCallExecutionState[]
-  >([]);
+  const [toolExecutions, setToolExecutions] = useState<ToolCallExecutionState[]>([]);
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<"preview" | "source">("preview");
 
   const selectedTemplate = useMemo(
     () => getReportTemplateById(selectedTemplateId) || REPORT_TEMPLATES[0],
-    [selectedTemplateId],
+    [selectedTemplateId]
   );
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -171,16 +159,16 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
         },
       },
       {
-        onUpdate: (responseText) => {
+        onUpdate: responseText => {
           setGeneratedHtml(responseText);
         },
-        onFinish: (content) => {
+        onFinish: content => {
           setIsGenerating(false);
           setGeneratedHtml(content);
           processGeneratedHtml(content);
           setStep("preview");
         },
-        onError: (e) => {
+        onError: e => {
           setIsGenerating(false);
           console.error("Generate Report error:", e);
           message.error(e.message || "生成报告失败");
@@ -191,13 +179,13 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
             setStep("preview");
           }
         },
-        onController: (controller) => {
+        onController: controller => {
           abortControllerRef.current = controller;
         },
-        onToolCallsUpdate: (executions) => {
+        onToolCallsUpdate: executions => {
           setToolExecutions(executions);
         },
-      },
+      }
     );
   });
 
@@ -269,7 +257,7 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
 
   const getToolStatusText = useMemoizedFn(() => {
     const activeTools = toolExecutions.filter(
-      (t) => t.status === "executing" || t.status === "pending",
+      t => t.status === "executing" || t.status === "pending"
     );
     if (activeTools.length === 0) {
       if (generatedHtml) {
@@ -278,7 +266,7 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
       return "正在分析资料...";
     }
 
-    const executingTool = activeTools.find((t) => t.status === "executing");
+    const executingTool = activeTools.find(t => t.status === "executing");
     if (executingTool) {
       const toolNameMap: Record<string, string> = {
         list_project_resources: "获取资源列表",
@@ -343,26 +331,26 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
             type="button"
             onClick={() => setViewMode("preview")}
             className={classNames(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+              "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
               viewMode === "preview"
-                ? "bg-blue-500 text-white"
-                : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-700",
+                ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700"
             )}
           >
-            <Eye className="w-3.5 h-3.5" />
+            <Eye className="h-3.5 w-3.5" />
             预览
           </button>
           <button
             type="button"
             onClick={() => setViewMode("source")}
             className={classNames(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+              "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
               viewMode === "source"
-                ? "bg-blue-500 text-white"
-                : "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-700",
+                ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700"
             )}
           >
-            <Code className="w-3.5 h-3.5" />
+            <Code className="h-3.5 w-3.5" />
             源码
           </button>
         </div>
@@ -370,8 +358,8 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
 
       <div
         className={classNames(
-          "rounded-xl border overflow-hidden",
-          "bg-gray-50 dark:bg-zinc-800/50 border-gray-200 dark:border-gray-700",
+          "overflow-hidden rounded-xl border",
+          "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50"
         )}
         style={{ height: 400 }}
       >
@@ -393,19 +381,19 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
               <iframe
                 ref={iframeRef}
                 src={htmlPreviewUrl}
-                className="w-full h-full border-0"
+                className="h-full w-full border-0"
                 sandbox="allow-scripts allow-same-origin"
                 title="Report Preview"
               />
             )
           ) : (
-            <div className="flex items-center justify-center h-full">
+            <div className="flex h-full items-center justify-center">
               <Spin size="large" />
             </div>
           )
         ) : (
           <div className="h-full overflow-auto p-4">
-            <pre className="text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap font-mono">
+            <pre className="whitespace-pre-wrap font-mono text-xs text-gray-600 dark:text-gray-300">
               {cleanedHtml || generatedHtml}
             </pre>
           </div>
@@ -416,16 +404,16 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
 
   const primaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
-    "bg-blue-500 text-white",
-    "hover:bg-blue-600",
-    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed",
+    "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]",
+    "hover:bg-[var(--th-btn-hover)]",
+    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed"
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
     "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
     "hover:bg-gray-200 dark:hover:bg-zinc-700",
-    "border border-gray-200 dark:border-gray-700",
+    "border border-gray-200 dark:border-gray-700"
   );
 
   const renderFooter = () => {
@@ -436,23 +424,16 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
     if (step === "select-resources") {
       return (
         <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={handleClose}
-            className={secondaryButtonClass}
-          >
+          <button type="button" onClick={handleClose} className={secondaryButtonClass}>
             取消
           </button>
           <button
             type="button"
             onClick={handleStartGenerate}
             disabled={selectedResourceIds.length === 0}
-            className={classNames(
-              primaryButtonClass,
-              "flex items-center gap-2",
-            )}
+            className={classNames(primaryButtonClass, "flex items-center gap-2")}
           >
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="h-4 w-4" />
             生成报告
           </button>
         </div>
@@ -464,35 +445,25 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
         <button
           type="button"
           onClick={handleRegenerate}
-          className={classNames(
-            secondaryButtonClass,
-            "flex items-center gap-2",
-          )}
+          className={classNames(secondaryButtonClass, "flex items-center gap-2")}
         >
-          <RefreshCw className="w-4 h-4" />
+          <RefreshCw className="h-4 w-4" />
           重新生成
         </button>
         <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={handleClose}
-            className={secondaryButtonClass}
-          >
+          <button type="button" onClick={handleClose} className={secondaryButtonClass}>
             取消
           </button>
           <button
             type="button"
             onClick={handleSave}
             disabled={!cleanedHtml.trim() || saving}
-            className={classNames(
-              primaryButtonClass,
-              "flex items-center gap-2",
-            )}
+            className={classNames(primaryButtonClass, "flex items-center gap-2")}
           >
             {saving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <CheckCircle2 className="w-4 h-4" />
+              <CheckCircle2 className="h-4 w-4" />
             )}
             保存为笔记
           </button>
@@ -536,8 +507,7 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
       destroyOnClose
       title={getModalTitle()}
       subtitle={getModalSubtitle()}
-      icon={<FileBarChart className="w-5 h-5 text-emerald-500" />}
-      iconBgColor="bg-emerald-50 dark:bg-emerald-500/20 border-emerald-200 dark:border-emerald-500/30"
+      icon={<FileBarChart className="h-5 w-5 text-[var(--th-text-secondary)]" />}
       footer={renderFooter()}
       showCloseButton={step !== "generating"}
     >

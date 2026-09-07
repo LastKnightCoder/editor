@@ -2,11 +2,7 @@ import { useState, useEffect } from "react";
 import { AutoComplete } from "antd";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { MdClose } from "react-icons/md";
-import {
-  getProjectColorValue,
-  PROJECT_COLORS,
-  ProjectColorName,
-} from "@/constants/project-colors";
+import { getProjectColorValue, PROJECT_COLORS, ProjectColorName } from "@/constants/project-colors";
 import useSettingStore from "@/stores/useSettingStore";
 
 interface CreateCalendarDialogProps {
@@ -15,14 +11,9 @@ interface CreateCalendarDialogProps {
   defaultGroupId?: number | null;
 }
 
-const CreateCalendarDialog = ({
-  isOpen,
-  onClose,
-  defaultGroupId,
-}: CreateCalendarDialogProps) => {
-  const { createCalendar, createCalendarGroup, calendarGroups } =
-    useCalendarStore();
-  const setting = useSettingStore((state) => state.setting);
+const CreateCalendarDialog = ({ isOpen, onClose, defaultGroupId }: CreateCalendarDialogProps) => {
+  const { createCalendar, createCalendarGroup, calendarGroups } = useCalendarStore();
+  const setting = useSettingStore(state => state.setting);
   const theme = setting.darkMode ? "dark" : "light";
 
   const [title, setTitle] = useState("");
@@ -30,12 +21,12 @@ const CreateCalendarDialog = ({
   const [groupInput, setGroupInput] = useState("");
 
   // 获取用户分组（非系统分组）
-  const userGroups = calendarGroups.filter((g) => !g.isSystem);
+  const userGroups = calendarGroups.filter(g => !g.isSystem);
 
   // 当 defaultGroupId 改变时，更新 groupInput
   useEffect(() => {
     if (defaultGroupId) {
-      const group = calendarGroups.find((g) => g.id === defaultGroupId);
+      const group = calendarGroups.find(g => g.id === defaultGroupId);
       if (group) {
         setGroupInput(group.name);
       }
@@ -50,9 +41,7 @@ const CreateCalendarDialog = ({
     // 如果输入了分组名称
     if (groupInput.trim()) {
       // 检查分组是否已存在
-      const existingGroup = userGroups.find(
-        (g) => g.name === groupInput.trim(),
-      );
+      const existingGroup = userGroups.find(g => g.name === groupInput.trim());
       if (existingGroup) {
         groupId = existingGroup.id;
       } else {
@@ -110,7 +99,7 @@ const CreateCalendarDialog = ({
             <input
               type="text"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={e => setTitle(e.target.value)}
               className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-zinc-700"
               placeholder="输入日历名称"
               autoFocus
@@ -125,7 +114,7 @@ const CreateCalendarDialog = ({
             <AutoComplete
               value={groupInput}
               onChange={setGroupInput}
-              options={userGroups.map((group) => ({
+              options={userGroups.map(group => ({
                 value: group.name,
                 label: group.name,
               }))}
@@ -133,9 +122,7 @@ const CreateCalendarDialog = ({
               size="large"
               className="mt-1 w-full"
               filterOption={(inputValue, option) =>
-                option!.value
-                  .toUpperCase()
-                  .indexOf(inputValue.toUpperCase()) !== -1
+                option!.value.toUpperCase().indexOf(inputValue.toUpperCase()) !== -1
               }
             />
           </div>
@@ -146,16 +133,16 @@ const CreateCalendarDialog = ({
               颜色
             </label>
             <div className="mt-2 flex flex-wrap gap-2">
-              {PROJECT_COLORS.slice(0, 12).map((c) => {
+              {PROJECT_COLORS.slice(0, 12).map(c => {
                 const colorValue = getProjectColorValue(
                   c.name,
-                  theme === "dark" ? "dark" : "light",
+                  theme === "dark" ? "dark" : "light"
                 );
                 return (
                   <button
                     key={c.name}
                     onClick={() => setColor(c.name)}
-                    className={`h-8 w-8 rounded-full ${color === c.name ? "ring-2 ring-blue-600 ring-offset-2" : ""}`}
+                    className={`h-8 w-8 rounded-full ${color === c.name ? "ring-2 ring-[var(--th-accent)] ring-offset-2" : ""}`}
                     style={{ backgroundColor: colorValue }}
                     title={c.label}
                   />
@@ -176,7 +163,7 @@ const CreateCalendarDialog = ({
           <button
             onClick={handleSave}
             disabled={!title}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-lg bg-[var(--th-btn-bg)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--th-btn-hover)] disabled:opacity-50"
           >
             创建
           </button>

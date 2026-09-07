@@ -30,7 +30,7 @@ const ProjectForm = memo(
   }: ProjectFormProps) => {
     const [value, setValue] = useState(initialData?.title || "");
     const [selectedColor, setSelectedColor] = useState<ProjectColorName>(
-      initialData?.color || "charcoal",
+      initialData?.color || "charcoal"
     );
     const { theme } = useTheme();
 
@@ -55,13 +55,11 @@ const ProjectForm = memo(
     return (
       <div className="flex flex-col">
         {/* 头部 */}
-        <div className="flex items-center justify-between pb-4 mb-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-            {title}
-          </h3>
+        <div className="mb-6 flex items-center justify-between border-b border-gray-200 pb-4 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">{title}</h3>
           <button
             onClick={handleCancel}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg"
+            className="text-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
             <MdClose />
           </button>
@@ -72,42 +70,36 @@ const ProjectForm = memo(
           {/* 名称输入 */}
           {!disableTitleEdit && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 名称
               </label>
               <Input
                 placeholder="输入项目名称"
                 value={value}
-                onChange={(e) => setValue(e.target.value)}
+                onChange={e => setValue(e.target.value)}
                 onPressEnter={handleSubmit}
                 autoFocus
                 className="h-10"
                 maxLength={120}
               />
-              <div className="text-right text-xs text-gray-400 mt-1">
-                {value.length}/120
-              </div>
+              <div className="mt-1 text-right text-xs text-gray-400">{value.length}/120</div>
             </div>
           )}
 
           {/* 颜色选择 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
               颜色
             </label>
-            <ColorPicker
-              value={selectedColor}
-              onChange={setSelectedColor}
-              theme={theme}
-            />
+            <ColorPicker value={selectedColor} onChange={setSelectedColor} theme={theme} />
           </div>
         </div>
 
         {/* 底部按钮 */}
-        <div className="flex justify-end space-x-3 mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+        <div className="mt-8 flex justify-end space-x-3 border-t border-gray-200 pt-6 dark:border-gray-700">
           <button
             onClick={handleCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
+            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-zinc-800 dark:text-gray-400 dark:hover:bg-zinc-700"
           >
             取消
           </button>
@@ -115,10 +107,10 @@ const ProjectForm = memo(
             onClick={handleSubmit}
             disabled={!disableTitleEdit && !value.trim()}
             className={classNames(
-              "px-6 py-2 text-sm font-medium text-white rounded-lg transition-colors",
+              "rounded-lg px-6 py-2 text-sm font-medium text-white transition-colors",
               disableTitleEdit || value.trim()
-                ? "bg-blue-600 hover:bg-blue-700"
-                : "bg-gray-300 dark:bg-gray-600 cursor-not-allowed",
+                ? "bg-[var(--th-btn-bg)] hover:bg-[var(--th-btn-hover)]"
+                : "cursor-not-allowed bg-gray-300 dark:bg-gray-600"
             )}
           >
             {submitText}
@@ -126,7 +118,7 @@ const ProjectForm = memo(
         </div>
       </div>
     );
-  },
+  }
 );
 
 ProjectForm.displayName = "ProjectForm";

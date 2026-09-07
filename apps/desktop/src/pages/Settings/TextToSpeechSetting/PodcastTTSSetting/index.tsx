@@ -5,15 +5,14 @@ import { MINIMAX_SPEECH_MODELS } from "@/utils/tts/minimaxSpeech";
 
 const PodcastTTSSetting = () => {
   const themeColors = useThemeColors();
-  const { podcastTTS, minimaxEnabled, setPodcastTTSMinimaxModel } =
-    useSettingStore((state) => ({
-      podcastTTS: state.setting.integration.podcastTTS,
-      minimaxEnabled: state.setting.integration.minimax.enabled,
-      setPodcastTTSMinimaxModel: state.setPodcastTTSMinimaxModel,
-    }));
+  const { podcastTTS, minimaxEnabled, setPodcastTTSMinimaxModel } = useSettingStore(state => ({
+    podcastTTS: state.setting.integration.podcastTTS,
+    minimaxEnabled: state.setting.integration.minimax.enabled,
+    setPodcastTTSMinimaxModel: state.setPodcastTTSMinimaxModel,
+  }));
 
   const minimaxModel = podcastTTS.minimaxModel;
-  const minimaxModelOptions = MINIMAX_SPEECH_MODELS.map((model) => ({
+  const minimaxModelOptions = MINIMAX_SPEECH_MODELS.map(model => ({
     label: model,
     value: model,
   }));
@@ -23,23 +22,19 @@ const PodcastTTSSetting = () => {
       <SettingDropdown
         label="语音模型"
         value={minimaxModel}
-        onChange={(value) => {
-          setPodcastTTSMinimaxModel(
-            value as (typeof MINIMAX_SPEECH_MODELS)[number],
-          );
+        onChange={value => {
+          setPodcastTTSMinimaxModel(value as (typeof MINIMAX_SPEECH_MODELS)[number]);
         }}
         options={minimaxModelOptions}
       />
 
       {minimaxEnabled ? (
         <div
-          className={`p-4 rounded-lg ${themeColors.inputBgClass} ${themeColors.borderClass} border`}
+          className={`rounded-lg p-4 ${themeColors.inputBgClass} ${themeColors.borderClass} border`}
         >
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 rounded-full bg-green-500" />
-            <span className={`text-sm font-medium ${themeColors.textClass}`}>
-              Minimax 已连接
-            </span>
+          <div className="mb-2 flex items-center gap-2">
+            <div className="bg-status-success h-2 w-2 rounded-full" />
+            <span className={`text-sm font-medium ${themeColors.textClass}`}>Minimax 已连接</span>
           </div>
           <p className={`text-xs ${themeColors.secondaryTextClass}`}>
             Minimax API Key 已在集成设置中配置，可以直接使用播客生成功能。
@@ -47,11 +42,11 @@ const PodcastTTSSetting = () => {
         </div>
       ) : (
         <div
-          className={`p-4 rounded-lg border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20`}
+          className={`rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-900/20`}
         >
-          <div className="flex items-center gap-2 mb-2">
+          <div className="mb-2 flex items-center gap-2">
             <svg
-              className="w-4 h-4 text-amber-500"
+              className="h-4 w-4 text-amber-500"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -67,9 +62,9 @@ const PodcastTTSSetting = () => {
               Minimax 未配置
             </span>
           </div>
-          <p className="text-xs text-amber-600 dark:text-amber-400 mb-3">
-            请先在「应用集成」页面配置 Minimax API Key，然后返回此处选择 Minimax
-            作为播客 TTS 提供商。
+          <p className="mb-3 text-xs text-amber-600 dark:text-amber-400">
+            请先在「应用集成」页面配置 Minimax API Key，然后返回此处选择 Minimax 作为播客 TTS
+            提供商。
           </p>
           <SettingButton
             variant="secondary"

@@ -89,7 +89,7 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
 
   const icon = (
     <svg
-      className="h-5 w-5 text-purple-500"
+      className="h-5 w-5 text-[var(--th-accent)]"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -111,7 +111,7 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
       <button
         onClick={handleConfirm}
         disabled={selectedItems.length === 0}
-        className="cursor-pointer rounded-xl border-none bg-purple-500 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(168,85,247,0.35),0_1px_2px_rgba(0,0,0,0.05)] transition-all hover:-translate-y-px hover:bg-purple-600 active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700 dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
+        className="cursor-pointer rounded-xl border-none bg-[var(--th-btn-bg)] px-5 py-2.5 text-sm font-semibold text-[var(--th-btn-text)] shadow-sm transition-all hover:-translate-y-px hover:bg-[var(--th-btn-hover)] active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:border dark:disabled:border-slate-700 dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
       >
         确定({selectedItems.length})
       </button>
@@ -128,7 +128,6 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
           title={title}
           subtitle={subtitle}
           icon={icon}
-          iconBgColor="bg-purple-50 dark:bg-purple-500/20 border-purple-200 dark:border-purple-500/30"
           footer={footer}
           closeOnEscape={!multiple}
           contentClassName="h-[min(860px,calc(100vh-120px))]"

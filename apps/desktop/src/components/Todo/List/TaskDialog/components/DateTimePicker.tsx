@@ -17,12 +17,7 @@ interface Position {
   width: number;
 }
 
-const DateTimePicker: FC<DateTimePickerProps> = ({
-  label,
-  value,
-  onChange,
-  required = false,
-}) => {
+const DateTimePicker: FC<DateTimePickerProps> = ({ label, value, onChange, required = false }) => {
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -118,15 +113,13 @@ const DateTimePicker: FC<DateTimePickerProps> = ({
     }
   }, [value]);
 
-  const scrollToSelectedOption = useMemoizedFn(
-    (target: HTMLButtonElement | null): void => {
-      if (!target) return;
-      target.scrollIntoView({
-        block: "nearest",
-        inline: "nearest",
-      });
-    },
-  );
+  const scrollToSelectedOption = useMemoizedFn((target: HTMLButtonElement | null): void => {
+    if (!target) return;
+    target.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+    });
+  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -200,7 +193,7 @@ const DateTimePicker: FC<DateTimePickerProps> = ({
     <div className="flex flex-col gap-1.5">
       <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
         {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
+        {required && <span className="ml-1 text-red-500">*</span>}
       </label>
 
       {/* Trigger Button */}
@@ -208,13 +201,11 @@ const DateTimePicker: FC<DateTimePickerProps> = ({
         ref={triggerRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 py-3.5 rounded-xl text-sm text-left flex items-center justify-between outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
+        className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-left text-sm text-gray-800 shadow-inner outline-none transition-all focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white"
       >
-        <span>
-          {value ? value.format("YYYY年MM月DD日 HH:mm") : "选择日期和时间"}
-        </span>
+        <span>{value ? value.format("YYYY年MM月DD日 HH:mm") : "选择日期和时间"}</span>
         <svg
-          className="w-4 h-4 ml-2 shrink-0"
+          className="ml-2 h-4 w-4 shrink-0"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -233,7 +224,7 @@ const DateTimePicker: FC<DateTimePickerProps> = ({
           {isOpen && (
             <motion.div
               ref={panelRef}
-              className="fixed rounded-2xl bg-white/60 dark:bg-[rgba(30,30,30,0.6)] backdrop-blur-md backdrop-saturate-150 border border-white/30 dark:border-white/20 shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]"
+              className="fixed rounded-2xl border border-white/30 bg-white/60 shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] backdrop-blur-md backdrop-saturate-150 dark:border-white/20 dark:bg-[rgba(30,30,30,0.6)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]"
               style={{
                 top: `${position.top}px`,
                 left: `${position.left}px`,
@@ -249,14 +240,14 @@ const DateTimePicker: FC<DateTimePickerProps> = ({
                 {/* Calendar Section */}
                 <div className="mb-4">
                   {/* Calendar Header */}
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="mb-3 flex items-center justify-between">
                     <button
                       type="button"
                       onClick={handlePrevMonth}
-                      className="p-1.5 rounded-lg hover:bg-white/20 dark:hover:bg-white/10 transition-colors"
+                      className="rounded-lg p-1.5 transition-colors hover:bg-white/20 dark:hover:bg-white/10"
                     >
                       <svg
-                        className="w-4 h-4"
+                        className="h-4 w-4"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -273,10 +264,10 @@ const DateTimePicker: FC<DateTimePickerProps> = ({
                     <button
                       type="button"
                       onClick={handleNextMonth}
-                      className="p-1.5 rounded-lg hover:bg-white/20 dark:hover:bg-white/10 transition-colors"
+                      className="rounded-lg p-1.5 transition-colors hover:bg-white/20 dark:hover:bg-white/10"
                     >
                       <svg
-                        className="w-4 h-4"
+                        className="h-4 w-4"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -288,11 +279,11 @@ const DateTimePicker: FC<DateTimePickerProps> = ({
                   </div>
 
                   {/* Weekday Headers */}
-                  <div className="grid grid-cols-7 gap-1 mb-2">
-                    {["一", "二", "三", "四", "五", "六", "日"].map((day) => (
+                  <div className="mb-2 grid grid-cols-7 gap-1">
+                    {["一", "二", "三", "四", "五", "六", "日"].map(day => (
                       <div
                         key={day}
-                        className="text-center text-xs font-medium text-gray-500 dark:text-slate-400 py-1"
+                        className="py-1 text-center text-xs font-medium text-gray-500 dark:text-slate-400"
                       >
                         {day}
                       </div>
@@ -303,8 +294,7 @@ const DateTimePicker: FC<DateTimePickerProps> = ({
                   <div className="grid grid-cols-7 gap-1">
                     {calendarDays.map((day, index) => {
                       const isCurrentMonth = day.month() === viewDate.month();
-                      const isSelected =
-                        selectedDate && day.isSame(selectedDate, "day");
+                      const isSelected = selectedDate && day.isSame(selectedDate, "day");
                       const isToday = day.isSame(today, "day");
 
                       return (
@@ -312,17 +302,13 @@ const DateTimePicker: FC<DateTimePickerProps> = ({
                           key={index}
                           type="button"
                           onClick={() => handleDateSelect(day)}
-                          className={`
-                            h-8 rounded-lg text-xs transition-all
-                            ${!isCurrentMonth ? "text-gray-400 dark:text-slate-600" : "text-gray-700 dark:text-gray-200"}
-                            ${
-                              isSelected
-                                ? "bg-indigo-500 text-white font-semibold"
-                                : isToday
-                                  ? "bg-white/40 dark:bg-white/10 font-semibold border border-indigo-500"
-                                  : "hover:bg-white/20 dark:hover:bg-white/8"
-                            }
-                          `}
+                          className={`h-8 rounded-lg text-xs transition-all ${!isCurrentMonth ? "text-gray-400 dark:text-slate-600" : "text-gray-700 dark:text-gray-200"} ${
+                            isSelected
+                              ? "bg-[var(--th-btn-bg)] font-semibold text-[var(--th-btn-text)]"
+                              : isToday
+                                ? "border border-[var(--th-border-focus)] bg-white/40 font-semibold dark:bg-white/10"
+                                : "dark:hover:bg-white/8 hover:bg-white/20"
+                          } `}
                         >
                           {day.date()}
                         </button>
@@ -332,8 +318,8 @@ const DateTimePicker: FC<DateTimePickerProps> = ({
                 </div>
 
                 {/* Time Section */}
-                <div className="border-t border-white/20 dark:border-white/10 pt-4">
-                  <div className="text-center mb-3">
+                <div className="border-t border-white/20 pt-4 dark:border-white/10">
+                  <div className="mb-3 text-center">
                     <div className="text-xl font-bold text-gray-800 dark:text-white">
                       {selectedHour.toString().padStart(2, "0")}:
                       {selectedMinute.toString().padStart(2, "0")}
@@ -341,23 +327,23 @@ const DateTimePicker: FC<DateTimePickerProps> = ({
                   </div>
 
                   {/* Hour and Minute Selectors */}
-                  <div className="flex gap-2 mb-4">
+                  <div className="mb-4 flex gap-2">
                     {/* Hour Selector */}
                     <div className="flex-1">
-                      <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-2 text-center">
+                      <div className="mb-2 text-center text-xs font-semibold text-gray-500 dark:text-slate-400">
                         小时
                       </div>
-                      <div className="h-32 overflow-y-auto rounded-lg bg-white/20 dark:bg-black/20 p-1">
-                        {hourOptions.map((hour) => (
+                      <div className="h-32 overflow-y-auto rounded-lg bg-white/20 p-1 dark:bg-black/20">
+                        {hourOptions.map(hour => (
                           <button
                             key={hour}
                             ref={selectedHour === hour ? selectedHourRef : null}
                             type="button"
                             onClick={() => setSelectedHour(hour)}
-                            className={`w-full py-1.5 rounded text-sm transition-all ${
+                            className={`w-full rounded py-1.5 text-sm transition-all ${
                               selectedHour === hour
-                                ? "bg-indigo-500 text-white font-semibold"
-                                : "hover:bg-white/20 dark:hover:bg-white/10 text-gray-700 dark:text-gray-200"
+                                ? "bg-[var(--th-btn-bg)] font-semibold text-[var(--th-btn-text)]"
+                                : "text-gray-700 hover:bg-white/20 dark:text-gray-200 dark:hover:bg-white/10"
                             }`}
                           >
                             {hour.toString().padStart(2, "0")}
@@ -368,24 +354,20 @@ const DateTimePicker: FC<DateTimePickerProps> = ({
 
                     {/* Minute Selector */}
                     <div className="flex-1">
-                      <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-2 text-center">
+                      <div className="mb-2 text-center text-xs font-semibold text-gray-500 dark:text-slate-400">
                         分钟
                       </div>
-                      <div className="h-32 overflow-y-auto rounded-lg bg-white/20 dark:bg-black/20 p-1">
-                        {minuteOptions.map((minute) => (
+                      <div className="h-32 overflow-y-auto rounded-lg bg-white/20 p-1 dark:bg-black/20">
+                        {minuteOptions.map(minute => (
                           <button
                             key={minute}
-                            ref={
-                              selectedMinute === minute
-                                ? selectedMinuteRef
-                                : null
-                            }
+                            ref={selectedMinute === minute ? selectedMinuteRef : null}
                             type="button"
                             onClick={() => setSelectedMinute(minute)}
-                            className={`w-full py-1.5 rounded text-sm transition-all ${
+                            className={`w-full rounded py-1.5 text-sm transition-all ${
                               selectedMinute === minute
-                                ? "bg-indigo-500 text-white font-semibold"
-                                : "hover:bg-white/20 dark:hover:bg-white/10 text-gray-700 dark:text-gray-200"
+                                ? "bg-[var(--th-btn-bg)] font-semibold text-[var(--th-btn-text)]"
+                                : "text-gray-700 hover:bg-white/20 dark:text-gray-200 dark:hover:bg-white/10"
                             }`}
                           >
                             {minute.toString().padStart(2, "0")}
@@ -400,14 +382,14 @@ const DateTimePicker: FC<DateTimePickerProps> = ({
                     <button
                       type="button"
                       onClick={handleNow}
-                      className="flex-1 py-2 rounded-lg text-xs font-medium bg-white/20 dark:bg-white/10 hover:bg-white/30 dark:hover:bg-white/15 transition-colors text-gray-700 dark:text-gray-200"
+                      className="flex-1 rounded-lg bg-white/20 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-white/30 dark:bg-white/10 dark:text-gray-200 dark:hover:bg-white/15"
                     >
                       现在
                     </button>
                     <button
                       type="button"
                       onClick={handleConfirm}
-                      className="flex-1 py-2 rounded-lg text-xs font-medium bg-indigo-500 text-white hover:bg-indigo-600 transition-colors"
+                      className="flex-1 rounded-lg bg-[var(--th-btn-bg)] py-2 text-xs font-medium text-[var(--th-btn-text)] transition-colors hover:bg-[var(--th-btn-hover)]"
                     >
                       确定
                     </button>
@@ -417,7 +399,7 @@ const DateTimePicker: FC<DateTimePickerProps> = ({
             </motion.div>
           )}
         </AnimatePresence>,
-        document.body,
+        document.body
       )}
     </div>
   );

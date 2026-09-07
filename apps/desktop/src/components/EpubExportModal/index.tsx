@@ -61,8 +61,7 @@ const getMimeTypeFromPath = (value: string) => {
 };
 
 const uint8ArrayToBase64 = (bytes: Uint8Array) => {
-  const globalBuffer = (globalThis as unknown as { Buffer?: typeof Buffer })
-    .Buffer;
+  const globalBuffer = (globalThis as unknown as { Buffer?: typeof Buffer }).Buffer;
   if (globalBuffer) {
     return globalBuffer.from(bytes).toString("base64");
   }
@@ -117,11 +116,12 @@ const EpubExportModal = (props: EpubExportModalProps) => {
     language: "zh-CN",
     description: "",
   });
-  const [remembered, setRemembered] = useLocalStorageState<
-    EpubRememberedMetadata | undefined
-  >(STORAGE_KEY, {
-    defaultValue: undefined,
-  });
+  const [remembered, setRemembered] = useLocalStorageState<EpubRememberedMetadata | undefined>(
+    STORAGE_KEY,
+    {
+      defaultValue: undefined,
+    }
+  );
 
   useEffect(() => {
     if (!open) {
@@ -168,12 +168,10 @@ const EpubExportModal = (props: EpubExportModalProps) => {
 
       setCoverCandidates(nextCandidates);
       setLoadingCoverCandidates(false);
-      setMetadata((prev) => {
+      setMetadata(prev => {
         const currentCover = normalizeText(prev.coverImageSrc);
         const matchedCandidate = nextCandidates.find(
-          (candidate) =>
-            candidate.dataUri === currentCover ||
-            candidate.source === currentCover,
+          candidate => candidate.dataUri === currentCover || candidate.source === currentCover
         );
         if (matchedCandidate) {
           return {
@@ -191,7 +189,7 @@ const EpubExportModal = (props: EpubExportModalProps) => {
       });
     };
 
-    loadCoverCandidates().catch((error) => {
+    loadCoverCandidates().catch(error => {
       if (cancelled) {
         return;
       }
@@ -205,23 +203,19 @@ const EpubExportModal = (props: EpubExportModalProps) => {
     };
   }, [open, content, title, remembered]);
 
-  const onFieldChange = useMemoizedFn(
-    (field: keyof EpubMetadataInput, value: string) => {
-      setMetadata((prev) => ({
-        ...prev,
-        [field]: value,
-      }));
-    },
-  );
+  const onFieldChange = useMemoizedFn((field: keyof EpubMetadataInput, value: string) => {
+    setMetadata(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  });
 
-  const handleSelectCoverCandidate = useMemoizedFn(
-    (candidate: CoverCandidate) => {
-      setMetadata((prev) => ({
-        ...prev,
-        coverImageSrc: candidate.dataUri,
-      }));
-    },
-  );
+  const handleSelectCoverCandidate = useMemoizedFn((candidate: CoverCandidate) => {
+    setMetadata(prev => ({
+      ...prev,
+      coverImageSrc: candidate.dataUri,
+    }));
+  });
 
   const handleChooseCoverFromFile = useMemoizedFn(async () => {
     const selected = await selectFile({
@@ -229,16 +223,7 @@ const EpubExportModal = (props: EpubExportModalProps) => {
       filters: [
         {
           name: "图片",
-          extensions: [
-            "png",
-            "jpg",
-            "jpeg",
-            "webp",
-            "gif",
-            "bmp",
-            "svg",
-            "avif",
-          ],
+          extensions: ["png", "jpg", "jpeg", "webp", "gif", "bmp", "svg", "avif"],
         },
       ],
     });
@@ -257,14 +242,12 @@ const EpubExportModal = (props: EpubExportModalProps) => {
         label: `本地文件：${getFileNameFromPath(filePath)}`,
       };
 
-      setCoverCandidates((prev) => {
-        const deduped = prev.filter(
-          (candidate) => candidate.dataUri !== newCandidate.dataUri,
-        );
+      setCoverCandidates(prev => {
+        const deduped = prev.filter(candidate => candidate.dataUri !== newCandidate.dataUri);
         return [newCandidate, ...deduped];
       });
 
-      setMetadata((prev) => ({
+      setMetadata(prev => ({
         ...prev,
         coverImageSrc: dataUri,
       }));
@@ -276,7 +259,7 @@ const EpubExportModal = (props: EpubExportModalProps) => {
   });
 
   const handleClearCover = useMemoizedFn(() => {
-    setMetadata((prev) => ({
+    setMetadata(prev => ({
       ...prev,
       coverImageSrc: undefined,
     }));
@@ -291,8 +274,7 @@ const EpubExportModal = (props: EpubExportModalProps) => {
       return coverValue;
     }
     const matched = coverCandidates.find(
-      (candidate) =>
-        candidate.source === coverValue || candidate.dataUri === coverValue,
+      candidate => candidate.source === coverValue || candidate.dataUri === coverValue
     );
     return matched?.dataUri || "";
   }, [metadata.coverImageSrc, coverCandidates]);
@@ -336,9 +318,7 @@ const EpubExportModal = (props: EpubExportModalProps) => {
         message.info("已取消 EPUB 导出");
       } else {
         message.success(
-          result.filePath
-            ? `EPUB 导出成功，已保存到：${result.filePath}`
-            : "EPUB 导出成功",
+          result.filePath ? `EPUB 导出成功，已保存到：${result.filePath}` : "EPUB 导出成功"
         );
         if (result.filePath) {
           try {
@@ -383,8 +363,8 @@ const EpubExportModal = (props: EpubExportModalProps) => {
             type="text"
             value={metadata.title}
             placeholder="请输入书名"
-            onChange={(event) => onFieldChange("title", event.target.value)}
-            className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
+            onChange={event => onFieldChange("title", event.target.value)}
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
           />
         </div>
 
@@ -397,8 +377,8 @@ const EpubExportModal = (props: EpubExportModalProps) => {
               type="text"
               value={metadata.author}
               placeholder="请输入作者"
-              onChange={(event) => onFieldChange("author", event.target.value)}
-              className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
+              onChange={event => onFieldChange("author", event.target.value)}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -409,10 +389,8 @@ const EpubExportModal = (props: EpubExportModalProps) => {
               type="text"
               value={metadata.language}
               placeholder="例如 zh-CN / en"
-              onChange={(event) =>
-                onFieldChange("language", event.target.value)
-              }
-              className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)]"
+              onChange={event => onFieldChange("language", event.target.value)}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
             />
           </div>
         </div>
@@ -425,10 +403,8 @@ const EpubExportModal = (props: EpubExportModalProps) => {
             value={metadata.description}
             rows={3}
             placeholder="可选，建议一句话简介"
-            onChange={(event) =>
-              onFieldChange("description", event.target.value)
-            }
-            className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(99,102,241,0.15)] dark:focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(99,102,241,0.25)] resize-y"
+            onChange={event => onFieldChange("description", event.target.value)}
+            className="w-full resize-y rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
           />
         </div>
 
@@ -441,14 +417,14 @@ const EpubExportModal = (props: EpubExportModalProps) => {
               <button
                 type="button"
                 onClick={handleChooseCoverFromFile}
-                className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-zinc-900 text-xs text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-zinc-900 dark:text-slate-200 dark:hover:bg-zinc-800"
               >
                 选择本地图片
               </button>
               <button
                 type="button"
                 onClick={handleClearCover}
-                className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-zinc-900 text-xs text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-zinc-900 dark:text-slate-200 dark:hover:bg-zinc-800"
               >
                 清除封面
               </button>
@@ -456,15 +432,15 @@ const EpubExportModal = (props: EpubExportModalProps) => {
           </div>
 
           {selectedCoverPreview ? (
-            <div className="rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-zinc-950 p-3">
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-slate-700 dark:bg-zinc-950">
               <img
                 src={selectedCoverPreview}
                 alt="封面预览"
-                className="w-full h-44 object-cover rounded-lg"
+                className="h-44 w-full rounded-lg object-cover"
               />
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-zinc-950 px-4 py-6 text-xs text-gray-500 dark:text-slate-400 text-center">
+            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-xs text-gray-500 dark:border-slate-700 dark:bg-zinc-950 dark:text-slate-400">
               未选择封面图
             </div>
           )}
@@ -474,30 +450,28 @@ const EpubExportModal = (props: EpubExportModalProps) => {
           </div>
 
           {loadingCoverCandidates ? (
-            <div className="text-xs text-gray-500 dark:text-slate-400">
-              正在提取正文图片...
-            </div>
+            <div className="text-xs text-gray-500 dark:text-slate-400">正在提取正文图片...</div>
           ) : coverCandidates.length > 0 ? (
             <div className="grid grid-cols-3 gap-3">
-              {coverCandidates.map((candidate) => {
+              {coverCandidates.map(candidate => {
                 const selected = metadata.coverImageSrc === candidate.dataUri;
                 return (
                   <button
                     key={candidate.id}
                     type="button"
                     onClick={() => handleSelectCoverCandidate(candidate)}
-                    className={`rounded-lg border p-1 transition-all text-left ${
+                    className={`rounded-lg border p-1 text-left transition-all ${
                       selected
-                        ? "border-indigo-500 ring-2 ring-indigo-500/30"
-                        : "border-gray-200 dark:border-slate-700 hover:border-indigo-300"
+                        ? "ring-[var(--th-accent)]/30 border-[var(--th-accent)] ring-2"
+                        : "hover:border-[var(--th-border-focus)]/50 border-gray-200 dark:border-slate-700"
                     }`}
                   >
                     <img
                       src={candidate.dataUri}
                       alt={candidate.label}
-                      className="w-full h-20 object-cover rounded-md"
+                      className="h-20 w-full rounded-md object-cover"
                     />
-                    <div className="px-1 pt-1 text-[11px] text-gray-600 dark:text-slate-300 truncate">
+                    <div className="truncate px-1 pt-1 text-[11px] text-gray-600 dark:text-slate-300">
                       {candidate.label}
                     </div>
                   </button>

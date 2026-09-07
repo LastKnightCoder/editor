@@ -8,9 +8,7 @@ import { ReactEditor } from "slate-react";
 import { LazySyntaxHighlighter } from "@tau/shared";
 import { openExternal } from "@/commands";
 import BlockCard from "@/components/BlockCard";
-import ChatInputArea, {
-  type ChatInputAreaHandle,
-} from "@/components/ChatInputArea";
+import ChatInputArea, { type ChatInputAreaHandle } from "@/components/ChatInputArea";
 import MessageItem from "@/layouts/ContentLayout/components/ChatSidebar/MessageItem";
 import {
   MarkdownProvider,
@@ -86,13 +84,9 @@ const INLINE_TOOL_POLICY = `
 7. 调用编辑工具后，修改不会立即生效，而是生成待用户审阅的提案。只有用户确认应用后，修改才会真正写入。在用户明确确认之前，你不应假设之前的修改已经被应用，也不应为此调用 get_content_markdown 等工具去确认当前内容。
 `;
 
-const createMessageId = () =>
-  `inline_ai_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+const createMessageId = () => `inline_ai_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 
-const isCodeBlockCompleted = (
-  codeContent: string,
-  fullTextContent?: string,
-): boolean => {
+const isCodeBlockCompleted = (codeContent: string, fullTextContent?: string): boolean => {
   if (!fullTextContent) return true;
   const codeIndex = fullTextContent.indexOf(codeContent);
   if (codeIndex === -1) return true;
@@ -114,31 +108,26 @@ const clamp = (value: number, min: number, max: number) => {
   return Math.min(Math.max(value, min), max);
 };
 
-const buildInlineConversationKey = (contentId: number) =>
-  `inline-content-edit:${contentId}`;
-const toInlineHistoryMessages = (
-  messages: InlineConversationMessage[],
-): RequestMessage[] => {
-  return messages
-    .slice(-MAX_HISTORY_MESSAGES)
-    .flatMap((item): RequestMessage[] => {
-      if (item.role === Role.User) {
-        return [
-          {
-            role: item.role,
-            content: [{ type: "text", text: item.content }],
-          },
-        ];
-      }
+const buildInlineConversationKey = (contentId: number) => `inline-content-edit:${contentId}`;
+const toInlineHistoryMessages = (messages: InlineConversationMessage[]): RequestMessage[] => {
+  return messages.slice(-MAX_HISTORY_MESSAGES).flatMap((item): RequestMessage[] => {
+    if (item.role === Role.User) {
+      return [
+        {
+          role: item.role,
+          content: [{ type: "text", text: item.content }],
+        },
+      ];
+    }
 
-      const assistantMessage: ResponseMessage = {
-        role: Role.Assistant,
-        content: item.content,
-        reasoning_content: item.reasoning || "",
-        assistant_blocks: item.assistantBlocks || [],
-      };
-      return buildAssistantHistoryMessages(assistantMessage);
-    });
+    const assistantMessage: ResponseMessage = {
+      role: Role.Assistant,
+      content: item.content,
+      reasoning_content: item.reasoning || "",
+      assistant_blocks: item.assistantBlocks || [],
+    };
+    return buildAssistantHistoryMessages(assistantMessage);
+  });
 };
 
 const InlineAIComposerPanel = ({
@@ -150,8 +139,8 @@ const InlineAIComposerPanel = ({
   const { isDark } = useTheme();
   const { cardBorderClass, modalPanelBg } = useThemeColors();
   const { providerConfig, modelConfig } = useLLMConfig("chat");
-  const skills = useSkillStore((state) => state.skills);
-  const loadSkills = useSkillStore((state) => state.loadSkills);
+  const skills = useSkillStore(state => state.skills);
+  const loadSkills = useSkillStore(state => state.loadSkills);
 
   const [messages, setMessages] = useState<InlineConversationMessage[]>([]);
   const [selectionQuote, setSelectionQuote] = useState("");
@@ -167,9 +156,7 @@ const InlineAIComposerPanel = ({
   const abortControllerRef = useRef<AbortController | null>(null);
   const chatInputRef = useRef<ChatInputAreaHandle | null>(null);
   const activeContentIdRef = useRef<number | null>(null);
-  const initialSelectionRef = useRef<SerializedSelection | null>(
-    initialSelection,
-  );
+  const initialSelectionRef = useRef<SerializedSelection | null>(initialSelection);
 
   const saveSession = useMemoizedFn(
     (contentId: number | null, nextMessages: InlineConversationMessage[]) => {
@@ -179,7 +166,7 @@ const InlineAIComposerPanel = ({
         messages: nextMessages,
         updatedAt: Date.now(),
       });
-    },
+    }
   );
 
   const updateLayout = useMemoizedFn(() => {
@@ -188,15 +175,9 @@ const InlineAIComposerPanel = ({
     try {
       const editorEl = ReactEditor.toDOMNode(editor, editor) as HTMLElement;
       const rect = editorEl.getBoundingClientRect();
-      const width = Math.min(
-        Math.max(540, rect.width - 24),
-        window.innerWidth - 32,
-      );
+      const width = Math.min(Math.max(540, rect.width - 24), window.innerWidth - 32);
       const left = clamp(rect.left + 12, 16, window.innerWidth - width - 16);
-      const preferredBottom = Math.max(
-        12,
-        window.innerHeight - rect.bottom + 12,
-      );
+      const preferredBottom = Math.max(12, window.innerHeight - rect.bottom + 12);
       const bottom = clamp(preferredBottom, 12, maxBottom);
       setLayout({
         left,
@@ -219,7 +200,7 @@ const InlineAIComposerPanel = ({
       const context = await buildInlineEditorContext(
         editor,
         undefined,
-        initialSelectionRef.current,
+        initialSelectionRef.current
       );
       const selectedMarkdown = context.selectedMarkdown.trim();
       const currentBlockMarkdown = context.currentBlockMarkdown.trim();
@@ -297,16 +278,14 @@ const InlineAIComposerPanel = ({
             feedbackProposalId?: string;
           };
         };
-      },
+      }
     ) => {
       if (sending) return false;
       if (!instruction) return false;
 
       const activeContext = await refreshContext();
       if (!activeContext || !activeContext.contentId) {
-        message.error(
-          "无法确定 contentId，已阻止自动写入。请切换到可编辑内容页后重试。",
-        );
+        message.error("无法确定 contentId，已阻止自动写入。请切换到可编辑内容页后重试。");
         return false;
       }
       if (!providerConfig || !modelConfig) {
@@ -315,8 +294,7 @@ const InlineAIComposerPanel = ({
       }
 
       const currentMessages =
-        INLINE_CONTEXT_SESSIONS.get(activeContext.contentId)?.messages ||
-        messages;
+        INLINE_CONTEXT_SESSIONS.get(activeContext.contentId)?.messages || messages;
       const userMessage: InlineConversationMessage = {
         id: createMessageId(),
         role: Role.User,
@@ -333,11 +311,7 @@ const InlineAIComposerPanel = ({
         createdAt: Date.now(),
       };
 
-      const nextMessages = [
-        ...currentMessages,
-        userMessage,
-        assistantPlaceholder,
-      ];
+      const nextMessages = [...currentMessages, userMessage, assistantPlaceholder];
       setMessages(nextMessages);
       saveSession(activeContext.contentId, nextMessages);
       chatInputRef.current?.clear();
@@ -377,14 +351,11 @@ const InlineAIComposerPanel = ({
 
       const patchAssistantMessage = (
         updater: (message: ResponseMessage) => void,
-        persist = true,
+        persist = true
       ) => {
-        setMessages((prev) => {
-          const updated = prev.map((item) => {
-            if (
-              item.id !== assistantMessageId ||
-              item.role !== Role.Assistant
-            ) {
+        setMessages(prev => {
+          const updated = prev.map(item => {
+            if (item.id !== assistantMessageId || item.role !== Role.Assistant) {
               return item;
             }
 
@@ -408,89 +379,76 @@ const InlineAIComposerPanel = ({
         });
       };
 
-      chatLLMStream(
-        providerConfig as ProviderConfig,
-        modelConfig as ModelConfig,
-        requestMessages,
-        {
-          enableTools: true,
-          conversationKey: buildInlineConversationKey(activeContext.contentId),
-          toolContext: options?.toolContext,
-          skills,
-          deferAssistantTextUntilFinish: true,
-          onUpdate: (full, _inc, _reasoningText, turnId) => {
-            patchAssistantMessage((assistantMessage) => {
-              applyAssistantTextSnapshot(
-                assistantMessage,
-                turnId || "inline-fallback-text",
-                full,
-              );
-            });
-          },
-          onReasoning: (full, _inc, turnId) => {
-            patchAssistantMessage((assistantMessage) => {
-              applyAssistantReasoningSnapshot(
-                assistantMessage,
-                turnId || "inline-fallback-reasoning",
-                full,
-              );
-            });
-          },
-          onToolCallsUpdate: (executions, turnId, toolCalls) => {
-            patchAssistantMessage((assistantMessage) => {
-              applyAssistantToolCallsSnapshot(
-                assistantMessage,
-                turnId || "inline-fallback-tool",
-                executions,
-                toolCalls,
-              );
-            });
-          },
-          onAssistantTurnEnd: ({ turnId, resultType, providerMetadata }) => {
-            patchAssistantMessage((assistantMessage) => {
-              applyAssistantProviderMetadataSnapshot(
-                assistantMessage,
-                turnId,
-                providerMetadata,
-              );
-              finalizeAssistantTurn(assistantMessage, turnId);
-            });
-            if (resultType !== "response") {
-              return;
-            }
-            setSending(false);
-            abortControllerRef.current = null;
-            setTimeout(() => {
-              chatInputRef.current?.focusEnd();
-            }, 0);
-          },
-          onFinish: () => {},
-          onError: (error) => {
-            patchAssistantMessage((assistantMessage) => {
-              applyAssistantTextSnapshot(
-                assistantMessage,
-                "inline-error",
-                `请求失败：${(error as Error).message || "未知错误"}`,
-              );
-            });
-            message.error((error as Error).message || "请求失败");
-            setSending(false);
-            abortControllerRef.current = null;
-          },
-          onController: (controller) => {
-            abortControllerRef.current = controller;
-          },
+      chatLLMStream(providerConfig as ProviderConfig, modelConfig as ModelConfig, requestMessages, {
+        enableTools: true,
+        conversationKey: buildInlineConversationKey(activeContext.contentId),
+        toolContext: options?.toolContext,
+        skills,
+        deferAssistantTextUntilFinish: true,
+        onUpdate: (full, _inc, _reasoningText, turnId) => {
+          patchAssistantMessage(assistantMessage => {
+            applyAssistantTextSnapshot(assistantMessage, turnId || "inline-fallback-text", full);
+          });
         },
-      );
+        onReasoning: (full, _inc, turnId) => {
+          patchAssistantMessage(assistantMessage => {
+            applyAssistantReasoningSnapshot(
+              assistantMessage,
+              turnId || "inline-fallback-reasoning",
+              full
+            );
+          });
+        },
+        onToolCallsUpdate: (executions, turnId, toolCalls) => {
+          patchAssistantMessage(assistantMessage => {
+            applyAssistantToolCallsSnapshot(
+              assistantMessage,
+              turnId || "inline-fallback-tool",
+              executions,
+              toolCalls
+            );
+          });
+        },
+        onAssistantTurnEnd: ({ turnId, resultType, providerMetadata }) => {
+          patchAssistantMessage(assistantMessage => {
+            applyAssistantProviderMetadataSnapshot(assistantMessage, turnId, providerMetadata);
+            finalizeAssistantTurn(assistantMessage, turnId);
+          });
+          if (resultType !== "response") {
+            return;
+          }
+          setSending(false);
+          abortControllerRef.current = null;
+          setTimeout(() => {
+            chatInputRef.current?.focusEnd();
+          }, 0);
+        },
+        onFinish: () => {},
+        onError: error => {
+          patchAssistantMessage(assistantMessage => {
+            applyAssistantTextSnapshot(
+              assistantMessage,
+              "inline-error",
+              `请求失败：${(error as Error).message || "未知错误"}`
+            );
+          });
+          message.error((error as Error).message || "请求失败");
+          setSending(false);
+          abortControllerRef.current = null;
+        },
+        onController: controller => {
+          abortControllerRef.current = controller;
+        },
+      });
       return true;
-    },
+    }
   );
 
   const sendMessage = useMemoizedFn(async () => {
     const inputItems = chatInputRef.current?.getValue() || [];
     const instruction = inputItems
-      .filter((item) => item.type === "text")
-      .map((item) => item.text)
+      .filter(item => item.type === "text")
+      .map(item => item.text)
       .join("\n")
       .trim();
     await sendInstruction(instruction);
@@ -504,7 +462,7 @@ const InlineAIComposerPanel = ({
   });
 
   const renderMessages = useMemo<ChatSessionMessage[]>(() => {
-    return messages.map((item) => {
+    return messages.map(item => {
       if (item.role === Role.User) {
         const userMessage: RequestMessage = {
           role: Role.User,
@@ -527,7 +485,7 @@ const InlineAIComposerPanel = ({
       if (!href) return;
       event.preventDefault();
       void openExternal(href);
-    },
+    }
   );
 
   const CodeBlockRenderer = ({
@@ -554,9 +512,7 @@ const InlineAIComposerPanel = ({
         !isCodeBlockCompleted(code, messageMeta?.textContent);
       const stableContent = code.slice(0, 200);
       const idSuffix =
-        blockIndex != null
-          ? `idx-${blockIndex}`
-          : `hash-${simpleHash(stableContent)}`;
+        blockIndex != null ? `idx-${blockIndex}` : `hash-${simpleHash(stableContent)}`;
 
       const blockData: BlockData = {
         id: `inline-block-${language}-${messageKey}-${idSuffix}`,
@@ -607,20 +563,9 @@ const InlineAIComposerPanel = ({
   const markdownComponents = useMemo(() => {
     return {
       code: CodeBlockRenderer,
-      a: ({
-        children,
-        href,
-        ...props
-      }: {
-        children?: ReactNode;
-        href?: string;
-      }) => {
+      a: ({ children, href, ...props }: { children?: ReactNode; href?: string }) => {
         return (
-          <a
-            {...props}
-            href={href}
-            onClick={(event) => handleOpenExternalLink(event, href)}
-          >
+          <a {...props} href={href} onClick={event => handleOpenExternalLink(event, href)}>
             {children}
           </a>
         );
@@ -632,13 +577,13 @@ const InlineAIComposerPanel = ({
     <div
       ref={panelRef}
       data-inline-ai-composer="true"
-      className="fixed z-1200"
+      className="z-1200 fixed"
       style={{
         left: layout.left,
         width: layout.width,
         bottom: layout.bottom,
       }}
-      onMouseDown={(event) => {
+      onMouseDown={event => {
         event.stopPropagation();
       }}
     >
@@ -646,7 +591,7 @@ const InlineAIComposerPanel = ({
         className={classNames(
           "m-1 mt-3 flex flex-col rounded-3xl border px-3 py-3 shadow-xl",
           cardBorderClass,
-          modalPanelBg,
+          modalPanelBg
         )}
         style={{ maxHeight: layout.maxHeight }}
       >
@@ -656,13 +601,11 @@ const InlineAIComposerPanel = ({
               className={classNames(
                 "mb-2 rounded-xl border px-3 py-2",
                 cardBorderClass,
-                modalPanelBg,
+                modalPanelBg
               )}
             >
-              <div className="mb-1 text-[11px] text-gray-500 dark:text-gray-400">
-                当前选中
-              </div>
-              <blockquote className="max-h-28 overflow-y-auto border-l-3 border-blue-400 pl-3 text-sm whitespace-pre-wrap break-words text-gray-700 dark:text-gray-200">
+              <div className="mb-1 text-[11px] text-gray-500 dark:text-gray-400">当前选中</div>
+              <blockquote className="border-l-3 max-h-28 overflow-y-auto whitespace-pre-wrap break-words border-[var(--th-border-focus)] pl-3 text-sm text-gray-700 dark:text-gray-200">
                 {selectionQuote}
               </blockquote>
             </div>
@@ -680,8 +623,7 @@ const InlineAIComposerPanel = ({
                     messageMeta={{
                       chatId: 0,
                       messageIndex: index,
-                      isStreaming:
-                        sending && index === renderMessages.length - 1,
+                      isStreaming: sending && index === renderMessages.length - 1,
                     }}
                   />
                 </div>

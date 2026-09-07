@@ -21,50 +21,39 @@ const featureMap: Array<{
   {
     key: "online",
     label: "联网",
-    colorClass:
-      "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400",
+    colorClass: "bg-[var(--th-info)]/15 text-status-info dark:bg-[var(--th-accent)]/20",
   },
   {
     key: "thinking",
     label: "思考",
-    colorClass:
-      "bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400",
+    colorClass: "bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400",
   },
   {
     key: "image",
     label: "图片",
-    colorClass:
-      "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400",
+    colorClass: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400",
   },
   {
     key: "video",
     label: "视频",
-    colorClass:
-      "bg-pink-100 text-pink-700 dark:bg-pink-500/20 dark:text-pink-400",
+    colorClass: "bg-pink-100 text-pink-700 dark:bg-pink-500/20 dark:text-pink-400",
   },
   {
     key: "audio",
     label: "音频",
-    colorClass:
-      "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-400",
+    colorClass: "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-400",
   },
   {
     key: "file",
     label: "文件",
-    colorClass:
-      "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400",
+    colorClass: "bg-[var(--th-success)]/15 text-status-success",
   },
 ];
 
-const ModelDetails = ({
-  onAddModel,
-  onEditModel,
-  configId,
-  onEditConfig,
-}: ModelDetailsProps) => {
-  const { config } = useSettingStore((state) => {
+const ModelDetails = ({ onAddModel, onEditModel, configId, onEditConfig }: ModelDetailsProps) => {
+  const { config } = useSettingStore(state => {
     return {
-      config: state.setting.llmConfigs.find((item) => item.id === configId),
+      config: state.setting.llmConfigs.find(item => item.id === configId),
     };
   });
 
@@ -81,16 +70,12 @@ const ModelDetails = ({
       },
       onOk: () => {
         useSettingStore.setState(
-          produce((draft) => {
-            const config = draft.setting.llmConfigs.find(
-              (item: any) => item.id === configId,
-            );
+          produce(draft => {
+            const config = draft.setting.llmConfigs.find((item: any) => item.id === configId);
             if (config && config.models) {
-              config.models = config.models.filter(
-                (item: any) => item.name !== name,
-              );
+              config.models = config.models.filter((item: any) => item.name !== name);
             }
-          }),
+          })
         );
       },
     });
@@ -114,11 +99,11 @@ const ModelDetails = ({
     };
 
     const tags = featureMap
-      .filter((item) => normalizedFeatures[item.key])
-      .map((item) => (
+      .filter(item => normalizedFeatures[item.key])
+      .map(item => (
         <span
           key={item.key}
-          className={`px-2 py-0.5 text-xs font-medium rounded-full ${item.colorClass}`}
+          className={`rounded-full px-2 py-0.5 text-xs font-medium ${item.colorClass}`}
         >
           {item.label}
         </span>
@@ -126,7 +111,7 @@ const ModelDetails = ({
 
     if (tags.length === 0) {
       return (
-        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-zinc-700 dark:text-gray-400">
+        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-zinc-700 dark:text-gray-400">
           无特殊功能
         </span>
       );
@@ -142,20 +127,13 @@ const ModelDetails = ({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <div className="flex items-center justify-between py-3 border-b border-[#fafafa] dark:border-[#2a2a2a]">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-            {config.name}
-          </h3>
+        <div className="flex items-center justify-between border-b border-[#fafafa] py-3 dark:border-[#2a2a2a]">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">{config.name}</h3>
           <SettingButton
             variant="secondary"
             onClick={() => onEditConfig(config)}
             icon={
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -168,37 +146,26 @@ const ModelDetails = ({
             编辑配置
           </SettingButton>
         </div>
-        <div className="py-4 space-y-3">
+        <div className="space-y-3 py-4">
           <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500 dark:text-gray-400 w-20">
-              Base URL:
-            </span>
-            <span className="text-sm text-gray-800 dark:text-gray-200 font-mono">
+            <span className="w-20 text-sm text-gray-500 dark:text-gray-400">Base URL:</span>
+            <span className="font-mono text-sm text-gray-800 dark:text-gray-200">
               {config.baseUrl}
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500 dark:text-gray-400 w-20">
-              API Key:
-            </span>
-            <span className="text-sm text-gray-800 dark:text-gray-200 font-mono">
-              ********
-            </span>
+            <span className="w-20 text-sm text-gray-500 dark:text-gray-400">API Key:</span>
+            <span className="font-mono text-sm text-gray-800 dark:text-gray-200">********</span>
             <button
               onClick={onCopyApiKey}
               className={classNames(
-                "p-1.5 text-gray-500 rounded-md transition-colors",
+                "rounded-md p-1.5 text-gray-500 transition-colors",
                 themeColors.hoverClass,
-                themeColors.hoverTextClass,
+                themeColors.hoverTextClass
               )}
               title="复制 API Key"
             >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -211,20 +178,13 @@ const ModelDetails = ({
         </div>
       </div>
       <div>
-        <div className="flex items-center justify-between py-3 border-b border-[#fafafa] dark:border-[#2a2a2a]">
-          <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">
-            模型列表
-          </h3>
+        <div className="flex items-center justify-between border-b border-[#fafafa] py-3 dark:border-[#2a2a2a]">
+          <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">模型列表</h3>
           <SettingButton
             variant="primary"
             onClick={() => onAddModel(configId)}
             icon={
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -240,47 +200,47 @@ const ModelDetails = ({
         <div className="max-h-75 overflow-y-auto">
           {config.models && config.models.length > 0 ? (
             <div>
-              {config.models.map((model) => (
+              {config.models.map(model => (
                 <div
                   key={model.name}
                   className={classNames(
-                    "py-4 transition-colors border-b last:border-b-0 border-[#fafafa] dark:border-[#2a2a2a]",
-                    themeColors.hoverClass,
+                    "border-b border-[#fafafa] py-4 transition-colors last:border-b-0 dark:border-[#2a2a2a]",
+                    themeColors.hoverClass
                   )}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="font-medium text-gray-800 dark:text-gray-200">
                         {model.name}
                       </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                         {model.description}
                       </div>
-                      <div className="flex flex-wrap gap-2 mt-3">
+                      <div className="mt-3 flex flex-wrap gap-2">
                         {renderFeatureTags(model.features)}
                         {model.messageFormat === "claude" && (
-                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">
                             Claude 格式
                           </span>
                         )}
                         {model.apiProtocol === "responses" && (
-                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
                             Responses API
                           </span>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 ml-3">
+                    <div className="ml-3 flex items-center gap-1">
                       <button
                         onClick={() => onEditModel(configId, model)}
                         className={classNames(
-                          "p-1.5 text-gray-500 rounded-md transition-colors",
+                          "rounded-md p-1.5 text-gray-500 transition-colors",
                           themeColors.hoverClass,
-                          themeColors.hoverTextClass,
+                          themeColors.hoverTextClass
                         )}
                       >
                         <svg
-                          className="w-4 h-4"
+                          className="h-4 w-4"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -295,10 +255,10 @@ const ModelDetails = ({
                       </button>
                       <button
                         onClick={() => onDeleteModel(model.name)}
-                        className="p-1.5 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-colors"
+                        className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
                       >
                         <svg
-                          className="w-4 h-4"
+                          className="h-4 w-4"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -319,7 +279,7 @@ const ModelDetails = ({
           ) : (
             <div className="py-12 text-center text-gray-500 dark:text-gray-400">
               <svg
-                className="w-12 h-12 mx-auto mb-3 opacity-50"
+                className="mx-auto mb-3 h-12 w-12 opacity-50"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

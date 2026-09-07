@@ -22,9 +22,9 @@ const YoutubeVideoLoader = ({ loading, error, streamProgress }: YoutubeVideoLoad
           {/* Header */}
           <div className="mb-6 flex items-center justify-center gap-3">
             <div className="relative">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-indigo-500/30 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 dark:border-indigo-400/40 dark:from-indigo-500/30 dark:to-purple-500/30">
+              <div className="border-[var(--th-border-focus)]/40 flex h-12 w-12 items-center justify-center rounded-full border bg-[var(--th-accent-soft)]">
                 <svg
-                  className="h-6 w-6 animate-pulse text-indigo-600 dark:text-indigo-400"
+                  className="h-6 w-6 animate-pulse text-[var(--th-active-text)]"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -34,8 +34,8 @@ const YoutubeVideoLoader = ({ loading, error, streamProgress }: YoutubeVideoLoad
                   <path d="m9.75 15.02 5.75-3.27-5.75-3.27v6.54z" />
                 </svg>
               </div>
-              <div className="absolute -right-0.5 -top-0.5 h-3 w-3 animate-ping rounded-full bg-indigo-500" />
-              <div className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-indigo-500" />
+              <div className="absolute -right-0.5 -top-0.5 h-3 w-3 animate-ping rounded-full bg-[var(--th-accent)]" />
+              <div className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-[var(--th-accent)]" />
             </div>
             <div>
               <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
@@ -56,7 +56,7 @@ const YoutubeVideoLoader = ({ loading, error, streamProgress }: YoutubeVideoLoad
                   <div className="flex items-center justify-between text-xs">
                     <span className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-300">
                       <svg
-                        className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400"
+                        className="h-3.5 w-3.5 text-[var(--th-accent)]"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -74,7 +74,7 @@ const YoutubeVideoLoader = ({ loading, error, streamProgress }: YoutubeVideoLoad
                   </div>
                   <div className="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-zinc-700">
                     <div
-                      className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-500 to-indigo-600 transition-all duration-300 ease-out dark:from-indigo-400 dark:to-indigo-500"
+                      className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[var(--th-accent)] to-[var(--th-accent-hover)] transition-all duration-300 ease-out"
                       style={{
                         width: `${Math.min(
                           ((streamProgress.videoDownloaded || 0) /
@@ -96,7 +96,7 @@ const YoutubeVideoLoader = ({ loading, error, streamProgress }: YoutubeVideoLoad
                   <div className="flex items-center justify-between text-xs">
                     <span className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-300">
                       <svg
-                        className="h-3.5 w-3.5 text-purple-500 dark:text-purple-400"
+                        className="h-3.5 w-3.5 text-[var(--th-accent)]"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -115,7 +115,7 @@ const YoutubeVideoLoader = ({ loading, error, streamProgress }: YoutubeVideoLoad
                   </div>
                   <div className="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-zinc-700">
                     <div
-                      className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-purple-500 to-purple-600 transition-all duration-300 ease-out dark:from-purple-400 dark:to-purple-500"
+                      className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[var(--th-accent)] to-[var(--th-accent-hover)] transition-all duration-300 ease-out"
                       style={{
                         width: `${Math.min(
                           ((streamProgress.audioDownloaded || 0) /
@@ -137,7 +137,7 @@ const YoutubeVideoLoader = ({ loading, error, streamProgress }: YoutubeVideoLoad
                   <div className="flex items-center justify-between text-xs">
                     <span className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-300">
                       <svg
-                        className="h-3.5 w-3.5 animate-spin text-green-500 dark:text-green-400"
+                        className="h-3.5 w-3.5 animate-spin text-[var(--th-accent)]"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -153,7 +153,7 @@ const YoutubeVideoLoader = ({ loading, error, streamProgress }: YoutubeVideoLoad
                   </div>
                   <div className="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-zinc-700">
                     <div
-                      className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 transition-all duration-300 dark:from-green-400 dark:to-emerald-500"
+                      className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[var(--th-accent)] to-[var(--th-accent-hover)] transition-all duration-300"
                       style={{ width: `${streamProgress.processed}%` }}
                     >
                       <div className="absolute inset-0 animate-pulse bg-white/30" />
@@ -164,9 +164,9 @@ const YoutubeVideoLoader = ({ loading, error, streamProgress }: YoutubeVideoLoad
 
               {/* Completed */}
               {streamProgress.stage === "completed" && (
-                <div className="flex items-center justify-center gap-2 rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-500/20 dark:bg-green-500/10">
+                <div className="border-[var(--th-success)]/30 bg-[var(--th-success)]/10 flex items-center justify-center gap-2 rounded-xl border p-4">
                   <svg
-                    className="h-5 w-5 text-green-600 dark:text-green-400"
+                    className="h-5 w-5 text-[var(--th-accent)]"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -174,9 +174,7 @@ const YoutubeVideoLoader = ({ loading, error, streamProgress }: YoutubeVideoLoad
                   >
                     <path d="M20 6 9 17l-5-5" />
                   </svg>
-                  <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                    视频加载完成
-                  </span>
+                  <span className="text-status-success text-sm font-medium">视频加载完成</span>
                 </div>
               )}
             </div>
@@ -184,7 +182,7 @@ const YoutubeVideoLoader = ({ loading, error, streamProgress }: YoutubeVideoLoad
             <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-gray-50 p-6 dark:border-gray-700 dark:bg-zinc-800/50">
               <div className="flex items-center gap-3">
                 <svg
-                  className="h-5 w-5 animate-spin text-indigo-500 dark:text-indigo-400"
+                  className="h-5 w-5 animate-spin text-[var(--th-accent)]"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"

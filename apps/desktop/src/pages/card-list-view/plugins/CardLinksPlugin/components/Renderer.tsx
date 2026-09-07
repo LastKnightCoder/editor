@@ -35,7 +35,7 @@ const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(
 
     // 获取当前卡片
     const currentCard = useMemo(() => {
-      return allCards.find((card) => card.id === currentCardId);
+      return allCards.find(card => card.id === currentCardId);
     }, [allCards, currentCardId]);
 
     // 获取内联链接（从卡片内容中提取的）
@@ -51,7 +51,7 @@ const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(
 
     // 获取链接卡片的标题
     const getLinkCardTitle = useMemoizedFn((cardId: number) => {
-      const card = allCards.find((c) => c.id === cardId);
+      const card = allCards.find(c => c.id === cardId);
       return card ? `卡片 #${cardId}` : `卡片 #${cardId}`;
     });
 
@@ -60,29 +60,27 @@ const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(
       return inlineLinks.includes(cardId) && !links.includes(cardId);
     });
 
-    const handleDeleteLink = useMemoizedFn(
-      (linkId: number, e: React.MouseEvent) => {
-        e.stopPropagation();
+    const handleDeleteLink = useMemoizedFn((linkId: number, e: React.MouseEvent) => {
+      e.stopPropagation();
 
-        if (isReadonlyLink(linkId)) {
-          return; // 只读链接不能删除
-        }
+      if (isReadonlyLink(linkId)) {
+        return; // 只读链接不能删除
+      }
 
-        modal.confirm({
-          title: "确认删除",
-          content: "确定要删除这个链接吗？",
-          okText: "确定",
-          cancelText: "取消",
-          okButtonProps: {
-            danger: true,
-          },
-          onOk() {
-            const newValue = links.filter((id) => id !== linkId);
-            onCellValueChange(newValue);
-          },
-        });
-      },
-    );
+      modal.confirm({
+        title: "确认删除",
+        content: "确定要删除这个链接吗？",
+        okText: "确定",
+        cancelText: "取消",
+        okButtonProps: {
+          danger: true,
+        },
+        onOk() {
+          const newValue = links.filter(id => id !== linkId);
+          onCellValueChange(newValue);
+        },
+      });
+    });
 
     const handleLinkClick = useMemoizedFn((linkId: number) => {
       if (onClickLink) {
@@ -90,23 +88,21 @@ const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(
       }
     });
 
-    const handleSelectCard = useMemoizedFn(
-      async (items: SearchResult | SearchResult[]) => {
-        const item = Array.isArray(items) ? items[0] : items;
-        if (!item || item.type !== "card") return;
+    const handleSelectCard = useMemoizedFn(async (items: SearchResult | SearchResult[]) => {
+      const item = Array.isArray(items) ? items[0] : items;
+      if (!item || item.type !== "card") return;
 
-        const cardId = item.id;
+      const cardId = item.id;
 
-        // 检查是否已经链接
-        if (allLinks.includes(cardId)) {
-          return;
-        }
+      // 检查是否已经链接
+      if (allLinks.includes(cardId)) {
+        return;
+      }
 
-        // 添加新链接
-        const newValue = [...links, cardId];
-        onCellValueChange(newValue);
-      },
-    );
+      // 添加新链接
+      const newValue = [...links, cardId];
+      onCellValueChange(newValue);
+    });
 
     const handleWheel = useMemoizedFn((e: React.WheelEvent) => {
       if (scrollContainerRef.current) {
@@ -115,38 +111,34 @@ const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(
     });
 
     return (
-      <div
-        className="relative items-center h-full w-full"
-        onWheel={handleWheel}
-      >
+      <div className="relative h-full w-full items-center" onWheel={handleWheel}>
         <div
-          className="w-full h-full flex px-2 py-1 overflow-x-auto scrollbar-hide"
+          className="scrollbar-hide flex h-full w-full overflow-x-auto px-2 py-1"
           ref={scrollContainerRef}
         >
           <div
-            className="flex items-center gap-2 flex-1"
+            className="flex flex-1 items-center gap-2"
             style={{
               scrollbarWidth: "none",
               msOverflowStyle: "none",
             }}
           >
-            {allLinks.map((linkId) => {
+            {allLinks.map(linkId => {
               const isReadonly = isReadonlyLink(linkId);
               return (
                 <motion.div
                   key={linkId}
                   className={classNames(
-                    "relative group overflow-visible cursor-pointer flex-none flex items-center gap-2 px-2 py-1 rounded border transition-all min-w-0",
+                    "group relative flex min-w-0 flex-none cursor-pointer items-center gap-2 overflow-visible rounded border px-2 py-1 transition-all",
                     {
                       "border-gray-300 bg-gray-100 hover:border-gray-400 hover:bg-gray-200":
                         !isDark && !isReadonly,
                       "border-gray-600 bg-zinc-700 hover:border-gray-500 hover:bg-gray-600":
                         isDark && !isReadonly,
-                      "border-gray-400 bg-gray-200 opacity-60 cursor-default":
+                      "cursor-default border-gray-400 bg-gray-200 opacity-60":
                         !isDark && isReadonly,
-                      "border-gray-500 bg-gray-600 opacity-60 cursor-default":
-                        isDark && isReadonly,
-                    },
+                      "cursor-default border-gray-500 bg-gray-600 opacity-60": isDark && isReadonly,
+                    }
                   )}
                   onMouseEnter={() => setHoveredLinkId(linkId)}
                   onMouseLeave={() => setHoveredLinkId(null)}
@@ -156,14 +148,11 @@ const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(
                     }
                   }}
                 >
-                  <div className="flex items-center flex-none">
-                    <MdLink className="w-4 h-4 text-blue-500" />
+                  <div className="flex flex-none items-center">
+                    <MdLink className="h-4 w-4 text-[var(--th-accent)]" />
                   </div>
 
-                  <span
-                    className="text-[12px] truncate max-w-24"
-                    title={getLinkCardTitle(linkId)}
-                  >
+                  <span className="max-w-24 truncate text-[12px]" title={getLinkCardTitle(linkId)}>
                     {getLinkCardTitle(linkId)}
                   </span>
 
@@ -176,14 +165,14 @@ const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
                         className={classNames(
-                          "absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center cursor-pointer shadow-lg z-10",
+                          "absolute -right-1 -top-1 z-10 flex h-3 w-3 cursor-pointer items-center justify-center rounded-full bg-red-500 shadow-lg",
                           {
                             "bg-red-700": isDark,
-                          },
+                          }
                         )}
-                        onClick={(e) => handleDeleteLink(linkId, e)}
+                        onClick={e => handleDeleteLink(linkId, e)}
                       >
-                        <MdClose className="w-2 h-2 text-white" />
+                        <MdClose className="h-2 w-2 text-white" />
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -197,17 +186,17 @@ const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(
         {!readonly && (
           <div
             className={classNames(
-              "absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-1 rounded-md cursor-pointer transition-colors",
+              "absolute right-1 top-1/2 flex -translate-y-1/2 cursor-pointer items-center gap-1 rounded-md px-1.5 py-1 transition-colors",
               {
                 "bg-gray-200/80 text-gray-700 hover:bg-gray-300/80": !isDark,
                 "bg-zinc-700/80 text-gray-200 hover:bg-gray-600/80": isDark,
-              },
+              }
             )}
             role="button"
             aria-label="添加链接"
             onClick={() => setSelectorModalVisible(true)}
           >
-            <MdAdd className="w-4 h-4" />
+            <MdAdd className="h-4 w-4" />
           </div>
         )}
 
@@ -225,7 +214,7 @@ const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(
         />
       </div>
     );
-  },
+  }
 );
 
 CardLinksRenderer.displayName = "CardLinksRenderer";

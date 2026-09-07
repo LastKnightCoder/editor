@@ -30,9 +30,7 @@ const NumberStepper = ({
   step = 1,
   precision = 0,
 }: NumberStepperProps) => {
-  const [inputValue, setInputValue] = useState(() =>
-    formatValue(value, precision),
-  );
+  const [inputValue, setInputValue] = useState(() => formatValue(value, precision));
 
   useEffect(() => {
     setInputValue(formatValue(value, precision));
@@ -40,11 +38,11 @@ const NumberStepper = ({
 
   const canDecrease = useMemo(
     () => typeof min !== "number" || value - step >= min - 1e-9,
-    [value, min, step],
+    [value, min, step]
   );
   const canIncrease = useMemo(
     () => typeof max !== "number" || value + step <= max + 1e-9,
-    [value, max, step],
+    [value, max, step]
   );
 
   const applyStep = useMemoizedFn((delta: number) => {
@@ -78,15 +76,15 @@ const NumberStepper = ({
   };
 
   return (
-    <div className="inline-flex items-stretch rounded-xl bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 shadow-inner focus-within:border-blue-500 focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] dark:focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)] transition-all overflow-hidden">
+    <div className="inline-flex items-stretch overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-inner transition-all focus-within:border-[var(--th-border-focus)] focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.05),0_0_0_3px_rgba(59,130,246,0.15)] dark:border-slate-700 dark:bg-zinc-950 dark:focus-within:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),0_0_0_3px_rgba(59,130,246,0.25)]">
       <button
         type="button"
         onClick={() => applyStep(-step)}
         disabled={!canDecrease}
-        className="w-10 flex items-center justify-center text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-gray-800 dark:hover:text-slate-200 border-none cursor-pointer transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+        className="flex w-10 cursor-pointer items-center justify-center border-none text-gray-500 transition-all hover:bg-gray-100 hover:text-gray-800 disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-400 dark:hover:bg-zinc-800 dark:hover:text-slate-200"
       >
         <svg
-          className="w-4 h-4"
+          className="h-4 w-4"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -102,16 +100,16 @@ const NumberStepper = ({
         value={inputValue}
         onChange={handleInputChange}
         onBlur={handleBlur}
-        className="w-16 px-1 py-2.5 text-center text-sm bg-transparent border-none outline-none text-gray-800 dark:text-white"
+        className="w-16 border-none bg-transparent px-1 py-2.5 text-center text-sm text-gray-800 outline-none dark:text-white"
       />
       <button
         type="button"
         onClick={() => applyStep(step)}
         disabled={!canIncrease}
-        className="w-10 flex items-center justify-center text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-zinc-800 hover:text-gray-800 dark:hover:text-slate-200 border-none cursor-pointer transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+        className="flex w-10 cursor-pointer items-center justify-center border-none text-gray-500 transition-all hover:bg-gray-100 hover:text-gray-800 disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-400 dark:hover:bg-zinc-800 dark:hover:text-slate-200"
       >
         <svg
-          className="w-4 h-4"
+          className="h-4 w-4"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

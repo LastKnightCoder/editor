@@ -66,7 +66,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
   closeIcon,
   title,
   icon,
-  iconBgColor = "bg-indigo-50 dark:bg-indigo-500/20 border-indigo-200 dark:border-indigo-500/30",
+  iconBgColor = "bg-[var(--th-bg-hover)] border-[var(--th-border)]",
   subtitle,
   footer,
   footerAlign = "end",
@@ -320,7 +320,7 @@ const CustomModal: React.FC<CustomModalProps> = ({
       >
         <div
           className={classNames(
-            "flex max-h-[calc(100vh-200px)] flex-col rounded-2xl border bg-white/95 p-6 shadow-2xl backdrop-blur dark:bg-zinc-900/95",
+            "flex max-h-[calc(100vh-200px)] flex-col rounded-2xl border border-[var(--th-border)] bg-[var(--th-bg-elevated)] p-6 shadow-2xl",
             themeColors.cardBorderClass,
             contentClassName
           )}

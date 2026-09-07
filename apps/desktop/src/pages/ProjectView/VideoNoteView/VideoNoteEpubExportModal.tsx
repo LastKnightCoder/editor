@@ -24,10 +24,7 @@ import { exportVideoNoteToPdfWithDialog } from "@/utils/pdf-export";
 import useVideoEbookRewrite from "@/hooks/useVideoEbookRewrite";
 import useThemeColors from "@/hooks/useThemeColors";
 import type { VideoEbookRewriteStyle } from "@/constants/prompts/video-ebook-rewrite";
-import {
-  summarizeExportResults,
-  type ExportFormatResult,
-} from "./export-result-summary";
+import { summarizeExportResults, type ExportFormatResult } from "./export-result-summary";
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -152,8 +149,7 @@ const getMimeTypeFromPath = (value: string) => {
 };
 
 const uint8ArrayToBase64 = (bytes: Uint8Array) => {
-  const globalBuffer = (globalThis as unknown as { Buffer?: typeof Buffer })
-    .Buffer;
+  const globalBuffer = (globalThis as unknown as { Buffer?: typeof Buffer }).Buffer;
   if (globalBuffer) {
     return globalBuffer.from(bytes).toString("base64");
   }
@@ -216,9 +212,7 @@ const StepIndicator = ({ currentStep }: { currentStep: Step }) => {
               <div
                 className={classNames(
                   "h-px w-5 transition-colors",
-                  isPast || isActive
-                    ? "bg-indigo-400 dark:bg-indigo-500"
-                    : "bg-gray-200 dark:bg-zinc-700",
+                  isPast || isActive ? "bg-[var(--th-accent)]" : "bg-gray-200 dark:bg-zinc-700"
                 )}
               />
             )}
@@ -226,20 +220,20 @@ const StepIndicator = ({ currentStep }: { currentStep: Step }) => {
               className={classNames(
                 "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all",
                 isActive
-                  ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400"
+                  ? "dark:bg-[var(--th-accent)]/15 bg-[var(--th-accent-soft)] text-[var(--th-active-text)]"
                   : isPast
-                    ? "text-indigo-500/70 dark:text-indigo-400/60"
-                    : "text-gray-400 dark:text-slate-500",
+                    ? "text-[var(--th-accent)]/70/60"
+                    : "text-gray-400 dark:text-slate-500"
               )}
             >
               <span
                 className={classNames(
-                  "flex h-4.5 w-4.5 items-center justify-center rounded-full text-[10px] font-bold",
+                  "h-4.5 w-4.5 flex items-center justify-center rounded-full text-[10px] font-bold",
                   isActive
-                    ? "bg-indigo-500 text-white dark:bg-indigo-500"
+                    ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] dark:bg-[var(--th-accent)]"
                     : isPast
-                      ? "bg-indigo-200 text-indigo-600 dark:bg-indigo-500/30 dark:text-indigo-400"
-                      : "bg-gray-200 text-gray-500 dark:bg-zinc-700 dark:text-slate-400",
+                      ? "bg-[var(--th-accent-soft)] text-[var(--th-active-text)]"
+                      : "bg-gray-200 text-gray-500 dark:bg-zinc-700 dark:text-slate-400"
                 )}
               >
                 {isPast ? "✓" : s.number}
@@ -270,14 +264,10 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
   const editorRef = useRef<EditorRef>(null);
   const [step, setStep] = useState<Step>("rewrite");
   const [editorSessionId, setEditorSessionId] = useState(0);
-  const [selectedStyle, setSelectedStyle] =
-    useState<VideoEbookRewriteStyle>("magazine");
+  const [selectedStyle, setSelectedStyle] = useState<VideoEbookRewriteStyle>("magazine");
   const [styleDropdownOpen, setStyleDropdownOpen] = useState(false);
-  const [selectedFormats, setSelectedFormats] = useState<Set<"pdf" | "epub">>(
-    new Set(["epub"]),
-  );
-  const [draftContent, setDraftContent] =
-    useState<Descendant[]>(DEFAULT_CONTENT);
+  const [selectedFormats, setSelectedFormats] = useState<Set<"pdf" | "epub">>(new Set(["epub"]));
+  const [draftContent, setDraftContent] = useState<Descendant[]>(DEFAULT_CONTENT);
   const [hasDraft, setHasDraft] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [coverCandidates, setCoverCandidates] = useState<CoverCandidate[]>([]);
@@ -288,11 +278,12 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     language: "zh-CN",
     description: "",
   });
-  const [remembered, setRemembered] = useLocalStorageState<
-    EpubRememberedMetadata | undefined
-  >(STORAGE_KEY, {
-    defaultValue: undefined,
-  });
+  const [remembered, setRemembered] = useLocalStorageState<EpubRememberedMetadata | undefined>(
+    STORAGE_KEY,
+    {
+      defaultValue: undefined,
+    }
+  );
   const styleTriggerRef = useRef<HTMLButtonElement>(null);
 
   const {
@@ -309,10 +300,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
   const rewriteActionLabel = hasDraft ? "重新生成" : "生成草稿";
 
   const loadCoverCandidates = useMemoizedFn(
-    async (
-      contentForCover: Descendant[],
-      defaultMetadata: EpubMetadataInput,
-    ) => {
+    async (contentForCover: Descendant[], defaultMetadata: EpubMetadataInput) => {
       setCoverCandidates([]);
       setLoadingCoverCandidates(true);
 
@@ -341,12 +329,10 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
 
       setCoverCandidates(nextCandidates);
       setLoadingCoverCandidates(false);
-      setMetadata((prev) => {
+      setMetadata(prev => {
         const currentCover = normalizeText(prev.coverImageSrc);
         const matchedCandidate = nextCandidates.find(
-          (candidate) =>
-            candidate.dataUri === currentCover ||
-            candidate.source === currentCover,
+          candidate => candidate.dataUri === currentCover || candidate.source === currentCover
         );
         if (matchedCandidate) {
           return {
@@ -362,7 +348,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
         }
         return prev;
       });
-    },
+    }
   );
 
   useEffect(() => {
@@ -374,7 +360,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     const emptyContent = createEmptyContent();
     setHasDraft(false);
     setDraftContent(emptyContent);
-    setEditorSessionId((prev) => prev + 1);
+    setEditorSessionId(prev => prev + 1);
     setSelectedFormats(new Set(["epub"]));
     const defaultMetadata = buildDefaultEpubMetadata({
       content: emptyContent,
@@ -415,23 +401,19 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     message.error(rewriteError.message || "电子书草稿生成失败");
   }, [open, rewriteError, message]);
 
-  const onFieldChange = useMemoizedFn(
-    (field: keyof EpubMetadataInput, value: string) => {
-      setMetadata((prev) => ({
-        ...prev,
-        [field]: value,
-      }));
-    },
-  );
+  const onFieldChange = useMemoizedFn((field: keyof EpubMetadataInput, value: string) => {
+    setMetadata(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  });
 
-  const handleSelectCoverCandidate = useMemoizedFn(
-    (candidate: CoverCandidate) => {
-      setMetadata((prev) => ({
-        ...prev,
-        coverImageSrc: candidate.dataUri,
-      }));
-    },
-  );
+  const handleSelectCoverCandidate = useMemoizedFn((candidate: CoverCandidate) => {
+    setMetadata(prev => ({
+      ...prev,
+      coverImageSrc: candidate.dataUri,
+    }));
+  });
 
   const handleChooseCoverFromFile = useMemoizedFn(async () => {
     const selected = await selectFile({
@@ -439,16 +421,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       filters: [
         {
           name: "图片",
-          extensions: [
-            "png",
-            "jpg",
-            "jpeg",
-            "webp",
-            "gif",
-            "bmp",
-            "svg",
-            "avif",
-          ],
+          extensions: ["png", "jpg", "jpeg", "webp", "gif", "bmp", "svg", "avif"],
         },
       ],
     });
@@ -467,14 +440,12 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
         label: `本地文件：${getFileNameFromPath(filePath)}`,
       };
 
-      setCoverCandidates((prev) => {
-        const deduped = prev.filter(
-          (candidate) => candidate.dataUri !== newCandidate.dataUri,
-        );
+      setCoverCandidates(prev => {
+        const deduped = prev.filter(candidate => candidate.dataUri !== newCandidate.dataUri);
         return [newCandidate, ...deduped];
       });
 
-      setMetadata((prev) => ({
+      setMetadata(prev => ({
         ...prev,
         coverImageSrc: dataUri,
       }));
@@ -486,7 +457,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
   });
 
   const handleClearCover = useMemoizedFn(() => {
-    setMetadata((prev) => ({
+    setMetadata(prev => ({
       ...prev,
       coverImageSrc: undefined,
     }));
@@ -501,8 +472,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       return coverValue;
     }
     const matched = coverCandidates.find(
-      (candidate) =>
-        candidate.source === coverValue || candidate.dataUri === coverValue,
+      candidate => candidate.source === coverValue || candidate.dataUri === coverValue
     );
     return matched?.dataUri || "";
   }, [metadata.coverImageSrc, coverCandidates]);
@@ -517,10 +487,8 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
   }, [selectedFormats]);
 
   const selectedStyleOption = useMemo(
-    () =>
-      STYLE_OPTIONS.find((option) => option.value === selectedStyle) ||
-      STYLE_OPTIONS[0],
-    [selectedStyle],
+    () => STYLE_OPTIONS.find(option => option.value === selectedStyle) || STYLE_OPTIONS[0],
+    [selectedStyle]
   );
 
   const handleStartRewrite = useMemoizedFn(() => {
@@ -562,7 +530,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       title: videoTitle || "视频电子书",
       remembered,
     });
-    setMetadata((prev) => ({
+    setMetadata(prev => ({
       ...defaultMetadata,
       title: prev.title || defaultMetadata.title,
       author: prev.author || defaultMetadata.author,
@@ -570,7 +538,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       description: prev.description || defaultMetadata.description,
     }));
 
-    loadCoverCandidates(draftContent, metadata).catch((error) => {
+    loadCoverCandidates(draftContent, metadata).catch(error => {
       console.error("加载封面候选图失败:", error);
       setLoadingCoverCandidates(false);
     });
@@ -649,7 +617,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
             });
 
             if (!isLastFormat) {
-              const shouldContinue = await new Promise<boolean>((resolve) => {
+              const shouldContinue = await new Promise<boolean>(resolve => {
                 modal.confirm({
                   title: "继续导出？",
                   content: `您已取消 PDF 导出，是否继续导出 ${formatsToExport[i + 1].toUpperCase()}？`,
@@ -699,7 +667,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
             });
 
             if (!isLastFormat) {
-              const shouldContinue = await new Promise<boolean>((resolve) => {
+              const shouldContinue = await new Promise<boolean>(resolve => {
                 modal.confirm({
                   title: "继续导出？",
                   content: `您已取消 EPUB 导出，是否继续导出 ${formatsToExport[i + 1].toUpperCase()}？`,
@@ -738,14 +706,11 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
 
       // 显示结果
       const summary = summarizeExportResults(results);
-      const { successResults, failedResults, canceledResults, status } =
-        summary;
+      const { successResults, failedResults, canceledResults, status } = summary;
 
       if (status === "all-failed") {
-        const failedFormats = failedResults.map((r) => r.format).join("、");
-        const failedWarnings = failedResults
-          .flatMap((r) => r.warnings || [])
-          .join("\n");
+        const failedFormats = failedResults.map(r => r.format).join("、");
+        const failedWarnings = failedResults.flatMap(r => r.warnings || []).join("\n");
         modal.error({
           title: "导出失败",
           content: (
@@ -754,9 +719,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                 <strong>失败格式：</strong>
                 {failedFormats}
               </p>
-              {failedWarnings && (
-                <p className="mt-2 text-xs text-gray-500">{failedWarnings}</p>
-              )}
+              {failedWarnings && <p className="mt-2 text-xs text-gray-500">{failedWarnings}</p>}
             </div>
           ),
           okText: "知道了",
@@ -765,14 +728,12 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       }
 
       if (status === "partial-success") {
-        const successFormats = successResults.map((r) => r.format).join("、");
-        const canceledFormats = canceledResults.map((r) => r.format).join("、");
+        const successFormats = successResults.map(r => r.format).join("、");
+        const canceledFormats = canceledResults.map(r => r.format).join("、");
 
         if (failedResults.length > 0) {
-          const failedFormats = failedResults.map((r) => r.format).join("、");
-          const failedWarnings = failedResults
-            .flatMap((r) => r.warnings || [])
-            .join("\n");
+          const failedFormats = failedResults.map(r => r.format).join("、");
+          const failedWarnings = failedResults.flatMap(r => r.warnings || []).join("\n");
           modal.warning({
             title: "部分导出成功",
             content: (
@@ -791,9 +752,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                     {canceledFormats}
                   </p>
                 )}
-                {failedWarnings && (
-                  <p className="mt-2 text-xs text-gray-500">{failedWarnings}</p>
-                )}
+                {failedWarnings && <p className="mt-2 text-xs text-gray-500">{failedWarnings}</p>}
               </div>
             ),
             okText: "知道了",
@@ -807,9 +766,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
           await revealExportInFolder(successResults[0].filePath);
         }
       } else if (status === "all-success") {
-        const paths = successResults
-          .map((r) => `${r.format}: ${r.filePath}`)
-          .join("\n");
+        const paths = successResults.map(r => `${r.format}: ${r.filePath}`).join("\n");
         message.success(`导出成功！\n${paths}`);
 
         if (successResults[0]?.filePath) {
@@ -850,21 +807,21 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
     themeColors.buttonBg,
     themeColors.buttonTextClass,
-    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed dark:disabled:border dark:disabled:border-slate-700",
+    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed dark:disabled:border dark:disabled:border-slate-700"
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
     "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
     "hover:bg-gray-200 dark:hover:bg-zinc-700",
-    "border border-gray-200 dark:border-gray-700",
+    "border border-gray-200 dark:border-gray-700"
   );
 
   const inputClass = classNames(
     "w-full px-3.5 py-2.5 rounded-xl text-sm outline-none transition-all",
     "bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700",
     "text-gray-800 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500",
-    "focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 dark:focus:border-indigo-500 dark:focus:ring-indigo-500/20",
+    "focus:border-[var(--th-border-focus)] focus:ring-2 focus:ring-[var(--th-accent)]/20"
   );
 
   const renderRewriteStep = () => (
@@ -878,11 +835,11 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
             ref={styleTriggerRef}
             type="button"
             disabled={isRewriting}
-            onClick={() => setStyleDropdownOpen((prev) => !prev)}
+            onClick={() => setStyleDropdownOpen(prev => !prev)}
             className={classNames(
               "flex h-12 min-w-0 flex-1 items-center justify-between gap-3 rounded-xl border px-4 text-left transition-all",
               "disabled:cursor-not-allowed disabled:opacity-60",
-              "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 dark:border-slate-700 dark:bg-zinc-900/50 dark:hover:border-slate-600 dark:hover:bg-zinc-800/50",
+              "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 dark:border-slate-700 dark:bg-zinc-900/50 dark:hover:border-slate-600 dark:hover:bg-zinc-800/50"
             )}
           >
             <span className="min-w-0 truncate text-sm font-semibold text-gray-800 dark:text-slate-100">
@@ -891,7 +848,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
             <svg
               className={classNames(
                 "h-4 w-4 shrink-0 text-gray-400 transition-transform dark:text-slate-500",
-                styleDropdownOpen && "rotate-180",
+                styleDropdownOpen && "rotate-180"
               )}
               viewBox="0 0 24 24"
               fill="none"
@@ -915,7 +872,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
               className={classNames(
                 "flex h-12 shrink-0 items-center justify-center rounded-xl px-5 text-sm font-semibold transition-colors",
                 themeColors.buttonBg,
-                themeColors.buttonTextClass,
+                themeColors.buttonTextClass
               )}
               onClick={handleStartRewrite}
             >
@@ -928,12 +885,12 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
           selectedKey={selectedStyle}
           show={styleDropdownOpen}
           onClose={() => setStyleDropdownOpen(false)}
-          onSelect={(option) => {
+          onSelect={option => {
             setSelectedStyle(option.value);
           }}
           triggerElement={styleTriggerRef.current}
-          getKey={(option) => option.value}
-          renderItem={(option) => {
+          getKey={option => option.value}
+          renderItem={option => {
             const isSelected = option.value === selectedStyle;
             return (
               <div className="flex items-start justify-between gap-3">
@@ -942,8 +899,8 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                     className={classNames(
                       "text-[15px] font-semibold leading-6",
                       isSelected
-                        ? "text-blue-600"
-                        : "text-gray-800 dark:text-slate-100",
+                        ? "text-[var(--th-active-text)]"
+                        : "text-gray-800 dark:text-slate-100"
                     )}
                   >
                     {option.label}
@@ -956,9 +913,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                   </p>
                 </div>
                 {isSelected && (
-                  <span className="mt-1 text-base font-semibold text-blue-500">
-                    ✓
-                  </span>
+                  <span className="mt-1 text-base font-semibold text-[var(--th-accent)]">✓</span>
                 )}
               </div>
             );
@@ -986,8 +941,8 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
             className={classNames(
               "rounded-md px-2 py-0.5 text-[10px] font-medium",
               isRewriting
-                ? "bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400"
-                : "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400",
+                ? "bg-[var(--th-warning)]/15 text-status-warning"
+                : "bg-[var(--th-success)]/15 text-status-success"
             )}
           >
             {isRewriting ? "只读" : "可编辑"}
@@ -1025,7 +980,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
               导出格式
             </label>
             <div className="grid grid-cols-2 gap-3">
-              {FORMAT_OPTIONS.map((option) => {
+              {FORMAT_OPTIONS.map(option => {
                 const isSelected = selectedFormats.has(option.value);
                 return (
                   <button
@@ -1043,8 +998,8 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                     className={classNames(
                       "flex flex-col items-start rounded-xl border p-3 text-left transition-all",
                       isSelected
-                        ? "border-indigo-400 bg-indigo-50/80 ring-2 ring-indigo-500/25 dark:border-indigo-500 dark:bg-indigo-500/10 dark:ring-indigo-500/20"
-                        : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/80 dark:border-slate-700 dark:bg-zinc-900/50 dark:hover:border-slate-600 dark:hover:bg-zinc-800/50",
+                        ? "bg-[var(--th-accent-soft)]/80 ring-[var(--th-accent)]/25 border-[var(--th-border-focus)] ring-2"
+                        : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/80 dark:border-slate-700 dark:bg-zinc-900/50 dark:hover:border-slate-600 dark:hover:bg-zinc-800/50"
                     )}
                   >
                     <span className="text-base">{option.icon}</span>
@@ -1052,8 +1007,8 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                       className={classNames(
                         "text-xs font-semibold",
                         isSelected
-                          ? "text-indigo-700 dark:text-indigo-300"
-                          : "text-gray-700 dark:text-slate-200",
+                          ? "text-[var(--th-active-text)]"
+                          : "text-gray-700 dark:text-slate-200"
                       )}
                     >
                       {option.label}
@@ -1062,8 +1017,8 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                       className={classNames(
                         "text-[11px]",
                         isSelected
-                          ? "text-indigo-500/80 dark:text-indigo-400/70"
-                          : "text-gray-400 dark:text-slate-500",
+                          ? "text-[var(--th-accent)]/80/70"
+                          : "text-gray-400 dark:text-slate-500"
                       )}
                     >
                       {option.description}
@@ -1084,7 +1039,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                 type="text"
                 value={metadata.title}
                 placeholder="请输入书名"
-                onChange={(event) => onFieldChange("title", event.target.value)}
+                onChange={event => onFieldChange("title", event.target.value)}
                 className={inputClass}
               />
             </div>
@@ -1098,9 +1053,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                   type="text"
                   value={metadata.author}
                   placeholder="请输入作者"
-                  onChange={(event) =>
-                    onFieldChange("author", event.target.value)
-                  }
+                  onChange={event => onFieldChange("author", event.target.value)}
                   className={inputClass}
                 />
               </div>
@@ -1112,9 +1065,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                   type="text"
                   value={metadata.language}
                   placeholder="例如 zh-CN / en"
-                  onChange={(event) =>
-                    onFieldChange("language", event.target.value)
-                  }
+                  onChange={event => onFieldChange("language", event.target.value)}
                   className={inputClass}
                 />
               </div>
@@ -1128,9 +1079,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                 value={metadata.description}
                 rows={2}
                 placeholder="可选，建议一句话简介"
-                onChange={(event) =>
-                  onFieldChange("description", event.target.value)
-                }
+                onChange={event => onFieldChange("description", event.target.value)}
                 className={classNames(inputClass, "resize-y")}
               />
             </div>
@@ -1192,9 +1141,8 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                   从草稿中提取的图片
                 </span>
                 <div className="grid grid-cols-4 gap-2">
-                  {coverCandidates.map((candidate) => {
-                    const isSelected =
-                      metadata.coverImageSrc === candidate.dataUri;
+                  {coverCandidates.map(candidate => {
+                    const isSelected = metadata.coverImageSrc === candidate.dataUri;
                     return (
                       <button
                         key={candidate.id}
@@ -1203,8 +1151,8 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                         className={classNames(
                           "overflow-hidden rounded-lg border-2 transition-all",
                           isSelected
-                            ? "border-indigo-500 ring-2 ring-indigo-500/25"
-                            : "border-transparent hover:border-gray-300 dark:hover:border-slate-600",
+                            ? "ring-[var(--th-accent)]/25 border-[var(--th-accent)] ring-2"
+                            : "border-transparent hover:border-gray-300 dark:hover:border-slate-600"
                         )}
                       >
                         <img
@@ -1230,21 +1178,14 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
         <div className="flex items-center justify-between">
           <StepIndicator currentStep={step} />
           <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={handleClose}
-              className={secondaryButtonClass}
-            >
+            <button type="button" onClick={handleClose} className={secondaryButtonClass}>
               取消
             </button>
             <button
               type="button"
               onClick={handleGoToExportSettings}
               disabled={!hasDraft || isRewriting}
-              className={classNames(
-                primaryButtonClass,
-                "flex items-center gap-1.5",
-              )}
+              className={classNames(primaryButtonClass, "flex items-center gap-1.5")}
             >
               下一步
               <svg
@@ -1269,10 +1210,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
           <button
             type="button"
             onClick={handleBackToRewrite}
-            className={classNames(
-              secondaryButtonClass,
-              "flex items-center gap-1.5",
-            )}
+            className={classNames(secondaryButtonClass, "flex items-center gap-1.5")}
           >
             <svg
               className="h-4 w-4"
@@ -1289,10 +1227,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
             type="button"
             onClick={handleConfirmExport}
             disabled={selectedFormats.size === 0 || exporting}
-            className={classNames(
-              primaryButtonClass,
-              "flex items-center gap-2",
-            )}
+            className={classNames(primaryButtonClass, "flex items-center gap-2")}
           >
             {exporting && (
               <svg
@@ -1302,13 +1237,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
                 stroke="currentColor"
                 strokeWidth="2"
               >
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="9"
-                  stroke="currentColor"
-                  strokeOpacity="0.35"
-                />
+                <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.35" />
                 <path
                   d="M12 3a9 9 0 0 1 9 9"
                   stroke="currentColor"
