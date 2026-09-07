@@ -4,6 +4,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { createServer as createTcpServer } from "node:net";
 import { createRequire } from "node:module";
 import { mkdtempSync, mkdirSync, rmSync, createWriteStream } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve, join, dirname } from "node:path";
 import * as Y from "yjs";
@@ -36,24 +37,54 @@ test.beforeAll(async () => {
     bundle: true,
     platform: "node",
     format: "cjs",
-    external: ["electron", "better-sqlite3"],
+    external: ["electron", "better-sqlite3", "@node-rs/jieba"],
     alias: { "@": resolve(root, "src") },
     plugins: [
       {
+        // src-electron 内任何位置对真实 database / tables/content / PathUtil 的引用
+        // 都重定向到 e2e 替身，避免把整套主进程模块拉进测试 bundle
         name: "isolated-database",
         setup(build) {
           build.onResolve(
-            { filter: /(?:\.\.\/database|\.\.\/tables\/content|\.\/content|PathUtil)$/ },
+            { filter: /(?:^|[/\\])(?:database|content|PathUtil)(?:\.ts)?$/ },
             args => {
-              if (!args.importer.includes("src-electron/main/modules/collaboration/")) return;
-              const target = args.path.endsWith("PathUtil")
-                ? "paths.ts"
-                : args.path.endsWith("database")
-                  ? "database.ts"
-                  : "content-table.ts";
+              if (!args.importer.includes("src-electron/") || !args.path.startsWith(".")) return;
+              const resolved = resolve(dirname(args.importer), args.path);
+              let target: string | undefined;
+              if (resolved.endsWith("/src-electron/main/modules/database")) target = "database.ts";
+              else if (resolved.endsWith("/src-electron/main/modules/tables/content"))
+                target = "content-table.ts";
+              else if (resolved.endsWith("/src-electron/main/utils/PathUtil")) target = "paths.ts";
+              if (!target) return;
               return { path: resolve(root, "e2e/collaboration", target) };
             }
           );
+        },
+      },
+      {
+        // vite 风格的 ?raw 导入（db-schema SQL、内置技能 markdown 等）转为内容字符串
+        name: "vite-raw-asset",
+        setup(build) {
+          build.onResolve({ filter: /\?raw$/ }, args => {
+            const path = args.path.replace(/\?raw$/, "");
+            if (path.startsWith("@/"))
+              return { path: resolve(root, "src", path.slice(2)), namespace: "raw-asset" };
+            if (path.startsWith("."))
+              return {
+                path: resolve(dirname(args.importer), path),
+                namespace: "raw-asset",
+              };
+            // 裸包导入（如 @tau/db-schema/schema/main.sql）：解析包根后拼接子路径
+            const [scope, name, ...rest] = path.split("/");
+            const pkg = scope.startsWith("@") ? `${scope}/${name}` : scope;
+            const require = createRequire(args.importer);
+            const pkgRoot = dirname(require.resolve(`${pkg}/package.json`));
+            return { path: resolve(pkgRoot, ...rest), namespace: "raw-asset" };
+          });
+          build.onLoad({ filter: /.*/, namespace: "raw-asset" }, async args => ({
+            contents: `export default ${JSON.stringify(await readFile(args.path, "utf8"))}`,
+            loader: "js",
+          }));
         },
       },
     ],

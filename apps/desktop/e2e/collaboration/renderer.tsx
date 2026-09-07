@@ -9,6 +9,7 @@ import ContentEditor from "../../src/components/ContentEditor";
 import CollaborativeTitle from "../../src/components/CollaborativeTitle";
 import ContentCollaborationControl from "../../src/components/ContentCollaborationControl";
 import CollaborationPanel from "../../src/components/CollaborationPanel";
+import JoinRequestNotifications from "../../src/components/JoinRequestNotifications";
 import useSettingStore from "../../src/stores/useSettingStore";
 import "../../src/tailwind.css";
 
@@ -68,6 +69,7 @@ function View() {
               <CollaborationPanel />
             </aside>
           </main>
+          <JoinRequestNotifications />
         </EditorServicesProvider>
       </DndProvider>
     </App>
