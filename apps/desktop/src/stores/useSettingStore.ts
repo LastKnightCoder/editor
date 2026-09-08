@@ -511,6 +511,9 @@ export interface ISetting {
       useLLMOptimization: boolean;
       enableLongVideoSegmentation: boolean; // 启用长视频分段转录（>30分钟）
     };
+    update: {
+      autoCheck: boolean;
+    };
   };
   publish: {
     active: EPublishProvider;
@@ -585,6 +588,7 @@ interface IActions {
   setAutoCacheRemoteImage: (enabled: boolean) => void;
   setAutoCacheRemoteAudio: (enabled: boolean) => void;
   setAutoSyncEnabled: (enabled: boolean) => void;
+  setAutoCheckUpdate: (enabled: boolean) => void;
   setTranscriptionUseLLMOptimization: (enabled: boolean) => void;
   setTranscriptionSegmentationLevel: (level: "word" | "sentence") => void;
   setLongVideoSegmentationEnabled: (enabled: boolean) => void;
@@ -1002,6 +1006,9 @@ const initialState: IState = {
         useLLMOptimization: false,
         enableLongVideoSegmentation: true,
       },
+      update: {
+        autoCheck: true,
+      },
     },
     publish: {
       active: EPublishProvider.Github,
@@ -1298,6 +1305,14 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, draft => {
         draft.sync.autoSyncEnabled = enabled;
+      }),
+    });
+  },
+  setAutoCheckUpdate: enabled => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, draft => {
+        draft.misc.update.autoCheck = enabled;
       }),
     });
   },

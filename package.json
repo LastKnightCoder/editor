@@ -1,7 +1,7 @@
 {
   "name": "tau",
   "private": true,
-  "version": "0.52.0",
+  "version": "0.53.0",
   "scripts": {
     "start:win": "chcp 65001 && pnpm --filter desktop dev",
     "dev": "pnpm --filter desktop dev",
@@ -13,6 +13,7 @@
     "build:python": "pnpm --filter desktop exec node scripts/build-python.js build",
     "build:blog": "pnpm --filter blog build",
     "publish:blog": "node scripts/publish-blog.mjs",
+    "publish:desktop": "node scripts/publish-desktop.mjs",
     "dev:ext": "pnpm --filter browser-extension dev",
     "build:ext": "pnpm --filter browser-extension build",
     "db:schema:build": "node scripts/db/build-schema-bundles.mjs",

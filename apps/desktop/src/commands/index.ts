@@ -1,4 +1,5 @@
 export * from "./card";
+export * from "./updater";
 export * from "./article";
 export * from "./daily-note";
 export * from "./diary";

@@ -14,6 +14,7 @@ const runtimeDependencyExternals = [
   "@tailwindcss/oxide",
   "@vscode/ripgrep",
   "better-sqlite3",
+  "electron-updater",
   "font-list",
   "node-pty",
   "sharp",
