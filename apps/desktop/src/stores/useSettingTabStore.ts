@@ -14,7 +14,6 @@ export type SettingsTabKey =
   | "transcription"
   | "whiteboardRecording"
   | "module"
-  | "customBlock"
   | "integration"
   | "misc";
 
@@ -25,17 +24,17 @@ interface SettingTabState {
 
 const useSettingTabStore = create<SettingTabState>()(
   persist(
-    (set) => ({
+    set => ({
       activeKey: "app",
-      setActiveKey: (activeKey) => set({ activeKey }),
+      setActiveKey: activeKey => set({ activeKey }),
     }),
     {
       name: "settings-tab",
-      partialize: (state) => ({
+      partialize: state => ({
         activeKey: state.activeKey,
       }),
-    },
-  ),
+    }
+  )
 );
 
 export default useSettingTabStore;

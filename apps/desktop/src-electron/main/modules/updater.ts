@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import log from "electron-log";
 import electronUpdaterPkg from "electron-updater";
+import { isAppQuitting } from "../app-quit-controller";
 import { Module } from "../types/module";
 
 const { autoUpdater } = electronUpdaterPkg;
@@ -31,6 +32,7 @@ export interface UpdateDownloadProgressPayload {
 class UpdaterModule implements Module {
   name = "updater";
   private downloading = false;
+  private fallbackUrl: string | null = null;
 
   async init(): Promise<void> {
     autoUpdater.logger = log;
@@ -70,12 +72,13 @@ class UpdaterModule implements Module {
       }
       const result = await autoUpdater.checkForUpdates();
       const updateInfo = result?.updateInfo;
+      this.fallbackUrl = updateInfo?.path ? `${UPDATE_FEED_URL}/${updateInfo.path}` : null;
       return {
         available: result?.isUpdateAvailable ?? false,
         currentVersion: app.getVersion(),
         version: updateInfo?.version ?? null,
         releaseDate: updateInfo?.releaseDate ?? null,
-        fallbackUrl: updateInfo?.path ? `${UPDATE_FEED_URL}/${updateInfo.path}` : null,
+        fallbackUrl: this.fallbackUrl,
       };
     });
 
@@ -88,6 +91,14 @@ class UpdaterModule implements Module {
 
     ipcMain.handle("updater:install", () => {
       autoUpdater.quitAndInstall();
+      // macOS 未正式签名时 Squirrel 校验会失败，quitAndInstall 静默卡死不退出；
+      // 若 3 秒后进程仍在运行且未进入退出流程，判定安装失败并引导手动下载
+      const timer = setTimeout(() => {
+        if (isAppQuitting()) return;
+        log.error("updater install did not restart the app, fallback to manual download");
+        this.broadcast("updater:install-failed", { fallbackUrl: this.fallbackUrl });
+      }, 3000);
+      timer.unref?.();
     });
 
     log.info("UpdaterModule initialized");

@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, type IpcMainInvokeEvent } from "electron";
+import log from "electron-log";
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import { WebSocket } from "ws";
 import * as Y from "yjs";
@@ -70,6 +71,8 @@ class CollaborationManager {
   private closeWaiters = new Map<string, () => void>();
   private closingWindows = new Set<number>();
   private finishingLeaves = new Set<string>();
+  private autoFlushInterval: ReturnType<typeof setInterval> | null = null;
+  private refreshInterval: ReturnType<typeof setInterval> | null = null;
   private quitting = false;
 
   private get serverUrl() {
@@ -923,7 +926,7 @@ class CollaborationManager {
     });
     for (const window of BrowserWindow.getAllWindows()) this.registerWindow(window);
     app.on("browser-window-created", (_event, window) => this.registerWindow(window));
-    const interval = setInterval(() => {
+    this.autoFlushInterval = setInterval(() => {
       for (const session of this.sessions.values()) {
         try {
           if (session.dirty) {
@@ -942,18 +945,50 @@ class CollaborationManager {
       }
       void this.flushResources();
     }, 1000);
-    interval.unref();
-    const refreshInterval = setInterval(() => void this.refresh(), 15000);
-    refreshInterval.unref();
-    app.once("before-quit", () => {
-      this.quitting = true;
-      this.stopped = true;
-      clearInterval(interval);
-      clearInterval(refreshInterval);
-      for (const socket of this.events.values()) socket.close();
-      for (const transport of this.transports.values()) transport.disconnect();
-    });
+    this.autoFlushInterval.unref();
+    this.refreshInterval = setInterval(() => void this.refresh(), 15000);
+    this.refreshInterval.unref();
     void this.refresh();
+  }
+
+  /** 受控退出前把所有协作视图的文档落盘（尽力而为，超时不阻塞退出） */
+  async prepareQuit(timeoutMs = 5000): Promise<void> {
+    if (!this.store) return;
+    const entries = [...this.views.entries()];
+    if (!entries.length) return;
+    const tasks = entries.map(
+      ([viewId, view]) =>
+        new Promise<void>(resolve => {
+          const timeout = setTimeout(resolve, timeoutMs);
+          this.closeWaiters.set(viewId, () => {
+            clearTimeout(timeout);
+            resolve();
+          });
+          BrowserWindow.fromId(view.windowId)?.webContents.send("collaboration:flush", {
+            documentId: view.documentId,
+          });
+        })
+    );
+    await Promise.all(tasks);
+    for (const [viewId] of entries) this.closeWaiters.delete(viewId);
+    for (const id of new Set(entries.map(([, view]) => view.documentId))) {
+      try {
+        const session = this.sessions.get(id);
+        if (session?.info.mode === "local") await this.project(session);
+      } catch (error) {
+        log.error(`退出前保存协作文档 ${id} 失败:`, error);
+      }
+    }
+  }
+
+  /** 受控退出收尾：停止后台任务并断开所有协作连接 */
+  shutdown(): void {
+    this.quitting = true;
+    this.stopped = true;
+    if (this.autoFlushInterval) clearInterval(this.autoFlushInterval);
+    if (this.refreshInterval) clearInterval(this.refreshInterval);
+    for (const socket of this.events.values()) socket.close();
+    for (const transport of this.transports.values()) transport.disconnect();
   }
   private removeView(viewId: string) {
     const view = this.views.get(viewId);
