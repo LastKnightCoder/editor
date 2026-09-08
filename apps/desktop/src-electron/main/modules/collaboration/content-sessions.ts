@@ -6,6 +6,7 @@ import {
   getBody,
   getFields,
   readSharedContent,
+  replaceText,
   validateDocument,
   type ContentNode,
   type SourceBinding,
@@ -95,6 +96,20 @@ export function canonicalContentTitle(db: Database.Database, contentId: number) 
   // 协作标题为空时返回 undefined，让调用方回退到自己传入的标题，避免空串清空标题。
   const title = contentSession(db, contentId)?.doc.getText("title").toString();
   return title || undefined;
+}
+
+/**
+ * 将用户显式修改的标题写回协作会话。标题以协作会话为真源，
+ * 不回写会在投影时被旧协作标题覆盖（表现为重命名静默失效）。
+ */
+export function setCanonicalContentTitle(db: Database.Database, contentId: number, title: string) {
+  if (!title) return;
+  const session = contentSession(db, contentId);
+  if (!session || session.info.frozen || session.info.leaving) return;
+  const text = session.doc.getText("title");
+  if (text.toString() === title) return;
+  // doc 更新会置位 projectionDirty，投影时经 projectContentTitle 同步共享该内容的全部条目并广播
+  session.doc.transact(() => replaceText(text, title), "content-title-rename");
 }
 
 export function findContentTitle(db: Database.Database, contentId: number) {

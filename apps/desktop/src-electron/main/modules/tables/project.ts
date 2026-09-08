@@ -20,7 +20,7 @@ import { v4 as uuidv4 } from "uuid";
 import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
-import { canonicalContentTitle } from "../collaboration/content-sessions";
+import { canonicalContentTitle, setCanonicalContentTitle } from "../collaboration/content-sessions";
 import CardTable from "./card";
 import ArticleTable from "./article";
 import VideoNoteTable from "./video-note";
@@ -553,6 +553,9 @@ export default class ProjectTable {
     ...res: any[]
   ): ProjectItem | null {
     const win = res[res.length - 1];
+
+    // 标题以协作会话为真源：用户显式改名时先回写协作标题，避免随后被旧标题覆盖
+    setCanonicalContentTitle(db, item.contentId, item.title ?? "");
 
     const stmt = db.prepare(`
       UPDATE project_item SET
