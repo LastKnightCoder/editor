@@ -31,6 +31,7 @@ import { useInitChatData } from "@/hooks/useInitChatData";
 import { WindowFocusContext } from "@/hooks/useWindowFocus";
 import useAntdThemeToken from "@/hooks/useAntdThemeToken";
 import AutoSyncManager from "@/components/AutoSyncManager";
+import AutoUpdateChecker from "@/components/AutoUpdateChecker";
 import { MediaModalHost } from "@/editor-providers/mediaModalHost";
 import ConversationFlashcardModal from "@/components/ConversationFlashcardModal";
 import ExtNoteInsertModal from "@/components/ExtNoteInsertModal";
@@ -500,6 +501,7 @@ const Application = () => {
                     }}
                   >
                     <AutoSyncManager />
+                    <AutoUpdateChecker />
                     <MediaModalHost />
                     <ConversationFlashcardModal />
                     <ExtNoteInsertModal />

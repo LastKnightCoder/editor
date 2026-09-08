@@ -1,7 +1,7 @@
 {
   "name": "desktop",
   "private": true,
-  "version": "0.52.0",
+  "version": "0.53.0",
   "author": {
     "name": "LastKnightCoder"
   },
@@ -35,6 +35,7 @@
     "@tanstack/react-query": "^5.101.0",
     "@vscode/ripgrep": "^1.15.14",
     "better-sqlite3": "^12.10.0",
+    "electron-updater": "^6.6.4",
     "font-list": "^1.5.1",
     "fuse.js": "^7.4.1",
     "node-pty": "^1.1.0",

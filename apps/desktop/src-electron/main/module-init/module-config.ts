@@ -45,6 +45,7 @@ import mainContentFtsIndexQueue from "../modules/main-content-fts-index-queue";
 import mainContentVecIndexQueue from "../modules/main-content-vec-index-queue";
 import embeddingIndexOrchestrator from "../modules/embedding-index-orchestrator";
 import terminalModule from "../modules/terminal";
+import updaterModule from "../modules/updater";
 import pdfIndexQueue from "../modules/pdf-index-queue";
 import pdfIndexOrchestrator from "../modules/pdf-index-orchestrator";
 import rssFetcherModule from "../modules/rss-fetcher";
@@ -353,6 +354,13 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.ON_DEMAND,
     dependencies: ["logger"],
     init: () => terminalModule.init(),
+  },
+  {
+    name: "updater",
+    group: ModuleGroup.FEATURE,
+    layer: InitLayer.ON_DEMAND,
+    dependencies: ["logger"],
+    init: () => updaterModule.init(),
   },
 
   // Vibe Learning 模块

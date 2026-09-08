@@ -42,7 +42,6 @@ extraResources:
   - from: ../cli/bin/tau.ps1
     to: cli/tau.ps1
 
-
 files:
   - "dist/**/*"
   - "dist-electron/**/*"
@@ -63,7 +62,6 @@ nsis:
   uninstallDisplayName: "Tau"
   shortcutName: "Tau"
   include: "build/installer.nsh"
-
 
 win:
   target: ["nsis"]
@@ -100,7 +98,6 @@ linux:
   artifactName: "${productName}-v${version}-${platform}.${ext}"
 
 publish:
-  provider: "github"
-  repo: "editor"
-  owner: "LastKnightCoder"
-  releaseType: "release"
+  # electron-updater 从该地址拉取 latest*.yml 与更新包，产物由 scripts/publish-desktop.mjs 上传
+  - provider: "generic"
+    url: "https://release-bin.oss-cn-shanghai.aliyuncs.com/desktop"

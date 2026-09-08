@@ -1,10 +1,12 @@
 import { useState, memo } from "react";
 import { useAsyncEffect } from "ahooks";
-import { App } from "antd";
-import { getVersions } from "@/commands";
+import { App, Progress } from "antd";
+import { getVersions, openExternal } from "@/commands";
 import { invoke } from "@/electron";
 import SelectDatabase from "@/components/SelectDatabase";
-import { SettingButton, SettingContainer, SettingSection } from "../components";
+import { SettingButton, SettingContainer, SettingSection, SettingSwitch } from "../components";
+import { useUpdateStore } from "@/stores/useUpdateStore";
+import useSettingStore from "@/stores/useSettingStore";
 
 const AppAbout = memo(() => {
   const [loading, setLoading] = useState(false);
@@ -14,6 +16,17 @@ const AppAbout = memo(() => {
   const [cliPath, setCliPath] = useState("");
   const [cliLoading, setCliLoading] = useState(false);
   const { message } = App.useApp();
+
+  const updateStatus = useUpdateStore(state => state.status);
+  const updateNewVersion = useUpdateStore(state => state.newVersion);
+  const updateFallbackUrl = useUpdateStore(state => state.fallbackUrl);
+  const updateProgress = useUpdateStore(state => state.progress);
+  const updateError = useUpdateStore(state => state.errorMessage);
+  const checkUpdate = useUpdateStore(state => state.check);
+  const downloadUpdate = useUpdateStore(state => state.download);
+  const installUpdate = useUpdateStore(state => state.install);
+  const autoCheckUpdate = useSettingStore(state => state.setting.misc.update.autoCheck);
+  const setAutoCheckUpdate = useSettingStore(state => state.setAutoCheckUpdate);
 
   useAsyncEffect(async () => {
     setLoading(true);
@@ -32,6 +45,10 @@ const AppAbout = memo(() => {
       setCliPath(status.path);
     } catch {
       /* CLI not available */
+    }
+
+    if (useUpdateStore.getState().status === "idle") {
+      void useUpdateStore.getState().check();
     }
   }, []);
 
@@ -129,6 +146,66 @@ const AppAbout = memo(() => {
             )}
           </div>
         </div>
+      </SettingSection>
+
+      <SettingSection title="软件更新" description="检查并安装 Tau 的最新版本">
+        <div className="flex items-center gap-4">
+          <div className="flex flex-1 items-center gap-2">
+            <div
+              className={`h-2 w-2 rounded-full ${
+                updateStatus === "upToDate"
+                  ? "bg-gray-400"
+                  : updateStatus === "available" || updateStatus === "ready"
+                    ? "bg-status-success"
+                    : updateStatus === "error"
+                      ? "bg-red-500"
+                      : "animate-pulse bg-blue-500"
+              }`}
+            />
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              {updateStatus === "idle" && "尚未检查更新"}
+              {updateStatus === "checking" && "正在检查更新..."}
+              {updateStatus === "upToDate" && "已是最新版本"}
+              {updateStatus === "available" && `发现新版本 v${updateNewVersion}`}
+              {updateStatus === "downloading" &&
+                `正在下载 v${updateNewVersion} ... ${Math.round(updateProgress)}%`}
+              {updateStatus === "ready" && `v${updateNewVersion} 已就绪，重启后自动安装`}
+              {updateStatus === "error" && (updateError ?? "检查更新失败")}
+            </span>
+            {updateStatus === "available" && updateFallbackUrl && (
+              <a
+                className="cursor-pointer text-xs text-[var(--th-text-secondary)] underline-offset-2 hover:underline"
+                onClick={() => void openExternal(updateFallbackUrl)}
+              >
+                手动下载
+              </a>
+            )}
+          </div>
+          {updateStatus === "available" ? (
+            <SettingButton variant="primary" onClick={() => void downloadUpdate()}>
+              下载更新
+            </SettingButton>
+          ) : updateStatus === "ready" ? (
+            <SettingButton variant="primary" onClick={() => void installUpdate()}>
+              重启并安装
+            </SettingButton>
+          ) : updateStatus === "downloading" ? null : (
+            <SettingButton loading={updateStatus === "checking"} onClick={() => void checkUpdate()}>
+              检查更新
+            </SettingButton>
+          )}
+        </div>
+        {updateStatus === "downloading" && (
+          <div className="mt-3">
+            <Progress percent={Math.round(updateProgress)} size="small" />
+          </div>
+        )}
+        <SettingSwitch
+          label="自动检查更新"
+          description="应用启动时在后台检查新版本"
+          checked={autoCheckUpdate}
+          onChange={setAutoCheckUpdate}
+        />
       </SettingSection>
 
       <SettingSection title="数据库管理" description="选择和管理你的笔记数据库">
