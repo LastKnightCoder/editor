@@ -28,7 +28,6 @@ export {
   IResourceService,
   IFileService,
   ICompilerService,
-  ICustomBlockService,
   IMediaInsertSources,
   IVideoContentProviders,
   IMediaActions,
@@ -69,7 +68,6 @@ export {
   compileAndExecuteCustomBlock,
   rerenderCustomBlockTheme,
 } from "./extensions/custom-block/utils/renderTemplate";
-export { default as TemplatePreview } from "./extensions/custom-block/components/TemplateSelector/TemplatePreview";
 
 export * from "./utils/element";
 

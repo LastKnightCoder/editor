@@ -18,7 +18,6 @@ import s3Module from "../modules/s3";
 import webdavModule from "../modules/webdav";
 import typstModule from "../modules/typst";
 import tailwindRuntimeModule from "../modules/tailwind-runtime";
-import customBlockModule from "../modules/custom-block";
 import skillModule from "../modules/skill";
 import bilibiliCacheModule from "../modules/bilibili-cache";
 import youtubeCacheModule from "../modules/youtube-cache";
@@ -149,13 +148,6 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.ON_DEMAND,
     dependencies: ["logger"],
     init: () => tailwindRuntimeModule.init(),
-  },
-  {
-    name: "custom-block",
-    group: ModuleGroup.RENDER,
-    layer: InitLayer.ON_DEMAND,
-    dependencies: ["logger"],
-    init: () => customBlockModule.init(),
   },
   {
     name: "skill",

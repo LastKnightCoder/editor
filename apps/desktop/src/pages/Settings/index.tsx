@@ -1,8 +1,6 @@
 import classNames from "classnames";
 import useThemeColors from "@/hooks/useThemeColors";
-import useSettingTabStore, {
-  SettingsTabKey,
-} from "@/stores/useSettingTabStore";
+import useSettingTabStore, { SettingsTabKey } from "@/stores/useSettingTabStore";
 
 import AppAbout from "./AppAbout";
 import AppearanceSetting from "./AppearanceSetting";
@@ -17,7 +15,6 @@ import LLMProviderSetting from "./LLMProviderSetting";
 import ImageGenerationSetting from "./ImageGenerationSetting";
 import EmbeddingProviderSetting from "./EmbeddingProviderSetting";
 import IntegrationSetting from "./IntegrationSetting";
-import CustomBlockSetting from "./CustomBlockSetting";
 import MiscSetting from "./MiscSetting";
 
 interface TabItem {
@@ -28,8 +25,8 @@ interface TabItem {
 }
 
 const SettingsPage = () => {
-  const activeKey = useSettingTabStore((state) => state.activeKey);
-  const setActiveKey = useSettingTabStore((state) => state.setActiveKey);
+  const activeKey = useSettingTabStore(state => state.activeKey);
+  const setActiveKey = useSettingTabStore(state => state.setActiveKey);
   const themeColors = useThemeColors();
 
   const items: TabItem[] = [
@@ -37,12 +34,7 @@ const SettingsPage = () => {
       key: "app",
       label: "关于软件",
       icon: (
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -57,12 +49,7 @@ const SettingsPage = () => {
       key: "appearance",
       label: "外观",
       icon: (
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -77,12 +64,7 @@ const SettingsPage = () => {
       key: "imageBed",
       label: "资源存储",
       icon: (
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -97,12 +79,7 @@ const SettingsPage = () => {
       key: "sync",
       label: "同步",
       icon: (
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -117,12 +94,7 @@ const SettingsPage = () => {
       key: "publish",
       label: "发布",
       icon: (
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -137,12 +109,7 @@ const SettingsPage = () => {
       key: "llm",
       label: "大语言模型",
       icon: (
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -157,12 +124,7 @@ const SettingsPage = () => {
       key: "imageGeneration",
       label: "图片生成",
       icon: (
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -177,12 +139,7 @@ const SettingsPage = () => {
       key: "embedding",
       label: "嵌入模型",
       icon: (
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -197,12 +154,7 @@ const SettingsPage = () => {
       key: "textToSpeech",
       label: "文字转语音",
       icon: (
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -217,12 +169,7 @@ const SettingsPage = () => {
       key: "transcription",
       label: "语音转录",
       icon: (
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -237,12 +184,7 @@ const SettingsPage = () => {
       key: "whiteboardRecording",
       label: "白板录制",
       icon: (
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -257,12 +199,7 @@ const SettingsPage = () => {
       key: "module",
       label: "模块功能",
       icon: (
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -274,35 +211,10 @@ const SettingsPage = () => {
       children: <ModuleSetting />,
     },
     {
-      key: "customBlock",
-      label: "自定义组件",
-      icon: (
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"
-          />
-        </svg>
-      ),
-      children: <CustomBlockSetting />,
-    },
-    {
       key: "integration",
       label: "集成",
       icon: (
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -317,12 +229,7 @@ const SettingsPage = () => {
       key: "misc",
       label: "杂项",
       icon: (
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -335,23 +242,23 @@ const SettingsPage = () => {
     },
   ];
 
-  const activeItem = items.find((item) => item.key === activeKey);
+  const activeItem = items.find(item => item.key === activeKey) || items[0];
 
   return (
-    <div className="w-full h-full flex gap-6 box-border overflow-hidden">
-      <div className="w-56 shrink-0 h-full p-3 border-r border-[#f0f0f0] dark:border-[#282829] overflow-y-auto">
+    <div className="box-border flex h-full w-full gap-6 overflow-hidden">
+      <div className="h-full w-56 shrink-0 overflow-y-auto border-r border-[#f0f0f0] p-3 dark:border-[#282829]">
         <nav className="space-y-1">
-          {items.map((item) => {
+          {items.map(item => {
             const isActive = item.key === activeKey;
             return (
               <button
                 key={item.key}
                 onClick={() => setActiveKey(item.key)}
                 className={classNames(
-                  "w-full flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
+                  "flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                   isActive
                     ? [themeColors.activeClass, themeColors.activeTextClass]
-                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-zinc-800/50",
+                    : "text-gray-700 hover:bg-gray-100/50 dark:text-gray-300 dark:hover:bg-zinc-800/50"
                 )}
               >
                 {item.icon}
@@ -361,7 +268,7 @@ const SettingsPage = () => {
           })}
         </nav>
       </div>
-      <div className="flex-1 h-full overflow-y-auto border-20 border-transparent">
+      <div className="border-20 h-full flex-1 overflow-y-auto border-transparent">
         {activeItem?.children}
       </div>
     </div>

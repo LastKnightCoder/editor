@@ -12,13 +12,10 @@ import TranscriptionSetting from "@/pages/Settings/TranscriptionSetting";
 import WhiteboardRecordingSetting from "@/pages/Settings/WhiteboardRecordingSetting";
 import ModuleSetting from "@/pages/Settings/ModuleSetting";
 import IntegrationSetting from "@/pages/Settings/IntegrationSetting";
-import CustomBlockSetting from "@/pages/Settings/CustomBlockSetting";
 import MiscSetting from "@/pages/Settings/MiscSetting";
 import useSettingStore from "@/stores/useSettingStore";
 import useTabStore from "@/stores/useTabStore";
-import useSettingTabStore, {
-  SettingsTabKey,
-} from "@/stores/useSettingTabStore";
+import useSettingTabStore, { SettingsTabKey } from "@/stores/useSettingTabStore";
 import { TabType } from "@/types/tab";
 import { useMemoizedFn } from "ahooks";
 import useThemeColors from "@/hooks/useThemeColors";
@@ -31,13 +28,13 @@ interface TabItem {
 }
 
 const SettingModal = () => {
-  const navigateTo = useTabStore((state) => state.navigateTo);
+  const navigateTo = useTabStore(state => state.navigateTo);
   const themeColors = useThemeColors();
 
-  const settingModalOpen = useSettingStore((state) => state.settingModalOpen);
+  const settingModalOpen = useSettingStore(state => state.settingModalOpen);
 
-  const activeTab = useSettingTabStore((state) => state.activeKey);
-  const setActiveTab = useSettingTabStore((state) => state.setActiveKey);
+  const activeTab = useSettingTabStore(state => state.activeKey);
+  const setActiveTab = useSettingTabStore(state => state.setActiveKey);
 
   const onCancel = useMemoizedFn(() => {
     useSettingStore.setState({
@@ -107,11 +104,6 @@ const SettingModal = () => {
       children: <ModuleSetting />,
     },
     {
-      key: "customBlock",
-      label: "自定义组件",
-      children: <CustomBlockSetting />,
-    },
-    {
       key: "integration",
       label: "集成",
       children: <IntegrationSetting />,
@@ -130,11 +122,11 @@ const SettingModal = () => {
     });
   });
 
-  const activeItem = items.find((item) => item.key === activeTab) || items[0];
+  const activeItem = items.find(item => item.key === activeTab) || items[0];
 
   return (
     <CustomModal
-      className="relative z-9990"
+      className="z-9990 relative"
       open={settingModalOpen}
       onCancel={onCancel}
       width={1200}
@@ -145,26 +137,19 @@ const SettingModal = () => {
       footer={null}
     >
       <div className="flex h-full min-h-0 flex-col gap-4">
-        <div className="flex items-center justify-between flex-none">
-          <div className="text-2xl font-bold text-gray-800 dark:text-white">
-            设置
-          </div>
+        <div className="flex flex-none items-center justify-between">
+          <div className="text-2xl font-bold text-gray-800 dark:text-white">设置</div>
           <div className="flex gap-2">
             <button
               onClick={onExpand}
               className={classNames(
-                "w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer",
+                "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all",
                 themeColors.hoverClass,
-                themeColors.textClass,
+                themeColors.textClass
               )}
               title="全屏"
             >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -176,18 +161,13 @@ const SettingModal = () => {
             <button
               onClick={onCancel}
               className={classNames(
-                "w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer",
+                "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all",
                 themeColors.hoverClass,
-                themeColors.textClass,
+                themeColors.textClass
               )}
               title="关闭"
             >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -199,20 +179,20 @@ const SettingModal = () => {
           </div>
         </div>
 
-        <div className="flex gap-6 flex-1 min-h-0">
-          <div className="w-48 flex-none p-3 overflow-y-auto border-r border-[#f0f0f0] dark:border-[#282829]">
+        <div className="flex min-h-0 flex-1 gap-6">
+          <div className="w-48 flex-none overflow-y-auto border-r border-[#f0f0f0] p-3 dark:border-[#282829]">
             <div className="flex flex-col gap-1">
-              {items.map((item) => {
+              {items.map(item => {
                 const isActive = item.key === activeTab;
                 return (
                   <button
                     key={item.key}
                     onClick={() => setActiveTab(item.key)}
                     className={classNames(
-                      "w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+                      "w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-all",
                       isActive
                         ? [themeColors.activeClass]
-                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-zinc-800/50",
+                        : "text-gray-700 hover:bg-gray-100/50 dark:text-gray-300 dark:hover:bg-zinc-800/50"
                     )}
                   >
                     {item.label}
@@ -223,9 +203,7 @@ const SettingModal = () => {
           </div>
 
           {/* Right content area */}
-          <div className="flex-1 min-w-0 overflow-y-auto">
-            {activeItem?.children}
-          </div>
+          <div className="min-w-0 flex-1 overflow-y-auto">{activeItem?.children}</div>
         </div>
       </div>
     </CustomModal>
