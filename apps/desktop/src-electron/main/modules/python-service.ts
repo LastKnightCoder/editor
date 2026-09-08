@@ -58,20 +58,6 @@ class PythonService implements Module {
       return { success: true };
     });
 
-    // 注册应用退出处理器，确保 Python 进程被正确关闭
-    app.on("before-quit", async () => {
-      log.info("[PythonService] App is quitting, stopping Python server");
-      await this.stop();
-    });
-
-    // 处理窗口全部关闭的情况（macOS 除外）
-    app.on("window-all-closed", () => {
-      if (process.platform !== "darwin") {
-        log.info("[PythonService] All windows closed, stopping Python server");
-        this.stop();
-      }
-    });
-
     if (app.isPackaged) {
       log.info("[PythonService] Trigger packaged background runtime check");
       pythonRuntimeManager.checkForUpdateInBackground();
@@ -151,7 +137,7 @@ class PythonService implements Module {
       this.client = new PythonWebSocketClient(WS_PORT, {
         onServerReady: () => {
           log.info("[PythonService] Python server is ready");
-          this.serverReadyListeners.forEach((listener) => {
+          this.serverReadyListeners.forEach(listener => {
             try {
               listener();
             } catch (error) {
@@ -162,7 +148,7 @@ class PythonService implements Module {
         onServerGone: () => {
           log.warn("[PythonService] Python server is gone");
         },
-        onError: (error) => {
+        onError: error => {
           log.error("[PythonService] WebSocket error:", error);
         },
       });
@@ -204,12 +190,12 @@ class PythonService implements Module {
         log.warn("[PythonServer stderr]", data.toString().trim());
       });
 
-      this.process.on("close", (code) => {
+      this.process.on("close", code => {
         log.warn(`[PythonService] Process exited with code ${code}`);
         this.process = null;
       });
 
-      this.process.on("error", (error) => {
+      this.process.on("error", error => {
         log.error("[PythonService] Process error:", error);
         this.process = null;
       });
@@ -241,7 +227,7 @@ class PythonService implements Module {
     if (proc) {
       log.info("[PythonService] Stopping Python process");
 
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         const timeout = setTimeout(() => {
           log.warn("[PythonService] Force killing process");
           proc.kill("SIGKILL");

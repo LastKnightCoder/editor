@@ -3,6 +3,7 @@ import {
   checkForUpdate,
   downloadUpdate,
   installUpdate,
+  onInstallFailed,
   onUpdateDownloadProgress,
   onUpdateDownloaded,
   onUpdateError,
@@ -92,13 +93,22 @@ export function initUpdateListeners(): () => void {
   });
   const unsubError = onUpdateError(({ message }) => {
     const { status } = useUpdateStore.getState();
-    if (status === "downloading") {
+    // downloading/ready 态的错误（下载失败、Squirrel 安装校验失败）都需要让用户看到
+    if (status === "downloading" || status === "ready") {
       useUpdateStore.setState({ status: "error", errorMessage: message });
     }
+  });
+  const unsubInstallFailed = onInstallFailed(({ fallbackUrl }) => {
+    useUpdateStore.setState({
+      status: "error",
+      errorMessage: "自动安装失败，请手动下载安装包",
+      ...(fallbackUrl ? { fallbackUrl } : {}),
+    });
   });
   return () => {
     unsubProgress();
     unsubDownloaded();
     unsubError();
+    unsubInstallFailed();
   };
 }

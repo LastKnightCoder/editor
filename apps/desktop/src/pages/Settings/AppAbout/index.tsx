@@ -172,7 +172,7 @@ const AppAbout = memo(() => {
               {updateStatus === "ready" && `v${updateNewVersion} 已就绪，重启后自动安装`}
               {updateStatus === "error" && (updateError ?? "检查更新失败")}
             </span>
-            {updateStatus === "available" && updateFallbackUrl && (
+            {(updateStatus === "available" || updateStatus === "error") && updateFallbackUrl && (
               <a
                 className="cursor-pointer text-xs text-[var(--th-text-secondary)] underline-offset-2 hover:underline"
                 onClick={() => void openExternal(updateFallbackUrl)}
