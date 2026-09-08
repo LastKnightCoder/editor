@@ -17,7 +17,7 @@ import Operation from "./operation";
 import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
-import { canonicalContentTitle } from "../collaboration/content-sessions";
+import { canonicalContentTitle, setCanonicalContentTitle } from "../collaboration/content-sessions";
 import CardTable from "./card";
 import ArticleTable from "./article";
 
@@ -1039,6 +1039,9 @@ export default class DocumentTable {
 
     const currentDocumentItem = this.getDocumentItem(db, item.id);
     if (!currentDocumentItem) return null;
+
+    // 标题以协作会话为真源：用户显式改名时先回写协作标题，避免随后被旧标题覆盖
+    setCanonicalContentTitle(db, currentDocumentItem.contentId, item.title ?? "");
 
     const stmt = db.prepare(`
       UPDATE document_items SET
