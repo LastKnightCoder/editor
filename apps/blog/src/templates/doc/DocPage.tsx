@@ -140,21 +140,40 @@ const DocPage = memo(() => {
       return;
     }
 
+    // 恢复被 clamp（侧边栏高度未就绪）时下一帧重试；恢复完成前不回写存储，
+    // 避免 clamp 后的错误位置覆盖用户真实滚动位置
+    const MAX_RESTORE_ATTEMPTS = 10;
+    let restoreAttempts = 0;
+    let restoreSettled = false;
+    let pendingFrameId = 0;
+
     const restoreScrollPosition = () => {
       const rawScrollTop = window.localStorage.getItem(sidebarScrollStorageKey);
       const savedScrollTop = rawScrollTop ? Number(rawScrollTop) : NaN;
 
       if (Number.isFinite(savedScrollTop) && savedScrollTop >= 0) {
         container.scrollTop = savedScrollTop;
+        if (
+          Math.abs(container.scrollTop - savedScrollTop) < 1 ||
+          ++restoreAttempts >= MAX_RESTORE_ATTEMPTS
+        ) {
+          restoreSettled = true;
+          return;
+        }
+        pendingFrameId = window.requestAnimationFrame(restoreScrollPosition);
         return;
       }
 
       const activeItem = container.querySelector<HTMLElement>("[data-doc-sidebar-active='true']");
       activeItem?.scrollIntoView({ block: "nearest" });
+      restoreSettled = true;
     };
 
     const frameId = window.requestAnimationFrame(restoreScrollPosition);
     const handleScroll = () => {
+      if (!restoreSettled) {
+        return;
+      }
       window.localStorage.setItem(sidebarScrollStorageKey, String(container.scrollTop));
     };
 
@@ -162,6 +181,7 @@ const DocPage = memo(() => {
 
     return () => {
       window.cancelAnimationFrame(frameId);
+      window.cancelAnimationFrame(pendingFrameId);
       container.removeEventListener("scroll", handleScroll);
     };
   }, [doc.currentPath, sidebarData.items.length, sidebarScrollStorageKey]);
