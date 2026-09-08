@@ -49,14 +49,10 @@
     --color-border-ring-heavy: rgba(28, 25, 23, 0.12);
 
     /* 阴影系统 */
-    --shadow-card:
-      rgba(28, 25, 23, 0.4) 0px 1px 3px -2px,
-      rgba(28, 25, 23, 0.05) 0px 0px 0px 1px;
+    --shadow-card: rgba(28, 25, 23, 0.4) 0px 1px 3px -2px, rgba(28, 25, 23, 0.05) 0px 0px 0px 1px;
     --shadow-card-hover:
-      rgba(28, 25, 23, 0.5) 0px 2px 6px -2px,
-      rgba(28, 25, 23, 0.08) 0px 0px 0px 1px;
-    --shadow-elevated:
-      rgba(28, 25, 23, 0.08) 0px 0px 0px 1px, 0 12px 32px rgba(28, 25, 23, 0.06);
+      rgba(28, 25, 23, 0.5) 0px 2px 6px -2px, rgba(28, 25, 23, 0.08) 0px 0px 0px 1px;
+    --shadow-elevated: rgba(28, 25, 23, 0.08) 0px 0px 0px 1px, 0 12px 32px rgba(28, 25, 23, 0.06);
     --shadow-inset: rgba(28, 25, 23, 0.1) 0px 1px 1.9px 0px inset;
     --shadow-btn-inset: rgba(255, 255, 255, 0.12) 0px 2px 0px inset;
     --shadow-dropdown:
@@ -120,14 +116,10 @@
     --color-border-ring-heavy: rgba(231, 229, 228, 0.13);
 
     /* 阴影 */
-    --shadow-card:
-      rgba(0, 0, 0, 0.5) 0px 1px 3px -2px,
-      rgba(231, 229, 228, 0.05) 0px 0px 0px 1px;
+    --shadow-card: rgba(0, 0, 0, 0.5) 0px 1px 3px -2px, rgba(231, 229, 228, 0.05) 0px 0px 0px 1px;
     --shadow-card-hover:
-      rgba(0, 0, 0, 0.6) 0px 2px 6px -2px,
-      rgba(231, 229, 228, 0.08) 0px 0px 0px 1px;
-    --shadow-elevated:
-      rgba(231, 229, 228, 0.05) 0px 0px 0px 1px, 0 12px 32px rgba(0, 0, 0, 0.3);
+      rgba(0, 0, 0, 0.6) 0px 2px 6px -2px, rgba(231, 229, 228, 0.08) 0px 0px 0px 1px;
+    --shadow-elevated: rgba(231, 229, 228, 0.05) 0px 0px 0px 1px, 0 12px 32px rgba(0, 0, 0, 0.3);
     --shadow-dropdown:
       rgba(231, 229, 228, 0.06) 0px 0px 0px 1px, 0 4px 20px rgba(0, 0, 0, 0.3),
       0 1px 3px rgba(0, 0, 0, 0.15);
@@ -161,8 +153,8 @@
 
   body {
     font-family:
-      -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
-      "Microsoft YaHei", "Segoe UI", sans-serif;
+      -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+      "Segoe UI", sans-serif;
     min-height: 100vh;
     background-color: var(--color-bg-page);
     color: var(--color-text-primary);
@@ -198,8 +190,7 @@
   kbd,
   samp {
     font-family:
-      "JetBrains Mono", "Fira Code", "Cascadia Code", "Menlo", "Consolas",
-      monospace !important;
+      "JetBrains Mono", "Fira Code", "Cascadia Code", "Menlo", "Consolas", monospace !important;
   }
 
   a {
@@ -219,6 +210,16 @@
 
   .katex-display {
     margin: 0 !important;
+    /* 长公式在公式块内部横向滚动，避免撑破文章容器 */
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 2px 0;
+  }
+
+  .katex-display > .katex {
+    /* 短公式居中，长公式从左侧开始完整可滚动 */
+    width: fit-content;
+    margin: 0 auto;
   }
 
   [data-theme="dark"] img {
@@ -281,15 +282,15 @@
 
   .outline-layout-shell[data-prose-width="prose"] {
     --outline-frame-max-width: calc(
-      var(--prose-max-width) + var(--outline-column-width) +
-        var(--outline-column-gap) + var(--outline-column-right-offset)
+      var(--prose-max-width) + var(--outline-column-width) + var(--outline-column-gap) +
+        var(--outline-column-right-offset)
     );
   }
 
   .outline-layout-shell[data-prose-width="wide"] {
     --outline-frame-max-width: calc(
-      var(--wide-prose-max-width) + var(--outline-column-width) +
-        var(--outline-column-gap) + var(--outline-column-right-offset)
+      var(--wide-prose-max-width) + var(--outline-column-width) + var(--outline-column-gap) +
+        var(--outline-column-right-offset)
     );
   }
 
@@ -312,10 +313,7 @@
     top: 0;
     right: max(
       var(--outline-column-right-offset),
-      calc(
-        (100% - var(--outline-frame-max-width)) / 2 +
-          var(--outline-column-right-offset)
-      )
+      calc((100% - var(--outline-frame-max-width)) / 2 + var(--outline-column-right-offset))
     );
     bottom: 0;
     width: var(--outline-column-width);
@@ -324,22 +322,21 @@
   @media (min-width: 1280px) {
     .outline-content-frame[data-has-outline="true"] {
       padding-right: calc(
-        var(--outline-column-width) + var(--outline-column-gap) +
-          var(--outline-column-right-offset)
+        var(--outline-column-width) + var(--outline-column-gap) + var(--outline-column-right-offset)
       );
     }
 
     .outline-content-frame[data-has-outline="true"][data-prose-width="prose"] {
       max-width: calc(
-        var(--prose-max-width) + var(--outline-column-width) +
-          var(--outline-column-gap) + var(--outline-column-right-offset)
+        var(--prose-max-width) + var(--outline-column-width) + var(--outline-column-gap) +
+          var(--outline-column-right-offset)
       );
     }
 
     .outline-content-frame[data-has-outline="true"][data-prose-width="wide"] {
       max-width: calc(
-        var(--wide-prose-max-width) + var(--outline-column-width) +
-          var(--outline-column-gap) + var(--outline-column-right-offset)
+        var(--wide-prose-max-width) + var(--outline-column-width) + var(--outline-column-gap) +
+          var(--outline-column-right-offset)
       );
     }
   }
