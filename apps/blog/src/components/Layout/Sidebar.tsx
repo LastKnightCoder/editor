@@ -1,18 +1,6 @@
-import {
-  memo,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import classNames from "classnames";
-import {
-  SidebarItem,
-  ArticleListItem,
-  CardListItem,
-  CardTagTree,
-} from "@blog/types";
+import { SidebarItem, ArticleListItem, CardListItem, CardTagTree } from "@blog/types";
 import { joinPath, formatDate } from "@blog/utils";
 
 const categoryLabels: Record<string, string> = {
@@ -35,8 +23,7 @@ interface DocSidebarItemInternalProps extends DocSidebarItemProps {
   itemKey: string;
 }
 
-const buildSidebarManualPreferenceKey = (storageKey: string) =>
-  `${storageKey}:__manual`;
+const buildSidebarManualPreferenceKey = (storageKey: string) => `${storageKey}:__manual`;
 
 const hasSidebarManualPreference = (storageKey: string) => {
   const manualPreferenceKey = buildSidebarManualPreferenceKey(storageKey);
@@ -47,11 +34,7 @@ const hasSidebarManualPreference = (storageKey: string) => {
   const itemStateKeyPrefix = `${storageKey}:`;
   for (let index = 0; index < window.localStorage.length; index++) {
     const key = window.localStorage.key(index);
-    if (
-      key &&
-      key !== manualPreferenceKey &&
-      key.startsWith(itemStateKeyPrefix)
-    ) {
+    if (key && key !== manualPreferenceKey && key.startsWith(itemStateKeyPrefix)) {
       return true;
     }
   }
@@ -59,14 +42,11 @@ const hasSidebarManualPreference = (storageKey: string) => {
   return false;
 };
 
-const branchContainsPath = (
-  item: SidebarItem,
-  currentPath?: string,
-): boolean => {
+const branchContainsPath = (item: SidebarItem, currentPath?: string): boolean => {
   if (!currentPath) return false;
   if (item.href === currentPath) return true;
   if (!item.children?.length) return false;
-  return item.children.some((child) => branchContainsPath(child, currentPath));
+  return item.children.some(child => branchContainsPath(child, currentPath));
 };
 
 const DocSidebarItem = memo(
@@ -82,15 +62,12 @@ const DocSidebarItem = memo(
     const isActive = Boolean(item.href && currentPath === item.href);
     const containsCurrentPath = useMemo(
       () => branchContainsPath(item, currentPath),
-      [currentPath, item],
+      [currentPath, item]
     );
-    const collapseStateKey = useMemo(
-      () => `${storageKey}:${itemKey}`,
-      [itemKey, storageKey],
-    );
+    const collapseStateKey = useMemo(() => `${storageKey}:${itemKey}`, [itemKey, storageKey]);
     const manualPreferenceKey = useMemo(
       () => buildSidebarManualPreferenceKey(storageKey),
-      [storageKey],
+      [storageKey]
     );
     const [collapsed, setCollapsed] = useState(() => {
       if (!hasChildren) {
@@ -130,13 +107,7 @@ const DocSidebarItem = memo(
       }
       setAllowAnimation(false);
       setCollapsed(item.collapsed ?? false);
-    }, [
-      collapseStateKey,
-      containsCurrentPath,
-      hasChildren,
-      item.collapsed,
-      storageKey,
-    ]);
+    }, [collapseStateKey, containsCurrentPath, hasChildren, item.collapsed, storageKey]);
 
     useEffect(() => {
       if (!hasChildren) {
@@ -179,12 +150,12 @@ const DocSidebarItem = memo(
           className={classNames(
             "flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-all duration-150",
             {
-              "bg-[var(--color-primary-subtle)] text-[var(--color-text-primary)] font-medium":
+              "bg-[var(--color-primary-subtle)] font-medium text-[var(--color-text-primary)]":
                 isActive,
               "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)]":
                 !isActive,
               "cursor-default": !item.href && !hasChildren,
-            },
+            }
           )}
           style={{ paddingLeft: `${level * 12 + 12}px` }}
         >
@@ -205,31 +176,24 @@ const DocSidebarItem = memo(
               aria-label={collapsed ? "展开分组" : "收起分组"}
               aria-expanded={!collapsed}
               className="ml-2 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-primary-subtle)] hover:text-[var(--color-text-primary)]"
-              onClick={(event) => {
+              onClick={event => {
                 event.preventDefault();
                 event.stopPropagation();
                 window.localStorage.setItem(manualPreferenceKey, "true");
                 setAllowAnimation(true);
-                setCollapsed((value) => !value);
+                setCollapsed(value => !value);
               }}
             >
               <svg
-                className={classNames(
-                  "h-4 w-4 transition-transform duration-150",
-                  {
-                    "rotate-90": !collapsed,
-                  },
-                )}
+                className={classNames("h-4 w-4 transition-transform duration-150", {
+                  "rotate-90": !collapsed,
+                })}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
                 strokeWidth={2}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 5l7 7-7 7"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
             </button>
           )}
@@ -240,9 +204,13 @@ const DocSidebarItem = memo(
             className={classNames(
               "overflow-hidden",
               allowAnimation && "transition-all duration-150",
-              collapsed ? "opacity-0" : "opacity-100",
+              collapsed ? "opacity-0" : "opacity-100"
             )}
-            style={{ maxHeight: collapsed ? "0px" : `${contentHeight}px` }}
+            // 首帧高度未测量前不限制 maxHeight，保证整棵树同步渲染完整高度，
+            // 避免逐层异步收敛导致外层滚动恢复被 clamp
+            style={{
+              maxHeight: collapsed ? "0px" : contentHeight > 0 ? `${contentHeight}px` : undefined,
+            }}
           >
             <div ref={childrenWrapperRef} className="mt-0.5">
               {item.children!.map((child, index) => (
@@ -261,7 +229,7 @@ const DocSidebarItem = memo(
         )}
       </div>
     );
-  },
+  }
 );
 
 DocSidebarItem.displayName = "DocSidebarItem";
@@ -302,7 +270,7 @@ export const DocSidebar = memo(
         </nav>
       </aside>
     );
-  },
+  }
 );
 
 DocSidebar.displayName = "DocSidebar";
@@ -316,12 +284,7 @@ interface ArticleSidebarProps {
 }
 
 export const ArticleSidebar = memo(
-  ({
-    articles,
-    basePath,
-    currentId,
-    title = "最新文章",
-  }: ArticleSidebarProps) => {
+  ({ articles, basePath, currentId, title = "最新文章" }: ArticleSidebarProps) => {
     return (
       <aside className="w-full shrink-0">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
@@ -329,23 +292,21 @@ export const ArticleSidebar = memo(
           <span className="min-w-0 flex-1 break-words">{title}</span>
         </h3>
         <nav className="space-y-1">
-          {articles.map((article) => (
+          {articles.map(article => (
             <a
               key={article.id}
               href={joinPath(basePath, article.href)}
               className={classNames(
                 "block rounded-lg px-3 py-2.5 transition-all duration-150",
                 currentId === article.id
-                  ? "bg-[var(--color-primary-subtle)] border-l-2 border-[var(--color-text-primary)]"
-                  : "hover:bg-[var(--color-bg-canvas)]",
+                  ? "border-l-2 border-[var(--color-text-primary)] bg-[var(--color-primary-subtle)]"
+                  : "hover:bg-[var(--color-bg-canvas)]"
               )}
             >
               <div
                 className={classNames("line-clamp-2 text-sm leading-relaxed", {
-                  "text-[var(--color-text-primary)] font-medium":
-                    currentId === article.id,
-                  "text-[var(--color-text-secondary)]":
-                    currentId !== article.id,
+                  "font-medium text-[var(--color-text-primary)]": currentId === article.id,
+                  "text-[var(--color-text-secondary)]": currentId !== article.id,
                 })}
               >
                 {article.title}
@@ -358,7 +319,7 @@ export const ArticleSidebar = memo(
         </nav>
       </aside>
     );
-  },
+  }
 );
 
 ArticleSidebar.displayName = "ArticleSidebar";
@@ -380,7 +341,7 @@ export const CardSidebar = memo(
           <span className="min-w-0 flex-1 break-words">{title}</span>
         </h3>
         <nav className="space-y-1">
-          {cards.map((card) => (
+          {cards.map(card => (
             <a
               key={card.id}
               href={joinPath(basePath, card.href)}
@@ -388,7 +349,7 @@ export const CardSidebar = memo(
                 "block rounded-lg px-3 py-2.5 transition-all duration-150",
                 currentId === card.id
                   ? "bg-[var(--color-primary-subtle)]"
-                  : "hover:bg-[var(--color-bg-canvas)]",
+                  : "hover:bg-[var(--color-bg-canvas)]"
               )}
             >
               <div className="mb-1 text-xs text-[var(--color-text-tertiary)]">
@@ -396,8 +357,7 @@ export const CardSidebar = memo(
               </div>
               <div
                 className={classNames("line-clamp-2 text-sm leading-relaxed", {
-                  "text-[var(--color-text-primary)] font-medium":
-                    currentId === card.id,
+                  "font-medium text-[var(--color-text-primary)]": currentId === card.id,
                   "text-[var(--color-text-secondary)]": currentId !== card.id,
                 })}
               >
@@ -411,7 +371,7 @@ export const CardSidebar = memo(
         </nav>
       </aside>
     );
-  },
+  }
 );
 
 CardSidebar.displayName = "CardSidebar";
@@ -440,13 +400,13 @@ const TagCardItem = memo(
           "block rounded-lg px-3 py-2 text-sm transition-all duration-150",
           isActive
             ? "bg-[var(--color-primary-subtle)] text-[var(--color-text-primary)]"
-            : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)]",
+            : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)]"
         )}
       >
         <span className="line-clamp-2">{card.summary}</span>
       </a>
     );
-  },
+  }
 );
 
 TagCardItem.displayName = "TagCardItem";
@@ -460,17 +420,10 @@ interface TagItemProps {
 }
 
 const TagItem = memo(
-  ({
-    item,
-    basePath,
-    activeTag,
-    activeCardId,
-    parentTag = "",
-  }: TagItemProps) => {
+  ({ item, basePath, activeTag, activeCardId, parentTag = "" }: TagItemProps) => {
     const [open, setOpen] = useState(false);
     const fullTag = parentTag ? `${parentTag}/${item.tag}` : item.tag;
-    const isActive =
-      activeTag === fullTag || activeTag.startsWith(fullTag + "/");
+    const isActive = activeTag === fullTag || activeTag.startsWith(fullTag + "/");
     const hasChildren = item.children && item.children.length > 0;
     const hasCards = item.cards && item.cards.length > 0;
     const canExpand = hasChildren || hasCards;
@@ -481,32 +434,26 @@ const TagItem = memo(
           className={classNames(
             "flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm transition-all duration-150",
             isActive
-              ? "bg-[var(--color-primary-subtle)] text-[var(--color-text-primary)] font-medium"
-              : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)]",
+              ? "bg-[var(--color-primary-subtle)] font-medium text-[var(--color-text-primary)]"
+              : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)]"
           )}
           onClick={() => canExpand && setOpen(!open)}
         >
           <span className="truncate">{item.tag}</span>
           <div className="flex items-center gap-1.5">
-            <span className="text-xs text-[var(--color-text-tertiary)]">
-              {item.count}
-            </span>
+            <span className="text-xs text-[var(--color-text-tertiary)]">{item.count}</span>
             {canExpand && (
               <svg
                 className={classNames(
                   "h-3.5 w-3.5 text-[var(--color-text-tertiary)] transition-transform duration-150",
-                  { "rotate-90": open },
+                  { "rotate-90": open }
                 )}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
                 strokeWidth={2}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 5l7 7-7 7"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
             )}
           </div>
@@ -515,12 +462,12 @@ const TagItem = memo(
         <div
           className={classNames(
             "overflow-hidden transition-all duration-150",
-            open ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0",
+            open ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
           )}
         >
           <div className="ml-3 mt-0.5 border-l border-[var(--color-border-ring)] pl-2">
             {hasCards &&
-              item.cards.map((card) => (
+              item.cards.map(card => (
                 <TagCardItem
                   key={card.id}
                   card={card}
@@ -530,7 +477,7 @@ const TagItem = memo(
                 />
               ))}
             {hasChildren &&
-              item.children.map((child) => (
+              item.children.map(child => (
                 <TagItem
                   key={child.tag}
                   item={child}
@@ -544,7 +491,7 @@ const TagItem = memo(
         </div>
       </div>
     );
-  },
+  }
 );
 
 TagItem.displayName = "TagItem";
@@ -558,13 +505,7 @@ interface CardTagPanelProps {
 }
 
 export const CardTagPanel = memo(
-  ({
-    tagTree,
-    basePath,
-    activeTag = "",
-    activeCardId,
-    title = "标签",
-  }: CardTagPanelProps) => {
+  ({ tagTree, basePath, activeTag = "", activeCardId, title = "标签" }: CardTagPanelProps) => {
     const sortedTagTree = [...tagTree].sort((a, b) => b.count - a.count);
 
     return (
@@ -574,7 +515,7 @@ export const CardTagPanel = memo(
           {title}
         </h3>
         <nav className="space-y-0.5">
-          {sortedTagTree.map((item) => (
+          {sortedTagTree.map(item => (
             <TagItem
               key={item.tag}
               item={item}
@@ -586,7 +527,7 @@ export const CardTagPanel = memo(
         </nav>
       </div>
     );
-  },
+  }
 );
 
 CardTagPanel.displayName = "CardTagPanel";
@@ -635,8 +576,7 @@ const CardTagFilterItem = memo(
   }: CardTagFilterItemProps) => {
     const fullTag = parentTag ? `${parentTag}/${item.tag}` : item.tag;
     const hasChildren = item.children.length > 0;
-    const isActiveBranch =
-      activeTag === fullTag || activeTag.startsWith(`${fullTag}/`);
+    const isActiveBranch = activeTag === fullTag || activeTag.startsWith(`${fullTag}/`);
     const [open, setOpen] = useState(() => level === 0 || isActiveBranch);
 
     return (
@@ -646,12 +586,12 @@ const CardTagFilterItem = memo(
             "flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors",
             isActiveBranch
               ? "bg-[var(--color-primary-subtle)]"
-              : "hover:bg-[var(--color-bg-canvas)]",
+              : "hover:bg-[var(--color-bg-canvas)]"
           )}
         >
           <a
             href={buildCardTagFilterHref(basePath, fullTag)}
-            onClick={(event) => {
+            onClick={event => {
               if (!onSelectTag) {
                 return;
               }
@@ -661,8 +601,8 @@ const CardTagFilterItem = memo(
             className={classNames(
               "flex min-w-0 flex-1 items-center justify-between gap-3 rounded-md px-2 py-1 text-sm transition-colors",
               activeTag === fullTag
-                ? "text-[var(--color-text-primary)] font-medium"
-                : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]",
+                ? "font-medium text-[var(--color-text-primary)]"
+                : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
             )}
           >
             <span className="truncate">{item.tag}</span>
@@ -676,23 +616,18 @@ const CardTagFilterItem = memo(
               type="button"
               aria-label={`${open ? "收起" : "展开"} ${fullTag}`}
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-bg-container)] hover:text-[var(--color-text-primary)]"
-              onClick={() => setOpen((prev) => !prev)}
+              onClick={() => setOpen(prev => !prev)}
             >
               <svg
-                className={classNames(
-                  "h-3.5 w-3.5 transition-transform duration-150",
-                  { "rotate-90": open },
-                )}
+                className={classNames("h-3.5 w-3.5 transition-transform duration-150", {
+                  "rotate-90": open,
+                })}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
                 strokeWidth={2}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 5l7 7-7 7"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
             </button>
           )}
@@ -700,7 +635,7 @@ const CardTagFilterItem = memo(
 
         {hasChildren && open && (
           <div className="mt-1 space-y-1 border-l border-[var(--color-border-ring)] pl-3">
-            {item.children.map((child) => (
+            {item.children.map(child => (
               <CardTagFilterItem
                 key={child.tag}
                 item={child}
@@ -715,7 +650,7 @@ const CardTagFilterItem = memo(
         )}
       </div>
     );
-  },
+  }
 );
 
 CardTagFilterItem.displayName = "CardTagFilterItem";
@@ -741,7 +676,7 @@ export const CardTagFilterPanel = memo(
         <nav className="space-y-1 pr-2">
           <a
             href={buildCardTagFilterHref(basePath)}
-            onClick={(event) => {
+            onClick={event => {
               if (!onSelectTag) {
                 return;
               }
@@ -752,13 +687,13 @@ export const CardTagFilterPanel = memo(
               "flex items-center justify-between rounded-lg px-4 py-2.5 text-sm transition-colors",
               activeTag
                 ? "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-canvas)] hover:text-[var(--color-text-primary)]"
-                : "bg-[var(--color-primary-subtle)] text-[var(--color-text-primary)] font-medium",
+                : "bg-[var(--color-primary-subtle)] font-medium text-[var(--color-text-primary)]"
             )}
           >
             <span>{allLabel}</span>
           </a>
 
-          {sortedTagTree.map((item) => (
+          {sortedTagTree.map(item => (
             <CardTagFilterItem
               key={item.tag}
               item={item}
@@ -770,7 +705,7 @@ export const CardTagFilterPanel = memo(
         </nav>
       </aside>
     );
-  },
+  }
 );
 
 CardTagFilterPanel.displayName = "CardTagFilterPanel";
@@ -783,9 +718,7 @@ interface SidebarProps {
 }
 
 const Sidebar = memo(({ items, basePath, currentPath }: SidebarProps) => {
-  return (
-    <DocSidebar items={items} basePath={basePath} currentPath={currentPath} />
-  );
+  return <DocSidebar items={items} basePath={basePath} currentPath={currentPath} />;
 });
 
 Sidebar.displayName = "Sidebar";
