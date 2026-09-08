@@ -5,9 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import log from "electron-log";
 import windowManagerModule from "./modules/window-manager";
-import databaseModule, {
-  type DatabaseReconnectSource,
-} from "./modules/database";
+import databaseModule, { type DatabaseReconnectSource } from "./modules/database";
 import trayModule from "./modules/tray";
 import recentProjectsModule from "./modules/recent-projects";
 import PathUtil from "./utils/PathUtil";
@@ -23,6 +21,7 @@ import userSettingModule from "./modules/user-setting";
 import { resolveEmbeddingConfig } from "./utils/embedding-config";
 import moduleInitManager from "./module-init/ModuleInitManager";
 import whiteboardRecordingModule from "./modules/whiteboard-recording";
+import { setupQuitController } from "./app-quit-controller";
 
 (async (): Promise<void> => {
   const contextMenu = await import("electron-context-menu");
@@ -71,10 +70,7 @@ const originalResolve = require.resolve;
 require.resolve = function (spec: string, options: any) {
   if (spec.endsWith("dict.txt") || spec.endsWith("idf.txt")) {
     // 关键拦截点
-    const realPath = path.join(
-      app.isPackaged ? process.resourcesPath : __dirname,
-      spec,
-    );
+    const realPath = path.join(app.isPackaged ? process.resourcesPath : __dirname, spec);
     return realPath;
   }
   return originalResolve(spec, options);
@@ -110,6 +106,12 @@ if (!gotTheLock) {
   // 如果获取不到单例锁，说明已经有一个实例正在运行，直接退出
   app.quit();
 } else {
+  // 受控退出：接管 before-quit，先完成收尾（自动同步、协作文档落盘）再真正退出
+  setupQuitController({
+    getWindowManager: () => windowManager,
+    getTrayManager: () => trayManager,
+  });
+
   // 监听第二个实例启动时传入的参数
   app.on("second-instance", (_event, commandLine) => {
     // 首先检查是否有窗口类型参数
@@ -158,9 +160,7 @@ if (!gotTheLock) {
     try {
       // === IMMEDIATE 层：立即初始化必要模块 ===
       await moduleInitManager.initImmediate();
-      log.info(
-        `IMMEDIATE 层初始化完成，耗时: ${Date.now() - totalStartTime}ms`,
-      );
+      log.info(`IMMEDIATE 层初始化完成，耗时: ${Date.now() - totalStartTime}ms`);
 
       log.info("应用启动");
       log.info(`操作系统: ${os.platform()} ${os.release()}`);
@@ -169,8 +169,8 @@ if (!gotTheLock) {
       if (process.platform === "win32") {
         log.info(
           `[WhiteboardRecording] Windows 录制启动参数 disable-features=${app.commandLine.getSwitchValue(
-            "disable-features",
-          )}`,
+            "disable-features"
+          )}`
         );
       }
 
@@ -178,7 +178,7 @@ if (!gotTheLock) {
       windowManager = await windowManagerModule.init(
         VITE_DEV_SERVER_URL || "",
         RENDERER_DIST,
-        preload,
+        preload
       );
       whiteboardRecordingModule.configure({
         mainWindowProvider: () => windowManager.getMainWindow(),
@@ -226,23 +226,17 @@ if (!gotTheLock) {
                 error: null,
               };
               return response;
-            },
+            }
           );
           backendServer.addMessageHandler(
             "open-card-in-new-window",
             async (message: RpcRequestMessage) => {
-              const [databaseName, cardId, options] =
-                message.params as unknown as [
-                  string,
-                  number,
-                  (
-                    | { showTitlebar?: boolean; isDefaultTop?: boolean }
-                    | undefined
-                  ),
-                ];
-              log.info(
-                `[ws] open-card-in-new-window: db=${databaseName}, card=${cardId}`,
-              );
+              const [databaseName, cardId, options] = message.params as unknown as [
+                string,
+                number,
+                { showTitlebar?: boolean; isDefaultTop?: boolean } | undefined,
+              ];
+              log.info(`[ws] open-card-in-new-window: db=${databaseName}, card=${cardId}`);
               windowManager.createEditorWindow("card", {
                 databaseName,
                 itemId: cardId,
@@ -256,46 +250,41 @@ if (!gotTheLock) {
                 error: null,
               };
               return response;
-            },
+            }
           );
-          backendServer.addMessageHandler(
-            "close-database",
-            async (message: RpcRequestMessage) => {
-              const [name] = message.params as unknown as [string];
-              log.info(`[ws] close-database: db=${name}`);
-              const checkpointOk = databaseModule.forceCheckpoint(name);
-              if (!checkpointOk) {
-                log.error(
-                  `[ws] close-database: checkpoint failed for db=${name}, aborting`,
-                );
-                const response: RpcResponseMessage = {
-                  id: message.id,
-                  type: RpcMessageType.Response,
-                  method: message.method,
-                  result: null,
-                  error: {
-                    code: -1,
-                    message:
-                      "Checkpoint failed: WAL has uncommitted data. Cannot safely close database for sync.",
-                  },
-                };
-                return response;
-              }
-              const database = databaseModule.getDatabase(name);
-              if (database) {
-                database.close();
-                databaseModule.databases.delete(name);
-              }
+          backendServer.addMessageHandler("close-database", async (message: RpcRequestMessage) => {
+            const [name] = message.params as unknown as [string];
+            log.info(`[ws] close-database: db=${name}`);
+            const checkpointOk = databaseModule.forceCheckpoint(name);
+            if (!checkpointOk) {
+              log.error(`[ws] close-database: checkpoint failed for db=${name}, aborting`);
               const response: RpcResponseMessage = {
                 id: message.id,
                 type: RpcMessageType.Response,
                 method: message.method,
-                result: { ok: true },
-                error: null,
+                result: null,
+                error: {
+                  code: -1,
+                  message:
+                    "Checkpoint failed: WAL has uncommitted data. Cannot safely close database for sync.",
+                },
               };
               return response;
-            },
-          );
+            }
+            const database = databaseModule.getDatabase(name);
+            if (database) {
+              database.close();
+              databaseModule.databases.delete(name);
+            }
+            const response: RpcResponseMessage = {
+              id: message.id,
+              type: RpcMessageType.Response,
+              method: message.method,
+              result: { ok: true },
+              error: null,
+            };
+            return response;
+          });
           backendServer.addMessageHandler(
             "reconnect-database-fast",
             async (message: RpcRequestMessage) => {
@@ -303,13 +292,8 @@ if (!gotTheLock) {
                 string,
                 DatabaseReconnectSource | undefined,
               ];
-              log.info(
-                `[ws] reconnect-database-fast: db=${name}, source=${source}`,
-              );
-              databaseModule.reconnectForSync(
-                name,
-                source || "sync_upload_reconnect",
-              );
+              log.info(`[ws] reconnect-database-fast: db=${name}, source=${source}`);
+              databaseModule.reconnectForSync(name, source || "sync_upload_reconnect");
               const response: RpcResponseMessage = {
                 id: message.id,
                 type: RpcMessageType.Response,
@@ -318,59 +302,50 @@ if (!gotTheLock) {
                 error: null,
               };
               return response;
-            },
+            }
           );
-          backendServer.addMessageHandler(
-            "search-content",
-            async (message: RpcRequestMessage) => {
-              const [searchParams] = message.params as unknown as [
-                SearchParams,
-              ];
+          backendServer.addMessageHandler("search-content", async (message: RpcRequestMessage) => {
+            const [searchParams] = message.params as unknown as [SearchParams];
 
-              if (!searchParams.modelInfo) {
-                const setting = await userSettingModule.getSettingSnapshot();
-                const embeddingConfig = resolveEmbeddingConfig(setting as any);
-                if (embeddingConfig) {
-                  searchParams.modelInfo = {
-                    configId: embeddingConfig.configId,
-                    providerType: embeddingConfig.providerType,
-                    model: embeddingConfig.model,
-                    distance: embeddingConfig.distance,
-                    dimensions: embeddingConfig.dimensions,
-                    batchSize: embeddingConfig.batchSize,
-                    devicePolicy: embeddingConfig.devicePolicy,
-                    localModelDir: embeddingConfig.localModelDir,
-                    key: embeddingConfig.apiKey,
-                    baseUrl: embeddingConfig.baseUrl,
-                  };
-                }
+            if (!searchParams.modelInfo) {
+              const setting = await userSettingModule.getSettingSnapshot();
+              const embeddingConfig = resolveEmbeddingConfig(setting as any);
+              if (embeddingConfig) {
+                searchParams.modelInfo = {
+                  configId: embeddingConfig.configId,
+                  providerType: embeddingConfig.providerType,
+                  model: embeddingConfig.model,
+                  distance: embeddingConfig.distance,
+                  dimensions: embeddingConfig.dimensions,
+                  batchSize: embeddingConfig.batchSize,
+                  devicePolicy: embeddingConfig.devicePolicy,
+                  localModelDir: embeddingConfig.localModelDir,
+                  key: embeddingConfig.apiKey,
+                  baseUrl: embeddingConfig.baseUrl,
+                };
               }
+            }
 
-              const dbName = databaseModule.getCurrentDatabaseName();
-              const mainDb = databaseModule.getDatabase(dbName);
-              const indexDb = databaseModule.getCurrentIndexDatabase();
+            const dbName = databaseModule.getCurrentDatabaseName();
+            const mainDb = databaseModule.getDatabase(dbName);
+            const indexDb = databaseModule.getCurrentIndexDatabase();
 
-              let results: any[] = [];
-              if (mainDb && indexDb) {
-                results = await FTSTable.searchHybridContent(
-                  mainDb,
-                  indexDb,
-                  searchParams,
-                );
-              } else if (mainDb) {
-                results = FTSTable.searchContent(mainDb, mainDb, searchParams);
-              }
+            let results: any[] = [];
+            if (mainDb && indexDb) {
+              results = await FTSTable.searchHybridContent(mainDb, indexDb, searchParams);
+            } else if (mainDb) {
+              results = FTSTable.searchContent(mainDb, mainDb, searchParams);
+            }
 
-              const response: RpcResponseMessage = {
-                id: message.id,
-                type: RpcMessageType.Response,
-                method: message.method,
-                result: results,
-                error: null,
-              };
-              return response;
-            },
-          );
+            const response: RpcResponseMessage = {
+              id: message.id,
+              type: RpcMessageType.Response,
+              method: message.method,
+              result: results,
+              error: null,
+            };
+            return response;
+          });
           backendServer.addMessageHandler(
             "read-later:add-from-extension",
             async (message: RpcRequestMessage) => {
@@ -407,15 +382,9 @@ if (!gotTheLock) {
               const res = db
                 .prepare(
                   `INSERT INTO read_later (create_time, update_time, source_type, title, url, excerpt)
-                   VALUES (?, ?, 'url', ?, ?, ?)`,
+                   VALUES (?, ?, 'url', ?, ?, ?)`
                 )
-                .run(
-                  now,
-                  now,
-                  params.title || params.url,
-                  params.url,
-                  params.excerpt || null,
-                );
+                .run(now, now, params.title || params.url, params.url, params.excerpt || null);
               const response: RpcResponseMessage = {
                 id: message.id,
                 type: RpcMessageType.Response,
@@ -424,7 +393,7 @@ if (!gotTheLock) {
                 error: null,
               };
               return response;
-            },
+            }
           );
           moduleInitManager.setBackendServer(backendServer);
           await moduleInitManager.initWebSocketDependentModules();
@@ -437,9 +406,7 @@ if (!gotTheLock) {
           recentProjectsModule.setOnProjectOpen(handleFileOrFolder);
           recentProjectsModule.updateJumpList();
 
-          log.info(
-            `BACKGROUND 层初始化完成，耗时: ${Date.now() - backgroundStart}ms`,
-          );
+          log.info(`BACKGROUND 层初始化完成，耗时: ${Date.now() - backgroundStart}ms`);
           log.info(`应用完全就绪，总耗时: ${Date.now() - totalStartTime}ms`);
         } catch (error) {
           log.error("BACKGROUND 层初始化失败:", error);
@@ -472,7 +439,7 @@ if (!gotTheLock) {
       // 处理启动时的文件
       if (filesToOpen.length > 0) {
         log.info(`处理启动时收到的文件或文件夹: ${filesToOpen}`);
-        filesToOpen.forEach((filePath) => {
+        filesToOpen.forEach(filePath => {
           handleFileOrFolder(filePath);
         });
         filesToOpen = [];
@@ -486,7 +453,7 @@ if (!gotTheLock) {
       log.error("应用初始化失败:", error);
     }
 
-    protocol.handle("ltoh", async (request) => {
+    protocol.handle("ltoh", async request => {
       const startTime = Date.now();
       // log.debug(`协议请求: ${request.url}`);
 
@@ -513,10 +480,7 @@ if (!gotTheLock) {
         // log.debug(`文件信息 [${realPath}]: 大小=${fileSize}, 类型=${mimeType}`);
 
         // 处理范围请求
-        if (
-          (rangeHeader && mimeType.startsWith("video/")) ||
-          mimeType.startsWith("audio/")
-        ) {
+        if ((rangeHeader && mimeType.startsWith("video/")) || mimeType.startsWith("audio/")) {
           const ranges = rangeHeader.replace(/bytes=/, "").split("-");
           const start = parseInt(ranges[0], 10);
           const end = ranges[1] ? parseInt(ranges[1], 10) : fileSize - 1;
@@ -535,7 +499,7 @@ if (!gotTheLock) {
                 "Cache-Control": "public, max-age=31536000",
               },
             },
-            { start, end },
+            { start, end }
           );
         }
 
@@ -584,21 +548,6 @@ if (!gotTheLock) {
       log.info(`不支持打开的文件类型: ${filePath}`);
     }
   });
-
-  // 添加退出前的清理
-  app.on("before-quit", () => {
-    log.info("应用即将退出，执行清理");
-    // 注销所有全局快捷键
-    globalShortcut.unregisterAll();
-
-    if (windowManager) {
-      windowManager.destroySingletonWindows();
-    }
-
-    if (trayManager) {
-      trayManager.destroyTray();
-    }
-  });
 }
 
 function getMimeType(ext: string): string {
@@ -621,7 +570,7 @@ function getMimeType(ext: string): string {
 function streamResponse(
   path: string,
   options: { status: number; headers: Record<string, string> },
-  streamOptions?: { start?: number; end?: number },
+  streamOptions?: { start?: number; end?: number }
 ) {
   const stream = createReadStream(path, streamOptions);
   return new Response(stream as unknown as ReadableStream, options);
@@ -649,7 +598,7 @@ function getFilePathFromArgs(args: string[]): string | null {
     // 过滤掉可执行文件
     const lowerPath = path.toLowerCase();
     const executableExtensions = [".exe", ".dll", ".app"];
-    if (executableExtensions.some((ext) => lowerPath.endsWith(ext))) {
+    if (executableExtensions.some(ext => lowerPath.endsWith(ext))) {
       return false;
     }
 

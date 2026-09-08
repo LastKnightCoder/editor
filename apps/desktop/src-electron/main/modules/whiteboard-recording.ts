@@ -4,7 +4,6 @@ import {
   ipcMain,
   screen,
   session,
-  app,
   type DesktopCapturerSource,
 } from "electron";
 import fs from "node:fs/promises";
@@ -63,9 +62,6 @@ class WhiteboardRecordingModule implements Module {
     this.preloadPath = options.preloadPath;
     this.rendererDistPath = options.rendererDistPath;
     this.viteDevServerUrl = options.viteDevServerUrl;
-    app.once("before-quit", () => {
-      this.destroyControlWindow();
-    });
   }
 
   async init() {
@@ -82,7 +78,7 @@ class WhiteboardRecordingModule implements Module {
       "whiteboard-recording:prepare-capture-source",
       async (_event, payload: PrepareCaptureSourcePayload) => {
         return await this.prepareCaptureSource(payload.sourceType);
-      },
+      }
     );
     ipcMain.handle("whiteboard-recording:open-controls", () => {
       this.showControlWindow();
@@ -96,12 +92,9 @@ class WhiteboardRecordingModule implements Module {
     ipcMain.handle("whiteboard-recording:controls-move", (_event, bounds) => {
       this.moveControlWindow(bounds);
     });
-    ipcMain.handle(
-      "whiteboard-recording:controls-command",
-      (_event, command) => {
-        this.sendToMainWindow("whiteboard-recording:controls-command", command);
-      },
-    );
+    ipcMain.handle("whiteboard-recording:controls-command", (_event, command) => {
+      this.sendToMainWindow("whiteboard-recording:controls-command", command);
+    });
     ipcMain.handle("whiteboard-recording:controls-state", (_event, state) => {
       this.sendToControls("whiteboard-recording:controls-state", state);
     });
@@ -120,18 +113,16 @@ class WhiteboardRecordingModule implements Module {
 
     return [
       mainWindowSource,
-      ...this.sortSources(sources, mainSourceId).map(
-        (source): RecordingSource => {
-          const type = this.getSourceType(source);
-          return {
-            id: source.id,
-            name: source.name,
-            type,
-            displayId: source.display_id,
-            thumbnailDataUrl: source.thumbnail.toDataURL(),
-          };
-        },
-      ),
+      ...this.sortSources(sources, mainSourceId).map((source): RecordingSource => {
+        const type = this.getSourceType(source);
+        return {
+          id: source.id,
+          name: source.name,
+          type,
+          displayId: source.display_id,
+          thumbnailDataUrl: source.thumbnail.toDataURL(),
+        };
+      }),
     ];
   }
 
@@ -141,18 +132,16 @@ class WhiteboardRecordingModule implements Module {
       thumbnailSize: { width: 280, height: 160 },
       fetchWindowIcons: false,
     });
-    return sources.filter((source) => source.name !== CONTROL_WINDOW_TITLE);
+    return sources.filter(source => source.name !== CONTROL_WINDOW_TITLE);
   }
 
-  private getSourceType(
-    source: DesktopCapturerSource,
-  ): RecordingSource["type"] {
+  private getSourceType(source: DesktopCapturerSource): RecordingSource["type"] {
     return source.id.startsWith("screen:") ? "screen" : "window";
   }
 
   private sortSources(
     sources: DesktopCapturerSource[],
-    mainSourceId?: string,
+    mainSourceId?: string
   ): DesktopCapturerSource[] {
     return [...sources].sort((left, right) => {
       const leftIsCurrent = !!mainSourceId && left.id === mainSourceId;
@@ -221,7 +210,7 @@ class WhiteboardRecordingModule implements Module {
           video: source,
         });
       },
-      { useSystemPicker: false },
+      { useSystemPicker: false }
     );
 
     return {
@@ -232,29 +221,24 @@ class WhiteboardRecordingModule implements Module {
     };
   }
 
-  private async getCaptureSource(
-    sourceType: RecordingSource["type"],
-    mainSourceId?: string,
-  ) {
+  private async getCaptureSource(sourceType: RecordingSource["type"], mainSourceId?: string) {
     const sources = await desktopCapturer.getSources({
       types: [sourceType],
       thumbnailSize: { width: 0, height: 0 },
       fetchWindowIcons: false,
     });
-    const filteredSources = sources.filter(
-      (source) => source.name !== CONTROL_WINDOW_TITLE,
-    );
+    const filteredSources = sources.filter(source => source.name !== CONTROL_WINDOW_TITLE);
     const sortedSources = this.sortSources(filteredSources, mainSourceId);
     const source =
       sourceType === "window"
-        ? sortedSources.find((candidate) => candidate.id === mainSourceId)
+        ? sortedSources.find(candidate => candidate.id === mainSourceId)
         : sortedSources[0];
 
     if (!source) {
       log.warn("[WhiteboardRecording] 未找到匹配录制源", {
         sourceType,
         mainSourceId,
-        availableSources: sortedSources.map((candidate) => ({
+        availableSources: sortedSources.map(candidate => ({
           id: candidate.id,
           name: candidate.name,
         })),
@@ -268,9 +252,7 @@ class WhiteboardRecordingModule implements Module {
     return join(PathUtil.getHomeDir(), "Videos", "Tau Whiteboard");
   }
 
-  private buildDefaultFileName(
-    format: WhiteboardRecordingOutputFormat,
-  ): string {
+  private buildDefaultFileName(format: WhiteboardRecordingOutputFormat): string {
     const now = new Date();
     const pad = (value: number) => `${value}`.padStart(2, "0");
     const stamp = [
@@ -287,14 +269,10 @@ class WhiteboardRecordingModule implements Module {
 
   private async saveRecording(payload: SaveRecordingPayload) {
     const outputFormat = payload.outputFormat || "webm";
-    const saveDirectory =
-      payload.saveDirectory?.trim() || this.getDefaultSaveDirectory();
+    const saveDirectory = payload.saveDirectory?.trim() || this.getDefaultSaveDirectory();
     await ensureDir(saveDirectory);
 
-    const outputPath = join(
-      saveDirectory,
-      this.buildDefaultFileName(outputFormat),
-    );
+    const outputPath = join(saveDirectory, this.buildDefaultFileName(outputFormat));
 
     if (outputFormat === "webm") {
       await fs.writeFile(outputPath, Buffer.from(payload.bytes));
@@ -303,7 +281,7 @@ class WhiteboardRecordingModule implements Module {
 
     const tempWebmPath = join(
       saveDirectory,
-      this.buildDefaultFileName("webm").replace(".webm", ".tmp.webm"),
+      this.buildDefaultFileName("webm").replace(".webm", ".tmp.webm")
     );
     await fs.writeFile(tempWebmPath, Buffer.from(payload.bytes));
 
@@ -312,7 +290,7 @@ class WhiteboardRecordingModule implements Module {
       return { outputPath, format: outputFormat };
     } finally {
       if (await pathExists(tempWebmPath)) {
-        await remove(tempWebmPath).catch((error) => {
+        await remove(tempWebmPath).catch(error => {
           log.warn("[WhiteboardRecording] 删除临时录制文件失败", error);
         });
       }
@@ -324,16 +302,12 @@ class WhiteboardRecordingModule implements Module {
       return this.controlWindow;
     }
 
-    const display = screen.getDisplayNearestPoint(
-      screen.getCursorScreenPoint(),
-    );
+    const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
     this.controlWindow = new BrowserWindow({
       title: CONTROL_WINDOW_TITLE,
       width: 620,
       height: 96,
-      x:
-        display.workArea.x +
-        Math.max(16, Math.floor((display.workArea.width - 620) / 2)),
+      x: display.workArea.x + Math.max(16, Math.floor((display.workArea.width - 620) / 2)),
       y: display.workArea.y + 24,
       frame: false,
       transparent: true,
@@ -352,11 +326,10 @@ class WhiteboardRecordingModule implements Module {
 
     this.controlWindow.setContentProtection(true);
     this.keepControlWindowOnTop();
-    (
-      this.controlWindow as BrowserWindow & { __tauHiddenSingleton?: string }
-    ).__tauHiddenSingleton = "whiteboard-recording-controls";
+    (this.controlWindow as BrowserWindow & { __tauHiddenSingleton?: string }).__tauHiddenSingleton =
+      "whiteboard-recording-controls";
 
-    this.controlWindow.on("close", (event) => {
+    this.controlWindow.on("close", event => {
       if (!this.isAppQuitting) {
         event.preventDefault();
         this.controlWindow?.hide();
@@ -381,7 +354,7 @@ class WhiteboardRecordingModule implements Module {
     if (this.viteDevServerUrl) {
       this.controlWindow
         .loadURL(`${this.viteDevServerUrl}#/whiteboard-recording-controls`)
-        .catch((error) => {
+        .catch(error => {
           log.error("[WhiteboardRecording] 开发模式加载控制窗失败", error);
         });
     } else {
@@ -389,7 +362,7 @@ class WhiteboardRecordingModule implements Module {
         .loadFile(join(this.rendererDistPath, "index.html"), {
           hash: "/whiteboard-recording-controls",
         })
-        .catch((error) => {
+        .catch(error => {
           log.error("[WhiteboardRecording] 生产模式加载控制窗失败", error);
         });
     }
@@ -413,17 +386,9 @@ class WhiteboardRecordingModule implements Module {
       return;
     }
 
-    const display = screen.getDisplayNearestPoint(
-      screen.getCursorScreenPoint(),
-    );
-    const nextWidth = Math.max(
-      1,
-      Math.min(Math.round(width), display.workArea.width),
-    );
-    const nextHeight = Math.max(
-      1,
-      Math.min(Math.round(height), display.workArea.height),
-    );
+    const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+    const nextWidth = Math.max(1, Math.min(Math.round(width), display.workArea.width));
+    const nextHeight = Math.max(1, Math.min(Math.round(height), display.workArea.height));
     log.info("[WhiteboardRecording] 调整控制窗内容尺寸", {
       width: nextWidth,
       height: nextHeight,
@@ -431,9 +396,8 @@ class WhiteboardRecordingModule implements Module {
     this.controlWindow.setContentSize(nextWidth, nextHeight);
     this.keepControlWindowOnTop();
     this.controlWindow.setPosition(
-      display.workArea.x +
-        Math.max(0, Math.floor((display.workArea.width - nextWidth) / 2)),
-      display.workArea.y + 24,
+      display.workArea.x + Math.max(0, Math.floor((display.workArea.width - nextWidth) / 2)),
+      display.workArea.y + 24
     );
   }
 
@@ -446,17 +410,9 @@ class WhiteboardRecordingModule implements Module {
       return;
     }
 
-    const display = screen.getDisplayNearestPoint(
-      screen.getCursorScreenPoint(),
-    );
-    const nextWidth = Math.max(
-      1,
-      Math.min(Math.ceil(size.width), display.workArea.width),
-    );
-    const nextHeight = Math.max(
-      1,
-      Math.min(Math.ceil(size.height), display.workArea.height),
-    );
+    const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+    const nextWidth = Math.max(1, Math.min(Math.ceil(size.width), display.workArea.width));
+    const nextHeight = Math.max(1, Math.min(Math.ceil(size.height), display.workArea.height));
     if (
       this.controlWindow.getContentSize()[0] === nextWidth &&
       this.controlWindow.getContentSize()[1] === nextHeight

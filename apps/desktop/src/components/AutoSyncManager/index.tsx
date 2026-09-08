@@ -5,12 +5,8 @@ import classNames from "classnames";
 import CustomModal from "@/components/CustomModal";
 import useThemeColors from "@/hooks/useThemeColors";
 import useSettingStore from "@/stores/useSettingStore";
-import {
-  closeWindow,
-  download,
-  getOriginDatabaseInfo,
-  upload,
-} from "@/commands";
+import { closeWindow, download, getOriginDatabaseInfo, upload } from "@/commands";
+import { invoke, on, off } from "@/electron";
 import { isSyncConfigured } from "@/utils/sync";
 
 type ProgressState = {
@@ -53,20 +49,10 @@ const ProgressModal = ({
       bodyClassName="space-y-6"
     >
       <div className="space-y-2">
-        <div
-          className={classNames(
-            "text-lg font-semibold",
-            themeColors.activeTextClass,
-          )}
-        >
+        <div className={classNames("text-lg font-semibold", themeColors.activeTextClass)}>
           {title}
         </div>
-        <p
-          className={classNames(
-            "text-sm leading-relaxed",
-            themeColors.secondaryTextClass,
-          )}
-        >
+        <p className={classNames("text-sm leading-relaxed", themeColors.secondaryTextClass)}>
           {subtitle}
         </p>
       </div>
@@ -74,18 +60,16 @@ const ProgressModal = ({
         className={classNames(
           "rounded-2xl border p-5",
           themeColors.cardBgClass,
-          themeColors.cardBorderClass,
+          themeColors.cardBorderClass
         )}
       >
-        <div className="flex items-center justify-between mb-3 text-sm font-medium">
+        <div className="mb-3 flex items-center justify-between text-sm font-medium">
           <span className={themeColors.activeTextClass}>{status}</span>
-          <span className={themeColors.secondaryTextClass}>
-            {Math.round(progress)}%
-          </span>
+          <span className={themeColors.secondaryTextClass}>{Math.round(progress)}%</span>
         </div>
-        <div className="h-2 rounded-full bg-white/30 dark:bg-zinc-800/70 overflow-hidden">
+        <div className="h-2 overflow-hidden rounded-full bg-white/30 dark:bg-zinc-800/70">
           <div
-            className="h-full rounded-full transition-all duration-300 ease-out shadow-lg"
+            className="h-full rounded-full shadow-lg transition-all duration-300 ease-out"
             style={{
               width: `${clampProgress(progress)}%`,
               background: `linear-gradient(90deg, ${themeColors.accentSoftBg}, ${themeColors.accentColor})`,
@@ -100,20 +84,20 @@ const ProgressModal = ({
 
 const AutoSyncManager = () => {
   const themeColors = useThemeColors();
-  const sync = useSettingStore((state) => state.setting.sync);
-  const integration = useSettingStore((state) => state.setting.integration);
-  const database = useSettingStore((state) => state.setting.database);
+  const sync = useSettingStore(state => state.setting.sync);
+  const integration = useSettingStore(state => state.setting.integration);
+  const database = useSettingStore(state => state.setting.database);
   const isDevMode = process.env.NODE_ENV === "development";
   const { message } = App.useApp();
 
   const activeDatabase = useMemo(
-    () => database.databases.find((item) => item.name === database.active),
-    [database.active, database.databases],
+    () => database.databases.find(item => item.name === database.active),
+    [database.active, database.databases]
   );
   const currentVersion = activeDatabase?.version ?? 0;
   const isConfigured = useMemo(
     () => isSyncConfigured(sync.active, sync, integration),
-    [integration, sync],
+    [integration, sync]
   );
   const shouldAutoSync = !isDevMode && sync.autoSyncEnabled && isConfigured;
 
@@ -133,6 +117,7 @@ const AutoSyncManager = () => {
   const downloadInProgressRef = useRef(false);
   const closingRef = useRef(false);
   const pendingCloseRef = useRef(false);
+  const pendingQuitRef = useRef(false);
   const uploadProgressTimerRef = useRef<number | null>(null);
   const uploadStartProgressRef = useRef(0);
   const smoothingDurationMs = 5000;
@@ -166,7 +151,7 @@ const AutoSyncManager = () => {
       const initial = Math.min(startProgress, 99);
       uploadStartProgressRef.current = initial;
       const startTime = Date.now();
-      setUploadState((prev) => ({
+      setUploadState(prev => ({
         ...prev,
         open: true,
         progress: initial,
@@ -175,9 +160,8 @@ const AutoSyncManager = () => {
         const elapsed = Date.now() - startTime;
         const ratio = Math.min(elapsed / smoothingDurationMs, 1);
         const nextProgress =
-          uploadStartProgressRef.current +
-          (99 - uploadStartProgressRef.current) * ratio;
-        setUploadState((prev) => ({
+          uploadStartProgressRef.current + (99 - uploadStartProgressRef.current) * ratio;
+        setUploadState(prev => ({
           ...prev,
           open: true,
           progress: clampProgress(nextProgress),
@@ -187,7 +171,7 @@ const AutoSyncManager = () => {
         }
       }, 100);
     },
-    [smoothingDurationMs, stopFakeUploadProgress],
+    [smoothingDurationMs, stopFakeUploadProgress]
   );
 
   const startAutoUpload = useCallback(async () => {
@@ -205,7 +189,7 @@ const AutoSyncManager = () => {
     try {
       success = await upload({
         onProgress: ({ status }) => {
-          setUploadState((prev) => ({
+          setUploadState(prev => ({
             ...prev,
             open: true,
             status,
@@ -218,7 +202,7 @@ const AutoSyncManager = () => {
     uploadInProgressRef.current = false;
     stopFakeUploadProgress();
     if (success) {
-      setUploadState((prev) => ({
+      setUploadState(prev => ({
         ...prev,
         open: true,
         progress: 100,
@@ -229,6 +213,9 @@ const AutoSyncManager = () => {
       await closeAfterSync();
     } else if (!success && pendingCloseRef.current) {
       await handleUploadFailureWhileClosing();
+    } else if (pendingQuitRef.current) {
+      pendingQuitRef.current = false;
+      void invoke("app:quitting-ready");
     } else if (!success) {
       pendingCloseRef.current = false;
     }
@@ -239,6 +226,30 @@ const AutoSyncManager = () => {
     startFakeUploadProgress,
     stopFakeUploadProgress,
   ]);
+
+  // 应用受控退出流程：先完成自动同步再放行退出（主进程最多等 8 秒）
+  useEffect(() => {
+    const handler = () => {
+      if (downloadInProgressRef.current) {
+        // 正在拉取远程同步数据，退出优先，直接放行
+        void invoke("app:quitting-ready");
+        return;
+      }
+      if (uploadInProgressRef.current) {
+        // 已有上传在跑，结束后由 startAutoUpload 统一回执
+        pendingQuitRef.current = true;
+        return;
+      }
+      if (!shouldAutoSync) {
+        void invoke("app:quitting-ready");
+        return;
+      }
+      pendingQuitRef.current = true;
+      void startAutoUpload();
+    };
+    on("app:quitting", handler);
+    return () => off("app:quitting", handler);
+  }, [shouldAutoSync, startAutoUpload]);
 
   useEffect(() => {
     if (!shouldAutoSync) {
@@ -317,7 +328,7 @@ const AutoSyncManager = () => {
 
       downloadInProgressRef.current = false;
       if (canceled) return;
-      setDownloadState((prev) => ({ ...prev, open: false }));
+      setDownloadState(prev => ({ ...prev, open: false }));
       if (success) {
         setTimeout(() => window.location.reload(), 300);
       } else {
@@ -336,7 +347,7 @@ const AutoSyncManager = () => {
     () => () => {
       stopFakeUploadProgress();
     },
-    [stopFakeUploadProgress],
+    [stopFakeUploadProgress]
   );
 
   return (
