@@ -3,11 +3,7 @@ declare module "reactjs-calendar-heatmap";
 declare module "plantuml-encoder";
 
 interface ElectronAPI {
-  invoke: (command: string, ...args: any[]) => Promise<any>;
-  on: (command: string, callback: (...args: any[]) => void) => void;
-  off: (command: string, callback: (...args: any[]) => void) => void;
-  send: (command: string, ...args: any[]) => void;
-  sendSync: (command: string, ...args: any[]) => any;
+  // bootstrap 的类型声明见 src/rpc/electron-bridge.d.ts（复用 @tau/rpc 的 RpcBootstrapInfo）
   platform: string;
 }
 
@@ -29,10 +25,7 @@ declare module "css-paint-polyfill" {
 }
 
 declare class PaintWorkletGlobalScope {
-  static registerPaint(
-    name: string,
-    classRef: new () => PaintRenderingContext2D,
-  ): void;
+  static registerPaint(name: string, classRef: new () => PaintRenderingContext2D): void;
 }
 
 interface PaintRenderingContext2D extends CanvasRenderingContext2D {

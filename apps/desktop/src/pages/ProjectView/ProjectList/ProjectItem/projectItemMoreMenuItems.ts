@@ -1,24 +1,21 @@
 import type { MenuProps } from "antd";
 
 import { EProjectItemType, type ProjectItem } from "@/types/project";
+import { isElectron } from "@/electron";
 
-type ProjectItemMenuSource = Partial<
-  Pick<ProjectItem, "projectItemType" | "refType" | "podcast">
->;
+type ProjectItemMenuSource = Partial<Pick<ProjectItem, "projectItemType" | "refType" | "podcast">>;
 
 type ProjectItemMenuItems = NonNullable<MenuProps["items"]>;
 type ProjectItemMenuItem = ProjectItemMenuItems[number];
 
-const isMenuItem = (
-  item: ProjectItemMenuItem | undefined,
-): item is ProjectItemMenuItem => Boolean(item);
+const isMenuItem = (item: ProjectItemMenuItem | undefined): item is ProjectItemMenuItem =>
+  Boolean(item);
 
-const compactMenuItems = (
-  items: Array<ProjectItemMenuItem | undefined>,
-): ProjectItemMenuItems => items.filter(isMenuItem);
+const compactMenuItems = (items: Array<ProjectItemMenuItem | undefined>): ProjectItemMenuItems =>
+  items.filter(isMenuItem);
 
 export const getProjectItemMoreMenuItems = (
-  projectItem?: ProjectItemMenuSource | null,
+  projectItem?: ProjectItemMenuSource | null
 ): MenuProps["items"] => {
   if (projectItem?.projectItemType === EProjectItemType.Document) {
     return compactMenuItems([
@@ -80,10 +77,13 @@ export const getProjectItemMoreMenuItems = (
           },
         ],
       },
-      {
-        key: "open-in-new-window",
-        label: "窗口打开",
-      },
+      // 独立窗口为 Electron 专属能力，Web 端不展示入口
+      isElectron
+        ? {
+            key: "open-in-new-window",
+            label: "窗口打开",
+          }
+        : undefined,
       {
         key: "remove",
         label: "删除文档",

@@ -1,3 +1,4 @@
+import { isElectron } from "@/electron";
 import { memo, useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { App } from "antd";
@@ -76,7 +77,6 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   // 检查是否是 Electron 环境
-  const isElectron = typeof window !== "undefined" && !!window.electron;
 
   // 加载现有 PPT 内容
   const loadPPTContent = useMemoizedFn(async (noteToLoad: VLNote) => {

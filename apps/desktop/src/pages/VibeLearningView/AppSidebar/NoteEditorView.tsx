@@ -1,3 +1,4 @@
+import { isElectron } from "@/electron";
 import { memo, useEffect, useRef, useState, useMemo } from "react";
 import { Descendant } from "slate";
 import { App } from "antd";
@@ -166,7 +167,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   const [podcast, setPodcast] = useState<IPodcast | null>(null);
 
   // 检查是否是 Electron 环境
-  const isElectron = typeof window !== "undefined" && !!window.electron;
 
   // 检查笔记是否已是卡片
   useEffect(() => {

@@ -1,10 +1,4 @@
-import {
-  BrowserWindow,
-  ipcMain,
-  screen,
-  BrowserWindowConstructorOptions,
-  app,
-} from "electron";
+import { BrowserWindow, ipcMain, screen, BrowserWindowConstructorOptions, app } from "electron";
 import path from "node:path";
 import log from "electron-log";
 import { ensureMacOSForegroundApplication } from "../utils/macos-activation";
@@ -50,11 +44,7 @@ export class WindowManager {
   private backgroundAudioWindow: BrowserWindow | null = null;
   private isAppQuitting = false;
 
-  constructor(
-    viteDevServerUrl: string,
-    rendererDistPath: string,
-    preloadPath: string,
-  ) {
+  constructor(viteDevServerUrl: string, rendererDistPath: string, preloadPath: string) {
     log.info("初始化窗口管理器");
     VITE_DEV_SERVER_URL = viteDevServerUrl;
     indexHtml = path.join(rendererDistPath, "index.html");
@@ -98,10 +88,10 @@ export class WindowManager {
       this.showOrCreateMainWindow();
     });
 
-    ipcMain.on("get-full-screen-status", (event) => {
+    ipcMain.handle("get-full-screen-status", event => {
       const sender = event.sender;
       const win = BrowserWindow.fromWebContents(sender);
-      event.returnValue = win?.fullScreen || false;
+      return win?.fullScreen || false;
     });
 
     ipcMain.handle(
@@ -110,7 +100,7 @@ export class WindowManager {
         _event,
         databaseName,
         cardId,
-        options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">,
+        options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">
       ) => {
         log.info(`打开卡片编辑器窗口: ${databaseName}, ${cardId}`);
         this.createEditorWindow("card", {
@@ -118,7 +108,7 @@ export class WindowManager {
           itemId: cardId,
           ...options,
         });
-      },
+      }
     );
 
     ipcMain.handle(
@@ -127,7 +117,7 @@ export class WindowManager {
         _event,
         databaseName,
         articleId,
-        options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">,
+        options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">
       ) => {
         log.info(`打开文章编辑器窗口: ${databaseName}, ${articleId}`);
         this.createEditorWindow("article", {
@@ -135,16 +125,13 @@ export class WindowManager {
           itemId: articleId,
           ...options,
         });
-      },
+      }
     );
 
-    ipcMain.handle(
-      "close-article-window",
-      (_event, databaseName, articleId) => {
-        log.info(`关闭文章编辑器窗口: ${databaseName}, ${articleId}`);
-        this.closeEditorWindow("article", databaseName, articleId);
-      },
-    );
+    ipcMain.handle("close-article-window", (_event, databaseName, articleId) => {
+      log.info(`关闭文章编辑器窗口: ${databaseName}, ${articleId}`);
+      this.closeEditorWindow("article", databaseName, articleId);
+    });
 
     ipcMain.handle(
       "open-project-item-in-new-window",
@@ -152,7 +139,7 @@ export class WindowManager {
         _event,
         databaseName,
         projectItemId,
-        options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">,
+        options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">
       ) => {
         log.info(`打开项目编辑器窗口: ${databaseName}, ${projectItemId}`);
         this.createEditorWindow("project-item", {
@@ -160,7 +147,7 @@ export class WindowManager {
           itemId: projectItemId,
           ...options,
         });
-      },
+      }
     );
 
     ipcMain.handle(
@@ -169,7 +156,7 @@ export class WindowManager {
         _event,
         databaseName,
         documentItemId,
-        options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">,
+        options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">
       ) => {
         log.info(`打开文档编辑器窗口: ${databaseName}, ${documentItemId}`);
         this.createEditorWindow("document-item", {
@@ -177,22 +164,18 @@ export class WindowManager {
           itemId: documentItemId,
           ...options,
         });
-      },
+      }
     );
 
     ipcMain.handle(
       "open-markdown-in-new-window",
-      (
-        _event,
-        filePath,
-        options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">,
-      ) => {
+      (_event, filePath, options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">) => {
         log.info(`打开Markdown编辑器窗口: ${filePath}`);
         this.createEditorWindow("markdown", { filePath, ...options });
-      },
+      }
     );
 
-    ipcMain.handle("close-window", (event) => {
+    ipcMain.handle("close-window", event => {
       const sender = event.sender;
       const win = BrowserWindow.fromWebContents(sender);
       win?.close();
@@ -219,12 +202,12 @@ export class WindowManager {
     });
 
     // 窗口控制命令
-    ipcMain.handle("minimize-window", (event) => {
+    ipcMain.handle("minimize-window", event => {
       const win = BrowserWindow.fromWebContents(event.sender);
       win?.minimize();
     });
 
-    ipcMain.handle("maximize-window", (event) => {
+    ipcMain.handle("maximize-window", event => {
       const win = BrowserWindow.fromWebContents(event.sender);
       if (win?.isMaximized()) {
         win.unmaximize();
@@ -233,7 +216,7 @@ export class WindowManager {
       }
     });
 
-    ipcMain.handle("toggle-fullscreen", (event) => {
+    ipcMain.handle("toggle-fullscreen", event => {
       const win = BrowserWindow.fromWebContents(event.sender);
       if (win) {
         win.setFullScreen(!win.isFullScreen());
@@ -241,7 +224,7 @@ export class WindowManager {
     });
 
     // 获取窗口状态
-    ipcMain.handle("get-window-state", (event) => {
+    ipcMain.handle("get-window-state", event => {
       const win = BrowserWindow.fromWebContents(event.sender);
       return {
         isMaximized: win?.isMaximized() || false,
@@ -260,7 +243,7 @@ export class WindowManager {
     const allWindows = BrowserWindow.getAllWindows();
 
     // 过滤掉隐藏的系统窗口（沉浸式窗口和背景音窗口）
-    const visibleWindows = allWindows.filter((win) => {
+    const visibleWindows = allWindows.filter(win => {
       // 排除已销毁的窗口
       if (win.isDestroyed()) return false;
 
@@ -288,8 +271,8 @@ export class WindowManager {
       }
 
       if (
-        (win as BrowserWindow & { __tauHiddenSingleton?: string })
-          .__tauHiddenSingleton === "whiteboard-recording-controls" &&
+        (win as BrowserWindow & { __tauHiddenSingleton?: string }).__tauHiddenSingleton ===
+          "whiteboard-recording-controls" &&
         !win.isVisible()
       ) {
         return false;
@@ -423,14 +406,9 @@ export class WindowManager {
       this.checkAndQuitIfNeeded();
     });
 
-    win.webContents.on(
-      "did-fail-load",
-      (_event, errorCode, errorDescription, validatedURL) => {
-        log.error(
-          `主窗口加载失败: ${errorCode} - ${errorDescription}, URL: ${validatedURL}`,
-        );
-      },
-    );
+    win.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
+      log.error(`主窗口加载失败: ${errorCode} - ${errorDescription}, URL: ${validatedURL}`);
+    });
 
     return win;
   }
@@ -452,8 +430,7 @@ export class WindowManager {
         preload,
         spellcheck: false,
       },
-      frame:
-        nativeTitlebar || (process.platform === "darwin" && macTrafficLights),
+      frame: nativeTitlebar || (process.platform === "darwin" && macTrafficLights),
       ...(!nativeTitlebar &&
         process.platform === "darwin" && {
           titleBarStyle: "hidden" as const,
@@ -486,14 +463,9 @@ export class WindowManager {
     });
 
     // 添加错误处理
-    win.webContents.on(
-      "did-fail-load",
-      (_event, errorCode, errorDescription, validatedURL) => {
-        log.error(
-          `主窗口加载失败: ${errorCode} - ${errorDescription}, URL: ${validatedURL}`,
-        );
-      },
-    );
+    win.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
+      log.error(`主窗口加载失败: ${errorCode} - ${errorDescription}, URL: ${validatedURL}`);
+    });
 
     if (VITE_DEV_SERVER_URL && openDevTools) {
       win.webContents.openDevTools();
@@ -582,7 +554,7 @@ export class WindowManager {
     const win = new BrowserWindow(miniConfig);
     this.setupWindowEvents(win, false);
 
-    win.on("close", (event) => {
+    win.on("close", event => {
       if (!this.isAppQuitting) {
         event.preventDefault();
         win.hide();
@@ -693,11 +665,11 @@ export class WindowManager {
 
     // 加载背景音播放页面（使用路由）
     if (VITE_DEV_SERVER_URL) {
-      win.loadURL(`${VITE_DEV_SERVER_URL}#/background-audio`).catch((err) => {
+      win.loadURL(`${VITE_DEV_SERVER_URL}#/background-audio`).catch(err => {
         log.error("开发模式加载背景音页面失败:", err);
       });
     } else {
-      win.loadFile(indexHtml, { hash: `/background-audio` }).catch((err) => {
+      win.loadFile(indexHtml, { hash: `/background-audio` }).catch(err => {
         log.error("生产模式加载背景音页面失败:", err);
       });
     }
@@ -713,10 +685,7 @@ export class WindowManager {
 
   public showPomodoroImmersiveWindow() {
     // 如果窗口不存在或已销毁，重新初始化
-    if (
-      !this.pomodoroImmersiveWindow ||
-      this.pomodoroImmersiveWindow.isDestroyed()
-    ) {
+    if (!this.pomodoroImmersiveWindow || this.pomodoroImmersiveWindow.isDestroyed()) {
       log.warn("沉浸窗口不存在，重新初始化");
       this.initPomodoroImmersiveWindow();
     }
@@ -741,10 +710,7 @@ export class WindowManager {
 
   public hidePomodoroImmersiveWindow() {
     log.debug("隐藏沉浸窗口");
-    if (
-      this.pomodoroImmersiveWindow &&
-      !this.pomodoroImmersiveWindow.isDestroyed()
-    ) {
+    if (this.pomodoroImmersiveWindow && !this.pomodoroImmersiveWindow.isDestroyed()) {
       const isMac = process.platform === "darwin";
 
       // Mac 上退出 simpleFullScreen，恢复 Dock 和菜单栏
@@ -768,7 +734,7 @@ export class WindowManager {
       this.backgroundAudioWindow,
     ];
 
-    singletonWindows.forEach((win) => {
+    singletonWindows.forEach(win => {
       if (win && !win.isDestroyed()) {
         win.destroy();
       }
@@ -852,7 +818,7 @@ export class WindowManager {
     const windowMap = this.windowsMap.get(type)!;
 
     log.debug(
-      `尝试创建${editorName}编辑器窗口: ${type === "markdown" ? filePath || rootPath : `${databaseName}, ${itemId}`}`,
+      `尝试创建${editorName}编辑器窗口: ${type === "markdown" ? filePath || rootPath : `${databaseName}, ${itemId}`}`
     );
 
     // 检查窗口是否已存在
@@ -871,12 +837,10 @@ export class WindowManager {
         ? {
             nativeTitlebar: process.platform === "win32",
           }
-        : undefined,
+        : undefined
     );
     if (type === "markdown") {
-      const display = screen.getDisplayNearestPoint(
-        screen.getCursorScreenPoint(),
-      );
+      const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
       baseConfig.x = display.bounds.x;
       baseConfig.y = display.bounds.y;
       baseConfig.width = display.bounds.width;
@@ -931,11 +895,7 @@ export class WindowManager {
   }
 
   // 关闭指定的编辑器窗口（窗口关闭后会自动从映射中移除）
-  public closeEditorWindow(
-    type: EditorType,
-    databaseName: string,
-    itemId: number,
-  ) {
+  public closeEditorWindow(type: EditorType, databaseName: string, itemId: number) {
     const windowKey = `${databaseName}-${itemId}`;
     const win = this.windowsMap.get(type)?.get(windowKey);
     if (win && !win.isDestroyed()) {
@@ -947,7 +907,7 @@ export class WindowManager {
   public createCardEditorWindow(
     databaseName: string,
     cardId: number,
-    options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">,
+    options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">
   ) {
     return this.createEditorWindow("card", {
       databaseName,
@@ -960,7 +920,7 @@ export class WindowManager {
   public createArticleEditorWindow(
     databaseName: string,
     articleId: number,
-    options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">,
+    options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">
   ) {
     return this.createEditorWindow("article", {
       databaseName,
@@ -973,7 +933,7 @@ export class WindowManager {
   public createProjectItemEditorWindow(
     databaseName: string,
     projectItemId: number,
-    options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">,
+    options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">
   ) {
     return this.createEditorWindow("project-item", {
       databaseName,
@@ -986,7 +946,7 @@ export class WindowManager {
   public createDocumentItemEditorWindow(
     databaseName: string,
     documentItemId: number,
-    options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">,
+    options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">
   ) {
     return this.createEditorWindow("document-item", {
       databaseName,
@@ -997,11 +957,7 @@ export class WindowManager {
 }
 
 export default {
-  init: async (
-    viteDevServerUrl: string,
-    rendererDistPath: string,
-    preloadPath: string,
-  ) => {
+  init: async (viteDevServerUrl: string, rendererDistPath: string, preloadPath: string) => {
     return new WindowManager(viteDevServerUrl, rendererDistPath, preloadPath);
   },
 };

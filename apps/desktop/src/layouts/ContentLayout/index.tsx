@@ -17,6 +17,7 @@ import SettingModal from "./components/SettingModal";
 import GlobalTitlebar from "./components/GlobalTitlebar";
 import FullScreenLoading from "@/components/FullScreenLoading";
 import { initAiServer } from "@/services/aiServer";
+import { isElectron } from "@/electron";
 
 const ShortSidebarLayout = memo(() => {
   useInitDatabase();
@@ -28,7 +29,8 @@ const ShortSidebarLayout = memo(() => {
 
   useEffect(() => {
     const handleOpenMarkdown = async (e: any) => {
-      if (isHotkey("mod+o", e)) {
+      // 打开本地 Markdown 依赖系统文件选择与独立窗口，仅 Electron 提供
+      if (isElectron && isHotkey("mod+o", e)) {
         e.preventDefault();
         e.stopPropagation();
         const filePaths = await selectFile({
@@ -47,14 +49,12 @@ const ShortSidebarLayout = memo(() => {
 
   return (
     <FullScreenLoading windowType="main">
-      <div
-        className={`w-screen h-screen flex flex-col bg-[var(--th-bg-page)] ${styles.container}`}
-      >
-        <GlobalTitlebar />
+      <div className={`flex h-screen w-screen flex-col bg-[var(--th-bg-page)] ${styles.container}`}>
+        {isElectron && <GlobalTitlebar />}
 
-        <div className="flex-1 min-h-0 flex px-3 pb-3 pt-3 overflow-hidden">
-          <div className={`flex-1 min-w-0 h-full box-border flex flex-col`}>
-            <div className="flex-1 min-h-0 shadow-lg flex overflow-hidden rounded-2xl border bg-[var(--th-card-bg)] border-[var(--th-border)]">
+        <div className="flex min-h-0 flex-1 overflow-hidden px-3 pb-3 pt-3">
+          <div className={`box-border flex h-full min-w-0 flex-1 flex-col`}>
+            <div className="flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-[var(--th-border)] bg-[var(--th-card-bg)] shadow-lg">
               <div className={styles.mainContent}>
                 <PanesLayout />
               </div>

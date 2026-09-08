@@ -24,6 +24,7 @@
       "@tau/agent": ["../../packages/agent/src"],
       "@tau/agent/*": ["../../packages/agent/src/*"],
       "@tau/editor": ["../../packages/editor/src"],
+      "@tau/rpc": ["../../packages/rpc/src"],
       "@tau/db-schema/*": ["../../packages/db-schema/*"],
       "@tau/shared": ["../../packages/shared/src"],
       "@tau/shared/*": ["../../packages/shared/*"],

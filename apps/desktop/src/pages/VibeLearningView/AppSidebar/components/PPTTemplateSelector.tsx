@@ -1,3 +1,4 @@
+import { isElectron } from "@/electron";
 import { memo, useMemo } from "react";
 import classNames from "classnames";
 import { Check } from "lucide-react";
@@ -14,7 +15,6 @@ const PPTTemplateSelector = memo((props: PPTTemplateSelectorProps) => {
   const { selectedTemplateId, onSelectTemplate, title = "选择风格" } = props;
 
   // 检查是否是 Electron 环境
-  const isElectron = typeof window !== "undefined" && !!window.electron;
 
   return (
     <div className="space-y-3">

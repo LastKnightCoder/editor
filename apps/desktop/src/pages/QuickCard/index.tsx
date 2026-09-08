@@ -6,6 +6,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { Editor, EditorRef } from "@tau/editor/src";
 import AddTag from "@/components/AddTag";
 import { createCard, closeWindow } from "@/commands";
+import { isElectron } from "@/electron";
 import { ECardCategory } from "@/types";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
@@ -23,9 +24,7 @@ const initValue: Descendant[] = [
 
 const QuickCard = () => {
   const { databaseStatus, active } = useInitDatabase();
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
 
   const status = databaseStatus[active];
   const isConnected = status === "ready" || status === "reconnecting";
@@ -45,7 +44,7 @@ const QuickCard = () => {
   };
 
   const onDeleteTag = (tag: string) => {
-    setTags(tags.filter((t) => t !== tag));
+    setTags(tags.filter(t => t !== tag));
   };
 
   const onEditTag = (oldTag: string, newTag: string) => {
@@ -54,7 +53,7 @@ const QuickCard = () => {
       message.warning("标签已存在");
       return;
     }
-    setTags(tags.map((tag) => (tag === oldTag ? newTag : tag)));
+    setTags(tags.map(tag => (tag === oldTag ? newTag : tag)));
   };
 
   const onSave = async () => {
@@ -68,7 +67,10 @@ const QuickCard = () => {
       isTop: false,
     });
     setSaveLoading(false);
-    closeWindow();
+    // Web 端没有可关闭的独立窗口，保持页面不动
+    if (isElectron) {
+      closeWindow();
+    }
   };
 
   if (!isConnected) {

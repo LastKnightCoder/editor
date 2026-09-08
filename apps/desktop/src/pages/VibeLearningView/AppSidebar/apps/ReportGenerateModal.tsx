@@ -1,3 +1,4 @@
+import { isElectron } from "@/electron";
 import { memo, useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { App, Spin } from "antd";
@@ -76,8 +77,6 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-
-  const isElectron = typeof window !== "undefined" && !!window.electron;
 
   const resetState = useMemoizedFn(() => {
     setStep("select-resources");

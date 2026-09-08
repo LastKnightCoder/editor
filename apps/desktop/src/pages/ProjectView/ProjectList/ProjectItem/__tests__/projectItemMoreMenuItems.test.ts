@@ -1,11 +1,23 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { EProjectItemType } from "@/types/project";
+
+// 「窗口打开」为 Electron 专属入口，测试按 Web 环境断言其不展示
+const electronMocks = vi.hoisted(() => ({
+  isElectron: false,
+  invoke: vi.fn(() => Promise.resolve({})),
+  send: vi.fn(),
+  on: vi.fn(),
+  off: vi.fn(),
+  platform: "web",
+}));
+vi.mock("@/electron", () => electronMocks);
+
 import { getProjectItemMoreMenuItems } from "../projectItemMoreMenuItems";
 
 describe("getProjectItemMoreMenuItems", () => {
   const getKeys = (items: ReturnType<typeof getProjectItemMoreMenuItems>) =>
-    (items || []).map((item) => item?.key);
+    (items || []).map(item => item?.key);
 
   it("为普通文档返回完整文档操作", () => {
     const items = getProjectItemMoreMenuItems({
@@ -20,7 +32,6 @@ describe("getProjectItemMoreMenuItems", () => {
       "presentation-mode",
       "copy",
       "export",
-      "open-in-new-window",
       "remove",
     ]);
   });
@@ -40,8 +51,8 @@ describe("getProjectItemMoreMenuItems", () => {
         getProjectItemMoreMenuItems({
           projectItemType: EProjectItemType.WhiteBoard,
           refType: "",
-        }),
-      ),
+        })
+      )
     ).toEqual(["to-white-board", "remove", "edit-title"]);
 
     expect(
@@ -49,8 +60,8 @@ describe("getProjectItemMoreMenuItems", () => {
         getProjectItemMoreMenuItems({
           projectItemType: EProjectItemType.WhiteBoard,
           refType: "white-board",
-        }),
-      ),
+        })
+      )
     ).toEqual(["remove", "edit-title"]);
   });
 
@@ -58,7 +69,7 @@ describe("getProjectItemMoreMenuItems", () => {
     expect(
       getProjectItemMoreMenuItems({
         projectItemType: EProjectItemType.AudioNote,
-      }),
+      })
     ).toEqual([
       { key: "remove", label: "删除音频" },
       { key: "edit-title", label: "编辑标题" },
@@ -70,40 +81,40 @@ describe("getProjectItemMoreMenuItems", () => {
       getKeys(
         getProjectItemMoreMenuItems({
           projectItemType: EProjectItemType.VideoNote,
-        }),
-      ),
+        })
+      )
     ).toEqual(["remove", "edit-title"]);
 
     expect(
       getKeys(
         getProjectItemMoreMenuItems({
           projectItemType: EProjectItemType.WebView,
-        }),
-      ),
+        })
+      )
     ).toEqual(["remove", "edit-title", "open-in-new-tab"]);
 
     expect(
       getKeys(
         getProjectItemMoreMenuItems({
           projectItemType: EProjectItemType.TableView,
-        }),
-      ),
+        })
+      )
     ).toEqual(["remove"]);
 
     expect(
       getKeys(
         getProjectItemMoreMenuItems({
           projectItemType: EProjectItemType.Pdf,
-        }),
-      ),
+        })
+      )
     ).toEqual(["remove", "edit-title"]);
 
     expect(
       getKeys(
         getProjectItemMoreMenuItems({
           projectItemType: EProjectItemType.Epub,
-        }),
-      ),
+        })
+      )
     ).toEqual(["remove", "edit-title"]);
   });
 });

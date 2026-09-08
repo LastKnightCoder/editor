@@ -19,6 +19,7 @@ import {
   updateArticleIsTop,
   openArticleInNewWindow,
 } from "@/commands";
+import { isElectron } from "@/electron";
 import useTabStore from "@/stores/useTabStore";
 import useSettingStore from "@/stores/useSettingStore";
 import useThemeColors from "@/hooks/useThemeColors";
@@ -38,7 +39,7 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
   const { modal } = App.useApp();
 
   const [articles, setArticles] = useState<IArticle[]>([]);
-  const navigateTo = useTabStore((state) => state.navigateTo);
+  const navigateTo = useTabStore(state => state.navigateTo);
   const [loading, setLoading] = useState(false);
 
   const [exportModalOpen, setExportModalOpen] = useState(false);
@@ -46,18 +47,13 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
   const [pdfExportModalOpen, setPdfExportModalOpen] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<IArticle | null>(null);
 
-  const currentDatabaseName = useSettingStore(
-    useShallow((state) => state.setting.database.active),
-  );
-  const articleEventBus = useCreation(
-    () => defaultArticleEventBus.createEditor(),
-    [],
-  );
+  const currentDatabaseName = useSettingStore(useShallow(state => state.setting.database.active));
+  const articleEventBus = useCreation(() => defaultArticleEventBus.createEditor(), []);
 
   useEffect(() => {
     setLoading(true);
     getAllArticles()
-      .then((articles) => {
+      .then(articles => {
         setArticles(articles);
       })
       .finally(() => {
@@ -66,32 +62,19 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
   }, []);
 
   useEffect(() => {
-    const unsubUpdated = defaultArticleEventBus.subscribe(
-      "article:updated",
-      (data) => {
-        setArticles((prevArticles) =>
-          prevArticles.map((article) =>
-            article.id === data.article.id ? data.article : article,
-          ),
-        );
-      },
-    );
+    const unsubUpdated = defaultArticleEventBus.subscribe("article:updated", data => {
+      setArticles(prevArticles =>
+        prevArticles.map(article => (article.id === data.article.id ? data.article : article))
+      );
+    });
 
-    const unsubDeleted = defaultArticleEventBus.subscribe(
-      "article:deleted",
-      (data) => {
-        setArticles((prev) => prev.filter((a) => a.id !== data.article.id));
-      },
-    );
+    const unsubDeleted = defaultArticleEventBus.subscribe("article:deleted", data => {
+      setArticles(prev => prev.filter(a => a.id !== data.article.id));
+    });
 
-    const unsubTopChanged = defaultArticleEventBus.subscribe(
-      "article:top-changed",
-      (data) => {
-        setArticles((prev) =>
-          prev.map((a) => (a.id === data.article.id ? data.article : a)),
-        );
-      },
-    );
+    const unsubTopChanged = defaultArticleEventBus.subscribe("article:top-changed", data => {
+      setArticles(prev => prev.map(a => (a.id === data.article.id ? data.article : a)));
+    });
 
     return () => {
       unsubUpdated();
@@ -108,13 +91,13 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
     navigateTo(
       TabType.ArticleDetail,
       { id: article.id },
-      `文章 - ${article.title || `#${article.id}`}`,
+      `文章 - ${article.title || `#${article.id}`}`
     );
   };
 
   const handleToggleTop = useMemoizedFn(async (article: IArticle) => {
     const updated = await updateArticleIsTop(article.id, !article.isTop);
-    setArticles((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+    setArticles(prev => prev.map(a => (a.id === updated.id ? updated : a)));
     articleEventBus.publishArticleEvent("article:top-changed", updated);
   });
 
@@ -123,7 +106,7 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
       title: "确定删除该文章？",
       onOk: async () => {
         await deleteArticle(article.id);
-        setArticles((prev) => prev.filter((a) => a.id !== article.id));
+        setArticles(prev => prev.filter(a => a.id !== article.id));
         articleEventBus.publishArticleEvent("article:deleted", article);
         message.success("删除成功");
       },
@@ -142,62 +125,65 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
     openArticleInNewWindow(currentDatabaseName, article.id);
   });
 
-  const getMenuItems = useMemoizedFn(
-    (article: IArticle): MenuProps["items"] => [
-      {
-        key: "set-top",
-        label: article.isTop ? "取消置顶" : "置顶",
-        onClick: () => handleToggleTop(article),
-      },
-      {
-        key: "export",
-        label: "导出文章",
-        children: [
-          {
-            key: "export-markdown",
-            label: "Markdown",
-            onClick: () => handleExportMarkdown(article),
+  const getMenuItems = useMemoizedFn((article: IArticle): MenuProps["items"] => [
+    {
+      key: "set-top",
+      label: article.isTop ? "取消置顶" : "置顶",
+      onClick: () => handleToggleTop(article),
+    },
+    {
+      key: "export",
+      label: "导出文章",
+      children: [
+        {
+          key: "export-markdown",
+          label: "Markdown",
+          onClick: () => handleExportMarkdown(article),
+        },
+        {
+          key: "export-image",
+          label: "图片",
+          onClick: () => {
+            setSelectedArticle(article);
+            setExportModalOpen(true);
           },
-          {
-            key: "export-image",
-            label: "图片",
-            onClick: () => {
-              setSelectedArticle(article);
-              setExportModalOpen(true);
-            },
+        },
+        {
+          key: "export-epub",
+          label: "EPUB",
+          onClick: () => {
+            setSelectedArticle(article);
+            setEpubExportModalOpen(true);
           },
-          {
-            key: "export-epub",
-            label: "EPUB",
-            onClick: () => {
-              setSelectedArticle(article);
-              setEpubExportModalOpen(true);
-            },
+        },
+        {
+          key: "export-pdf",
+          label: "PDF",
+          onClick: () => {
+            setSelectedArticle(article);
+            setPdfExportModalOpen(true);
           },
+        },
+      ],
+    },
+    // 独立窗口为 Electron 专属能力，Web 端不展示入口
+    ...(isElectron
+      ? [
           {
-            key: "export-pdf",
-            label: "PDF",
-            onClick: () => {
-              setSelectedArticle(article);
-              setPdfExportModalOpen(true);
-            },
+            key: "open-in-new-window",
+            label: "窗口打开",
+            onClick: () => handleOpenInNewWindow(article),
           },
-        ],
-      },
-      {
-        key: "open-in-new-window",
-        label: "窗口打开",
-        onClick: () => handleOpenInNewWindow(article),
-      },
-      { type: "divider" },
-      {
-        key: "delete-article",
-        label: "删除文章",
-        danger: true,
-        onClick: () => handleDelete(article),
-      },
-    ],
-  );
+        ]
+      : []),
+    { type: "divider" },
+    {
+      key: "delete-article",
+      label: "删除文章",
+      danger: true,
+      onClick: () => handleDelete(article),
+    },
+  ]);
 
   if (loading) {
     return (
@@ -212,7 +198,7 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
       className={classnames(
         styles.container,
         "border-r border-[#f0f0f0] dark:border-[#2a2a2a]",
-        className,
+        className
       )}
       style={style}
     >
@@ -223,7 +209,7 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
       <div className={styles.list}>
         <For
           data={articles}
-          renderItem={(article) => (
+          renderItem={article => (
             <Dropdown
               key={article.id}
               trigger={["contextMenu"]}
@@ -232,13 +218,11 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
               <div
                 className={classnames(
                   styles.item,
-                  article.id === activeArticleId ? activeClass : hoverClass,
+                  article.id === activeArticleId ? activeClass : hoverClass
                 )}
                 onClick={() => onClick(article)}
               >
-                {article.isTop && (
-                  <PushpinOutlined style={{ marginRight: 4, fontSize: 12 }} />
-                )}
+                {article.isTop && <PushpinOutlined style={{ marginRight: 4, fontSize: 12 }} />}
                 {article.title}
               </div>
             </Dropdown>

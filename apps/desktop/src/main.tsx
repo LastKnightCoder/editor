@@ -19,6 +19,7 @@ import { initBlockRenderers } from "@/renderers";
 import { initToolCallRenderers } from "@/tool-call-renderers";
 import { initializeTabContentProviders } from "@/mcp/tab-content/providers";
 import { useContentEditReviewSessionStore } from "@/services/content-editing";
+import rpcEventHub from "@/rpc/event-hub";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,6 +34,7 @@ const queryClient = new QueryClient({
 
 dayjs.locale("zh-cn");
 useBackendWebsocketStore.getState().initClient();
+void rpcEventHub.start();
 initializeTooling();
 initBlockRenderers();
 initToolCallRenderers();
@@ -46,7 +48,7 @@ const bootstrap = async () => {
   ReactDOM.createRoot(document.getElementById("root")!).render(
     <QueryClientProvider client={queryClient}>
       <App />
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
 };
 

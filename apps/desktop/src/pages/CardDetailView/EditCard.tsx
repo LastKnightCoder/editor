@@ -52,6 +52,7 @@ import { ICard, ECardCategory } from "@/types";
 import { cardCategoryName } from "@/constants/card";
 import { produce } from "immer";
 import { deleteCard, getAllCards, openCardInNewWindow, updateCard } from "@/commands";
+import { isElectron } from "@/electron";
 import graphIcon from "@/assets/icons/graph.svg";
 
 import useEditCard from "./useEditCard";
@@ -493,10 +494,15 @@ const EditCard = (props: IEditCardProps) => {
         key: "generate-podcast",
         label: "生成播客",
       },
-      {
-        key: "open-window",
-        label: "窗口打开",
-      },
+      // 独立窗口为 Electron 专属能力，Web 端不展示入口
+      ...(isElectron
+        ? [
+            {
+              key: "open-window",
+              label: "窗口打开",
+            },
+          ]
+        : []),
       {
         key: "open-sidebar",
         label: "新Tab打开",

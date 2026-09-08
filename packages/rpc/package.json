@@ -1,0 +1,13 @@
+{
+  "name": "@tau/rpc",
+  "version": "0.1.0",
+  "description": "HTTP/WS RPC 协议层：请求响应类型与类型安全 JSON 序列化器，Electron 本地 server 与未来 Web Server 共用",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}

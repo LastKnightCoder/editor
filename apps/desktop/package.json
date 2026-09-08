@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@tau/collaboration": "workspace:*",
+    "@tau/rpc": "workspace:*",
     "@hocuspocus/provider": "4.6.0",
     "yjs": "13.6.32",
     "y-protocols": "1.0.7",

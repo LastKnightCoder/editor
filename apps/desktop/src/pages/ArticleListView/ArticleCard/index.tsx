@@ -28,6 +28,7 @@ import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 import styles from "./index.module.less";
 import { getFileBaseName, readBinaryFile, selectFile, openArticleInNewWindow } from "@/commands";
+import { isElectron } from "@/electron";
 import useSettingStore from "@/stores/useSettingStore";
 import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
 import useEditContent from "@/hooks/useEditContent";
@@ -270,13 +271,18 @@ const ArticleCard = (props: IArticleCardProps) => {
                           setSettingOpen(false);
                         },
                       },
-                      {
-                        key: "open-in-new-window",
-                        label: "窗口打开",
-                        onClick: () => {
-                          openArticleInNewWindow(currentDatabaseName, article.id);
-                        },
-                      },
+                      // 独立窗口为 Electron 专属能力，Web 端不展示入口
+                      ...(isElectron
+                        ? [
+                            {
+                              key: "open-in-new-window",
+                              label: "窗口打开",
+                              onClick: () => {
+                                openArticleInNewWindow(currentDatabaseName, article.id);
+                              },
+                            },
+                          ]
+                        : []),
                     ],
                   }}
                 >

@@ -1,3 +1,4 @@
+import { isElectron } from "@/electron";
 import { memo, useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { App, Spin } from "antd";
@@ -78,7 +79,6 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   // 检查是否是 Electron 环境
-  const isElectron = typeof window !== "undefined" && !!window.electron;
 
   // 重置状态
   const resetState = useMemoizedFn(() => {

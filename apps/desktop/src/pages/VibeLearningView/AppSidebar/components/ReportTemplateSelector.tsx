@@ -1,3 +1,4 @@
+import { isElectron } from "@/electron";
 import { memo, useMemo } from "react";
 import classNames from "classnames";
 import { Check } from "lucide-react";
@@ -12,8 +13,6 @@ interface ReportTemplateSelectorProps {
 
 const ReportTemplateSelector = memo((props: ReportTemplateSelectorProps) => {
   const { selectedTemplateId, onSelectTemplate, title = "选择报告风格" } = props;
-
-  const isElectron = typeof window !== "undefined" && !!window.electron;
 
   return (
     <div className="space-y-3">
