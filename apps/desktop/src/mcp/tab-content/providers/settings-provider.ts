@@ -8,7 +8,7 @@ export class SettingsProvider extends BaseTabContentProvider<TabType.Settings> {
 
   async getContent(
     tab: ITab<TabType.Settings>,
-    _options?: TabContentOptions,
+    _options?: TabContentOptions
   ): Promise<TabContentResponse> {
     const metadata = this.buildMetadata(tab);
 
@@ -26,7 +26,6 @@ export class SettingsProvider extends BaseTabContentProvider<TabType.Settings> {
         { key: "textToSpeech", label: "文字转语音" },
         { key: "transcription", label: "语音转录" },
         { key: "module", label: "模块功能" },
-        { key: "customBlock", label: "自定义组件" },
         { key: "integration", label: "集成" },
         { key: "misc", label: "杂项" },
       ],

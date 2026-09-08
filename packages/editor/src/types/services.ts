@@ -70,23 +70,3 @@ export interface CompilerService {
   typst: (code: string) => Promise<string>; // Returns SVG or PDF
   tailwindRuntime: (html: string) => Promise<string>;
 }
-
-export interface CustomBlockManifest {
-  name: string;
-  description?: string;
-  author?: string;
-}
-
-export interface CustomBlockTemplate {
-  id: string;
-  source: string;
-  manifest: CustomBlockManifest;
-  isLocal?: boolean;
-}
-
-/**
- * 自定义块模板列表（待移除：模板能力计划随 custom-block 业务整体外置到宿主）
- */
-export interface CustomBlockService {
-  listEnabledTemplates: () => Promise<CustomBlockTemplate[]>;
-}
