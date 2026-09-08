@@ -1,0 +1,14 @@
+.container {
+  width: 100%;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  // 图表超宽时在容器内部横向滚动，避免溢出撑破编辑器容器
+  overflow-x: auto;
+
+  svg {
+    flex-shrink: 0;
+    // 用 margin auto 而非 justify-content: center 居中，超宽时左侧内容仍可滚动到
+    margin: auto;
+  }
+}

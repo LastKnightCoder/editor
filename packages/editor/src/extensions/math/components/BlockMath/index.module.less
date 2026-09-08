@@ -5,6 +5,18 @@
     margin: 0.25em auto;
   }
 
+  // 长公式在公式块内部横向滚动，避免溢出撑破编辑器容器
+  :global(.katex-display) {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 2px 0;
+
+    > :global(.katex) {
+      width: fit-content;
+      margin: 0 auto;
+    }
+  }
+
   .empty {
     color: #ccc;
     display: flex;

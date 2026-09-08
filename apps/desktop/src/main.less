@@ -16,6 +16,16 @@
 
 .katex-display {
   margin: 0 !important;
+  // 长公式在公式块内部横向滚动，避免撑破外层容器
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0;
+
+  > .katex {
+    // 短公式居中，长公式从左侧开始完整可滚动
+    width: fit-content;
+    margin: 0 auto;
+  }
 }
 
 html,
@@ -92,8 +102,7 @@ code {
   box-shadow:
     var(--clay-shadow-outset, 8px 8px 16px 0 rgba(0, 0, 0, 0.25)),
     inset var(--clay-shadow-inset-primary, -8px -8px 16px 0 rgba(0, 0, 0, 0.25)),
-    inset
-      var(--clay-shadow-inset-secondary, 8px 8px 16px 0 hsla(0, 0%, 100%, 0.2));
+    inset var(--clay-shadow-inset-secondary, 8px 8px 16px 0 hsla(0, 0%, 100%, 0.2));
 }
 
 // CodeMirror 编辑器样式（用于自定义组件源码编辑）

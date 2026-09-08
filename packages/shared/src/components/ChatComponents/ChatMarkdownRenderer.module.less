@@ -4,6 +4,18 @@
   font-size: var(--font-size);
   user-select: text;
 
+  // 长公式在公式块内部横向滚动，避免撑破消息容器
+  :global(.katex-display) {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 2px 0;
+
+    > :global(.katex) {
+      width: fit-content;
+      margin: 0 auto;
+    }
+  }
+
   p:last-child {
     margin-bottom: 0;
   }

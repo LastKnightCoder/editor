@@ -3,6 +3,8 @@ import { useCreation, useMemoizedFn } from "ahooks";
 import { renderMermaidSvg } from "@tau/shared";
 import useTheme from "../../../hooks/useTheme";
 
+import styles from "./Mermaid.module.less";
+
 interface IMermaidProps {
   chart: string;
   /** Cached SVG from previous render */
@@ -94,13 +96,7 @@ const Mermaid = (props: IMermaidProps) => {
         <div
           ref={ref}
           dangerouslySetInnerHTML={{ __html: svgContent }}
-          style={{
-            width: "100%",
-            padding: 20,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
+          className={styles.container}
         />
       )}
     </>
