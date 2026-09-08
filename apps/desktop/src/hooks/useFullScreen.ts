@@ -1,20 +1,24 @@
-import { off, on, sendSync } from "@/electron.ts";
-import { useSyncExternalStore } from "react";
-import { useMemoizedFn } from "ahooks";
+import { useEffect, useState } from "react";
+import { invoke, off, on } from "@/electron.ts";
 
 const useFullScreen = () => {
-  const getSnapshot = useMemoizedFn(() => {
-    return sendSync("get-full-screen-status") as boolean;
-  });
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
-  const subscribe = useMemoizedFn((callback: () => void) => {
-    on("full-screen-change", callback);
-    return () => {
-      off("full-screen-change", callback);
+  useEffect(() => {
+    const refresh = () => {
+      // Web 环境下请求失败按非全屏处理
+      invoke<boolean>("get-full-screen-status")
+        .then(setIsFullScreen)
+        .catch(() => setIsFullScreen(false));
     };
-  });
+    refresh();
+    on("full-screen-change", refresh);
+    return () => {
+      off("full-screen-change", refresh);
+    };
+  }, []);
 
-  return useSyncExternalStore(subscribe, getSnapshot);
+  return isFullScreen;
 };
 
 export default useFullScreen;

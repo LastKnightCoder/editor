@@ -31,6 +31,7 @@ import { StatusBarConfig } from "@/components/StatusBar";
 import ContentCollaborationControl from "@/components/ContentCollaborationControl";
 import EditorSourceValue from "@/components/EditorSourceValue";
 import { isValid } from "@/components/WhiteBoard/utils";
+import { isElectron } from "@/electron";
 
 import LocalImage from "@/components/LocalImage";
 import CoverEditor from "@/components/CoverEditor";
@@ -396,15 +397,20 @@ const EditArticle = memo((props: IEditArticleProps) => {
         ),
         onClick: handleEnterImmersiveMode,
       },
-      {
-        key: "open-in-new-window",
-        children: (
-          <Tooltip title="在新窗口中打开">
-            <ExternalLink size={14} />
-          </Tooltip>
-        ),
-        onClick: handleOpenInNewWindow,
-      },
+      // 独立窗口为 Electron 专属能力，Web 端不展示入口
+      ...(isElectron
+        ? [
+            {
+              key: "open-in-new-window",
+              children: (
+                <Tooltip title="在新窗口中打开">
+                  <ExternalLink size={14} />
+                </Tooltip>
+              ),
+              onClick: handleOpenInNewWindow,
+            },
+          ]
+        : []),
     ].filter(isValid);
   }, [
     headers.length,

@@ -6,7 +6,7 @@ import TitlebarIcon from "@/components/TitlebarIcon";
 import { useState } from "react";
 import classnames from "classnames";
 import { setAlwaysOnTop as setTop } from "@/commands";
-import { platform } from "@/electron";
+import { isElectron, platform } from "@/electron";
 import useSettingStore from "@/stores/useSettingStore";
 import FullScreenLoading from "@/components/FullScreenLoading";
 import GlobalTitlebar from "@/layouts/ContentLayout/components/GlobalTitlebar";
@@ -37,7 +37,8 @@ const QuickOpenLayout = ({ title }: QuickOpenLayoutProps) => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const isMac = platform === "darwin";
-  const showTitlebar = isMac || searchParams.get("showTitlebar") === "true";
+  // 标题栏承载窗口控制与置顶等 Electron 专属能力，Web 端不渲染
+  const showTitlebar = isElectron && (isMac || searchParams.get("showTitlebar") === "true");
   const isDefaultTop = searchParams.get("isDefaultTop") === "true";
 
   // 推断窗口类型
@@ -45,8 +46,8 @@ const QuickOpenLayout = ({ title }: QuickOpenLayoutProps) => {
   // Markdown 编辑器跳过加载等待
   const skipLoading = windowType === "markdown";
 
-  const isDark = useSettingStore((state) => state.setting.darkMode);
-  const onDarkModeChange = useSettingStore((state) => state.onDarkModeChange);
+  const isDark = useSettingStore(state => state.setting.darkMode);
+  const onDarkModeChange = useSettingStore(state => state.onDarkModeChange);
 
   const [alwaysOnTop, setAlwaysOnTop] = useState(isDefaultTop);
 
@@ -61,19 +62,10 @@ const QuickOpenLayout = ({ title }: QuickOpenLayoutProps) => {
 
   return (
     <FullScreenLoading windowType={windowType} skipLoading={skipLoading}>
-      <div
-        className={classnames(
-          styles.defaultLayout,
-          "bg-white dark:bg-[#1a1a1a]",
-        )}
-      >
+      <div className={classnames(styles.defaultLayout, "bg-white dark:bg-[#1a1a1a]")}>
         {showTitlebar && (
           <GlobalTitlebar title={title}>
-            <TitlebarIcon
-              tip={isDark ? "浅色" : "深色"}
-              placement="bottom"
-              onClick={toggleTheme}
-            >
+            <TitlebarIcon tip={isDark ? "浅色" : "深色"} placement="bottom" onClick={toggleTheme}>
               {isDark ? <SunOutlined /> : <MoonOutlined />}
             </TitlebarIcon>
             <TitlebarIcon

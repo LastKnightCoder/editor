@@ -42,6 +42,7 @@ export default defineConfig(() => {
         "@tau/agent": path.resolve(__dirname, "../../packages/agent"),
         "@tau/editor": path.resolve(__dirname, "../../packages/editor"),
         "@tau/db-schema": path.resolve(__dirname, "../../packages/db-schema"),
+        "@tau/rpc": path.resolve(__dirname, "../../packages/rpc"),
         "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
         "@tau/themes": path.resolve(__dirname, "../../packages/themes"),
         "foliate-js": path.resolve(__dirname, "../../packages/foliate-js"),
@@ -71,6 +72,7 @@ export default defineConfig(() => {
               alias: {
                 "@": path.resolve(__dirname, "src"),
                 "@tau/agent": path.resolve(__dirname, "../../packages/agent"),
+                "@tau/rpc": path.resolve(__dirname, "../../packages/rpc"),
                 "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
                 "@tau/db-schema": path.resolve(
                   __dirname,
@@ -174,6 +176,14 @@ export default defineConfig(() => {
     server: {
       port: 6174,
       strictPort: true,
+      // 浏览器直开 dev server 预演 Web 端时，RPC 走同源相对路径，
+      // 由 vite 代理到 Electron 主进程的本地 command server（RPC_SERVER_PORT）
+      proxy: {
+        "/rpc": {
+          target: "http://127.0.0.1:24678",
+          ws: true,
+        },
+      },
       watch: {
         followSymlinks: false,
         ignored: ["**/blog/**"],

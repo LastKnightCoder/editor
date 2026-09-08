@@ -7,10 +7,7 @@ import pkg from "../../../package.json";
 import { Module } from "../types/module";
 import type { EpubExportPayload } from "@/types/epub-export";
 import type { PdfExportPayload } from "@/types/pdf-export";
-import type {
-  SaveFileWithDialogPayload,
-  SaveFileWithDialogResult,
-} from "@/types/save-file";
+import type { SaveFileWithDialogPayload, SaveFileWithDialogResult } from "@/types/save-file";
 import { exportEpubWithDialog } from "./epub-exporter";
 import { exportPdfWithDialog } from "./pdf-exporter";
 
@@ -31,20 +28,17 @@ class Extra implements Module {
       return await this.nodeFetch(url, options);
     });
 
-    ipcMain.on(
-      "node-fetch:abort",
-      (_event, payload: { requestId?: string }) => {
-        if (!payload?.requestId) {
-          return;
-        }
-        const controller = this.nodeFetchControllers.get(payload.requestId);
-        if (controller) {
-          controller.abort();
-          return;
-        }
-        this.abortedNodeFetchRequestIds.add(payload.requestId);
-      },
-    );
+    ipcMain.on("node-fetch:abort", (_event, payload: { requestId?: string }) => {
+      if (!payload?.requestId) {
+        return;
+      }
+      const controller = this.nodeFetchControllers.get(payload.requestId);
+      if (controller) {
+        controller.abort();
+        return;
+      }
+      this.abortedNodeFetchRequestIds.add(payload.requestId);
+    });
 
     ipcMain.handle("get-versions", () => {
       return {
@@ -71,29 +65,20 @@ class Extra implements Module {
       "download-file-with-dialog",
       async (_event, url: string, defaultFileName?: string) => {
         return await this.downloadFileWithDialog(url, defaultFileName);
-      },
+      }
     );
 
-    ipcMain.handle(
-      "save-file-with-dialog",
-      async (_event, payload: SaveFileWithDialogPayload) => {
-        return await this.saveFileWithDialog(payload);
-      },
-    );
+    ipcMain.handle("save-file-with-dialog", async (_event, payload: SaveFileWithDialogPayload) => {
+      return await this.saveFileWithDialog(payload);
+    });
 
-    ipcMain.handle(
-      "export-epub-with-dialog",
-      async (_event, payload: EpubExportPayload) => {
-        return await exportEpubWithDialog(payload);
-      },
-    );
+    ipcMain.handle("export-epub-with-dialog", async (_event, payload: EpubExportPayload) => {
+      return await exportEpubWithDialog(payload);
+    });
 
-    ipcMain.handle(
-      "export-pdf-with-dialog",
-      async (_event, payload: PdfExportPayload) => {
-        return await exportPdfWithDialog(payload);
-      },
-    );
+    ipcMain.handle("export-pdf-with-dialog", async (_event, payload: PdfExportPayload) => {
+      return await exportPdfWithDialog(payload);
+    });
   }
 
   async nodeFetch(
@@ -114,11 +99,10 @@ class Extra implements Module {
       timeoutMs?: number;
       allowHttpErrorStatus?: boolean;
       requestId?: string;
-    },
+    }
   ) {
     const newOptions = { ...options };
-    const requestId =
-      typeof newOptions.requestId === "string" ? newOptions.requestId : null;
+    const requestId = typeof newOptions.requestId === "string" ? newOptions.requestId : null;
     delete newOptions.requestId;
 
     if (newOptions.form) {
@@ -135,16 +119,14 @@ class Extra implements Module {
     }
     if (newOptions.multipart) {
       const formData = new FormData();
-      Object.entries(newOptions.multipart.fields || {}).forEach(
-        ([key, value]) => {
-          formData.append(key, value);
-        },
-      );
-      (newOptions.multipart.files || []).forEach((file) => {
+      Object.entries(newOptions.multipart.fields || {}).forEach(([key, value]) => {
+        formData.append(key, value);
+      });
+      (newOptions.multipart.files || []).forEach(file => {
         const bytes = Buffer.from(file.base64, "base64");
         const arrayBuffer = bytes.buffer.slice(
           bytes.byteOffset,
-          bytes.byteOffset + bytes.byteLength,
+          bytes.byteOffset + bytes.byteLength
         );
         const blob = new Blob([arrayBuffer], { type: file.mimeType });
         formData.append(file.fieldName, blob, file.fileName);
@@ -159,8 +141,7 @@ class Extra implements Module {
     }
 
     if (typeof newOptions.timeout === "undefined") {
-      newOptions.timeout =
-        typeof newOptions.timeoutMs === "number" ? newOptions.timeoutMs : 30000;
+      newOptions.timeout = typeof newOptions.timeoutMs === "number" ? newOptions.timeoutMs : 30000;
     }
     if (newOptions.allowHttpErrorStatus) {
       newOptions.validateStatus = () => true;
@@ -188,15 +169,16 @@ class Extra implements Module {
     try {
       const response = await axios.request({ url, ...newOptions });
       if (newOptions.isRaw) {
+        // AxiosHeaders 为类实例，超出 RPC 序列化白名单，需规整为普通对象
+        const rawHeaders = response.headers as unknown as {
+          toJSON?: () => Record<string, string>;
+        };
         return {
           data: response.data,
           status: response.status,
           statusText: response.statusText,
-          headers: response.headers,
-          finalUrl:
-            response.request?.res?.responseUrl ||
-            response.request?.responseURL ||
-            url,
+          headers: rawHeaders?.toJSON?.() ?? { ...(rawHeaders as object) },
+          finalUrl: response.request?.res?.responseUrl || response.request?.responseURL || url,
         };
       }
       return response.data;
@@ -221,9 +203,7 @@ class Extra implements Module {
   /**
    * 通用保存：弹保存对话框并把文本/二进制内容写入所选路径
    */
-  async saveFileWithDialog(
-    payload: SaveFileWithDialogPayload,
-  ): Promise<SaveFileWithDialogResult> {
+  async saveFileWithDialog(payload: SaveFileWithDialogPayload): Promise<SaveFileWithDialogResult> {
     try {
       const result = await dialog.showSaveDialog({
         title: "保存文件",
@@ -235,10 +215,7 @@ class Extra implements Module {
         return { canceled: true, filePath: null };
       }
 
-      const data =
-        typeof payload.data === "string"
-          ? payload.data
-          : Buffer.from(payload.data);
+      const data = typeof payload.data === "string" ? payload.data : Buffer.from(payload.data);
       await writeFile(result.filePath, data);
 
       return { canceled: false, filePath: result.filePath };
@@ -248,10 +225,7 @@ class Extra implements Module {
     }
   }
 
-  async downloadFileWithDialog(
-    url: string,
-    defaultFileName?: string,
-  ): Promise<string | null> {
+  async downloadFileWithDialog(url: string, defaultFileName?: string): Promise<string | null> {
     try {
       // 从 URL 提取默认文件名
       const urlFileName = url.split("/").pop()?.split("?")[0] || "download";

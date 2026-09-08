@@ -1,14 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { isElectron } from "@/electron";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
-import {
-  App,
-  Button,
-  Dropdown,
-  Empty,
-  MenuProps,
-  message,
-  Tooltip,
-} from "antd";
+import { App, Button, Dropdown, Empty, MenuProps, message, Tooltip } from "antd";
 import {
   ApartmentOutlined,
   HomeOutlined,
@@ -36,14 +29,7 @@ import {
   removeChildDocumentItem,
   removeRootDocumentItem,
 } from "@/commands";
-import {
-  IArticle,
-  ICard,
-  IDocument,
-  IDocumentItem,
-  IndexType,
-  SearchResult,
-} from "@/types";
+import { IArticle, ICard, IDocument, IDocumentItem, IndexType, SearchResult } from "@/types";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import ContentExportModal from "@/components/ContentExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
@@ -147,10 +133,8 @@ const MORE_MENU_ITEMS: MenuProps["items"] = [
       { key: "flashcard-ai", label: "AI 制卡" },
     ],
   },
-  {
-    key: "open-in-new-window",
-    label: "窗口打开",
-  },
+  // 独立窗口为 Electron 专属能力，Web 端不展示入口
+  ...(isElectron ? [{ key: "open-in-new-window", label: "窗口打开" }] : []),
 ];
 
 const Document = (props: IDocumentProps) => {
@@ -160,34 +144,29 @@ const Document = (props: IDocumentProps) => {
   const [document, setDocument] = useState<IDocument | null>(null);
   const [articles, setArticles] = useState<IArticle[]>([]);
   const [documentItems, setDocumentItems] = useState<IDocumentItem[]>([]);
-  const [addingParentDocumentItemId, setAddingParentDocumentItemId] = useState<
-    number | undefined
-  >(undefined);
+  const [addingParentDocumentItemId, setAddingParentDocumentItemId] = useState<number | undefined>(
+    undefined
+  );
   const [selectCardModalOpen, setSelectCardModalOpen] = useState(false);
   const [selectArticleModalOpen, setSelectArticleModalOpen] = useState(false);
-  const [selectDocumentItemModalOpen, setSelectDocumentItemModalOpen] =
-    useState(false);
-  const [excludeDocumentItemIds, setExcludeDocumentItemIds] = useState<
-    number[]
-  >([]);
-  const [activeActionItem, setActiveActionItem] =
-    useState<IDocumentItem | null>(null);
+  const [selectDocumentItemModalOpen, setSelectDocumentItemModalOpen] = useState(false);
+  const [excludeDocumentItemIds, setExcludeDocumentItemIds] = useState<number[]>([]);
+  const [activeActionItem, setActiveActionItem] = useState<IDocumentItem | null>(null);
   const [isPresentation, setIsPresentation] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [epubExportModalOpen, setEpubExportModalOpen] = useState(false);
   const [pdfExportModalOpen, setPdfExportModalOpen] = useState(false);
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
-  const setting = useSettingStore((state) => state.setting);
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
+  const setting = useSettingStore(state => state.setting);
   const databaseName = setting.database.active;
   const darkMode = setting.darkMode;
   const { itemId: activeDocumentItemId } = useDocumentContext();
-  const [sidebarView, setSidebarView] = useLocalStorageState<
-    "tree" | "mindmap"
-  >(`document-sidebar-view:${databaseName}:${documentId}`, {
-    defaultValue: "tree",
-  });
+  const [sidebarView, setSidebarView] = useLocalStorageState<"tree" | "mindmap">(
+    `document-sidebar-view:${databaseName}:${documentId}`,
+    {
+      defaultValue: "tree",
+    }
+  );
   const [mindMapState, setMindMapState] = useLocalStorageState<{
     pan?: { x: number; y: number };
     zoom?: number;
@@ -200,12 +179,9 @@ const Document = (props: IDocumentProps) => {
     zoom: number;
   } | null>(null);
 
-  const navigateTo = useTabStore((state) => state.navigateTo);
+  const navigateTo = useTabStore(state => state.navigateTo);
   const { modal } = App.useApp();
-  const documentItemEventBus = useMemo(
-    () => defaultDocumentItemEventBus.createEditor(),
-    [],
-  );
+  const documentItemEventBus = useMemo(() => defaultDocumentItemEventBus.createEditor(), []);
 
   const flashcard = useFlashcardCreation({
     getContent: () => activeActionItem?.content || [],
@@ -219,27 +195,25 @@ const Document = (props: IDocumentProps) => {
   const extensions = useMemo(
     () => [
       ...dynamicExtensions,
-      createDocumentCardListExtension(
-        addingParentDocumentItemId || activeActionItem?.id || 0,
-      ),
+      createDocumentCardListExtension(addingParentDocumentItemId || activeActionItem?.id || 0),
     ],
-    [activeActionItem?.id, addingParentDocumentItemId, dynamicExtensions],
+    [activeActionItem?.id, addingParentDocumentItemId, dynamicExtensions]
   );
 
   const refreshDocument = useMemoizedFn(() => {
-    getDocument(documentId).then((document) => {
+    getDocument(documentId).then(document => {
       setDocument(document);
     });
   });
 
   const refreshSelectableContent = useMemoizedFn(() => {
-    getAllCards().then((cards) => {
+    getAllCards().then(cards => {
       setCards(cards);
     });
-    getAllArticles().then((articles) => {
+    getAllArticles().then(articles => {
       setArticles(articles);
     });
-    getAllDocumentItems().then((documentItems) => {
+    getAllDocumentItems().then(documentItems => {
       setDocumentItems(documentItems);
     });
   });
@@ -257,7 +231,7 @@ const Document = (props: IDocumentProps) => {
 
   const saveMindMapViewport = useMemoizedFn(
     (viewport: { pan: { x: number; y: number }; zoom: number }) => {
-      setMindMapState((previous) => {
+      setMindMapState(previous => {
         if (
           previous?.pan?.x === viewport.pan.x &&
           previous?.pan?.y === viewport.pan.y &&
@@ -267,7 +241,7 @@ const Document = (props: IDocumentProps) => {
         }
         return viewport;
       });
-    },
+    }
   );
 
   const handleMindMapViewportChange = useMemoizedFn(
@@ -282,7 +256,7 @@ const Document = (props: IDocumentProps) => {
           saveMindMapViewport(nextViewport);
         }
       }, 200);
-    },
+    }
   );
 
   useEffect(() => {
@@ -293,104 +267,81 @@ const Document = (props: IDocumentProps) => {
     };
   }, []);
 
-  const addNewDocumentItem = useMemoizedFn(
-    async (parentDocumentItemId?: number) => {
-      if (!document) return null;
-      if (!parentDocumentItemId) {
-        const res = await addRootDocumentItem(
-          document.id,
-          DEFAULT_CREATE_DOCUMENT_ITEM,
-        );
-        if (!res) return null;
-        const [updatedDocument, createdItem] = res;
-        setDocument(updatedDocument);
-        await reloadDocumentTree({ silent: true });
-        return createdItem;
-      }
-
-      const res = await addChildDocumentItem(
-        parentDocumentItemId,
-        DEFAULT_CREATE_DOCUMENT_ITEM,
-      );
+  const addNewDocumentItem = useMemoizedFn(async (parentDocumentItemId?: number) => {
+    if (!document) return null;
+    if (!parentDocumentItemId) {
+      const res = await addRootDocumentItem(document.id, DEFAULT_CREATE_DOCUMENT_ITEM);
       if (!res) return null;
-      const [parentDocumentItem, createdItem] = res;
-      if (parentDocumentItem) {
-        documentItemEventBus.publishDocumentItemEvent(
-          "document-item:updated",
-          parentDocumentItem,
-        );
-      }
+      const [updatedDocument, createdItem] = res;
+      setDocument(updatedDocument);
       await reloadDocumentTree({ silent: true });
       return createdItem;
-    },
-  );
+    }
+
+    const res = await addChildDocumentItem(parentDocumentItemId, DEFAULT_CREATE_DOCUMENT_ITEM);
+    if (!res) return null;
+    const [parentDocumentItem, createdItem] = res;
+    if (parentDocumentItem) {
+      documentItemEventBus.publishDocumentItemEvent("document-item:updated", parentDocumentItem);
+    }
+    await reloadDocumentTree({ silent: true });
+    return createdItem;
+  });
 
   const navigateToDocumentItem = useMemoizedFn((item: IDocumentItem) => {
     navigateTo(
       TabType.DocumentDetail,
       { id: documentId, itemId: item.id },
-      `知识库 - ${item.title || `#${item.id}`}`,
+      `知识库 - ${item.title || `#${item.id}`}`
     );
   });
 
-  const onRemoveDocumentItem = useMemoizedFn(
-    async (id: number, notDelete?: boolean) => {
-      if (!document) return null;
-      const res = await removeRootDocumentItem(document.id, id, notDelete);
-      if (!res) return null;
-      const [updatedDocument, removedDocumentItem] = res;
-      setDocument(updatedDocument);
-      return removedDocumentItem;
-    },
-  );
+  const onRemoveDocumentItem = useMemoizedFn(async (id: number, notDelete?: boolean) => {
+    if (!document) return null;
+    const res = await removeRootDocumentItem(document.id, id, notDelete);
+    if (!res) return null;
+    const [updatedDocument, removedDocumentItem] = res;
+    setDocument(updatedDocument);
+    return removedDocumentItem;
+  });
 
-  const handleCardSelect = useMemoizedFn(
-    async (selectedResults: SearchResult | SearchResult[]) => {
-      const results = Array.isArray(selectedResults)
-        ? selectedResults
-        : [selectedResults];
-      const selectedCard = cards.find((card) => card.id === results[0]?.id);
-      if (!selectedCard || !document) {
-        message.warning("请选择卡片");
-        return;
-      }
-      const payload = {
-        ...DEFAULT_CREATE_DOCUMENT_ITEM,
-        isCard: true,
-        cardId: selectedCard.id,
-        content: selectedCard.content,
-      };
-      const res = addingParentDocumentItemId
-        ? await addChildDocumentItem(addingParentDocumentItemId, payload)
-        : await addRootDocumentItem(document.id, payload);
-      if (!res) return;
-      const [parentOrDocument, createdItem] = res;
-      if (addingParentDocumentItemId && parentOrDocument) {
-        documentItemEventBus.publishDocumentItemEvent(
-          "document-item:updated",
-          parentOrDocument as IDocumentItem,
-        );
-      } else {
-        setDocument(parentOrDocument as IDocument);
-      }
-      setSelectCardModalOpen(false);
-      setAddingParentDocumentItemId(undefined);
-      await reloadDocumentTree({ silent: true });
-      const cardItem = createdItem
-        ? await getDocumentItem(createdItem.id)
-        : null;
-      if (cardItem) navigateToDocumentItem(cardItem);
-    },
-  );
+  const handleCardSelect = useMemoizedFn(async (selectedResults: SearchResult | SearchResult[]) => {
+    const results = Array.isArray(selectedResults) ? selectedResults : [selectedResults];
+    const selectedCard = cards.find(card => card.id === results[0]?.id);
+    if (!selectedCard || !document) {
+      message.warning("请选择卡片");
+      return;
+    }
+    const payload = {
+      ...DEFAULT_CREATE_DOCUMENT_ITEM,
+      isCard: true,
+      cardId: selectedCard.id,
+      content: selectedCard.content,
+    };
+    const res = addingParentDocumentItemId
+      ? await addChildDocumentItem(addingParentDocumentItemId, payload)
+      : await addRootDocumentItem(document.id, payload);
+    if (!res) return;
+    const [parentOrDocument, createdItem] = res;
+    if (addingParentDocumentItemId && parentOrDocument) {
+      documentItemEventBus.publishDocumentItemEvent(
+        "document-item:updated",
+        parentOrDocument as IDocumentItem
+      );
+    } else {
+      setDocument(parentOrDocument as IDocument);
+    }
+    setSelectCardModalOpen(false);
+    setAddingParentDocumentItemId(undefined);
+    await reloadDocumentTree({ silent: true });
+    const cardItem = createdItem ? await getDocumentItem(createdItem.id) : null;
+    if (cardItem) navigateToDocumentItem(cardItem);
+  });
 
   const handleArticleSelect = useMemoizedFn(
     async (selectedResults: SearchResult | SearchResult[]) => {
-      const results = Array.isArray(selectedResults)
-        ? selectedResults
-        : [selectedResults];
-      const selectedArticle = articles.find(
-        (article) => article.id === results[0]?.id,
-      );
+      const results = Array.isArray(selectedResults) ? selectedResults : [selectedResults];
+      const selectedArticle = articles.find(article => article.id === results[0]?.id);
       if (!selectedArticle || !document) {
         message.warning("请选择文章");
         return;
@@ -410,7 +361,7 @@ const Document = (props: IDocumentProps) => {
       if (addingParentDocumentItemId && parentOrDocument) {
         documentItemEventBus.publishDocumentItemEvent(
           "document-item:updated",
-          parentOrDocument as IDocumentItem,
+          parentOrDocument as IDocumentItem
         );
       } else {
         setDocument(parentOrDocument as IDocument);
@@ -418,20 +369,16 @@ const Document = (props: IDocumentProps) => {
       setSelectArticleModalOpen(false);
       setAddingParentDocumentItemId(undefined);
       await reloadDocumentTree({ silent: true });
-      const articleItem = createdItem
-        ? await getDocumentItem(createdItem.id)
-        : null;
+      const articleItem = createdItem ? await getDocumentItem(createdItem.id) : null;
       if (articleItem) navigateToDocumentItem(articleItem);
-    },
+    }
   );
 
   const handleDocumentItemSelect = useMemoizedFn(
     async (selectedResults: SearchResult | SearchResult[]) => {
-      const results = Array.isArray(selectedResults)
-        ? selectedResults
-        : [selectedResults];
+      const results = Array.isArray(selectedResults) ? selectedResults : [selectedResults];
       const selectedDocumentItem = documentItems.find(
-        (documentItem) => documentItem.id === results[0]?.id,
+        documentItem => documentItem.id === results[0]?.id
       );
       if (!selectedDocumentItem || !document) {
         message.warning("请选择文档");
@@ -445,36 +392,30 @@ const Document = (props: IDocumentProps) => {
         return;
       }
       const res = addingParentDocumentItemId
-        ? await addRefChildDocumentItem(
-            addingParentDocumentItemId,
-            selectedDocumentItem.id,
-          )
+        ? await addRefChildDocumentItem(addingParentDocumentItemId, selectedDocumentItem.id)
         : await addRefRootDocumentItem(document.id, selectedDocumentItem.id);
       if (!res) return;
       const [parentOrDocument, createdItem] = res;
       if (addingParentDocumentItemId && parentOrDocument) {
         documentItemEventBus.publishDocumentItemEvent(
           "document-item:updated",
-          parentOrDocument as IDocumentItem,
+          parentOrDocument as IDocumentItem
         );
       } else {
         setDocument(parentOrDocument as IDocument);
       }
       if (createdItem) {
-        documentItemEventBus.publishDocumentItemEvent(
-          "document-item:updated",
-          createdItem,
-        );
+        documentItemEventBus.publishDocumentItemEvent("document-item:updated", createdItem);
       }
       setSelectDocumentItemModalOpen(false);
       setAddingParentDocumentItemId(undefined);
       await reloadDocumentTree({ silent: true });
       navigateToDocumentItem(selectedDocumentItem);
-    },
+    }
   );
 
   const initialCardContents = useMemo(() => {
-    return cards.map((card) => ({
+    return cards.map(card => ({
       id: card.id,
       contentId: card.contentId,
       type: "card" as IndexType,
@@ -486,7 +427,7 @@ const Document = (props: IDocumentProps) => {
   }, [cards]);
 
   const initialArticleContents = useMemo(() => {
-    return articles.map((article) => ({
+    return articles.map(article => ({
       id: article.id,
       contentId: article.contentId,
       type: "article" as IndexType,
@@ -498,7 +439,7 @@ const Document = (props: IDocumentProps) => {
   }, [articles]);
 
   const initialDocumentItemContents = useMemo(() => {
-    return documentItems.map((documentItem) => ({
+    return documentItems.map(documentItem => ({
       id: documentItem.id,
       contentId: documentItem.contentId,
       type: "document-item" as IndexType,
@@ -512,14 +453,12 @@ const Document = (props: IDocumentProps) => {
   const handleAddMenuClick = useMemoizedFn(
     async (
       { key }: Parameters<NonNullable<MenuProps["onClick"]>>[0],
-      parentDocumentItemId?: number,
+      parentDocumentItemId?: number
     ) => {
       if (!document) return;
       setAddingParentDocumentItemId(parentDocumentItemId);
       setActiveActionItem(
-        parentDocumentItemId
-          ? treeData.itemMap.get(parentDocumentItemId) || null
-          : null,
+        parentDocumentItemId ? treeData.itemMap.get(parentDocumentItemId) || null : null
       );
 
       if (key === "add-document") {
@@ -549,13 +488,13 @@ const Document = (props: IDocumentProps) => {
           message.error("获取文档列表失败" + e);
         }
       }
-    },
+    }
   );
 
   const handleMoreMenuClick = useMemoizedFn(
     async (
       { key }: Parameters<NonNullable<MenuProps["onClick"]>>[0],
-      meta: DocumentMindMapNodeMeta,
+      meta: DocumentMindMapNodeMeta
     ) => {
       const item = meta.documentItem;
       if (!item) return;
@@ -563,31 +502,21 @@ const Document = (props: IDocumentProps) => {
       if (key === "delete") {
         modal.confirm({
           title: "是否删除文档",
-          content:
-            item.children.length > 0
-              ? "该文档下包含多篇子文档，是否删除"
-              : "删除后无法恢复",
+          content: item.children.length > 0 ? "该文档下包含多篇子文档，是否删除" : "删除后无法恢复",
           onOk: async () => {
             if (meta.isRoot) {
               await removeRootDocumentItem(documentId, item.id);
             } else if (typeof meta.parentId === "number") {
-              const result = await removeChildDocumentItem(
-                documentId,
-                meta.parentId,
-                item.id,
-              );
+              const result = await removeChildDocumentItem(documentId, meta.parentId, item.id);
               const [updatedParentItem, updatedItem] = result || [];
               if (updatedParentItem) {
                 documentItemEventBus.publishDocumentItemEvent(
                   "document-item:updated",
-                  updatedParentItem,
+                  updatedParentItem
                 );
               }
               if (updatedItem) {
-                documentItemEventBus.publishDocumentItemEvent(
-                  "document-item:updated",
-                  updatedItem,
-                );
+                documentItemEventBus.publishDocumentItemEvent("document-item:updated", updatedItem);
               }
             }
             refreshDocument();
@@ -625,7 +554,7 @@ const Document = (props: IDocumentProps) => {
       } else if (key === "flashcard-ai") {
         flashcard.openAiFlashcard();
       }
-    },
+    }
   );
 
   if (!document) {
@@ -646,26 +575,18 @@ const Document = (props: IDocumentProps) => {
           {document.title}
         </div>
         <div className={styles.icons}>
-          <Tooltip
-            title={sidebarView === "tree" ? "切换到思维导图" : "切换到树视图"}
-          >
+          <Tooltip title={sidebarView === "tree" ? "切换到思维导图" : "切换到树视图"}>
             <div
               className={classnames(styles.icon, "transition-colors")}
-              onClick={() =>
-                setSidebarView(sidebarView === "tree" ? "mindmap" : "tree")
-              }
+              onClick={() => setSidebarView(sidebarView === "tree" ? "mindmap" : "tree")}
             >
-              {sidebarView === "tree" ? (
-                <NodeExpandOutlined />
-              ) : (
-                <ApartmentOutlined />
-              )}
+              {sidebarView === "tree" ? <NodeExpandOutlined /> : <ApartmentOutlined />}
             </div>
           </Tooltip>
           <Dropdown
             menu={{
               items: ADD_MENU_ITEMS,
-              onClick: (info) => handleAddMenuClick(info),
+              onClick: info => handleAddMenuClick(info),
             }}
           >
             <div className={styles.icon}>
@@ -814,9 +735,7 @@ const Document = (props: IDocumentProps) => {
         onCancel={flashcard.closeDeckSelector}
         onSelect={flashcard.handleDeckSelect}
         title={
-          flashcard.deckSelectorMode === "manual"
-            ? "选择卡组 - 手动制卡"
-            : "选择卡组 - AI 制卡"
+          flashcard.deckSelectorMode === "manual" ? "选择卡组 - 手动制卡" : "选择卡组 - AI 制卡"
         }
       />
 

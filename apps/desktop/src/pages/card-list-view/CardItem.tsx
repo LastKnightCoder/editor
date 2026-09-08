@@ -19,6 +19,7 @@ import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
 import { formatDate, getEditorText, getMarkdown, downloadMarkdown } from "@/utils";
 import { openCardInNewWindow } from "@/commands";
+import { isElectron } from "@/electron";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import { ECardCategory, ICard } from "@/types";
 import { cardCategoryName } from "@/constants";
@@ -95,11 +96,16 @@ const CardItem = memo(
 
     const moreMenuItems: MenuProps["items"] = useMemo(() => {
       return [
-        {
-          key: "open-card-in-new-window",
-          label: "窗口打开",
-          onClick: () => openCardInNewWindow(databaseName, card.id),
-        },
+        // 独立窗口为 Electron 专属能力，Web 端不展示入口
+        ...(isElectron
+          ? [
+              {
+                key: "open-card-in-new-window",
+                label: "窗口打开",
+                onClick: () => openCardInNewWindow(databaseName, card.id),
+              },
+            ]
+          : []),
         {
           key: "toggle-top",
           label: isTop ? "取消置顶" : "设置置顶",
