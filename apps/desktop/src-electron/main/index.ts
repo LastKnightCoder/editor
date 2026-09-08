@@ -27,6 +27,7 @@ import moduleInitManager from "./module-init/ModuleInitManager";
 import whiteboardRecordingModule from "./modules/whiteboard-recording";
 import { getRpcToken, RPC_SERVER_PORT, setDefaultSenderProvider } from "./rpc/command-server";
 import rpcEventBroadcaster from "./rpc/event-broadcaster";
+import { setupQuitController } from "./app-quit-controller";
 
 // 渲染进程启动引导：一次性返回调用凭证与身份。
 // windowId 用 event.sender.id（webContents id），与事件广播路由的 id 空间一致
@@ -124,6 +125,12 @@ if (!gotTheLock) {
   // 如果获取不到单例锁，说明已经有一个实例正在运行，直接退出
   app.quit();
 } else {
+  // 受控退出：接管 before-quit，先完成收尾（自动同步、协作文档落盘）再真正退出
+  setupQuitController({
+    getWindowManager: () => windowManager,
+    getTrayManager: () => trayManager,
+  });
+
   // 监听第二个实例启动时传入的参数
   app.on("second-instance", (_event, commandLine) => {
     // 首先检查是否有窗口类型参数
@@ -563,21 +570,6 @@ if (!gotTheLock) {
       }
     } else {
       log.info(`不支持打开的文件类型: ${filePath}`);
-    }
-  });
-
-  // 添加退出前的清理
-  app.on("before-quit", () => {
-    log.info("应用即将退出，执行清理");
-    // 注销所有全局快捷键
-    globalShortcut.unregisterAll();
-
-    if (windowManager) {
-      windowManager.destroySingletonWindows();
-    }
-
-    if (trayManager) {
-      trayManager.destroyTray();
     }
   });
 }

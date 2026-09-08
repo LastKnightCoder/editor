@@ -92,8 +92,8 @@ const BlockPanel = memo((props: IBlockPanelProps) => {
     mergeGroup(reactItems, reactTitles, {
       icon: Box,
       title: "React 组件",
-      description: "自定义组件或从模板库选择",
-      keywords: ["React", "组件", "模板", "custom"],
+      description: "插入自定义 React 组件",
+      keywords: ["React", "组件", "custom"],
     });
 
     if (imageItems.length === 0 && reactItems.length === 0) {

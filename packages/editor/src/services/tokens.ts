@@ -1,9 +1,4 @@
-import type {
-  CompilerService,
-  CustomBlockService,
-  FileService,
-  ResourceService,
-} from "../types/services";
+import type { CompilerService, FileService, ResourceService } from "../types/services";
 import type {
   MediaAction,
   MediaInsertSource,
@@ -34,7 +29,6 @@ export const IFileService = createServiceId<FileService>("fileService");
 // ==================== 可选服务（useOptionalService / tryGetService 获取） ====================
 
 export const ICompilerService = createServiceId<CompilerService>("compilerService");
-export const ICustomBlockService = createServiceId<CustomBlockService>("customBlockService");
 
 // ==================== 媒体 Provider（业务注入，未注册即无业务能力） ====================
 
