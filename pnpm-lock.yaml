@@ -36,6 +36,12 @@ importers:
       '@zumer/snapdom':
         specifier: ^2.0.1
         version: 2.0.1
+      adm-zip:
+        specifier: ^0.5.16
+        version: 0.5.16
+      ali-oss:
+        specifier: ^6.22.0
+        version: 6.23.0(proxy-agent@5.0.0)
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
@@ -10417,9 +10423,6 @@ packages:
 
   sanitize-filename@1.6.4:
     resolution: {integrity: sha512-9ZyI08PsvdQl2r/bBIGubpVdR3RR9sY6RDiWFPreA21C/EFlQhmgo20UZlNjZMMZNubusLhAQozkA0Od5J21Eg==}
-
-  sax@1.4.3:
-    resolution: {integrity: sha512-yqYn1JhPczigF94DMS+shiDMjDowYO6y9+wB/4WgO0Y19jWYk0lQ4tuG5KI7kj4FTp1wxPj5IFfcrz/s1c3jjQ==}
 
   sax@1.6.0:
     resolution: {integrity: sha512-6R3J5M4AcbtLUdZmRv2SygeVaM7IhrLXu9BmnOGmmACak8fiUtOsYNWUS4uK7upbmHIBbLBeFeI//477BKLBzA==}
@@ -22089,8 +22092,6 @@ snapshots:
     dependencies:
       truncate-utf8-bytes: 1.0.2
 
-  sax@1.4.3: {}
-
   sax@1.6.0: {}
 
   saxes@6.0.0:
@@ -23746,7 +23747,7 @@ snapshots:
 
   xml2js@0.6.2:
     dependencies:
-      sax: 1.4.3
+      sax: 1.6.0
       xmlbuilder: 11.0.1
 
   xmlbuilder@11.0.1: {}
