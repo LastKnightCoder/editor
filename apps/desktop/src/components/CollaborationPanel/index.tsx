@@ -8,7 +8,7 @@ import useCollaborationStore, {
 import useSettingStore from "@/stores/useSettingStore";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
-import { invoke } from "@/electron";
+import { invoke, isElectron } from "@/electron";
 import { findOneArticle, getCardById, getProjectItemById, getDocumentItem } from "@/commands";
 import { openArticleInNewWindow } from "@/commands/article";
 import { openCardInNewWindow } from "@/commands/card";
@@ -41,7 +41,8 @@ export default function CollaborationPanel() {
     const currentDatabase = useSettingStore.getState().setting.database.active;
     const id = source.sourceId;
     const type = source.sourceType;
-    if (currentDatabase !== source.databaseName) {
+    // 跨库内容需在独立窗口中打开，Web 端降级为打开协作中心
+    if (isElectron && currentDatabase !== source.databaseName) {
       if (id && type === "article") {
         openArticleInNewWindow(source.databaseName, id);
         return;
