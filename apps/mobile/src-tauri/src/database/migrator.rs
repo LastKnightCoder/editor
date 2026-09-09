@@ -6,9 +6,13 @@ const INDEX_SCHEMA_SQL: &str = include_str!("../../../../../packages/db-schema/s
 const INDEX_VEC_TEMPLATE_SQL: &str =
     include_str!("../../../../../packages/db-schema/schema/index/20_vec_template.sql");
 
-const MAIN_SCHEMA_VERSION: i64 = 1;
+pub(super) const MAIN_SCHEMA_VERSION: i64 = 2;
 const INDEX_SCHEMA_VERSION: i64 = 1;
 const DEFAULT_VEC_DIMENSION: i64 = 3072;
+
+#[cfg(test)]
+#[path = "migration_tests.rs"]
+mod tests;
 
 fn now_millis() -> i64 {
     std::time::SystemTime::now()
@@ -60,7 +64,10 @@ fn parse_vec_dimension_from_sql(create_sql: &str) -> Option<i64> {
         return None;
     }
 
-    upper[digits_start..cursor].parse::<i64>().ok().filter(|v| *v > 0)
+    upper[digits_start..cursor]
+        .parse::<i64>()
+        .ok()
+        .filter(|v| *v > 0)
 }
 
 fn get_current_vec_dimension(conn: &Connection) -> Result<Option<i64>, String> {
@@ -86,13 +93,9 @@ fn ensure_vec_documents(conn: &Connection, vec_dimension: i64) -> Result<bool, S
     }
 
     conn.execute_batch("DROP TABLE IF EXISTS vec_documents;")
-        .map_err(|e| {
-            format!("DB_SCHEMA_MIGRATION_FAILED: Failed to drop vec_documents: {e}")
-        })?;
+        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to drop vec_documents: {e}"))?;
     conn.execute_batch(&build_vec_table_sql(target))
-        .map_err(|e| {
-            format!("DB_SCHEMA_MIGRATION_FAILED: Failed to create vec_documents: {e}")
-        })?;
+        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to create vec_documents: {e}"))?;
     Ok(true)
 }
 
@@ -138,6 +141,23 @@ pub fn set_meta(conn: &Connection, key: &str, value: &str) -> Result<(), String>
     Ok(())
 }
 
+pub(super) fn needs_main_upgrade(conn: &Connection) -> Result<bool, String> {
+    let exists: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='schema_meta' AND type='table')",
+            [],
+            |r| r.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    if !exists {
+        return Ok(true);
+    }
+    Ok(get_meta(conn, "main_schema_version")?.as_deref()
+        != Some(MAIN_SCHEMA_VERSION.to_string().as_str())
+        || get_meta(conn, "main_schema_hash")?.as_deref()
+            != Some(compute_hash(MAIN_SCHEMA_SQL).as_str()))
+}
+
 pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
         "
@@ -147,18 +167,64 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
     )
     .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to set main PRAGMA: {e}"))?;
 
-    ensure_schema_meta(conn)?;
-    conn.execute_batch(MAIN_SCHEMA_SQL).map_err(|e| {
-        format!("DB_SCHEMA_MIGRATION_FAILED: Failed to initialize main schema: {e}")
-    })?;
-
-    set_meta(
-        conn,
-        "main_schema_version",
-        &MAIN_SCHEMA_VERSION.to_string(),
-    )?;
-    set_meta(conn, "main_schema_hash", &compute_hash(MAIN_SCHEMA_SQL))?;
-    Ok(())
+    let baseline = Connection::open_in_memory().map_err(|e| e.to_string())?;
+    baseline
+        .execute_batch(MAIN_SCHEMA_SQL)
+        .map_err(|e| e.to_string())?;
+    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
+    ensure_schema_meta(&tx)?;
+    let stored = get_meta(&tx, "main_schema_version")?
+        .and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or(0);
+    if stored > MAIN_SCHEMA_VERSION {
+        return Err("DB_SCHEMA_INCOMPATIBLE: 数据库来自更新的移动端，请先升级应用".into());
+    }
+    if stored < MAIN_SCHEMA_VERSION
+        || get_meta(&tx, "main_schema_hash")?.as_deref()
+            != Some(compute_hash(MAIN_SCHEMA_SQL).as_str())
+    {
+        super::main_upgrade::upgrade(&tx, &baseline, now_millis())?;
+    }
+    super::main_upgrade::validate(&tx, &baseline)?;
+    let broken_reference = tx
+        .prepare("PRAGMA foreign_key_check")
+        .map_err(|e| e.to_string())?
+        .query_row([], |r| r.get::<_, String>(0))
+        .optional()
+        .map_err(|e| e.to_string())?;
+    if let Some(table) = broken_reference {
+        return Err(format!(
+            "DB_SCHEMA_INCOMPATIBLE: {table} 存在无效外键引用，已停止升级"
+        ));
+    }
+    if needs_main_upgrade(&tx)? {
+        // 补列后再创建索引，避免旧表缺列导致整库打不开。
+        let mut indexes = baseline
+            .prepare("SELECT sql FROM sqlite_master WHERE type='index' AND sql IS NOT NULL")
+            .map_err(|e| e.to_string())?;
+        for sql in indexes
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(|e| e.to_string())?
+        {
+            let sql = sql.map_err(|e| e.to_string())?;
+            // sqlite_master 会去掉 IF NOT EXISTS，重建索引只在升级时执行。
+            let name: String = baseline
+                .query_row("SELECT name FROM sqlite_master WHERE sql=?1", [&sql], |r| {
+                    r.get(0)
+                })
+                .map_err(|e| e.to_string())?;
+            tx.execute_batch(&format!(
+                "DROP INDEX IF EXISTS \"{}\"",
+                name.replace('"', "\"\"")
+            ))
+            .map_err(|e| e.to_string())?;
+            tx.execute_batch(&sql).map_err(|e| e.to_string())?;
+        }
+    }
+    set_meta(&tx, "main_schema_version", &MAIN_SCHEMA_VERSION.to_string())?;
+    set_meta(&tx, "main_schema_hash", &compute_hash(MAIN_SCHEMA_SQL))?;
+    tx.commit()
+        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: {e}"))
 }
 
 pub fn ensure_index_schema(conn: &Connection, vec_dimension: i64) -> Result<bool, String> {

@@ -102,16 +102,19 @@ pub async fn sync_upload_database(app: AppHandle) -> SyncActionResponse {
         );
     }
 
-    if let Err(err) = crate::database::force_checkpoint_database(&app, &ctx.database_name) {
+    if let Err(err) = crate::database::ensure_database_file(&app, &ctx.database_name) {
         return response_err(
             &ctx.database_name,
             ctx.local_version,
             remote_version,
-            AppError::new("DB_CHECKPOINT_FAILED", format!("数据库检查点失败: {err}")),
+            AppError::new(
+                "DB_SCHEMA_MIGRATION_FAILED",
+                format!("数据库升级失败: {err}"),
+            ),
         );
     }
 
-    let db_bytes = match fs::read(&ctx.database_path) {
+    let db_bytes = match read_database_snapshot(&ctx.database_path) {
         Ok(bytes) => bytes,
         Err(err) => {
             return response_err(
@@ -125,36 +128,13 @@ pub async fn sync_upload_database(app: AppHandle) -> SyncActionResponse {
 
     let next_version = ctx.local_version + 1;
     let next_version_payload = version_payload(next_version);
-    if let Err(err) = ctx
-        .provider
-        .upload(&ctx.version_object_name, &next_version_payload)
-        .await
+    if let Err(err) = publish_snapshot(
+        ctx.provider.upload(&ctx.data_object_name, &db_bytes),
+        upload_version(&ctx.provider, &ctx.version_object_name, &next_version_payload),
+    )
+    .await
     {
         return response_err(&ctx.database_name, ctx.local_version, remote_version, err);
-    }
-
-    if let Err(upload_err) = ctx.provider.upload(&ctx.data_object_name, &db_bytes).await {
-        let rollback = ctx
-            .provider
-            .upload(&ctx.version_object_name, &version_payload(remote_version))
-            .await;
-        if rollback.is_err() {
-            return response_err(
-                &ctx.database_name,
-                ctx.local_version,
-                remote_version,
-                AppError::new(
-                    "SYNC_UPLOAD_FAILED",
-                    format!("数据库上传失败且版本回滚失败: {}", upload_err.message),
-                ),
-            );
-        }
-        return response_err(
-            &ctx.database_name,
-            ctx.local_version,
-            remote_version,
-            upload_err,
-        );
     }
 
     set_database_version(&mut ctx.setting, &ctx.database_name, next_version);
@@ -176,6 +156,139 @@ pub async fn sync_upload_database(app: AppHandle) -> SyncActionResponse {
         next_version,
         "上传成功，版本已更新",
     )
+}
+
+async fn publish_snapshot(
+    data: impl std::future::Future<Output = Result<(), AppError>>,
+    version: impl std::future::Future<Output = Result<(), AppError>>,
+) -> Result<(), AppError> {
+    data.await?;
+    version.await
+}
+
+async fn upload_version(
+    provider: &SyncProvider,
+    object_name: &str,
+    payload: &[u8],
+) -> Result<(), AppError> {
+    let mut last_error = None;
+    for attempt in 0..3 {
+        match provider.upload(object_name, payload).await {
+            Ok(()) => return Ok(()),
+            Err(error) => {
+                last_error = Some(error);
+                if attempt < 2 {
+                    tokio::time::sleep(std::time::Duration::from_millis(250 * (attempt + 1))).await;
+                }
+            }
+        }
+    }
+    Err(last_error.expect("版本上传至少执行一次"))
+}
+
+fn read_database_snapshot(path: &PathBuf) -> Result<Vec<u8>, String> {
+    let snapshot = path.with_extension(format!("db.{}.upload", uuid::Uuid::new_v4()));
+    let result = (|| {
+        let conn = rusqlite::Connection::open(path).map_err(|e| e.to_string())?;
+        conn.execute("VACUUM INTO ?1", [snapshot.to_string_lossy().as_ref()])
+            .map_err(|e| e.to_string())?;
+        fs::read(&snapshot).map_err(|e| e.to_string())
+    })();
+    let _ = fs::remove_file(snapshot);
+    result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::RefCell;
+
+    #[tokio::test]
+    async fn failed_data_upload_never_publishes_version() {
+        let calls = RefCell::new(Vec::new());
+        let result = publish_snapshot(
+            async {
+                calls.borrow_mut().push("data");
+                Err(AppError::new("FAILED", "offline"))
+            },
+            async {
+                calls.borrow_mut().push("version");
+                Ok(())
+            },
+        )
+        .await;
+        assert!(result.is_err());
+        assert_eq!(*calls.borrow(), vec!["data"]);
+    }
+
+    #[tokio::test]
+    async fn version_is_published_after_data_and_failure_is_propagated() {
+        let calls = RefCell::new(Vec::new());
+        let result = publish_snapshot(
+            async {
+                calls.borrow_mut().push("data");
+                Ok(())
+            },
+            async {
+                calls.borrow_mut().push("version");
+                Err(AppError::new("FAILED", "version offline"))
+            },
+        )
+        .await;
+        assert!(result.is_err());
+        assert_eq!(*calls.borrow(), vec!["data", "version"]);
+    }
+
+    #[test]
+    fn replacement_failure_restores_original_file() {
+        let dir = std::env::temp_dir().join(format!("tau-replace-{}", uuid::Uuid::new_v4()));
+        fs::create_dir(&dir).unwrap();
+        let original = dir.join("data.db");
+        fs::write(&original, b"original").unwrap();
+        assert!(replace_database_file(&dir.join("missing.db"), &original).is_err());
+        assert_eq!(fs::read(&original).unwrap(), b"original");
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn upload_snapshot_includes_committed_wal_records() {
+        let dir = std::env::temp_dir().join(format!("tau-snapshot-{}", uuid::Uuid::new_v4()));
+        fs::create_dir(&dir).unwrap();
+        let path = dir.join("data.db");
+        let conn = rusqlite::Connection::open(&path).unwrap();
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0; CREATE TABLE sample(value TEXT); INSERT INTO sample VALUES('committed');").unwrap();
+        let bytes = read_database_snapshot(&path).unwrap();
+        let snapshot_path = dir.join("snapshot.db");
+        fs::write(&snapshot_path, bytes).unwrap();
+        let snapshot = rusqlite::Connection::open(snapshot_path).unwrap();
+        assert_eq!(
+            snapshot
+                .query_row("SELECT value FROM sample", [], |r| r.get::<_, String>(0))
+                .unwrap(),
+            "committed"
+        );
+        drop(snapshot);
+        drop(conn);
+        fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+fn replace_database_file(download: &PathBuf, destination: &PathBuf) -> std::io::Result<()> {
+    let previous = destination.with_extension(format!("db.{}.previous", uuid::Uuid::new_v4()));
+    let existed = destination.exists();
+    if existed {
+        fs::rename(destination, &previous)?;
+    }
+    if let Err(error) = fs::rename(download, destination) {
+        if existed {
+            fs::rename(&previous, destination)?;
+        }
+        return Err(error);
+    }
+    if existed {
+        let _ = fs::remove_file(previous);
+    }
+    Ok(())
 }
 
 fn remove_wal_shm_files(db_path: &PathBuf) {
@@ -273,9 +386,18 @@ pub async fn sync_download_database(app: AppHandle) -> SyncActionResponse {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(0);
-        let backup_name = format!("version-{}-{}-{}", remote_version, now, ctx.database_name);
+        let backup_name = format!(
+            "version-{}-{}-{}-{}",
+            ctx.local_version,
+            now,
+            uuid::Uuid::new_v4(),
+            ctx.database_name
+        );
         let backup_path = backup_dir.join(backup_name);
-        if let Err(err) = fs::copy(&ctx.database_path, backup_path) {
+        let backup = rusqlite::Connection::open(&ctx.database_path).and_then(|conn| {
+            conn.execute("VACUUM INTO ?1", [backup_path.to_string_lossy().as_ref()])
+        });
+        if let Err(err) = backup {
             return response_err(
                 &ctx.database_name,
                 ctx.local_version,
@@ -285,9 +407,11 @@ pub async fn sync_download_database(app: AppHandle) -> SyncActionResponse {
         }
     }
 
-    let tmp_path = ctx
-        .database_path
-        .with_file_name(format!("{}.download.tmp", ctx.database_name));
+    let tmp_path = ctx.database_path.with_file_name(format!(
+        "{}.{}.download.tmp",
+        ctx.database_name,
+        uuid::Uuid::new_v4()
+    ));
     if let Err(err) = fs::write(&tmp_path, downloaded) {
         return response_err(
             &ctx.database_name,
@@ -296,7 +420,31 @@ pub async fn sync_download_database(app: AppHandle) -> SyncActionResponse {
             AppError::new("SYNC_DOWNLOAD_FAILED", format!("写入临时文件失败: {err}")),
         );
     }
-    if let Err(err) = fs::rename(&tmp_path, &ctx.database_path) {
+    if let Err(err) = crate::database::validate_download(&tmp_path) {
+        let _ = fs::remove_file(&tmp_path);
+        remove_wal_shm_files(&tmp_path);
+        return response_err(
+            &ctx.database_name,
+            ctx.local_version,
+            remote_version,
+            AppError::new(
+                "DB_SCHEMA_MIGRATION_FAILED",
+                format!("下载库校验或升级失败，已保留本地数据库: {err}"),
+            ),
+        );
+    }
+    if ctx.database_path.exists() {
+        if let Err(err) = crate::database::force_checkpoint_database(&app, &ctx.database_name) {
+            let _ = fs::remove_file(&tmp_path);
+            return response_err(
+                &ctx.database_name,
+                ctx.local_version,
+                remote_version,
+                AppError::new("DB_CHECKPOINT_FAILED", err),
+            );
+        }
+    }
+    if let Err(err) = replace_database_file(&tmp_path, &ctx.database_path) {
         let _ = fs::remove_file(&tmp_path);
         return response_err(
             &ctx.database_name,

@@ -6,6 +6,7 @@ import { useDiaryStore } from "../useDiaryStore";
 vi.mock("../../../../services/tauri", () => ({
   diaryListEntries: vi.fn(),
   diaryUpsertEntry: vi.fn(),
+  diaryDeleteSegment: vi.fn(),
 }));
 
 function makeDiaryEntry(params: Partial<DiaryEntry> = {}): DiaryEntry {
@@ -19,6 +20,8 @@ function makeDiaryEntry(params: Partial<DiaryEntry> = {}): DiaryEntry {
     wordCount: params.wordCount ?? 0,
     createTime: params.createTime ?? 1,
     updateTime: params.updateTime ?? 1,
+    segments: params.segments ?? [],
+    tags: params.tags ?? [],
     content: params.content ?? [
       {
         type: "paragraph",
@@ -41,8 +44,10 @@ function resetDiaryStore() {
       entries: [],
       currentEntry: null,
       lastFailedContent: null,
+      activeSegmentId: null,
+      lastFailedTarget: null,
     },
-    false,
+    false
   );
 }
 
@@ -59,7 +64,7 @@ describe("diary/useDiaryStore", () => {
         id: 11,
         type: "daily",
         date: "2026-02-22",
-      }),
+      })
     );
 
     await useDiaryStore.getState().initialize();
@@ -88,7 +93,7 @@ describe("diary/useDiaryStore", () => {
           date: "2026-02-21",
         }),
       },
-      false,
+      false
     );
     vi.mocked(tauri.diaryListEntries).mockResolvedValue([
       makeDiaryEntry({
@@ -125,7 +130,7 @@ describe("diary/useDiaryStore", () => {
         entries: [existing],
         currentEntry: existing,
       },
-      false,
+      false
     );
 
     const updated = makeDiaryEntry({
@@ -160,7 +165,7 @@ describe("diary/useDiaryStore", () => {
         entries: [existing],
         currentEntry: existing,
       },
-      false,
+      false
     );
 
     vi.mocked(tauri.diaryUpsertEntry)
@@ -176,7 +181,7 @@ describe("diary/useDiaryStore", () => {
               children: [{ type: "formatted", text: "重试成功内容" }],
             },
           ],
-        }),
+        })
       );
 
     await expect(
@@ -185,7 +190,7 @@ describe("diary/useDiaryStore", () => {
           type: "paragraph",
           children: [{ type: "formatted", text: "失败内容" }],
         },
-      ]),
+      ])
     ).rejects.toThrow();
 
     expect(useDiaryStore.getState().error).toContain("自动保存失败");
@@ -195,5 +200,102 @@ describe("diary/useDiaryStore", () => {
     expect(retryOk).toBe(true);
     expect(useDiaryStore.getState().error).toBe("");
     expect(useDiaryStore.getState().lastFailedContent).toBeNull();
+  });
+
+  it("保存时发送选中片段 ID，并保留其他片段", async () => {
+    const entry = makeDiaryEntry({
+      segments: [
+        {
+          id: 11,
+          diaryId: 1,
+          contentId: 101,
+          content: [],
+          wordCount: 0,
+          createTime: 1,
+          updateTime: 1,
+        },
+        {
+          id: 12,
+          diaryId: 1,
+          contentId: 102,
+          content: [],
+          wordCount: 0,
+          createTime: 2,
+          updateTime: 2,
+        },
+      ],
+    });
+    useDiaryStore.setState({
+      entries: [entry],
+      currentEntry: entry,
+      activeSegmentId: 12,
+    });
+    vi.mocked(tauri.diaryUpsertEntry).mockResolvedValue(entry);
+    await useDiaryStore.getState().saveCurrentContent(entry.content);
+    expect(tauri.diaryUpsertEntry).toHaveBeenCalledWith(expect.objectContaining({ segmentId: 12 }));
+    expect(useDiaryStore.getState().currentEntry?.segments).toHaveLength(2);
+  });
+
+  it("切换片段后不会把失败草稿重试到另一个片段", async () => {
+    const entry = makeDiaryEntry({
+      segments: [
+        {
+          id: 11,
+          diaryId: 1,
+          contentId: 101,
+          content: [],
+          wordCount: 0,
+          createTime: 1,
+          updateTime: 1,
+        },
+        {
+          id: 12,
+          diaryId: 1,
+          contentId: 102,
+          content: [],
+          wordCount: 0,
+          createTime: 2,
+          updateTime: 2,
+        },
+      ],
+    });
+    useDiaryStore.setState({
+      entries: [entry],
+      currentEntry: entry,
+      activeSegmentId: 11,
+    });
+    vi.mocked(tauri.diaryUpsertEntry).mockRejectedValue(new Error("offline"));
+    await expect(useDiaryStore.getState().saveCurrentContent(entry.content)).rejects.toThrow();
+    useDiaryStore.getState().selectSegment(12);
+    expect(await useDiaryStore.getState().retryLastFailed()).toBe(false);
+    expect(tauri.diaryUpsertEntry).toHaveBeenCalledTimes(1);
+  });
+
+  it("追加片段使用独立入口，删除后选中剩余片段", async () => {
+    const first = {
+      id: 11,
+      diaryId: 1,
+      contentId: 101,
+      content: [],
+      wordCount: 0,
+      createTime: 1,
+      updateTime: 1,
+    };
+    const second = { ...first, id: 12, contentId: 102 };
+    const entry = makeDiaryEntry({ segments: [first] });
+    useDiaryStore.setState({ entries: [entry], currentEntry: entry });
+    vi.mocked(tauri.diaryUpsertEntry).mockResolvedValue({
+      ...entry,
+      segments: [first, second],
+    });
+    await useDiaryStore.getState().appendSegment();
+    expect(tauri.diaryUpsertEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ newSegment: true })
+    );
+    expect(useDiaryStore.getState().activeSegmentId).toBe(12);
+    vi.mocked(tauri.diaryDeleteSegment).mockResolvedValue(entry);
+    await useDiaryStore.getState().deleteCurrentSegment();
+    expect(tauri.diaryDeleteSegment).toHaveBeenCalledWith(1, 12);
+    expect(useDiaryStore.getState().activeSegmentId).toBe(11);
   });
 });

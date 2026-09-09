@@ -8,10 +8,7 @@ import {
   shiftDiaryBaseDate,
   sortDiaryEntriesDesc,
 } from "../dateKey";
-import {
-  EMPTY_EDITOR_CONTENT,
-  normalizeEditorContent,
-} from "../../cards/editorContentUtils";
+import { EMPTY_EDITOR_CONTENT, normalizeEditorContent } from "../../cards/editorContentUtils";
 
 type DiaryStoreState = {
   initialized: boolean;
@@ -24,6 +21,12 @@ type DiaryStoreState = {
   entries: DiaryEntry[];
   currentEntry: DiaryEntry | null;
   lastFailedContent: Descendant[] | null;
+  activeSegmentId: number | null;
+  lastFailedTarget: {
+    type: DiaryType;
+    date: string;
+    segmentId?: number;
+  } | null;
 };
 
 type DiaryStoreActions = {
@@ -40,6 +43,9 @@ type DiaryStoreActions = {
     updateTime: number;
   }) => void;
   saveCurrentContent: (content: Descendant[]) => Promise<DiaryEntry>;
+  selectSegment: (segmentId: number) => void;
+  appendSegment: () => Promise<void>;
+  deleteCurrentSegment: () => Promise<void>;
   retryLastFailed: () => Promise<boolean>;
   clearError: () => void;
 };
@@ -54,11 +60,8 @@ function getTodayDateKey(): string {
   return `${year}-${month}-${day}`;
 }
 
-function mergeEntries(
-  entries: DiaryEntry[],
-  nextEntry: DiaryEntry,
-): DiaryEntry[] {
-  const index = entries.findIndex((item) => item.id === nextEntry.id);
+function mergeEntries(entries: DiaryEntry[], nextEntry: DiaryEntry): DiaryEntry[] {
+  const index = entries.findIndex(item => item.id === nextEntry.id);
   if (index >= 0) {
     const merged = [...entries];
     merged[index] = nextEntry;
@@ -70,12 +73,10 @@ function mergeEntries(
 function findCurrentEntry(
   entries: DiaryEntry[],
   mode: DiaryType,
-  baseDate: string,
+  baseDate: string
 ): DiaryEntry | null {
   const key = getDiaryDateKey(mode, baseDate);
-  return (
-    entries.find((item) => item.type === mode && item.date === key) ?? null
-  );
+  return entries.find(item => item.type === mode && item.date === key) ?? null;
 }
 
 const initialState: DiaryStoreState = {
@@ -89,225 +90,297 @@ const initialState: DiaryStoreState = {
   entries: [],
   currentEntry: null,
   lastFailedContent: null,
+  activeSegmentId: null,
+  lastFailedTarget: null,
 };
 
-export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>(
-  (set, get) => ({
-    ...initialState,
+export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, get) => ({
+  ...initialState,
 
-    initialize: async () => {
-      if (get().initialized) {
-        const current = findCurrentEntry(
-          get().entries,
-          get().mode,
-          get().baseDate,
-        );
-        if (current) {
-          set({ currentEntry: current });
-          return;
-        }
-      }
-
-      set({ loading: true, error: "" });
-      try {
-        const entries = await tauri.diaryListEntries();
-        const sorted = sortDiaryEntriesDesc(entries);
-        const current = findCurrentEntry(sorted, get().mode, get().baseDate);
-        set({
-          entries: sorted,
-          currentEntry: current,
-          initialized: true,
-        });
-        if (!current) {
-          await get().saveCurrentContent(EMPTY_DIARY_CONTENT);
-        }
-      } catch (error) {
-        console.error("[diary-store] initialize failed", error);
-        set({ error: "日记初始化失败，请稍后重试" });
-      } finally {
-        set({ loading: false });
-      }
-    },
-
-    reloadAfterDatabaseChange: async (_databaseName) => {
-      set({ loading: true, error: "" });
-      try {
-        const entries = await tauri.diaryListEntries();
-        const sorted = sortDiaryEntriesDesc(entries);
-        const current = findCurrentEntry(sorted, get().mode, get().baseDate);
-        set({
-          entries: sorted,
-          currentEntry: current,
-          initialized: true,
-          error: "",
-        });
-      } catch (error) {
-        console.error("[diary-store] reloadAfterDatabaseChange failed", error);
-        set({ error: "日记刷新失败，请稍后重试" });
-        throw error;
-      } finally {
-        set({ loading: false });
-      }
-    },
-
-    openAt: async (mode, baseDate) => {
-      const current = findCurrentEntry(get().entries, mode, baseDate);
-      set({
-        mode,
-        baseDate,
-        currentEntry: current,
-        error: "",
-      });
-      if (!current) {
-        await get().saveCurrentContent(EMPTY_DIARY_CONTENT);
-      }
-    },
-
-    setMode: async (mode) => {
-      if (mode === get().mode) {
+  initialize: async () => {
+    if (get().initialized) {
+      const current = findCurrentEntry(get().entries, get().mode, get().baseDate);
+      if (current) {
+        set({ currentEntry: current });
         return;
       }
-      const baseDate = get().baseDate;
-      const current = findCurrentEntry(get().entries, mode, baseDate);
-      set({ mode, currentEntry: current, error: "" });
-      if (!current) {
-        await get().saveCurrentContent(EMPTY_DIARY_CONTENT);
-      }
-    },
+    }
 
-    shiftDate: async (delta) => {
-      const nextBaseDate = shiftDiaryBaseDate(
-        get().mode,
-        get().baseDate,
-        delta,
-      );
-      const current = findCurrentEntry(get().entries, get().mode, nextBaseDate);
+    set({ loading: true, error: "" });
+    try {
+      const entries = await tauri.diaryListEntries();
+      const sorted = sortDiaryEntriesDesc(entries);
+      const current = findCurrentEntry(sorted, get().mode, get().baseDate);
       set({
-        baseDate: nextBaseDate,
+        entries: sorted,
         currentEntry: current,
-        error: "",
+        initialized: true,
       });
       if (!current) {
         await get().saveCurrentContent(EMPTY_DIARY_CONTENT);
       }
-    },
+    } catch (error) {
+      console.error("[diary-store] initialize failed", error);
+      set({ error: "日记初始化失败，请稍后重试" });
+    } finally {
+      set({ loading: false });
+    }
+  },
 
-    jumpToEntry: async (entry) => {
-      const nextEntries = mergeEntries(get().entries, entry);
-      const nextBaseDate = getBaseDateFromDiaryKey(entry.type, entry.date);
+  reloadAfterDatabaseChange: async _databaseName => {
+    set({
+      loading: true,
+      error: "",
+      activeSegmentId: null,
+      lastFailedContent: null,
+      lastFailedTarget: null,
+    });
+    try {
+      const entries = await tauri.diaryListEntries();
+      const sorted = sortDiaryEntriesDesc(entries);
+      const current = findCurrentEntry(sorted, get().mode, get().baseDate);
       set({
-        entries: nextEntries,
-        mode: entry.type,
-        baseDate: nextBaseDate,
-        currentEntry: entry,
+        entries: sorted,
+        currentEntry: current,
+        initialized: true,
         error: "",
       });
-    },
+    } catch (error) {
+      console.error("[diary-store] reloadAfterDatabaseChange failed", error);
+      set({ error: "日记刷新失败，请稍后重试" });
+      throw error;
+    } finally {
+      set({ loading: false });
+    }
+  },
 
-    syncEntryContentByContentId: (payload) => {
-      if (!Number.isFinite(payload.contentId) || payload.contentId <= 0) {
-        return;
+  openAt: async (mode, baseDate) => {
+    const current = findCurrentEntry(get().entries, mode, baseDate);
+    set({
+      mode,
+      baseDate,
+      currentEntry: current,
+      activeSegmentId: current?.segments?.[0]?.id ?? null,
+      error: "",
+    });
+    if (!current) {
+      await get().saveCurrentContent(EMPTY_DIARY_CONTENT);
+    }
+  },
+
+  setMode: async mode => {
+    if (mode === get().mode) {
+      return;
+    }
+    const baseDate = get().baseDate;
+    const current = findCurrentEntry(get().entries, mode, baseDate);
+    set({
+      mode,
+      currentEntry: current,
+      activeSegmentId: current?.segments?.[0]?.id ?? null,
+      error: "",
+    });
+    if (!current) {
+      await get().saveCurrentContent(EMPTY_DIARY_CONTENT);
+    }
+  },
+
+  shiftDate: async delta => {
+    const nextBaseDate = shiftDiaryBaseDate(get().mode, get().baseDate, delta);
+    const current = findCurrentEntry(get().entries, get().mode, nextBaseDate);
+    set({
+      baseDate: nextBaseDate,
+      currentEntry: current,
+      activeSegmentId: current?.segments?.[0]?.id ?? null,
+      error: "",
+    });
+    if (!current) {
+      await get().saveCurrentContent(EMPTY_DIARY_CONTENT);
+    }
+  },
+
+  jumpToEntry: async entry => {
+    const nextEntries = mergeEntries(get().entries, entry);
+    const nextBaseDate = getBaseDateFromDiaryKey(entry.type, entry.date);
+    set({
+      entries: nextEntries,
+      mode: entry.type,
+      baseDate: nextBaseDate,
+      currentEntry: entry,
+      error: "",
+    });
+  },
+
+  syncEntryContentByContentId: payload => {
+    if (!Number.isFinite(payload.contentId) || payload.contentId <= 0) {
+      return;
+    }
+    const normalizedContent = normalizeEditorContent(payload.content);
+    const nextWordCount = Math.max(0, Math.trunc(payload.wordCount));
+    const nextUpdateTime = Number.isFinite(payload.updateTime) ? payload.updateTime : Date.now();
+
+    const prev = get();
+    let changed = false;
+    const nextEntries = prev.entries.map(entry => {
+      if (
+        entry.contentId !== payload.contentId &&
+        !entry.segments?.some(segment => segment.contentId === payload.contentId)
+      ) {
+        return entry;
       }
-      const normalizedContent = normalizeEditorContent(payload.content);
-      const nextWordCount = Math.max(0, Math.trunc(payload.wordCount));
-      const nextUpdateTime = Number.isFinite(payload.updateTime)
-        ? payload.updateTime
-        : Date.now();
-
-      const prev = get();
-      let changed = false;
-      const nextEntries = prev.entries.map((entry) => {
-        if (entry.contentId !== payload.contentId) {
-          return entry;
-        }
-        changed = true;
-        return {
-          ...entry,
-          content: normalizedContent,
-          wordCount: nextWordCount,
-          updateTime: nextUpdateTime,
-        };
-      });
-
-      const nextCurrent =
-        prev.currentEntry && prev.currentEntry.contentId === payload.contentId
+      changed = true;
+      const segments = entry.segments?.map(segment =>
+        segment.contentId === payload.contentId
           ? {
-              ...prev.currentEntry,
+              ...segment,
               content: normalizedContent,
               wordCount: nextWordCount,
               updateTime: nextUpdateTime,
             }
-          : prev.currentEntry;
+          : segment
+      );
+      return {
+        ...entry,
+        segments: segments ?? [],
+        content: segments?.length
+          ? segments.flatMap(segment => segment.content)
+          : normalizedContent,
+        wordCount: segments?.length
+          ? segments.reduce((sum, segment) => sum + segment.wordCount, 0)
+          : nextWordCount,
+        updateTime: nextUpdateTime,
+      };
+    });
 
-      if (!changed && nextCurrent === prev.currentEntry) {
-        return;
-      }
+    const nextCurrent =
+      nextEntries.find(entry => entry.id === prev.currentEntry?.id) ?? prev.currentEntry;
 
-      set({
-        entries: changed ? sortDiaryEntriesDesc(nextEntries) : prev.entries,
-        currentEntry: nextCurrent,
+    if (!changed && nextCurrent === prev.currentEntry) {
+      return;
+    }
+
+    set({
+      entries: changed ? sortDiaryEntriesDesc(nextEntries) : prev.entries,
+      currentEntry: nextCurrent,
+    });
+  },
+
+  saveCurrentContent: async content => {
+    const normalized = normalizeEditorContent(content);
+    const state = get();
+    const dateKey = getDiaryDateKey(state.mode, state.baseDate);
+    const segment =
+      state.currentEntry?.segments?.find(item => item.id === state.activeSegmentId) ??
+      state.currentEntry?.segments?.[0];
+    const target = {
+      type: state.mode,
+      date: dateKey,
+      segmentId: segment?.id,
+    };
+    set({ saving: true, error: "" });
+
+    try {
+      const saved = await tauri.diaryUpsertEntry({
+        ...target,
+        content: normalized,
+        weather: state.currentEntry?.weather ?? null,
+        mood: state.currentEntry?.mood ?? null,
       });
-    },
+      const nextEntries = mergeEntries(get().entries, saved);
+      set({
+        entries: nextEntries,
+        currentEntry: findCurrentEntry(nextEntries, get().mode, get().baseDate),
+        saving: false,
+        error: "",
+        lastSavedAt: Date.now(),
+        lastFailedContent: null,
+        lastFailedTarget: null,
+      });
+      return saved;
+    } catch (error) {
+      console.error("[diary-store] save failed", error);
+      set({
+        saving: false,
+        error: "日记自动保存失败，请稍后重试",
+        lastFailedContent: normalized,
+        lastFailedTarget: target,
+      });
+      throw error;
+    }
+  },
 
-    saveCurrentContent: async (content) => {
-      const normalized = normalizeEditorContent(content);
+  retryLastFailed: async () => {
+    const failedContent = get().lastFailedContent;
+    if (!failedContent) {
+      return true;
+    }
+    try {
+      const target = get().lastFailedTarget;
       const state = get();
-      const dateKey = getDiaryDateKey(state.mode, state.baseDate);
-      set({ saving: true, error: "" });
-
-      try {
-        const saved = await tauri.diaryUpsertEntry({
-          type: state.mode,
-          date: dateKey,
-          content: normalized,
-          weather: state.currentEntry?.weather ?? null,
-          mood: state.currentEntry?.mood ?? null,
-        });
-        const nextEntries = mergeEntries(get().entries, saved);
-        set({
-          entries: nextEntries,
-          currentEntry: findCurrentEntry(
-            nextEntries,
-            get().mode,
-            get().baseDate,
-          ),
-          saving: false,
-          error: "",
-          lastSavedAt: Date.now(),
-          lastFailedContent: null,
-        });
-        return saved;
-      } catch (error) {
-        console.error("[diary-store] save failed", error);
-        set({
-          saving: false,
-          error: "日记自动保存失败，请稍后重试",
-          lastFailedContent: normalized,
-        });
-        throw error;
-      }
-    },
-
-    retryLastFailed: async () => {
-      const failedContent = get().lastFailedContent;
-      if (!failedContent) {
-        return true;
-      }
-      try {
-        await get().saveCurrentContent(failedContent);
-        return true;
-      } catch {
+      const currentSegment =
+        state.currentEntry?.segments?.find(segment => segment.id === state.activeSegmentId) ??
+        state.currentEntry?.segments?.[0];
+      if (
+        target &&
+        (target.type !== state.mode ||
+          target.date !== getDiaryDateKey(state.mode, state.baseDate) ||
+          target.segmentId !== currentSegment?.id)
+      ) {
+        set({ error: "请返回保存失败的日记片段后重试" });
         return false;
       }
-    },
+      await get().saveCurrentContent(failedContent);
+      return true;
+    } catch {
+      return false;
+    }
+  },
 
-    clearError: () => {
-      if (!get().error) {
-        return;
-      }
-      set({ error: "" });
-    },
-  }),
-);
+  selectSegment: segmentId => {
+    if (get().currentEntry?.segments?.some(segment => segment.id === segmentId)) {
+      set({ activeSegmentId: segmentId });
+    }
+  },
+
+  appendSegment: async () => {
+    const state = get();
+    const saved = await tauri.diaryUpsertEntry({
+      type: state.mode,
+      date: getDiaryDateKey(state.mode, state.baseDate),
+      content: EMPTY_DIARY_CONTENT,
+      weather: state.currentEntry?.weather ?? null,
+      mood: state.currentEntry?.mood ?? null,
+      newSegment: true,
+    });
+    const entries = mergeEntries(get().entries, saved);
+    set({
+      entries,
+      currentEntry: findCurrentEntry(entries, get().mode, get().baseDate),
+      activeSegmentId: saved.segments[saved.segments.length - 1]?.id ?? null,
+    });
+  },
+
+  deleteCurrentSegment: async () => {
+    const state = get();
+    const segment =
+      state.currentEntry?.segments?.find(item => item.id === state.activeSegmentId) ??
+      state.currentEntry?.segments?.[0];
+    if (!state.currentEntry || !segment) return;
+    const saved = await tauri.diaryDeleteSegment(state.currentEntry.id, segment.id);
+    const entries = mergeEntries(get().entries, saved);
+    set({
+      entries,
+      currentEntry: findCurrentEntry(entries, get().mode, get().baseDate),
+      activeSegmentId: saved.segments[0]?.id ?? null,
+    });
+  },
+
+  clearError: () => {
+    if (!get().error) {
+      return;
+    }
+    set({ error: "" });
+  },
+}));
 
 export default useDiaryStore;
