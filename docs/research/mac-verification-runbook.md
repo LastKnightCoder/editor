@@ -102,11 +102,11 @@ cd /tmp && mkdir -p tau-verify && cd tau-verify
 say -o test.aiff "你好，这是一段用于验证转录功能的测试音频，今天天气很好。"
 afconvert -f WAVE -d LEI16@16000 -c 1 test.aiff test.wav
 
-# 3.2 下载 ggml base 模型（ModelScope 优先，失败换 HF）
+# 3.2 下载 ggml base 模型（ModelScope 优先，失败换 HF；注意 HF 仓库名是 whisper.cpp 不是 whisper.base）
 curl -L --retry 3 -o ggml-base.bin \
   "https://modelscope.cn/api/v1/models/pengzhendong/whisper.cpp-base/repo?Revision=master&FilePath=ggml-base.bin" \
   || curl -L --retry 3 -o ggml-base.bin \
-  "https://huggingface.co/ggerganov/whisper.base/resolve/main/ggml-base.bin"
+  "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin"
 ls -la ggml-base.bin   # 预期：约 142MB
 
 # 3.3 句子级转录（对应 app 的默认模式）
@@ -115,8 +115,9 @@ ls -la ggml-base.bin   # 预期：约 142MB
 cat out-sentence.srt
 
 # 3.4 词级时间戳转录（对应 app 的 LLM 断句优化模式，--dtw）
+# 注意：2024-09 后的 whisper.cpp 要求 --dtw 显式带模型名（tiny/base/small/medium/large）
 "$REPO/apps/desktop/build/bin/darwin/whisper-cli" \
-  -m ggml-base.bin -f test.wav -l zh -osrt -of out-word -pp --max-len 1 --dtw
+  -m ggml-base.bin -f test.wav -l zh -osrt -of out-word -pp --max-len 1 --dtw base
 wc -l out-word.srt out-sentence.srt
 ```
 
@@ -134,6 +135,8 @@ grep -qE "转录|测试|音频" out-sentence.srt && echo "PASS: sentence transcr
 **失败修复**：
 
 - 识别文本为空/乱码 → 确认 `-l zh` 已传；换 `small` 模型重试（ModelScope：`pengzhendong/whisper.cpp-small`）
+- ModelScope 源返回 `{"Code":10990101007,"Message":"获取模型文件失败，文件内容为空"}` → 该镜像仓库文件为空，直接用 HF 源（上面已修正仓库名）
+- `--dtw requires value` → whisper.cpp 新版要求显式模型名，用 `--dtw base`
 - `--dtw` 不识别 → whisper.cpp 版本过旧，`git pull` 后重新构建
 
 ---
@@ -387,19 +390,22 @@ ossutil stat oss://release-bin/latest.json
 
 ## 8. 验证记录（执行后填写）
 
-| 步骤                        | 结果（PASS/FAIL/跳过） | 备注（失败摘要/异常） |
-| --------------------------- | ---------------------- | --------------------- |
-| §1 环境前置                 |                        |                       |
-| §2 whisper-cli 构建与放置   |                        |                       |
-| §3 whisper-cli 功能冒烟     |                        |                       |
-| §4 node-llama-cpp 推理冒烟  |                        |                       |
-| §5 应用级验证（6 项检查点） |                        |                       |
-| §6 Mac 打包与原生验证       |                        |                       |
-| §7 OSS 清理（如到时机）     |                        |                       |
+| 步骤                        | 结果（PASS/FAIL/跳过） | 备注（失败摘要/异常）                                                                                                                                                                                                                                                                                                               |
+| --------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| §1 环境前置                 | PASS                   | arm64 / macOS 26.5.1 / node v24.1.0 / pnpm 11.9.0；cmake 缺失，已 `brew install cmake`（4.4.3）后通过                                                                                                                                                                                                                               |
+| §2 whisper-cli 构建与放置   | PASS                   | master@c44b60b（2026-09-08）；universal binary（arm64+x86_64）+ Metal；`--help` 正常；`.gitignore` 的 `**/build/bin` 原本排除该路径，已加白名单放行（待随 whisper-cli 一并提交）                                                                                                                                                    |
+| §3 whisper-cli 功能冒烟     | PASS                   | 句子级：中文识别正确（关键词命中），Metal 下 782ms；词级 `--dtw`：新版 whisper.cpp 要求显式模型名，`--dtw` → `--dtw base` 后通过（100 行 vs 4 行）。另：ModelScope `pengzhendong/whisper.cpp-base` 当前返回「文件内容为空」错误 JSON，改用 HF 源（注意仓库名是 `ggerganov/whisper.cpp`，本文档原 URL 笔误已修正）                   |
+| §4 node-llama-cpp 推理冒烟  | PASS                   | `[env] gpu backend: enabled`（Metal）；embedding dims=1024 near=0.786 > far=0.450；rerank 0.7874 vs 0.0000；expand expansions=3；`[smoke] ALL PASS`                                                                                                                                                                                 |
+| §5 应用级验证（6 项检查点） | 部分通过（1/6 自动）   | 检查点 1 PASS：dev 启动正常，日志中 python/PY_RUNTIME 计数为 0，无 python-server 进程；模型未下载时降级提示正常（「本地向量模型未下载，跳过索引重建」）。检查点 2-6 涉及 GUI 手动操作，待人工执行                                                                                                                                   |
+| §6 Mac 打包与原生验证       | PASS                   | 6.1 已在前置修复中完成（ripgrep 平台子包显式声明进 optionalDependencies）；6.2 `CSC_IDENTITY_AUTO_DISCOVERY=false pnpm build` 全链路成功，`[prune] synced 109 node-llama-cpp runtime deps`、`[native-runtime] all checks passed`（含 node-llama-cpp=ok、ripgrep 指向 darwin-arm64）；6.3 产物内 whisper-cli universal binary 可执行 |
+| §7 OSS 清理（如到时机）     | 跳过                   | 前置条件未满足（无 Python 新版尚未发布）                                                                                                                                                                                                                                                                                            |
 
-- 执行日期：
-- 机器架构（arm64/x86_64）：
-- macOS 版本：
-- whisper.cpp 构建版本（commit/tag）：
-- node-llama-cpp 版本：
+- 执行日期：2026-09-09
+- 机器架构（arm64/x86_64）：arm64（Apple Silicon）
+- macOS 版本：26.5.1
+- whisper.cpp 构建版本（commit/tag）：master@c44b60b（2026-09-08）
+- node-llama-cpp 版本：3.20.0
 - 遗留问题：
+  1. §5 检查点 2-6（模型下载、语义搜索、重排/扩展、转录、文档导入）需人工在 GUI 中执行
+  2. 本次验证顺带修复并留在工作区的变更待提交：`prune-packaged-native-modules.cjs` 的 mac appOutDir 路径 bug（此前 afterPack 在 mac 上从未生效）、`@vscode/ripgrep` 平台子包声明、`pnpm-lock.yaml`、`.gitignore` 放行规则与 `apps/desktop/build/bin/darwin/whisper-cli` 二进制
+  3. HF 直连在本机可用，但 `hf-mirror.com` 与 `ggml.ggerganov.com` 在本机网络环境下不可用（备源仅作参考）
