@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { getQueryClient } from "../../../router";
 import type { Descendant } from "slate";
 import * as tauri from "../../../services/tauri";
 import type {
@@ -75,14 +76,12 @@ type TodoState = {
   reorderGroups: (payload: ReorderTodoGroupsPayload) => Promise<void>;
 
   createItem: (payload: CreateTodoItemPayload) => Promise<TodoItem>;
-  createItemRelative: (
-    payload: CreateTodoItemRelativePayload,
-  ) => Promise<TodoItem>;
+  createItemRelative: (payload: CreateTodoItemRelativePayload) => Promise<TodoItem>;
   updateItem: (payload: UpdateTodoItemPayload) => Promise<TodoItem>;
   patchItemDescriptionContent: (
     todoId: number,
     groupId: number,
-    descriptionContent: Descendant[] | null,
+    descriptionContent: Descendant[] | null
   ) => void;
   toggleCompleteCascade: (payload: ToggleTodoCompletePayload) => Promise<void>;
   moveAndReorder: (payload: MoveAndReorderTodoItemPayload) => Promise<TodoItem>;
@@ -93,37 +92,30 @@ type TodoState = {
 
 function resolveStatsMap(
   groupStats: TodoGroupStats[],
-  systemStats: TodoGroupStats[],
+  systemStats: TodoGroupStats[]
 ): Record<number, TodoGroupStats> {
   const next: Record<number, TodoGroupStats> = {};
-  groupStats.forEach((stats) => {
+  groupStats.forEach(stats => {
     next[stats.groupId] = stats;
   });
-  systemStats.forEach((stats) => {
+  systemStats.forEach(stats => {
     next[stats.groupId] = stats;
   });
   return next;
 }
 
-function resolveItemsCacheKey(
-  groupId: number | null,
-  systemGroups: TodoGroup[],
-): string | null {
+function resolveItemsCacheKey(groupId: number | null, systemGroups: TodoGroup[]): string | null {
   if (groupId == null) {
     return null;
   }
-  const systemType =
-    systemGroups.find((group) => group.id === groupId)?.systemType ?? null;
+  const systemType = systemGroups.find(group => group.id === groupId)?.systemType ?? null;
   if (systemType) {
     return `_system_${systemType}`;
   }
   return String(groupId);
 }
 
-function resolveFallbackGroupId(
-  groups: TodoGroup[],
-  systemGroups: TodoGroup[],
-): number | null {
+function resolveFallbackGroupId(groups: TodoGroup[], systemGroups: TodoGroup[]): number | null {
   const preferredSystemOrder = new Map<string, number>();
   TODO_SYSTEM_TYPES.forEach((type, index) => {
     preferredSystemOrder.set(type, index);
@@ -136,35 +128,51 @@ function resolveFallbackGroupId(
   return sortedSystemGroups[0]?.id ?? groups[0]?.id ?? null;
 }
 
-function groupExists(
-  groupId: number,
-  groups: TodoGroup[],
-  systemGroups: TodoGroup[],
-): boolean {
+function groupExists(groupId: number, groups: TodoGroup[], systemGroups: TodoGroup[]): boolean {
   return (
-    groups.some((group) => group.id === groupId) ||
-    systemGroups.some((group) => group.id === groupId)
+    groups.some(group => group.id === groupId) || systemGroups.some(group => group.id === groupId)
   );
 }
 
+// 服务端读路径统一走 query 缓存：并发去重、staleTime 内切换分组秒显；
+// mutation 后 invalidateQueries(["todo"]) 即可让所有读路径重新拉取
+const TODO_QUERY_STALE_MS = 30_000;
+
+function invalidateTodoQueries() {
+  getQueryClient().invalidateQueries({ queryKey: ["todo"] });
+}
+
 async function fetchAllGroupData() {
-  const [groups, systemGroups, groupStats, systemGroupStats] =
-    await Promise.all([
-      tauri.todoListGroups(),
-      tauri.todoGetSystemGroups(),
-      tauri.todoGetGroupStats(),
-      tauri.todoGetSystemGroupStats(),
-    ]);
-  return {
-    groups,
-    systemGroups,
-    groupStats: resolveStatsMap(groupStats, systemGroupStats),
-  };
+  const queryClient = getQueryClient();
+  const [groups, systemGroups, groupStats] = await Promise.all([
+    queryClient.fetchQuery({
+      queryKey: ["todo", "groups"],
+      queryFn: () => tauri.todoListGroups(),
+      staleTime: TODO_QUERY_STALE_MS,
+    }),
+    queryClient.fetchQuery({
+      queryKey: ["todo", "systemGroups"],
+      queryFn: () => tauri.todoGetSystemGroups(),
+      staleTime: TODO_QUERY_STALE_MS,
+    }),
+    queryClient.fetchQuery({
+      queryKey: ["todo", "stats"],
+      queryFn: async () => {
+        const [groupStats, systemStats] = await Promise.all([
+          tauri.todoGetGroupStats(),
+          tauri.todoGetSystemGroupStats(),
+        ]);
+        return resolveStatsMap(groupStats, systemStats);
+      },
+      staleTime: TODO_QUERY_STALE_MS,
+    }),
+  ]);
+  return { groups, systemGroups, groupStats };
 }
 
 export function getTodoItemsCacheKey(
   activeGroupId: number | null,
-  systemGroups: TodoGroup[],
+  systemGroups: TodoGroup[]
 ): string | null {
   return resolveItemsCacheKey(activeGroupId, systemGroups);
 }
@@ -186,7 +194,7 @@ export const useTodoStore = create<TodoState>()((set, get) => ({
   lastLoadedDatabase: null,
   initializing: false,
 
-  initialize: async (databaseName) => {
+  initialize: async databaseName => {
     const state = get();
     if (
       databaseName &&
@@ -204,8 +212,9 @@ export const useTodoStore = create<TodoState>()((set, get) => ({
     }
   },
 
-  reloadAfterDatabaseChange: async (databaseName) => {
-    set((state) => ({
+  reloadAfterDatabaseChange: async databaseName => {
+    invalidateTodoQueries();
+    set(state => ({
       loading: { ...state.loading, groups: true },
       itemsByGroupId: {},
       activeTodoId: null,
@@ -215,12 +224,11 @@ export const useTodoStore = create<TodoState>()((set, get) => ({
       const { groups, systemGroups, groupStats } = await fetchAllGroupData();
       const previousGroupId = get().activeGroupId;
       const nextActiveGroupId =
-        previousGroupId != null &&
-        groupExists(previousGroupId, groups, systemGroups)
+        previousGroupId != null && groupExists(previousGroupId, groups, systemGroups)
           ? previousGroupId
           : resolveFallbackGroupId(groups, systemGroups);
 
-      set((state) => ({
+      set(state => ({
         groups,
         systemGroups,
         groupStats,
@@ -233,7 +241,7 @@ export const useTodoStore = create<TodoState>()((set, get) => ({
         void get().refreshActiveItems();
       }
     } catch (error) {
-      set((state) => ({
+      set(state => ({
         loading: { ...state.loading, groups: false },
       }));
       throw error;
@@ -241,15 +249,19 @@ export const useTodoStore = create<TodoState>()((set, get) => ({
   },
 
   loadGroups: async () => {
-    set((state) => ({ loading: { ...state.loading, groups: true } }));
+    set(state => ({ loading: { ...state.loading, groups: true } }));
     try {
-      const groups = await tauri.todoListGroups();
-      set((state) => ({
+      const groups = await getQueryClient().fetchQuery({
+        queryKey: ["todo", "groups"],
+        queryFn: () => tauri.todoListGroups(),
+        staleTime: TODO_QUERY_STALE_MS,
+      });
+      set(state => ({
         groups,
         loading: { ...state.loading, groups: false },
       }));
     } catch (error) {
-      set((state) => ({
+      set(state => ({
         loading: { ...state.loading, groups: false },
       }));
       throw error;
@@ -257,17 +269,28 @@ export const useTodoStore = create<TodoState>()((set, get) => ({
   },
 
   loadSystemGroups: async () => {
-    const systemGroups = await tauri.todoGetSystemGroups();
+    const systemGroups = await getQueryClient().fetchQuery({
+      queryKey: ["todo", "systemGroups"],
+      queryFn: () => tauri.todoGetSystemGroups(),
+      staleTime: TODO_QUERY_STALE_MS,
+    });
     set({ systemGroups });
   },
 
   loadGroupStats: async () => {
-    const [groupStats, systemStats] = await Promise.all([
-      tauri.todoGetGroupStats(),
-      tauri.todoGetSystemGroupStats(),
-    ]);
+    const statsMap = await getQueryClient().fetchQuery({
+      queryKey: ["todo", "stats"],
+      queryFn: async () => {
+        const [groupStats, systemStats] = await Promise.all([
+          tauri.todoGetGroupStats(),
+          tauri.todoGetSystemGroupStats(),
+        ]);
+        return resolveStatsMap(groupStats, systemStats);
+      },
+      staleTime: TODO_QUERY_STALE_MS,
+    });
     set({
-      groupStats: resolveStatsMap(groupStats, systemStats),
+      groupStats: statsMap,
     });
   },
 
@@ -276,9 +299,7 @@ export const useTodoStore = create<TodoState>()((set, get) => ({
     if (activeGroupId == null) {
       return;
     }
-    const systemType =
-      systemGroups.find((group) => group.id === activeGroupId)?.systemType ??
-      null;
+    const systemType = systemGroups.find(group => group.id === activeGroupId)?.systemType ?? null;
     if (systemType) {
       await get().loadItemsByType(systemType);
       return;
@@ -286,11 +307,15 @@ export const useTodoStore = create<TodoState>()((set, get) => ({
     await get().loadItems(activeGroupId);
   },
 
-  loadItems: async (groupId) => {
-    set((state) => ({ loading: { ...state.loading, items: true } }));
+  loadItems: async groupId => {
+    set(state => ({ loading: { ...state.loading, items: true } }));
     try {
-      const items = await tauri.todoListItems({ groupId });
-      set((state) => ({
+      const items = await getQueryClient().fetchQuery({
+        queryKey: ["todo", "items", "group", groupId],
+        queryFn: () => tauri.todoListItems({ groupId }),
+        staleTime: TODO_QUERY_STALE_MS,
+      });
+      set(state => ({
         itemsByGroupId: {
           ...state.itemsByGroupId,
           [String(groupId)]: items,
@@ -298,17 +323,21 @@ export const useTodoStore = create<TodoState>()((set, get) => ({
         loading: { ...state.loading, items: false },
       }));
     } catch (error) {
-      set((state) => ({ loading: { ...state.loading, items: false } }));
+      set(state => ({ loading: { ...state.loading, items: false } }));
       throw error;
     }
   },
 
-  loadItemsByType: async (type) => {
-    set((state) => ({ loading: { ...state.loading, items: true } }));
+  loadItemsByType: async type => {
+    set(state => ({ loading: { ...state.loading, items: true } }));
     try {
       const payload: ListTodoItemsByTypePayload = { type };
-      const items = await tauri.todoListItemsByType(payload);
-      set((state) => ({
+      const items = await getQueryClient().fetchQuery({
+        queryKey: ["todo", "items", "system", type],
+        queryFn: () => tauri.todoListItemsByType(payload),
+        staleTime: TODO_QUERY_STALE_MS,
+      });
+      set(state => ({
         itemsByGroupId: {
           ...state.itemsByGroupId,
           [`_system_${type}`]: items,
@@ -316,12 +345,12 @@ export const useTodoStore = create<TodoState>()((set, get) => ({
         loading: { ...state.loading, items: false },
       }));
     } catch (error) {
-      set((state) => ({ loading: { ...state.loading, items: false } }));
+      set(state => ({ loading: { ...state.loading, items: false } }));
       throw error;
     }
   },
 
-  setActiveGroup: async (groupId) => {
+  setActiveGroup: async groupId => {
     set({ activeGroupId: groupId, activeTodoId: null });
     if (groupId == null) {
       return;
@@ -329,12 +358,12 @@ export const useTodoStore = create<TodoState>()((set, get) => ({
     await get().refreshActiveItems();
   },
 
-  setActiveTodo: (todoId) => {
+  setActiveTodo: todoId => {
     set({ activeTodoId: todoId });
   },
 
-  setFilters: (patch) => {
-    set((state) => ({
+  setFilters: patch => {
+    set(state => ({
       filters: {
         ...state.filters,
         ...patch,
@@ -350,88 +379,100 @@ export const useTodoStore = create<TodoState>()((set, get) => ({
     });
   },
 
-  createGroup: async (payload) => {
+  createGroup: async payload => {
     const group = await tauri.todoCreateGroup(payload);
+    invalidateTodoQueries();
     await get().loadGroups();
     return group;
   },
 
-  updateGroup: async (payload) => {
+  updateGroup: async payload => {
     const group = await tauri.todoUpdateGroup(payload);
+    invalidateTodoQueries();
     await Promise.all([get().loadGroups(), get().loadSystemGroups()]);
     return group;
   },
 
-  archiveGroup: async (payload) => {
+  archiveGroup: async payload => {
     await tauri.todoArchiveGroup(payload);
+    invalidateTodoQueries();
     await get().reloadAfterDatabaseChange(get().lastLoadedDatabase);
   },
 
-  reorderGroups: async (payload) => {
+  reorderGroups: async payload => {
     await tauri.todoReorderGroups(payload);
+    invalidateTodoQueries();
     await get().loadGroups();
   },
 
-  createItem: async (payload) => {
+  createItem: async payload => {
     const item = await tauri.todoCreateItem(payload);
+    invalidateTodoQueries();
     await Promise.all([get().refreshActiveItems(), get().loadGroupStats()]);
     return item;
   },
 
-  createItemRelative: async (payload) => {
+  createItemRelative: async payload => {
     const item = await tauri.todoCreateItemRelative(payload);
+    invalidateTodoQueries();
     await Promise.all([get().refreshActiveItems(), get().loadGroupStats()]);
     return item;
   },
 
-  updateItem: async (payload) => {
+  updateItem: async payload => {
     const item = await tauri.todoUpdateItem(payload);
+    invalidateTodoQueries();
     await Promise.all([get().refreshActiveItems(), get().loadGroupStats()]);
     return item;
   },
 
   patchItemDescriptionContent: (todoId, groupId, descriptionContent) => {
-    set((state) => {
+    set(state => {
       const next = { ...state.itemsByGroupId };
       const cacheKey = String(groupId);
       const items = next[cacheKey];
       if (Array.isArray(items)) {
-        next[cacheKey] = items.map((item) =>
+        next[cacheKey] = items.map(item =>
           item.id === todoId
             ? {
                 ...item,
                 descriptionContent,
               }
-            : item,
+            : item
         );
       }
       return { itemsByGroupId: next };
     });
   },
 
-  toggleCompleteCascade: async (payload) => {
+  toggleCompleteCascade: async payload => {
     await tauri.todoToggleCompleteCascade(payload);
+    invalidateTodoQueries();
     await Promise.all([get().refreshActiveItems(), get().loadGroupStats()]);
   },
 
-  moveAndReorder: async (payload) => {
+  moveAndReorder: async payload => {
     const item = await tauri.todoMoveAndReorder(payload);
+    invalidateTodoQueries();
     await Promise.all([get().refreshActiveItems(), get().loadGroupStats()]);
     return item;
   },
 
   archiveItem: async (id, isArchived) => {
     await tauri.todoArchiveItem(id, isArchived);
+    invalidateTodoQueries();
     await Promise.all([get().refreshActiveItems(), get().loadGroupStats()]);
   },
 
-  deleteItem: async (id) => {
+  deleteItem: async id => {
     await tauri.todoDeleteItem(id);
+    invalidateTodoQueries();
     await Promise.all([get().refreshActiveItems(), get().loadGroupStats()]);
   },
 
-  deleteItemCascade: async (id) => {
+  deleteItemCascade: async id => {
     await tauri.todoDeleteItemCascade(id);
+    invalidateTodoQueries();
     await Promise.all([get().refreshActiveItems(), get().loadGroupStats()]);
   },
 }));

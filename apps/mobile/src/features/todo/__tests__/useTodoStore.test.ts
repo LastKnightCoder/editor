@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as tauri from "../../../services/tauri";
+import { getQueryClient } from "../../../router";
 import { useTodoStore } from "../store/useTodoStore";
 
 vi.mock("../../../services/tauri", () => ({
@@ -36,7 +37,7 @@ function resetTodoStore() {
       loading: { groups: false, items: false },
       lastLoadedDatabase: null,
     },
-    false,
+    false
   );
 }
 
@@ -44,6 +45,8 @@ describe("todo/useTodoStore", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetTodoStore();
+    // 读路径已走 query 缓存，测试间需清缓存避免跨用例污染
+    getQueryClient().clear();
   });
 
   it("initialize 应加载系统组和统计，并默认加载 all 组任务", async () => {
@@ -102,6 +105,8 @@ describe("todo/useTodoStore", () => {
     ]);
 
     await useTodoStore.getState().initialize("data.db");
+    // 读路径经 query 缓存（fetchQuery），背景刷新多一层微任务
+    await new Promise(resolve => setTimeout(resolve, 0));
 
     const state = useTodoStore.getState();
     expect(state.activeGroupId).toBe(1);
@@ -162,7 +167,7 @@ describe("todo/useTodoStore", () => {
       {
         activeGroupId: 1,
       },
-      false,
+      false
     );
     vi.mocked(tauri.todoGetSystemGroups).mockResolvedValue([
       {
@@ -219,6 +224,7 @@ describe("todo/useTodoStore", () => {
     ]);
 
     await useTodoStore.getState().reloadAfterDatabaseChange("other.db");
+    await new Promise(resolve => setTimeout(resolve, 0));
 
     const state = useTodoStore.getState();
     expect(state.lastLoadedDatabase).toBe("other.db");
