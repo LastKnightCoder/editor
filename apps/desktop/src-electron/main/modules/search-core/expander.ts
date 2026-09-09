@@ -1,10 +1,5 @@
-import pythonService from "../python-service";
-import {
-  ExpansionResult,
-  ParsedQuery,
-  QueryExpander,
-  TypedExpansionQuery,
-} from "./types";
+import localInference from "../local-inference";
+import { ExpansionResult, ParsedQuery, QueryExpander, TypedExpansionQuery } from "./types";
 
 export interface LocalQueryExpanderOptions {
   enabled?: boolean;
@@ -12,18 +7,6 @@ export interface LocalQueryExpanderOptions {
   modelName?: string;
   devicePolicy?: "auto" | "cpu" | "cuda";
   maxAlternatives?: number;
-}
-
-interface ExpandQueryResponse {
-  available?: boolean;
-  reason?: string;
-  device?: string;
-  fallbackUsed?: boolean;
-  rawPreview?: string;
-  expansions?: Array<{
-    type?: string;
-    text?: string;
-  }>;
 }
 
 export class NoopExpander implements QueryExpander {
@@ -82,19 +65,14 @@ export class LocalQueryExpander implements QueryExpander {
     }
 
     try {
-      const client = await pythonService.ensureStarted();
-      const result = await client.request<ExpandQueryResponse>("expand_query", {
-        query: query.normalized,
+      const result = await localInference.expandQuery(query.normalized, {
         modelDir: this.options.modelDir,
         modelName: this.options.modelName,
         devicePolicy: this.options.devicePolicy || "auto",
         maxAlternatives: this.options.maxAlternatives ?? 2,
       });
 
-      const sanitized = sanitizeTypedQueries(
-        result.expansions || [],
-        query.normalized,
-      );
+      const sanitized = sanitizeTypedQueries(result.expansions || [], query.normalized);
 
       return {
         available: result.available !== false,
@@ -126,7 +104,7 @@ export class LocalQueryExpander implements QueryExpander {
 
 function sanitizeTypedQueries(
   queries: Array<{ type?: string; text?: string }>,
-  originalQuery: string,
+  originalQuery: string
 ): TypedExpansionQuery[] {
   const results: TypedExpansionQuery[] = [];
   const seen = new Set<string>([originalQuery.trim().toLowerCase()]);

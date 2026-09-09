@@ -31,9 +31,12 @@ vi.mock("../user-setting", () => ({
   },
 }));
 
-vi.mock("../python-service", () => ({
+vi.mock("../local-inference", () => ({
   default: {
-    ensureStarted: vi.fn(),
+    embedTexts: vi.fn(),
+    rerankTexts: vi.fn(),
+    expandQuery: vi.fn(),
+    embeddingHealth: vi.fn(),
   },
 }));
 
@@ -76,15 +79,12 @@ describe("shouldReusePdfIndex", () => {
 
     await pdfIndexQueue.init();
 
-    const registeredChannels = vi
-      .mocked(ipcMain.handle)
-      .mock.calls.map((call) => call[0]);
+    const registeredChannels = vi.mocked(ipcMain.handle).mock.calls.map(call => call[0]);
     expect(registeredChannels).not.toContain("pdf-index:section-summary");
     expect(registeredChannels).not.toContain("pdf-index:section-search");
 
     const changeHandler = mockFns.onDatabaseChange.mock.calls.at(-1)?.[0] as
-      | ((dbName: string) => void)
-      | undefined;
+      ((dbName: string) => void) | undefined;
     expect(changeHandler).toBeTypeOf("function");
 
     changeHandler?.("beta.db");
@@ -100,7 +100,7 @@ describe("shouldReusePdfIndex", () => {
         nextFingerprint: "pdf-fingerprint",
         currentEmbeddingFingerprint: "embed-a",
         nextEmbeddingFingerprint: "embed-a",
-      }),
+      })
     ).toBe(true);
   });
 
@@ -112,7 +112,7 @@ describe("shouldReusePdfIndex", () => {
         nextFingerprint: "pdf-fingerprint",
         currentEmbeddingFingerprint: "embed-a",
         nextEmbeddingFingerprint: "embed-b",
-      }),
+      })
     ).toBe(false);
   });
 
@@ -124,7 +124,7 @@ describe("shouldReusePdfIndex", () => {
         nextFingerprint: "pdf-fingerprint",
         currentEmbeddingFingerprint: "embed-a",
         nextEmbeddingFingerprint: null,
-      }),
+      })
     ).toBe(false);
   });
 });

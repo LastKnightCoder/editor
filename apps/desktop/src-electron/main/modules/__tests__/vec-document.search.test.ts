@@ -40,9 +40,12 @@ vi.mock("electron", () => ({
   },
 }));
 
-vi.mock("../python-service", () => ({
+vi.mock("../local-inference", () => ({
   default: {
-    ensureStarted: vi.fn(),
+    embedTexts: vi.fn(),
+    rerankTexts: vi.fn(),
+    expandQuery: vi.fn(),
+    embeddingHealth: vi.fn(),
   },
 }));
 
@@ -100,10 +103,7 @@ function createIndexDb(params: {
 
   return {
     prepare: vi.fn((sql: string) => {
-      if (
-        sql.includes("SELECT name FROM sqlite_master") &&
-        sql.includes("name = ?")
-      ) {
+      if (sql.includes("SELECT name FROM sqlite_master") && sql.includes("name = ?")) {
         return {
           get: (tableName: string) => {
             if (tableName === "vec_documents" && hasVecTable) {
@@ -201,7 +201,7 @@ describe("VecDocumentTable search gating", () => {
     });
     expect(mockContext.logWarn).not.toHaveBeenCalledWith(
       "[VecDocument] search skipped:",
-      expect.anything(),
+      expect.anything()
     );
     expect(mockContext.logInfo).toHaveBeenCalledWith(
       "[VecDocument] search start:",
@@ -209,7 +209,7 @@ describe("VecDocumentTable search gating", () => {
         vecRebuildState: "building",
         partial: true,
         vecAvailableDuringBuilding: true,
-      }),
+      })
     );
   });
 
@@ -245,7 +245,7 @@ describe("VecDocumentTable search gating", () => {
       expect.objectContaining({
         vecRebuildState: "failed",
         searchable: false,
-      }),
+      })
     );
   });
 });

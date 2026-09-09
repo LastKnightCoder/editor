@@ -1,17 +1,9 @@
 import Database from "better-sqlite3";
-import {
-  VecDocument,
-  IndexParams,
-  SearchParams,
-  SearchResult,
-  IndexType,
-} from "@/types";
+import { VecDocument, IndexParams, SearchParams, SearchResult, IndexType } from "@/types";
 import type { EmbeddingProviderType } from "@/types/embedding";
 import OpenAI from "openai";
 import log from "electron-log";
-import pythonService from "../python-service";
-import { app } from "electron";
-import path from "node:path";
+import localInference from "../local-inference";
 import CardTable from "./card";
 import ArticleTable from "./article";
 import ProjectTable from "./project";
@@ -25,53 +17,37 @@ const addTypePrefix = (id: number, type: string): string => {
   return `${type}:${id}`;
 };
 
-const extractIdFromPrefixed = (
-  prefixedId: string,
-): { id: string; type: string } => {
+const extractIdFromPrefixed = (prefixedId: string): { id: string; type: string } => {
   const [type, id] = prefixedId.split(":");
   return { id, type };
 };
 
 export default class VecDocumentTable {
-  private static getIndexMeta(
-    indexDb: Database.Database,
-    key: string,
-  ): string | null {
+  private static getIndexMeta(indexDb: Database.Database, key: string): string | null {
     if (!this.hasTable(indexDb, "index_meta")) {
       return null;
     }
-    const row = indexDb
-      .prepare("SELECT value FROM index_meta WHERE key = ?")
-      .get(key) as { value?: string } | undefined;
+    const row = indexDb.prepare("SELECT value FROM index_meta WHERE key = ?").get(key) as
+      { value?: string } | undefined;
     return row?.value || null;
   }
 
   private static async createEmbeddings(
     texts: string[],
-    modelInfo: NonNullable<IndexParams["modelInfo"]>,
+    modelInfo: NonNullable<IndexParams["modelInfo"]>
   ): Promise<number[][]> {
     if (!texts.length) {
       return [];
     }
 
     const resolvedProviderType: EmbeddingProviderType =
-      modelInfo.providerType === "local_python" ||
-      modelInfo.configId === LOCAL_EMBEDDING_CONFIG_ID
+      modelInfo.providerType === "local_python" || modelInfo.configId === LOCAL_EMBEDDING_CONFIG_ID
         ? "local_python"
         : "remote_openai";
 
     if (resolvedProviderType === "local_python") {
-      const resolvedModelDir =
-        modelInfo.localModelDir ||
-        path.join(app.getPath("userData"), "embedding-models");
-
-      const client = await pythonService.ensureStarted();
-      const result = await client.request<{
-        embeddings: number[][];
-        dimensions?: number;
-      }>("embed_texts", {
-        texts,
-        modelDir: resolvedModelDir,
+      const result = await localInference.embedTexts(texts, {
+        modelDir: modelInfo.localModelDir,
         modelName: modelInfo.model,
         batchSize: modelInfo.batchSize || 8,
         devicePolicy: modelInfo.devicePolicy || "auto",
@@ -82,13 +58,9 @@ export default class VecDocumentTable {
         return [];
       }
 
-      if (
-        modelInfo.dimensions &&
-        embeddings[0] &&
-        embeddings[0].length !== modelInfo.dimensions
-      ) {
+      if (modelInfo.dimensions && embeddings[0] && embeddings[0].length !== modelInfo.dimensions) {
         throw new Error(
-          `Embedding 维度不匹配：配置 ${modelInfo.dimensions}，实际 ${embeddings[0].length}`,
+          `Embedding 维度不匹配：配置 ${modelInfo.dimensions}，实际 ${embeddings[0].length}`
         );
       }
 
@@ -110,14 +82,12 @@ export default class VecDocumentTable {
       dimensions: modelInfo.dimensions,
     });
 
-    return res.data.map((item) => item.embedding);
+    return res.data.map(item => item.embedding);
   }
 
   private static hasTable(db: Database.Database, tableName: string): boolean {
     const row = db
-      .prepare(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
-      )
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1")
       .get(tableName);
     return !!row;
   }
@@ -130,8 +100,7 @@ export default class VecDocumentTable {
     partial: boolean;
   } {
     const hasVecTable = this.hasTable(indexDb, "vec_documents");
-    const migrationState =
-      this.getIndexMeta(indexDb, "migration_state") || "init";
+    const migrationState = this.getIndexMeta(indexDb, "migration_state") || "init";
     const vecRebuildState =
       this.getIndexMeta(indexDb, "vec_rebuild_state") ||
       this.getIndexMeta(indexDb, "rebuild_state") ||
@@ -141,10 +110,7 @@ export default class VecDocumentTable {
       hasVecTable,
       migrationState,
       vecRebuildState,
-      searchable:
-        hasVecTable &&
-        migrationState === "done" &&
-        vecRebuildState !== "failed",
+      searchable: hasVecTable && migrationState === "done" && vecRebuildState !== "failed",
       partial: vecRebuildState === "building",
     };
   }
@@ -170,43 +136,41 @@ export default class VecDocumentTable {
       "vec-document-index-content": (
         _mainDb: Database.Database,
         indexDb: Database.Database,
-        params: IndexParams,
+        params: IndexParams
       ) => this.indexContent(indexDb, params),
       "vec-document-batch-index-content": (
         _mainDb: Database.Database,
         indexDb: Database.Database,
-        items: IndexParams[],
+        items: IndexParams[]
       ) => this.batchIndexContent(indexDb, items),
       "vec-document-remove-index": (
         _mainDb: Database.Database,
         indexDb: Database.Database,
         id: number,
-        type: IndexType,
+        type: IndexType
       ) => this.removeIndexByIdAndType(indexDb, id, type),
       "vec-document-search-content": (
         mainDb: Database.Database,
         indexDb: Database.Database,
-        searchParams: SearchParams,
+        searchParams: SearchParams
       ) => this.searchContent(mainDb, indexDb, searchParams),
       "vec-document-check-index-exists": (
         _mainDb: Database.Database,
         indexDb: Database.Database,
         id: number,
-        type: IndexType,
+        type: IndexType
       ) => this.checkIndexExists(indexDb, id, type),
       "get-all-vec-document-results": (
         mainDb: Database.Database,
         indexDb: Database.Database,
-        type?: IndexType,
+        type?: IndexType
       ) => this.getAllVecDocumentResults(mainDb, indexDb, type),
-      "clear-vec-document-table": (
-        _mainDb: Database.Database,
-        indexDb: Database.Database,
-      ) => this.clearTableData(indexDb),
+      "clear-vec-document-table": (_mainDb: Database.Database, indexDb: Database.Database) =>
+        this.clearTableData(indexDb),
       "init-vec-document-table": (
         _mainDb: Database.Database,
         indexDb: Database.Database,
-        vecLength: number,
+        vecLength: number
       ) => this.initTableByVecLength(indexDb, vecLength),
     };
   }
@@ -235,14 +199,13 @@ export default class VecDocumentTable {
     queryEmbedding: number[],
     topK: number,
     types: IndexType[] = [],
-    distance = 0.6,
+    distance = 0.6
   ): Array<[document: VecDocument, distance: number]> {
     if (!this.hasTable(db, "vec_documents")) {
       return [];
     }
 
-    const typeClause =
-      types.length > 0 ? `AND type IN (${types.map(() => "?").join(",")})` : "";
+    const typeClause = types.length > 0 ? `AND type IN (${types.map(() => "?").join(",")})` : "";
 
     const searchQuery = `
       SELECT prefixed_id, update_time, content, distance
@@ -269,10 +232,7 @@ export default class VecDocumentTable {
     return res;
   }
 
-  static async indexContent(
-    db: Database.Database,
-    params: IndexParams,
-  ): Promise<boolean> {
+  static async indexContent(db: Database.Database, params: IndexParams): Promise<boolean> {
     const { id, content, type, updateTime, modelInfo } = params;
     if (!this.hasTable(db, "vec_documents")) {
       return false;
@@ -307,13 +267,7 @@ export default class VecDocumentTable {
           `);
 
           for (let j = 0; j < chunkBatch.length; j++) {
-            stmt.run(
-              prefixedId,
-              updateTime,
-              chunkBatch[j],
-              type,
-              JSON.stringify(embeddings[j]),
-            );
+            stmt.run(prefixedId, updateTime, chunkBatch[j], type, JSON.stringify(embeddings[j]));
           }
         }
 
@@ -340,11 +294,7 @@ export default class VecDocumentTable {
     return results.every(Boolean);
   }
 
-  static removeIndexByIdAndType(
-    db: Database.Database,
-    id: number,
-    type: IndexType,
-  ) {
+  static removeIndexByIdAndType(db: Database.Database, id: number, type: IndexType) {
     if (!this.hasTable(db, "vec_documents")) {
       return true;
     }
@@ -370,7 +320,7 @@ export default class VecDocumentTable {
         .prepare(
           `
             DELETE FROM vec_documents WHERE type = ?
-          `,
+          `
         )
         .run(type);
       return result.changes;
@@ -383,7 +333,7 @@ export default class VecDocumentTable {
   static async searchContent(
     mainDb: Database.Database,
     indexDb: Database.Database,
-    searchParams: SearchParams,
+    searchParams: SearchParams
   ): Promise<SearchResult[]> {
     const { query, types = [], limit = 10, modelInfo } = searchParams;
 
@@ -422,7 +372,7 @@ export default class VecDocumentTable {
           queryEmbedding,
           limit,
           types,
-          modelInfo.distance || 0.6,
+          modelInfo.distance || 0.6
         );
         log.info("[VecDocument] searchVecDocuments 结果:", {
           count: searchResults.length,
@@ -497,7 +447,7 @@ export default class VecDocumentTable {
   static checkIndexExists(
     db: Database.Database,
     id: number,
-    type: IndexType,
+    type: IndexType
   ): { updateTime: number } | null {
     if (!this.hasTable(db, "vec_documents")) {
       return null;
@@ -507,11 +457,7 @@ export default class VecDocumentTable {
       SELECT update_time FROM vec_documents WHERE prefixed_id = ?
     `);
     const result: any = stmt.get(prefixedId);
-    if (
-      !result ||
-      result.update_time === null ||
-      result.update_time === undefined
-    ) {
+    if (!result || result.update_time === null || result.update_time === undefined) {
       return null;
     }
     return {
@@ -522,7 +468,7 @@ export default class VecDocumentTable {
   static getAllVecDocumentResults(
     mainDb: Database.Database,
     indexDb: Database.Database,
-    type?: IndexType,
+    type?: IndexType
   ): SearchResult[] {
     if (!this.hasTable(indexDb, "vec_documents")) {
       return [];
@@ -541,7 +487,7 @@ export default class VecDocumentTable {
 
     const stmt = indexDb.prepare(query);
     const documents = type ? stmt.all(type) : stmt.all();
-    const vecDocuments = documents.map((doc) => this.parseVecDocument(doc));
+    const vecDocuments = documents.map(doc => this.parseVecDocument(doc));
     const results: SearchResult[] = [];
 
     for (const doc of vecDocuments) {

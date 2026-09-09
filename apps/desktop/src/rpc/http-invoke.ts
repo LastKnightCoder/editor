@@ -14,6 +14,20 @@ const RETRY_TIMEOUT_MS = 5000;
 // 单次请求超时上限：仅拦截连接悬挂，命令本身允许长耗时故取宽裕值
 const REQUEST_TIMEOUT_MS = 300_000;
 
+// 长任务通道放宽超时到 1 小时：转录/模型与程序下载/音视频文档转换可能远超
+// 5 分钟，超时会在任务进行中被 AbortSignal 掐断（TimeoutError: signal timed
+// out），而主进程任务本身仍在运行，造成"前端报错、后台跑完"的假失败
+const LONG_TASK_TIMEOUT_MS = 3_600_000;
+const LONG_RUNNING_CHANNELS = new Set([
+  "transcribe-audio",
+  "transcription-transcribe-segmented",
+  "markitdown-convert",
+  "embedding-model-download",
+  "search-model-download",
+  "model-downloader-download",
+  "program-downloader-download",
+]);
+
 // 收到过任意协议响应（NO_HANDLER 除外）即视为就绪：此后再遇 NO_HANDLER 属于
 // channel 拼写错误或模块确实缺失，立即失败不再空等重试；网络层失败时重置
 // （服务不可用，恢复后可能处于全新的初始化竞态窗口）
@@ -55,7 +69,9 @@ async function postRpc(
       Authorization: `Bearer ${config.token}`,
     },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    signal: AbortSignal.timeout(
+      LONG_RUNNING_CHANNELS.has(channel) ? LONG_TASK_TIMEOUT_MS : REQUEST_TIMEOUT_MS
+    ),
   });
   const text = await response.text();
   try {

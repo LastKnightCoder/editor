@@ -2,7 +2,6 @@ import { app, BrowserWindow, globalShortcut, ipcMain } from "electron";
 import log from "electron-log";
 import type { WindowManager } from "./modules/window-manager";
 import collaborationModule from "./modules/collaboration";
-import pythonService from "./modules/python-service";
 import mcpModule from "./modules/mcp";
 import whiteboardRecordingModule from "./modules/whiteboard-recording";
 
@@ -69,7 +68,6 @@ async function runControlledQuit(deps: QuitControllerDeps): Promise<void> {
       if (!win.isDestroyed()) win.destroy();
     }
 
-    await pythonService.stop();
     await mcpModule.disconnectAll();
     collaborationModule.shutdown();
   } catch (error) {

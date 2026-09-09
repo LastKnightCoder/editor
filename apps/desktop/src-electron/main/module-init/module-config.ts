@@ -33,7 +33,6 @@ import todoReminderModule from "../modules/todo-reminder";
 import holidayServiceModule from "../modules/holiday-service";
 import transcriptionModule from "../modules/transcription";
 import modelDownloaderModule from "../modules/model-downloader";
-import pythonService from "../modules/python-service";
 import markitdownModule from "../modules/markitdown";
 import embeddingModelManager from "../modules/embedding-model-manager";
 import vibeLearningDBManager from "../modules/vibe-learning-db";
@@ -272,38 +271,31 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     },
   },
   {
-    name: "python-service",
-    group: ModuleGroup.AI,
-    layer: InitLayer.ON_DEMAND,
-    dependencies: ["logger"],
-    init: () => pythonService.init(),
-  },
-  {
     name: "transcription",
     group: ModuleGroup.AI,
     layer: InitLayer.ON_DEMAND,
-    dependencies: ["logger", "python-service"],
+    dependencies: ["logger"],
     init: () => transcriptionModule.init(),
   },
   {
     name: "model-downloader",
     group: ModuleGroup.AI,
     layer: InitLayer.ON_DEMAND,
-    dependencies: ["logger", "python-service"],
+    dependencies: ["logger"],
     init: () => modelDownloaderModule.init(),
   },
   {
     name: "markitdown",
     group: ModuleGroup.AI,
     layer: InitLayer.ON_DEMAND,
-    dependencies: ["logger", "python-service"],
+    dependencies: ["logger"],
     init: () => markitdownModule.init(),
   },
   {
     name: "embedding-model-manager",
     group: ModuleGroup.AI,
     layer: InitLayer.ON_DEMAND,
-    dependencies: ["logger", "python-service"],
+    dependencies: ["logger"],
     init: () => embeddingModelManager.init(),
   },
 

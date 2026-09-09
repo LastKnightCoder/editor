@@ -1,7 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const removeDir = (targetPath) => {
+const removeDir = targetPath => {
   fs.rmSync(targetPath, { recursive: true, force: true });
 };
 
@@ -24,7 +24,7 @@ const keepOnly = (targetDir, keepNames) => {
   }
 };
 
-const pruneCommonBuildArtifacts = (nodeModulesDir) => {
+const pruneCommonBuildArtifacts = nodeModulesDir => {
   removeEntries(nodeModulesDir, [
     "better-sqlite3/bin",
     "better-sqlite3/deps",
@@ -46,12 +46,191 @@ const pruneCommonBuildArtifacts = (nodeModulesDir) => {
   ]);
 };
 
-exports.default = async (context) => {
+/**
+ * node-llama-cpp 为 ESM-only 且被 asarUnpack 解包。
+ * pnpm 布局下其运行时依赖（chalk/ora/ipull 等）被 electron-builder 收进
+ * asar 顶层 node_modules，而 unpacked 目录中的 ESM 模块解析无法回溯到
+ * asar 虚拟树，因此把依赖闭包补复制到 app.asar.unpacked/node_modules 下。
+ *
+ * 同名依赖在闭包内可能存在多个版本（如 signal-exit v3/v4），扁平复制会
+ * 相互覆盖导致 ESM named export 缺失。这里按 npm 去重规则放置：
+ * 首个版本放顶层，版本冲突时嵌套到依赖方的 node_modules 下。
+ */
+const syncNodeLlamaCppUnpackedDeps = (nodeModulesDir, platform) => {
+  const unpackedLlamaCpp = path.join(nodeModulesDir, "node-llama-cpp");
+  if (!fs.existsSync(unpackedLlamaCpp)) {
+    return;
+  }
+
+  // node-llama-cpp 的 exports 不含 ./package.json，不能用 require.resolve，
+  // 直接从本地 node_modules 定位并解引用 pnpm 符号链接
+  const localPackageJson = path.resolve(
+    __dirname,
+    "..",
+    "node_modules",
+    "node-llama-cpp",
+    "package.json"
+  );
+  if (!fs.existsSync(localPackageJson)) {
+    console.warn("[prune] local node-llama-cpp not found, skip dep sync");
+    return;
+  }
+
+  const rootRealDir = path.dirname(fs.realpathSync(localPackageJson));
+
+  // 平台二进制包（@node-llama-cpp/win-x64 等）必须位于 unpacked。
+  // 只保留 CPU + Vulkan 后端（Vulkan 覆盖 NVIDIA/AMD/Intel，体积约为 CUDA 的
+  // 四分之一）；CUDA 全家桶 510M 仅服务 NVIDIA，不默认打包。
+  // 同时删除 electron-builder 遍历时可能解包进来的白名单外后端。
+  const llamaBackendAllowlist = (() => {
+    if (platform === "win32") return ["win-x64", "win-x64-vulkan"];
+    if (platform === "darwin") return ["mac-arm64-metal", "mac-x64"];
+    if (platform === "linux") return ["linux-x64", "linux-x64-vulkan"];
+    return [];
+  })();
+
+  const binsTarget = path.join(nodeModulesDir, "@node-llama-cpp");
+  if (fs.existsSync(binsTarget)) {
+    for (const entry of fs.readdirSync(binsTarget)) {
+      if (!llamaBackendAllowlist.includes(entry)) {
+        removeDir(path.join(binsTarget, entry));
+      }
+    }
+  }
+
+  const platformBinsSource = path.join(path.dirname(rootRealDir), "@node-llama-cpp");
+  if (fs.existsSync(platformBinsSource)) {
+    for (const entry of llamaBackendAllowlist) {
+      const source = path.join(platformBinsSource, entry);
+      const target = path.join(binsTarget, entry);
+      if (!fs.existsSync(source) || fs.existsSync(target)) {
+        continue;
+      }
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.cpSync(source, target, { recursive: true, dereference: true });
+    }
+  }
+
+  const readDependencies = pkgDir => {
+    const pkgJsonPath = path.join(pkgDir, "package.json");
+    if (!fs.existsSync(pkgJsonPath)) {
+      return [];
+    }
+    try {
+      const dependencies = Object.keys(
+        JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8")).dependencies || {}
+      );
+      return dependencies.filter(dependency => !dependency.startsWith("@node-llama-cpp/"));
+    } catch {
+      return [];
+    }
+  };
+
+  const topLevelVersions = new Map();
+  const placed = new Map();
+  let copied = 0;
+
+  const placePackage = (name, realDir, importerTarget) => {
+    if (placed.has(realDir)) {
+      return;
+    }
+
+    const target = importerTarget
+      ? path.join(importerTarget, "node_modules", name)
+      : path.join(nodeModulesDir, name);
+
+    fs.cpSync(realDir, target, { recursive: true, dereference: true });
+    placed.set(realDir, target);
+    copied += 1;
+
+    // 递归放置该包的依赖：顶层无冲突则提升，否则嵌套
+    const siblingNodeModules = path.dirname(realDir);
+    for (const dependency of readDependencies(realDir)) {
+      const linkPath = path.join(siblingNodeModules, dependency);
+      if (!fs.existsSync(linkPath)) {
+        continue;
+      }
+      const depRealDir = fs.realpathSync(linkPath);
+      if (placed.has(depRealDir)) {
+        continue;
+      }
+
+      const existing = topLevelVersions.get(dependency);
+      if (!existing) {
+        topLevelVersions.set(dependency, depRealDir);
+        placePackage(dependency, depRealDir, null);
+      } else if (existing === depRealDir) {
+        // 同版本已提升到顶层，解析可直接命中
+        continue;
+      } else {
+        placePackage(dependency, depRealDir, target);
+      }
+    }
+  };
+
+  // 从 node-llama-cpp 自身出发（它已在 unpacked 顶层），其依赖从顶层开始放
+  for (const dependency of readDependencies(rootRealDir)) {
+    const linkPath = path.join(path.dirname(rootRealDir), dependency);
+    if (!fs.existsSync(linkPath)) {
+      continue;
+    }
+    const depRealDir = fs.realpathSync(linkPath);
+    if (placed.has(depRealDir)) {
+      continue;
+    }
+    topLevelVersions.set(dependency, depRealDir);
+    placePackage(dependency, depRealDir, null);
+  }
+
+  console.log(`[prune] synced ${copied} node-llama-cpp runtime deps into unpacked`);
+};
+
+/**
+ * 从本地 pnpm store 补齐指定包的平台二进制子包到 unpacked。
+ * electron-builder 在 pnpm 布局下的 manual traversal 偶发遗漏 optional
+ * 平台包（如 @vscode/ripgrep-win32-x64），这里确保它们存在。
+ */
+const ensurePlatformSubPackages = (nodeModulesDir, packageName) => {
+  const localPackageJson = path.resolve(
+    __dirname,
+    "..",
+    "node_modules",
+    ...packageName.split("/"),
+    "package.json"
+  );
+  if (!fs.existsSync(localPackageJson)) {
+    return;
+  }
+
+  // .../.pnpm/<pkg>@<ver>/node_modules/<scope>/ 下有平台子包符号链接
+  const realDir = path.dirname(fs.realpathSync(localPackageJson));
+  const scopeDir = path.dirname(realDir);
+  const scope = packageName.includes("/") ? packageName.split("/")[0] : "";
+  const mainName = packageName.split("/").pop();
+
+  for (const entry of fs.readdirSync(scopeDir)) {
+    if (entry === mainName) {
+      continue;
+    }
+
+    const source = path.join(scopeDir, entry);
+    const target = path.join(nodeModulesDir, scope ? path.join(scope, entry) : entry);
+    if (fs.existsSync(target) || !fs.existsSync(path.join(source, "package.json"))) {
+      continue;
+    }
+
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.cpSync(source, target, { recursive: true, dereference: true });
+    console.log(`[prune] restored platform package ${scope ? `${scope}/` : ""}${entry}`);
+  }
+};
+
+exports.default = async context => {
   const nodeModulesDir = path.join(
     context.appOutDir,
     "resources",
     "app.asar.unpacked",
-    "node_modules",
+    "node_modules"
   );
 
   if (!fs.existsSync(nodeModulesDir)) {
@@ -59,6 +238,12 @@ exports.default = async (context) => {
   }
 
   const platform = context.electronPlatformName;
+
+  syncNodeLlamaCppUnpackedDeps(nodeModulesDir, platform);
+
+  // ripgrep 主包已 asarUnpack（与平台包同在 unpacked 真实文件系统），
+  // 平台包被 manual traversal 遗漏时在此补齐
+  ensurePlatformSubPackages(nodeModulesDir, "@vscode/ripgrep");
 
   pruneCommonBuildArtifacts(nodeModulesDir);
 

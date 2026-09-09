@@ -7,14 +7,9 @@ import log from "electron-log";
 import type { EmbeddingProviderType } from "@/types/embedding";
 import { Module } from "../types/module";
 import databaseModule from "./database";
-import videoNoteIndexDBManager, {
-  type VideoNoteIndexChunk,
-} from "./video-note-index-db";
-import pythonService from "./python-service";
-import {
-  DEFAULT_LOCAL_EMBEDDING_DISTANCE,
-  LOCAL_EMBEDDING_CONFIG_ID,
-} from "@/constants/embedding";
+import videoNoteIndexDBManager, { type VideoNoteIndexChunk } from "./video-note-index-db";
+import localInference from "./local-inference";
+import { DEFAULT_LOCAL_EMBEDDING_DISTANCE, LOCAL_EMBEDDING_CONFIG_ID } from "@/constants/embedding";
 import { runSearchPipeline } from "./search-core/pipeline";
 import { createVideoNoteAdapter } from "./search-core/video-note-adapter";
 import { LocalQueryExpander, NoopExpander } from "./search-core/expander";
@@ -112,10 +107,10 @@ class VideoNoteIndexQueue implements Module {
           dimensions: number;
           reason?: EmbeddingSwitchReason;
           mainDbName?: string;
-        },
+        }
       ) => {
         return this.rebuildQueueForEmbeddingSwitch(params);
-      },
+      }
     );
 
     ipcMain.handle(
@@ -125,26 +120,22 @@ class VideoNoteIndexQueue implements Module {
         params: {
           mainDbName: string;
           videoNoteIds: number[];
-        },
+        }
       ) => {
         const { mainDbName, videoNoteIds } = params;
         const result: Record<number, { indexed: boolean }> = {};
         for (const videoNoteId of videoNoteIds) {
           result[videoNoteId] = {
-            indexed: videoNoteIndexDBManager.checkIndexExists(
-              mainDbName,
-              videoNoteId,
-            ),
+            indexed: videoNoteIndexDBManager.checkIndexExists(mainDbName, videoNoteId),
           };
         }
         return result;
-      },
+      }
     );
 
     databaseModule.onDatabaseConnected((dbName, reason) => {
       const shouldRecover =
-        reason !== "sync_upload_reconnect" ||
-        this.recoveryNeededDbNames.has(dbName);
+        reason !== "sync_upload_reconnect" || this.recoveryNeededDbNames.has(dbName);
 
       if (shouldRecover) {
         this.checkAndRecoverVideoNotes(dbName)
@@ -154,23 +145,19 @@ class VideoNoteIndexQueue implements Module {
               void this.processQueue();
             }
           })
-          .catch((error) => {
+          .catch(error => {
             log.error("[VideoNoteIndexQueue] recover failed:", error);
           });
         return;
       }
 
       if (this.hasQueuedTasksForDb(dbName)) {
-        log.info(
-          `[VideoNoteIndexQueue] Resume queued tasks after upload reconnect: db=${dbName}`,
-        );
+        log.info(`[VideoNoteIndexQueue] Resume queued tasks after upload reconnect: db=${dbName}`);
         void this.processQueue();
         return;
       }
 
-      log.info(
-        `[VideoNoteIndexQueue] Skip recover after upload reconnect: db=${dbName}`,
-      );
+      log.info(`[VideoNoteIndexQueue] Skip recover after upload reconnect: db=${dbName}`);
     });
 
     log.info("[VideoNoteIndexQueue] Module initialized");
@@ -193,9 +180,7 @@ class VideoNoteIndexQueue implements Module {
 
   private hasQueuedTasksForDb(mainDbName: string): boolean {
     return this.queue.some(
-      (task) =>
-        task.mainDbName === mainDbName &&
-        task.generation === this.queueGeneration,
+      task => task.mainDbName === mainDbName && task.generation === this.queueGeneration
     );
   }
 
@@ -218,14 +203,14 @@ class VideoNoteIndexQueue implements Module {
           if (result === "retry") {
             this.queue.unshift(task);
             log.info(
-              `[VideoNoteIndexQueue] Defer task until database reconnects: db=${task.mainDbName}, videoNoteId=${task.videoNoteId}`,
+              `[VideoNoteIndexQueue] Defer task until database reconnects: db=${task.mainDbName}, videoNoteId=${task.videoNoteId}`
             );
             break;
           }
         } catch (error) {
           this.recoveryNeededDbNames.add(task.mainDbName);
           log.error(
-            `[VideoNoteIndexQueue] index failed: videoNoteId=${task.videoNoteId}, error=${error}`,
+            `[VideoNoteIndexQueue] index failed: videoNoteId=${task.videoNoteId}, error=${error}`
           );
         }
       }
@@ -236,10 +221,10 @@ class VideoNoteIndexQueue implements Module {
 
   enqueueTask(mainDbName: string, videoNoteId: number): void {
     const existing = this.queue.find(
-      (task) =>
+      task =>
         task.mainDbName === mainDbName &&
         task.videoNoteId === videoNoteId &&
-        task.generation === this.queueGeneration,
+        task.generation === this.queueGeneration
     );
     if (!existing) {
       this.queue.push({
@@ -254,19 +239,17 @@ class VideoNoteIndexQueue implements Module {
   abortCurrentRun(): void {
     this.queueGeneration += 1;
     this.queue = [];
-    log.info(
-      `[VideoNoteIndexQueue] Abort current run, generation=${this.queueGeneration}`,
-    );
+    log.info(`[VideoNoteIndexQueue] Abort current run, generation=${this.queueGeneration}`);
   }
 
   cleanupVideoNoteArtifacts(mainDbName: string, videoNoteId: number): void {
     this.queue = this.queue.filter(
-      (task) =>
+      task =>
         !(
           task.mainDbName === mainDbName &&
           task.videoNoteId === videoNoteId &&
           task.generation === this.queueGeneration
-        ),
+        )
     );
     videoNoteIndexDBManager.deleteDatabase(mainDbName, videoNoteId);
   }
@@ -278,9 +261,7 @@ class VideoNoteIndexQueue implements Module {
     }
 
     const row = db
-      .prepare(
-        "SELECT transcript_segments FROM video_notes WHERE id = ? LIMIT 1",
-      )
+      .prepare("SELECT transcript_segments FROM video_notes WHERE id = ? LIMIT 1")
       .get(task.videoNoteId) as { transcript_segments?: string } | undefined;
     const segments = this.parseTranscriptSegments(row?.transcript_segments);
     if (segments.length === 0) {
@@ -295,15 +276,11 @@ class VideoNoteIndexQueue implements Module {
         endMs: segment.end,
         text: segment.text?.trim() || "",
       }))
-      .filter((segment) => !!segment.text);
+      .filter(segment => !!segment.text);
 
     const embeddingConfig = await this.getEmbeddingConfig();
     if (!embeddingConfig) {
-      videoNoteIndexDBManager.createIndex(
-        task.mainDbName,
-        task.videoNoteId,
-        chunks,
-      );
+      videoNoteIndexDBManager.createIndex(task.mainDbName, task.videoNoteId, chunks);
       return "done";
     }
 
@@ -314,8 +291,8 @@ class VideoNoteIndexQueue implements Module {
       }
       const batch = chunks.slice(i, i + batchSize);
       const embeddings = await this.embedTexts(
-        batch.map((item) => item.text),
-        embeddingConfig,
+        batch.map(item => item.text),
+        embeddingConfig
       );
       for (let j = 0; j < batch.length; j++) {
         if (embeddings[j] && embeddings[j].length > 0) {
@@ -324,11 +301,7 @@ class VideoNoteIndexQueue implements Module {
       }
     }
 
-    videoNoteIndexDBManager.createIndex(
-      task.mainDbName,
-      task.videoNoteId,
-      chunks,
-    );
+    videoNoteIndexDBManager.createIndex(task.mainDbName, task.videoNoteId, chunks);
     return "done";
   }
 
@@ -347,7 +320,7 @@ class VideoNoteIndexQueue implements Module {
       }
 
       const currentConfig = embeddingProvider.configs?.find(
-        (item) => item.id === embeddingProvider.currentConfigId,
+        item => item.id === embeddingProvider.currentConfigId
       );
       if (!currentConfig) {
         this.cachedEmbeddingConfig = null;
@@ -355,7 +328,7 @@ class VideoNoteIndexQueue implements Module {
       }
 
       const modelConfig = currentConfig.models?.find(
-        (model) => model.name === currentConfig.currentModel,
+        model => model.name === currentConfig.currentModel
       );
       if (!modelConfig) {
         this.cachedEmbeddingConfig = null;
@@ -378,9 +351,7 @@ class VideoNoteIndexQueue implements Module {
 
       const distance =
         modelConfig.distance ||
-        (resolvedProviderType === "local_python"
-          ? DEFAULT_LOCAL_EMBEDDING_DISTANCE
-          : 0.6);
+        (resolvedProviderType === "local_python" ? DEFAULT_LOCAL_EMBEDDING_DISTANCE : 0.6);
 
       this.cachedEmbeddingConfig = {
         providerType: resolvedProviderType,
@@ -392,8 +363,7 @@ class VideoNoteIndexQueue implements Module {
         batchSize: currentConfig.batchSize || 8,
         devicePolicy: currentConfig.devicePolicy || "auto",
         localModelDir:
-          currentConfig.localModelDir ||
-          join(app.getPath("userData"), "embedding-models"),
+          currentConfig.localModelDir || join(app.getPath("userData"), "embedding-models"),
       };
 
       videoNoteIndexDBManager.setVecDimensions(modelConfig.contextLength);
@@ -405,26 +375,18 @@ class VideoNoteIndexQueue implements Module {
     }
   }
 
-  private async embedTexts(
-    texts: string[],
-    embeddingConfig: EmbeddingConfig,
-  ): Promise<number[][]> {
+  private async embedTexts(texts: string[], embeddingConfig: EmbeddingConfig): Promise<number[][]> {
     if (!texts.length) {
       return [];
     }
 
     if (embeddingConfig.providerType === "local_python") {
-      const client = await pythonService.ensureStarted();
-      const result = await client.request<{ embeddings: number[][] }>(
-        "embed_texts",
-        {
-          texts,
-          modelDir: embeddingConfig.localModelDir,
-          modelName: embeddingConfig.model,
-          batchSize: embeddingConfig.batchSize,
-          devicePolicy: embeddingConfig.devicePolicy,
-        },
-      );
+      const result = await localInference.embedTexts(texts, {
+        modelDir: embeddingConfig.localModelDir,
+        modelName: embeddingConfig.model,
+        batchSize: embeddingConfig.batchSize,
+        devicePolicy: embeddingConfig.devicePolicy,
+      });
       return result.embeddings || [];
     }
 
@@ -441,7 +403,7 @@ class VideoNoteIndexQueue implements Module {
       input: texts,
       dimensions: embeddingConfig.dimensions,
     });
-    return result.data.map((item) => item.embedding);
+    return result.data.map(item => item.embedding);
   }
 
   clearEmbeddingConfigCache(): void {
@@ -450,7 +412,7 @@ class VideoNoteIndexQueue implements Module {
 
   async checkAndRecoverVideoNotes(
     mainDbName: string,
-    options: { forceEmbedding?: boolean } = {},
+    options: { forceEmbedding?: boolean } = {}
   ): Promise<void> {
     const db = databaseModule.getDatabase(mainDbName);
     if (!db) {
@@ -458,25 +420,20 @@ class VideoNoteIndexQueue implements Module {
     }
 
     const tableExists = db
-      .prepare(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='video_notes'",
-      )
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='video_notes'")
       .get();
     if (!tableExists) {
       return;
     }
 
-    const rows = db
-      .prepare("SELECT id, transcript_segments FROM video_notes")
-      .all() as Array<{
+    const rows = db.prepare("SELECT id, transcript_segments FROM video_notes").all() as Array<{
       id: number;
       transcript_segments?: string;
     }>;
 
     let processed = 0;
     for (const row of rows) {
-      const hasSegments =
-        this.parseTranscriptSegments(row.transcript_segments).length > 0;
+      const hasSegments = this.parseTranscriptSegments(row.transcript_segments).length > 0;
       if (!hasSegments) {
         continue;
       }
@@ -484,10 +441,7 @@ class VideoNoteIndexQueue implements Module {
         this.enqueueTask(mainDbName, row.id);
         continue;
       }
-      const indexed = videoNoteIndexDBManager.checkIndexExists(
-        mainDbName,
-        row.id,
-      );
+      const indexed = videoNoteIndexDBManager.checkIndexExists(mainDbName, row.id);
       if (!indexed) {
         this.enqueueTask(mainDbName, row.id);
       }
@@ -497,10 +451,7 @@ class VideoNoteIndexQueue implements Module {
     await yieldToEventLoop();
   }
 
-  private async reinitAllVecTables(
-    dimensions: number,
-    mainDbName: string,
-  ): Promise<boolean> {
+  private async reinitAllVecTables(dimensions: number, mainDbName: string): Promise<boolean> {
     const db = databaseModule.getDatabase(mainDbName);
     if (!db) {
       return false;
@@ -512,18 +463,11 @@ class VideoNoteIndexQueue implements Module {
     let ok = true;
     let processed = 0;
     for (const row of rows) {
-      const exists = videoNoteIndexDBManager.checkIndexExists(
-        mainDbName,
-        row.id,
-      );
+      const exists = videoNoteIndexDBManager.checkIndexExists(mainDbName, row.id);
       if (!exists) {
         continue;
       }
-      const reinitOk = videoNoteIndexDBManager.reinitVecTable(
-        mainDbName,
-        row.id,
-        dimensions,
-      );
+      const reinitOk = videoNoteIndexDBManager.reinitVecTable(mainDbName, row.id, dimensions);
       if (!reinitOk) {
         ok = false;
       }
@@ -535,7 +479,7 @@ class VideoNoteIndexQueue implements Module {
   }
 
   private parseTranscriptSegments(
-    raw: string | undefined,
+    raw: string | undefined
   ): Array<{ text: string; start: number; end: number }> {
     if (!raw) {
       return [];
@@ -546,11 +490,11 @@ class VideoNoteIndexQueue implements Module {
         return [];
       }
       return parsed.filter(
-        (item) =>
+        item =>
           item &&
           typeof item.text === "string" &&
           typeof item.start === "number" &&
-          typeof item.end === "number",
+          typeof item.end === "number"
       );
     } catch {
       return [];
@@ -558,7 +502,7 @@ class VideoNoteIndexQueue implements Module {
   }
 
   async handleEmbeddingSwitchByPolicy(
-    params: HandleEmbeddingSwitchByPolicyParams,
+    params: HandleEmbeddingSwitchByPolicyParams
   ): Promise<HandleEmbeddingSwitchByPolicyResult> {
     const previousGeneration = this.queueGeneration;
     this.queueGeneration += 1;
@@ -569,10 +513,7 @@ class VideoNoteIndexQueue implements Module {
 
     let reinitOk = true;
     if (params.fingerprintChanged) {
-      reinitOk = await this.reinitAllVecTables(
-        Math.floor(params.dimensions),
-        params.mainDbName,
-      );
+      reinitOk = await this.reinitAllVecTables(Math.floor(params.dimensions), params.mainDbName);
     }
     if (reinitOk) {
       await this.checkAndRecoverVideoNotes(params.mainDbName, {
@@ -599,8 +540,7 @@ class VideoNoteIndexQueue implements Module {
     previousGeneration: number;
     currentGeneration: number;
   }> {
-    const targetDbName =
-      params.mainDbName || databaseModule.getCurrentDatabaseName();
+    const targetDbName = params.mainDbName || databaseModule.getCurrentDatabaseName();
     return this.handleEmbeddingSwitchByPolicy({
       mainDbName: targetDbName,
       dimensions: params.dimensions,
@@ -645,7 +585,7 @@ class VideoNoteIndexQueue implements Module {
           : new NoopExpander(
               searchModelConfig.enableExpander
                 ? "未配置本地 query expansion 模型"
-                : "query expansion 已禁用",
+                : "query expansion 已禁用"
             );
 
       const reranker =
@@ -657,9 +597,7 @@ class VideoNoteIndexQueue implements Module {
               devicePolicy: searchModelConfig.devicePolicy,
             })
           : new NoopReranker(
-              searchModelConfig.enableReranker
-                ? "未配置本地 reranker 模型"
-                : "reranker 已禁用",
+              searchModelConfig.enableReranker ? "未配置本地 reranker 模型" : "reranker 已禁用"
             );
 
       const adapter = createVideoNoteAdapter();
@@ -674,15 +612,10 @@ class VideoNoteIndexQueue implements Module {
                 distance: embeddingConfig.distance,
                 embedQuery: async (queryText: string) => {
                   try {
-                    const res = await this.embedTexts(
-                      [queryText],
-                      embeddingConfig,
-                    );
+                    const res = await this.embedTexts([queryText], embeddingConfig);
                     return res[0] || null;
                   } catch (error) {
-                    log.error(
-                      `[VideoNoteIndexQueue] embed query failed: ${error}`,
-                    );
+                    log.error(`[VideoNoteIndexQueue] embed query failed: ${error}`);
                     return null;
                   }
                 },
@@ -694,7 +627,7 @@ class VideoNoteIndexQueue implements Module {
         reranker,
       });
 
-      return results.map((item) => ({
+      return results.map(item => ({
         videoNoteId: item.videoNoteId,
         start: item.start,
         end: item.end,

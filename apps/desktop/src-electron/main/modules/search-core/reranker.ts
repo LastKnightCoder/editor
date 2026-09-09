@@ -1,4 +1,4 @@
-import pythonService from "../python-service";
+import localInference from "../local-inference";
 import { ParsedQuery, RerankResult, Reranker } from "./types";
 
 export interface LocalRerankerOptions {
@@ -7,14 +7,6 @@ export interface LocalRerankerOptions {
   modelName?: string;
   batchSize?: number;
   devicePolicy?: "auto" | "cpu" | "cuda";
-}
-
-interface RerankTextsResponse {
-  available?: boolean;
-  reason?: string;
-  device?: string;
-  modelName?: string;
-  scores?: number[];
 }
 
 export class NoopReranker implements Reranker {
@@ -87,10 +79,7 @@ export class LocalReranker implements Reranker {
     }
 
     try {
-      const client = await pythonService.ensureStarted();
-      const result = await client.request<RerankTextsResponse>("rerank_texts", {
-        query: query.normalized,
-        texts,
+      const result = await localInference.rerankTexts(query.normalized, texts, {
         modelDir: this.options.modelDir,
         modelName: this.options.modelName,
         batchSize: this.options.batchSize || 8,

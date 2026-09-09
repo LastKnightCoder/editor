@@ -5,8 +5,8 @@ packages:
 overrides:
   react: 19.1.0
   react-dom: 19.1.0
-  '@types/react': 19.1.8
-  '@types/react-dom': 19.1.6
+  "@types/react": 19.1.8
+  "@types/react-dom": 19.1.6
   slate: 0.123.0
   slate-dom: 0.123.0
   slate-react: 0.123.0
@@ -16,23 +16,27 @@ patchedDependencies:
   better-sqlite3@12.10.0: patches/better-sqlite3@12.10.0.patch
 
 onlyBuiltDependencies:
-  - '@swc/core'
-  - '@tailwindcss/oxide'
+  - "@swc/core"
+  - "@tailwindcss/oxide"
   - better-sqlite3
   - dugite
   - electron
   - electron-winstaller
   - esbuild
   - lzma-native
+  - node-llama-cpp
   - node-pty
   - sharp
   - spawn-sync
+  - tesseract.js
 
 allowBuilds:
-  '@swc/core': true
+  "@swc/core": true
   better-sqlite3: true
   electron-winstaller: true
   esbuild: true
+  node-llama-cpp: true
   node-pty: true
   sharp: true
   spawn-sync: true
+  tesseract.js: true

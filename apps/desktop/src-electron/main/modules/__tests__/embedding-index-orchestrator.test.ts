@@ -7,8 +7,7 @@ const mockContext = vi.hoisted(() => {
     prepare: vi.fn((sql: string) => {
       if (sql.includes("SELECT value FROM vec_index_meta WHERE key = ?")) {
         return {
-          get: (key: string) =>
-            metaStore.has(key) ? { value: metaStore.get(key) } : undefined,
+          get: (key: string) => (metaStore.has(key) ? { value: metaStore.get(key) } : undefined),
         };
       }
       if (sql.includes("INSERT INTO vec_index_meta")) {
@@ -39,9 +38,7 @@ const mockContext = vi.hoisted(() => {
       getDatabase: vi.fn(() => ({ name: "data.db" })),
       getIndexDatabase: vi.fn(() => fakeIndexDb),
       getCurrentDatabaseName: vi.fn(() => "data.db"),
-      getIndexRebuildState: vi.fn(
-        (_dbName: string, _target?: string) => "ready",
-      ),
+      getIndexRebuildState: vi.fn((_dbName: string, _target?: string) => "ready"),
     },
     userSettingModuleMock: {
       onSettingChanged: vi.fn(),
@@ -87,6 +84,16 @@ vi.mock("../user-setting", () => ({
   default: mockContext.userSettingModuleMock,
 }));
 
+vi.mock("../local-inference", () => ({
+  default: {
+    isEmbeddingModelReady: vi.fn(() => true),
+    embedTexts: vi.fn(),
+    rerankTexts: vi.fn(),
+    expandQuery: vi.fn(),
+    embeddingHealth: vi.fn(),
+  },
+}));
+
 vi.mock("../main-content-vec-index-queue", () => ({
   default: mockContext.mainContentQueueMock,
 }));
@@ -115,9 +122,7 @@ describe("EmbeddingIndexOrchestrator(video-note)", () => {
     mockContext.videoNoteQueueMock.handleEmbeddingSwitchByPolicy.mockClear();
     mockContext.databaseModuleMock.ensureIndexDatabaseReady.mockClear();
     mockContext.databaseModuleMock.getIndexRebuildState.mockReset();
-    mockContext.databaseModuleMock.getIndexRebuildState.mockReturnValue(
-      "ready",
-    );
+    mockContext.databaseModuleMock.getIndexRebuildState.mockReturnValue("ready");
     mockContext.resolveEmbeddingConfig.mockReset();
     mockContext.resolveEmbeddingConfig.mockReturnValue({
       configId: "embedding-config-a",
@@ -132,140 +137,105 @@ describe("EmbeddingIndexOrchestrator(video-note)", () => {
   });
 
   it("embedding 指纹变化时，video-note 队列应按重建策略执行", async () => {
-    await (embeddingIndexOrchestrator as any).reconcileForCurrentDb(
-      "data.db",
-      {},
-      "model_switch",
-    );
+    await (embeddingIndexOrchestrator as any).reconcileForCurrentDb("data.db", {}, "model_switch");
 
-    expect(
-      mockContext.videoNoteQueueMock.handleEmbeddingSwitchByPolicy,
-    ).toHaveBeenCalledWith(
+    expect(mockContext.videoNoteQueueMock.handleEmbeddingSwitchByPolicy).toHaveBeenCalledWith(
       expect.objectContaining({
         mainDbName: "data.db",
         dimensions: 1024,
         fingerprintChanged: true,
         reason: "model_switch",
-      }),
+      })
     );
   });
 
   it("embedding 指纹未变化时，video-note 队列不应重复重建", async () => {
-    await (embeddingIndexOrchestrator as any).reconcileForCurrentDb(
-      "data.db",
-      {},
-      "model_switch",
-    );
+    await (embeddingIndexOrchestrator as any).reconcileForCurrentDb("data.db", {}, "model_switch");
     mockContext.videoNoteQueueMock.handleEmbeddingSwitchByPolicy.mockClear();
 
-    await (embeddingIndexOrchestrator as any).reconcileForCurrentDb(
-      "data.db",
-      {},
-      "model_switch",
-    );
+    await (embeddingIndexOrchestrator as any).reconcileForCurrentDb("data.db", {}, "model_switch");
 
-    expect(
-      mockContext.videoNoteQueueMock.handleEmbeddingSwitchByPolicy,
-    ).toHaveBeenCalledWith(
+    expect(mockContext.videoNoteQueueMock.handleEmbeddingSwitchByPolicy).toHaveBeenCalledWith(
       expect.objectContaining({
         mainDbName: "data.db",
         dimensions: 1024,
         fingerprintChanged: false,
         reason: "model_switch",
-      }),
+      })
     );
   });
 
   it("上传重连且索引已 ready、指纹未变化时，应跳过所有 reconcile", async () => {
     mockContext.metaStore.set("main_content_embedding_fingerprint", "fp-a");
-    mockContext.databaseModuleMock.getIndexRebuildState.mockReturnValue(
-      "ready",
-    );
+    mockContext.databaseModuleMock.getIndexRebuildState.mockReturnValue("ready");
 
     await (embeddingIndexOrchestrator as any).reconcileForCurrentDb(
       "data.db",
       {},
-      "sync_upload_reconnect",
+      "sync_upload_reconnect"
     );
 
-    expect(
-      mockContext.mainContentQueueMock.reconcileByPolicy,
-    ).not.toHaveBeenCalled();
-    expect(
-      mockContext.vibeLearningQueueMock.handleEmbeddingSwitchByPolicy,
-    ).not.toHaveBeenCalled();
-    expect(
-      mockContext.videoNoteQueueMock.handleEmbeddingSwitchByPolicy,
-    ).not.toHaveBeenCalled();
+    expect(mockContext.mainContentQueueMock.reconcileByPolicy).not.toHaveBeenCalled();
+    expect(mockContext.vibeLearningQueueMock.handleEmbeddingSwitchByPolicy).not.toHaveBeenCalled();
+    expect(mockContext.videoNoteQueueMock.handleEmbeddingSwitchByPolicy).not.toHaveBeenCalled();
   });
 
   it("下载重连即使指纹未变化也应继续 reconcile", async () => {
     mockContext.metaStore.set("main_content_embedding_fingerprint", "fp-a");
-    mockContext.databaseModuleMock.getIndexRebuildState.mockReturnValue(
-      "ready",
-    );
+    mockContext.databaseModuleMock.getIndexRebuildState.mockReturnValue("ready");
 
     await (embeddingIndexOrchestrator as any).reconcileForCurrentDb(
       "data.db",
       {},
-      "sync_download_reconnect",
+      "sync_download_reconnect"
     );
 
-    expect(
-      mockContext.mainContentQueueMock.reconcileByPolicy,
-    ).toHaveBeenCalledWith(
+    expect(mockContext.mainContentQueueMock.reconcileByPolicy).toHaveBeenCalledWith(
       expect.objectContaining({
         mainDbName: "data.db",
         fingerprintChanged: false,
         reason: "sync_download_reconnect",
-      }),
+      })
     );
   });
 
   it("上传重连时若索引状态不是 ready，则仍应执行 reconcile", async () => {
     mockContext.metaStore.set("main_content_embedding_fingerprint", "fp-a");
-    mockContext.databaseModuleMock.getIndexRebuildState.mockReturnValue(
-      "pending",
-    );
+    mockContext.databaseModuleMock.getIndexRebuildState.mockReturnValue("pending");
 
     await (embeddingIndexOrchestrator as any).reconcileForCurrentDb(
       "data.db",
       {},
-      "sync_upload_reconnect",
+      "sync_upload_reconnect"
     );
 
-    expect(
-      mockContext.mainContentQueueMock.reconcileByPolicy,
-    ).toHaveBeenCalledWith(
+    expect(mockContext.mainContentQueueMock.reconcileByPolicy).toHaveBeenCalledWith(
       expect.objectContaining({
         mainDbName: "data.db",
         fingerprintChanged: false,
         reason: "sync_upload_reconnect",
-      }),
+      })
     );
   });
 
   it("上传重连时应只依据向量索引状态决定是否跳过", async () => {
     mockContext.metaStore.set("main_content_embedding_fingerprint", "fp-a");
     mockContext.databaseModuleMock.getIndexRebuildState.mockImplementation(
-      (_dbName: string, target?: string) =>
-        target === "vec" ? "pending" : "ready",
+      (_dbName: string, target?: string) => (target === "vec" ? "pending" : "ready")
     );
 
     await (embeddingIndexOrchestrator as any).reconcileForCurrentDb(
       "data.db",
       {},
-      "sync_upload_reconnect",
+      "sync_upload_reconnect"
     );
 
-    expect(
-      mockContext.mainContentQueueMock.reconcileByPolicy,
-    ).toHaveBeenCalledWith(
+    expect(mockContext.mainContentQueueMock.reconcileByPolicy).toHaveBeenCalledWith(
       expect.objectContaining({
         mainDbName: "data.db",
         fingerprintChanged: false,
         reason: "sync_upload_reconnect",
-      }),
+      })
     );
   });
 });

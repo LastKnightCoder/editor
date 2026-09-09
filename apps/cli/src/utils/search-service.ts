@@ -12,9 +12,9 @@ import {
 import {
   embedTexts,
   getEmbeddingConfig,
-  closePythonProcess,
-  isPythonAvailable,
-} from "../data-access/python-embedding.js";
+  closeEmbeddingRuntime,
+  isEmbeddingAvailable,
+} from "../data-access/local-embedding.js";
 import { extractPlainText, truncateToWidth } from "./text.js";
 
 export type { IndexType } from "../data-access/index-db.js";
@@ -55,10 +55,7 @@ export function getTypeBadge(type: string): { text: string; color: string } {
   }
 }
 
-function loadDetails(
-  ftsResults: FTSResult[],
-  snippetWidth: number,
-): SearchResult[] {
+function loadDetails(ftsResults: FTSResult[], snippetWidth: number): SearchResult[] {
   const dbName = getActiveDbName();
   const da = getDataAccess(dbName);
   const results: SearchResult[] = [];
@@ -71,7 +68,7 @@ function loadDetails(
       case "card": {
         const row = da.queryOne<{ content: string | null }>(
           `SELECT ct.content FROM cards c LEFT JOIN contents ct ON c.content_id = ct.id WHERE c.id = ?`,
-          r.id,
+          r.id
         );
         title = `Card #${r.id}`;
         content = row?.content ?? null;
@@ -80,7 +77,7 @@ function loadDetails(
       case "article": {
         const row = da.queryOne<{ title: string; content: string | null }>(
           `SELECT a.title, ct.content FROM articles a LEFT JOIN contents ct ON a.content_id = ct.id WHERE a.id = ?`,
-          r.id,
+          r.id
         );
         title = row?.title || `Article #${r.id}`;
         content = row?.content ?? null;
@@ -89,7 +86,7 @@ function loadDetails(
       case "project-item": {
         const row = da.queryOne<{ title: string; content: string | null }>(
           `SELECT pi.title, ct.content FROM project_item pi LEFT JOIN contents ct ON pi.content_id = ct.id WHERE pi.id = ?`,
-          r.id,
+          r.id
         );
         title = row?.title || `ProjectItem #${r.id}`;
         content = row?.content ?? null;
@@ -98,7 +95,7 @@ function loadDetails(
       case "document-item": {
         const row = da.queryOne<{ title: string; content: string | null }>(
           `SELECT di.title, ct.content FROM document_items di LEFT JOIN contents ct ON di.content_id = ct.id WHERE di.id = ?`,
-          r.id,
+          r.id
         );
         title = row?.title || `DocItem #${r.id}`;
         content = row?.content ?? null;
@@ -125,14 +122,13 @@ function searchByLike(
   query: string,
   types: IndexType[] | undefined,
   limit: number,
-  snippetWidth: number,
+  snippetWidth: number
 ): SearchResult[] {
   const dbName = getActiveDbName();
   const da = getDataAccess(dbName);
   const likePattern = `%${query}%`;
   const results: SearchResult[] = [];
-  const shouldInclude = (type: IndexType) =>
-    !types || types.length === 0 || types.includes(type);
+  const shouldInclude = (type: IndexType) => !types || types.length === 0 || types.includes(type);
 
   if (shouldInclude("article")) {
     const rows = da.query<{
@@ -147,7 +143,7 @@ function searchByLike(
        ORDER BY a.update_time DESC LIMIT ?`,
       likePattern,
       likePattern,
-      limit,
+      limit
     );
     for (const row of rows) {
       results.push({
@@ -172,7 +168,7 @@ function searchByLike(
        WHERE ct.content LIKE ?
        ORDER BY c.update_time DESC LIMIT ?`,
       likePattern,
-      limit,
+      limit
     );
     for (const row of rows) {
       results.push({
@@ -199,7 +195,7 @@ function searchByLike(
        ORDER BY pi.update_time DESC LIMIT ?`,
       likePattern,
       likePattern,
-      limit,
+      limit
     );
     for (const row of rows) {
       results.push({
@@ -226,7 +222,7 @@ function searchByLike(
        ORDER BY di.update_time DESC LIMIT ?`,
       likePattern,
       likePattern,
-      limit,
+      limit
     );
     for (const row of rows) {
       results.push({
@@ -248,7 +244,7 @@ function mergeAndLoadDetails(
   vecResults: VecResult[],
   ftsResults: FTSResult[] | null,
   limit: number,
-  snippetWidth: number,
+  snippetWidth: number
 ): SearchResult[] {
   const scoreMap = new Map<
     string,
@@ -292,9 +288,7 @@ function mergeAndLoadDetails(
     }
   }
 
-  const sorted = [...scoreMap.values()]
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit);
+  const sorted = [...scoreMap.values()].sort((a, b) => b.score - a.score).slice(0, limit);
 
   const dbName = getActiveDbName();
   const da = getDataAccess(dbName);
@@ -310,7 +304,7 @@ function mergeAndLoadDetails(
         if (!content) {
           const row = da.queryOne<{ content: string | null }>(
             `SELECT ct.content FROM cards c LEFT JOIN contents ct ON c.content_id = ct.id WHERE c.id = ?`,
-            item.id,
+            item.id
           );
           content = row?.content ?? null;
         }
@@ -318,7 +312,7 @@ function mergeAndLoadDetails(
       case "article": {
         const row = da.queryOne<{ title: string; content: string | null }>(
           `SELECT a.title, ct.content FROM articles a LEFT JOIN contents ct ON a.content_id = ct.id WHERE a.id = ?`,
-          item.id,
+          item.id
         );
         title = row?.title || `Article #${item.id}`;
         if (!content) content = row?.content ?? null;
@@ -327,7 +321,7 @@ function mergeAndLoadDetails(
       case "project-item": {
         const row = da.queryOne<{ title: string; content: string | null }>(
           `SELECT pi.title, ct.content FROM project_item pi LEFT JOIN contents ct ON pi.content_id = ct.id WHERE pi.id = ?`,
-          item.id,
+          item.id
         );
         title = row?.title || `ProjectItem #${item.id}`;
         if (!content) content = row?.content ?? null;
@@ -336,7 +330,7 @@ function mergeAndLoadDetails(
       case "document-item": {
         const row = da.queryOne<{ title: string; content: string | null }>(
           `SELECT di.title, ct.content FROM document_items di LEFT JOIN contents ct ON di.content_id = ct.id WHERE di.id = ?`,
-          item.id,
+          item.id
         );
         title = row?.title || `DocItem #${item.id}`;
         if (!content) content = row?.content ?? null;
@@ -361,7 +355,7 @@ function mergeAndLoadDetails(
 }
 
 export async function executeSearch(
-  options: SearchOptions,
+  options: SearchOptions
 ): Promise<{ results: SearchResult[]; source: string }> {
   const { query, types, limit = 10, snippetWidth = 50 } = options;
 
@@ -369,21 +363,17 @@ export async function executeSearch(
   const appRunning = await isAppRunning();
   if (appRunning) {
     try {
-      const rpcResults = await rpcRequest<any[]>(
-        "search-content",
-        [{ query, types, limit }],
-        { timeoutMs: 10000 },
-      );
+      const rpcResults = await rpcRequest<any[]>("search-content", [{ query, types, limit }], {
+        timeoutMs: 10000,
+      });
       if (rpcResults && rpcResults.length > 0) {
         const results: SearchResult[] = rpcResults.map((r: any) => ({
           id: r.id,
           type: r.type as IndexType,
           title: r.title || `${r.type} #${r.id}`,
           snippet: truncateToWidth(
-            typeof r.content === "string"
-              ? r.content
-              : extractPlainText(JSON.stringify(r.content)),
-            snippetWidth,
+            typeof r.content === "string" ? r.content : extractPlainText(JSON.stringify(r.content)),
+            snippetWidth
           ),
           updateTime: r.updateTime,
           score: r.score,
@@ -398,7 +388,7 @@ export async function executeSearch(
 
   // Strategy 2: Local Vec + FTS (independent Python embedding)
   const embeddingConfig = getEmbeddingConfig();
-  if (embeddingConfig && isPythonAvailable()) {
+  if (embeddingConfig && isEmbeddingAvailable()) {
     try {
       const embeddings = await embedTexts([query]);
       if (embeddings.length > 0 && embeddings[0].length > 0) {
@@ -409,13 +399,8 @@ export async function executeSearch(
         });
         if (vecResults && vecResults.length > 0) {
           const ftsResults = searchFTS(query, { types, limit });
-          const results = mergeAndLoadDetails(
-            vecResults,
-            ftsResults,
-            limit,
-            snippetWidth,
-          );
-          closePythonProcess();
+          const results = mergeAndLoadDetails(vecResults, ftsResults, limit, snippetWidth);
+          closeEmbeddingRuntime();
           closeDataAccess();
           return { results, source: "vec+fts" };
         }
@@ -423,7 +408,7 @@ export async function executeSearch(
     } catch {
       // fall through
     } finally {
-      closePythonProcess();
+      closeEmbeddingRuntime();
     }
   }
 
