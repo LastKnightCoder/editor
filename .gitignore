@@ -41,6 +41,12 @@ _tmp_*
 **/src-python/build/**/*
 **/*/.venv
 **/build/bin
+# 随包分发的 whisper-cli（mac 打包 extraResources 依赖，见 docs/research/mac-verification-runbook.md §2）
+!apps/desktop/build/bin/
+apps/desktop/build/bin/*
+!apps/desktop/build/bin/darwin/
+apps/desktop/build/bin/darwin/*
+!apps/desktop/build/bin/darwin/whisper-cli
 apps/desktop/build/publish-template.zip
 __pycache__
 .output
