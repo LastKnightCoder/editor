@@ -110,6 +110,9 @@ export const MODEL_CONFIG: Record<
   {
     modelscope: string;
     huggingface: string;
+    /** 仅下载仓库内这些文件（缺省整仓下载）；whisper.cpp 镜像仓是多模型共仓，必须指定单文件 */
+    modelscopeFiles?: string[];
+    huggingfaceFiles?: string[];
     label: string;
     size: string;
     description: string;
@@ -188,9 +191,14 @@ export const MODEL_CONFIG: Record<
     platforms: ["win32"],
   },
   // ========== whisper.cpp (ggml 格式，macOS 随包 whisper-cli 使用) ==========
+  // 原 pengzhendong/whisper.cpp-* 分仓库已在 ModelScope 下架（record not found），
+  // HF 的 ggerganov/whisper.<size> 分仓库也已合并进 ggerganov/whisper.cpp 单仓库，
+  // 两端均改用共仓镜像 + 单文件下载（whisper.cpp-base 等镜像已实测可下载）
   "whisper-cpp-tiny": {
-    modelscope: "pengzhendong/whisper.cpp-tiny",
-    huggingface: "ggerganov/whisper.tiny",
+    modelscope: "iceCream2025/whisper.cpp",
+    modelscopeFiles: ["ggml-tiny.bin"],
+    huggingface: "ggerganov/whisper.cpp",
+    huggingfaceFiles: ["ggml-tiny.bin"],
     label: "Tiny",
     size: "75MB",
     description: "最快，准确度较低",
@@ -199,8 +207,10 @@ export const MODEL_CONFIG: Record<
     platforms: ["darwin"],
   },
   "whisper-cpp-base": {
-    modelscope: "pengzhendong/whisper.cpp-base",
-    huggingface: "ggerganov/whisper.base",
+    modelscope: "iceCream2025/whisper.cpp",
+    modelscopeFiles: ["ggml-base.bin"],
+    huggingface: "ggerganov/whisper.cpp",
+    huggingfaceFiles: ["ggml-base.bin"],
     label: "Base",
     size: "142MB",
     description: "推荐，平衡速度和准确度",
@@ -210,8 +220,10 @@ export const MODEL_CONFIG: Record<
     platforms: ["darwin"],
   },
   "whisper-cpp-small": {
-    modelscope: "pengzhendong/whisper.cpp-small",
-    huggingface: "ggerganov/whisper.small",
+    modelscope: "iceCream2025/whisper.cpp",
+    modelscopeFiles: ["ggml-small.bin"],
+    huggingface: "ggerganov/whisper.cpp",
+    huggingfaceFiles: ["ggml-small.bin"],
     label: "Small",
     size: "466MB",
     description: "更高准确度",
@@ -220,8 +232,10 @@ export const MODEL_CONFIG: Record<
     platforms: ["darwin"],
   },
   "whisper-cpp-medium": {
-    modelscope: "pengzhendong/whisper.cpp-medium",
-    huggingface: "ggerganov/whisper.medium",
+    modelscope: "iceCream2025/whisper.cpp",
+    modelscopeFiles: ["ggml-medium.bin"],
+    huggingface: "ggerganov/whisper.cpp",
+    huggingfaceFiles: ["ggml-medium.bin"],
     label: "Medium",
     size: "1.5GB",
     description: "专业级准确度",
@@ -230,8 +244,10 @@ export const MODEL_CONFIG: Record<
     platforms: ["darwin"],
   },
   "whisper-cpp-large-v3": {
-    modelscope: "pengzhendong/whisper.cpp-large-v3",
-    huggingface: "ggerganov/whisper.large-v3",
+    modelscope: "iceCream2025/whisper.cpp",
+    modelscopeFiles: ["ggml-large-v3.bin"],
+    huggingface: "ggerganov/whisper.cpp",
+    huggingfaceFiles: ["ggml-large-v3.bin"],
     label: "Large-v3",
     size: "3GB",
     description: "最高准确度",
@@ -294,9 +310,11 @@ class ModelDownloaderService {
     this.activeDownloads.set(modelName, task);
 
     try {
+      const fileFilter = source === "modelscope" ? config.modelscopeFiles : config.huggingfaceFiles;
       const modelDir = await downloadRepoFiles({
         source,
         repoId: modelId,
+        files: fileFilter?.map(filePath => ({ path: filePath })),
         targetDir: this.modelsDir,
         rootDir: modelName,
         onProgress: progress => {
