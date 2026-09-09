@@ -148,12 +148,12 @@ export const wechatBaseStyles = `
   color: #383a42;
 }
 
-/* Inline Code - no background, no border */
+/* Inline Code - 中性字色（继承段落 #333）+ 浅灰背景，与编辑器一致 */
 .inline-code {
   padding: 0.25em;
   font-family: Consolas, Monaco, Menlo, monospace;
   font-size: 0.9em;
-  color: #18045f;
+  background: rgba(246, 248, 250, 0.9);
 }
 
 /* Keyboard key (light style) */

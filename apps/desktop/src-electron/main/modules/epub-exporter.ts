@@ -75,9 +75,9 @@ pre.shiki {
   min-height: 1em;
   white-space: inherit;
 }
+/* 行内代码：中性字色（继承正文）+ 半透明背景，暗色阅读器下依然可读 */
 .inline-code {
-  color: #18045f;
-  background: transparent;
+  background: rgba(0, 0, 0, 0.05);
   padding: 0.25em;
   font-size: 0.9em;
   font-family: "SFMono-Regular", Menlo, Consolas, monospace;

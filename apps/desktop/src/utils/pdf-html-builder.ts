@@ -84,12 +84,13 @@ pre code {
   padding: 0;
 }
 
-.inline-code, code {
-  color: #18045f;
+/* 仅命中行内代码（序列化时固定带 inline-code 类），不能裸用 code 选择器，否则会波及代码块内的 <code> */
+.inline-code {
   background: #f0f0f0;
-  padding: 0.2em 0.4em;
+  border: 1px solid #e5e5e5;
+  padding: 0.15em 0.35em;
   font-size: 0.9em;
-  border-radius: 0.3em;
+  border-radius: 4px;
 }
 
 .code-block,
