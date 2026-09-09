@@ -1261,3 +1261,6 @@
 - feat(mobile): keepAlive data 策略落地（非激活卸载内容、query 缓存恢复）；摘除未实现的 fresh/presentation
 - fix(mobile): single overlay 重 push 刷新 createdAt（D-6）；结果 settle 延后至守卫通过（D-7）；手势拒绝回弹（D-5）；quickCapture 接 useBackHandler（D-11）；窗口关闭根页放行（D-9）
 - refactor(mobile): router 与 components/toast 解耦（onRootBackHint 注入）；instanceValue 记忆化；popstate 恢复保留 LRU 时序
+- refactor(mobile): zIndex 层级常量化（screen<40 < overlay 50 < 弹层 70 < Toast 80），消除隐式层叠假设
+- feat(mobile): createPageSchema 类型传导——页面参数类型从 schema 单一事实源推导，消除手写 Params 接口
+- refactor(mobile): todo/diary store 彻底 query 订阅化——组件直接 useQuery 订阅（单一状态源），store 退役为 UI 态 + mutation 编排；详情-列表联动收敛到缓存层

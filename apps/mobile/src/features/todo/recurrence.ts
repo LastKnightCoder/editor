@@ -3,8 +3,7 @@ import type { TodoRecurrence } from "../../types";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function startOfDayTimestamp(value: number | Date): number {
-  const date =
-    typeof value === "number" ? new Date(value) : new Date(value.getTime());
+  const date = typeof value === "number" ? new Date(value) : new Date(value.getTime());
   date.setHours(0, 0, 0, 0);
   return date.getTime();
 }
@@ -24,8 +23,7 @@ function diffMonths(fromTs: number, toTs: number): number {
   const fromDate = new Date(fromTs);
   const toDate = new Date(toTs);
   return (
-    (toDate.getFullYear() - fromDate.getFullYear()) * 12 +
-    (toDate.getMonth() - fromDate.getMonth())
+    (toDate.getFullYear() - fromDate.getFullYear()) * 12 + (toDate.getMonth() - fromDate.getMonth())
   );
 }
 
@@ -39,13 +37,11 @@ export function getTodayNormalized(): number {
 
 export function isDateScheduledForRecurrence(
   recurrence: TodoRecurrence,
-  day: number | Date,
+  day: number | Date
 ): boolean {
   const date = startOfDayTimestamp(day);
   const startDate = startOfDayTimestamp(recurrence.startDate);
-  const endDate = recurrence.endDate
-    ? startOfDayTimestamp(recurrence.endDate)
-    : null;
+  const endDate = recurrence.endDate ? startOfDayTimestamp(recurrence.endDate) : null;
 
   if (date < startDate) {
     return false;
@@ -69,8 +65,7 @@ export function isDateScheduledForRecurrence(
   }
 
   if (recurrence.type === "weekly") {
-    const weekDiff =
-      diffDays(startOfWeekTimestamp(startDate), startOfWeekTimestamp(date)) / 7;
+    const weekDiff = diffDays(startOfWeekTimestamp(startDate), startOfWeekTimestamp(date)) / 7;
     if (weekDiff % interval !== 0) {
       return false;
     }
@@ -100,10 +95,7 @@ export function isDateScheduledForRecurrence(
     }
     const targetMonth = recurrence.yearMonth ?? startObject.getMonth() + 1;
     const targetDay = recurrence.yearDay ?? startObject.getDate();
-    return (
-      dateObject.getMonth() + 1 === targetMonth &&
-      dateObject.getDate() === targetDay
-    );
+    return dateObject.getMonth() + 1 === targetMonth && dateObject.getDate() === targetDay;
   }
 
   return diffDays(startDate, date) % interval === 0;

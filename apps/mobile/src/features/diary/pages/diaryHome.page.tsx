@@ -14,9 +14,7 @@ function DiaryHomeScreen() {
       onOpenEditor={(mode, baseDate) => {
         void (async () => {
           try {
-            await useDiaryStore.getState().openAt(mode, baseDate);
-            const currentEntry = useDiaryStore.getState().currentEntry;
-            const contentId = currentEntry?.contentId ?? null;
+            const contentId = await useDiaryStore.getState().openAt(mode, baseDate);
             if (typeof contentId !== "number" || !Number.isFinite(contentId) || contentId <= 0) {
               throw new Error("DIARY_CONTENT_NOT_FOUND");
             }

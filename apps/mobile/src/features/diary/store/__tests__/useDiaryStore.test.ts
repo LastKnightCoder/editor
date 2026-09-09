@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as tauri from "../../../../services/tauri";
 import type { DiaryEntry } from "../../../../types";
 import { useDiaryStore } from "../useDiaryStore";
+import { getQueryClient } from "../../../../router";
 
 vi.mock("../../../../services/tauri", () => ({
   diaryListEntries: vi.fn(),
@@ -41,7 +42,6 @@ function resetDiaryStore() {
       lastSavedAt: null,
       mode: "daily",
       baseDate: "2026-02-22",
-      entries: [],
       currentEntry: null,
       lastFailedContent: null,
       activeSegmentId: null,
@@ -55,6 +55,7 @@ describe("diary/useDiaryStore", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetDiaryStore();
+    getQueryClient().clear();
   });
 
   it("initialize 在无当前日记时应自动创建空白日记", async () => {
@@ -82,12 +83,6 @@ describe("diary/useDiaryStore", () => {
         initialized: true,
         mode: "daily",
         baseDate: "2026-02-22",
-        entries: [
-          makeDiaryEntry({
-            id: 1,
-            date: "2026-02-21",
-          }),
-        ],
         currentEntry: makeDiaryEntry({
           id: 1,
           date: "2026-02-21",
@@ -107,7 +102,7 @@ describe("diary/useDiaryStore", () => {
 
     const state = useDiaryStore.getState();
     expect(tauri.diaryListEntries).toHaveBeenCalledTimes(1);
-    expect(state.entries).toHaveLength(1);
+    expect(getQueryClient().getQueryData(["diary", "entries"])).toHaveLength(1);
     expect(state.currentEntry?.id).toBe(77);
     expect(state.error).toBe("");
     expect(tauri.diaryUpsertEntry).not.toHaveBeenCalled();
@@ -127,7 +122,6 @@ describe("diary/useDiaryStore", () => {
     useDiaryStore.setState(
       {
         initialized: true,
-        entries: [existing],
         currentEntry: existing,
       },
       false
@@ -162,7 +156,6 @@ describe("diary/useDiaryStore", () => {
     useDiaryStore.setState(
       {
         initialized: true,
-        entries: [existing],
         currentEntry: existing,
       },
       false
@@ -225,8 +218,8 @@ describe("diary/useDiaryStore", () => {
         },
       ],
     });
+    getQueryClient().setQueryData(["diary", "entries"], [entry]);
     useDiaryStore.setState({
-      entries: [entry],
       currentEntry: entry,
       activeSegmentId: 12,
     });
@@ -259,8 +252,8 @@ describe("diary/useDiaryStore", () => {
         },
       ],
     });
+    getQueryClient().setQueryData(["diary", "entries"], [entry]);
     useDiaryStore.setState({
-      entries: [entry],
       currentEntry: entry,
       activeSegmentId: 11,
     });
@@ -283,7 +276,8 @@ describe("diary/useDiaryStore", () => {
     };
     const second = { ...first, id: 12, contentId: 102 };
     const entry = makeDiaryEntry({ segments: [first] });
-    useDiaryStore.setState({ entries: [entry], currentEntry: entry });
+    getQueryClient().setQueryData(["diary", "entries"], [entry]);
+    useDiaryStore.setState({ currentEntry: entry });
     vi.mocked(tauri.diaryUpsertEntry).mockResolvedValue({
       ...entry,
       segments: [first, second],

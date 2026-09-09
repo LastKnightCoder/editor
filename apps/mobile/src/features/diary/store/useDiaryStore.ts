@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { getQueryClient } from "../../../router";
+import { readDiaryEntries, writeDiaryEntries } from "../queries";
 import type { Descendant } from "slate";
 import * as tauri from "../../../services/tauri";
 import type { DiaryEntry, DiaryType } from "../../../types";
@@ -19,7 +20,6 @@ type DiaryStoreState = {
   lastSavedAt: number | null;
   mode: DiaryType;
   baseDate: string;
-  entries: DiaryEntry[];
   currentEntry: DiaryEntry | null;
   lastFailedContent: Descendant[] | null;
   activeSegmentId: number | null;
@@ -33,7 +33,7 @@ type DiaryStoreState = {
 type DiaryStoreActions = {
   initialize: () => Promise<void>;
   reloadAfterDatabaseChange: (databaseName?: string | null) => Promise<void>;
-  openAt: (mode: DiaryType, baseDate: string) => Promise<void>;
+  openAt: (mode: DiaryType, baseDate: string) => Promise<number | null>;
   setMode: (mode: DiaryType) => Promise<void>;
   shiftDate: (delta: number) => Promise<void>;
   jumpToEntry: (entry: DiaryEntry) => Promise<void>;
@@ -88,7 +88,6 @@ const initialState: DiaryStoreState = {
   lastSavedAt: null,
   mode: "daily",
   baseDate: getTodayDateKey(),
-  entries: [],
   currentEntry: null,
   lastFailedContent: null,
   activeSegmentId: null,
@@ -97,16 +96,6 @@ const initialState: DiaryStoreState = {
 
 // 服务端读路径走 query 缓存：并发去重、staleTime 内重复初始化秒显；
 // mutation 后 invalidateQueries(["diary"]) 标记缓存失效
-const DIARY_QUERY_STALE_MS = 30_000;
-
-async function fetchDiaryEntries() {
-  return getQueryClient().fetchQuery({
-    queryKey: ["diary", "entries"],
-    queryFn: () => tauri.diaryListEntries(),
-    staleTime: DIARY_QUERY_STALE_MS,
-  });
-}
-
 function invalidateDiaryQueries() {
   getQueryClient().invalidateQueries({ queryKey: ["diary"] });
 }
@@ -115,24 +104,15 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
   ...initialState,
 
   initialize: async () => {
-    if (get().initialized) {
-      const current = findCurrentEntry(get().entries, get().mode, get().baseDate);
-      if (current) {
-        set({ currentEntry: current });
-        return;
-      }
+    if (get().initialized && get().currentEntry) {
+      return;
     }
 
     set({ loading: true, error: "" });
     try {
-      const entries = await fetchDiaryEntries();
-      const sorted = sortDiaryEntriesDesc(entries);
+      const sorted = sortDiaryEntriesDesc(await readDiaryEntries());
       const current = findCurrentEntry(sorted, get().mode, get().baseDate);
-      set({
-        entries: sorted,
-        currentEntry: current,
-        initialized: true,
-      });
+      set({ currentEntry: current, initialized: true });
       if (!current) {
         await get().saveCurrentContent(EMPTY_DIARY_CONTENT);
       }
@@ -154,15 +134,9 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
       lastFailedTarget: null,
     });
     try {
-      const entries = await fetchDiaryEntries();
-      const sorted = sortDiaryEntriesDesc(entries);
+      const sorted = sortDiaryEntriesDesc(await readDiaryEntries());
       const current = findCurrentEntry(sorted, get().mode, get().baseDate);
-      set({
-        entries: sorted,
-        currentEntry: current,
-        initialized: true,
-        error: "",
-      });
+      set({ currentEntry: current, initialized: true, error: "" });
     } catch (error) {
       console.error("[diary-store] reloadAfterDatabaseChange failed", error);
       set({ error: "日记刷新失败，请稍后重试" });
@@ -173,7 +147,8 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
   },
 
   openAt: async (mode, baseDate) => {
-    const current = findCurrentEntry(get().entries, mode, baseDate);
+    const sorted = sortDiaryEntriesDesc(await readDiaryEntries());
+    const current = findCurrentEntry(sorted, mode, baseDate);
     set({
       mode,
       baseDate,
@@ -182,8 +157,10 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
       error: "",
     });
     if (!current) {
-      await get().saveCurrentContent(EMPTY_DIARY_CONTENT);
+      const saved = await get().saveCurrentContent(EMPTY_DIARY_CONTENT);
+      return saved.contentId;
     }
+    return current.contentId;
   },
 
   setMode: async mode => {
@@ -191,7 +168,11 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
       return;
     }
     const baseDate = get().baseDate;
-    const current = findCurrentEntry(get().entries, mode, baseDate);
+    const current = findCurrentEntry(
+      sortDiaryEntriesDesc(await readDiaryEntries()),
+      mode,
+      baseDate
+    );
     set({
       mode,
       currentEntry: current,
@@ -205,7 +186,11 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
 
   shiftDate: async delta => {
     const nextBaseDate = shiftDiaryBaseDate(get().mode, get().baseDate, delta);
-    const current = findCurrentEntry(get().entries, get().mode, nextBaseDate);
+    const current = findCurrentEntry(
+      sortDiaryEntriesDesc(await readDiaryEntries()),
+      get().mode,
+      nextBaseDate
+    );
     set({
       baseDate: nextBaseDate,
       currentEntry: current,
@@ -218,10 +203,9 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
   },
 
   jumpToEntry: async entry => {
-    const nextEntries = mergeEntries(get().entries, entry);
+    writeDiaryEntries(prev => mergeEntries(prev, entry));
     const nextBaseDate = getBaseDateFromDiaryKey(entry.type, entry.date);
     set({
-      entries: nextEntries,
       mode: entry.type,
       baseDate: nextBaseDate,
       currentEntry: entry,
@@ -237,9 +221,9 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
     const nextWordCount = Math.max(0, Math.trunc(payload.wordCount));
     const nextUpdateTime = Number.isFinite(payload.updateTime) ? payload.updateTime : Date.now();
 
-    const prev = get();
     let changed = false;
-    const nextEntries = prev.entries.map(entry => {
+    const prevEntries = getQueryClient().getQueryData<DiaryEntry[]>(["diary", "entries"]) ?? [];
+    const mapped = prevEntries.map(entry => {
       if (
         entry.contentId !== payload.contentId &&
         !entry.segments?.some(segment => segment.contentId === payload.contentId)
@@ -270,17 +254,19 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
       };
     });
 
-    const nextCurrent =
-      nextEntries.find(entry => entry.id === prev.currentEntry?.id) ?? prev.currentEntry;
-
-    if (!changed && nextCurrent === prev.currentEntry) {
+    if (!changed) {
       return;
     }
-
-    set({
-      entries: changed ? sortDiaryEntriesDesc(nextEntries) : prev.entries,
-      currentEntry: nextCurrent,
-    });
+    // 乐观 patch 缓存（currentEntry 若命中同 id 也同步刷新）
+    const patched = sortDiaryEntriesDesc(mapped);
+    writeDiaryEntries(() => patched);
+    const state = get();
+    if (state.currentEntry) {
+      const nextCurrent = patched.find(entry => entry.id === state.currentEntry?.id);
+      if (nextCurrent && nextCurrent !== state.currentEntry) {
+        set({ currentEntry: nextCurrent });
+      }
+    }
   },
 
   saveCurrentContent: async content => {
@@ -304,17 +290,17 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
         weather: state.currentEntry?.weather ?? null,
         mood: state.currentEntry?.mood ?? null,
       });
-      invalidateDiaryQueries();
-      const nextEntries = mergeEntries(get().entries, saved);
+      writeDiaryEntries(prev => mergeEntries(prev, saved));
+      const merged = getQueryClient().getQueryData<DiaryEntry[]>(["diary", "entries"]) ?? [];
       set({
-        entries: nextEntries,
-        currentEntry: findCurrentEntry(nextEntries, get().mode, get().baseDate),
+        currentEntry: findCurrentEntry(merged, get().mode, get().baseDate),
         saving: false,
         error: "",
         lastSavedAt: Date.now(),
         lastFailedContent: null,
         lastFailedTarget: null,
       });
+      invalidateDiaryQueries();
       return saved;
     } catch (error) {
       console.error("[diary-store] save failed", error);
@@ -371,10 +357,10 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
       mood: state.currentEntry?.mood ?? null,
       newSegment: true,
     });
-    const entries = mergeEntries(get().entries, saved);
+    writeDiaryEntries(prev => mergeEntries(prev, saved));
+    const merged = getQueryClient().getQueryData<DiaryEntry[]>(["diary", "entries"]) ?? [];
     set({
-      entries,
-      currentEntry: findCurrentEntry(entries, get().mode, get().baseDate),
+      currentEntry: findCurrentEntry(merged, get().mode, get().baseDate),
       activeSegmentId: saved.segments[saved.segments.length - 1]?.id ?? null,
     });
   },
@@ -386,10 +372,10 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
       state.currentEntry?.segments?.[0];
     if (!state.currentEntry || !segment) return;
     const saved = await tauri.diaryDeleteSegment(state.currentEntry.id, segment.id);
-    const entries = mergeEntries(get().entries, saved);
+    writeDiaryEntries(prev => mergeEntries(prev, saved));
+    const merged = getQueryClient().getQueryData<DiaryEntry[]>(["diary", "entries"]) ?? [];
     set({
-      entries,
-      currentEntry: findCurrentEntry(entries, get().mode, get().baseDate),
+      currentEntry: findCurrentEntry(merged, get().mode, get().baseDate),
       activeSegmentId: saved.segments[0]?.id ?? null,
     });
   },

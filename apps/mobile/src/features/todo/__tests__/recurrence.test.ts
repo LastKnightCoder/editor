@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TodoRecurrence } from "../../../types";
-import {
-  getStartOfDayTimestamp,
-  isDateScheduledForRecurrence,
-} from "../recurrence";
+import { getStartOfDayTimestamp, isDateScheduledForRecurrence } from "../recurrence";
 
 function createRecurrence(patch?: Partial<TodoRecurrence>): TodoRecurrence {
   const now = Date.now();
@@ -38,20 +35,20 @@ describe("todo/recurrence", () => {
     expect(
       isDateScheduledForRecurrence(
         recurrence,
-        getStartOfDayTimestamp(new Date("2026-02-01T12:00:00")),
-      ),
+        getStartOfDayTimestamp(new Date("2026-02-01T12:00:00"))
+      )
     ).toBe(true);
     expect(
       isDateScheduledForRecurrence(
         recurrence,
-        getStartOfDayTimestamp(new Date("2026-02-02T12:00:00")),
-      ),
+        getStartOfDayTimestamp(new Date("2026-02-02T12:00:00"))
+      )
     ).toBe(false);
     expect(
       isDateScheduledForRecurrence(
         recurrence,
-        getStartOfDayTimestamp(new Date("2026-02-03T12:00:00")),
-      ),
+        getStartOfDayTimestamp(new Date("2026-02-03T12:00:00"))
+      )
     ).toBe(true);
   });
 
@@ -67,14 +64,14 @@ describe("todo/recurrence", () => {
     expect(
       isDateScheduledForRecurrence(
         recurrence,
-        getStartOfDayTimestamp(new Date("2026-02-04T12:00:00")),
-      ),
+        getStartOfDayTimestamp(new Date("2026-02-04T12:00:00"))
+      )
     ).toBe(true);
     expect(
       isDateScheduledForRecurrence(
         recurrence,
-        getStartOfDayTimestamp(new Date("2026-02-05T12:00:00")),
-      ),
+        getStartOfDayTimestamp(new Date("2026-02-05T12:00:00"))
+      )
     ).toBe(false);
   });
 });

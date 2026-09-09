@@ -4,6 +4,12 @@ import * as tauri from "../../services/tauri";
 import type { MoveAndReorderTodoItemPayload, TodoItem, TodoItemType } from "../../types";
 import { isTodayScheduled, getTodayNormalized } from "./recurrence";
 import { getTodoItemsCacheKey, useTodoStore } from "./store/useTodoStore";
+import {
+  useTodoGroupStats,
+  useTodoGroups,
+  useTodoItemsByCacheKey,
+  useTodoSystemGroups,
+} from "./queries";
 import { TodoGroupTabs } from "./components/TodoGroupTabs";
 import { TodoItemTree } from "./components/TodoItemTree";
 import { BottomSheet } from "../../components/BottomSheet";
@@ -91,15 +97,16 @@ export function TodoPage({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listScrollRef = useRef<HTMLDivElement>(null);
 
-  const allGroups = useMemo(
-    () => [...store.systemGroups, ...store.groups],
-    [store.systemGroups, store.groups]
-  );
-  const customGroups = store.groups;
-  const activeItemsKey = getTodoItemsCacheKey(store.activeGroupId, store.systemGroups);
-  const activeItems = useMemo(() => {
-    return activeItemsKey ? (store.itemsByGroupId[activeItemsKey] ?? []) : [];
-  }, [activeItemsKey, store.itemsByGroupId]);
+  const groupsQuery = useTodoGroups();
+  const systemGroupsQuery = useTodoSystemGroups();
+  const statsQuery = useTodoGroupStats();
+  const groups = groupsQuery.data ?? [];
+  const systemGroups = systemGroupsQuery.data ?? [];
+  const allGroups = useMemo(() => [...systemGroups, ...groups], [systemGroups, groups]);
+  const customGroups = groups;
+  const activeItemsKey = getTodoItemsCacheKey(store.activeGroupId, systemGroups);
+  const itemsQuery = useTodoItemsByCacheKey(activeItemsKey, systemGroups);
+  const activeItems = itemsQuery.data ?? [];
   const filteredItems = useMemo(
     () => applyFilters(activeItems, store.filters),
     [activeItems, store.filters]
@@ -158,9 +165,7 @@ export function TodoPage({
     const title = newTitle.trim();
     if (!title) return;
     const activeGroup = allGroups.find(group => group.id === store.activeGroupId);
-    const targetGroupId = activeGroup?.isSystem
-      ? (store.groups[0]?.id ?? null)
-      : store.activeGroupId;
+    const targetGroupId = activeGroup?.isSystem ? (groups[0]?.id ?? null) : store.activeGroupId;
     if (targetGroupId == null) {
       onError(new Error("TODO_GROUP_NOT_FOUND: no writable group"), "请先创建一个任务分组");
       return;
@@ -193,7 +198,7 @@ export function TodoPage({
         } else {
           await tauri.todoUncompleteRecurrence(recurrence.id, today);
         }
-        await Promise.all([store.refreshActiveItems(), store.loadGroupStats()]);
+        // mutation 后 invalidate 已驱动订阅刷新，此处无需手动 reload
         return;
       }
       await store.toggleCompleteCascade({ id: item.id, isCompleted });
@@ -420,11 +425,9 @@ export function TodoPage({
       <TodoGroupTabs
         groups={customGroups}
         activeGroupId={store.activeGroupId}
-        groupStats={store.groupStats}
+        groupStats={statsQuery.data ?? {}}
         onSelect={groupId => {
-          void store.setActiveGroup(groupId).catch(error => {
-            onError(error, "加载任务列表失败");
-          });
+          store.setActiveGroup(groupId);
         }}
       />
 
@@ -470,7 +473,7 @@ export function TodoPage({
       </div>
 
       <div ref={listScrollRef} className="mobile-kb-scroll flex-1 overflow-y-auto">
-        {store.loading.items ? (
+        {itemsQuery.isLoading ? (
           <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-neutral-400">
             正在加载任务...
           </div>

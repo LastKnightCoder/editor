@@ -22,15 +22,7 @@ function parseDateInput(input: Date | string | number): Date {
   if (typeof input === "string") {
     const match = input.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (match) {
-      return new Date(
-        Number(match[1]),
-        Number(match[2]) - 1,
-        Number(match[3]),
-        0,
-        0,
-        0,
-        0,
-      );
+      return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 0, 0, 0, 0);
     }
     return startOfDay(new Date(input));
   }
@@ -49,15 +41,11 @@ function getWeekStart(date: Date): Date {
 }
 
 function getISOWeekNumber(date: Date): number {
-  const utcDate = new Date(
-    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
-  );
+  const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const weekday = utcDate.getUTCDay() || 7;
   utcDate.setUTCDate(utcDate.getUTCDate() + 4 - weekday);
   const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
-  return Math.ceil(
-    ((utcDate.getTime() - yearStart.getTime()) / DAY_MS + 1) / 7,
-  );
+  return Math.ceil(((utcDate.getTime() - yearStart.getTime()) / DAY_MS + 1) / 7);
 }
 
 function getWeeklyYearByWeekEnd(date: Date): number {
@@ -85,10 +73,7 @@ function findDateByWeeklyKey(weeklyKey: string): Date {
   return startOfDay(new Date(yearRaw, 0, 1));
 }
 
-export function getDiaryDateKey(
-  mode: DiaryType,
-  baseDate: Date | string | number,
-): string {
+export function getDiaryDateKey(mode: DiaryType, baseDate: Date | string | number): string {
   const date = parseDateInput(baseDate);
   if (mode === "daily") {
     return formatDailyDate(date);
@@ -104,7 +89,7 @@ export function getDiaryDateKey(
 export function shiftDiaryBaseDate(
   mode: DiaryType,
   baseDate: Date | string | number,
-  delta: number,
+  delta: number
 ): string {
   const date = parseDateInput(baseDate);
   if (mode === "daily") {
@@ -118,24 +103,15 @@ export function shiftDiaryBaseDate(
   const day = date.getDate();
   const month = date.getMonth() + delta;
   const target = new Date(date.getFullYear(), month, 1, 0, 0, 0, 0);
-  const maxDay = new Date(
-    target.getFullYear(),
-    target.getMonth() + 1,
-    0,
-  ).getDate();
+  const maxDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
   target.setDate(Math.min(day, maxDay));
   return formatDailyDate(target);
 }
 
-export function formatDiaryPeriodLabel(
-  mode: DiaryType,
-  baseDate: Date | string | number,
-): string {
+export function formatDiaryPeriodLabel(mode: DiaryType, baseDate: Date | string | number): string {
   const date = parseDateInput(baseDate);
   if (mode === "daily") {
-    const weekday = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][
-      date.getDay()
-    ];
+    const weekday = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][date.getDay()];
     return `${date.getFullYear()}年${pad2(date.getMonth() + 1)}月${pad2(date.getDate())}日 ${weekday}`;
   }
   if (mode === "weekly") {
@@ -145,7 +121,7 @@ export function formatDiaryPeriodLabel(
     weekEnd.setDate(weekStart.getDate() + 6);
     const weekYear = weekEnd.getFullYear();
     return `${weekYear}年 第${weekNo}周 · ${pad2(weekStart.getMonth() + 1)}/${pad2(
-      weekStart.getDate(),
+      weekStart.getDate()
     )} - ${pad2(weekEnd.getMonth() + 1)}/${pad2(weekEnd.getDate())}`;
   }
   return `${date.getFullYear()}年${pad2(date.getMonth() + 1)}月`;
@@ -175,18 +151,14 @@ export function getDiaryComparableDate(type: DiaryType, key: string): string {
   return getBaseDateFromDiaryKey(type, key);
 }
 
-export function getDiaryComparableTimestamp(
-  type: DiaryType,
-  key: string,
-): number {
+export function getDiaryComparableTimestamp(type: DiaryType, key: string): number {
   return parseDateInput(getDiaryComparableDate(type, key)).getTime();
 }
 
 export function sortDiaryEntriesDesc(entries: DiaryEntry[]): DiaryEntry[] {
   return [...entries].sort(
     (a, b) =>
-      getDiaryComparableTimestamp(b.type, b.date) -
-      getDiaryComparableTimestamp(a.type, a.date),
+      getDiaryComparableTimestamp(b.type, b.date) - getDiaryComparableTimestamp(a.type, a.date)
   );
 }
 

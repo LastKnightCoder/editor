@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  formatDiaryPeriodLabel,
-  getDiaryDateKey,
-  shiftDiaryBaseDate,
-} from "../dateKey";
+import { formatDiaryPeriodLabel, getDiaryDateKey, shiftDiaryBaseDate } from "../dateKey";
 
 describe("diary/dateKey", () => {
   it("daily 模式应使用 YYYY-MM-DD key，并支持按天偏移", () => {

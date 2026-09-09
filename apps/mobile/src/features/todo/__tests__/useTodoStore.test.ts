@@ -1,3 +1,6 @@
+// 订阅化后的 useTodoStore 测试：UI 态、初始化编排、mutation 失效、乐观更新。
+// 服务端数据读取路径的测试由组件/hooks 层与 query 缓存行为承载。
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as tauri from "../../../services/tauri";
 import { getQueryClient } from "../../../router";
@@ -27,29 +30,23 @@ vi.mock("../../../services/tauri", () => ({
 function resetTodoStore() {
   useTodoStore.setState(
     {
-      groups: [],
-      systemGroups: [],
-      groupStats: {},
-      itemsByGroupId: {},
       activeGroupId: null,
       activeTodoId: null,
       filters: { type: "all" },
-      loading: { groups: false, items: false },
-      lastLoadedDatabase: null,
+      initializing: false,
     },
     false
   );
 }
 
-describe("todo/useTodoStore", () => {
+describe("todo/useTodoStore（订阅化后）", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetTodoStore();
-    // 读路径已走 query 缓存，测试间需清缓存避免跨用例污染
     getQueryClient().clear();
   });
 
-  it("initialize 应加载系统组和统计，并默认加载 all 组任务", async () => {
+  it("initialize 预取分组数据并设置 fallback 激活分组", async () => {
     vi.mocked(tauri.todoGetSystemGroups).mockResolvedValue([
       {
         id: 1,
@@ -63,174 +60,38 @@ describe("todo/useTodoStore", () => {
         updateTime: 1,
       },
     ]);
-    vi.mocked(tauri.todoListGroups).mockResolvedValue([
-      {
-        id: 11,
-        title: "工作",
-        color: null,
-        sortIndex: 1000,
-        isArchived: false,
-        isSystem: false,
-        systemType: null,
-        createTime: 1,
-        updateTime: 1,
-      },
-    ]);
-    vi.mocked(tauri.todoGetGroupStats).mockResolvedValue([
-      { groupId: 11, total: 2, uncompleted: 1, overdue: 0 },
-    ]);
-    vi.mocked(tauri.todoGetSystemGroupStats).mockResolvedValue([
-      { groupId: 1, total: 2, uncompleted: 1, overdue: 0 },
-    ]);
-    vi.mocked(tauri.todoListItemsByType).mockResolvedValue([
-      {
-        id: 101,
-        groupId: 11,
-        parentId: null,
-        title: "任务 A",
-        type: "normal",
-        descriptionContentId: null,
-        descriptionContent: null,
-        isCompleted: false,
-        startAt: null,
-        dueAt: null,
-        remindBefore: null,
-        completedAt: null,
-        sortIndex: 1,
-        isArchived: false,
-        createTime: 1,
-        updateTime: 1,
-        recurrence: null,
-      },
-    ]);
+    vi.mocked(tauri.todoListGroups).mockResolvedValue([]);
+    vi.mocked(tauri.todoGetGroupStats).mockResolvedValue([]);
+    vi.mocked(tauri.todoGetSystemGroupStats).mockResolvedValue([]);
 
     await useTodoStore.getState().initialize("data.db");
-    // 读路径经 query 缓存（fetchQuery），背景刷新多一层微任务
-    await new Promise(resolve => setTimeout(resolve, 0));
-
-    const state = useTodoStore.getState();
-    expect(state.activeGroupId).toBe(1);
-    expect(state.groupStats[1]?.total).toBe(2);
-    expect(tauri.todoListItemsByType).toHaveBeenCalledWith({ type: "all" });
-    expect(state.itemsByGroupId._system_all).toHaveLength(1);
+    expect(useTodoStore.getState().activeGroupId).toBe(1);
   });
 
-  it("setActiveGroup 切换到普通组时应加载该组任务", async () => {
-    const baseState = useTodoStore.getState();
-    useTodoStore.setState({
-      ...baseState,
-      groups: [
-        {
-          id: 11,
-          title: "工作",
-          color: null,
-          sortIndex: 1000,
-          isArchived: false,
-          isSystem: false,
-          systemType: null,
-          createTime: 1,
-          updateTime: 1,
-        },
-      ],
-      systemGroups: [],
+  it("mutation 后失效 todo 查询缓存", async () => {
+    const invalidateSpy = vi.spyOn(getQueryClient(), "invalidateQueries");
+    vi.mocked(tauri.todoDeleteItem).mockResolvedValue(1);
+
+    await useTodoStore.getState().deleteItem(9);
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["todo"] });
+  });
+
+  it("patchItemDescriptionContent 乐观更新 items 订阅缓存", () => {
+    const setSpy = vi.spyOn(getQueryClient(), "setQueriesData");
+    useTodoStore.getState().patchItemDescriptionContent(5, 3, []);
+    expect(setSpy).toHaveBeenCalledWith({ queryKey: ["todo", "items"] }, expect.any(Function));
+  });
+
+  it("setActiveGroup 清空 activeTodoId，filters 支持部分更新", () => {
+    useTodoStore.setState({ activeTodoId: 7 });
+    useTodoStore.getState().setActiveGroup(2);
+    expect(useTodoStore.getState().activeGroupId).toBe(2);
+    expect(useTodoStore.getState().activeTodoId).toBeNull();
+
+    useTodoStore.getState().setFilters({ completed: false });
+    expect(useTodoStore.getState().filters).toEqual({
+      type: "all",
+      completed: false,
     });
-    vi.mocked(tauri.todoListItems).mockResolvedValue([
-      {
-        id: 201,
-        groupId: 11,
-        parentId: null,
-        title: "任务 B",
-        type: "deadline",
-        descriptionContentId: null,
-        descriptionContent: null,
-        isCompleted: false,
-        startAt: null,
-        dueAt: null,
-        remindBefore: null,
-        completedAt: null,
-        sortIndex: 1,
-        isArchived: false,
-        createTime: 1,
-        updateTime: 1,
-        recurrence: null,
-      },
-    ]);
-
-    await useTodoStore.getState().setActiveGroup(11);
-
-    expect(tauri.todoListItems).toHaveBeenCalledWith({ groupId: 11 });
-    expect(useTodoStore.getState().itemsByGroupId["11"]).toHaveLength(1);
-  });
-
-  it("reloadAfterDatabaseChange 应重建分组/统计并刷新当前分组任务缓存", async () => {
-    useTodoStore.setState(
-      {
-        activeGroupId: 1,
-      },
-      false
-    );
-    vi.mocked(tauri.todoGetSystemGroups).mockResolvedValue([
-      {
-        id: 1,
-        title: "全部任务",
-        color: null,
-        sortIndex: 1,
-        isArchived: false,
-        isSystem: true,
-        systemType: "all",
-        createTime: 1,
-        updateTime: 1,
-      },
-    ]);
-    vi.mocked(tauri.todoListGroups).mockResolvedValue([
-      {
-        id: 11,
-        title: "工作",
-        color: null,
-        sortIndex: 1000,
-        isArchived: false,
-        isSystem: false,
-        systemType: null,
-        createTime: 1,
-        updateTime: 1,
-      },
-    ]);
-    vi.mocked(tauri.todoGetGroupStats).mockResolvedValue([
-      { groupId: 11, total: 3, uncompleted: 2, overdue: 0 },
-    ]);
-    vi.mocked(tauri.todoGetSystemGroupStats).mockResolvedValue([
-      { groupId: 1, total: 3, uncompleted: 2, overdue: 0 },
-    ]);
-    vi.mocked(tauri.todoListItemsByType).mockResolvedValue([
-      {
-        id: 301,
-        groupId: 11,
-        parentId: null,
-        title: "任务 C",
-        type: "normal",
-        descriptionContentId: null,
-        descriptionContent: null,
-        isCompleted: false,
-        startAt: null,
-        dueAt: null,
-        remindBefore: null,
-        completedAt: null,
-        sortIndex: 1,
-        isArchived: false,
-        createTime: 1,
-        updateTime: 1,
-        recurrence: null,
-      },
-    ]);
-
-    await useTodoStore.getState().reloadAfterDatabaseChange("other.db");
-    await new Promise(resolve => setTimeout(resolve, 0));
-
-    const state = useTodoStore.getState();
-    expect(state.lastLoadedDatabase).toBe("other.db");
-    expect(state.activeGroupId).toBe(1);
-    expect(state.groupStats[1]?.total).toBe(3);
-    expect(tauri.todoListItemsByType).toHaveBeenCalledWith({ type: "all" });
-    expect(state.itemsByGroupId._system_all).toHaveLength(1);
   });
 });
