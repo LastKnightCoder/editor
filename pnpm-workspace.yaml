@@ -3,10 +3,10 @@ packages:
   - apps/*
 
 overrides:
-  react: 19.1.0
-  react-dom: 19.1.0
-  "@types/react": 19.1.8
-  "@types/react-dom": 19.1.6
+  react: 19.2.0
+  react-dom: 19.2.0
+  "@types/react": 19.2.0
+  "@types/react-dom": 19.2.0
   slate: 0.123.0
   slate-dom: 0.123.0
   slate-react: 0.123.0
