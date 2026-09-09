@@ -1244,3 +1244,20 @@
 
 - feat: 支持 Agent 抽象，聊天流程底层重构
 - feat: 支持 SubAgent 工具
+
+## v0.54.0（未发布）
+
+- refactor(mobile): 页面栈架构重写——新增 `src/router/` 框架层（纯函数栈机 + definePage 协议 + PageHost/OverlayHost），替代旧 navigation 三栈 store
+- feat(mobile): React 19.2 `<Activity>` 页面保活（state+DOM 保留、effect 自动卸载）+ LRU 上限淘汰
+- feat(mobile): 页面生命周期三层事件（onInit/onEnter/onResume…）+ useBackHandler 返回消费 + usePageGuard/canLeave 离开守卫
+- feat(mobile): 页面数据层引入 @tanstack/react-query——query key 按 params 参数化（每实例缓存）、refetchOnResume 声明式返回刷新
+- feat(mobile): 页面私有 store（zustand 工厂 per-instance）与结果通道 `pushForResult/finish`
+- feat(mobile): overlay 统一 definePage 模型，createdAt 新旧规则实现"预览→详情"自动隐藏/恢复；preview/quickCapture 状态从 AppShell 下沉
+- perf(mobile): AppShell 从 1465 行瘦身，SettingsPage 21 props 改 AppContext + 页面自取
+- feat(mobile): cards 列表 useInfiniteQuery 化（缓存/失效由 query 驱动）；todo/diary 读路径接入 query 缓存（fetchQuery 去重 + invalidate 统一失效）
+- feat(mobile): navigator.preload 按页面 data 声明预取 query；RouterDevTools 开发面板（栈 + query 可视化）
+- fix(mobile): 修复 popTo 混栈回退深度计算与 replace 浏览器历史语义（审查 D-1/D-2，附回归测试）
+- fix(mobile): 存在级 onInit/onDestroy 改由 Host 显式分发，压深（Activity hidden）不再误触销毁（D-3）
+- feat(mobile): keepAlive data 策略落地（非激活卸载内容、query 缓存恢复）；摘除未实现的 fresh/presentation
+- fix(mobile): single overlay 重 push 刷新 createdAt（D-6）；结果 settle 延后至守卫通过（D-7）；手势拒绝回弹（D-5）；quickCapture 接 useBackHandler（D-11）；窗口关闭根页放行（D-9）
+- refactor(mobile): router 与 components/toast 解耦（onRootBackHint 注入）；instanceValue 记忆化；popstate 恢复保留 LRU 时序
