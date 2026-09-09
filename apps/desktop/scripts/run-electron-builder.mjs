@@ -20,7 +20,7 @@ const llamaBackendGpuEnv = {
 // 打包前按 allowlist 显式补齐缺失后端，保证任何机器产物一致。
 const ensureLlamaCppBackends = () => {
   const allowlist = pruneNativeModules.llamaBackendAllowlistByPlatform[process.platform];
-  if (!allowlist) {
+  if (!allowlist || process.platform === "darwin") {
     return; // mac 后端由 arch 决定，postinstall auto 不随显卡差异漂移
   }
 
@@ -45,7 +45,9 @@ const ensureLlamaCppBackends = () => {
       throw new Error(`[llama-backends] no NODE_LLAMA_CPP_GPU mapping for backend "${backend}"`);
     }
 
-    console.log(`[llama-backends] fetching missing backend "${backend}" (NODE_LLAMA_CPP_GPU=${gpuEnv})`);
+    console.log(
+      `[llama-backends] fetching missing backend "${backend}" (NODE_LLAMA_CPP_GPU=${gpuEnv})`
+    );
     const result = spawnSync(process.execPath, [cliEntry, "postinstall"], {
       cwd: desktopDir,
       env: { ...process.env, NODE_LLAMA_CPP_GPU: gpuEnv },
@@ -101,7 +103,7 @@ const builderBin = path.join(
   desktopDir,
   "node_modules",
   ".bin",
-  process.platform === "win32" ? "electron-builder.cmd" : "electron-builder",
+  process.platform === "win32" ? "electron-builder.cmd" : "electron-builder"
 );
 
 const child = spawn(builderBin, process.argv.slice(2), {
@@ -120,7 +122,7 @@ child.on("exit", (code, signal) => {
   process.exit(code ?? 1);
 });
 
-child.on("error", (error) => {
+child.on("error", error => {
   console.error(error);
   process.exit(1);
 });
