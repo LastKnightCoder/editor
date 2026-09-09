@@ -1,9 +1,63 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { existsSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import pruneNativeModules from "./prune-packaged-native-modules.cjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const desktopDir = path.resolve(__dirname, "..");
+
+// 每个后端对应的 NODE_LLAMA_CPP_GPU 取值，用于缺失时显式指定补拉
+const llamaBackendGpuEnv = {
+  "win-x64": "false",
+  "win-x64-vulkan": "vulkan",
+  "linux-x64": "false",
+  "linux-x64-vulkan": "vulkan",
+};
+
+// node-llama-cpp postinstall 默认 auto 会按打包机显卡决定是否下载 GPU 后端，
+// 使产物内容依赖打包环境（无 GPU 的机器只会产出 CPU-only 包）。
+// 打包前按 allowlist 显式补齐缺失后端，保证任何机器产物一致。
+const ensureLlamaCppBackends = () => {
+  const allowlist = pruneNativeModules.llamaBackendAllowlistByPlatform[process.platform];
+  if (!allowlist) {
+    return; // mac 后端由 arch 决定，postinstall auto 不随显卡差异漂移
+  }
+
+  const localPackageJson = path.join(desktopDir, "node_modules", "node-llama-cpp", "package.json");
+  if (!existsSync(localPackageJson)) {
+    console.warn("[llama-backends] node-llama-cpp not installed, skip backend sync");
+    return;
+  }
+
+  // 后端位于 .pnpm 中包目录邻位的 node_modules 下，与 prune 脚本的解析规则一致
+  const packageRealDir = path.dirname(realpathSync(localPackageJson));
+  const cliEntry = path.join(packageRealDir, "dist", "cli", "cli.js");
+  const storeBackendsDir = path.join(path.dirname(packageRealDir), "@node-llama-cpp");
+
+  for (const backend of allowlist) {
+    if (existsSync(path.join(storeBackendsDir, backend))) {
+      continue;
+    }
+
+    const gpuEnv = llamaBackendGpuEnv[backend];
+    if (!gpuEnv) {
+      throw new Error(`[llama-backends] no NODE_LLAMA_CPP_GPU mapping for backend "${backend}"`);
+    }
+
+    console.log(`[llama-backends] fetching missing backend "${backend}" (NODE_LLAMA_CPP_GPU=${gpuEnv})`);
+    const result = spawnSync(process.execPath, [cliEntry, "postinstall"], {
+      cwd: desktopDir,
+      env: { ...process.env, NODE_LLAMA_CPP_GPU: gpuEnv },
+      stdio: "inherit",
+    });
+    if (result.status !== 0) {
+      throw new Error(`[llama-backends] failed to fetch backend "${backend}"`);
+    }
+  }
+};
+
+ensureLlamaCppBackends();
 
 const electronMirrorEnvKeys = [
   "ELECTRON_MIRROR",

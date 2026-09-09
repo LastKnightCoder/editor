@@ -1,6 +1,16 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
+// 各平台允许进包的 llama.cpp 后端，run-electron-builder 的补拉与
+// verify-native-runtime 的产物断言均以此为准，防止多处拷贝漂移
+const llamaBackendAllowlistByPlatform = {
+  win32: ["win-x64", "win-x64-vulkan"],
+  darwin: ["mac-arm64-metal", "mac-x64"],
+  linux: ["linux-x64", "linux-x64-vulkan"],
+};
+
+exports.llamaBackendAllowlistByPlatform = llamaBackendAllowlistByPlatform;
+
 const removeDir = targetPath => {
   fs.rmSync(targetPath, { recursive: true, force: true });
 };
@@ -82,12 +92,7 @@ const syncNodeLlamaCppUnpackedDeps = (nodeModulesDir, platform) => {
   // 只保留 CPU + Vulkan 后端（Vulkan 覆盖 NVIDIA/AMD/Intel，体积约为 CUDA 的
   // 四分之一）；CUDA 全家桶 510M 仅服务 NVIDIA，不默认打包。
   // 同时删除 electron-builder 遍历时可能解包进来的白名单外后端。
-  const llamaBackendAllowlist = (() => {
-    if (platform === "win32") return ["win-x64", "win-x64-vulkan"];
-    if (platform === "darwin") return ["mac-arm64-metal", "mac-x64"];
-    if (platform === "linux") return ["linux-x64", "linux-x64-vulkan"];
-    return [];
-  })();
+  const llamaBackendAllowlist = llamaBackendAllowlistByPlatform[platform] ?? [];
 
   const binsTarget = path.join(nodeModulesDir, "@node-llama-cpp");
   if (fs.existsSync(binsTarget)) {
