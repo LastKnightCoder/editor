@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { getQueryClient } from "../../../router";
 import type { Descendant } from "slate";
 import * as tauri from "../../../services/tauri";
 import type { DiaryEntry, DiaryType } from "../../../types";
@@ -94,6 +95,22 @@ const initialState: DiaryStoreState = {
   lastFailedTarget: null,
 };
 
+// 服务端读路径走 query 缓存：并发去重、staleTime 内重复初始化秒显；
+// mutation 后 invalidateQueries(["diary"]) 标记缓存失效
+const DIARY_QUERY_STALE_MS = 30_000;
+
+async function fetchDiaryEntries() {
+  return getQueryClient().fetchQuery({
+    queryKey: ["diary", "entries"],
+    queryFn: () => tauri.diaryListEntries(),
+    staleTime: DIARY_QUERY_STALE_MS,
+  });
+}
+
+function invalidateDiaryQueries() {
+  getQueryClient().invalidateQueries({ queryKey: ["diary"] });
+}
+
 export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, get) => ({
   ...initialState,
 
@@ -108,7 +125,7 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
 
     set({ loading: true, error: "" });
     try {
-      const entries = await tauri.diaryListEntries();
+      const entries = await fetchDiaryEntries();
       const sorted = sortDiaryEntriesDesc(entries);
       const current = findCurrentEntry(sorted, get().mode, get().baseDate);
       set({
@@ -128,6 +145,7 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
   },
 
   reloadAfterDatabaseChange: async _databaseName => {
+    invalidateDiaryQueries();
     set({
       loading: true,
       error: "",
@@ -136,7 +154,7 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
       lastFailedTarget: null,
     });
     try {
-      const entries = await tauri.diaryListEntries();
+      const entries = await fetchDiaryEntries();
       const sorted = sortDiaryEntriesDesc(entries);
       const current = findCurrentEntry(sorted, get().mode, get().baseDate);
       set({
@@ -286,6 +304,7 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
         weather: state.currentEntry?.weather ?? null,
         mood: state.currentEntry?.mood ?? null,
       });
+      invalidateDiaryQueries();
       const nextEntries = mergeEntries(get().entries, saved);
       set({
         entries: nextEntries,
