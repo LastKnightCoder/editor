@@ -81,6 +81,7 @@ pub fn run() {
             database::diary_get_entry,
             database::diary_upsert_entry,
             database::diary_delete_entry,
+            database::diary_delete_segment,
             database::todo_list_groups,
             database::todo_get_system_groups,
             database::todo_create_group,

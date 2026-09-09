@@ -153,6 +153,16 @@ export interface DiaryWeatherMood {
   value: string;
 }
 
+export interface DiarySegment {
+  id: number;
+  diaryId: number;
+  contentId: number;
+  createTime: number;
+  updateTime: number;
+  wordCount: number;
+  content: Descendant[];
+}
+
 export interface DiaryEntry {
   id: number;
   type: DiaryType;
@@ -164,6 +174,8 @@ export interface DiaryEntry {
   createTime: number;
   updateTime: number;
   content: Descendant[];
+  segments: DiarySegment[];
+  tags: string[];
 }
 
 export interface DiaryListPayload {
@@ -178,25 +190,16 @@ export interface DiaryUpsertPayload {
   content: Descendant[];
   weather?: DiaryWeatherMood | null;
   mood?: DiaryWeatherMood | null;
+  segmentId?: number;
+  newSegment?: boolean;
+  tags?: string[];
 }
 
 export type TodoItemType = "normal" | "deadline" | "planned" | "recurring";
 
-export type TodoSystemGroupType =
-  | "all"
-  | "normal"
-  | "deadline"
-  | "planned"
-  | "recurring"
-  | null;
+export type TodoSystemGroupType = "all" | "normal" | "deadline" | "planned" | "recurring" | null;
 
-export type RecurrenceType =
-  | "daily"
-  | "weekdays"
-  | "weekly"
-  | "monthly"
-  | "yearly"
-  | "custom";
+export type RecurrenceType = "daily" | "weekdays" | "weekly" | "monthly" | "yearly" | "custom";
 
 export interface TodoGroup {
   id: number;

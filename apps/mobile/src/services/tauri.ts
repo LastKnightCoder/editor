@@ -41,11 +41,7 @@ import type { KnownCardCategory } from "../features/cards/cardCategory";
 const VERIFY_TIMEOUT_MS = 15_000;
 const SYNC_CHECK_TIMEOUT_MS = 35_000;
 
-function withTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  timeoutMessage: string,
-) {
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string) {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
@@ -87,8 +83,7 @@ function parseDiaryWeatherMood(raw: unknown): DiaryWeatherMood | null {
   if (
     typeof raw === "object" &&
     raw !== null &&
-    ((raw as DiaryWeatherMood).type === "emoji" ||
-      (raw as DiaryWeatherMood).type === "image") &&
+    ((raw as DiaryWeatherMood).type === "emoji" || (raw as DiaryWeatherMood).type === "image") &&
     typeof (raw as DiaryWeatherMood).value === "string"
   ) {
     return raw as DiaryWeatherMood;
@@ -101,9 +96,12 @@ function normalizeDiaryEntry(raw: RawDiaryEntry): DiaryEntry {
     ...raw,
     weather: parseDiaryWeatherMood(raw.weather),
     mood: parseDiaryWeatherMood(raw.mood),
-    content: Array.isArray(raw.content)
-      ? (raw.content as DiaryEntry["content"])
-      : [],
+    tags: Array.isArray(raw.tags) ? raw.tags : [],
+    segments: (raw.segments ?? []).map(segment => ({
+      ...segment,
+      content: Array.isArray(segment.content) ? segment.content : [],
+    })),
+    content: Array.isArray(raw.content) ? (raw.content as DiaryEntry["content"]) : [],
   };
 }
 
@@ -144,9 +142,7 @@ export function verifyS3Credentials(params: {
   return withTimeout(
     invoke<string>("verify_s3_credentials", { payload: params }),
     VERIFY_TIMEOUT_MS,
-    `S3_VERIFY_FAILED:S3 验证超时（${Math.floor(
-      VERIFY_TIMEOUT_MS / 1000,
-    )} 秒），请检查网络后重试`,
+    `S3_VERIFY_FAILED:S3 验证超时（${Math.floor(VERIFY_TIMEOUT_MS / 1000)} 秒），请检查网络后重试`
   );
 }
 
@@ -192,29 +188,19 @@ export function getContentDetail(contentId: number) {
   return invoke<ContentDetailResponse>("get_content_detail", { contentId });
 }
 
-export function createTemporaryCard(params: {
-  content: unknown[];
-  count: number;
-}) {
+export function createTemporaryCard(params: { content: unknown[]; count: number }) {
   return invoke<CardDetailResponse>("create_temporary_card", {
     payload: params,
   });
 }
 
-export function updateContent(params: {
-  contentId: number;
-  content: unknown[];
-  count: number;
-}) {
+export function updateContent(params: { contentId: number; content: unknown[]; count: number }) {
   return invoke<ContentDetailResponse>("update_content", {
     payload: params,
   });
 }
 
-export function updateCardCategory(params: {
-  id: number;
-  category: KnownCardCategory;
-}) {
+export function updateCardCategory(params: { id: number; category: KnownCardCategory }) {
   return invoke<CardDetailResponse>("update_card_category", {
     payload: params,
   });
@@ -238,26 +224,27 @@ export function diaryListEntries(payload?: DiaryListPayload) {
   const call = payload
     ? invoke<RawDiaryEntry[]>("diary_list_entries", { payload })
     : invoke<RawDiaryEntry[]>("diary_list_entries");
-  return call.then((rows) => rows.map(normalizeDiaryEntry));
+  return call.then(rows => rows.map(normalizeDiaryEntry));
 }
 
-export function diaryGetEntry(payload: {
-  type: DiaryEntry["type"];
-  date: string;
-}) {
-  return invoke<RawDiaryEntry | null>("diary_get_entry", { payload }).then(
-    (row) => (row ? normalizeDiaryEntry(row) : null),
+export function diaryGetEntry(payload: { type: DiaryEntry["type"]; date: string }) {
+  return invoke<RawDiaryEntry | null>("diary_get_entry", { payload }).then(row =>
+    row ? normalizeDiaryEntry(row) : null
   );
 }
 
 export function diaryUpsertEntry(payload: DiaryUpsertPayload) {
-  return invoke<RawDiaryEntry>("diary_upsert_entry", { payload }).then(
-    normalizeDiaryEntry,
-  );
+  return invoke<RawDiaryEntry>("diary_upsert_entry", { payload }).then(normalizeDiaryEntry);
 }
 
 export function diaryDeleteEntry(id: number) {
   return invoke<number>("diary_delete_entry", { payload: { id } });
+}
+
+export function diaryDeleteSegment(diaryId: number, segmentId: number) {
+  return invoke<RawDiaryEntry>("diary_delete_segment", {
+    payload: { diaryId, segmentId },
+  }).then(normalizeDiaryEntry);
 }
 
 export function todoListGroups() {
@@ -369,47 +356,32 @@ export function todoDeleteRecurrenceByItem(todoItemId: number) {
 export function todoGetRecurrenceCompletions(
   recurrenceId: number,
   startDate?: number,
-  endDate?: number,
+  endDate?: number
 ) {
   return invoke<TodoRecurrenceCompletion[]>("todo_get_recurrence_completions", {
     payload: { recurrenceId, startDate, endDate },
   });
 }
 
-export function todoGetRecurrenceCompletion(
-  recurrenceId: number,
-  scheduledDate: number,
-) {
-  return invoke<TodoRecurrenceCompletion | null>(
-    "todo_get_recurrence_completion",
-    {
-      payload: { recurrenceId, scheduledDate },
-    },
-  );
+export function todoGetRecurrenceCompletion(recurrenceId: number, scheduledDate: number) {
+  return invoke<TodoRecurrenceCompletion | null>("todo_get_recurrence_completion", {
+    payload: { recurrenceId, scheduledDate },
+  });
 }
 
-export function todoCompleteRecurrence(
-  recurrenceId: number,
-  scheduledDate: number,
-) {
+export function todoCompleteRecurrence(recurrenceId: number, scheduledDate: number) {
   return invoke<TodoRecurrenceCompletion>("todo_complete_recurrence", {
     payload: { recurrenceId, scheduledDate },
   });
 }
 
-export function todoUncompleteRecurrence(
-  recurrenceId: number,
-  scheduledDate: number,
-) {
+export function todoUncompleteRecurrence(recurrenceId: number, scheduledDate: number) {
   return invoke<number>("todo_uncomplete_recurrence", {
     payload: { recurrenceId, scheduledDate },
   });
 }
 
-export function todoSkipRecurrence(
-  recurrenceId: number,
-  scheduledDate: number,
-) {
+export function todoSkipRecurrence(recurrenceId: number, scheduledDate: number) {
   return invoke<TodoRecurrenceCompletion>("todo_skip_recurrence", {
     payload: { recurrenceId, scheduledDate },
   });
@@ -420,8 +392,8 @@ export function syncCheckVersions() {
     invoke<SyncVersionResponse>("sync_check_versions"),
     SYNC_CHECK_TIMEOUT_MS,
     `SYNC_CHECK_FAILED:同步状态刷新超时（${Math.floor(
-      SYNC_CHECK_TIMEOUT_MS / 1000,
-    )} 秒），请检查网络、Endpoint 或 URL 风格`,
+      SYNC_CHECK_TIMEOUT_MS / 1000
+    )} 秒），请检查网络、Endpoint 或 URL 风格`
   );
 }
 
@@ -457,11 +429,7 @@ export function resourceSyncGetStatus() {
   return invoke<ResourceSyncStatusFile | null>("resource_sync_get_status");
 }
 
-export function uploadResource(params: {
-  fileName: string;
-  mimeType: string;
-  bytes: Uint8Array;
-}) {
+export function uploadResource(params: { fileName: string; mimeType: string; bytes: Uint8Array }) {
   return invoke<string>("upload_resource", { payload: params });
 }
 

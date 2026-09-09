@@ -14,6 +14,7 @@ use crate::setting::{
 
 mod index_db;
 mod migrator;
+mod main_upgrade;
 mod query;
 mod reconcile;
 mod schema;
@@ -23,6 +24,7 @@ mod todo;
 mod todo_calendar_sync;
 
 pub use schema::ensure_database_file;
+pub use schema::validate_download;
 pub use diary::*;
 pub use todo::*;
 
@@ -362,6 +364,7 @@ pub fn update_content(
         .map_err(|e| format!("CONTENT_UPDATE_FAILED: Failed to write card operation: {e}"))?;
     }
 
+    diary::touch_content_diaries(&tx, payload.content_id, now)?;
     tx.commit()
         .map_err(|e| format!("CONTENT_UPDATE_FAILED: Failed to commit transaction: {e}"))?;
 

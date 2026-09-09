@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { Editor, type EditorRef } from "@tau/editor/src";
 import type { Descendant } from "slate";
@@ -8,10 +8,7 @@ import { useMobileTheme } from "../../hooks/useMobileTheme";
 import { resolveScreenMotion } from "../../navigation/screenTransition";
 import type { PageTransitionConfig } from "../../navigation/types";
 import type { DiaryType } from "../../types";
-import {
-  EMPTY_EDITOR_CONTENT,
-  normalizeEditorContent,
-} from "../cards/editorContentUtils";
+import { EMPTY_EDITOR_CONTENT, normalizeEditorContent } from "../cards/editorContentUtils";
 import { MobileEditorBottomToolbar } from "../cards/editorToolbar/MobileEditorBottomToolbar";
 import { useMobileEditorToolbarController } from "../cards/editorToolbar/useMobileEditorToolbarController";
 import { mobileCardPreviewExtensions } from "../cards/editorExtensions";
@@ -31,62 +28,65 @@ const MODE_OPTIONS: Array<{ value: DiaryType; label: string }> = [
   { value: "monthly", label: "月记" },
 ];
 
-export function DiaryPage({
-  onBack,
-  onError,
-  transition,
-  isVisible = true,
-}: DiaryPageProps) {
+export function DiaryPage({ onBack, onError, transition, isVisible = true }: DiaryPageProps) {
   const { theme } = useMobileTheme();
   const editorRef = useRef<EditorRef | null>(null);
   const applyingStoreContentRef = useRef(false);
-  const latestContentRef = useRef<Descendant[]>(
-    normalizeEditorContent(EMPTY_EDITOR_CONTENT),
-  );
-  const lastSavedSnapshotRef = useRef(
-    JSON.stringify(normalizeEditorContent(EMPTY_EDITOR_CONTENT)),
-  );
+  const latestContentRef = useRef<Descendant[]>(normalizeEditorContent(EMPTY_EDITOR_CONTENT));
+  const lastSavedSnapshotRef = useRef(JSON.stringify(normalizeEditorContent(EMPTY_EDITOR_CONTENT)));
   const saveInFlightRef = useRef<Promise<boolean> | null>(null);
+  const appliedEditorKeyRef = useRef<string | null>(null);
   const [editorContent, setEditorContent] = useState<Descendant[]>(
-    normalizeEditorContent(EMPTY_EDITOR_CONTENT),
+    normalizeEditorContent(EMPTY_EDITOR_CONTENT)
   );
 
-  const mode = useDiaryStore((state) => state.mode);
-  const baseDate = useDiaryStore((state) => state.baseDate);
-  const currentEntry = useDiaryStore((state) => state.currentEntry);
-  const loading = useDiaryStore((state) => state.loading);
-  const initialize = useDiaryStore((state) => state.initialize);
-  const setMode = useDiaryStore((state) => state.setMode);
-  const shiftDate = useDiaryStore((state) => state.shiftDate);
-  const saveCurrentContent = useDiaryStore((state) => state.saveCurrentContent);
-  const clearError = useDiaryStore((state) => state.clearError);
+  const mode = useDiaryStore(state => state.mode);
+  const baseDate = useDiaryStore(state => state.baseDate);
+  const currentEntry = useDiaryStore(state => state.currentEntry);
+  const loading = useDiaryStore(state => state.loading);
+  const initialize = useDiaryStore(state => state.initialize);
+  const setMode = useDiaryStore(state => state.setMode);
+  const shiftDate = useDiaryStore(state => state.shiftDate);
+  const saveCurrentContent = useDiaryStore(state => state.saveCurrentContent);
+  const clearError = useDiaryStore(state => state.clearError);
+  const activeSegmentId = useDiaryStore(state => state.activeSegmentId);
+  const selectSegment = useDiaryStore(state => state.selectSegment);
+  const appendSegment = useDiaryStore(state => state.appendSegment);
+  const deleteCurrentSegment = useDiaryStore(state => state.deleteCurrentSegment);
+  const [segmentBusy, setSegmentBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const currentSegment =
+    currentEntry?.segments?.find(segment => segment.id === activeSegmentId) ??
+    currentEntry?.segments?.[0];
 
   const reducedMotion = useReducedMotion();
   const motionProps = resolveScreenMotion(transition, reducedMotion === true);
   const toolbarController = useMobileEditorToolbarController({ editorRef });
 
-  const periodLabel = useMemo(
-    () => formatDiaryPeriodLabel(mode, baseDate),
-    [mode, baseDate],
-  );
+  const periodLabel = useMemo(() => formatDiaryPeriodLabel(mode, baseDate), [mode, baseDate]);
   const editorKey = useMemo(
     () =>
       currentEntry?.id != null
-        ? `diary-editor-${currentEntry.id}`
+        ? `diary-editor-${currentEntry.id}-${currentSegment?.id ?? "empty"}`
         : `diary-editor-draft-${mode}-${baseDate}`,
-    [currentEntry?.id, mode, baseDate],
+    [currentEntry?.id, currentSegment?.id, mode, baseDate]
   );
 
   useEffect(() => {
-    void initialize().catch((initError) => {
+    void initialize().catch(initError => {
       onError(initError, "日记初始化失败");
     });
   }, [initialize, onError]);
 
   useEffect(() => {
-    const content = normalizeEditorContent(
-      currentEntry?.content ?? EMPTY_EDITOR_CONTENT,
-    );
+    if (
+      appliedEditorKeyRef.current === editorKey &&
+      JSON.stringify(latestContentRef.current) !== lastSavedSnapshotRef.current
+    ) {
+      return;
+    }
+    appliedEditorKeyRef.current = editorKey;
+    const content = normalizeEditorContent(currentSegment?.content ?? EMPTY_EDITOR_CONTENT);
     latestContentRef.current = content;
     lastSavedSnapshotRef.current = JSON.stringify(content);
     setEditorContent(content);
@@ -97,7 +97,8 @@ export function DiaryPage({
       applyingStoreContentRef.current = false;
     });
     clearError();
-  }, [clearError, currentEntry?.id, currentEntry?.content, mode, baseDate]);
+    setConfirmDelete(false);
+  }, [clearError, editorKey, currentSegment?.content]);
 
   const persistLatest = useMemoizedFn(async () => {
     const normalized = normalizeEditorContent(latestContentRef.current);
@@ -114,7 +115,7 @@ export function DiaryPage({
         lastSavedSnapshotRef.current = snapshot;
         return true;
       })
-      .catch((saveError) => {
+      .catch(saveError => {
         onError(saveError, "日记自动保存失败");
         return false;
       })
@@ -134,12 +135,18 @@ export function DiaryPage({
       wait: 1000,
       leading: false,
       trailing: true,
-    },
+    }
   );
 
   const flushNow = useMemoizedFn(async () => {
     cancelThrottledSave();
-    await persistLatest();
+    do {
+      if (!(await persistLatest())) return false;
+    } while (
+      JSON.stringify(normalizeEditorContent(latestContentRef.current)) !==
+      lastSavedSnapshotRef.current
+    );
+    return true;
   });
 
   useEffect(() => {
@@ -172,7 +179,7 @@ export function DiaryPage({
   });
 
   const handleBack = useMemoizedFn(async () => {
-    await flushNow();
+    if (!(await flushNow())) return;
     onBack();
   });
 
@@ -180,7 +187,7 @@ export function DiaryPage({
     if (nextMode === mode) {
       return;
     }
-    await flushNow();
+    if (!(await flushNow())) return;
     try {
       await setMode(nextMode);
     } catch (modeError) {
@@ -189,11 +196,23 @@ export function DiaryPage({
   });
 
   const handleShiftDate = useMemoizedFn(async (delta: number) => {
-    await flushNow();
+    if (!(await flushNow())) return;
     try {
       await shiftDate(delta);
     } catch (shiftError) {
       onError(shiftError, "切换日期失败");
+    }
+  });
+
+  const changeSegment = useMemoizedFn(async (action: () => void | Promise<void>) => {
+    if (segmentBusy || !(await flushNow())) return;
+    setSegmentBusy(true);
+    try {
+      await action();
+    } catch (error) {
+      onError(error, "日记片段操作失败");
+    } finally {
+      setSegmentBusy(false);
     }
   });
 
@@ -223,7 +242,7 @@ export function DiaryPage({
       <div className="mobile-fixed-footer-scroll flex-1 overflow-y-auto p-4">
         <div className="space-y-3">
           <div className="flex gap-2 rounded-xl bg-white p-2 dark:bg-neutral-900">
-            {MODE_OPTIONS.map((option) => (
+            {MODE_OPTIONS.map(option => (
               <button
                 key={option.value}
                 type="button"
@@ -269,6 +288,72 @@ export function DiaryPage({
             </button>
           </div>
 
+          <div className="flex items-center gap-2">
+            <select
+              aria-label="日记片段"
+              value={currentSegment?.id ?? ""}
+              disabled={segmentBusy || !currentEntry?.segments?.length}
+              onChange={event => {
+                const id = Number(event.target.value);
+                void changeSegment(() => selectSegment(id));
+              }}
+              className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white p-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            >
+              {!currentEntry?.segments?.length && <option value="">新片段</option>}
+              {currentEntry?.segments?.map((segment, index) => (
+                <option key={segment.id} value={segment.id}>
+                  片段 {index + 1} ·{" "}
+                  {new Date(segment.createTime).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              aria-label="添加片段"
+              title="添加片段"
+              disabled={segmentBusy}
+              onClick={() => {
+                void changeSegment(appendSegment);
+              }}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg disabled:opacity-40"
+            >
+              <Plus size={18} />
+            </button>
+            <button
+              type="button"
+              aria-label="删除片段"
+              title="删除片段"
+              disabled={segmentBusy || !currentSegment}
+              onClick={() => setConfirmDelete(true)}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg disabled:opacity-40"
+            >
+              <Trash2 size={18} />
+            </button>
+          </div>
+          {confirmDelete && (
+            <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
+              <span>删除当前片段？</span>
+              <button type="button" onClick={() => setConfirmDelete(false)}>
+                取消
+              </button>
+              <button
+                type="button"
+                disabled={segmentBusy}
+                onClick={() => {
+                  void changeSegment(deleteCurrentSegment);
+                }}
+                className="text-red-600"
+              >
+                删除
+              </button>
+            </div>
+          )}
+          {!!currentEntry?.tags?.length && (
+            <p className="text-sm text-gray-500">{currentEntry.tags.join(" · ")}</p>
+          )}
           <div className="rounded-xl bg-white p-3 dark:bg-neutral-950">
             {loading && !currentEntry ? (
               <div className="space-y-2 py-6">
@@ -285,7 +370,7 @@ export function DiaryPage({
                 onBlur={toolbarController.handleEditorBlur}
                 onSelectionChange={toolbarController.syncSelection}
                 onChange={handleEditorChange}
-                readonly={false}
+                readonly={segmentBusy || loading}
                 theme={theme}
                 extensions={mobileCardPreviewExtensions}
               />
