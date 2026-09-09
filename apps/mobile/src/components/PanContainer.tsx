@@ -1,11 +1,5 @@
-import {
-  type CSSProperties,
-  type ReactNode,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Z_INDEX } from "../router/zIndex";
 import { useMemoizedFn } from "ahooks";
 import {
   buildPanTimeline,
@@ -54,22 +48,16 @@ const TRANSITION_UP = "transform 300ms cubic-bezier(0.22, 1, 0.36, 1)";
 const TRANSITION_DOWN = "transform 250ms ease-in";
 
 const TOUCHMOVE_ALLOW_SELECTOR = '[data-allow-touchmove="true"]';
-const PAN_DRAG_ALWAYS_IGNORE_SELECTOR =
-  'input, textarea, select, [data-pan-ignore-drag="true"]';
+const PAN_DRAG_ALWAYS_IGNORE_SELECTOR = 'input, textarea, select, [data-pan-ignore-drag="true"]';
 
 function cn(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(" ");
 }
 
-function canAllowTouchMove(
-  target: EventTarget | null,
-  panel: HTMLElement | null,
-): boolean {
+function canAllowTouchMove(target: EventTarget | null, panel: HTMLElement | null): boolean {
   if (!(target instanceof Node)) return true;
   if (panel?.contains(target)) return true;
-  return target instanceof Element && target.closest(TOUCHMOVE_ALLOW_SELECTOR)
-    ? true
-    : false;
+  return target instanceof Element && target.closest(TOUCHMOVE_ALLOW_SELECTOR) ? true : false;
 }
 
 function shouldIgnorePanDragStart(target: EventTarget | null): boolean {
@@ -87,10 +75,7 @@ function shouldIgnorePanDragStart(target: EventTarget | null): boolean {
 
   const contenteditable = editable.getAttribute("contenteditable");
   const normalized = contenteditable?.trim().toLowerCase();
-  const isEditable =
-    normalized === "" ||
-    normalized === "true" ||
-    normalized === "plaintext-only";
+  const isEditable = normalized === "" || normalized === "true" || normalized === "plaintext-only";
   if (!isEditable) {
     return false;
   }
@@ -99,10 +84,7 @@ function shouldIgnorePanDragStart(target: EventTarget | null): boolean {
   return !!activeElement && editable.contains(activeElement);
 }
 
-function pickInitialState(
-  initialState: PanState | undefined,
-  enabledStates: PanState[],
-): PanState {
+function pickInitialState(initialState: PanState | undefined, enabledStates: PanState[]): PanState {
   if (initialState && enabledStates.includes(initialState)) {
     return initialState;
   }
@@ -113,12 +95,9 @@ export function PanContainer(props: PanContainerProps) {
   const keyboardViewport = useKeyboardViewport();
   const enabledStates = useMemo(
     () => resolveEnabledStates(props.enabledStates),
-    [props.enabledStates],
+    [props.enabledStates]
   );
-  const viewportHeight = Math.max(
-    1,
-    keyboardViewport.viewportHeight || window.innerHeight || 1,
-  );
+  const viewportHeight = Math.max(1, keyboardViewport.viewportHeight || window.innerHeight || 1);
   const layout = useMemo(
     () =>
       resolvePanLayout({
@@ -126,12 +105,12 @@ export function PanContainer(props: PanContainerProps) {
         enabledStates,
         heights: props.heights,
       }),
-    [enabledStates, props.heights, viewportHeight],
+    [enabledStates, props.heights, viewportHeight]
   );
 
   const [shouldRender, setShouldRender] = useState(props.open);
   const [activeState, setActiveState] = useState<PanState>(() =>
-    pickInitialState(props.initialState, layout.enabledStates),
+    pickInitialState(props.initialState, layout.enabledStates)
   );
   const [offset, setOffset] = useState(layout.viewportHeight);
   const [isDragging, setIsDragging] = useState(false);
@@ -210,37 +189,33 @@ export function PanContainer(props: PanContainerProps) {
     animateState(layout.lowestState);
   });
 
-  const beginDrag = useMemoizedFn(
-    (clientY: number, pointerId: number | null) => {
-      setTransitionMode("none");
-      dragRef.current = {
-        active: true,
-        pointerId,
-        startY: clientY,
-        startOffset: offsetRef.current,
-        startState: activeStateRef.current,
-        latestY: clientY,
-        latestTs: performance.now(),
-        velocityY: 0,
-        dragging: false,
-      };
-    },
-  );
+  const beginDrag = useMemoizedFn((clientY: number, pointerId: number | null) => {
+    setTransitionMode("none");
+    dragRef.current = {
+      active: true,
+      pointerId,
+      startY: clientY,
+      startOffset: offsetRef.current,
+      startState: activeStateRef.current,
+      latestY: clientY,
+      latestTs: performance.now(),
+      velocityY: 0,
+      dragging: false,
+    };
+  });
 
-  const shouldAllowDrag = useMemoizedFn(
-    (deltaY: number, startState: PanState): boolean => {
-      if (deltaY === 0) return false;
-      const highestState = layout.highestState;
-      if (deltaY < 0) {
-        return startState !== highestState;
-      }
-      if (startState !== highestState) {
-        return true;
-      }
-      const scrollTop = props.scrollRef?.current?.scrollTop ?? 0;
-      return scrollTop <= 0;
-    },
-  );
+  const shouldAllowDrag = useMemoizedFn((deltaY: number, startState: PanState): boolean => {
+    if (deltaY === 0) return false;
+    const highestState = layout.highestState;
+    if (deltaY < 0) {
+      return startState !== highestState;
+    }
+    if (startState !== highestState) {
+      return true;
+    }
+    const scrollTop = props.scrollRef?.current?.scrollTop ?? 0;
+    return scrollTop <= 0;
+  });
 
   const handleDragMove = useMemoizedFn(
     (clientY: number, timeStamp: number, prevent: () => void) => {
@@ -267,7 +242,7 @@ export function PanContainer(props: PanContainerProps) {
 
       const nextOffset = clampOffset(layout, session.startOffset + deltaY);
       setOffsetRaf(nextOffset);
-    },
+    }
   );
 
   const endDrag = useMemoizedFn(() => {
@@ -309,7 +284,7 @@ export function PanContainer(props: PanContainerProps) {
         state: activeState,
         isDragging,
       }),
-    [activeState, isDragging, layout, offset],
+    [activeState, isDragging, layout, offset]
   );
 
   const emitTimelineChange = useMemoizedFn((nextTimeline: PanTimeline) => {
@@ -324,10 +299,7 @@ export function PanContainer(props: PanContainerProps) {
     if (!props.open) return;
     if (shouldRender) return;
     setShouldRender(true);
-    const nextState = pickInitialState(
-      props.initialState,
-      layout.enabledStates,
-    );
+    const nextState = pickInitialState(props.initialState, layout.enabledStates);
     setActiveState(nextState);
     setTransitionMode("none");
     setOffset(layout.viewportHeight);
@@ -366,10 +338,7 @@ export function PanContainer(props: PanContainerProps) {
 
   useEffect(() => {
     if (!props.open || !shouldRender || isDragging) return;
-    const nextState = pickInitialState(
-      props.initialState,
-      layout.enabledStates,
-    );
+    const nextState = pickInitialState(props.initialState, layout.enabledStates);
     if (nextState !== activeStateRef.current) {
       animateState(nextState);
       return;
@@ -439,35 +408,31 @@ export function PanContainer(props: PanContainerProps) {
   } as CSSProperties;
 
   const renderChildren =
-    typeof props.children === "function"
-      ? props.children(timeline)
-      : props.children;
+    typeof props.children === "function" ? props.children(timeline) : props.children;
 
   if (!shouldRender) {
     return null;
   }
 
   return (
-    <div className={cn("fixed inset-0 z-50", props.className)}>
+    <div className={cn("fixed inset-0", props.className)} style={{ zIndex: Z_INDEX.OVERLAY_SHEET }}>
       <button
         type="button"
         aria-label="关闭面板"
         className={cn(
           "absolute inset-0 bg-black/50 dark:bg-black/70",
           props.open ? "mask-enter" : "mask-exit",
-          props.maskClassName,
+          props.maskClassName
         )}
         onClick={props.onRequestClose}
       />
       <section
         ref={panelRef}
         className={cn(
-          "absolute inset-x-0 top-0 bottom-0 flex flex-col bg-white dark:bg-neutral-950",
-          activeState === "full" && !isDragging
-            ? "rounded-none"
-            : "rounded-t-2xl",
+          "absolute inset-x-0 bottom-0 top-0 flex flex-col bg-white dark:bg-neutral-950",
+          activeState === "full" && !isDragging ? "rounded-none" : "rounded-t-2xl",
           isDragging && "select-none",
-          props.containerClassName,
+          props.containerClassName
         )}
         style={{
           ...timelineCssVars,
@@ -476,7 +441,7 @@ export function PanContainer(props: PanContainerProps) {
           willChange: "transform",
         }}
         data-pan-state={activeState}
-        onTouchStart={(event) => {
+        onTouchStart={event => {
           if (!openRef.current) return;
           if (event.touches.length !== 1) return;
           if (shouldIgnorePanDragStart(event.target)) return;
@@ -488,21 +453,17 @@ export function PanContainer(props: PanContainerProps) {
 
           const handleTouchMove = (moveEvent: TouchEvent) => {
             const activeTouch = Array.from(moveEvent.touches).find(
-              (item) => item.identifier === touchId,
+              item => item.identifier === touchId
             );
             if (!activeTouch) return;
-            handleDragMove(
-              activeTouch.clientY,
-              moveEvent.timeStamp || performance.now(),
-              () => {
-                moveEvent.preventDefault();
-              },
-            );
+            handleDragMove(activeTouch.clientY, moveEvent.timeStamp || performance.now(), () => {
+              moveEvent.preventDefault();
+            });
           };
 
           const finishTouch = (endEvent: TouchEvent) => {
             const stillActive = Array.from(endEvent.touches).some(
-              (item) => item.identifier === touchId,
+              item => item.identifier === touchId
             );
             if (stillActive) return;
             clearTouchListeners();
@@ -530,25 +491,21 @@ export function PanContainer(props: PanContainerProps) {
           clearTouchListeners();
           endDrag();
         }}
-        onTransitionEnd={(event) => {
+        onTransitionEnd={event => {
           if (event.propertyName !== "transform") return;
           if (!openRef.current || isDragging) return;
           if (transition === "none") return;
           setTransitionMode("none");
         }}
-        onMouseDown={(event) => {
+        onMouseDown={event => {
           if (!openRef.current) return;
           if (event.button !== 0) return;
           if (shouldIgnorePanDragStart(event.target)) return;
           beginDrag(event.clientY, 1);
           const handleMove = (moveEvent: MouseEvent) => {
-            handleDragMove(
-              moveEvent.clientY,
-              moveEvent.timeStamp || performance.now(),
-              () => {
-                moveEvent.preventDefault();
-              },
-            );
+            handleDragMove(moveEvent.clientY, moveEvent.timeStamp || performance.now(), () => {
+              moveEvent.preventDefault();
+            });
           };
           const handleUp = () => {
             document.removeEventListener("mousemove", handleMove);

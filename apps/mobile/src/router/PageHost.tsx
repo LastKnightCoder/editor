@@ -19,6 +19,7 @@ import { getPageDefinition } from "./registry";
 import { getPageMeta, type KeepAlivePolicy, type TransitionConfig } from "./core/pageMeta";
 import { collectKeepAliveEvictionCandidates, type RouteEntry } from "./core/stackMachine";
 import { PageStoreScope } from "./store/PageStoreScope";
+import { SCREEN_BASE, SCREEN_TOP } from "./zIndex";
 import { useRouterContext } from "./RouterProvider";
 import {
   PageInstanceProvider,
@@ -52,7 +53,6 @@ function settleSurface(controls: LayerAnimationControls, surface: ScreenSurface)
 type PageLayerProps = {
   entry: RouteEntry;
   layerIndex: number;
-  totalLayers: number;
   surface: ScreenSurface;
   /** LRU 淘汰中：卸载内容释放内存，entry 留栈（数据仍在 query 缓存） */
   evicted: boolean;
@@ -66,7 +66,6 @@ type PageLayerProps = {
 function PageLayer({
   entry,
   layerIndex,
-  totalLayers,
   surface,
   evicted,
   keepAlive,
@@ -180,10 +179,10 @@ function PageLayer({
   const contentHidden = evicted || (keepAlive !== "keep" && !isActive);
   const zIndex =
     surface === "active"
-      ? totalLayers + 2
+      ? SCREEN_TOP
       : surface === "underlay-parallax" || surface === "underlay-flat"
-        ? totalLayers + 1
-        : layerIndex + 1;
+        ? SCREEN_TOP - 1
+        : SCREEN_BASE + layerIndex;
 
   const { navigator } = useRouterContext();
   const instanceValue = useMemo<PageInstanceContextValue>(
@@ -324,7 +323,6 @@ export function PageHost({ rootContent }: { rootContent?: ReactNode }) {
             key={entry.id}
             entry={entry}
             layerIndex={index}
-            totalLayers={screens.entries.length}
             surface={surface}
             evicted={evictedIds.has(entry.id)}
             keepAlive={getPageMeta(entry.key)?.keepAlive ?? "keep"}

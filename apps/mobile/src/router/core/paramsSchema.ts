@@ -159,3 +159,19 @@ function sanitizeFields(
   }
   return result;
 }
+
+/**
+ * 页面文件内的 schema 绑定：schema 与参数类型的单一事实源。
+ * 用法：
+ *   const s = createPageSchema({ todoId: paramNumber() });
+ *   type Params = typeof s.type;           // 编译期推导
+ *   usePage<Params>() / definePage({ params: s.schema })
+ */
+export function createPageSchema<F extends ParamFields>(schema: F) {
+  return {
+    schema,
+    get type(): InferFields<F> {
+      throw new Error("createPageSchema().type 仅用于类型推导，不可运行时访问");
+    },
+  };
+}

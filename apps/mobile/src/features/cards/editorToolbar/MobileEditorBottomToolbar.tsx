@@ -8,6 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
+import { Z_INDEX } from "../../../router/zIndex";
 import { createPortal } from "react-dom";
 import {
   Ban,
@@ -73,11 +74,7 @@ const DEFAULT_UNDERLINE_PALETTE: UnderlinePaletteState = {
   lineType: "solid",
 };
 
-const PALETTE_ACTION_IDS = new Set<PaletteActionId>([
-  "underline",
-  "color",
-  "highlight",
-]);
+const PALETTE_ACTION_IDS = new Set<PaletteActionId>(["underline", "color", "highlight"]);
 
 const ACTION_ICONS: Record<ToolbarActionId, ReactNode> = {
   bold: <Bold size={16} strokeWidth={2.5} />,
@@ -98,9 +95,7 @@ function cn(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(" ");
 }
 
-function isPaletteAction(
-  actionId: ToolbarActionId,
-): actionId is PaletteActionId {
+function isPaletteAction(actionId: ToolbarActionId): actionId is PaletteActionId {
   return PALETTE_ACTION_IDS.has(actionId as PaletteActionId);
 }
 
@@ -110,30 +105,20 @@ function readUnderlinePaletteState(): UnderlinePaletteState {
   }
   const storedColor = localStorage.getItem("underline-color");
   const storedLineType = localStorage.getItem("underline-line-type");
-  const color = UNDERLINE_COLOR_OPTIONS.some(
-    (item) => item.value === storedColor,
-  )
+  const color = UNDERLINE_COLOR_OPTIONS.some(item => item.value === storedColor)
     ? (storedColor as UnderlineColor)
     : DEFAULT_UNDERLINE_PALETTE.color;
-  const lineType = UNDERLINE_LINE_TYPE_OPTIONS.some(
-    (item) => item.value === storedLineType,
-  )
+  const lineType = UNDERLINE_LINE_TYPE_OPTIONS.some(item => item.value === storedLineType)
     ? (storedLineType as UnderlineLineType)
     : DEFAULT_UNDERLINE_PALETTE.lineType;
   return { color, lineType };
 }
 
-function calculateVisiblePrimaryCount(
-  containerWidth: number,
-  totalPrimaryActions: number,
-): number {
+function calculateVisiblePrimaryCount(containerWidth: number, totalPrimaryActions: number): number {
   const availableWidth = Math.max(0, containerWidth - WIDTH_BUFFER);
   for (let count = totalPrimaryActions; count >= 0; count -= 1) {
     const itemCount = count + 2;
-    const totalWidth =
-      GROUP_BUTTON_WIDTH * 2 +
-      ACTION_BUTTON_WIDTH * count +
-      GAP * (itemCount - 1);
+    const totalWidth = GROUP_BUTTON_WIDTH * 2 + ACTION_BUTTON_WIDTH * count + GAP * (itemCount - 1);
     if (totalWidth <= availableWidth) {
       return count;
     }
@@ -149,26 +134,20 @@ function getViewportSize() {
   };
 }
 
-export function MobileEditorBottomToolbar(
-  props: MobileEditorBottomToolbarProps,
-) {
+export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps) {
   const { controller } = props;
 
   const triggerRefs = useRef<Record<MenuGroupId, HTMLButtonElement | null>>({
     "text-style": null,
     more: null,
   });
-  const primaryActionRefs = useRef<
-    Partial<Record<PaletteActionId, HTMLButtonElement | null>>
-  >({});
+  const primaryActionRefs = useRef<Partial<Record<PaletteActionId, HTMLButtonElement | null>>>({});
   const toolbarRowRef = useRef<HTMLDivElement | null>(null);
   const groupPanelRef = useRef<HTMLDivElement | null>(null);
   const palettePanelRef = useRef<HTMLDivElement | null>(null);
 
   const [openGroupId, setOpenGroupId] = useState<MenuGroupId | null>(null);
-  const [openPaletteId, setOpenPaletteId] = useState<PaletteActionId | null>(
-    null,
-  );
+  const [openPaletteId, setOpenPaletteId] = useState<PaletteActionId | null>(null);
   const [visiblePrimaryCount, setVisiblePrimaryCount] = useState(() => {
     if (typeof window === "undefined") {
       return PRIMARY_ACTIONS.length;
@@ -184,20 +163,21 @@ export function MobileEditorBottomToolbar(
     left: 0,
     top: 0,
   });
-  const [underlinePaletteState, setUnderlinePaletteState] =
-    useState<UnderlinePaletteState>(() => readUnderlinePaletteState());
+  const [underlinePaletteState, setUnderlinePaletteState] = useState<UnderlinePaletteState>(() =>
+    readUnderlinePaletteState()
+  );
 
   const visiblePrimaryActions = useMemo(
     () => PRIMARY_ACTIONS.slice(0, visiblePrimaryCount),
-    [visiblePrimaryCount],
+    [visiblePrimaryCount]
   );
   const overflowPrimaryActions = useMemo(
     () => PRIMARY_ACTIONS.slice(visiblePrimaryCount),
-    [visiblePrimaryCount],
+    [visiblePrimaryCount]
   );
   const moreGroupActions = useMemo(
     () => [...overflowPrimaryActions, ...MORE_ACTIONS],
-    [overflowPrimaryActions],
+    [overflowPrimaryActions]
   );
 
   const activeGroup = useMemo(() => {
@@ -222,62 +202,55 @@ export function MobileEditorBottomToolbar(
       event.stopPropagation();
       controller.keepEditorFocus();
     },
-    [controller],
+    [controller]
   );
 
   const handleGroupPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLButtonElement>, groupId: MenuGroupId) => {
       preventBlurAndKeepFocus(event);
       setOpenPaletteId(null);
-      setOpenGroupId((prev) => (prev === groupId ? null : groupId));
+      setOpenGroupId(prev => (prev === groupId ? null : groupId));
     },
-    [preventBlurAndKeepFocus],
+    [preventBlurAndKeepFocus]
   );
 
   const handleActionPointerDown = useCallback(
-    (
-      event: ReactPointerEvent<HTMLButtonElement>,
-      actionId: ToolbarActionId,
-    ) => {
+    (event: ReactPointerEvent<HTMLButtonElement>, actionId: ToolbarActionId) => {
       preventBlurAndKeepFocus(event);
       if (isPaletteAction(actionId)) {
         if (actionId === "underline") {
           setUnderlinePaletteState(readUnderlinePaletteState());
         }
         setOpenGroupId(null);
-        setOpenPaletteId((prev) => (prev === actionId ? null : actionId));
+        setOpenPaletteId(prev => (prev === actionId ? null : actionId));
         return;
       }
       controller.executeAction(actionId);
       setOpenPaletteId(null);
       setOpenGroupId(null);
     },
-    [controller, preventBlurAndKeepFocus],
+    [controller, preventBlurAndKeepFocus]
   );
 
   const handlePaletteApplyColor = useCallback(
-    (
-      event: ReactPointerEvent<HTMLButtonElement>,
-      color?: string,
-      darkColor?: string,
-    ) => {
+    (event: ReactPointerEvent<HTMLButtonElement>, color?: string, darkColor?: string) => {
       preventBlurAndKeepFocus(event);
       controller.applyColorMark(color, darkColor);
       setOpenPaletteId(null);
     },
-    [controller, preventBlurAndKeepFocus],
+    [controller, preventBlurAndKeepFocus]
   );
 
   const handlePaletteApplyGradient = useCallback(
     (
       event: ReactPointerEvent<HTMLButtonElement>,
-      preset?: (typeof TEXT_GRADIENT_OPTIONS)[number]["preset"],
+      preset?: (typeof TEXT_GRADIENT_OPTIONS)[number]["preset"]
     ) => {
       preventBlurAndKeepFocus(event);
       controller.applyGradientMark(preset);
       setOpenPaletteId(null);
     },
-    [controller, preventBlurAndKeepFocus],
+    [controller, preventBlurAndKeepFocus]
   );
 
   const handlePaletteApplyHighlight = useCallback(
@@ -286,7 +259,7 @@ export function MobileEditorBottomToolbar(
       controller.applyHighlightMark(label);
       setOpenPaletteId(null);
     },
-    [controller, preventBlurAndKeepFocus],
+    [controller, preventBlurAndKeepFocus]
   );
 
   const handlePaletteApplyUnderlineColor = useCallback(
@@ -300,14 +273,11 @@ export function MobileEditorBottomToolbar(
       setUnderlinePaletteState(nextState);
       setOpenPaletteId(null);
     },
-    [controller, preventBlurAndKeepFocus, underlinePaletteState],
+    [controller, preventBlurAndKeepFocus, underlinePaletteState]
   );
 
   const handlePaletteApplyUnderlineLineType = useCallback(
-    (
-      event: ReactPointerEvent<HTMLButtonElement>,
-      lineType: UnderlineLineType,
-    ) => {
+    (event: ReactPointerEvent<HTMLButtonElement>, lineType: UnderlineLineType) => {
       preventBlurAndKeepFocus(event);
       const nextState = {
         ...underlinePaletteState,
@@ -317,7 +287,7 @@ export function MobileEditorBottomToolbar(
       setUnderlinePaletteState(nextState);
       setOpenPaletteId(null);
     },
-    [controller, preventBlurAndKeepFocus, underlinePaletteState],
+    [controller, preventBlurAndKeepFocus, underlinePaletteState]
   );
 
   const recalculateVisibleActions = useCallback(() => {
@@ -327,15 +297,10 @@ export function MobileEditorBottomToolbar(
     }
     const rowRect = row.getBoundingClientRect();
     const width = Math.round(
-      rowRect.width > 0 ? rowRect.width : Math.max(0, window.innerWidth - 48),
+      rowRect.width > 0 ? rowRect.width : Math.max(0, window.innerWidth - 48)
     );
-    const nextCount = calculateVisiblePrimaryCount(
-      width,
-      PRIMARY_ACTIONS.length,
-    );
-    setVisiblePrimaryCount((current) =>
-      current === nextCount ? current : nextCount,
-    );
+    const nextCount = calculateVisiblePrimaryCount(width, PRIMARY_ACTIONS.length);
+    setVisiblePrimaryCount(current => (current === nextCount ? current : nextCount));
   }, []);
 
   const updateMenuPosition = useCallback(() => {
@@ -377,8 +342,7 @@ export function MobileEditorBottomToolbar(
     if (!openPaletteId) {
       return;
     }
-    const triggerEl =
-      primaryActionRefs.current[openPaletteId] ?? triggerRefs.current.more;
+    const triggerEl = primaryActionRefs.current[openPaletteId] ?? triggerRefs.current.more;
     const panelEl = palettePanelRef.current;
     if (!triggerEl || !panelEl) {
       return;
@@ -504,13 +468,13 @@ export function MobileEditorBottomToolbar(
       if (!(target instanceof Node)) return;
       if (groupPanelRef.current?.contains(target)) return;
       if (palettePanelRef.current?.contains(target)) return;
-      const containsTrigger = Object.values(triggerRefs.current).some(
-        (trigger) => trigger?.contains(target),
+      const containsTrigger = Object.values(triggerRefs.current).some(trigger =>
+        trigger?.contains(target)
       );
       if (containsTrigger) return;
-      const containsPaletteTrigger = Object.values(
-        primaryActionRefs.current,
-      ).some((trigger) => trigger?.contains(target));
+      const containsPaletteTrigger = Object.values(primaryActionRefs.current).some(trigger =>
+        trigger?.contains(target)
+      );
       if (containsPaletteTrigger) return;
       setOpenGroupId(null);
       setOpenPaletteId(null);
@@ -537,13 +501,13 @@ export function MobileEditorBottomToolbar(
             ref={groupPanelRef}
             data-testid="mobile-editor-submenu"
             data-group={activeGroup.id}
-            className="fixed z-75 flex items-center gap-1 rounded-xl border border-gray-200 bg-white/98 p-1 shadow-[0_12px_28px_rgba(15,23,42,0.18)] dark:border-neutral-700 dark:bg-neutral-950/96"
+            className="z-75 bg-white/98 dark:bg-neutral-950/96 fixed flex items-center gap-1 rounded-xl border border-gray-200 p-1 shadow-[0_12px_28px_rgba(15,23,42,0.18)] dark:border-neutral-700"
             style={{
               left: menuPosition.left,
               top: menuPosition.top,
             }}
           >
-            {activeGroup.actions.map((action) => {
+            {activeGroup.actions.map(action => {
               const active = controller.isActionActive(action.id);
               const disabled = controller.isActionDisabled(action.id);
               return (
@@ -560,12 +524,12 @@ export function MobileEditorBottomToolbar(
                       : null,
                     active && !disabled
                       ? "bg-zinc-900 text-white dark:bg-neutral-200 dark:text-neutral-900"
-                      : "active:bg-gray-100 dark:active:bg-neutral-800",
+                      : "active:bg-gray-100 dark:active:bg-neutral-800"
                   )}
                   onPointerDown={
                     disabled
                       ? undefined
-                      : (event) => {
+                      : event => {
                           handleActionPointerDown(event, action.id);
                         }
                   }
@@ -575,20 +539,18 @@ export function MobileEditorBottomToolbar(
               );
             })}
           </div>,
-          document.body,
+          document.body
         )
       : null;
 
   const paletteNode =
-    controller.isEditorFocused &&
-    openPaletteId &&
-    typeof document !== "undefined"
+    controller.isEditorFocused && openPaletteId && typeof document !== "undefined"
       ? createPortal(
           <div
             ref={palettePanelRef}
             data-testid="mobile-editor-palette"
             data-action={openPaletteId}
-            className="fixed z-76 min-w-[240px] max-w-[calc(100vw-16px)] rounded-xl border border-gray-200 bg-white/98 p-2 shadow-[0_16px_32px_rgba(15,23,42,0.22)] dark:border-neutral-700 dark:bg-neutral-950/96"
+            className="z-76 bg-white/98 dark:bg-neutral-950/96 fixed min-w-[240px] max-w-[calc(100vw-16px)] rounded-xl border border-gray-200 p-2 shadow-[0_16px_32px_rgba(15,23,42,0.22)] dark:border-neutral-700"
             style={{
               left: palettePosition.left,
               top: palettePosition.top,
@@ -597,17 +559,14 @@ export function MobileEditorBottomToolbar(
             {openPaletteId === "color" ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-gray-500 dark:text-neutral-400">
-                    纯色
-                  </span>
+                  <span className="text-[11px] text-gray-500 dark:text-neutral-400">纯色</span>
                   <div className="h-px flex-1 bg-gray-200 dark:bg-neutral-700" />
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
-                  {TEXT_COLOR_OPTIONS.map((option) => {
+                  {TEXT_COLOR_OPTIONS.map(option => {
                     const previewColor = option.lightColor ?? "transparent";
                     const isDefault =
-                      option.lightColor === undefined &&
-                      option.darkColor === undefined;
+                      option.lightColor === undefined && option.darkColor === undefined;
                     return (
                       <button
                         key={`color-${option.label}`}
@@ -617,17 +576,13 @@ export function MobileEditorBottomToolbar(
                           "flex h-8 w-8 items-center justify-center rounded-full border border-transparent",
                           isDefault
                             ? "bg-gray-100 text-gray-500 dark:bg-neutral-800 dark:text-neutral-300"
-                            : "text-transparent",
+                            : "text-transparent"
                         )}
                         style={{
                           backgroundColor: isDefault ? undefined : previewColor,
                         }}
-                        onPointerDown={(event) => {
-                          handlePaletteApplyColor(
-                            event,
-                            option.lightColor,
-                            option.darkColor,
-                          );
+                        onPointerDown={event => {
+                          handlePaletteApplyColor(event, option.lightColor, option.darkColor);
                         }}
                       >
                         {isDefault ? <Ban size={14} strokeWidth={2.5} /> : null}
@@ -636,13 +591,11 @@ export function MobileEditorBottomToolbar(
                   })}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-gray-500 dark:text-neutral-400">
-                    渐变
-                  </span>
+                  <span className="text-[11px] text-gray-500 dark:text-neutral-400">渐变</span>
                   <div className="h-px flex-1 bg-gray-200 dark:bg-neutral-700" />
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
-                  {TEXT_GRADIENT_OPTIONS.map((option) => (
+                  {TEXT_GRADIENT_OPTIONS.map(option => (
                     <button
                       key={`gradient-${option.preset}`}
                       type="button"
@@ -651,7 +604,7 @@ export function MobileEditorBottomToolbar(
                       style={{
                         background: option.previewLight,
                       }}
-                      onPointerDown={(event) => {
+                      onPointerDown={event => {
                         handlePaletteApplyGradient(event, option.preset);
                       }}
                     />
@@ -661,7 +614,7 @@ export function MobileEditorBottomToolbar(
             ) : null}
             {openPaletteId === "highlight" ? (
               <div className="flex flex-wrap items-center gap-1.5">
-                {HIGHLIGHT_OPTIONS.map((option) => {
+                {HIGHLIGHT_OPTIONS.map(option => {
                   const isDefault = option.value === undefined;
                   return (
                     <button
@@ -672,14 +625,14 @@ export function MobileEditorBottomToolbar(
                         "flex h-8 w-8 items-center justify-center rounded-lg border border-transparent",
                         isDefault
                           ? "bg-gray-100 text-gray-500 dark:bg-neutral-800 dark:text-neutral-300"
-                          : "text-transparent",
+                          : "text-transparent"
                       )}
                       style={{
                         backgroundColor: isDefault
                           ? undefined
                           : (option.previewColor ?? "transparent"),
                       }}
-                      onPointerDown={(event) => {
+                      onPointerDown={event => {
                         handlePaletteApplyHighlight(event, option.value);
                       }}
                     >
@@ -692,9 +645,8 @@ export function MobileEditorBottomToolbar(
             {openPaletteId === "underline" ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5">
-                  {UNDERLINE_COLOR_OPTIONS.map((option) => {
-                    const selected =
-                      underlinePaletteState.color === option.value;
+                  {UNDERLINE_COLOR_OPTIONS.map(option => {
+                    const selected = underlinePaletteState.color === option.value;
                     return (
                       <button
                         key={`underline-color-${option.value}`}
@@ -704,28 +656,23 @@ export function MobileEditorBottomToolbar(
                           "flex h-7 w-7 items-center justify-center rounded-full border",
                           selected
                             ? "border-gray-900 dark:border-neutral-100"
-                            : "border-transparent",
+                            : "border-transparent"
                         )}
                         style={{ backgroundColor: option.previewColor }}
-                        onPointerDown={(event) => {
+                        onPointerDown={event => {
                           handlePaletteApplyUnderlineColor(event, option.value);
                         }}
                       >
                         {selected ? (
-                          <Check
-                            size={12}
-                            strokeWidth={3}
-                            className="text-white drop-shadow-sm"
-                          />
+                          <Check size={12} strokeWidth={3} className="text-white drop-shadow-sm" />
                         ) : null}
                       </button>
                     );
                   })}
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
-                  {UNDERLINE_LINE_TYPE_OPTIONS.map((option) => {
-                    const selected =
-                      underlinePaletteState.lineType === option.value;
+                  {UNDERLINE_LINE_TYPE_OPTIONS.map(option => {
+                    const selected = underlinePaletteState.lineType === option.value;
                     return (
                       <button
                         key={`underline-line-${option.value}`}
@@ -735,13 +682,10 @@ export function MobileEditorBottomToolbar(
                           "h-7 rounded-md px-2 text-xs font-medium",
                           selected
                             ? "bg-zinc-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
-                            : "bg-gray-100 text-gray-600 dark:bg-neutral-800 dark:text-neutral-300",
+                            : "bg-gray-100 text-gray-600 dark:bg-neutral-800 dark:text-neutral-300"
                         )}
-                        onPointerDown={(event) => {
-                          handlePaletteApplyUnderlineLineType(
-                            event,
-                            option.value,
-                          );
+                        onPointerDown={event => {
+                          handlePaletteApplyUnderlineLineType(event, option.value);
                         }}
                       >
                         {option.label}
@@ -752,7 +696,7 @@ export function MobileEditorBottomToolbar(
               </div>
             ) : null}
           </div>,
-          document.body,
+          document.body
         )
       : null;
 
@@ -761,18 +705,19 @@ export function MobileEditorBottomToolbar(
       ? createPortal(
           <nav
             data-mobile-editor-toolbar="true"
-            className="fixed inset-x-0 z-70"
+            className="fixed inset-x-0"
             style={{
+              zIndex: Z_INDEX.POPOVER,
               bottom: "calc(var(--mobile-safe-bottom) + var(--kb-height, 0px))",
             }}
           >
-            <div className="border-t border-gray-200 bg-white/96 px-4 py-2 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur dark:border-neutral-700 dark:bg-neutral-950/92">
+            <div className="bg-white/96 dark:bg-neutral-950/92 border-t border-gray-200 px-4 py-2 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur dark:border-neutral-700">
               <div
                 ref={toolbarRowRef}
                 className="mx-auto flex w-full max-w-[640px] items-center gap-2"
               >
                 <button
-                  ref={(node) => {
+                  ref={node => {
                     triggerRefs.current["text-style"] = node;
                   }}
                   type="button"
@@ -782,21 +727,21 @@ export function MobileEditorBottomToolbar(
                     "flex h-10 min-w-10 flex-1 basis-0 items-center justify-center rounded-lg transition-colors",
                     openGroupId === "text-style"
                       ? "bg-zinc-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
-                      : "bg-gray-100 text-gray-700 active:bg-gray-200 dark:bg-neutral-800 dark:text-neutral-200 dark:active:bg-neutral-700",
+                      : "bg-gray-100 text-gray-700 active:bg-gray-200 dark:bg-neutral-800 dark:text-neutral-200 dark:active:bg-neutral-700"
                   )}
-                  onPointerDown={(event) => {
+                  onPointerDown={event => {
                     handleGroupPointerDown(event, "text-style");
                   }}
                 >
                   <Type size={16} strokeWidth={2.5} />
                 </button>
-                {visiblePrimaryActions.map((action) => {
+                {visiblePrimaryActions.map(action => {
                   const active = controller.isActionActive(action.id);
                   const disabled = controller.isActionDisabled(action.id);
                   return (
                     <button
                       key={action.id}
-                      ref={(node) => {
+                      ref={node => {
                         if (isPaletteAction(action.id)) {
                           primaryActionRefs.current[action.id] = node;
                         }
@@ -812,12 +757,12 @@ export function MobileEditorBottomToolbar(
                           : null,
                         active && !disabled
                           ? "bg-zinc-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
-                          : "bg-gray-100 active:bg-gray-200 dark:bg-neutral-800 dark:active:bg-neutral-700",
+                          : "bg-gray-100 active:bg-gray-200 dark:bg-neutral-800 dark:active:bg-neutral-700"
                       )}
                       onPointerDown={
                         disabled
                           ? undefined
-                          : (event) => {
+                          : event => {
                               handleActionPointerDown(event, action.id);
                             }
                       }
@@ -827,7 +772,7 @@ export function MobileEditorBottomToolbar(
                   );
                 })}
                 <button
-                  ref={(node) => {
+                  ref={node => {
                     triggerRefs.current.more = node;
                   }}
                   type="button"
@@ -837,9 +782,9 @@ export function MobileEditorBottomToolbar(
                     "flex h-10 min-w-10 flex-1 basis-0 items-center justify-center rounded-lg transition-colors",
                     openGroupId === "more"
                       ? "bg-zinc-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
-                      : "bg-gray-100 text-gray-700 active:bg-gray-200 dark:bg-neutral-800 dark:text-neutral-200 dark:active:bg-neutral-700",
+                      : "bg-gray-100 text-gray-700 active:bg-gray-200 dark:bg-neutral-800 dark:text-neutral-200 dark:active:bg-neutral-700"
                   )}
-                  onPointerDown={(event) => {
+                  onPointerDown={event => {
                     handleGroupPointerDown(event, "more");
                   }}
                 >
@@ -848,7 +793,7 @@ export function MobileEditorBottomToolbar(
               </div>
             </div>
           </nav>,
-          document.body,
+          document.body
         )
       : null;
 

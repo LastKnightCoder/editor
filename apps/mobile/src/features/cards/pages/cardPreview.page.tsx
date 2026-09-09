@@ -5,10 +5,18 @@
 import { useRef, useState } from "react";
 import { CardPreviewSheet } from "../CardPreviewSheet";
 import * as tauri from "../../../services/tauri";
-import { definePage, paramNumber, useNavigator, usePage, usePageQuery } from "../../../router";
+import {
+  createPageSchema,
+  definePage,
+  paramNumber,
+  useNavigator,
+  usePage,
+  usePageQuery,
+} from "../../../router";
 import type { CardDetailResponse } from "../../../types";
 
-type CardPreviewParams = { cardId: number };
+const cardPreviewSchema = createPageSchema({ cardId: paramNumber() });
+type CardPreviewParams = typeof cardPreviewSchema.type;
 
 function CardPreviewScreen() {
   const { params } = usePage<CardPreviewParams>();
@@ -38,7 +46,7 @@ export default definePage({
   key: "cardPreview",
   layer: "overlay",
   match: "single",
-  params: { cardId: paramNumber() },
+  params: cardPreviewSchema.schema,
   data: {
     detail: {
       key: p => ["card", p.cardId],

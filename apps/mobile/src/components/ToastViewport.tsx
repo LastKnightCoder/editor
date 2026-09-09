@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Z_INDEX } from "../router/zIndex";
 import { CircleCheck, CircleX, Info, TriangleAlert } from "lucide-react";
 import { useToastStore, type ToastMessage } from "./toast";
 
@@ -59,18 +60,18 @@ function ToastItem({ toast, onDone }: ToastItemProps) {
 }
 
 export function ToastViewport() {
-  const toasts = useToastStore((state) => state.toasts);
-  const removeToast = useToastStore((state) => state.removeToast);
+  const toasts = useToastStore(state => state.toasts);
+  const removeToast = useToastStore(state => state.removeToast);
 
   if (toasts.length === 0) {
     return null;
   }
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-[80]">
+    <div className="pointer-events-none fixed inset-0" style={{ zIndex: Z_INDEX.TOAST }}>
       <section className="toast-viewport">
         <div className="toast-stack">
-          {[...toasts].reverse().map((toast) => (
+          {[...toasts].reverse().map(toast => (
             <ToastItem key={toast.id} toast={toast} onDone={removeToast} />
           ))}
         </div>

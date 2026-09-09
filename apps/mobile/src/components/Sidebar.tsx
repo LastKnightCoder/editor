@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Z_INDEX } from "../router/zIndex";
 import { ChevronRight, CircleHelp, Settings } from "lucide-react";
 
 type SidebarProps = {
@@ -14,12 +15,7 @@ type MenuItem = {
   onClick?: () => void;
 };
 
-export function Sidebar({
-  open,
-  onClose,
-  onNavigateSettings,
-  onNavigateAbout,
-}: SidebarProps) {
+export function Sidebar({ open, onClose, onNavigateSettings, onNavigateAbout }: SidebarProps) {
   const [shouldRender, setShouldRender] = useState(false);
 
   useEffect(() => {
@@ -51,7 +47,7 @@ export function Sidebar({
   ];
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0" style={{ zIndex: Z_INDEX.OVERLAY_SHEET }}>
       {/* 遮罩层 */}
       <button
         type="button"
@@ -62,7 +58,7 @@ export function Sidebar({
 
       {/* 侧边栏内容 */}
       <aside
-        className={`absolute left-0 top-0 bottom-0 w-72 bg-white dark:bg-neutral-950 ${open ? "sidebar-enter" : "sidebar-exit"}`}
+        className={`absolute bottom-0 left-0 top-0 w-72 bg-white dark:bg-neutral-950 ${open ? "sidebar-enter" : "sidebar-exit"}`}
       >
         <div className="flex h-full flex-col">
           {/* 头部 */}
@@ -74,9 +70,7 @@ export function Sidebar({
               <p className="truncate text-base font-semibold text-gray-900 dark:text-neutral-100">
                 用户
               </p>
-              <p className="text-sm text-gray-500 dark:text-neutral-400">
-                本地存储
-              </p>
+              <p className="text-sm text-gray-500 dark:text-neutral-400">本地存储</p>
             </div>
           </div>
 
@@ -92,9 +86,7 @@ export function Sidebar({
                 className="flex w-full items-center justify-between px-5 py-3 text-left transition-colors active:bg-gray-50 dark:active:bg-neutral-800"
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-gray-500 dark:text-neutral-400">
-                    {item.icon}
-                  </span>
+                  <span className="text-gray-500 dark:text-neutral-400">{item.icon}</span>
                   <span className="text-[15px] text-gray-700 dark:text-neutral-200">
                     {item.label}
                   </span>
