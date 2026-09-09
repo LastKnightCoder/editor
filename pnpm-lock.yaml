@@ -27,6 +27,9 @@ importers:
       '@commitlint/config-conventional':
         specifier: ^19.8.0
         version: 19.8.1
+      '@esbuild/win32-x64':
+        specifier: 0.28.2
+        version: 0.28.2
       '@typescript-eslint/eslint-plugin':
         specifier: ^5.62.0
         version: 5.62.0(@typescript-eslint/parser@5.62.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
@@ -568,6 +571,9 @@ importers:
       tailwindcss:
         specifier: ^4.1.11
         version: 4.1.18
+      turndown:
+        specifier: ^7.2.4
+        version: 7.2.4
       ws:
         specifier: ^8.18.3
         version: 8.18.3
@@ -1085,9 +1091,6 @@ importers:
       swiper:
         specifier: ^11.0.3
         version: 11.2.10
-      turndown:
-        specifier: ^7.2.4
-        version: 7.2.4
       typescript:
         specifier: ^5.0.4
         version: 5.8.3
