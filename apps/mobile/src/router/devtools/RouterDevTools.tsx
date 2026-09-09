@@ -2,6 +2,7 @@
 // 仅在 import.meta.env.DEV 下渲染（AppShell 挂载），生产构建零引入。
 
 import { useState } from "react";
+import { Z_INDEX } from "../zIndex";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouterContext } from "../RouterProvider";
 
@@ -21,7 +22,7 @@ export function RouterDevTools() {
         position: "fixed",
         right: 8,
         bottom: 96,
-        zIndex: 9999,
+        zIndex: Z_INDEX.DEVTOOLS,
         fontFamily: "monospace",
         fontSize: 11,
         maxWidth: 260,

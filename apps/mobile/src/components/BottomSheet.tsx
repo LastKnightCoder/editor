@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Z_INDEX } from "../router/zIndex";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 
@@ -9,12 +10,7 @@ type BottomSheetProps = {
   children: React.ReactNode;
 };
 
-export function BottomSheet({
-  open,
-  title,
-  onClose,
-  children,
-}: BottomSheetProps) {
+export function BottomSheet({ open, title, onClose, children }: BottomSheetProps) {
   const [shouldRender, setShouldRender] = useState(open);
 
   useEffect(() => {
@@ -34,7 +30,7 @@ export function BottomSheet({
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-70">
+        <div className="fixed inset-0" style={{ zIndex: Z_INDEX.POPOVER }}>
           <motion.div
             key="mask"
             initial={{ opacity: 0 }}
@@ -64,7 +60,7 @@ export function BottomSheet({
         </div>
       )}
     </AnimatePresence>,
-    document.body,
+    document.body
   );
 }
 

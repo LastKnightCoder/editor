@@ -18,6 +18,7 @@ export {
   object as paramObject,
 } from "./core/paramsSchema";
 export type { InferFields } from "./core/paramsSchema";
+export { createPageSchema } from "./core/paramsSchema";
 export { RouterProvider, useRouterContext, getNavigator } from "./RouterProvider";
 export type { RouterContextValue } from "./RouterProvider";
 export { PageHost } from "./PageHost";

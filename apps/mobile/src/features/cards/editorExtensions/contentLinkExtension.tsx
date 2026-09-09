@@ -1,4 +1,5 @@
 import { Base, createInlineElementPlugin, useThemeColors } from "@tau/editor/src";
+import { Z_INDEX } from "../../../router/zIndex";
 import type { IConfigItem, IExtension } from "@tau/editor/src";
 import {
   useEffect,
@@ -323,11 +324,12 @@ function InteractiveContentLink(props: {
       <div
         ref={panelRef}
         style={{
+          zIndex: Z_INDEX.POPOVER,
           top: panelPos.top,
           left: panelPos.left,
         }}
         data-allow-touchmove="true"
-        className="z-70 fixed w-[min(92vw,360px)] rounded-xl border border-gray-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-950"
+        className="fixed w-[min(92vw,360px)] rounded-xl border border-gray-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-950"
         onClick={event => {
           event.stopPropagation();
         }}

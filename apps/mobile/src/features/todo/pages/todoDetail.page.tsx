@@ -1,11 +1,19 @@
 import { TodoDetailPage } from "../TodoDetailPage";
 import { useAppContext } from "../../../app/AppContext";
-import { definePage, paramNumber, paramOptional, useNavigator, usePage } from "../../../router";
+import {
+  createPageSchema,
+  definePage,
+  paramNumber,
+  paramOptional,
+  useNavigator,
+  usePage,
+} from "../../../router";
 
-type TodoDetailParams = {
-  todoId: number;
-  groupId?: number;
-};
+const todoDetailSchema = createPageSchema({
+  todoId: paramNumber(),
+  groupId: paramOptional(paramNumber()),
+});
+type TodoDetailParams = typeof todoDetailSchema.type;
 
 function TodoDetailScreen() {
   const { params } = usePage<TodoDetailParams>();
@@ -26,9 +34,6 @@ function TodoDetailScreen() {
 export default definePage({
   key: "todoDetail",
   match: "multi",
-  params: {
-    todoId: paramNumber(),
-    groupId: paramOptional(paramNumber()),
-  },
+  params: todoDetailSchema.schema,
   component: TodoDetailScreen,
 });

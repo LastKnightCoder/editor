@@ -2,6 +2,7 @@ import { ContentDetailPage } from "../ContentDetailPage";
 import { useDiaryStore } from "../../diary/store/useDiaryStore";
 import { useAppContext } from "../../../app/AppContext";
 import {
+  createPageSchema,
   definePage,
   paramBoolean,
   paramNumber,
@@ -11,13 +12,14 @@ import {
   usePage,
 } from "../../../router";
 
-type ContentDetailParams = {
-  contentId: number;
-  contentTitle?: string;
-  contentType?: string;
-  refId?: number;
-  fromDiary?: boolean;
-};
+const contentDetailSchema = createPageSchema({
+  contentId: paramNumber(),
+  contentTitle: paramString(""),
+  contentType: paramString(""),
+  refId: paramOptional(paramNumber()),
+  fromDiary: paramOptional(paramBoolean()),
+});
+type ContentDetailParams = typeof contentDetailSchema.type;
 
 function ContentDetailScreen() {
   const { params } = usePage<ContentDetailParams>();
@@ -53,12 +55,6 @@ export default definePage({
   // 同一内容详情在栈内只保留一份，重复打开 = 移到顶并刷新参数
   match: "params",
   getId: p => String(p.contentId),
-  params: {
-    contentId: paramNumber(),
-    contentTitle: paramString(""),
-    contentType: paramString(""),
-    refId: paramOptional(paramNumber()),
-    fromDiary: paramOptional(paramBoolean()),
-  },
+  params: contentDetailSchema.schema,
   component: ContentDetailScreen,
 });
