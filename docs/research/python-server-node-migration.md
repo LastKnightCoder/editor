@@ -343,6 +343,38 @@
 - bge-m3 GGUF 的 `newline token` 警告可忽略
 - 验证脚本与模型保留在 `D:\coding\llama-p0-spike\`（smoke.mjs + 三个 GGUF，共 ~1.9GB），P1 开发时可直接复用为本地模型缓存
 
+## 10. 实施结果（2026-09-09 迁移完成）
+
+### 10.1 验证结论
+
+| 验证项                                             | 结果                                                        |
+| -------------------------------------------------- | ----------------------------------------------------------- |
+| TypeScript 全量编译（tsc --noEmit）                | ✅ 0 错误                                                   |
+| vitest 全套件                                      | ✅ 与迁移前基线零差异（既有的 18 个失败为环境相关既有问题） |
+| ModelScope 下载链路（列目录→单文件下载→进度→落盘） | ✅ 真实网络冒烟通过                                         |
+| electron-builder 打包（NSIS 安装包）               | ✅ Tau-v0.53.1-win32.exe 产出                               |
+| verify-native-runtime（11 项原生检查）             | ✅ all checks passed（含 node-llama-cpp GPU 加载）          |
+| CLI（esbuild 构建）                                | ✅ 构建通过                                                 |
+
+### 10.2 关键实施要点（后续维护必读）
+
+1. **node-llama-cpp 是 ESM-only（含顶层 await）**：主进程为 CJS 产物，`local-inference/index.ts` 必须用动态 `await import("node-llama-cpp")`（类型用 `import type`），且 `vite.config.mts` 的 `runtimeDependencyExternals` 已加入 `node-llama-cpp`/`officeparser`/`mammoth`/`turndown`
+2. **asar/unpacked 双文件系统陷阱**：
+   - `prune-packaged-native-modules.cjs` 的 afterPack 钩子会把 node-llama-cpp 的运行时依赖闭包（109 个包，npm 去重布局：同名同版本提升顶层、版本冲突嵌套到依赖方 node_modules 下）从 pnpm store 复制到 `app.asar.unpacked/node_modules`——electron-builder 的 manual traversal 在 pnpm 布局下会把这些依赖收进 asar 顶层，而 unpacked 中的 ESM 解析无法回溯 asar 虚拟树
+   - `@vscode/ripgrep-win32-x64` 已显式加入 dependencies：asar 内的模块解析 optional 平台包要求 asar 归档有条目，事后放 unpacked 无效；显式声明保证 traversal 收集（钩子里的 `ensurePlatformSubPackages` 兜底仍保留）
+   - `@node-llama-cpp` 平台二进制包由钩子从 pnpm store 显式补齐到 unpacked（traversal 偶发遗漏）
+3. **模型布局变更**：本地模型从 HF 仓库目录改为单 GGUF 文件（`<modelsDir>/<name>/<file>.gguf`）；旧 torch 模型目录不再被识别（设置页显示未下载），需重新下载 GGUF 版（bge-m3 从 2.2GB 降至 635MB）
+4. **索引自动重建**：embedding fingerprint 新增 `runtime: "llama"` 字段，首个版本启动时三库向量索引自动全量重建
+5. **verify-native-runtime 的 node-llama-cpp 检查**：用动态 `import()` 加载 unpacked 入口（不能 require）
+
+### 10.3 待办（发布前）
+
+- [ ] Mac 真机验证：按 [mac-verification-runbook.md](./mac-verification-runbook.md) 执行（含 whisper-cli 构建/冒烟、node-llama-cpp 推理断言、应用检查点、打包验证与 OSS 清理，全部命令化，可供 AI Agent 直接执行）
+- [ ] Mac/Linux 打包回归（本机仅验证了 win32；linux 理论可用但未承诺）
+- [ ] 首发版本说明：「首次启动将重建本地索引」「本地向量模型需重新下载（体积更小）」
+- [ ] 旧 `userData/runtime/python-server/` 目录（404MB+）与旧 torch 模型目录的清理提示（可选：检测到即提示可释放空间）
+- [ ] OSS 上 python-services-latest.json 与三平台二进制在下个版本后清理
+
 ---
 
 ### 附：主要参考

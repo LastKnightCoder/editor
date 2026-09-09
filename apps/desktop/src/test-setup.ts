@@ -1,4 +1,10 @@
 import "vitest-canvas-mock";
+import log from "electron-log";
+
+// 测试进程禁止写真实日志文件：electron-log 在纯 Node 环境会 fallback 到
+// %APPDATA%/<package.name>/logs/main.log，与运行中应用的日志文件同路径，
+// 会造成测试日志污染应用日志（曾导致误判）。需要测文件写入的用例自行 mock。
+log.transports.file.level = false;
 
 if (typeof URL !== "undefined" && typeof URL.createObjectURL !== "function") {
   (URL as any).createObjectURL = () => "blob:mock-url";
@@ -15,14 +21,8 @@ if (typeof globalThis.Worker !== "function") {
     constructor(_scriptURL: string | URL, _options?: WorkerOptions) {}
     postMessage(_message: unknown) {}
     terminate() {}
-    addEventListener(
-      _type: string,
-      _listener: EventListenerOrEventListenerObject,
-    ) {}
-    removeEventListener(
-      _type: string,
-      _listener: EventListenerOrEventListenerObject,
-    ) {}
+    addEventListener(_type: string, _listener: EventListenerOrEventListenerObject) {}
+    removeEventListener(_type: string, _listener: EventListenerOrEventListenerObject) {}
     dispatchEvent(_event: Event): boolean {
       return true;
     }

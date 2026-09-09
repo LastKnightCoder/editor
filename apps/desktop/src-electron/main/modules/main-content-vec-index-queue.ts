@@ -62,14 +62,10 @@ class MainContentVecIndexQueue implements Module {
    */
   abortCurrentRun(): void {
     this.generation++;
-    log.info(
-      `[MainContentVecIndexQueue] Abort current run, generation=${this.generation}`,
-    );
+    log.info(`[MainContentVecIndexQueue] Abort current run, generation=${this.generation}`);
   }
 
-  async reconcileByPolicy(
-    params: ReconcileByPolicyParams,
-  ): Promise<MainContentReconcileResult> {
+  async reconcileByPolicy(params: ReconcileByPolicyParams): Promise<MainContentReconcileResult> {
     const generation = ++this.generation;
     return this.enqueue(() => this.runReconcile(generation, params));
   }
@@ -78,7 +74,7 @@ class MainContentVecIndexQueue implements Module {
     const nextTask = this.runChain.then(task, task);
     this.runChain = nextTask.then(
       () => undefined,
-      () => undefined,
+      () => undefined
     );
     return nextTask;
   }
@@ -89,15 +85,15 @@ class MainContentVecIndexQueue implements Module {
 
   private async runReconcile(
     generation: number,
-    params: ReconcileByPolicyParams,
+    params: ReconcileByPolicyParams
   ): Promise<MainContentReconcileResult> {
     const ensureResult = await databaseModule.ensureIndexDatabaseReady(
       params.mainDbName,
-      `vec:${params.reason}`,
+      `vec:${params.reason}`
     );
     if (!ensureResult) {
       log.warn(
-        `[MainContentVecIndexQueue] Skip reconcile, index ensure skipped: ${params.mainDbName}`,
+        `[MainContentVecIndexQueue] Skip reconcile, index ensure skipped: ${params.mainDbName}`
       );
       return {
         generation,
@@ -113,9 +109,7 @@ class MainContentVecIndexQueue implements Module {
     const mainDb = databaseModule.getDatabase(params.mainDbName);
     const indexDb = databaseModule.getIndexDatabase(params.mainDbName);
     if (!mainDb || !indexDb) {
-      log.warn(
-        `[MainContentVecIndexQueue] Database not found: ${params.mainDbName}`,
-      );
+      log.warn(`[MainContentVecIndexQueue] Database not found: ${params.mainDbName}`);
       return {
         generation,
         reason: params.reason,
@@ -132,10 +126,7 @@ class MainContentVecIndexQueue implements Module {
     if (params.fingerprintChanged) {
       VecDocumentTable.clearTableData(indexDb);
       if (params.embeddingConfig.dimensions > 0) {
-        VecDocumentTable.initTableByVecLength(
-          indexDb,
-          params.embeddingConfig.dimensions,
-        );
+        VecDocumentTable.initTableByVecLength(indexDb, params.embeddingConfig.dimensions);
       }
       reinitialized = true;
     } else if (params.autoIndex) {
@@ -144,7 +135,7 @@ class MainContentVecIndexQueue implements Module {
 
     if (!params.autoIndex) {
       log.info(
-        `[MainContentVecIndexQueue] Skip auto indexing: reason=${params.reason}, provider=${params.embeddingConfig.providerType}`,
+        `[MainContentVecIndexQueue] Skip auto indexing: reason=${params.reason}, provider=${params.embeddingConfig.providerType}`
       );
       return {
         generation,
@@ -159,14 +150,10 @@ class MainContentVecIndexQueue implements Module {
 
     databaseModule.setIndexRebuildState(params.mainDbName, "building", "vec");
     log.info(
-      `[MainContentVecIndexQueue] Vector index switched to building: db=${params.mainDbName}, reason=${params.reason}, generation=${generation}, searchableDuringBuilding=true`,
+      `[MainContentVecIndexQueue] Vector index switched to building: db=${params.mainDbName}, reason=${params.reason}, generation=${generation}, searchableDuringBuilding=true`
     );
 
-    const tasks = await this.collectTasks(
-      mainDb,
-      indexDb,
-      params.fingerprintChanged,
-    );
+    const tasks = await this.collectTasks(mainDb, indexDb, params.fingerprintChanged);
     const modelInfo = {
       configId: params.embeddingConfig.configId,
       providerType: params.embeddingConfig.providerType,
@@ -181,16 +168,13 @@ class MainContentVecIndexQueue implements Module {
 
     try {
       let indexed = 0;
+      let consecutiveFailures = 0;
       for (const task of tasks) {
         if (this.isStale(generation)) {
           log.info(
-            `[MainContentVecIndexQueue] Drop stale task generation=${generation} current=${this.generation}`,
+            `[MainContentVecIndexQueue] Drop stale task generation=${generation} current=${this.generation}`
           );
-          databaseModule.setIndexRebuildState(
-            params.mainDbName,
-            "pending",
-            "vec",
-          );
+          databaseModule.setIndexRebuildState(params.mainDbName, "pending", "vec");
           return {
             generation,
             reason: params.reason,
@@ -212,17 +196,25 @@ class MainContentVecIndexQueue implements Module {
 
         if (ok) {
           indexed += 1;
+          consecutiveFailures = 0;
         } else {
-          log.warn(
-            `[MainContentVecIndexQueue] Index failed: type=${task.type}, id=${task.id}`,
-          );
+          consecutiveFailures += 1;
+          log.warn(`[MainContentVecIndexQueue] Index failed: type=${task.type}, id=${task.id}`);
+          // 开局即连续失败视为全局性错误（模型缺失/配置错误等），
+          // 中止本轮以保持 pending 状态且不落 fingerprint，避免
+          // “空索引 + 指纹已落库”的静默死锁
+          if (indexed === 0 && consecutiveFailures >= 3) {
+            throw new Error(
+              `向量索引连续失败 ${consecutiveFailures} 次（无任何成功），已中止本轮重建；请检查本地向量模型是否可用`
+            );
+          }
         }
         await yieldToEventLoop();
       }
 
       databaseModule.setIndexRebuildState(params.mainDbName, "ready", "vec");
       log.info(
-        `[MainContentVecIndexQueue] Reconcile done: reason=${params.reason}, generation=${generation}, queued=${tasks.length}, indexed=${indexed}, reinitialized=${reinitialized}, searchableDuringBuilding=true`,
+        `[MainContentVecIndexQueue] Reconcile done: reason=${params.reason}, generation=${generation}, queued=${tasks.length}, indexed=${indexed}, reinitialized=${reinitialized}, searchableDuringBuilding=true`
       );
       return {
         generation,
@@ -241,9 +233,7 @@ class MainContentVecIndexQueue implements Module {
 
   private ensureVecTableReady(db: Database.Database, dimensions: number) {
     const tableExists = db
-      .prepare(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='vec_documents'",
-      )
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='vec_documents'")
       .get();
     if (!tableExists && dimensions > 0) {
       VecDocumentTable.initTableByVecLength(db, dimensions);
@@ -253,7 +243,7 @@ class MainContentVecIndexQueue implements Module {
   private async collectTasks(
     mainDb: Database.Database,
     indexDb: Database.Database,
-    forceReindex: boolean,
+    forceReindex: boolean
   ): Promise<MainContentVecIndexTask[]> {
     const tasks: MainContentVecIndexTask[] = [];
     let processed = 0;
@@ -271,7 +261,7 @@ class MainContentVecIndexQueue implements Module {
           content: getMarkdown(card.content || []).trim(),
           updateTime: Number(card.update_time || 0),
         },
-        forceReindex,
+        forceReindex
       );
       processed += 1;
       await yieldEvery(processed, MainContentVecIndexQueue.COLLECT_YIELD_EVERY);
@@ -288,7 +278,7 @@ class MainContentVecIndexQueue implements Module {
           content: getMarkdown(article.content || []).trim(),
           updateTime: Number(article.update_time || 0),
         },
-        forceReindex,
+        forceReindex
       );
       processed += 1;
       await yieldEvery(processed, MainContentVecIndexQueue.COLLECT_YIELD_EVERY);
@@ -305,7 +295,7 @@ class MainContentVecIndexQueue implements Module {
           content: getMarkdown(item.content || []).trim(),
           updateTime: Number(item.updateTime || 0),
         },
-        forceReindex,
+        forceReindex
       );
       processed += 1;
       await yieldEvery(processed, MainContentVecIndexQueue.COLLECT_YIELD_EVERY);
@@ -322,7 +312,7 @@ class MainContentVecIndexQueue implements Module {
           content: getMarkdown(item.content || []).trim(),
           updateTime: Number(item.updateTime || 0),
         },
-        forceReindex,
+        forceReindex
       );
       processed += 1;
       await yieldEvery(processed, MainContentVecIndexQueue.COLLECT_YIELD_EVERY);
@@ -339,7 +329,7 @@ class MainContentVecIndexQueue implements Module {
           content: getMarkdown(entry.content || []).trim(),
           updateTime: Number(entry.updateTime || 0),
         },
-        forceReindex,
+        forceReindex
       );
       processed += 1;
       await yieldEvery(processed, MainContentVecIndexQueue.COLLECT_YIELD_EVERY);
@@ -352,7 +342,7 @@ class MainContentVecIndexQueue implements Module {
     indexDb: Database.Database,
     tasks: MainContentVecIndexTask[],
     task: MainContentVecIndexTask,
-    forceReindex: boolean,
+    forceReindex: boolean
   ) {
     if (!task.content) {
       return;
@@ -363,11 +353,7 @@ class MainContentVecIndexQueue implements Module {
       return;
     }
 
-    const indexInfo = VecDocumentTable.checkIndexExists(
-      indexDb,
-      task.id,
-      task.type,
-    );
+    const indexInfo = VecDocumentTable.checkIndexExists(indexDb, task.id, task.type);
     if (!indexInfo || indexInfo.updateTime < task.updateTime) {
       tasks.push(task);
     }

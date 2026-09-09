@@ -1,4 +1,4 @@
-import { ipcMain, app } from "electron";
+import { ipcMain } from "electron";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -15,12 +15,9 @@ import type {
 import type { EmbeddingProviderType } from "@/types/embedding";
 import databaseModule from "./database";
 import userSettingModule from "./user-setting";
-import pdfIndexDBManager, {
-  type PdfIndexChunkRecord,
-  type PdfSectionRecord,
-} from "./pdf-index-db";
+import pdfIndexDBManager, { type PdfIndexChunkRecord, type PdfSectionRecord } from "./pdf-index-db";
 import PdfTable from "./tables/pdf";
-import pythonService from "./python-service";
+import localInference from "./local-inference";
 import { runSearchPipeline } from "./search-core/pipeline";
 import { createPdfSearchAdapter } from "./search-core/pdf-search-adapter";
 import { NoopExpander } from "./search-core/expander";
@@ -103,54 +100,35 @@ class PdfIndexQueue implements Module {
   private activeMainDbName: string | null = null;
   private progressByTaskKey = new Map<
     string,
-    Pick<
-      PdfIndexStatus,
-      "currentStage" | "progressCurrent" | "progressTotal" | "progressLabel"
-    >
+    Pick<PdfIndexStatus, "currentStage" | "progressCurrent" | "progressTotal" | "progressLabel">
   >();
 
   async init() {
     this.activeMainDbName = databaseModule.getCurrentDatabaseName();
 
-    ipcMain.handle(
-      "pdf-index:ensure",
-      async (_event, params: EnsurePdfIndexParams) => {
-        return this.ensureIndexed(params);
-      },
-    );
-    ipcMain.handle(
-      "pdf-index:rebuild",
-      async (_event, params: EnsurePdfIndexParams) => {
-        return this.ensureIndexed({ ...params, force: true });
-      },
-    );
+    ipcMain.handle("pdf-index:ensure", async (_event, params: EnsurePdfIndexParams) => {
+      return this.ensureIndexed(params);
+    });
+    ipcMain.handle("pdf-index:rebuild", async (_event, params: EnsurePdfIndexParams) => {
+      return this.ensureIndexed({ ...params, force: true });
+    });
     ipcMain.handle(
       "pdf-index:status",
       async (_event, params: { pdfId: number; mainDbName: string }) =>
-        this.getIndexStatus(params.mainDbName, params.pdfId),
+        this.getIndexStatus(params.mainDbName, params.pdfId)
     );
-    ipcMain.handle(
-      "pdf-index:search",
-      async (_event, params: SearchPdfParams) => {
-        return this.searchContent(params);
-      },
-    );
+    ipcMain.handle("pdf-index:search", async (_event, params: SearchPdfParams) => {
+      return this.searchContent(params);
+    });
     ipcMain.handle(
       "pdf-index:document-info",
       async (_event, params: { pdfId: number; mainDbName: string }) =>
-        this.getDocumentInfo(params.mainDbName, params.pdfId),
+        this.getDocumentInfo(params.mainDbName, params.pdfId)
     );
     ipcMain.handle(
       "pdf-index:page-content",
-      async (
-        _event,
-        params: { pdfId: number; mainDbName: string; pageNumber: number },
-      ) =>
-        pdfIndexDBManager.getPageContent(
-          params.mainDbName,
-          params.pdfId,
-          params.pageNumber,
-        ),
+      async (_event, params: { pdfId: number; mainDbName: string; pageNumber: number }) =>
+        pdfIndexDBManager.getPageContent(params.mainDbName, params.pdfId, params.pageNumber)
     );
     ipcMain.handle(
       "pdf-index:page-range-content",
@@ -161,41 +139,32 @@ class PdfIndexQueue implements Module {
           mainDbName: string;
           startPage: number;
           endPage: number;
-        },
+        }
       ) =>
         pdfIndexDBManager.getPageRangeContent(
           params.mainDbName,
           params.pdfId,
           params.startPage,
-          params.endPage,
-        ),
+          params.endPage
+        )
     );
     ipcMain.handle(
       "pdf-index:outline",
       async (_event, params: { pdfId: number; mainDbName: string }) =>
-        pdfIndexDBManager.getOutline(params.mainDbName, params.pdfId),
+        pdfIndexDBManager.getOutline(params.mainDbName, params.pdfId)
     );
     ipcMain.handle(
       "pdf-index:document-map",
-      async (
-        _event,
-        params: { pdfId: number; mainDbName: string; depth?: number },
-      ) => this.getDocumentMap(params.mainDbName, params.pdfId, params.depth),
+      async (_event, params: { pdfId: number; mainDbName: string; depth?: number }) =>
+        this.getDocumentMap(params.mainDbName, params.pdfId, params.depth)
     );
     ipcMain.handle(
       "pdf-index:section-detail",
-      async (
-        _event,
-        params: { pdfId: number; mainDbName: string; sectionId: string },
-      ) =>
-        pdfIndexDBManager.getSectionDetail(
-          params.mainDbName,
-          params.pdfId,
-          params.sectionId,
-        ),
+      async (_event, params: { pdfId: number; mainDbName: string; sectionId: string }) =>
+        pdfIndexDBManager.getSectionDetail(params.mainDbName, params.pdfId, params.sectionId)
     );
 
-    databaseModule.onDatabaseChange((dbName) => {
+    databaseModule.onDatabaseChange(dbName => {
       const previousDbName = this.activeMainDbName;
       this.activeMainDbName = dbName;
       if (!previousDbName || previousDbName === dbName) {
@@ -222,7 +191,7 @@ class PdfIndexQueue implements Module {
     progress: Pick<
       PdfIndexStatus,
       "currentStage" | "progressCurrent" | "progressTotal" | "progressLabel"
-    >,
+    >
   ) {
     this.progressByTaskKey.set(taskKey, progress);
   }
@@ -231,9 +200,7 @@ class PdfIndexQueue implements Module {
     return this.ensureIndexed(params);
   }
 
-  private async ensureIndexed(
-    params: EnsurePdfIndexParams,
-  ): Promise<PdfIndexStatus> {
+  private async ensureIndexed(params: EnsurePdfIndexParams): Promise<PdfIndexStatus> {
     const key = this.buildTaskKey(params);
     const current = this.inFlight.get(key);
     if (current) {
@@ -246,17 +213,17 @@ class PdfIndexQueue implements Module {
     return task;
   }
 
-  private async runEnsureIndexed(
-    params: EnsurePdfIndexParams,
-  ): Promise<PdfIndexStatus> {
+  private async runEnsureIndexed(params: EnsurePdfIndexParams): Promise<PdfIndexStatus> {
     const { pdfId, resolvedPath, mainDbName, force = false } = params;
     const taskKey = this.buildTaskKey(params);
     const stat = await fs.stat(resolvedPath);
     const fingerprint = `${resolvedPath}:${stat.size}:${Math.floor(stat.mtimeMs)}`;
     const currentStatus = pdfIndexDBManager.getIndexStatus(mainDbName, pdfId);
     const embeddingConfig = await this.getEmbeddingConfig();
-    const currentEmbeddingFingerprint =
-      pdfIndexDBManager.getEmbeddingFingerprint(mainDbName, pdfId);
+    const currentEmbeddingFingerprint = pdfIndexDBManager.getEmbeddingFingerprint(
+      mainDbName,
+      pdfId
+    );
 
     if (
       shouldReusePdfIndex({
@@ -283,7 +250,7 @@ class PdfIndexQueue implements Module {
     });
 
     try {
-      const extracted = await this.extractPdf(resolvedPath, (progress) => {
+      const extracted = await this.extractPdf(resolvedPath, progress => {
         this.updateProgress(taskKey, progress);
       });
       this.updateProgress(taskKey, {
@@ -304,16 +271,16 @@ class PdfIndexQueue implements Module {
       if (embeddingConfig) {
         if (chunks.length > 0) {
           embeddings = await this.embedTexts(
-            chunks.map((chunk) => chunk.content),
+            chunks.map(chunk => chunk.content),
             embeddingConfig,
-            (current) => {
+            current => {
               this.updateProgress(taskKey, {
                 currentStage: "embedding",
                 progressCurrent: current,
                 progressTotal: chunks.length,
                 progressLabel: `生成向量 ${current}/${chunks.length}`,
               });
-            },
+            }
           );
         }
       }
@@ -327,7 +294,7 @@ class PdfIndexQueue implements Module {
       const status = pdfIndexDBManager.persistIndex(mainDbName, pdfId, {
         fingerprint,
         pageCount: extracted.pageCount,
-        pages: extracted.pages.map((page) => ({
+        pages: extracted.pages.map(page => ({
           pdfId,
           pageNumber: page.pageNumber,
           content: page.content,
@@ -375,18 +342,11 @@ class PdfIndexQueue implements Module {
   private async embedTexts(
     texts: string[],
     embeddingConfig: ResolvedPdfEmbeddingConfig,
-    onProgress?: (current: number, total: number) => void,
+    onProgress?: (current: number, total: number) => void
   ): Promise<number[][]> {
     if (embeddingConfig.providerType === "local_python") {
-      const resolvedModelDir =
-        embeddingConfig.localModelDir ||
-        path.join(app.getPath("userData"), "embedding-models");
-      const client = await pythonService.ensureStarted();
-      const result = await client.request<{
-        embeddings: number[][];
-      }>("embed_texts", {
-        texts,
-        modelDir: resolvedModelDir,
+      const result = await localInference.embedTexts(texts, {
+        modelDir: embeddingConfig.localModelDir,
         modelName: embeddingConfig.model,
         batchSize: embeddingConfig.batchSize || 8,
         devicePolicy: embeddingConfig.devicePolicy || "auto",
@@ -409,7 +369,7 @@ class PdfIndexQueue implements Module {
       dimensions: embeddingConfig.dimensions,
     });
     onProgress?.(texts.length, texts.length);
-    return result.data.map((item) => item.embedding);
+    return result.data.map(item => item.embedding);
   }
 
   private async extractPdf(
@@ -418,8 +378,8 @@ class PdfIndexQueue implements Module {
       progress: Pick<
         PdfIndexStatus,
         "currentStage" | "progressCurrent" | "progressTotal" | "progressLabel"
-      >,
-    ) => void,
+      >
+    ) => void
   ): Promise<ExtractPdfResult> {
     const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
     const workerPath = path.join(__dirname, "pdf.worker.mjs");
@@ -439,15 +399,11 @@ class PdfIndexQueue implements Module {
         progressTotal: document.numPages,
         progressLabel: `解析页面 0/${document.numPages}`,
       });
-      for (
-        let pageNumber = 1;
-        pageNumber <= document.numPages;
-        pageNumber += 1
-      ) {
+      for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
         const page = await document.getPage(pageNumber);
         const textContent = await page.getTextContent();
         const content = this.normalizePageText(
-          textContent.items as Array<{ str?: string; hasEOL?: boolean }>,
+          textContent.items as Array<{ str?: string; hasEOL?: boolean }>
         );
         pages.push({
           pageNumber,
@@ -462,8 +418,7 @@ class PdfIndexQueue implements Module {
         });
       }
 
-      const rawOutline = ((await document.getOutline()) ||
-        []) as PdfOutlineItemInput[];
+      const rawOutline = ((await document.getOutline()) || []) as PdfOutlineItemInput[];
       const outline = await this.resolveOutline(document, rawOutline);
 
       return {
@@ -476,11 +431,9 @@ class PdfIndexQueue implements Module {
     }
   }
 
-  private normalizePageText(
-    items: Array<{ str?: string; hasEOL?: boolean }>,
-  ): string {
+  private normalizePageText(items: Array<{ str?: string; hasEOL?: boolean }>): string {
     const parts: string[] = [];
-    items.forEach((item) => {
+    items.forEach(item => {
       const text = String(item.str || "").trim();
       if (!text) {
         return;
@@ -501,16 +454,13 @@ class PdfIndexQueue implements Module {
   private async resolveOutline(
     document: any,
     items: PdfOutlineItemInput[],
-    parentPath = "outline",
+    parentPath = "outline"
   ): Promise<PdfOutlineNode[]> {
     const result: PdfOutlineNode[] = [];
     for (let index = 0; index < items.length; index += 1) {
       const item = items[index];
       const id = `${parentPath}-${index}`;
-      const pageNumber = await this.resolveOutlineDestination(
-        document,
-        item.dest,
-      );
+      const pageNumber = await this.resolveOutlineDestination(document, item.dest);
       result.push({
         id,
         title: String(item.title || "未命名章节"),
@@ -522,10 +472,7 @@ class PdfIndexQueue implements Module {
     return result;
   }
 
-  private async resolveOutlineDestination(
-    document: any,
-    dest: unknown,
-  ): Promise<number | null> {
+  private async resolveOutlineDestination(document: any, dest: unknown): Promise<number | null> {
     try {
       let resolvedDest = dest;
       if (typeof dest === "string") {
@@ -541,14 +488,10 @@ class PdfIndexQueue implements Module {
     }
   }
 
-  private buildSections(
-    outline: PdfOutlineNode[],
-    pages: PdfPageExtraction[],
-  ): PdfSectionRecord[] {
+  private buildSections(outline: PdfOutlineNode[], pages: PdfPageExtraction[]): PdfSectionRecord[] {
     const pageCount = pages.length;
     const outlined = this.buildSectionsFromOutline(outline, pageCount);
-    const sectionTree =
-      outlined.length > 0 ? outlined : this.inferSectionsFromPages(pages);
+    const sectionTree = outlined.length > 0 ? outlined : this.inferSectionsFromPages(pages);
     const normalized = this.normalizeSectionTree(sectionTree, pageCount);
     return this.flattenSectionTree(normalized);
   }
@@ -558,7 +501,7 @@ class PdfIndexQueue implements Module {
     pageCount: number,
     parentId: string | null = null,
     level = 1,
-    parentPath: string[] = [],
+    parentPath: string[] = []
   ): PdfSectionDraft[] {
     return nodes.map((node, index) => ({
       id: node.id,
@@ -571,27 +514,16 @@ class PdfIndexQueue implements Module {
           : null,
       endPage: null,
       orderIndex: index,
-      pathTitles: [
+      pathTitles: [...parentPath, String(node.title || "未命名章节").trim() || "未命名章节"],
+      source: "outline",
+      children: this.buildSectionsFromOutline(node.children || [], pageCount, node.id, level + 1, [
         ...parentPath,
         String(node.title || "未命名章节").trim() || "未命名章节",
-      ],
-      source: "outline",
-      children: this.buildSectionsFromOutline(
-        node.children || [],
-        pageCount,
-        node.id,
-        level + 1,
-        [
-          ...parentPath,
-          String(node.title || "未命名章节").trim() || "未命名章节",
-        ],
-      ),
+      ]),
     }));
   }
 
-  private inferSectionsFromPages(
-    pages: PdfPageExtraction[],
-  ): PdfSectionDraft[] {
+  private inferSectionsFromPages(pages: PdfPageExtraction[]): PdfSectionDraft[] {
     const candidates = this.collectHeadingCandidates(pages);
     if (candidates.length > 0) {
       return candidates.map((candidate, index) => ({
@@ -610,11 +542,7 @@ class PdfIndexQueue implements Module {
 
     const synthetic: PdfSectionDraft[] = [];
     const pageWindow = 5;
-    for (
-      let start = 1, index = 0;
-      start <= pages.length;
-      start += pageWindow, index += 1
-    ) {
+    for (let start = 1, index = 0; start <= pages.length; start += pageWindow, index += 1) {
       const end = Math.min(pages.length, start + pageWindow - 1);
       const title = `第 ${index + 1} 部分（第 ${start}-${end} 页）`;
       synthetic.push({
@@ -633,19 +561,17 @@ class PdfIndexQueue implements Module {
     return synthetic;
   }
 
-  private collectHeadingCandidates(
-    pages: PdfPageExtraction[],
-  ): PdfHeadingCandidate[] {
+  private collectHeadingCandidates(pages: PdfPageExtraction[]): PdfHeadingCandidate[] {
     const results: PdfHeadingCandidate[] = [];
     let previousTitle = "";
-    pages.forEach((page) => {
+    pages.forEach(page => {
       const lines = page.content
         .split(/\n+/)
-        .map((line) => line.trim())
+        .map(line => line.trim())
         .filter(Boolean)
         .slice(0, 8);
       const candidate = lines
-        .map((line) => this.scoreHeadingCandidate(line, page.pageNumber))
+        .map(line => this.scoreHeadingCandidate(line, page.pageNumber))
         .filter((item): item is PdfHeadingCandidate => item !== null)
         .sort((a, b) => b.score - a.score)[0];
       if (!candidate) {
@@ -660,10 +586,7 @@ class PdfIndexQueue implements Module {
     return results;
   }
 
-  private scoreHeadingCandidate(
-    line: string,
-    pageNumber: number,
-  ): PdfHeadingCandidate | null {
+  private scoreHeadingCandidate(line: string, pageNumber: number): PdfHeadingCandidate | null {
     const title = line.replace(/\s+/g, " ").trim();
     if (!title || title.length > 80) {
       return null;
@@ -713,11 +636,8 @@ class PdfIndexQueue implements Module {
     return 1;
   }
 
-  private normalizeSectionTree(
-    sections: PdfSectionDraft[],
-    pageCount: number,
-  ): PdfSectionDraft[] {
-    const normalized = sections.map((section) => ({
+  private normalizeSectionTree(sections: PdfSectionDraft[], pageCount: number): PdfSectionDraft[] {
+    const normalized = sections.map(section => ({
       ...section,
       children: this.normalizeSectionTree(section.children, pageCount),
     }));
@@ -727,9 +647,7 @@ class PdfIndexQueue implements Module {
     for (let index = flat.length - 1; index >= 0; index -= 1) {
       const current = flat[index];
       if (current.startPage == null) {
-        const childStart = current.children.find(
-          (item) => item.startPage != null,
-        )?.startPage;
+        const childStart = current.children.find(item => item.startPage != null)?.startPage;
         current.startPage = childStart ?? lastKnownStart;
       }
       if (current.startPage != null) {
@@ -738,30 +656,19 @@ class PdfIndexQueue implements Module {
     }
 
     let forwardStart = 1;
-    flat.forEach((section) => {
-      section.startPage = Math.max(
-        1,
-        Math.min(pageCount, section.startPage ?? forwardStart),
-      );
+    flat.forEach(section => {
+      section.startPage = Math.max(1, Math.min(pageCount, section.startPage ?? forwardStart));
       forwardStart = section.startPage;
     });
 
     flat.forEach((section, index) => {
       if (section.endPage != null) {
-        section.endPage = Math.max(
-          section.startPage || 1,
-          Math.min(pageCount, section.endPage),
-        );
+        section.endPage = Math.max(section.startPage || 1, Math.min(pageCount, section.endPage));
         return;
       }
-      const next = flat
-        .slice(index + 1)
-        .find((candidate) => candidate.level <= section.level);
+      const next = flat.slice(index + 1).find(candidate => candidate.level <= section.level);
       const computedEnd = next ? (next.startPage || pageCount) - 1 : pageCount;
-      section.endPage = Math.max(
-        section.startPage || 1,
-        Math.min(pageCount, computedEnd),
-      );
+      section.endPage = Math.max(section.startPage || 1, Math.min(pageCount, computedEnd));
     });
 
     return normalized;
@@ -769,7 +676,7 @@ class PdfIndexQueue implements Module {
 
   private flattenDraftSections(sections: PdfSectionDraft[]): PdfSectionDraft[] {
     const result: PdfSectionDraft[] = [];
-    sections.forEach((section) => {
+    sections.forEach(section => {
       result.push(section);
       result.push(...this.flattenDraftSections(section.children));
     });
@@ -778,7 +685,7 @@ class PdfIndexQueue implements Module {
 
   private flattenSectionTree(sections: PdfSectionDraft[]): PdfSectionRecord[] {
     const result: PdfSectionRecord[] = [];
-    sections.forEach((section) => {
+    sections.forEach(section => {
       result.push({
         id: section.id,
         parentId: section.parentId,
@@ -798,17 +705,16 @@ class PdfIndexQueue implements Module {
   private chunkPages(pages: PdfPageExtraction[]): PdfIndexChunkRecord[] {
     const chunks: PdfIndexChunkRecord[] = [];
 
-    pages.forEach((page) => {
+    pages.forEach(page => {
       if (!page.content.trim()) {
         return;
       }
       const rawParagraphs = page.content
         .split(/\n{2,}/)
-        .map((paragraph) => paragraph.trim())
+        .map(paragraph => paragraph.trim())
         .filter(Boolean);
 
-      const paragraphs =
-        rawParagraphs.length > 0 ? rawParagraphs : [page.content.trim()];
+      const paragraphs = rawParagraphs.length > 0 ? rawParagraphs : [page.content.trim()];
       let pendingTexts: string[] = [];
       let pendingStart = 0;
       let pendingEnd = 0;
@@ -835,7 +741,7 @@ class PdfIndexQueue implements Module {
         pendingTexts = [];
       };
 
-      paragraphs.forEach((paragraph) => {
+      paragraphs.forEach(paragraph => {
         const start = Math.max(cursor, page.content.indexOf(paragraph, cursor));
         const safeStart = start >= 0 ? start : cursor;
         const end = safeStart + paragraph.length;
@@ -843,14 +749,8 @@ class PdfIndexQueue implements Module {
 
         if (paragraph.length > DEFAULT_CHUNK_MAX) {
           flush();
-          for (
-            let offset = 0;
-            offset < paragraph.length;
-            offset += DEFAULT_CHUNK_MAX
-          ) {
-            const piece = paragraph
-              .slice(offset, offset + DEFAULT_CHUNK_MAX)
-              .trim();
+          for (let offset = 0; offset < paragraph.length; offset += DEFAULT_CHUNK_MAX) {
+            const piece = paragraph.slice(offset, offset + DEFAULT_CHUNK_MAX).trim();
             if (!piece) {
               continue;
             }
@@ -897,37 +797,33 @@ class PdfIndexQueue implements Module {
     const indexStatus = this.getIndexStatus(params.mainDbName, params.pdfId);
     log.info(
       `[PdfSearch] start: pdfId=${params.pdfId}, mainDb=${params.mainDbName}, query=${JSON.stringify(
-        params.query,
-      )}, limit=${Math.max(1, params.limit || 5)}, indexState=${indexStatus.state}, pageCount=${indexStatus.pageCount}`,
+        params.query
+      )}, limit=${Math.max(1, params.limit || 5)}, indexState=${indexStatus.state}, pageCount=${indexStatus.pageCount}`
     );
     if (indexStatus.state === "failed") {
       log.warn(
-        `[PdfSearch] aborted: pdfId=${params.pdfId}, reason=index_failed, error=${indexStatus.error || ""}`,
+        `[PdfSearch] aborted: pdfId=${params.pdfId}, reason=index_failed, error=${indexStatus.error || ""}`
       );
       return [];
     }
 
     const embeddingConfig = await this.getEmbeddingConfig();
-    const currentEmbeddingFingerprint =
-      pdfIndexDBManager.getEmbeddingFingerprint(
-        params.mainDbName,
-        params.pdfId,
-      );
+    const currentEmbeddingFingerprint = pdfIndexDBManager.getEmbeddingFingerprint(
+      params.mainDbName,
+      params.pdfId
+    );
     const currentVecDimensions = pdfIndexDBManager.getVectorDimensions(
       params.mainDbName,
-      params.pdfId,
+      params.pdfId
     );
     const vectorAvailable =
       Boolean(embeddingConfig) &&
       currentEmbeddingFingerprint === (embeddingConfig?.fingerprint || null) &&
-      (!currentVecDimensions ||
-        currentVecDimensions === embeddingConfig?.dimensions);
+      (!currentVecDimensions || currentVecDimensions === embeddingConfig?.dimensions);
     log.info(
-      `[PdfSearch] capabilities: pdfId=${params.pdfId}, vectorAvailable=${vectorAvailable}, currentVecDimensions=${currentVecDimensions || 0}`,
+      `[PdfSearch] capabilities: pdfId=${params.pdfId}, vectorAvailable=${vectorAvailable}, currentVecDimensions=${currentVecDimensions || 0}`
     );
-    const expander = new NoopExpander(
-      "PDF 搜索默认禁用 query expansion 以避免超时",
-    );
+    const expander = new NoopExpander("PDF 搜索默认禁用 query expansion 以避免超时");
     const reranker = new NoopReranker("PDF 搜索默认禁用 reranker 以避免超时");
 
     const { results } = await runSearchPipeline({
@@ -941,10 +837,7 @@ class PdfIndexQueue implements Module {
             ? {
                 distance: embeddingConfig.distance,
                 embedQuery: async (queryText: string) => {
-                  const embeddings = await this.embedTexts(
-                    [queryText],
-                    embeddingConfig,
-                  );
+                  const embeddings = await this.embedTexts([queryText], embeddingConfig);
                   return embeddings[0] || null;
                 },
               }
@@ -953,10 +846,10 @@ class PdfIndexQueue implements Module {
       adapter: createPdfSearchAdapter(),
       expander,
       reranker,
-      logger: (pipelineLog) => {
+      logger: pipelineLog => {
         log.info("[SearchCore][pdf]", pipelineLog);
       },
-      stageLogger: (stageLog) => {
+      stageLogger: stageLog => {
         log.info(`[SearchCore][pdf][${stageLog.stage}]`, stageLog);
       },
     });
@@ -964,12 +857,12 @@ class PdfIndexQueue implements Module {
     if (results.length === 0) {
       log.warn(
         `[PdfSearch] empty_result: pdfId=${params.pdfId}, query=${JSON.stringify(
-          params.query,
-        )}, indexState=${indexStatus.state}, pageCount=${indexStatus.pageCount}`,
+          params.query
+        )}, indexState=${indexStatus.state}, pageCount=${indexStatus.pageCount}`
       );
     } else {
       log.info(
-        `[PdfSearch] done: pdfId=${params.pdfId}, resultCount=${results.length}, firstPage=${results[0]?.pageNumber ?? 0}`,
+        `[PdfSearch] done: pdfId=${params.pdfId}, resultCount=${results.length}, firstPage=${results[0]?.pageNumber ?? 0}`
       );
     }
 
@@ -984,11 +877,7 @@ class PdfIndexQueue implements Module {
     return PdfTable.getPdfById(db, pdfId);
   }
 
-  getDocumentMap(
-    mainDbName: string,
-    pdfId: number,
-    depth?: number,
-  ): PdfDocumentMap {
+  getDocumentMap(mainDbName: string, pdfId: number, depth?: number): PdfDocumentMap {
     const pdf = this.getPdfRecord(mainDbName, pdfId);
     return pdfIndexDBManager.getDocumentMap(mainDbName, pdfId, {
       fileName: pdf.fileName,
@@ -996,10 +885,7 @@ class PdfIndexQueue implements Module {
     });
   }
 
-  async getDocumentInfo(
-    mainDbName: string,
-    pdfId: number,
-  ): Promise<PdfDocumentInfo> {
+  async getDocumentInfo(mainDbName: string, pdfId: number): Promise<PdfDocumentInfo> {
     const pdf = this.getPdfRecord(mainDbName, pdfId);
     const indexStatus = this.getIndexStatus(mainDbName, pdfId);
     return {

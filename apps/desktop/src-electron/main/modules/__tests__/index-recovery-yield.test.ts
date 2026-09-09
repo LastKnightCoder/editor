@@ -29,9 +29,7 @@ const mockContext = vi.hoisted(() => {
       content: [],
       update_time: index + 1,
       updateTime: index + 1,
-      transcript_segments: JSON.stringify([
-        { text: `片段-${index + 1}`, start: 0, end: 1000 },
-      ]),
+      transcript_segments: JSON.stringify([{ text: `片段-${index + 1}`, start: 0, end: 1000 }]),
     }));
 
   return {
@@ -48,9 +46,8 @@ const mockContext = vi.hoisted(() => {
         migrationState: "done",
         rebuildState: "ready",
       })),
-      getDatabase: vi.fn(
-        (): ReturnType<typeof createVideoNotesDb> | undefined =>
-          createVideoNotesDb(),
+      getDatabase: vi.fn((): ReturnType<typeof createVideoNotesDb> | undefined =>
+        createVideoNotesDb()
       ),
       getIndexDatabase: vi.fn(() => ({})),
       setIndexRebuildState: vi.fn(),
@@ -126,9 +123,12 @@ vi.mock("../video-note-index-db", () => ({
   default: mockContext.videoNoteIndexDbMock,
 }));
 
-vi.mock("../python-service", () => ({
+vi.mock("../local-inference", () => ({
   default: {
-    ensureStarted: vi.fn(),
+    embedTexts: vi.fn(),
+    rerankTexts: vi.fn(),
+    expandQuery: vi.fn(),
+    embeddingHealth: vi.fn(),
   },
 }));
 
@@ -175,11 +175,7 @@ describe("index recovery cooperative scheduling", () => {
   });
 
   it("主内容向量任务收集会按批调用 yieldEvery", async () => {
-    const tasks = await (mainContentVecIndexQueue as any).collectTasks(
-      {},
-      {},
-      false,
-    );
+    const tasks = await (mainContentVecIndexQueue as any).collectTasks({}, {}, false);
 
     expect(tasks).toHaveLength(30);
     expect(mockContext.yieldEvery).toHaveBeenCalledWith(25, 25);

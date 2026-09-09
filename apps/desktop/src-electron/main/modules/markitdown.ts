@@ -1,10 +1,10 @@
 /**
- * MarkItDown 文件转换模块
+ * MarkItDown 文件转换模块（Node 原生实现）
  *
  * 功能:
  * - 接收文件内容并保存为临时文件
- * - 调用 Python 服务进行 Markdown 转换
- * - 支持音视频文件转录并转换为 Markdown
+ * - 使用 officeparser / mammoth / 7zip 等纯 Node 库转换为 Markdown
+ * - 支持音视频文件转录并转换为 Markdown（LLM 整理走 OpenAI 兼容 API）
  * - 返回结果并清理临时文件
  */
 
@@ -16,33 +16,17 @@ import os from "os";
 import { v4 as uuidv4 } from "uuid";
 import sharp from "sharp";
 import OpenAI from "openai";
-import pythonService from "./python-service";
 import MediaUtil from "../utils/MediaUtil";
-import { getFriendlyPythonRuntimeErrorMessage } from "../utils/python-runtime-error-message";
+import { transcriptionService, type TranscriptionOptions } from "./transcription";
+import { convertDocumentToMarkdown, optimizeTranscriptionWithLLM } from "./markitdown-node";
 
 // ==================== 文件类型定义 ====================
 
 /** 支持的音频文件扩展名 */
-const AUDIO_EXTENSIONS = [
-  ".mp3",
-  ".wav",
-  ".m4a",
-  ".ogg",
-  ".flac",
-  ".aac",
-  ".wma",
-];
+const AUDIO_EXTENSIONS = [".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac", ".wma"];
 
 /** 支持的视频文件扩展名 */
-const VIDEO_EXTENSIONS = [
-  ".mp4",
-  ".webm",
-  ".mov",
-  ".avi",
-  ".mkv",
-  ".wmv",
-  ".flv",
-];
+const VIDEO_EXTENSIONS = [".mp4", ".webm", ".mov", ".avi", ".mkv", ".wmv", ".flv"];
 
 /** 支持的图片文件扩展名 */
 const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"];
@@ -135,19 +119,6 @@ interface TranscriptionSegment {
   end: number; // 毫秒
 }
 
-/** 转录结果 */
-interface TranscriptionResult {
-  text: string;
-  language: string;
-  segments: TranscriptionSegment[];
-  wordSegments?: TranscriptionSegment[];
-}
-
-/** LLM 转录优化结果 */
-interface OptimizeTranscriptionResult {
-  markdown: string;
-}
-
 interface ConvertFileResult {
   success: boolean;
   textContent: string | null;
@@ -170,12 +141,9 @@ class MarkItDownModule implements Module {
     await fs.mkdir(this.tempDir, { recursive: true });
 
     // 注册 IPC 处理器
-    ipcMain.handle(
-      "markitdown-convert",
-      async (_event, params: ConvertFileParams) => {
-        return this.convertFile(params);
-      },
-    );
+    ipcMain.handle("markitdown-convert", async (_event, params: ConvertFileParams) => {
+      return this.convertFile(params);
+    });
 
     console.log("[MarkItDown] Module initialized, temp dir:", this.tempDir);
   }
@@ -198,19 +166,13 @@ class MarkItDownModule implements Module {
 
     // 检查是否为音视频文件
     if (isMediaFile(fileName)) {
-      console.log(
-        "[MarkItDown] Detected media file, using transcription flow:",
-        fileName,
-      );
+      console.log("[MarkItDown] Detected media file, using transcription flow:", fileName);
       return this.convertMediaFile(params);
     }
 
     // 检查是否为图片文件，直接在 Node 端使用 LLM 处理
     if (isImageFile(fileName)) {
-      console.log(
-        "[MarkItDown] Detected image file, using LLM vision flow:",
-        fileName,
-      );
+      console.log("[MarkItDown] Detected image file, using LLM vision flow:", fileName);
       return this.convertImageFile(params);
     }
 
@@ -221,21 +183,8 @@ class MarkItDownModule implements Module {
   /**
    * 转换普通文件（PDF、Word、图片等）
    */
-  async convertRegularFile(
-    params: ConvertFileParams,
-  ): Promise<ConvertFileResult> {
-    const {
-      fileContent,
-      fileName,
-      filePath,
-      llmProvider,
-      llmApiKey,
-      llmModel,
-      llmPrompt,
-      llmBaseUrl,
-      docIntelEndpoint,
-      enablePlugins,
-    } = params;
+  async convertRegularFile(params: ConvertFileParams): Promise<ConvertFileResult> {
+    const { fileContent, fileName, filePath } = params;
 
     let targetFilePath: string | null = null;
     let originalTempFilePath: string | null = null; // 原始临时文件路径（用于清理）
@@ -274,24 +223,8 @@ class MarkItDownModule implements Module {
         targetFilePath = convertedWebpPath;
       }
 
-      // 2. 调用 Python 服务进行转换
-      const client = await pythonService.ensureStarted();
-
-      const pythonParams: Record<string, unknown> = {
-        filePath: targetFilePath,
-      };
-
-      if (llmProvider) pythonParams.llmProvider = llmProvider;
-      if (llmApiKey) pythonParams.llmApiKey = llmApiKey;
-      if (llmModel) pythonParams.llmModel = llmModel;
-      if (llmPrompt) pythonParams.llmPrompt = llmPrompt;
-      if (llmBaseUrl) pythonParams.llmBaseUrl = llmBaseUrl;
-      if (docIntelEndpoint) pythonParams.docIntelEndpoint = docIntelEndpoint;
-      if (enablePlugins) pythonParams.enablePlugins = enablePlugins;
-      const result = await client.request<ConvertFileResult>(
-        "convert_file",
-        pythonParams,
-      );
+      // 2. Node 原生转换
+      const result = await convertDocumentToMarkdown(targetFilePath);
 
       console.log("[MarkItDown] Conversion result:", {
         success: result.success,
@@ -310,7 +243,7 @@ class MarkItDownModule implements Module {
         textContent: null,
         title: null,
         filePath: fileName,
-        error: getFriendlyPythonRuntimeErrorMessage(error, "文档转换失败"),
+        error: error instanceof Error ? error.message : String(error),
       };
     } finally {
       // 3. 清理临时文件
@@ -327,10 +260,7 @@ class MarkItDownModule implements Module {
       if (originalTempFilePath) {
         try {
           await fs.unlink(originalTempFilePath);
-          console.log(
-            "[MarkItDown] Cleaned up temp file:",
-            originalTempFilePath,
-          );
+          console.log("[MarkItDown] Cleaned up temp file:", originalTempFilePath);
         } catch (e) {
           console.warn("[MarkItDown] Failed to clean up temp file:", e);
         }
@@ -342,18 +272,8 @@ class MarkItDownModule implements Module {
    * 转换图片文件
    * 使用 LLM Vision API 直接理解图片内容
    */
-  async convertImageFile(
-    params: ConvertFileParams,
-  ): Promise<ConvertFileResult> {
-    const {
-      fileContent,
-      fileName,
-      filePath,
-      llmApiKey,
-      llmModel,
-      llmPrompt,
-      llmBaseUrl,
-    } = params;
+  async convertImageFile(params: ConvertFileParams): Promise<ConvertFileResult> {
+    const { fileContent, fileName, filePath, llmApiKey, llmModel, llmPrompt, llmBaseUrl } = params;
 
     let targetFilePath: string | null = null;
     let shouldCleanup = false;
@@ -435,8 +355,7 @@ class MarkItDownModule implements Module {
         ],
       });
 
-      const description =
-        response.choices[0]?.message?.content || "无法获取图片描述";
+      const description = response.choices[0]?.message?.content || "无法获取图片描述";
 
       console.log("[MarkItDown] Image description generated successfully");
 
@@ -455,17 +374,14 @@ class MarkItDownModule implements Module {
         textContent: null,
         title: null,
         filePath: fileName,
-        error: getFriendlyPythonRuntimeErrorMessage(error, "图片转换失败"),
+        error: error instanceof Error ? error.message : String(error),
       };
     } finally {
       // 清理临时文件
       if (shouldCleanup && targetFilePath) {
         try {
           await fs.unlink(targetFilePath);
-          console.log(
-            "[MarkItDown] Cleaned up temp image file:",
-            targetFilePath,
-          );
+          console.log("[MarkItDown] Cleaned up temp image file:", targetFilePath);
         } catch (e) {
           console.warn("[MarkItDown] Failed to clean up temp image file:", e);
         }
@@ -477,9 +393,7 @@ class MarkItDownModule implements Module {
    * 转换音视频文件
    * 流程: 视频提取音频 → 转录 → LLM断句 → 格式化Markdown
    */
-  async convertMediaFile(
-    params: ConvertFileParams,
-  ): Promise<ConvertFileResult> {
+  async convertMediaFile(params: ConvertFileParams): Promise<ConvertFileResult> {
     const {
       fileContent,
       fileName,
@@ -505,10 +419,7 @@ class MarkItDownModule implements Module {
         // 直接使用传入的文件路径，不需要清理
         mediaFilePath = filePath;
         shouldCleanupMedia = false;
-        console.log(
-          "[MarkItDown] Using provided media file path:",
-          mediaFilePath,
-        );
+        console.log("[MarkItDown] Using provided media file path:", mediaFilePath);
       } else if (fileContent) {
         // 从 base64 内容创建临时文件，需要清理
         if (!this.tempDir) {
@@ -536,17 +447,13 @@ class MarkItDownModule implements Module {
         }
         audioFilePath = path.join(this.tempDir, `${uuidv4()}.mp3`);
 
-        await MediaUtil.extractAudioForTranscription(
-          mediaFilePath,
-          audioFilePath,
-          (progress) => {
-            this.sendProgress(
-              "extracting",
-              10 + progress * 0.2,
-              `正在提取音频... ${Math.round(progress)}%`,
-            );
-          },
-        );
+        await MediaUtil.extractAudioForTranscription(mediaFilePath, audioFilePath, progress => {
+          this.sendProgress(
+            "extracting",
+            10 + progress * 0.2,
+            `正在提取音频... ${Math.round(progress)}%`
+          );
+        });
 
         console.log("[MarkItDown] Extracted audio:", audioFilePath);
       } else {
@@ -556,33 +463,28 @@ class MarkItDownModule implements Module {
         // 如果是从 base64 创建的临时文件，需要清理（但此时 audioFilePath 和 mediaFilePath 是同一个文件）
       }
 
-      // 3. 调用转录服务
+      // 3. 调用转录服务（Node 进程内，预编译程序优先）
       this.sendProgress("transcribing", 30, "正在转录音频...");
-      const client = await pythonService.ensureStarted();
 
-      const transcribeResult =
-        await client.requestWithProgress<TranscriptionResult>(
-          "transcribe",
-          {
-            audioPath: audioFilePath,
-            model: transcriptionModel,
-            language: transcriptionLanguage,
-            // 不传递 device，让后端自动使用默认值（Mac 用 cpu，Windows 根据已安装程序检测）
-            computeType: "auto",
-            wordTimestamps: transcriptionWordTimestamps,
-            vadFilter: true,
-            modelDir: transcriptionModelDir,
-          },
-          (progressData) => {
-            if (progressData?.percentage !== undefined) {
-              this.sendProgress(
-                "transcribing",
-                30 + progressData.percentage * 0.3,
-                `正在转录... ${progressData.percentage}%`,
-              );
-            }
-          },
-        );
+      const transcribeResult = await transcriptionService.transcribe(
+        audioFilePath,
+        {
+          modelSize: (transcriptionModel as TranscriptionOptions["modelSize"]) || "base",
+          language: transcriptionLanguage as TranscriptionOptions["language"],
+          wordTimestamps: transcriptionWordTimestamps,
+          modelDir: transcriptionModelDir,
+        },
+        message => {
+          const match = message.match(/(\d+)%/);
+          if (match) {
+            this.sendProgress(
+              "transcribing",
+              30 + Number(match[1]) * 0.3,
+              `正在转录... ${match[1]}%`
+            );
+          }
+        }
+      );
 
       console.log("[MarkItDown] Transcription completed:", {
         language: transcribeResult.language,
@@ -592,11 +494,9 @@ class MarkItDownModule implements Module {
       // 4. 生成 Markdown
       // 如果配置了 LLM，使用 LLM 将转录文本整理为 Markdown
       // 否则使用简单格式化（带时间戳）
-      const segments = transcribeResult.segments || [];
+      const segments: TranscriptionSegment[] = transcribeResult.segments || [];
       const hasLLMConfig =
-        transcriptionLLMProvider &&
-        transcriptionLLMApiKey &&
-        transcriptionLLMModel;
+        transcriptionLLMProvider && transcriptionLLMApiKey && transcriptionLLMModel;
 
       let markdown: string;
 
@@ -604,36 +504,23 @@ class MarkItDownModule implements Module {
         this.sendProgress("optimizing", 60, "正在使用 AI 整理文档...");
 
         try {
-          const optimizeResult =
-            await client.request<OptimizeTranscriptionResult>(
-              "optimize_transcription",
-              {
-                // 传递句子级别的 segments（Python 端统一使用 wordSegments 参数名）
-                wordSegments: segments,
-                language: transcribeResult.language || transcriptionLanguage,
-                llmProvider: transcriptionLLMProvider,
-                llmApiKey: transcriptionLLMApiKey,
-                llmModel: transcriptionLLMModel,
-                llmBaseUrl: transcriptionLLMBaseUrl,
-              },
-            );
+          markdown = await optimizeTranscriptionWithLLM({
+            segments,
+            language: transcribeResult.language || transcriptionLanguage,
+            llmProvider: transcriptionLLMProvider,
+            llmApiKey: transcriptionLLMApiKey,
+            llmModel: transcriptionLLMModel,
+            llmBaseUrl: transcriptionLLMBaseUrl,
+          });
 
-          markdown = optimizeResult.markdown;
-          console.log(
-            "[MarkItDown] LLM generated Markdown:",
-            markdown.length,
-            "chars",
-          );
+          console.log("[MarkItDown] LLM generated Markdown:", markdown.length, "chars");
         } catch (error) {
-          console.warn(
-            "[MarkItDown] LLM optimization failed, using fallback format:",
-            error,
-          );
+          console.warn("[MarkItDown] LLM optimization failed, using fallback format:", error);
           // 如果 LLM 优化失败，使用简单格式化
           markdown = this.formatTranscriptionToMarkdown(
             fileName,
             segments,
-            transcribeResult.language || transcriptionLanguage,
+            transcribeResult.language || transcriptionLanguage
           );
         }
       } else {
@@ -641,13 +528,13 @@ class MarkItDownModule implements Module {
         console.log(
           "[MarkItDown] Using fallback format (no LLM config):",
           segments.length,
-          "segments",
+          "segments"
         );
         this.sendProgress("formatting", 90, "正在生成 Markdown...");
         markdown = this.formatTranscriptionToMarkdown(
           fileName,
           segments,
-          transcribeResult.language || transcriptionLanguage,
+          transcribeResult.language || transcriptionLanguage
         );
       }
 
@@ -667,7 +554,7 @@ class MarkItDownModule implements Module {
         textContent: null,
         title: null,
         filePath: fileName,
-        error: getFriendlyPythonRuntimeErrorMessage(error, "音视频转换失败"),
+        error: error instanceof Error ? error.message : String(error),
       };
     } finally {
       // 清理临时文件
@@ -704,7 +591,7 @@ class MarkItDownModule implements Module {
   private formatTranscriptionToMarkdown(
     fileName: string,
     segments: TranscriptionSegment[],
-    language: string,
+    language: string
   ): string {
     const title = path.basename(fileName, path.extname(fileName));
     const isVideo = isVideoFile(fileName);
@@ -730,9 +617,7 @@ class MarkItDownModule implements Module {
     for (const segment of segments) {
       // 使用项目已有的 :time 指令格式
       const timeDisplay = formatTime(segment.start);
-      lines.push(
-        `:time[start=${segment.start},end=${segment.end}]{${timeDisplay}}${segment.text}`,
-      );
+      lines.push(`:time[start=${segment.start},end=${segment.end}]{${timeDisplay}}${segment.text}`);
       lines.push("");
     }
 

@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const desktopDir = path.resolve(__dirname, "..");
 
-const firstExistingPackage = (packages) =>
+const firstExistingPackage = packages =>
   packages.find(({ appExe }) => existsSync(appExe)) ?? packages[0];
 
 const resolvePackagePaths = () => {
@@ -22,20 +22,14 @@ const resolvePackagePaths = () => {
   if (process.platform === "darwin") {
     const outputDirs = [`mac-${process.arch}`, "mac"];
     return firstExistingPackage(
-      outputDirs.map((outputDir) => {
-        const unpackedDir = path.join(
-          desktopDir,
-          "release",
-          outputDir,
-          "Tau.app",
-          "Contents",
-        );
+      outputDirs.map(outputDir => {
+        const unpackedDir = path.join(desktopDir, "release", outputDir, "Tau.app", "Contents");
         return {
           unpackedDir,
           appExe: path.join(unpackedDir, "MacOS", "Tau"),
           appAsar: "./Resources/app.asar",
         };
-      }),
+      })
     );
   }
 
@@ -106,6 +100,21 @@ const checks = [
         throw new Error("jieba returned no tokens");
       }
       console.log("jieba=ok");
+    `,
+  },
+  {
+    name: "node-llama-cpp",
+    // ESM-only 包（含顶层 await），不能用 require，须动态 import unpacked 入口
+    code: `
+      (async () => {
+        const mod = await import("./resources/app.asar.unpacked/node_modules/node-llama-cpp/dist/index.js");
+        const llama = await mod.getLlama();
+        await llama.dispose();
+        console.log("node-llama-cpp=ok");
+      })().catch((error) => {
+        console.error(error);
+        process.exit(1);
+      });
     `,
   },
   {

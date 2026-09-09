@@ -17,6 +17,9 @@ asarUnpack:
   - "node_modules/@tailwindcss/oxide-*/**/*"
   - "node_modules/@vscode/ripgrep/**/*"
   - "node_modules/@vscode/ripgrep-*/**/*"
+  - "node_modules/node-llama-cpp/**/*"
+  - "node_modules/@node-llama-cpp/**/*"
+  - "node_modules/@vscode/ripgrep/**/*"
   - "node_modules/@myriaddreamin/typst-ts-node-compiler/**/*"
   - "node_modules/@myriaddreamin/typst-ts-node-compiler-*/**/*"
   - "node_modules/7zip-bin/**/*"
@@ -84,6 +87,10 @@ win:
 mac:
   icon: "build/icon.icns"
   artifactName: "${productName}-v${version}-${platform}.${ext}"
+  # macOS 随包分发的 whisper.cpp 转录程序（CI 构建，Metal 加速，~12MB）
+  extraResources:
+    - from: build/bin/darwin/whisper-cli
+      to: bin/whisper-cli
   extendInfo:
     NSCameraUsageDescription: "Tau 需要访问摄像头，用于白板演示录制时显示摄像头画中画。"
     NSMicrophoneUsageDescription: "Tau 需要访问麦克风，用于白板演示录制时保存讲解声音。"

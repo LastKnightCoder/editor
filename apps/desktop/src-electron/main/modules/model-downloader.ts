@@ -16,8 +16,7 @@ import http from "http";
 import { Module } from "../types/module";
 // 使用 7zip-min 进行解压（vite 会复制二进制文件到 dist-electron/main/）
 import sevenZip from "7zip-min";
-import pythonService from "./python-service";
-import { getFriendlyPythonRuntimeErrorMessage } from "../utils/python-runtime-error-message";
+import { downloadRepoFiles } from "../utils/model-download";
 
 // ==================== 类型定义 ====================
 
@@ -115,14 +114,23 @@ export const MODEL_CONFIG: Record<
     size: string;
     description: string;
     recommended?: boolean;
+    /** 引擎：faster-whisper 使用 CTranslate2 模型（Windows 预编译程序），whisper-cpp 使用 ggml 模型（macOS） */
+    engine: "faster-whisper" | "whisper-cpp";
+    /** 模型内用于判断已下载的标志文件 */
+    markerFile?: string;
+    /** 平台门控（缺省为全平台） */
+    platforms?: string[];
   }
 > = {
+  // ========== faster-whisper (CTranslate2 格式，Windows 预编译程序使用) ==========
   "faster-whisper-tiny": {
     modelscope: "pengzhendong/faster-whisper-tiny",
     huggingface: "Systran/faster-whisper-tiny",
     label: "Tiny",
     size: "75MB",
     description: "最快，准确度较低",
+    engine: "faster-whisper",
+    platforms: ["win32"],
   },
   "faster-whisper-base": {
     modelscope: "pengzhendong/faster-whisper-base",
@@ -131,6 +139,8 @@ export const MODEL_CONFIG: Record<
     size: "150MB",
     description: "推荐，平衡速度和准确度",
     recommended: true,
+    engine: "faster-whisper",
+    platforms: ["win32"],
   },
   "faster-whisper-small": {
     modelscope: "pengzhendong/faster-whisper-small",
@@ -138,6 +148,8 @@ export const MODEL_CONFIG: Record<
     label: "Small",
     size: "500MB",
     description: "更高准确度",
+    engine: "faster-whisper",
+    platforms: ["win32"],
   },
   "faster-whisper-medium": {
     modelscope: "pengzhendong/faster-whisper-medium",
@@ -145,6 +157,8 @@ export const MODEL_CONFIG: Record<
     label: "Medium",
     size: "1.5GB",
     description: "专业级准确度",
+    engine: "faster-whisper",
+    platforms: ["win32"],
   },
   "faster-whisper-large-v1": {
     modelscope: "pengzhendong/faster-whisper-large-v1",
@@ -152,6 +166,8 @@ export const MODEL_CONFIG: Record<
     label: "Large-v1",
     size: "3GB",
     description: "高准确度",
+    engine: "faster-whisper",
+    platforms: ["win32"],
   },
   "faster-whisper-large-v2": {
     modelscope: "pengzhendong/faster-whisper-large-v2",
@@ -159,6 +175,8 @@ export const MODEL_CONFIG: Record<
     label: "Large-v2",
     size: "3GB",
     description: "更高准确度",
+    engine: "faster-whisper",
+    platforms: ["win32"],
   },
   "faster-whisper-large-v3": {
     modelscope: "pengzhendong/faster-whisper-large-v3",
@@ -166,6 +184,60 @@ export const MODEL_CONFIG: Record<
     label: "Large-v3",
     size: "3GB",
     description: "最高准确度",
+    engine: "faster-whisper",
+    platforms: ["win32"],
+  },
+  // ========== whisper.cpp (ggml 格式，macOS 随包 whisper-cli 使用) ==========
+  "whisper-cpp-tiny": {
+    modelscope: "pengzhendong/whisper.cpp-tiny",
+    huggingface: "ggerganov/whisper.tiny",
+    label: "Tiny",
+    size: "75MB",
+    description: "最快，准确度较低",
+    engine: "whisper-cpp",
+    markerFile: "ggml-tiny.bin",
+    platforms: ["darwin"],
+  },
+  "whisper-cpp-base": {
+    modelscope: "pengzhendong/whisper.cpp-base",
+    huggingface: "ggerganov/whisper.base",
+    label: "Base",
+    size: "142MB",
+    description: "推荐，平衡速度和准确度",
+    recommended: true,
+    engine: "whisper-cpp",
+    markerFile: "ggml-base.bin",
+    platforms: ["darwin"],
+  },
+  "whisper-cpp-small": {
+    modelscope: "pengzhendong/whisper.cpp-small",
+    huggingface: "ggerganov/whisper.small",
+    label: "Small",
+    size: "466MB",
+    description: "更高准确度",
+    engine: "whisper-cpp",
+    markerFile: "ggml-small.bin",
+    platforms: ["darwin"],
+  },
+  "whisper-cpp-medium": {
+    modelscope: "pengzhendong/whisper.cpp-medium",
+    huggingface: "ggerganov/whisper.medium",
+    label: "Medium",
+    size: "1.5GB",
+    description: "专业级准确度",
+    engine: "whisper-cpp",
+    markerFile: "ggml-medium.bin",
+    platforms: ["darwin"],
+  },
+  "whisper-cpp-large-v3": {
+    modelscope: "pengzhendong/whisper.cpp-large-v3",
+    huggingface: "ggerganov/whisper.large-v3",
+    label: "Large-v3",
+    size: "3GB",
+    description: "最高准确度",
+    engine: "whisper-cpp",
+    markerFile: "ggml-large-v3.bin",
+    platforms: ["darwin"],
   },
 };
 
@@ -175,7 +247,7 @@ export const MODEL_CONFIG: Record<
 interface DownloadTask {
   modelName: string;
   source: DownloadSource;
-  modelId: string;
+  controller: AbortController;
 }
 
 class ModelDownloaderService {
@@ -188,12 +260,12 @@ class ModelDownloaderService {
   }
 
   /**
-   * 下载模型（通过 WebSocket）
+   * 下载模型仓库快照（ModelScope / HuggingFace）
    */
   async downloadModel(
     modelName: string,
     source: DownloadSource,
-    onProgress?: (progress: DownloadProgress) => void,
+    onProgress?: (progress: DownloadProgress) => void
   ): Promise<DownloadResult> {
     const config = MODEL_CONFIG[modelName];
     if (!config) {
@@ -216,39 +288,33 @@ class ModelDownloaderService {
       };
     }
 
-    console.log("[ModelDownloader] Using WebSocket communication");
+    console.log("[ModelDownloader] Downloading model via Node");
 
-    // 标记为正在下载，保存下载任务信息
-    this.activeDownloads.set(modelName, { modelName, source, modelId });
+    const task: DownloadTask = { modelName, source, controller: new AbortController() };
+    this.activeDownloads.set(modelName, task);
 
     try {
-      const client = await pythonService.ensureStarted();
-
-      const result = await client.requestWithProgress<DownloadResult>(
-        "download_model",
-        {
-          source,
-          modelId,
-          outputDir: this.modelsDir,
+      const modelDir = await downloadRepoFiles({
+        source,
+        repoId: modelId,
+        targetDir: this.modelsDir,
+        rootDir: modelName,
+        onProgress: progress => {
+          onProgress?.({
+            type: "progress",
+            percentage: progress.percentage,
+            message: progress.message || `下载中... ${progress.percentage}%`,
+          });
         },
-        (progressData) => {
-          if (progressData?.percentage !== undefined && onProgress) {
-            onProgress({
-              type: "progress",
-              percentage: progressData.percentage,
-              message:
-                progressData.message || `下载中... ${progressData.percentage}%`,
-            });
-          }
-        },
-      );
-
-      return result;
+        signal: task.controller.signal,
+      });
+      return { success: true, model_dir: modelDir };
     } catch (error) {
-      console.error("[ModelDownloader] WebSocket error:", error);
+      if (task.controller.signal.aborted) {
+        return { success: false, error: "Download cancelled" };
+      }
       throw error;
     } finally {
-      // 下载完成或失败时，移除下载状态
       this.activeDownloads.delete(modelName);
     }
   }
@@ -263,22 +329,9 @@ class ModelDownloaderService {
       return false;
     }
 
-    // 从活跃下载列表中移除
     this.activeDownloads.delete(modelName);
-
-    // 发送取消请求到 Python 服务
-    try {
-      const client = pythonService.getClient();
-      if (client && client.isConnected()) {
-        await client.request("cancel_download", {
-          source: task.source,
-          modelId: task.modelId,
-        });
-        console.log(`[ModelDownloader] Cancel request sent for ${modelName}`);
-      }
-    } catch (error) {
-      console.warn("[ModelDownloader] Failed to send cancel request:", error);
-    }
+    task.controller.abort();
+    console.log(`[ModelDownloader] Download aborted: ${modelName}`);
 
     return true;
   }
@@ -287,17 +340,23 @@ class ModelDownloaderService {
    * 检查模型是否已下载
    */
   async isModelDownloaded(modelName: string): Promise<boolean> {
-    const modelPath = path.join(this.modelsDir, modelName, "model.bin");
+    const config = MODEL_CONFIG[modelName];
+    const marker =
+      config?.engine === "whisper-cpp" ? config.markerFile || "ggml-model.bin" : "model.bin";
+    const modelPath = path.join(this.modelsDir, modelName, marker);
     return fs.pathExists(modelPath);
   }
 
   /**
-   * 获取所有模型信息（包含下载状态）
+   * 获取所有模型信息（包含下载状态，按平台过滤）
    */
   async getModels(): Promise<ModelInfo[]> {
     const models: ModelInfo[] = [];
 
     for (const [name, config] of Object.entries(MODEL_CONFIG)) {
+      if (config.platforms && !config.platforms.includes(process.platform)) {
+        continue;
+      }
       const downloaded = await this.isModelDownloaded(name);
       models.push({
         name,
@@ -408,11 +467,7 @@ class ModelDownloaderService {
 
     if (config.isArchive && config.extractDir) {
       // 压缩包版本，检查解压后的目录
-      const execPath = path.join(
-        programsDir,
-        config.extractDir,
-        config.executableName,
-      );
+      const execPath = path.join(programsDir, config.extractDir, config.executableName);
       return fs.pathExists(execPath);
     } else {
       // 单文件版本
@@ -431,11 +486,7 @@ class ModelDownloaderService {
     const programsDir = this.getProgramsDir();
 
     if (config.isArchive && config.extractDir) {
-      const execPath = path.join(
-        programsDir,
-        config.extractDir,
-        config.executableName,
-      );
+      const execPath = path.join(programsDir, config.extractDir, config.executableName);
       if (await fs.pathExists(execPath)) {
         return execPath;
       }
@@ -501,7 +552,7 @@ class ModelDownloaderService {
   private async downloadFile(
     url: string,
     destPath: string,
-    onProgress?: (downloaded: number, total: number) => void,
+    onProgress?: (downloaded: number, total: number) => void
   ): Promise<void> {
     // 创建临时下载目录
     const tempDir = path.join(app.getPath("temp"), "tau-download-cache");
@@ -567,7 +618,7 @@ class ModelDownloaderService {
 
       const request = (urlObj.protocol === "https:" ? https : http).request(
         requestOptions,
-        (response) => {
+        response => {
           // 处理重定向
           if (
             response.statusCode === 301 ||
@@ -582,24 +633,17 @@ class ModelDownloaderService {
               const fullRedirectUrl = redirectUrl.startsWith("http")
                 ? redirectUrl
                 : `${urlObj.protocol}//${urlObj.hostname}${redirectUrl}`;
-              this.downloadFile(fullRedirectUrl, destPath, onProgress)
-                .then(resolve)
-                .catch(reject);
+              this.downloadFile(fullRedirectUrl, destPath, onProgress).then(resolve).catch(reject);
               return;
             }
           }
 
           if (response.statusCode !== 200) {
-            handleError(
-              new Error(`Download failed with status ${response.statusCode}`),
-            );
+            handleError(new Error(`Download failed with status ${response.statusCode}`));
             return;
           }
 
-          const totalSize = parseInt(
-            response.headers["content-length"] || "0",
-            10,
-          );
+          const totalSize = parseInt(response.headers["content-length"] || "0", 10);
           let downloadedSize = 0;
 
           response.on("data", (chunk: Buffer) => {
@@ -637,7 +681,7 @@ class ModelDownloaderService {
               reject(new Error(`移动文件失败: ${err}`));
             }
           });
-        },
+        }
       );
 
       request.on("error", handleError);
@@ -665,7 +709,7 @@ class ModelDownloaderService {
    */
   async downloadProgram(
     programName: string,
-    onProgress?: (progress: ProgramDownloadProgress) => void,
+    onProgress?: (progress: ProgramDownloadProgress) => void
   ): Promise<DownloadResult> {
     const config = PROGRAM_CONFIG[programName];
     if (!config) {
@@ -679,27 +723,20 @@ class ModelDownloaderService {
 
     try {
       // 下载文件
-      console.log(
-        `[ModelDownloader] Downloading program: ${config.downloadUrl}`,
-      );
+      console.log(`[ModelDownloader] Downloading program: ${config.downloadUrl}`);
 
-      await this.downloadFile(
-        config.downloadUrl,
-        downloadPath,
-        (downloaded, total) => {
-          if (onProgress) {
-            const percentage =
-              total > 0 ? Math.round((downloaded / total) * 100) : 0;
-            onProgress({
-              programName,
-              percentage,
-              message: `下载中... ${(downloaded / 1024 / 1024).toFixed(1)}MB / ${(total / 1024 / 1024).toFixed(1)}MB`,
-              downloadedBytes: downloaded,
-              totalBytes: total,
-            });
-          }
-        },
-      );
+      await this.downloadFile(config.downloadUrl, downloadPath, (downloaded, total) => {
+        if (onProgress) {
+          const percentage = total > 0 ? Math.round((downloaded / total) * 100) : 0;
+          onProgress({
+            programName,
+            percentage,
+            message: `下载中... ${(downloaded / 1024 / 1024).toFixed(1)}MB / ${(total / 1024 / 1024).toFixed(1)}MB`,
+            downloadedBytes: downloaded,
+            totalBytes: total,
+          });
+        }
+      });
 
       // 如果是压缩包，需要解压
       if (config.isArchive) {
@@ -719,9 +756,7 @@ class ModelDownloaderService {
         await fs.unlink(downloadPath);
       }
 
-      console.log(
-        `[ModelDownloader] Program downloaded successfully: ${programName}`,
-      );
+      console.log(`[ModelDownloader] Program downloaded successfully: ${programName}`);
       return { success: true };
     } catch (error) {
       console.error(`[ModelDownloader] Program download error:`, error);
@@ -731,7 +766,7 @@ class ModelDownloaderService {
       });
       return {
         success: false,
-        error: getFriendlyPythonRuntimeErrorMessage(error, "程序下载失败"),
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   }
@@ -789,10 +824,7 @@ class ModelDownloaderModule implements Module {
       } catch (error) {
         return {
           success: false,
-          error: getFriendlyPythonRuntimeErrorMessage(
-            error,
-            "获取模型列表失败",
-          ),
+          error: error instanceof Error ? error.message : String(error),
         };
       }
     });
@@ -802,52 +834,40 @@ class ModelDownloaderModule implements Module {
       "model-downloader-download",
       async (event, modelName: string, source: DownloadSource) => {
         try {
-          console.log(
-            `[ModelDownloader] Starting download: ${modelName} from ${source}`,
-          );
-          const result = await this.service.downloadModel(
-            modelName,
-            source,
-            (progress) => {
-              // 发送进度到渲染进程
-              console.log(`[ModelDownloader] Sending progress:`, {
-                modelName,
-                ...progress,
-              });
-              event.sender.send("model-download-progress", {
-                modelName,
-                ...progress,
-              });
-            },
-          );
+          console.log(`[ModelDownloader] Starting download: ${modelName} from ${source}`);
+          const result = await this.service.downloadModel(modelName, source, progress => {
+            // 发送进度到渲染进程
+            console.log(`[ModelDownloader] Sending progress:`, {
+              modelName,
+              ...progress,
+            });
+            event.sender.send("model-download-progress", {
+              modelName,
+              ...progress,
+            });
+          });
           console.log(`[ModelDownloader] Download completed:`, result);
           return result;
         } catch (error) {
           console.error(`[ModelDownloader] Download error:`, error);
           return {
             success: false,
-            error: getFriendlyPythonRuntimeErrorMessage(error, "模型下载失败"),
+            error: error instanceof Error ? error.message : String(error),
           };
         }
-      },
+      }
     );
 
     // 取消下载
-    ipcMain.handle(
-      "model-downloader-cancel",
-      async (_event, modelName: string) => {
-        const cancelled = this.service.cancelDownload(modelName);
-        return { success: cancelled };
-      },
-    );
+    ipcMain.handle("model-downloader-cancel", async (_event, modelName: string) => {
+      const cancelled = this.service.cancelDownload(modelName);
+      return { success: cancelled };
+    });
 
     // 检查模型是否已下载
-    ipcMain.handle(
-      "model-downloader-is-downloaded",
-      async (_event, modelName: string) => {
-        return this.service.isModelDownloaded(modelName);
-      },
-    );
+    ipcMain.handle("model-downloader-is-downloaded", async (_event, modelName: string) => {
+      return this.service.isModelDownloaded(modelName);
+    });
 
     // 获取已下载的模型
     ipcMain.handle("model-downloader-get-downloaded", async () => {
@@ -855,20 +875,17 @@ class ModelDownloaderModule implements Module {
     });
 
     // 删除模型
-    ipcMain.handle(
-      "model-downloader-delete",
-      async (_event, modelName: string) => {
-        try {
-          const deleted = await this.service.deleteModel(modelName);
-          return { success: deleted };
-        } catch (error) {
-          return {
-            success: false,
-            error: getFriendlyPythonRuntimeErrorMessage(error, "删除模型失败"),
-          };
-        }
-      },
-    );
+    ipcMain.handle("model-downloader-delete", async (_event, modelName: string) => {
+      try {
+        const deleted = await this.service.deleteModel(modelName);
+        return { success: deleted };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    });
 
     // 获取模型目录
     ipcMain.handle("model-downloader-get-dir", () => {
@@ -876,20 +893,14 @@ class ModelDownloaderModule implements Module {
     });
 
     // 获取模型大小
-    ipcMain.handle(
-      "model-downloader-get-size",
-      async (_event, modelName: string) => {
-        return this.service.getModelSize(modelName);
-      },
-    );
+    ipcMain.handle("model-downloader-get-size", async (_event, modelName: string) => {
+      return this.service.getModelSize(modelName);
+    });
 
     // 检查是否正在下载
-    ipcMain.handle(
-      "model-downloader-is-downloading",
-      (_event, modelName: string) => {
-        return this.service.isDownloading(modelName);
-      },
-    );
+    ipcMain.handle("model-downloader-is-downloading", (_event, modelName: string) => {
+      return this.service.isDownloading(modelName);
+    });
 
     // 获取正在下载的模型列表
     ipcMain.handle("model-downloader-get-downloading", () => {
@@ -906,55 +917,41 @@ class ModelDownloaderModule implements Module {
       } catch (error) {
         return {
           success: false,
-          error: getFriendlyPythonRuntimeErrorMessage(
-            error,
-            "获取程序列表失败",
-          ),
+          error: error instanceof Error ? error.message : String(error),
         };
       }
     });
 
     // 下载程序
-    ipcMain.handle(
-      "program-downloader-download",
-      async (event, programName: string) => {
-        try {
-          console.log(
-            `[ModelDownloader] Starting program download: ${programName}`,
-          );
-          const result = await this.service.downloadProgram(
-            programName,
-            (progress) => {
-              // 发送进度到渲染进程
-              event.sender.send("program-download-progress", progress);
-            },
-          );
-          console.log(`[ModelDownloader] Program download completed:`, result);
-          return result;
-        } catch (error) {
-          console.error(`[ModelDownloader] Program download error:`, error);
-          return {
-            success: false,
-            error: getFriendlyPythonRuntimeErrorMessage(error, "程序下载失败"),
-          };
-        }
-      },
-    );
+    ipcMain.handle("program-downloader-download", async (event, programName: string) => {
+      try {
+        console.log(`[ModelDownloader] Starting program download: ${programName}`);
+        const result = await this.service.downloadProgram(programName, progress => {
+          // 发送进度到渲染进程
+          event.sender.send("program-download-progress", progress);
+        });
+        console.log(`[ModelDownloader] Program download completed:`, result);
+        return result;
+      } catch (error) {
+        console.error(`[ModelDownloader] Program download error:`, error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    });
 
     // 检查程序是否已下载
-    ipcMain.handle(
-      "program-downloader-is-downloaded",
-      async (_event, programName: string) => {
-        return this.service.isProgramDownloaded(programName);
-      },
-    );
+    ipcMain.handle("program-downloader-is-downloaded", async (_event, programName: string) => {
+      return this.service.isProgramDownloaded(programName);
+    });
 
     // 获取程序可执行文件路径
     ipcMain.handle(
       "program-downloader-get-executable-path",
       async (_event, programName: string) => {
         return this.service.getProgramExecutablePath(programName);
-      },
+      }
     );
 
     // 获取已安装的程序类型
@@ -963,20 +960,17 @@ class ModelDownloaderModule implements Module {
     });
 
     // 删除程序
-    ipcMain.handle(
-      "program-downloader-delete",
-      async (_event, programName: string) => {
-        try {
-          const deleted = await this.service.deleteProgram(programName);
-          return { success: deleted };
-        } catch (error) {
-          return {
-            success: false,
-            error: getFriendlyPythonRuntimeErrorMessage(error, "删除程序失败"),
-          };
-        }
-      },
-    );
+    ipcMain.handle("program-downloader-delete", async (_event, programName: string) => {
+      try {
+        const deleted = await this.service.deleteProgram(programName);
+        return { success: deleted };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    });
 
     // 获取程序目录
     ipcMain.handle("program-downloader-get-dir", () => {

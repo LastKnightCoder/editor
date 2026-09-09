@@ -19,13 +19,13 @@ const emptyModulePlugin = {
 const nativeRequirePlugin = {
   name: "native-require",
   setup(build) {
-    build.onResolve({ filter: /^(better-sqlite3|sqlite-vec)$/ }, (args) => {
+    build.onResolve({ filter: /^(better-sqlite3|sqlite-vec|node-llama-cpp)$/ }, args => {
       if (args.namespace === "native-require") {
         return { path: args.path, external: true };
       }
       return { path: args.path, namespace: "native-require" };
     });
-    build.onLoad({ filter: /.*/, namespace: "native-require" }, (args) => ({
+    build.onLoad({ filter: /.*/, namespace: "native-require" }, args => ({
       contents: `const mod = require('${args.path}'); export default mod;`,
       loader: "js",
     }));
