@@ -36,13 +36,8 @@ import {
 import { ThemeSection } from "./components/ThemeSection";
 import type { SettingModule, SettingsPageProps } from "./components/types";
 import { IconChevronLeft } from "./components/ui";
-import { motion, useReducedMotion } from "motion/react";
-import { resolveScreenMotion } from "../../navigation/screenTransition";
-import type { PageTransitionConfig } from "../../navigation/types";
 
-type SettingsScreenProps = SettingsPageProps & {
-  transition?: PageTransitionConfig;
-};
+type SettingsScreenProps = SettingsPageProps;
 
 function getTitle(activeModule: SettingModule): string {
   switch (activeModule) {
@@ -356,12 +351,10 @@ function SettingsContent(
   );
 }
 
-export function SettingsPage({ transition, ...props }: SettingsScreenProps) {
+export function SettingsPage(props: SettingsScreenProps) {
   const [isDark, setIsDark] = useState(() => {
     return document.documentElement.classList.contains("dark");
   });
-  const reducedMotion = useReducedMotion();
-  const motionProps = resolveScreenMotion(transition, reducedMotion === true);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDark);
@@ -377,12 +370,7 @@ export function SettingsPage({ transition, ...props }: SettingsScreenProps) {
   };
 
   return (
-    <motion.div
-      initial={motionProps.initial}
-      animate={motionProps.animate}
-      exit={motionProps.exit}
-      className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
-    >
+    <div className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black">
       <header className="mobile-topbar topbar-immersive flex items-center px-2">
         <button
           type="button"
@@ -406,6 +394,6 @@ export function SettingsPage({ transition, ...props }: SettingsScreenProps) {
           setIsDark={setIsDark}
         />
       </div>
-    </motion.div>
+    </div>
   );
 }

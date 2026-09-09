@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
 import { Editor } from "@tau/editor/src";
 import type { Descendant } from "slate";
-import { resolveScreenMotion } from "../../navigation/screenTransition";
-import type { PageTransitionConfig } from "../../navigation/types";
 import * as tauri from "../../services/tauri";
 import type {
   RecurrenceType,
@@ -36,7 +33,6 @@ type TodoDetailPageProps = {
   groupId?: number;
   onBack: () => void;
   onError: (error: unknown, fallback: string) => void;
-  transition?: PageTransitionConfig;
 };
 
 type HeatmapCellStatus = "completed" | "skipped" | "missed" | "upcoming";
@@ -88,11 +84,11 @@ function parseDateTimeInputValue(value: string): number | null {
 
 function resolveCurrentItem(
   itemsByGroupId: Record<string, TodoItem[]>,
-  todoId: number,
+  todoId: number
 ): TodoItem | null {
   const groups = Object.values(itemsByGroupId);
   for (const list of groups) {
-    const found = list.find((item) => item.id === todoId);
+    const found = list.find(item => item.id === todoId);
     if (found) return found;
   }
   return null;
@@ -100,14 +96,11 @@ function resolveCurrentItem(
 
 function buildHeatmap(
   recurrence: TodoRecurrence,
-  completions: TodoRecurrenceCompletion[],
+  completions: TodoRecurrenceCompletion[]
 ): HeatmapCell[] {
   const completionMap = new Map<number, TodoRecurrenceCompletion>();
-  completions.forEach((completion) => {
-    completionMap.set(
-      getStartOfDayTimestamp(completion.scheduledDate),
-      completion,
-    );
+  completions.forEach(completion => {
+    completionMap.set(getStartOfDayTimestamp(completion.scheduledDate), completion);
   });
   const today = getTodayNormalized();
   const cells: HeatmapCell[] = [];
@@ -137,31 +130,20 @@ function recurrenceTypeLabel(type: RecurrenceType): string {
   return "自定义";
 }
 
-export function TodoDetailPage({
-  todoId,
-  groupId,
-  onBack,
-  onError,
-  transition,
-}: TodoDetailPageProps) {
-  const reducedMotion = useReducedMotion();
-  const motionProps = resolveScreenMotion(transition, reducedMotion === true);
-
+export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailPageProps) {
   const store = useTodoStore();
   const current = useMemo(
     () => resolveCurrentItem(store.itemsByGroupId, todoId),
-    [store.itemsByGroupId, todoId],
+    [store.itemsByGroupId, todoId]
   );
   const recurringStatus = useRecurringTaskStatus(current);
 
   const [title, setTitle] = useState("");
-  const [descriptionContentId, setDescriptionContentId] = useState<
-    number | null
-  >(null);
+  const [descriptionContentId, setDescriptionContentId] = useState<number | null>(null);
   const [heatmap, setHeatmap] = useState<HeatmapCell[]>([]);
-  const [recurrenceCompletions, setRecurrenceCompletions] = useState<
-    TodoRecurrenceCompletion[]
-  >([]);
+  const [recurrenceCompletions, setRecurrenceCompletions] = useState<TodoRecurrenceCompletion[]>(
+    []
+  );
 
   // Sheets
   const [typeSheetOpen, setTypeSheetOpen] = useState(false);
@@ -171,14 +153,16 @@ export function TodoDetailPage({
   const [startTimeValue, setStartTimeValue] = useState("");
   const [dueTimeValue, setDueTimeValue] = useState("");
 
-  const { content, syncVersion, throttleHandleEditorContentChange } =
-    useEditContent(descriptionContentId ?? undefined, {
-      onContentSync: (next) => {
+  const { content, syncVersion, throttleHandleEditorContentChange } = useEditContent(
+    descriptionContentId ?? undefined,
+    {
+      onContentSync: next => {
         if (current) {
           store.patchItemDescriptionContent(current.id, current.groupId, next);
         }
       },
-    });
+    }
+  );
 
   useEffect(() => {
     if (!current) return;
@@ -191,12 +175,12 @@ export function TodoDetailPage({
   useEffect(() => {
     if (current) return;
     if (groupId != null) {
-      void store.loadItems(groupId).catch((error) => {
+      void store.loadItems(groupId).catch(error => {
         onError(error, "加载任务详情失败");
       });
       return;
     }
-    void store.refreshActiveItems().catch((error) => {
+    void store.refreshActiveItems().catch(error => {
       onError(error, "加载任务详情失败");
     });
   }, [current, groupId, onError, store]);
@@ -216,7 +200,7 @@ export function TodoDetailPage({
         const completions = await tauri.todoGetRecurrenceCompletions(
           recurrence.id,
           startDate,
-          endDate,
+          endDate
         );
         if (cancelled) return;
         setRecurrenceCompletions(completions);
@@ -252,7 +236,7 @@ export function TodoDetailPage({
       startAt: number | null;
       dueAt: number | null;
       remindBefore: number | null;
-    }>,
+    }>
   ) => {
     if (!current) return;
     try {
@@ -295,11 +279,7 @@ export function TodoDetailPage({
     }
     const endDate = getTodayNormalized();
     const startDate = endDate - 60 * 24 * 60 * 60 * 1000;
-    const completions = await tauri.todoGetRecurrenceCompletions(
-      recurrence.id,
-      startDate,
-      endDate,
-    );
+    const completions = await tauri.todoGetRecurrenceCompletions(recurrence.id, startDate, endDate);
     setRecurrenceCompletions(completions);
     setHeatmap(buildHeatmap(recurrence, completions));
     await Promise.all([store.refreshActiveItems(), store.loadGroupStats()]);
@@ -324,10 +304,7 @@ export function TodoDetailPage({
       if (!isTodayScheduled(recurrence))
         throw new Error("TODO_RECURRENCE_INVALID: today is not scheduled");
       const today = getTodayNormalized();
-      const completion = await tauri.todoGetRecurrenceCompletion(
-        recurrence.id,
-        today,
-      );
+      const completion = await tauri.todoGetRecurrenceCompletion(recurrence.id, today);
       if (completion?.completedAt != null) {
         await tauri.todoUncompleteRecurrence(recurrence.id, today);
       } else {
@@ -343,15 +320,9 @@ export function TodoDetailPage({
     if (!recurringStatus.recurrence || cell.date > getTodayNormalized()) return;
     try {
       if (cell.status === "completed" || cell.status === "skipped") {
-        await tauri.todoUncompleteRecurrence(
-          recurringStatus.recurrence.id,
-          cell.date,
-        );
+        await tauri.todoUncompleteRecurrence(recurringStatus.recurrence.id, cell.date);
       } else {
-        await tauri.todoCompleteRecurrence(
-          recurringStatus.recurrence.id,
-          cell.date,
-        );
+        await tauri.todoCompleteRecurrence(recurringStatus.recurrence.id, cell.date);
       }
       await reloadRecurrence();
     } catch (error) {
@@ -361,7 +332,7 @@ export function TodoDetailPage({
 
   const typeSheetItems: ActionSheetItem[] = (
     ["normal", "deadline", "planned", "recurring"] as TodoItem["type"][]
-  ).map((t) => ({
+  ).map(t => ({
     label: TYPE_LABELS[t],
     onClick: () => void handleUpdateItemField({ type: t }),
   }));
@@ -371,7 +342,7 @@ export function TodoDetailPage({
       label: "不提醒",
       onClick: () => void handleUpdateItemField({ remindBefore: null }),
     },
-    ...REMINDER_OPTIONS.map((opt) => ({
+    ...REMINDER_OPTIONS.map(opt => ({
       label: opt.label,
       onClick: () => void handleUpdateItemField({ remindBefore: opt.value }),
     })),
@@ -379,8 +350,7 @@ export function TodoDetailPage({
 
   const reminderLabel =
     current?.remindBefore != null
-      ? (REMINDER_OPTIONS.find((o) => o.value === current.remindBefore)
-          ?.label ?? "自定义")
+      ? (REMINDER_OPTIONS.find(o => o.value === current.remindBefore)?.label ?? "自定义")
       : "不提醒";
 
   const headerContent = (
@@ -401,27 +371,17 @@ export function TodoDetailPage({
 
   if (!current) {
     return (
-      <motion.div
-        initial={motionProps.initial}
-        animate={motionProps.animate}
-        exit={motionProps.exit}
-        className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
-      >
+      <div className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black">
         {headerContent}
         <div className="flex flex-1 items-center justify-center text-sm text-gray-500 dark:text-neutral-400">
           任务不存在或已被删除
         </div>
-      </motion.div>
+      </div>
     );
   }
 
   return (
-    <motion.div
-      initial={motionProps.initial}
-      animate={motionProps.animate}
-      exit={motionProps.exit}
-      className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
-    >
+    <div className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black">
       {headerContent}
 
       <div className="mobile-kb-scroll flex-1 overflow-y-auto px-4 pb-8">
@@ -429,11 +389,11 @@ export function TodoDetailPage({
           <div className="text-xs text-gray-400">标题</div>
           <input
             value={title}
-            onChange={(event) => setTitle(event.target.value)}
+            onChange={event => setTitle(event.target.value)}
             onBlur={() => {
               void handleSaveTitle();
             }}
-            onKeyDown={(event) => {
+            onKeyDown={event => {
               if (event.key === "Enter") void handleSaveTitle();
             }}
             className="mt-1 w-full border-none bg-transparent text-base font-semibold text-gray-900 outline-none dark:text-neutral-100"
@@ -441,14 +401,8 @@ export function TodoDetailPage({
         </section>
 
         <section className="list-group mt-3">
-          <button
-            type="button"
-            className="list-item"
-            onClick={() => setTypeSheetOpen(true)}
-          >
-            <span className="text-sm text-gray-500 dark:text-neutral-400">
-              类型
-            </span>
+          <button type="button" className="list-item" onClick={() => setTypeSheetOpen(true)}>
+            <span className="text-sm text-gray-500 dark:text-neutral-400">类型</span>
             <span className="ml-auto flex items-center gap-1 text-sm text-gray-900 dark:text-neutral-100">
               {TYPE_LABELS[current.type]}
               <ChevronRight size={16} className="text-gray-400" />
@@ -465,9 +419,7 @@ export function TodoDetailPage({
                   setStartTimeSheetOpen(true);
                 }}
               >
-                <span className="text-sm text-gray-500 dark:text-neutral-400">
-                  开始时间
-                </span>
+                <span className="text-sm text-gray-500 dark:text-neutral-400">开始时间</span>
                 <span className="ml-auto flex items-center gap-1 text-sm text-gray-900 dark:text-neutral-100">
                   {formatDateTime(current.startAt) || "未设置"}
                   <ChevronRight size={16} className="text-gray-400" />
@@ -481,9 +433,7 @@ export function TodoDetailPage({
                   setDueTimeSheetOpen(true);
                 }}
               >
-                <span className="text-sm text-gray-500 dark:text-neutral-400">
-                  截止时间
-                </span>
+                <span className="text-sm text-gray-500 dark:text-neutral-400">截止时间</span>
                 <span className="ml-auto flex items-center gap-1 text-sm text-gray-900 dark:text-neutral-100">
                   {formatDateTime(current.dueAt) || "未设置"}
                   <ChevronRight size={16} className="text-gray-400" />
@@ -494,9 +444,7 @@ export function TodoDetailPage({
                 className="list-item"
                 onClick={() => setReminderSheetOpen(true)}
               >
-                <span className="text-sm text-gray-500 dark:text-neutral-400">
-                  提醒
-                </span>
+                <span className="text-sm text-gray-500 dark:text-neutral-400">提醒</span>
                 <span className="ml-auto flex items-center gap-1 text-sm text-gray-900 dark:text-neutral-100">
                   {reminderLabel}
                   <ChevronRight size={16} className="text-gray-400" />
@@ -506,17 +454,13 @@ export function TodoDetailPage({
           )}
 
           <div className="list-item">
-            <span className="text-sm text-gray-500 dark:text-neutral-400">
-              创建时间
-            </span>
+            <span className="text-sm text-gray-500 dark:text-neutral-400">创建时间</span>
             <span className="ml-auto text-sm text-gray-900 dark:text-neutral-100">
               {formatDateTime(current.createTime) || "-"}
             </span>
           </div>
           <div className="list-item">
-            <span className="text-sm text-gray-500 dark:text-neutral-400">
-              完成时间
-            </span>
+            <span className="text-sm text-gray-500 dark:text-neutral-400">完成时间</span>
             <span className="ml-auto text-sm text-gray-900 dark:text-neutral-100">
               {formatDateTime(current.completedAt) || "未完成"}
             </span>
@@ -541,7 +485,7 @@ export function TodoDetailPage({
                 onClick={() => {
                   void handleToggleTodayRecurring();
                 }}
-                className={`px-5 py-2.5 rounded-xl text-sm font-semibold ${
+                className={`rounded-xl px-5 py-2.5 text-sm font-semibold ${
                   recurringStatus.isTodayCompleted
                     ? "bg-emerald-100 text-emerald-700"
                     : "bg-(--color-primary) text-white"
@@ -570,10 +514,7 @@ export function TodoDetailPage({
               <div className="mt-3">
                 <div className="mb-1 flex gap-1">
                   {heatmap.map((cell, index) => (
-                    <div
-                      key={cell.date}
-                      className="flex-1 text-center text-[9px] text-gray-400"
-                    >
+                    <div key={cell.date} className="flex-1 text-center text-[9px] text-gray-400">
                       {index % 5 === 0 ? new Date(cell.date).getDate() : ""}
                     </div>
                   ))}
@@ -584,7 +525,7 @@ export function TodoDetailPage({
                     gridTemplateColumns: `repeat(${heatmap.length}, 1fr)`,
                   }}
                 >
-                  {heatmap.map((cell) => (
+                  {heatmap.map(cell => (
                     <button
                       key={cell.date}
                       type="button"
@@ -616,10 +557,8 @@ export function TodoDetailPage({
           <div className="min-h-[220px] rounded-lg border border-gray-100 bg-white px-2 py-2 dark:border-neutral-800 dark:bg-neutral-950">
             <Editor
               key={`todo-description-${todoId}-${syncVersion}-${descriptionContentId ?? 0}`}
-              initValue={normalizeEditorContent(
-                content ?? EMPTY_EDITOR_CONTENT,
-              )}
-              onChange={(next) => {
+              initValue={normalizeEditorContent(content ?? EMPTY_EDITOR_CONTENT)}
+              onChange={next => {
                 void handleDescriptionChange(next);
               }}
             />
@@ -652,7 +591,7 @@ export function TodoDetailPage({
         <input
           type="datetime-local"
           value={startTimeValue}
-          onChange={(e) => setStartTimeValue(e.target.value)}
+          onChange={e => setStartTimeValue(e.target.value)}
           className="input-base h-11 w-full rounded-xl px-4 text-sm"
         />
         <button
@@ -663,7 +602,7 @@ export function TodoDetailPage({
             });
             setStartTimeSheetOpen(false);
           }}
-          className="mt-3 h-11 w-full rounded-xl bg-(--color-primary) text-sm font-semibold text-white active:opacity-80"
+          className="bg-(--color-primary) mt-3 h-11 w-full rounded-xl text-sm font-semibold text-white active:opacity-80"
         >
           确认
         </button>
@@ -690,7 +629,7 @@ export function TodoDetailPage({
         <input
           type="datetime-local"
           value={dueTimeValue}
-          onChange={(e) => setDueTimeValue(e.target.value)}
+          onChange={e => setDueTimeValue(e.target.value)}
           className="input-base h-11 w-full rounded-xl px-4 text-sm"
         />
         <button
@@ -701,7 +640,7 @@ export function TodoDetailPage({
             });
             setDueTimeSheetOpen(false);
           }}
-          className="mt-3 h-11 w-full rounded-xl bg-(--color-primary) text-sm font-semibold text-white active:opacity-80"
+          className="bg-(--color-primary) mt-3 h-11 w-full rounded-xl text-sm font-semibold text-white active:opacity-80"
         >
           确认
         </button>
@@ -718,7 +657,7 @@ export function TodoDetailPage({
           </button>
         )}
       </BottomSheet>
-    </motion.div>
+    </div>
   );
 }
 

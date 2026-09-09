@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
-import { resolveScreenMotion } from "../../navigation/screenTransition";
-import type { PageTransitionConfig } from "../../navigation/types";
 import type { DiaryEntry, DiaryType } from "../../types";
 import { useDiaryStore } from "./store/useDiaryStore";
 import {
@@ -17,7 +14,6 @@ type DiaryHomePageProps = {
   onBack: () => void;
   onOpenEditor: (mode: DiaryType, baseDate: string) => void;
   onError: (error: unknown, fallback: string) => void;
-  transition?: PageTransitionConfig;
 };
 
 function pad2(value: number): string {
@@ -32,25 +28,9 @@ function parseDateKey(dateKey: string): Date {
   const matched = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!matched) {
     const now = new Date();
-    return new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-      0,
-      0,
-      0,
-      0,
-    );
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
   }
-  return new Date(
-    Number(matched[1]),
-    Number(matched[2]) - 1,
-    Number(matched[3]),
-    0,
-    0,
-    0,
-    0,
-  );
+  return new Date(Number(matched[1]), Number(matched[2]) - 1, Number(matched[3]), 0, 0, 0, 0);
 }
 
 function monthKeyOf(date: Date): string {
@@ -62,15 +42,7 @@ function shiftMonthKey(monthKey: string, delta: number): string {
   if (!parsed) {
     return monthKeyOf(new Date());
   }
-  const base = new Date(
-    Number(parsed[1]),
-    Number(parsed[2]) - 1,
-    1,
-    0,
-    0,
-    0,
-    0,
-  );
+  const base = new Date(Number(parsed[1]), Number(parsed[2]) - 1, 1, 0, 0, 0, 0);
   base.setMonth(base.getMonth() + delta);
   return monthKeyOf(base);
 }
@@ -98,28 +70,18 @@ function weekdayLabel(index: number): string {
   return labels[index] ?? "";
 }
 
-export function DiaryHomePage({
-  onBack,
-  onOpenEditor,
-  onError,
-  transition,
-}: DiaryHomePageProps) {
-  const reducedMotion = useReducedMotion();
-  const motionProps = resolveScreenMotion(transition, reducedMotion === true);
-
-  const mode = useDiaryStore((state) => state.mode);
-  const baseDate = useDiaryStore((state) => state.baseDate);
-  const entries = useDiaryStore((state) => state.entries);
-  const loading = useDiaryStore((state) => state.loading);
-  const initialize = useDiaryStore((state) => state.initialize);
+export function DiaryHomePage({ onBack, onOpenEditor, onError }: DiaryHomePageProps) {
+  const mode = useDiaryStore(state => state.mode);
+  const baseDate = useDiaryStore(state => state.baseDate);
+  const entries = useDiaryStore(state => state.entries);
+  const loading = useDiaryStore(state => state.loading);
+  const initialize = useDiaryStore(state => state.initialize);
   const [browseMode, setBrowseMode] = useState<DiaryType>(mode);
 
-  const [activeMonthKey, setActiveMonthKey] = useState(
-    monthKeyOf(parseDateKey(baseDate)),
-  );
+  const [activeMonthKey, setActiveMonthKey] = useState(monthKeyOf(parseDateKey(baseDate)));
 
   useEffect(() => {
-    void initialize().catch((error) => {
+    void initialize().catch(error => {
       onError(error, "日记数据加载失败");
     });
   }, [initialize, onError]);
@@ -134,21 +96,9 @@ export function DiaryHomePage({
 
   const entryKeysByMode = useMemo(() => {
     return {
-      daily: new Set(
-        entries
-          .filter((entry) => entry.type === "daily")
-          .map((entry) => entry.date),
-      ),
-      weekly: new Set(
-        entries
-          .filter((entry) => entry.type === "weekly")
-          .map((entry) => entry.date),
-      ),
-      monthly: new Set(
-        entries
-          .filter((entry) => entry.type === "monthly")
-          .map((entry) => entry.date),
-      ),
+      daily: new Set(entries.filter(entry => entry.type === "daily").map(entry => entry.date)),
+      weekly: new Set(entries.filter(entry => entry.type === "weekly").map(entry => entry.date)),
+      monthly: new Set(entries.filter(entry => entry.type === "monthly").map(entry => entry.date)),
     } satisfies Record<DiaryType, Set<string>>;
   }, [entries]);
 
@@ -190,10 +140,7 @@ export function DiaryHomePage({
     });
   }, [activeMonthKey, browseMode, entryKeysByMode]);
 
-  const recentEntries = useMemo(
-    () => sortDiaryEntriesDesc(entries).slice(0, 20),
-    [entries],
-  );
+  const recentEntries = useMemo(() => sortDiaryEntriesDesc(entries).slice(0, 20), [entries]);
 
   const openByDate = useMemoizedFn((dateKey: string) => {
     onOpenEditor(browseMode, dateKey);
@@ -204,12 +151,7 @@ export function DiaryHomePage({
   });
 
   return (
-    <motion.div
-      initial={motionProps.initial}
-      animate={motionProps.animate}
-      exit={motionProps.exit}
-      className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
-    >
+    <div className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black">
       <header className="mobile-topbar topbar-immersive flex items-center px-2">
         <button
           type="button"
@@ -266,9 +208,7 @@ export function DiaryHomePage({
             <div className="mb-3 flex items-center">
               <button
                 type="button"
-                onClick={() =>
-                  setActiveMonthKey((prev) => shiftMonthKey(prev, -1))
-                }
+                onClick={() => setActiveMonthKey(prev => shiftMonthKey(prev, -1))}
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 transition-colors active:bg-gray-100 dark:text-neutral-300 dark:active:bg-neutral-800"
                 aria-label="上一月"
               >
@@ -279,9 +219,7 @@ export function DiaryHomePage({
               </h2>
               <button
                 type="button"
-                onClick={() =>
-                  setActiveMonthKey((prev) => shiftMonthKey(prev, 1))
-                }
+                onClick={() => setActiveMonthKey(prev => shiftMonthKey(prev, 1))}
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 transition-colors active:bg-gray-100 dark:text-neutral-300 dark:active:bg-neutral-800"
                 aria-label="下一月"
               >
@@ -301,7 +239,7 @@ export function DiaryHomePage({
             </div>
 
             <div className="grid grid-cols-7 gap-1">
-              {activeMonthMatrix.map((cell) => (
+              {activeMonthMatrix.map(cell => (
                 <button
                   key={cell.key}
                   type="button"
@@ -323,9 +261,7 @@ export function DiaryHomePage({
                   {cell.hasEntry && (
                     <span
                       className={`absolute bottom-1 h-1 w-1 rounded-full ${
-                        cell.isToday
-                          ? "bg-white dark:bg-neutral-900"
-                          : "bg-indigo-500"
+                        cell.isToday ? "bg-white dark:bg-neutral-900" : "bg-indigo-500"
                       }`}
                     />
                   )}
@@ -354,7 +290,7 @@ export function DiaryHomePage({
               </p>
             ) : (
               <div className="space-y-2">
-                {recentEntries.map((entry) => (
+                {recentEntries.map(entry => (
                   <button
                     key={entry.id}
                     type="button"
@@ -370,9 +306,7 @@ export function DiaryHomePage({
                       </span>
                     </div>
                     <p className="mt-1 text-sm text-gray-800 dark:text-neutral-100">
-                      {entry.wordCount > 0
-                        ? `${entry.wordCount} 字`
-                        : "空白日记"}
+                      {entry.wordCount > 0 ? `${entry.wordCount} 字` : "空白日记"}
                     </p>
                   </button>
                 ))}
@@ -381,7 +315,7 @@ export function DiaryHomePage({
           </section>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
