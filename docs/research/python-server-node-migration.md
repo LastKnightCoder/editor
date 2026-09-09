@@ -291,6 +291,60 @@
 
 ---
 
+## 9. 决策确认与 P0 验证结果（2026-09-09 补充）
+
+### 9.1 已确认的决策
+
+| 决策点        | 结论                                                                                                                                             |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 转录路径      | 保留 faster-whisper（Windows 现有预编译下载机制不变）；**Mac 随包分发自建 whisper-cli（~12MB，extraResources），零运行时下载**（已确认，见 9.2） |
+| OCR / YouTube | 下线 YouTube 入口；OCR 用 tesseract.js                                                                                                           |
+| Windows GPU   | 跟随 node-llama-cpp 自动检测（本机实测 GPU 生效）                                                                                                |
+| 发布节奏      | 一个版本完成迁移，fingerprint 触发全量重建                                                                                                       |
+
+默认采用（无需再确认）：旧 torch 模型目录（~2.2GB）迁移后提示可释放、用户确认后删除；量化档位 bge-m3 Q8_0 / reranker Q8_0 / Qwen3 Q8_0，不做多档选择；下载源保留 HF/ModelScope 双选；CLI 在 P2 一并迁移。
+
+### 9.2 Mac 转录方案（对"Mac 怎么办"的回答）
+
+现状：预编译程序路径（`faster-whisper-xxl.exe` / `faster-whisper.exe`）只有 Windows 二进制，**Mac 目前转录实际走的就是 Python WebSocket 路径**，删除 Python 前必须补位。
+
+方案：**whisper.cpp 自建 macOS 构建 + 自有镜像分发**。
+
+> ⚠️ 修正（2026-09-09 核实）：whisper.cpp 官方 GitHub release **不提供 macOS 预编译 CLI 包**——核查了 b4938 / v1.9.3 / v1.9.0 / v1.8.5 的资产清单，只有 `whisper-bin-ubuntu-*.tar.gz`、`whisper-bin-Win32/x64.zip`、cuBLAS 变体和一个 Xcode 用的 `xcframework.zip`（框架，非 CLI）。ModelScope 全站搜索也**没有**官方 mac 二进制的第三方镜像（搜到的仓库全是 ggml 模型权重，如 `iceCream2025/whisper.cpp`；项目在用的 `bkfengg/whisper-cpp` 也只有 Windows 产物）。Homebrew `whisper-cpp` 有 Apple Silicon bottle，但 bottle 托管在 ghcr.io（GitHub 域名，国内同样慢）且要求用户装 Homebrew，不适合应用内分发。
+
+因此 Mac 侧需要**自己构建一次**（GitHub Actions macos runner：`cmake && make whisper-cli`，Apple Silicon 默认开 Metal；`CMAKE_OSX_ARCHITECTURES="arm64;x86_64"` 可出通用二进制）。参考官方 ubuntu arm64 包实测仅 ~12MB，**已确认采用：直接随 app 打包（electron-builder `extraResources`），零运行时下载**（该机制项目已在用——`dict.txt`、CLI 启动脚本均走 extraResources，新增条目为纯配置）。若未来对包体积敏感，再退回"上传自有 OSS/ModelScope + `PROGRAM_CONFIG` 运行时下载"模式（新增 `platforms: ["darwin"]` 条目 + tar.gz 解压分支 + chmod 755）。
+
+**为什么不用 whisper.cpp 的原生 Node 绑定（smart-whisper 等）做"纯 Node 进程内转录"**：
+
+1. node-llama-cpp 无法胜任——llama.cpp 只支持 LLM/embedding/rerank 架构，跑不了 whisper 的 encoder-decoder
+2. 该类绑定只接受 16kHz Float32 PCM 输入，mp3/m4a 音频解码需在 Node 侧自行解决（依赖 ffmpeg 或格式支持有限的纯 JS 解码器）；而 whisper.cpp CLI 内置 miniaudio，直接解码 wav/mp3/flac/ogg
+3. 词级时间戳的 API 暴露情况待验证（转录优化链路强依赖 wordSegments）；CLI 的 `--dtw` 明确支持 token 级时间戳
+4. 个人维护的原生模块存在停更风险（停更 = 自己接手 native 代码）
+
+模型权重同源（OpenAI whisper 的 ggml 转换），质量与 faster-whisper 等价。若未来需要流式/麦克风实时转录，再评估原生绑定（`transcription.ts` 已有多后端结构，替换成本低）。
+
+### 9.3 P0 冒烟测试结果（本机 Windows，GPU 后端）
+
+环境：node-llama-cpp **v3.20.0**（npmmirror 安装，预编译二进制直接可用），模型经 ModelScope raw API 下载：
+
+| 测试      | 模型                             | 结果                                                                                                                               |
+| --------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Embedding | bge-m3 Q8_0（635MB）             | ✅ 维度 1024；语义排序正确：中文近义对 cos=0.786 > 中英无关对 0.450；检索相关 0.754 > 无关 0.398；6 条短文本 ~300ms                |
+| Rerank    | bge-reranker-v2-m3 Q8_0（607MB） | ✅ 4 文档打分 [0.80, 0.00, 0.93, 0.00]，相关/无关完全区分，sigmoid 归一化行为与 Python `FlagReranker(normalize=True)` 一致；~230ms |
+| 查询扩展  | Qwen3-0.6B Q8_0（610MB）         | ✅ JSON Schema 约束输出合法 JSON（3 条 expansions，type 枚举正确）；~600ms                                                         |
+
+**结论：三项核心推理在 Node 侧全部可用，架构可行性验证通过，进入 P1。**
+
+### 9.4 实现注意事项（P1 编码时直接参考）
+
+- v3.20 API：`model.createEmbeddingContext()` / `createRankingContext()` / `model.createContext()` 均返回 **Promise**，需 await（官方文档示例未体现）
+- JSON 约束输出：prompt 选项**没有** `jsonSchema` 字段，正确用法是 `grammar: new LlamaJsonSchemaGrammar(llama, schema)`
+- reranker 加载时有 `pooling_type [-1] vs [4]` 警告，库自动按 rank pooling 处理，打分正确，可忽略
+- bge-m3 GGUF 的 `newline token` 警告可忽略
+- 验证脚本与模型保留在 `D:\coding\llama-p0-spike\`（smoke.mjs + 三个 GGUF，共 ~1.9GB），P1 开发时可直接复用为本地模型缓存
+
+---
+
 ### 附：主要参考
 
 - node-llama-cpp：[GitHub](https://github.com/withcatai/node-llama-cpp) · [Embedding 指南](https://node-llama-cpp.withcat.ai/guide/embedding)（含 reranking 示例）· [Electron 支持](https://node-llama-cpp.withcat.ai/guide/electron) · [LlamaRankingContext API](https://node-llama-cpp.withcat.ai/api/classes/LlamaRankingContext)
