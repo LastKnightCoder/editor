@@ -142,7 +142,7 @@ describe("epub exporter", () => {
     expect(__epubExporterInternals.BOOK_CSS).toContain(".callout-icon");
     expect(__epubExporterInternals.BOOK_CSS).toContain("background: transparent !important");
     expect(__epubExporterInternals.BOOK_CSS).toContain(".inline-code");
-    expect(__epubExporterInternals.BOOK_CSS).toContain("color: #18045f");
+    expect(__epubExporterInternals.BOOK_CSS).toContain("background: rgba(0, 0, 0, 0.05)");
     expect(__epubExporterInternals.BOOK_CSS).toContain("background: transparent;");
     expect(__epubExporterInternals.BOOK_CSS).toContain(".block-math");
     expect(__epubExporterInternals.BOOK_CSS).toContain("text-align: center");
