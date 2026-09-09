@@ -225,15 +225,26 @@ const ensurePlatformSubPackages = (nodeModulesDir, packageName) => {
   }
 };
 
+const resolveUnpackedNodeModulesDir = context => {
+  // mac 的 appOutDir 是 .app 的父目录（release/mac-arm64），resources 实际位于
+  // <product>.app/Contents/Resources；win/linux 的 appOutDir 即 *-unpacked 目录
+  const resourcesDir =
+    context.electronPlatformName === "darwin"
+      ? path.join(
+          context.appOutDir,
+          `${context.packager.appInfo.productFilename}.app`,
+          "Contents",
+          "Resources"
+        )
+      : path.join(context.appOutDir, "resources");
+  return path.join(resourcesDir, "app.asar.unpacked", "node_modules");
+};
+
 exports.default = async context => {
-  const nodeModulesDir = path.join(
-    context.appOutDir,
-    "resources",
-    "app.asar.unpacked",
-    "node_modules"
-  );
+  const nodeModulesDir = resolveUnpackedNodeModulesDir(context);
 
   if (!fs.existsSync(nodeModulesDir)) {
+    console.warn(`[prune] unpacked node_modules not found, skip: ${nodeModulesDir}`);
     return;
   }
 
