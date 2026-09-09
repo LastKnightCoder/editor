@@ -317,11 +317,7 @@ export const buildPdfHtml = async (options: {
   const tailwindStyles = tailwindCssCollector.join("\n");
 
   // 3. 组合所有样式
-  const combinedStyles = [
-    PDF_BASE_STYLES,
-    tailwindStyles,
-    additionalStyles,
-  ].join("\n\n");
+  const combinedStyles = [PDF_BASE_STYLES, tailwindStyles, additionalStyles].join("\n\n");
 
   return {
     html: bodyHtml,
@@ -335,53 +331,50 @@ export const buildPdfHtml = async (options: {
 export const processCodeBlocks = (
   html: string,
   strategy: "avoid" | "auto" | "smart" | "adaptive" = "adaptive",
-  smartThreshold = 30,
+  smartThreshold = 30
 ): string => {
-  return html.replace(
-    /<pre([^>]*)>([\s\S]*?)<\/pre>/g,
-    (match, attrs, content) => {
-      const lines = content.split("\n").length;
+  return html.replace(/<pre([^>]*)>([\s\S]*?)<\/pre>/g, (match, attrs, content) => {
+    const lines = content.split("\n").length;
 
-      if (strategy === "adaptive") {
-        if (attrs.includes("data-lines=")) {
-          return match;
-        }
-        return `<pre${attrs} data-lines="${lines}" data-break="adaptive">${content}</pre>`;
+    if (strategy === "adaptive") {
+      if (attrs.includes("data-lines=")) {
+        return match;
       }
+      return `<pre${attrs} data-lines="${lines}" data-break="adaptive">${content}</pre>`;
+    }
 
-      // 根据策略决定是否允许分页
-      let allowBreak = false;
+    // 根据策略决定是否允许分页
+    let allowBreak = false;
 
-      switch (strategy) {
-        case "avoid":
-          // 避免分页：所有代码块都不允许分页
-          allowBreak = false;
-          break;
+    switch (strategy) {
+      case "avoid":
+        // 避免分页：所有代码块都不允许分页
+        allowBreak = false;
+        break;
 
-        case "auto":
-          // 自动分页：所有代码块都允许分页
-          allowBreak = true;
-          break;
+      case "auto":
+        // 自动分页：所有代码块都允许分页
+        allowBreak = true;
+        break;
 
-        case "smart":
-          // 智能分页：根据行数阈值决定
-          allowBreak = lines > smartThreshold;
-          break;
-      }
+      case "smart":
+        // 智能分页：根据行数阈值决定
+        allowBreak = lines > smartThreshold;
+        break;
+    }
 
-      if (allowBreak) {
-        // 允许分页：添加 allow-break 类
-        const updatedAttrs = attrs.includes("class=")
-          ? attrs.replace(/class="([^"]*)"/, 'class="$1 allow-break"')
-          : `${attrs} class="allow-break"`;
-        return `<pre${updatedAttrs} data-lines="${lines}" data-break="allow">${content}</pre>`;
-      } else {
-        // 不允许分页：添加 no-break 类（明确标记）
-        const updatedAttrs = attrs.includes("class=")
-          ? attrs.replace(/class="([^"]*)"/, 'class="$1 no-break"')
-          : `${attrs} class="no-break"`;
-        return `<pre${updatedAttrs} data-lines="${lines}" data-break="avoid">${content}</pre>`;
-      }
-    },
-  );
+    if (allowBreak) {
+      // 允许分页：添加 allow-break 类
+      const updatedAttrs = attrs.includes("class=")
+        ? attrs.replace(/class="([^"]*)"/, 'class="$1 allow-break"')
+        : `${attrs} class="allow-break"`;
+      return `<pre${updatedAttrs} data-lines="${lines}" data-break="allow">${content}</pre>`;
+    } else {
+      // 不允许分页：添加 no-break 类（明确标记）
+      const updatedAttrs = attrs.includes("class=")
+        ? attrs.replace(/class="([^"]*)"/, 'class="$1 no-break"')
+        : `${attrs} class="no-break"`;
+      return `<pre${updatedAttrs} data-lines="${lines}" data-break="avoid">${content}</pre>`;
+    }
+  });
 };
