@@ -1,9 +1,4 @@
-import {
-  Uint8ArrayReader,
-  Uint8ArrayWriter,
-  ZipWriter,
-  configure,
-} from "@zip.js/zip.js";
+import { Uint8ArrayReader, Uint8ArrayWriter, ZipWriter, configure } from "@zip.js/zip.js";
 import { dialog } from "electron";
 import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
@@ -271,16 +266,10 @@ const buildChapterFileName = (index: number) => {
   return `text/chapter-${String(index + 1).padStart(3, "0")}.xhtml`;
 };
 
-const buildChapterXhtml = (
-  chapter: EpubChapter,
-  language: string,
-  warnings: string[],
-) => {
+const buildChapterXhtml = (chapter: EpubChapter, language: string, warnings: string[]) => {
   const rawBody = normalizeText(chapter.xhtml);
   if (!rawBody) {
-    warnings.push(
-      `章节「${chapter.title || chapter.id}」内容为空，已写入占位段落`,
-    );
+    warnings.push(`章节「${chapter.title || chapter.id}」内容为空，已写入占位段落`);
   }
   const chapterBody = normalizeHtmlFragmentToXhtml(rawBody || "<p></p>");
 
@@ -320,9 +309,7 @@ const buildNavTree = (items: NavSourceItem[]): NavTreeItem[] => {
     while (stack.length > 0 && stack[stack.length - 1].level >= level) {
       stack.pop();
     }
-    const href = item.anchor
-      ? `${item.fileName}#${item.anchor}`
-      : item.fileName;
+    const href = item.anchor ? `${item.fileName}#${item.anchor}` : item.fileName;
     const node: NavTreeItem = { title: item.title, href, children: [] };
     if (stack.length === 0) {
       roots.push(node);
@@ -334,15 +321,12 @@ const buildNavTree = (items: NavSourceItem[]): NavTreeItem[] => {
   return roots;
 };
 
-const buildNavXhtml = (
-  navItems: NavSourceItem[],
-  metadata: EpubMetadataInput,
-) => {
+const buildNavXhtml = (navItems: NavSourceItem[], metadata: EpubMetadataInput) => {
   const tree = buildNavTree(navItems);
 
   const renderList = (nodes: NavTreeItem[], depth: number): string =>
     nodes
-      .map((node) => {
+      .map(node => {
         const indent = " ".repeat(6 + depth * 2);
         const link = `<a href="${escapeXml(node.href)}">${escapeXml(node.title)}</a>`;
         if (node.children.length === 0) {
@@ -377,18 +361,14 @@ ${renderList(tree, 0)}
 </html>`;
 };
 
-const buildTocNcx = (
-  navItems: NavSourceItem[],
-  metadata: EpubMetadataInput,
-  bookId: string,
-) => {
+const buildTocNcx = (navItems: NavSourceItem[], metadata: EpubMetadataInput, bookId: string) => {
   const tree = buildNavTree(navItems);
 
   let navPointCounter = 0;
   let playOrder = 0;
   const renderNavPoints = (nodes: NavTreeItem[], depth: number): string =>
     nodes
-      .map((node) => {
+      .map(node => {
         navPointCounter += 1;
         playOrder += 1;
         const indent = " ".repeat(4 + depth * 2);
@@ -406,9 +386,7 @@ const buildTocNcx = (
       .join("\n");
 
   const countDepth = (nodes: NavTreeItem[]): number =>
-    nodes.length === 0
-      ? 0
-      : 1 + Math.max(...nodes.map((node) => countDepth(node.children)));
+    nodes.length === 0 ? 0 : 1 + Math.max(...nodes.map(node => countDepth(node.children)));
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
@@ -439,19 +417,18 @@ const buildContentOpf = (params: {
 
   const chapterManifest = chapterItems
     .map(
-      (chapter) =>
-        `    <item id="${escapeXml(chapter.id)}" href="${escapeXml(chapter.fileName)}" media-type="application/xhtml+xml" />`,
+      chapter =>
+        `    <item id="${escapeXml(chapter.id)}" href="${escapeXml(chapter.fileName)}" media-type="application/xhtml+xml" />`
     )
     .join("\n");
   const assetManifest = assets
-    .map((asset) => {
-      const properties =
-        asset.id === coverAssetId ? ' properties="cover-image"' : "";
+    .map(asset => {
+      const properties = asset.id === coverAssetId ? ' properties="cover-image"' : "";
       return `    <item id="${escapeXml(asset.id)}" href="assets/${escapeXml(asset.fileName)}" media-type="${escapeXml(asset.mimeType || "application/octet-stream")}"${properties} />`;
     })
     .join("\n");
   const spineItems = chapterItems
-    .map((chapter) => `    <itemref idref="${escapeXml(chapter.id)}" />`)
+    .map(chapter => `    <itemref idref="${escapeXml(chapter.id)}" />`)
     .join("\n");
   const description = normalizeText(metadata.description)
     ? `    <dc:description>${escapeXml(metadata.description)}</dc:description>\n`
@@ -493,7 +470,7 @@ const buildContainerXml = () => {
 
 const buildEpubBytes = async (
   payload: EpubExportPayload,
-  warnings: string[],
+  warnings: string[]
 ): Promise<Uint8Array> => {
   const bookId = `urn:uuid:${randomUUID()}`;
   const metadata: EpubMetadataInput = {
@@ -526,9 +503,7 @@ const buildEpubBytes = async (
   }));
 
   const coverFileName = toAssetFileName(metadata.coverImageSrc);
-  const coverAsset = payload.assets.find(
-    (asset) => asset.fileName === coverFileName,
-  );
+  const coverAsset = payload.assets.find(asset => asset.fileName === coverFileName);
   if (metadata.coverImageSrc && !coverAsset) {
     warnings.push(`封面资源未找到：${metadata.coverImageSrc}，已忽略封面`);
   }
@@ -548,8 +523,8 @@ const buildEpubBytes = async (
           level: 0,
         }));
   const navItems: NavSourceItem[] = navSource
-    .filter((item) => chapterItems[item.chapterIndex])
-    .map((item) => ({
+    .filter(item => chapterItems[item.chapterIndex])
+    .map(item => ({
       fileName: chapterItems[item.chapterIndex].fileName,
       title: normalizeText(item.title) || chapterItems[item.chapterIndex].title,
       anchor: item.anchor,
@@ -570,35 +545,23 @@ const buildEpubBytes = async (
   await zipWriter.add("mimetype", createTextEntryReader(EPUB_MIME_TYPE), {
     level: 0,
   });
-  await zipWriter.add(
-    "META-INF/container.xml",
-    createTextEntryReader(buildContainerXml()),
-  );
-  await zipWriter.add(
-    `${OEBPS_PREFIX}/content.opf`,
-    createTextEntryReader(contentOpf),
-  );
-  await zipWriter.add(
-    `${OEBPS_PREFIX}/nav.xhtml`,
-    createTextEntryReader(navXhtml),
-  );
+  await zipWriter.add("META-INF/container.xml", createTextEntryReader(buildContainerXml()));
+  await zipWriter.add(`${OEBPS_PREFIX}/content.opf`, createTextEntryReader(contentOpf));
+  await zipWriter.add(`${OEBPS_PREFIX}/nav.xhtml`, createTextEntryReader(navXhtml));
   await zipWriter.add(`${OEBPS_PREFIX}/toc.ncx`, createTextEntryReader(tocNcx));
-  await zipWriter.add(
-    `${OEBPS_PREFIX}/styles/book.css`,
-    createTextEntryReader(BOOK_CSS),
-  );
+  await zipWriter.add(`${OEBPS_PREFIX}/styles/book.css`, createTextEntryReader(BOOK_CSS));
 
   for (const chapter of chapterItems) {
     await zipWriter.add(
       `${OEBPS_PREFIX}/${chapter.fileName}`,
-      createTextEntryReader(chapter.xhtml),
+      createTextEntryReader(chapter.xhtml)
     );
   }
 
   for (const asset of payload.assets) {
     await zipWriter.add(
       `${OEBPS_PREFIX}/assets/${asset.fileName}`,
-      new Uint8ArrayReader(asset.bytes),
+      new Uint8ArrayReader(asset.bytes)
     );
   }
 
@@ -606,13 +569,11 @@ const buildEpubBytes = async (
 };
 
 export const exportEpubWithDialog = async (
-  payload: EpubExportPayload,
+  payload: EpubExportPayload
 ): Promise<EpubExportResult> => {
   const warnings: string[] = [];
   const defaultName = ensureEpubExtension(
-    sanitizeFileName(
-      payload.defaultFileName || payload.metadata.title || "未命名文档",
-    ),
+    sanitizeFileName(payload.defaultFileName || payload.metadata.title || "未命名文档")
   );
 
   const result = await dialog.showSaveDialog({
