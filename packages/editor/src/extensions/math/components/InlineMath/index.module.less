@@ -8,6 +8,17 @@
   transition:
     background-color 0.15s ease,
     box-shadow 0.15s ease;
+
+  // 行内公式不套用全局 .katex-display 的横向滚动规则，恢复自然溢出展示
+  :global(.katex-display) {
+    overflow: visible;
+    padding: 0;
+
+    > :global(.katex) {
+      width: auto;
+      margin: 0;
+    }
+  }
 }
 
 .inlineMathActive {
