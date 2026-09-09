@@ -41,16 +41,10 @@ type TodoItemRowProps = {
   onOpenDetail: (item: TodoItem) => void;
   onToggleComplete: (item: TodoItem, isCompleted: boolean) => void;
   onOpenActions: (item: TodoItem) => void;
-  onRowTouchStart: (
-    item: TodoItem,
-    event: ReactTouchEvent<HTMLDivElement>,
-  ) => void;
+  onRowTouchStart: (item: TodoItem, event: ReactTouchEvent<HTMLDivElement>) => void;
   onRowTouchMove: (event: ReactTouchEvent<HTMLDivElement>) => void;
   onRowTouchEnd: () => void;
-  onRowPointerDown: (
-    item: TodoItem,
-    event: ReactPointerEvent<HTMLDivElement>,
-  ) => void;
+  onRowPointerDown: (item: TodoItem, event: ReactPointerEvent<HTMLDivElement>) => void;
   onRowPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onRowPointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void;
   suppressTapRef: React.RefObject<boolean>;
@@ -90,7 +84,7 @@ function TypeIcon({ type }: { type: TodoItem["type"] }) {
 
 function buildTreeRows(items: TodoItem[]): TreeRow[] {
   const childrenMap = new Map<number | null, TodoItem[]>();
-  items.forEach((item) => {
+  items.forEach(item => {
     const parentKey = item.parentId ?? null;
     const list = childrenMap.get(parentKey);
     if (list) {
@@ -106,7 +100,7 @@ function buildTreeRows(items: TodoItem[]): TreeRow[] {
   const rows: TreeRow[] = [];
   const visit = (parentId: number | null, depth: number) => {
     const children = childrenMap.get(parentId) ?? [];
-    children.forEach((child) => {
+    children.forEach(child => {
       rows.push({ item: child, depth });
       visit(child.id, depth + 1);
     });
@@ -122,7 +116,7 @@ function buildMovePayload(args: {
 }): MoveAndReorderTodoItemPayload | null {
   const { allItems, draggedId, dropHint } = args;
   const itemById = new Map<number, TodoItem>();
-  allItems.forEach((item) => {
+  allItems.forEach(item => {
     itemById.set(item.id, item);
   });
 
@@ -148,10 +142,7 @@ function buildMovePayload(args: {
   let beforeId: number | undefined;
   let afterId: number | undefined;
 
-  if (
-    dropHint.placement === "child-before" ||
-    dropHint.placement === "child-after"
-  ) {
+  if (dropHint.placement === "child-before" || dropHint.placement === "child-after") {
     toParentId = hoverItem.id;
     if (wouldCreateCycle(toParentId)) {
       return null;
@@ -159,18 +150,17 @@ function buildMovePayload(args: {
     toGroupId = hoverItem.groupId;
     const children = allItems
       .filter(
-        (item) =>
+        item =>
           item.groupId === toGroupId &&
           (item.parentId ?? null) === toParentId &&
-          item.id !== draggedItem.id,
+          item.id !== draggedItem.id
       )
       .sort(sortByOrder);
 
     if (dropHint.placement === "child-before") {
       beforeId = children[0]?.id;
     } else {
-      afterId =
-        children.length > 0 ? children[children.length - 1].id : undefined;
+      afterId = children.length > 0 ? children[children.length - 1].id : undefined;
     }
   } else {
     if (toParentId != null && wouldCreateCycle(toParentId)) {
@@ -182,13 +172,13 @@ function buildMovePayload(args: {
         : hoverItem.groupId;
     const siblings = allItems
       .filter(
-        (item) =>
+        item =>
           item.groupId === toGroupId &&
           (item.parentId ?? null) === toParentId &&
-          item.id !== draggedItem.id,
+          item.id !== draggedItem.id
       )
       .sort(sortByOrder);
-    const hoverIndex = siblings.findIndex((item) => item.id === hoverItem.id);
+    const hoverIndex = siblings.findIndex(item => item.id === hoverItem.id);
     if (hoverIndex < 0) {
       return null;
     }
@@ -220,16 +210,11 @@ function resolveDropHint(args: {
   draggedId: number;
 }): DropHint | null {
   const { clientX, clientY, draggedId } = args;
-  const element = document.elementFromPoint(
-    clientX,
-    clientY,
-  ) as HTMLElement | null;
+  const element = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
   if (!element) {
     return null;
   }
-  const rowElement = element.closest(
-    "[data-todo-row-id]",
-  ) as HTMLElement | null;
+  const rowElement = element.closest("[data-todo-row-id]") as HTMLElement | null;
   if (!rowElement) {
     return null;
   }
@@ -240,10 +225,7 @@ function resolveDropHint(args: {
   }
   const rect = rowElement.getBoundingClientRect();
   const isUpperHalf = clientY < rect.top + rect.height / 2;
-  const edgeZone = Math.min(
-    DROP_EDGE_ZONE_PX,
-    Math.max(4, Math.floor(rect.height / 3)),
-  );
+  const edgeZone = Math.min(DROP_EDGE_ZONE_PX, Math.max(4, Math.floor(rect.height / 3)));
 
   if (clientY <= rect.top + edgeZone) {
     return {
@@ -264,34 +246,23 @@ function resolveDropHint(args: {
   };
 }
 
-function performAutoScroll(
-  scrollElement: HTMLElement | null,
-  clientY: number,
-): void {
+function performAutoScroll(scrollElement: HTMLElement | null, clientY: number): void {
   if (!scrollElement) {
     return;
   }
   const rect = scrollElement.getBoundingClientRect();
   const canScrollUp = scrollElement.scrollTop > 0;
   const canScrollDown =
-    scrollElement.scrollTop <
-    scrollElement.scrollHeight - scrollElement.clientHeight;
+    scrollElement.scrollTop < scrollElement.scrollHeight - scrollElement.clientHeight;
 
   if (clientY < rect.top + AUTO_SCROLL_EDGE_PX && canScrollUp) {
-    scrollElement.scrollTop = Math.max(
-      0,
-      scrollElement.scrollTop - AUTO_SCROLL_STEP_PX,
-    );
+    scrollElement.scrollTop = Math.max(0, scrollElement.scrollTop - AUTO_SCROLL_STEP_PX);
     return;
   }
 
   if (clientY > rect.bottom - AUTO_SCROLL_EDGE_PX && canScrollDown) {
-    const maxScrollTop =
-      scrollElement.scrollHeight - scrollElement.clientHeight;
-    scrollElement.scrollTop = Math.min(
-      maxScrollTop,
-      scrollElement.scrollTop + AUTO_SCROLL_STEP_PX,
-    );
+    const maxScrollTop = scrollElement.scrollHeight - scrollElement.clientHeight;
+    scrollElement.scrollTop = Math.min(maxScrollTop, scrollElement.scrollTop + AUTO_SCROLL_STEP_PX);
   }
 }
 
@@ -324,11 +295,11 @@ function TodoItemRow({
     <div
       data-todo-row-id={item.id}
       style={{ marginLeft: `${depth * 14}px` }}
-      onTouchStart={(event) => onRowTouchStart(item, event)}
+      onTouchStart={event => onRowTouchStart(item, event)}
       onTouchMove={onRowTouchMove}
       onTouchEnd={onRowTouchEnd}
       onTouchCancel={onRowTouchEnd}
-      onPointerDown={(event) => onRowPointerDown(item, event)}
+      onPointerDown={event => onRowPointerDown(item, event)}
       onPointerMove={onRowPointerMove}
       onPointerUp={onRowPointerUp}
       onPointerCancel={onRowPointerUp}
@@ -352,7 +323,7 @@ function TodoItemRow({
             data-no-drag="true"
             type="checkbox"
             checked={item.isCompleted}
-            onChange={(event) => onToggleComplete(item, event.target.checked)}
+            onChange={event => onToggleComplete(item, event.target.checked)}
             className="h-4 w-4 shrink-0"
           />
           <button
@@ -425,10 +396,10 @@ export function TodoItemTree({
 
   const allRows = useMemo(() => buildTreeRows(sourceItems), [sourceItems]);
   const visibleIdSet = useMemo(() => {
-    return new Set(items.map((item) => item.id));
+    return new Set(items.map(item => item.id));
   }, [items]);
   const visibleRows = useMemo(() => {
-    return allRows.filter((row) => visibleIdSet.has(row.item.id));
+    return allRows.filter(row => visibleIdSet.has(row.item.id));
   }, [allRows, visibleIdSet]);
   const rowVirtualizer = useVirtualizer({
     enabled: isVisible,
@@ -436,15 +407,14 @@ export function TodoItemTree({
     getScrollElement: () => scrollContainerRef?.current ?? null,
     estimateSize: () => ROW_ESTIMATE_PX,
     overscan: OVERSCAN_COUNT,
-    getItemKey: (index) => visibleRows[index]?.item.id ?? index,
+    getItemKey: index => visibleRows[index]?.item.id ?? index,
   });
   const virtualRows = rowVirtualizer.getVirtualItems();
 
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [dropHint, setDropHint] = useState<DropHint | null>(null);
   const [reordering, setReordering] = useState(false);
-  const supportsPointerEvents =
-    typeof window !== "undefined" && "PointerEvent" in window;
+  const supportsPointerEvents = typeof window !== "undefined" && "PointerEvent" in window;
 
   const longPressTimerRef = useRef<number | null>(null);
   const pressStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -526,7 +496,7 @@ export function TodoItemTree({
       });
       setDropHint(hint);
     },
-    [scrollContainerRef],
+    [scrollContainerRef]
   );
 
   const commitDrop = useCallback(() => {
@@ -598,10 +568,7 @@ export function TodoItemTree({
     }
 
     const handlePointerMove = (event: PointerEvent) => {
-      if (
-        activePointerIdRef.current == null ||
-        event.pointerId !== activePointerIdRef.current
-      ) {
+      if (activePointerIdRef.current == null || event.pointerId !== activePointerIdRef.current) {
         return;
       }
       event.preventDefault();
@@ -609,10 +576,7 @@ export function TodoItemTree({
     };
 
     const handlePointerEnd = (event: PointerEvent) => {
-      if (
-        activePointerIdRef.current == null ||
-        event.pointerId !== activePointerIdRef.current
-      ) {
+      if (activePointerIdRef.current == null || event.pointerId !== activePointerIdRef.current) {
         return;
       }
       commitDrop();
@@ -631,10 +595,7 @@ export function TodoItemTree({
     };
   }, [commitDrop, draggedId, supportsPointerEvents, updateDropHint]);
 
-  const handleRowTouchStart = (
-    item: TodoItem,
-    event: ReactTouchEvent<HTMLDivElement>,
-  ) => {
+  const handleRowTouchStart = (item: TodoItem, event: ReactTouchEvent<HTMLDivElement>) => {
     if (!enableDragSort || reordering) {
       return;
     }
@@ -700,10 +661,7 @@ export function TodoItemTree({
     }
   };
 
-  const handleRowPointerDown = (
-    item: TodoItem,
-    event: ReactPointerEvent<HTMLDivElement>,
-  ) => {
+  const handleRowPointerDown = (item: TodoItem, event: ReactPointerEvent<HTMLDivElement>) => {
     if (!supportsPointerEvents) {
       return;
     }
@@ -744,10 +702,7 @@ export function TodoItemTree({
     if (!supportsPointerEvents) {
       return;
     }
-    if (
-      activePointerIdRef.current == null ||
-      event.pointerId !== activePointerIdRef.current
-    ) {
+    if (activePointerIdRef.current == null || event.pointerId !== activePointerIdRef.current) {
       return;
     }
     if (draggedId != null) {
@@ -774,10 +729,7 @@ export function TodoItemTree({
     if (!supportsPointerEvents) {
       return;
     }
-    if (
-      activePointerIdRef.current == null ||
-      event.pointerId !== activePointerIdRef.current
-    ) {
+    if (activePointerIdRef.current == null || event.pointerId !== activePointerIdRef.current) {
       return;
     }
     activePointerIdRef.current = null;
@@ -803,11 +755,8 @@ export function TodoItemTree({
           当前筛选条件下已禁用拖拽排序，清空筛选后可长按拖拽
         </div>
       ) : null}
-      <div
-        className="relative w-full"
-        style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
-      >
-        {virtualRows.map((virtualRow) => {
+      <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
+        {virtualRows.map(virtualRow => {
           const row = visibleRows[virtualRow.index];
           if (!row) {
             return null;
@@ -833,18 +782,11 @@ export function TodoItemTree({
                 depth={depth}
                 isActive={activeTodoId === item.id}
                 isDragging={draggedId === item.id}
-                isDropBefore={
-                  dropHint?.hoverId === item.id &&
-                  dropHint.placement === "before"
-                }
-                isDropAfter={
-                  dropHint?.hoverId === item.id &&
-                  dropHint.placement === "after"
-                }
+                isDropBefore={dropHint?.hoverId === item.id && dropHint.placement === "before"}
+                isDropAfter={dropHint?.hoverId === item.id && dropHint.placement === "after"}
                 isDropChild={
                   dropHint?.hoverId === item.id &&
-                  (dropHint.placement === "child-before" ||
-                    dropHint.placement === "child-after")
+                  (dropHint.placement === "child-before" || dropHint.placement === "child-after")
                 }
                 onOpenDetail={onOpenDetail}
                 onToggleComplete={onToggleComplete}

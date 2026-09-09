@@ -24,6 +24,7 @@ import {
 } from "./recurrence";
 import { useRecurringTaskStatus } from "./useRecurringTaskStatus";
 import { useTodoStore } from "./store/useTodoStore";
+import { useTodoItems } from "./queries";
 import { BottomSheet } from "../../components/BottomSheet";
 import { ActionSheet } from "../../components/ActionSheet";
 import type { ActionSheetItem } from "../../components/ActionSheet";
@@ -132,9 +133,13 @@ function recurrenceTypeLabel(type: RecurrenceType): string {
 
 export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailPageProps) {
   const store = useTodoStore();
+  const activeGroupId = useTodoStore(state => state.activeGroupId);
+  const resolvedGroupId = groupId ?? activeGroupId ?? undefined;
+  const itemsQuery = useTodoItems({ groupId: resolvedGroupId });
+  const itemsByGroupId = itemsQuery.data ? { [String(resolvedGroupId)]: itemsQuery.data } : {};
   const current = useMemo(
-    () => resolveCurrentItem(store.itemsByGroupId, todoId),
-    [store.itemsByGroupId, todoId]
+    () => resolveCurrentItem(itemsByGroupId, todoId),
+    [itemsByGroupId, todoId]
   );
   const recurringStatus = useRecurringTaskStatus(current);
 
@@ -173,17 +178,10 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
   }, [current]);
 
   useEffect(() => {
-    if (current) return;
-    if (groupId != null) {
-      void store.loadItems(groupId).catch(error => {
-        onError(error, "加载任务详情失败");
-      });
-      return;
-    }
-    void store.refreshActiveItems().catch(error => {
-      onError(error, "加载任务详情失败");
-    });
-  }, [current, groupId, onError, store]);
+    if (current || !itemsQuery.error) return;
+    onError(itemsQuery.error, "加载任务详情失败");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current, itemsQuery.error]);
 
   useEffect(() => {
     const recurrence = recurringStatus.recurrence;
@@ -282,7 +280,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
     const completions = await tauri.todoGetRecurrenceCompletions(recurrence.id, startDate, endDate);
     setRecurrenceCompletions(completions);
     setHeatmap(buildHeatmap(recurrence, completions));
-    await Promise.all([store.refreshActiveItems(), store.loadGroupStats()]);
+    // 完成状态变化由 invalidate 自动刷新订阅
   };
 
   const handleEnsureRecurrence = async (): Promise<TodoRecurrence> => {

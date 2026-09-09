@@ -1,13 +1,16 @@
+// todo 域状态：仅保留 UI 态（激活分组/筛选）与 mutation 编排。
+// 服务端数据（groups/stats/items）由组件经 features/todo/queries.ts 直接订阅 query 缓存，
+// mutation 后 invalidateQueries(["todo"]) 驱动所有订阅刷新——单一状态源。
+
 import { create } from "zustand";
-import { getQueryClient } from "../../../router";
 import type { Descendant } from "slate";
+import { getQueryClient } from "../../../router";
 import * as tauri from "../../../services/tauri";
 import type {
   ArchiveTodoGroupPayload,
   CreateTodoGroupPayload,
   CreateTodoItemPayload,
   CreateTodoItemRelativePayload,
-  ListTodoItemsByTypePayload,
   MoveAndReorderTodoItemPayload,
   ReorderTodoGroupsPayload,
   TodoGroup,
@@ -28,9 +31,7 @@ const TODO_SYSTEM_TYPES: Exclude<TodoSystemGroupType, null>[] = [
   "recurring",
 ];
 
-const EMPTY_GROUP_STATS: Record<number, TodoGroupStats> = {};
-
-type TodoItemsByGroupId = Record<string, TodoItem[]>;
+const TODO_QUERY_STALE_MS = 30_000;
 
 type TodoFilterState = {
   completed?: boolean;
@@ -39,33 +40,15 @@ type TodoFilterState = {
   type?: TodoItemType | "all";
 };
 
-type TodoLoadingState = {
-  groups: boolean;
-  items: boolean;
-};
-
 type TodoState = {
-  groups: TodoGroup[];
-  systemGroups: TodoGroup[];
-  groupStats: Record<number, TodoGroupStats>;
-  itemsByGroupId: TodoItemsByGroupId;
   activeGroupId: number | null;
   activeTodoId: number | null;
   filters: TodoFilterState;
-  loading: TodoLoadingState;
-  lastLoadedDatabase: string | null;
   initializing: boolean;
 
   initialize: (databaseName?: string | null) => Promise<void>;
   reloadAfterDatabaseChange: (databaseName?: string | null) => Promise<void>;
-  loadGroups: () => Promise<void>;
-  loadSystemGroups: () => Promise<void>;
-  loadGroupStats: () => Promise<void>;
-  refreshActiveItems: () => Promise<void>;
-  loadItems: (groupId: number) => Promise<void>;
-  loadItemsByType: (type: Exclude<TodoSystemGroupType, null>) => Promise<void>;
-
-  setActiveGroup: (groupId: number | null) => Promise<void>;
+  setActiveGroup: (groupId: number | null) => void;
   setActiveTodo: (todoId: number | null) => void;
   setFilters: (patch: Partial<TodoFilterState>) => void;
   clearFilters: () => void;
@@ -90,6 +73,10 @@ type TodoState = {
   deleteItemCascade: (id: number) => Promise<void>;
 };
 
+function invalidateTodoQueries() {
+  getQueryClient().invalidateQueries({ queryKey: ["todo"] });
+}
+
 function resolveStatsMap(
   groupStats: TodoGroupStats[],
   systemStats: TodoGroupStats[]
@@ -102,6 +89,34 @@ function resolveStatsMap(
     next[stats.groupId] = stats;
   });
   return next;
+}
+
+async function fetchAllGroupData() {
+  const queryClient = getQueryClient();
+  const [groups, systemGroups, groupStats] = await Promise.all([
+    queryClient.fetchQuery({
+      queryKey: ["todo", "groups"],
+      queryFn: () => tauri.todoListGroups(),
+      staleTime: TODO_QUERY_STALE_MS,
+    }),
+    queryClient.fetchQuery({
+      queryKey: ["todo", "systemGroups"],
+      queryFn: () => tauri.todoGetSystemGroups(),
+      staleTime: TODO_QUERY_STALE_MS,
+    }),
+    queryClient.fetchQuery({
+      queryKey: ["todo", "stats"],
+      queryFn: async () => {
+        const [groupStats, systemStats] = await Promise.all([
+          tauri.todoGetGroupStats(),
+          tauri.todoGetSystemGroupStats(),
+        ]);
+        return resolveStatsMap(groupStats, systemStats);
+      },
+      staleTime: TODO_QUERY_STALE_MS,
+    }),
+  ]);
+  return { groups, systemGroups, groupStats };
 }
 
 function resolveItemsCacheKey(groupId: number | null, systemGroups: TodoGroup[]): string | null {
@@ -134,42 +149,6 @@ function groupExists(groupId: number, groups: TodoGroup[], systemGroups: TodoGro
   );
 }
 
-// 服务端读路径统一走 query 缓存：并发去重、staleTime 内切换分组秒显；
-// mutation 后 invalidateQueries(["todo"]) 即可让所有读路径重新拉取
-const TODO_QUERY_STALE_MS = 30_000;
-
-function invalidateTodoQueries() {
-  getQueryClient().invalidateQueries({ queryKey: ["todo"] });
-}
-
-async function fetchAllGroupData() {
-  const queryClient = getQueryClient();
-  const [groups, systemGroups, groupStats] = await Promise.all([
-    queryClient.fetchQuery({
-      queryKey: ["todo", "groups"],
-      queryFn: () => tauri.todoListGroups(),
-      staleTime: TODO_QUERY_STALE_MS,
-    }),
-    queryClient.fetchQuery({
-      queryKey: ["todo", "systemGroups"],
-      queryFn: () => tauri.todoGetSystemGroups(),
-      staleTime: TODO_QUERY_STALE_MS,
-    }),
-    queryClient.fetchQuery({
-      queryKey: ["todo", "stats"],
-      queryFn: async () => {
-        const [groupStats, systemStats] = await Promise.all([
-          tauri.todoGetGroupStats(),
-          tauri.todoGetSystemGroupStats(),
-        ]);
-        return resolveStatsMap(groupStats, systemStats);
-      },
-      staleTime: TODO_QUERY_STALE_MS,
-    }),
-  ]);
-  return { groups, systemGroups, groupStats };
-}
-
 export function getTodoItemsCacheKey(
   activeGroupId: number | null,
   systemGroups: TodoGroup[]
@@ -178,301 +157,115 @@ export function getTodoItemsCacheKey(
 }
 
 export const useTodoStore = create<TodoState>()((set, get) => ({
-  groups: [],
-  systemGroups: [],
-  groupStats: EMPTY_GROUP_STATS,
-  itemsByGroupId: {},
   activeGroupId: null,
   activeTodoId: null,
-  filters: {
-    type: "all",
-  },
-  loading: {
-    groups: false,
-    items: false,
-  },
-  lastLoadedDatabase: null,
+  filters: { type: "all" },
   initializing: false,
 
-  initialize: async databaseName => {
-    const state = get();
-    if (
-      databaseName &&
-      state.lastLoadedDatabase === databaseName &&
-      state.systemGroups.length > 0
-    ) {
-      return;
-    }
-    if (state.initializing) return;
+  initialize: async _databaseName => {
+    if (get().initializing) return;
     set({ initializing: true });
     try {
-      await get().reloadAfterDatabaseChange(databaseName ?? null);
-    } finally {
-      set({ initializing: false });
-    }
-  },
-
-  reloadAfterDatabaseChange: async databaseName => {
-    invalidateTodoQueries();
-    set(state => ({
-      loading: { ...state.loading, groups: true },
-      itemsByGroupId: {},
-      activeTodoId: null,
-    }));
-
-    try {
-      const { groups, systemGroups, groupStats } = await fetchAllGroupData();
+      const { groups, systemGroups } = await fetchAllGroupData();
       const previousGroupId = get().activeGroupId;
       const nextActiveGroupId =
         previousGroupId != null && groupExists(previousGroupId, groups, systemGroups)
           ? previousGroupId
           : resolveFallbackGroupId(groups, systemGroups);
-
-      set(state => ({
-        groups,
-        systemGroups,
-        groupStats,
-        activeGroupId: nextActiveGroupId,
-        loading: { ...state.loading, groups: false },
-        lastLoadedDatabase: databaseName ?? state.lastLoadedDatabase,
-      }));
-
-      if (nextActiveGroupId != null) {
-        void get().refreshActiveItems();
+      if (nextActiveGroupId !== previousGroupId) {
+        set({ activeGroupId: nextActiveGroupId, activeTodoId: null });
       }
-    } catch (error) {
-      set(state => ({
-        loading: { ...state.loading, groups: false },
-      }));
-      throw error;
+    } finally {
+      set({ initializing: false });
     }
   },
 
-  loadGroups: async () => {
-    set(state => ({ loading: { ...state.loading, groups: true } }));
-    try {
-      const groups = await getQueryClient().fetchQuery({
-        queryKey: ["todo", "groups"],
-        queryFn: () => tauri.todoListGroups(),
-        staleTime: TODO_QUERY_STALE_MS,
-      });
-      set(state => ({
-        groups,
-        loading: { ...state.loading, groups: false },
-      }));
-    } catch (error) {
-      set(state => ({
-        loading: { ...state.loading, groups: false },
-      }));
-      throw error;
-    }
+  reloadAfterDatabaseChange: async _databaseName => {
+    invalidateTodoQueries();
+    set({ activeTodoId: null });
+    const { groups, systemGroups } = await fetchAllGroupData();
+    const previousGroupId = get().activeGroupId;
+    const nextActiveGroupId =
+      previousGroupId != null && groupExists(previousGroupId, groups, systemGroups)
+        ? previousGroupId
+        : resolveFallbackGroupId(groups, systemGroups);
+    set({ activeGroupId: nextActiveGroupId });
   },
 
-  loadSystemGroups: async () => {
-    const systemGroups = await getQueryClient().fetchQuery({
-      queryKey: ["todo", "systemGroups"],
-      queryFn: () => tauri.todoGetSystemGroups(),
-      staleTime: TODO_QUERY_STALE_MS,
-    });
-    set({ systemGroups });
-  },
-
-  loadGroupStats: async () => {
-    const statsMap = await getQueryClient().fetchQuery({
-      queryKey: ["todo", "stats"],
-      queryFn: async () => {
-        const [groupStats, systemStats] = await Promise.all([
-          tauri.todoGetGroupStats(),
-          tauri.todoGetSystemGroupStats(),
-        ]);
-        return resolveStatsMap(groupStats, systemStats);
-      },
-      staleTime: TODO_QUERY_STALE_MS,
-    });
-    set({
-      groupStats: statsMap,
-    });
-  },
-
-  refreshActiveItems: async () => {
-    const { activeGroupId, systemGroups } = get();
-    if (activeGroupId == null) {
-      return;
-    }
-    const systemType = systemGroups.find(group => group.id === activeGroupId)?.systemType ?? null;
-    if (systemType) {
-      await get().loadItemsByType(systemType);
-      return;
-    }
-    await get().loadItems(activeGroupId);
-  },
-
-  loadItems: async groupId => {
-    set(state => ({ loading: { ...state.loading, items: true } }));
-    try {
-      const items = await getQueryClient().fetchQuery({
-        queryKey: ["todo", "items", "group", groupId],
-        queryFn: () => tauri.todoListItems({ groupId }),
-        staleTime: TODO_QUERY_STALE_MS,
-      });
-      set(state => ({
-        itemsByGroupId: {
-          ...state.itemsByGroupId,
-          [String(groupId)]: items,
-        },
-        loading: { ...state.loading, items: false },
-      }));
-    } catch (error) {
-      set(state => ({ loading: { ...state.loading, items: false } }));
-      throw error;
-    }
-  },
-
-  loadItemsByType: async type => {
-    set(state => ({ loading: { ...state.loading, items: true } }));
-    try {
-      const payload: ListTodoItemsByTypePayload = { type };
-      const items = await getQueryClient().fetchQuery({
-        queryKey: ["todo", "items", "system", type],
-        queryFn: () => tauri.todoListItemsByType(payload),
-        staleTime: TODO_QUERY_STALE_MS,
-      });
-      set(state => ({
-        itemsByGroupId: {
-          ...state.itemsByGroupId,
-          [`_system_${type}`]: items,
-        },
-        loading: { ...state.loading, items: false },
-      }));
-    } catch (error) {
-      set(state => ({ loading: { ...state.loading, items: false } }));
-      throw error;
-    }
-  },
-
-  setActiveGroup: async groupId => {
+  // items 数据由 useTodoItems 按 key 订阅，切换分组即自动拉取
+  setActiveGroup: groupId => {
     set({ activeGroupId: groupId, activeTodoId: null });
-    if (groupId == null) {
-      return;
-    }
-    await get().refreshActiveItems();
   },
-
   setActiveTodo: todoId => {
     set({ activeTodoId: todoId });
   },
-
   setFilters: patch => {
-    set(state => ({
-      filters: {
-        ...state.filters,
-        ...patch,
-      },
-    }));
+    set(state => ({ filters: { ...state.filters, ...patch } }));
   },
-
   clearFilters: () => {
-    set({
-      filters: {
-        type: "all",
-      },
-    });
+    set({ filters: { type: "all" } });
   },
 
   createGroup: async payload => {
     const group = await tauri.todoCreateGroup(payload);
     invalidateTodoQueries();
-    await get().loadGroups();
     return group;
   },
-
   updateGroup: async payload => {
     const group = await tauri.todoUpdateGroup(payload);
     invalidateTodoQueries();
-    await Promise.all([get().loadGroups(), get().loadSystemGroups()]);
     return group;
   },
-
   archiveGroup: async payload => {
     await tauri.todoArchiveGroup(payload);
-    invalidateTodoQueries();
-    await get().reloadAfterDatabaseChange(get().lastLoadedDatabase);
+    await get().reloadAfterDatabaseChange(null);
   },
-
   reorderGroups: async payload => {
     await tauri.todoReorderGroups(payload);
     invalidateTodoQueries();
-    await get().loadGroups();
   },
 
   createItem: async payload => {
     const item = await tauri.todoCreateItem(payload);
     invalidateTodoQueries();
-    await Promise.all([get().refreshActiveItems(), get().loadGroupStats()]);
     return item;
   },
-
   createItemRelative: async payload => {
     const item = await tauri.todoCreateItemRelative(payload);
     invalidateTodoQueries();
-    await Promise.all([get().refreshActiveItems(), get().loadGroupStats()]);
     return item;
   },
-
   updateItem: async payload => {
     const item = await tauri.todoUpdateItem(payload);
     invalidateTodoQueries();
-    await Promise.all([get().refreshActiveItems(), get().loadGroupStats()]);
     return item;
   },
-
-  patchItemDescriptionContent: (todoId, groupId, descriptionContent) => {
-    set(state => {
-      const next = { ...state.itemsByGroupId };
-      const cacheKey = String(groupId);
-      const items = next[cacheKey];
-      if (Array.isArray(items)) {
-        next[cacheKey] = items.map(item =>
-          item.id === todoId
-            ? {
-                ...item,
-                descriptionContent,
-              }
-            : item
-        );
-      }
-      return { itemsByGroupId: next };
+  patchItemDescriptionContent: (todoId, _groupId, descriptionContent) => {
+    // 乐观更新所有 items 订阅缓存（group/system 两个 key 空间统一处理）
+    getQueryClient().setQueriesData<TodoItem[]>({ queryKey: ["todo", "items"] }, prev => {
+      if (!Array.isArray(prev)) return prev;
+      return prev.map(item => (item.id === todoId ? { ...item, descriptionContent } : item));
     });
   },
-
   toggleCompleteCascade: async payload => {
     await tauri.todoToggleCompleteCascade(payload);
     invalidateTodoQueries();
-    await Promise.all([get().refreshActiveItems(), get().loadGroupStats()]);
   },
-
   moveAndReorder: async payload => {
     const item = await tauri.todoMoveAndReorder(payload);
     invalidateTodoQueries();
-    await Promise.all([get().refreshActiveItems(), get().loadGroupStats()]);
     return item;
   },
-
   archiveItem: async (id, isArchived) => {
     await tauri.todoArchiveItem(id, isArchived);
     invalidateTodoQueries();
-    await Promise.all([get().refreshActiveItems(), get().loadGroupStats()]);
   },
-
   deleteItem: async id => {
     await tauri.todoDeleteItem(id);
     invalidateTodoQueries();
-    await Promise.all([get().refreshActiveItems(), get().loadGroupStats()]);
   },
-
   deleteItemCascade: async id => {
     await tauri.todoDeleteItemCascade(id);
     invalidateTodoQueries();
-    await Promise.all([get().refreshActiveItems(), get().loadGroupStats()]);
   },
 }));

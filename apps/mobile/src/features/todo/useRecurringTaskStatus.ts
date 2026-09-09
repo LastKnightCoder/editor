@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
 import * as tauri from "../../services/tauri";
-import type {
-  TodoItem,
-  TodoRecurrence,
-  TodoRecurrenceCompletion,
-} from "../../types";
+import type { TodoItem, TodoRecurrence, TodoRecurrenceCompletion } from "../../types";
 import { getTodayNormalized, isTodayScheduled } from "./recurrence";
 
 type RecurringTaskStatus = {
@@ -25,9 +21,7 @@ const INITIAL_STATUS: RecurringTaskStatus = {
   error: null,
 };
 
-export function useRecurringTaskStatus(
-  todoItem: TodoItem | null,
-): RecurringTaskStatus {
+export function useRecurringTaskStatus(todoItem: TodoItem | null): RecurringTaskStatus {
   const [status, setStatus] = useState<RecurringTaskStatus>(INITIAL_STATUS);
 
   useEffect(() => {
@@ -38,7 +32,7 @@ export function useRecurringTaskStatus(
 
     let cancelled = false;
     const loadStatus = async () => {
-      setStatus((previous) => ({
+      setStatus(previous => ({
         ...previous,
         isLoading: true,
         error: null,
@@ -46,8 +40,7 @@ export function useRecurringTaskStatus(
 
       try {
         const recurrence =
-          todoItem.recurrence ??
-          (await tauri.todoGetRecurrenceByItem(todoItem.id));
+          todoItem.recurrence ?? (await tauri.todoGetRecurrenceByItem(todoItem.id));
 
         if (cancelled) {
           return;
@@ -80,7 +73,7 @@ export function useRecurringTaskStatus(
 
         const completion = await tauri.todoGetRecurrenceCompletion(
           recurrence.id,
-          getTodayNormalized(),
+          getTodayNormalized()
         );
         if (cancelled) {
           return;

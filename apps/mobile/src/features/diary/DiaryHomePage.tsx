@@ -3,6 +3,7 @@ import { useMemoizedFn } from "ahooks";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { DiaryEntry, DiaryType } from "../../types";
 import { useDiaryStore } from "./store/useDiaryStore";
+import { useDiaryEntries } from "./queries";
 import {
   getBaseDateFromDiaryKey,
   getDiaryDateKey,
@@ -73,8 +74,9 @@ function weekdayLabel(index: number): string {
 export function DiaryHomePage({ onBack, onOpenEditor, onError }: DiaryHomePageProps) {
   const mode = useDiaryStore(state => state.mode);
   const baseDate = useDiaryStore(state => state.baseDate);
-  const entries = useDiaryStore(state => state.entries);
-  const loading = useDiaryStore(state => state.loading);
+  const entriesQuery = useDiaryEntries();
+  const entries = entriesQuery.data ?? [];
+  const loading = entriesQuery.isLoading;
   const initialize = useDiaryStore(state => state.initialize);
   const [browseMode, setBrowseMode] = useState<DiaryType>(mode);
 
