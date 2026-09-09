@@ -13,15 +13,10 @@ type CardsPageProps = {
   isLoadingCards: boolean;
   isPreviewOpen: boolean;
   onPreviewCard: (cardId: number) => void;
-  onUpdateCardCategory: (
-    cardId: number,
-    category: KnownCardCategory,
-  ) => Promise<void>;
+  onUpdateCardCategory: (cardId: number, category: KnownCardCategory) => Promise<void>;
   onDeleteCard: (cardId: number) => Promise<void>;
   setQueryState: Dispatch<SetStateAction<CardsQueryState>>;
-  refreshCards: (
-    overrides?: Partial<CardsQueryState>,
-  ) => Promise<CardsOverviewResponse>;
+  refreshCards: (overrides?: Partial<CardsQueryState>) => Promise<CardsOverviewResponse | null>;
 };
 
 const CARD_ESTIMATE_SIZE = 220;
@@ -35,21 +30,16 @@ export function CardsPage(props: CardsPageProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const pendingPageRef = useRef<number | null>(null);
   const previewOpenRef = useRef(props.isPreviewOpen);
-  const queryKeyRef = useRef(
-    `${props.queryState.query}::${props.queryState.category}`,
-  );
+  const queryKeyRef = useRef(`${props.queryState.query}::${props.queryState.category}`);
   const [scrollMargin, setScrollMargin] = useState(0);
 
   const virtualizer = useWindowVirtualizer({
     count: listCount,
-    estimateSize: (index) =>
-      hasMore && index === items.length
-        ? LOAD_SENTINEL_SIZE
-        : CARD_ESTIMATE_SIZE,
+    estimateSize: index =>
+      hasMore && index === items.length ? LOAD_SENTINEL_SIZE : CARD_ESTIMATE_SIZE,
     overscan: 6,
     scrollMargin,
-    getItemKey: (index) =>
-      index < items.length ? items[index].id : "load-more-sentinel",
+    getItemKey: index => (index < items.length ? items[index].id : "load-more-sentinel"),
   });
 
   const virtualItems = virtualizer.getVirtualItems();
@@ -62,9 +52,7 @@ export function CardsPage(props: CardsPageProps) {
       if (!element) return;
       const bodyTop = document.body.getBoundingClientRect().top;
       const nextMargin = element.getBoundingClientRect().top - bodyTop;
-      setScrollMargin((prev) =>
-        Math.abs(prev - nextMargin) > 1 ? nextMargin : prev,
-      );
+      setScrollMargin(prev => (Math.abs(prev - nextMargin) > 1 ? nextMargin : prev));
     };
 
     updateScrollMargin();
@@ -72,9 +60,7 @@ export function CardsPage(props: CardsPageProps) {
     window.addEventListener("resize", updateScrollMargin);
     window.addEventListener("orientationchange", updateScrollMargin);
     const observer =
-      typeof ResizeObserver === "undefined"
-        ? null
-        : new ResizeObserver(updateScrollMargin);
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateScrollMargin);
     if (observer) {
       observer.observe(document.body);
     }
@@ -91,9 +77,7 @@ export function CardsPage(props: CardsPageProps) {
     if (!element) return;
     const bodyTop = document.body.getBoundingClientRect().top;
     const nextMargin = element.getBoundingClientRect().top - bodyTop;
-    setScrollMargin((prev) =>
-      Math.abs(prev - nextMargin) > 1 ? nextMargin : prev,
-    );
+    setScrollMargin(prev => (Math.abs(prev - nextMargin) > 1 ? nextMargin : prev));
   }, [listCount, props.isLoadingCards]);
 
   useEffect(() => {
@@ -110,9 +94,7 @@ export function CardsPage(props: CardsPageProps) {
         if (!element) return;
         const bodyTop = document.body.getBoundingClientRect().top;
         const nextMargin = element.getBoundingClientRect().top - bodyTop;
-        setScrollMargin((prev) =>
-          Math.abs(prev - nextMargin) > 1 ? nextMargin : prev,
-        );
+        setScrollMargin(prev => (Math.abs(prev - nextMargin) > 1 ? nextMargin : prev));
       });
     });
 
@@ -135,10 +117,7 @@ export function CardsPage(props: CardsPageProps) {
   }, [props.queryState.category, props.queryState.query]);
 
   useEffect(() => {
-    if (
-      pendingPageRef.current !== null &&
-      props.queryState.page >= pendingPageRef.current
-    ) {
+    if (pendingPageRef.current !== null && props.queryState.page >= pendingPageRef.current) {
       pendingPageRef.current = null;
     }
     if (!hasMore) {
@@ -176,7 +155,7 @@ export function CardsPage(props: CardsPageProps) {
     <section className="pb-24">
       {props.isLoadingCards && !props.cards?.items.length ? (
         <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
+          {[1, 2, 3].map(i => (
             <div key={i} className="card p-4">
               <div className="h-5 w-3/4 animate-pulse rounded bg-gray-100 dark:bg-zinc-800" />
               <div className="mt-3 h-4 w-full animate-pulse rounded bg-gray-100 dark:bg-zinc-800" />
@@ -192,9 +171,8 @@ export function CardsPage(props: CardsPageProps) {
             className="relative w-full"
             style={{ height: `${virtualizer.getTotalSize()}px` }}
           >
-            {virtualItems.map((virtualItem) => {
-              const isLoadSentinel =
-                hasMore && virtualItem.index === items.length;
+            {virtualItems.map(virtualItem => {
+              const isLoadSentinel = hasMore && virtualItem.index === items.length;
               if (isLoadSentinel) {
                 return (
                   <div
@@ -266,9 +244,7 @@ export function CardsPage(props: CardsPageProps) {
             className="mx-auto text-gray-400 dark:text-gray-500"
             aria-hidden="true"
           />
-          <p className="mt-4 text-base text-gray-500 dark:text-gray-400">
-            还没有卡片
-          </p>
+          <p className="mt-4 text-base text-gray-500 dark:text-gray-400">还没有卡片</p>
           <p className="mt-1 text-sm text-gray-400 dark:text-gray-500">
             点击下方 + 按钮创建第一张卡片
           </p>

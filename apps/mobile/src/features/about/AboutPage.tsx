@@ -1,13 +1,9 @@
 import { useEffect, useState } from "react";
 import { getName, getVersion } from "@tauri-apps/api/app";
 import { ChevronLeft } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
-import { resolveScreenMotion } from "../../navigation/screenTransition";
-import type { PageTransitionConfig } from "../../navigation/types";
 
 type AboutPageProps = {
   onBack: () => void;
-  transition?: PageTransitionConfig;
 };
 
 type AppInfo = {
@@ -33,11 +29,9 @@ function InfoItem(props: { label: string; value: string }) {
   );
 }
 
-export function AboutPage({ onBack, transition }: AboutPageProps) {
+export function AboutPage({ onBack }: AboutPageProps) {
   const [appInfo, setAppInfo] = useState<AppInfo>(DEFAULT_APP_INFO);
   const [loading, setLoading] = useState(true);
-  const reducedMotion = useReducedMotion();
-  const motionProps = resolveScreenMotion(transition, reducedMotion === true);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,7 +40,7 @@ export function AboutPage({ onBack, transition }: AboutPageProps) {
       try {
         const [name, version] = await Promise.all([getName(), getVersion()]);
         if (cancelled) return;
-        setAppInfo((prev) => ({
+        setAppInfo(prev => ({
           ...prev,
           name: name || prev.name,
           version: version || prev.version,
@@ -66,12 +60,7 @@ export function AboutPage({ onBack, transition }: AboutPageProps) {
   }, []);
 
   return (
-    <motion.div
-      initial={motionProps.initial}
-      animate={motionProps.animate}
-      exit={motionProps.exit}
-      className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
-    >
+    <div className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black">
       <header className="mobile-topbar topbar-immersive flex items-center px-2">
         <button
           type="button"
@@ -88,20 +77,15 @@ export function AboutPage({ onBack, transition }: AboutPageProps) {
 
       <div className="mobile-kb-scroll flex-1 overflow-y-auto p-4">
         <div className="list-group p-4">
-          <h2 className="mb-3 text-sm font-medium text-gray-700 dark:text-neutral-200">
-            应用信息
-          </h2>
+          <h2 className="mb-3 text-sm font-medium text-gray-700 dark:text-neutral-200">应用信息</h2>
           <div className="space-y-3">
             <InfoItem label="项目名称" value={appInfo.name} />
-            <InfoItem
-              label="版本号"
-              value={loading ? "读取中..." : appInfo.version}
-            />
+            <InfoItem label="版本号" value={loading ? "读取中..." : appInfo.version} />
             <InfoItem label="作者" value={appInfo.author} />
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 

@@ -1,14 +1,11 @@
 import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { ChevronLeft } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
 import { Editor, type EditorRef } from "@tau/editor/src";
 import type { Descendant } from "slate";
 import * as tauri from "../../services/tauri";
 import type { ContentDetailResponse } from "../../types";
 import { useMobileTheme } from "../../hooks/useMobileTheme";
 import { useEditContent } from "../../hooks/useEditContent";
-import { resolveScreenMotion } from "../../navigation/screenTransition";
-import type { PageTransitionConfig } from "../../navigation/types";
 import { MobileEditorBottomToolbar } from "./editorToolbar/MobileEditorBottomToolbar";
 import { useMobileEditorToolbarController } from "./editorToolbar/useMobileEditorToolbarController";
 import { mobileCardPreviewExtensions } from "./editorExtensions";
@@ -30,7 +27,6 @@ type ContentDetailPageProps = {
   onSaved?: (detail: ContentDetailResponse) => void;
   onBack: () => void;
   onError?: (error: unknown, fallback: string) => void;
-  transition?: PageTransitionConfig;
 };
 
 function normalizeTimestamp(value: number): number {
@@ -78,8 +74,8 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     throttleHandleEditorContentChange,
     flushNow,
   } = useEditContent(props.contentId, {
-    onSaved: (saved) => {
-      setDetail((prev) => ({
+    onSaved: saved => {
+      setDetail(prev => ({
         ...(prev ?? saved),
         updateTime: saved.updateTime,
         count: saved.count,
@@ -87,18 +83,13 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
       }));
       props.onSaved?.(saved);
     },
-    onSaveError: (error) => {
+    onSaveError: error => {
       props.onError?.(error, "内容自动保存失败");
     },
   });
-  const reducedMotion = useReducedMotion();
   const toolbarController = useMobileEditorToolbarController({
     editorRef,
   });
-  const motionProps = resolveScreenMotion(
-    props.transition,
-    reducedMotion === true,
-  );
 
   useEffect(() => {
     let cancelled = false;
@@ -111,11 +102,11 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     setDetail(null);
     tauri
       .getContentDetail(props.contentId)
-      .then((result) => {
+      .then(result => {
         if (cancelled) return;
         setDetail(result);
       })
-      .catch((error) => {
+      .catch(error => {
         if (cancelled) return;
         props.onError?.(error, "内容详情加载失败");
       })
@@ -142,12 +133,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   });
 
   return (
-    <motion.div
-      initial={motionProps.initial}
-      animate={motionProps.animate}
-      exit={motionProps.exit}
-      className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
-    >
+    <div className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black">
       <header className="mobile-topbar topbar-immersive flex items-center px-2">
         <button
           type="button"
@@ -194,7 +180,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
 
             {detail.card?.tags && detail.card.tags.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
-                {detail.card.tags.map((tag) => (
+                {detail.card.tags.map(tag => (
                   <span
                     key={tag}
                     className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600 dark:bg-neutral-800 dark:text-neutral-400"
@@ -211,7 +197,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
                   关联
                 </p>
                 <div className="space-y-1">
-                  {detail.card.links.slice(0, 8).map((link) => {
+                  {detail.card.links.slice(0, 8).map(link => {
                     const linkText = String(link);
                     return (
                       <p
@@ -239,7 +225,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
                 initValue={normalizeEditorContent(content)}
                 onFocus={toolbarController.handleEditorFocus}
                 onBlur={toolbarController.handleEditorBlur}
-                onChange={(value) => {
+                onChange={value => {
                   throttleHandleEditorContentChange(value);
                   toolbarController.syncSelection();
                 }}
@@ -252,14 +238,12 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           </div>
         ) : (
           <div className="py-12 text-center">
-            <p className="text-sm text-gray-400 dark:text-gray-500">
-              无可展示内容
-            </p>
+            <p className="text-sm text-gray-400 dark:text-gray-500">无可展示内容</p>
           </div>
         )}
       </div>
       <MobileEditorBottomToolbar controller={toolbarController} />
-    </motion.div>
+    </div>
   );
 }
 

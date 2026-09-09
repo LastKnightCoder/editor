@@ -1,9 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Search, SearchX, Trash2 } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
 import { useSearchHistory } from "../../hooks/useSearchHistory";
-import { resolveScreenMotion } from "../../navigation/screenTransition";
-import type { PageTransitionConfig } from "../../navigation/types";
 import type { CardsOverviewResponse, CardListItem } from "../../types";
 
 type SearchPageProps = {
@@ -11,7 +8,6 @@ type SearchPageProps = {
   onSearch: (query: string) => Promise<CardsOverviewResponse>;
   onPreviewCard: (cardId: number) => void;
   isSearching: boolean;
-  transition?: PageTransitionConfig;
 };
 
 function relativeTime(ts: number): string {
@@ -28,13 +24,7 @@ function relativeTime(ts: number): string {
   return new Date(normalized).toLocaleDateString();
 }
 
-function SearchResultItem({
-  item,
-  onClick,
-}: {
-  item: CardListItem;
-  onClick: () => void;
-}) {
+function SearchResultItem({ item, onClick }: { item: CardListItem; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -45,9 +35,7 @@ function SearchResultItem({
         {item.excerpt?.split("\n")[0] || `卡片 #${item.id}`}
       </p>
       {item.excerpt && (
-        <p className="mt-1 line-clamp-2 text-sm text-gray-500 dark:text-gray-400">
-          {item.excerpt}
-        </p>
+        <p className="mt-1 line-clamp-2 text-sm text-gray-500 dark:text-gray-400">{item.excerpt}</p>
       )}
       <div className="mt-2 flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
         {item.category && <span>{item.category}</span>}
@@ -60,7 +48,7 @@ function SearchResultItem({
       </div>
       {item.tags.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
-          {item.tags.slice(0, 3).map((tag) => (
+          {item.tags.slice(0, 3).map(tag => (
             <span
               key={tag}
               className="rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-neutral-800 dark:text-neutral-300"
@@ -74,20 +62,12 @@ function SearchResultItem({
   );
 }
 
-export function SearchPage({
-  onClose,
-  onSearch,
-  onPreviewCard,
-  isSearching,
-  transition,
-}: SearchPageProps) {
+export function SearchPage({ onClose, onSearch, onPreviewCard, isSearching }: SearchPageProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<CardsOverviewResponse | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { history, addHistory, clearHistory } = useSearchHistory();
-  const reducedMotion = useReducedMotion();
-  const motionProps = resolveScreenMotion(transition, reducedMotion === true);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -115,12 +95,7 @@ export function SearchPage({
   };
 
   return (
-    <motion.div
-      initial={motionProps.initial}
-      animate={motionProps.animate}
-      exit={motionProps.exit}
-      className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
-    >
+    <div className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black">
       {/* 搜索栏 */}
       <div className="mobile-topbar topbar-immersive flex items-center gap-3 px-4 pb-3">
         <div className="relative flex-1">
@@ -131,7 +106,7 @@ export function SearchPage({
             ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="搜索"
             className="input-base w-full rounded-lg py-2.5 pl-10 pr-4 text-[15px] text-gray-900 placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500"
@@ -151,9 +126,7 @@ export function SearchPage({
         {!hasSearched && history.length > 0 ? (
           <div className="p-4">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                搜索历史
-              </h3>
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">搜索历史</h3>
               <button
                 type="button"
                 onClick={clearHistory}
@@ -164,7 +137,7 @@ export function SearchPage({
               </button>
             </div>
             <div className="space-y-1">
-              {history.map((item) => (
+              {history.map(item => (
                 <button
                   key={item}
                   type="button"
@@ -188,16 +161,14 @@ export function SearchPage({
             {isSearching ? (
               <div className="py-12 text-center">
                 <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-gray-500 border-t-transparent dark:border-neutral-500" />
-                <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                  搜索中...
-                </p>
+                <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">搜索中...</p>
               </div>
             ) : results?.items.length ? (
               <div className="space-y-3">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   共 {results.total} 条结果
                 </p>
-                {results.items.map((item) => (
+                {results.items.map(item => (
                   <SearchResultItem
                     key={item.id}
                     item={item}
@@ -212,9 +183,7 @@ export function SearchPage({
                   className="mx-auto text-gray-400 dark:text-gray-500"
                   aria-hidden="true"
                 />
-                <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                  未找到相关内容
-                </p>
+                <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">未找到相关内容</p>
               </div>
             )}
           </div>
@@ -227,13 +196,11 @@ export function SearchPage({
               className="mx-auto text-gray-400 dark:text-gray-500"
               aria-hidden="true"
             />
-            <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-              输入关键词搜索卡片
-            </p>
+            <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">输入关键词搜索卡片</p>
           </div>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }
 

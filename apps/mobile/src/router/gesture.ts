@@ -1,0 +1,214 @@
+import { useEffect, useRef } from "react";
+import { useAnimationControls } from "motion/react";
+import { SCREEN_PARALLAX_RATIO } from "./transition";
+
+// motion/react 未直接导出 AnimationControls 类型名，从 hook 推导
+export type GestureAnimationControls = ReturnType<typeof useAnimationControls>;
+
+const EDGE_START_WIDTH = 28;
+const LOCK_THRESHOLD_PX = 8;
+const COMMIT_PROGRESS = 0.4;
+const COMMIT_VELOCITY_PX_PER_MS = 0.5;
+const FALLBACK_VIEWPORT_WIDTH = 375;
+
+export type EdgeBackGestureConfig = {
+  enabled: boolean;
+  activeEntryId: string | null;
+  underlayEntryId: string | null;
+  controlsMap: Map<string, GestureAnimationControls>;
+  /** 返回 true 表示已驱动回退；false（守卫拒绝等）时手势需回弹 */
+  onBack: () => Promise<boolean> | boolean;
+};
+
+function getViewportWidth(): number {
+  if (typeof window === "undefined" || window.innerWidth <= 0) {
+    return FALLBACK_VIEWPORT_WIDTH;
+  }
+  return window.innerWidth;
+}
+
+/**
+ * 左边缘跟手返回：拖动栈顶页实时位移并露出下层视差层，
+ * 松手按位移/速度阈值决定返回或回弹。
+ */
+export function useEdgeBackGesture(config: EdgeBackGestureConfig): void {
+  const configRef = useRef(config);
+  configRef.current = config;
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      return;
+    }
+
+    let tracking = false;
+    let locked = false;
+    let startX = 0;
+    let startY = 0;
+    let lastX = 0;
+    let lastT = 0;
+
+    const applyDrag = (dx: number): number => {
+      const { controlsMap, activeEntryId, underlayEntryId } = configRef.current;
+      const width = getViewportWidth();
+      const progress = Math.min(Math.max(dx / width, 0), 1);
+      const activeControls = activeEntryId ? controlsMap.get(activeEntryId) : undefined;
+      activeControls?.set({ x: `${progress * 100}%` });
+      const underlayControls = underlayEntryId ? controlsMap.get(underlayEntryId) : undefined;
+      underlayControls?.set({
+        x: `${-SCREEN_PARALLAX_RATIO * (1 - progress) * 100}%`,
+      });
+      return progress;
+    };
+
+    const onTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) {
+        return;
+      }
+      const cfg = configRef.current;
+      if (!cfg.enabled || !cfg.activeEntryId) {
+        return;
+      }
+      const touch = event.touches[0];
+      if (touch.clientX > EDGE_START_WIDTH) {
+        return;
+      }
+      tracking = true;
+      locked = false;
+      startX = touch.clientX;
+      startY = touch.clientY;
+      lastX = touch.clientX;
+      lastT = performance.now();
+    };
+
+    const onTouchMove = (event: TouchEvent) => {
+      if (!tracking) {
+        return;
+      }
+      const touch = event.touches[0];
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      if (!locked) {
+        // 横向意图明确后才锁定，避免与纵向滚动冲突
+        if (Math.abs(dx) < LOCK_THRESHOLD_PX || Math.abs(dx) <= Math.abs(dy)) {
+          return;
+        }
+        locked = true;
+      }
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+      lastX = touch.clientX;
+      lastT = performance.now();
+      applyDrag(Math.max(0, dx));
+    };
+
+    const springBack = (): void => {
+      const { controlsMap, activeEntryId, underlayEntryId } = configRef.current;
+      const activeControls = activeEntryId ? controlsMap.get(activeEntryId) : undefined;
+      const underlayControls = underlayEntryId ? controlsMap.get(underlayEntryId) : undefined;
+      void activeControls?.start({
+        x: 0,
+        transition: { type: "spring", stiffness: 420, damping: 38 },
+      });
+      void underlayControls?.start({
+        x: `${-SCREEN_PARALLAX_RATIO * 100}%`,
+        transition: { type: "spring", stiffness: 420, damping: 38 },
+      });
+    };
+
+    const finish = (event: TouchEvent) => {
+      if (!tracking) {
+        return;
+      }
+      const wasLocked = locked;
+      tracking = false;
+      locked = false;
+      if (!wasLocked) {
+        return;
+      }
+
+      const touch = event.changedTouches[0];
+      const dx = Math.max(0, touch.clientX - startX);
+      const now = performance.now();
+      const dt = Math.max(now - lastT, 1);
+      const velocity = Math.max(0, (touch.clientX - lastX) / dt);
+      const progress = applyDrag(dx);
+      const { controlsMap, activeEntryId, underlayEntryId, onBack } = configRef.current;
+      const activeControls = activeEntryId ? controlsMap.get(activeEntryId) : undefined;
+      const underlayControls = underlayEntryId ? controlsMap.get(underlayEntryId) : undefined;
+
+      if (progress >= COMMIT_PROGRESS || velocity >= COMMIT_VELOCITY_PX_PER_MS) {
+        const remaining = Math.max(1 - progress, 0.05);
+        void activeControls?.start({
+          x: "100%",
+          transition: {
+            duration: Math.max(remaining * 0.25, 0.08),
+            ease: [0.4, 0, 1, 1],
+          },
+        });
+        void underlayControls?.start({
+          x: 0,
+          transition: {
+            duration: Math.max(remaining * 0.3, 0.1),
+            ease: [0.22, 1, 0.36, 1],
+          },
+        });
+        void Promise.resolve(onBack()).then(driven => {
+          // 守卫拒绝等未驱动回退时回弹，页面回到可交互位置
+          if (!driven) {
+            springBack();
+          }
+        });
+        return;
+      }
+
+      springBack();
+    };
+
+    const onTouchCancel = (): void => {
+      if (!tracking) {
+        return;
+      }
+      const wasLocked = locked;
+      tracking = false;
+      locked = false;
+      if (wasLocked) {
+        springBack();
+      }
+    };
+
+    document.addEventListener("touchstart", onTouchStart, {
+      capture: true,
+      passive: true,
+    });
+    document.addEventListener("touchmove", onTouchMove, {
+      capture: true,
+      passive: false,
+    });
+    document.addEventListener("touchend", finish, {
+      capture: true,
+      passive: true,
+    });
+    document.addEventListener("touchcancel", onTouchCancel, {
+      capture: true,
+      passive: true,
+    });
+
+    return () => {
+      document.removeEventListener("touchstart", onTouchStart, {
+        capture: true,
+      });
+      document.removeEventListener("touchmove", onTouchMove, {
+        capture: true,
+      });
+      document.removeEventListener("touchend", finish, {
+        capture: true,
+      });
+      document.removeEventListener("touchcancel", onTouchCancel, {
+        capture: true,
+      });
+    };
+  }, []);
+}
+
+export default useEdgeBackGesture;

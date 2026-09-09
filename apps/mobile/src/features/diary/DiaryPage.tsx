@@ -1,12 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
 import { Editor, type EditorRef } from "@tau/editor/src";
 import type { Descendant } from "slate";
 import { useMobileTheme } from "../../hooks/useMobileTheme";
-import { resolveScreenMotion } from "../../navigation/screenTransition";
-import type { PageTransitionConfig } from "../../navigation/types";
 import type { DiaryType } from "../../types";
 import { EMPTY_EDITOR_CONTENT, normalizeEditorContent } from "../cards/editorContentUtils";
 import { MobileEditorBottomToolbar } from "../cards/editorToolbar/MobileEditorBottomToolbar";
@@ -18,7 +15,6 @@ import { useDiaryStore } from "./store/useDiaryStore";
 type DiaryPageProps = {
   onBack: () => void;
   onError: (error: unknown, fallback: string) => void;
-  transition?: PageTransitionConfig;
   isVisible?: boolean;
 };
 
@@ -28,7 +24,7 @@ const MODE_OPTIONS: Array<{ value: DiaryType; label: string }> = [
   { value: "monthly", label: "月记" },
 ];
 
-export function DiaryPage({ onBack, onError, transition, isVisible = true }: DiaryPageProps) {
+export function DiaryPage({ onBack, onError, isVisible = true }: DiaryPageProps) {
   const { theme } = useMobileTheme();
   const editorRef = useRef<EditorRef | null>(null);
   const applyingStoreContentRef = useRef(false);
@@ -59,8 +55,6 @@ export function DiaryPage({ onBack, onError, transition, isVisible = true }: Dia
     currentEntry?.segments?.find(segment => segment.id === activeSegmentId) ??
     currentEntry?.segments?.[0];
 
-  const reducedMotion = useReducedMotion();
-  const motionProps = resolveScreenMotion(transition, reducedMotion === true);
   const toolbarController = useMobileEditorToolbarController({ editorRef });
 
   const periodLabel = useMemo(() => formatDiaryPeriodLabel(mode, baseDate), [mode, baseDate]);
@@ -217,12 +211,7 @@ export function DiaryPage({ onBack, onError, transition, isVisible = true }: Dia
   });
 
   return (
-    <motion.div
-      initial={motionProps.initial}
-      animate={motionProps.animate}
-      exit={motionProps.exit}
-      className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black"
-    >
+    <div className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black">
       <header className="mobile-topbar topbar-immersive flex items-center px-2">
         <button
           type="button"
@@ -380,7 +369,7 @@ export function DiaryPage({ onBack, onError, transition, isVisible = true }: Dia
       </div>
 
       <MobileEditorBottomToolbar controller={toolbarController} />
-    </motion.div>
+    </div>
   );
 }
 

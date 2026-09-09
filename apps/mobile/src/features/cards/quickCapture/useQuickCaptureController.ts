@@ -1,0 +1,273 @@
+// 闪念（快速捕获）控制器：600ms 防抖落库、草稿 localStorage 持久化、
+// 清空即删卡。原先寄生在 AppShell 的约 300 行逻辑下沉至此。
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemoizedFn } from "ahooks";
+import type { Descendant } from "slate";
+import * as tauri from "../../../services/tauri";
+import {
+  EMPTY_EDITOR_CONTENT,
+  getContentLength,
+  isEditorContentEmpty,
+  normalizeEditorContent,
+} from "../editorContentUtils";
+import { clearQuickCaptureDraft, hasQuickCaptureDraft } from "../quickCaptureDraft";
+import { toast } from "../../../components/toast";
+import type { KnownCardCategory } from "../cardCategory";
+
+const QUICK_CAPTURE_DEBOUNCE_MS = 600;
+
+export type QuickCaptureControllerDeps = {
+  presentError: (error: unknown, fallback: string) => void;
+  refreshCards: () => Promise<unknown>;
+};
+
+export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
+  const [saving, setSaving] = useState(false);
+  const [category, setCategory] = useState<KnownCardCategory>("temporary");
+
+  const contentRef = useRef<Descendant[]>(EMPTY_EDITOR_CONTENT);
+  const categoryRef = useRef<KnownCardCategory>("temporary");
+  const cardIdRef = useRef<number | null>(null);
+  const contentIdRef = useRef<number | null>(null);
+  const debounceTimerRef = useRef<number | null>(null);
+  const flushInFlightRef = useRef<Promise<boolean> | null>(null);
+  const dirtyRef = useRef(false);
+  const lastSavedSnapshotRef = useRef("");
+
+  const { presentError, refreshCards } = deps;
+
+  useEffect(() => {
+    categoryRef.current = category;
+  }, [category]);
+
+  // 页面挂载 = 闪念打开：重置会话；存在未完成草稿时提示恢复
+  useEffect(() => {
+    if (hasQuickCaptureDraft()) {
+      toast.info("检测到未完成闪念草稿，可点击 + 继续编辑");
+    }
+    return () => {
+      clearDebounceTimer();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const clearDebounceTimer = useMemoizedFn(() => {
+    if (debounceTimerRef.current === null) return;
+    if (typeof window !== "undefined") {
+      window.clearTimeout(debounceTimerRef.current);
+    } else {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = null;
+  });
+
+  const resetSession = useMemoizedFn(() => {
+    clearDebounceTimer();
+    cardIdRef.current = null;
+    contentIdRef.current = null;
+    dirtyRef.current = false;
+    lastSavedSnapshotRef.current = "";
+    contentRef.current = EMPTY_EDITOR_CONTENT;
+    categoryRef.current = "temporary";
+    setCategory("temporary");
+  });
+
+  const persist = useMemoizedFn(async (): Promise<boolean> => {
+    const normalizedContent = normalizeEditorContent(contentRef.current);
+    contentRef.current = normalizedContent;
+    if (isEditorContentEmpty(normalizedContent)) {
+      return true;
+    }
+
+    const contentKey = JSON.stringify(normalizedContent);
+    const currentCategory = categoryRef.current;
+    const nextSnapshot = JSON.stringify({
+      contentKey,
+      category: currentCategory,
+    });
+    if (nextSnapshot === lastSavedSnapshotRef.current) {
+      clearQuickCaptureDraft();
+      return true;
+    }
+
+    let lastSavedContentKey = "";
+    let lastSavedCategory: KnownCardCategory | null = null;
+    if (lastSavedSnapshotRef.current) {
+      try {
+        const parsed = JSON.parse(lastSavedSnapshotRef.current) as {
+          contentKey?: string;
+          category?: KnownCardCategory;
+        };
+        lastSavedContentKey = parsed.contentKey ?? "";
+        lastSavedCategory = parsed.category ?? null;
+      } catch {
+        // ignore malformed snapshot
+      }
+    }
+
+    setSaving(true);
+    try {
+      let cardId = cardIdRef.current;
+      let contentId = contentIdRef.current;
+      if (cardId === null) {
+        const created = await tauri.createTemporaryCard({
+          content: normalizedContent,
+          count: getContentLength(normalizedContent),
+        });
+        cardId = created.id;
+        contentId = created.contentId;
+        cardIdRef.current = cardId;
+        contentIdRef.current = contentId;
+        if (currentCategory !== "temporary") {
+          await tauri.updateCardCategory({ id: cardId, category: currentCategory });
+        }
+      } else {
+        if (lastSavedContentKey !== contentKey) {
+          if (!contentId || contentId <= 0) {
+            const detail = await tauri.getCardDetail(cardId);
+            contentId = detail.contentId;
+            contentIdRef.current = contentId;
+          }
+          await tauri.updateContent({
+            contentId,
+            content: normalizedContent,
+            count: getContentLength(normalizedContent),
+          });
+        }
+        if (lastSavedCategory !== currentCategory) {
+          await tauri.updateCardCategory({ id: cardId, category: currentCategory });
+        }
+      }
+
+      lastSavedSnapshotRef.current = nextSnapshot;
+      clearQuickCaptureDraft();
+      return true;
+    } catch (error) {
+      presentError(error, "闪念实时保存失败，请稍后重试");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  });
+
+  const flushQueue = useMemoizedFn(async () => {
+    if (flushInFlightRef.current) {
+      return flushInFlightRef.current;
+    }
+    const task = (async () => {
+      let allSucceeded = true;
+      do {
+        dirtyRef.current = false;
+        const success = await persist();
+        if (!success) {
+          allSucceeded = false;
+        }
+      } while (dirtyRef.current);
+      return allSucceeded;
+    })();
+    flushInFlightRef.current = task.finally(() => {
+      flushInFlightRef.current = null;
+    });
+    return flushInFlightRef.current;
+  });
+
+  const schedulePersist = useMemoizedFn(() => {
+    clearDebounceTimer();
+    debounceTimerRef.current = window.setTimeout(() => {
+      debounceTimerRef.current = null;
+      void flushQueue();
+    }, QUICK_CAPTURE_DEBOUNCE_MS);
+  });
+
+  const handleContentChange = useMemoizedFn((content: Descendant[]) => {
+    contentRef.current = normalizeEditorContent(content);
+    dirtyRef.current = true;
+    schedulePersist();
+  });
+
+  const handleCategoryChange = useMemoizedFn((next: KnownCardCategory) => {
+    if (categoryRef.current === next) return;
+    categoryRef.current = next;
+    setCategory(next);
+    dirtyRef.current = true;
+    schedulePersist();
+  });
+
+  const handleClear = useMemoizedFn(() => {
+    if (saving) return;
+    clearDebounceTimer();
+    dirtyRef.current = false;
+    contentRef.current = EMPTY_EDITOR_CONTENT;
+    lastSavedSnapshotRef.current = "";
+    clearQuickCaptureDraft();
+
+    const cardId = cardIdRef.current;
+    if (cardId === null) return;
+
+    setSaving(true);
+    void (async () => {
+      try {
+        const changed = await tauri.deleteCard(cardId);
+        if (changed <= 0) {
+          throw new Error("CARD_NOT_FOUND: card does not exist");
+        }
+        cardIdRef.current = null;
+        contentIdRef.current = null;
+        await refreshCards();
+      } catch (error) {
+        presentError(error, "清空闪念失败，请稍后重试");
+      } finally {
+        setSaving(false);
+      }
+    })();
+  });
+
+  /** 关闭：flush 持久化队列 → 空内容且已建卡则删卡 → 复位并返回 true（调用方负责 goBack） */
+  const requestClose = useMemoizedFn(async (content?: Descendant[]): Promise<boolean> => {
+    if (saving) return false;
+    clearDebounceTimer();
+    const normalizedContent = normalizeEditorContent(content ?? contentRef.current);
+    contentRef.current = normalizedContent;
+
+    if (!isEditorContentEmpty(normalizedContent)) {
+      dirtyRef.current = true;
+      const persisted = await flushQueue();
+      if (!persisted) return false;
+    }
+
+    const finalContent = normalizeEditorContent(contentRef.current);
+    const currentCardId = cardIdRef.current;
+    if (isEditorContentEmpty(finalContent) && currentCardId !== null) {
+      setSaving(true);
+      try {
+        const changed = await tauri.deleteCard(currentCardId);
+        if (changed <= 0) {
+          throw new Error("CARD_NOT_FOUND: card does not exist");
+        }
+      } catch (error) {
+        presentError(error, "删除空白闪念卡片失败");
+        return false;
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    clearQuickCaptureDraft();
+    resetSession();
+    await refreshCards();
+    return true;
+  });
+
+  return useMemo(
+    () => ({
+      saving,
+      category,
+      onContentChange: handleContentChange,
+      onCategoryChange: handleCategoryChange,
+      onClear: handleClear,
+      requestClose,
+    }),
+    [saving, category, handleContentChange, handleCategoryChange, handleClear, requestClose]
+  );
+}

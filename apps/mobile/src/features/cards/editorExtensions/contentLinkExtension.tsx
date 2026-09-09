@@ -1,8 +1,4 @@
-import {
-  Base,
-  createInlineElementPlugin,
-  useThemeColors,
-} from "@tau/editor/src";
+import { Base, createInlineElementPlugin, useThemeColors } from "@tau/editor/src";
 import type { IConfigItem, IExtension } from "@tau/editor/src";
 import {
   useEffect,
@@ -20,18 +16,12 @@ import { Tooltip } from "antd";
 import { FileText } from "lucide-react";
 import { Editor, Element, Transforms, type BaseSelection } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
-import {
-  useNavigationActions,
-  useTopOverlayKey,
-  useTopOverlayParams,
-} from "../../../navigation/hooks";
+import { getNavigator } from "../../../router";
 import * as tauri from "../../../services/tauri";
 import type { ContentDetailResponse } from "../../../types";
 import { useMobileTheme } from "../../../hooks/useMobileTheme";
 import { calculateContentLinkPopoverPosition } from "../contentLinkPosition";
-import ContentLinkPickerSheet, {
-  type ContentLinkPickerResult,
-} from "./ContentLinkPickerSheet";
+import ContentLinkPickerSheet, { type ContentLinkPickerResult } from "./ContentLinkPickerSheet";
 import { unwrapContentLink, wrapContentLink } from "./contentLinkTransforms";
 
 type ContentLinkElement = {
@@ -105,39 +95,6 @@ function normalizeEditorContent(content: unknown): unknown {
   return content;
 }
 
-function extractPreviewCardId(params: unknown): number | undefined {
-  if (!params || typeof params !== "object") {
-    return undefined;
-  }
-  const cardId = (params as { cardId?: unknown }).cardId;
-  return typeof cardId === "number" && Number.isFinite(cardId)
-    ? cardId
-    : undefined;
-}
-
-function extractPreviewUiSnapshot(params: unknown): {
-  scrollTop?: number;
-  panelState?: "normal" | "full";
-} | null {
-  if (!params || typeof params !== "object") {
-    return null;
-  }
-  const ui = (params as { ui?: unknown }).ui;
-  if (!ui || typeof ui !== "object") {
-    return null;
-  }
-  const scrollTop = (ui as { scrollTop?: unknown }).scrollTop;
-  const panelState = (ui as { panelState?: unknown }).panelState;
-  const next: { scrollTop?: number; panelState?: "normal" | "full" } = {};
-  if (typeof scrollTop === "number" && Number.isFinite(scrollTop)) {
-    next.scrollTop = scrollTop;
-  }
-  if (panelState === "normal" || panelState === "full") {
-    next.panelState = panelState;
-  }
-  return Object.keys(next).length > 0 ? next : null;
-}
-
 async function loadPreviewRenderer(): Promise<PreviewRenderer> {
   if (previewRendererCache) {
     return previewRendererCache;
@@ -146,10 +103,7 @@ async function loadPreviewRenderer(): Promise<PreviewRenderer> {
     return previewRendererPromise;
   }
 
-  previewRendererPromise = Promise.all([
-    import("@tau/editor/src"),
-    import("./index"),
-  ])
+  previewRendererPromise = Promise.all([import("@tau/editor/src"), import("./index")])
     .then(([editorModule, extensionModule]) => {
       const nextRenderer: PreviewRenderer = {
         Editor: editorModule.Editor as ComponentType<PreviewEditorProps>,
@@ -184,9 +138,7 @@ function ContentLinkPreviewCard(props: {
   if (props.errorText) {
     return (
       <div className="p-3">
-        <p className="text-xs text-red-500 dark:text-red-400">
-          {props.errorText}
-        </p>
+        <p className="text-xs text-red-500 dark:text-red-400">{props.errorText}</p>
       </div>
     );
   }
@@ -194,9 +146,7 @@ function ContentLinkPreviewCard(props: {
   if (!props.detail) {
     return (
       <div className="p-3">
-        <p className="text-xs text-gray-400 dark:text-neutral-500">
-          无可预览内容
-        </p>
+        <p className="text-xs text-gray-400 dark:text-neutral-500">无可预览内容</p>
       </div>
     );
   }
@@ -215,7 +165,7 @@ function ContentLinkPreviewCard(props: {
 
   return (
     <div
-      className="max-h-[min(70dvh,420px)] space-y-2 overflow-y-auto p-3 overscroll-y-contain touch-pan-y"
+      className="max-h-[min(70dvh,420px)] touch-pan-y space-y-2 overflow-y-auto overscroll-y-contain p-3"
       style={{ WebkitOverflowScrolling: "touch" }}
     >
       <div className="flex items-center gap-2 text-[11px] text-gray-400 dark:text-neutral-500">
@@ -225,7 +175,7 @@ function ContentLinkPreviewCard(props: {
       </div>
       {props.detail.card?.tags && props.detail.card.tags.length > 0 ? (
         <div className="flex flex-wrap gap-1">
-          {props.detail.card.tags.slice(0, 3).map((tag) => (
+          {props.detail.card.tags.slice(0, 3).map(tag => (
             <span
               key={tag}
               className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600 dark:bg-neutral-800 dark:text-neutral-400"
@@ -254,10 +204,6 @@ function InteractiveContentLink(props: {
   element: ContentLinkElement;
   children: ReactNode;
 }) {
-  const { navigate } = useNavigationActions();
-  const topOverlayKey = useTopOverlayKey();
-  const topOverlayParams = useTopOverlayParams();
-
   const anchorRef = useRef<HTMLSpanElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const requestSeqRef = useRef(0);
@@ -265,10 +211,10 @@ function InteractiveContentLink(props: {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState("");
-  const [previewDetail, setPreviewDetail] =
-    useState<ContentDetailResponse | null>(null);
-  const [previewRenderer, setPreviewRenderer] =
-    useState<PreviewRenderer | null>(previewRendererCache);
+  const [previewDetail, setPreviewDetail] = useState<ContentDetailResponse | null>(null);
+  const [previewRenderer, setPreviewRenderer] = useState<PreviewRenderer | null>(
+    previewRendererCache
+  );
   const [panelPos, setPanelPos] = useState({ top: 0, left: 0 });
 
   const title = readText(props.element.contentTitle, "内容引用");
@@ -279,21 +225,12 @@ function InteractiveContentLink(props: {
   const navigateToDetail = useMemoizedFn(() => {
     if (contentId <= 0) return;
     setPreviewOpen(false);
-    const fromPreviewOverlay = topOverlayKey === "overlay.cardPreview";
-    const previewCardId = fromPreviewOverlay
-      ? extractPreviewCardId(topOverlayParams)
-      : undefined;
-    const previewUiSnapshot = fromPreviewOverlay
-      ? extractPreviewUiSnapshot(topOverlayParams)
-      : null;
-    navigate("screen.contentDetail", {
+    // 从预览浮层下钻时，浮层由 router 按 createdAt 规则自动隐藏/恢复
+    getNavigator().push("contentDetail", {
       contentId,
       contentTitle: title,
       contentType,
       refId: refId > 0 ? refId : undefined,
-      fromPreviewOverlay,
-      previewCardId,
-      previewUiSnapshot: previewUiSnapshot ?? undefined,
     });
   });
 
@@ -390,8 +327,8 @@ function InteractiveContentLink(props: {
           left: panelPos.left,
         }}
         data-allow-touchmove="true"
-        className="fixed z-70 w-[min(92vw,360px)] rounded-xl border border-gray-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-950"
-        onClick={(event) => {
+        className="z-70 fixed w-[min(92vw,360px)] rounded-xl border border-gray-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-950"
+        onClick={event => {
           event.stopPropagation();
         }}
       >
@@ -402,7 +339,7 @@ function InteractiveContentLink(props: {
           renderer={previewRenderer}
         />
       </div>,
-      document.body,
+      document.body
     );
   }, [
     panelPos.left,
@@ -421,7 +358,7 @@ function InteractiveContentLink(props: {
         ref={anchorRef}
         contentEditable={false}
         className="mx-0.5 inline-flex cursor-pointer items-center rounded-[2px] border-b-[3px] border-double border-emerald-500/80 px-0.5 text-emerald-700 transition-colors active:opacity-80 dark:border-emerald-400/80 dark:text-emerald-400"
-        onClick={(event) => {
+        onClick={event => {
           event.preventDefault();
           event.stopPropagation();
           if (!previewOpen) {
@@ -451,7 +388,7 @@ function MobileContentLinkHoveringItem() {
       return false;
     }
     const [contentLink] = Editor.nodes(editor, {
-      match: (node) =>
+      match: node =>
         !Editor.isEditor(node) &&
         Element.isElement(node) &&
         (node as { type?: string }).type === "content-link",
@@ -484,30 +421,28 @@ function MobileContentLinkHoveringItem() {
     selectionRef.current = null;
   });
 
-  const handleSelectContent = useMemoizedFn(
-    (result: ContentLinkPickerResult) => {
-      if (selectionRef.current) {
-        Transforms.select(editor, selectionRef.current);
-      }
-      wrapContentLink(editor, {
-        contentId: result.contentId,
-        contentType: result.contentType,
-        contentTitle: result.contentTitle,
-        refId: result.refId,
-        displayText: result.displayText,
-      });
-      setOpenPicker(false);
-      ReactEditor.focus(editor);
-      Transforms.collapse(editor, { edge: "end" });
-      selectionRef.current = null;
-    },
-  );
+  const handleSelectContent = useMemoizedFn((result: ContentLinkPickerResult) => {
+    if (selectionRef.current) {
+      Transforms.select(editor, selectionRef.current);
+    }
+    wrapContentLink(editor, {
+      contentId: result.contentId,
+      contentType: result.contentType,
+      contentTitle: result.contentTitle,
+      refId: result.refId,
+      displayText: result.displayText,
+    });
+    setOpenPicker(false);
+    ReactEditor.focus(editor);
+    Transforms.collapse(editor, { edge: "end" });
+    selectionRef.current = null;
+  });
 
   return (
     <>
       <Tooltip title={"关联内容"} trigger={"hover"}>
         <div
-          className={`flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-all duration-200 ${
+          className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200 ${
             isActive
               ? themeColors.activeClass
               : `${themeColors.textClass} ${themeColors.hoverClass} ${themeColors.hoverTextClass}`
