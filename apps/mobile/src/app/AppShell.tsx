@@ -186,6 +186,15 @@ async function withTimeout<T>(
 }
 
 export default function AppShell() {
+  // AppShellInner 顶层即消费 useCardsQuery（useQueryClient），QueryClient 必须先于它挂载
+  return (
+    <PageQueryProvider>
+      <AppShellInner />
+    </PageQueryProvider>
+  );
+}
+
+function AppShellInner() {
   const mobileEditorConfig = useMobileEditorConfig();
   const bootstrap = useBootstrap();
   const cards = useCardsQuery();
