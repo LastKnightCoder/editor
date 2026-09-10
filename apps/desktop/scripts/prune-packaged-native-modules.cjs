@@ -11,6 +11,78 @@ const llamaBackendAllowlistByPlatform = {
 
 exports.llamaBackendAllowlistByPlatform = llamaBackendAllowlistByPlatform;
 
+// 带平台 token 的原生模块目录只允许当前平台的 token。electron-builder 在
+// pnpm 布局下会顺着虚拟 store 收集 optionalDependencies 里钉住的全平台
+// 变体（本机 store 物化了 win32 包时尤甚），prune 依据同一份常量清扫，
+// verify-native-runtime 复用它做产物断言，保证两处规则不漂移。
+const knownPlatformTokens = [
+  "aix",
+  "android",
+  "arm",
+  "arm64",
+  "darwin",
+  "freebsd",
+  "gnu",
+  "ia32",
+  "linux",
+  "metal",
+  "msvc",
+  "musl",
+  "ppc64",
+  "riscv64",
+  "s390x",
+  "sunos",
+  "wasm32",
+  "win32",
+  "windows",
+  "x64",
+];
+
+const allowedPlatformTokensByPlatform = {
+  win32: ["win32", "windows", "x64", "msvc"],
+  darwin: ["darwin", "arm64", "x64", "metal"],
+  linux: ["linux", "x64", "gnu"],
+};
+
+exports.knownPlatformTokens = knownPlatformTokens;
+exports.allowedPlatformTokensByPlatform = allowedPlatformTokensByPlatform;
+
+const findForeignPlatformToken = (packageName, platform) => {
+  const allowedTokens = allowedPlatformTokensByPlatform[platform];
+  if (!allowedTokens) {
+    return null;
+  }
+  const nameWithoutScope = packageName.split("/").pop();
+  return (
+    knownPlatformTokens.find(
+      token =>
+        !allowedTokens.includes(token) && new RegExp(`-${token}([._-]|$)`).test(nameWithoutScope)
+    ) ?? null
+  );
+};
+
+const removeForeignPlatformPackages = (nodeModulesDir, platform) => {
+  const removed = [];
+  for (const entry of fs.readdirSync(nodeModulesDir)) {
+    const packageNames = entry.startsWith("@")
+      ? fs
+          .readdirSync(path.join(nodeModulesDir, entry))
+          .map(scopedEntry => `${entry}/${scopedEntry}`)
+      : [entry];
+    for (const packageName of packageNames) {
+      const token = findForeignPlatformToken(packageName, platform);
+      if (!token) {
+        continue;
+      }
+      removeDir(path.join(nodeModulesDir, ...packageName.split("/")));
+      removed.push(`${packageName} (token: ${token})`);
+    }
+  }
+  if (removed.length > 0) {
+    console.log(`[prune] removed foreign platform packages:\n  ${removed.join("\n  ")}`);
+  }
+};
+
 const removeDir = targetPath => {
   fs.rmSync(targetPath, { recursive: true, force: true });
 };
@@ -195,7 +267,7 @@ const syncNodeLlamaCppUnpackedDeps = (nodeModulesDir, platform) => {
  * electron-builder 在 pnpm 布局下的 manual traversal 偶发遗漏 optional
  * 平台包（如 @vscode/ripgrep-win32-x64），这里确保它们存在。
  */
-const ensurePlatformSubPackages = (nodeModulesDir, packageName) => {
+const ensurePlatformSubPackages = (nodeModulesDir, packageName, platform) => {
   const localPackageJson = path.resolve(
     __dirname,
     "..",
@@ -215,6 +287,9 @@ const ensurePlatformSubPackages = (nodeModulesDir, packageName) => {
 
   for (const entry of fs.readdirSync(scopeDir)) {
     if (entry === mainName) {
+      continue;
+    }
+    if (findForeignPlatformToken(entry, platform)) {
       continue;
     }
 
@@ -259,7 +334,7 @@ exports.default = async context => {
 
   // ripgrep 主包已 asarUnpack（与平台包同在 unpacked 真实文件系统），
   // 平台包被 manual traversal 遗漏时在此补齐
-  ensurePlatformSubPackages(nodeModulesDir, "@vscode/ripgrep");
+  ensurePlatformSubPackages(nodeModulesDir, "@vscode/ripgrep", platform);
 
   pruneCommonBuildArtifacts(nodeModulesDir);
 
@@ -284,10 +359,7 @@ exports.default = async context => {
       "node-pty/prebuilds/win32-arm64",
       "node-pty/third_party/conpty/1.23.251008001/win10-arm64",
     ]);
-    return;
-  }
-
-  if (platform === "darwin") {
+  } else if (platform === "darwin") {
     removeEntries(nodeModulesDir, [
       "@img/sharp-win32-x64",
       "@myriaddreamin/typst-ts-node-compiler-win32-x64-msvc",
@@ -301,4 +373,8 @@ exports.default = async context => {
       "node-pty/third_party/conpty",
     ]);
   }
+
+  // 兜底清扫：显式清单漏掉的外来平台变体（如 @vscode/ripgrep-win32-x64）
+  // 统一按 token 规则删除，保证产物能过 verify-native-runtime 的同款断言
+  removeForeignPlatformPackages(nodeModulesDir, platform);
 };
