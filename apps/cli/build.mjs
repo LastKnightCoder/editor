@@ -40,7 +40,7 @@ const config = {
   outfile: "dist/index.js",
   format: "esm",
   jsx: "automatic",
-  external: ["proxy-agent", "shiki"],
+  external: ["proxy-agent"],
   plugins: [emptyModulePlugin, nativeRequirePlugin],
   banner: {
     js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
