@@ -254,18 +254,9 @@ const verifyLlamaCppBackendSet = () => {
 };
 
 // 带平台 token 的原生模块目录只能包含当前平台允许的 token，防止被污染的
-// node_modules（如混入其他平台的全量变体）让包体积悄悄膨胀几百 MB
-const knownPlatformTokens = [
-  "aix", "android", "arm", "arm64", "darwin", "freebsd", "gnu", "ia32",
-  "linux", "metal", "msvc", "musl", "ppc64", "riscv64", "s390x", "sunos",
-  "wasm32", "win32", "windows", "x64",
-];
-
-const allowedPlatformTokensByPlatform = {
-  win32: ["win32", "windows", "x64", "msvc"],
-  darwin: ["darwin", "arm64", "x64", "metal"],
-  linux: ["linux", "x64", "gnu"],
-};
+// node_modules（如混入其他平台的全量变体）让包体积悄悄膨胀几百 MB；
+// token 常量与 prune 脚本共享，删除规则与断言规则不允许漂移
+const { knownPlatformTokens, allowedPlatformTokensByPlatform } = pruneNativeModules;
 
 const verifyNoForeignPlatformModules = () => {
   const allowedTokens = allowedPlatformTokensByPlatform[process.platform];
@@ -302,8 +293,7 @@ const verifyNoForeignPlatformModules = () => {
     const nameWithoutScope = packageName.split("/").pop();
     const matchedToken = knownPlatformTokens.find(
       token =>
-        !allowedTokens.includes(token) &&
-        new RegExp(`-${token}([._-]|$)`).test(nameWithoutScope)
+        !allowedTokens.includes(token) && new RegExp(`-${token}([._-]|$)`).test(nameWithoutScope)
     );
     if (matchedToken) {
       foreign.push(`${packageName} (token: ${matchedToken})`);
@@ -315,7 +305,9 @@ const verifyNoForeignPlatformModules = () => {
       `[native-runtime] foreign platform artifacts found in unpacked node_modules:\n  ${foreign.join("\n  ")}`
     );
   }
-  console.log(`[native-runtime] no foreign platform modules (${packageNames.length} packages checked)`);
+  console.log(
+    `[native-runtime] no foreign platform modules (${packageNames.length} packages checked)`
+  );
 };
 
 verifyLlamaCppBackendSet();
