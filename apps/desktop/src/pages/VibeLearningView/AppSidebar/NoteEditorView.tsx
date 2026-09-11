@@ -1,4 +1,5 @@
 import { isElectron } from "@/electron";
+import { useHtmlPreviewUrl } from "@/utils/html-preview";
 import { memo, useEffect, useRef, useState, useMemo } from "react";
 import { Descendant } from "slate";
 import { App } from "antd";
@@ -194,15 +195,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   }, [isPPT, content]);
 
   // PPT 预览 URL
-  const pptPreviewUrl = useMemo(() => {
-    if (!pptHtmlContent) return "";
-    if (isElectron) {
-      return `data:text/html;charset=utf-8,${encodeURIComponent(pptHtmlContent)}`;
-    } else {
-      const blob = new Blob([pptHtmlContent], { type: "text/html" });
-      return URL.createObjectURL(blob);
-    }
-  }, [pptHtmlContent, isElectron]);
+  const pptPreviewUrl = useHtmlPreviewUrl(pptHtmlContent);
 
   // 报告的 HTML 内容（从代码块中提取并清理）
   const reportHtmlContent = useMemo(() => {
@@ -212,15 +205,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   }, [isReport, content]);
 
   // 报告预览 URL
-  const reportPreviewUrl = useMemo(() => {
-    if (!reportHtmlContent) return "";
-    if (isElectron) {
-      return `data:text/html;charset=utf-8,${encodeURIComponent(reportHtmlContent)}`;
-    } else {
-      const blob = new Blob([reportHtmlContent], { type: "text/html" });
-      return URL.createObjectURL(blob);
-    }
-  }, [reportHtmlContent, isElectron]);
+  const reportPreviewUrl = useHtmlPreviewUrl(reportHtmlContent);
 
   const mindMapExportRef = useRef<HTMLDivElement>(null);
   const mindMapFullscreenExportRef = useRef<HTMLDivElement>(null);

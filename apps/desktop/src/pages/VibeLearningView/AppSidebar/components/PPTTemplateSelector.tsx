@@ -1,5 +1,6 @@
 import { isElectron } from "@/electron";
-import { memo, useMemo } from "react";
+import { useHtmlPreviewUrl } from "@/utils/html-preview";
+import { memo } from "react";
 import classNames from "classnames";
 import { Check } from "lucide-react";
 
@@ -53,9 +54,7 @@ const TemplateCard = memo((props: TemplateCardProps) => {
   const { template, isSelected, onClick, isElectron } = props;
 
   // 生成预览 URL
-  const previewUrl = useMemo(() => {
-    return `data:text/html;charset=utf-8,${encodeURIComponent(template.previewHtml)}`;
-  }, [template.previewHtml]);
+  const previewUrl = useHtmlPreviewUrl(template.previewHtml);
 
   return (
     <div

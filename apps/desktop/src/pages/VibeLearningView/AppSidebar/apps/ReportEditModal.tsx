@@ -1,5 +1,6 @@
 import { isElectron } from "@/electron";
-import { memo, useState, useRef, useEffect, useMemo } from "react";
+import { useHtmlPreviewUrl } from "@/utils/html-preview";
+import { memo, useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { App } from "antd";
 import { FileBarChart, Sparkles, RefreshCw, Loader2, CheckCircle2, Code, Eye } from "lucide-react";
@@ -120,25 +121,8 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
     setCleanedHtml(cleaned);
   });
 
-  const htmlPreviewUrl = useMemo(() => {
-    const htmlToPreview = cleanedHtml || currentHtml;
-    if (!htmlToPreview) return "";
-
-    if (isElectron) {
-      return `data:text/html;charset=utf-8,${encodeURIComponent(htmlToPreview)}`;
-    } else {
-      const blob = new Blob([htmlToPreview], { type: "text/html" });
-      return URL.createObjectURL(blob);
-    }
-  }, [cleanedHtml, currentHtml, isElectron]);
-
-  useEffect(() => {
-    return () => {
-      if (!isElectron && htmlPreviewUrl && htmlPreviewUrl.startsWith("blob:")) {
-        URL.revokeObjectURL(htmlPreviewUrl);
-      }
-    };
-  }, [htmlPreviewUrl, isElectron]);
+  const htmlToPreview = cleanedHtml || currentHtml;
+  const htmlPreviewUrl = useHtmlPreviewUrl(htmlToPreview);
 
   const handleStartEdit = useMemoizedFn(async () => {
     if (!userPrompt.trim()) {
