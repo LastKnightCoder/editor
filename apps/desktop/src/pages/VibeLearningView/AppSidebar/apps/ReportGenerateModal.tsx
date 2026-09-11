@@ -1,4 +1,5 @@
 import { isElectron } from "@/electron";
+import { useHtmlPreviewUrl } from "@/utils/html-preview";
 import { memo, useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { App, Spin } from "antd";
@@ -103,16 +104,7 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
     setCleanedHtml(cleaned);
   });
 
-  const htmlPreviewUrl = useMemo(() => {
-    if (!cleanedHtml) return "";
-
-    if (isElectron) {
-      return `data:text/html;charset=utf-8,${encodeURIComponent(cleanedHtml)}`;
-    } else {
-      const blob = new Blob([cleanedHtml], { type: "text/html" });
-      return URL.createObjectURL(blob);
-    }
-  }, [cleanedHtml, isElectron]);
+  const htmlPreviewUrl = useHtmlPreviewUrl(cleanedHtml);
 
   useEffect(() => {
     return () => {

@@ -1,4 +1,5 @@
 import { isElectron } from "@/electron";
+import { useHtmlPreviewUrl } from "@/utils/html-preview";
 import { memo, useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { App, Spin } from "antd";
@@ -109,27 +110,7 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
   });
 
   // 生成 HTML 预览 URL
-  const htmlPreviewUrl = useMemo(() => {
-    if (!cleanedHtml) return "";
-
-    if (isElectron) {
-      // Electron webview 支持 data URL
-      return `data:text/html;charset=utf-8,${encodeURIComponent(cleanedHtml)}`;
-    } else {
-      // 浏览器使用 Blob URL
-      const blob = new Blob([cleanedHtml], { type: "text/html" });
-      return URL.createObjectURL(blob);
-    }
-  }, [cleanedHtml, isElectron]);
-
-  // 清理 Blob URL
-  useEffect(() => {
-    return () => {
-      if (!isElectron && htmlPreviewUrl && htmlPreviewUrl.startsWith("blob:")) {
-        URL.revokeObjectURL(htmlPreviewUrl);
-      }
-    };
-  }, [htmlPreviewUrl, isElectron]);
+  const htmlPreviewUrl = useHtmlPreviewUrl(cleanedHtml);
 
   // 开始生成 PPT
   const handleStartGenerate = useMemoizedFn(async () => {

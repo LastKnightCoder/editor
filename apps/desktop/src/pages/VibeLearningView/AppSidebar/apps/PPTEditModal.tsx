@@ -1,5 +1,6 @@
 import { isElectron } from "@/electron";
-import { memo, useState, useRef, useEffect, useMemo } from "react";
+import { useHtmlPreviewUrl } from "@/utils/html-preview";
+import { memo, useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { App } from "antd";
 import { Presentation, Sparkles, RefreshCw, Loader2, CheckCircle2, Code, Eye } from "lucide-react";
@@ -136,28 +137,8 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
   });
 
   // 生成 HTML 预览 URL
-  const htmlPreviewUrl = useMemo(() => {
-    const htmlToPreview = cleanedHtml || currentHtml;
-    if (!htmlToPreview) return "";
-
-    if (isElectron) {
-      // Electron webview 支持 data URL
-      return `data:text/html;charset=utf-8,${encodeURIComponent(htmlToPreview)}`;
-    } else {
-      // 浏览器使用 Blob URL
-      const blob = new Blob([htmlToPreview], { type: "text/html" });
-      return URL.createObjectURL(blob);
-    }
-  }, [cleanedHtml, currentHtml, isElectron]);
-
-  // 清理 Blob URL
-  useEffect(() => {
-    return () => {
-      if (!isElectron && htmlPreviewUrl && htmlPreviewUrl.startsWith("blob:")) {
-        URL.revokeObjectURL(htmlPreviewUrl);
-      }
-    };
-  }, [htmlPreviewUrl, isElectron]);
+  const htmlToPreview = cleanedHtml || currentHtml;
+  const htmlPreviewUrl = useHtmlPreviewUrl(htmlToPreview || "");
 
   // 开始 AI 编辑
   const handleStartEdit = useMemoizedFn(async () => {

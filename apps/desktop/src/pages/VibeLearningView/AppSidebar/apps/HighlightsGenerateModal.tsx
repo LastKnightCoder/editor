@@ -85,19 +85,12 @@ const HighlightsGenerateModal = memo((props: HighlightsGenerateModalProps) => {
 
   // 在后台执行流式生成（使用工具模式，AI 自主获取资料）
   const runBackgroundGeneration = useMemoizedFn(
-    async (
-      noteId: number,
-      contentId: number,
-      resourceNames: string[],
-      extraPrompt: string,
-    ) => {
+    async (noteId: number, contentId: number, resourceNames: string[], extraPrompt: string) => {
       let lastSavedContent = "";
 
       // 定期保存的定时器
       const saveInterval = setInterval(async () => {
-        const currentContent = useOutlineGenerationStore
-          .getState()
-          .getContent(noteId);
+        const currentContent = useOutlineGenerationStore.getState().getContent(noteId);
         if (currentContent && currentContent !== lastSavedContent) {
           try {
             const slateContent = importFromMarkdown(currentContent);
@@ -129,10 +122,10 @@ const HighlightsGenerateModal = memo((props: HighlightsGenerateModalProps) => {
           },
         },
         {
-          onUpdate: (responseText) => {
+          onUpdate: responseText => {
             updateGeneratingContent(noteId, responseText);
           },
-          onFinish: async (content) => {
+          onFinish: async content => {
             clearInterval(saveInterval);
             // 最终保存
             try {
@@ -143,17 +136,17 @@ const HighlightsGenerateModal = memo((props: HighlightsGenerateModalProps) => {
             }
             finishGeneration(noteId);
           },
-          onError: (e) => {
+          onError: e => {
             clearInterval(saveInterval);
             console.error("Generate highlights error:", e);
             setError(noteId, e.message || "提炼重点失败");
           },
-          onController: (controller) => {
+          onController: controller => {
             abortControllerRef.current = controller;
           },
-        },
+        }
       );
-    },
+    }
   );
 
   // 开始提炼重点
@@ -224,14 +217,14 @@ const HighlightsGenerateModal = memo((props: HighlightsGenerateModalProps) => {
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
     "bg-amber-500 text-white",
     "hover:bg-amber-600",
-    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed",
+    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed"
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
     "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
     "hover:bg-gray-200 dark:hover:bg-zinc-700",
-    "border border-gray-200 dark:border-gray-700",
+    "border border-gray-200 dark:border-gray-700"
   );
 
   // 渲染底部按钮
@@ -251,7 +244,7 @@ const HighlightsGenerateModal = memo((props: HighlightsGenerateModalProps) => {
         disabled={selectedResourceIds.length === 0 || isCreating}
         className={classNames(primaryButtonClass, "flex items-center gap-2")}
       >
-        <Sparkles className="w-4 h-4" />
+        <Sparkles className="h-4 w-4" />
         {isCreating ? "创建中..." : "提炼重点"}
       </button>
     </div>
@@ -266,7 +259,7 @@ const HighlightsGenerateModal = memo((props: HighlightsGenerateModalProps) => {
       destroyOnClose
       title="提炼学习重点"
       subtitle="选择资源，AI 将自动分析并提取核心知识点"
-      icon={<Highlighter className="w-5 h-5 text-amber-500" />}
+      icon={<Highlighter className="h-5 w-5 text-amber-500" />}
       iconBgColor="bg-amber-50 dark:bg-amber-500/20 border-amber-200 dark:border-amber-500/30"
       footer={renderFooter()}
       showCloseButton={!isCreating}
