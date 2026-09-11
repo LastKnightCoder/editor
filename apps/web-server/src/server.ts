@@ -42,7 +42,7 @@ export function createServer(config: WebServerConfig): WebServer {
   };
 
   const isAuthorized = (req: Request): boolean => {
-    // AUTH_TOKEN 未设置 = 开发模式跳过校验（与桌面版 dev 语义对齐）
+    // 仅显式开发模式且未配置 AUTH_TOKEN 时，配置层才允许跳过校验
     if (config.authToken === null) {
       return true;
     }
@@ -68,7 +68,13 @@ export function createServer(config: WebServerConfig): WebServer {
       socket.destroy();
       return;
     }
-    if (config.authToken !== null && url.searchParams.get("token") !== config.authToken) {
+    const authorization = req.headers.authorization;
+    const queryToken = url.searchParams.get("token");
+    if (
+      config.authToken !== null &&
+      authorization !== `Bearer ${config.authToken}` &&
+      queryToken !== config.authToken
+    ) {
       socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
       socket.destroy();
       return;

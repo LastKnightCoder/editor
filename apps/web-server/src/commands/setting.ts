@@ -10,11 +10,13 @@ import type { WebServerConfig } from "../config";
  */
 export function registerSettingCommands(config: WebServerConfig): void {
   const settingPath = () => join(config.dataDir, "setting.json");
+  let writeQueue = Promise.resolve();
 
   settingCommands.read.register(async () => {
     try {
       return await fs.readFile(settingPath(), "utf-8");
-    } catch {
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       // 首读不存在时与桌面版行为对齐：落一个空对象再返回
       await fs.mkdir(config.dataDir, { recursive: true });
       const initial = "{}";
@@ -24,10 +26,13 @@ export function registerSettingCommands(config: WebServerConfig): void {
   });
 
   settingCommands.write.register(async (_event, setting) => {
-    await fs.mkdir(config.dataDir, { recursive: true });
-    // 临时文件 + 原子改名，避免写一半被读到（与桌面版策略一致）
-    const tempPath = `${settingPath()}.tmp`;
-    await fs.writeFile(tempPath, setting, "utf-8");
-    await fs.rename(tempPath, settingPath());
+    const operation = writeQueue.then(async () => {
+      await fs.mkdir(config.dataDir, { recursive: true });
+      const tempPath = `${settingPath()}.${process.pid}.${Date.now()}.tmp`;
+      await fs.writeFile(tempPath, setting, "utf-8");
+      await fs.rename(tempPath, settingPath());
+    });
+    writeQueue = operation.catch(() => undefined);
+    await operation;
   });
 }

@@ -1,8 +1,7 @@
 /**
  * Web Server 配置（环境变量驱动）。
  *
- * 鉴权语义对齐桌面版：AUTH_TOKEN 未设置时视为开发模式跳过校验，
- * 便于浏览器直开预演；生产部署必须设置（未来接入登录态后替换）。
+ * 仅显式开发模式允许省略 AUTH_TOKEN，其他环境必须配置非空令牌。
  */
 export interface WebServerConfig {
   port: number;
@@ -12,9 +11,16 @@ export interface WebServerConfig {
 }
 
 export function loadConfig(): WebServerConfig {
+  const authToken = process.env.AUTH_TOKEN;
+  if (authToken !== undefined && authToken.trim() === "") {
+    throw new Error("AUTH_TOKEN 不能为空或纯空白");
+  }
+  if (authToken === undefined && process.env.NODE_ENV !== "development") {
+    throw new Error("非开发环境必须设置 AUTH_TOKEN");
+  }
   return {
     port: Number(process.env.PORT ?? 24680),
     dataDir: process.env.DATA_DIR ?? "data",
-    authToken: process.env.AUTH_TOKEN ?? null,
+    authToken: authToken ?? null,
   };
 }
