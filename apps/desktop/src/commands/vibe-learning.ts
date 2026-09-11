@@ -22,9 +22,7 @@ export type VLAddTaskResult =
       currentStatus: VLResourceStatus;
     };
 
-export const createVLResource = async (
-  params: CreateVLResource,
-): Promise<VLResource> => {
+export const createVLResource = async (params: CreateVLResource): Promise<VLResource> => {
   return await invoke("vl-create-resource", params);
 };
 
@@ -37,13 +35,16 @@ export const ensureVLNoteResource = async (params: {
   originalId: number;
   enqueueIndex?: boolean;
 }): Promise<{ resource: VLResource; created: boolean }> => {
-  const result = await invoke("vl-ensure-note-resource", {
-    projectId: params.projectId,
-    contentId: params.contentId,
-    title: params.title,
-    noteType: params.noteType,
-    originalId: params.originalId,
-  });
+  const result = await invoke<{ resource: VLResource; created: boolean }>(
+    "vl-ensure-note-resource",
+    {
+      projectId: params.projectId,
+      contentId: params.contentId,
+      title: params.title,
+      noteType: params.noteType,
+      originalId: params.originalId,
+    }
+  );
 
   if (result.created && params.enqueueIndex !== false) {
     await addVLIndexTask({
@@ -59,16 +60,11 @@ export const ensureVLNoteResource = async (params: {
   return result;
 };
 
-export const updateVLResource = async (
-  params: UpdateVLResource,
-): Promise<VLResource | null> => {
+export const updateVLResource = async (params: UpdateVLResource): Promise<VLResource | null> => {
   return await invoke("vl-update-resource", params);
 };
 
-export const updateVLMarkdownPath = async (
-  id: number,
-  markdownPath: string,
-): Promise<boolean> => {
+export const updateVLMarkdownPath = async (id: number, markdownPath: string): Promise<boolean> => {
   return await invoke("vl-update-markdown-path", id, markdownPath);
 };
 
@@ -88,24 +84,20 @@ export const deleteVLResourceComplete = async (params: {
 /**
  * 根据 ID 获取资源
  */
-export const getVLResourceById = async (
-  id: number,
-): Promise<VLResource | null> => {
+export const getVLResourceById = async (id: number): Promise<VLResource | null> => {
   return await invoke("vl-get-resource", id);
 };
 
 /**
  * 根据项目 ID 获取所有资源
  */
-export const getVLResourcesByProjectId = async (
-  projectId: number,
-): Promise<VLResource[]> => {
+export const getVLResourcesByProjectId = async (projectId: number): Promise<VLResource[]> => {
   return await invoke("vl-get-resources-by-project", projectId);
 };
 
 export const reorderVLResources = async (
   projectId: number,
-  orderedIds: number[],
+  orderedIds: number[]
 ): Promise<number> => {
   return await invoke("vl-reorder-resources", { projectId, orderedIds });
 };
@@ -120,18 +112,14 @@ export const getAllVLResources = async (): Promise<VLResource[]> => {
 /**
  * 根据 ID 列表获取资源
  */
-export const getVLResourcesByIds = async (
-  ids: number[],
-): Promise<VLResource[]> => {
+export const getVLResourcesByIds = async (ids: number[]): Promise<VLResource[]> => {
   return await invoke("vl-get-resources-by-ids", ids);
 };
 
 /**
  * 检查 Markdown 文件是否存在
  */
-export const checkMarkdownExists = async (
-  markdownPath: string,
-): Promise<boolean> => {
+export const checkMarkdownExists = async (markdownPath: string): Promise<boolean> => {
   return await invoke("vl-check-markdown-exists", markdownPath);
 };
 
@@ -141,14 +129,9 @@ export const checkMarkdownExists = async (
 export const checkVLIndexExists = async (
   mainDbName: string,
   projectId: number,
-  resourceId: number,
+  resourceId: number
 ): Promise<boolean> => {
-  return await invoke(
-    "vl-check-index-exists",
-    mainDbName,
-    projectId,
-    resourceId,
-  );
+  return await invoke("vl-check-index-exists", mainDbName, projectId, resourceId);
 };
 
 /**
@@ -167,13 +150,8 @@ export const addVLIndexTask = async (params: {
 };
 
 export const getVLResourceStatuses = async (
-  resourceIds: number[],
-): Promise<
-  Record<
-    number,
-    { status: VLResourceStatus | null; taskProgress?: TaskProgress }
-  >
-> => {
+  resourceIds: number[]
+): Promise<Record<number, { status: VLResourceStatus | null; taskProgress?: TaskProgress }>> => {
   return await invoke("vl-get-resource-statuses", resourceIds);
 };
 
@@ -221,9 +199,7 @@ export const searchVLContent = async (params: {
 /**
  * 重建所有项目的向量表（维度变化时调用）
  */
-export const vlReinitAllVecTables = async (
-  dimensions: number,
-): Promise<boolean> => {
+export const vlReinitAllVecTables = async (dimensions: number): Promise<boolean> => {
   return await invoke("vl-reinit-all-vec-tables", dimensions);
 };
 
@@ -262,7 +238,7 @@ export interface VLRebuildAfterEmbeddingSwitchResult {
 export const vlRebuildAfterEmbeddingSwitch = async (
   dimensions: number,
   reason: VLEmbeddingSwitchReason = "model_switch",
-  mainDbName?: string,
+  mainDbName?: string
 ): Promise<VLRebuildAfterEmbeddingSwitchResult> => {
   return await invoke("vl-rebuild-after-embedding-switch", {
     dimensions,
@@ -274,18 +250,14 @@ export const vlRebuildAfterEmbeddingSwitch = async (
 /**
  * 创建 VL 对话
  */
-export const createVLChat = async (
-  params: CreateVLChat,
-): Promise<VLChatMessage> => {
+export const createVLChat = async (params: CreateVLChat): Promise<VLChatMessage> => {
   return await invoke("vl-create-chat", params);
 };
 
 /**
  * 更新 VL 对话
  */
-export const updateVLChat = async (
-  params: UpdateVLChat,
-): Promise<VLChatMessage | null> => {
+export const updateVLChat = async (params: UpdateVLChat): Promise<VLChatMessage | null> => {
   return await invoke("vl-update-chat", params);
 };
 
@@ -299,45 +271,35 @@ export const deleteVLChat = async (id: number): Promise<boolean> => {
 /**
  * 根据 ID 获取 VL 对话
  */
-export const getVLChatById = async (
-  id: number,
-): Promise<VLChatMessage | null> => {
+export const getVLChatById = async (id: number): Promise<VLChatMessage | null> => {
   return await invoke("vl-get-chat", id);
 };
 
 /**
  * 根据项目 ID 获取所有 VL 对话
  */
-export const getVLChatsByProjectId = async (
-  projectId: number,
-): Promise<VLChatMessage[]> => {
+export const getVLChatsByProjectId = async (projectId: number): Promise<VLChatMessage[]> => {
   return await invoke("vl-get-chats-by-project", projectId);
 };
 
 /**
  * 获取 VL 对话分支
  */
-export const getVLChatBranches = async (
-  parentChatId: number,
-): Promise<VLChatMessage[]> => {
+export const getVLChatBranches = async (parentChatId: number): Promise<VLChatMessage[]> => {
   return await invoke("vl-get-chat-branches", parentChatId);
 };
 
 /**
  * 获取下一个分支索引
  */
-export const getVLNextBranchIndex = async (
-  parentChatId: number,
-): Promise<number> => {
+export const getVLNextBranchIndex = async (parentChatId: number): Promise<number> => {
   return await invoke("vl-get-next-branch-index", parentChatId);
 };
 
 /**
  * 获取子分支数量（包括所有层级的子分支）
  */
-export const getVLChildBranchesCount = async (
-  parentChatId: number,
-): Promise<number> => {
+export const getVLChildBranchesCount = async (parentChatId: number): Promise<number> => {
   return await invoke("vl-get-child-branches-count", parentChatId);
 };
 
@@ -347,7 +309,7 @@ export const getVLChildBranchesCount = async (
 export const readVLResourceContent = async (
   projectId: number,
   resourceName: string,
-  mainDbName: string,
+  mainDbName: string
 ): Promise<{
   success: boolean;
   content?: string;
@@ -391,7 +353,7 @@ export const readVLResourceContentRange = async (
   resourceName: string,
   mainDbName: string,
   startLine: number,
-  endLine: number,
+  endLine: number
 ): Promise<{
   success: boolean;
   content?: string;
@@ -468,9 +430,7 @@ export const createVLNote = async (params: CreateVLNote): Promise<VLNote> => {
 /**
  * 更新 VL 笔记
  */
-export const updateVLNote = async (
-  params: UpdateVLNote,
-): Promise<VLNote | null> => {
+export const updateVLNote = async (params: UpdateVLNote): Promise<VLNote | null> => {
   return await invoke("vl-note:update", params);
 };
 
@@ -491,8 +451,6 @@ export const getVLNoteById = async (id: number): Promise<VLNote | null> => {
 /**
  * 根据项目 ID 获取所有 VL 笔记
  */
-export const getVLNotesByProjectId = async (
-  projectId: number,
-): Promise<VLNote[]> => {
+export const getVLNotesByProjectId = async (projectId: number): Promise<VLNote[]> => {
   return await invoke("vl-note:list-by-project", projectId);
 };

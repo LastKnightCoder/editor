@@ -32,7 +32,7 @@ export const selectFile = async (options?: FileSelectOptions): Promise<string[] 
 };
 
 export const getFileBaseName = async (filePath: string, noExtension?: boolean) => {
-  return await invoke("get-file-basename", filePath, noExtension);
+  return await invoke<string>("get-file-basename", filePath, noExtension);
 };
 
 export const getFileExtension = async (filePath: string): Promise<string> => {

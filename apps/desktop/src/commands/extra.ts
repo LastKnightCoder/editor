@@ -20,7 +20,18 @@ const createAbortError = () => {
 
 const createNodeFetchRequestId = () => `node-fetch:${uuidv4()}`;
 
-export const nodeFetch = async (url: string, options: any = {}) => {
+export interface NodeFetchRawResponse<T = unknown> {
+  data: T;
+  status: number;
+  statusText: string;
+  headers: Record<string, string | string[] | number | boolean | null>;
+  finalUrl: string;
+}
+
+export const nodeFetch = async <T = unknown>(
+  url: string,
+  options: Record<string, unknown> & { signal?: AbortSignal } = {}
+): Promise<T> => {
   const { signal, ...serializableOptions } = options;
   if (!signal) {
     return await invoke("node-fetch", url, serializableOptions);
@@ -52,11 +63,13 @@ export const nodeFetch = async (url: string, options: any = {}) => {
 };
 
 export const getVersions = async () => {
-  return await invoke("get-versions");
+  return await invoke<{ app: string; node: string; v8: string; chrome: string; electron: string }>(
+    "get-versions"
+  );
 };
 
 export const resolvePath = async (path: string) => {
-  return await invoke("resolve-path", path);
+  return await invoke<string>("resolve-path", path);
 };
 
 export const selectDirectoryWithDialog = async (): Promise<string | null> => {

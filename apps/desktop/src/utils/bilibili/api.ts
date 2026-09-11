@@ -26,7 +26,7 @@ import {
   formatDuration,
   av2bv,
 } from "./parser";
-import { nodeFetch } from "@/commands";
+import { nodeFetch, type NodeFetchRawResponse } from "@/commands";
 
 // Bilibili API 基础配置
 const BILIBILI_BASE_URL = "https://api.bilibili.com";
@@ -39,9 +39,7 @@ const USER_AGENT =
 /**
  * 创建带凭证的请求头
  */
-export function createHeaders(
-  credentials?: BilibiliCredentials,
-): Record<string, string> {
+export function createHeaders(credentials?: BilibiliCredentials): Record<string, string> {
   const headers: Record<string, string> = {
     "User-Agent": USER_AGENT,
     Referer: "https://www.bilibili.com/",
@@ -59,11 +57,7 @@ export function createHeaders(
   return headers;
 }
 
-async function fetchWithRetry(
-  url: string,
-  options: any,
-  retries = 3,
-): Promise<any> {
+async function fetchWithRetry(url: string, options: any, retries = 3): Promise<any> {
   for (let i = 0; i < retries; i++) {
     try {
       const response = await nodeFetch(url, {
@@ -83,7 +77,7 @@ async function fetchWithRetry(
       }
 
       // 等待后重试
-      await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
     }
   }
 
@@ -112,13 +106,13 @@ function extractVideoUrlFromText(text: string): string | null {
 
 async function resolveBilibiliVideoUrl(
   url: string,
-  credentials?: BilibiliCredentials,
+  credentials?: BilibiliCredentials
 ): Promise<string> {
   if (/^https?:\/\/(?:www\.)?bilibili\.com\/video\//i.test(url)) {
     return url;
   }
 
-  const response = await nodeFetch(url, {
+  const response = await nodeFetch<NodeFetchRawResponse>(url, {
     method: "GET",
     headers: createHeaders(credentials),
     isRaw: true,
@@ -141,15 +135,12 @@ async function resolveBilibiliVideoUrl(
 }
 
 export async function checkBilibiliLogin(
-  credentials: BilibiliCredentials,
+  credentials: BilibiliCredentials
 ): Promise<BilibiliUserInfo> {
   try {
-    const response = await fetchWithRetry(
-      `${BILIBILI_BASE_URL}/x/web-interface/nav`,
-      {
-        headers: createHeaders(credentials),
-      },
-    );
+    const response = await fetchWithRetry(`${BILIBILI_BASE_URL}/x/web-interface/nav`, {
+      headers: createHeaders(credentials),
+    });
 
     const data: BilibiliApiResponse<BilibiliUserNavApiData> = response;
 
@@ -173,7 +164,7 @@ export async function checkBilibiliLogin(
 
 export async function getVideoInfoByUrl(
   url: string,
-  credentials?: BilibiliCredentials,
+  credentials?: BilibiliCredentials
 ): Promise<BilibiliVideoInfo> {
   const resolvedUrl = await resolveBilibiliVideoUrl(url, credentials);
   const parsedUrl = parseBilibiliUrl(resolvedUrl);
@@ -197,7 +188,7 @@ export async function getVideoInfoByUrl(
   // 如果请求的是特定分P，使用该分P的 cid
   const requestedPage = parsedUrl.page || 1;
   if (requestedPage >= 1 && videoInfo.pages.length >= requestedPage) {
-    const targetPage = videoInfo.pages.find((p) => p.page === requestedPage);
+    const targetPage = videoInfo.pages.find(p => p.page === requestedPage);
     if (targetPage) {
       videoInfo.cid = targetPage.cid;
       // 更新标题为分P标题（如果分P有独立标题）
@@ -213,7 +204,7 @@ export async function getVideoInfoByUrl(
 
 async function getVideoInfoByAid(
   aid: string,
-  credentials?: BilibiliCredentials,
+  credentials?: BilibiliCredentials
 ): Promise<BilibiliVideoInfo> {
   try {
     try {
@@ -231,7 +222,7 @@ async function getVideoInfoByAid(
 
 export async function getVideoInfoByBvid(
   bvid: string,
-  credentials?: BilibiliCredentials,
+  credentials?: BilibiliCredentials
 ): Promise<BilibiliVideoInfo> {
   try {
     try {
@@ -249,15 +240,12 @@ export async function getVideoInfoByBvid(
 async function getVideoInfoByApi(
   bvid?: string,
   credentials?: BilibiliCredentials,
-  aid?: string,
+  aid?: string
 ): Promise<BilibiliVideoInfo> {
   const query = bvid ? `bvid=${bvid}` : `aid=${aid}`;
-  const response = await fetchWithRetry(
-    `${BILIBILI_BASE_URL}/x/web-interface/view?${query}`,
-    {
-      headers: createHeaders(credentials),
-    },
-  );
+  const response = await fetchWithRetry(`${BILIBILI_BASE_URL}/x/web-interface/view?${query}`, {
+    headers: createHeaders(credentials),
+  });
 
   const data: BilibiliApiResponse<BilibiliVideoApiData> = response;
 
@@ -269,11 +257,7 @@ async function getVideoInfoByApi(
 
   let qualityInfo: BilibiliQualityInfo | null = null;
   try {
-    qualityInfo = await getQualityInfo(
-      videoData.cid.toString(),
-      videoData.bvid,
-      credentials,
-    );
+    qualityInfo = await getQualityInfo(videoData.cid.toString(), videoData.bvid, credentials);
   } catch (error) {
     console.warn("获取画质信息失败:", error);
   }
@@ -287,15 +271,13 @@ async function getVideoInfoByApi(
     view: videoData.stat.view,
     danmaku: videoData.stat.danmaku,
     reply: videoData.stat.reply,
-    up: videoData.staff || [
-      { name: videoData.owner.name, mid: videoData.owner.mid },
-    ],
+    up: videoData.staff || [{ name: videoData.owner.name, mid: videoData.owner.mid }],
     qualityOptions:
-      qualityInfo?.accept_quality.map((q) => ({
+      qualityInfo?.accept_quality.map(q => ({
         label: QUALITY_MAP[q] || `${q}P`,
         value: q,
       })) || [],
-    pages: videoData.pages.map((page) => ({
+    pages: videoData.pages.map(page => ({
       title: page.part,
       url: `${BILIBILI_WEB_URL}/video/${videoData.bvid}?p=${page.page}`,
       page: page.page,
@@ -309,7 +291,7 @@ async function getVideoInfoByApi(
 
 async function getVideoInfoByPage(
   bvid: string,
-  credentials?: BilibiliCredentials,
+  credentials?: BilibiliCredentials
 ): Promise<BilibiliVideoInfo> {
   const response = await fetchWithRetry(`${BILIBILI_WEB_URL}/video/${bvid}`, {
     headers: createHeaders(credentials),
@@ -341,9 +323,7 @@ async function getVideoInfoByPage(
     view: videoData.stat.view,
     danmaku: videoData.stat.danmaku,
     reply: videoData.stat.reply,
-    up: videoData.staff || [
-      { name: videoData.owner.name, mid: videoData.owner.mid },
-    ],
+    up: videoData.staff || [{ name: videoData.owner.name, mid: videoData.owner.mid }],
     qualityOptions,
     pages:
       videoData.pages?.map((page: any) => ({
@@ -361,14 +341,14 @@ export async function getPlayUrl(
   cid: string,
   bvid: string,
   quality = 80,
-  credentials?: BilibiliCredentials,
+  credentials?: BilibiliCredentials
 ): Promise<BilibiliPlayUrl> {
   try {
     const response = await fetchWithRetry(
       `${BILIBILI_BASE_URL}/x/player/wbi/playurl?cid=${cid}&bvid=${bvid}&qn=${quality}&type=&otype=json&fourk=1&fnver=0&fnval=80`,
       {
         headers: createHeaders(credentials),
-      },
+      }
     );
 
     const data: BilibiliApiResponse<BilibiliPlayInfoApiData> = response;
@@ -388,9 +368,7 @@ export async function getPlayUrl(
     if (!audioStream) {
       console.warn("未找到可用的音频流，尝试使用备选地址");
       const backUpUrls = dash.audio
-        .map((a) =>
-          (a.backupUrl || []).map((bu) => ({ id: a.id, baseUrl: bu })),
-        )
+        .map(a => (a.backupUrl || []).map(bu => ({ id: a.id, baseUrl: bu })))
         .flat()
         .filter(Boolean);
       audioStream = await selectAvailableStream(backUpUrls);
@@ -401,7 +379,7 @@ export async function getPlayUrl(
     }
 
     // 查找匹配指定质量的视频流
-    const matchingVideoStreams = dash.video.filter((v) => v.id === quality);
+    const matchingVideoStreams = dash.video.filter(v => v.id === quality);
     let videoStream = await selectAvailableStream(matchingVideoStreams);
     if (!videoStream) {
       console.warn("未找到可用的视频流，尝试从所有视频流中选择可用的");
@@ -425,13 +403,13 @@ export async function getPlayUrl(
 export async function getQualityInfo(
   cid: string,
   bvid: string,
-  credentials?: BilibiliCredentials,
+  credentials?: BilibiliCredentials
 ): Promise<BilibiliQualityInfo> {
   const response = await fetchWithRetry(
     `${BILIBILI_BASE_URL}/x/player/wbi/playurl?cid=${cid}&bvid=${bvid}&qn=127&type=&otype=json&fourk=1&fnver=0&fnval=80`,
     {
       headers: createHeaders(credentials),
-    },
+    }
   );
 
   const data: BilibiliApiResponse<BilibiliPlayInfoApiData> = response;
@@ -442,12 +420,12 @@ export async function getQualityInfo(
 
   return {
     accept_quality: data.data.accept_quality,
-    video: data.data.dash.video.map((v) => ({
+    video: data.data.dash.video.map(v => ({
       id: v.id,
       cid,
       url: v.baseUrl,
     })),
-    audio: data.data.dash.audio.map((a) => ({
+    audio: data.data.dash.audio.map(a => ({
       id: a.id,
       cid,
       url: a.baseUrl,
@@ -458,14 +436,14 @@ export async function getQualityInfo(
 export async function getSubtitles(
   cid: string,
   bvid: string,
-  credentials?: BilibiliCredentials,
+  credentials?: BilibiliCredentials
 ): Promise<BilibiliSubtitle[]> {
   try {
     const response = await fetchWithRetry(
       `${BILIBILI_BASE_URL}/x/player/v2?cid=${cid}&bvid=${bvid}`,
       {
         headers: createHeaders(credentials),
-      },
+      }
     );
 
     const data: BilibiliApiResponse<any> = response;
@@ -481,9 +459,7 @@ export async function getSubtitles(
 
     return subtitle.subtitles.map((sub: any) => ({
       title: sub.lan_doc,
-      url: sub.subtitle_url.startsWith("//")
-        ? `https:${sub.subtitle_url}`
-        : sub.subtitle_url,
+      url: sub.subtitle_url.startsWith("//") ? `https:${sub.subtitle_url}` : sub.subtitle_url,
     }));
   } catch (error) {
     console.warn("获取字幕失败:", error);
@@ -494,9 +470,7 @@ export async function getSubtitles(
 /**
  * 检查单个流 URL 是否可用
  */
-async function checkSingleStreamAvailability(
-  streamUrl: string,
-): Promise<boolean> {
+async function checkSingleStreamAvailability(streamUrl: string): Promise<boolean> {
   try {
     await nodeFetch(streamUrl, {
       method: "HEAD",
@@ -516,7 +490,7 @@ async function checkSingleStreamAvailability(
  * 从多个相同质量的流中选择第一个可用的
  */
 async function selectAvailableStream(
-  streams: Array<{ id: number; baseUrl: string }>,
+  streams: Array<{ id: number; baseUrl: string }>
 ): Promise<any> {
   for (const stream of streams) {
     const isAvailable = await checkSingleStreamAvailability(stream.baseUrl);
@@ -560,7 +534,7 @@ export async function getBilibiliQRCode(): Promise<BilibiliQRInfo> {
       {
         method: "GET",
         headers: createHeaders(),
-      },
+      }
     );
 
     const data: BilibiliApiResponse<{
@@ -581,16 +555,14 @@ export async function getBilibiliQRCode(): Promise<BilibiliQRInfo> {
   }
 }
 
-export async function checkBilibiliQRStatus(
-  qrcodeKey: string,
-): Promise<BilibiliQRStatusResult> {
+export async function checkBilibiliQRStatus(qrcodeKey: string): Promise<BilibiliQRStatusResult> {
   try {
     const response = await fetchWithRetry(
       `https://passport.bilibili.com/x/passport-login/web/qrcode/poll?qrcode_key=${qrcodeKey}&source=main-fe-header&web_location=333.1007`,
       {
         method: "GET",
         headers: createHeaders(),
-      },
+      }
     );
 
     const data: BilibiliApiResponse<{
@@ -619,11 +591,7 @@ export async function checkBilibiliQRStatus(
  * 解析 Set-Cookie 响应头为 { name: value } 映射
  */
 function parseCookiesFromSetCookie(header: unknown): Record<string, string> {
-  const entries = Array.isArray(header)
-    ? header
-    : typeof header === "string"
-      ? [header]
-      : [];
+  const entries = Array.isArray(header) ? header : typeof header === "string" ? [header] : [];
 
   const cookies: Record<string, string> = {};
   for (const entry of entries) {
@@ -642,10 +610,8 @@ function parseCookiesFromSetCookie(header: unknown): Record<string, string> {
  * 请求 crossDomain 票据链接并从第一跳响应的 Set-Cookie 中提取凭证
  * 凭证 cookie 在 302 重定向的第一跳下发，跟随重定向会导致丢失
  */
-async function extractCredentialsFromCrossDomain(
-  url: string,
-): Promise<BilibiliCredentials> {
-  const response = await nodeFetch(url, {
+async function extractCredentialsFromCrossDomain(url: string): Promise<BilibiliCredentials> {
+  const response = await nodeFetch<NodeFetchRawResponse>(url, {
     method: "GET",
     headers: {
       "User-Agent": USER_AGENT,
@@ -664,9 +630,7 @@ async function extractCredentialsFromCrossDomain(
   };
 }
 
-export async function extractCredentialsFromQR(
-  url: string,
-): Promise<BilibiliCredentials> {
+export async function extractCredentialsFromQR(url: string): Promise<BilibiliCredentials> {
   try {
     // 旧格式：登录链接的查询参数直接携带凭证
     // 例如：...&SESSDATA=xxx&bfe_id=yyy

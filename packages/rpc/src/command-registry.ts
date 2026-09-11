@@ -8,8 +8,14 @@ import type { CommandEvent } from "./command";
  * 其他传输层都从这里分发。
  */
 
-export type InvokeHandler = (event: CommandEvent, ...args: any[]) => unknown;
-export type OnHandler = (event: CommandEvent, ...args: any[]) => void;
+export type InvokeHandler<TArgs extends unknown[] = unknown[], TResult = unknown> = (
+  event: CommandEvent,
+  ...args: TArgs
+) => TResult | Promise<TResult>;
+export type OnHandler<TArgs extends unknown[] = unknown[]> = (
+  event: CommandEvent,
+  ...args: TArgs
+) => void;
 
 export interface CommandRegistry {
   registerInvokeHandler(channel: string, handler: InvokeHandler): void;

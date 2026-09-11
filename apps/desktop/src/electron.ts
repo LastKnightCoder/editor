@@ -9,20 +9,26 @@ export const isElectron: boolean = platform !== "web";
 
 // 请求-响应式 command 全部走 HTTP RPC（baseUrl 见 src/rpc/config.ts，
 // 切换 VITE_RPC_BASE_URL 即可指向未来 Web Server）
-export const invoke = <T = any>(channel: string, ...args: any[]): Promise<T> => {
+export const invoke = <T = unknown>(channel: string, ...args: unknown[]): Promise<T> => {
   return httpInvoke<T>(channel, args);
 };
 
-export const send = (channel: string, ...args: any[]): void => {
+export const send = (channel: string, ...args: unknown[]): void => {
   void httpSend(channel, args);
 };
 
 // 主进程事件推送经 /rpc-events WebSocket 通道广播，本地按 channel 分发。
 // 分发时以占位 event 补齐 IPC 契约的 (event, ...args) 签名
-export const on = (channel: string, listener: (...args: any[]) => void): void => {
+export const on = <Args extends unknown[]>(
+  channel: string,
+  listener: (...args: Args) => void
+): void => {
   rpcEventHub.on(channel, listener);
 };
 
-export const off = (channel: string, listener: (...args: any[]) => void): void => {
+export const off = <Args extends unknown[]>(
+  channel: string,
+  listener: (...args: Args) => void
+): void => {
   rpcEventHub.off(channel, listener);
 };

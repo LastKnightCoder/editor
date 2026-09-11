@@ -61,22 +61,18 @@ interface RawDiaryTagSetting {
   updateTime: number;
 }
 
-export const createDiaryEntry = async (
-  entry: CreateDiaryEntry,
-): Promise<DiaryEntry> => {
+export const createDiaryEntry = async (entry: CreateDiaryEntry): Promise<DiaryEntry> => {
   const serializedEntry = {
     ...entry,
     weather: entry.weather ? JSON.stringify(entry.weather) : null,
     mood: entry.mood ? JSON.stringify(entry.mood) : null,
     tags: entry.tags ? JSON.stringify(entry.tags) : "[]",
   };
-  const result = await invoke("create-diary-entry", serializedEntry);
+  const result = await invoke<RawDiaryEntry>("create-diary-entry", serializedEntry);
   return deserializeDiaryEntry(result);
 };
 
-export const updateDiaryEntry = async (
-  entry: UpdateDiaryEntry,
-): Promise<DiaryEntry> => {
+export const updateDiaryEntry = async (entry: UpdateDiaryEntry): Promise<DiaryEntry> => {
   const serializedEntry = {
     ...entry,
     weather:
@@ -85,15 +81,10 @@ export const updateDiaryEntry = async (
           ? JSON.stringify(entry.weather)
           : null
         : undefined,
-    mood:
-      entry.mood !== undefined
-        ? entry.mood
-          ? JSON.stringify(entry.mood)
-          : null
-        : undefined,
+    mood: entry.mood !== undefined ? (entry.mood ? JSON.stringify(entry.mood) : null) : undefined,
     tags: entry.tags !== undefined ? JSON.stringify(entry.tags) : undefined,
   };
-  const result = await invoke("update-diary-entry", serializedEntry);
+  const result = await invoke<RawDiaryEntry>("update-diary-entry", serializedEntry);
   return deserializeDiaryEntry(result);
 };
 
@@ -102,57 +93,53 @@ export const deleteDiaryEntry = async (id: number): Promise<number> => {
 };
 
 export const getDiaryEntryById = async (id: number): Promise<DiaryEntry> => {
-  const result = await invoke("get-diary-entry-by-id", id);
+  const result = await invoke<RawDiaryEntry>("get-diary-entry-by-id", id);
   return deserializeDiaryEntry(result);
 };
 
-export const getDiaryEntryByDate = async (
-  date: string,
-): Promise<DiaryEntry | null> => {
-  const result = await invoke("get-diary-entry-by-date", date);
+export const getDiaryEntryByDate = async (date: string): Promise<DiaryEntry | null> => {
+  const result = await invoke<RawDiaryEntry | null>("get-diary-entry-by-date", date);
   return result ? deserializeDiaryEntry(result) : null;
 };
 
-export const getDiaryEntriesByType = async (
-  type: DiaryType,
-): Promise<DiaryEntry[]> => {
-  const results = await invoke("get-diary-entries-by-type", type);
+export const getDiaryEntriesByType = async (type: DiaryType): Promise<DiaryEntry[]> => {
+  const results = await invoke<RawDiaryEntry[]>("get-diary-entries-by-type", type);
   return results.map(deserializeDiaryEntry);
 };
 
 export const getDiaryEntriesByDateRange = async (
   startDate: string,
   endDate: string,
-  diaryType?: DiaryType,
+  diaryType?: DiaryType
 ): Promise<DiaryEntry[]> => {
   // 显式透传 diaryType：后端 IPC 调用 handler 时会在末尾追加 win 对象，
   // 若省略可选参数，win 会顶替 diaryType 的位置导致查询失效
-  const results = await invoke(
+  const results = await invoke<RawDiaryEntry[]>(
     "get-diary-entries-by-date-range",
     startDate,
     endDate,
-    diaryType,
+    diaryType
   );
   return results.map(deserializeDiaryEntry);
 };
 
 export const getAllDiaryEntries = async (): Promise<DiaryEntry[]> => {
-  const results = await invoke("get-all-diary-entries");
+  const results = await invoke<RawDiaryEntry[]>("get-all-diary-entries");
   return results.map(deserializeDiaryEntry);
 };
 
 export const getDiaryHeatmapData = async (
   year: number,
-  month: number,
+  month: number
 ): Promise<DiaryHeatmapData[]> => {
   return await invoke("get-diary-heatmap-data", year, month);
 };
 
 export const getDiariesByDates = async (
   dates: string[],
-  diaryType?: DiaryType,
+  diaryType?: DiaryType
 ): Promise<DiaryEntry[]> => {
-  const results = await invoke("get-diaries-by-dates", dates, diaryType);
+  const results = await invoke<RawDiaryEntry[]>("get-diaries-by-dates", dates, diaryType);
   return results.map(deserializeDiaryEntry);
 };
 
@@ -180,10 +167,8 @@ export const getDiariesWithContent = async (params: {
 
 // ---- Segment-level commands ----
 
-export const getDiarySegments = async (
-  diaryId: number,
-): Promise<DiarySegment[]> => {
-  const results = await invoke("get-diary-segments", diaryId);
+export const getDiarySegments = async (diaryId: number): Promise<DiarySegment[]> => {
+  const results = await invoke<RawDiarySegment[]>("get-diary-segments", diaryId);
   return results.map(deserializeDiarySegment);
 };
 
@@ -191,7 +176,7 @@ export const createDiarySegment = async (params: {
   diaryId: number;
   content: Descendant[];
 }): Promise<DiarySegment> => {
-  const result = await invoke("create-diary-segment", params);
+  const result = await invoke<RawDiarySegment>("create-diary-segment", params);
   return deserializeDiarySegment(result);
 };
 
@@ -199,13 +184,11 @@ export const updateDiarySegment = async (params: {
   segmentId: number;
   content: Descendant[];
 }): Promise<DiarySegment | null> => {
-  const result = await invoke("update-diary-segment", params);
+  const result = await invoke<RawDiarySegment | null>("update-diary-segment", params);
   return result ? deserializeDiarySegment(result) : null;
 };
 
-export const deleteDiarySegment = async (
-  segmentId: number,
-): Promise<number> => {
+export const deleteDiarySegment = async (segmentId: number): Promise<number> => {
   return invoke("delete-diary-segment", segmentId);
 };
 
@@ -249,9 +232,7 @@ function safeParseTags(raw: string): string[] {
   }
 }
 
-function deserializeDiarySegmentItem(
-  item: RawDiarySegmentItem,
-): DiarySegmentItem {
+function deserializeDiarySegmentItem(item: RawDiarySegmentItem): DiarySegmentItem {
   return {
     id: item.id,
     diaryId: item.diaryId,
@@ -268,9 +249,7 @@ function deserializeDiarySegmentItem(
   };
 }
 
-function deserializeDiaryTagSetting(
-  setting: RawDiaryTagSetting,
-): DiaryTagSetting {
+function deserializeDiaryTagSetting(setting: RawDiaryTagSetting): DiaryTagSetting {
   return {
     name: setting.name,
     color: setting.color,
@@ -282,15 +261,13 @@ function deserializeDiaryTagSetting(
 
 // ---- 朋友圈流 + 标签设置 ----
 
-export const getAllDiarySegmentsFlat = async (): Promise<
-  DiarySegmentItem[]
-> => {
-  const results = await invoke("get-all-diary-segments-flat");
+export const getAllDiarySegmentsFlat = async (): Promise<DiarySegmentItem[]> => {
+  const results = await invoke<RawDiarySegmentItem[]>("get-all-diary-segments-flat");
   return results.map(deserializeDiarySegmentItem);
 };
 
 export const getAllDiaryTagSettings = async (): Promise<DiaryTagSetting[]> => {
-  const results = await invoke("get-all-diary-tag-settings");
+  const results = await invoke<RawDiaryTagSetting[]>("get-all-diary-tag-settings");
   return results.map(deserializeDiaryTagSetting);
 };
 
@@ -299,7 +276,7 @@ export const upsertDiaryTagSetting = async (setting: {
   color: string;
   sort?: number;
 }): Promise<DiaryTagSetting> => {
-  const result = await invoke("upsert-diary-tag-setting", setting);
+  const result = await invoke<RawDiaryTagSetting>("upsert-diary-tag-setting", setting);
   return deserializeDiaryTagSetting(result);
 };
 

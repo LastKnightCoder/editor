@@ -2,10 +2,10 @@ import { invoke } from "@/electron";
 import { AudioNote, TranscriptSegment } from "@/types";
 
 export const createEmptyAudioNote = async (
-  metaInfo: AudioNote["metaInfo"],
+  metaInfo: AudioNote["metaInfo"]
 ): Promise<AudioNote | null> => {
   try {
-    const result = await invoke("create-empty-audio-note", metaInfo);
+    const result = await invoke<AudioNote | null>("create-empty-audio-note", metaInfo);
     return result;
   } catch (error) {
     console.error(error);
@@ -18,7 +18,7 @@ export const updateAudioNote = async (note: {
   metaInfo?: AudioNote["metaInfo"];
 }): Promise<AudioNote | null> => {
   try {
-    const result = await invoke("update-audio-note", note);
+    const result = await invoke<AudioNote | null>("update-audio-note", note);
     return result;
   } catch (error) {
     console.error(error);
@@ -28,7 +28,7 @@ export const updateAudioNote = async (note: {
 
 export const deleteAudioNote = async (id: number): Promise<number | null> => {
   try {
-    const result = await invoke("delete-audio-note", id);
+    const result = await invoke<number>("delete-audio-note", id);
     return result;
   } catch (error) {
     console.error(error);
@@ -36,11 +36,9 @@ export const deleteAudioNote = async (id: number): Promise<number | null> => {
   }
 };
 
-export const getAudioNoteById = async (
-  id: number,
-): Promise<AudioNote | null> => {
+export const getAudioNoteById = async (id: number): Promise<AudioNote | null> => {
   try {
-    const result = await invoke("get-audio-note-by-id", id);
+    const result = await invoke<AudioNote | null>("get-audio-note-by-id", id);
     return result;
   } catch (error) {
     console.error(error);
@@ -50,7 +48,7 @@ export const getAudioNoteById = async (
 
 export const getAllAudioNotes = async (): Promise<AudioNote[]> => {
   try {
-    const result = await invoke("get-all-audio-notes");
+    const result = await invoke<AudioNote[]>("get-all-audio-notes");
     return result;
   } catch (error) {
     console.error(error);
@@ -60,10 +58,10 @@ export const getAllAudioNotes = async (): Promise<AudioNote[]> => {
 
 export const updateAudioNoteDescription = async (
   id: number,
-  description: string,
+  description: string
 ): Promise<AudioNote | null> => {
   try {
-    const result = await invoke("update-audio-note-description", {
+    const result = await invoke<AudioNote | null>("update-audio-note-description", {
       id,
       description,
     });
@@ -78,10 +76,10 @@ export const updateAudioNoteTranscript = async (
   id: number,
   transcript: string,
   transcriptSegments?: TranscriptSegment[],
-  transcriptWordSegments?: TranscriptSegment[],
+  transcriptWordSegments?: TranscriptSegment[]
 ): Promise<AudioNote | null> => {
   try {
-    const result = await invoke("update-audio-note-transcript", {
+    const result = await invoke<AudioNote | null>("update-audio-note-transcript", {
       id,
       transcript,
       transcriptSegments,
@@ -96,10 +94,10 @@ export const updateAudioNoteTranscript = async (
 
 export const updateAudioNoteSummary = async (
   id: number,
-  summary: string,
+  summary: string
 ): Promise<AudioNote | null> => {
   try {
-    const result = await invoke("update-audio-note-summary", { id, summary });
+    const result = await invoke<AudioNote | null>("update-audio-note-summary", { id, summary });
     return result;
   } catch (error) {
     console.error(error);
@@ -109,10 +107,10 @@ export const updateAudioNoteSummary = async (
 
 export const updateAudioNoteHighlights = async (
   id: number,
-  highlights: AudioNote["highlights"],
+  highlights: AudioNote["highlights"]
 ): Promise<AudioNote | null> => {
   try {
-    const result = await invoke("update-audio-note-highlights", {
+    const result = await invoke<AudioNote | null>("update-audio-note-highlights", {
       id,
       highlights,
     });
@@ -125,10 +123,10 @@ export const updateAudioNoteHighlights = async (
 
 export const updateAudioNoteInsights = async (
   id: number,
-  insights: AudioNote["insights"],
+  insights: AudioNote["insights"]
 ): Promise<AudioNote | null> => {
   try {
-    const result = await invoke("update-audio-note-insights", { id, insights });
+    const result = await invoke<AudioNote | null>("update-audio-note-insights", { id, insights });
     return result;
   } catch (error) {
     console.error(error);
@@ -138,10 +136,10 @@ export const updateAudioNoteInsights = async (
 
 export const updateAudioNoteSpeakers = async (
   id: number,
-  speakers: AudioNote["speakers"],
+  speakers: AudioNote["speakers"]
 ): Promise<AudioNote | null> => {
   try {
-    const result = await invoke("update-audio-note-speakers", { id, speakers });
+    const result = await invoke<AudioNote | null>("update-audio-note-speakers", { id, speakers });
     return result;
   } catch (error) {
     console.error(error);
@@ -151,10 +149,10 @@ export const updateAudioNoteSpeakers = async (
 
 export const updateAudioNoteChapters = async (
   id: number,
-  chapters: AudioNote["chapters"],
+  chapters: AudioNote["chapters"]
 ): Promise<AudioNote | null> => {
   try {
-    const result = await invoke("update-audio-note-chapters", { id, chapters });
+    const result = await invoke<AudioNote | null>("update-audio-note-chapters", { id, chapters });
     return result;
   } catch (error) {
     console.error(error);

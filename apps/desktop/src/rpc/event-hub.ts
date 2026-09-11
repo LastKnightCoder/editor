@@ -1,7 +1,7 @@
 import { deserialize, RPC_EVENTS_WS_PATH, type EventMessage } from "@tau/rpc";
 import { getRpcConfig } from "./config";
 
-type Listener = (...args: any[]) => void;
+type Listener = (...args: unknown[]) => void;
 
 const EVENT_METHOD = "rpc-event";
 const NOTIFICATION_TYPE = "JsonRpcNotification";
@@ -99,21 +99,22 @@ export class RpcEventHub {
     }
   }
 
-  on(channel: string, listener: Listener): void {
+  on<Args extends unknown[]>(channel: string, listener: (...args: Args) => void): void {
     let channelListeners = this.listeners.get(channel);
     if (!channelListeners) {
       channelListeners = new Set();
       this.listeners.set(channel, channelListeners);
     }
-    channelListeners.add(listener);
+    // 动态通道的参数由发布方与订阅方约定；仅在传输边界擦除类型，保留函数身份供 off 清理。
+    channelListeners.add(listener as Listener);
   }
 
-  off(channel: string, listener: Listener): void {
+  off<Args extends unknown[]>(channel: string, listener: (...args: Args) => void): void {
     const channelListeners = this.listeners.get(channel);
     if (!channelListeners) {
       return;
     }
-    channelListeners.delete(listener);
+    channelListeners.delete(listener as Listener);
     if (!channelListeners.size) {
       this.listeners.delete(channel);
     }

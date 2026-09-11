@@ -1,9 +1,7 @@
 import { invoke } from "../electron";
 import { SearchParams, SearchResult, IndexParams, IndexType } from "@/types";
 
-export const searchFTS = async (
-  searchParams: SearchParams,
-): Promise<SearchResult[]> => {
+export const searchFTS = async (searchParams: SearchParams): Promise<SearchResult[]> => {
   try {
     return await invoke("fts-search-content", searchParams);
   } catch (error) {
@@ -12,9 +10,7 @@ export const searchFTS = async (
   }
 };
 
-export const searchHybridContent = async (
-  searchParams: SearchParams,
-): Promise<SearchResult[]> => {
+export const searchHybridContent = async (searchParams: SearchParams): Promise<SearchResult[]> => {
   try {
     return await invoke("search-hybrid-content", searchParams);
   } catch (error) {
@@ -24,12 +20,10 @@ export const searchHybridContent = async (
 };
 
 // 索引内容
-export const indexFTSContent = async (
-  indexParams: IndexParams,
-): Promise<boolean> => {
+export const indexFTSContent = async (indexParams: IndexParams): Promise<boolean> => {
   try {
     // 调用Electron的IPC接口索引FTS内容
-    const res = await invoke("fts-index-content", indexParams);
+    const res = await invoke<boolean>("fts-index-content", indexParams);
     return res;
   } catch (error) {
     console.error("索引内容失败:", error);
@@ -38,9 +32,7 @@ export const indexFTSContent = async (
 };
 
 // 批量索引内容
-export const batchIndexFTSContent = async (
-  items: Array<IndexParams>,
-): Promise<boolean> => {
+export const batchIndexFTSContent = async (items: Array<IndexParams>): Promise<boolean> => {
   try {
     await invoke("fts-batch-index-content", items);
     return true;
@@ -51,10 +43,7 @@ export const batchIndexFTSContent = async (
 };
 
 // 移除索引
-export const removeFTSIndex = async (
-  id: number,
-  type: string,
-): Promise<boolean> => {
+export const removeFTSIndex = async (id: number, type: string): Promise<boolean> => {
   try {
     await invoke("fts-remove-index", id, type);
     return true;
@@ -65,9 +54,7 @@ export const removeFTSIndex = async (
 };
 
 // 获取所有FTS索引结果
-export const getAllFTSResults = async (
-  type?: IndexType,
-): Promise<SearchResult[]> => {
+export const getAllFTSResults = async (type?: IndexType): Promise<SearchResult[]> => {
   try {
     return await invoke("get-all-fts-results", type);
   } catch (error) {
@@ -78,7 +65,7 @@ export const getAllFTSResults = async (
 
 export const checkFTSIndexStatus = async (
   id: number,
-  type: IndexType,
+  type: IndexType
 ): Promise<{ updateTime: number } | null> => {
   try {
     // 调用Electron的IPC接口检查FTS索引状态

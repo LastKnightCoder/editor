@@ -1,10 +1,7 @@
 import { invoke } from "@/electron";
 import { IQuestion, ICreateAnswer, IAnswer } from "@/types";
 import { Descendant } from "slate";
-import {
-  emitQuestionMutation,
-  QUESTION_MUTATION_ACTIONS,
-} from "@/mcp/question/mutation";
+import { emitQuestionMutation, QUESTION_MUTATION_ACTIONS } from "@/mcp/question/mutation";
 
 interface QuestionMutationOptions {
   suppressMutationEvent?: boolean;
@@ -15,14 +12,9 @@ export async function createQuestion(
   question: string,
   groupId: number,
   description: Descendant[],
-  options?: QuestionMutationOptions,
+  options?: QuestionMutationOptions
 ): Promise<IQuestion> {
-  const created = await invoke(
-    "question:create",
-    question,
-    groupId,
-    description,
-  );
+  const created = await invoke<IQuestion>("question:create", question, groupId, description);
   if (!options?.suppressMutationEvent) {
     emitQuestionMutation({
       source: options?.mutationSource || "question-command",
@@ -41,14 +33,9 @@ export async function updateQuestion(
   questionId: number,
   question: string,
   description?: Descendant[],
-  options?: QuestionMutationOptions,
+  options?: QuestionMutationOptions
 ): Promise<IQuestion> {
-  const updated = await invoke(
-    "question:update",
-    questionId,
-    question,
-    description,
-  );
+  const updated = await invoke<IQuestion>("question:update", questionId, question, description);
   if (!options?.suppressMutationEvent) {
     emitQuestionMutation({
       source: options?.mutationSource || "question-command",
@@ -65,10 +52,10 @@ export async function updateQuestion(
 
 export async function deleteQuestion(
   id: number,
-  options?: QuestionMutationOptions,
+  options?: QuestionMutationOptions
 ): Promise<number> {
   const current = await getQuestionById(id);
-  const result = await invoke("question:delete", id);
+  const result = await invoke<number>("question:delete", id);
   if (!options?.suppressMutationEvent) {
     emitQuestionMutation({
       source: options?.mutationSource || "question-command",
@@ -102,14 +89,9 @@ export async function addAnswer(
   questionId: number,
   answer: ICreateAnswer,
   incRefCount = false,
-  options?: QuestionMutationOptions,
+  options?: QuestionMutationOptions
 ): Promise<IQuestion> {
-  const updated = await invoke(
-    "question:add-answer",
-    questionId,
-    answer,
-    incRefCount,
-  );
+  const updated = await invoke<IQuestion>("question:add-answer", questionId, answer, incRefCount);
   if (!options?.suppressMutationEvent) {
     emitQuestionMutation({
       source: options?.mutationSource || "question-command",
@@ -129,9 +111,9 @@ export async function addAnswer(
 export async function updateAnswer(
   questionId: number,
   answers: number[],
-  options?: QuestionMutationOptions,
+  options?: QuestionMutationOptions
 ): Promise<IQuestion> {
-  const updated = await invoke("question:update-answer", questionId, answers);
+  const updated = await invoke<IQuestion>("question:update-answer", questionId, answers);
   if (!options?.suppressMutationEvent) {
     emitQuestionMutation({
       source: options?.mutationSource || "question-command",
@@ -148,9 +130,9 @@ export async function updateAnswer(
 export async function deleteAnswer(
   questionId: number,
   answerId: number,
-  options?: QuestionMutationOptions,
+  options?: QuestionMutationOptions
 ): Promise<IQuestion> {
-  const updated = await invoke("question:delete-answer", questionId, answerId);
+  const updated = await invoke<IQuestion>("question:delete-answer", questionId, answerId);
   if (!options?.suppressMutationEvent) {
     emitQuestionMutation({
       source: options?.mutationSource || "question-command",
@@ -165,9 +147,7 @@ export async function deleteAnswer(
   return updated;
 }
 
-export async function getQuestionAnswers(
-  questionId: number,
-): Promise<IAnswer[]> {
+export async function getQuestionAnswers(questionId: number): Promise<IAnswer[]> {
   return invoke("question:get-question-answers", questionId);
 }
 
@@ -177,30 +157,23 @@ export async function getNoAnswerQuestions(): Promise<IQuestion[]> {
 
 export async function listQuestionsByGroup(params: {
   groupId: number;
-  filter?:
-    | "all"
-    | "answered"
-    | "unanswered"
-    | "not_started"
-    | "in_progress"
-    | "resolved";
+  filter?: "all" | "answered" | "unanswered" | "not_started" | "in_progress" | "resolved";
   search?: string;
 }): Promise<IQuestion[]> {
   return invoke(
     "question:list-by-group",
     params.groupId,
     params.filter ?? "all",
-    params.search ?? "",
+    params.search ?? ""
   );
 }
 
 export async function reorderQuestions(
   orderedIds: number[],
-  options?: QuestionMutationOptions,
+  options?: QuestionMutationOptions
 ): Promise<number> {
-  const firstQuestion =
-    orderedIds.length > 0 ? await getQuestionById(orderedIds[0]) : null;
-  const result = await invoke("question:reorder", { orderedIds });
+  const firstQuestion = orderedIds.length > 0 ? await getQuestionById(orderedIds[0]) : null;
+  const result = await invoke<number>("question:reorder", { orderedIds });
   if (!options?.suppressMutationEvent) {
     emitQuestionMutation({
       source: options?.mutationSource || "question-command",
@@ -216,10 +189,10 @@ export async function reorderQuestions(
 export async function moveQuestionToGroup(
   id: number,
   toGroupId: number,
-  options?: QuestionMutationOptions,
+  options?: QuestionMutationOptions
 ): Promise<IQuestion> {
   const current = await getQuestionById(id);
-  const moved = await invoke("question:move-to-group", { id, toGroupId });
+  const moved = await invoke<IQuestion>("question:move-to-group", { id, toGroupId });
   if (!options?.suppressMutationEvent) {
     emitQuestionMutation({
       source: options?.mutationSource || "question-command",
@@ -238,9 +211,9 @@ export async function moveQuestionToGroup(
 export async function updateQuestionStatus(
   questionId: number,
   status: "not_started" | "in_progress" | "resolved",
-  options?: QuestionMutationOptions,
+  options?: QuestionMutationOptions
 ): Promise<IQuestion> {
-  const updated = await invoke("question:update-status", questionId, status);
+  const updated = await invoke<IQuestion>("question:update-status", questionId, status);
   if (!options?.suppressMutationEvent) {
     emitQuestionMutation({
       source: options?.mutationSource || "question-command",
