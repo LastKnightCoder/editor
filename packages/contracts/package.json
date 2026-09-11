@@ -1,0 +1,18 @@
+{
+  "name": "@tau/contracts",
+  "version": "0.1.0",
+  "description": "跨端命令契约：零业务类型依赖的 channel 定义与类型，desktop 与 web-server 双侧共享（依赖 @/types 的契约暂留 apps/desktop）",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@tau/rpc": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}
