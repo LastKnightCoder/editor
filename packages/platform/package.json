@@ -1,0 +1,13 @@
+{
+  "name": "@tau/platform",
+  "version": "0.1.0",
+  "description": "平台能力抽象层：窗口/文件对话框/shell 等本机环境能力的接口与 Electron/Web 双实现，业务命令不在此层",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}

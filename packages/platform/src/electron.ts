@@ -1,0 +1,115 @@
+import type {
+  DirectoryChangedPayload,
+  DirectoryEntry,
+  FileSelectOptions,
+  LocalFileApi,
+  Platform,
+  PlatformOs,
+  SaveFilePayload,
+  SaveFileResult,
+  TextFileChangedPayload,
+  WindowState,
+} from "./types";
+
+/**
+ * RPC 通道注入协议：宿主应用把渲染进程的 invoke/on/off 网关传入，
+ * 使本包不反向依赖应用代码（未来 Web Server 独立 app 同样可复用）。
+ */
+export interface PlatformInvoker {
+  invoke<T = unknown>(channel: string, ...args: unknown[]): Promise<T>;
+  on(channel: string, listener: (...args: unknown[]) => void): void;
+  off(channel: string, listener: (...args: unknown[]) => void): void;
+}
+
+/**
+ * 构造 Electron 平台实现。channel 与主进程 modules 的 handler 一一对应，
+ * 全部能力可用（supports 恒真）。
+ */
+export function createElectronPlatform(rpc: PlatformInvoker, os: PlatformOs): Platform {
+  const { invoke, on, off } = rpc;
+
+  // 事件通道的推送格式为 (占位 event, payload)，payload 在第二参
+  const subscribe = (channel: string, emit: (...args: unknown[]) => void): (() => void) => {
+    on(channel, emit);
+    return () => off(channel, emit);
+  };
+
+  return {
+    kind: "electron",
+    os,
+    supports: () => true,
+    window: {
+      close: () => invoke<void>("close-window"),
+      minimize: () => invoke<void>("minimize-window"),
+      maximize: () => invoke<void>("maximize-window"),
+      toggleFullScreen: () => invoke<void>("toggle-fullscreen"),
+      setAlwaysOnTop: (flag: boolean) => invoke<void>("set-always-on-top", flag),
+      getState: () => invoke<WindowState>("get-window-state"),
+      showAndFocus: () => invoke<void>("show-and-focus-window"),
+      openMarkdownWindow: (filePath: string, options) =>
+        invoke<void>("open-markdown-in-new-window", filePath, options),
+      openPomodoroWindow: () => invoke<void>("open-pomodoro-window"),
+      openPomodoroMiniWindow: () => invoke<void>("open-pomodoro-mini-window"),
+      hidePomodoroMiniWindow: () => invoke<void>("hide-pomodoro-mini-window"),
+      openPomodoroImmersiveWindow: () => invoke<void>("open-pomodoro-immersive-window"),
+      hidePomodoroImmersiveWindow: () => invoke<void>("hide-pomodoro-immersive-window"),
+      onMaximizedChange: (callback: (maximized: boolean) => void) => {
+        const dispose = [
+          subscribe("window-maximized", () => callback(true)),
+          subscribe("window-unmaximized", () => callback(false)),
+        ];
+        return () => dispose.forEach(fn => fn());
+      },
+      onFocusChange: (callback: (focused: boolean) => void) => {
+        const dispose = [
+          subscribe("window-focus", () => callback(true)),
+          subscribe("window-blur", () => callback(false)),
+        ];
+        return () => dispose.forEach(fn => fn());
+      },
+    },
+    fileDialog: {
+      selectFile: (options?: FileSelectOptions) => invoke<string[] | null>("select-file", options),
+      selectDirectory: () => invoke<string | null>("select-directory-with-dialog"),
+      saveFile: (payload: SaveFilePayload) =>
+        invoke<SaveFileResult>("save-file-with-dialog", payload),
+      downloadFile: (url: string, defaultFileName?: string) =>
+        invoke<string | null>("download-file-with-dialog", url, defaultFileName),
+    },
+    localFile: {
+      readTextFile: (path: string) => invoke<string>("read-text-file", path),
+      writeTextFile: (path: string, contents: string) =>
+        invoke<void>("write-text-file", path, contents),
+      readBinaryFile: (path: string) => invoke<Uint8Array>("read-binary-file", path),
+      writeBinaryFile: (path: string, contents: Uint8Array) =>
+        invoke<void>("write-binary-file", path, contents),
+      createTextFileExclusive: (path: string, contents: string) =>
+        invoke<void>("create-text-file-exclusive", path, contents),
+      removeFile: (path: string) => invoke<void>("remove-file", path),
+      rename: (oldPath: string, newPath: string) =>
+        invoke<void>("rename-file-or-directory", oldPath, newPath),
+      createDir: (path: string) => invoke<void>("create-dir", path),
+      exists: (path: string) => invoke<boolean>("path-exists", path),
+      readDirectory: (path: string) => invoke<DirectoryEntry[]>("read-directory", path),
+      watchTextFile: (path: string) => invoke<void>("watch-text-file", path),
+      unwatchTextFile: (path: string) => invoke<void>("unwatch-text-file", path),
+      watchDirectory: (path: string) => invoke<void>("watch-directory", path),
+      unwatchDirectory: (path: string) => invoke<void>("unwatch-directory", path),
+      onTextFileChanged: (callback: (payload: TextFileChangedPayload) => void) =>
+        subscribe("text-file-changed", (...args) => callback(args[1] as TextFileChangedPayload)),
+      onDirectoryChanged: (callback: (payload: DirectoryChangedPayload) => void) =>
+        subscribe("directory-changed", (...args) => callback(args[1] as DirectoryChangedPayload)),
+    } satisfies LocalFileApi,
+    shell: {
+      openExternal: (url: string) => invoke<void>("open-external", url),
+      showInFolder: (path: string) => invoke<void>("show-in-folder", path),
+      openFileWithDefaultApp: (path: string) => invoke<string>("open-file-with-default-app", path),
+    },
+    system: {
+      getFonts: () => invoke<string[]>("get-all-fonts"),
+      getHomeDir: () => invoke<string>("get-home-dir"),
+      getAppDir: () => invoke<string>("get-app-dir"),
+      getUserDataDir: () => invoke<string>("get-user-data-dir"),
+    },
+  };
+}
