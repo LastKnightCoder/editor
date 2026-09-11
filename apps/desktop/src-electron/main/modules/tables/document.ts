@@ -1,3 +1,4 @@
+import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
 import {
   IDocument,
@@ -9,7 +10,6 @@ import {
 } from "@/types";
 import { Descendant } from "slate";
 import { getContentLength } from "@/utils/helper";
-import { BrowserWindow } from "electron";
 import { basename } from "node:path";
 import log from "electron-log";
 
@@ -1033,10 +1033,8 @@ export default class DocumentTable {
   static updateDocumentItem(
     db: Database.Database,
     item: IUpdateDocumentItem,
-    ...res: any[]
+    ctx: CommandContext = fallbackCommandContext
   ): IDocumentItem | null {
-    const win = res[res.length - 1];
-
     const currentDocumentItem = this.getDocumentItem(db, item.id);
     if (!currentDocumentItem) return null;
 
@@ -1080,34 +1078,19 @@ export default class DocumentTable {
 
     Operation.insertOperation(db, "document-item", "update", item.id, now);
 
-    BrowserWindow.getAllWindows().forEach(window => {
-      if (window !== win && !window.isDestroyed()) {
-        window.webContents.send("document-item:updated", {
-          databaseName: basename(db.name),
-          documentItemId: item.id,
-        });
-      }
+    ctx.broadcastOthers("document-item:updated", {
+      databaseName: basename(db.name),
+      documentItemId: item.id,
     });
 
     if (item.isCard && item.cardId) {
-      BrowserWindow.getAllWindows().forEach(window => {
-        if (window !== win && !window.isDestroyed()) {
-          window.webContents.send("card:updated", {
-            databaseName: basename(db.name),
-            cardId: item.cardId,
-          });
-        }
-      });
+      ctx.broadcastOthers("card:updated", { databaseName: basename(db.name), cardId: item.cardId });
     }
 
     if (item.isArticle && item.articleId) {
-      BrowserWindow.getAllWindows().forEach(window => {
-        if (window !== win && !window.isDestroyed()) {
-          window.webContents.send("article:updated", {
-            databaseName: basename(db.name),
-            articleId: item.articleId,
-          });
-        }
+      ctx.broadcastOthers("article:updated", {
+        databaseName: basename(db.name),
+        articleId: item.articleId,
       });
     }
 

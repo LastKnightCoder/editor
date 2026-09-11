@@ -1,3 +1,4 @@
+import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
 import { dfs, getContentLength } from "@/utils/helper.ts";
 import { IContent, ICreateContent, IUpdateContent } from "@/types";
@@ -5,7 +6,6 @@ import log from "electron-log";
 import { Descendant } from "slate";
 import { produce } from "immer";
 import { basename } from "node:path";
-import { BrowserWindow } from "electron";
 
 import Operation from "./operation";
 import WhiteBoardContentTable from "./white-board-content";
@@ -105,8 +105,7 @@ export default class ContentTable {
   private static isMigrationDone(db: Database.Database, key: string) {
     this.ensureMigrationMetaTable(db);
     const row = db.prepare(`SELECT value FROM migration_meta WHERE key = ?`).get(key) as
-      | { value: string }
-      | undefined;
+      { value: string } | undefined;
     return row?.value === "done";
   }
 
@@ -218,7 +217,7 @@ export default class ContentTable {
     db: Database.Database,
     contentId: number,
     contentData: Partial<IUpdateContent> & { content: Descendant[]; expectedRevision?: string },
-    win: BrowserWindow
+    ctx: CommandContext = fallbackCommandContext
   ): IContent | null {
     const { content, count } = contentData;
     const session = contentSession(db, contentId);
@@ -235,14 +234,7 @@ export default class ContentTable {
     const actualCount = count || (content ? getContentLength(content) : 0);
     stmt.run(now, JSON.stringify(content || []), actualCount, contentId);
     Operation.insertOperation(db, "content", "update", contentId, now);
-    BrowserWindow.getAllWindows().forEach(window => {
-      if (window !== win && !window.isDestroyed()) {
-        window.webContents.send("content:updated", {
-          databaseName: basename(db.name),
-          contentId,
-        });
-      }
-    });
+    ctx.broadcastOthers("content:updated", { databaseName: basename(db.name), contentId });
     return this.getContentById(db, contentId);
   }
 

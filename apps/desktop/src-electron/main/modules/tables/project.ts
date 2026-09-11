@@ -1,3 +1,4 @@
+import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
 import {
   Project,
@@ -15,7 +16,6 @@ import { Descendant } from "slate";
 import { getContentLength } from "@/utils/helper";
 import { getMarkdown } from "@/utils/markdown.ts";
 import { basename, join } from "node:path";
-import { BrowserWindow } from "electron";
 import { v4 as uuidv4 } from "uuid";
 import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
@@ -164,8 +164,7 @@ export default class ProjectTable {
   private static isMigrationDone(db: Database.Database, key: string) {
     this.ensureMigrationMetaTable(db);
     const row = db.prepare(`SELECT value FROM migration_meta WHERE key = ?`).get(key) as
-      | { value: string }
-      | undefined;
+      { value: string } | undefined;
     return row?.value === "done";
   }
 
@@ -550,10 +549,8 @@ export default class ProjectTable {
   static updateProjectItem(
     db: Database.Database,
     item: UpdateProjectItem,
-    ...res: any[]
+    ctx: CommandContext = fallbackCommandContext
   ): ProjectItem | null {
-    const win = res[res.length - 1];
-
     // 标题以协作会话为真源：用户显式改名时先回写协作标题，避免随后被旧标题覆盖
     setCanonicalContentTitle(db, item.contentId, item.title ?? "");
 
@@ -582,34 +579,19 @@ export default class ProjectTable {
       item.id
     );
 
-    BrowserWindow.getAllWindows().forEach(window => {
-      if (window !== win && !window.isDestroyed()) {
-        window.webContents.send("project-item:updated", {
-          databaseName: basename(db.name),
-          projectItemId: item.id,
-        });
-      }
+    ctx.broadcastOthers("project-item:updated", {
+      databaseName: basename(db.name),
+      projectItemId: item.id,
     });
 
     if (item.refType === "card" && item.refId) {
-      BrowserWindow.getAllWindows().forEach(window => {
-        if (window !== win && !window.isDestroyed()) {
-          window.webContents.send("card:updated", {
-            databaseName: basename(db.name),
-            cardId: item.refId,
-          });
-        }
-      });
+      ctx.broadcastOthers("card:updated", { databaseName: basename(db.name), cardId: item.refId });
     }
 
     if (item.refType === "article" && item.refId) {
-      BrowserWindow.getAllWindows().forEach(window => {
-        if (window !== win && !window.isDestroyed()) {
-          window.webContents.send("article:updated", {
-            databaseName: basename(db.name),
-            articleId: item.refId,
-          });
-        }
+      ctx.broadcastOthers("article:updated", {
+        databaseName: basename(db.name),
+        articleId: item.refId,
       });
     }
 

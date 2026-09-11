@@ -1,3 +1,4 @@
+import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
 import type { Descendant } from "slate";
 import Operation from "./operation";
@@ -5,7 +6,6 @@ import ContentTable from "./content";
 import { getContentLength } from "@/utils/helper.ts";
 import { getMarkdown } from "@/utils/markdown.ts";
 import log from "electron-log";
-import { BrowserWindow } from "electron";
 
 // weather/mood 反序列化后的结构（与前端 WeatherMood 对齐）
 interface WeatherMoodValue {
@@ -124,7 +124,7 @@ export default class DiaryTable {
   private static getEntrySortTime(
     type: "daily" | "weekly" | "monthly" | null,
     date: string,
-    fallback: number,
+    fallback: number
   ) {
     if (type !== "daily") return fallback;
     return this.parseEntryDateMs(date, fallback);
@@ -144,11 +144,7 @@ export default class DiaryTable {
 
   private static tableExists(db: Database.Database, tableName: string) {
     return Boolean(
-      db
-        .prepare(
-          `SELECT name FROM sqlite_master WHERE type='table' AND name = ?`,
-        )
-        .get(tableName),
+      db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name = ?`).get(tableName)
     );
   }
 
@@ -162,13 +158,11 @@ export default class DiaryTable {
     if (!this.tableExists(db, "diary_segments")) return;
 
     const columns = this.getTableColumns(db, "diary_segments");
-    const hasPosition = columns.some((col) => col.name === "position");
+    const hasPosition = columns.some(col => col.name === "position");
     if (!hasPosition) return;
 
     const migrate = db.transaction(() => {
-      db.prepare(
-        `DROP INDEX IF EXISTS idx_diary_segments_diary_id_position`,
-      ).run();
+      db.prepare(`DROP INDEX IF EXISTS idx_diary_segments_diary_id_position`).run();
       db.prepare(`DROP INDEX IF EXISTS idx_diary_segments_diary_id`).run();
       db.prepare(`DROP INDEX IF EXISTS idx_diary_segments_create_time`).run();
       db.prepare(`DROP TABLE IF EXISTS diary_segments_migrated`).run();
@@ -183,24 +177,22 @@ export default class DiaryTable {
           FOREIGN KEY(diary_id) REFERENCES diary_entries(id) ON DELETE CASCADE,
           FOREIGN KEY(content_id) REFERENCES contents(id)
         )
-      `,
+      `
       ).run();
       db.prepare(
         `
         INSERT INTO diary_segments_migrated (id, diary_id, content_id, create_time, update_time)
         SELECT id, diary_id, content_id, create_time, update_time
         FROM diary_segments
-      `,
+      `
       ).run();
       db.prepare(`DROP TABLE diary_segments`).run();
+      db.prepare(`ALTER TABLE diary_segments_migrated RENAME TO diary_segments`).run();
       db.prepare(
-        `ALTER TABLE diary_segments_migrated RENAME TO diary_segments`,
+        `CREATE INDEX IF NOT EXISTS idx_diary_segments_diary_id ON diary_segments(diary_id)`
       ).run();
       db.prepare(
-        `CREATE INDEX IF NOT EXISTS idx_diary_segments_diary_id ON diary_segments(diary_id)`,
-      ).run();
-      db.prepare(
-        `CREATE INDEX IF NOT EXISTS idx_diary_segments_create_time ON diary_segments(create_time)`,
+        `CREATE INDEX IF NOT EXISTS idx_diary_segments_create_time ON diary_segments(create_time)`
       ).run();
     });
 
@@ -211,25 +203,23 @@ export default class DiaryTable {
   // 给 diary_entries 加 tags 列。旧 weekly/monthly 只在首次加列时自动补标签。
   private static migrateDiaryTags(db: Database.Database) {
     const columns = this.getTableColumns(db, "diary_entries");
-    const hasTags = columns.some((col) => col.name === "tags");
+    const hasTags = columns.some(col => col.name === "tags");
     if (!hasTags) {
-      db.prepare(
-        `ALTER TABLE diary_entries ADD COLUMN tags TEXT DEFAULT '[]'`,
-      ).run();
+      db.prepare(`ALTER TABLE diary_entries ADD COLUMN tags TEXT DEFAULT '[]'`).run();
       log.info("[diary-tags] Added tags column to diary_entries");
 
       const weeklyResult = db
         .prepare(
-          `UPDATE diary_entries SET tags = '["周记"]' WHERE type = 'weekly' AND (tags IS NULL OR tags = '[]' OR tags = '')`,
+          `UPDATE diary_entries SET tags = '["周记"]' WHERE type = 'weekly' AND (tags IS NULL OR tags = '[]' OR tags = '')`
         )
         .run();
       const monthlyResult = db
         .prepare(
-          `UPDATE diary_entries SET tags = '["月记"]' WHERE type = 'monthly' AND (tags IS NULL OR tags = '[]' OR tags = '')`,
+          `UPDATE diary_entries SET tags = '["月记"]' WHERE type = 'monthly' AND (tags IS NULL OR tags = '[]' OR tags = '')`
         )
         .run();
       log.info(
-        `[diary-tags] Auto-tagged weekly=${weeklyResult.changes}, monthly=${monthlyResult.changes}`,
+        `[diary-tags] Auto-tagged weekly=${weeklyResult.changes}, monthly=${monthlyResult.changes}`
       );
     }
 
@@ -271,7 +261,7 @@ export default class DiaryTable {
             WHERE e.type = 'daily' AND s.content_id = d.content_id
           )
         ORDER BY d.date ASC, COALESCE(c.create_time, d.id) ASC, d.id ASC
-      `,
+      `
       )
       .all() as LegacyDailyNoteRow[];
 
@@ -317,8 +307,7 @@ export default class DiaryTable {
         if (hasMigratedContent.get(note.content_id, note.content_id)) continue;
 
         const createTime = note.content_create_time ?? now;
-        const updateTime =
-          note.content_update_time ?? note.content_create_time ?? now;
+        const updateTime = note.content_update_time ?? note.content_create_time ?? now;
         let wordCount = note.word_count ?? 0;
         if (wordCount === 0 && note.content_id) {
           const content = db
@@ -336,13 +325,10 @@ export default class DiaryTable {
         }
 
         const existingEntry = getDailyEntryByDate.get(note.date) as
-          | { id: number; update_time: number }
-          | undefined;
+          { id: number; update_time: number } | undefined;
         const diaryId =
           existingEntry?.id ??
-          Number(
-            insertEntry.run(note.date, createTime, updateTime).lastInsertRowid,
-          );
+          Number(insertEntry.run(note.date, createTime, updateTime).lastInsertRowid);
 
         insertSegment.run(diaryId, note.content_id, createTime, updateTime);
         touchEntry.run(updateTime, diaryId);
@@ -373,7 +359,7 @@ export default class DiaryTable {
         LEFT JOIN contents c ON d.content_id = c.id
         LEFT JOIN diary_segments s ON s.diary_id = d.id AND s.content_id = d.content_id
         WHERE d.content_id IS NOT NULL AND s.id IS NULL
-      `,
+      `
       )
       .all() as Array<{
       id: number;
@@ -385,9 +371,7 @@ export default class DiaryTable {
     }>;
 
     if (orphans.length > 0) {
-      log.info(
-        `[diary-segments] Migrating ${orphans.length} legacy entries to segments`,
-      );
+      log.info(`[diary-segments] Migrating ${orphans.length} legacy entries to segments`);
 
       const insertSegment = db.prepare(`
         INSERT INTO diary_segments (diary_id, content_id, create_time, update_time)
@@ -400,9 +384,7 @@ export default class DiaryTable {
           orphan.id,
           orphan.content_id,
           orphan.content_create_time ?? orphan.create_time,
-          orphan.content_update_time ??
-            orphan.content_create_time ??
-            orphan.update_time,
+          orphan.content_update_time ?? orphan.content_create_time ?? orphan.update_time
         );
         migratedDiaryIds.add(orphan.id);
       }
@@ -424,12 +406,12 @@ export default class DiaryTable {
             WHERE s.diary_id = diary_entries.id
               AND s.content_id = diary_entries.content_id
           )
-      `,
+      `
       )
       .run().changes;
 
     log.info(
-      `[diary-segments] Migration complete: created=${orphans.length}, clearedLegacyContentIds=${clearedLegacyContentIds}`,
+      `[diary-segments] Migration complete: created=${orphans.length}, clearedLegacyContentIds=${clearedLegacyContentIds}`
     );
   }
 
@@ -441,8 +423,7 @@ export default class DiaryTable {
       "get-diary-entry-by-id": this.getDiaryEntryById.bind(this),
       "get-diary-entry-by-date": this.getDiaryEntryByDate.bind(this),
       "get-diary-entries-by-type": this.getDiaryEntriesByType.bind(this),
-      "get-diary-entries-by-date-range":
-        this.getDiaryEntriesByDateRange.bind(this),
+      "get-diary-entries-by-date-range": this.getDiaryEntriesByDateRange.bind(this),
       "get-all-diary-entries": this.getAllDiaryEntries.bind(this),
       "get-diary-heatmap-data": this.getDiaryHeatmapData.bind(this),
       "get-diaries-by-dates": this.getDiariesByDates.bind(this),
@@ -483,10 +464,7 @@ export default class DiaryTable {
   }
 
   // 查询某篇 diary 的所有 segments（按创建时间升序，JOIN contents 取 content）
-  static getDiarySegmentsByDiaryId(
-    db: Database.Database,
-    diaryId: number,
-  ): DiarySegment[] {
+  static getDiarySegmentsByDiaryId(db: Database.Database, diaryId: number): DiarySegment[] {
     const stmt = db.prepare(`
       SELECT s.*, c.content, c.count as word_count
       FROM diary_segments s
@@ -495,12 +473,12 @@ export default class DiaryTable {
       ORDER BY s.create_time ASC, s.id ASC
     `);
     const rows = stmt.all(diaryId) as RawDiarySegmentRow[];
-    return rows.map((row) => this.parseDiarySegment(row));
+    return rows.map(row => this.parseDiarySegment(row));
   }
 
   private static getDiarySegmentsByDiaryIds(
     db: Database.Database,
-    diaryIds: number[],
+    diaryIds: number[]
   ): Map<number, DiarySegment[]> {
     const segmentsByDiaryId = new Map<number, DiarySegment[]>();
     if (diaryIds.length === 0) return segmentsByDiaryId;
@@ -543,10 +521,7 @@ export default class DiaryTable {
     return segments.reduce((sum, s) => sum + (s.wordCount || 0), 0);
   }
 
-  static parseDiaryEntry(
-    entry: RawDiaryEntryRow,
-    segments?: DiarySegment[],
-  ): DiaryEntry {
+  static parseDiaryEntry(entry: RawDiaryEntryRow, segments?: DiarySegment[]): DiaryEntry {
     return {
       id: entry.id,
       type: entry.type,
@@ -566,7 +541,7 @@ export default class DiaryTable {
   // 给 diary 行装载 segments，返回完整 DiaryEntry
   private static loadEntryWithSegments(
     db: Database.Database,
-    entry: RawDiaryEntryRow | undefined,
+    entry: RawDiaryEntryRow | undefined
   ): DiaryEntry {
     const segments = entry ? this.getDiarySegmentsByDiaryId(db, entry.id) : [];
     return this.parseDiaryEntry(entry as RawDiaryEntryRow, segments);
@@ -574,23 +549,18 @@ export default class DiaryTable {
 
   private static loadEntriesWithSegments(
     db: Database.Database,
-    entries: RawDiaryEntryRow[],
+    entries: RawDiaryEntryRow[]
   ): DiaryEntry[] {
     const segmentsByDiaryId = this.getDiarySegmentsByDiaryIds(
       db,
-      entries.map((entry) => entry.id),
+      entries.map(entry => entry.id)
     );
 
-    return entries.map((entry) =>
-      this.parseDiaryEntry(entry, segmentsByDiaryId.get(entry.id) ?? []),
-    );
+    return entries.map(entry => this.parseDiaryEntry(entry, segmentsByDiaryId.get(entry.id) ?? []));
   }
   // ---- Diary CRUD ----
 
-  static createDiaryEntry(
-    db: Database.Database,
-    entry: CreateDiaryEntryPayload,
-  ): DiaryEntry {
+  static createDiaryEntry(db: Database.Database, entry: CreateDiaryEntryPayload): DiaryEntry {
     const now = Date.now();
 
     // 新建 diary_entries 行（content_id 不再使用，置 null）
@@ -600,14 +570,9 @@ export default class DiaryTable {
     `);
 
     // 兼容：若调用方传了 content（旧接口），作为单段处理；若传了 segments，按段建
-    const segmentsContent: Descendant[][] = entry.segments
-      ? entry.segments
-      : [entry.content ?? []];
+    const segmentsContent: Descendant[][] = entry.segments ? entry.segments : [entry.content ?? []];
 
-    const totalWordCount = segmentsContent.reduce(
-      (sum, c) => sum + getContentLength(c || []),
-      0,
-    );
+    const totalWordCount = segmentsContent.reduce((sum, c) => sum + getContentLength(c || []), 0);
 
     const res = stmt.run(
       entry.type,
@@ -617,7 +582,7 @@ export default class DiaryTable {
       entry.tags ?? "[]",
       totalWordCount,
       now,
-      now,
+      now
     );
 
     const diaryId = Number(res.lastInsertRowid);
@@ -627,7 +592,7 @@ export default class DiaryTable {
       INSERT INTO diary_segments (diary_id, content_id, create_time, update_time)
       VALUES (?, ?, ?, ?)
     `);
-    segmentsContent.forEach((segContent) => {
+    segmentsContent.forEach(segContent => {
       const contentId = ContentTable.createContent(db, {
         content: segContent || [],
         count: getContentLength(segContent || []),
@@ -643,7 +608,7 @@ export default class DiaryTable {
   static updateDiaryEntry(
     db: Database.Database,
     entry: Partial<DiaryEntry> & { id: number },
-    win: BrowserWindow,
+    ctx: CommandContext = fallbackCommandContext
   ): DiaryEntry {
     const now = Date.now();
     const existingEntry = this.getDiaryEntryById(db, entry.id);
@@ -654,7 +619,7 @@ export default class DiaryTable {
 
     // 兼容旧调用方：整体 content 更新只覆盖首个 segment，不再隐式拆分多段。
     if (entry.content !== undefined) {
-      this.updateFirstSegmentContent(db, entry.id, entry.content, win);
+      this.updateFirstSegmentContent(db, entry.id, entry.content, ctx);
     }
 
     // weather/mood/tags 更新
@@ -680,9 +645,9 @@ export default class DiaryTable {
     updateValues.push(now);
     updateValues.push(entry.id);
 
-    db.prepare(
-      `UPDATE diary_entries SET ${updateFields.join(", ")} WHERE id = ?`,
-    ).run(...updateValues);
+    db.prepare(`UPDATE diary_entries SET ${updateFields.join(", ")} WHERE id = ?`).run(
+      ...updateValues
+    );
 
     if (entry.content !== undefined) {
       this.syncDiaryWordCount(db, entry.id);
@@ -697,7 +662,7 @@ export default class DiaryTable {
     db: Database.Database,
     diaryId: number,
     content: Descendant[],
-    win: BrowserWindow,
+    ctx: CommandContext = fallbackCommandContext
   ) {
     const [firstSegment] = this.getDiarySegmentsByDiaryId(db, diaryId);
     const now = Date.now();
@@ -709,11 +674,11 @@ export default class DiaryTable {
           content,
           count: getContentLength(content),
         },
-        win,
+        ctx
       );
       db.prepare(`UPDATE diary_segments SET update_time = ? WHERE id = ?`).run(
         now,
-        firstSegment.id,
+        firstSegment.id
       );
       return;
     }
@@ -723,7 +688,7 @@ export default class DiaryTable {
       count: getContentLength(content),
     });
     db.prepare(
-      `INSERT INTO diary_segments (diary_id, content_id, create_time, update_time) VALUES (?, ?, ?, ?)`,
+      `INSERT INTO diary_segments (diary_id, content_id, create_time, update_time) VALUES (?, ?, ?, ?)`
     ).run(diaryId, contentId, now, now);
   }
 
@@ -750,10 +715,7 @@ export default class DiaryTable {
     return this.loadEntryWithSegments(db, entry);
   }
 
-  static getDiaryEntryByIdOrNull(
-    db: Database.Database,
-    id: number,
-  ): DiaryEntry | null {
+  static getDiaryEntryByIdOrNull(db: Database.Database, id: number): DiaryEntry | null {
     const stmt = db.prepare(`
       SELECT d.* FROM diary_entries d WHERE d.id = ?
     `);
@@ -762,10 +724,7 @@ export default class DiaryTable {
     return this.loadEntryWithSegments(db, entry);
   }
 
-  static getDiaryEntryByDate(
-    db: Database.Database,
-    date: string,
-  ): DiaryEntry | null {
+  static getDiaryEntryByDate(db: Database.Database, date: string): DiaryEntry | null {
     const stmt = db.prepare(`
       SELECT d.* FROM diary_entries d WHERE d.date = ?
     `);
@@ -776,7 +735,7 @@ export default class DiaryTable {
 
   static getDiaryEntriesByType(
     db: Database.Database,
-    type: "daily" | "weekly" | "monthly",
+    type: "daily" | "weekly" | "monthly"
   ): DiaryEntry[] {
     const stmt = db.prepare(`
       SELECT d.* FROM diary_entries d
@@ -791,7 +750,7 @@ export default class DiaryTable {
     db: Database.Database,
     startDate: string,
     endDate: string,
-    diaryType?: "daily" | "weekly" | "monthly",
+    diaryType?: "daily" | "weekly" | "monthly"
   ): DiaryEntry[] {
     let query = `
       SELECT d.* FROM diary_entries d
@@ -823,13 +782,11 @@ export default class DiaryTable {
   static getDiaryHeatmapData(
     db: Database.Database,
     year: number,
-    month: number,
+    month: number
   ): Array<{ date: string; wordCount: number }> {
     const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
     const endDate =
-      month === 12
-        ? `${year + 1}-01-01`
-        : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+      month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
 
     // 汇总各 segment 的字数（contents.count）按 diary 聚合
     const stmt = db.prepare(`
@@ -851,7 +808,7 @@ export default class DiaryTable {
   static getDiariesByDates(
     db: Database.Database,
     dates: string[],
-    diaryType?: "daily" | "weekly" | "monthly",
+    diaryType?: "daily" | "weekly" | "monthly"
   ): DiaryEntry[] {
     if (dates.length === 0) return [];
 
@@ -884,7 +841,7 @@ export default class DiaryTable {
       endDate?: string;
       diaryType?: "daily" | "weekly" | "monthly";
       maxLength?: number;
-    },
+    }
   ): Array<{
     id: number;
     type: "daily" | "weekly" | "monthly";
@@ -905,13 +862,13 @@ export default class DiaryTable {
         db,
         params.startDate,
         params.endDate,
-        params.diaryType,
+        params.diaryType
       );
     } else {
       return [];
     }
 
-    return entries.map((entry) => {
+    return entries.map(entry => {
       const fullContent = this.concatSegmentsContent(entry.segments);
       let markdown = fullContent.length > 0 ? getMarkdown(fullContent) : "";
       const maxLength = params.maxLength;
@@ -945,9 +902,7 @@ export default class DiaryTable {
         id: entry.id,
         type: entry.type,
         date: entry.date,
-        weather: entry.weather
-          ? (JSON.parse(entry.weather) as WeatherMoodValue)
-          : null,
+        weather: entry.weather ? (JSON.parse(entry.weather) as WeatherMoodValue) : null,
         mood: entry.mood ? (JSON.parse(entry.mood) as WeatherMoodValue) : null,
         wordCount: entry.wordCount,
         content: markdown,
@@ -959,16 +914,13 @@ export default class DiaryTable {
 
   // ---- Segment-level CRUD（IPC 暴露） ----
 
-  static getDiarySegments(
-    db: Database.Database,
-    diaryId: number,
-  ): DiarySegment[] {
+  static getDiarySegments(db: Database.Database, diaryId: number): DiarySegment[] {
     return this.getDiarySegmentsByDiaryId(db, diaryId);
   }
 
   static createDiarySegment(
     db: Database.Database,
-    params: { diaryId: number; content: Descendant[] },
+    params: { diaryId: number; content: Descendant[] }
   ): DiarySegment {
     const { diaryId, content } = params;
     const now = Date.now();
@@ -979,24 +931,19 @@ export default class DiaryTable {
 
     const res = db
       .prepare(
-        `INSERT INTO diary_segments (diary_id, content_id, create_time, update_time) VALUES (?, ?, ?, ?)`,
+        `INSERT INTO diary_segments (diary_id, content_id, create_time, update_time) VALUES (?, ?, ?, ?)`
       )
       .run(diaryId, contentId, now, now);
 
     // 同步 diary_entries.word_count
     this.syncDiaryWordCount(db, diaryId);
     // bump update_time，让 FTS/vec reconcile 队列检测到内容变更
-    db.prepare(`UPDATE diary_entries SET update_time = ? WHERE id = ?`).run(
-      now,
-      diaryId,
-    );
+    db.prepare(`UPDATE diary_entries SET update_time = ? WHERE id = ?`).run(now, diaryId);
     Operation.insertOperation(db, "diary-entry", "update", diaryId, now);
 
     const created = this.getDiarySegmentById(db, Number(res.lastInsertRowid));
     if (!created) {
-      throw new Error(
-        `Failed to load created diary segment ${res.lastInsertRowid}`,
-      );
+      throw new Error(`Failed to load created diary segment ${res.lastInsertRowid}`);
     }
     return created;
   }
@@ -1004,7 +951,7 @@ export default class DiaryTable {
   static updateDiarySegment(
     db: Database.Database,
     params: { segmentId: number; content: Descendant[] },
-    win: BrowserWindow,
+    ctx: CommandContext = fallbackCommandContext
   ): DiarySegment | null {
     const { segmentId, content } = params;
     const seg = this.getDiarySegmentById(db, segmentId);
@@ -1017,18 +964,12 @@ export default class DiaryTable {
         content,
         count: getContentLength(content),
       },
-      win,
+      ctx
     );
 
     const now = Date.now();
-    db.prepare(`UPDATE diary_segments SET update_time = ? WHERE id = ?`).run(
-      now,
-      segmentId,
-    );
-    db.prepare(`UPDATE diary_entries SET update_time = ? WHERE id = ?`).run(
-      now,
-      seg.diaryId,
-    );
+    db.prepare(`UPDATE diary_segments SET update_time = ? WHERE id = ?`).run(now, segmentId);
+    db.prepare(`UPDATE diary_entries SET update_time = ? WHERE id = ?`).run(now, seg.diaryId);
 
     this.syncDiaryWordCount(db, seg.diaryId);
     Operation.insertOperation(db, "diary-entry", "update", seg.diaryId, now);
@@ -1044,10 +985,7 @@ export default class DiaryTable {
     this.deleteSegmentInternal(db, segmentId);
     this.syncDiaryWordCount(db, seg.diaryId);
     // bump update_time，让 FTS/vec reconcile 队列检测到内容变更
-    db.prepare(`UPDATE diary_entries SET update_time = ? WHERE id = ?`).run(
-      now,
-      seg.diaryId,
-    );
+    db.prepare(`UPDATE diary_entries SET update_time = ? WHERE id = ?`).run(now, seg.diaryId);
 
     Operation.insertOperation(db, "diary-entry", "update", seg.diaryId, now);
     return 1;
@@ -1057,7 +995,7 @@ export default class DiaryTable {
 
   private static getDiarySegmentById(
     db: Database.Database,
-    segmentId: number,
+    segmentId: number
   ): DiarySegment | null {
     const stmt = db.prepare(`
       SELECT s.*, c.content, c.count as word_count
@@ -1069,16 +1007,14 @@ export default class DiaryTable {
     return row ? this.parseDiarySegment(row) : null;
   }
 
-  private static deleteSegmentInternal(
-    db: Database.Database,
-    segmentId: number,
-  ) {
+  private static deleteSegmentInternal(db: Database.Database, segmentId: number) {
     const seg = this.getDiarySegmentById(db, segmentId);
     if (!seg) return;
     // 先解除 diary_entries 旧 content_id 和 diary_segments 对 contents 的外键约束
-    db.prepare(
-      `UPDATE diary_entries SET content_id = NULL WHERE id = ? AND content_id = ?`,
-    ).run(seg.diaryId, seg.contentId);
+    db.prepare(`UPDATE diary_entries SET content_id = NULL WHERE id = ? AND content_id = ?`).run(
+      seg.diaryId,
+      seg.contentId
+    );
     db.prepare(`DELETE FROM diary_segments WHERE id = ?`).run(segmentId);
     if (seg.contentId) {
       ContentTable.deleteContent(db, seg.contentId);
@@ -1091,13 +1027,10 @@ export default class DiaryTable {
         `SELECT COALESCE(SUM(c.count), 0) as total
          FROM diary_segments s
          LEFT JOIN contents c ON s.content_id = c.id
-         WHERE s.diary_id = ?`,
+         WHERE s.diary_id = ?`
       )
       .get(diaryId) as { total: number };
-    db.prepare(`UPDATE diary_entries SET word_count = ? WHERE id = ?`).run(
-      result.total,
-      diaryId,
-    );
+    db.prepare(`UPDATE diary_entries SET word_count = ? WHERE id = ?`).run(result.total, diaryId);
   }
 
   // ---- 朋友圈流：扁平 segment + 标签设置 ----
@@ -1134,7 +1067,7 @@ export default class DiaryTable {
       tags: string | null;
     }>;
 
-    return rows.map((row) => {
+    return rows.map(row => {
       let content: Descendant[] = [];
       if (row.content) {
         try {
@@ -1152,11 +1085,7 @@ export default class DiaryTable {
         updateTime: row.update_time,
         content,
         entryDate: row.entry_date ?? "",
-        entryDateMs: this.getEntrySortTime(
-          row.entry_type,
-          row.entry_date ?? "",
-          row.create_time,
-        ),
+        entryDateMs: this.getEntrySortTime(row.entry_type, row.entry_date ?? "", row.create_time),
         weather: row.weather,
         mood: row.mood,
         tags: row.tags ?? "[]",
@@ -1179,7 +1108,7 @@ export default class DiaryTable {
       create_time: number;
       update_time: number;
     }>;
-    return rows.map((row) => ({
+    return rows.map(row => ({
       name: row.name,
       color: row.color,
       sort: row.sort,
@@ -1190,7 +1119,7 @@ export default class DiaryTable {
 
   static upsertDiaryTagSetting(
     db: Database.Database,
-    setting: { name: string; color: string; sort?: number },
+    setting: { name: string; color: string; sort?: number }
   ): DiaryTagSetting {
     const now = Date.now();
     db.prepare(
@@ -1198,12 +1127,10 @@ export default class DiaryTable {
       INSERT INTO diary_tag_settings (name, color, sort, create_time, update_time)
       VALUES (?, ?, ?, ?, ?)
       ON CONFLICT(name) DO UPDATE SET color = excluded.color, sort = excluded.sort, update_time = excluded.update_time
-    `,
+    `
     ).run(setting.name, setting.color, setting.sort ?? 0, now, now);
 
-    const row = db
-      .prepare(`SELECT * FROM diary_tag_settings WHERE name = ?`)
-      .get(setting.name) as {
+    const row = db.prepare(`SELECT * FROM diary_tag_settings WHERE name = ?`).get(setting.name) as {
       name: string;
       color: string;
       sort: number;
@@ -1220,7 +1147,6 @@ export default class DiaryTable {
   }
 
   static deleteDiaryTagSetting(db: Database.Database, name: string): number {
-    return db.prepare(`DELETE FROM diary_tag_settings WHERE name = ?`).run(name)
-      .changes;
+    return db.prepare(`DELETE FROM diary_tag_settings WHERE name = ?`).run(name).changes;
   }
 }

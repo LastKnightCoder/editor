@@ -3,6 +3,7 @@ import PathUtil from "../utils/PathUtil";
 import Database from "better-sqlite3";
 import { join } from "node:path";
 import log from "electron-log";
+import { setCommandBroadcastSink, type CommandContext } from "@tau/rpc";
 import { Module } from "../types/module";
 import { Table } from "../types/table";
 import CardTable from "./tables/card";
@@ -89,6 +90,26 @@ import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 export type DatabaseConnectMode = "normal" | "maintenance";
 export type DatabaseReconnectSource = "sync_upload_reconnect" | "sync_download_reconnect";
 export type DatabaseConnectReason = "connect" | "switch" | "reconnect" | DatabaseReconnectSource;
+
+/** 构造以指定窗口为来源端的命令上下文（排除来源窗口广播） */
+function createWindowCommandContext(win: BrowserWindow | null): CommandContext {
+  return {
+    broadcastOthers: (channel, ...args) => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        if (window !== win && !window.isDestroyed()) {
+          window.webContents.send(channel, ...args);
+        }
+      }
+    },
+    broadcastAll: (channel, ...args) => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        if (!window.isDestroyed()) {
+          window.webContents.send(channel, ...args);
+        }
+      }
+    },
+  };
+}
 
 class DatabaseModule implements Module {
   name: string;
@@ -446,6 +467,15 @@ class DatabaseModule implements Module {
   }
 
   async init() {
+    // 无来源上下文（联动调用链）的全广播出口，须早于任何命令调用装配
+    setCommandBroadcastSink((channel, args) => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        if (!window.isDestroyed()) {
+          window.webContents.send(channel, ...args);
+        }
+      }
+    });
+
     const connectDatabase = async (
       event: IpcMainInvokeEvent,
       name: string,
@@ -563,7 +593,11 @@ class DatabaseModule implements Module {
           if (useTransaction) {
             db.exec("BEGIN");
           }
-          const res = await this.eventAndHandlers[eventName](db, ...args, win);
+          const res = await this.eventAndHandlers[eventName](
+            db,
+            ...args,
+            createWindowCommandContext(win)
+          );
           if (useTransaction) {
             db.exec("COMMIT");
           }
@@ -607,13 +641,23 @@ class DatabaseModule implements Module {
         log.info(`database ${dbName} index event ${eventName}`);
 
         if (readOnlyIndexEvents.has(eventName)) {
-          return await this.indexEventAndHandlers[eventName](mainDb, indexDb, ...args, win);
+          return await this.indexEventAndHandlers[eventName](
+            mainDb,
+            indexDb,
+            ...args,
+            createWindowCommandContext(win)
+          );
         }
 
         try {
           mainDb.exec("BEGIN");
           indexDb.exec("BEGIN");
-          const res = await this.indexEventAndHandlers[eventName](mainDb, indexDb, ...args, win);
+          const res = await this.indexEventAndHandlers[eventName](
+            mainDb,
+            indexDb,
+            ...args,
+            createWindowCommandContext(win)
+          );
           indexDb.exec("COMMIT");
           mainDb.exec("COMMIT");
           return res;
