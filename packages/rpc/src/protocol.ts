@@ -29,6 +29,11 @@ export interface InvokeRequest {
   args: unknown[];
   /** 调用方窗口 id，主进程用它还原 event.sender；缺省时回退主窗口 */
   windowId?: number;
+  /**
+   * 调用方会话标识，Web Server 多用户场景下的路由键。
+   * Electron 本地模式为单用户，不传；与 windowId 语义解耦（连接级 vs 窗口级）。
+   */
+  sessionId?: string;
 }
 
 export interface RpcErrorPayload {
