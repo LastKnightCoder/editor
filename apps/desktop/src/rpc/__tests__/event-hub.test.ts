@@ -1,4 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
+import { invoke, on, off } from "@/electron";
+import rpcEventHub from "../event-hub";
 import { RpcEventHub } from "../event-hub";
 import type { EventMessage } from "@tau/rpc";
 
@@ -160,6 +162,67 @@ describe("RpcEventHub", () => {
     });
 
     expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("保留监听器身份，重复订阅去重，取消订阅不影响其他通道且可重新订阅", async () => {
+    await hub.start();
+    const listener = vi.fn((_event: unknown, value: string, count: number) => {
+      expect(value).toBe("payload");
+      expect(count).toBe(2);
+    });
+    hub.on("first", listener);
+    hub.on("first", listener);
+    hub.on("second", listener);
+    const emit = (channel: string) =>
+      FakeWebSocket.instances[0].emitEvent({
+        channel,
+        args: ["payload", 2],
+        windowId: 5,
+      });
+    emit("first");
+    expect(listener).toHaveBeenCalledTimes(1);
+    hub.off("first", listener);
+    hub.off("first", listener);
+    emit("first");
+    emit("second");
+    expect(listener).toHaveBeenCalledTimes(2);
+    hub.on("first", listener);
+    emit("first");
+    expect(listener).toHaveBeenCalledTimes(3);
+    hub.off("first", listener);
+    hub.off("second", listener);
+    emit("first");
+    emit("second");
+    expect(listener).toHaveBeenCalledTimes(3);
+  });
+
+  it("桥接层直接传递原监听器并保留参数元组与未知返回值类型", () => {
+    const subscribe = vi.spyOn(rpcEventHub, "on").mockImplementation(() => {});
+    const unsubscribe = vi.spyOn(rpcEventHub, "off").mockImplementation(() => {});
+    const listener = (_event: unknown, _value: string, _count: number) => {};
+    try {
+      on("typed", listener);
+      off("typed", listener);
+      expect(subscribe).toHaveBeenCalledWith("typed", listener);
+      expect(unsubscribe).toHaveBeenCalledWith("typed", listener);
+      expectTypeOf<ReturnType<typeof invoke>>().toEqualTypeOf<Promise<unknown>>();
+      expectTypeOf<ReturnType<typeof invoke<string>>>().toEqualTypeOf<Promise<string>>();
+      expectTypeOf<Parameters<typeof on<[unknown, string, number]>>[1]>().toEqualTypeOf<
+        typeof listener
+      >();
+      expectTypeOf<Parameters<typeof off<[unknown, string, number]>>[1]>().toEqualTypeOf<
+        typeof listener
+      >();
+      if (false) {
+        // @ts-expect-error 显式元组必须拒绝不匹配的监听器参数。
+        on<[unknown, number]>("typed", (_event: unknown, _value: string) => {});
+        // @ts-expect-error 取消订阅必须具有相同的参数类型约束。
+        off<[unknown, number]>("typed", (_event: unknown, _value: string) => {});
+      }
+    } finally {
+      subscribe.mockRestore();
+      unsubscribe.mockRestore();
+    }
   });
 
   it("单个监听器抛错不影响其余监听器", async () => {

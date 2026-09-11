@@ -2,10 +2,10 @@ import { invoke } from "@/electron";
 import { VideoNote, TranscriptSegment } from "@/types";
 
 export const createEmptyVideoNote = async (
-  metaInfo: VideoNote["metaInfo"],
+  metaInfo: VideoNote["metaInfo"]
 ): Promise<VideoNote | null> => {
   try {
-    const result = await invoke("create-empty-video-note", metaInfo);
+    const result = await invoke<VideoNote | null>("create-empty-video-note", metaInfo);
     return result;
   } catch (error) {
     console.error(error);
@@ -18,7 +18,7 @@ export const updateVideoNote = async (note: {
   metaInfo?: VideoNote["metaInfo"];
 }): Promise<VideoNote | null> => {
   try {
-    const result = await invoke("update-video-note", note);
+    const result = await invoke<VideoNote | null>("update-video-note", note);
     return result;
   } catch (error) {
     console.error(error);
@@ -28,7 +28,7 @@ export const updateVideoNote = async (note: {
 
 export const deleteVideoNote = async (id: number): Promise<number | null> => {
   try {
-    const result = await invoke("delete-video-note", id);
+    const result = await invoke<number>("delete-video-note", id);
     return result;
   } catch (error) {
     console.error(error);
@@ -36,11 +36,9 @@ export const deleteVideoNote = async (id: number): Promise<number | null> => {
   }
 };
 
-export const getVideoNoteById = async (
-  id: number,
-): Promise<VideoNote | null> => {
+export const getVideoNoteById = async (id: number): Promise<VideoNote | null> => {
   try {
-    const result = await invoke("get-video-note-by-id", id);
+    const result = await invoke<VideoNote | null>("get-video-note-by-id", id);
     return result;
   } catch (error) {
     console.error(error);
@@ -50,7 +48,7 @@ export const getVideoNoteById = async (
 
 export const getAllVideoNotes = async (): Promise<VideoNote[]> => {
   try {
-    const result = await invoke("get-all-video-notes");
+    const result = await invoke<VideoNote[]>("get-all-video-notes");
     return result;
   } catch (error) {
     console.error(error);
@@ -60,10 +58,10 @@ export const getAllVideoNotes = async (): Promise<VideoNote[]> => {
 
 export const updateVideoNoteDescription = async (
   id: number,
-  description: string,
+  description: string
 ): Promise<VideoNote | null> => {
   try {
-    const result = await invoke("update-video-note-description", {
+    const result = await invoke<VideoNote | null>("update-video-note-description", {
       id,
       description,
     });
@@ -78,10 +76,10 @@ export const updateVideoNoteTranscript = async (
   id: number,
   transcript: string,
   transcriptSegments?: TranscriptSegment[],
-  transcriptWordSegments?: TranscriptSegment[],
+  transcriptWordSegments?: TranscriptSegment[]
 ): Promise<VideoNote | null> => {
   try {
-    const result = await invoke("update-video-note-transcript", {
+    const result = await invoke<VideoNote | null>("update-video-note-transcript", {
       id,
       transcript,
       transcriptSegments,
@@ -96,10 +94,10 @@ export const updateVideoNoteTranscript = async (
 
 export const updateVideoNoteSummary = async (
   id: number,
-  summary: string,
+  summary: string
 ): Promise<VideoNote | null> => {
   try {
-    const result = await invoke("update-video-note-summary", {
+    const result = await invoke<VideoNote | null>("update-video-note-summary", {
       id,
       summary,
     });
@@ -112,10 +110,10 @@ export const updateVideoNoteSummary = async (
 
 export const updateVideoNoteHighlights = async (
   id: number,
-  highlights: VideoNote["highlights"],
+  highlights: VideoNote["highlights"]
 ): Promise<VideoNote | null> => {
   try {
-    const result = await invoke("update-video-note-highlights", {
+    const result = await invoke<VideoNote | null>("update-video-note-highlights", {
       id,
       highlights,
     });
@@ -128,10 +126,10 @@ export const updateVideoNoteHighlights = async (
 
 export const updateVideoNoteInsights = async (
   id: number,
-  insights: VideoNote["insights"],
+  insights: VideoNote["insights"]
 ): Promise<VideoNote | null> => {
   try {
-    const result = await invoke("update-video-note-insights", {
+    const result = await invoke<VideoNote | null>("update-video-note-insights", {
       id,
       insights,
     });

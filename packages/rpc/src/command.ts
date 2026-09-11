@@ -58,7 +58,10 @@ export type CommandHandler<TArgs extends unknown[] = unknown[], TResult = unknow
 /** 双侧运行时注入的桥：渲染侧只装配 call，主进程只装配 register */
 export interface CommandBridge {
   call?(channel: string, args: unknown[]): Promise<unknown>;
-  register?(channel: string, handler: CommandHandler): void;
+  register?<TArgs extends unknown[], TResult>(
+    channel: string,
+    handler: CommandHandler<TArgs, TResult>
+  ): void;
 }
 
 let bridge: CommandBridge | null = null;
@@ -99,7 +102,7 @@ export function command<TArgs extends unknown[], TResult>(
           `command "${channel}" 注册失败：当前运行时未装配 CommandBridge.register（主进程侧应经 ipc-registry-install 装配）`
         );
       }
-      bridge.register(channel, handler as CommandHandler);
+      bridge.register(channel, handler);
     },
   };
 }

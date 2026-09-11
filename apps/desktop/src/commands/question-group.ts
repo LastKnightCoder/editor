@@ -1,8 +1,5 @@
 import { invoke } from "@/electron";
-import {
-  emitQuestionMutation,
-  QUESTION_MUTATION_ACTIONS,
-} from "@/mcp/question/mutation";
+import { emitQuestionMutation, QUESTION_MUTATION_ACTIONS } from "@/mcp/question/mutation";
 
 interface QuestionGroupMutationOptions {
   suppressMutationEvent?: boolean;
@@ -32,9 +29,9 @@ export async function createQuestionGroup(
     title: string;
     color?: string;
   },
-  options?: QuestionGroupMutationOptions,
+  options?: QuestionGroupMutationOptions
 ): Promise<QuestionGroupDTO | null> {
-  const created = await invoke("question-group:create", params);
+  const created = await invoke<QuestionGroupDTO | null>("question-group:create", params);
   if (created && !options?.suppressMutationEvent) {
     emitQuestionMutation({
       source: options?.mutationSource || "question-group-command",
@@ -55,9 +52,9 @@ export async function updateQuestionGroup(
     color?: string;
     sortIndex?: number;
   },
-  options?: QuestionGroupMutationOptions,
+  options?: QuestionGroupMutationOptions
 ): Promise<QuestionGroupDTO> {
-  const updated = await invoke("question-group:update", params);
+  const updated = await invoke<QuestionGroupDTO>("question-group:update", params);
   if (!options?.suppressMutationEvent) {
     emitQuestionMutation({
       source: options?.mutationSource || "question-group-command",
@@ -73,9 +70,9 @@ export async function updateQuestionGroup(
 
 export async function deleteQuestionGroup(
   id: number,
-  options?: QuestionGroupMutationOptions,
+  options?: QuestionGroupMutationOptions
 ): Promise<number> {
-  const result = await invoke("question-group:delete", id);
+  const result = await invoke<number>("question-group:delete", id);
   if (!options?.suppressMutationEvent) {
     emitQuestionMutation({
       source: options?.mutationSource || "question-group-command",
@@ -90,9 +87,9 @@ export async function deleteQuestionGroup(
 
 export async function reorderQuestionGroups(
   orderedIds: number[],
-  options?: QuestionGroupMutationOptions,
+  options?: QuestionGroupMutationOptions
 ): Promise<number> {
-  const result = await invoke("question-group:reorder", { orderedIds });
+  const result = await invoke<number>("question-group:reorder", { orderedIds });
   if (!options?.suppressMutationEvent) {
     emitQuestionMutation({
       source: options?.mutationSource || "question-group-command",

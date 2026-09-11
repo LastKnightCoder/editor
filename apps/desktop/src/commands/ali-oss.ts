@@ -3,7 +3,7 @@ import { IRemoteFileInfo } from "@/types";
 
 export const getBucketList = async (
   keyId: string,
-  keySecret: string,
+  keySecret: string
 ): Promise<
   Array<{
     bucket: string;
@@ -43,24 +43,18 @@ interface IListObjects {
 }
 
 export const getObject = async (objInfo: IGetObject) => {
-  return invoke("get-object", objInfo);
+  return invoke<{ content: Uint8Array }>("get-object", objInfo);
 };
 
 export const isObjectExist = async (objInfo: IGetObject) => {
-  return invoke("is-object-exist", objInfo);
+  return invoke<boolean>("is-object-exist", objInfo);
 };
 
-export const updateObject = async (
-  objInfo: IGetObject,
-  content: Uint8Array,
-) => {
+export const updateObject = async (objInfo: IGetObject, content: Uint8Array) => {
   return invoke("update-object", objInfo, content);
 };
 
-export const createObject = async (
-  objInfo: IGetObject,
-  content: Uint8Array,
-) => {
+export const createObject = async (objInfo: IGetObject, content: Uint8Array) => {
   return invoke("create-object", objInfo, content);
 };
 
@@ -68,8 +62,6 @@ export const deleteObject = async (objInfo: IGetObject) => {
   return invoke("delete-object", objInfo);
 };
 
-export const listObjects = async (
-  listParams: IListObjects,
-): Promise<IRemoteFileInfo[]> => {
+export const listObjects = async (listParams: IListObjects): Promise<IRemoteFileInfo[]> => {
   return invoke("list-objects", listParams);
 };

@@ -1,4 +1,4 @@
-import { createCommandRegistry, setCommandBridge } from "@tau/rpc";
+import { createCommandRegistry, setCommandBridge, type CommandBridge } from "@tau/rpc";
 
 /**
  * web-server 侧命令契约装配：register 桥接到本进程的中立 registry，
@@ -6,8 +6,16 @@ import { createCommandRegistry, setCommandBridge } from "@tau/rpc";
  */
 export const commandRegistry = createCommandRegistry();
 
-setCommandBridge({
-  register: (channel, handler) => {
-    commandRegistry.registerInvokeHandler(channel, handler);
+const bridge: CommandBridge = {
+  register: function register<TArgs extends unknown[], TResult>(
+    channel: string,
+    handler: (event: import("@tau/rpc").CommandEvent, ...args: TArgs) => TResult | Promise<TResult>
+  ) {
+    commandRegistry.registerInvokeHandler(
+      channel,
+      (event, ...args) => handler(event, ...(args as TArgs)) as TResult | Promise<TResult>
+    );
   },
-});
+};
+
+setCommandBridge(bridge);

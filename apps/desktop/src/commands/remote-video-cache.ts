@@ -34,15 +34,11 @@ export const addRemoteVideoCacheEntry = async (payload: {
   return await invoke("remote-video-cache:add", payload);
 };
 
-export const listRemoteVideoCache = async (): Promise<
-  RemoteVideoCacheEntry[]
-> => {
+export const listRemoteVideoCache = async (): Promise<RemoteVideoCacheEntry[]> => {
   return await invoke("remote-video-cache:list");
 };
 
-export const deleteRemoteVideoCacheEntry = async (
-  id: string,
-): Promise<boolean> => {
+export const deleteRemoteVideoCacheEntry = async (id: string): Promise<boolean> => {
   return await invoke("remote-video-cache:delete", { id });
 };
 
@@ -55,11 +51,9 @@ export const downloadRemoteVideoWithProgress = async (
     url: string;
     fileName?: string;
   },
-  onProgress?: (progress: RemoteVideoCacheProgress) => void,
+  onProgress?: (progress: RemoteVideoCacheProgress) => void
 ): Promise<{ localPath: string; fileSize: number; cached: boolean; requestId: number }> => {
-  let progressHandler:
-    | ((event: any, data: RemoteVideoCacheProgress) => void)
-    | undefined;
+  let progressHandler: ((event: any, data: RemoteVideoCacheProgress) => void) | undefined;
 
   if (onProgress) {
     progressHandler = (_event: any, data: RemoteVideoCacheProgress) => {
@@ -69,8 +63,7 @@ export const downloadRemoteVideoWithProgress = async (
   }
 
   try {
-    const result = await invoke("remote-video-cache:download-with-progress", payload);
-    return result;
+    return await invoke("remote-video-cache:download-with-progress", payload);
   } finally {
     if (progressHandler) {
       setTimeout(() => {
@@ -81,7 +74,7 @@ export const downloadRemoteVideoWithProgress = async (
 };
 
 export const getRemoteVideoCacheStatus = async (
-  url: string,
+  url: string
 ): Promise<RemoteVideoCacheStatus | null> => {
   return await invoke("remote-video-cache:get-status", { url });
 };

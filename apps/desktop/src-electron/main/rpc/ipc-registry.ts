@@ -32,7 +32,7 @@ export function installIpcRegistry(): void {
 
   patchedIpcMain.handle = (
     channel: string,
-    listener?: (event: IpcMainInvokeEvent, ...args: any[]) => unknown
+    listener?: (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown
   ) => {
     if (listener) {
       // modules 层 handler 签名仍为 IpcMainInvokeEvent，运行时与 CommandEvent
@@ -45,7 +45,7 @@ export function installIpcRegistry(): void {
 
   patchedIpcMain.on = (
     channel: string,
-    listener: (event: IpcMainEvent, ...args: any[]) => void
+    listener: (event: IpcMainEvent, ...args: unknown[]) => void
   ) => {
     registry.addOnHandler(channel, listener as OnHandler);
     return originalOn(channel, listener);
@@ -53,7 +53,7 @@ export function installIpcRegistry(): void {
 
   patchedIpcMain.removeListener = (
     channel: string,
-    listener: (event: IpcMainEvent, ...args: any[]) => void
+    listener: (event: IpcMainEvent, ...args: unknown[]) => void
   ) => {
     registry.removeOnHandler(channel, listener as OnHandler);
     return originalRemoveListener(channel, listener);
