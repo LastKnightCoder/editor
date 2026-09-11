@@ -2,16 +2,12 @@ import { RpcMessageType, RpcRequestMessage, RpcResponseMessage } from "@/types";
 import BackendWebSocketServer from "../utils/BackendWebSocketServer";
 import fetch from "node-fetch";
 import log from "electron-log";
-import { BrowserWindow } from "electron";
-import { basename } from "node:path";
 import { Descendant } from "slate";
 import { importFromMarkdown } from "@/utils/markdown";
-import { getContentLength } from "@/utils/helper";
 import databaseManager from "./database";
 import ContentTable from "./tables/content";
 import WebClipTable from "./tables/web-clip";
 import ContentLinkTable from "./tables/content-link";
-import Operation from "./tables/operation";
 
 interface WebClipStartPayload {
   projectItemId: number;
@@ -39,10 +35,7 @@ interface WebClipTask {
  * @param pageUrl 页面 URL，用于处理相对路径
  * @param translateToChinese 是否翻译为中文
  */
-const buildConvertPrompt = (
-  pageUrl: string,
-  translateToChinese: boolean,
-): string => {
+const buildConvertPrompt = (pageUrl: string, translateToChinese: boolean): string => {
   // 从 URL 提取 baseUrl（协议 + 域名）
   let baseUrl = "";
   let baseDir = "";
@@ -66,9 +59,7 @@ const buildConvertPrompt = (
 - **代码不翻译**：代码块中的内容保持原样，仅翻译注释`
     : "";
 
-  const outputLanguage = translateToChinese
-    ? "\n- 输出语言为简体中文（代码除外）"
-    : "";
+  const outputLanguage = translateToChinese ? "\n- 输出语言为简体中文（代码除外）" : "";
 
   return `# 任务说明
 
@@ -190,126 +181,106 @@ class WebClipModule {
     this.backendServer = backendServer;
 
     // 注册开始解析的处理器
-    this.backendServer.addMessageHandler(
-      "web-clip:start",
-      async (message: RpcRequestMessage) => {
-        const { id, method } = message;
-        const params = message.params as unknown as
-          | WebClipStartPayload
-          | undefined;
+    this.backendServer.addMessageHandler("web-clip:start", async (message: RpcRequestMessage) => {
+      const { id, method } = message;
+      const params = message.params as unknown as WebClipStartPayload | undefined;
 
-        if (!params || !params.projectItemId || !params.html) {
-          return {
-            type: RpcMessageType.Response,
-            id,
-            method,
-            result: null,
-            error: { code: 1, message: "缺少必要参数" },
-          } as RpcResponseMessage;
-        }
-
-        // 如果已经有任务在进行，先取消它
-        const existingTask = this.activeTasks.get(params.projectItemId);
-        if (existingTask && existingTask.status === "processing") {
-          existingTask.abortController.abort();
-          existingTask.status = "cancelled";
-        }
-
-        // 创建新任务
-        const abortController = new AbortController();
-        const task: WebClipTask = {
-          projectItemId: params.projectItemId,
-          url: params.url,
-          title: params.title,
-          abortController,
-          status: "processing",
-          accumulatedMarkdown: "",
-        };
-        this.activeTasks.set(params.projectItemId, task);
-
-        // 异步执行解析
-        this.processWebClip(params, task);
-
+      if (!params || !params.projectItemId || !params.html) {
         return {
           type: RpcMessageType.Response,
           id,
           method,
-          result: { ok: true, projectItemId: params.projectItemId },
-          error: null,
+          result: null,
+          error: { code: 1, message: "缺少必要参数" },
         } as RpcResponseMessage;
-      },
-    );
+      }
+
+      // 如果已经有任务在进行，先取消它
+      const existingTask = this.activeTasks.get(params.projectItemId);
+      if (existingTask && existingTask.status === "processing") {
+        existingTask.abortController.abort();
+        existingTask.status = "cancelled";
+      }
+
+      // 创建新任务
+      const abortController = new AbortController();
+      const task: WebClipTask = {
+        projectItemId: params.projectItemId,
+        url: params.url,
+        title: params.title,
+        abortController,
+        status: "processing",
+        accumulatedMarkdown: "",
+      };
+      this.activeTasks.set(params.projectItemId, task);
+
+      // 异步执行解析
+      this.processWebClip(params, task);
+
+      return {
+        type: RpcMessageType.Response,
+        id,
+        method,
+        result: { ok: true, projectItemId: params.projectItemId },
+        error: null,
+      } as RpcResponseMessage;
+    });
 
     // 注册取消解析的处理器
-    this.backendServer.addMessageHandler(
-      "web-clip:cancel",
-      async (message: RpcRequestMessage) => {
-        const { id, method } = message;
-        const params = message.params as unknown as
-          | { projectItemId: number }
-          | undefined;
+    this.backendServer.addMessageHandler("web-clip:cancel", async (message: RpcRequestMessage) => {
+      const { id, method } = message;
+      const params = message.params as unknown as { projectItemId: number } | undefined;
 
-        if (!params || !params.projectItemId) {
-          return {
-            type: RpcMessageType.Response,
-            id,
-            method,
-            result: null,
-            error: { code: 1, message: "缺少 projectItemId" },
-          } as RpcResponseMessage;
-        }
-
-        const task = this.activeTasks.get(params.projectItemId);
-        if (task && task.status === "processing") {
-          task.abortController.abort();
-          task.status = "cancelled";
-          this.activeTasks.delete(params.projectItemId);
-        }
-
+      if (!params || !params.projectItemId) {
         return {
           type: RpcMessageType.Response,
           id,
           method,
-          result: { ok: true },
-          error: null,
+          result: null,
+          error: { code: 1, message: "缺少 projectItemId" },
         } as RpcResponseMessage;
-      },
-    );
+      }
+
+      const task = this.activeTasks.get(params.projectItemId);
+      if (task && task.status === "processing") {
+        task.abortController.abort();
+        task.status = "cancelled";
+        this.activeTasks.delete(params.projectItemId);
+      }
+
+      return {
+        type: RpcMessageType.Response,
+        id,
+        method,
+        result: { ok: true },
+        error: null,
+      } as RpcResponseMessage;
+    });
 
     // 注册获取任务状态的处理器
-    this.backendServer.addMessageHandler(
-      "web-clip:status",
-      async (message: RpcRequestMessage) => {
-        const { id, method } = message;
-        const params = message.params as unknown as
-          | { projectItemId: number }
-          | undefined;
+    this.backendServer.addMessageHandler("web-clip:status", async (message: RpcRequestMessage) => {
+      const { id, method } = message;
+      const params = message.params as unknown as { projectItemId: number } | undefined;
 
-        const task = params?.projectItemId
-          ? this.activeTasks.get(params.projectItemId)
-          : null;
+      const task = params?.projectItemId ? this.activeTasks.get(params.projectItemId) : null;
 
-        return {
-          type: RpcMessageType.Response,
-          id,
-          method,
-          result: task
-            ? {
-                projectItemId: task.projectItemId,
-                status: task.status,
-                markdown: task.accumulatedMarkdown,
-              }
-            : null,
-          error: null,
-        } as RpcResponseMessage;
-      },
-    );
+      return {
+        type: RpcMessageType.Response,
+        id,
+        method,
+        result: task
+          ? {
+              projectItemId: task.projectItemId,
+              status: task.status,
+              markdown: task.accumulatedMarkdown,
+            }
+          : null,
+        error: null,
+      } as RpcResponseMessage;
+    });
   }
 
-  private async processWebClip(
-    params: WebClipStartPayload,
-    task: WebClipTask,
-  ): Promise<void> {
+  private async processWebClip(params: WebClipStartPayload, task: WebClipTask): Promise<void> {
     const {
       projectItemId,
       apiKey,
@@ -344,7 +315,7 @@ class WebClipModule {
       };
 
       log.info(
-        `Web clip starting for projectItemId: ${projectItemId}, HTML length: ${html.length}, model: ${modelName}`,
+        `Web clip starting for projectItemId: ${projectItemId}, HTML length: ${html.length}, model: ${modelName}`
       );
 
       const response = await fetch(chatPath, {
@@ -364,12 +335,8 @@ class WebClipModule {
         } catch {
           errorBody = "无法读取错误响应体";
         }
-        log.error(
-          `LLM API error - status: ${response.status}, body: ${errorBody}`,
-        );
-        throw new Error(
-          `LLM API 错误 (${response.status}): ${errorBody || response.statusText}`,
-        );
+        log.error(`LLM API error - status: ${response.status}, body: ${errorBody}`);
+        throw new Error(`LLM API 错误 (${response.status}): ${errorBody || response.statusText}`);
       }
 
       if (!response.body) {
@@ -430,7 +397,7 @@ class WebClipModule {
         projectItemId,
         task.accumulatedMarkdown,
         task.url,
-        task.title,
+        task.title
       );
 
       this.backendServer?.sendNotification("web-clip:complete", {
@@ -443,7 +410,7 @@ class WebClipModule {
       });
 
       log.info(
-        `Web clip completed for projectItemId: ${projectItemId}, webClipId: ${savedData?.webClipId}`,
+        `Web clip completed for projectItemId: ${projectItemId}, webClipId: ${savedData?.webClipId}`
       );
     } catch (error) {
       if ((error as Error).name === "AbortError") {
@@ -452,8 +419,7 @@ class WebClipModule {
       }
 
       task.status = "error";
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
       this.backendServer?.sendNotification("web-clip:error", {
         projectItemId,
@@ -478,7 +444,7 @@ class WebClipModule {
     projectItemId: number,
     markdown: string,
     url: string,
-    title: string,
+    title: string
   ): Promise<{ webClipId: number; contentId: number } | null> {
     try {
       const db = databaseManager.getCurrentDatabase();
@@ -518,50 +484,17 @@ class WebClipModule {
 
       if (existingLinks.length > 0) {
         // 已存在，更新内容
-        const existingWebClip = WebClipTable.getById(
-          db,
-          existingLinks[0].targetId,
-        );
+        const existingWebClip = WebClipTable.getById(db, existingLinks[0].targetId);
         if (existingWebClip) {
-          // 直接更新 content（不通过 ContentTable.updateContent 因为它需要 BrowserWindow）
-          const now = Date.now();
-          const contentCount = getContentLength(content);
-          const updateStmt = db.prepare(
-            "UPDATE contents SET update_time = ?, content = ?, count = ? WHERE id = ?",
-          );
-          updateStmt.run(
-            now,
-            JSON.stringify(content),
-            contentCount,
-            existingWebClip.contentId,
-          );
-          Operation.insertOperation(
-            db,
-            "content",
-            "update",
-            existingWebClip.contentId,
-            now,
-          );
-
-          // 广播通知其他窗口
-          const dbName = basename(db.name);
-          BrowserWindow.getAllWindows().forEach((window) => {
-            if (!window.isDestroyed()) {
-              window.webContents.send("content:updated", {
-                databaseName: dbName,
-                contentId: existingWebClip.contentId,
-              });
-            }
-          });
+          // 经 ContentTable.updateContent 更新（省略 ctx 走默认全广播，与原手写行为一致）
+          ContentTable.updateContent(db, existingWebClip.contentId, { content });
 
           // 更新 web_clip 标题
           WebClipTable.update(db, {
             id: existingWebClip.id,
             title: title || existingWebClip.title,
           });
-          log.info(
-            `[WebClip] Updated existing web clip: ${existingWebClip.id}`,
-          );
+          log.info(`[WebClip] Updated existing web clip: ${existingWebClip.id}`);
           return {
             webClipId: existingWebClip.id,
             contentId: existingWebClip.contentId,
@@ -595,9 +528,7 @@ class WebClipModule {
         targetType: "web_clip",
       });
 
-      log.info(
-        `[WebClip] Created new web clip: ${webClip.id}, contentId: ${contentId}`,
-      );
+      log.info(`[WebClip] Created new web clip: ${webClip.id}, contentId: ${contentId}`);
       return {
         webClipId: webClip.id,
         contentId,

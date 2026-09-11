@@ -1,5 +1,5 @@
+import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
-import { BrowserWindow } from "electron";
 import { basename } from "node:path";
 import { AudioNote } from "@/types";
 import Operation from "./operation";
@@ -128,10 +128,7 @@ export default class AudioNoteTable {
     };
   }
 
-  static createEmptyAudioNote(
-    db: Database.Database,
-    metaInfo: AudioNote["metaInfo"],
-  ): AudioNote {
+  static createEmptyAudioNote(db: Database.Database, metaInfo: AudioNote["metaInfo"]): AudioNote {
     const safeMetaInfo = metaInfo || { type: "local", filePath: "" };
 
     const stmt = db.prepare(`
@@ -144,10 +141,7 @@ export default class AudioNoteTable {
     return this.getAudioNoteById(db, result.lastInsertRowid);
   }
 
-  static getAudioNoteById(
-    db: Database.Database,
-    id: number | bigint,
-  ): AudioNote {
+  static getAudioNoteById(db: Database.Database, id: number | bigint): AudioNote {
     const stmt = db.prepare(`
       SELECT * FROM audio_notes WHERE id = ?
     `);
@@ -164,12 +158,12 @@ export default class AudioNoteTable {
       SELECT * FROM audio_notes
     `);
     const allAudioNotes = stmt.all() as AudioNoteRow[];
-    return allAudioNotes.map((note) => this.parseAudioNote(note));
+    return allAudioNotes.map(note => this.parseAudioNote(note));
   }
 
   static updateAudioNote(
     db: Database.Database,
-    note: { id: number; metaInfo?: AudioNote["metaInfo"] },
+    note: { id: number; metaInfo?: AudioNote["metaInfo"] }
   ): AudioNote {
     const now = Date.now();
     const existing = this.getAudioNoteById(db, note.id);
@@ -183,7 +177,7 @@ export default class AudioNoteTable {
 
   static updateDescription(
     db: Database.Database,
-    payload: { id: number; description: string },
+    payload: { id: number; description: string }
   ): AudioNote {
     const now = Date.now();
     const stmt = db.prepare(`
@@ -200,7 +194,7 @@ export default class AudioNoteTable {
       transcript: string;
       transcriptSegments?: AudioNote["transcriptSegments"];
       transcriptWordSegments?: AudioNote["transcriptWordSegments"];
-    },
+    }
   ): AudioNote {
     const now = Date.now();
     const stmt = db.prepare(`
@@ -209,21 +203,14 @@ export default class AudioNoteTable {
     stmt.run(
       now,
       payload.transcript,
-      payload.transcriptSegments
-        ? JSON.stringify(payload.transcriptSegments)
-        : "",
-      payload.transcriptWordSegments
-        ? JSON.stringify(payload.transcriptWordSegments)
-        : "",
-      payload.id,
+      payload.transcriptSegments ? JSON.stringify(payload.transcriptSegments) : "",
+      payload.transcriptWordSegments ? JSON.stringify(payload.transcriptWordSegments) : "",
+      payload.id
     );
     return this.getAudioNoteById(db, payload.id);
   }
 
-  static updateSummary(
-    db: Database.Database,
-    payload: { id: number; summary: string },
-  ): AudioNote {
+  static updateSummary(db: Database.Database, payload: { id: number; summary: string }): AudioNote {
     const now = Date.now();
     const stmt = db.prepare(`
       UPDATE audio_notes SET update_time = ?, summary = ? WHERE id = ?
@@ -237,7 +224,7 @@ export default class AudioNoteTable {
     payload: {
       id: number;
       highlights: AudioNote["highlights"];
-    },
+    }
   ): AudioNote {
     const now = Date.now();
     const stmt = db.prepare(`
@@ -252,17 +239,13 @@ export default class AudioNoteTable {
     payload: {
       id: number;
       insights: AudioNote["insights"];
-    },
+    }
   ): AudioNote {
     const now = Date.now();
     const stmt = db.prepare(`
       UPDATE audio_notes SET update_time = ?, insights = ? WHERE id = ?
     `);
-    stmt.run(
-      now,
-      payload.insights ? JSON.stringify(payload.insights) : "",
-      payload.id,
-    );
+    stmt.run(now, payload.insights ? JSON.stringify(payload.insights) : "", payload.id);
     return this.getAudioNoteById(db, payload.id);
   }
 
@@ -271,7 +254,7 @@ export default class AudioNoteTable {
     payload: {
       id: number;
       speakers: AudioNote["speakers"];
-    },
+    }
   ): AudioNote {
     const now = Date.now();
     const stmt = db.prepare(`
@@ -286,7 +269,7 @@ export default class AudioNoteTable {
     payload: {
       id: number;
       chapters: AudioNote["chapters"];
-    },
+    }
   ): AudioNote {
     const now = Date.now();
     const stmt = db.prepare(`
@@ -296,7 +279,11 @@ export default class AudioNoteTable {
     return this.getAudioNoteById(db, payload.id);
   }
 
-  static deleteAudioNote(db: Database.Database, id: number): number {
+  static deleteAudioNote(
+    db: Database.Database,
+    id: number,
+    ctx: CommandContext = fallbackCommandContext
+  ): number {
     const result = db.transaction(() => {
       AudioNoteItemTable.removeByAudioNoteId(db, id);
       AudioNoteChatTable.deleteChatsByAudioNoteId(db, id);
@@ -312,14 +299,7 @@ export default class AudioNoteTable {
     })();
 
     if (result.changes > 0) {
-      BrowserWindow.getAllWindows().forEach((window) => {
-        if (!window.isDestroyed()) {
-          window.webContents.send("audio-note:deleted", {
-            databaseName: basename(db.name),
-            audioNoteId: id,
-          });
-        }
-      });
+      ctx.broadcastAll("audio-note:deleted", { databaseName: basename(db.name), audioNoteId: id });
     }
     return result.changes;
   }

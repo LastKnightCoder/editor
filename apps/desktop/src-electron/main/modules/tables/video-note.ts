@@ -1,5 +1,5 @@
+import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
-import { BrowserWindow } from "electron";
 import { basename } from "node:path";
 import type { Descendant } from "slate";
 import { VideoNote } from "@/types";
@@ -32,7 +32,7 @@ export default class VideoNoteTable {
     const tableInfo = db.prepare("PRAGMA table_info(video_notes)").all() as {
       name: string;
     }[];
-    const hasNotesColumn = tableInfo.some((col) => col.name === "notes");
+    const hasNotesColumn = tableInfo.some(col => col.name === "notes");
 
     if (!hasNotesColumn) {
       this.addNewColumns(db);
@@ -48,10 +48,7 @@ export default class VideoNoteTable {
     }[];
 
     for (const videoNote of allVideoNotes) {
-      const existingItem = VideoNoteItemTable.getByVideoNoteId(
-        db,
-        videoNote.id,
-      );
+      const existingItem = VideoNoteItemTable.getByVideoNoteId(db, videoNote.id);
       if (existingItem) {
         continue;
       }
@@ -112,20 +109,16 @@ export default class VideoNoteTable {
     const tableInfo = db.prepare("PRAGMA table_info(video_notes)").all() as {
       name: string;
     }[];
-    const hasDescription = tableInfo.some((col) => col.name === "description");
-    const hasTranscript = tableInfo.some((col) => col.name === "transcript");
-    const hasTranscriptSegments = tableInfo.some(
-      (col) => col.name === "transcript_segments",
-    );
+    const hasDescription = tableInfo.some(col => col.name === "description");
+    const hasTranscript = tableInfo.some(col => col.name === "transcript");
+    const hasTranscriptSegments = tableInfo.some(col => col.name === "transcript_segments");
     const hasTranscriptWordSegments = tableInfo.some(
-      (col) => col.name === "transcript_word_segments",
+      col => col.name === "transcript_word_segments"
     );
-    const hasSummary = tableInfo.some((col) => col.name === "summary");
-    const hasEbookMarkdown = tableInfo.some(
-      (col) => col.name === "ebook_markdown",
-    );
-    const hasHighlights = tableInfo.some((col) => col.name === "highlights");
-    const hasInsights = tableInfo.some((col) => col.name === "insights");
+    const hasSummary = tableInfo.some(col => col.name === "summary");
+    const hasEbookMarkdown = tableInfo.some(col => col.name === "ebook_markdown");
+    const hasHighlights = tableInfo.some(col => col.name === "highlights");
+    const hasInsights = tableInfo.some(col => col.name === "insights");
 
     if (!hasDescription) {
       db.exec("ALTER TABLE video_notes ADD COLUMN description TEXT DEFAULT ''");
@@ -134,22 +127,16 @@ export default class VideoNoteTable {
       db.exec("ALTER TABLE video_notes ADD COLUMN transcript TEXT DEFAULT ''");
     }
     if (!hasTranscriptSegments) {
-      db.exec(
-        "ALTER TABLE video_notes ADD COLUMN transcript_segments TEXT DEFAULT ''",
-      );
+      db.exec("ALTER TABLE video_notes ADD COLUMN transcript_segments TEXT DEFAULT ''");
     }
     if (!hasTranscriptWordSegments) {
-      db.exec(
-        "ALTER TABLE video_notes ADD COLUMN transcript_word_segments TEXT DEFAULT ''",
-      );
+      db.exec("ALTER TABLE video_notes ADD COLUMN transcript_word_segments TEXT DEFAULT ''");
     }
     if (!hasSummary) {
       db.exec("ALTER TABLE video_notes ADD COLUMN summary TEXT DEFAULT ''");
     }
     if (!hasHighlights) {
-      db.exec(
-        "ALTER TABLE video_notes ADD COLUMN highlights TEXT DEFAULT '[]'",
-      );
+      db.exec("ALTER TABLE video_notes ADD COLUMN highlights TEXT DEFAULT '[]'");
     }
     if (!hasInsights) {
       db.exec("ALTER TABLE video_notes ADD COLUMN insights TEXT DEFAULT ''");
@@ -316,10 +303,7 @@ export default class VideoNoteTable {
     };
   }
 
-  static createEmptyVideoNote(
-    db: Database.Database,
-    metaInfo: VideoNote["metaInfo"],
-  ): VideoNote {
+  static createEmptyVideoNote(db: Database.Database, metaInfo: VideoNote["metaInfo"]): VideoNote {
     const safeMetaInfo = metaInfo || { type: "local", filePath: "" };
 
     const stmt = db.prepare(`
@@ -332,10 +316,7 @@ export default class VideoNoteTable {
     return this.getVideoNoteById(db, result.lastInsertRowid);
   }
 
-  static getVideoNoteById(
-    db: Database.Database,
-    id: number | bigint,
-  ): VideoNote {
+  static getVideoNoteById(db: Database.Database, id: number | bigint): VideoNote {
     const stmt = db.prepare(`
       SELECT * FROM video_notes WHERE id = ?
     `);
@@ -352,12 +333,12 @@ export default class VideoNoteTable {
       SELECT * FROM video_notes
     `);
     const allVideoNotes = stmt.all() as VideoNoteRow[];
-    return allVideoNotes.map((note) => this.parseVideoNote(note));
+    return allVideoNotes.map(note => this.parseVideoNote(note));
   }
 
   static updateVideoNote(
     db: Database.Database,
-    note: { id: number; metaInfo?: VideoNote["metaInfo"] },
+    note: { id: number; metaInfo?: VideoNote["metaInfo"] }
   ): VideoNote {
     const now = Date.now();
     const existing = this.getVideoNoteById(db, note.id);
@@ -371,7 +352,7 @@ export default class VideoNoteTable {
 
   static updateDescription(
     db: Database.Database,
-    payload: { id: number; description: string },
+    payload: { id: number; description: string }
   ): VideoNote {
     const now = Date.now();
     const stmt = db.prepare(`
@@ -388,7 +369,7 @@ export default class VideoNoteTable {
       transcript: string;
       transcriptSegments?: VideoNote["transcriptSegments"];
       transcriptWordSegments?: VideoNote["transcriptWordSegments"];
-    },
+    }
   ): VideoNote {
     const now = Date.now();
     const stmt = db.prepare(`
@@ -397,13 +378,9 @@ export default class VideoNoteTable {
     stmt.run(
       now,
       payload.transcript,
-      payload.transcriptSegments
-        ? JSON.stringify(payload.transcriptSegments)
-        : "",
-      payload.transcriptWordSegments
-        ? JSON.stringify(payload.transcriptWordSegments)
-        : "",
-      payload.id,
+      payload.transcriptSegments ? JSON.stringify(payload.transcriptSegments) : "",
+      payload.transcriptWordSegments ? JSON.stringify(payload.transcriptWordSegments) : "",
+      payload.id
     );
     if (payload.transcriptSegments && payload.transcriptSegments.length > 0) {
       videoNoteIndexQueue.enqueueTask(basename(db.name), payload.id);
@@ -411,10 +388,7 @@ export default class VideoNoteTable {
     return this.getVideoNoteById(db, payload.id);
   }
 
-  static updateSummary(
-    db: Database.Database,
-    payload: { id: number; summary: string },
-  ): VideoNote {
+  static updateSummary(db: Database.Database, payload: { id: number; summary: string }): VideoNote {
     const now = Date.now();
     const stmt = db.prepare(`
       UPDATE video_notes SET update_time = ?, summary = ? WHERE id = ?
@@ -428,7 +402,7 @@ export default class VideoNoteTable {
     payload: {
       id: number;
       highlights: VideoNote["highlights"];
-    },
+    }
   ): VideoNote {
     const now = Date.now();
     const stmt = db.prepare(`
@@ -443,21 +417,21 @@ export default class VideoNoteTable {
     payload: {
       id: number;
       insights: VideoNote["insights"];
-    },
+    }
   ): VideoNote {
     const now = Date.now();
     const stmt = db.prepare(`
       UPDATE video_notes SET update_time = ?, insights = ? WHERE id = ?
     `);
-    stmt.run(
-      now,
-      payload.insights ? JSON.stringify(payload.insights) : "",
-      payload.id,
-    );
+    stmt.run(now, payload.insights ? JSON.stringify(payload.insights) : "", payload.id);
     return this.getVideoNoteById(db, payload.id);
   }
 
-  static deleteVideoNote(db: Database.Database, id: number): number {
+  static deleteVideoNote(
+    db: Database.Database,
+    id: number,
+    ctx: CommandContext = fallbackCommandContext
+  ): number {
     VideoNoteItemTable.removeByVideoNoteId(db, id);
     VideoNoteChatTable.deleteChatsByVideoNoteId(db, id);
     videoNoteIndexQueue.cleanupVideoNoteArtifacts(basename(db.name), id);
@@ -468,14 +442,7 @@ export default class VideoNoteTable {
     const result = stmt.run(id);
     Operation.insertOperation(db, "video-note", "delete", id, Date.now());
     if (result.changes > 0) {
-      BrowserWindow.getAllWindows().forEach((window) => {
-        if (!window.isDestroyed()) {
-          window.webContents.send("video-note:deleted", {
-            databaseName: basename(db.name),
-            videoNoteId: id,
-          });
-        }
-      });
+      ctx.broadcastAll("video-note:deleted", { databaseName: basename(db.name), videoNoteId: id });
     }
     return result.changes;
   }
