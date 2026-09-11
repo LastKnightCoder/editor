@@ -1,30 +1,28 @@
 import { DailyNote } from "@/types/daily_note.ts";
-import { invoke } from "@/electron";
+import { dailyNoteCommands } from "@/commands/contracts/daily-note";
 
 export const createDailyNote = async (
-  dailyNote: Omit<DailyNote, "id" | "contentId">,
+  dailyNote: Omit<DailyNote, "id" | "contentId">
 ): Promise<DailyNote> => {
-  return await invoke("create-daily-note", dailyNote);
+  return dailyNoteCommands.create.call(dailyNote);
 };
 
-export const updateDailyNote = async (
-  dailyNote: Omit<DailyNote, "date">,
-): Promise<DailyNote> => {
-  return await invoke("update-daily-note", dailyNote);
+export const updateDailyNote = async (dailyNote: Omit<DailyNote, "date">): Promise<DailyNote> => {
+  return dailyNoteCommands.update.call(dailyNote);
 };
 
 export const getDailyNoteById = async (id: number): Promise<DailyNote> => {
-  return await invoke("get-daily-note-by-id", id);
+  return dailyNoteCommands.getById.call(id);
 };
 
 export const getDailyNoteByDate = async (date: string): Promise<DailyNote> => {
-  return await invoke("get-daily-note-by-date", date);
+  return dailyNoteCommands.getByDate.call(date);
 };
 
 export const getAllDailyNotes = async (): Promise<DailyNote[]> => {
-  return await invoke("get-all-daily-notes");
+  return dailyNoteCommands.getAll.call();
 };
 
 export const deleteDailyNote = async (id: number): Promise<number> => {
-  return await invoke("delete-daily-note", id);
+  return dailyNoteCommands.remove.call(id);
 };

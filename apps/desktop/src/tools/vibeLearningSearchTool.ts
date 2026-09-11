@@ -1,6 +1,14 @@
 import type { ToolDefinition } from "@/types/tool";
+import {
+  getVLResourcesByProjectId,
+  grepVLResourceContent,
+  readVLResourceContent,
+  readVLResourceLines,
+  readVLResourceRange,
+  searchVLContent,
+} from "@/commands";
+
 import type { VLResource, VLSearchResult } from "@/types/vibe-learning";
-import { invoke } from "@/electron";
 
 const stringifyResult = (payload: unknown) => ({
   content: JSON.stringify(payload),
@@ -33,7 +41,7 @@ type BatchReadSearchHitInput = {
 };
 
 const normalizeSearchResults = (results: SearchToolResult[]) =>
-  results.map((r) => ({
+  results.map(r => ({
     resourceId: r.resourceId,
     resourceName: r.resourceName,
     chunkLevel: r.chunkLevel || "passage",
@@ -66,10 +74,7 @@ export const createListResourcesTool = (projectId: number): ToolDefinition => ({
   },
   executor: async () => {
     try {
-      const resources: VLResource[] = await invoke(
-        "vl-get-resources-by-project",
-        projectId,
-      );
+      const resources: VLResource[] = await getVLResourcesByProjectId(projectId);
 
       if (!resources || resources.length === 0) {
         return stringifyResult({
@@ -80,7 +85,7 @@ export const createListResourcesTool = (projectId: number): ToolDefinition => ({
       }
 
       // 格式化资源列表
-      const formattedResources = resources.map((r) => ({
+      const formattedResources = resources.map(r => ({
         resourceId: r.id,
         name: r.name,
         type: r.resourceType,
@@ -95,8 +100,7 @@ export const createListResourcesTool = (projectId: number): ToolDefinition => ({
         resources: formattedResources,
       });
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       return stringifyResult({
         success: false,
         error: `获取资源列表失败: ${errorMessage}`,
@@ -111,7 +115,7 @@ export const createListResourcesTool = (projectId: number): ToolDefinition => ({
  */
 export const createReadResourceContentTool = (
   projectId: number,
-  mainDbName: string,
+  mainDbName: string
 ): ToolDefinition => ({
   name: "read_resource_content",
   description:
@@ -127,15 +131,11 @@ export const createReadResourceContentTool = (
     required: ["resourceName"],
   },
   execution: LONG_RUNNING_TOOL_EXECUTION,
-  executor: async (args) => {
+  executor: async args => {
     const { resourceName } = args as { resourceName: string };
 
     try {
-      const result = await invoke("vl-read-markdown-content", {
-        projectId,
-        resourceName,
-        mainDbName,
-      });
+      const result = await readVLResourceContent(projectId, resourceName, mainDbName);
 
       if (!result.success) {
         return stringifyResult({
@@ -152,8 +152,7 @@ export const createReadResourceContentTool = (
         content: result.content,
       });
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       return stringifyResult({
         success: false,
         error: `读取失败: ${errorMessage}`,
@@ -164,7 +163,7 @@ export const createReadResourceContentTool = (
 
 export const createReadResourceLinesTool = (
   projectId: number,
-  mainDbName: string,
+  mainDbName: string
 ): ToolDefinition => ({
   name: "read_resource_lines",
   description:
@@ -192,7 +191,7 @@ export const createReadResourceLinesTool = (
     required: ["startLine", "endLine"],
   },
   execution: LONG_RUNNING_TOOL_EXECUTION,
-  executor: async (args) => {
+  executor: async args => {
     const { resourceId, resourceName, startLine, endLine } = args as {
       resourceId?: number;
       resourceName?: string;
@@ -201,7 +200,7 @@ export const createReadResourceLinesTool = (
     };
 
     try {
-      const result = await invoke("vl-read-resource-lines", {
+      const result = await readVLResourceLines({
         projectId,
         resourceId,
         resourceName,
@@ -228,8 +227,7 @@ export const createReadResourceLinesTool = (
         content: result.content,
       });
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       return stringifyResult({
         success: false,
         error: `读取失败: ${errorMessage}`,
@@ -240,7 +238,7 @@ export const createReadResourceLinesTool = (
 
 export const createReadResourceRangeTool = (
   projectId: number,
-  mainDbName: string,
+  mainDbName: string
 ): ToolDefinition => ({
   name: "read_resource_range",
   description:
@@ -268,7 +266,7 @@ export const createReadResourceRangeTool = (
     required: ["startOffset", "endOffset"],
   },
   execution: LONG_RUNNING_TOOL_EXECUTION,
-  executor: async (args) => {
+  executor: async args => {
     const { resourceId, resourceName, startOffset, endOffset } = args as {
       resourceId?: number;
       resourceName?: string;
@@ -277,7 +275,7 @@ export const createReadResourceRangeTool = (
     };
 
     try {
-      const result = await invoke("vl-read-resource-range", {
+      const result = await readVLResourceRange({
         projectId,
         resourceId,
         resourceName,
@@ -304,8 +302,7 @@ export const createReadResourceRangeTool = (
         content: result.content,
       });
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       return stringifyResult({
         success: false,
         error: `读取失败: ${errorMessage}`,
@@ -319,7 +316,7 @@ export const createReadResourceRangeTool = (
  */
 export const createVibeLearningSearchTool = (
   projectId: number,
-  mainDbName: string,
+  mainDbName: string
 ): ToolDefinition => ({
   name: "search_resource_content",
   description:
@@ -339,12 +336,12 @@ export const createVibeLearningSearchTool = (
     required: ["query"],
   },
   execution: LONG_RUNNING_TOOL_EXECUTION,
-  executor: async (args) => {
+  executor: async args => {
     const { query, limit = 5 } = args as { query: string; limit?: number };
 
     try {
       // 调用后端搜索
-      const results = (await invoke("vl-search-content", {
+      const results = (await searchVLContent({
         projectId,
         mainDbName,
         query,
@@ -369,8 +366,7 @@ export const createVibeLearningSearchTool = (
         results: formattedResults,
       });
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       return stringifyResult({
         success: false,
         error: `搜索失败: ${errorMessage}`,
@@ -382,7 +378,7 @@ export const createVibeLearningSearchTool = (
 
 export const createGrepResourceContentTool = (
   projectId: number,
-  mainDbName: string,
+  mainDbName: string
 ): ToolDefinition => ({
   name: "grep_resource_content",
   description:
@@ -410,7 +406,7 @@ export const createGrepResourceContentTool = (
     required: ["query"],
   },
   execution: LONG_RUNNING_TOOL_EXECUTION,
-  executor: async (args) => {
+  executor: async args => {
     const {
       query,
       isRegex = false,
@@ -424,7 +420,7 @@ export const createGrepResourceContentTool = (
     };
 
     try {
-      const result = await invoke("vl-grep-content", {
+      const result = await grepVLResourceContent({
         projectId,
         mainDbName,
         query,
@@ -434,8 +430,7 @@ export const createGrepResourceContentTool = (
       });
       return stringifyResult(result);
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       return stringifyResult({
         success: false,
         error: `grep 查询失败: ${errorMessage}`,
@@ -447,11 +442,10 @@ export const createGrepResourceContentTool = (
 
 export const createBatchSearchProjectKnowledgeTool = (
   projectId: number,
-  mainDbName: string,
+  mainDbName: string
 ): ToolDefinition => ({
   name: "batch_search_project_knowledge",
-  description:
-    "对多个查询角度批量搜索当前项目知识库。适合在复杂问题中并行比较不同搜索表达。",
+  description: "对多个查询角度批量搜索当前项目知识库。适合在复杂问题中并行比较不同搜索表达。",
   parameters: {
     type: "object",
     properties: {
@@ -482,14 +476,14 @@ export const createBatchSearchProjectKnowledgeTool = (
     required: ["queries"],
   },
   execution: LONG_RUNNING_TOOL_EXECUTION,
-  executor: async (args) => {
+  executor: async args => {
     const { queries, limitPerQuery = 5 } = args as {
       queries: BatchSearchQueryInput[];
       limitPerQuery?: number;
     };
     const safeQueries = Array.isArray(queries)
       ? (queries
-          .map((item) => {
+          .map(item => {
             if (
               item &&
               typeof item === "object" &&
@@ -512,7 +506,7 @@ export const createBatchSearchProjectKnowledgeTool = (
 
     const searches = await Promise.all(
       safeQueries.map(async ({ label, query }) => {
-        const results = (await invoke("vl-search-content", {
+        const results = (await searchVLContent({
           projectId,
           mainDbName,
           query,
@@ -523,7 +517,7 @@ export const createBatchSearchProjectKnowledgeTool = (
           query,
           results: normalizeSearchResults(results || []),
         };
-      }),
+      })
     );
 
     return stringifyResult({
@@ -535,7 +529,7 @@ export const createBatchSearchProjectKnowledgeTool = (
 
 export const createBatchReadSearchHitsTool = (
   projectId: number,
-  mainDbName: string,
+  mainDbName: string
 ): ToolDefinition => ({
   name: "batch_read_search_hits",
   description:
@@ -555,53 +549,41 @@ export const createBatchReadSearchHitsTool = (
     required: ["hits"],
   },
   execution: LONG_RUNNING_TOOL_EXECUTION,
-  executor: async (args) => {
+  executor: async args => {
     const { hits } = args as {
       hits: BatchReadSearchHitInput[];
     };
     const safeHits = Array.isArray(hits) ? hits : [];
     const contexts = await Promise.all(
-      safeHits.map(async (hit) => {
+      safeHits.map(async hit => {
         const contextChars = Math.max(0, Math.floor(hit.contextChars ?? 500));
-        if (
-          typeof hit.startOffset === "number" &&
-          typeof hit.endOffset === "number"
-        ) {
-          return invoke("vl-read-resource-range", {
+        if (typeof hit.startOffset === "number" && typeof hit.endOffset === "number") {
+          return readVLResourceRange({
             projectId,
             resourceId: hit.resourceId,
             resourceName: hit.resourceName,
             mainDbName,
-            startOffset: Math.max(
-              0,
-              Math.floor(hit.startOffset - contextChars),
-            ),
+            startOffset: Math.max(0, Math.floor(hit.startOffset - contextChars)),
             endOffset: Math.max(
               Math.floor(hit.startOffset),
-              Math.floor(hit.endOffset + contextChars),
+              Math.floor(hit.endOffset + contextChars)
             ),
           });
         }
 
         const contextLines = Math.max(0, Math.floor(hit.contextLines ?? 3));
         const startLine =
-          typeof hit.chunkStartLine === "number"
-            ? hit.chunkStartLine
-            : hit.lineNumber;
-        const endLine =
-          typeof hit.chunkEndLine === "number" ? hit.chunkEndLine : startLine;
+          typeof hit.chunkStartLine === "number" ? hit.chunkStartLine : hit.lineNumber;
+        const endLine = typeof hit.chunkEndLine === "number" ? hit.chunkEndLine : startLine;
 
         if (typeof startLine === "number" && typeof endLine === "number") {
-          return invoke("vl-read-resource-lines", {
+          return readVLResourceLines({
             projectId,
             resourceId: hit.resourceId,
             resourceName: hit.resourceName,
             mainDbName,
             startLine: Math.max(1, Math.floor(startLine - contextLines)),
-            endLine: Math.max(
-              Math.floor(startLine),
-              Math.floor(endLine + contextLines),
-            ),
+            endLine: Math.max(Math.floor(startLine), Math.floor(endLine + contextLines)),
           });
         }
 
@@ -611,7 +593,7 @@ export const createBatchReadSearchHitsTool = (
           resourceName: hit.resourceName,
           error: "缺少可补读的字符范围或行范围",
         };
-      }),
+      })
     );
 
     return stringifyResult({

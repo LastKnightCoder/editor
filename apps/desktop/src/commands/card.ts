@@ -1,102 +1,86 @@
-import { invoke } from "@/electron";
+import { cardCommands } from "@/commands/contracts/card";
+import type { CardContentResult } from "@/commands/contracts/card";
 import { ICard, ICreateCard, IUpdateCard } from "@/types";
 
+export type { CardContentResult };
+
 export async function createCard(card: ICreateCard): Promise<ICard> {
-  return invoke("create-card", card);
+  return cardCommands.create.call(card);
 }
 
-export async function createCardFromProjectItem(
-  projectItemId: number,
-): Promise<ICard> {
-  return invoke("create-card-from-project-item", projectItemId);
+export async function createCardFromProjectItem(projectItemId: number): Promise<ICard> {
+  return cardCommands.createFromProjectItem.call(projectItemId);
 }
 
 export async function getAllCards(): Promise<ICard[]> {
-  return invoke("get-all-cards");
+  return cardCommands.getAll.call();
 }
 
 export async function deleteCard(id: number): Promise<number> {
-  return invoke("delete-card", id);
+  return cardCommands.remove.call(id);
 }
 
 export async function updateCard(card: IUpdateCard): Promise<ICard> {
-  return invoke("update-card", card);
+  return cardCommands.update.call(card);
 }
 
 export async function getCardById(id: number): Promise<ICard> {
-  return invoke("get-card-by-id", id);
+  return cardCommands.getById.call(id);
 }
 
 export async function getTagsById(id: number): Promise<string[]> {
-  return invoke("get-tags-by-id", id);
+  return cardCommands.getTagsById.call(id);
 }
 
 export async function getCardsGroupByTag(): Promise<Record<string, ICard[]>> {
-  return invoke("get-cards-group-by-tag");
+  return cardCommands.getGroupedByTag.call();
 }
 
 export async function getAllGlobalTags(): Promise<string[]> {
-  return invoke("get-all-global-tags");
+  return cardCommands.getAllGlobalTags.call();
 }
 
-export async function getRandomPermanentCards(
-  seed: number,
-  count = 5,
-): Promise<ICard[]> {
-  return invoke("get-random-permanent-cards", { seed, count });
+export async function getRandomPermanentCards(seed: number, count = 5): Promise<ICard[]> {
+  return cardCommands.getRandomPermanent.call({ seed, count });
 }
 
 export const openCardInNewWindow = (databaseName: string, cardId: number) => {
-  return invoke("open-card-in-new-window", databaseName, cardId, {
+  return cardCommands.openInNewWindow.call(databaseName, cardId, {
     showTitlebar: true,
     isDefaultTop: true,
   });
 };
 
-export async function getRecentTemporaryAndLiteratureCards(
-  count = 10,
-): Promise<ICard[]> {
-  return invoke("get-recent-temp-lit-cards", count);
+export async function getRecentTemporaryAndLiteratureCards(count = 10): Promise<ICard[]> {
+  return cardCommands.getRecentTempLit.call(count);
 }
 
 export async function isContentIsCard(contentId: number): Promise<boolean> {
-  return invoke("is-content-is-card", contentId);
+  return cardCommands.isContentIsCard.call(contentId);
 }
 
-export async function getCardByContentId(
-  contentId: number,
-): Promise<ICard | null> {
-  return invoke("get-card-by-content-id", contentId);
+export async function getCardByContentId(contentId: number): Promise<ICard | null> {
+  return cardCommands.getByContentId.call(contentId);
 }
 
 export async function buildCardFromContent(contentId: number): Promise<ICard> {
-  return invoke("build-card-from-content", contentId);
+  return cardCommands.buildFromContent.call(contentId);
 }
 
-export async function getCardsByDates(
-  dates: string[],
-): Promise<Record<string, ICard[]>> {
-  return invoke("get-cards-by-dates", dates);
+export async function getCardsByDates(dates: string[]): Promise<Record<string, ICard[]>> {
+  return cardCommands.getByDates.call(dates);
 }
 
 export async function getCardsByDateRange(
   startDate: string,
-  endDate: string,
+  endDate: string
 ): Promise<Record<string, ICard[]>> {
-  return invoke("get-cards-by-date-range", startDate, endDate);
+  return cardCommands.getByDateRange.call(startDate, endDate);
 }
 
 export async function getCardsContentByIds(
   ids: number[],
-  maxLength?: number,
-): Promise<
-  Array<{
-    id: number;
-    markdown: string;
-    truncated: boolean;
-    originalLength: number;
-    metadata: Record<string, any>;
-  }>
-> {
-  return invoke("get-cards-content-by-ids", ids, maxLength);
+  maxLength?: number
+): Promise<CardContentResult[]> {
+  return cardCommands.getContentByIds.call(ids, maxLength);
 }

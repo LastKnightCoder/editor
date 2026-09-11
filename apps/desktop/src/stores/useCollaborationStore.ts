@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { invoke, on } from "@/electron";
+import { getCollaborationState } from "@/commands";
+import { on } from "@/electron";
 import { DEFAULT_COLLABORATION_URL, type CollaborationState } from "@tau/collaboration";
 
 interface State extends CollaborationState {
@@ -31,7 +32,7 @@ export function initializeCollaborationStore() {
     }));
   });
   const load = (remaining: number) => {
-    void invoke<CollaborationState>("collaboration:state")
+    void getCollaborationState()
       .then(state => useCollaborationStore.setState({ ...state, synced: true }))
       .catch(() => {
         if (remaining > 0) setTimeout(() => load(remaining - 1), 1000);

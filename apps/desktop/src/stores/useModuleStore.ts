@@ -1,5 +1,11 @@
 import { create } from "zustand";
-import { invoke, on } from "@/electron";
+import {
+  initModulesForWindow,
+  initModule as initModuleCommand,
+  getModuleInitStatus,
+  type ModuleInitResult,
+} from "@/commands";
+import { on } from "@/electron";
 
 export enum ModuleStatus {
   PENDING = "pending",
@@ -13,11 +19,7 @@ interface ModuleState {
   error?: string;
 }
 
-interface InitResult {
-  success: boolean;
-  readyModules: string[];
-  failedModules: { name: string; error: string }[];
-}
+type InitResult = ModuleInitResult;
 
 interface IState {
   /** 模块状态 */
@@ -72,7 +74,7 @@ export const useModuleStore = create<IState & IActions>((set, get) => ({
     set({ isInitializing: true, initStage: "background", currentModule: "正在初始化..." });
 
     try {
-      const result = await invoke("module-init:init-for-window", windowType) as InitResult;
+      const result = await initModulesForWindow(windowType);
 
       // 更新模块状态
       await get().refreshStatus();
@@ -107,10 +109,7 @@ export const useModuleStore = create<IState & IActions>((set, get) => ({
 
   initModule: async (moduleName: string) => {
     try {
-      const result = await invoke("module-init:init-module", moduleName) as {
-        success: boolean;
-        error?: string;
-      };
+      const result = await initModuleCommand(moduleName);
       await get().refreshStatus();
       return result;
     } catch (error) {
@@ -130,8 +129,8 @@ export const useModuleStore = create<IState & IActions>((set, get) => ({
 
   refreshStatus: async () => {
     try {
-      const status = await invoke("module-init:get-status") as Record<string, ModuleState>;
-      set({ moduleStates: status });
+      const status = await getModuleInitStatus();
+      set({ moduleStates: status as Record<string, ModuleState> });
     } catch (error) {
       console.error("获取模块状态失败:", error);
     }

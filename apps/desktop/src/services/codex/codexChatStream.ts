@@ -1,4 +1,5 @@
-import { invoke, off, on, send } from "@/electron";
+import { off, on } from "@/electron";
+import { startCodexStream, cancelCodexStream, sendCodexMcpResponse } from "@/commands";
 import toolRegistry, { ensureToolingReady } from "@/tools";
 import type { ToolCallPayload } from "@/types";
 
@@ -8,7 +9,6 @@ import type { CodexInputItem } from "./codexInputAdapter";
 
 const CODEX_EVENT_CHANNEL = "codex-agent:event";
 const CODEX_MCP_REQUEST_CHANNEL = "codex-mcp-bridge:request";
-const CODEX_MCP_RESPONSE_CHANNEL = "codex-mcp-bridge:response";
 
 interface CodexAgentEventPayload {
   requestId: number;
@@ -36,7 +36,7 @@ export interface CodexMcpToolDefinition {
 }
 
 type ExternalMcpToolExecutor = (
-  toolCall: ToolCallPayload,
+  toolCall: ToolCallPayload
 ) => Promise<{ content: string; metadata?: Record<string, unknown> } | null>;
 
 interface CodexStreamOptions {
@@ -65,27 +65,22 @@ const createAbortError = () => {
   return error;
 };
 
-const summarizeToolsBySource = (
-  tools: Array<{ name: string; source: string; enabled: boolean }>,
-) =>
-  tools.reduce<Record<string, { enabled: number; total: number }>>(
-    (summary, tool) => {
-      const current = summary[tool.source] ?? { enabled: 0, total: 0 };
-      current.total += 1;
-      if (tool.enabled) {
-        current.enabled += 1;
-      }
-      summary[tool.source] = current;
-      return summary;
-    },
-    {},
-  );
+const summarizeToolsBySource = (tools: Array<{ name: string; source: string; enabled: boolean }>) =>
+  tools.reduce<Record<string, { enabled: number; total: number }>>((summary, tool) => {
+    const current = summary[tool.source] ?? { enabled: 0, total: 0 };
+    current.total += 1;
+    if (tool.enabled) {
+      current.enabled += 1;
+    }
+    summary[tool.source] = current;
+    return summary;
+  }, {});
 
 const getCodexMcpToolsSnapshot = () => {
   ensureToolingReady();
   const registeredTools = toolRegistry.getRegisteredTools();
-  const enabledTools = registeredTools.filter((tool) => tool.enabled);
-  const snapshot = enabledTools.map((tool) => ({
+  const enabledTools = registeredTools.filter(tool => tool.enabled);
+  const snapshot = enabledTools.map(tool => ({
     name: tool.name,
     description: tool.description,
     parameters: tool.parameters,
@@ -96,7 +91,7 @@ const getCodexMcpToolsSnapshot = () => {
     enabledCount: enabledTools.length,
     disabledCount: registeredTools.length - enabledTools.length,
     sources: summarizeToolsBySource(registeredTools),
-    enabledToolNames: enabledTools.map((tool) => tool.name),
+    enabledToolNames: enabledTools.map(tool => tool.name),
   });
 
   return snapshot;
@@ -114,7 +109,7 @@ export const streamCodexChat = async ({
   onEvent,
 }: CodexStreamOptions): Promise<void> => {
   const adapter = createCodexEventAdapter();
-  const externalToolNames = new Set(externalMcpTools.map((tool) => tool.name));
+  const externalToolNames = new Set(externalMcpTools.map(tool => tool.name));
   const pendingToolRequests: CodexBridgeToolExecutionRequest[] = [];
   let activeRequestId: number | null = null;
   let settled = false;
@@ -127,9 +122,7 @@ export const streamCodexChat = async ({
     signal?.removeEventListener("abort", handleAbort);
   };
 
-  const executeToolRequest = async (
-    payload: CodexBridgeToolExecutionRequest,
-  ) => {
+  const executeToolRequest = async (payload: CodexBridgeToolExecutionRequest) => {
     if (payload.requestId !== activeRequestId) {
       return;
     }
@@ -168,7 +161,7 @@ export const streamCodexChat = async ({
         hasContent: Boolean(result?.content),
         hasMetadata: Boolean(result?.metadata),
       });
-      send(CODEX_MCP_RESPONSE_CHANNEL, {
+      sendCodexMcpResponse({
         requestId: payload.requestId,
         toolRequestId: payload.toolRequestId,
         ok: true,
@@ -183,7 +176,7 @@ export const streamCodexChat = async ({
         toolName: payload.toolName,
         error: error instanceof Error ? error.message : error,
       });
-      send(CODEX_MCP_RESPONSE_CHANNEL, {
+      sendCodexMcpResponse({
         requestId: payload.requestId,
         toolRequestId: payload.toolRequestId,
         ok: false,
@@ -192,10 +185,7 @@ export const streamCodexChat = async ({
     }
   };
 
-  const handleToolRequest = (
-    _event: unknown,
-    payload: CodexBridgeToolExecutionRequest,
-  ) => {
+  const handleToolRequest = (_event: unknown, payload: CodexBridgeToolExecutionRequest) => {
     if (activeRequestId === null) {
       pendingToolRequests.push(payload);
       return;
@@ -208,7 +198,7 @@ export const streamCodexChat = async ({
       return;
     }
     if (activeRequestId !== null) {
-      void invoke("codex-agent:cancel", {
+      void cancelCodexStream({
         requestId: activeRequestId,
         runId,
       });
@@ -222,10 +212,7 @@ export const streamCodexChat = async ({
     if (payload.requestId !== activeRequestId) {
       return;
     }
-    if (
-      (runId && payload.runId !== runId) ||
-      (sessionKey && payload.sessionKey !== sessionKey)
-    )
+    if ((runId && payload.runId !== runId) || (sessionKey && payload.sessionKey !== sessionKey))
       return;
 
     if (payload.event.type === "done") {
@@ -236,17 +223,15 @@ export const streamCodexChat = async ({
     }
 
     const mappedEvents = adapter.mapEvent(payload.event as any);
-    mappedEvents.forEach((event) => void onEvent(event));
+    mappedEvents.forEach(event => void onEvent(event));
 
     if (payload.event.type === "error") {
       settled = true;
       cleanup();
       rejectStream?.(
         new Error(
-          typeof payload.event.message === "string"
-            ? payload.event.message
-            : "Codex 请求失败",
-        ),
+          typeof payload.event.message === "string" ? payload.event.message : "Codex 请求失败"
+        )
       );
     }
   };
@@ -265,22 +250,19 @@ export const streamCodexChat = async ({
     console.info("[Codex MCP] renderer starting Codex stream", {
       agentSessionId: agentSessionId ?? null,
       mcpToolCount: mcpTools.length,
-      mcpToolNames: mcpTools.map((tool) => tool.name),
+      mcpToolNames: mcpTools.map(tool => tool.name),
     });
 
-    const response = await invoke<CodexAgentStreamResponse>(
-      "codex-agent:stream",
-      {
-        input,
-        runId,
-        sessionKey,
-        agentSessionId,
-        workingDirectory,
-        mcpTools,
-      },
-    );
+    const response = await startCodexStream<CodexAgentStreamResponse>({
+      input,
+      runId,
+      sessionKey,
+      agentSessionId,
+      workingDirectory,
+      mcpTools,
+    });
     activeRequestId = response.requestId;
-    pendingToolRequests.splice(0).forEach((payload) => {
+    pendingToolRequests.splice(0).forEach(payload => {
       void executeToolRequest(payload);
     });
     console.info("[Codex MCP] renderer Codex stream request created", {
