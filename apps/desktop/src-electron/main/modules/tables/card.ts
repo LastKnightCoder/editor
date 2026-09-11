@@ -1,3 +1,4 @@
+import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
 import { getMarkdown } from "@/utils/markdown.ts";
 import {
@@ -8,7 +9,6 @@ import {
   WorkbenchExpiringCardsResponse,
 } from "@/types";
 import Operation from "./operation";
-import { BrowserWindow } from "electron";
 import { basename } from "node:path";
 import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
@@ -21,8 +21,7 @@ export default class CardTable {
   static getListenEvents() {
     return {
       "create-card": this.createCard.bind(this),
-      "create-card-from-project-item":
-        this.createCardFromProjectItem.bind(this),
+      "create-card-from-project-item": this.createCardFromProjectItem.bind(this),
       "update-card": this.updateCard.bind(this),
       "delete-card": this.deleteCard.bind(this),
       "get-tags-by-card-id": this.getTagsByCardId.bind(this),
@@ -31,8 +30,7 @@ export default class CardTable {
       "get-all-cards": this.getAllCards.bind(this),
       "get-card-by-id": this.getCardById.bind(this),
       "get-random-permanent-cards": this.getRandomPermanentCards.bind(this),
-      "get-recent-temp-lit-cards":
-        this.getRecentTemporaryAndLiteratureCards.bind(this),
+      "get-recent-temp-lit-cards": this.getRecentTemporaryAndLiteratureCards.bind(this),
       "is-content-is-card": this.isContentIsCard.bind(this),
       "get-card-by-content-id": this.getCardByContentId.bind(this),
       "build-card-from-content": this.buildCardFromContent.bind(this),
@@ -41,8 +39,7 @@ export default class CardTable {
       "get-cards-by-dates": this.getCardsByDates.bind(this),
       "get-cards-by-date-range": this.getCardsByDateRange.bind(this),
       "get-cards-content-by-ids": this.getCardsContentByIds.bind(this),
-      "workbench:list-expiring-temporary-cards":
-        this.listExpiringTemporaryCards.bind(this),
+      "workbench:list-expiring-temporary-cards": this.listExpiringTemporaryCards.bind(this),
     };
   }
 
@@ -51,15 +48,11 @@ export default class CardTable {
     const tableInfo = db.prepare(`PRAGMA table_info(cards)`).all() as Array<{
       name: string;
     }>;
-    const hasPodcastId = tableInfo.some(
-      (column) => column.name === "podcast_id",
-    );
+    const hasPodcastId = tableInfo.some(column => column.name === "podcast_id");
 
     if (!hasPodcastId) {
       db.exec(`ALTER TABLE cards ADD COLUMN podcast_id INTEGER DEFAULT NULL;`);
-      db.exec(
-        `CREATE INDEX IF NOT EXISTS idx_cards_podcast_id ON cards(podcast_id);`,
-      );
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_cards_podcast_id ON cards(podcast_id);`);
       log.info("已添加 podcast_id 字段到 cards 表");
     }
 
@@ -71,10 +64,7 @@ export default class CardTable {
       if (!card.content || !card.content.length) continue;
 
       // 检查并删除过期的临时卡片
-      if (
-        card.category === ECardCategory.Temporary &&
-        now - card.update_time > ONE_MONTH
-      ) {
+      if (card.category === ECardCategory.Temporary && now - card.update_time > ONE_MONTH) {
         log.info(`删除过期临时卡片: ${card.id}`);
         this.deleteCard(db, card.id);
       }
@@ -109,13 +99,9 @@ export default class CardTable {
           name: card.podcast_name || undefined,
           audioUrl: card.podcast_audio_url,
           script: card.podcast_script || "",
-          scriptLines: card.podcast_script_lines
-            ? JSON.parse(card.podcast_script_lines)
-            : [],
+          scriptLines: card.podcast_script_lines ? JSON.parse(card.podcast_script_lines) : [],
           duration: card.podcast_duration || 0,
-          speakers: card.podcast_speakers
-            ? JSON.parse(card.podcast_speakers)
-            : [],
+          speakers: card.podcast_speakers ? JSON.parse(card.podcast_speakers) : [],
         };
       } catch (error) {
         console.error("Error parsing podcast data:", error);
@@ -149,13 +135,10 @@ export default class CardTable {
       ORDER BY c.is_top DESC, c.create_time DESC
     `);
     const cards = stmt.all();
-    return cards.map((card) => this.parseCard(card));
+    return cards.map(card => this.parseCard(card));
   }
 
-  static getCardById(
-    db: Database.Database,
-    cardId: number | bigint,
-  ): ICard | null {
+  static getCardById(db: Database.Database, cardId: number | bigint): ICard | null {
     const stmt = db.prepare(`
       SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
              ct.content, ct.count, ct.update_time as content_update_time,
@@ -186,7 +169,7 @@ export default class CardTable {
       WHERE c.id IN (${placeholders})
     `);
     const cards = stmt.all(cardIds);
-    return cards.map((card) => this.parseCard(card));
+    return cards.map(card => this.parseCard(card));
   }
 
   static createCard(db: Database.Database, card: ICreateCard): ICard {
@@ -200,7 +183,7 @@ export default class CardTable {
 
     // 创建card记录
     const stmt = db.prepare(
-      "INSERT INTO cards (create_time, update_time, tags, links, content_id, category, is_top) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO cards (create_time, update_time, tags, links, content_id, category, is_top) VALUES (?, ?, ?, ?, ?, ?, ?)"
     );
     const now = Date.now();
     const res = stmt.run(
@@ -210,7 +193,7 @@ export default class CardTable {
       JSON.stringify(links),
       contentId,
       category,
-      isTop ? 1 : 0,
+      isTop ? 1 : 0
     );
     const createdCardId = res.lastInsertRowid;
     Operation.insertOperation(db, "card", "insert", createdCardId, now);
@@ -218,10 +201,7 @@ export default class CardTable {
     return this.getCardById(db, createdCardId) as ICard;
   }
 
-  static createCardFromProjectItem(
-    db: Database.Database,
-    projectItemId: number,
-  ): ICard | null {
+  static createCardFromProjectItem(db: Database.Database, projectItemId: number): ICard | null {
     const projectItem = ProjectTable.getProjectItem(db, projectItemId);
     if (!projectItem) {
       return null;
@@ -231,7 +211,7 @@ export default class CardTable {
     ContentTable.incrementRefCount(db, contentId);
 
     const stmt = db.prepare(
-      "INSERT INTO cards (create_time, update_time, tags, links, content_id, category, is_top) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO cards (create_time, update_time, tags, links, content_id, category, is_top) VALUES (?, ?, ?, ?, ?, ?, ?)"
     );
     const now = Date.now();
     const res = stmt.run(
@@ -241,7 +221,7 @@ export default class CardTable {
       JSON.stringify([]),
       contentId,
       "permanent",
-      0,
+      0
     );
     const createdCardId = res.lastInsertRowid;
 
@@ -252,35 +232,20 @@ export default class CardTable {
   static updateCard(
     db: Database.Database,
     card: IUpdateCard,
-    ...res: any[]
+    ctx: CommandContext = fallbackCommandContext
   ): ICard {
-    const win: BrowserWindow = res[res.length - 1];
     const { tags, links, category, id, isTop } = card;
 
     // 更新card记录
     const stmt = db.prepare(
-      "UPDATE cards SET update_time = ?, tags = ?, links = ?, category = ?, is_top = ? WHERE id = ?",
+      "UPDATE cards SET update_time = ?, tags = ?, links = ?, category = ?, is_top = ? WHERE id = ?"
     );
     const now = Date.now();
-    stmt.run(
-      now,
-      JSON.stringify(tags),
-      JSON.stringify(links),
-      category,
-      isTop ? 1 : 0,
-      id,
-    );
+    stmt.run(now, JSON.stringify(tags), JSON.stringify(links), category, isTop ? 1 : 0, id);
 
     Operation.insertOperation(db, "card", "update", card.id, now);
 
-    BrowserWindow.getAllWindows().forEach((window) => {
-      if (window !== win && !window.isDestroyed()) {
-        window.webContents.send("card:updated", {
-          databaseName: basename(db.name),
-          cardId: id,
-        });
-      }
-    });
+    ctx.broadcastOthers("card:updated", { databaseName: basename(db.name), cardId: id });
 
     return this.getCardById(db, id) as ICard;
   }
@@ -300,13 +265,13 @@ export default class CardTable {
 
       // 设置isCard为0
       const documentItemStmt = db.prepare(
-        "UPDATE document_items SET is_card = 0 WHERE is_card = 1 AND card_id = ?",
+        "UPDATE document_items SET is_card = 0 WHERE is_card = 1 AND card_id = ?"
       );
       documentItemStmt.run(cardId);
 
       // 设置project_item ref_type为空字符串
       const projectItemStmt = db.prepare(
-        `UPDATE project_item SET ref_type = '' WHERE ref_type = 'card' AND ref_id = ?`,
+        `UPDATE project_item SET ref_type = '' WHERE ref_type = 'card' AND ref_id = ?`
       );
       projectItemStmt.run(cardId);
 
@@ -358,7 +323,7 @@ export default class CardTable {
       try {
         const tags = JSON.parse(row.tags) as string[];
         if (Array.isArray(tags)) {
-          tags.forEach((tag) => {
+          tags.forEach(tag => {
             if (tag && typeof tag === "string") {
               tagSet.add(tag);
             }
@@ -374,7 +339,7 @@ export default class CardTable {
 
   static getRandomPermanentCards(
     db: Database.Database,
-    { seed = Date.now(), count = 5 }: { seed: number; count: number },
+    { seed = Date.now(), count = 5 }: { seed: number; count: number }
   ): ICard[] {
     // 获取所有永久卡片
     const stmt = db.prepare(`
@@ -385,7 +350,7 @@ export default class CardTable {
       WHERE c.category = 'permanent' AND ct.content IS NOT NULL
     `);
 
-    const allPermanentCards = stmt.all().map((card) => this.parseCard(card));
+    const allPermanentCards = stmt.all().map(card => this.parseCard(card));
 
     if (allPermanentCards.length === 0) {
       return [];
@@ -417,10 +382,7 @@ export default class CardTable {
     return result;
   }
 
-  static getRecentTemporaryAndLiteratureCards(
-    db: Database.Database,
-    count = 10,
-  ): ICard[] {
+  static getRecentTemporaryAndLiteratureCards(db: Database.Database, count = 10): ICard[] {
     // 获取最新的闪念笔记和文献笔记
     const stmt = db.prepare(`
       SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top,
@@ -433,12 +395,12 @@ export default class CardTable {
     `);
 
     const cards = stmt.all(count);
-    return cards.map((card) => this.parseCard(card));
+    return cards.map(card => this.parseCard(card));
   }
 
   static listExpiringTemporaryCards(
     db: Database.Database,
-    payload: { limit?: number; cursor?: number | null } = {},
+    payload: { limit?: number; cursor?: number | null } = {}
   ): WorkbenchExpiringCardsResponse {
     const limit = Math.min(Math.max(payload.limit ?? 10, 1), 50);
     const offset = Math.max(payload.cursor ?? 0, 0);
@@ -450,7 +412,7 @@ export default class CardTable {
         `SELECT COUNT(*) as total
          FROM cards c
          LEFT JOIN contents ct ON c.content_id = ct.id
-         WHERE c.category = 'temporary' AND ct.content IS NOT NULL`,
+         WHERE c.category = 'temporary' AND ct.content IS NOT NULL`
       )
       .get() as { total: number };
 
@@ -465,12 +427,12 @@ export default class CardTable {
          WHERE c.category = 'temporary'
            AND ct.content IS NOT NULL
          ORDER BY MAX(c.update_time, COALESCE(ct.update_time, c.update_time)) ASC, c.id ASC
-         LIMIT ? OFFSET ?`,
+         LIMIT ? OFFSET ?`
       )
       .all(limit + 1, offset) as any[];
 
     const pageRows = rows.slice(0, limit);
-    const items = pageRows.map((row) => {
+    const items = pageRows.map(row => {
       const card = this.parseCard(row);
       const expiresAt = card.update_time + oneMonth;
       return {
@@ -493,10 +455,7 @@ export default class CardTable {
     return !!result;
   }
 
-  static getCardByContentId(
-    db: Database.Database,
-    contentId: number,
-  ): ICard | null {
+  static getCardByContentId(db: Database.Database, contentId: number): ICard | null {
     const stmt = db.prepare("SELECT id FROM cards WHERE content_id = ?");
     const result = stmt.get(contentId) as { id: number } | undefined;
     if (!result) {
@@ -506,15 +465,13 @@ export default class CardTable {
   }
 
   static buildCardFromContent(db: Database.Database, contentId: number): ICard {
-    const existingStmt = db.prepare(
-      "SELECT id FROM cards WHERE content_id = ?",
-    );
+    const existingStmt = db.prepare("SELECT id FROM cards WHERE content_id = ?");
     const existing = existingStmt.get(contentId) as { id: number } | undefined;
     if (existing) {
       return this.getCardById(db, existing.id) as ICard;
     }
     const insertStmt = db.prepare(
-      "INSERT INTO cards (create_time, update_time, tags, links, content_id, category, is_top) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO cards (create_time, update_time, tags, links, content_id, category, is_top) VALUES (?, ?, ?, ?, ?, ?, ?)"
     );
     const now = Date.now();
     const res = insertStmt.run(
@@ -524,7 +481,7 @@ export default class CardTable {
       JSON.stringify([]),
       contentId,
       "permanent",
-      0,
+      0
     );
     const cardId = res.lastInsertRowid;
     ContentTable.incrementRefCount(db, contentId);
@@ -532,14 +489,8 @@ export default class CardTable {
     return this.getCardById(db, cardId) as ICard;
   }
 
-  static attachPodcast(
-    db: Database.Database,
-    cardId: number,
-    podcastId: number,
-  ): ICard | null {
-    const stmt = db.prepare(
-      "UPDATE cards SET podcast_id = ?, update_time = ? WHERE id = ?",
-    );
+  static attachPodcast(db: Database.Database, cardId: number, podcastId: number): ICard | null {
+    const stmt = db.prepare("UPDATE cards SET podcast_id = ?, update_time = ? WHERE id = ?");
     const now = Date.now();
     stmt.run(podcastId, now, cardId);
     Operation.insertOperation(db, "card", "update", cardId, now);
@@ -547,9 +498,7 @@ export default class CardTable {
   }
 
   static detachPodcast(db: Database.Database, cardId: number): ICard | null {
-    const stmt = db.prepare(
-      "UPDATE cards SET podcast_id = NULL, update_time = ? WHERE id = ?",
-    );
+    const stmt = db.prepare("UPDATE cards SET podcast_id = NULL, update_time = ? WHERE id = ?");
     const now = Date.now();
     stmt.run(now, cardId);
     Operation.insertOperation(db, "card", "update", cardId, now);
@@ -557,10 +506,7 @@ export default class CardTable {
   }
 
   // 批量日期查询
-  static getCardsByDates(
-    db: Database.Database,
-    dates: string[],
-  ): Record<string, ICard[]> {
+  static getCardsByDates(db: Database.Database, dates: string[]): Record<string, ICard[]> {
     if (dates.length === 0) return {};
 
     const placeholders = dates.map(() => "?").join(",");
@@ -575,10 +521,10 @@ export default class CardTable {
       ORDER BY c.update_time DESC
     `);
 
-    const cards = stmt.all(...dates).map((card) => this.parseCard(card));
+    const cards = stmt.all(...dates).map(card => this.parseCard(card));
     const result: Record<string, ICard[]> = {};
 
-    cards.forEach((card) => {
+    cards.forEach(card => {
       const date = new Date(card.update_time).toISOString().split("T")[0];
       if (!result[date]) {
         result[date] = [];
@@ -593,7 +539,7 @@ export default class CardTable {
   static getCardsByDateRange(
     db: Database.Database,
     startDate: string,
-    endDate: string,
+    endDate: string
   ): Record<string, ICard[]> {
     const startTimestamp = new Date(startDate).getTime();
     const endTimestamp = new Date(endDate + " 23:59:59").getTime();
@@ -609,12 +555,10 @@ export default class CardTable {
       ORDER BY c.update_time DESC
     `);
 
-    const cards = stmt
-      .all(startTimestamp, endTimestamp)
-      .map((card) => this.parseCard(card));
+    const cards = stmt.all(startTimestamp, endTimestamp).map(card => this.parseCard(card));
     const result: Record<string, ICard[]> = {};
 
-    cards.forEach((card) => {
+    cards.forEach(card => {
       const date = new Date(card.update_time).toISOString().split("T")[0];
       if (!result[date]) {
         result[date] = [];
@@ -629,7 +573,7 @@ export default class CardTable {
   static getCardsContentByIds(
     db: Database.Database,
     ids: number[],
-    maxLength?: number,
+    maxLength?: number
   ): Array<{
     id: number;
     markdown: string;
@@ -641,7 +585,7 @@ export default class CardTable {
 
     const cards = this.getCardByIds(db, ids);
 
-    return cards.map((card) => {
+    return cards.map(card => {
       const markdown = card.content ? getMarkdown(card.content) : "";
       const originalLength = markdown.length;
 

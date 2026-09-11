@@ -1,10 +1,10 @@
+import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
 import { DailyNote } from "@/types/daily_note";
 import Operation from "./operation";
 import ContentTable from "./content";
 import { getContentLength } from "@/utils/helper.ts";
 import log from "electron-log";
-import { BrowserWindow } from "electron";
 
 export default class DailyNoteTable {
   static upgradeTable(_db: Database.Database) {
@@ -42,10 +42,7 @@ export default class DailyNoteTable {
     };
   }
 
-  static createDailyNote(
-    db: Database.Database,
-    note: Omit<DailyNote, "id">,
-  ): DailyNote {
+  static createDailyNote(db: Database.Database, note: Omit<DailyNote, "id">): DailyNote {
     // 创建content记录
     const contentId = ContentTable.createContent(db, {
       content: note.content,
@@ -59,13 +56,7 @@ export default class DailyNoteTable {
     `);
     const res = stmt.run(contentId, note.date);
 
-    Operation.insertOperation(
-      db,
-      "daily-note",
-      "insert",
-      res.lastInsertRowid,
-      Date.now(),
-    );
+    Operation.insertOperation(db, "daily-note", "insert", res.lastInsertRowid, Date.now());
 
     return this.getDailyNoteById(db, Number(res.lastInsertRowid));
   }
@@ -73,7 +64,7 @@ export default class DailyNoteTable {
   static updateDailyNote(
     db: Database.Database,
     note: Omit<DailyNote, "date">,
-    win: BrowserWindow,
+    ctx: CommandContext = fallbackCommandContext
   ): DailyNote {
     // 获取现有记录
     const existingNote = this.getDailyNoteById(db, note.id);
@@ -87,7 +78,7 @@ export default class DailyNoteTable {
           content: note.content,
           count: getContentLength(note.content),
         },
-        win,
+        ctx
       );
     } else {
       // 创建新的content记录
@@ -97,9 +88,7 @@ export default class DailyNoteTable {
       });
 
       // 更新daily_note的content_id
-      const updateContentIdStmt = db.prepare(
-        "UPDATE daily_notes SET content_id = ? WHERE id = ?",
-      );
+      const updateContentIdStmt = db.prepare("UPDATE daily_notes SET content_id = ? WHERE id = ?");
       updateContentIdStmt.run(contentId, note.id);
     }
 
@@ -154,6 +143,6 @@ export default class DailyNoteTable {
       ORDER BY d.date DESC
     `);
     const notes = stmt.all();
-    return notes.map((note) => this.parseDailyNote(note));
+    return notes.map(note => this.parseDailyNote(note));
   }
 }

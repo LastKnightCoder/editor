@@ -1,3 +1,4 @@
+import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
 import { assertContentIsLocal, findCollaborationBinding } from "../collaboration-guard";
 import { canonicalContentTitle } from "../collaboration/content-sessions";
@@ -5,7 +6,6 @@ import { ICreateArticle, IUpdateArticle, IArticle } from "@/types";
 import Operation from "./operation";
 import { getMarkdown } from "@/utils/markdown.ts";
 import { basename } from "node:path";
-import { BrowserWindow } from "electron";
 import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
@@ -233,9 +233,12 @@ export default class ArticleTable {
     return this.getArticleById(db, createdArticleId);
   }
 
-  static updateArticle(db: Database.Database, article: IUpdateArticle, ...res: any[]): IArticle {
+  static updateArticle(
+    db: Database.Database,
+    article: IUpdateArticle,
+    ctx: CommandContext = fallbackCommandContext
+  ): IArticle {
     const { tags, title, id, bannerBg, bannerPosition, isTop, isDelete, contentId } = article;
-    const win = res[res.length - 1];
     const now = Date.now();
 
     // 获取当前的article信息
@@ -263,14 +266,7 @@ export default class ArticleTable {
 
     Operation.insertOperation(db, "article", "update", id, now);
 
-    BrowserWindow.getAllWindows().forEach(window => {
-      if (window !== win && !window.isDestroyed()) {
-        window.webContents.send("article:updated", {
-          databaseName: basename(db.name),
-          articleId: id,
-        });
-      }
-    });
+    ctx.broadcastOthers("article:updated", { databaseName: basename(db.name), articleId: id });
 
     return this.getArticleById(db, id);
   }
@@ -311,20 +307,12 @@ export default class ArticleTable {
     db: Database.Database,
     id: number,
     isTop: boolean,
-    ...res: any[]
+    ctx: CommandContext = fallbackCommandContext
   ): IArticle {
-    const win = res[res.length - 1];
     const stmt = db.prepare("UPDATE articles SET is_top = ? WHERE id = ?");
     stmt.run(Number(isTop), id);
 
-    BrowserWindow.getAllWindows().forEach(window => {
-      if (window !== win && !window.isDestroyed()) {
-        window.webContents.send("article:updated", {
-          databaseName: basename(db.name),
-          articleId: id,
-        });
-      }
-    });
+    ctx.broadcastOthers("article:updated", { databaseName: basename(db.name), articleId: id });
 
     return this.getArticleById(db, id);
   }
@@ -333,20 +321,12 @@ export default class ArticleTable {
     db: Database.Database,
     id: number,
     bannerBg: string,
-    ...res: any[]
+    ctx: CommandContext = fallbackCommandContext
   ): IArticle {
-    const win = res[res.length - 1];
     const stmt = db.prepare("UPDATE articles SET banner_bg = ? WHERE id = ?");
     stmt.run(bannerBg, id);
 
-    BrowserWindow.getAllWindows().forEach(window => {
-      if (window !== win && !window.isDestroyed()) {
-        window.webContents.send("article:updated", {
-          databaseName: basename(db.name),
-          articleId: id,
-        });
-      }
-    });
+    ctx.broadcastOthers("article:updated", { databaseName: basename(db.name), articleId: id });
 
     return this.getArticleById(db, id);
   }
@@ -355,20 +335,12 @@ export default class ArticleTable {
     db: Database.Database,
     id: number,
     bannerPosition: string,
-    ...res: any[]
+    ctx: CommandContext = fallbackCommandContext
   ): IArticle {
-    const win = res[res.length - 1];
     const stmt = db.prepare("UPDATE articles SET banner_position = ? WHERE id = ?");
     stmt.run(bannerPosition, id);
 
-    BrowserWindow.getAllWindows().forEach(window => {
-      if (window !== win && !window.isDestroyed()) {
-        window.webContents.send("article:updated", {
-          databaseName: basename(db.name),
-          articleId: id,
-        });
-      }
-    });
+    ctx.broadcastOthers("article:updated", { databaseName: basename(db.name), articleId: id });
 
     return this.getArticleById(db, id);
   }

@@ -15,6 +15,41 @@ export interface CommandEvent {
   sessionId?: string;
 }
 
+/**
+ * 数据层命令的调用上下文：承载"向其他端广播变更"的能力，取代把来源
+ * 窗口（BrowserWindow）追加在 handler 参数尾部的旧约定。
+ *
+ * 独立于 CommandEvent：后者是传输层事件，前者是调用能力，由各端提供
+ * 实现（Electron 按 BrowserWindow 窗口集分发，Web Server 按连接分发）。
+ */
+export interface CommandContext {
+  /** 广播给除来源端（发起本次调用的窗口/连接）外的所有端 */
+  broadcastOthers(channel: string, ...args: unknown[]): void;
+  /** 广播给所有端（含来源） */
+  broadcastAll(channel: string, ...args: unknown[]): void;
+}
+
+/**
+ * 全局广播出口：宿主装配时注入（Electron 遍历窗口、Web Server 遍历连接），
+ * 未注入时广播静默丢弃（如纯单测环境）。
+ */
+let broadcastSink: ((channel: string, args: unknown[]) => void) | null = null;
+
+export function setCommandBroadcastSink(
+  sink: ((channel: string, args: unknown[]) => void) | null
+): void {
+  broadcastSink = sink;
+}
+
+/**
+ * 无来源上下文的兜底：命令方法以它作尾参默认值，联动调用（不显式传 ctx）
+ * 走全广播——与旧机制中联动路径 win=undefined 时广播全部窗口的行为一致。
+ */
+export const fallbackCommandContext: CommandContext = {
+  broadcastOthers: (channel, ...args) => broadcastSink?.(channel, args),
+  broadcastAll: (channel, ...args) => broadcastSink?.(channel, args),
+};
+
 export type CommandHandler<TArgs extends unknown[] = unknown[], TResult = unknown> = (
   event: CommandEvent,
   ...args: TArgs
