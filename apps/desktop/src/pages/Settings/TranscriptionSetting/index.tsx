@@ -22,7 +22,8 @@ import {
   type DownloadSource,
   type ProgramInfo,
 } from "@/commands/model-downloader";
-import { invoke } from "@/electron";
+import { openTranscriptionModelsDir } from "@/commands";
+import { isMac } from "@/platform";
 import useSettingStore from "@/stores/useSettingStore";
 import { produce } from "immer";
 
@@ -37,10 +38,6 @@ const TranscriptionSetting = () => {
   const [programProgress, setProgramProgress] = useState<number>(0);
   const [programMessage, setProgramMessage] = useState<string>("");
   const [modelsDir, setModelsDir] = useState<string>("");
-
-  // 平台检测
-  const platform = (window as any).electron?.platform || "win32";
-  const isMac = platform === "darwin";
 
   // 从 store 获取设置
   const currentModel = useSettingStore(state => state.setting.transcription.currentModel);
@@ -210,7 +207,7 @@ const TranscriptionSetting = () => {
   // 打开模型目录
   const handleOpenModelsDir = async () => {
     try {
-      await invoke("transcription-open-models-dir");
+      await openTranscriptionModelsDir();
     } catch (error) {
       message.error(`打开目录失败: ${error}`);
     }

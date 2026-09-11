@@ -5,8 +5,14 @@ import classNames from "classnames";
 import CustomModal from "@/components/CustomModal";
 import useThemeColors from "@/hooks/useThemeColors";
 import useSettingStore from "@/stores/useSettingStore";
-import { closeWindow, download, getOriginDatabaseInfo, upload } from "@/commands";
-import { invoke, on, off } from "@/electron";
+import {
+  closeWindow,
+  download,
+  getOriginDatabaseInfo,
+  notifyAppQuittingReady,
+  upload,
+} from "@/commands";
+import { on, off } from "@/electron";
 import { isSyncConfigured } from "@/utils/sync";
 
 type ProgressState = {
@@ -215,7 +221,7 @@ const AutoSyncManager = () => {
       await handleUploadFailureWhileClosing();
     } else if (pendingQuitRef.current) {
       pendingQuitRef.current = false;
-      void invoke("app:quitting-ready");
+      void notifyAppQuittingReady();
     } else if (!success) {
       pendingCloseRef.current = false;
     }
@@ -232,7 +238,7 @@ const AutoSyncManager = () => {
     const handler = () => {
       if (downloadInProgressRef.current) {
         // 正在拉取远程同步数据，退出优先，直接放行
-        void invoke("app:quitting-ready");
+        void notifyAppQuittingReady();
         return;
       }
       if (uploadInProgressRef.current) {
@@ -241,7 +247,7 @@ const AutoSyncManager = () => {
         return;
       }
       if (!shouldAutoSync) {
-        void invoke("app:quitting-ready");
+        void notifyAppQuittingReady();
         return;
       }
       pendingQuitRef.current = true;

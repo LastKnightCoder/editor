@@ -42,6 +42,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import useMCPManagerModalStore from "@/stores/useMCPManagerModalStore";
 
 import { on, off } from "@/electron";
+import { platform } from "@/platform";
 import { getPlayUrl, checkStreamAvailability } from "@/utils/bilibili";
 import { bilibiliVideoToLocal, isBilibiliVideoCached } from "@/utils/bilibili-cache";
 import {
@@ -186,20 +187,7 @@ const Application = () => {
   );
 
   useEffect(() => {
-    const handleWindowFocus = () => {
-      setIsFocused(true);
-    };
-
-    const handleWindowBlur = () => {
-      setIsFocused(false);
-    };
-    on("window-focus", handleWindowFocus);
-    on("window-blur", handleWindowBlur);
-
-    return () => {
-      off("window-focus", handleWindowFocus);
-      off("window-blur", handleWindowBlur);
-    };
+    return platform.window.onFocusChange(setIsFocused);
   }, []);
 
   useEffect(() => {

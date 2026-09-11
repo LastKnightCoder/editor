@@ -1,9 +1,9 @@
-import { invoke } from "@/electron";
+import { settingCommands } from "@tau/contracts";
 
 export async function getSetting(): Promise<string> {
-  return await invoke("read-setting");
+  return settingCommands.read.call();
 }
 
 export async function saveSetting(setting: string): Promise<void> {
-  return await invoke("write-setting", setting);
+  return settingCommands.write.call(setting);
 }

@@ -17,7 +17,7 @@ import SettingModal from "./components/SettingModal";
 import GlobalTitlebar from "./components/GlobalTitlebar";
 import FullScreenLoading from "@/components/FullScreenLoading";
 import { initAiServer } from "@/services/aiServer";
-import { isElectron } from "@/electron";
+import { platform } from "@/platform";
 
 const ShortSidebarLayout = memo(() => {
   useInitDatabase();
@@ -29,8 +29,8 @@ const ShortSidebarLayout = memo(() => {
 
   useEffect(() => {
     const handleOpenMarkdown = async (e: any) => {
-      // 打开本地 Markdown 依赖系统文件选择与独立窗口，仅 Electron 提供
-      if (isElectron && isHotkey("mod+o", e)) {
+      // 打开本地 Markdown 依赖系统文件选择与独立窗口，仅桌面平台提供
+      if (platform.supports("window.open-markdown") && isHotkey("mod+o", e)) {
         e.preventDefault();
         e.stopPropagation();
         const filePaths = await selectFile({
@@ -50,7 +50,7 @@ const ShortSidebarLayout = memo(() => {
   return (
     <FullScreenLoading windowType="main">
       <div className={`flex h-screen w-screen flex-col bg-[var(--th-bg-page)] ${styles.container}`}>
-        {isElectron && <GlobalTitlebar />}
+        {platform.supports("window.minimize") && <GlobalTitlebar />}
 
         <div className="flex min-h-0 flex-1 overflow-hidden px-3 pb-3 pt-3">
           <div className={`box-border flex h-full min-w-0 flex-1 flex-col`}>

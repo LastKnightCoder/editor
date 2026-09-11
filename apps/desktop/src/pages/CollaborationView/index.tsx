@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { App } from "antd";
 import { Check, KeyRound, Settings, Share2, Users, X } from "lucide-react";
-import { invoke } from "@/electron";
+import { decideJoinRequest, joinCollaboration } from "@/commands";
 import useCollaborationStore, {
   initializeCollaborationStore,
 } from "@/stores/useCollaborationStore";
@@ -54,7 +54,7 @@ export default function CollaborationView() {
             if (!code.trim()) return;
             setJoining(true);
             void run(async () => {
-              await invoke("collaboration:join", code.trim());
+              await joinCollaboration(code.trim());
               setCode("");
               message.success("加入申请已提交，等待作者批准");
             }).finally(() => setJoining(false));
@@ -116,14 +116,14 @@ export default function CollaborationView() {
                 <IconButton
                   tone="success"
                   label="批准"
-                  onClick={() => run(() => invoke("collaboration:decide", request.id, true))}
+                  onClick={() => run(() => decideJoinRequest(request.id, true))}
                 >
                   <Check size={14} />
                 </IconButton>
                 <IconButton
                   danger
                   label="拒绝"
-                  onClick={() => run(() => invoke("collaboration:decide", request.id, false))}
+                  onClick={() => run(() => decideJoinRequest(request.id, false))}
                 >
                   <X size={14} />
                 </IconButton>

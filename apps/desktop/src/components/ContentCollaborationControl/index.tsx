@@ -2,7 +2,14 @@ import { useState } from "react";
 import { App } from "antd";
 import { Check, LogOut, RefreshCw, Share2, UserMinus, X } from "lucide-react";
 import type { ContentSessionTarget } from "@tau/collaboration";
-import { invoke } from "@/electron";
+import {
+  createSharedContent,
+  decideJoinRequest,
+  generateCollaborationInvitation,
+  getCurrentCollaborationInvitation,
+  leaveCollaboration,
+  removeCollaborationMember,
+} from "@/commands";
 import useContentSession from "@/hooks/useContentSession";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 import CustomModal from "@/components/CustomModal";
@@ -70,15 +77,11 @@ export default function ContentCollaborationControl({
   const generateCode = async () => {
     if (session) {
       if (session.role !== "owner" || session.status !== "active") return;
-      const result = await invoke<{ code: string; expiresAt: number }>(
-        "collaboration:invitation",
-        session.id
-      );
+      const result = await generateCollaborationInvitation(session.id);
       setCode(result.code);
       setCodeExpiresAt(result.expiresAt);
     } else if (contentId) {
-      const result = await invoke<{ documentId: string; code: string }>(
-        "collaboration:create-content",
+      const result = await createSharedContent(
         contentId,
         origin?.sourceType || "content",
         origin?.sourceId || contentId,
@@ -124,10 +127,7 @@ export default function ContentCollaborationControl({
           // 已共享：优先取本机缓存的协作码（只读，不轮换），无缓存再由作者手动生成。
           if (session.role === "owner" && active)
             void run(async () => {
-              const cached = await invoke<{ code: string; expiresAt: number } | null>(
-                "collaboration:invitation-current",
-                session.id
-              );
+              const cached = await getCurrentCollaborationInvitation(session.id);
               setCode(cached?.code || "");
               setCodeExpiresAt(cached?.expiresAt);
             });
@@ -263,11 +263,7 @@ export default function ContentCollaborationControl({
                             description: "该设备将立即失去访问权限，其已保存的内容不受影响。",
                             confirmText: "移除",
                             action: async () => {
-                              await invoke(
-                                "collaboration:remove-member",
-                                session.id,
-                                member.deviceId
-                              );
+                              await removeCollaborationMember(session.id, member.deviceId);
                             },
                           })
                         }
@@ -301,7 +297,7 @@ export default function ContentCollaborationControl({
                       disabled={busy}
                       onClick={() =>
                         void run(async () => {
-                          await invoke("collaboration:decide", request.id, true);
+                          await decideJoinRequest(request.id, true);
                         })
                       }
                     >
@@ -313,7 +309,7 @@ export default function ContentCollaborationControl({
                       disabled={busy}
                       onClick={() =>
                         void run(async () => {
-                          await invoke("collaboration:decide", request.id, false);
+                          await decideJoinRequest(request.id, false);
                         })
                       }
                     >
@@ -343,7 +339,7 @@ export default function ContentCollaborationControl({
                             "所有成员将停止协作，服务器上的正文与附件会被清理，原内容保留在本机。",
                           confirmText: "结束共享",
                           action: async () => {
-                            await invoke("collaboration:leave", session.id);
+                            await leaveCollaboration(session.id);
                           },
                         }
                       : {
@@ -351,7 +347,7 @@ export default function ContentCollaborationControl({
                           description: "已保存的本地内容会保留，之后不再自动加入这段共享。",
                           confirmText: "退出",
                           action: async () => {
-                            await invoke("collaboration:leave", session.id);
+                            await leaveCollaboration(session.id);
                           },
                         }
                   );

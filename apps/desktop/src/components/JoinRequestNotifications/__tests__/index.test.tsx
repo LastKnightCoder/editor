@@ -11,7 +11,14 @@ vi.mock("@/electron", () => ({
   invoke: (...args: unknown[]) => invokeMock(...args),
   on: () => {},
   off: () => {},
+  platform: "web",
 }));
+
+// 组件经契约层调用 collaboration 命令，装配直连 invokeMock 的桥
+import { setCommandBridge } from "@tau/rpc";
+setCommandBridge({
+  call: (channel, args) => Promise.resolve(invokeMock(channel, ...args)),
+});
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 (globalThis as { matchMedia?: unknown }).matchMedia ??= (query: string) => ({

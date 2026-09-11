@@ -47,6 +47,7 @@ export default defineConfig(() => {
         "@tau/editor": path.resolve(__dirname, "../../packages/editor"),
         "@tau/db-schema": path.resolve(__dirname, "../../packages/db-schema"),
         "@tau/rpc": path.resolve(__dirname, "../../packages/rpc"),
+        "@tau/platform": path.resolve(__dirname, "../../packages/platform"),
         "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
         "@tau/themes": path.resolve(__dirname, "../../packages/themes"),
         "foliate-js": path.resolve(__dirname, "../../packages/foliate-js"),
@@ -76,6 +77,7 @@ export default defineConfig(() => {
               alias: {
                 "@": path.resolve(__dirname, "src"),
                 "@tau/agent": path.resolve(__dirname, "../../packages/agent"),
+                "@tau/contracts": path.resolve(__dirname, "../../packages/contracts"),
                 "@tau/rpc": path.resolve(__dirname, "../../packages/rpc"),
                 "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
                 "@tau/db-schema": path.resolve(

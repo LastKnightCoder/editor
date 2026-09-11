@@ -1,5 +1,5 @@
-import { invoke } from "@/electron";
+import { platform } from "@/platform";
 
 export const getAllFonts = async (): Promise<string[]> => {
-  return await invoke("get-all-fonts");
+  return platform.system.getFonts();
 };

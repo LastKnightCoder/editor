@@ -2,7 +2,12 @@ import { useState } from "react";
 import { App } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { LogOut, Ticket, Trash2, UserMinus } from "lucide-react";
-import { invoke } from "@/electron";
+import {
+  discardLocalCollaboration,
+  generateCollaborationInvitation,
+  leaveCollaboration,
+  removeCollaborationMember,
+} from "@/commands";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
 import CollaborationEditor from "@/components/CollaborationEditor";
 import CustomModal from "@/components/CustomModal";
@@ -57,10 +62,7 @@ export default function SharedContentEditor({ session }: { session: Collaboratio
               disabled={busy}
               onClick={() =>
                 run(async () => {
-                  const value = await invoke<{ code: string }>(
-                    "collaboration:invitation",
-                    session.id
-                  );
+                  const value = await generateCollaborationInvitation(session.id);
                   await navigator.clipboard.writeText(value.code);
                   message.success(`协作码已复制：${value.code}`);
                 })
@@ -108,9 +110,7 @@ export default function SharedContentEditor({ session }: { session: Collaboratio
                 label={`移除 ${member.nickname}`}
                 className="opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
                 disabled={busy}
-                onClick={() =>
-                  run(() => invoke("collaboration:remove-member", session.id, member.deviceId))
-                }
+                onClick={() => run(() => removeCollaborationMember(session.id, member.deviceId))}
               >
                 <UserMinus size={12} />
               </IconButton>
@@ -180,11 +180,9 @@ export default function SharedContentEditor({ session }: { session: Collaboratio
         }}
         onOk={async () => {
           await run(() =>
-            invoke(
-              stale ? "collaboration:discard-local" : "collaboration:leave",
-              session.id,
-              session.pending
-            )
+            stale
+              ? discardLocalCollaboration(session.id, session.pending)
+              : leaveCollaboration(session.id, session.pending)
           );
           setLeaving(false);
         }}

@@ -8,8 +8,14 @@ import useCollaborationStore, {
 import useSettingStore from "@/stores/useSettingStore";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
-import { invoke, isElectron } from "@/electron";
-import { findOneArticle, getCardById, getProjectItemById, getDocumentItem } from "@/commands";
+import { isElectron } from "@/electron";
+import {
+  findOneArticle,
+  getCardById,
+  getProjectItemById,
+  getDocumentItem,
+  joinCollaboration,
+} from "@/commands";
 import { openArticleInNewWindow } from "@/commands/article";
 import { openCardInNewWindow } from "@/commands/card";
 import { openProjectItemInNewWindow } from "@/commands/project";
@@ -172,7 +178,7 @@ export default function CollaborationPanel() {
         onOk={async () => {
           setBusy(true);
           try {
-            await invoke("collaboration:join", code.trim());
+            await joinCollaboration(code.trim());
             setCode("");
             setJoinOpen(false);
             message.success("加入申请已提交，等待作者批准");

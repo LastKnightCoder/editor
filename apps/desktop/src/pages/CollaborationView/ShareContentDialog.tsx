@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { App } from "antd";
-import { invoke } from "@/electron";
+import { createSharedContent } from "@/commands";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import useCollaborationStore from "@/stores/useCollaborationStore";
@@ -49,8 +49,7 @@ export default function ShareContentDialog({
     const item = Array.isArray(selected) ? selected[0] : selected;
     if (!item) return;
     try {
-      const result = await invoke<{ documentId: string }>(
-        "collaboration:create-content",
+      const result = await createSharedContent(
         item.contentId,
         "content",
         item.contentId,
