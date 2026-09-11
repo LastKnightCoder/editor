@@ -1,9 +1,11 @@
-import { app, ipcMain } from "electron";
+import { app } from "electron";
 import fs from "node:fs/promises";
 import fsExtra from "fs-extra/esm";
 import { join } from "node:path";
 import { existsSync, readlinkSync } from "node:fs";
 import { execSync } from "node:child_process";
+import { settingCommands } from "@tau/contracts";
+import { cliCommands } from "@/commands/contracts/cli";
 import PathUtil from "../utils/PathUtil";
 import { Module } from "../types/module";
 import log from "electron-log";
@@ -20,20 +22,20 @@ class SettingModule implements Module {
   }
 
   async init() {
-    ipcMain.handle("read-setting", async () => {
+    settingCommands.read.register(async () => {
       return this.readSetting();
     });
-    ipcMain.handle("write-setting", async (_event, setting) => {
+    settingCommands.write.register(async (_event, setting) => {
       return this.writeSetting(setting);
     });
 
-    ipcMain.handle("cli:get-status", async () => {
+    cliCommands.getStatus.register(async () => {
       return this.getCliStatus();
     });
-    ipcMain.handle("cli:install", async () => {
+    cliCommands.install.register(async () => {
       return this.installCli();
     });
-    ipcMain.handle("cli:uninstall", async () => {
+    cliCommands.uninstall.register(async () => {
       return this.uninstallCli();
     });
   }
@@ -41,8 +43,7 @@ class SettingModule implements Module {
   getCliStatus(): { installed: boolean; path: string } {
     if (process.platform === "darwin") {
       const symlinkPath = "/usr/local/bin/tau";
-      if (!existsSync(symlinkPath))
-        return { installed: false, path: symlinkPath };
+      if (!existsSync(symlinkPath)) return { installed: false, path: symlinkPath };
       try {
         const target = readlinkSync(symlinkPath);
         const expected = join(getCliDir(), "tau.sh");
@@ -58,9 +59,7 @@ class SettingModule implements Module {
       const installed = userPath
         .split(";")
         .some(
-          (p) =>
-            p.replace(/\\/g, "/").toLowerCase() ===
-            cliDir.replace(/\\/g, "/").toLowerCase(),
+          p => p.replace(/\\/g, "/").toLowerCase() === cliDir.replace(/\\/g, "/").toLowerCase()
         );
       return { installed, path: cliDir };
     }
@@ -81,7 +80,7 @@ class SettingModule implements Module {
         const symlinkPath = "/usr/local/bin/tau";
         const cmd = `mkdir -p /usr/local/bin && ln -sf "${scriptPath}" "${symlinkPath}"`;
         execSync(
-          `osascript -e 'do shell script "${cmd.replace(/"/g, '\\"')}" with administrator privileges'`,
+          `osascript -e 'do shell script "${cmd.replace(/"/g, '\\"')}" with administrator privileges'`
         );
         return { success: true };
       } catch (e: any) {
@@ -100,9 +99,7 @@ class SettingModule implements Module {
           !userPath
             .split(";")
             .some(
-              (p) =>
-                p.replace(/\\/g, "/").toLowerCase() ===
-                cliDir.replace(/\\/g, "/").toLowerCase(),
+              p => p.replace(/\\/g, "/").toLowerCase() === cliDir.replace(/\\/g, "/").toLowerCase()
             )
         ) {
           const newPath = userPath ? `${userPath};${cliDir}` : cliDir;
@@ -124,7 +121,7 @@ class SettingModule implements Module {
         const symlinkPath = "/usr/local/bin/tau";
         const cmd = `rm -f "${symlinkPath}"`;
         execSync(
-          `osascript -e 'do shell script "${cmd.replace(/"/g, '\\"')}" with administrator privileges'`,
+          `osascript -e 'do shell script "${cmd.replace(/"/g, '\\"')}" with administrator privileges'`
         );
         return { success: true };
       } catch (e: any) {
@@ -139,9 +136,7 @@ class SettingModule implements Module {
         const parts = userPath
           .split(";")
           .filter(
-            (p) =>
-              p.replace(/\\/g, "/").toLowerCase() !==
-              cliDir.replace(/\\/g, "/").toLowerCase(),
+            p => p.replace(/\\/g, "/").toLowerCase() !== cliDir.replace(/\\/g, "/").toLowerCase()
           );
         execSync(`setx PATH "${parts.join(";")}"`, { encoding: "utf-8" });
         return { success: true };

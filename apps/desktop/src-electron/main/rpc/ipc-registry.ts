@@ -1,15 +1,18 @@
 import { ipcMain } from "electron";
 import type { IpcMainEvent, IpcMainInvokeEvent } from "electron";
+import {
+  createCommandRegistry,
+  type CommandEvent,
+  type CommandRegistry,
+  type InvokeHandler,
+  type OnHandler,
+} from "@tau/rpc";
 
-export type InvokeHandler = (event: IpcMainInvokeEvent, ...args: any[]) => unknown;
-export type OnHandler = (event: IpcMainEvent, ...args: any[]) => void;
-
-const invokeHandlers = new Map<string, InvokeHandler>();
-const onHandlers = new Map<string, Set<OnHandler>>();
+const registry = createCommandRegistry();
 
 /**
- * 拦截 ipcMain 的 handler 注册，把所有 channel 的 handler 同步收录进 registry，
- * 供 HTTP RPC 端点分发调用（原 IPC 行为完全不变）。
+ * 拦截 ipcMain 的 handler 注册，把所有 channel 的 handler 同步收录进中立
+ * registry（@tau/rpc），供 HTTP RPC 端点分发调用（原 IPC 行为完全不变）。
  *
  * 必须在任何模块调用 ipcMain.handle 之前安装（主进程入口最早时机）。
  * 注意：所有注册都发生在各模块 init() 的运行时，入口安装即可保证时序。
@@ -32,7 +35,9 @@ export function installIpcRegistry(): void {
     listener?: (event: IpcMainInvokeEvent, ...args: any[]) => unknown
   ) => {
     if (listener) {
-      invokeHandlers.set(channel, listener);
+      // modules 层 handler 签名仍为 IpcMainInvokeEvent，运行时与 CommandEvent
+      // 结构兼容（handler 实际只读 event.sender），此处仅类型桥接
+      registry.registerInvokeHandler(channel, listener as InvokeHandler);
     }
     // 与原生行为一致：无 listener 时由 Electron 抛错
     return originalHandle(channel, listener!);
@@ -42,13 +47,7 @@ export function installIpcRegistry(): void {
     channel: string,
     listener: (event: IpcMainEvent, ...args: any[]) => void
   ) => {
-    // ipcMain.on 原生支持同 channel 多 listener，以 Set 收录保持语义对等
-    let listeners = onHandlers.get(channel);
-    if (!listeners) {
-      listeners = new Set();
-      onHandlers.set(channel, listeners);
-    }
-    listeners.add(listener);
+    registry.addOnHandler(channel, listener as OnHandler);
     return originalOn(channel, listener);
   };
 
@@ -56,35 +55,33 @@ export function installIpcRegistry(): void {
     channel: string,
     listener: (event: IpcMainEvent, ...args: any[]) => void
   ) => {
-    const listeners = onHandlers.get(channel);
-    listeners?.delete(listener);
-    if (listeners && !listeners.size) {
-      onHandlers.delete(channel);
-    }
+    registry.removeOnHandler(channel, listener as OnHandler);
     return originalRemoveListener(channel, listener);
   };
 
   patchedIpcMain.removeHandler = (channel: string) => {
     // 与原生语义一致：removeHandler 仅移除 invoke handler，不影响 on listener
-    invokeHandlers.delete(channel);
+    registry.removeInvokeHandler(channel);
     originalRemoveHandler(channel);
   };
 }
 
+/** 中立 registry 实例，供 HTTP 端点等传输层装配（CommandEvent 分发） */
+export function getCommandRegistry(): CommandRegistry {
+  return registry;
+}
+
 export function getInvokeHandler(channel: string): InvokeHandler | undefined {
-  return invokeHandlers.get(channel);
+  return registry.getInvokeHandler(channel);
 }
 
 export function getOnHandler(channel: string): OnHandler | undefined {
-  const listeners = onHandlers.get(channel);
-  if (!listeners?.size) {
-    return undefined;
-  }
-  const snapshot = [...listeners];
-  // 顺序分发且不隔离异常，与 EventEmitter.emit 的原生语义一致
-  return (event, ...args) => {
-    for (const listener of snapshot) {
-      listener(event, ...args);
-    }
-  };
+  return registry.getOnHandler(channel);
 }
+
+/** 当前已注册的全部 invoke channel（契约对账用） */
+export function listRegisteredInvokeChannels(): string[] {
+  return registry.listInvokeChannels();
+}
+
+export type { CommandEvent };

@@ -33,8 +33,7 @@ vi.mock("@/commands/project", () => ({
   getProjectList: commandMocks.getProjectList,
   addRootProjectItem: commandMocks.addRootProjectItem,
   addChildProjectItem: commandMocks.addChildProjectItem,
-  createSharedProjectItemFromContent:
-    commandMocks.createSharedProjectItemFromContent,
+  createSharedProjectItemFromContent: commandMocks.createSharedProjectItemFromContent,
   getProjectItemsByIds: commandMocks.getProjectItemsByIds,
 }));
 
@@ -42,8 +41,7 @@ vi.mock("@/commands/document", () => ({
   getAllDocuments: commandMocks.getAllDocuments,
   addRootDocumentItem: commandMocks.addRootDocumentItem,
   addChildDocumentItem: commandMocks.addChildDocumentItem,
-  createSharedDocumentItemFromContent:
-    commandMocks.createSharedDocumentItemFromContent,
+  createSharedDocumentItemFromContent: commandMocks.createSharedDocumentItemFromContent,
   getDocumentItemsByIds: commandMocks.getDocumentItemsByIds,
 }));
 
@@ -63,6 +61,7 @@ vi.mock("@/electron", () => ({
   invoke: vi.fn(),
   on: vi.fn(),
   off: vi.fn(),
+  platform: "web",
 }));
 
 const mount = async (node: ReactNode) => {
@@ -86,7 +85,7 @@ const unmount = async (root: Root, container: HTMLElement) => {
 
 const flush = async () => {
   await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise(resolve => setTimeout(resolve, 0));
   });
 };
 
@@ -144,14 +143,14 @@ describe("InsertNoteToTreeModal", () => {
         }}
         onCancel={vi.fn()}
         onSuccess={onSuccess}
-      />,
+      />
     );
 
     await flush();
     await flush();
 
     const projectItem = Array.from(document.body.querySelectorAll("div"))
-      .filter((node) => node.textContent?.trim() === "项目")
+      .filter(node => node.textContent?.trim() === "项目")
       .at(-1);
     expect(projectItem).toBeTruthy();
     await act(async () => {
@@ -162,7 +161,7 @@ describe("InsertNoteToTreeModal", () => {
     expect(document.body.textContent).toContain("添加到根目录");
 
     const addButton = Array.from(document.body.querySelectorAll("button")).find(
-      (button) => button.textContent?.trim() === "添加",
+      button => button.textContent?.trim() === "添加"
     ) as HTMLButtonElement | undefined;
     expect(addButton).toBeTruthy();
     expect(addButton?.disabled).toBe(false);
@@ -179,7 +178,7 @@ describe("InsertNoteToTreeModal", () => {
         refType: "video-note",
         refId: 9,
         projectItemType: EProjectItemType.VideoNote,
-      }),
+      })
     );
     expect(onSuccess).toHaveBeenCalledWith({ id: 22, title: "视频标题" });
 

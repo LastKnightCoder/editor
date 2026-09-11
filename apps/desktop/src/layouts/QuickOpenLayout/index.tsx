@@ -6,7 +6,7 @@ import TitlebarIcon from "@/components/TitlebarIcon";
 import { useState } from "react";
 import classnames from "classnames";
 import { setAlwaysOnTop as setTop } from "@/commands";
-import { isElectron, platform } from "@/electron";
+import { platform, isMac } from "@/platform";
 import useSettingStore from "@/stores/useSettingStore";
 import FullScreenLoading from "@/components/FullScreenLoading";
 import GlobalTitlebar from "@/layouts/ContentLayout/components/GlobalTitlebar";
@@ -36,9 +36,9 @@ function getWindowTypeFromPath(pathname: string): string {
 const QuickOpenLayout = ({ title }: QuickOpenLayoutProps) => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
-  const isMac = platform === "darwin";
-  // 标题栏承载窗口控制与置顶等 Electron 专属能力，Web 端不渲染
-  const showTitlebar = isElectron && (isMac || searchParams.get("showTitlebar") === "true");
+  // 标题栏承载窗口控制与置顶等桌面专属能力，Web 端不渲染
+  const showTitlebar =
+    platform.supports("window.minimize") && (isMac || searchParams.get("showTitlebar") === "true");
   const isDefaultTop = searchParams.get("isDefaultTop") === "true";
 
   // 推断窗口类型

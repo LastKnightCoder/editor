@@ -68,6 +68,8 @@ export * from "./flashcard";
 export * from "./components-workbench";
 export * from "./resource-sync-blacklist";
 export * from "./publish";
+export * from "./collaboration";
+export * from "./cli";
 export type {
   TranscriptionOptions,
   TranscriptionSegment,

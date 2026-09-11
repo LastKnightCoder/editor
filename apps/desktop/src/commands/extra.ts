@@ -1,12 +1,15 @@
 import { invoke, send } from "@/electron";
+import { platform } from "@/platform";
 import { v4 as uuidv4 } from "uuid";
-import type {
-  SaveFileWithDialogPayload,
-  SaveFileWithDialogResult,
-} from "@/types";
+import type { SaveFileWithDialogPayload, SaveFileWithDialogResult } from "@/types";
 
 export const openExternal = async (url: string) => {
-  return await invoke("open-external", url);
+  return platform.shell.openExternal(url);
+};
+
+/** 通知主进程渲染侧退出准备完成，可以继续退出流程 */
+export const notifyAppQuittingReady = async () => {
+  return await invoke("app:quitting-ready");
 };
 
 const createAbortError = () => {
@@ -57,7 +60,7 @@ export const resolvePath = async (path: string) => {
 };
 
 export const selectDirectoryWithDialog = async (): Promise<string | null> => {
-  return await invoke("select-directory-with-dialog");
+  return platform.fileDialog.selectDirectory();
 };
 
 /**
@@ -68,16 +71,16 @@ export const selectDirectoryWithDialog = async (): Promise<string | null> => {
  */
 export const downloadFileWithDialog = async (
   url: string,
-  defaultFileName?: string,
+  defaultFileName?: string
 ): Promise<string | null> => {
-  return await invoke("download-file-with-dialog", url, defaultFileName);
+  return platform.fileDialog.downloadFile(url, defaultFileName);
 };
 
 /**
  * 通用保存：弹保存对话框并把文本/二进制内容写入所选路径
  */
 export const saveFileWithDialog = async (
-  payload: SaveFileWithDialogPayload,
+  payload: SaveFileWithDialogPayload
 ): Promise<SaveFileWithDialogResult> => {
-  return await invoke("save-file-with-dialog", payload);
+  return platform.fileDialog.saveFile(payload);
 };

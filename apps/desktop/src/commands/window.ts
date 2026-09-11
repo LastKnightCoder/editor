@@ -1,54 +1,54 @@
-import { invoke } from "@/electron";
+import { platform } from "@/platform";
 
 export const setAlwaysOnTop = async (flag: boolean) => {
-  return invoke("set-always-on-top", flag);
+  return platform.window.setAlwaysOnTop(flag);
 };
 
 export const closeWindow = async () => {
-  return invoke("close-window");
+  return platform.window.close();
 };
 
 /** 恢复、显示并聚焦主窗口（从最小化恢复、移至最前方） */
 export const showAndFocusWindow = async () => {
-  return invoke("show-and-focus-window");
+  return platform.window.showAndFocus();
 };
 
 // 新增窗口控制函数
 export const minimizeWindow = async () => {
-  return invoke("minimize-window");
+  return platform.window.minimize();
 };
 
 export const maximizeWindow = async () => {
-  return invoke("maximize-window");
+  return platform.window.maximize();
 };
 
 export const toggleFullScreen = async () => {
-  return invoke("toggle-fullscreen");
+  return platform.window.toggleFullScreen();
 };
 
 export const getWindowState = async (): Promise<{
   isMaximized: boolean;
   isFullScreen: boolean;
 }> => {
-  return invoke("get-window-state");
+  return platform.window.getState();
 };
 
 export const openPomodoroWindow = async () => {
-  return invoke("open-pomodoro-window");
+  return platform.window.openPomodoroWindow();
 };
 
 export const openPomodoroMiniWindow = async () => {
-  return invoke("open-pomodoro-mini-window");
+  return platform.window.openPomodoroMiniWindow();
 };
 
 export const hidePomodoroMiniWindow = async () => {
-  return invoke("hide-pomodoro-mini-window");
+  return platform.window.hidePomodoroMiniWindow();
 };
 
 export const openPomodoroImmersiveWindow = async () => {
-  return invoke("open-pomodoro-immersive-window");
+  return platform.window.openPomodoroImmersiveWindow();
 };
 
 export const hidePomodoroImmersiveWindow = async () => {
-  return invoke("hide-pomodoro-immersive-window");
+  return platform.window.hidePomodoroImmersiveWindow();
 };

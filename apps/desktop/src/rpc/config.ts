@@ -6,6 +6,11 @@ export interface RpcClientConfig {
   token: string;
   /** 调用方窗口 id；Web 环境下为 0（服务端回退默认路由） */
   windowId: number;
+  /**
+   * 调用方会话标识（Web Server 多用户路由键）。当前恒为 undefined，
+   * 待登录态接入后由装配层填充，协议层已就位。
+   */
+  sessionId?: string;
 }
 
 /** Web 构建指向 Web Server；Electron 下可缺省（走 bootstrap 注入的本地端口） */

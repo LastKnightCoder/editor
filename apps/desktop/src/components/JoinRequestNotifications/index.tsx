@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Check, Loader2, X } from "lucide-react";
 import type { JoinRequest } from "@tau/collaboration";
-import { invoke } from "@/electron";
+import { decideJoinRequest } from "@/commands";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 import PortalToBody from "@/components/PortalToBody";
 
@@ -72,7 +72,7 @@ export default function JoinRequestNotifications() {
       )
     );
     try {
-      await invoke("collaboration:decide", id, approve);
+      await decideJoinRequest(id, approve);
       setVisible(current => current.filter(item => item.request.id !== id));
     } catch (failure) {
       setVisible(current =>

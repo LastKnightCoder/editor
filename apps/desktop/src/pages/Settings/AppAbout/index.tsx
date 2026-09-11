@@ -1,8 +1,7 @@
 import { useState, memo } from "react";
 import { useAsyncEffect } from "ahooks";
 import { App, Progress } from "antd";
-import { getVersions, openExternal } from "@/commands";
-import { invoke } from "@/electron";
+import { getVersions, openExternal, getCliStatus, installCli, uninstallCli } from "@/commands";
 import SelectDatabase from "@/components/SelectDatabase";
 import { SettingButton, SettingContainer, SettingSection, SettingSwitch } from "../components";
 import { useUpdateStore } from "@/stores/useUpdateStore";
@@ -40,7 +39,7 @@ const AppAbout = memo(() => {
     }
 
     try {
-      const status = await invoke<{ installed: boolean; path: string }>("cli:get-status");
+      const status = await getCliStatus();
       setCliInstalled(status.installed);
       setCliPath(status.path);
     } catch {
@@ -54,7 +53,7 @@ const AppAbout = memo(() => {
 
   const refreshCliStatus = async () => {
     try {
-      const status = await invoke<{ installed: boolean; path: string }>("cli:get-status");
+      const status = await getCliStatus();
       setCliInstalled(status.installed);
       setCliPath(status.path);
     } catch {
@@ -65,7 +64,7 @@ const AppAbout = memo(() => {
   const handleInstallCli = async () => {
     setCliLoading(true);
     try {
-      const result = await invoke<{ success: boolean; error?: string }>("cli:install");
+      const result = await installCli();
       if (result.success) {
         await refreshCliStatus();
         const isWindows = navigator.userAgent.includes("Windows");
@@ -87,7 +86,7 @@ const AppAbout = memo(() => {
   const handleUninstallCli = async () => {
     setCliLoading(true);
     try {
-      const result = await invoke<{ success: boolean; error?: string }>("cli:uninstall");
+      const result = await uninstallCli();
       if (result.success) {
         await refreshCliStatus();
         message.success("命令行工具已卸载");

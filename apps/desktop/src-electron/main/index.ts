@@ -1,5 +1,6 @@
 // 必须置于所有 import 之首：在模块单例（import 期注册 ipcMain handler）之前安装拦截
 import "./rpc/ipc-registry-install";
+import { reportContractCoverage } from "./rpc/contract-audit";
 // 紧随其后安装日志（session 文件 + console 代理），保证后续模块的所有输出都能落盘
 import "./modules/logger";
 import { app, BrowserWindow, ipcMain, protocol, globalShortcut } from "electron";
@@ -231,6 +232,11 @@ if (!gotTheLock) {
         try {
           // 初始化 BACKGROUND 层模块
           await moduleInitManager.initBackground();
+
+          // dev 模式输出契约覆盖率报告（迁移进度活清单，见 docs/platform-rpc-architecture.md）
+          if (!app.isPackaged) {
+            reportContractCoverage();
+          }
 
           // 接入事件广播通道（server 模块已 listen），连接后 flush 启动期缓冲
           rpcEventBroadcaster.start(RPC_SERVER_PORT);

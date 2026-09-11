@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { App } from "antd";
 import { Download, Upload } from "lucide-react";
-import { invoke } from "@/electron";
+import {
+  configureCollaborationServer,
+  exportCollaborationIdentity,
+  importCollaborationIdentity,
+} from "@/commands";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 import CustomModal from "@/components/CustomModal";
 
@@ -43,7 +47,7 @@ export default function CollaborationSettingsDialog({
       onOk={async () => {
         setConfiguring(true);
         try {
-          await invoke("collaboration:configure", { serverUrl: url.trim(), nickname });
+          await configureCollaborationServer({ serverUrl: url.trim(), nickname });
           onClose();
         } catch (error) {
           message.error(error instanceof Error ? error.message : "保存失败");
@@ -79,7 +83,7 @@ export default function CollaborationSettingsDialog({
           <button
             type="button"
             className="border-border-1 text-text-2 hover:bg-hover inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-[10px] border bg-transparent px-3 text-xs transition duration-150 hover:border-[var(--th-border-hover)]"
-            onClick={() => run(() => invoke("collaboration:export-identity"))}
+            onClick={() => run(() => exportCollaborationIdentity())}
           >
             <Download size={14} />
             导出身份
@@ -87,7 +91,7 @@ export default function CollaborationSettingsDialog({
           <button
             type="button"
             className="border-border-1 text-text-2 hover:bg-hover inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-[10px] border bg-transparent px-3 text-xs transition duration-150 hover:border-[var(--th-border-hover)]"
-            onClick={() => run(() => invoke("collaboration:import-identity"))}
+            onClick={() => run(() => importCollaborationIdentity())}
           >
             <Upload size={14} />
             恢复身份
