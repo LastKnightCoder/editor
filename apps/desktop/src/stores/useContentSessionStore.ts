@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { invoke, on } from "@/electron";
+import { openCollaborationContentSession } from "@/commands";
+import { on } from "@/electron";
 import type {
   ContentSessionSnapshot,
   ContentSessionTarget,
@@ -62,7 +63,8 @@ export async function openContentSession(databaseName: string, target: ContentSe
   const key = contentSessionKey(databaseName, target.contentId);
   let request = pending.get(key);
   if (!request) {
-    request = invoke<ContentSessionSnapshot>("collaboration:open-content", target)
+    request = openCollaborationContentSession(target)
+      .then(snapshot => snapshot as ContentSessionSnapshot)
       .then(snapshot => {
         useContentSessionStore.setState(state => {
           const previous = state.entries[key];

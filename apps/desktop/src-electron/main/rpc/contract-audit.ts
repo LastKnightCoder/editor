@@ -1,10 +1,11 @@
 import "@tau/contracts";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// 渲染侧契约（article/card/collaboration/daily-note）主进程并不使用，import 仅为把
+// channel 登记进对账集合；cli 契约经 modules/setting.ts 间接加载，显式引入保持意图清晰
 import "@/commands/contracts/article";
-// 渲染侧契约（article/collaboration）主进程并不使用，import 仅为把 channel
-// 登记进对账集合；cli 契约经 modules/setting.ts 间接加载，显式引入保持意图清晰
+import "@/commands/contracts/card";
 import "@/commands/contracts/cli";
 import "@/commands/contracts/collaboration";
+import "@/commands/contracts/daily-note";
 import { auditCommandCoverage } from "@tau/rpc";
 import { listRegisteredInvokeChannels } from "./ipc-registry";
 

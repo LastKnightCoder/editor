@@ -1,11 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { checkMarkdownExists, checkVLIndexExists, getVLResourceStatuses } from "@/commands";
 import { useMemoizedFn } from "ahooks";
-import type {
-  VLResource,
-  VLResourceStatus,
-  TaskProgress,
-} from "@/types/vibe-learning";
-import { invoke, on, off } from "@/electron";
+import type { VLResource, VLResourceStatus, TaskProgress } from "@/types/vibe-learning";
+import { on, off } from "@/electron";
 
 interface StatusChangeData {
   resourceId: number;
@@ -15,24 +12,20 @@ interface StatusChangeData {
 }
 
 export const useIndexingStatus = (resourceIds?: number[]) => {
-  const [statusMap, setStatusMap] = useState<Map<number, VLResourceStatus>>(
-    new Map(),
-  );
-  const [progressMap, setProgressMap] = useState<Map<number, TaskProgress>>(
-    new Map(),
-  );
+  const [statusMap, setStatusMap] = useState<Map<number, VLResourceStatus>>(new Map());
+  const [progressMap, setProgressMap] = useState<Map<number, TaskProgress>>(new Map());
   const normalizedResourceIds = useMemo(
     () =>
       Array.from(new Set(resourceIds || []))
-        .filter((id) => Number.isInteger(id) && id > 0)
+        .filter(id => Number.isInteger(id) && id > 0)
         .sort((a, b) => a - b),
-    [resourceIds],
+    [resourceIds]
   );
   const resourceIdsKey = normalizedResourceIds.join(",");
 
   useEffect(() => {
     const handler = (_: unknown, data: StatusChangeData) => {
-      setStatusMap((prev) => {
+      setStatusMap(prev => {
         const next = new Map(prev);
         if (data.status === "completed") {
           next.delete(data.resourceId);
@@ -44,14 +37,14 @@ export const useIndexingStatus = (resourceIds?: number[]) => {
 
       // 更新进度数据
       if (data.taskProgress) {
-        setProgressMap((prev) => {
+        setProgressMap(prev => {
           const next = new Map(prev);
           next.set(data.resourceId, data.taskProgress!);
           return next;
         });
       } else {
         // 阶段切换且未携带进度时，清理旧阶段残留进度
-        setProgressMap((prev) => {
+        setProgressMap(prev => {
           const next = new Map(prev);
           next.delete(data.resourceId);
           return next;
@@ -60,7 +53,7 @@ export const useIndexingStatus = (resourceIds?: number[]) => {
 
       // 完成或失败时清除进度
       if (data.status === "completed" || data.status === "failed") {
-        setProgressMap((prev) => {
+        setProgressMap(prev => {
           const next = new Map(prev);
           next.delete(data.resourceId);
           return next;
@@ -82,10 +75,7 @@ export const useIndexingStatus = (resourceIds?: number[]) => {
     let disposed = false;
     const syncSnapshot = async () => {
       try {
-        const snapshot = (await invoke(
-          "vl-get-resource-statuses",
-          normalizedResourceIds,
-        )) as Record<
+        const snapshot = (await getVLResourceStatuses(normalizedResourceIds)) as Record<
           number,
           { status: VLResourceStatus | null; taskProgress?: TaskProgress }
         >;
@@ -94,7 +84,7 @@ export const useIndexingStatus = (resourceIds?: number[]) => {
           return;
         }
 
-        setStatusMap((prev) => {
+        setStatusMap(prev => {
           const next = new Map(prev);
           for (const resourceId of normalizedResourceIds) {
             const item = snapshot[resourceId];
@@ -105,7 +95,7 @@ export const useIndexingStatus = (resourceIds?: number[]) => {
           return next;
         });
 
-        setProgressMap((prev) => {
+        setProgressMap(prev => {
           const next = new Map(prev);
           for (const resourceId of normalizedResourceIds) {
             const item = snapshot[resourceId];
@@ -132,7 +122,7 @@ export const useIndexingStatus = (resourceIds?: number[]) => {
 export const computeResourceStatus = async (
   resource: VLResource,
   mainDbName: string,
-  queueStatus: VLResourceStatus | null,
+  queueStatus: VLResourceStatus | null
 ): Promise<VLResourceStatus> => {
   // 1. 先检查是否在处理队列中（内存状态）
   if (queueStatus) {
@@ -146,10 +136,7 @@ export const computeResourceStatus = async (
 
   // 3. 检查 Markdown 文件是否存在
   try {
-    const mdExists = await invoke(
-      "vl-check-markdown-exists",
-      resource.markdownPath,
-    );
+    const mdExists = await checkMarkdownExists(resource.markdownPath);
     if (!mdExists) {
       return "need_convert";
     }
@@ -159,12 +146,7 @@ export const computeResourceStatus = async (
 
   // 4. 检查索引数据库中是否有记录
   try {
-    const indexExists = await invoke(
-      "vl-check-index-exists",
-      mainDbName,
-      resource.projectId,
-      resource.id,
-    );
+    const indexExists = await checkVLIndexExists(mainDbName, resource.projectId, resource.id);
     if (!indexExists) {
       return "need_index";
     }
@@ -175,17 +157,12 @@ export const computeResourceStatus = async (
   return "completed";
 };
 
-export const useResourceStatus = (
-  resource: VLResource | null,
-  mainDbName: string,
-) => {
+export const useResourceStatus = (resource: VLResource | null, mainDbName: string) => {
   const [status, setStatus] = useState<VLResourceStatus>("pending");
   const [loading, setLoading] = useState(true);
 
   // 获取队列中的进行时状态
-  const { statusMap: indexingStatus } = useIndexingStatus(
-    resource ? [resource.id] : [],
-  );
+  const { statusMap: indexingStatus } = useIndexingStatus(resource ? [resource.id] : []);
   const queueStatus = resource ? indexingStatus.get(resource.id) || null : null;
 
   // 计算状态
@@ -198,11 +175,7 @@ export const useResourceStatus = (
 
     setLoading(true);
     try {
-      const computed = await computeResourceStatus(
-        resource,
-        mainDbName,
-        queueStatus,
-      );
+      const computed = await computeResourceStatus(resource, mainDbName, queueStatus);
       setStatus(computed);
     } catch (error) {
       console.error("Failed to compute resource status:", error);
@@ -221,31 +194,21 @@ export const useResourceStatus = (
 };
 
 interface UseResourcesStatusOptions {
-  onResourceUpdate?: (data: {
-    resourceId: number;
-    projectId: number;
-    mainDbName: string;
-  }) => void;
+  onResourceUpdate?: (data: { resourceId: number; projectId: number; mainDbName: string }) => void;
   projectId?: number;
 }
 
 export const useResourcesStatus = (
   resources: VLResource[],
   mainDbName: string,
-  options?: UseResourcesStatusOptions,
+  options?: UseResourcesStatusOptions
 ) => {
-  const [statusMap, setStatusMap] = useState<Map<number, VLResourceStatus>>(
-    new Map(),
-  );
+  const [statusMap, setStatusMap] = useState<Map<number, VLResourceStatus>>(new Map());
   const [loading, setLoading] = useState(true);
 
   // 获取队列中的进行时状态
-  const resourceIds = useMemo(
-    () => resources.map((resource) => resource.id),
-    [resources],
-  );
-  const { statusMap: indexingStatus, progressMap } =
-    useIndexingStatus(resourceIds);
+  const resourceIds = useMemo(() => resources.map(resource => resource.id), [resources]);
+  const { statusMap: indexingStatus, progressMap } = useIndexingStatus(resourceIds);
 
   // 计算所有资源的状态
   const computeAllStatus = useMemoizedFn(async () => {
@@ -260,15 +223,11 @@ export const useResourcesStatus = (
       const newMap = new Map<number, VLResourceStatus>();
 
       await Promise.all(
-        resources.map(async (resource) => {
+        resources.map(async resource => {
           const queueStatus = indexingStatus.get(resource.id) || null;
-          const status = await computeResourceStatus(
-            resource,
-            mainDbName,
-            queueStatus,
-          );
+          const status = await computeResourceStatus(resource, mainDbName, queueStatus);
           newMap.set(resource.id, status);
-        }),
+        })
       );
 
       setStatusMap(newMap);
@@ -291,7 +250,7 @@ export const useResourcesStatus = (
   useEffect(() => {
     const handler = (
       _: unknown,
-      data: { resourceId: number; projectId: number; mainDbName: string },
+      data: { resourceId: number; projectId: number; mainDbName: string }
     ) => {
       // 如果指定了 projectId，只处理匹配的项目
       if (filterProjectId !== undefined && data.projectId !== filterProjectId) {
@@ -316,14 +275,14 @@ export const useResourcesStatus = (
       }
       return statusMap.get(resourceId) || "pending";
     },
-    [statusMap, indexingStatus],
+    [statusMap, indexingStatus]
   );
 
   const getProgress = useCallback(
     (resourceId: number): TaskProgress | undefined => {
       return progressMap.get(resourceId);
     },
-    [progressMap],
+    [progressMap]
   );
 
   return {

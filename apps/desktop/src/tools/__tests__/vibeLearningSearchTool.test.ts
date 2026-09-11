@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const electronMocks = vi.hoisted(() => ({
   invoke: vi.fn(),
+  platform: "web",
 }));
 
 vi.mock("@/electron", () => electronMocks);
@@ -14,8 +15,7 @@ import {
   createVibeLearningSearchTool,
 } from "@/tools/vibeLearningSearchTool";
 
-const parse = (content: string) =>
-  JSON.parse(content) as Record<string, unknown>;
+const parse = (content: string) => JSON.parse(content) as Record<string, unknown>;
 
 describe("vibeLearningSearchTool", () => {
   beforeEach(() => {
@@ -126,16 +126,13 @@ describe("vibeLearningSearchTool", () => {
     });
     const payload = parse(String((result as { content: string }).content));
 
-    expect(electronMocks.invoke).toHaveBeenCalledWith(
-      "vl-read-resource-lines",
-      {
-        projectId: 1,
-        resourceId: 1,
-        mainDbName: "main.db",
-        startLine: 21,
-        endLine: 44,
-      },
-    );
+    expect(electronMocks.invoke).toHaveBeenCalledWith("vl-read-resource-lines", {
+      projectId: 1,
+      resourceId: 1,
+      mainDbName: "main.db",
+      startLine: 21,
+      endLine: 44,
+    });
     expect(payload.content).toBe("局部正文");
   });
 
@@ -158,16 +155,13 @@ describe("vibeLearningSearchTool", () => {
     });
     const payload = parse(String((result as { content: string }).content));
 
-    expect(electronMocks.invoke).toHaveBeenCalledWith(
-      "vl-read-resource-range",
-      {
-        projectId: 1,
-        resourceId: 1,
-        mainDbName: "main.db",
-        startOffset: 100,
-        endOffset: 168,
-      },
-    );
+    expect(electronMocks.invoke).toHaveBeenCalledWith("vl-read-resource-range", {
+      projectId: 1,
+      resourceId: 1,
+      mainDbName: "main.db",
+      startOffset: 100,
+      endOffset: 168,
+    });
     expect(payload.startOffset).toBe(100);
     expect(payload.endOffset).toBe(168);
     expect(payload.content).toBe("局部正文");
@@ -198,21 +192,16 @@ describe("vibeLearningSearchTool", () => {
     });
     const payload = parse(String((result as { content: string }).content));
 
-    expect(electronMocks.invoke).toHaveBeenCalledWith(
-      "vl-read-resource-range",
-      {
-        projectId: 1,
-        resourceId: 1,
-        resourceName: "Transformer 原理",
-        mainDbName: "main.db",
-        startOffset: 80,
-        endOffset: 188,
-      },
-    );
+    expect(electronMocks.invoke).toHaveBeenCalledWith("vl-read-resource-range", {
+      projectId: 1,
+      resourceId: 1,
+      resourceName: "Transformer 原理",
+      mainDbName: "main.db",
+      startOffset: 80,
+      endOffset: 188,
+    });
     expect(payload.success).toBe(true);
-    expect(
-      (payload.contexts as Array<Record<string, unknown>>)[0]?.content,
-    ).toBe("字符范围正文");
+    expect((payload.contexts as Array<Record<string, unknown>>)[0]?.content).toBe("字符范围正文");
   });
 
   it("batch_read_search_hits 应在缺少字符范围时按行范围批量补读上下文", async () => {
@@ -240,21 +229,16 @@ describe("vibeLearningSearchTool", () => {
     });
     const payload = parse(String((result as { content: string }).content));
 
-    expect(electronMocks.invoke).toHaveBeenCalledWith(
-      "vl-read-resource-lines",
-      {
-        projectId: 1,
-        resourceId: 1,
-        resourceName: "Transformer 原理",
-        mainDbName: "main.db",
-        startLine: 19,
-        endLine: 46,
-      },
-    );
+    expect(electronMocks.invoke).toHaveBeenCalledWith("vl-read-resource-lines", {
+      projectId: 1,
+      resourceId: 1,
+      resourceName: "Transformer 原理",
+      mainDbName: "main.db",
+      startLine: 19,
+      endLine: 46,
+    });
     expect(payload.success).toBe(true);
-    expect(
-      (payload.contexts as Array<Record<string, unknown>>)[0]?.content,
-    ).toBe("行范围正文");
+    expect((payload.contexts as Array<Record<string, unknown>>)[0]?.content).toBe("行范围正文");
   });
 
   it("长耗时的 Vibe Learning 检索与阅读工具应显式声明充足超时", () => {

@@ -1,15 +1,12 @@
-import { invoke } from "@/electron";
+import { compileTailwind } from "@/commands";
 
 const inflight = new Map<string, Promise<string>>();
 const cache = new Map<string, string>();
 
 export async function compileCustomBlockTailwind(
   source: string,
-  extension = "tsx",
+  extension = "tsx"
 ): Promise<string> {
-  if (typeof invoke !== "function") {
-    return "";
-  }
   const trimmed = source?.trim();
   if (!trimmed) {
     return "";
@@ -19,11 +16,11 @@ export async function compileCustomBlockTailwind(
     return cache.get(key)!;
   }
   if (!inflight.has(key)) {
-    const request = invoke("custom-block:compile-tailwind", {
+    const request = compileTailwind({
       content: trimmed,
       extension,
     })
-      .then((css) => {
+      .then(css => {
         cache.set(key, css);
         return css;
       })

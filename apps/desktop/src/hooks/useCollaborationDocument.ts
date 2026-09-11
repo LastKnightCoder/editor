@@ -1,15 +1,21 @@
 import { useEffect, useState } from "react";
+import {
+  ackCollaborationFreeze,
+  resolveCollaborationResource,
+  sendCollaborationAwareness,
+  sendCollaborationPrivateNode,
+  setCollaborationTabActive,
+  subscribeCollaborationDocument,
+  unsubscribeCollaborationDocument,
+  updateCollaborationDocument,
+  uploadCollaborationResource,
+} from "@/commands";
 import { flushSync } from "react-dom";
 import * as Y from "yjs";
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
-import {
-  ASSET_PREFIX,
-  readSharedContent,
-  type SharedContent,
-  type CollaborationSession,
-} from "@tau/collaboration";
+import { ASSET_PREFIX, readSharedContent, type SharedContent } from "@tau/collaboration";
 import type { EditorCollaborationBinding } from "@tau/editor/src/collaboration/types";
-import { invoke, on, off } from "@/electron";
+import { on, off } from "@/electron";
 import { initializeCollaborationStore } from "@/stores/useCollaborationStore";
 import { publishSessionValue } from "@/stores/useContentSessionStore";
 
@@ -44,7 +50,7 @@ export default function useCollaborationDocument(documentId?: string) {
     const pendingPrivateNodes = new Map<string, SharedContent["content"][number]>();
     const sendPrivateNodes = async (): Promise<void> => {
       for (const [collabId, node] of [...pendingPrivateNodes]) {
-        await invoke("collaboration:private-node", id, viewId, collabId, node);
+        await sendCollaborationPrivateNode(id, viewId, collabId, node);
         pendingPrivateNodes.delete(collabId);
       }
     };
@@ -62,7 +68,7 @@ export default function useCollaborationDocument(documentId?: string) {
           const batch = pending;
           pending = [];
           try {
-            await invoke("collaboration:update", id, Y.mergeUpdates(batch), viewId);
+            await updateCollaborationDocument(id, Y.mergeUpdates(batch), viewId);
             if (!disposed) setError(undefined);
           } catch (failure) {
             pending.unshift(...batch);
@@ -86,7 +92,7 @@ export default function useCollaborationDocument(documentId?: string) {
           return;
         }
         void Promise.all([sendUpdates(), sendPrivateNodes()])
-          .then(() => invoke("collaboration:freeze-ack", viewId))
+          .then(() => ackCollaborationFreeze(viewId))
           .catch(() => {});
       }
     };
@@ -122,16 +128,10 @@ export default function useCollaborationDocument(documentId?: string) {
     on("collaboration:flush", onFlush);
     on("collaboration:session-error", onSessionError);
     on("collaboration:removed", onRemoved);
-    void invoke<{
-      state: Uint8Array;
-      awareness?: Uint8Array;
-      privateNodes: [string, SharedContent["content"][number]][];
-      session: CollaborationSession;
-      user: { id: string; name: string; color: string };
-    }>("collaboration:subscribe", id, viewId)
+    void subscribeCollaborationDocument(id, viewId)
       .then(snapshot => {
         if (disposed) {
-          void invoke("collaboration:unsubscribe", viewId).catch(() => {});
+          void unsubscribeCollaborationDocument(viewId).catch(() => {});
           return;
         }
         Y.applyUpdate(doc, new Uint8Array(snapshot.state), IPC_ORIGIN);
@@ -157,8 +157,7 @@ export default function useCollaborationDocument(documentId?: string) {
             origin: unknown
           ) => {
             if (origin !== IPC_ORIGIN)
-              void invoke(
-                "collaboration:awareness",
+              void sendCollaborationAwareness(
                 id,
                 viewId,
                 encodeAwarenessUpdate(awareness, [...added, ...updated, ...removed]),
@@ -187,17 +186,17 @@ export default function useCollaborationDocument(documentId?: string) {
           onLocalFieldChange: (collabId, key, value) => {
             // 激活 Tab 是本机视图状态，经主进程记录后随投影落库，实现重开恢复激活
             if (key === "activeKey" && typeof value === "string")
-              void invoke("collaboration:set-tab-active", id, collabId, value).catch(() => {});
+              void setCollaborationTabActive(id, collabId, value).catch(() => {});
           },
           uploadResource: async file =>
-            invoke<string>("collaboration:upload-resource", id, {
+            uploadCollaborationResource(id, {
               name: file.name,
               mime: file.type,
               bytes: new Uint8Array(await file.arrayBuffer()),
             }),
           resolveResource: async url =>
             url.startsWith(ASSET_PREFIX)
-              ? invoke<string>("collaboration:resource", id, url.slice(ASSET_PREFIX.length))
+              ? resolveCollaborationResource(id, url.slice(ASSET_PREFIX.length))
               : url,
         };
         setBinding(activeBinding);
@@ -240,7 +239,7 @@ export default function useCollaborationDocument(documentId?: string) {
           !removed && pending.length ? sendUpdates() : Promise.resolve(),
           !removed ? sendPrivateNodes() : Promise.resolve(),
         ])
-          .then(() => invoke("collaboration:unsubscribe", viewId))
+          .then(() => unsubscribeCollaborationDocument(viewId))
           .then(release)
           .catch(() => {
             if (attempts < 30) setTimeout(finish, 1000);
