@@ -1,0 +1,26 @@
+{
+  "name": "@tau/web-server",
+  "version": "0.1.0",
+  "description": "Tau Web Server 骨架：复用 @tau/rpc 中立协议端点与 @tau/contracts 命令契约，为 Web 版提供 /rpc/invoke、/rpc/send 与 /rpc-events 事件通道",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "check": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@tau/contracts": "workspace:*",
+    "@tau/rpc": "workspace:*",
+    "express": "^5.1.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^20.2.1",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.0.4",
+    "vitest": "^3.2.4"
+  }
+}
